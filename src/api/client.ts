@@ -8,6 +8,7 @@
 
 import { API_BASE, RETRY_CONFIG, DEFAULT_GSTIN } from '../config/constants';
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { validateWaMediaSize } from '../lib/wa-media';
 
 // Connection status tracking
 let lastConnectionError: string | null = null;
@@ -575,26 +576,11 @@ export async function uploadMediaForSend ( file: File | Blob, mediaType: string,
 }
 
 /**
- * Meta WhatsApp Cloud API media size limits, by category (bytes).
- * Source: WhatsApp Business Platform "Supported Media Types".
+ * Meta WhatsApp Cloud API media size limits and category classifier live in
+ * src/lib/wa-media.ts (single source of truth). Re-exported here for callers that
+ * import from the api client.
  */
-const WA_MEDIA_LIMITS: Record<'document' | 'image' | 'video' | 'audio' | 'sticker', number> = {
-  document: 100 * 1024 * 1024, // 100 MB
-  image: 5 * 1024 * 1024,      // 5 MB
-  video: 16 * 1024 * 1024,     // 16 MB
-  audio: 16 * 1024 * 1024,     // 16 MB
-  sticker: 500 * 1024,         // 500 KB
-};
-
-/** Resolve a MIME type to its WhatsApp media category for limit lookup. */
-function waMediaCategory ( mime: string ): 'document' | 'image' | 'video' | 'audio' | 'sticker' {
-  const m = ( mime || '' ).toLowerCase();
-  if ( m === 'image/webp' ) return 'sticker';
-  if ( m.startsWith( 'image/' ) ) return 'image';
-  if ( m.startsWith( 'video/' ) ) return 'video';
-  if ( m.startsWith( 'audio/' ) ) return 'audio';
-  return 'document';
-}
+export { WA_MEDIA_LIMITS, waMediaCategory } from '../lib/wa-media';
 
 /**
  * Upload a template-header attachment to the REUSABLE public folder (wa-tpl/) and
@@ -613,13 +599,10 @@ function waMediaCategory ( mime: string ): 'document' | 'image' | 'video' | 'aud
  *    across many template messages without re-uploading to Meta each time.
  */
 export async function uploadReusableHeaderMedia ( file: File | Blob, mediaType: string, filename: string ): Promise<string | null> {
-  const category = waMediaCategory( mediaType );
-  const limit = WA_MEDIA_LIMITS[ category ];
-  if ( file.size > limit )
+  const check = validateWaMediaSize( { size: file.size, type: mediaType, name: filename }, mediaType );
+  if ( !check.ok )
   {
-    const limitMb = limit >= 1024 * 1024 ? `${( limit / ( 1024 * 1024 ) ).toFixed( 0 )}MB` : `${( limit / 1024 ).toFixed( 0 )}KB`;
-    const fileMb = file.size >= 1024 * 1024 ? `${( file.size / ( 1024 * 1024 ) ).toFixed( 1 )}MB` : `${( file.size / 1024 ).toFixed( 0 )}KB`;
-    throw new Error( `${category} file is ${fileMb} — exceeds WhatsApp's ${limitMb} limit for ${category}s. Please use a smaller file.` );
+    throw new Error( check.message );
   }
   const presign = await getMediaUploadUrl( mediaType, filename, { reuse: true } );
   if ( !presign ) return null;
@@ -1732,6 +1715,7 @@ export async function sendWhatsAppTemplateMessage ( request: {
   headerType?: 'image' | 'video' | 'document' | 'location';  // Header format for media/location templates
   headerFilename?: string;    // Filename for document headers
   headerLocation?: { latitude: string; longitude: string; name?: string; address?: string };  // Location header params
+  flowButton?: { index: number; flowToken?: string; flowActionData?: Record<string, any> };  // Flow button component (templates with a FLOW button)
   content?: string;           // Rendered preview text stored for inbox thread display
   campaignId?: string;        // Optional campaign tracking
   campaignName?: string;
@@ -1777,6 +1761,11 @@ export async function sendWhatsAppTemplateMessage ( request: {
   {
     payload.headerType = 'location';
     payload.headerLocation = request.headerLocation;
+  }
+  // Flow button — required when the template has a FLOW button.
+  if ( request.flowButton )
+  {
+    payload.flowButton = request.flowButton;
   }
 
   // Support sending by contactId or recipientPhone (auto-creates contact)

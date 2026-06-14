@@ -16,6 +16,7 @@ import { useConfirm } from '../../../contexts/ConfirmContext';
 import SEO, { PAGE_SEO } from '../../../components/SEO';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
+import { inferMimeFromName, validateWaMediaSize, formatBytes } from '../../../lib/wa-media';
 
 interface PageProps {
   signOut?: () => void;
@@ -71,20 +72,7 @@ const WABA_CONFIG = {
 };
 
 // Infer a WhatsApp-supported MIME type from a filename extension.
-// Browsers sometimes report an empty File.type (e.g. .amr, occasionally .webp/.3gp).
-function inferMimeFromName ( name: string ): string {
-  const ext = ( name.split( '.' ).pop() || '' ).toLowerCase();
-  const map: Record<string, string> = {
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
-    mp4: 'video/mp4', '3gp': 'video/3gpp', '3gpp': 'video/3gpp',
-    aac: 'audio/aac', amr: 'audio/amr', mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', opus: 'audio/ogg',
-    pdf: 'application/pdf', txt: 'text/plain',
-    doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  };
-  return map[ ext ] || 'application/octet-stream';
-}
+// (shared helper lives in src/lib/wa-media.ts — imported above)
 
 // Avatar color palette - consistent per contact
 const AVATAR_COLORS = [
@@ -679,16 +667,10 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
 
       // Validate file size based on type per WhatsApp API docs
       const ftype = file.type || inferMimeFromName( file.name );
-      let maxSize = 5 * 1024 * 1024; // Default 5MB for images
-      if ( ftype.startsWith( 'video/' ) ) maxSize = 16 * 1024 * 1024;
-      else if ( ftype.startsWith( 'audio/' ) ) maxSize = 16 * 1024 * 1024;
-      else if ( ftype === 'image/webp' ) maxSize = 500 * 1024; // sticker
-      else if ( ftype.startsWith( 'application/' ) || ftype === 'text/plain' ) maxSize = 100 * 1024 * 1024;
-
-      if ( file.size > maxSize )
+      const sizeCheck = validateWaMediaSize( { size: file.size, name: file.name, type: ftype }, ftype );
+      if ( !sizeCheck.ok )
       {
-        const maxSizeMB = maxSize / ( 1024 * 1024 );
-        toast.error( `${file.name} too large. Max: ${maxSizeMB >= 1 ? maxSizeMB.toFixed( 0 ) + 'MB' : ( maxSize / 1024 ).toFixed( 0 ) + 'KB'}` );
+        toast.error( `${file.name} too large. Max: ${formatBytes( sizeCheck.limit )}` );
         continue;
       }
       accepted.push( file );

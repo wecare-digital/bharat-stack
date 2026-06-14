@@ -366,6 +366,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Location header support (headerType == 'location').
         # Expects {latitude, longitude, name, address} supplied at send time.
         template_header_location = body.get('headerLocation') or body.get('templateHeaderLocation')
+        # Flow button support: templates with a FLOW button require a button
+        # component (sub_type 'flow') at send time, else Meta rejects with
+        # error 131008/131009. The frontend detects the flow button from the
+        # template definition and passes {index, flowToken?, flowActionData?}.
+        template_flow_button = body.get('flowButton') or body.get('templateFlowButton')
 
         # Interactive payment support (for within 24h window - uses payment_settings)
         is_interactive_payment = body.get('isInteractivePayment', False)
@@ -504,7 +509,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             template_header_media=template_header_media,
             template_header_type=template_header_type,
             template_header_filename=template_header_filename,
-            template_header_location=template_header_location
+            template_header_location=template_header_location,
+            template_flow_button=template_flow_button
         )
         
     except json.JSONDecodeError:
@@ -1376,7 +1382,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                       template_header_media: Optional[str] = None,
                       template_header_type: Optional[str] = None,
                       template_header_filename: Optional[str] = None,
-                      template_header_location: Optional[Dict] = None) -> Dict[str, Any]:
+                      template_header_location: Optional[Dict] = None,
+                      template_flow_button: Optional[Dict] = None) -> Dict[str, Any]:
     """
     Handle LIVE mode - call Meta Graph API (Direct API).
     Requirements: 5.2, 5.5, 5.6, 5.7, 5.8, 5.10, 5.11
@@ -1433,7 +1440,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             template_header_media=resolved_header_media,
             template_header_type=template_header_type,
             template_header_filename=template_header_filename,
-            template_header_location=template_header_location
+            template_header_location=template_header_location,
+            template_flow_button=template_flow_button
         )
         
         logger.info(json.dumps({
@@ -2301,7 +2309,8 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                            template_header_media: Optional[str] = None,
                            template_header_type: Optional[str] = None,
                            template_header_filename: Optional[str] = None,
-                           template_header_location: Optional[Dict] = None) -> Dict[str, Any]:
+                           template_header_location: Optional[Dict] = None,
+                           template_flow_button: Optional[Dict] = None) -> Dict[str, Any]:
     """Build WhatsApp Cloud API message payload. Supports BSUID recipient."""
     # Normalize phone number - WhatsApp API expects digits only without + prefix
     formatted_phone = _normalize_phone_number(recipient_phone) if recipient_phone else ''
@@ -2778,6 +2787,41 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                     'parameters': [{'type': 'text', 'text': str(p)} for p in actual_params]
                 })
         
+        # Flow button component — REQUIRED by Meta when the template contains a
+        # FLOW button, otherwise Meta rejects the send with error 131008/131009
+        # ("specify a flow button component" / "Components sub_type invalid").
+        # The frontend detects the flow button in the template definition and
+        # passes {index, flowToken?, flowActionData?}. NAVIGATE flows default the
+        # token to "unused"; flowActionData is only needed when the target screen
+        # requires input data.
+        if template_flow_button and not is_payment_template and not is_otp_template:
+            try:
+                _fb_index = template_flow_button.get('index', 0)
+                _fb_token = (template_flow_button.get('flowToken')
+                             or template_flow_button.get('flow_token') or 'unused')
+                _fb_action = {'flow_token': str(_fb_token)}
+                _fb_data = (template_flow_button.get('flowActionData')
+                            or template_flow_button.get('flow_action_data'))
+                if _fb_data:
+                    _fb_action['flow_action_data'] = _fb_data
+                payload['template']['components'].append({
+                    'type': 'button',
+                    'sub_type': 'flow',
+                    'index': str(_fb_index),
+                    'parameters': [{'type': 'action', 'action': _fb_action}]
+                })
+                logger.info(json.dumps({
+                    'event': 'template_flow_button_added',
+                    'templateName': template_name,
+                    'index': _fb_index,
+                    'hasActionData': bool(_fb_data),
+                }))
+            except Exception as _fbe:
+                logger.warning(json.dumps({
+                    'event': 'template_flow_button_error',
+                    'error': str(_fbe), 'templateName': template_name,
+                }))
+
         logger.info(json.dumps({
             'event': 'template_payload_built',
             'templateName': template_name,

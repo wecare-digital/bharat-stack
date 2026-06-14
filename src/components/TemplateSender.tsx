@@ -69,6 +69,10 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   const [ locLng, setLocLng ] = useState( '' );
   const [ locName, setLocName ] = useState( '' );
   const [ locAddress, setLocAddress ] = useState( '' );
+  // Flow button: templates with a FLOW button need a button component (sub_type
+  // 'flow') at send time, else Meta rejects (error 131008/131009). We detect the
+  // flow button's index from the template definition and pass it through.
+  const [ flowButtonIndex, setFlowButtonIndex ] = useState<number | null>( null );
   // Address autocomplete (Google Places via backend proxy)
   const [ placeQuery, setPlaceQuery ] = useState( '' );
   const [ placePredictions, setPlacePredictions ] = useState<{ description: string; placeId: string }[]>( [] );
@@ -112,6 +116,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
       setHeaderType( null );
       setHeaderMedia( '' );
       setHeaderFilename( '' );
+      setFlowButtonIndex( null );
       return;
     }
 
@@ -128,6 +133,14 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     {
       setHeaderType( null );
     }
+
+    // Detect a FLOW button — its component must be sent at send time.
+    const buttonsComp = selectedTemplate.components?.find( c => c.type === 'BUTTONS' );
+    const flowIdx = ( buttonsComp as any )?.buttons?.findIndex(
+      ( b: any ) => ( b?.type || '' ).toUpperCase() === 'FLOW'
+    );
+    setFlowButtonIndex( typeof flowIdx === 'number' && flowIdx >= 0 ? flowIdx : null );
+
     setHeaderMedia( '' );
     setHeaderFilename( '' );
     setLocLat( '' );
@@ -369,6 +382,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           headerType: headerType || undefined,
           headerFilename: headerType === 'document' ? ( headerFilename || undefined ) : undefined,
           headerLocation: headerType === 'location' ? { latitude: locLat.trim(), longitude: locLng.trim(), name: locName.trim() || undefined, address: locAddress.trim() || undefined } : undefined,
+          flowButton: flowButtonIndex !== null ? { index: flowButtonIndex } : undefined,
           content: getPreviewText() || undefined,
         } );
         if ( result ) sent++; else { failed++; failedNums.push( row.phone ); }
@@ -500,6 +514,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
             headerType: headerType || undefined,
             headerFilename: headerType === 'document' ? ( headerFilename || undefined ) : undefined,
             headerLocation: headerType === 'location' ? { latitude: locLat.trim(), longitude: locLng.trim(), name: locName.trim() || undefined, address: locAddress.trim() || undefined } : undefined,
+            flowButton: flowButtonIndex !== null ? { index: flowButtonIndex } : undefined,
             content: getPreviewText() || undefined,
           } );
         }
