@@ -73,6 +73,12 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
   // 'flow') at send time, else Meta rejects (error 131008/131009). We detect the
   // flow button's index from the template definition and pass it through.
   const [ flowButtonIndex, setFlowButtonIndex ] = useState<number | null>( null );
+  // Media library (reusable wa-tpl/ files) — search, pick, permanently delete.
+  const [ showLibrary, setShowLibrary ] = useState( false );
+  const [ libraryItems, setLibraryItems ] = useState<any[]>( [] );
+  const [ libraryLoading, setLibraryLoading ] = useState( false );
+  const [ librarySearch, setLibrarySearch ] = useState( '' );
+  const [ libraryDeleting, setLibraryDeleting ] = useState<string | null>( null );
   // Address autocomplete (Google Places via backend proxy)
   const [ placeQuery, setPlaceQuery ] = useState( '' );
   const [ placePredictions, setPlacePredictions ] = useState<{ description: string; placeId: string }[]>( [] );
@@ -271,6 +277,103 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
     : headerType === 'video'
       ? 'video/*'
       : '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf';
+
+  // ── Media library (reusable wa-tpl/ files) ──
+  const loadLibrary = async ( search?: string ) => {
+    if ( !headerType || headerType === 'location' ) return;
+    setLibraryLoading( true );
+    try
+    {
+      const items = await api.listSendMedia( {
+        category: headerType as 'document' | 'image' | 'video',
+        search: search ?? librarySearch,
+      } );
+      setLibraryItems( items );
+    } catch ( err: any )
+    {
+      onError( err?.message || 'Failed to load media library' );
+    } finally
+    {
+      setLibraryLoading( false );
+    }
+  };
+
+  const toggleLibrary = () => {
+    const next = !showLibrary;
+    setShowLibrary( next );
+    if ( next ) loadLibrary( '' );
+  };
+
+  const pickFromLibrary = ( item: any ) => {
+    setHeaderMedia( item.mediaUrl );           // public URL → sent as a reusable link
+    setHeaderFilename( item.filename || '' );
+    setShowLibrary( false );
+  };
+
+  const deleteLibraryItem = async ( item: any ) => {
+    const ok = typeof window !== 'undefined'
+      && window.confirm( `Permanently delete "${item.filename}"?\n\nThis removes the file from storage for everyone. This cannot be undone.` );
+    if ( !ok ) return;
+    setLibraryDeleting( item.s3Key );
+    try
+    {
+      const success = await api.deleteSendMedia( item.s3Key );
+      if ( success )
+      {
+        setLibraryItems( prev => prev.filter( i => i.s3Key !== item.s3Key ) );
+        // If the deleted file was selected, clear it.
+        if ( headerMedia === item.mediaUrl ) { setHeaderMedia( '' ); setHeaderFilename( '' ); }
+      } else
+      {
+        onError( 'Failed to delete media' );
+      }
+    } catch ( err: any )
+    {
+      onError( err?.message || 'Failed to delete media' );
+    } finally
+    {
+      setLibraryDeleting( null );
+    }
+  };
+
+  const formatSize = ( bytes: number ) => bytes >= 1024 * 1024
+    ? `${( bytes / ( 1024 * 1024 ) ).toFixed( 1 )}MB`
+    : `${Math.max( 1, Math.round( bytes / 1024 ) )}KB`;
+
+  // ── CSV helpers (bulk) ──
+  const downloadCsv = ( filename: string, rows: ( string | number )[][] ) => {
+    const csv = rows.map( r => r.map( c => {
+      const s = String( c ?? '' );
+      return /[",\n]/.test( s ) ? `"${s.replace( /"/g, '""' )}"` : s;
+    } ).join( ',' ) ).join( '\r\n' );
+    const blob = new Blob( [ '\uFEFF' + csv ], { type: 'text/csv;charset=utf-8;' } ); // BOM → Excel-friendly
+    const url = URL.createObjectURL( blob );
+    const a = document.createElement( 'a' );
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL( url );
+  };
+
+  // Sample CSV matching the selected template's variable count, ready to fill in.
+  const downloadSampleCsv = () => {
+    const n = variables.length;
+    const header = [ 'phone', ...Array.from( { length: n }, ( _, i ) => `var${i + 1}` ) ];
+    const ex = ( p: string ) => [ p, ...Array.from( { length: n }, ( _, i ) => `value${i + 1}` ) ];
+    downloadCsv(
+      `recipients-sample${selectedTemplate ? '-' + selectedTemplate.name : ''}.csv`,
+      [ header, ex( '+919876543210' ), ex( '+918100640044' ) ]
+    );
+  };
+
+  // Per-recipient results after a bulk run (phone + delivery attempt status).
+  const downloadResultsCsv = () => {
+    if ( bulkRecipients.length === 0 ) return;
+    const failedSet = new Set( bulkFailed );
+    downloadCsv(
+      `bulk-send-results-${new Date().toISOString().slice( 0, 19 ).replace( /[:T]/g, '-' )}.csv`,
+      [ [ 'phone', 'status' ], ...bulkRecipients.map( r => [ r.phone, failedSet.has( r.phone ) ? 'failed' : 'sent' ] ) ]
+    );
+  };
+
 
   // Debounced Google Places autocomplete for location-header templates.
   useEffect( () => {
@@ -620,6 +723,9 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
                     style={ { display: 'none' } }
                   />
                 </label>
+                <button type="button" className="btn btn-secondary btn-sm" style={ { marginLeft: 8 } } onClick={ downloadSampleCsv }>
+                  ⬇ Download sample CSV
+                </button>
                 { bulkRecipients.length > 0 && (
                   <div className="bulk-count">
                     ✓ { bulkRecipients.length } recipient{ bulkRecipients.length > 1 ? 's' : '' } loaded
@@ -629,6 +735,11 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
                 ) }
                 { bulkProgress && (
                   <div className="bulk-progress">Sending… { bulkProgress.sent + bulkProgress.failed } / { bulkProgress.total } ({ bulkProgress.failed } failed)</div>
+                ) }
+                { bulkProgress && bulkProgress.sent + bulkProgress.failed >= bulkProgress.total && bulkRecipients.length > 0 && (
+                  <button type="button" className="btn btn-secondary btn-sm" style={ { marginTop: 8 } } onClick={ downloadResultsCsv }>
+                    ⬇ Download results CSV
+                  </button>
                 ) }
                 { bulkFailed.length > 0 && (
                   <div className="bulk-failed">
@@ -729,6 +840,10 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
                     />
                   </label>
                   <span className="or-sep">or</span>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={ toggleLibrary }>
+                    { showLibrary ? 'Hide library' : '📁 Choose from library' }
+                  </button>
+                  <span className="or-sep">or</span>
                   <input
                     type="url"
                     className="header-url-input"
@@ -737,6 +852,54 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
                     onChange={ ( e ) => { setHeaderMedia( e.target.value ); setHeaderFilename( '' ); } }
                   />
                 </div>
+
+                { showLibrary && (
+                  <div className="media-library" style={ { marginTop: 10, border: '1.5px solid var(--lime)', borderRadius: 12, padding: 12, background: 'var(--bg-secondary)' } }>
+                    <div style={ { display: 'flex', gap: 8, marginBottom: 10 } }>
+                      <input
+                        type="search"
+                        className="header-url-input"
+                        placeholder={ `🔍 Search ${headerType}s…` }
+                        value={ librarySearch }
+                        onChange={ ( e ) => setLibrarySearch( e.target.value ) }
+                        onKeyDown={ ( e ) => { if ( e.key === 'Enter' ) loadLibrary(); } }
+                        style={ { flex: 1 } }
+                      />
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={ () => loadLibrary() } disabled={ libraryLoading }>
+                        { libraryLoading ? '…' : 'Search' }
+                      </button>
+                    </div>
+                    <div style={ { maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 } }>
+                      { libraryLoading && <div style={ { fontSize: 13, color: 'var(--text-muted)', padding: 8 } }>Loading…</div> }
+                      { !libraryLoading && libraryItems.length === 0 && (
+                        <div style={ { fontSize: 13, color: 'var(--text-muted)', padding: 8 } }>No saved { headerType } files yet. Upload one above — it&apos;ll appear here for reuse.</div>
+                      ) }
+                      { libraryItems.map( ( item ) => (
+                        <div key={ item.s3Key } style={ {
+                          display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px',
+                          background: headerMedia === item.mediaUrl ? 'var(--lime)' : '#fff',
+                          border: '1px solid var(--border)', borderRadius: 8,
+                        } }>
+                          <span style={ { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 500 } } title={ item.filename }>
+                            { item.filename }
+                          </span>
+                          <span style={ { fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' } }>{ formatSize( item.sizeBytes ) }</span>
+                          <button type="button" className="btn btn-primary btn-sm" onClick={ () => pickFromLibrary( item ) }>Use</button>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            aria-label={ `Permanently delete ${item.filename}` }
+                            title="Permanently delete"
+                            onClick={ () => deleteLibraryItem( item ) }
+                            disabled={ libraryDeleting === item.s3Key }
+                          >
+                            { libraryDeleting === item.s3Key ? '…' : '🗑' }
+                          </button>
+                        </div>
+                      ) ) }
+                    </div>
+                  </div>
+                ) }
                 { headerMedia && (
                   <div className="header-media-status">
                     ✓ { headerMedia.startsWith( 'http' ) ? 'Using link' : `Attached: ${headerFilename || 'file'}` }

@@ -1557,6 +1557,9 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             payment_reference_id=payment_ref_id,
             payment_amount=payment_amount,
             recipient_bsuid=recipient_bsuid,
+            # Template header media (public link) → shows the attachment in the inbox
+            media_url=(resolved_header_media if (is_template and template_header_media
+                       and str(resolved_header_media or '').startswith('http')) else None),
         )
         
         # Store payment_request record for invoice generator lookup
@@ -3149,7 +3152,7 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
                           media_id: str = None, s3_key: str = None,
                           error_details: Dict = None, phone_number_id: str = None,
                           payment_reference_id: str = None, payment_amount: float = None,
-                          recipient_bsuid: str = None) -> None:
+                          recipient_bsuid: str = None, media_url: str = None) -> None:
     """Store message record in DynamoDB with WABA tracking."""
     now = int(time.time())
     expires_at = now + MESSAGE_TTL_SECONDS
@@ -3157,7 +3160,7 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
     # Guard: don't store messages with empty content (prevents blank inbox entries).
     # Templates are exempt — they carry no free-form content but must still appear
     # in the conversation thread.
-    if not content and not media_id and not s3_key and status != 'failed' and not is_template:
+    if not content and not media_id and not s3_key and not media_url and status != 'failed' and not is_template:
         logger.warning(json.dumps({
             'event': 'empty_content_skipped',
             'messageId': message_id,
@@ -3170,10 +3173,12 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
     if is_template and not content:
         content = '[Template message]'
     
-    # Determine messageType: image/video/audio/document if media present, else template/text
-    if media_id or s3_key:
-        # Infer media type from s3_key extension
-        ext = (s3_key or '').rsplit('.', 1)[-1].lower() if s3_key else ''
+    # Determine messageType: image/video/audio/document if media present, else template/text.
+    # media_url covers template header media (a public link) so sent attachments
+    # render in the inbox thread, not just a generic "template" label.
+    _media_ref = s3_key or media_url or ''
+    if media_id or s3_key or media_url:
+        ext = _media_ref.rsplit('.', 1)[-1].lower().split('?')[0] if '.' in _media_ref else ''
         if ext in ('jpg', 'jpeg', 'png', 'gif', 'bmp'):
             msg_type = 'image'
         elif ext in ('mp4', '3gp', '3gpp', 'mov'):
@@ -3182,6 +3187,10 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
             msg_type = 'audio'
         elif ext == 'webp':
             msg_type = 'sticker'
+        elif ext in ('pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'):
+            msg_type = 'document'
+        elif is_template:
+            msg_type = 'template'
         else:
             msg_type = 'document'
     elif is_template:
@@ -3202,6 +3211,7 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
         'whatsappMessageId': whatsapp_message_id,
         'mediaId': media_id,
         's3Key': s3_key,
+        'mediaUrl': media_url,
         'errorDetails': json.dumps(error_details) if error_details else None,
         # WABA tracking - which phone number sent this message
         'awsPhoneNumberId': phone_number_id,

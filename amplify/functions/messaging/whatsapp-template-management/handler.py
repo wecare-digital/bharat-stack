@@ -166,8 +166,10 @@ def handler(event, context):
         if http_method == 'GET':
             if '/templates/library' in path:
                 return _list_template_library(waba_id, query_params)
+            if '/templates/send-media' in path:
+                return _list_send_media(query_params)
             template_id = _extract_path_param(path, '/templates/')
-            if template_id and template_id not in ('library', 'analytics', 'carousel', 'carousel-media', 'media', 'from-library'):
+            if template_id and template_id not in ('library', 'analytics', 'carousel', 'carousel-media', 'media', 'from-library', 'send-media'):
                 return _get_template_details(waba_id, template_id, query_params)
             return _list_templates(waba_id, query_params)
 
@@ -188,6 +190,8 @@ def handler(event, context):
             return _update_template(waba_id, body, query_params, path)
 
         elif http_method == 'DELETE':
+            if '/templates/send-media' in path:
+                return _delete_send_media(query_params, body)
             return _delete_template(waba_id, query_params.get('templateName', ''), query_params)
 
         return _error_response(400, 'Invalid request')
@@ -500,6 +504,114 @@ def _upload_send_media(body):
         }
     except Exception as e:
         logger.error(json.dumps({'event': 'send_media_upload_error', 'error': str(e)}))
+        return _error_response(500, str(e))
+
+
+def _list_send_media(query_params):
+    """List reusable template-send media in the public wa-tpl/ folder.
+
+    Query params:
+        folder: optional — one of docs/img/vid/aud/stk to filter by type
+        category: optional — document/image/video/audio/sticker (mapped to folder)
+        search: optional — case-insensitive filename substring filter
+
+    Returns: { items: [{ s3Key, mediaUrl, filename, folder, category, sizeBytes, lastModified }], count }
+    """
+    try:
+        folder = (query_params.get('folder') or '').strip().lower()
+        category = (query_params.get('category') or '').strip().lower()
+        search = (query_params.get('search') or '').strip().lower()
+
+        cat_to_folder = {'document': 'docs', 'image': 'img', 'video': 'vid', 'audio': 'aud', 'sticker': 'stk'}
+        if not folder and category in cat_to_folder:
+            folder = cat_to_folder[category]
+
+        folder_to_cat = {'docs': 'document', 'img': 'image', 'vid': 'video', 'aud': 'audio', 'stk': 'sticker'}
+        prefixes = [f'{PUBLIC_MEDIA_PREFIX}{folder}/'] if folder in folder_to_cat else [PUBLIC_MEDIA_PREFIX]
+
+        items = []
+        for prefix in prefixes:
+            token = None
+            while True:
+                kwargs = {'Bucket': MEDIA_BUCKET, 'Prefix': prefix, 'MaxKeys': 1000}
+                if token:
+                    kwargs['ContinuationToken'] = token
+                resp = s3.list_objects_v2(**kwargs)
+                for obj in resp.get('Contents', []):
+                    key = obj['Key']
+                    if key.endswith('/'):
+                        continue
+                    parts = key.split('/')
+                    fld = parts[2] if len(parts) > 2 else ''
+                    raw_name = parts[-1]
+                    # Strip the wecare-digital-{8hex}_ prefix for display
+                    display = raw_name
+                    if display.startswith('wecare-digital-'):
+                        rest = display[len('wecare-digital-'):]
+                        if '_' in rest:
+                            display = rest.split('_', 1)[1]
+                        elif '.' in rest and len(rest.split('.', 1)[0]) <= 12:
+                            display = rest  # generated name, keep as-is
+                    fname_l = raw_name.lower()
+                    if search and search not in fname_l and search not in display.lower():
+                        continue
+                    items.append({
+                        's3Key': key,
+                        'mediaUrl': f'https://{CDN_DOMAIN}/{key}',
+                        'filename': display,
+                        'folder': fld,
+                        'category': folder_to_cat.get(fld, 'document'),
+                        'sizeBytes': int(obj.get('Size', 0)),
+                        'lastModified': obj['LastModified'].isoformat() if obj.get('LastModified') else None,
+                    })
+                if resp.get('IsTruncated'):
+                    token = resp.get('NextContinuationToken')
+                else:
+                    break
+
+        # Newest first
+        items.sort(key=lambda x: x.get('lastModified') or '', reverse=True)
+
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({'items': items, 'count': len(items)})
+        }
+    except Exception as e:
+        logger.error(json.dumps({'event': 'send_media_list_error', 'error': str(e)}))
+        return _error_response(500, str(e))
+
+
+def _delete_send_media(query_params, body=None):
+    """Permanently delete a reusable template-send media file from wa-tpl/.
+
+    Accepts s3Key via query param or body. For safety the key MUST be under the
+    public template-media prefix — no other bucket paths can be deleted here.
+    """
+    try:
+        s3_key = (query_params.get('s3Key') or '').strip()
+        if not s3_key and body:
+            s3_key = (body.get('s3Key') or '').strip()
+        # Allow passing a full CDN URL — normalise to the S3 key
+        if s3_key.startswith('http'):
+            s3_key = s3_key.split(f'{CDN_DOMAIN}/', 1)[-1]
+        s3_key = s3_key.lstrip('/')
+
+        if not s3_key:
+            return _error_response(400, 's3Key (or mediaUrl) required')
+        # Safety guard: only allow deleting within the public template-media folder
+        if not s3_key.startswith(PUBLIC_MEDIA_PREFIX):
+            return _error_response(403, f'Refusing to delete outside {PUBLIC_MEDIA_PREFIX}')
+
+        s3.delete_object(Bucket=MEDIA_BUCKET, Key=s3_key)
+        logger.info(json.dumps({'event': 'send_media_deleted', 's3Key': s3_key}))
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({'success': True, 's3Key': s3_key, 'message': 'Media permanently deleted'})
+        }
+    except Exception as e:
+        logger.error(json.dumps({'event': 'send_media_delete_error', 'error': str(e)}))
         return _error_response(500, str(e))
 
 

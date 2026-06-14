@@ -2346,6 +2346,39 @@ export async function uploadSendMedia ( request: {
   } );
 }
 
+/** A reusable template-send media file stored in the public wa-tpl/ library. */
+export interface SendMediaItem {
+  s3Key: string;
+  mediaUrl: string;
+  filename: string;
+  folder: 'docs' | 'img' | 'vid' | 'aud' | 'stk';
+  category: 'document' | 'image' | 'video' | 'audio' | 'sticker';
+  sizeBytes: number;
+  lastModified: string | null;
+}
+
+/** List reusable template-send media. Optionally filter by category or search text. */
+export async function listSendMedia ( opts?: { category?: SendMediaItem[ 'category' ]; search?: string } ): Promise<SendMediaItem[]> {
+  const qs = new URLSearchParams();
+  if ( opts?.category ) qs.set( 'category', opts.category );
+  if ( opts?.search ) qs.set( 'search', opts.search );
+  const q = qs.toString();
+  const data = await apiCall<{ items: SendMediaItem[] }>(
+    `${API_BASE}/whatsapp/templates/send-media${q ? '?' + q : ''}`,
+    { method: 'GET' }
+  );
+  return data?.items || [];
+}
+
+/** Permanently delete a reusable template-send media file from the wa-tpl/ library. */
+export async function deleteSendMedia ( s3KeyOrUrl: string ): Promise<boolean> {
+  const data = await apiCall<any>(
+    `${API_BASE}/whatsapp/templates/send-media?s3Key=${encodeURIComponent( s3KeyOrUrl )}`,
+    { method: 'DELETE' }
+  );
+  return data !== null && ( data.success === true || !data.error );
+}
+
 /** Helper: convert a File/Blob to base64 string (without data: prefix) */
 export function fileToBase64 ( file: File | Blob ): Promise<string> {
   return new Promise( ( resolve, reject ) => {
