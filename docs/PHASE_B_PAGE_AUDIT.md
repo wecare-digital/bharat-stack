@@ -467,3 +467,52 @@ Table rename ("Message*" instead of "WhatsApp*") is cosmetic — keep names to a
 | **Token migration** (heavy WA pages) | **None** | **None** | low (frontend CSS only) |
 
 **Net infra delta across all four:** **+1 Lambda** (`wecare-tasks`), **+1 table** (`TasksTable`), dual-write edits to 4 existing channel Lambdas. No deletions of Lambdas/tables. The 4 AI Lambdas + Bedrock already exist — AI features reuse them via the `/ai/assist` gateway.
+
+---
+
+## 11. Complete backend inventory (deep-scanned)
+
+### 11.1 Lambda functions — 49 total
+- **AI (4):** `ai-generate-response` · `ai-query-kb` · `ai-config-management` · `agent-action-group`
+- **Core (7):** `auth-middleware` · `contacts` · `faq-handler` · `messages-read` · `messages-delete` · `service-api` · `url-shortener`
+- **Ecommerce (3):** `wix-store` · `catalog-management` · `product-image-gen`
+- **Messaging (24):** `inbound-whatsapp-handler` · `outbound-whatsapp` · `whatsapp-business-api` · `whatsapp-template-management` · `whatsapp-templates` · `whatsapp-calling` · `whatsapp-voice` · `waba-management` · `meta-analytics` · `template-analytics` · `media-cleanup` · `ad-attribution` · `scheduled-messages` · `push-notifications` · `outbound-email` · `outbound-sms` · `sms-aws` · `sms-in` · `rcs-send` · `rcs-dlr` · `outbound-voice` · `voice-aws` · `voice-in` · `voice-cdr-read`
+- **Operations (7):** `bulk-job-create` · `bulk-job-control` · `bulk-worker` · `dlq-replay` · `sla-engine` · `billing` · `system-cleanup`
+- **Payments (4):** `invoice-engine` · `payments-read` · `razorpay-webhook` · `payu-webhook`
+
+**Why the 4 AI Lambdas stay (verified by callers):**
+| Lambda | Used by (live) | Verdict |
+|---|---|---|
+| `ai-generate-response` (/ai/generate) | FloatingAgent, InternalChatTab, dashboard, inbound subscribe/payment + multimodal | KEEP (core) |
+| `ai-config-management` (/ai/internal/config, /ai/botflow, /ai/prompts, /ai/config) | dashboard internal-agent config + botflow editor | KEEP (dual-purpose) |
+| `ai-query-kb` (/ai/query) | inbound KB-grounded answers; basis for AI FAQ/assist | KEEP |
+| `agent-action-group` | Bedrock Agent action handler | KEEP (foundation for agentic copilot) |
+
+**Backend consolidation candidates (separate from page work — flag only):**
+`whatsapp-templates` vs `whatsapp-template-management` (overlap) · `outbound-sms`/`sms-aws`/`sms-in` (Airtel vs AWS vs inbound) · `outbound-voice`/`voice-aws`/`voice-in`/`voice-cdr-read` (Airtel OBD vs AWS vs CDR). Review before merging — they may split by provider on purpose.
+
+### 11.2 Tables — ~58 models (`amplify/data/resource.ts`)
+- **Core/ops:** Contact · Message · User · MediaFile · DLQMessage · AuditLog · RateLimitTracker · SystemConfig · WebhookDedup · SystemEvent · AdminActionLog
+- **WhatsApp:** WhatsAppInbound · WhatsAppOutbound · WhatsAppVoice · WhatsAppCalling · WhatsAppGroup · TemplateAnalytics · FlowRegistry · FlowSubmission · FlowDraft · FlowLog · SubmitRequest
+- **AI:** AIInteraction · ConversationHistory
+- **Other channels:** SmsAws · AirtelSMS · DLTTemplates · RcsMessages · VoiceAws · VoiceCall · VoiceCDR · OBDCampaign · AirtelC2C · ScheduledMessage
+- **Service Ops:** Order · Appointment · RxSlot · Document · EnterpriseAssist · Review · Faq · RequestStatusHistory · DocumentHistory · AmendmentHistory
+- **Commerce:** WixProductsCache · WixOrdersCache · WixOrderId · CatalogCache · AdClickAttribution
+- **Payments:** Payment · Invoice · InvoiceItem · InvoiceAsset · InvoiceDeliveryLog · InvoiceSequence · RazorpayWebhookLog · PayUWebhookLog
+- **Bulk:** BulkJob · BulkRecipient
+
+> Note: `WhatsAppInbound/Outbound` are the **generic message tables** (see §8) — the unified-inbox target. `SmsAws`/`VoiceAws`/`RcsMessages`/`Message` are the per-channel stores to dual-write from.
+
+### 11.3 Voice recorder vs WhatsApp Calling — NOT related
+- `[waId].tsx` has a browser **MediaRecorder** that records a **voice NOTE** and sends it as an `audio/ogg` message — an agent-convenience feature.
+- `whatsapp-calling` (IVR) uses **server-side Amazon Polly TTS** to generate an OGG/MP3 greeting and sends it as a WhatsApp audio message during a call. No browser recorder involved.
+- So deleting `[waId].tsx` does **not** affect calling. Porting its recorder to the inbox is **optional** (the inbox already supports audio file upload + Polly TTS).
+
+### 11.4 Design changes planned (Phase B)
+1. **Tokens everywhere:** migrate hardcoded hex → `design-tokens.ts`/`var(--token)` (tracked by hex count in §3).
+2. **Shared components:** standardize on `Button`, `Table`, `Modal`, `Pagination`, `EmptyState`, `Spinner`, `Tabs`, `PageShell`, `status-pill`, `InfoTooltip` (built this session).
+3. **Hubs via `PageShell`:** Service Operations, Email, RCS, SEO, Link, Forms (collapse scattered routes into tabs).
+4. **Unified Inbox** with channel filter + per-message channel badge (dual-write backend).
+5. **Accessibility/mobile:** `:focus-visible`, 44px tap targets, safe-area insets, reduced-motion (in `tokens.css` v4).
+6. **AI surfacing:** one `/ai/assist` gateway used by inbox/templates/orders/task (reuses existing AI Lambdas).
+7. **Guard:** `check-hardcoded-colors` script to prevent regressions.
