@@ -13,6 +13,8 @@ import Link from 'next/link';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import InteractiveMessageComposer from '../../../components/InteractiveMessageComposer';
+import ContactMessageComposer from '../../../components/ContactMessageComposer';
+import LocationSendComposer from '../../../components/LocationSendComposer';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { colors, shadow } from '../../../lib/design-tokens';
@@ -79,7 +81,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ aiSuggesting, setAiSuggesting ] = useState( false );
     const [ showEmoji, setShowEmoji ] = useState( false );
     const [ uploading, setUploading ] = useState( false );
-    const [ showInteractive, setShowInteractive ] = useState( false );
+    const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location'>( null );
     const fileRef = useRef<HTMLInputElement | null>( null );
 
     const loadData = useCallback( async () => {
@@ -306,6 +308,37 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         finally { setUploading( false ); }
     }, [ replyChannel, replyTarget, replyText, selectedWaba, toast, loadData ] );
 
+    const handleVoice = useCallback( async () => {
+        const text = replyText.trim();
+        if ( !text || sending ) return;
+        const { contactId } = replyTarget;
+        if ( !contactId ) { toast.error( 'Voice note needs a saved contact' ); return; }
+        setSending( true );
+        try
+        {
+            const r = await api.sendWhatsAppTTS( { contactId, messageText: text, phoneNumberId: selectedWaba } );
+            if ( r ) { setReplyText( '' ); toast.success( 'Voice note sent' ); setTimeout( loadData, 800 ); }
+            else toast.error( 'Voice note failed' );
+        } catch { toast.error( 'Voice note failed' ); }
+        finally { setSending( false ); }
+    }, [ replyText, sending, replyTarget, selectedWaba, toast, loadData ] );
+
+    const handleVoice = useCallback( async () => {
+        if ( replyChannel !== 'whatsapp' ) { toast.error( 'Voice notes are WhatsApp-only' ); return; }
+        const text = replyText.trim();
+        if ( !text ) { toast.error( 'Type the message to convert to a voice note' ); return; }
+        const { contactId } = replyTarget;
+        if ( !contactId ) { toast.error( 'Voice note needs a saved contact' ); return; }
+        setSending( true );
+        try
+        {
+            const r = await api.sendWhatsAppTTS( { contactId, messageText: text, phoneNumberId: selectedWaba } );
+            if ( r ) { setReplyText( '' ); toast.success( 'Voice note sent' ); setTimeout( loadData, 800 ); }
+            else toast.error( 'Voice note failed' );
+        } catch { toast.error( 'Voice note failed' ); }
+        finally { setSending( false ); }
+    }, [ replyChannel, replyText, replyTarget, selectedWaba, toast, loadData ] );
+
     const content = (
         <>
             <div className="ui-wrap">
@@ -443,8 +476,13 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                 <span className="ui-fmt-hint">Enter to send · Shift+Enter newline · *bold* _italic_ ~strike~</span>
                                                 <button type="button" className="ui-tool-btn" onClick={ () => setShowEmoji( s => !s ) } title="Emoji">😊</button>
                                                 <button type="button" className="ui-tool-btn" disabled={ uploading } onClick={ () => fileRef.current?.click() } title="Attach image / document / video / audio">{ uploading ? '⏳' : '📎' }</button>
-                                                { replyChannel === 'whatsapp' && (
-                                                    <button type="button" className="ui-tool-btn" disabled={ !replyTarget.contactId } onClick={ () => setShowInteractive( true ) } title="Interactive list / buttons / location / CTA">≡</button>
+                                                { replyChannel === 'whatsapp' && replyTarget.contactId && (
+                                                    <>
+                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'interactive' ) } title="Interactive: list / buttons / CTA / flow">≡</button>
+                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'location' ) } title="Send location">📍</button>
+                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'contact' ) } title="Send contact card">👤</button>
+                                                        <button type="button" className="ui-tool-btn" disabled={ sending || !replyText.trim() } onClick={ handleVoice } title="Send as voice note (TTS)">🎤</button>
+                                                    </>
                                                 ) }
                                                 <button className="ui-ai-btn" disabled={ aiSuggesting } onClick={ handleSuggest } title="AI suggest reply">{ aiSuggesting ? '✨…' : '✨ Suggest' }</button>
                                                 <button className="ui-reply-btn" disabled={ sending || !replyText.trim() } onClick={ handleReply }>{ sending ? 'Sending…' : 'Send' }</button>
@@ -459,16 +497,27 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                 </div>
             </div>
 
-            { showInteractive && replyTarget.contactId && (
-                <div className="ui-modal-backdrop" onClick={ () => setShowInteractive( false ) }>
+            { composer && replyTarget.contactId && (
+                <div className="ui-modal-backdrop" onClick={ () => setComposer( null ) }>
                     <div className="ui-modal" onClick={ e => e.stopPropagation() }>
-                        <InteractiveMessageComposer
-                            contactId={ replyTarget.contactId }
-                            phoneNumberId={ selectedWaba }
-                            onClose={ () => setShowInteractive( false ) }
-                            onSent={ () => { setShowInteractive( false ); toast.success( 'Interactive message sent' ); setTimeout( loadData, 800 ); } }
-                            onError={ ( m: string ) => toast.error( m ) }
-                        />
+                        { composer === 'interactive' && (
+                            <InteractiveMessageComposer contactId={ replyTarget.contactId } phoneNumberId={ selectedWaba }
+                                onClose={ () => setComposer( null ) }
+                                onSent={ () => { setComposer( null ); toast.success( 'Interactive message sent' ); setTimeout( loadData, 800 ); } }
+                                onError={ ( m: string ) => toast.error( m ) } />
+                        ) }
+                        { composer === 'location' && (
+                            <LocationSendComposer contactId={ replyTarget.contactId } phoneNumberId={ selectedWaba }
+                                onClose={ () => setComposer( null ) }
+                                onSent={ () => { setComposer( null ); toast.success( 'Location sent' ); setTimeout( loadData, 800 ); } }
+                                onError={ ( m: string ) => toast.error( m ) } />
+                        ) }
+                        { composer === 'contact' && (
+                            <ContactMessageComposer contactId={ replyTarget.contactId } phoneNumberId={ selectedWaba }
+                                onClose={ () => setComposer( null ) }
+                                onSent={ () => { setComposer( null ); toast.success( 'Contact card sent' ); setTimeout( loadData, 800 ); } }
+                                onError={ ( m: string ) => toast.error( m ) } />
+                        ) }
                     </div>
                 </div>
             ) }
