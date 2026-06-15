@@ -76,6 +76,7 @@ from decimal import Decimal
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.message_store import put_message  # canonical MessagesTable writer
 
 logger = get_logger(__name__)
 
@@ -91,6 +92,7 @@ secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 # Sender: WDBEEP | Entity: 1201161991108627443
 AIRTEL_SMS_TABLE = os.environ.get('AIRTEL_SMS_TABLE', 'stack-wecare-digital-AirtelSMSTable')
 DLT_TEMPLATES_TABLE = os.environ.get('DLT_TEMPLATES_TABLE', 'stack-wecare-digital-DLTTemplates')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 AIRTEL_SMS_SECRET_NAME = os.environ.get('AIRTEL_SMS_SECRET_NAME', 'wecare/airtel/sms')
 AIRTEL_SMS_HOST = 'iqmessaging.airtel.in'
@@ -290,6 +292,23 @@ def _handle_dlr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
         )
     except Exception as e:
         logger.warning(f"DLR update failed for {message_id}: {e}")
+
+    # Mirror the status onto the canonical MessagesTable row (same messageId = id).
+    # Guarded — never breaks DLR processing.
+    try:
+        dynamodb.Table(MESSAGES_TABLE).update_item(
+            Key={'id': message_id},
+            UpdateExpression='SET #s = :status, errorCode = :ec, updatedAt = :now',
+            ConditionExpression='attribute_exists(id)',
+            ExpressionAttributeNames={'#s': 'status'},
+            ExpressionAttributeValues={
+                ':status': (status or '').lower(),
+                ':ec': error_code or '',
+                ':now': Decimal(str(int(time.time()))),
+            },
+        )
+    except Exception as e:
+        logger.debug(f"MessagesTable DLR mirror skipped for {message_id}: {e}")
 
     return _response(200, {'success': True, 'message': 'DLR received'})
 
@@ -852,6 +871,20 @@ def _store_message(message_id: str, phone: str, content: str, status: str,
         table.put_item(Item=item)
     except Exception as e:
         logger.error(f"Store message error: {str(e)}")
+
+    # Unified Inbox dual-write — mirror to the canonical MessagesTable (channel=sms).
+    # Guarded inside put_message; never breaks the Airtel send/store above.
+    put_message(
+        channel='sms',
+        direction='outbound',
+        contact_id='',
+        content=content or '',
+        status=(status or 'sent').lower(),
+        message_id=message_id,
+        message_type='text',
+        receiving_phone=phone,
+        provider_message_id=provider_msg_id or None,
+    )
 
 
 def _normalize_message(item: Dict) -> Dict:

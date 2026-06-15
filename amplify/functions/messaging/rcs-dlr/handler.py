@@ -26,11 +26,13 @@ from decimal import Decimal
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
+from lambda_utils.message_store import put_message  # canonical MessagesTable writer
 
 logger = get_logger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 
 # Sinch RCS status mapping
@@ -167,6 +169,18 @@ def _process_delivery(data: Dict, request_id: str):
     except Exception as e:
         logger.warning(f'RCS table update failed (may not exist yet): {e}')
 
+    # Mirror status onto the canonical MessagesTable (same messageId = id). Guarded.
+    try:
+        dynamodb.Table(MESSAGES_TABLE).update_item(
+            Key={'id': message_id},
+            UpdateExpression='SET #s = :status, updatedAt = :now',
+            ConditionExpression='attribute_exists(id)',
+            ExpressionAttributeNames={'#s': 'status'},
+            ExpressionAttributeValues={':status': status, ':now': now},
+        )
+    except Exception as e:
+        logger.debug(f'MessagesTable RCS DLR mirror skipped for {message_id}: {e}')
+
 
 def _process_inbound(data: Dict, request_id: str):
     """Process inbound RCS message and store in DB.
@@ -293,6 +307,19 @@ def _process_inbound(data: Dict, request_id: str):
         logger.info(f'Inbound RCS stored: {msg_id} from {identity[-4:] if identity else "?"}')
     except Exception as e:
         logger.warning(f'Failed to store inbound RCS: {e}')
+
+    # Unified Inbox dual-write — mirror inbound RCS to the canonical MessagesTable.
+    put_message(
+        channel='rcs',
+        direction='inbound',
+        contact_id=contact_id or '',
+        content=content[:2000],
+        status='received',
+        message_id=msg_id,
+        message_type='text',
+        sender_phone=identity.replace('+', '') if identity else None,
+        timestamp=now,
+    )
 
 
 def _process_opt(data: Dict, event_type: str, request_id: str):

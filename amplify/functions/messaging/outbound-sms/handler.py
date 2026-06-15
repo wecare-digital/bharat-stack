@@ -29,6 +29,7 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 
 # Configure logging
 from lambda_utils.logging import get_logger
+from lambda_utils.message_store import put_message  # canonical MessagesTable writer
 
 logger = get_logger(__name__)
 
@@ -614,39 +615,26 @@ def _send_airtel_sms(phone: str, content: str, request_id: str) -> Dict[str, Any
 def _store_message(message_id: str, contact_id: str, content: str, status: str, 
                    error: str = None, provider_message_id: str = None,
                    extra_data: Dict = None) -> None:
-    """Store message record in DynamoDB."""
-    try:
-        now = int(time.time())
-        table = dynamodb.Table(MESSAGES_TABLE)
-        
-        item = {
-            'messageId': message_id,
-            'contactId': contact_id,
-            'channel': 'SMS',
-            'direction': 'OUTBOUND',
-            'content': content,
-            'status': status,
-            'timestamp': Decimal(str(now)),
-            'createdAt': Decimal(str(now)),
-            'expiresAt': Decimal(str(now + MESSAGE_TTL_SECONDS)),
-        }
-        
-        if error:
-            item['errorDetails'] = error
-        if provider_message_id:
-            item['providerMessageId'] = provider_message_id
-            item['messageRequestId'] = provider_message_id
-        
-        # Add extra data (provider, messageType, dltTemplateId, etc.)
-        if extra_data:
-            for key, value in extra_data.items():
-                if value:  # Only add non-empty values
-                    item[key] = value
-        
-        table.put_item(Item=item)
-        
-    except Exception as e:
-        logger.error(f"Store message error: {str(e)}")
+    """Store SMS record in the canonical MessagesTable via the shared writer.
+    Fixes prior issues: ensures the `id` PK, lowercase channel, and sparse contactId
+    (the GSI key) so the row actually persists."""
+    extras = {}
+    if extra_data:
+        for key, value in extra_data.items():
+            if value:
+                extras[key] = value
+    put_message(
+        channel='sms',
+        direction='outbound',
+        contact_id=contact_id or '',
+        content=content or '',
+        status=(status or 'sent').lower(),
+        message_id=message_id,
+        message_type=extras.pop('messageType', 'text'),
+        provider_message_id=provider_message_id or None,
+        error_details=error or None,
+        **extras,
+    )
 
 
 def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, Any]:
