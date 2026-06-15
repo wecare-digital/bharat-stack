@@ -15,15 +15,25 @@ import { colors } from '../../../lib/design-tokens';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
-type Channel = 'whatsapp' | 'sms' | 'rcs' | 'email';
+type Channel = 'auto' | 'whatsapp' | 'sms' | 'rcs' | 'email';
 const CH_META: Record<Channel, { label: string; fg: string; bg: string }> = {
+    auto: { label: 'Auto (best channel)', fg: '#1a3a2a', bg: '#ecfccb' },
     whatsapp: { label: 'WhatsApp', fg: '#15803d', bg: '#f0fdf4' },
     sms: { label: 'SMS', fg: '#1d4ed8', bg: '#eff6ff' },
     rcs: { label: 'RCS', fg: '#0f766e', bg: '#f0fdfa' },
     email: { label: 'Email', fg: '#b45309', bg: '#fffbeb' },
 };
 
+// Smart routing: pick the highest-priority channel a contact is reachable on.
+const pickChannel = ( c: api.Contact ): Exclude<Channel, 'auto' | 'whatsapp'> | null => {
+    if ( c.phone && ( c.optInSms || c.allowlistSms ) ) return 'sms';
+    if ( c.phone ) return 'rcs';
+    if ( c.email && ( c.optInEmail || c.allowlistEmail ) ) return 'email';
+    return null;
+};
+
 const eligible = ( c: api.Contact, ch: Channel ): boolean => {
+    if ( ch === 'auto' ) return !!c.phone || !!c.email;
     if ( ch === 'email' ) return !!c.email && ( c.optInEmail || c.allowlistEmail );
     if ( ch === 'sms' ) return !!c.phone && ( c.optInSms || c.allowlistSms );
     if ( ch === 'whatsapp' ) return !!c.phone && ( c.optInWhatsApp || c.allowlistWhatsApp );
@@ -68,6 +78,15 @@ const BroadcastPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                 !!content.trim()
     );
 
+    // Send free text to one contact on a specific (non-WhatsApp) channel.
+    const sendOne = useCallback( async ( c: api.Contact, ch: string ): Promise<boolean> => {
+        if ( ch === 'sms' ) { const r = await api.sendSmsAws( { contactId: c.contactId, phoneNumber: c.phone, content, messageType: smsType } ); return !!( r && ( r.messageId || r.status === 'sent' ) ); }
+        if ( ch === 'rcs' ) { const r = await api.sendRcs( { phoneNumber: c.phone, text: content } ); return !!( r && ( r.success || r.messageId ) ); }
+        if ( ch === 'email' ) { const r = await api.sendEmailMessage( c.contactId, subject || 'Message from WECARE.DIGITAL', content ); return !!r; }
+        if ( ch === 'whatsapp' ) { const r = await api.sendWhatsAppTemplateMessage( { contactId: c.contactId, templateName } ); return !!r; }
+        return false;
+    }, [ content, smsType, subject, templateName ] );
+
     const send = useCallback( async () => {
         const targets = contacts.filter( c => selected.has( c.contactId ) );
         if ( !targets.length ) return;
@@ -79,24 +98,8 @@ const BroadcastPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             const c = targets[ i ];
             try
             {
-                let ok = false;
-                if ( channel === 'whatsapp' )
-                {
-                    const r = await api.sendWhatsAppTemplateMessage( { contactId: c.contactId, templateName } );
-                    ok = !!r;
-                } else if ( channel === 'sms' )
-                {
-                    const r = await api.sendSmsAws( { contactId: c.contactId, phoneNumber: c.phone, content, messageType: smsType } );
-                    ok = !!( r && ( r.messageId || r.status === 'sent' ) );
-                } else if ( channel === 'rcs' )
-                {
-                    const r = await api.sendRcs( { phoneNumber: c.phone, text: content } );
-                    ok = !!( r && ( r.success || r.messageId ) );
-                } else if ( channel === 'email' )
-                {
-                    const r = await api.sendEmailMessage( c.contactId, subject, content );
-                    ok = !!r;
-                }
+                const useCh = channel === 'auto' ? pickChannel( c ) : channel;
+                const ok = useCh ? await sendOne( c, useCh ) : false;
                 ok ? sent++ : failed++;
             } catch { failed++; }
             setProgress( { sent, failed, total: targets.length } );
@@ -104,7 +107,7 @@ const BroadcastPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         }
         setSending( false );
         toast[ failed === 0 ? 'success' : 'warning' ]( `Broadcast done — ${sent} sent, ${failed} failed` );
-    }, [ contacts, selected, channel, templateName, content, subject, smsType, toast ] );
+    }, [ contacts, selected, channel, sendOne, toast ] );
 
     const content_ = (
         <>
