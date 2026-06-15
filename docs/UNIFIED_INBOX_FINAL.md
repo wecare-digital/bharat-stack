@@ -95,22 +95,20 @@ beyond `messages-read`:
 5. ✅ Payment `payment_request` + `payment` records dual-write to canonical (dashboard payments read canonical).
 6. ✅ Fixed: `message_store` uses dedicated `UNIFIED_MESSAGES_TABLE` env (was hijacked by handlers reusing `MESSAGES_TABLE`).
 
-### Phase 4 — IN PROGRESS (dual-write stopped; soak before delete)
+### Phase 4 — COMPLETE ✅ (SmsAws + RcsMessages deleted)
 
-**Done ✅ (Phase 4a):** `sms-aws`, `rcs-send`, `rcs-dlr` now write **only** to the canonical
-table. `SmsAwsTable` + `RcsMessagesTable` are **write-free** (no new data), retained read-only
-as a safety reference during the soak. All their readers already query canonical.
+- **Phase 4a:** `sms-aws`, `rcs-send`, `rcs-dlr` write only to canonical (legacy writes removed).
+- **Phase 4b:** `SmsAwsTable` (0 items) + `RcsMessagesTable` (429 items) **backed up to JSON**
+  (`backups/`) then **deleted**. Verified post-deletion: unified read ALL=474 (RCS 430, Voice 13,
+  WhatsApp 19, SMS 12), SMS list=12, RCS list=50 — all served from canonical, nothing broke.
+- Backups: `backups/stack-wecare-digital-{SmsAwsTable,RcsMessagesTable}.backup.json`.
 
-**Soak (now):** monitor the canonical table for parity/health while the legacy SMS/RCS tables
-sit idle. No code reads or writes them.
+**`WhatsAppInbound/Outbound` — KEPT** as WhatsApp's specialized operational store (template
+analytics, invoicing, bulk, ad-attribution). Unified inbox reads WhatsApp from canonical.
 
-**Final step (pending — irreversible):** after the soak, delete `SmsAwsTable` +
-`RcsMessagesTable` (+ remove their now-dead env vars). A ready-to-run delete script can be added
-when you decide to pull the trigger.
-
-**`WhatsAppInbound/Outbound` — KEEP** as WhatsApp's specialized operational store (template
-analytics, invoicing, bulk, ad-attribution). The unified inbox already reads WhatsApp from
-canonical via dual-write. Not deleted.
+**Net result:** message storage consolidated from 5 tables → the canonical `MessagesTable`
+(+ WhatsApp's specialized store retained by design). One `ContactsTable`. Two redundant tables
+removed. Unified inbox UI live.
 
 ### Phase 5 — conversation-grouped unified inbox UI (independent, non-destructive)
 Build `/dm/inbox` grouped-by-contact threaded view over the canonical table (channel badges per
