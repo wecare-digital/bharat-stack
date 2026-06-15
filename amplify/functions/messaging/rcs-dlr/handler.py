@@ -152,34 +152,17 @@ def _process_delivery(data: Dict, request_id: str):
     if not message_id:
         return
 
-    # Update RCS messages table (primary — always do this)
-    try:
-        table = dynamodb.Table(RCS_TABLE)
-        table.update_item(
-            Key={'messageId': message_id},
-            UpdateExpression='SET #s = :status, dlrTime = :dlr, dlrRaw = :raw, updatedAt = :now',
-            ExpressionAttributeNames={'#s': 'status'},
-            ExpressionAttributeValues={
-                ':status': status,
-                ':dlr': data.get('event_time', ''),
-                ':raw': json.dumps({'sinchStatus': sinch_status, 'reason': reason})[:500],
-                ':now': now,
-            },
-        )
-    except Exception as e:
-        logger.warning(f'RCS table update failed (may not exist yet): {e}')
-
-    # Mirror status onto the canonical MessagesTable (same messageId = id). Guarded.
+    # Phase 4: legacy RcsMessagesTable update STOPPED — update status on canonical only.
     try:
         dynamodb.Table(MESSAGES_TABLE).update_item(
             Key={'id': message_id},
-            UpdateExpression='SET #s = :status, updatedAt = :now',
+            UpdateExpression='SET #s = :status, dlrTime = :dlr, updatedAt = :now',
             ConditionExpression='attribute_exists(id)',
             ExpressionAttributeNames={'#s': 'status'},
-            ExpressionAttributeValues={':status': status, ':now': now},
+            ExpressionAttributeValues={':status': status, ':dlr': data.get('event_time', ''), ':now': now},
         )
     except Exception as e:
-        logger.debug(f'MessagesTable RCS DLR mirror skipped for {message_id}: {e}')
+        logger.debug(f'MessagesTable RCS DLR update skipped for {message_id}: {e}')
 
 
 def _process_inbound(data: Dict, request_id: str):
@@ -284,31 +267,8 @@ def _process_inbound(data: Dict, request_id: str):
         'requestId': request_id,
     }))
 
-    # Store inbound message
-    try:
-        table = dynamodb.Table(RCS_TABLE)
-        item = {
-            'messageId': msg_id,
-            'direction': 'INBOUND',
-            'channel': 'RCS',
-            'phoneNumber': identity.replace('+', ''),
-            'content': content[:2000],
-            'status': 'received',
-            'provider': 'sinch-rcs',
-            'conversationId': conversation_id or 'none',
-            'createdAt': now,
-            'updatedAt': now,
-            'expiresAt': now + 90 * 24 * 60 * 60,  # TTL: 90 days
-        }
-        # Only include GSI keys if non-empty (DynamoDB rejects empty string keys)
-        if contact_id:
-            item['contactId'] = contact_id
-        table.put_item(Item=item)
-        logger.info(f'Inbound RCS stored: {msg_id} from {identity[-4:] if identity else "?"}')
-    except Exception as e:
-        logger.warning(f'Failed to store inbound RCS: {e}')
-
-    # Unified Inbox dual-write — mirror inbound RCS to the canonical MessagesTable.
+    # Store inbound message — Phase 4: legacy RcsMessagesTable write STOPPED.
+    # Canonical MessagesTable is the sole store (via put_message below).
     put_message(
         channel='rcs',
         direction='inbound',
@@ -320,6 +280,7 @@ def _process_inbound(data: Dict, request_id: str):
         sender_phone=identity.replace('+', '') if identity else None,
         timestamp=now,
     )
+    logger.info(f'Inbound RCS stored (canonical): {msg_id} from {identity[-4:] if identity else "?"}')
 
 
 def _process_opt(data: Dict, event_type: str, request_id: str):

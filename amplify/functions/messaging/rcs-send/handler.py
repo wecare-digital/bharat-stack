@@ -568,39 +568,16 @@ MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 def _store_rcs_message(message_id: str, phone: str, content: str, status: str,
                        template_id: str = '', metadata: str = ''):
-    """Persist RCS message to DynamoDB for audit trail. Links to contactId via phone lookup."""
+    """Persist RCS message to the canonical MessagesTable only.
+
+    Phase 4: legacy RcsMessagesTable dual-write STOPPED — canonical is the sole store
+    (RCS list/DLR already read canonical). RcsMessagesTable retained read-only during
+    the soak, then deleted.
+    """
     now = int(time.time())
     contact_id = _lookup_contact_by_phone(phone)
 
-    try:
-        table = dynamodb.Table(RCS_TABLE)
-        item = {
-            'messageId': message_id,
-            'direction': 'OUTBOUND',
-            'channel': 'RCS',
-            'phoneNumber': phone,
-            'content': content[:2000],
-            'status': status,
-            'templateId': template_id or 'none',
-            'metadata': metadata[:1024] if metadata else 'none',
-            'provider': 'sinch-rcs',
-            'createdAt': now,
-            'updatedAt': now,
-            'expiresAt': now + MESSAGE_TTL_SECONDS,
-        }
-        # Only include GSI keys if they have non-empty values
-        # DynamoDB doesn't allow empty strings for index key attributes
-        if contact_id:
-            item['contactId'] = contact_id
-        logger.info(f"Storing RCS message: {message_id} phone={phone[-4:]} table={RCS_TABLE}")
-        table.put_item(Item=item)
-        logger.info(f"RCS message stored successfully: {message_id}")
-    except Exception as e:
-        # Don't fail the send if storage fails
-        logger.error(f"Failed to store RCS message {message_id}: {type(e).__name__}: {e}")
-
-    # Unified Inbox dual-write — mirror to the canonical MessagesTable (Phase 1).
-    # Guarded inside put_message, so it can never break the RCS send/store above.
+    # Canonical write (single source of truth for the unified inbox).
     put_message(
         channel='rcs',
         direction='outbound',

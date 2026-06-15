@@ -385,21 +385,17 @@ def _get_contact(contact_id: str) -> Dict[str, Any]:
 
 
 def _store_message(item: Dict) -> None:
-    """Store message in dedicated SMS table."""
-    try:
-        table = dynamodb.Table(SMS_TABLE)
-        # Ensure 'id' key exists (DynamoDB PK)
-        if 'id' not in item and 'messageId' in item:
-            item['id'] = item['messageId']
-        # Remove empty string values (DynamoDB doesn't allow them)
-        clean = {k: v for k, v in item.items() if v is not None and v != ''}
-        table.put_item(Item=clean)
-    except Exception as e:
-        logger.error(f"Store message error: {str(e)}")
+    """Store SMS message in the canonical MessagesTable only.
 
-    # Unified Inbox dual-write — also mirror to the canonical MessagesTable.
-    # Guarded inside put_message (failures are swallowed), so this can never
-    # break the SMS store/send above. Phase 1 of the unified-message-table plan.
+    Phase 4: legacy SmsAwsTable dual-write STOPPED — canonical is now the sole store
+    (all readers already query canonical). SmsAwsTable is retained read-only during the
+    soak, then deleted.
+    """
+    # Ensure 'id' is present for the canonical messageId.
+    if 'id' not in item and 'messageId' in item:
+        item['id'] = item['messageId']
+
+    # Canonical write (single source of truth for the unified inbox).
     direction = str(item.get('direction', 'OUTBOUND')).lower()
     phone = item.get('phoneNumber', '')
     put_message(
