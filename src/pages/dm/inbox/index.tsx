@@ -8,10 +8,11 @@
  * WhatsApp's dedicated inbox (/dm/whatsapp) stays as-is for full WhatsApp send features.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
+import InteractiveMessageComposer from '../../../components/InteractiveMessageComposer';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { colors, shadow } from '../../../lib/design-tokens';
@@ -77,6 +78,9 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ showTemplates, setShowTemplates ] = useState( false );
     const [ aiSuggesting, setAiSuggesting ] = useState( false );
     const [ showEmoji, setShowEmoji ] = useState( false );
+    const [ uploading, setUploading ] = useState( false );
+    const [ showInteractive, setShowInteractive ] = useState( false );
+    const fileRef = useRef<HTMLInputElement | null>( null );
 
     const loadData = useCallback( async () => {
         try
@@ -279,6 +283,29 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         finally { setAiSuggesting( false ); }
     }, [ aiSuggesting, thread, replyChannel, selectedConv, toast ] );
 
+    const handleAttach = useCallback( async ( e: React.ChangeEvent<HTMLInputElement> ) => {
+        const file = e.target.files?.[ 0 ];
+        if ( e.target ) e.target.value = '';  // allow re-selecting same file
+        if ( !file ) return;
+        if ( replyChannel !== 'whatsapp' ) { toast.error( `Attachments are supported on WhatsApp (not ${chMeta( replyChannel ).label} yet)` ); return; }
+        const { contactId } = replyTarget;
+        if ( !contactId ) { toast.error( 'Attachment needs a saved contact' ); return; }
+        setUploading( true );
+        try
+        {
+            const type = file.type || 'application/octet-stream';
+            const s3Key = await api.uploadMediaForSend( file, type, file.name );
+            if ( !s3Key ) { toast.error( 'Upload failed' ); return; }
+            const r = await api.sendWhatsAppMessage( {
+                contactId, content: replyText.trim() || '', phoneNumberId: selectedWaba,
+                mediaFile: s3Key, mediaType: type, mediaFileName: file.name,
+            } );
+            if ( r ) { setReplyText( '' ); toast.success( 'Attachment sent' ); setTimeout( loadData, 800 ); }
+            else toast.error( 'Send failed' );
+        } catch { toast.error( 'Attachment failed' ); }
+        finally { setUploading( false ); }
+    }, [ replyChannel, replyTarget, replyText, selectedWaba, toast, loadData ] );
+
     const content = (
         <>
             <div className="ui-wrap">
@@ -414,13 +441,15 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                             <div className="ui-reply-actions">
                                                 <span className="ui-reply-via" style={ { color: chMeta( replyChannel ).fg, background: chMeta( replyChannel ).bg } }>via { chMeta( replyChannel ).label }</span>
                                                 <span className="ui-fmt-hint">Enter to send · Shift+Enter newline · *bold* _italic_ ~strike~</span>
-                                                <button type="button" className="ui-emoji-btn" onClick={ () => setShowEmoji( s => !s ) } title="Emoji">😊</button>
-                                                <button className="ui-ai-btn" disabled={ aiSuggesting } onClick={ handleSuggest } title="AI suggest reply">{ aiSuggesting ? '✨…' : '✨ Suggest' }</button>
+                                                <button type="button" className="ui-tool-btn" onClick={ () => setShowEmoji( s => !s ) } title="Emoji">😊</button>
+                                                <button type="button" className="ui-tool-btn" disabled={ uploading } onClick={ () => fileRef.current?.click() } title="Attach image / document / video / audio">{ uploading ? '⏳' : '📎' }</button>
                                                 { replyChannel === 'whatsapp' && (
-                                                    <Link href="/dm/whatsapp" className="ui-reply-link" title="Media, voice notes, lists & more">📎 Media & more →</Link>
+                                                    <button type="button" className="ui-tool-btn" disabled={ !replyTarget.contactId } onClick={ () => setShowInteractive( true ) } title="Interactive list / buttons / location / CTA">≡</button>
                                                 ) }
+                                                <button className="ui-ai-btn" disabled={ aiSuggesting } onClick={ handleSuggest } title="AI suggest reply">{ aiSuggesting ? '✨…' : '✨ Suggest' }</button>
                                                 <button className="ui-reply-btn" disabled={ sending || !replyText.trim() } onClick={ handleReply }>{ sending ? 'Sending…' : 'Send' }</button>
                                             </div>
+                                            <input ref={ fileRef } type="file" hidden accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={ handleAttach } />
                                         </>
                                     ) }
                                 </div>
@@ -429,6 +458,20 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                     </div>
                 </div>
             </div>
+
+            { showInteractive && replyTarget.contactId && (
+                <div className="ui-modal-backdrop" onClick={ () => setShowInteractive( false ) }>
+                    <div className="ui-modal" onClick={ e => e.stopPropagation() }>
+                        <InteractiveMessageComposer
+                            contactId={ replyTarget.contactId }
+                            phoneNumberId={ selectedWaba }
+                            onClose={ () => setShowInteractive( false ) }
+                            onSent={ () => { setShowInteractive( false ); toast.success( 'Interactive message sent' ); setTimeout( loadData, 800 ); } }
+                            onError={ ( m: string ) => toast.error( m ) }
+                        />
+                    </div>
+                </div>
+            ) }
 
             <style jsx>{ `
         .ui-wrap { padding: 20px; max-width: 1200px; margin: 0 auto; }
@@ -478,10 +521,14 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-fmt-hint { font-size: 10px; color: ${colors.textLight}; margin-right: auto; }
         .ui-ai-btn { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 7px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .ui-ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .ui-emoji-btn { background: #fff; border: 1px solid ${colors.border}; border-radius: 9px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
+        .ui-tool-btn { background: #fff; border: 1px solid ${colors.border}; border-radius: 9px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
+        .ui-tool-btn:hover:not(:disabled) { background: ${colors.bgHover}; }
+        .ui-tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .ui-emoji-row { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 0; }
         .ui-emoji { background: ${colors.bgSecondary}; border: 1px solid ${colors.borderLight}; border-radius: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; }
         .ui-emoji:hover { background: ${colors.bgActive}; }
+        .ui-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1410; padding: 20px; }
+        .ui-modal { background: #fff; border-radius: 14px; max-width: 560px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
         .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; }
         .ui-reply-input { width: 100%; resize: vertical; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
         .ui-reply-input:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
