@@ -42,6 +42,8 @@ pinpoint_india = boto3.client('pinpoint', region_name=INDIA_REGION)
 
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SMS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTable')
+# Canonical unified table — reads/deletes now target this (channel=sms).
+UNIFIED_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 ORIGINATION_IDENTITY = os.environ.get('ORIGINATION_IDENTITY', '')
 SENDER_ID = os.environ.get('SENDER_ID', 'WECARE')
 INDIA_SENDER_ID = os.environ.get('INDIA_SENDER_ID', 'WDBEEP')
@@ -117,31 +119,31 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 
 def _list_messages(params: Dict, request_id: str) -> Dict[str, Any]:
-    """List SMS messages from dedicated table."""
+    """List SMS messages from the canonical MessagesTable (channel=sms).
+    Reads via channel-index (bounded Query, no scan). Response shape unchanged."""
     try:
-        table = dynamodb.Table(SMS_TABLE)
-        scan_kwargs = {'Limit': int(params.get('limit', 200))}
-
-        from boto3.dynamodb.conditions import Attr
-
-        filters = []
-        if params.get('contactId'):
-            filters.append(Attr('contactId').eq(params['contactId']))
-        if params.get('status'):
-            filters.append(Attr('status').eq(params['status']))
-        if params.get('direction'):
-            filters.append(Attr('direction').eq(params['direction']))
-
-        if filters:
-            combined = filters[0]
-            for f in filters[1:]:
-                combined = combined & f
-            scan_kwargs['FilterExpression'] = combined
-
-        result = table.scan(**scan_kwargs)
-        messages = result.get('Items', [])
-        messages.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)
-
+        from boto3.dynamodb.conditions import Key
+        table = dynamodb.Table(UNIFIED_TABLE)
+        limit = int(params.get('limit', 200))
+        resp = table.query(
+            IndexName='channel-index',
+            KeyConditionExpression=Key('channel').eq('sms'),
+            ScanIndexForward=False,  # newest first
+            Limit=max(limit, 200),
+        )
+        messages = resp.get('Items', [])
+        # In-memory filters (SMS volume is small; keeps the query simple).
+        cid = params.get('contactId')
+        st = params.get('status')
+        dirn = params.get('direction')
+        if cid:
+            messages = [m for m in messages if m.get('contactId') == cid]
+        if st:
+            messages = [m for m in messages if str(m.get('status', '')).lower() == st.lower()]
+        if dirn:
+            messages = [m for m in messages if str(m.get('direction', '')).lower() == dirn.lower()]
+        messages.sort(key=lambda x: float(x.get('timestamp', x.get('createdAt', 0)) or 0), reverse=True)
+        messages = messages[:limit]
         return _response(200, {
             'messages': [_normalize(m) for m in messages],
             'count': len(messages)
@@ -152,9 +154,9 @@ def _list_messages(params: Dict, request_id: str) -> Dict[str, Any]:
 
 
 def _get_message(message_id: str, request_id: str) -> Dict[str, Any]:
-    """Get a single SMS message."""
+    """Get a single SMS message from the canonical MessagesTable."""
     try:
-        table = dynamodb.Table(SMS_TABLE)
+        table = dynamodb.Table(UNIFIED_TABLE)
         result = table.get_item(Key={'id': message_id})
         item = result.get('Item')
         if item:
@@ -166,10 +168,14 @@ def _get_message(message_id: str, request_id: str) -> Dict[str, Any]:
 
 
 def _delete_message(message_id: str, request_id: str) -> Dict[str, Any]:
-    """Delete a single SMS message."""
+    """Delete a single SMS message from the canonical table (and legacy, if present)."""
     try:
-        table = dynamodb.Table(SMS_TABLE)
-        table.delete_item(Key={'id': message_id})
+        dynamodb.Table(UNIFIED_TABLE).delete_item(Key={'id': message_id})
+        # Best-effort legacy cleanup during the dual-write window.
+        try:
+            dynamodb.Table(SMS_TABLE).delete_item(Key={'id': message_id})
+        except Exception:
+            pass
         return _response(200, {'success': True, 'deleted': message_id})
     except Exception as e:
         logger.error(f"Delete message error: {str(e)}")
@@ -177,23 +183,30 @@ def _delete_message(message_id: str, request_id: str) -> Dict[str, Any]:
 
 
 def _clear_logs(request_id: str) -> Dict[str, Any]:
-    """Clear all SMS logs (paginated to handle large tables)."""
+    """Clear SMS logs — deletes ONLY channel=sms rows from the canonical table
+    (scoped via channel-index, so other channels are never touched)."""
     try:
-        table = dynamodb.Table(SMS_TABLE)
+        from boto3.dynamodb.conditions import Key
+        table = dynamodb.Table(UNIFIED_TABLE)
         deleted = 0
-        scan_kwargs = {'ProjectionExpression': 'id'}
+        last_key = None
         while True:
-            result = table.scan(**scan_kwargs)
+            q = {
+                'IndexName': 'channel-index',
+                'KeyConditionExpression': Key('channel').eq('sms'),
+                'ProjectionExpression': 'id',
+            }
+            if last_key:
+                q['ExclusiveStartKey'] = last_key
+            result = table.query(**q)
             items = result.get('Items', [])
-            if not items:
-                break
             with table.batch_writer() as batch:
                 for item in items:
                     batch.delete_item(Key={'id': item['id']})
                     deleted += 1
-            if 'LastEvaluatedKey' not in result:
+            last_key = result.get('LastEvaluatedKey')
+            if not last_key:
                 break
-            scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
         return _response(200, {'success': True, 'deletedCount': deleted})
     except Exception as e:
         logger.error(f"Clear logs error: {str(e)}")
@@ -405,14 +418,16 @@ def _store_message(item: Dict) -> None:
 
 
 def _normalize(item: Dict) -> Dict:
-    """Normalize message for API response."""
+    """Normalize message for API response. Maps canonical fields (receivingPhone/
+    senderPhone, timestamp) back to the SMS page's expected shape."""
+    ts = item.get('timestamp', item.get('createdAt', 0))
     return {
         'id': item.get('id', item.get('messageId', '')),
         'messageId': item.get('messageId', item.get('id', '')),
         'contactId': item.get('contactId', ''),
-        'phoneNumber': item.get('phoneNumber', ''),
+        'phoneNumber': item.get('phoneNumber') or item.get('receivingPhone') or item.get('senderPhone') or '',
         'content': item.get('content', ''),
-        'direction': item.get('direction', 'OUTBOUND'),
+        'direction': str(item.get('direction', 'OUTBOUND')).upper(),
         'status': item.get('status', ''),
         'messageType': item.get('messageType', ''),
         'senderId': item.get('senderId', ''),
@@ -421,8 +436,8 @@ def _normalize(item: Dict) -> Dict:
         'campaignName': item.get('campaignName', ''),
         'channel': 'SMS',
         'provider': 'aws',
-        'timestamp': int(float(item.get('createdAt', 0))),
-        'createdAt': int(float(item.get('createdAt', 0))),
+        'timestamp': int(float(ts or 0)),
+        'createdAt': int(float(item.get('createdAt', ts or 0) or 0)),
     }
 
 
