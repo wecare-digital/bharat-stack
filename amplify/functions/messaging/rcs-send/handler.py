@@ -62,6 +62,8 @@ RCS_SECRET_NAME = os.environ.get('RCS_SECRET_NAME', 'wecare/sinch/rcs')
 RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
+# Canonical unified table — inbox list now reads this (channel=rcs).
+UNIFIED_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 
 # Token cache (reuse within Lambda warm start)
 _token_cache = {'token': '', 'expires_at': 0, 'refresh_token': '', 'refresh_expires_at': 0}
@@ -367,50 +369,41 @@ def _refresh_token() -> str:
 
 
 def _list_messages(body: Dict, request_id: str, origin: str) -> Dict:
-    """List RCS messages from DynamoDB (for inbox) with pagination."""
+    """List RCS messages from the canonical MessagesTable (channel=rcs).
+    Reads via channel-index (bounded Query). Response shape preserved for the inbox."""
+    from decimal import Decimal
     phone_filter = body.get('phoneNumber', '')
     limit = min(body.get('limit', 200), 1000)
-    last_key = body.get('lastKey', None)  # For pagination
 
     try:
-        table = dynamodb.Table(RCS_TABLE)
-        kwargs = {'Limit': limit}
-        if last_key:
-            kwargs['ExclusiveStartKey'] = last_key
-
-        if phone_filter:
-            # Query by phone number
-            clean = phone_filter.replace('+', '').replace(' ', '').replace('-', '')
-            kwargs['IndexName'] = 'phoneNumber-index'
-            kwargs['KeyConditionExpression'] = boto3.dynamodb.conditions.Key('phoneNumber').eq(clean)
-            kwargs['ScanIndexForward'] = False
-            resp = table.query(**kwargs)
-        else:
-            # Scan all (limited)
-            resp = table.scan(**kwargs)
-
+        table = dynamodb.Table(UNIFIED_TABLE)
+        resp = table.query(
+            IndexName='channel-index',
+            KeyConditionExpression=boto3.dynamodb.conditions.Key('channel').eq('rcs'),
+            ScanIndexForward=False,  # newest first
+            Limit=max(limit, 200),
+        )
         items = resp.get('Items', [])
-        next_key = resp.get('LastEvaluatedKey', None)
 
-        # Convert Decimal to int/float for JSON serialization
         messages = []
         for item in items:
             msg = {}
             for k, v in item.items():
-                from decimal import Decimal
                 msg[k] = int(v) if isinstance(v, Decimal) else v
+            # Map canonical fields back to the inbox's expected shape.
+            if not msg.get('phoneNumber'):
+                msg['phoneNumber'] = msg.get('receivingPhone') or msg.get('senderPhone') or ''
             messages.append(msg)
 
-        # Sort by createdAt descending
-        messages.sort(key=lambda m: m.get('createdAt', 0), reverse=True)
+        if phone_filter:
+            clean = phone_filter.replace('+', '').replace(' ', '').replace('-', '')
+            messages = [m for m in messages
+                        if str(m.get('phoneNumber', '')).replace('+', '') == clean]
 
-        result = {'messages': messages, 'count': len(messages)}
-        if next_key:
-            # Convert Decimal in lastKey for JSON
-            result['lastKey'] = {k: (int(v) if isinstance(v, Decimal) else v) for k, v in next_key.items()}
-            result['hasMore'] = True
+        messages.sort(key=lambda m: m.get('timestamp', m.get('createdAt', 0)) or 0, reverse=True)
+        messages = messages[:limit]
 
-        return cors_response(200, result, origin)
+        return cors_response(200, {'messages': messages, 'count': len(messages)}, origin)
     except Exception as e:
         logger.error(f"List RCS messages error: {e}")
         return cors_response(200, {'messages': [], 'count': 0}, origin)
