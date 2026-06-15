@@ -87,16 +87,35 @@ beyond `messages-read`:
 | SmsAwsTable | `sms-aws` GET/list/delete/clear (SMS logs page) | repoint sms-aws reads to MessagesTable (channel=sms) |
 | RcsMessagesTable | `rcs-send` list, `rcs-dlr` status updates | repoint rcs reads/DLR to MessagesTable |
 
-### Phase 3 (the remaining convergence — safe order)
-1. Add `whatsappMessageId-index` (+ `paymentReferenceId-index`) GSIs to `MessagesTable`.
-2. Repoint status-update / DLR / payment-lookup paths to `MessagesTable`.
-3. Repoint `sms-aws` and `rcs` list/delete endpoints to `MessagesTable` (filter by channel).
-4. Update `messages-read` `?stats=count` to count `MessagesTable` (currently counts WhatsApp tables).
-5. **Stop dual-write** — channels write only to `MessagesTable` (delete the legacy `put_item`).
-6. Soak (e.g. 1–2 weeks) confirming parity.
-7. **Delete** the 4 legacy message tables + their now-dead env vars/scripts.
+### Phase 3 — COMPLETE ✅ (deployed + verified)
+1. ✅ GSIs on `MessagesTable`: `contactId-index`, `channel-index`, `whatsappMessageId-index`, `paymentReferenceId-index` + TTL on `expiresAt`.
+2. ✅ WhatsApp delivery-status updates mirror onto canonical (same `id`); Airtel + RCS DLR mirror status too.
+3. ✅ `sms-aws` (verified 12) and `rcs-send` (verified 50) list/get/delete read canonical (filter by channel).
+4. ✅ `messages-read ?stats=count` counts canonical across all channels (verified 445).
+5. ✅ Payment `payment_request` + `payment` records dual-write to canonical (dashboard payments read canonical).
+6. ✅ Fixed: `message_store` uses dedicated `UNIFIED_MESSAGES_TABLE` env (was hijacked by handlers reusing `MESSAGES_TABLE`).
 
-Only step 7 is irreversible; everything before it is reversible. This honors "don't break code."
+### Phase 4 — stop dual-write, soak, delete (the only irreversible phase)
+
+**Still blocking WhatsApp-table deletion** (these readers were NOT repointed — they read WhatsApp tables directly):
+| Legacy table | Remaining reader(s) | Repoint before delete |
+|---|---|---|
+| WhatsAppOutbound | `template-analytics`, `bulk-worker` | repoint to canonical (channel=whatsapp) |
+| WhatsAppInbound | `invoice-engine` payment-request scan, `ad-attribution` | repoint to canonical (messageType=payment_request) |
+
+`SmsAwsTable` + `RcsMessagesTable`: **all readers repointed** ✅ — these are now write-only (safe to retire after a short soak by stopping their dual-write).
+
+**Safe deletion order:**
+1. Repoint `template-analytics`, `bulk-worker`, `invoice-engine`, `ad-attribution` → canonical.
+2. **Stop dual-write** — each sender writes ONLY to canonical (remove the legacy `put_item`).
+3. **Soak 1–2 weeks** confirming parity on the canonical table.
+4. **Delete** the 4 legacy message tables + dead env vars/scripts.
+
+Steps 1–3 are reversible. Step 4 is irreversible — do it only after the soak. This honors "don't break code."
+
+### Phase 5 — conversation-grouped unified inbox UI (independent, non-destructive)
+Build `/dm/inbox` grouped-by-contact threaded view over the canonical table (channel badges per
+bubble, "reply via {channel}" deep-links). Can be built anytime; doesn't depend on Phase 4.
 
 ---
 
