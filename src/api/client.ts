@@ -409,6 +409,11 @@ export interface Message {
   awsPhoneNumberId?: string;
   transcription?: string;       // English transcription of voice notes
   detectedLanguage?: string;    // Detected language of voice note (e.g. "hi-IN")
+  // Call breadcrumb fields (channel=voice, messageType=call)
+  callId?: string;
+  callType?: string;            // aws | airtel | whatsapp
+  duration?: number;            // seconds
+  recordingUrl?: string;
 }
 
 export async function listMessages ( contactId?: string, channel?: string, limit: number = 1000 ): Promise<Message[]> {
@@ -482,6 +487,10 @@ function normalizeMessage ( item: any ): Message {
     awsPhoneNumberId: item.awsPhoneNumberId,
     transcription: item.transcription,
     detectedLanguage: item.detectedLanguage,
+    callId: item.callId,
+    callType: item.callType,
+    duration: typeof item.duration === 'number' ? item.duration : ( item.duration ? Number( item.duration ) : undefined ),
+    recordingUrl: item.recordingUrl,
   };
 }
 
