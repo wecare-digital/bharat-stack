@@ -3294,6 +3294,16 @@ def _store_payment_record(reference_id: str, recipient_id: str, payment_status: 
         
         messages_table = dynamodb.Table(MESSAGES_TABLE)
         messages_table.put_item(Item={k: v for k, v in payment_record.items() if v is not None and v != ''})
+
+        # Unified Inbox dual-write — mirror payment record to canonical MessagesTable so
+        # the dashboard (reads canonical) shows payments. Guarded; sparse contactId.
+        if MESSAGES_TABLE != UNIFIED_MESSAGES_TABLE:
+            try:
+                dynamodb.Table(UNIFIED_MESSAGES_TABLE).put_item(
+                    Item={k: v for k, v in payment_record.items() if v is not None and v != ''}
+                )
+            except Exception as _ce:
+                logger.warning(f'payment record canonical mirror skipped: {_ce}')
         
         # Link payment to SubmitRequest if reference_id starts with WD-PAY- or SR- (legacy)
         if reference_id and (reference_id.startswith('WD-PAY-') or reference_id.startswith('SR-')):

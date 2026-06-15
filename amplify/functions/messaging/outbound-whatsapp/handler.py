@@ -1636,6 +1636,17 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                 inbound_table_name = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
                 inbound_table = dynamodb.Table(inbound_table_name)
                 inbound_table.put_item(Item={k: v for k, v in pay_req_record.items() if v is not None and v != '' and v != Decimal('0') or k in ('paymentDiscount', 'paymentShipping')})
+                # Unified Inbox dual-write — mirror the payment_request to the canonical
+                # MessagesTable so the dashboard (which reads canonical) shows payments.
+                # Add `timestamp` (GSI sort key) so it's queryable via channel/contactId index.
+                try:
+                    _canon = dict(pay_req_record)
+                    _canon['timestamp'] = _canon.get('createdAt') or Decimal(str(int(time.time())))
+                    dynamodb.Table(
+                        os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
+                    ).put_item(Item={k: v for k, v in _canon.items() if v is not None and v != '' and v != Decimal('0') or k in ('paymentDiscount', 'paymentShipping')})
+                except Exception as _ce:
+                    logger.warning(f'payment_request canonical mirror skipped: {_ce}')
                 logger.info(json.dumps({
                     'event': 'payment_request_record_stored',
                     'referenceId': payment_ref_id,
