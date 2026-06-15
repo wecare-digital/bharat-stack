@@ -58,6 +58,8 @@ const CROSS: { label: string; desc: string; href: string }[] = [
     { label: 'Contact 360', desc: 'Everything about a contact in one feed', href: '/dm/contact-360' },
     { label: 'Scheduled', desc: 'Upcoming scheduled sends', href: '/dm/scheduled' },
     { label: 'Analytics', desc: 'Cross-channel volume & delivery', href: '/dm/analytics' },
+    { label: 'Automation', desc: 'Cross-channel auto-reply rules', href: '/dm/automation' },
+    { label: 'Cost & Usage', desc: 'Estimated per-channel spend', href: '/dm/cost' },
     { label: 'Channel Settings', desc: 'Consent, sender identities, config', href: '/dm/settings' },
     { label: 'Delivery Report', desc: 'Cross-channel logs, status & failures', href: '/dm/logs' },
     { label: 'Contacts', desc: 'One contact book across all channels', href: '/contacts' },

@@ -1,0 +1,70 @@
+"""
+Automation evaluator — shared helper so any inbound handler can apply automation rules.
+
+Reads AutomationRulesTable (managed by the automation-rules Lambda) and returns the
+auto-reply text for the first matching enabled rule, or None. Pure + guarded: any
+failure returns None so it can never break inbound message processing.
+
+Usage (in an inbound handler, after the message is stored):
+    from lambda_utils.automation import evaluate_rules
+    reply = evaluate_rules(text=content, channel='whatsapp')
+    if reply:
+        ...send reply via the channel's send path...
+"""
+import os
+import time
+import logging
+from typing import Optional
+
+import boto3
+
+logger = logging.getLogger(__name__)
+_dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+RULES_TABLE = os.environ.get('AUTOMATION_RULES_TABLE', 'stack-wecare-digital-AutomationRulesTable')
+
+# Tiny in-process cache (warm-start) to avoid scanning on every message.
+_cache = {'rules': None, 'at': 0}
+_CACHE_TTL = 30  # seconds
+
+
+def _load_rules():
+    now = time.time()
+    if _cache['rules'] is not None and ( now - _cache['at'] ) < _CACHE_TTL:
+        return _cache['rules']
+    try:
+        resp = _dynamodb.Table(RULES_TABLE).scan()
+        rules = sorted(resp.get('Items', []), key=lambda x: int(x.get('priority', 100)))
+    except Exception as e:  # noqa: BLE001
+        logger.warning('automation rules load failed: %s' % e)
+        rules = []
+    _cache['rules'] = rules
+    _cache['at'] = now
+    return rules
+
+
+def evaluate_rules(text: str, channel: str) -> Optional[str]:
+    """Return the auto-reply text for the first matching enabled rule, else None.
+    actionType 'reply' returns the literal text. 'ai' is left to the caller (returns a
+    sentinel dict via evaluate_rule_match if needed); here we only handle 'reply'."""
+    try:
+        ch = (channel or '').lower()
+        body = (text or '').lower().strip()
+        for r in _load_rules():
+            if not r.get('enabled', True):
+                continue
+            rule_ch = str(r.get('channel', 'any')).lower()
+            if rule_ch != 'any' and rule_ch != ch:
+                continue
+            trig = str(r.get('triggerType', 'keyword'))
+            val = str(r.get('triggerValue', '')).lower().strip()
+            matched = ( trig == 'any' ) or ( trig == 'keyword' and val and val in body )
+            if not matched:
+                continue
+            if str(r.get('actionType', 'reply')) == 'reply':
+                action = r.get('actionValue', '')
+                if action:
+                    return str(action)
+        return None
+    except Exception as e:  # noqa: BLE001
+        logger.warning('automation evaluate failed: %s' % e)
+        return None

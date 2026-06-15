@@ -29,6 +29,7 @@ from lambda_utils.response import extract_origin
 from lambda_utils.privacy import mask_phone, redact_pii
 from lambda_utils.validation import normalize_phone
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
+from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
 
 # Sub-modules (monolith decomposition)
 from modules.content import extract_content as _extract_content_v2
@@ -978,6 +979,24 @@ def _process_message(
         aws_phone_number_id=aws_phone_number_id,
         timestamp=timestamp,
     )
+
+    # Automation rules — auto-reply if an enabled rule matches (guarded, fire-and-forget
+    # via async outbound invoke so it can never block/break inbound processing).
+    try:
+        if content and msg_type == 'text':
+            _auto = evaluate_rules(content, 'whatsapp')
+            if _auto:
+                lambda_client.invoke(
+                    FunctionName=os.environ.get('OUTBOUND_FUNCTION', 'wecare-outbound-whatsapp'),
+                    InvocationType='Event',
+                    Payload=json.dumps({
+                        'requestContext': {'http': {'method': 'POST', 'path': '/whatsapp/send'}},
+                        'body': json.dumps({'contactId': contact_id, 'content': _auto, 'phoneNumberId': aws_phone_number_id}),
+                    }),
+                )
+                logger.info(json.dumps({'event': 'automation_auto_reply', 'contactId': contact_id, 'whatsappMessageId': whatsapp_message_id}))
+    except Exception as _ae:
+        logger.warning(f'automation auto-reply skipped: {_ae}')
     
     # call_permission_reply interactive messages are no longer processed.
     # Permission is auto-granted post-call in the whatsapp-calling handler.

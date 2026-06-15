@@ -5336,3 +5336,47 @@ export async function createReview ( review: Partial<Review> ): Promise<Review |
     body: JSON.stringify( review ),
   } );
 }
+
+// ============================================================================
+// AUTOMATION RULES API (cross-channel auto-reply rules)
+// ============================================================================
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  channel: 'any' | 'whatsapp' | 'sms' | 'rcs' | 'email';
+  triggerType: 'keyword' | 'any';
+  triggerValue: string;
+  actionType: 'reply' | 'ai';
+  actionValue: string;
+  priority: number;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export async function listAutomationRules (): Promise<AutomationRule[]> {
+  const data = await apiCall<any>( `${API_BASE}/automation/rules` );
+  return ( data && data.rules ) ? data.rules : [];
+}
+
+export async function createAutomationRule ( rule: Partial<AutomationRule> ): Promise<AutomationRule | null> {
+  const data = await apiCall<any>( `${API_BASE}/automation/rules`, {
+    method: 'POST',
+    body: JSON.stringify( rule ),
+  } );
+  return data?.rule || null;
+}
+
+export async function updateAutomationRule ( id: string, updates: Partial<AutomationRule> ): Promise<AutomationRule | null> {
+  const data = await apiCall<any>( `${API_BASE}/automation/rules/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify( updates ),
+  } );
+  return data?.rule || null;
+}
+
+export async function deleteAutomationRule ( id: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${API_BASE}/automation/rules/${id}`, { method: 'DELETE' } );
+  return !!( data && ( data.success || data.deleted ) );
+}

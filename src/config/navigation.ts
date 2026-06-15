@@ -66,6 +66,8 @@ export const navigationConfig: NavItem[] = [
       { path: '/dm/scheduled', label: 'Scheduled', icon: 'message' },
       { path: '/dm/search', label: 'Search', icon: 'message' },
       { path: '/dm/analytics', label: 'Analytics', icon: 'message' },
+      { path: '/dm/cost', label: 'Cost & Usage', icon: 'payment' },
+      { path: '/dm/automation', label: 'Automation', icon: 'settings' },
       { path: '/dm/settings', label: 'Channel Settings', icon: 'settings' },
       {
         path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
