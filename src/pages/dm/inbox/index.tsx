@@ -73,6 +73,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ selectedWaba, setSelectedWaba ] = useState( WABAS[ 0 ].id );
     const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
     const [ showTemplates, setShowTemplates ] = useState( false );
+    const [ aiSuggesting, setAiSuggesting ] = useState( false );
 
     const loadData = useCallback( async () => {
         try
@@ -259,6 +260,22 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         }
     }, [ replyText, sending, replyingTo, replyTarget, replyChannel, selectedWaba, toast, loadData ] );
 
+    const handleSuggest = useCallback( async () => {
+        if ( aiSuggesting || !thread.length ) return;
+        const lastInbound = [ ...thread ].reverse().find( m => ( m.direction || '' ).toUpperCase() === 'INBOUND' );
+        const seed = lastInbound?.content || thread[ thread.length - 1 ]?.content || '';
+        if ( !seed ) { toast.error( 'Nothing to reply to yet' ); return; }
+        setAiSuggesting( true );
+        try
+        {
+            const history = thread.slice( -8 ).map( m => `${( m.direction || '' ).toUpperCase() === 'INBOUND' ? 'Customer' : 'Us'}: ${m.content || ''}` );
+            const r = await api.generateAIResponse( seed, { channel: replyChannel, conversationHistory: history, contactName: selectedConv?.name } );
+            if ( r?.response ) { setReplyText( r.response ); toast.success( 'AI suggestion ready' ); }
+            else toast.error( 'No suggestion' );
+        } catch { toast.error( 'AI suggest failed' ); }
+        finally { setAiSuggesting( false ); }
+    }, [ aiSuggesting, thread, replyChannel, selectedConv, toast ] );
+
     const content = (
         <>
             <div className="ui-wrap">
@@ -387,6 +404,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                             <div className="ui-reply-actions">
                                                 <span className="ui-reply-via" style={ { color: chMeta( replyChannel ).fg, background: chMeta( replyChannel ).bg } }>via { chMeta( replyChannel ).label }</span>
                                                 <span className="ui-fmt-hint">Enter to send · Shift+Enter newline · *bold* _italic_ ~strike~</span>
+                                                <button className="ui-ai-btn" disabled={ aiSuggesting } onClick={ handleSuggest } title="AI suggest reply">{ aiSuggesting ? '✨…' : '✨ Suggest' }</button>
                                                 <Link href={ chMeta( replyChannel ).reply } className="ui-reply-link">Full tool →</Link>
                                                 <button className="ui-reply-btn" disabled={ sending || !replyText.trim() } onClick={ handleReply }>{ sending ? 'Sending…' : 'Send' }</button>
                                             </div>
@@ -445,6 +463,8 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-tpl-cat { font-size: 10px; color: ${colors.textMuted}; text-transform: capitalize; }
         .ui-tpl-empty { padding: 14px; text-align: center; font-size: 12px; color: ${colors.textMuted}; }
         .ui-fmt-hint { font-size: 10px; color: ${colors.textLight}; margin-right: auto; }
+        .ui-ai-btn { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 7px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .ui-ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; }
         .ui-reply-input { width: 100%; resize: vertical; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
         .ui-reply-input:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
