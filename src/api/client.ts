@@ -5380,3 +5380,41 @@ export async function deleteAutomationRule ( id: string ): Promise<boolean> {
   const data = await apiCall<any>( `${API_BASE}/automation/rules/${id}`, { method: 'DELETE' } );
   return !!( data && ( data.success || data.deleted ) );
 }
+
+// ============================================================================
+// CONVERSATION META API (team-inbox: status / assignee / tags / internal notes)
+// ============================================================================
+
+export interface ConversationNote { text: string; by: string; at: number; }
+export interface ConversationMeta {
+  conversationId: string;
+  status: 'open' | 'pending' | 'resolved';
+  assignee: string;
+  tags: string[];
+  notes: ConversationNote[];
+  updatedAt?: number;
+}
+
+export async function getConversationMeta ( conversationId: string ): Promise<ConversationMeta | null> {
+  const data = await apiCall<any>( `${API_BASE}/inbox/meta/${encodeURIComponent( conversationId )}` );
+  return data?.meta || null;
+}
+
+export async function listConversationMeta (): Promise<ConversationMeta[]> {
+  const data = await apiCall<any>( `${API_BASE}/inbox/meta` );
+  return ( data && data.meta ) ? data.meta : [];
+}
+
+export async function updateConversationMeta ( conversationId: string, updates: { status?: string; assignee?: string; tags?: string[] } ): Promise<ConversationMeta | null> {
+  const data = await apiCall<any>( `${API_BASE}/inbox/meta/${encodeURIComponent( conversationId )}`, {
+    method: 'PUT', body: JSON.stringify( updates ),
+  } );
+  return data?.meta || null;
+}
+
+export async function addConversationNote ( conversationId: string, text: string, by?: string ): Promise<ConversationMeta | null> {
+  const data = await apiCall<any>( `${API_BASE}/inbox/meta/${encodeURIComponent( conversationId )}/note`, {
+    method: 'POST', body: JSON.stringify( { text, by: by || 'agent' } ),
+  } );
+  return data?.meta || null;
+}

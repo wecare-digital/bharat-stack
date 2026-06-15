@@ -83,6 +83,9 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ summarizing, setSummarizing ] = useState( false );
     const [ quickReplies, setQuickReplies ] = useState<string[]>( [] );
     const [ showQuick, setShowQuick ] = useState( false );
+    const [ meta, setMeta ] = useState<api.ConversationMeta | null>( null );
+    const [ noteText, setNoteText ] = useState( '' );
+    const [ showNotes, setShowNotes ] = useState( false );
     const [ showEmoji, setShowEmoji ] = useState( false );
     const [ uploading, setUploading ] = useState( false );
     const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location'>( null );
@@ -124,6 +127,25 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
 
     // Reset composer context when switching conversations.
     useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplates( false ); setSummary( '' ); }, [ selected ] );
+
+    // Load team-inbox meta for the selected conversation.
+    useEffect( () => {
+        setMeta( null ); setShowNotes( false ); setNoteText( '' );
+        if ( selected ) api.getConversationMeta( selected ).then( setMeta ).catch( () => { } );
+    }, [ selected ] );
+
+    const saveMeta = useCallback( async ( updates: { status?: string; assignee?: string; tags?: string[] } ) => {
+        if ( !selected ) return;
+        const m = await api.updateConversationMeta( selected, updates );
+        if ( m ) setMeta( m );
+    }, [ selected ] );
+
+    const addNote = useCallback( async () => {
+        const t = noteText.trim();
+        if ( !t || !selected ) return;
+        const m = await api.addConversationNote( selected, t, user?.username || user?.signInDetails?.loginId || 'agent' );
+        if ( m ) { setMeta( m ); setNoteText( '' ); }
+    }, [ noteText, selected, user ] );
 
     const handleDelete = useCallback( async ( m: api.Message ) => {
         if ( deletingId ) return;
@@ -410,6 +432,29 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                         <button className="ui-summary-x" onClick={ () => setSummary( '' ) }>✕</button>
                                     </div>
                                 ) }
+                                <div className="ui-meta-bar">
+                                    <select className="ui-meta-status" value={ meta?.status || 'open' } onChange={ e => saveMeta( { status: e.target.value } ) }>
+                                        <option value="open">🟢 Open</option>
+                                        <option value="pending">🟡 Pending</option>
+                                        <option value="resolved">⚪ Resolved</option>
+                                    </select>
+                                    <input className="ui-meta-assignee" placeholder="Assign to…" defaultValue={ meta?.assignee || '' } key={ ( meta?.assignee || '' ) + ( selected || '' ) }
+                                        onBlur={ e => { if ( e.target.value !== ( meta?.assignee || '' ) ) saveMeta( { assignee: e.target.value } ); } } />
+                                    <input className="ui-meta-tags" placeholder="tags (comma sep)" defaultValue={ ( meta?.tags || [] ).join( ', ' ) } key={ 'tags' + ( selected || '' ) + ( meta?.tags || [] ).join() }
+                                        onBlur={ e => { const tags = e.target.value.split( ',' ).map( t => t.trim() ).filter( Boolean ); saveMeta( { tags } ); } } />
+                                    <button className="ui-meta-notes-btn" onClick={ () => setShowNotes( s => !s ) }>🗒 Notes{ meta?.notes?.length ? ` (${meta.notes.length})` : '' }</button>
+                                </div>
+                                { showNotes && (
+                                    <div className="ui-notes">
+                                        { ( meta?.notes || [] ).slice( -20 ).map( ( n, i ) => (
+                                            <div key={ i } className="ui-note"><span className="ui-note-text">{ n.text }</span><span className="ui-note-by">{ n.by } · { fmtTime( ( n.at || 0 ) * 1000 ) }</span></div>
+                                        ) ) }
+                                        <div className="ui-note-add">
+                                            <input className="ui-note-input" placeholder="Add internal note (team-only)…" value={ noteText } onChange={ e => setNoteText( e.target.value ) } onKeyDown={ e => { if ( e.key === 'Enter' ) addNote(); } } />
+                                            <button className="ui-note-btn" onClick={ addNote } disabled={ !noteText.trim() }>Add</button>
+                                        </div>
+                                    </div>
+                                ) }
                                 <div className="ui-thread-body">
                                     { thread.length > visibleCount && (
                                         <button className="ui-load-more" onClick={ () => setVisibleCount( v => v + 50 ) }>↑ Load older ({ thread.length - visibleCount })</button>
@@ -587,6 +632,19 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-summary { display: flex; gap: 8px; align-items: flex-start; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 10px 12px; margin: 8px 16px 0; }
         .ui-summary-text { font-size: 13px; color: ${colors.text}; white-space: pre-wrap; flex: 1; }
         .ui-summary-x { background: none; border: none; cursor: pointer; color: ${colors.textMuted}; }
+        .ui-meta-bar { display: flex; gap: 8px; align-items: center; padding: 8px 16px; border-bottom: 1px solid ${colors.borderLight}; flex-wrap: wrap; }
+        .ui-meta-status { padding: 6px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 12px; background: #fff; }
+        .ui-meta-assignee { width: 130px; padding: 6px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 12px; }
+        .ui-meta-tags { flex: 1; min-width: 120px; padding: 6px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 12px; }
+        .ui-meta-notes-btn { padding: 6px 12px; border: 1px solid ${colors.border}; border-radius: 8px; background: #fff; font-size: 12px; cursor: pointer; }
+        .ui-notes { padding: 10px 16px; border-bottom: 1px solid ${colors.borderLight}; background: ${colors.bgSecondary}; display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+        .ui-note { display: flex; flex-direction: column; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 10px; }
+        .ui-note-text { font-size: 13px; color: ${colors.text}; }
+        .ui-note-by { font-size: 10px; color: ${colors.textMuted}; margin-top: 2px; }
+        .ui-note-add { display: flex; gap: 8px; }
+        .ui-note-input { flex: 1; padding: 7px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 13px; }
+        .ui-note-btn { padding: 7px 14px; background: ${colors.primary}; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .ui-note-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .ui-thread-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: ${colors.bgSecondary}; }
         .ui-msg { display: flex; }
         .ui-msg.out { justify-content: flex-end; }
