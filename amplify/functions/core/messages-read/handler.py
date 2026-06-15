@@ -127,71 +127,39 @@ def _count_messages(request_id: str, origin: str = '') -> Dict[str, Any]:
     totals = {'inbound': 0, 'outbound': 0, 'today': 0, 'week': 0,
               'delivered': 0, 'outboundTotal': 0}
 
-    for dir_type, table_name in [('inbound', INBOUND_TABLE), ('outbound', OUTBOUND_TABLE)]:
-        try:
-            table = dynamodb.Table(table_name)
-            # Total count
-            count = 0
-            scan_kwargs: Dict[str, Any] = {'Select': 'COUNT'}
-            while True:
-                resp = table.scan(**scan_kwargs)
-                count += resp.get('Count', 0)
-                if 'LastEvaluatedKey' not in resp:
-                    break
-                scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
-            totals[dir_type] = count
+    # Count the single canonical MessagesTable (all channels). Select='COUNT' (no data).
+    table = dynamodb.Table(MESSAGES_TABLE)
 
-            # Today count
-            today_count = 0
-            scan_kwargs = {
-                'Select': 'COUNT',
-                'FilterExpression': '#ts >= :today',
-                'ExpressionAttributeNames': {'#ts': 'timestamp'},
-                'ExpressionAttributeValues': {':today': D(str(today_start))},
-            }
-            while True:
-                resp = table.scan(**scan_kwargs)
-                today_count += resp.get('Count', 0)
-                if 'LastEvaluatedKey' not in resp:
-                    break
-                scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
-            totals['today'] += today_count
+    def _count(filter_expr=None, names=None, values=None):
+        kw: Dict[str, Any] = {'Select': 'COUNT'}
+        if filter_expr:
+            kw['FilterExpression'] = filter_expr
+            if names:
+                kw['ExpressionAttributeNames'] = names
+            if values:
+                kw['ExpressionAttributeValues'] = values
+        n = 0
+        while True:
+            resp = table.scan(**kw)
+            n += resp.get('Count', 0)
+            if 'LastEvaluatedKey' not in resp:
+                break
+            kw['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+        return n
 
-            # Week count
-            week_count = 0
-            scan_kwargs = {
-                'Select': 'COUNT',
-                'FilterExpression': '#ts >= :week',
-                'ExpressionAttributeNames': {'#ts': 'timestamp'},
-                'ExpressionAttributeValues': {':week': D(str(week_start))},
-            }
-            while True:
-                resp = table.scan(**scan_kwargs)
-                week_count += resp.get('Count', 0)
-                if 'LastEvaluatedKey' not in resp:
-                    break
-                scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
-            totals['week'] += week_count
-
-            # Delivery stats (outbound only)
-            if dir_type == 'outbound':
-                totals['outboundTotal'] = count
-                delivered = 0
-                scan_kwargs = {
-                    'Select': 'COUNT',
-                    'FilterExpression': '#st IN (:d, :r, :s)',
-                    'ExpressionAttributeNames': {'#st': 'status'},
-                    'ExpressionAttributeValues': {':d': 'delivered', ':r': 'read', ':s': 'sent'},
-                }
-                while True:
-                    resp = table.scan(**scan_kwargs)
-                    delivered += resp.get('Count', 0)
-                    if 'LastEvaluatedKey' not in resp:
-                        break
-                    scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
-                totals['delivered'] = delivered
-        except Exception as e:
-            logger.warning(f"Count error for {table_name}: {e}")
+    try:
+        totals['inbound'] = _count('direction = :din', None, {':din': 'inbound'})
+        totals['outbound'] = _count('direction = :dout', None, {':dout': 'outbound'})
+        totals['today'] = _count('#ts >= :today', {'#ts': 'timestamp'}, {':today': D(str(today_start))})
+        totals['week'] = _count('#ts >= :week', {'#ts': 'timestamp'}, {':week': D(str(week_start))})
+        totals['outboundTotal'] = totals['outbound']
+        totals['delivered'] = _count(
+            '#st IN (:dl, :rd, :st) AND direction = :dout',
+            {'#st': 'status'},
+            {':dl': 'delivered', ':rd': 'read', ':st': 'sent', ':dout': 'outbound'},
+        )
+    except Exception as e:
+        logger.warning(f"Count error on MessagesTable: {e}")
 
     delivery_rate = (
         round((totals['delivered'] / totals['outboundTotal']) * 100)
