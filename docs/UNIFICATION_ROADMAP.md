@@ -12,6 +12,7 @@ What's already unified, and the full list of what else can be — with UX approa
 | **Contacts** | One `ContactsTable` shared by every channel | backend |
 | **Unified Inbox** | Conversation-grouped, cross-channel threads + **inline reply** per channel | `/dm/inbox` |
 | **Channels hub** | One launcher for all channels + cross-channel tools | `/dm/channels` |
+| **Broadcast** | One composer → channel → audience (opt-in filtered) → message → send w/ progress | `/dm/broadcast` |
 | **Delivery Report** | Cross-channel logs with channel/status badges | `/dm/logs` |
 | **Calls in timeline** | Voice/WhatsApp calls as breadcrumbs in the unified view | breadcrumb rows |
 | **Service Ops** | WhatsApp-Flow cluster (orders, bookings, docs…) in one hub | `/dm/service-ops` |
@@ -22,11 +23,9 @@ What's already unified, and the full list of what else can be — with UX approa
 
 ### Tier 1 — high value, low risk (frontend-mostly)
 
-**1. Unified Broadcast / Campaign composer**
-Today: `whatsapp/campaign`, `ses/campaign`, `rcs/campaign`, SMS campaign — all separate.
-Unify: one composer → pick channel(s) → audience (from Contacts) → template/content → schedule/send.
-UX: stepper (Audience → Message → Review → Send) with a channel toggle; falls back per channel.
-Backend: thin orchestrator over the existing send Lambdas. **Effort: M · Risk: low.**
+**1. Unified Broadcast / Campaign composer** ✅ DONE — `/dm/broadcast`
+Pick channel → opt-in-filtered audience → message (WhatsApp template / SMS / RCS / Email) → send
+with live progress, over the existing send Lambdas.
 
 **2. Unified Templates / Content Library**
 Today: WhatsApp templates, RCS templates, email bodies, SMS DLT templates, reusable media (`wa-tpl/`) all separate.
