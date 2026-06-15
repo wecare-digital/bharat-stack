@@ -52,6 +52,7 @@ const CHANNELS: ChannelCard[] = [
 
 const CROSS: { label: string; desc: string; href: string }[] = [
     { label: 'Unified Inbox', desc: 'All conversations, one thread per contact', href: '/dm/inbox' },
+    { label: 'Broadcast', desc: 'Send a campaign across any channel', href: '/dm/broadcast' },
     { label: 'Delivery Report', desc: 'Cross-channel logs, status & failures', href: '/dm/logs' },
     { label: 'Contacts', desc: 'One contact book across all channels', href: '/contacts' },
     { label: 'Service Operations', desc: 'WhatsApp-Flow orders, bookings, docs', href: '/dm/service-ops' },

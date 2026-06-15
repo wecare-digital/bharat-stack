@@ -59,6 +59,7 @@ export const navigationConfig: NavItem[] = [
     children: [
       { path: '/dm/inbox', label: 'Unified Inbox', icon: 'message' },
       { path: '/dm/channels', label: 'Channels', icon: 'message' },
+      { path: '/dm/broadcast', label: 'Broadcast', icon: 'message' },
       {
         path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
           { path: '/dm/whatsapp', label: 'Inbox' },
