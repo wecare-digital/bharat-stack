@@ -45,6 +45,8 @@ lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 
 # Environment variables - use actual table names
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
+# Canonical unified message table (status mirror target).
+UNIFIED_MESSAGES_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'stack-wecare-digital-MediaFilesTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'stack-wecare-digital-AIInteractionsTable')
@@ -2349,6 +2351,20 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) ->
                     ExpressionAttributeNames={'#status': 'status'},
                     ExpressionAttributeValues=expr_values
                 )
+
+                # Mirror the same status onto the canonical MessagesTable (same id,
+                # written by the dual-write). Guarded — never breaks status processing.
+                if table_name != UNIFIED_MESSAGES_TABLE:
+                    try:
+                        dynamodb.Table(UNIFIED_MESSAGES_TABLE).update_item(
+                            Key={'id': message_id},
+                            UpdateExpression=update_expr,
+                            ConditionExpression='attribute_exists(id)',
+                            ExpressionAttributeNames={'#status': 'status'},
+                            ExpressionAttributeValues=expr_values
+                        )
+                    except Exception as _ue:
+                        logger.debug(f'canonical status mirror skipped for {message_id}: {_ue}')
                 
                 logger.info(json.dumps({
                     'event': 'status_updated',
