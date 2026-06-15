@@ -63,6 +63,8 @@ export const navigationConfig: NavItem[] = [
       { path: '/dm/content', label: 'Content Library', icon: 'message' },
       { path: '/dm/calls', label: 'Calls', icon: 'voice' },
       { path: '/dm/contact-360', label: 'Contact 360', icon: 'contacts' },
+      { path: '/dm/scheduled', label: 'Scheduled', icon: 'message' },
+      { path: '/dm/search', label: 'Search', icon: 'message' },
       {
         path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
           { path: '/dm/whatsapp', label: 'Inbox' },
