@@ -71,7 +71,7 @@ export const navigationConfig: NavItem[] = [
       { path: '/dm/settings', label: 'Channel Settings', icon: 'settings' },
       {
         path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
-          { path: '/dm/whatsapp', label: 'Inbox' },
+          { path: '/dm/inbox', label: 'Inbox' },
           { path: '/dm/whatsapp/settings', label: 'Settings' },
         ]
       },
