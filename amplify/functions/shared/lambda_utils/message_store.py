@@ -34,8 +34,10 @@ logger = logging.getLogger(__name__)
 
 _dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-# Canonical unified table. Override with MESSAGES_TABLE env var if needed.
-MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
+# Canonical unified table. Uses a DEDICATED env name so it can't be hijacked by a
+# per-Lambda MESSAGES_TABLE (several handlers repurpose MESSAGES_TABLE for their own
+# legacy table — reading that here would send writes to the wrong place).
+MESSAGES_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days — matches the Message model TTL
 
 VALID_CHANNELS = ('whatsapp', 'sms', 'email', 'rcs', 'voice')
