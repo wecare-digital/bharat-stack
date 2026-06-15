@@ -44,6 +44,7 @@ from typing import Dict, Any, Optional
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.privacy import mask_phone, redact_pii
+from lambda_utils.message_store import put_call_breadcrumb  # unified timeline breadcrumb
 
 logger = get_logger(__name__)
 
@@ -660,6 +661,23 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
+
+        # Unified timeline breadcrumb — one 'call' row in MessagesTable per ended call
+        # (full record stays in WhatsAppCallingTable). Idempotent on callId.
+        try:
+            _dur = int(duration) if duration not in (None, '') else 0
+            _bc_status = 'answered' if _dur > 0 else (reason or 'missed')
+            put_call_breadcrumb(
+                call_id=call_id,
+                direction='inbound' if direction == 'USER_INITIATED' else 'outbound',
+                status=str(_bc_status),
+                duration=_dur or None,
+                call_type='whatsapp',
+                phone=from_number or to_number,
+                timestamp=int(now),
+            )
+        except Exception as _bce:
+            logger.warning(f"call breadcrumb skipped: {_bce}")
 
         # Send post-call reaction to the caller via WhatsApp message
         # ✅ for completed calls (duration > 0), ❌ for missed/rejected

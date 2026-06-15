@@ -38,7 +38,7 @@ _dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days — matches the Message model TTL
 
-VALID_CHANNELS = ('whatsapp', 'sms', 'email', 'rcs')
+VALID_CHANNELS = ('whatsapp', 'sms', 'email', 'rcs', 'voice')
 VALID_DIRECTIONS = ('inbound', 'outbound')
 VALID_STATUSES = ('pending', 'sent', 'delivered', 'read', 'failed', 'received')
 
@@ -109,6 +109,8 @@ def build_message_item(
         'message_type': 'messageType',
         'detected_language': 'detectedLanguage',
         'call_type': 'callType',
+        'call_id': 'callId',
+        'recording_url': 'recordingUrl',
         'ses_message_id': 'sesMessageId',
     }
     for key, value in extras.items():
@@ -199,3 +201,66 @@ def scan_channel(channel: Optional[str] = None, limit: int = 1000,
     except Exception as e:  # noqa: BLE001
         logger.warning('{"event":"message_store_scan_failed","error":"%s"}' % str(e))
         return []
+
+
+def _call_label(direction: str, status: str, duration: Optional[int]) -> str:
+    """Human one-line label for a call breadcrumb in the unified timeline."""
+    st = (status or '').lower().replace('_', '-')
+    icon = '\U0001F4DE'  # 📞
+    if st in ('missed', 'no-answer', 'noanswer', 'unanswered'):
+        return f'{icon} Missed call'
+    if st == 'busy':
+        return f'{icon} Busy'
+    if st in ('failed', 'error', 'rejected'):
+        return f'{icon} Failed call'
+    label = 'Incoming call' if direction == 'inbound' else 'Outgoing call'
+    if duration:
+        try:
+            m, s = divmod(int(duration), 60)
+            return f'{icon} {label} \u00b7 {m}:{s:02d}'
+        except Exception:
+            pass
+    return f'{icon} {label}'
+
+
+def put_call_breadcrumb(
+    *,
+    call_id: str,
+    direction: str = 'outbound',
+    contact_id: str = '',
+    status: str = '',
+    duration: Optional[int] = None,
+    call_type: Optional[str] = None,
+    phone: Optional[str] = None,
+    recording_url: Optional[str] = None,
+    timestamp: Optional[int] = None,
+    table_name: Optional[str] = None,
+) -> Optional[str]:
+    """Write a thin 'call' breadcrumb row to MessagesTable so calls appear inline in
+    the unified per-contact timeline. The FULL call record stays in the voice table —
+    this row just points at it via callId (channel='voice', messageType='call').
+
+    Idempotent: uses call_id as the row id, so a status update overwrites the same
+    breadcrumb instead of duplicating. Error-swallowed — never breaks call logging.
+    """
+    direction = (direction or 'outbound').lower()
+    if direction not in VALID_DIRECTIONS:
+        direction = 'outbound'
+    content = _call_label(direction, status, duration)
+    return put_message(
+        channel='voice',
+        direction=direction,
+        contact_id=contact_id or '',
+        content=content,
+        status=(status or 'completed').lower(),
+        message_id=call_id,
+        message_type='call',
+        timestamp=timestamp,
+        table_name=table_name,
+        call_id=call_id,
+        duration=duration,
+        call_type=call_type,
+        recording_url=recording_url,
+        sender_phone=phone if direction == 'inbound' else None,
+        receiving_phone=phone if direction != 'inbound' else None,
+    )

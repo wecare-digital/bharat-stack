@@ -246,7 +246,7 @@ def _read_from_messages_table(contact_id: str, channel: str, direction: str, lim
                 'Limit': limit,
             })
         else:
-            for ch in ('whatsapp', 'sms', 'rcs', 'email'):
+            for ch in ('whatsapp', 'sms', 'rcs', 'email', 'voice'):
                 try:
                     items.extend(_page_query({
                         'IndexName': 'channel-index',

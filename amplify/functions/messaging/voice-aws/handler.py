@@ -25,6 +25,7 @@ from decimal import Decimal
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.validation import normalize_phone
+from lambda_utils.message_store import put_call_breadcrumb  # unified timeline breadcrumb
 
 logger = get_logger(__name__)
 
@@ -314,6 +315,22 @@ def _store_call(item: Dict) -> None:
         table.put_item(Item=clean)
     except Exception as e:
         logger.error(f"Store call error: {str(e)}")
+
+    # Unified timeline breadcrumb — thin 'call' row in MessagesTable (full record stays
+    # here in VoiceAwsTable). Idempotent on callId; error-swallowed.
+    try:
+        dur = item.get('duration')
+        put_call_breadcrumb(
+            call_id=item.get('callId') or item.get('id'),
+            direction=str(item.get('direction', 'OUTBOUND')),
+            contact_id=item.get('contactId', ''),
+            status=str(item.get('status', '')),
+            duration=int(dur) if dur not in (None, '') else None,
+            call_type=item.get('callType'),
+            phone=item.get('phoneNumber'),
+        )
+    except Exception as e:
+        logger.warning(f"call breadcrumb skipped: {e}")
 
 
 def _normalize(item: Dict) -> Dict:

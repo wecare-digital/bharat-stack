@@ -70,6 +70,7 @@ from decimal import Decimal
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
+from lambda_utils.message_store import put_call_breadcrumb  # unified timeline breadcrumb
 
 logger = get_logger(__name__)
 
@@ -597,6 +598,24 @@ def _store_cdr_record(record: Dict, request_id: str) -> None:
             'vmSessionId': record.get('vmSessionId', ''),
             'requestId': request_id
         }))
+
+        # Unified timeline breadcrumb — thin 'call' row in MessagesTable (full CDR stays
+        # here in VoiceCDRTable). Idempotent on the CDR id; error-swallowed.
+        try:
+            ctype = str(record.get('callType', '')).upper()
+            is_in = ctype == 'INBOUND'
+            dur = record.get('durationSec') or 0
+            put_call_breadcrumb(
+                call_id=record.get('id') or record.get('vmSessionId') or record.get('clientCorrelationId'),
+                direction='inbound' if is_in else 'outbound',
+                status=str(record.get('overallCallStatus', '')),
+                duration=int(float(dur)) if dur else None,
+                call_type='airtel',
+                phone=record.get('callerNumber') if is_in else record.get('destinationNumber'),
+                recording_url=record.get('recordingUrl'),
+            )
+        except Exception as _bce:
+            logger.warning(f"call breadcrumb skipped: {_bce}")
     except Exception as e:
         logger.error(f"CDR store error: {str(e)}")
         raise
