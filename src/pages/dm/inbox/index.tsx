@@ -418,6 +418,15 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                         const ch = ( m.channel || 'whatsapp' ).toLowerCase();
                                         const cm = chMeta( ch );
                                         const out = ( m.direction || '' ).toUpperCase() === 'OUTBOUND';
+                                        if ( ( m.messageType || '' ).toLowerCase() === 'reaction' )
+                                        {
+                                            const emoji = ( m.content || '' ).replace( /\[reaction\]?/i, '' ).trim() || '👍';
+                                            return (
+                                                <div key={ m.messageId } className={ `ui-react ${out ? 'out' : 'in'}` }>
+                                                    <span className="ui-react-pill">{ out ? 'You reacted' : 'Reacted' } { emoji }</span>
+                                                </div>
+                                            );
+                                        }
                                         return (
                                             <div key={ m.messageId } className={ `ui-msg ${out ? 'out' : 'in'}` }>
                                                 <div className="ui-msg-bubble">
@@ -587,6 +596,9 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-msg-img { max-width: 220px; max-height: 220px; border-radius: 8px; object-fit: cover; }
         .ui-msg-doc { font-size: 13px; color: ${colors.primary}; text-decoration: none; font-weight: 600; }
         .ui-msg-transcript { font-size: 12px; color: ${colors.textSecondary}; font-style: italic; border-left: 2px solid ${colors.border}; padding-left: 6px; }
+        .ui-react { display: flex; padding: 2px 0; }
+        .ui-react.out { justify-content: flex-end; }
+        .ui-react-pill { font-size: 11px; color: ${colors.textMuted}; background: ${colors.bgSecondary}; border: 1px solid ${colors.borderLight}; border-radius: 9999px; padding: 2px 10px; }
         .ui-msg-meta { font-size: 10px; color: ${colors.textMuted}; display: flex; align-items: center; gap: 8px; }
         .ui-msg-act { background: none; border: none; cursor: pointer; font-size: 11px; opacity: 0.5; padding: 0 2px; }
         .ui-msg-act:hover { opacity: 1; }
