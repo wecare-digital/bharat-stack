@@ -14,7 +14,7 @@ import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
-import { colors } from '../../../lib/design-tokens';
+import { colors, shadow } from '../../../lib/design-tokens';
 
 interface PageProps {
     signOut?: () => void;
@@ -59,6 +59,8 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ channelFilter, setChannelFilter ] = useState<string>( 'ALL' );
     const [ search, setSearch ] = useState( '' );
     const [ loading, setLoading ] = useState( true );
+    const [ replyText, setReplyText ] = useState( '' );
+    const [ sending, setSending ] = useState( false );
 
     const loadData = useCallback( async () => {
         try
@@ -138,9 +140,78 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const selectedConv = conversations.find( c => c.contactId === selected );
     const replyChannel = thread.length ? ( thread[ thread.length - 1 ].channel || 'whatsapp' ).toLowerCase() : 'whatsapp';
 
+    // Derive the reply target (recipient phone, WABA, contactId) from the thread.
+    const replyTarget = useMemo( () => {
+        let phone = '';
+        let waba = '';
+        for ( let i = thread.length - 1; i >= 0; i-- )
+        {
+            const m = thread[ i ];
+            if ( !phone )
+            {
+                phone = ( ( m.direction || '' ).toUpperCase() === 'INBOUND' ? m.senderPhone : m.receivingPhone )
+                    || m.senderPhone || m.receivingPhone || '';
+            }
+            if ( !waba && m.awsPhoneNumberId ) waba = m.awsPhoneNumberId;
+            if ( phone && waba ) break;
+        }
+        const isPhone = /^\+?\d{6,}$/.test( selected || '' );
+        const contactId = isPhone ? '' : ( selected || '' );
+        if ( isPhone && !phone ) phone = selected || '';
+        return { phone, waba, contactId };
+    }, [ thread, selected ] );
+
+    const handleReply = useCallback( async () => {
+        const text = replyText.trim();
+        if ( !text || sending ) return;
+        const { phone, waba, contactId } = replyTarget;
+        setSending( true );
+        try
+        {
+            let ok = false;
+            if ( replyChannel === 'whatsapp' )
+            {
+                if ( !contactId ) { toast.error( 'WhatsApp reply needs a saved contact — open the WhatsApp inbox' ); setSending( false ); return; }
+                const r = await api.sendWhatsAppMessage( { contactId, content: text, phoneNumberId: waba || undefined } );
+                ok = !!r;
+            } else if ( replyChannel === 'sms' )
+            {
+                if ( !phone ) { toast.error( 'No phone number for this conversation' ); setSending( false ); return; }
+                const r = await api.sendSmsAws( { contactId: contactId || undefined, phoneNumber: phone, content: text, messageType: 'TRANSACTIONAL' } );
+                ok = !!( r && ( r.messageId || r.status === 'sent' ) );
+            } else if ( replyChannel === 'rcs' )
+            {
+                if ( !phone ) { toast.error( 'No phone number for this conversation' ); setSending( false ); return; }
+                const r = await api.sendRcs( { phoneNumber: phone, text } );
+                ok = !!( r && ( r.success || r.messageId ) );
+            } else if ( replyChannel === 'email' )
+            {
+                if ( !contactId ) { toast.error( 'Email reply needs a saved contact' ); setSending( false ); return; }
+                const r = await api.sendEmailMessage( contactId, 'Re: your conversation', text );
+                ok = !!r;
+            }
+            if ( ok )
+            {
+                setReplyText( '' );
+                toast.success( `Sent via ${chMeta( replyChannel ).label}` );
+                setTimeout( loadData, 800 );
+            } else
+            {
+                toast.error( 'Failed to send' );
+            }
+        } catch
+        {
+            toast.error( 'Failed to send' );
+        } finally
+        {
+            setSending( false );
+        }
+    }, [ replyText, sending, replyTarget, replyChannel, toast, loadData ] );
+
     const content = (
         <>
             <div className="ui-wrap">
+
                 <PageHeader title="Unified Inbox" subtitle="All channels in one place — WhatsApp, SMS, Email, RCS, Voice" icon="message" />
 
                 <div className="ui-toolbar">
@@ -214,8 +285,28 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                     } ) }
                                 </div>
                                 <div className="ui-reply">
-                                    <span>Replies are channel-specific.</span>
-                                    <Link href={ chMeta( replyChannel ).reply } className="ui-reply-btn">Reply via { chMeta( replyChannel ).label } →</Link>
+                                    { replyChannel === 'voice' ? (
+                                        <div className="ui-reply-voice">
+                                            <span>This is a call — reply by calling back.</span>
+                                            <Link href={ chMeta( 'voice' ).reply } className="ui-reply-link">Open Voice →</Link>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <textarea
+                                                className="ui-reply-input"
+                                                placeholder={ `Reply via ${chMeta( replyChannel ).label}…` }
+                                                value={ replyText }
+                                                onChange={ e => setReplyText( e.target.value ) }
+                                                onKeyDown={ e => { if ( e.key === 'Enter' && ( e.ctrlKey || e.metaKey ) ) handleReply(); } }
+                                                rows={ 2 }
+                                            />
+                                            <div className="ui-reply-actions">
+                                                <span className="ui-reply-via" style={ { color: chMeta( replyChannel ).fg, background: chMeta( replyChannel ).bg } }>via { chMeta( replyChannel ).label }</span>
+                                                <Link href={ chMeta( replyChannel ).reply } className="ui-reply-link">Full tool →</Link>
+                                                <button className="ui-reply-btn" disabled={ sending || !replyText.trim() } onClick={ handleReply }>{ sending ? 'Sending…' : 'Send' }</button>
+                                            </div>
+                                        </>
+                                    ) }
                                 </div>
                             </>
                         ) }
@@ -250,9 +341,17 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-msg.out .ui-msg-bubble { background: ${colors.lime}; border-color: ${colors.lime}; }
         .ui-msg-text { font-size: 14px; color: ${colors.text}; white-space: pre-wrap; word-break: break-word; }
         .ui-msg-meta { font-size: 10px; color: ${colors.textMuted}; }
-        .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: ${colors.textMuted}; }
-        .ui-reply-btn { background: ${colors.primary}; color: #fff; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; text-decoration: none; }
-        .ui-reply-btn:hover { background: ${colors.primaryHover}; }
+        .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; }
+        .ui-reply-input { width: 100%; resize: vertical; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
+        .ui-reply-input:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
+        .ui-reply-actions { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+        .ui-reply-via { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 9999px; margin-right: auto; }
+        .ui-reply-link { font-size: 12px; color: ${colors.textMuted}; text-decoration: none; }
+        .ui-reply-link:hover { color: ${colors.primary}; }
+        .ui-reply-voice { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: ${colors.textMuted}; width: 100%; }
+        .ui-reply-btn { background: ${colors.primary}; color: #fff; padding: 8px 18px; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .ui-reply-btn:hover:not(:disabled) { background: ${colors.primaryHover}; }
+        .ui-reply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .ui-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: ${colors.textMuted}; font-size: 14px; }
         @media (max-width: 800px) { .ui-panes { grid-template-columns: 1fr; height: auto; } }
       ` }</style>
