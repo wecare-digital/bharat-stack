@@ -10,12 +10,31 @@ What's already unified, and the full list of what else can be — with UX approa
 |---|---|---|
 | **Messages store** | One canonical `MessagesTable`, all channels write to it | backend |
 | **Contacts** | One `ContactsTable` shared by every channel | backend |
-| **Unified Inbox** | Conversation-grouped, cross-channel threads + **inline reply** per channel | `/dm/inbox` |
+| **Unified Inbox** | Conversation-grouped threads + **full composer** (reply/delete/pagination, WABA selector, WhatsApp template send, ✨ AI suggest) | `/dm/inbox` |
 | **Channels hub** | One launcher for all channels + cross-channel tools | `/dm/channels` |
 | **Broadcast** | One composer → channel → audience (opt-in filtered) → message → send w/ progress | `/dm/broadcast` |
+| **Content Library** | WhatsApp + RCS templates in one searchable list | `/dm/content` |
+| **Calls** | Unified call log (AWS/Airtel/WhatsApp) from voice breadcrumbs | `/dm/calls` |
+| **Contact 360** | Per-contact timeline: messages+calls+payments+orders+invoices | `/dm/contact-360` |
+| **Scheduled** | Cross-channel scheduled sends, cancel | `/dm/scheduled` |
+| **Search** | Cross-channel search over messages + contacts | `/dm/search` |
+| **AI Assist** | ✨ Suggest reply (Bedrock) in the inbox | `/dm/inbox` |
+| **Analytics** | Cross-channel volume, mix, delivery rate | `/dm/analytics` |
+| **Channel Settings** | Consent/opt-in overview, sender identities, per-channel config | `/dm/settings` |
 | **Delivery Report** | Cross-channel logs with channel/status badges | `/dm/logs` |
 | **Calls in timeline** | Voice/WhatsApp calls as breadcrumbs in the unified view | breadcrumb rows |
 | **Service Ops** | WhatsApp-Flow cluster (orders, bookings, docs…) in one hub | `/dm/service-ops` |
+
+---
+
+## ⏳ Remaining — need backend (not done)
+
+- **#6 Automation rules engine** — needs a rules table + engine Lambda (trigger→action across channels).
+  Pieces exist (`ai-generate-response`, WhatsApp keyword auto-reply); generalizing is a backend build.
+- **#12 Cost & usage** — per-provider spend (Meta/Pinpoint/Airtel/Sinch/SES); needs billing ingestion.
+- **#13 Smart routing / failover** — generalize the existing RCS→SMS fallback into a routing policy.
+
+These are deliberately deferred (backend-heavy, some touch billing/live routing) rather than half-built.
 
 ---
 
