@@ -79,6 +79,8 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
     const [ showTemplates, setShowTemplates ] = useState( false );
     const [ aiSuggesting, setAiSuggesting ] = useState( false );
+    const [ summary, setSummary ] = useState( '' );
+    const [ summarizing, setSummarizing ] = useState( false );
     const [ showEmoji, setShowEmoji ] = useState( false );
     const [ uploading, setUploading ] = useState( false );
     const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location'>( null );
@@ -116,7 +118,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     }, [] );
 
     // Reset composer context when switching conversations.
-    useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplates( false ); }, [ selected ] );
+    useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplates( false ); setSummary( '' ); }, [ selected ] );
 
     const handleDelete = useCallback( async ( m: api.Message ) => {
         if ( deletingId ) return;
@@ -285,6 +287,18 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         finally { setAiSuggesting( false ); }
     }, [ aiSuggesting, thread, replyChannel, selectedConv, toast ] );
 
+    const handleSummarize = useCallback( async () => {
+        if ( summarizing || !thread.length ) return;
+        setSummarizing( true );
+        try
+        {
+            const convo = thread.slice( -30 ).map( m => `${( m.direction || '' ).toUpperCase() === 'INBOUND' ? 'Customer' : 'Us'}: ${m.content || '[' + ( m.messageType || 'media' ) + ']'}` ).join( '\n' );
+            const r = await api.generateAIResponse( `Summarize this customer conversation in 2-3 short bullet points (key intent, status, next action):\n\n${convo}`, { channel: replyChannel } );
+            if ( r?.response ) setSummary( r.response ); else toast.error( 'No summary' );
+        } catch { toast.error( 'Summarize failed' ); }
+        finally { setSummarizing( false ); }
+    }, [ summarizing, thread, replyChannel, toast ] );
+
     const handleAttach = useCallback( async ( e: React.ChangeEvent<HTMLInputElement> ) => {
         const file = e.target.files?.[ 0 ];
         if ( e.target ) e.target.value = '';  // allow re-selecting same file
@@ -398,7 +412,14 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                             return <span key={ ch } className="ui-badge" style={ { color: cm.fg, background: cm.bg } }>{ cm.label }</span>;
                                         } ) }
                                     </span>
+                                    <button className="ui-summarize" disabled={ summarizing } onClick={ handleSummarize } title="AI summary of this conversation">{ summarizing ? '✨…' : '✨ Summarize' }</button>
                                 </div>
+                                { summary && (
+                                    <div className="ui-summary">
+                                        <span className="ui-summary-text">{ summary }</span>
+                                        <button className="ui-summary-x" onClick={ () => setSummary( '' ) }>✕</button>
+                                    </div>
+                                ) }
                                 <div className="ui-thread-body">
                                     { thread.length > visibleCount && (
                                         <button className="ui-load-more" onClick={ () => setVisibleCount( v => v + 50 ) }>↑ Load older ({ thread.length - visibleCount })</button>
@@ -411,7 +432,17 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                             <div key={ m.messageId } className={ `ui-msg ${out ? 'out' : 'in'}` }>
                                                 <div className="ui-msg-bubble">
                                                     <span className="ui-badge" style={ { color: cm.fg, background: cm.bg } }>{ cm.label }</span>
-                                                    <span className="ui-msg-text">{ m.content || `[${m.messageType || ch}]` }</span>
+                                                    { ( () => {
+                                                        const mt = ( m.messageType || '' ).toLowerCase();
+                                                        const url = m.mediaUrl || '';
+                                                        if ( url && ( mt === 'image' || mt === 'sticker' ) ) return <img className="ui-msg-img" src={ url } alt="image" />;
+                                                        if ( url && mt === 'video' ) return <video className="ui-msg-img" src={ url } controls />;
+                                                        if ( url && ( mt === 'audio' || mt === 'voice' ) ) return <audio src={ url } controls style={ { maxWidth: '100%' } } />;
+                                                        if ( url && mt === 'document' ) return <a className="ui-msg-doc" href={ url } target="_blank" rel="noopener noreferrer">📄 { ( m as any ).displayFilename || 'Document' }</a>;
+                                                        return null;
+                                                    } )() }
+                                                    { ( m.content || !m.mediaUrl ) && <span className="ui-msg-text">{ m.content || `[${m.messageType || ch}]` }</span> }
+                                                    { m.transcription && <span className="ui-msg-transcript">📝 { m.transcription }</span> }
                                                     <span className="ui-msg-meta">
                                                         { fmtTime( m.timestamp ) } · { ( m.status || '' ).toLowerCase() }
                                                         <button className="ui-msg-act" title="Reply" onClick={ () => setReplyingTo( m ) }>↩</button>
@@ -542,12 +573,20 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-thread { border: 1px solid ${colors.border}; border-radius: 12px; display: flex; flex-direction: column; background: #fff; overflow: hidden; }
         .ui-thread-head { padding: 12px 16px; border-bottom: 1px solid ${colors.border}; display: flex; justify-content: space-between; align-items: center; }
         .ui-thread-name { font-weight: 700; font-size: 15px; color: ${colors.text}; }
+        .ui-summarize { margin-left: auto; background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 6px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .ui-summarize:disabled { opacity: 0.6; cursor: not-allowed; }
+        .ui-summary { display: flex; gap: 8px; align-items: flex-start; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 10px 12px; margin: 8px 16px 0; }
+        .ui-summary-text { font-size: 13px; color: ${colors.text}; white-space: pre-wrap; flex: 1; }
+        .ui-summary-x { background: none; border: none; cursor: pointer; color: ${colors.textMuted}; }
         .ui-thread-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: ${colors.bgSecondary}; }
         .ui-msg { display: flex; }
         .ui-msg.out { justify-content: flex-end; }
         .ui-msg-bubble { max-width: 70%; background: #fff; border: 1px solid ${colors.border}; border-radius: 12px; padding: 8px 12px; display: flex; flex-direction: column; gap: 4px; }
         .ui-msg.out .ui-msg-bubble { background: ${colors.lime}; border-color: ${colors.lime}; }
         .ui-msg-text { font-size: 14px; color: ${colors.text}; white-space: pre-wrap; word-break: break-word; }
+        .ui-msg-img { max-width: 220px; max-height: 220px; border-radius: 8px; object-fit: cover; }
+        .ui-msg-doc { font-size: 13px; color: ${colors.primary}; text-decoration: none; font-weight: 600; }
+        .ui-msg-transcript { font-size: 12px; color: ${colors.textSecondary}; font-style: italic; border-left: 2px solid ${colors.border}; padding-left: 6px; }
         .ui-msg-meta { font-size: 10px; color: ${colors.textMuted}; display: flex; align-items: center; gap: 8px; }
         .ui-msg-act { background: none; border: none; cursor: pointer; font-size: 11px; opacity: 0.5; padding: 0 2px; }
         .ui-msg-act:hover { opacity: 1; }
