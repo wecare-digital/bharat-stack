@@ -27,10 +27,9 @@ What's already unified, and the full list of what else can be — with UX approa
 Pick channel → opt-in-filtered audience → message (WhatsApp template / SMS / RCS / Email) → send
 with live progress, over the existing send Lambdas.
 
-**2. Unified Templates / Content Library**
-Today: WhatsApp templates, RCS templates, email bodies, SMS DLT templates, reusable media (`wa-tpl/`) all separate.
-Unify: one Content Library — filter by channel, reuse media across channels, one "create" flow.
-Backend: reuse `whatsapp-template-management` + RCS/SMS template APIs behind one list view. **Effort: M · Risk: low.**
+**2. Unified Templates / Content Library** ✅ DONE — `/dm/content`
+WhatsApp + RCS templates aggregated into one searchable, channel-filterable list (status,
+category, language, preview) with create deep-links. SMS DLT/email bodies can be added next.
 
 **3. Unified Channel Settings**
 Today: WhatsApp has a 17-tab settings hub; SMS/RCS/Email/Voice/Push configs are inline + scattered.
@@ -51,9 +50,9 @@ pending sends across channels with edit/cancel. **Effort: S · Risk: low.**
 Today: WhatsApp keyword + AI auto-reply only. Unify into a rules engine: trigger (keyword/intent/channel)
 → action (reply/template/route/AI) across all channels. Reuse `ai-generate-response`. **Effort: L · Risk: med.**
 
-**7. Unified Calls view**
-Voice AWS + Airtel (C2C/OBD/CDR) + WhatsApp Calling in one call log (the breadcrumbs already link here).
-Today split across `/dm/voice` + `/dm/voice-in`. One call log + recording player + transcript. **Effort: M · Risk: low.**
+**7. Unified Calls view** ✅ DONE — `/dm/calls`
+One call log reading the canonical `channel=voice` breadcrumbs (AWS + Airtel CDR + WhatsApp
+Calling), with provider/direction/duration/status filters + recording links.
 
 **8. AI Assist gateway (cross-cutting)**
 One `POST /ai/assist { task, context }` over `ai-generate-response` (Bedrock). Every page calls the same API:
