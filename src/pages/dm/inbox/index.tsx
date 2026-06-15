@@ -81,6 +81,8 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ aiSuggesting, setAiSuggesting ] = useState( false );
     const [ summary, setSummary ] = useState( '' );
     const [ summarizing, setSummarizing ] = useState( false );
+    const [ quickReplies, setQuickReplies ] = useState<string[]>( [] );
+    const [ showQuick, setShowQuick ] = useState( false );
     const [ showEmoji, setShowEmoji ] = useState( false );
     const [ uploading, setUploading ] = useState( false );
     const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location'>( null );
@@ -115,6 +117,9 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     // Load approved WhatsApp templates once (for the template send button).
     useEffect( () => {
         api.listTemplates().then( t => setTemplates( ( t || [] ).filter( x => x.status === 'APPROVED' ) ) ).catch( () => { } );
+        api.listAutomationRules().then( rs => setQuickReplies(
+            ( rs || [] ).filter( r => r.enabled && r.actionType === 'reply' && r.actionValue ).map( r => r.actionValue )
+        ) ).catch( () => { } );
     }, [] );
 
     // Reset composer context when switching conversations.
@@ -502,10 +507,20 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                     ) ) }
                                                 </div>
                                             ) }
+                                            { showQuick && (
+                                                <div className="ui-quick-list">
+                                                    { quickReplies.map( ( q, i ) => (
+                                                        <button key={ i } type="button" className="ui-quick-item" onClick={ () => { setReplyText( q ); setShowQuick( false ); } }>{ q.slice( 0, 80 ) }</button>
+                                                    ) ) }
+                                                </div>
+                                            ) }
                                             <div className="ui-reply-actions">
                                                 <span className="ui-reply-via" style={ { color: chMeta( replyChannel ).fg, background: chMeta( replyChannel ).bg } }>via { chMeta( replyChannel ).label }</span>
                                                 <span className="ui-fmt-hint">Enter to send · Shift+Enter newline · *bold* _italic_ ~strike~</span>
                                                 <button type="button" className="ui-tool-btn" onClick={ () => setShowEmoji( s => !s ) } title="Emoji">😊</button>
+                                                { quickReplies.length > 0 && (
+                                                    <button type="button" className="ui-tool-btn" onClick={ () => setShowQuick( s => !s ) } title="Quick replies">💬</button>
+                                                ) }
                                                 <button type="button" className="ui-tool-btn" disabled={ uploading } onClick={ () => fileRef.current?.click() } title="Attach image / document / video / audio">{ uploading ? '⏳' : '📎' }</button>
                                                 { replyChannel === 'whatsapp' && replyTarget.contactId && (
                                                     <>
@@ -615,6 +630,9 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-emoji-row { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 0; }
         .ui-emoji { background: ${colors.bgSecondary}; border: 1px solid ${colors.borderLight}; border-radius: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; }
         .ui-emoji:hover { background: ${colors.bgActive}; }
+        .ui-quick-list { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; border: 1px solid ${colors.border}; border-radius: 10px; padding: 4px; }
+        .ui-quick-item { text-align: left; background: ${colors.bgSecondary}; border: 1px solid ${colors.borderLight}; border-radius: 8px; padding: 6px 10px; font-size: 13px; color: ${colors.text}; cursor: pointer; }
+        .ui-quick-item:hover { background: ${colors.bgActive}; }
         .ui-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1410; padding: 20px; }
         .ui-modal { background: #fff; border-radius: 14px; max-width: 560px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
         .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; }
