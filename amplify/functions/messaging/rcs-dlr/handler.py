@@ -27,6 +27,7 @@ from decimal import Decimal
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
 from lambda_utils.message_store import put_message  # canonical MessagesTable writer
+from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
 
 logger = get_logger(__name__)
 
@@ -281,6 +282,23 @@ def _process_inbound(data: Dict, request_id: str):
         timestamp=now,
     )
     logger.info(f'Inbound RCS stored (canonical): {msg_id} from {identity[-4:] if identity else "?"}')
+
+    # Automation — auto-reply if a rule matches (guarded, async via rcs-send).
+    try:
+        if content and identity:
+            _auto = evaluate_rules(content, 'rcs')
+            if _auto:
+                boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1')).invoke(
+                    FunctionName='wecare-rcs-send',
+                    InvocationType='Event',
+                    Payload=json.dumps({
+                        'requestContext': {'http': {'method': 'POST'}},
+                        'body': json.dumps({'action': 'send', 'phoneNumber': identity.replace('+', ''), 'text': _auto}),
+                    }),
+                )
+                logger.info(json.dumps({'event': 'automation_auto_reply', 'channel': 'rcs', 'messageId': msg_id}))
+    except Exception as _ae:
+        logger.warning(f'rcs automation auto-reply skipped: {_ae}')
 
 
 def _process_opt(data: Dict, event_type: str, request_id: str):

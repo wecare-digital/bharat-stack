@@ -39,6 +39,8 @@ const CHANNEL: Record<string, { label: string; fg: string; bg: string; reply: st
 
 const chMeta = ( c?: string ) => CHANNEL[ ( c || 'whatsapp' ).toLowerCase() ] || { label: c || '?', fg: colors.textMuted, bg: colors.bgSecondary, reply: '/dm' };
 
+const QUICK_EMOJIS = [ '👍', '🙏', '✅', '😊', '❤️', '🎉', '⭐', '📎', '👋', '🔥' ];
+
 interface Conversation {
     contactId: string;
     name: string;
@@ -74,6 +76,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
     const [ showTemplates, setShowTemplates ] = useState( false );
     const [ aiSuggesting, setAiSuggesting ] = useState( false );
+    const [ showEmoji, setShowEmoji ] = useState( false );
 
     const loadData = useCallback( async () => {
         try
@@ -401,11 +404,21 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                 onKeyDown={ e => { if ( e.key === 'Enter' && !e.shiftKey ) { e.preventDefault(); handleReply(); } } }
                                                 rows={ 2 }
                                             />
+                                            { showEmoji && (
+                                                <div className="ui-emoji-row">
+                                                    { QUICK_EMOJIS.map( e => (
+                                                        <button key={ e } type="button" className="ui-emoji" onClick={ () => { setReplyText( t => t + e ); } }>{ e }</button>
+                                                    ) ) }
+                                                </div>
+                                            ) }
                                             <div className="ui-reply-actions">
                                                 <span className="ui-reply-via" style={ { color: chMeta( replyChannel ).fg, background: chMeta( replyChannel ).bg } }>via { chMeta( replyChannel ).label }</span>
                                                 <span className="ui-fmt-hint">Enter to send · Shift+Enter newline · *bold* _italic_ ~strike~</span>
+                                                <button type="button" className="ui-emoji-btn" onClick={ () => setShowEmoji( s => !s ) } title="Emoji">😊</button>
                                                 <button className="ui-ai-btn" disabled={ aiSuggesting } onClick={ handleSuggest } title="AI suggest reply">{ aiSuggesting ? '✨…' : '✨ Suggest' }</button>
-                                                <Link href={ chMeta( replyChannel ).reply } className="ui-reply-link">Full tool →</Link>
+                                                { replyChannel === 'whatsapp' && (
+                                                    <Link href="/dm/whatsapp" className="ui-reply-link" title="Media, voice notes, lists & more">📎 Media & more →</Link>
+                                                ) }
                                                 <button className="ui-reply-btn" disabled={ sending || !replyText.trim() } onClick={ handleReply }>{ sending ? 'Sending…' : 'Send' }</button>
                                             </div>
                                         </>
@@ -465,6 +478,10 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-fmt-hint { font-size: 10px; color: ${colors.textLight}; margin-right: auto; }
         .ui-ai-btn { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 7px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .ui-ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .ui-emoji-btn { background: #fff; border: 1px solid ${colors.border}; border-radius: 9px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
+        .ui-emoji-row { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 0; }
+        .ui-emoji { background: ${colors.bgSecondary}; border: 1px solid ${colors.borderLight}; border-radius: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; }
+        .ui-emoji:hover { background: ${colors.bgActive}; }
         .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; }
         .ui-reply-input { width: 100%; resize: vertical; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
         .ui-reply-input:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
