@@ -328,21 +328,6 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     }, [ replyChannel, replyTarget, replyText, selectedWaba, toast, loadData ] );
 
     const handleVoice = useCallback( async () => {
-        const text = replyText.trim();
-        if ( !text || sending ) return;
-        const { contactId } = replyTarget;
-        if ( !contactId ) { toast.error( 'Voice note needs a saved contact' ); return; }
-        setSending( true );
-        try
-        {
-            const r = await api.sendWhatsAppTTS( { contactId, messageText: text, phoneNumberId: selectedWaba } );
-            if ( r ) { setReplyText( '' ); toast.success( 'Voice note sent' ); setTimeout( loadData, 800 ); }
-            else toast.error( 'Voice note failed' );
-        } catch { toast.error( 'Voice note failed' ); }
-        finally { setSending( false ); }
-    }, [ replyText, sending, replyTarget, selectedWaba, toast, loadData ] );
-
-    const handleVoice = useCallback( async () => {
         if ( replyChannel !== 'whatsapp' ) { toast.error( 'Voice notes are WhatsApp-only' ); return; }
         const text = replyText.trim();
         if ( !text ) { toast.error( 'Type the message to convert to a voice note' ); return; }

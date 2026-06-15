@@ -10,7 +10,7 @@ What's already unified, and the full list of what else can be — with UX approa
 |---|---|---|
 | **Messages store** | One canonical `MessagesTable`, all channels write to it | backend |
 | **Contacts** | One `ContactsTable` shared by every channel | backend |
-| **Unified Inbox** | Conversation-grouped threads + **full composer** (reply/delete/pagination, WABA selector, WhatsApp template send, ✨ AI suggest) | `/dm/inbox` |
+| **Unified Inbox** | Conversation-grouped threads + **full composer** (text/template/media/interactive/location/contact/voice-TTS, reply/delete/pagination, WABA selector, emoji, quick replies) + **media/transcription rendering** + **AI suggest & summarize**. No redirects. | `/dm/inbox` |
 | **Channels hub** | One launcher for all channels + cross-channel tools | `/dm/channels` |
 | **Broadcast** | One composer → channel → audience (opt-in filtered) → message → send w/ progress | `/dm/broadcast` |
 | **Content Library** | WhatsApp + RCS templates in one searchable list | `/dm/content` |
