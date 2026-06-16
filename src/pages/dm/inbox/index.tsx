@@ -44,6 +44,24 @@ const chMeta = ( c?: string ) => CHANNEL[ ( c || 'whatsapp' ).toLowerCase() ] ||
 
 const QUICK_EMOJIS = [ '👍', '🙏', '✅', '😊', '❤️', '🎉', '⭐', '📎', '👋', '🔥' ];
 
+// Themed line icons for the composer toolbar (outlined, currentColor — matches theme).
+const ICON_PATHS: Record<string, string> = {
+    emoji: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9 10h.01M15 10h.01M8.5 14a4 4 0 0 0 7 0',
+    chat: 'M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12Z',
+    attach: 'M21 11.5 12.6 19.9a5 5 0 0 1-7.1-7.1l8-8a3.3 3.3 0 0 1 4.7 4.7l-8 8a1.6 1.6 0 1 1-2.3-2.3l7-7',
+    list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+    pin: 'M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11ZM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
+    user: 'M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
+    mic: 'M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3ZM5 11a7 7 0 0 0 14 0M12 18v3',
+    sparkle: 'M12 3l1.8 4.9L18.7 10l-4.9 1.8L12 17l-1.8-5.2L5.3 10l4.9-1.1L12 3Z',
+    pay: 'M3 7h18v10H3zM3 11h18M7 15h3',
+};
+const Icon: React.FC<{ name: string; size?: number }> = ( { name, size = 18 } ) => (
+    <svg width={ size } height={ size } viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={ { display: 'block' } }>
+        <path d={ ICON_PATHS[ name ] } />
+    </svg>
+);
+
 interface Conversation {
     contactId: string;
     name: string;
@@ -424,7 +442,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                             return <span key={ ch } className="ui-badge" style={ { color: cm.fg, background: cm.bg } }>{ cm.label }</span>;
                                         } ) }
                                     </span>
-                                    <button className="ui-summarize" disabled={ summarizing } onClick={ handleSummarize } title="AI summary of this conversation">{ summarizing ? '✨…' : '✨ Summarize' }</button>
+                                    <button className="ui-summarize" disabled={ summarizing } onClick={ handleSummarize } title="AI summary of this conversation"><Icon name="sparkle" size={ 14 } /> { summarizing ? '…' : 'Summarize' }</button>
                                 </div>
                                 { summary && (
                                     <div className="ui-summary">
@@ -556,20 +574,20 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                             <div className="ui-reply-actions">
                                                 <span className="ui-reply-via" style={ { color: chMeta( replyChannel ).fg, background: chMeta( replyChannel ).bg } }>via { chMeta( replyChannel ).label }</span>
                                                 <span className="ui-fmt-hint">Enter to send · Shift+Enter newline · *bold* _italic_ ~strike~</span>
-                                                <button type="button" className="ui-tool-btn" onClick={ () => setShowEmoji( s => !s ) } title="Emoji">😊</button>
+                                                <button type="button" className="ui-tool-btn" onClick={ () => setShowEmoji( s => !s ) } title="Emoji"><Icon name="emoji" /></button>
                                                 { quickReplies.length > 0 && (
-                                                    <button type="button" className="ui-tool-btn" onClick={ () => setShowQuick( s => !s ) } title="Quick replies">💬</button>
+                                                    <button type="button" className="ui-tool-btn" onClick={ () => setShowQuick( s => !s ) } title="Quick replies"><Icon name="chat" /></button>
                                                 ) }
-                                                <button type="button" className="ui-tool-btn" disabled={ uploading } onClick={ () => fileRef.current?.click() } title="Attach image / document / video / audio">{ uploading ? '⏳' : '📎' }</button>
+                                                <button type="button" className="ui-tool-btn" disabled={ uploading } onClick={ () => fileRef.current?.click() } title="Attach image / document / video / audio"><Icon name="attach" /></button>
                                                 { replyChannel === 'whatsapp' && replyTarget.contactId && (
                                                     <>
-                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'interactive' ) } title="Interactive: list / buttons / CTA / flow">≡</button>
-                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'location' ) } title="Send location">📍</button>
-                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'contact' ) } title="Send contact card">👤</button>
-                                                        <button type="button" className="ui-tool-btn" disabled={ sending || !replyText.trim() } onClick={ handleVoice } title="Send as voice note (TTS)">🎤</button>
+                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'interactive' ) } title="Interactive: list / buttons / CTA / flow"><Icon name="list" /></button>
+                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'location' ) } title="Send location"><Icon name="pin" /></button>
+                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'contact' ) } title="Send contact card"><Icon name="user" /></button>
+                                                        <button type="button" className="ui-tool-btn" disabled={ sending || !replyText.trim() } onClick={ handleVoice } title="Send as voice note (TTS)"><Icon name="mic" /></button>
                                                     </>
                                                 ) }
-                                                <button className="ui-ai-btn" disabled={ aiSuggesting } onClick={ handleSuggest } title="AI suggest reply">{ aiSuggesting ? '✨…' : '✨ Suggest' }</button>
+                                                <button className="ui-ai-btn" disabled={ aiSuggesting } onClick={ handleSuggest } title="AI suggest reply"><Icon name="sparkle" size={ 15 } /> { aiSuggesting ? '…' : 'Suggest' }</button>
                                                 <button className="ui-reply-btn" disabled={ sending || !replyText.trim() } onClick={ handleReply }>{ sending ? 'Sending…' : 'Send' }</button>
                                             </div>
                                             <input ref={ fileRef } type="file" hidden accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={ handleAttach } />
@@ -627,7 +645,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-thread { border: 1px solid ${colors.border}; border-radius: 12px; display: flex; flex-direction: column; background: #fff; overflow: hidden; }
         .ui-thread-head { padding: 12px 16px; border-bottom: 1px solid ${colors.border}; display: flex; justify-content: space-between; align-items: center; }
         .ui-thread-name { font-weight: 700; font-size: 15px; color: ${colors.text}; }
-        .ui-summarize { margin-left: auto; background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 6px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .ui-summarize { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; background: #f0fdf4; color: ${colors.primary}; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .ui-summarize:disabled { opacity: 0.6; cursor: not-allowed; }
         .ui-summary { display: flex; gap: 8px; align-items: flex-start; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 10px 12px; margin: 8px 16px 0; }
         .ui-summary-text { font-size: 13px; color: ${colors.text}; white-space: pre-wrap; flex: 1; }
@@ -677,10 +695,10 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-tpl-cat { font-size: 10px; color: ${colors.textMuted}; text-transform: capitalize; }
         .ui-tpl-empty { padding: 14px; text-align: center; font-size: 12px; color: ${colors.textMuted}; }
         .ui-fmt-hint { font-size: 10px; color: ${colors.textLight}; margin-right: auto; }
-        .ui-ai-btn { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 7px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .ui-ai-btn { display: inline-flex; align-items: center; gap: 5px; background: #f0fdf4; color: ${colors.primary}; border: 1px solid #bbf7d0; padding: 6px 11px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .ui-ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .ui-tool-btn { background: #fff; border: 1px solid ${colors.border}; border-radius: 9px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
-        .ui-tool-btn:hover:not(:disabled) { background: ${colors.bgHover}; }
+        .ui-tool-btn { display: inline-flex; align-items: center; justify-content: center; background: #fff; border: 1px solid ${colors.border}; border-radius: 9px; padding: 7px; color: ${colors.primary}; cursor: pointer; }
+        .ui-tool-btn:hover:not(:disabled) { background: ${colors.bgHover}; border-color: ${colors.primary}; }
         .ui-tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .ui-emoji-row { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 0; }
         .ui-emoji { background: ${colors.bgSecondary}; border: 1px solid ${colors.borderLight}; border-radius: 8px; padding: 4px 8px; font-size: 16px; cursor: pointer; }
