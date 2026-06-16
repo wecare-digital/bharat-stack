@@ -18,7 +18,9 @@ import LocationSendComposer from '../../../components/LocationSendComposer';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { colors, shadow } from '../../../lib/design-tokens';
-import { WHATSAPP_PHONES } from '../../../config/constants';
+import { WHATSAPP_PHONES, PAYMENT_PHONES, DEFAULT_GSTIN, PAYMENT_CONFIG, PAYMENT_UNLOCK_PASSWORD, GST_RATES } from '../../../config/constants';
+import { searchEmojiCategories } from '../../../lib/emoji-data';
+import { inferMimeFromName, validateWaMediaSize, formatBytes } from '../../../lib/wa-media';
 
 const WABAS = [
     { id: WHATSAPP_PHONES.primary.id, name: WHATSAPP_PHONES.primary.name, display: WHATSAPP_PHONES.primary.display },
@@ -42,7 +44,8 @@ const CHANNEL: Record<string, { label: string; fg: string; bg: string; reply: st
 
 const chMeta = ( c?: string ) => CHANNEL[ ( c || 'whatsapp' ).toLowerCase() ] || { label: c || '?', fg: colors.textMuted, bg: colors.bgSecondary, reply: '/dm' };
 
-const QUICK_EMOJIS = [ '👍', '🙏', '✅', '😊', '❤️', '🎉', '⭐', '📎', '👋', '🔥' ];
+// Reaction quick-set for the per-message react popover.
+const REACT_EMOJIS = [ '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅' ];
 
 // Themed line icons for the composer toolbar (outlined, currentColor — matches theme).
 const ICON_PATHS: Record<string, string> = {
@@ -105,21 +108,46 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ noteText, setNoteText ] = useState( '' );
     const [ showNotes, setShowNotes ] = useState( false );
     const [ showEmoji, setShowEmoji ] = useState( false );
-    const [ uploading, setUploading ] = useState( false );
-    const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location' | 'pay'>( null );
-    const [ payItem, setPayItem ] = useState( '' );
-    const [ payAmount, setPayAmount ] = useState( '' );
-    const [ payQty, setPayQty ] = useState( '1' );
+    const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location' | 'pay' | 'tts'>( null );
     // Per-channel editor state
     const [ smsType, setSmsType ] = useState<'TRANSACTIONAL' | 'PROMOTIONAL'>( 'TRANSACTIONAL' );
     const [ emailSubject, setEmailSubject ] = useState( '' );
     const [ rcsTemplates, setRcsTemplates ] = useState<any[]>( [] );
     const [ showRcsTemplates, setShowRcsTemplates ] = useState( false );
+    // Searchable emoji picker
+    const [ emojiSearch, setEmojiSearch ] = useState( '' );
+    // Multi-file media staging
+    const [ mediaFiles, setMediaFiles ] = useState<File[]>( [] );
+    const [ mediaPreview, setMediaPreview ] = useState<string | null>( null );
+    // Template variable fill + send-to-new-number
+    const [ tplVarDialog, setTplVarDialog ] = useState<{ template: api.WhatsAppTemplate; vars: string[] } | null>( null );
+    const [ newNumberMode, setNewNumberMode ] = useState( false );
+    const [ newNumberPhone, setNewNumberPhone ] = useState( '' );
+    // Per-message reaction + transcription
+    const [ reactFor, setReactFor ] = useState<string | null>( null );
+    const [ transcribingId, setTranscribingId ] = useState<string | null>( null );
+    // Full TTS picker
+    const [ ttsText, setTtsText ] = useState( '' );
+    const [ ttsLang, setTtsLang ] = useState( 'en-IN' );
+    const [ ttsVoice, setTtsVoice ] = useState( 'Kajal' );
+    const [ ttsEngine, setTtsEngine ] = useState( 'neural' );
+    const [ pollyVoices, setPollyVoices ] = useState<Record<string, { id: string; gender: string; engine: string }[]>>( {} );
+    // Full payment form
+    const [ payPhone, setPayPhone ] = useState( PAYMENT_CONFIG.phoneNumberId );
+    const [ payItems, setPayItems ] = useState<{ name: string; amount: string; quantity: string; gstRate: string }[]>( [ { name: '', amount: '', quantity: '1', gstRate: '0' } ] );
+    const [ payPromo, setPayPromo ] = useState( '0' );
+    const [ payDelivery, setPayDelivery ] = useState( '0' );
+    const [ payGstin, setPayGstin ] = useState( DEFAULT_GSTIN );
+    const [ payOrderId, setPayOrderId ] = useState( '' );
+    const [ payUnlocked, setPayUnlocked ] = useState( false );
+    const [ payPassword, setPayPassword ] = useState( '' );
+    const [ payPasswordError, setPayPasswordError ] = useState( '' );
     const fileRef = useRef<HTMLInputElement | null>( null );
     const threadBodyRef = useRef<HTMLDivElement | null>( null );
     const threadEndRef = useRef<HTMLDivElement | null>( null );
     const pendingScrollRestore = useRef( false );
     const prevThreadLen = useRef( 0 );
+    const lastTypingRef = useRef<{ id: string; at: number }>( { id: '', at: 0 } );
     const [ loadingOlder, setLoadingOlder ] = useState( false );
 
     const loadData = useCallback( async () => {
@@ -152,13 +180,14 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     useEffect( () => {
         api.listTemplates().then( t => setTemplates( ( t || [] ).filter( x => x.status === 'APPROVED' ) ) ).catch( () => { } );
         api.listRcsTemplates().then( t => setRcsTemplates( t || [] ) ).catch( () => { } );
+        api.getPollyVoices().then( r => { if ( r?.voices && Object.keys( r.voices ).length ) setPollyVoices( r.voices ); } ).catch( () => { } );
         api.listAutomationRules().then( rs => setQuickReplies(
             ( rs || [] ).filter( r => r.enabled && r.actionType === 'reply' && r.actionValue ).map( r => r.actionValue )
         ) ).catch( () => { } );
     }, [] );
 
     // Reset composer context when switching conversations.
-    useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplates( false ); setShowRcsTemplates( false ); setEmailSubject( '' ); setSummary( '' ); }, [ selected ] );
+    useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplates( false ); setShowRcsTemplates( false ); setEmailSubject( '' ); setSummary( '' ); setMediaFiles( [] ); setMediaPreview( null ); setEmojiSearch( '' ); setShowEmoji( false ); setNewNumberMode( false ); setNewNumberPhone( '' ); setReactFor( null ); }, [ selected ] );
 
     // Load team-inbox meta for the selected conversation.
     useEffect( () => {
@@ -194,19 +223,88 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         finally { setDeletingId( null ); }
     }, [ deletingId, toast ] );
 
-    const handleSendTemplate = useCallback( async ( templateName: string ) => {
+    const countTplVars = ( t: api.WhatsAppTemplate ): number => {
+        const body = ( t.components || [] ).find( ( c: any ) => c.type === 'BODY' );
+        const m = body?.text?.match( /\{\{\d+\}\}/g );
+        return m ? m.length : 0;
+    };
+
+    const doSendTemplate = useCallback( async ( t: api.WhatsAppTemplate, params: string[] ) => {
         const isPhone = /^\+?\d{6,}$/.test( selected || '' );
-        const contactId = isPhone ? '' : ( selected || '' );
-        if ( !contactId ) { toast.error( 'Template send needs a saved contact' ); return; }
+        const contactId = newNumberMode ? '' : ( isPhone ? '' : ( selected || '' ) );
+        const recipientPhone = newNumberMode ? newNumberPhone.trim() : ( isPhone ? ( selected || '' ) : '' );
+        if ( !contactId && !recipientPhone ) { toast.error( 'Template needs a saved contact or a recipient number' ); return; }
         setSending( true );
         try
         {
-            const r = await api.sendWhatsAppTemplateMessage( { contactId, templateName, phoneNumberId: selectedWaba } );
-            if ( r ) { toast.success( 'Template sent' ); setShowTemplates( false ); setTimeout( loadData, 800 ); }
+            const r = await api.sendWhatsAppTemplateMessage( {
+                contactId: contactId || undefined,
+                recipientPhone: recipientPhone || undefined,
+                templateName: t.name, language: ( t as any ).language,
+                phoneNumberId: selectedWaba,
+                templateParams: params.filter( p => p.trim() !== '' ),
+            } );
+            if ( r ) { toast.success( 'Template sent' ); setShowTemplates( false ); setTplVarDialog( null ); setNewNumberMode( false ); setNewNumberPhone( '' ); setTimeout( loadData, 800 ); }
             else toast.error( 'Template send failed' );
         } catch { toast.error( 'Template send failed' ); }
         finally { setSending( false ); }
-    }, [ selected, selectedWaba, toast, loadData ] );
+    }, [ selected, selectedWaba, newNumberMode, newNumberPhone, toast, loadData ] );
+
+    const handleSelectTemplate = useCallback( ( t: api.WhatsAppTemplate ) => {
+        if ( newNumberMode && !newNumberPhone.trim() ) { toast.error( 'Enter the recipient number first' ); return; }
+        const n = countTplVars( t );
+        if ( n > 0 ) { setTplVarDialog( { template: t, vars: Array( n ).fill( '' ) } ); setShowTemplates( false ); }
+        else doSendTemplate( t, [] );
+    }, [ doSendTemplate, newNumberMode, newNumberPhone, toast ] );
+
+    // Multi-file media staging: validate per-type size, then queue for send.
+    const handleMediaSelect = useCallback( ( e: React.ChangeEvent<HTMLInputElement> ) => {
+        const files = Array.from( e.target.files || [] );
+        if ( e.target ) e.target.value = '';
+        if ( !files.length ) return;
+        const accepted: File[] = [];
+        for ( const file of files )
+        {
+            const ftype = file.type || inferMimeFromName( file.name );
+            const check = validateWaMediaSize( { size: file.size, name: file.name, type: ftype }, ftype );
+            if ( !check.ok ) { toast.error( `${file.name} too large. Max: ${formatBytes( check.limit )}` ); continue; }
+            accepted.push( file );
+        }
+        if ( !accepted.length ) return;
+        setMediaFiles( prev => [ ...prev, ...accepted ] );
+        const firstImage = accepted.find( f => ( f.type || inferMimeFromName( f.name ) ).startsWith( 'image/' ) );
+        if ( firstImage && !mediaPreview )
+        {
+            const reader = new FileReader();
+            reader.onload = ev => setMediaPreview( ev.target?.result as string );
+            reader.readAsDataURL( firstImage );
+        }
+    }, [ mediaPreview, toast ] );
+
+    const removeMediaAt = useCallback( ( i: number ) => {
+        setMediaFiles( prev => prev.filter( ( _, idx ) => idx !== i ) );
+        if ( i === 0 ) setMediaPreview( null );
+    }, [] );
+
+    // Per-message voice-note transcription (on demand).
+    const handleTranscribe = useCallback( async ( m: api.Message ) => {
+        if ( transcribingId ) return;
+        setTranscribingId( m.messageId );
+        try
+        {
+            const r = await api.transcribeVoiceNote( {
+                messageId: m.messageId,
+                s3Key: ( m as any ).s3Key || undefined,
+                direction: ( ( m.direction || '' ).toUpperCase() === 'OUTBOUND' ? 'OUTBOUND' : 'INBOUND' ),
+            } );
+            if ( r?.transcription )
+            {
+                setMessages( prev => prev.map( x => x.messageId === m.messageId ? { ...x, transcription: r.transcription, detectedLanguage: r.detectedLanguage } as api.Message : x ) );
+                toast.success( 'Transcribed' );
+            } else toast.error( 'Transcription failed' );
+        } catch { toast.error( 'Transcription failed' ); }
+        finally { setTranscribingId( null ); }
+    }, [ transcribingId, toast ] );
 
     // Group messages into conversations by contact.
     const conversations = useMemo<Conversation[]>( () => {
@@ -295,9 +393,11 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     }, [ replyTarget, toast, loadData ] );
 
     const handleReply = useCallback( async () => {
+        if ( sending ) return;
         const base = replyText.trim();
-        if ( !base || sending ) return;
-        const text = replyingTo ? `> ${( replyingTo.content || '' ).slice( 0, 120 )}\n\n${base}` : base;
+        const hasMedia = replyChannel === 'whatsapp' && mediaFiles.length > 0;
+        if ( !base && !hasMedia ) return;
+        const text = replyingTo && base ? `> ${( replyingTo.content || '' ).slice( 0, 120 )}\n\n${base}` : base;
         const { phone, waba, contactId } = replyTarget;
         setSending( true );
         try
@@ -306,8 +406,25 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             if ( replyChannel === 'whatsapp' )
             {
                 if ( !contactId ) { toast.error( 'WhatsApp reply needs a saved contact — open the WhatsApp inbox' ); setSending( false ); return; }
-                const r = await api.sendWhatsAppMessage( { contactId, content: text, phoneNumberId: selectedWaba || waba || undefined } );
-                ok = !!r;
+                if ( hasMedia )
+                {
+                    let sent = 0;
+                    for ( let i = 0; i < mediaFiles.length; i++ )
+                    {
+                        const file = mediaFiles[ i ];
+                        const type = file.type || inferMimeFromName( file.name );
+                        const s3Key = await api.uploadMediaForSend( file, type, file.name );
+                        if ( !s3Key ) { toast.error( `Upload failed: ${file.name}` ); continue; }
+                        const r = await api.sendWhatsAppMessage( { contactId, content: i === 0 ? text : '', phoneNumberId: selectedWaba || waba || undefined, mediaFile: s3Key, mediaType: type, mediaFileName: file.name } );
+                        if ( r ) sent++;
+                    }
+                    ok = sent > 0;
+                    if ( ok ) { setMediaFiles( [] ); setMediaPreview( null ); }
+                } else
+                {
+                    const r = await api.sendWhatsAppMessage( { contactId, content: text, phoneNumberId: selectedWaba || waba || undefined } );
+                    ok = !!r;
+                }
             } else if ( replyChannel === 'sms' )
             {
                 if ( !phone ) { toast.error( 'No phone number for this conversation' ); setSending( false ); return; }
@@ -341,7 +458,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         {
             setSending( false );
         }
-    }, [ replyText, sending, replyingTo, replyTarget, replyChannel, selectedWaba, smsType, emailSubject, toast, loadData ] );
+    }, [ replyText, sending, replyingTo, replyTarget, replyChannel, selectedWaba, smsType, emailSubject, mediaFiles, toast, loadData ] );
 
     const handleSuggest = useCallback( async () => {
         if ( aiSuggesting || !thread.length ) return;
@@ -371,64 +488,82 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         finally { setSummarizing( false ); }
     }, [ summarizing, thread, replyChannel, toast ] );
 
-    const handleAttach = useCallback( async ( e: React.ChangeEvent<HTMLInputElement> ) => {
-        const file = e.target.files?.[ 0 ];
-        if ( e.target ) e.target.value = '';  // allow re-selecting same file
-        if ( !file ) return;
-        if ( replyChannel !== 'whatsapp' ) { toast.error( `Attachments are supported on WhatsApp (not ${chMeta( replyChannel ).label} yet)` ); return; }
-        const { contactId } = replyTarget;
-        if ( !contactId ) { toast.error( 'Attachment needs a saved contact' ); return; }
-        setUploading( true );
-        try
-        {
-            const type = file.type || 'application/octet-stream';
-            const s3Key = await api.uploadMediaForSend( file, type, file.name );
-            if ( !s3Key ) { toast.error( 'Upload failed' ); return; }
-            const r = await api.sendWhatsAppMessage( {
-                contactId, content: replyText.trim() || '', phoneNumberId: selectedWaba,
-                mediaFile: s3Key, mediaType: type, mediaFileName: file.name,
-            } );
-            if ( r ) { setReplyText( '' ); toast.success( 'Attachment sent' ); setTimeout( loadData, 800 ); }
-            else toast.error( 'Send failed' );
-        } catch { toast.error( 'Attachment failed' ); }
-        finally { setUploading( false ); }
-    }, [ replyChannel, replyTarget, replyText, selectedWaba, toast, loadData ] );
+    const openTts = useCallback( () => {
+        if ( !replyTarget.contactId ) { toast.error( 'Voice note needs a saved contact' ); return; }
+        setTtsText( replyText.trim() );
+        setComposer( 'tts' );
+    }, [ replyTarget, replyText, toast ] );
 
-    const handleVoice = useCallback( async () => {
-        if ( replyChannel !== 'whatsapp' ) { toast.error( 'Voice notes are WhatsApp-only' ); return; }
-        const text = replyText.trim();
-        if ( !text ) { toast.error( 'Type the message to convert to a voice note' ); return; }
+    const handleSendTTS = useCallback( async () => {
+        const text = ttsText.trim();
+        if ( !text ) { toast.error( 'Enter text for the voice note' ); return; }
         const { contactId } = replyTarget;
         if ( !contactId ) { toast.error( 'Voice note needs a saved contact' ); return; }
         setSending( true );
         try
         {
-            const r = await api.sendWhatsAppTTS( { contactId, messageText: text, phoneNumberId: selectedWaba } );
-            if ( r ) { setReplyText( '' ); toast.success( 'Voice note sent' ); setTimeout( loadData, 800 ); }
+            const r = await api.sendWhatsAppTTS( { contactId, messageText: text, voiceId: ttsVoice, languageCode: ttsLang, engine: ttsEngine, phoneNumberId: selectedWaba } );
+            if ( r ) { setComposer( null ); setTtsText( '' ); setReplyText( '' ); toast.success( 'Voice note sent' ); setTimeout( loadData, 800 ); }
             else toast.error( 'Voice note failed' );
         } catch { toast.error( 'Voice note failed' ); }
         finally { setSending( false ); }
-    }, [ replyChannel, replyText, replyTarget, selectedWaba, toast, loadData ] );
+    }, [ ttsText, ttsVoice, ttsLang, ttsEngine, replyTarget, selectedWaba, toast, loadData ] );
 
-    const handlePay = useCallback( async () => {
-        const amt = parseFloat( payAmount );
-        const qty = parseInt( payQty ) || 1;
+    const handleReact = useCallback( async ( m: api.Message, emoji: string ) => {
+        const wamid = ( m as any ).whatsappMessageId;
+        const { contactId } = replyTarget;
+        setReactFor( null );
+        if ( !wamid || !contactId ) { toast.error( 'Cannot react to this message' ); return; }
+        try
+        {
+            await api.sendWhatsAppReaction( { contactId, reactionMessageId: wamid, reactionEmoji: emoji, phoneNumberId: ( m as any ).awsPhoneNumberId || selectedWaba } );
+            toast.success( `Reacted ${emoji}` );
+            setTimeout( loadData, 800 );
+        } catch { toast.error( 'Reaction failed' ); }
+    }, [ replyTarget, selectedWaba, toast, loadData ] );
+
+    const updatePayItem = ( i: number, field: 'name' | 'amount' | 'quantity' | 'gstRate', val: string ) =>
+        setPayItems( p => p.map( ( it, idx ) => idx === i ? { ...it, [ field ]: val } : it ) );
+    const addPayItem = () => setPayItems( p => [ ...p, { name: '', amount: '', quantity: '1', gstRate: '0' } ] );
+    const removePayItem = ( i: number ) => setPayItems( p => p.length > 1 ? p.filter( ( _, idx ) => idx !== i ) : p );
+    const unlockPayPhone = () => {
+        if ( PAYMENT_UNLOCK_PASSWORD && payPassword === PAYMENT_UNLOCK_PASSWORD ) { setPayUnlocked( true ); setPayPasswordError( '' ); setPayPassword( '' ); }
+        else setPayPasswordError( 'Incorrect password' );
+    };
+
+    const handleSendPayment = useCallback( async () => {
         const { contactId } = replyTarget;
         if ( !contactId ) { toast.error( 'Payment needs a saved contact' ); return; }
-        if ( !payItem.trim() || !amt || amt <= 0 ) { toast.error( 'Enter item name and amount' ); return; }
+        const phoneObj = PAYMENT_PHONES.find( p => p.id === payPhone );
+        if ( phoneObj?.paymentProtected && !payUnlocked ) { toast.error( 'Unlock this number first' ); return; }
+        const valid = payItems.filter( i => i.name.trim() && parseFloat( i.amount ) > 0 );
+        if ( !valid.length ) { toast.error( 'Add at least one item with an amount' ); return; }
         setSending( true );
         try
         {
+            const items = valid.map( it => ( { name: it.name.trim(), amount: Math.round( parseFloat( it.amount ) * 100 ), quantity: parseInt( it.quantity ) || 1, gstRate: parseInt( it.gstRate ) || 0 } ) );
+            const tax = items.reduce( ( s, i ) => s + Math.round( i.amount * i.quantity * ( i.gstRate || 0 ) / 100 ), 0 );
             const r = await api.sendWhatsAppPaymentMessage( {
-                contactId, phoneNumberId: selectedWaba,
+                contactId, phoneNumberId: payPhone,
                 referenceId: `WD-PAY-${Date.now()}`,
-                items: [ { name: payItem.trim(), amount: Math.round( amt * 100 ), quantity: qty, gstRate: 0 } ],
+                items,
+                discount: Math.round( parseFloat( payPromo || '0' ) * 100 ),
+                delivery: Math.round( parseFloat( payDelivery || '0' ) * 100 ),
+                tax, gstin: payGstin || DEFAULT_GSTIN, orderId: payOrderId || 'Offline',
+                useInteractive: true,
+                paymentConfiguration: phoneObj?.paymentConfigName || 'WECARE-RAZOR-PAY',
             } );
-            if ( r ) { toast.success( 'Payment request sent' ); setComposer( null ); setPayItem( '' ); setPayAmount( '' ); setPayQty( '1' ); setTimeout( loadData, 800 ); }
-            else toast.error( 'Payment send failed' );
+            if ( r )
+            {
+                toast.success( 'Payment request sent' );
+                setComposer( null );
+                setPayItems( [ { name: '', amount: '', quantity: '1', gstRate: '0' } ] );
+                setPayPromo( '0' ); setPayDelivery( '0' ); setPayOrderId( '' );
+                setTimeout( loadData, 800 );
+            } else toast.error( 'Payment send failed' );
         } catch { toast.error( 'Payment send failed' ); }
         finally { setSending( false ); }
-    }, [ payItem, payAmount, payQty, replyTarget, selectedWaba, toast, loadData ] );
+    }, [ replyTarget, payPhone, payUnlocked, payItems, payPromo, payDelivery, payGstin, payOrderId, toast, loadData ] );
 
     // Auto-scroll to the latest message when a conversation is opened.
     useEffect( () => {
@@ -474,6 +609,19 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         area.addEventListener( 'scroll', onScroll, { passive: true } );
         return () => area.removeEventListener( 'scroll', onScroll );
     }, [ selected, thread.length, visibleCount ] );
+
+    // Native WhatsApp typing indicator + read receipt while composing (throttled ~20s).
+    useEffect( () => {
+        if ( replyChannel !== 'whatsapp' || !replyText.trim() || !selected ) return;
+        const lastInbound = [ ...thread ].reverse().find( m => ( m.direction || '' ).toUpperCase() === 'INBOUND' && ( m as any ).whatsappMessageId );
+        const wamid = lastInbound && ( lastInbound as any ).whatsappMessageId;
+        if ( !wamid ) return;
+        const now = Date.now();
+        if ( lastTypingRef.current.id === selected && now - lastTypingRef.current.at < 20000 ) return;
+        lastTypingRef.current = { id: selected, at: now };
+        api.sendTypingIndicator( selectedWaba, wamid ).catch( () => { } );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ replyText, selected, replyChannel ] );
 
     const content = (
         <>
@@ -597,11 +745,28 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                         return null;
                                                     } )() }
                                                     { ( m.content || !m.mediaUrl ) && <span className="ui-msg-text">{ m.content || `[${m.messageType || ch}]` }</span> }
-                                                    { m.transcription && <span className="ui-msg-transcript">📝 { m.transcription }</span> }
+                                                    { m.transcription ? <span className="ui-msg-transcript">📝 { m.transcription }</span> :
+                                                        ( ch === 'whatsapp' && [ 'audio', 'voice' ].includes( ( m.messageType || '' ).toLowerCase() ) && (
+                                                            <button className="ui-transcribe-btn" disabled={ transcribingId === m.messageId } onClick={ () => handleTranscribe( m ) }>
+                                                                { transcribingId === m.messageId ? '⏳ Transcribing…' : '📝 Transcribe' }
+                                                            </button>
+                                                        ) ) }
                                                     <span className="ui-msg-meta">
                                                         { fmtTime( m.timestamp ) } · { ( m.status || '' ).toLowerCase() }
                                                         <button className="ui-msg-act" title="Reply" onClick={ () => setReplyingTo( m ) }>↩</button>
                                                         <button className="ui-msg-act" title="Delete" disabled={ deletingId === m.messageId } onClick={ () => handleDelete( m ) }>🗑</button>
+                                                        { ch === 'whatsapp' && ( m as any ).whatsappMessageId && (
+                                                            <span className="ui-react-wrap">
+                                                                <button className="ui-msg-act" title="React" onClick={ () => setReactFor( reactFor === m.messageId ? null : m.messageId ) }>☺</button>
+                                                                { reactFor === m.messageId && (
+                                                                    <span className="ui-react-pop">
+                                                                        { REACT_EMOJIS.map( em => (
+                                                                            <button key={ em } type="button" className="ui-react-em" onClick={ () => handleReact( m, em ) }>{ em }</button>
+                                                                        ) ) }
+                                                                    </span>
+                                                                ) }
+                                                            </span>
+                                                        ) }
                                                     </span>
                                                 </div>
                                             </div>
@@ -634,13 +799,24 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                             ) }
                                             { showTemplates && replyChannel === 'whatsapp' && (
                                                 <div className="ui-tpl-list">
+                                                    <div className="ui-tpl-head">
+                                                        <button type="button" className={ `ui-tpl-toggle ${newNumberMode ? 'on' : ''}` } onClick={ () => setNewNumberMode( v => !v ) }>
+                                                            { newNumberMode ? '✓ New number' : '+ New number' }
+                                                        </button>
+                                                        { newNumberMode && (
+                                                            <input className="ui-tpl-newnum" placeholder="+91…" value={ newNumberPhone } onChange={ e => setNewNumberPhone( e.target.value ) } />
+                                                        ) }
+                                                    </div>
                                                     { templates.length === 0 ? <div className="ui-tpl-empty">No approved templates</div> :
-                                                        templates.map( t => (
-                                                            <button key={ t.name } className="ui-tpl-item" disabled={ sending } onClick={ () => handleSendTemplate( t.name ) }>
-                                                                <span className="ui-tpl-name">{ t.name }</span>
-                                                                <span className="ui-tpl-cat">{ t.category }</span>
-                                                            </button>
-                                                        ) ) }
+                                                        templates.map( t => {
+                                                            const vc = countTplVars( t );
+                                                            return (
+                                                                <button key={ t.name } className="ui-tpl-item" disabled={ sending } onClick={ () => handleSelectTemplate( t ) }>
+                                                                    <span className="ui-tpl-name">{ t.name }{ vc > 0 && <span className="ui-tpl-var"> · { vc } var</span> }</span>
+                                                                    <span className="ui-tpl-cat">{ t.category }</span>
+                                                                </button>
+                                                            );
+                                                        } ) }
                                                 </div>
                                             ) }
                                             { replyChannel === 'rcs' && (
@@ -675,6 +851,18 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                     <input className="ui-email-subject" placeholder="Subject…" value={ emailSubject } onChange={ e => setEmailSubject( e.target.value ) } />
                                                 </div>
                                             ) }
+                                            { replyChannel === 'whatsapp' && mediaFiles.length > 0 && (
+                                                <div className="ui-media-stage">
+                                                    { mediaPreview && <img className="ui-media-thumb" src={ mediaPreview } alt="preview" /> }
+                                                    { mediaFiles.map( ( f, i ) => (
+                                                        <span key={ i } className="ui-media-chip">
+                                                            <span className="ui-media-name">{ f.name }</span>
+                                                            <span className="ui-media-size">{ formatBytes( f.size ) }</span>
+                                                            <button type="button" className="ui-media-x" onClick={ () => removeMediaAt( i ) }>✕</button>
+                                                        </span>
+                                                    ) ) }
+                                                </div>
+                                            ) }
                                             <textarea
                                                 className="ui-reply-input"
                                                 placeholder={ `Reply via ${chMeta( replyChannel ).label}…` }
@@ -684,10 +872,20 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                 rows={ 2 }
                                             />
                                             { showEmoji && (
-                                                <div className="ui-emoji-row">
-                                                    { QUICK_EMOJIS.map( e => (
-                                                        <button key={ e } type="button" className="ui-emoji" onClick={ () => { setReplyText( t => t + e ); } }>{ e }</button>
-                                                    ) ) }
+                                                <div className="ui-emoji-pop">
+                                                    <input className="ui-emoji-search" placeholder="Search emoji (smile, heart, money, car…)" value={ emojiSearch } onChange={ e => setEmojiSearch( e.target.value ) } autoFocus />
+                                                    <div className="ui-emoji-scroll">
+                                                        { searchEmojiCategories( emojiSearch ).map( cat => (
+                                                            <div key={ cat.name } className="ui-emoji-cat">
+                                                                <div className="ui-emoji-cat-label">{ cat.name }</div>
+                                                                <div className="ui-emoji-grid">
+                                                                    { cat.emojis.map( ( em, i ) => (
+                                                                        <button key={ cat.name + i } type="button" className="ui-emoji" onClick={ () => setReplyText( t => t + em ) }>{ em }</button>
+                                                                    ) ) }
+                                                                </div>
+                                                            </div>
+                                                        ) ) }
+                                                    </div>
                                                 </div>
                                             ) }
                                             { showQuick && (
@@ -714,13 +912,13 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                 ) }
                                                 { replyChannel === 'whatsapp' && (
                                                     <>
-                                                        <button type="button" className="ui-tool-btn" disabled={ uploading } onClick={ () => fileRef.current?.click() } title="Attach image / document / video / audio"><Icon name="attach" /></button>
+                                                        <button type="button" className="ui-tool-btn" onClick={ () => fileRef.current?.click() } title="Attach image / document / video / audio (multiple)"><Icon name="attach" /></button>
                                                         { replyTarget.contactId && (
                                                             <>
                                                                 <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'interactive' ) } title="Interactive: list / buttons / CTA / flow"><Icon name="list" /></button>
                                                                 <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'location' ) } title="Send location"><Icon name="pin" /></button>
                                                                 <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'contact' ) } title="Send contact card"><Icon name="user" /></button>
-                                                                <button type="button" className="ui-tool-btn" disabled={ sending || !replyText.trim() } onClick={ handleVoice } title="Send as voice note (TTS)"><Icon name="mic" /></button>
+                                                                <button type="button" className="ui-tool-btn" onClick={ openTts } title="Send as voice note (TTS)"><Icon name="mic" /></button>
                                                                 <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'pay' ) } title="Request payment"><Icon name="pay" /></button>
                                                             </>
                                                         ) }
@@ -730,7 +928,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                 <button className="ui-reply-btn" disabled={ sending || !replyText.trim() } onClick={ handleReply }>{ sending ? 'Sending…' : 'Send' }</button>
                                             </div>
                                             { replyChannel === 'whatsapp' && (
-                                                <input ref={ fileRef } type="file" hidden accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={ handleAttach } />
+                                                <input ref={ fileRef } type="file" hidden multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={ handleMediaSelect } />
                                             ) }
                                         </>
                                     ) }
@@ -762,21 +960,113 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                 onSent={ () => { setComposer( null ); toast.success( 'Contact card sent' ); setTimeout( loadData, 800 ); } }
                                 onError={ ( m: string ) => toast.error( m ) } />
                         ) }
-                        { composer === 'pay' && (
-                            <div className="ui-pay">
-                                <div className="ui-pay-title">Request payment</div>
-                                <input className="ui-pay-in" placeholder="Item / service name" value={ payItem } onChange={ e => setPayItem( e.target.value ) } />
-                                <div className="ui-pay-row">
-                                    <input className="ui-pay-in" type="number" min="1" step="0.01" placeholder="Amount (₹)" value={ payAmount } onChange={ e => setPayAmount( e.target.value ) } />
-                                    <input className="ui-pay-in ui-pay-qty" type="number" min="1" placeholder="Qty" value={ payQty } onChange={ e => setPayQty( e.target.value ) } />
+                        { composer === 'pay' && ( () => {
+                            const phoneObj = PAYMENT_PHONES.find( p => p.id === payPhone );
+                            const locked = !!( phoneObj?.paymentProtected && !payUnlocked );
+                            const subtotal = payItems.reduce( ( s, it ) => s + ( parseFloat( it.amount ) || 0 ) * ( parseInt( it.quantity ) || 1 ), 0 );
+                            const gst = payItems.reduce( ( s, it ) => s + ( parseFloat( it.amount ) || 0 ) * ( parseInt( it.quantity ) || 1 ) * ( parseInt( it.gstRate ) || 0 ) / 100, 0 );
+                            const grand = subtotal + gst + ( parseFloat( payDelivery ) || 0 ) - ( parseFloat( payPromo ) || 0 );
+                            return (
+                                <div className="ui-pay">
+                                    <div className="ui-pay-title">Request payment</div>
+                                    <label className="ui-pay-label">Send from</label>
+                                    <select className="ui-pay-in" value={ payPhone } onChange={ e => { setPayPhone( e.target.value ); setPayUnlocked( false ); setPayPasswordError( '' ); } }>
+                                        { PAYMENT_PHONES.map( p => <option key={ p.id } value={ p.id }>{ p.display } ({ p.name }){ p.paymentProtected ? ' [Protected]' : '' }</option> ) }
+                                    </select>
+                                    { locked && (
+                                        <div className="ui-pay-lock">
+                                            <input className="ui-pay-in" type="password" placeholder="Password to unlock this number" value={ payPassword } onChange={ e => { setPayPassword( e.target.value ); setPayPasswordError( '' ); } } onKeyDown={ e => { if ( e.key === 'Enter' ) unlockPayPhone(); } } />
+                                            <button className="ui-pay-unlock" onClick={ unlockPayPhone }>Unlock</button>
+                                            { payPasswordError && <span className="ui-pay-err">{ payPasswordError }</span> }
+                                        </div>
+                                    ) }
+                                    <label className="ui-pay-label">Items</label>
+                                    { payItems.map( ( it, i ) => (
+                                        <div key={ i } className="ui-pay-item">
+                                            <input className="ui-pay-in" placeholder="Item / service" value={ it.name } onChange={ e => updatePayItem( i, 'name', e.target.value ) } />
+                                            <div className="ui-pay-row">
+                                                <input className="ui-pay-in" type="number" min="0" step="0.01" placeholder="₹ Amount" value={ it.amount } onChange={ e => updatePayItem( i, 'amount', e.target.value ) } />
+                                                <input className="ui-pay-in ui-pay-qty" type="number" min="1" placeholder="Qty" value={ it.quantity } onChange={ e => updatePayItem( i, 'quantity', e.target.value ) } />
+                                                <select className="ui-pay-in ui-pay-gst" value={ it.gstRate } onChange={ e => updatePayItem( i, 'gstRate', e.target.value ) }>
+                                                    { GST_RATES.map( g => <option key={ g.value } value={ g.value }>GST { g.label }</option> ) }
+                                                </select>
+                                                { payItems.length > 1 && <button type="button" className="ui-pay-rm" onClick={ () => removePayItem( i ) }>✕</button> }
+                                            </div>
+                                        </div>
+                                    ) ) }
+                                    <button type="button" className="ui-pay-additem" onClick={ addPayItem }>+ Add item</button>
+                                    <div className="ui-pay-row">
+                                        <div><label className="ui-pay-label">Discount (₹)</label><input className="ui-pay-in" type="number" min="0" step="0.01" value={ payPromo } onChange={ e => setPayPromo( e.target.value ) } /></div>
+                                        <div><label className="ui-pay-label">Delivery (₹)</label><input className="ui-pay-in" type="number" min="0" step="0.01" value={ payDelivery } onChange={ e => setPayDelivery( e.target.value ) } /></div>
+                                    </div>
+                                    <div className="ui-pay-row">
+                                        <div style={ { flex: 1 } }><label className="ui-pay-label">GSTIN</label><input className="ui-pay-in" placeholder="GSTIN" value={ payGstin } onChange={ e => setPayGstin( e.target.value ) } /></div>
+                                        <div style={ { flex: 1 } }><label className="ui-pay-label">Order ID</label><input className="ui-pay-in" placeholder="Offline" value={ payOrderId } onChange={ e => setPayOrderId( e.target.value ) } /></div>
+                                    </div>
+                                    <div className="ui-pay-total">Subtotal ₹{ subtotal.toFixed( 2 ) } · GST ₹{ gst.toFixed( 2 ) } · <strong>Total ₹{ grand.toFixed( 2 ) }</strong></div>
+                                    <div className="ui-pay-actions">
+                                        <button className="ui-pay-cancel" onClick={ () => setComposer( null ) }>Cancel</button>
+                                        <button className="ui-pay-send" disabled={ sending || locked } onClick={ handleSendPayment }>{ sending ? 'Sending…' : 'Send payment request' }</button>
+                                    </div>
                                 </div>
-                                <div className="ui-pay-total">Total: ₹{ ( ( parseFloat( payAmount ) || 0 ) * ( parseInt( payQty ) || 1 ) ).toFixed( 2 ) }</div>
-                                <div className="ui-pay-actions">
-                                    <button className="ui-pay-cancel" onClick={ () => setComposer( null ) }>Cancel</button>
-                                    <button className="ui-pay-send" disabled={ sending } onClick={ handlePay }>{ sending ? 'Sending…' : 'Send payment request' }</button>
+                            );
+                        } )() }
+                        { composer === 'tts' && ( () => {
+                            const fallbackLangs: Record<string, { id: string; gender: string; engine: string }[]> = {
+                                'en-IN': [ { id: 'Kajal', gender: 'Female', engine: 'neural' } ],
+                                'en-US': [ { id: 'Joanna', gender: 'Female', engine: 'neural' }, { id: 'Matthew', gender: 'Male', engine: 'neural' } ],
+                                'hi-IN': [ { id: 'Kajal', gender: 'Female', engine: 'neural' } ],
+                            };
+                            const voicesMap = Object.keys( pollyVoices ).length ? pollyVoices : fallbackLangs;
+                            const langs = Object.keys( voicesMap );
+                            const voices = voicesMap[ ttsLang ] || voicesMap[ langs[ 0 ] ] || [];
+                            return (
+                                <div className="ui-pay">
+                                    <div className="ui-pay-title">Send voice note (text-to-speech)</div>
+                                    <textarea className="ui-pay-in" rows={ 3 } placeholder="Text to speak…" value={ ttsText } onChange={ e => setTtsText( e.target.value ) } />
+                                    <div className="ui-pay-row">
+                                        <div style={ { flex: 1 } }>
+                                            <label className="ui-pay-label">Language</label>
+                                            <select className="ui-pay-in" value={ ttsLang } onChange={ e => { const l = e.target.value; setTtsLang( l ); const v = ( voicesMap[ l ] || [] )[ 0 ]; if ( v ) { setTtsVoice( v.id ); setTtsEngine( v.engine ); } } }>
+                                                { langs.map( l => <option key={ l } value={ l }>{ l }</option> ) }
+                                            </select>
+                                        </div>
+                                        <div style={ { flex: 1 } }>
+                                            <label className="ui-pay-label">Voice</label>
+                                            <select className="ui-pay-in" value={ ttsVoice } onChange={ e => { setTtsVoice( e.target.value ); const v = voices.find( x => x.id === e.target.value ); if ( v ) setTtsEngine( v.engine ); } }>
+                                                { voices.map( v => <option key={ v.id } value={ v.id }>{ v.id } ({ v.gender }, { v.engine })</option> ) }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="ui-pay-actions">
+                                        <button className="ui-pay-cancel" onClick={ () => setComposer( null ) }>Cancel</button>
+                                        <button className="ui-pay-send" disabled={ sending || !ttsText.trim() } onClick={ handleSendTTS }>{ sending ? 'Sending…' : 'Send voice note' }</button>
+                                    </div>
                                 </div>
+                            );
+                        } )() }
+                    </div>
+                </div>
+            ) }
+
+            { tplVarDialog && (
+                <div className="ui-modal-backdrop" onClick={ () => setTplVarDialog( null ) }>
+                    <div className="ui-modal" onClick={ e => e.stopPropagation() }>
+                        <div className="ui-pay">
+                            <div className="ui-pay-title">Template: { tplVarDialog.template.name }</div>
+                            <div className="ui-tpl-preview">{ ( tplVarDialog.template.components || [] ).find( ( c: any ) => c.type === 'BODY' )?.text || '' }</div>
+                            { tplVarDialog.vars.map( ( v, i ) => (
+                                <div key={ i }>
+                                    <label className="ui-pay-label">{ `Variable {{${i + 1}}}` }</label>
+                                    <input className="ui-pay-in" value={ v } placeholder={ `Value for {{${i + 1}}}` } autoFocus={ i === 0 }
+                                        onChange={ e => setTplVarDialog( d => d ? { ...d, vars: d.vars.map( ( x, idx ) => idx === i ? e.target.value : x ) } : d ) } />
+                                </div>
+                            ) ) }
+                            <div className="ui-pay-actions">
+                                <button className="ui-pay-cancel" onClick={ () => setTplVarDialog( null ) }>Cancel</button>
+                                <button className="ui-pay-send" disabled={ sending || tplVarDialog.vars.some( v => !v.trim() ) } onClick={ () => doSendTemplate( tplVarDialog.template, tplVarDialog.vars ) }>{ sending ? 'Sending…' : 'Send template' }</button>
                             </div>
-                        ) }
+                        </div>
                     </div>
                 </div>
             ) }
@@ -877,6 +1167,38 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-pay-cancel { background: #fff; border: 1px solid ${colors.border}; border-radius: 10px; padding: 8px 16px; font-size: 13px; cursor: pointer; color: ${colors.textSecondary}; }
         .ui-pay-send { background: ${colors.primary}; color: #fff; border: none; border-radius: 10px; padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
         .ui-pay-send:disabled { opacity: 0.5; cursor: not-allowed; }
+        .ui-pay-label { font-size: 11px; font-weight: 600; color: ${colors.textMuted}; margin-top: 2px; }
+        .ui-pay-lock { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .ui-pay-lock .ui-pay-in { flex: 1; }
+        .ui-pay-unlock { background: ${colors.lime}; color: #1a3a2a; border: none; border-radius: 9px; padding: 8px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .ui-pay-err { color: #b91c1c; font-size: 11px; width: 100%; }
+        .ui-pay-item { display: flex; flex-direction: column; gap: 6px; border: 1px dashed ${colors.borderLight}; border-radius: 10px; padding: 8px; }
+        .ui-pay-gst { max-width: 110px; }
+        .ui-pay-rm { background: #fff; border: 1px solid ${colors.border}; border-radius: 8px; padding: 0 10px; cursor: pointer; color: ${colors.textMuted}; }
+        .ui-pay-additem { align-self: flex-start; background: #f0fdf4; color: ${colors.primary}; border: 1px solid #bbf7d0; border-radius: 9px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+        .ui-tpl-preview { font-size: 13px; color: ${colors.textSecondary}; background: ${colors.bgSecondary}; border-radius: 8px; padding: 8px 10px; white-space: pre-wrap; }
+        .ui-tpl-head { display: flex; gap: 8px; align-items: center; padding: 6px; border-bottom: 1px solid ${colors.borderLight}; }
+        .ui-tpl-toggle { background: #fff; border: 1px solid ${colors.border}; border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; color: ${colors.primary}; }
+        .ui-tpl-toggle.on { background: ${colors.lime}; color: #1a3a2a; border-color: ${colors.lime}; }
+        .ui-tpl-newnum { flex: 1; padding: 6px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 12px; }
+        .ui-tpl-var { color: ${colors.primary}; font-weight: 600; }
+        .ui-media-stage { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 4px 0; }
+        .ui-media-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; border: 1px solid ${colors.border}; }
+        .ui-media-chip { display: inline-flex; align-items: center; gap: 6px; background: ${colors.bgSecondary}; border: 1px solid ${colors.borderLight}; border-radius: 9px; padding: 4px 8px; font-size: 12px; max-width: 220px; }
+        .ui-media-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; color: ${colors.text}; }
+        .ui-media-size { color: ${colors.textMuted}; font-size: 10px; }
+        .ui-media-x { background: none; border: none; cursor: pointer; color: ${colors.textMuted}; font-size: 12px; }
+        .ui-emoji-pop { border: 1px solid ${colors.border}; border-radius: 10px; background: #fff; display: flex; flex-direction: column; max-height: 260px; }
+        .ui-emoji-search { margin: 8px; padding: 7px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 13px; }
+        .ui-emoji-scroll { overflow-y: auto; padding: 0 8px 8px; }
+        .ui-emoji-cat-label { font-size: 10px; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase; margin: 6px 2px 4px; }
+        .ui-emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 2px; }
+        .ui-transcribe-btn { align-self: flex-start; background: ${colors.bgSecondary}; border: 1px solid ${colors.borderLight}; border-radius: 8px; padding: 3px 8px; font-size: 11px; color: ${colors.textSecondary}; cursor: pointer; }
+        .ui-transcribe-btn:disabled { opacity: 0.6; cursor: wait; }
+        .ui-react-wrap { position: relative; display: inline-flex; }
+        .ui-react-pop { position: absolute; bottom: 130%; right: 0; display: flex; gap: 2px; background: #fff; border: 1px solid ${colors.border}; border-radius: 9999px; padding: 4px 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 20; }
+        .ui-react-em { background: none; border: none; cursor: pointer; font-size: 16px; padding: 2px; line-height: 1; }
+        .ui-react-em:hover { transform: scale(1.25); }
         .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; }
         .ui-reply-input { width: 100%; resize: vertical; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
         .ui-reply-input:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
