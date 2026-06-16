@@ -116,6 +116,11 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ rcsTemplates, setRcsTemplates ] = useState<any[]>( [] );
     const [ showRcsTemplates, setShowRcsTemplates ] = useState( false );
     const fileRef = useRef<HTMLInputElement | null>( null );
+    const threadBodyRef = useRef<HTMLDivElement | null>( null );
+    const threadEndRef = useRef<HTMLDivElement | null>( null );
+    const pendingScrollRestore = useRef( false );
+    const prevThreadLen = useRef( 0 );
+    const [ loadingOlder, setLoadingOlder ] = useState( false );
 
     const loadData = useCallback( async () => {
         try
@@ -425,6 +430,51 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         finally { setSending( false ); }
     }, [ payItem, payAmount, payQty, replyTarget, selectedWaba, toast, loadData ] );
 
+    // Auto-scroll to the latest message when a conversation is opened.
+    useEffect( () => {
+        if ( !selected ) return;
+        prevThreadLen.current = 0;
+        const t = setTimeout( () => threadEndRef.current?.scrollIntoView( { behavior: 'auto' } ), 60 );
+        return () => clearTimeout( t );
+    }, [ selected ] );
+
+    // Auto-scroll on new messages — only if the user is already near the bottom
+    // (so reading older history isn't interrupted). WhatsApp-style.
+    useEffect( () => {
+        if ( pendingScrollRestore.current ) { prevThreadLen.current = thread.length; return; }
+        const area = threadBodyRef.current;
+        if ( area && thread.length > prevThreadLen.current && prevThreadLen.current > 0 )
+        {
+            const nearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 220;
+            if ( nearBottom ) threadEndRef.current?.scrollIntoView( { behavior: 'smooth' } );
+        }
+        prevThreadLen.current = thread.length;
+    }, [ thread ] );
+
+    // Infinite scroll up: reveal older messages when scrolled near the top,
+    // restoring scroll position so the view doesn't jump.
+    useEffect( () => {
+        const area = threadBodyRef.current;
+        if ( !area ) return;
+        const onScroll = () => {
+            if ( area.scrollTop < 80 && thread.length > visibleCount && !pendingScrollRestore.current )
+            {
+                const prevH = area.scrollHeight;
+                const prevTop = area.scrollTop;
+                pendingScrollRestore.current = true;
+                setLoadingOlder( true );
+                setVisibleCount( c => c + 50 );
+                setTimeout( () => {
+                    area.scrollTop = prevTop + ( area.scrollHeight - prevH );
+                    pendingScrollRestore.current = false;
+                    setLoadingOlder( false );
+                }, 60 );
+            }
+        };
+        area.addEventListener( 'scroll', onScroll, { passive: true } );
+        return () => area.removeEventListener( 'scroll', onScroll );
+    }, [ selected, thread.length, visibleCount ] );
+
     const content = (
         <>
             <div className="ui-wrap">
@@ -515,9 +565,9 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                         </div>
                                     </div>
                                 ) }
-                                <div className="ui-thread-body">
+                                <div className="ui-thread-body" ref={ threadBodyRef }>
                                     { thread.length > visibleCount && (
-                                        <button className="ui-load-more" onClick={ () => setVisibleCount( v => v + 50 ) }>↑ Load older ({ thread.length - visibleCount })</button>
+                                        <button className="ui-load-more" onClick={ () => setVisibleCount( v => v + 50 ) }>{ loadingOlder ? 'Loading…' : `↑ Load older (${thread.length - visibleCount})` }</button>
                                     ) }
                                     { thread.slice( -visibleCount ).map( m => {
                                         const ch = ( m.channel || 'whatsapp' ).toLowerCase();
@@ -556,6 +606,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                             </div>
                                         );
                                     } ) }
+                                    <div ref={ threadEndRef } />
                                 </div>
                                 <div className="ui-reply">
                                     { replyChannel === 'voice' ? (
@@ -730,12 +781,12 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             ) }
 
             <style jsx>{ `
-        .ui-wrap { padding: 20px; max-width: 1200px; margin: 0 auto; }
-        .ui-toolbar { display: flex; gap: 12px; margin: 12px 0; }
+        .ui-wrap { padding: 18px 20px; max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - 70px); box-sizing: border-box; }
+        .ui-toolbar { display: flex; gap: 12px; margin: 12px 0; flex-shrink: 0; }
         .ui-search { flex: 1; padding: 9px 14px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; }
         .ui-filter { padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 13px; background: #fff; }
-        .ui-panes { display: grid; grid-template-columns: 340px 1fr; gap: 16px; height: 70vh; }
-        .ui-list { border: 1px solid ${colors.border}; border-radius: 12px; overflow-y: auto; background: #fff; }
+        .ui-panes { display: grid; grid-template-columns: 340px 1fr; gap: 16px; flex: 1; min-height: 420px; overflow: hidden; }
+        .ui-list { border: 1px solid ${colors.border}; border-radius: 12px; overflow-y: auto; background: #fff; min-height: 0; }
         .ui-conv { display: block; width: 100%; text-align: left; padding: 12px 14px; border: none; border-bottom: 1px solid ${colors.borderLight}; background: #fff; cursor: pointer; }
         .ui-conv:hover { background: ${colors.bgHover}; }
         .ui-conv.active { background: ${colors.bgActive}; }
@@ -746,7 +797,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-conv-preview { font-size: 12px; color: ${colors.textSecondary}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ui-badges { display: flex; gap: 4px; flex-shrink: 0; }
         .ui-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 9999px; white-space: nowrap; }
-        .ui-thread { border: 1px solid ${colors.border}; border-radius: 12px; display: flex; flex-direction: column; background: #fff; overflow: hidden; }
+        .ui-thread { border: 1px solid ${colors.border}; border-radius: 12px; display: flex; flex-direction: column; background: #fff; overflow: hidden; min-height: 0; }
         .ui-thread-head { padding: 12px 16px; border-bottom: 1px solid ${colors.border}; display: flex; justify-content: space-between; align-items: center; }
         .ui-thread-name { font-weight: 700; font-size: 15px; color: ${colors.text}; }
         .ui-summarize { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; background: #f0fdf4; color: ${colors.primary}; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -836,7 +887,12 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-reply-btn:hover:not(:disabled) { background: ${colors.primaryHover}; }
         .ui-reply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .ui-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: ${colors.textMuted}; font-size: 14px; }
-        @media (max-width: 800px) { .ui-panes { grid-template-columns: 1fr; height: auto; } }
+        @media (max-width: 800px) {
+          .ui-wrap { height: auto; }
+          .ui-panes { grid-template-columns: 1fr; min-height: auto; overflow: visible; }
+          .ui-list { max-height: 40vh; }
+          .ui-thread { min-height: 70vh; }
+        }
       ` }</style>
         </>
     );
