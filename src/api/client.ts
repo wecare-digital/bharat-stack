@@ -509,6 +509,7 @@ export interface SendMessageRequest {
   isOtpTemplate?: boolean;
   otpCode?: string;
   otpButtonType?: string;
+  contextMessageId?: string;  // Native reply — quote this WhatsApp message id
 }
 
 // Send WhatsApp reaction via Lambda
@@ -698,7 +699,7 @@ export interface SendInteractiveRequest {
   contactId: string;
   phoneNumberId?: string;
   recipientBsuid?: string;    // Send to BSUID recipient
-  interactiveType: 'list' | 'button' | 'location_request' | 'cta_url' | 'flow';
+  interactiveType: 'list' | 'button' | 'location_request' | 'cta_url' | 'flow' | 'product' | 'product_list';
   interactiveData: {
     header?: string;
     headerType?: 'text' | 'image' | 'video' | 'document';
@@ -707,9 +708,12 @@ export interface SendInteractiveRequest {
     body: string;
     footer?: string;
     buttonText?: string;  // For list messages, CTA URL, and Flow
-    sections?: InteractiveListSection[];  // For list messages
+    sections?: any[];  // List rows OR product_list sections ({ title, productItems: [{ productRetailerId }] })
     buttons?: InteractiveButton[];  // For button messages
     url?: string;  // For CTA URL messages
+    // Catalog / product fields
+    catalogId?: string;
+    productRetailerId?: string;  // For single product messages
     // Flow-specific fields
     flowId?: string;
     flowCta?: string;
@@ -733,6 +737,36 @@ export async function sendWhatsAppInteractive ( request: SendInteractiveRequest 
       interactiveType: request.interactiveType,
       interactiveData: request.interactiveData,
     } ),
+  } );
+}
+
+/**
+ * Send a WhatsApp catalog message — single product or a multi-product list.
+ * Requires a configured WhatsApp product catalog (catalogId) and product retailer ids.
+ */
+export async function sendWhatsAppCatalogProduct ( request: {
+  contactId: string;
+  phoneNumberId?: string;
+  catalogId: string;
+  productRetailerId?: string;  // single product
+  sections?: { title: string; productItems: { productRetailerId: string }[] }[];  // multi-product
+  body?: string;
+  header?: string;
+  footer?: string;
+} ): Promise<{ messageId: string; status: string } | null> {
+  const multi = !!( request.sections && request.sections.length );
+  return sendWhatsAppInteractive( {
+    contactId: request.contactId,
+    phoneNumberId: request.phoneNumberId,
+    interactiveType: multi ? 'product_list' : 'product',
+    interactiveData: {
+      body: request.body || '',
+      header: request.header,
+      footer: request.footer,
+      catalogId: request.catalogId,
+      productRetailerId: request.productRetailerId,
+      sections: request.sections,
+    },
   } );
 }
 

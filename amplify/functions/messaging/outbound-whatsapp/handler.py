@@ -400,6 +400,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         reaction_message_id = body.get('reactionMessageId')  # WhatsApp message ID to react to
         reaction_emoji = body.get('reactionEmoji', '\U0001F44D')  # Default: thumbs up
         
+        # Native reply support — quote the WhatsApp message id being replied to.
+        context_message_id = body.get('contextMessageId') or body.get('replyToMessageId')
+        
         # Allow sending without contactId if recipientPhone is provided (for order_status)
         if not contact_id and not recipient_phone_direct:
             return _error_response(400, 'contactId or recipientPhone is required')
@@ -1305,6 +1308,59 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             
             payload['interactive'] = interactive_payload
             
+        elif interactive_type == 'product':
+            # Single Product Message — requires a catalog_id + product_retailer_id.
+            catalog_id = interactive_data.get('catalogId') or interactive_data.get('catalog_id')
+            product_retailer_id = interactive_data.get('productRetailerId') or interactive_data.get('product_retailer_id')
+            if not catalog_id or not product_retailer_id:
+                return _error_response(400, 'product message requires catalogId and productRetailerId')
+            interactive_payload = {
+                'type': 'product',
+                'action': {
+                    'catalog_id': str(catalog_id),
+                    'product_retailer_id': str(product_retailer_id),
+                }
+            }
+            if interactive_data.get('body'):
+                interactive_payload['body'] = {'text': interactive_data['body']}
+            if interactive_data.get('footer'):
+                interactive_payload['footer'] = {'text': interactive_data['footer']}
+            payload['interactive'] = interactive_payload
+            
+        elif interactive_type == 'product_list':
+            # Multi-Product Message — catalog_id + sections of product_items.
+            catalog_id = interactive_data.get('catalogId') or interactive_data.get('catalog_id')
+            sections_in = interactive_data.get('sections', [])
+            if not catalog_id or not sections_in:
+                return _error_response(400, 'product_list requires catalogId and sections')
+            header_text = interactive_data.get('header', 'Our products')
+            body_text = interactive_data.get('body', 'Browse our catalog')
+            footer_text = interactive_data.get('footer', '')
+            sections_out = []
+            for section in sections_in[:10]:
+                items = section.get('productItems') or section.get('product_items') or []
+                product_items = []
+                for it in items[:30]:
+                    rid = it.get('productRetailerId') or it.get('product_retailer_id') or (it if isinstance(it, str) else None)
+                    if rid:
+                        product_items.append({'product_retailer_id': str(rid)})
+                if product_items:
+                    sections_out.append({'title': section.get('title', 'Products')[:24], 'product_items': product_items})
+            if not sections_out:
+                return _error_response(400, 'product_list has no valid product items')
+            interactive_payload = {
+                'type': 'product_list',
+                'header': {'type': 'text', 'text': header_text},
+                'body': {'text': body_text},
+                'action': {
+                    'catalog_id': str(catalog_id),
+                    'sections': sections_out,
+                }
+            }
+            if footer_text:
+                interactive_payload['footer'] = {'text': footer_text}
+            payload['interactive'] = interactive_payload
+            
         else:
             return _error_response(400, f'Invalid interactive type: {interactive_type}')
         
@@ -1442,7 +1498,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             template_header_type=template_header_type,
             template_header_filename=template_header_filename,
             template_header_location=template_header_location,
-            template_flow_button=template_flow_button
+            template_flow_button=template_flow_button,
+            context_message_id=context_message_id
         )
         
         logger.info(json.dumps({
@@ -2362,7 +2419,8 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
                            template_header_type: Optional[str] = None,
                            template_header_filename: Optional[str] = None,
                            template_header_location: Optional[Dict] = None,
-                           template_flow_button: Optional[Dict] = None) -> Dict[str, Any]:
+                           template_flow_button: Optional[Dict] = None,
+                           context_message_id: Optional[str] = None) -> Dict[str, Any]:
     """Build WhatsApp Cloud API message payload. Supports BSUID recipient."""
     # Normalize phone number - WhatsApp API expects digits only without + prefix
     formatted_phone = _normalize_phone_number(recipient_phone) if recipient_phone else ''
@@ -2968,6 +3026,11 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             has_url = 'http://' in content or 'https://' in content
             payload['type'] = 'text'
             payload['text'] = {'body': content, 'preview_url': has_url}
+    
+    # Native reply: quote the message being replied to (Meta "context" object).
+    # Applies to text/media/interactive/contacts/location — set last so it covers all.
+    if context_message_id:
+        payload['context'] = {'message_id': context_message_id}
     
     return payload
 

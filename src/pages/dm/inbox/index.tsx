@@ -58,6 +58,7 @@ const ICON_PATHS: Record<string, string> = {
     mic: 'M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3ZM5 11a7 7 0 0 0 14 0M12 18v3',
     sparkle: 'M12 3l1.8 4.9L18.7 10l-4.9 1.8L12 17l-1.8-5.2L5.3 10l4.9-1.1L12 3Z',
     pay: 'M3 7h18v10H3zM3 11h18M7 15h3',
+    cart: 'M3 4h2l2.4 12.5a2 2 0 0 0 2 1.5h7.7a2 2 0 0 0 2-1.6L22 8H6M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',
 };
 const Icon: React.FC<{ name: string; size?: number }> = ( { name, size = 18 } ) => (
     <svg width={ size } height={ size } viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={ { display: 'block' } }>
@@ -108,7 +109,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ noteText, setNoteText ] = useState( '' );
     const [ showNotes, setShowNotes ] = useState( false );
     const [ showEmoji, setShowEmoji ] = useState( false );
-    const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location' | 'pay' | 'tts'>( null );
+    const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location' | 'pay' | 'tts' | 'catalog'>( null );
     // Per-channel editor state
     const [ smsType, setSmsType ] = useState<'TRANSACTIONAL' | 'PROMOTIONAL'>( 'TRANSACTIONAL' );
     const [ emailSubject, setEmailSubject ] = useState( '' );
@@ -142,6 +143,10 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ payUnlocked, setPayUnlocked ] = useState( false );
     const [ payPassword, setPayPassword ] = useState( '' );
     const [ payPasswordError, setPayPasswordError ] = useState( '' );
+    // Catalog / product message
+    const [ catalogId, setCatalogId ] = useState( '' );
+    const [ catalogProducts, setCatalogProducts ] = useState( '' );
+    const [ catalogBody, setCatalogBody ] = useState( '' );
     const fileRef = useRef<HTMLInputElement | null>( null );
     const threadBodyRef = useRef<HTMLDivElement | null>( null );
     const threadEndRef = useRef<HTMLDivElement | null>( null );
@@ -399,6 +404,10 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         if ( !base && !hasMedia ) return;
         const text = replyingTo && base ? `> ${( replyingTo.content || '' ).slice( 0, 120 )}\n\n${base}` : base;
         const { phone, waba, contactId } = replyTarget;
+        // WhatsApp supports a native quoted reply (context). When available, use it
+        // and skip the text-prefix quote.
+        const waContext = ( replyChannel === 'whatsapp' && replyingTo && ( replyingTo as any ).whatsappMessageId ) ? ( replyingTo as any ).whatsappMessageId as string : undefined;
+        const waText = waContext ? base : text;
         setSending( true );
         try
         {
@@ -415,14 +424,14 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                         const type = file.type || inferMimeFromName( file.name );
                         const s3Key = await api.uploadMediaForSend( file, type, file.name );
                         if ( !s3Key ) { toast.error( `Upload failed: ${file.name}` ); continue; }
-                        const r = await api.sendWhatsAppMessage( { contactId, content: i === 0 ? text : '', phoneNumberId: selectedWaba || waba || undefined, mediaFile: s3Key, mediaType: type, mediaFileName: file.name } );
+                        const r = await api.sendWhatsAppMessage( { contactId, content: i === 0 ? waText : '', phoneNumberId: selectedWaba || waba || undefined, mediaFile: s3Key, mediaType: type, mediaFileName: file.name, contextMessageId: i === 0 ? waContext : undefined } );
                         if ( r ) sent++;
                     }
                     ok = sent > 0;
                     if ( ok ) { setMediaFiles( [] ); setMediaPreview( null ); }
                 } else
                 {
-                    const r = await api.sendWhatsAppMessage( { contactId, content: text, phoneNumberId: selectedWaba || waba || undefined } );
+                    const r = await api.sendWhatsAppMessage( { contactId, content: waText, phoneNumberId: selectedWaba || waba || undefined, contextMessageId: waContext } );
                     ok = !!r;
                 }
             } else if ( replyChannel === 'sms' )
@@ -564,6 +573,28 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         } catch { toast.error( 'Payment send failed' ); }
         finally { setSending( false ); }
     }, [ replyTarget, payPhone, payUnlocked, payItems, payPromo, payDelivery, payGstin, payOrderId, toast, loadData ] );
+
+    const handleSendCatalog = useCallback( async () => {
+        const { contactId } = replyTarget;
+        if ( !contactId ) { toast.error( 'Catalog message needs a saved contact' ); return; }
+        if ( !catalogId.trim() ) { toast.error( 'Enter the catalog ID' ); return; }
+        const ids = catalogProducts.split( ',' ).map( s => s.trim() ).filter( Boolean );
+        if ( !ids.length ) { toast.error( 'Enter at least one product retailer ID' ); return; }
+        setSending( true );
+        try
+        {
+            const r = await api.sendWhatsAppCatalogProduct( {
+                contactId, phoneNumberId: selectedWaba, catalogId: catalogId.trim(),
+                body: catalogBody.trim() || undefined,
+                ...( ids.length === 1
+                    ? { productRetailerId: ids[ 0 ] }
+                    : { sections: [ { title: 'Products', productItems: ids.map( id => ( { productRetailerId: id } ) ) } ] } ),
+            } );
+            if ( r ) { toast.success( 'Catalog message sent' ); setComposer( null ); setCatalogProducts( '' ); setCatalogBody( '' ); setTimeout( loadData, 800 ); }
+            else toast.error( 'Catalog send failed' );
+        } catch { toast.error( 'Catalog send failed' ); }
+        finally { setSending( false ); }
+    }, [ replyTarget, selectedWaba, catalogId, catalogProducts, catalogBody, toast, loadData ] );
 
     // Auto-scroll to the latest message when a conversation is opened.
     useEffect( () => {
@@ -920,6 +951,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                                 <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'contact' ) } title="Send contact card"><Icon name="user" /></button>
                                                                 <button type="button" className="ui-tool-btn" onClick={ openTts } title="Send as voice note (TTS)"><Icon name="mic" /></button>
                                                                 <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'pay' ) } title="Request payment"><Icon name="pay" /></button>
+                                                                <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'catalog' ) } title="Send catalog product"><Icon name="cart" /></button>
                                                             </>
                                                         ) }
                                                     </>
@@ -1045,6 +1077,21 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                 </div>
                             );
                         } )() }
+                        { composer === 'catalog' && (
+                            <div className="ui-pay">
+                                <div className="ui-pay-title">Send catalog product</div>
+                                <label className="ui-pay-label">Catalog ID</label>
+                                <input className="ui-pay-in" placeholder="Meta catalog ID" value={ catalogId } onChange={ e => setCatalogId( e.target.value ) } />
+                                <label className="ui-pay-label">Product retailer ID(s) — comma-separated for multi-product</label>
+                                <input className="ui-pay-in" placeholder="SKU_1, SKU_2, …" value={ catalogProducts } onChange={ e => setCatalogProducts( e.target.value ) } />
+                                <label className="ui-pay-label">Message (optional)</label>
+                                <textarea className="ui-pay-in" rows={ 2 } placeholder="Body text…" value={ catalogBody } onChange={ e => setCatalogBody( e.target.value ) } />
+                                <div className="ui-pay-actions">
+                                    <button className="ui-pay-cancel" onClick={ () => setComposer( null ) }>Cancel</button>
+                                    <button className="ui-pay-send" disabled={ sending } onClick={ handleSendCatalog }>{ sending ? 'Sending…' : 'Send products' }</button>
+                                </div>
+                            </div>
+                        ) }
                     </div>
                 </div>
             ) }
