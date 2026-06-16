@@ -99,3 +99,4 @@ sr-*.txt
 
 # Amplify generated outputs (regenerated on deploy)
 amplify_outputs.json
+tsc_*.txt
