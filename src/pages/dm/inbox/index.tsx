@@ -106,7 +106,15 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ showNotes, setShowNotes ] = useState( false );
     const [ showEmoji, setShowEmoji ] = useState( false );
     const [ uploading, setUploading ] = useState( false );
-    const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location'>( null );
+    const [ composer, setComposer ] = useState<null | 'interactive' | 'contact' | 'location' | 'pay'>( null );
+    const [ payItem, setPayItem ] = useState( '' );
+    const [ payAmount, setPayAmount ] = useState( '' );
+    const [ payQty, setPayQty ] = useState( '1' );
+    // Per-channel editor state
+    const [ smsType, setSmsType ] = useState<'TRANSACTIONAL' | 'PROMOTIONAL'>( 'TRANSACTIONAL' );
+    const [ emailSubject, setEmailSubject ] = useState( '' );
+    const [ rcsTemplates, setRcsTemplates ] = useState<any[]>( [] );
+    const [ showRcsTemplates, setShowRcsTemplates ] = useState( false );
     const fileRef = useRef<HTMLInputElement | null>( null );
 
     const loadData = useCallback( async () => {
@@ -138,13 +146,14 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     // Load approved WhatsApp templates once (for the template send button).
     useEffect( () => {
         api.listTemplates().then( t => setTemplates( ( t || [] ).filter( x => x.status === 'APPROVED' ) ) ).catch( () => { } );
+        api.listRcsTemplates().then( t => setRcsTemplates( t || [] ) ).catch( () => { } );
         api.listAutomationRules().then( rs => setQuickReplies(
             ( rs || [] ).filter( r => r.enabled && r.actionType === 'reply' && r.actionValue ).map( r => r.actionValue )
         ) ).catch( () => { } );
     }, [] );
 
     // Reset composer context when switching conversations.
-    useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplates( false ); setSummary( '' ); }, [ selected ] );
+    useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplates( false ); setShowRcsTemplates( false ); setEmailSubject( '' ); setSummary( '' ); }, [ selected ] );
 
     // Load team-inbox meta for the selected conversation.
     useEffect( () => {
@@ -267,6 +276,19 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         return { phone, waba, contactId };
     }, [ thread, selected ] );
 
+    const handleSendRcsTemplate = useCallback( async ( templateId: string ) => {
+        const { phone } = replyTarget;
+        if ( !phone ) { toast.error( 'No phone number for this conversation' ); return; }
+        setSending( true );
+        try
+        {
+            const r = await api.sendRcs( { phoneNumber: phone, templateId } );
+            if ( r && ( r.success || r.messageId ) ) { toast.success( 'RCS template sent' ); setShowRcsTemplates( false ); setTimeout( loadData, 800 ); }
+            else toast.error( 'RCS template send failed' );
+        } catch { toast.error( 'RCS template send failed' ); }
+        finally { setSending( false ); }
+    }, [ replyTarget, toast, loadData ] );
+
     const handleReply = useCallback( async () => {
         const base = replyText.trim();
         if ( !base || sending ) return;
@@ -284,7 +306,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             } else if ( replyChannel === 'sms' )
             {
                 if ( !phone ) { toast.error( 'No phone number for this conversation' ); setSending( false ); return; }
-                const r = await api.sendSmsAws( { contactId: contactId || undefined, phoneNumber: phone, content: text, messageType: 'TRANSACTIONAL' } );
+                const r = await api.sendSmsAws( { contactId: contactId || undefined, phoneNumber: phone, content: text, messageType: smsType } );
                 ok = !!( r && ( r.messageId || r.status === 'sent' ) );
             } else if ( replyChannel === 'rcs' )
             {
@@ -294,7 +316,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             } else if ( replyChannel === 'email' )
             {
                 if ( !contactId ) { toast.error( 'Email reply needs a saved contact' ); setSending( false ); return; }
-                const r = await api.sendEmailMessage( contactId, 'Re: your conversation', text );
+                const r = await api.sendEmailMessage( contactId, emailSubject.trim() || 'Re: your conversation', text );
                 ok = !!r;
             }
             if ( ok )
@@ -314,7 +336,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         {
             setSending( false );
         }
-    }, [ replyText, sending, replyingTo, replyTarget, replyChannel, selectedWaba, toast, loadData ] );
+    }, [ replyText, sending, replyingTo, replyTarget, replyChannel, selectedWaba, smsType, emailSubject, toast, loadData ] );
 
     const handleSuggest = useCallback( async () => {
         if ( aiSuggesting || !thread.length ) return;
@@ -382,6 +404,26 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         } catch { toast.error( 'Voice note failed' ); }
         finally { setSending( false ); }
     }, [ replyChannel, replyText, replyTarget, selectedWaba, toast, loadData ] );
+
+    const handlePay = useCallback( async () => {
+        const amt = parseFloat( payAmount );
+        const qty = parseInt( payQty ) || 1;
+        const { contactId } = replyTarget;
+        if ( !contactId ) { toast.error( 'Payment needs a saved contact' ); return; }
+        if ( !payItem.trim() || !amt || amt <= 0 ) { toast.error( 'Enter item name and amount' ); return; }
+        setSending( true );
+        try
+        {
+            const r = await api.sendWhatsAppPaymentMessage( {
+                contactId, phoneNumberId: selectedWaba,
+                referenceId: `WD-PAY-${Date.now()}`,
+                items: [ { name: payItem.trim(), amount: Math.round( amt * 100 ), quantity: qty, gstRate: 0 } ],
+            } );
+            if ( r ) { toast.success( 'Payment request sent' ); setComposer( null ); setPayItem( '' ); setPayAmount( '' ); setPayQty( '1' ); setTimeout( loadData, 800 ); }
+            else toast.error( 'Payment send failed' );
+        } catch { toast.error( 'Payment send failed' ); }
+        finally { setSending( false ); }
+    }, [ payItem, payAmount, payQty, replyTarget, selectedWaba, toast, loadData ] );
 
     const content = (
         <>
@@ -549,6 +591,38 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                         ) ) }
                                                 </div>
                                             ) }
+                                            { replyChannel === 'rcs' && (
+                                                <div className="ui-wa-bar">
+                                                    <span className="ui-wa-from" style={ { color: chMeta( 'rcs' ).fg } }>RCS · { replyTarget.phone || '—' }</span>
+                                                    <button className="ui-tpl-btn" onClick={ () => setShowRcsTemplates( s => !s ) }>RCS templates ▾</button>
+                                                </div>
+                                            ) }
+                                            { showRcsTemplates && replyChannel === 'rcs' && (
+                                                <div className="ui-tpl-list">
+                                                    { rcsTemplates.length === 0 ? <div className="ui-tpl-empty">No RCS templates</div> :
+                                                        rcsTemplates.map( ( t: any, i: number ) => (
+                                                            <button key={ t.name || t.id || i } className="ui-tpl-item" disabled={ sending } onClick={ () => handleSendRcsTemplate( t.name || t.id ) }>
+                                                                <span className="ui-tpl-name">{ t.name || t.id }</span>
+                                                                <span className="ui-tpl-cat">{ t.type || 'rcs' }</span>
+                                                            </button>
+                                                        ) ) }
+                                                </div>
+                                            ) }
+                                            { replyChannel === 'sms' && (
+                                                <div className="ui-wa-bar">
+                                                    <span className="ui-wa-from" style={ { color: chMeta( 'sms' ).fg } }>SMS · { replyTarget.phone || '—' }</span>
+                                                    <select className="ui-wa-waba" value={ smsType } onChange={ e => setSmsType( e.target.value as 'TRANSACTIONAL' | 'PROMOTIONAL' ) }>
+                                                        <option value="TRANSACTIONAL">Transactional</option>
+                                                        <option value="PROMOTIONAL">Promotional</option>
+                                                    </select>
+                                                </div>
+                                            ) }
+                                            { replyChannel === 'email' && (
+                                                <div className="ui-wa-bar">
+                                                    <span className="ui-wa-from" style={ { color: chMeta( 'email' ).fg } }>Email</span>
+                                                    <input className="ui-email-subject" placeholder="Subject…" value={ emailSubject } onChange={ e => setEmailSubject( e.target.value ) } />
+                                                </div>
+                                            ) }
                                             <textarea
                                                 className="ui-reply-input"
                                                 placeholder={ `Reply via ${chMeta( replyChannel ).label}…` }
@@ -573,24 +647,39 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                             ) }
                                             <div className="ui-reply-actions">
                                                 <span className="ui-reply-via" style={ { color: chMeta( replyChannel ).fg, background: chMeta( replyChannel ).bg } }>via { chMeta( replyChannel ).label }</span>
-                                                <span className="ui-fmt-hint">Enter to send · Shift+Enter newline · *bold* _italic_ ~strike~</span>
+                                                { ( replyChannel === 'whatsapp' || replyChannel === 'rcs' ) && (
+                                                    <span className="ui-fmt-hint">Enter to send · Shift+Enter newline · *bold* _italic_ ~strike~</span>
+                                                ) }
+                                                { replyChannel === 'sms' && (
+                                                    <span className="ui-fmt-hint">{ replyText.length } chars · { Math.max( 1, Math.ceil( replyText.length / 160 ) ) } SMS segment{ replyText.length > 160 ? 's' : '' }</span>
+                                                ) }
+                                                { replyChannel === 'email' && (
+                                                    <span className="ui-fmt-hint">Enter to send · Shift+Enter newline</span>
+                                                ) }
                                                 <button type="button" className="ui-tool-btn" onClick={ () => setShowEmoji( s => !s ) } title="Emoji"><Icon name="emoji" /></button>
                                                 { quickReplies.length > 0 && (
                                                     <button type="button" className="ui-tool-btn" onClick={ () => setShowQuick( s => !s ) } title="Quick replies"><Icon name="chat" /></button>
                                                 ) }
-                                                <button type="button" className="ui-tool-btn" disabled={ uploading } onClick={ () => fileRef.current?.click() } title="Attach image / document / video / audio"><Icon name="attach" /></button>
-                                                { replyChannel === 'whatsapp' && replyTarget.contactId && (
+                                                { replyChannel === 'whatsapp' && (
                                                     <>
-                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'interactive' ) } title="Interactive: list / buttons / CTA / flow"><Icon name="list" /></button>
-                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'location' ) } title="Send location"><Icon name="pin" /></button>
-                                                        <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'contact' ) } title="Send contact card"><Icon name="user" /></button>
-                                                        <button type="button" className="ui-tool-btn" disabled={ sending || !replyText.trim() } onClick={ handleVoice } title="Send as voice note (TTS)"><Icon name="mic" /></button>
+                                                        <button type="button" className="ui-tool-btn" disabled={ uploading } onClick={ () => fileRef.current?.click() } title="Attach image / document / video / audio"><Icon name="attach" /></button>
+                                                        { replyTarget.contactId && (
+                                                            <>
+                                                                <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'interactive' ) } title="Interactive: list / buttons / CTA / flow"><Icon name="list" /></button>
+                                                                <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'location' ) } title="Send location"><Icon name="pin" /></button>
+                                                                <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'contact' ) } title="Send contact card"><Icon name="user" /></button>
+                                                                <button type="button" className="ui-tool-btn" disabled={ sending || !replyText.trim() } onClick={ handleVoice } title="Send as voice note (TTS)"><Icon name="mic" /></button>
+                                                                <button type="button" className="ui-tool-btn" onClick={ () => setComposer( 'pay' ) } title="Request payment"><Icon name="pay" /></button>
+                                                            </>
+                                                        ) }
                                                     </>
                                                 ) }
                                                 <button className="ui-ai-btn" disabled={ aiSuggesting } onClick={ handleSuggest } title="AI suggest reply"><Icon name="sparkle" size={ 15 } /> { aiSuggesting ? '…' : 'Suggest' }</button>
                                                 <button className="ui-reply-btn" disabled={ sending || !replyText.trim() } onClick={ handleReply }>{ sending ? 'Sending…' : 'Send' }</button>
                                             </div>
-                                            <input ref={ fileRef } type="file" hidden accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={ handleAttach } />
+                                            { replyChannel === 'whatsapp' && (
+                                                <input ref={ fileRef } type="file" hidden accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" onChange={ handleAttach } />
+                                            ) }
                                         </>
                                     ) }
                                 </div>
@@ -620,6 +709,21 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                 onClose={ () => setComposer( null ) }
                                 onSent={ () => { setComposer( null ); toast.success( 'Contact card sent' ); setTimeout( loadData, 800 ); } }
                                 onError={ ( m: string ) => toast.error( m ) } />
+                        ) }
+                        { composer === 'pay' && (
+                            <div className="ui-pay">
+                                <div className="ui-pay-title">Request payment</div>
+                                <input className="ui-pay-in" placeholder="Item / service name" value={ payItem } onChange={ e => setPayItem( e.target.value ) } />
+                                <div className="ui-pay-row">
+                                    <input className="ui-pay-in" type="number" min="1" step="0.01" placeholder="Amount (₹)" value={ payAmount } onChange={ e => setPayAmount( e.target.value ) } />
+                                    <input className="ui-pay-in ui-pay-qty" type="number" min="1" placeholder="Qty" value={ payQty } onChange={ e => setPayQty( e.target.value ) } />
+                                </div>
+                                <div className="ui-pay-total">Total: ₹{ ( ( parseFloat( payAmount ) || 0 ) * ( parseInt( payQty ) || 1 ) ).toFixed( 2 ) }</div>
+                                <div className="ui-pay-actions">
+                                    <button className="ui-pay-cancel" onClick={ () => setComposer( null ) }>Cancel</button>
+                                    <button className="ui-pay-send" disabled={ sending } onClick={ handlePay }>{ sending ? 'Sending…' : 'Send payment request' }</button>
+                                </div>
+                            </div>
                         ) }
                     </div>
                 </div>
@@ -687,6 +791,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-wa-bar { display: flex; align-items: center; gap: 8px; }
         .ui-wa-from { font-size: 12px; color: ${colors.textMuted}; }
         .ui-wa-waba { padding: 6px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 12px; background: #fff; }
+        .ui-email-subject { flex: 1; padding: 6px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 12px; }
         .ui-tpl-btn { margin-left: auto; padding: 6px 12px; border: 1px solid ${colors.border}; border-radius: 8px; background: #fff; font-size: 12px; font-weight: 600; cursor: pointer; color: ${colors.primary}; }
         .ui-tpl-list { max-height: 180px; overflow-y: auto; border: 1px solid ${colors.border}; border-radius: 10px; }
         .ui-tpl-item { display: flex; width: 100%; justify-content: space-between; align-items: center; padding: 8px 12px; border: none; border-bottom: 1px solid ${colors.borderLight}; background: #fff; cursor: pointer; text-align: left; }
@@ -708,6 +813,17 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-quick-item:hover { background: ${colors.bgActive}; }
         .ui-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1410; padding: 20px; }
         .ui-modal { background: #fff; border-radius: 14px; max-width: 560px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+        .ui-pay { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .ui-pay-title { font-size: 16px; font-weight: 700; color: ${colors.text}; }
+        .ui-pay-in { width: 100%; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
+        .ui-pay-in:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
+        .ui-pay-row { display: flex; gap: 10px; }
+        .ui-pay-qty { max-width: 90px; }
+        .ui-pay-total { font-size: 14px; font-weight: 600; color: ${colors.primary}; }
+        .ui-pay-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+        .ui-pay-cancel { background: #fff; border: 1px solid ${colors.border}; border-radius: 10px; padding: 8px 16px; font-size: 13px; cursor: pointer; color: ${colors.textSecondary}; }
+        .ui-pay-send { background: ${colors.primary}; color: #fff; border: none; border-radius: 10px; padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .ui-pay-send:disabled { opacity: 0.5; cursor: not-allowed; }
         .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; }
         .ui-reply-input { width: 100%; resize: vertical; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
         .ui-reply-input:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
