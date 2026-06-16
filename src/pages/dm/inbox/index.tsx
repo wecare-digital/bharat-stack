@@ -493,7 +493,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                     </select>
                 </div>
 
-                <div className="ui-panes">
+                <div className={ `ui-panes ${selected ? 'has-selection' : ''}` }>
                     <div className="ui-list">
                         { loading ? (
                             <div className="ui-empty">Loading…</div>
@@ -527,6 +527,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                         ) : (
                             <>
                                 <div className="ui-thread-head">
+                                    <button className="ui-back" onClick={ () => setSelected( null ) } title="Back to conversations">←</button>
                                     <span className="ui-thread-name">{ selectedConv?.name }</span>
                                     <span className="ui-badges">
                                         { selectedConv && Array.from( selectedConv.channels ).map( ch => {
@@ -798,7 +799,8 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-badges { display: flex; gap: 4px; flex-shrink: 0; }
         .ui-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 9999px; white-space: nowrap; }
         .ui-thread { border: 1px solid ${colors.border}; border-radius: 12px; display: flex; flex-direction: column; background: #fff; overflow: hidden; min-height: 0; }
-        .ui-thread-head { padding: 12px 16px; border-bottom: 1px solid ${colors.border}; display: flex; justify-content: space-between; align-items: center; }
+        .ui-thread-head { padding: 12px 16px; border-bottom: 1px solid ${colors.border}; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .ui-back { display: none; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid ${colors.border}; border-radius: 8px; background: #fff; color: ${colors.primary}; font-size: 18px; cursor: pointer; flex-shrink: 0; }
         .ui-thread-name { font-weight: 700; font-size: 15px; color: ${colors.text}; }
         .ui-summarize { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; background: #f0fdf4; color: ${colors.primary}; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .ui-summarize:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -888,10 +890,18 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-reply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .ui-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: ${colors.textMuted}; font-size: 14px; }
         @media (max-width: 800px) {
-          .ui-wrap { height: auto; }
-          .ui-panes { grid-template-columns: 1fr; min-height: auto; overflow: visible; }
-          .ui-list { max-height: 40vh; }
-          .ui-thread { min-height: 70vh; }
+          .ui-wrap { height: calc(100vh - 56px); padding: 10px 12px; }
+          .ui-toolbar { margin: 8px 0; }
+          .ui-panes { grid-template-columns: 1fr; min-height: 0; }
+          /* Master/detail: show the list OR the thread, not both. */
+          .ui-panes .ui-thread { display: none; }
+          .ui-panes .ui-list { display: block; }
+          .ui-panes.has-selection .ui-list { display: none; }
+          .ui-panes.has-selection .ui-thread { display: flex; }
+          .ui-back { display: inline-flex; }
+          .ui-msg-bubble { max-width: 85%; }
+          .ui-meta-bar { gap: 6px; }
+          .ui-meta-assignee, .ui-meta-tags { width: auto; flex: 1; min-width: 90px; }
         }
       ` }</style>
         </>
