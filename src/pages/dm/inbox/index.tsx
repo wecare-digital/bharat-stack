@@ -15,6 +15,7 @@ import PageHeader from '../../../components/PageHeader';
 import InteractiveMessageComposer from '../../../components/InteractiveMessageComposer';
 import ContactMessageComposer from '../../../components/ContactMessageComposer';
 import LocationSendComposer from '../../../components/LocationSendComposer';
+import TemplateSender from '../../../components/TemplateSender';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { colors, shadow } from '../../../lib/design-tokens';
@@ -59,6 +60,7 @@ const ICON_PATHS: Record<string, string> = {
     sparkle: 'M12 3l1.8 4.9L18.7 10l-4.9 1.8L12 17l-1.8-5.2L5.3 10l4.9-1.1L12 3Z',
     pay: 'M3 7h18v10H3zM3 11h18M7 15h3',
     cart: 'M3 4h2l2.4 12.5a2 2 0 0 0 2 1.5h7.7a2 2 0 0 0 2-1.6L22 8H6M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',
+    refresh: 'M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5',
 };
 const Icon: React.FC<{ name: string; size?: number }> = ( { name, size = 18 } ) => (
     <svg width={ size } height={ size } viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={ { display: 'block' } }>
@@ -98,8 +100,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ deletingId, setDeletingId ] = useState<string | null>( null );
     const [ visibleCount, setVisibleCount ] = useState( 50 );
     const [ selectedWaba, setSelectedWaba ] = useState( WABAS[ 0 ].id );
-    const [ templates, setTemplates ] = useState<api.WhatsAppTemplate[]>( [] );
-    const [ showTemplates, setShowTemplates ] = useState( false );
+    const [ showTemplateSender, setShowTemplateSender ] = useState( false );
     const [ aiSuggesting, setAiSuggesting ] = useState( false );
     const [ summary, setSummary ] = useState( '' );
     const [ summarizing, setSummarizing ] = useState( false );
@@ -120,10 +121,6 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     // Multi-file media staging
     const [ mediaFiles, setMediaFiles ] = useState<File[]>( [] );
     const [ mediaPreview, setMediaPreview ] = useState<string | null>( null );
-    // Template variable fill + send-to-new-number
-    const [ tplVarDialog, setTplVarDialog ] = useState<{ template: api.WhatsAppTemplate; vars: string[] } | null>( null );
-    const [ newNumberMode, setNewNumberMode ] = useState( false );
-    const [ newNumberPhone, setNewNumberPhone ] = useState( '' );
     // Per-message reaction + transcription
     const [ reactFor, setReactFor ] = useState<string | null>( null );
     const [ transcribingId, setTranscribingId ] = useState<string | null>( null );
@@ -183,7 +180,6 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
 
     // Load approved WhatsApp templates once (for the template send button).
     useEffect( () => {
-        api.listTemplates().then( t => setTemplates( ( t || [] ).filter( x => x.status === 'APPROVED' ) ) ).catch( () => { } );
         api.listRcsTemplates().then( t => setRcsTemplates( t || [] ) ).catch( () => { } );
         api.getPollyVoices().then( r => { if ( r?.voices && Object.keys( r.voices ).length ) setPollyVoices( r.voices ); } ).catch( () => { } );
         api.listAutomationRules().then( rs => setQuickReplies(
@@ -192,7 +188,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     }, [] );
 
     // Reset composer context when switching conversations.
-    useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplates( false ); setShowRcsTemplates( false ); setEmailSubject( '' ); setSummary( '' ); setMediaFiles( [] ); setMediaPreview( null ); setEmojiSearch( '' ); setShowEmoji( false ); setNewNumberMode( false ); setNewNumberPhone( '' ); setReactFor( null ); }, [ selected ] );
+    useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplateSender( false ); setShowRcsTemplates( false ); setEmailSubject( '' ); setSummary( '' ); setMediaFiles( [] ); setMediaPreview( null ); setEmojiSearch( '' ); setShowEmoji( false ); setReactFor( null ); }, [ selected ] );
 
     // Load team-inbox meta for the selected conversation.
     useEffect( () => {
@@ -227,40 +223,6 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         } catch { toast.error( 'Delete failed' ); }
         finally { setDeletingId( null ); }
     }, [ deletingId, toast ] );
-
-    const countTplVars = ( t: api.WhatsAppTemplate ): number => {
-        const body = ( t.components || [] ).find( ( c: any ) => c.type === 'BODY' );
-        const m = body?.text?.match( /\{\{\d+\}\}/g );
-        return m ? m.length : 0;
-    };
-
-    const doSendTemplate = useCallback( async ( t: api.WhatsAppTemplate, params: string[] ) => {
-        const isPhone = /^\+?\d{6,}$/.test( selected || '' );
-        const contactId = newNumberMode ? '' : ( isPhone ? '' : ( selected || '' ) );
-        const recipientPhone = newNumberMode ? newNumberPhone.trim() : ( isPhone ? ( selected || '' ) : '' );
-        if ( !contactId && !recipientPhone ) { toast.error( 'Template needs a saved contact or a recipient number' ); return; }
-        setSending( true );
-        try
-        {
-            const r = await api.sendWhatsAppTemplateMessage( {
-                contactId: contactId || undefined,
-                recipientPhone: recipientPhone || undefined,
-                templateName: t.name, language: ( t as any ).language,
-                phoneNumberId: selectedWaba,
-                templateParams: params.filter( p => p.trim() !== '' ),
-            } );
-            if ( r ) { toast.success( 'Template sent' ); setShowTemplates( false ); setTplVarDialog( null ); setNewNumberMode( false ); setNewNumberPhone( '' ); setTimeout( loadData, 800 ); }
-            else toast.error( 'Template send failed' );
-        } catch { toast.error( 'Template send failed' ); }
-        finally { setSending( false ); }
-    }, [ selected, selectedWaba, newNumberMode, newNumberPhone, toast, loadData ] );
-
-    const handleSelectTemplate = useCallback( ( t: api.WhatsAppTemplate ) => {
-        if ( newNumberMode && !newNumberPhone.trim() ) { toast.error( 'Enter the recipient number first' ); return; }
-        const n = countTplVars( t );
-        if ( n > 0 ) { setTplVarDialog( { template: t, vars: Array( n ).fill( '' ) } ); setShowTemplates( false ); }
-        else doSendTemplate( t, [] );
-    }, [ doSendTemplate, newNumberMode, newNumberPhone, toast ] );
 
     // Multi-file media staging: validate per-type size, then queue for send.
     const handleMediaSelect = useCallback( ( e: React.ChangeEvent<HTMLInputElement> ) => {
@@ -707,13 +669,18 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                             <>
                                 <div className="ui-thread-head">
                                     <button className="ui-back" onClick={ () => setSelected( null ) } title="Back to conversations">←</button>
-                                    <span className="ui-thread-name">{ selectedConv?.name }</span>
+                                    <span className="ui-avatar">{ ( selectedConv?.name || '?' ).trim().slice( 0, 2 ).toUpperCase() }</span>
+                                    <div className="ui-thread-id">
+                                        <span className="ui-thread-name">{ selectedConv?.name }</span>
+                                        <span className="ui-thread-sub">{ [ replyTarget.phone, `${thread.length} message${thread.length === 1 ? '' : 's'}` ].filter( Boolean ).join( ' · ' ) }</span>
+                                    </div>
                                     <span className="ui-badges">
                                         { selectedConv && Array.from( selectedConv.channels ).map( ch => {
                                             const cm = chMeta( ch );
                                             return <span key={ ch } className="ui-badge" style={ { color: cm.fg, background: cm.bg } }>{ cm.label }</span>;
                                         } ) }
                                     </span>
+                                    <button className="ui-icon-btn" onClick={ () => loadData() } title="Refresh"><Icon name="refresh" size={ 16 } /></button>
                                     <button className="ui-summarize" disabled={ summarizing } onClick={ handleSummarize } title="AI summary of this conversation"><Icon name="sparkle" size={ 14 } /> { summarizing ? '…' : 'Summarize' }</button>
                                 </div>
                                 { summary && (
@@ -825,29 +792,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                     <select className="ui-wa-waba" value={ selectedWaba } onChange={ e => setSelectedWaba( e.target.value ) }>
                                                         { WABAS.map( w => <option key={ w.id } value={ w.id }>{ w.name } ({ w.display })</option> ) }
                                                     </select>
-                                                    <button className="ui-tpl-btn" onClick={ () => setShowTemplates( s => !s ) }>Send template ▾</button>
-                                                </div>
-                                            ) }
-                                            { showTemplates && replyChannel === 'whatsapp' && (
-                                                <div className="ui-tpl-list">
-                                                    <div className="ui-tpl-head">
-                                                        <button type="button" className={ `ui-tpl-toggle ${newNumberMode ? 'on' : ''}` } onClick={ () => setNewNumberMode( v => !v ) }>
-                                                            { newNumberMode ? '✓ New number' : '+ New number' }
-                                                        </button>
-                                                        { newNumberMode && (
-                                                            <input className="ui-tpl-newnum" placeholder="+91…" value={ newNumberPhone } onChange={ e => setNewNumberPhone( e.target.value ) } />
-                                                        ) }
-                                                    </div>
-                                                    { templates.length === 0 ? <div className="ui-tpl-empty">No approved templates</div> :
-                                                        templates.map( t => {
-                                                            const vc = countTplVars( t );
-                                                            return (
-                                                                <button key={ t.name } className="ui-tpl-item" disabled={ sending } onClick={ () => handleSelectTemplate( t ) }>
-                                                                    <span className="ui-tpl-name">{ t.name }{ vc > 0 && <span className="ui-tpl-var"> · { vc } var</span> }</span>
-                                                                    <span className="ui-tpl-cat">{ t.category }</span>
-                                                                </button>
-                                                            );
-                                                        } ) }
+                                                    <button className="ui-tpl-btn" onClick={ () => setShowTemplateSender( true ) }>Send template ▾</button>
                                                 </div>
                                             ) }
                                             { replyChannel === 'rcs' && (
@@ -1096,26 +1041,17 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                 </div>
             ) }
 
-            { tplVarDialog && (
-                <div className="ui-modal-backdrop" onClick={ () => setTplVarDialog( null ) }>
-                    <div className="ui-modal" onClick={ e => e.stopPropagation() }>
-                        <div className="ui-pay">
-                            <div className="ui-pay-title">Template: { tplVarDialog.template.name }</div>
-                            <div className="ui-tpl-preview">{ ( tplVarDialog.template.components || [] ).find( ( c: any ) => c.type === 'BODY' )?.text || '' }</div>
-                            { tplVarDialog.vars.map( ( v, i ) => (
-                                <div key={ i }>
-                                    <label className="ui-pay-label">{ `Variable {{${i + 1}}}` }</label>
-                                    <input className="ui-pay-in" value={ v } placeholder={ `Value for {{${i + 1}}}` } autoFocus={ i === 0 }
-                                        onChange={ e => setTplVarDialog( d => d ? { ...d, vars: d.vars.map( ( x, idx ) => idx === i ? e.target.value : x ) } : d ) } />
-                                </div>
-                            ) ) }
-                            <div className="ui-pay-actions">
-                                <button className="ui-pay-cancel" onClick={ () => setTplVarDialog( null ) }>Cancel</button>
-                                <button className="ui-pay-send" disabled={ sending || tplVarDialog.vars.some( v => !v.trim() ) } onClick={ () => doSendTemplate( tplVarDialog.template, tplVarDialog.vars ) }>{ sending ? 'Sending…' : 'Send template' }</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            { showTemplateSender && replyChannel === 'whatsapp' && (
+                <TemplateSender
+                    contactId={ replyTarget.contactId || undefined }
+                    contactName={ selectedConv?.name || '' }
+                    phoneNumberId={ selectedWaba }
+                    recipientPhone={ !replyTarget.contactId ? ( replyTarget.phone || undefined ) : undefined }
+                    enableManualRecipient
+                    onClose={ () => setShowTemplateSender( false ) }
+                    onSent={ () => { setShowTemplateSender( false ); toast.success( 'Template sent' ); setTimeout( loadData, 800 ); } }
+                    onError={ ( m: string ) => toast.error( m ) }
+                />
             ) }
 
             <style jsx>{ `
@@ -1139,6 +1075,11 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-thread-head { padding: 12px 16px; border-bottom: 1px solid ${colors.border}; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .ui-back { display: none; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid ${colors.border}; border-radius: 8px; background: #fff; color: ${colors.primary}; font-size: 18px; cursor: pointer; flex-shrink: 0; }
         .ui-thread-name { font-weight: 700; font-size: 15px; color: ${colors.text}; }
+        .ui-avatar { width: 38px; height: 38px; border-radius: 50%; background: ${colors.primary}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+        .ui-thread-id { display: flex; flex-direction: column; min-width: 0; }
+        .ui-thread-sub { font-size: 11px; color: ${colors.textMuted}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ui-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid ${colors.border}; border-radius: 8px; background: #fff; color: ${colors.primary}; cursor: pointer; flex-shrink: 0; }
+        .ui-icon-btn:hover { background: ${colors.bgHover}; border-color: ${colors.primary}; }
         .ui-summarize { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; background: #f0fdf4; color: ${colors.primary}; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .ui-summarize:disabled { opacity: 0.6; cursor: not-allowed; }
         .ui-summary { display: flex; gap: 8px; align-items: flex-start; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 10px 12px; margin: 8px 16px 0; }
