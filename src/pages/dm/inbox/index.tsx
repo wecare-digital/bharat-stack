@@ -49,6 +49,24 @@ const chMeta = ( c?: string ) => CHANNEL[ ( c || 'whatsapp' ).toLowerCase() ] ||
 // Reaction quick-set for the per-message react popover.
 const REACT_EMOJIS = [ '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅' ];
 
+// Friendly label for a message — avoids showing bare "[unknown]" / "[whatsapp]".
+const TYPE_LABELS: Record<string, string> = {
+    image: 'Photo', video: 'Video', audio: 'Voice message', voice: 'Voice message',
+    document: 'Document', sticker: 'Sticker', location: 'Location', contacts: 'Contact card',
+    order: 'Order', poll: 'Poll', reaction: 'Reaction', button: 'Button reply',
+    interactive: 'Interactive reply', request_welcome: 'Started conversation', system: 'System update',
+    referral: 'Ad referral', ad_click: 'Ad click', unsupported: 'Unsupported message', unknown: 'Message',
+};
+const prettyMsg = ( content?: string, messageType?: string ): string => {
+    const raw = ( content || '' ).trim();
+    const mt = ( messageType || '' ).toLowerCase();
+    // Real text/caption → show as-is (unless it's just the auto bracket placeholder).
+    if ( raw && raw.toLowerCase() !== '[unknown]' && raw.toLowerCase() !== `[${mt}]` && raw.toLowerCase() !== '[message type not supported by whatsapp business api]' )
+        return raw;
+    return TYPE_LABELS[ mt ] || 'Message';
+};
+const isSysLabel = ( content?: string ) => /^\[.*\]$/.test( ( content || '' ).trim() );
+
 // Themed line icons for the composer toolbar (outlined, currentColor — matches theme).
 const ICON_PATHS: Record<string, string> = {
     emoji: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM9 10h.01M15 10h.01M8.5 14a4 4 0 0 0 7 0',
@@ -62,6 +80,9 @@ const ICON_PATHS: Record<string, string> = {
     pay: 'M3 7h18v10H3zM3 11h18M7 15h3',
     cart: 'M3 4h2l2.4 12.5a2 2 0 0 0 2 1.5h7.7a2 2 0 0 0 2-1.6L22 8H6M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm9 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',
     refresh: 'M21 12a9 9 0 1 1-2.64-6.36M21 4v5h-5',
+    phone: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z',
+    block: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM5.6 5.6l12.8 12.8',
+    mail: 'M4 6h16v12H4zM4 7l8 6 8-6',
 };
 const Icon: React.FC<{ name: string; size?: number }> = ( { name, size = 18 } ) => (
     <svg width={ size } height={ size } viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={ { display: 'block' } }>
@@ -145,6 +166,11 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ catalogId, setCatalogId ] = useState( '' );
     const [ catalogProducts, setCatalogProducts ] = useState( '' );
     const [ catalogBody, setCatalogBody ] = useState( '' );
+    const [ catalogList, setCatalogList ] = useState<any[]>( [] );
+    const [ catalogLoading, setCatalogLoading ] = useState( false );
+    // Block + mark-unread + click-to-call
+    const [ blocking, setBlocking ] = useState( false );
+    const [ unreadIds, setUnreadIds ] = useState<Set<string>>( new Set() );
     const fileRef = useRef<HTMLInputElement | null>( null );
     const threadBodyRef = useRef<HTMLDivElement | null>( null );
     const threadEndRef = useRef<HTMLDivElement | null>( null );
@@ -183,13 +209,17 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     useEffect( () => {
         api.listRcsTemplates().then( t => setRcsTemplates( t || [] ) ).catch( () => { } );
         api.getPollyVoices().then( r => { if ( r?.voices && Object.keys( r.voices ).length ) setPollyVoices( r.voices ); } ).catch( () => { } );
+        try { const raw = window.localStorage.getItem( 'wd_unread' ); if ( raw ) setUnreadIds( new Set( JSON.parse( raw ) ) ); } catch { }
         api.listAutomationRules().then( rs => setQuickReplies(
             ( rs || [] ).filter( r => r.enabled && r.actionType === 'reply' && r.actionValue ).map( r => r.actionValue )
         ) ).catch( () => { } );
     }, [] );
 
     // Reset composer context when switching conversations.
-    useEffect( () => { setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplateSender( false ); setShowRcsTemplates( false ); setEmailSubject( '' ); setSummary( '' ); setMediaFiles( [] ); setMediaPreview( null ); setEmojiSearch( '' ); setShowEmoji( false ); setReactFor( null ); }, [ selected ] );
+    useEffect( () => {
+        setReplyingTo( null ); setReplyText( '' ); setVisibleCount( 50 ); setShowTemplateSender( false ); setShowRcsTemplates( false ); setEmailSubject( '' ); setSummary( '' ); setMediaFiles( [] ); setMediaPreview( null ); setEmojiSearch( '' ); setShowEmoji( false ); setReactFor( null );
+        if ( selected ) setUnreadIds( prev => { if ( !prev.has( selected ) ) return prev; const next = new Set( prev ); next.delete( selected ); try { window.localStorage.setItem( 'wd_unread', JSON.stringify( Array.from( next ) ) ); } catch { } return next; } );
+    }, [ selected ] );
 
     // Load team-inbox meta for the selected conversation.
     useEffect( () => {
@@ -559,6 +589,68 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         finally { setSending( false ); }
     }, [ replyTarget, selectedWaba, catalogId, catalogProducts, catalogBody, toast, loadData ] );
 
+    const loadCatalog = useCallback( async () => {
+        if ( !catalogId.trim() ) { toast.error( 'Enter the catalog ID first' ); return; }
+        setCatalogLoading( true );
+        try
+        {
+            const r = await api.getCatalogProducts( { catalogId: catalogId.trim(), phoneNumberId: selectedWaba, limit: 100 } );
+            setCatalogList( r?.products || [] );
+            if ( !r?.products?.length ) toast.error( 'No products found for this catalog' );
+        } catch { toast.error( 'Failed to load catalog products' ); }
+        finally { setCatalogLoading( false ); }
+    }, [ catalogId, selectedWaba, toast ] );
+
+    const toggleCatalogProduct = useCallback( ( rid: string ) => {
+        setCatalogProducts( prev => {
+            const ids = prev.split( ',' ).map( s => s.trim() ).filter( Boolean );
+            const i = ids.indexOf( rid );
+            if ( i >= 0 ) ids.splice( i, 1 ); else ids.push( rid );
+            return ids.join( ', ' );
+        } );
+    }, [] );
+
+    const handleBlockToggle = useCallback( async ( block: boolean ) => {
+        const { contactId, phone } = replyTarget;
+        if ( !contactId && !phone ) { toast.error( 'No contact to block' ); return; }
+        setBlocking( true );
+        try
+        {
+            const fn = block ? api.blockWhatsAppUser : api.unblockWhatsAppUser;
+            const r = await fn( { contactId: contactId || undefined, phoneNumber: phone || undefined, phoneNumberId: selectedWaba } );
+            if ( r?.success ) toast.success( block ? 'Contact blocked' : 'Contact unblocked' );
+            else toast.error( block ? 'Block failed — only contacts who messaged in the last 24h can be blocked' : 'Unblock failed' );
+        } catch { toast.error( 'Block action failed' ); }
+        finally { setBlocking( false ); }
+    }, [ replyTarget, selectedWaba, toast ] );
+
+    const handleCall = useCallback( async () => {
+        const { phone } = replyTarget;
+        if ( !phone ) { toast.error( 'No phone number for this contact' ); return; }
+        const stored = ( typeof window !== 'undefined' && window.localStorage.getItem( 'wd_c2c_agent' ) ) || '';
+        const agent = typeof window !== 'undefined' ? window.prompt( 'Click-to-call: ring your phone first (with country code):', stored ) : '';
+        if ( !agent ) return;
+        const agentDigits = agent.replace( /[^\d]/g, '' );
+        if ( agentDigits.length < 10 ) { toast.error( 'Enter a valid agent phone number' ); return; }
+        if ( typeof window !== 'undefined' ) window.localStorage.setItem( 'wd_c2c_agent', agentDigits );
+        try
+        {
+            const r = await api.initiateClickToCall( agentDigits, phone );
+            if ( r?.callId ) toast.success( 'Calling — your phone rings first, then connects the contact' );
+            else toast.error( r?.error || 'Call failed' );
+        } catch { toast.error( 'Call failed' ); }
+    }, [ replyTarget, toast ] );
+
+    const markUnread = useCallback( () => {
+        if ( !selected ) return;
+        setUnreadIds( prev => {
+            const next = new Set( prev ); next.add( selected );
+            try { window.localStorage.setItem( 'wd_unread', JSON.stringify( Array.from( next ) ) ); } catch { }
+            return next;
+        } );
+        setSelected( null );
+    }, [ selected ] );
+
     // Auto-scroll to the latest message when a conversation is opened.
     useEffect( () => {
         if ( !selected ) return;
@@ -644,9 +736,9 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                         ) : conversations.map( c => {
                             const m = chMeta( c.lastChannel );
                             return (
-                                <button key={ c.contactId } className={ `ui-conv ${selected === c.contactId ? 'active' : ''}` } onClick={ () => setSelected( c.contactId ) }>
+                                <button key={ c.contactId } className={ `ui-conv ${selected === c.contactId ? 'active' : ''} ${unreadIds.has( c.contactId ) ? 'unread' : ''}` } onClick={ () => setSelected( c.contactId ) }>
                                     <div className="ui-conv-top">
-                                        <span className="ui-conv-name">{ c.name }</span>
+                                        <span className="ui-conv-name">{ unreadIds.has( c.contactId ) && <span className="ui-unread-dot" /> }{ c.name }</span>
                                         <span className="ui-conv-time">{ fmtTime( c.lastTs ) }</span>
                                     </div>
                                     <div className="ui-conv-bottom">
@@ -682,6 +774,13 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                         } ) }
                                     </span>
                                     <button className="ui-icon-btn" onClick={ () => loadData() } title="Refresh"><Icon name="refresh" size={ 16 } /></button>
+                                    { replyTarget.phone && (
+                                        <button className="ui-icon-btn" onClick={ handleCall } title="Click-to-call (rings your phone, then the contact)"><Icon name="phone" size={ 16 } /></button>
+                                    ) }
+                                    <button className="ui-icon-btn" onClick={ markUnread } title="Mark unread"><Icon name="mail" size={ 16 } /></button>
+                                    { replyChannel === 'whatsapp' && (
+                                        <button className="ui-icon-btn ui-icon-danger" disabled={ blocking } onClick={ () => handleBlockToggle( true ) } title="Block contact (only if they messaged in last 24h)"><Icon name="block" size={ 16 } /></button>
+                                    ) }
                                     <button className="ui-summarize" disabled={ summarizing } onClick={ handleSummarize } title="AI summary of this conversation"><Icon name="sparkle" size={ 14 } /> { summarizing ? '…' : 'Summarize' }</button>
                                 </div>
                                 { summary && (
@@ -743,7 +842,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                         if ( url && mt === 'document' ) return <a className="ui-msg-doc" href={ url } target="_blank" rel="noopener noreferrer">📄 { ( m as any ).displayFilename || 'Document' }</a>;
                                                         return null;
                                                     } )() }
-                                                    { ( m.content || !m.mediaUrl ) && <span className="ui-msg-text">{ m.content || `[${m.messageType || ch}]` }</span> }
+                                                    { ( ( m.content && !isSysLabel( m.content ) ) || !m.mediaUrl ) && <span className="ui-msg-text">{ prettyMsg( m.content, m.messageType ) }</span> }
                                                     { m.transcription ? <span className="ui-msg-transcript">📝 { m.transcription }</span> :
                                                         ( ch === 'whatsapp' && [ 'audio', 'voice' ].includes( ( m.messageType || '' ).toLowerCase() ) && (
                                                             <button className="ui-transcribe-btn" disabled={ transcribingId === m.messageId } onClick={ () => handleTranscribe( m ) }>
@@ -1039,8 +1138,26 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                             <div className="ui-pay">
                                 <div className="ui-pay-title">Send catalog product</div>
                                 <label className="ui-pay-label">Catalog ID</label>
-                                <input className="ui-pay-in" placeholder="Meta catalog ID" value={ catalogId } onChange={ e => setCatalogId( e.target.value ) } />
-                                <label className="ui-pay-label">Product retailer ID(s) — comma-separated for multi-product</label>
+                                <div className="ui-pay-row">
+                                    <input className="ui-pay-in" placeholder="Meta catalog ID" value={ catalogId } onChange={ e => setCatalogId( e.target.value ) } />
+                                    <button type="button" className="ui-pay-additem" disabled={ catalogLoading } onClick={ loadCatalog }>{ catalogLoading ? 'Loading…' : 'Load products' }</button>
+                                </div>
+                                { catalogList.length > 0 && (
+                                    <div className="ui-cat-grid">
+                                        { catalogList.map( ( p: any, i: number ) => {
+                                            const rid = p.retailer_id || p.retailerId || p.id || '';
+                                            const sel = catalogProducts.split( ',' ).map( s => s.trim() ).includes( rid );
+                                            return (
+                                                <button type="button" key={ rid || i } className={ `ui-cat-item ${sel ? 'sel' : ''}` } onClick={ () => toggleCatalogProduct( rid ) }>
+                                                    { ( p.image_url || p.imageUrl ) && <img className="ui-cat-img" src={ p.image_url || p.imageUrl } alt="" /> }
+                                                    <span className="ui-cat-name">{ p.name || rid }</span>
+                                                    { p.price && <span className="ui-cat-price">{ p.price }</span> }
+                                                </button>
+                                            );
+                                        } ) }
+                                    </div>
+                                ) }
+                                <label className="ui-pay-label">Product retailer ID(s) — comma-separated (or pick above)</label>
                                 <input className="ui-pay-in" placeholder="SKU_1, SKU_2, …" value={ catalogProducts } onChange={ e => setCatalogProducts( e.target.value ) } />
                                 <label className="ui-pay-label">Message (optional)</label>
                                 <textarea className="ui-pay-in" rows={ 2 } placeholder="Body text…" value={ catalogBody } onChange={ e => setCatalogBody( e.target.value ) } />
@@ -1093,6 +1210,17 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-thread-sub { font-size: 11px; color: ${colors.textMuted}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ui-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid ${colors.border}; border-radius: 8px; background: #fff; color: ${colors.primary}; cursor: pointer; flex-shrink: 0; }
         .ui-icon-btn:hover { background: ${colors.bgHover}; border-color: ${colors.primary}; }
+        .ui-icon-danger { color: #b91c1c; }
+        .ui-icon-danger:hover { background: #fef2f2; border-color: #b91c1c; }
+        .ui-unread-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${colors.primary}; margin-right: 6px; vertical-align: middle; }
+        .ui-conv.unread .ui-conv-name { font-weight: 800; }
+        .ui-conv.unread { background: #f7fee7; }
+        .ui-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; max-height: 240px; overflow-y: auto; padding: 4px; border: 1px solid ${colors.borderLight}; border-radius: 10px; }
+        .ui-cat-item { display: flex; flex-direction: column; gap: 4px; align-items: stretch; padding: 6px; border: 1px solid ${colors.border}; border-radius: 9px; background: #fff; cursor: pointer; text-align: left; }
+        .ui-cat-item.sel { border-color: ${colors.primary}; background: #f0fdf4; box-shadow: 0 0 0 2px #bbf7d0; }
+        .ui-cat-img { width: 100%; height: 70px; object-fit: cover; border-radius: 6px; }
+        .ui-cat-name { font-size: 11px; color: ${colors.text}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ui-cat-price { font-size: 11px; font-weight: 600; color: ${colors.primary}; }
         .ui-summarize { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; background: #f0fdf4; color: ${colors.primary}; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .ui-summarize:disabled { opacity: 0.6; cursor: not-allowed; }
         .ui-summary { display: flex; gap: 8px; align-items: flex-start; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 10px 12px; margin: 8px 16px 0; }

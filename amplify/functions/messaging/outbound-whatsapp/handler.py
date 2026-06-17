@@ -116,6 +116,54 @@ def _send_message(phone_number_id: str, payload, as_bytes=False) -> Dict:
     msg = json.dumps(payload) if not isinstance(payload, str) else payload
     return _send_direct_api(phone_number_id, msg)
 
+def _resolve_meta_phone_id(phone_number_id: str) -> str:
+    """Resolve our phone id to the Meta phone-number id used in Graph URLs."""
+    meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '')
+    if not meta_phone_id and '-direct-' in phone_number_id:
+        meta_phone_id = phone_number_id.split('-direct-')[-1]
+    if not meta_phone_id:
+        meta_phone_id = '1055232054343117'
+    return meta_phone_id
+
+def _block_users_api(phone_number_id: str, users: list, action: str) -> Dict:
+    """Block / unblock / list blocked users via the Meta block_users endpoint.
+
+    action: 'block' (POST), 'unblock' (DELETE), 'list' (GET).
+    Note (Meta): you can only block a user who messaged the business in the last 24h.
+    """
+    import hmac as _hmac, hashlib as _hashlib
+    import urllib.request, urllib.error
+    if 'token' not in _direct_api_cache:
+        resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
+        data = json.loads(resp['SecretString'])
+        _direct_api_cache['token'] = (data.get('access_token') or '').strip()
+        _direct_api_cache['app_secret'] = (data.get('app_secret') or '').strip()
+    token = _direct_api_cache['token']
+    app_secret = _direct_api_cache['app_secret']
+    meta_phone_id = _resolve_meta_phone_id(phone_number_id)
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/block_users"
+    if app_secret:
+        proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
+        url = f"{url}?appsecret_proof={proof}"
+    method = 'GET' if action == 'list' else ('DELETE' if action == 'unblock' else 'POST')
+    body = None
+    if action in ('block', 'unblock'):
+        body = json.dumps({
+            'messaging_product': 'whatsapp',
+            'block_users': [{'user': _normalize_phone_number(u)} for u in users if u],
+        }).encode()
+    req = urllib.request.Request(url, data=body, headers={
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+    }, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else ''
+        logger.error(f"block_users {action} failed {e.code}: {error_body[:500]}")
+        raise Exception(f"HTTP {e.code}: {error_body[:300]}")
+
 # Constants
 META_API_VERSION = 'v25.0'  # Latest WhatsApp Cloud API with full payment support
 MAX_TEXT_LENGTH = 4096  # Requirement 5.4
@@ -444,6 +492,24 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     'headers': cors_headers(origin),
                     'body': json.dumps({'success': False, 'action': 'typing_indicator', 'error': str(e)})
                 }
+        
+        # Block / unblock / list blocked users (Meta block_users API).
+        # Only users who messaged in the last 24h can be blocked (Meta rule).
+        block_action = body.get('blockAction')  # 'block' | 'unblock' | 'list'
+        if block_action:
+            try:
+                if block_action == 'list':
+                    result = _block_users_api(phone_number_id, [], 'list')
+                    return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'success': True, 'action': 'list', 'result': result})}
+                users = body.get('blockUsers') or []
+                if not users and recipient_phone:
+                    users = [recipient_phone]
+                if not users:
+                    return _error_response(400, 'No user phone provided to block/unblock')
+                result = _block_users_api(phone_number_id, users, block_action)
+                return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'success': True, 'action': block_action, 'users': users, 'result': result})}
+            except Exception as e:
+                return _error_response(502, f'Block API error ({block_action}): {e}')
         
         # Opt-in enforcement: all contacts allowed by default (permissive)
         # Service window check: outside 24h window, only templates are allowed (WhatsApp policy)

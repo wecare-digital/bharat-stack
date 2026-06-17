@@ -649,6 +649,42 @@ export async function sendWhatsAppMessage ( request: SendMessageRequest ): Promi
   } );
 }
 
+/**
+ * Block / unblock / list blocked WhatsApp users (Meta block_users API).
+ * Only users who messaged in the last 24h can be blocked (Meta rule).
+ */
+export async function blockWhatsAppUser ( request: { contactId?: string; phoneNumber?: string; phoneNumberId?: string } ): Promise<{ success: boolean; result?: any } | null> {
+  return apiCall<{ success: boolean; result?: any }>( `${API_BASE}/whatsapp/send`, {
+    method: 'POST',
+    body: JSON.stringify( { blockAction: 'block', contactId: request.contactId, recipientPhone: request.phoneNumber, blockUsers: request.phoneNumber ? [ request.phoneNumber ] : undefined, phoneNumberId: request.phoneNumberId } ),
+  } );
+}
+
+export async function unblockWhatsAppUser ( request: { contactId?: string; phoneNumber?: string; phoneNumberId?: string } ): Promise<{ success: boolean; result?: any } | null> {
+  return apiCall<{ success: boolean; result?: any }>( `${API_BASE}/whatsapp/send`, {
+    method: 'POST',
+    body: JSON.stringify( { blockAction: 'unblock', contactId: request.contactId, recipientPhone: request.phoneNumber, blockUsers: request.phoneNumber ? [ request.phoneNumber ] : undefined, phoneNumberId: request.phoneNumberId } ),
+  } );
+}
+
+export async function listBlockedWhatsAppUsers ( request: { contactId?: string; phoneNumberId?: string } ): Promise<{ success: boolean; result?: any } | null> {
+  return apiCall<{ success: boolean; result?: any }>( `${API_BASE}/whatsapp/send`, {
+    method: 'POST',
+    body: JSON.stringify( { blockAction: 'list', contactId: request.contactId, phoneNumberId: request.phoneNumberId } ),
+  } );
+}
+
+/**
+ * Click-to-call via Airtel C2C bridge (rings the agent number, then connects the
+ * contact). This is the phone-bridge call — NOT the WhatsApp Calling API.
+ */
+export async function initiateClickToCall ( fromNumber: string, toNumber: string, enableRecording = true ): Promise<{ callId?: string; error?: string } | null> {
+  return apiCall<{ callId?: string; error?: string }>( `${API_BASE}/voice-in/c2c`, {
+    method: 'POST',
+    body: JSON.stringify( { fromNumber, toNumber, enableRecording } ),
+  } );
+}
+
 // Send a reaction to a WhatsApp message
 export async function sendWhatsAppReaction ( request: SendReactionRequest ): Promise<{ messageId: string; status: string; emoji: string } | null> {
   return apiCall<{ messageId: string; status: string; emoji: string }>( `${API_BASE}/whatsapp/send`, {
