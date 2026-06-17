@@ -22,6 +22,7 @@ import { colors, shadow } from '../../../lib/design-tokens';
 import { WHATSAPP_PHONES, PAYMENT_PHONES, DEFAULT_GSTIN, PAYMENT_CONFIG, PAYMENT_UNLOCK_PASSWORD, GST_RATES } from '../../../config/constants';
 import { searchEmojiCategories } from '../../../lib/emoji-data';
 import { inferMimeFromName, validateWaMediaSize, formatBytes } from '../../../lib/wa-media';
+import { waErrorTooltip } from '../../../lib/wa-errors';
 
 const WABAS = [
     { id: WHATSAPP_PHONES.primary.id, name: WHATSAPP_PHONES.primary.name, display: WHATSAPP_PHONES.primary.display },
@@ -750,7 +751,19 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                             </button>
                                                         ) ) }
                                                     <span className="ui-msg-meta">
-                                                        { fmtTime( m.timestamp ) } · { ( m.status || '' ).toLowerCase() }
+                                                        { fmtTime( m.timestamp ) } · { ( () => {
+                                                            const st = ( m.status || '' ).toLowerCase();
+                                                            const failed = st === 'failed' || st === 'undelivered';
+                                                            if ( !failed )
+                                                            {
+                                                                const cls = st === 'read' ? 'read' : st === 'delivered' ? 'delivered' : 'sent';
+                                                                return <span className={ `ui-st ui-st-${cls}` }>{ st || 'sent' }</span>;
+                                                            }
+                                                            let rawErr = '';
+                                                            try { rawErr = m.errorDetails ? ( JSON.parse( m.errorDetails )?.message || '' ) : ''; } catch { rawErr = ( m as any ).errorDetails || ''; }
+                                                            const tip = waErrorTooltip( ( m as any ).errorCode, rawErr ) || 'Send failed';
+                                                            return <span className="ui-st ui-st-failed" title={ tip }>failed ⓘ</span>;
+                                                        } )() }
                                                         <button className="ui-msg-act" title="Reply" onClick={ () => setReplyingTo( m ) }>↩</button>
                                                         <button className="ui-msg-act" title="Delete" disabled={ deletingId === m.messageId } onClick={ () => handleDelete( m ) }>🗑</button>
                                                         { ch === 'whatsapp' && ( m as any ).whatsappMessageId && (
@@ -1055,11 +1068,11 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             ) }
 
             <style jsx>{ `
-        .ui-wrap { padding: 18px 20px; max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - 70px); box-sizing: border-box; }
+        .ui-wrap { padding: 14px 18px; max-width: 1360px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; box-sizing: border-box; }
         .ui-toolbar { display: flex; gap: 12px; margin: 12px 0; flex-shrink: 0; }
         .ui-search { flex: 1; padding: 9px 14px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; }
         .ui-filter { padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 13px; background: #fff; }
-        .ui-panes { display: grid; grid-template-columns: 340px 1fr; gap: 16px; flex: 1; min-height: 420px; overflow: hidden; }
+        .ui-panes { display: grid; grid-template-columns: 340px 1fr; gap: 16px; flex: 1; min-height: 0; overflow: hidden; }
         .ui-list { border: 1px solid ${colors.border}; border-radius: 12px; overflow-y: auto; background: #fff; min-height: 0; }
         .ui-conv { display: block; width: 100%; text-align: left; padding: 12px 14px; border: none; border-bottom: 1px solid ${colors.borderLight}; background: #fff; cursor: pointer; }
         .ui-conv:hover { background: ${colors.bgHover}; }
@@ -1111,6 +1124,11 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-react.out { justify-content: flex-end; }
         .ui-react-pill { font-size: 11px; color: ${colors.textMuted}; background: ${colors.bgSecondary}; border: 1px solid ${colors.borderLight}; border-radius: 9999px; padding: 2px 10px; }
         .ui-msg-meta { font-size: 10px; color: ${colors.textMuted}; display: flex; align-items: center; gap: 8px; }
+        .ui-st { font-weight: 600; }
+        .ui-st-sent { color: ${colors.textMuted}; }
+        .ui-st-delivered { color: #2563eb; }
+        .ui-st-read { color: #15803d; }
+        .ui-st-failed { color: #b91c1c; cursor: help; }
         .ui-msg-act { background: none; border: none; cursor: pointer; font-size: 11px; opacity: 0.5; padding: 0 2px; }
         .ui-msg-act:hover { opacity: 1; }
         .ui-msg-act:disabled { opacity: 0.2; cursor: not-allowed; }
@@ -1190,7 +1208,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; }
         .ui-reply-input { width: 100%; resize: vertical; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
         .ui-reply-input:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
-        .ui-reply-actions { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+        .ui-reply-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
         .ui-reply-via { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 9999px; margin-right: auto; }
         .ui-reply-link { font-size: 12px; color: ${colors.textMuted}; text-decoration: none; }
         .ui-reply-link:hover { color: ${colors.primary}; }
