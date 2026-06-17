@@ -1181,11 +1181,11 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             ) }
 
             <style jsx>{ `
-        .ui-wrap { padding: 14px 18px; max-width: 1360px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; flex: 1; min-height: 0; box-sizing: border-box; }
-        .ui-toolbar { display: flex; gap: 12px; margin: 12px 0; flex-shrink: 0; }
+        .ui-wrap { padding: 12px 18px; max-width: 1360px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        .ui-toolbar { display: flex; gap: 12px; margin: 10px 0; flex-shrink: 0; }
         .ui-search { flex: 1; padding: 9px 14px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; }
         .ui-filter { padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 13px; background: #fff; }
-        .ui-panes { display: grid; grid-template-columns: 340px 1fr; gap: 16px; flex: 1; min-height: 65vh; overflow: hidden; }
+        .ui-panes { display: grid; grid-template-columns: 340px 1fr; gap: 16px; height: calc(100vh - 168px); min-height: 460px; overflow: hidden; }
         .ui-list { border: 1px solid ${colors.border}; border-radius: 12px; overflow-y: auto; background: #fff; min-height: 0; }
         .ui-conv { display: block; width: 100%; text-align: left; padding: 12px 14px; border: none; border-bottom: 1px solid ${colors.borderLight}; background: #fff; cursor: pointer; }
         .ui-conv:hover { background: ${colors.bgHover}; }
@@ -1329,7 +1329,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-react-pop { position: absolute; bottom: 130%; right: 0; display: flex; gap: 2px; background: #fff; border: 1px solid ${colors.border}; border-radius: 9999px; padding: 4px 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 20; }
         .ui-react-em { background: none; border: none; cursor: pointer; font-size: 16px; padding: 2px; line-height: 1; }
         .ui-react-em:hover { transform: scale(1.25); }
-        .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; max-height: 45%; overflow-y: auto; }
+        .ui-reply { padding: 10px 14px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
         .ui-reply-input { width: 100%; resize: vertical; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
         .ui-reply-input:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
         .ui-reply-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
@@ -1347,7 +1347,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         @media (max-width: 800px) {
           .ui-wrap { height: calc(100vh - 56px); padding: 10px 12px; }
           .ui-toolbar { margin: 8px 0; }
-          .ui-panes { grid-template-columns: 1fr; min-height: 0; }
+          .ui-panes { grid-template-columns: 1fr; height: calc(100vh - 120px); min-height: 0; }
           /* Master/detail: show the list OR the thread, not both. */
           .ui-panes .ui-thread { display: none; }
           .ui-panes .ui-list { display: block; }
