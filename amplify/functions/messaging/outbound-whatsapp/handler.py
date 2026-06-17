@@ -514,7 +514,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             template_header_type=template_header_type,
             template_header_filename=template_header_filename,
             template_header_location=template_header_location,
-            template_flow_button=template_flow_button
+            template_flow_button=template_flow_button,
+            context_message_id=context_message_id
         )
         
     except json.JSONDecodeError:
@@ -1440,7 +1441,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                       template_header_type: Optional[str] = None,
                       template_header_filename: Optional[str] = None,
                       template_header_location: Optional[Dict] = None,
-                      template_flow_button: Optional[Dict] = None) -> Dict[str, Any]:
+                      template_flow_button: Optional[Dict] = None,
+                      context_message_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Handle LIVE mode - call Meta Graph API (Direct API).
     Requirements: 5.2, 5.5, 5.6, 5.7, 5.8, 5.10, 5.11
