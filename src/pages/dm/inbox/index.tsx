@@ -789,29 +789,6 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                         <button className="ui-summary-x" onClick={ () => setSummary( '' ) }>✕</button>
                                     </div>
                                 ) }
-                                <div className="ui-meta-bar">
-                                    <select className="ui-meta-status" value={ meta?.status || 'open' } onChange={ e => saveMeta( { status: e.target.value } ) }>
-                                        <option value="open">🟢 Open</option>
-                                        <option value="pending">🟡 Pending</option>
-                                        <option value="resolved">⚪ Resolved</option>
-                                    </select>
-                                    <input className="ui-meta-assignee" placeholder="Assign to…" defaultValue={ meta?.assignee || '' } key={ ( meta?.assignee || '' ) + ( selected || '' ) }
-                                        onBlur={ e => { if ( e.target.value !== ( meta?.assignee || '' ) ) saveMeta( { assignee: e.target.value } ); } } />
-                                    <input className="ui-meta-tags" placeholder="tags (comma sep)" defaultValue={ ( meta?.tags || [] ).join( ', ' ) } key={ 'tags' + ( selected || '' ) + ( meta?.tags || [] ).join() }
-                                        onBlur={ e => { const tags = e.target.value.split( ',' ).map( t => t.trim() ).filter( Boolean ); saveMeta( { tags } ); } } />
-                                    <button className="ui-meta-notes-btn" onClick={ () => setShowNotes( s => !s ) }>🗒 Notes{ meta?.notes?.length ? ` (${meta.notes.length})` : '' }</button>
-                                </div>
-                                { showNotes && (
-                                    <div className="ui-notes">
-                                        { ( meta?.notes || [] ).slice( -20 ).map( ( n, i ) => (
-                                            <div key={ i } className="ui-note"><span className="ui-note-text">{ n.text }</span><span className="ui-note-by">{ n.by } · { fmtTime( ( n.at || 0 ) * 1000 ) }</span></div>
-                                        ) ) }
-                                        <div className="ui-note-add">
-                                            <input className="ui-note-input" placeholder="Add internal note (team-only)…" value={ noteText } onChange={ e => setNoteText( e.target.value ) } onKeyDown={ e => { if ( e.key === 'Enter' ) addNote(); } } />
-                                            <button className="ui-note-btn" onClick={ addNote } disabled={ !noteText.trim() }>Add</button>
-                                        </div>
-                                    </div>
-                                ) }
                                 <div className="ui-thread-body" ref={ threadBodyRef }>
                                     { thread.length > visibleCount && (
                                         <button className="ui-load-more" onClick={ () => setVisibleCount( v => v + 50 ) }>{ loadingOlder ? 'Loading…' : `↑ Load older (${thread.length - visibleCount})` }</button>
