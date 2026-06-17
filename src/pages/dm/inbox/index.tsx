@@ -112,6 +112,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const toast = useToastContext();
     const [ messages, setMessages ] = useState<api.Message[]>( [] );
     const [ contactNames, setContactNames ] = useState<Record<string, string>>( {} );
+    const [ contactDir, setContactDir ] = useState<Record<string, { username?: string; bsuid?: string; book?: string }>>( {} );
     const [ selected, setSelected ] = useState<string | null>( null );
     const [ channelFilter, setChannelFilter ] = useState<string>( 'ALL' );
     const [ search, setSearch ] = useState( '' );
@@ -187,8 +188,14 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                 api.listContacts(),
             ] );
             const names: Record<string, string> = {};
-            contacts.forEach( c => { names[ c.contactId ] = c.name || c.phone || c.email || c.contactId; } );
+            const dir: Record<string, { username?: string; bsuid?: string; book?: string }> = {};
+            contacts.forEach( c => {
+                names[ c.contactId ] = c.name || c.phone || c.email || c.contactId;
+                if ( c.username || c.bsuid || c.contactBookName )
+                    dir[ c.contactId ] = { username: c.username || undefined, bsuid: c.bsuid || undefined, book: c.contactBookName || undefined };
+            } );
             setContactNames( names );
+            setContactDir( dir );
             setMessages( msgs );
         } catch
         {
@@ -765,7 +772,16 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                     <span className="ui-avatar">{ ( selectedConv?.name || '?' ).trim().slice( 0, 2 ).toUpperCase() }</span>
                                     <div className="ui-thread-id">
                                         <span className="ui-thread-name">{ selectedConv?.name }</span>
-                                        <span className="ui-thread-sub">{ [ replyTarget.phone, `${thread.length} message${thread.length === 1 ? '' : 's'}` ].filter( Boolean ).join( ' · ' ) }</span>
+                                        <span className="ui-thread-sub">
+                                            { [
+                                                replyTarget.phone,
+                                                selected && contactDir[ selected ]?.username ? `@${contactDir[ selected ]!.username!.replace( /^@/, '' )}` : '',
+                                                `${thread.length} message${thread.length === 1 ? '' : 's'}`,
+                                            ].filter( Boolean ).join( ' · ' ) }
+                                            { selected && contactDir[ selected ]?.bsuid && (
+                                                <span className="ui-id-chip" title={ `WhatsApp BSUID: ${contactDir[ selected ]!.bsuid}` }>ID { contactDir[ selected ]!.bsuid!.slice( 0, 8 ) }…</span>
+                                            ) }
+                                        </span>
                                     </div>
                                     <span className="ui-badges">
                                         { selectedConv && Array.from( selectedConv.channels ).map( ch => {
@@ -1181,6 +1197,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-avatar { width: 38px; height: 38px; border-radius: 50%; background: ${colors.primary}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
         .ui-thread-id { display: flex; flex-direction: column; min-width: 0; }
         .ui-thread-sub { font-size: 11px; color: ${colors.textMuted}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ui-id-chip { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 600; color: ${colors.primary}; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 9999px; padding: 1px 7px; cursor: help; }
         .ui-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid ${colors.border}; border-radius: 8px; background: #fff; color: ${colors.primary}; cursor: pointer; flex-shrink: 0; }
         .ui-icon-btn:hover { background: ${colors.bgHover}; border-color: ${colors.primary}; }
         .ui-icon-danger { color: #b91c1c; }
