@@ -104,7 +104,8 @@ def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
         with urllib.request.urlopen(req, timeout=15) as r:
             result = json.loads(r.read().decode())
         msg_id = result.get('messages', [{}])[0].get('id', '')
-        return {'messageId': msg_id}
+        wa_id = ( result.get('contacts') or [ {} ] )[0].get('wa_id', '')
+        return {'messageId': msg_id, 'waId': wa_id}
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''
         logger.error(f"Direct API send failed {e.code} for phone {meta_phone_id}: {error_body[:500]}")
@@ -1641,7 +1642,14 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         
         whatsapp_message_id = response.get('messageId', '')
         
-        # Extract payment info for storage (for amount lookup on confirmation)
+        # Persist the canonical wa_id returned by Meta so the contact resolves
+        # consistently in the inbox. (Profile name/BSUID arrive on the inbound reply.)
+        try:
+            if response.get('waId') and contact_id:
+                _enrich_contact_identity(contact_id, response.get('waId'))
+        except Exception:
+            pass
+        
         payment_ref_id = None
         payment_amount = None
         stored_content = content
@@ -3197,6 +3205,31 @@ def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
         'phone': with_plus,
     }))
     return contact
+
+
+def _enrich_contact_identity(contact_id: str, wa_id: str) -> None:
+    """Persist the canonical WhatsApp wa_id on the contact after a send (best-effort).
+
+    Meta does NOT return a profile name on send (privacy) — the display name,
+    BSUID and username auto-fill from the inbound webhook when the contact replies.
+    Here we store the normalized wa_id so the contact resolves consistently and is
+    inbox-ready. Never raises (sending must not fail on enrichment).
+    """
+    if not contact_id or not wa_id:
+        return
+    try:
+        norm = _normalize_phone_number(wa_id)
+        if not norm:
+            return
+        contacts_table = dynamodb.Table(CONTACTS_TABLE)
+        contacts_table.update_item(
+            Key={'id': contact_id},
+            UpdateExpression='SET waId = :w, updatedAt = :u',
+            ExpressionAttributeValues={':w': norm, ':u': Decimal(str(int(time.time())))},
+        )
+        logger.info(json.dumps({'event': 'contact_waid_enriched', 'contactId': contact_id, 'waId': norm}))
+    except Exception as e:
+        logger.warning(f'contact wa_id enrich failed (non-blocking): {e}')
 
 
 def _is_within_service_window(contact: Dict[str, Any]) -> bool:
