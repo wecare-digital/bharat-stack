@@ -983,17 +983,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                     ) ) }
                                                 </div>
                                             ) }
-                                            <div className="ui-reply-actions">
-                                                <span className="ui-reply-via" style={ { color: chMeta( replyChannel ).fg, background: chMeta( replyChannel ).bg } }>via { chMeta( replyChannel ).label }</span>
-                                                { ( replyChannel === 'whatsapp' || replyChannel === 'rcs' ) && (
-                                                    <span className="ui-fmt-hint">Enter to send · Shift+Enter newline · *bold* _italic_ ~strike~</span>
-                                                ) }
-                                                { replyChannel === 'sms' && (
-                                                    <span className="ui-fmt-hint">{ replyText.length } chars · { Math.max( 1, Math.ceil( replyText.length / 160 ) ) } SMS segment{ replyText.length > 160 ? 's' : '' }</span>
-                                                ) }
-                                                { replyChannel === 'email' && (
-                                                    <span className="ui-fmt-hint">Enter to send · Shift+Enter newline</span>
-                                                ) }
+                                            <div className="ui-tools">
                                                 <button type="button" className="ui-tool-btn" onClick={ () => setShowEmoji( s => !s ) } title="Emoji"><Icon name="emoji" /></button>
                                                 { quickReplies.length > 0 && (
                                                     <button type="button" className="ui-tool-btn" onClick={ () => setShowQuick( s => !s ) } title="Quick replies"><Icon name="chat" /></button>
@@ -1012,6 +1002,12 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                             </>
                                                         ) }
                                                     </>
+                                                ) }
+                                            </div>
+                                            <div className="ui-send-row">
+                                                <span className="ui-reply-via" style={ { color: chMeta( replyChannel ).fg, background: chMeta( replyChannel ).bg } }>via { chMeta( replyChannel ).label }</span>
+                                                { replyChannel === 'sms' && (
+                                                    <span className="ui-fmt-hint">{ replyText.length } chars · { Math.max( 1, Math.ceil( replyText.length / 160 ) ) } seg</span>
                                                 ) }
                                                 <button className="ui-ai-btn" disabled={ aiSuggesting } onClick={ handleSuggest } title="AI suggest reply"><Icon name="sparkle" size={ 15 } /> { aiSuggesting ? '…' : 'Suggest' }</button>
                                                 <button className="ui-reply-btn" disabled={ sending || !replyText.trim() } onClick={ handleReply }>{ sending ? 'Sending…' : 'Send' }</button>
@@ -1189,7 +1185,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-toolbar { display: flex; gap: 12px; margin: 12px 0; flex-shrink: 0; }
         .ui-search { flex: 1; padding: 9px 14px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; }
         .ui-filter { padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 13px; background: #fff; }
-        .ui-panes { display: grid; grid-template-columns: 340px 1fr; gap: 16px; flex: 1; min-height: 0; overflow: hidden; }
+        .ui-panes { display: grid; grid-template-columns: 340px 1fr; gap: 16px; flex: 1; min-height: 65vh; overflow: hidden; }
         .ui-list { border: 1px solid ${colors.border}; border-radius: 12px; overflow-y: auto; background: #fff; min-height: 0; }
         .ui-conv { display: block; width: 100%; text-align: left; padding: 12px 14px; border: none; border-bottom: 1px solid ${colors.borderLight}; background: #fff; cursor: pointer; }
         .ui-conv:hover { background: ${colors.bgHover}; }
@@ -1239,7 +1235,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-note-input { flex: 1; padding: 7px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 13px; }
         .ui-note-btn { padding: 7px 14px; background: ${colors.primary}; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .ui-note-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .ui-thread-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: ${colors.bgSecondary}; }
+        .ui-thread-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: ${colors.bgSecondary}; min-height: 200px; }
         .ui-msg { display: flex; }
         .ui-msg.out { justify-content: flex-end; }
         .ui-msg-bubble { max-width: 70%; background: #fff; border: 1px solid ${colors.border}; border-radius: 12px; padding: 8px 12px; display: flex; flex-direction: column; gap: 4px; }
@@ -1333,10 +1329,13 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-react-pop { position: absolute; bottom: 130%; right: 0; display: flex; gap: 2px; background: #fff; border: 1px solid ${colors.border}; border-radius: 9999px; padding: 4px 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); z-index: 20; }
         .ui-react-em { background: none; border: none; cursor: pointer; font-size: 16px; padding: 2px; line-height: 1; }
         .ui-react-em:hover { transform: scale(1.25); }
-        .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; }
+        .ui-reply { padding: 12px 16px; border-top: 1px solid ${colors.border}; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; max-height: 45%; overflow-y: auto; }
         .ui-reply-input { width: 100%; resize: vertical; padding: 9px 12px; border: 1px solid ${colors.border}; border-radius: 10px; font-size: 14px; font-family: inherit; }
         .ui-reply-input:focus { outline: none; border-color: ${colors.primary}; box-shadow: ${shadow.focus}; }
         .ui-reply-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+        .ui-tools { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+        .ui-tools::-webkit-scrollbar { height: 6px; }
+        .ui-send-row { display: flex; align-items: center; gap: 10px; }
         .ui-reply-via { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 9999px; margin-right: auto; }
         .ui-reply-link { font-size: 12px; color: ${colors.textMuted}; text-decoration: none; }
         .ui-reply-link:hover { color: ${colors.primary}; }
