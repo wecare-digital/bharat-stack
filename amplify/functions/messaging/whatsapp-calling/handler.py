@@ -1117,22 +1117,28 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
         logger.info(f"permission_request action deprecated — auto-granted post-call. to={to_number}")
         return _response(200, {'success': True, 'action': 'permission_auto_granted', 'message': 'Permission is auto-granted after calls. Proceed with create action directly.'})
 
-    if action == 'create':
-        # Initiate outbound call with SDP offer
+    # Initiate outbound (business-initiated) call.
+    # Meta's /calls 'action' enum is [accept, connect, media_update, pre_accept, reject, terminate].
+    # Business-initiated calls use action='connect' with the SDP offer inside a 'session' object.
+    # We accept the legacy 'create' alias from the frontend and map it to 'connect'.
+    if action in ('create', 'connect'):
         sdp_offer = body.get('sdpOffer', '')
         if not sdp_offer:
             return _response(400, {'error': 'sdpOffer required for outbound call'})
         payload = {
             'messaging_product': 'whatsapp',
-            'action': 'create',
+            'action': 'connect',
             'to': to_number,
-            'sdp_offer': sdp_offer,
+            'session': {
+                'sdp_type': 'offer',
+                'sdp': sdp_offer,
+            },
         }
         # Add BSUID recipient if available (per Meta Calling API BSUID docs)
         if recipient_bsuid:
             payload['recipient'] = recipient_bsuid
         result = _meta_api_call(f"{phone_number_id}/calls", 'POST', payload, phone_number_id=phone_number_id)
-        return _response(200, {'success': not result.get('error'), 'action': 'create', 'result': result})
+        return _response(200, {'success': not result.get('error'), 'action': 'connect', 'result': result})
 
     return _response(400, {'error': f'Unknown action: {action}'})
 
