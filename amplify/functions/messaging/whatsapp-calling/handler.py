@@ -773,6 +773,22 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     if not caller_phone.startswith('+'):
         caller_phone = f'+{caller_phone}'
 
+    # Unified-timeline breadcrumb — makes the SIP call show in /dm/calls,
+    # the unified inbox (channel=voice), and Contact 360. Non-blocking.
+    try:
+        _bc_contact = _lookup_contact_id_for_inbox(caller_phone)
+        put_call_breadcrumb(
+            call_id=event.get('callId') or f"sipcall_{caller_phone.lstrip('+')}_{int(time.time())}",
+            direction='inbound',
+            contact_id=_bc_contact or '',
+            status='completed',
+            call_type='whatsapp',
+            phone=caller_phone,
+            duration=(int(event['duration']) if str(event.get('duration') or '').isdigit() else None),
+        )
+    except Exception as _bce:
+        logger.warning(f"post_call_sip breadcrumb failed (non-blocking): {_bce}")
+
     # Determine which WABAs to send from based on receiving phone
     is_waba2_call = str(phone_number_id) == PHONE2_META_ID
     if is_waba2_call:
