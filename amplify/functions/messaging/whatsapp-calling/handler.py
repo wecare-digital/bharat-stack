@@ -1111,11 +1111,49 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
     if not phone_number_id or (not to_number and not recipient_bsuid):
         return _response(400, {'error': 'phoneNumberId and to (or recipientBsuid) required'})
 
-    # Legacy permission_request action — no longer sends interactive messages.
-    # Return success immediately (permission is auto-granted post-call).
+    # Send a free-form call permission request (interactive). Per Meta docs this is only
+    # valid inside an open 24h customer service window; outside it, a pre-approved
+    # call_permission_request *template* is required instead.
     if action == 'permission_request':
-        logger.info(f"permission_request action deprecated — auto-granted post-call. to={to_number}")
-        return _response(200, {'success': True, 'action': 'permission_auto_granted', 'message': 'Permission is auto-granted after calls. Proceed with create action directly.'})
+        body_text = (body.get('bodyText') or 'May we call you on WhatsApp to help with your query?').strip()
+        perm_interactive = {
+            'type': 'call_permission_request',
+            'action': {'name': 'call_permission_request'},
+        }
+        if body_text:
+            perm_interactive['body'] = {'text': body_text[:1024]}
+        perm_payload = {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to_number,
+            'type': 'interactive',
+            'interactive': perm_interactive,
+        }
+        if recipient_bsuid:
+            perm_payload['recipient'] = recipient_bsuid
+        result = _meta_api_call(f"{phone_number_id}/messages", 'POST', perm_payload, phone_number_id=phone_number_id)
+        ok = not result.get('error')
+        if ok:
+            logger.info(f"call_permission_request sent to {mask_phone(to_number)} via {phone_number_id}")
+        else:
+            logger.error(f"call_permission_request failed to {mask_phone(to_number)}: {json.dumps(result)[:500]}")
+        return _response(200, {'success': ok, 'action': 'permission_request', 'result': result})
+
+    # Check the current call-permission state for a business+user pair (GET /call_permissions).
+    if action == 'check_permission':
+        if not to_number and not recipient_bsuid:
+            return _response(400, {'error': 'to or recipientBsuid required'})
+        q = f"recipient={recipient_bsuid}" if (recipient_bsuid and not to_number) else f"user_wa_id={to_number.lstrip('+')}"
+        result = _meta_api_call(f"{phone_number_id}/call_permissions?{q}", 'GET', None, phone_number_id=phone_number_id)
+        status = ''
+        can_call = False
+        if isinstance(result, dict) and not result.get('error'):
+            status = (result.get('permission') or {}).get('status', '')
+            for a in result.get('actions', []):
+                if a.get('action_name') == 'start_call':
+                    can_call = bool(a.get('can_perform_action'))
+        return _response(200, {'success': not result.get('error'), 'action': 'check_permission',
+                               'permissionStatus': status, 'canCall': can_call, 'result': result})
 
     # Initiate outbound (business-initiated) call.
     # Meta's /calls 'action' enum is [accept, connect, media_update, pre_accept, reject, terminate].

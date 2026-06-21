@@ -257,6 +257,39 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
     setOutboundLoading( false );
   };
 
+  // Outbound: Check current call-permission state for the target number
+  const [ outboundPermStatus, setOutboundPermStatus ] = useState<string>( '' );
+  const checkOutboundPermission = async () => {
+    if ( !outboundPhone.trim() ) { toast.error( 'Enter a phone number' ); return; }
+    setOutboundLoading( true );
+    try
+    {
+      const res = await fetch( `${API_BASE}/whatsapp/outbound`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify( {
+          phoneNumberId: outboundPhoneNumberId,
+          to: outboundPhone.trim(),
+          action: 'check_permission',
+        } ),
+      } );
+      const data = await res.json();
+      const st = data.permissionStatus || 'no_permission';
+      setOutboundPermStatus( st );
+      if ( data.canCall || st === 'temporary' || st === 'permanent' )
+      {
+        toast.success( `Permission: ${st} — you can call now` );
+      } else
+      {
+        toast.info( `Permission: ${st} — user has not granted call permission yet` );
+      }
+    } catch ( e: any )
+    {
+      toast.error( 'Failed to check permission' );
+    }
+    setOutboundLoading( false );
+  };
+
   // Outbound: Initiate call with WebRTC SDP offer
   const initiateOutboundCall = async () => {
     setOutboundLoading( true );
@@ -1287,11 +1320,21 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                       style={ { padding: '8px 20px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 } }>
                       { outboundLoading ? 'Connecting...' : 'Call Now' }
                     </button>
+                    <button onClick={ checkOutboundPermission } disabled={ outboundLoading }
+                      style={ { padding: '8px 16px', background: '#fff', color: '#1a3a2a', border: '1px solid #1a3a2a', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
+                      Check permission
+                    </button>
                     <button onClick={ resetOutbound }
                       style={ { padding: '8px 16px', background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' } }>
                       Cancel
                     </button>
                   </div>
+                  { outboundPermStatus && (
+                    <div style={ { marginTop: '8px', fontSize: '12px', color: ( outboundPermStatus === 'temporary' || outboundPermStatus === 'permanent' ) ? '#166534' : '#92400e' } }>
+                      Permission status: <strong>{ outboundPermStatus }</strong>
+                      { outboundPermStatus === 'no_permission' && ' — ask the user to tap Allow, or have them call/message you first.' }
+                    </div>
+                  ) }
                 </div>
               ) }
 
