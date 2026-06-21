@@ -128,7 +128,7 @@ POST /{phone-number-id}/calls
   {
     step: 6, done: false,
     title: 'Make Business-Initiated Calls (Outbound)',
-    desc: 'After permission is granted, initiate a call with an SDP offer. The user receives a ringing notification in WhatsApp. You get a "connect" webhook with their SDP answer when they pick up. Note: Business-initiated calling is NOT available in USA, Canada, Turkey, Egypt, Vietnam, Nigeria.',
+    desc: 'After permission is granted, initiate a call with an SDP offer. The user receives a ringing notification in WhatsApp. You get a "connect" webhook with their SDP answer when they pick up. Note: Business-initiated calling is NOT available in USA, Canada, Egypt, Vietnam, Nigeria.',
     code: `POST /{phone-number-id}/calls
 {
   "action": "create",
@@ -165,7 +165,7 @@ const CALL_LIMITS = [
   { limit: 'Media protocol', value: 'WebRTC (ICE + DTLS + SRTP) or SDES SRTP' },
 ];
 
-const BLOCKED_COUNTRIES = [ 'USA', 'Canada', 'Turkey', 'Egypt', 'Vietnam', 'Nigeria' ];
+const BLOCKED_COUNTRIES = [ 'USA', 'Canada', 'Egypt', 'Vietnam', 'Nigeria' ];
 
 const CHANGELOG = [
   { date: 'Dec 19, 2025', title: 'Business-initiated call limit increased', desc: 'Up to 100 calls/day per user (from 10/day)' },
