@@ -1155,6 +1155,50 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
         return _response(200, {'success': not result.get('error'), 'action': 'check_permission',
                                'permissionStatus': status, 'canCall': can_call, 'result': result})
 
+    # Create a call_permission_request TEMPLATE (one-time; requires Meta approval).
+    # Once approved it can be sent to brand-new numbers outside the 24h customer service window.
+    if action == 'create_permission_template':
+        waba_id = WABA2_ID if str(phone_number_id) == PHONE2_META_ID else WABA1_ID
+        tmpl_name = (body.get('templateName') or 'wd_call_permission').strip()
+        tmpl_body = (body.get('bodyText') or 'May we call you on WhatsApp to help with your request?').strip()
+        category = (body.get('category') or 'UTILITY').upper()
+        payload = {
+            'name': tmpl_name,
+            'language': 'en',
+            'category': category,
+            'components': [
+                {'type': 'BODY', 'text': tmpl_body},
+                {'type': 'call_permission_request'},
+            ],
+        }
+        result = _meta_api_call(f"{waba_id}/message_templates", 'POST', payload, phone_number_id=phone_number_id)
+        ok = not result.get('error')
+        if ok:
+            logger.info(f"call_permission_request template '{tmpl_name}' created on WABA {waba_id}: {json.dumps(result)[:300]}")
+        else:
+            logger.error(f"create_permission_template failed: {json.dumps(result)[:500]}")
+        return _response(200, {'success': ok, 'action': 'create_permission_template', 'wabaId': waba_id, 'result': result})
+
+    # Send an approved call_permission_request TEMPLATE (works outside the 24h window).
+    if action == 'send_permission_template':
+        tmpl_name = (body.get('templateName') or 'wd_call_permission').strip()
+        payload = {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to_number,
+            'type': 'template',
+            'template': {'name': tmpl_name, 'language': {'code': 'en'}},
+        }
+        if recipient_bsuid:
+            payload['recipient'] = recipient_bsuid
+        result = _meta_api_call(f"{phone_number_id}/messages", 'POST', payload, phone_number_id=phone_number_id)
+        ok = not result.get('error')
+        if ok:
+            logger.info(f"call_permission_request template '{tmpl_name}' sent to {mask_phone(to_number)}")
+        else:
+            logger.error(f"send_permission_template failed to {mask_phone(to_number)}: {json.dumps(result)[:500]}")
+        return _response(200, {'success': ok, 'action': 'send_permission_template', 'result': result})
+
     # Initiate outbound (business-initiated) call.
     # Meta's /calls 'action' enum is [accept, connect, media_update, pre_accept, reject, terminate].
     # Business-initiated calls use action='connect' with the SDP offer inside a 'session' object.

@@ -290,6 +290,45 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
     setOutboundLoading( false );
   };
 
+  // Outbound: Send the approved call_permission_request TEMPLATE (works for cold numbers
+  // outside the 24h customer service window). Template 'wd_call_permission' must be APPROVED.
+  const sendPermissionTemplate = async () => {
+    if ( !outboundPhone.trim() ) { toast.error( 'Enter a phone number' ); return; }
+    setOutboundLoading( true );
+    setOutboundError( '' );
+    try
+    {
+      const res = await fetch( `${API_BASE}/whatsapp/outbound`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify( {
+          phoneNumberId: outboundPhoneNumberId,
+          to: outboundPhone.trim(),
+          action: 'send_permission_template',
+          templateName: 'wd_call_permission',
+        } ),
+      } );
+      const data = await res.json();
+      if ( data.success )
+      {
+        setOutboundStep( 'permission_sent' );
+        toast.success( 'Permission template sent — waiting for user to accept' );
+      } else
+      {
+        const detail = JSON.stringify( data.result || data.error || 'Failed' );
+        setOutboundError( detail );
+        toast.error( detail.includes( '132001' ) || detail.toLowerCase().includes( 'does not exist' )
+          ? 'Template not approved yet — try again once wd_call_permission is approved'
+          : 'Permission template failed' );
+      }
+    } catch ( e: any )
+    {
+      setOutboundError( e.message );
+      toast.error( 'Permission template failed' );
+    }
+    setOutboundLoading( false );
+  };
+
   // Outbound: Initiate call with WebRTC SDP offer
   const initiateOutboundCall = async () => {
     setOutboundLoading( true );
@@ -1273,8 +1312,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
               { outboundStep === 'idle' && (
                 <div>
                   <p style={ { margin: '0 0 12px', fontSize: '12px', color: '#6b7280' } }>
-                    Step 1: Send a call permission request. Step 2: After user accepts, initiate the call with WebRTC.
-                    Limits: 1 permission request per 24h, 2 per 7 days per user. Not available in USA, Canada, Turkey, Egypt, Vietnam, Nigeria.
+                    Step 1: Get call permission. Step 2: After user accepts, initiate the call with WebRTC.
+                    Use <strong>Request Permission</strong> if the user messaged you in the last 24h, or <strong>Send Template</strong> for brand-new numbers (needs the approved <code>wd_call_permission</code> template).
+                    Limits: 1 permission request per 24h, 2 per 7 days per user. Not available in USA, Canada, Egypt, Vietnam, Nigeria.
                   </p>
                   <div style={ { display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' } }>
                     <div style={ { flex: '0 0 180px' } }>
@@ -1299,6 +1339,10 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                     <button onClick={ requestOutboundPermission } disabled={ outboundLoading || !outboundPhone.trim() }
                       style={ { padding: '8px 18px', background: outboundPhone.trim() ? '#1a3a2a' : '#d1d5db', color: '#fff', border: 'none', borderRadius: '8px', cursor: outboundPhone.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' } }>
                       { outboundLoading ? 'Sending...' : 'Request Permission' }
+                    </button>
+                    <button onClick={ sendPermissionTemplate } disabled={ outboundLoading || !outboundPhone.trim() } title="For brand-new numbers outside the 24h window (uses approved wd_call_permission template)"
+                      style={ { padding: '8px 18px', background: '#fff', color: '#1a3a2a', border: '1px solid #1a3a2a', borderRadius: '8px', cursor: outboundPhone.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' } }>
+                      { outboundLoading ? '...' : 'Send Template' }
                     </button>
                   </div>
                 </div>
