@@ -207,6 +207,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if event.get('action') == 'post_call_sip':
         return _handle_post_call_sip(event, request_id)
 
+    # ── Direct invoke: cert_check from Lightsail cron (SIP TLS cert expiry monitor) ──
+    if event.get('action') == 'cert_check':
+        return _handle_cert_check(event, request_id)
+
     rc = event.get('requestContext', {})
     http_method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET'))
     path = rc.get('http', {}).get('path', '') or event.get('rawPath', '') or event.get('path', '')
@@ -756,6 +760,65 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         })
 
 
+def _handle_cert_check(event: Dict, request_id: str) -> Dict[str, Any]:
+    """
+    SIP TLS certificate expiry monitor (belt-and-suspenders on top of certbot auto-renew).
+
+    Invoked daily by a cron on the Lightsail Asterisk box, which computes the days
+    remaining on the live SIP cert and passes them here. This handler:
+      - logs the result (INFO normally, ERROR when critical — easy to alarm on / grep),
+      - publishes a CloudWatch metric Wecare/SIP -> CertDaysToExpiry
+        (the alarm wecare-sip-cert-expiry-<host> on this metric emails the
+         wecare-alarm-notifications SNS topic when it breaches <= warn days).
+
+    Expected event: {action:'cert_check', daysRemaining:int, notAfter:str, host:str}
+    All side effects are best-effort and never raise — a monitor must not page itself.
+    """
+    CERT_WARN_DAYS = int(os.environ.get('CERT_WARN_DAYS', '10'))
+    try:
+        days = int(event.get('daysRemaining'))
+    except (TypeError, ValueError):
+        logger.error(json.dumps({'event': 'cert_check_bad_payload', 'payload': str(event)[:300], 'requestId': request_id}))
+        return {'statusCode': 400, 'body': 'daysRemaining required (int)'}
+
+    host = event.get('host', 'sip.wecare.digital')
+    not_after = event.get('notAfter', '')
+    critical = days <= CERT_WARN_DAYS
+
+    log_payload = {
+        'event': 'sip_cert_check',
+        'host': host,
+        'daysRemaining': days,
+        'notAfter': not_after,
+        'warnThreshold': CERT_WARN_DAYS,
+        'critical': critical,
+        'requestId': request_id,
+    }
+    if critical:
+        logger.error(json.dumps({**log_payload, 'alert': 'SIP_CERT_EXPIRING_SOON'}))
+    else:
+        logger.info(json.dumps(log_payload))
+
+    # ── Publish CloudWatch metric (best-effort). The alarm
+    #    'wecare-sip-cert-expiry-<host>' on this metric is provisioned once out-of-band
+    #    and notifies the wecare-alarm-notifications SNS topic. ──
+    try:
+        cw = boto3.client('cloudwatch', region_name=REGION)
+        cw.put_metric_data(
+            Namespace='Wecare/SIP',
+            MetricData=[{
+                'MetricName': 'CertDaysToExpiry',
+                'Dimensions': [{'Name': 'Host', 'Value': host}],
+                'Value': float(days),
+                'Unit': 'Count',
+            }],
+        )
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'cert_check_cloudwatch_failed', 'error': str(e), 'requestId': request_id}))
+
+    return {'statusCode': 200, 'body': json.dumps({'daysRemaining': days, 'critical': critical, 'warnThreshold': CERT_WARN_DAYS})}
+
+
 def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     """
     Handle post-call actions from Asterisk AGI (SIP mode).
@@ -785,6 +848,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
             call_type='whatsapp',
             phone=caller_phone,
             duration=(int(event['duration']) if str(event.get('duration') or '').isdigit() else None),
+            recording_url=(event.get('recordingUrl') or None),
         )
     except Exception as _bce:
         logger.warning(f"post_call_sip breadcrumb failed (non-blocking): {_bce}")
@@ -818,9 +882,10 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
         },
     }
 
-    # Send from each WABA
+    # Send from each WABA (gated by the post-call WhatsApp toggle)
+    wa_enabled = _is_postcall_wa_enabled()
     first_msg_id = ''
-    for meta_id, label in send_from:
+    for meta_id, label in (send_from if wa_enabled else []):
         result = _meta_api_call(f"{meta_id}/messages", 'POST',
                                 template_msg, phone_number_id=meta_id)
         msg_id = ''
@@ -837,7 +902,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
 
     msg_id = first_msg_id
 
-    if not msg_id:
+    if wa_enabled and not msg_id:
         # All template sends failed — fallback to plain text
         logger.warning(f"Post-call SIP: all wd_menu sends failed, falling back to text")
         aws_phone_id = _get_aws_phone_id(phone_number_id)
@@ -1453,6 +1518,19 @@ def _is_sms_on_call_enabled() -> bool:
     return True  # Default: enabled
 
 
+def _is_postcall_wa_enabled() -> bool:
+    """Check if the post-call WhatsApp wd_menu message is enabled. Default: True."""
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        result = table.get_item(Key={'id': 'whatsapp_calling_postcall_wa'})
+        item = result.get('Item')
+        if item:
+            return str(item.get('configValue', 'true')).lower() == 'true'
+    except Exception as e:
+        logger.warning(f"Failed to read postcall_wa config: {e}")
+    return True  # Default: enabled
+
+
 # ── SMS Dedup: prevent duplicate SMS to the same number within a cooldown window ──
 SMS_DEDUP_WINDOW_SECONDS = 600  # 10 minutes — one SMS per phone per window
 
@@ -2017,6 +2095,7 @@ def _get_config(request_id: str) -> Dict[str, Any]:
         'defaultIvrUrl': DEFAULT_IVR_URL,
         'autoPickupMode': 'ivr',
         'smsOnCall': sms_on_call,
+        'postCallWa': _is_postcall_wa_enabled(),
     })
 
 
@@ -2068,7 +2147,20 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.error(f"Failed to update sms_on_call config: {e}")
             return _response(500, {'error': str(e)})
 
-    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': 'ivr', 'smsOnCall': sms_on_call})
+    post_call_wa = body.get('postCallWa')
+    if post_call_wa is not None:
+        try:
+            table.put_item(Item={
+                'id': 'whatsapp_calling_postcall_wa',
+                'configValue': str(post_call_wa).lower(),
+                'updatedAt': Decimal(str(int(time.time()))),
+            })
+            logger.info(f"Post-call WhatsApp set to: {post_call_wa}")
+        except Exception as e:
+            logger.error(f"Failed to update postcall_wa config: {e}")
+            return _response(500, {'error': str(e)})
+
+    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': 'ivr', 'smsOnCall': sms_on_call, 'postCallWa': post_call_wa})
 
 # ─── Storage Helpers ─────────────────────────────────────────────────
 

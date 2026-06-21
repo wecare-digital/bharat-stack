@@ -22,7 +22,7 @@ const PHONE_NUMBERS = [
 const WEBHOOK_CONFIG = {
   callbackUrl: 'https://api.wecare.digital/whatsapp',
   verifyToken: 'wecare_calling_verify_2026',
-  subscribedFields: ['messages', 'calls'],
+  subscribedFields: [ 'messages', 'calls' ],
   lambda: 'wecare-whatsapp-calling',
   table: 'stack-wecare-digital-WhatsAppCallingTable',
   status: 'verified',
@@ -33,8 +33,8 @@ const META_TOKEN = {
   appId: '2238810740192680',
   appName: 'WECARE.DIGITAL',
   secretName: 'wecare/meta-system-user-token',
-  scopes: ['whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile'],
-  wabaAccess: ['2094615664435155', '2513394156072604'],
+  scopes: [ 'whatsapp_business_messaging', 'whatsapp_business_management', 'public_profile' ],
+  wabaAccess: [ '2094615664435155', '2513394156072604' ],
   tokenType: 'System User',
   status: 'active',
 };
@@ -165,7 +165,7 @@ const CALL_LIMITS = [
   { limit: 'Media protocol', value: 'WebRTC (ICE + DTLS + SRTP) or SDES SRTP' },
 ];
 
-const BLOCKED_COUNTRIES = ['USA', 'Canada', 'Turkey', 'Egypt', 'Vietnam', 'Nigeria'];
+const BLOCKED_COUNTRIES = [ 'USA', 'Canada', 'Turkey', 'Egypt', 'Vietnam', 'Nigeria' ];
 
 const CHANGELOG = [
   { date: 'Dec 19, 2025', title: 'Business-initiated call limit increased', desc: 'Up to 100 calls/day per user (from 10/day)' },
@@ -178,301 +178,331 @@ const CHANGELOG = [
   { date: 'Jul 21, 2025', title: 'Account settings webhooks', desc: 'Get webhooks when calling settings are updated' },
 ];
 
-const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = false }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'live' | 'webhook' | 'setup' | 'resources' | 'settings'>('overview');
-  const [expandedStep, setExpandedStep] = useState<number | null>(null);
-  const [autoPickup, setAutoPickup] = useState(true);
-  const [autoPickupLoading, setAutoPickupLoading] = useState(false);
-  const [autoPickupMode, setAutoPickupMode] = useState<'manual' | 'ivr'>('ivr');
-  const [ivrUrl, setIvrUrl] = useState('https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16');
+const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = false } ) => {
+  const [ activeTab, setActiveTab ] = useState<'overview' | 'live' | 'webhook' | 'setup' | 'resources' | 'settings'>( 'overview' );
+  const [ expandedStep, setExpandedStep ] = useState<number | null>( null );
+  const [ autoPickup, setAutoPickup ] = useState( true );
+  const [ autoPickupLoading, setAutoPickupLoading ] = useState( false );
+  const [ autoPickupMode, setAutoPickupMode ] = useState<'manual' | 'ivr'>( 'ivr' );
+  const [ ivrUrl, setIvrUrl ] = useState( 'https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16' );
 
   // IVR SMS state
-  const [smsOnCall, setSmsOnCall] = useState(true);
-  const [smsTestPhone, setSmsTestPhone] = useState('+919903300044');
-  const [smsTestSending, setSmsTestSending] = useState<'idle' | 'airtel' | 'pinpoint'>('idle');
-  const [smsTestResult, setSmsTestResult] = useState<{ airtel?: string; pinpoint?: string } | null>(null);
-  const [activeCalls, setActiveCalls] = useState<any[]>([]);
-  const [callLogs, setCallLogs] = useState<any[]>([]);
-  const [loadingCalls, setLoadingCalls] = useState(false);
+  const [ smsOnCall, setSmsOnCall ] = useState( true );
+  // Post-call WhatsApp wd_menu notification toggle
+  const [ postCallWa, setPostCallWa ] = useState( true );
+  const [ smsTestPhone, setSmsTestPhone ] = useState( '+919903300044' );
+  const [ smsTestSending, setSmsTestSending ] = useState<'idle' | 'airtel' | 'pinpoint'>( 'idle' );
+  const [ smsTestResult, setSmsTestResult ] = useState<{ airtel?: string; pinpoint?: string } | null>( null );
+  const [ activeCalls, setActiveCalls ] = useState<any[]>( [] );
+  const [ callLogs, setCallLogs ] = useState<any[]>( [] );
+  const [ loadingCalls, setLoadingCalls ] = useState( false );
   const toast = useToastContext();
 
   const API_BASE = 'https://api.wecare.digital';
 
   // Calling settings state
-  const [settingsPhone, setSettingsPhone] = useState(PHONE_NUMBERS[1]); // default to calling-ready number
-  const [callingVisibility, setCallingVisibility] = useState<'default' | 'disable_all'>('default');
-  const [restrictCountries, setRestrictCountries] = useState('IN');
-  const [callHoursEnabled, setCallHoursEnabled] = useState(true);
-  const [callHoursTimezone, setCallHoursTimezone] = useState('Asia/Kolkata');
-  const [callHoursFrom, setCallHoursFrom] = useState('09:00');
-  const [callHoursTo, setCallHoursTo] = useState('21:00');
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [callingSettingsResult, setCallingSettingsResult] = useState<any>(null);
-  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [ settingsPhone, setSettingsPhone ] = useState( PHONE_NUMBERS[ 1 ] ); // default to calling-ready number
+  const [ callingVisibility, setCallingVisibility ] = useState<'default' | 'disable_all'>( 'default' );
+  const [ restrictCountries, setRestrictCountries ] = useState( 'IN' );
+  const [ callHoursEnabled, setCallHoursEnabled ] = useState( true );
+  const [ callHoursTimezone, setCallHoursTimezone ] = useState( 'Asia/Kolkata' );
+  const [ callHoursFrom, setCallHoursFrom ] = useState( '09:00' );
+  const [ callHoursTo, setCallHoursTo ] = useState( '21:00' );
+  const [ savingSettings, setSavingSettings ] = useState( false );
+  const [ callingSettingsResult, setCallingSettingsResult ] = useState<any>( null );
+  const [ loadingSettings, setLoadingSettings ] = useState( false );
 
   // Outbound call state
-  const [outboundPhone, setOutboundPhone] = useState('');
-  const [outboundPhoneNumberId, setOutboundPhoneNumberId] = useState(PHONE_NUMBERS[1].metaId);
-  const [outboundPermissionText, setOutboundPermissionText] = useState('Can we call you to discuss your query?');
-  const [outboundStep, setOutboundStep] = useState<'idle' | 'requesting_permission' | 'permission_sent' | 'calling' | 'connected' | 'ended' | 'failed'>('idle');
-  const [outboundLoading, setOutboundLoading] = useState(false);
-  const [outboundError, setOutboundError] = useState('');
-  const [outboundCallDuration, setOutboundCallDuration] = useState(0);
-  const outboundDurationRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-  const outboundPcRef = React.useRef<RTCPeerConnection | null>(null);
-  const outboundStreamRef = React.useRef<MediaStream | null>(null);
-  const [outboundMuted, setOutboundMuted] = useState(false);
+  const [ outboundPhone, setOutboundPhone ] = useState( '' );
+  const [ outboundPhoneNumberId, setOutboundPhoneNumberId ] = useState( PHONE_NUMBERS[ 1 ].metaId );
+  const [ outboundPermissionText, setOutboundPermissionText ] = useState( 'Can we call you to discuss your query?' );
+  const [ outboundStep, setOutboundStep ] = useState<'idle' | 'requesting_permission' | 'permission_sent' | 'calling' | 'connected' | 'ended' | 'failed'>( 'idle' );
+  const [ outboundLoading, setOutboundLoading ] = useState( false );
+  const [ outboundError, setOutboundError ] = useState( '' );
+  const [ outboundCallDuration, setOutboundCallDuration ] = useState( 0 );
+  const outboundDurationRef = React.useRef<ReturnType<typeof setInterval> | null>( null );
+  const outboundPcRef = React.useRef<RTCPeerConnection | null>( null );
+  const outboundStreamRef = React.useRef<MediaStream | null>( null );
+  const [ outboundMuted, setOutboundMuted ] = useState( false );
 
   // Outbound: Request call permission
   const requestOutboundPermission = async () => {
-    if (!outboundPhone.trim()) { toast.error('Enter a phone number'); return; }
-    setOutboundLoading(true);
-    setOutboundError('');
-    try {
-      const res = await fetch(`${API_BASE}/whatsapp/outbound`, {
+    if ( !outboundPhone.trim() ) { toast.error( 'Enter a phone number' ); return; }
+    setOutboundLoading( true );
+    setOutboundError( '' );
+    try
+    {
+      const res = await fetch( `${API_BASE}/whatsapp/outbound`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify( {
           phoneNumberId: outboundPhoneNumberId,
           to: outboundPhone.trim(),
           action: 'permission_request',
           bodyText: outboundPermissionText,
-        }),
-      });
+        } ),
+      } );
       const data = await res.json();
-      if (data.success) {
-        setOutboundStep('permission_sent');
-        toast.success('Permission request sent — waiting for user to accept');
-      } else {
-        setOutboundError(JSON.stringify(data.error || data.result || 'Failed'));
-        toast.error('Permission request failed');
+      if ( data.success )
+      {
+        setOutboundStep( 'permission_sent' );
+        toast.success( 'Permission request sent — waiting for user to accept' );
+      } else
+      {
+        setOutboundError( JSON.stringify( data.error || data.result || 'Failed' ) );
+        toast.error( 'Permission request failed' );
       }
-    } catch (e: any) {
-      setOutboundError(e.message);
-      toast.error('Permission request failed');
+    } catch ( e: any )
+    {
+      setOutboundError( e.message );
+      toast.error( 'Permission request failed' );
     }
-    setOutboundLoading(false);
+    setOutboundLoading( false );
   };
 
   // Outbound: Initiate call with WebRTC SDP offer
   const initiateOutboundCall = async () => {
-    setOutboundLoading(true);
-    setOutboundError('');
-    setOutboundStep('calling');
-    try {
+    setOutboundLoading( true );
+    setOutboundError( '' );
+    setOutboundStep( 'calling' );
+    try
+    {
       // 1. Get microphone
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia( {
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
+      } );
       outboundStreamRef.current = stream;
 
       // 2. Create RTCPeerConnection
-      const pc = new RTCPeerConnection({
+      const pc = new RTCPeerConnection( {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
         ],
-      });
+      } );
       outboundPcRef.current = pc;
 
       // Add audio tracks
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      stream.getTracks().forEach( track => pc.addTrack( track, stream ) );
 
       // Handle remote audio
-      pc.ontrack = (event) => {
-        const audioEl = document.getElementById('remoteAudioOutbound') as HTMLAudioElement;
-        if (audioEl && event.streams[0]) {
-          audioEl.srcObject = event.streams[0];
-          audioEl.play().catch(() => {});
+      pc.ontrack = ( event ) => {
+        const audioEl = document.getElementById( 'remoteAudioOutbound' ) as HTMLAudioElement;
+        if ( audioEl && event.streams[ 0 ] )
+        {
+          audioEl.srcObject = event.streams[ 0 ];
+          audioEl.play().catch( () => { } );
         }
       };
 
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'connected') {
-          setOutboundStep('connected');
-          toast.success('Outbound call connected');
-          setOutboundCallDuration(0);
-          outboundDurationRef.current = setInterval(() => setOutboundCallDuration(prev => prev + 1), 1000);
-        } else if (pc.connectionState === 'failed') {
-          setOutboundStep('failed');
-          setOutboundError('WebRTC connection failed');
+        if ( pc.connectionState === 'connected' )
+        {
+          setOutboundStep( 'connected' );
+          toast.success( 'Outbound call connected' );
+          setOutboundCallDuration( 0 );
+          outboundDurationRef.current = setInterval( () => setOutboundCallDuration( prev => prev + 1 ), 1000 );
+        } else if ( pc.connectionState === 'failed' )
+        {
+          setOutboundStep( 'failed' );
+          setOutboundError( 'WebRTC connection failed' );
           cleanupOutbound();
         }
       };
 
       // 3. Create SDP offer
       const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+      await pc.setLocalDescription( offer );
 
       // 4. Wait for ICE gathering
-      const sdpOffer = await new Promise<string>((resolve) => {
-        if (pc.iceGatheringState === 'complete') {
-          resolve(pc.localDescription?.sdp || offer.sdp || '');
+      const sdpOffer = await new Promise<string>( ( resolve ) => {
+        if ( pc.iceGatheringState === 'complete' )
+        {
+          resolve( pc.localDescription?.sdp || offer.sdp || '' );
           return;
         }
-        const timeout = setTimeout(() => resolve(pc.localDescription?.sdp || offer.sdp || ''), 3000);
+        const timeout = setTimeout( () => resolve( pc.localDescription?.sdp || offer.sdp || '' ), 3000 );
         pc.onicegatheringstatechange = () => {
-          if (pc.iceGatheringState === 'complete') {
-            clearTimeout(timeout);
-            resolve(pc.localDescription?.sdp || offer.sdp || '');
+          if ( pc.iceGatheringState === 'complete' )
+          {
+            clearTimeout( timeout );
+            resolve( pc.localDescription?.sdp || offer.sdp || '' );
           }
         };
-      });
+      } );
 
       // 5. Send to backend → Meta
-      const res = await fetch(`${API_BASE}/whatsapp/outbound`, {
+      const res = await fetch( `${API_BASE}/whatsapp/outbound`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify( {
           phoneNumberId: outboundPhoneNumberId,
           to: outboundPhone.trim(),
           action: 'create',
           sdpOffer,
-        }),
-      });
+        } ),
+      } );
       const data = await res.json();
 
-      if (!data.success) {
-        throw new Error(JSON.stringify(data.error || data.result || 'Call initiation failed'));
+      if ( !data.success )
+      {
+        throw new Error( JSON.stringify( data.error || data.result || 'Call initiation failed' ) );
       }
 
-      toast.info('Calling... waiting for user to pick up');
-    } catch (e: any) {
-      setOutboundError(e.message);
-      setOutboundStep('failed');
-      toast.error(`Outbound call failed: ${e.message}`);
+      toast.info( 'Calling... waiting for user to pick up' );
+    } catch ( e: any )
+    {
+      setOutboundError( e.message );
+      setOutboundStep( 'failed' );
+      toast.error( `Outbound call failed: ${e.message}` );
       cleanupOutbound();
     }
-    setOutboundLoading(false);
+    setOutboundLoading( false );
   };
 
   // Outbound: Hang up
   const hangupOutbound = async () => {
-    try {
+    try
+    {
       // We don't have the call_id from Meta for outbound yet, so terminate via cleanup
       // If we had it, we'd POST to /hangup
       cleanupOutbound();
-      setOutboundStep('ended');
-      toast.success('Outbound call ended');
-    } catch (e: any) {
-      toast.error('Failed to hang up');
+      setOutboundStep( 'ended' );
+      toast.success( 'Outbound call ended' );
+    } catch ( e: any )
+    {
+      toast.error( 'Failed to hang up' );
     }
   };
 
   // Outbound: Toggle mute
   const toggleOutboundMute = () => {
-    if (outboundStreamRef.current) {
-      const track = outboundStreamRef.current.getAudioTracks()[0];
-      if (track) {
+    if ( outboundStreamRef.current )
+    {
+      const track = outboundStreamRef.current.getAudioTracks()[ 0 ];
+      if ( track )
+      {
         track.enabled = !track.enabled;
-        setOutboundMuted(!track.enabled);
+        setOutboundMuted( !track.enabled );
       }
     }
   };
 
   // Outbound: Cleanup
   const cleanupOutbound = () => {
-    if (outboundPcRef.current) { outboundPcRef.current.close(); outboundPcRef.current = null; }
-    if (outboundStreamRef.current) { outboundStreamRef.current.getTracks().forEach(t => t.stop()); outboundStreamRef.current = null; }
-    if (outboundDurationRef.current) { clearInterval(outboundDurationRef.current); outboundDurationRef.current = null; }
-    const audioEl = document.getElementById('remoteAudioOutbound') as HTMLAudioElement;
-    if (audioEl) audioEl.srcObject = null;
-    setOutboundMuted(false);
+    if ( outboundPcRef.current ) { outboundPcRef.current.close(); outboundPcRef.current = null; }
+    if ( outboundStreamRef.current ) { outboundStreamRef.current.getTracks().forEach( t => t.stop() ); outboundStreamRef.current = null; }
+    if ( outboundDurationRef.current ) { clearInterval( outboundDurationRef.current ); outboundDurationRef.current = null; }
+    const audioEl = document.getElementById( 'remoteAudioOutbound' ) as HTMLAudioElement;
+    if ( audioEl ) audioEl.srcObject = null;
+    setOutboundMuted( false );
   };
 
   // Outbound: Reset to idle
   const resetOutbound = () => {
     cleanupOutbound();
-    setOutboundStep('idle');
-    setOutboundError('');
-    setOutboundCallDuration(0);
+    setOutboundStep( 'idle' );
+    setOutboundError( '' );
+    setOutboundCallDuration( 0 );
   };
 
   // Format seconds to mm:ss
-  const fmtDuration = (sec: number) => {
-    const m = Math.floor(sec / 60);
+  const fmtDuration = ( sec: number ) => {
+    const m = Math.floor( sec / 60 );
     const s = sec % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart( 2, '0' )}:${s.toString().padStart( 2, '0' )}`;
   };
 
   // Load calling settings for selected phone
   const loadCallingSettings = async () => {
-    setLoadingSettings(true);
-    try {
-      const data = await api.getCallingSettings(settingsPhone.metaId);
-      if (data?.calling) {
+    setLoadingSettings( true );
+    try
+    {
+      const data = await api.getCallingSettings( settingsPhone.metaId );
+      if ( data?.calling )
+      {
         const c = data.calling;
-        if (c.call_icon_visibility) setCallingVisibility(c.call_icon_visibility);
-        if (c.restrict_to_user_countries) setRestrictCountries(c.restrict_to_user_countries.join(', '));
+        if ( c.call_icon_visibility ) setCallingVisibility( c.call_icon_visibility );
+        if ( c.restrict_to_user_countries ) setRestrictCountries( c.restrict_to_user_countries.join( ', ' ) );
       }
-      setCallingSettingsResult(data);
-    } catch (e) { console.error('Load calling settings error:', e); }
-    setLoadingSettings(false);
+      setCallingSettingsResult( data );
+    } catch ( e ) { console.error( 'Load calling settings error:', e ); }
+    setLoadingSettings( false );
   };
 
   // Save calling settings
   const saveCallingSettings = async () => {
-    setSavingSettings(true);
-    try {
+    setSavingSettings( true );
+    try
+    {
       const settings: any = { callIconVisibility: callingVisibility };
-      if (restrictCountries.trim()) {
-        settings.restrictToCountries = restrictCountries.split(',').map((c: string) => c.trim()).filter(Boolean);
+      if ( restrictCountries.trim() )
+      {
+        settings.restrictToCountries = restrictCountries.split( ',' ).map( ( c: string ) => c.trim() ).filter( Boolean );
       }
-      if (callHoursEnabled) {
-        const daySchedule = [{ from: callHoursFrom, to: callHoursTo }];
+      if ( callHoursEnabled )
+      {
+        const daySchedule = [ { from: callHoursFrom, to: callHoursTo } ];
         settings.callHours = {
           timezone: callHoursTimezone,
           sun: daySchedule, mon: daySchedule, tue: daySchedule,
           wed: daySchedule, thu: daySchedule, fri: daySchedule, sat: daySchedule,
         };
       }
-      const ok = await api.updateCallingSettings(settingsPhone.metaId, settings);
-      if (ok) { toast.success('Calling settings updated'); loadCallingSettings(); }
-      else toast.error('Failed to update calling settings');
-    } catch (e) { toast.error('Failed to update calling settings'); }
-    setSavingSettings(false);
+      const ok = await api.updateCallingSettings( settingsPhone.metaId, settings );
+      if ( ok ) { toast.success( 'Calling settings updated' ); loadCallingSettings(); }
+      else toast.error( 'Failed to update calling settings' );
+    } catch ( e ) { toast.error( 'Failed to update calling settings' ); }
+    setSavingSettings( false );
   };
 
   // Load auto-pickup config
   const loadConfig = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/whatsapp/config`);
-      if (res.ok) {
+    try
+    {
+      const res = await fetch( `${API_BASE}/whatsapp/config` );
+      if ( res.ok )
+      {
         const data = await res.json();
-        setAutoPickup(data.autoPickup !== false); // default true
-        if (data.ivrUrl) setIvrUrl(data.ivrUrl);
-        if (data.autoPickupMode && ['manual', 'ivr'].includes(data.autoPickupMode)) {
-          setAutoPickupMode(data.autoPickupMode);
+        setAutoPickup( data.autoPickup !== false ); // default true
+        if ( data.ivrUrl ) setIvrUrl( data.ivrUrl );
+        if ( data.autoPickupMode && [ 'manual', 'ivr' ].includes( data.autoPickupMode ) )
+        {
+          setAutoPickupMode( data.autoPickupMode );
         }
-        if (data.smsOnCall !== undefined) setSmsOnCall(data.smsOnCall !== false);
+        if ( data.smsOnCall !== undefined ) setSmsOnCall( data.smsOnCall !== false );
+        if ( data.postCallWa !== undefined ) setPostCallWa( data.postCallWa !== false );
       }
-    } catch (e) { console.error('Config load error:', e); }
+    } catch ( e ) { console.error( 'Config load error:', e ); }
   };
 
   // Toggle auto-pickup
   const toggleAutoPickup = async () => {
-    setAutoPickupLoading(true);
-    try {
+    setAutoPickupLoading( true );
+    try
+    {
       const newVal = !autoPickup;
-      const res = await fetch(`${API_BASE}/whatsapp/config`, {
+      const res = await fetch( `${API_BASE}/whatsapp/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ autoPickup: newVal }),
-      });
-      if (res.ok) {
-        setAutoPickup(newVal);
-        toast.success(`Auto-pickup ${newVal ? 'enabled' : 'disabled'}`);
+        body: JSON.stringify( { autoPickup: newVal } ),
+      } );
+      if ( res.ok )
+      {
+        setAutoPickup( newVal );
+        toast.success( `Auto-pickup ${newVal ? 'enabled' : 'disabled'}` );
       }
-    } catch (e) { toast.error('Failed to update config'); }
-    setAutoPickupLoading(false);
+    } catch ( e ) { toast.error( 'Failed to update config' ); }
+    setAutoPickupLoading( false );
   };
 
   // Send test IVR SMS
-  const sendTestSms = async (provider: 'airtel' | 'pinpoint') => {
-    if (!smsTestPhone) { toast.error('Enter a phone number'); return; }
-    setSmsTestSending(provider);
-    setSmsTestResult(prev => ({ ...prev, [provider]: undefined }));
-    try {
+  const sendTestSms = async ( provider: 'airtel' | 'pinpoint' ) => {
+    if ( !smsTestPhone ) { toast.error( 'Enter a phone number' ); return; }
+    setSmsTestSending( provider );
+    setSmsTestResult( prev => ( { ...prev, [ provider ]: undefined } ) );
+    try
+    {
       const endpoint = provider === 'airtel' ? '/sms/send' : '/sms-aws/send';
       const body = provider === 'airtel' ? {
         phoneNumber: smsTestPhone,
@@ -486,387 +516,426 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
         content: "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.",
         messageType: 'TRANSACTIONAL',
       };
-      const res = await fetch(`${API_BASE}${endpoint}`, {
+      const res = await fetch( `${API_BASE}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+        body: JSON.stringify( body ),
+      } );
       const data = await res.json();
-      if (res.ok && (data.success || data.messageId)) {
-        setSmsTestResult(prev => ({ ...prev, [provider]: `✓ Sent (${data.messageId || data.providerMessageId || 'ok'})` }));
-        toast.success(`${provider === 'airtel' ? 'Airtel' : 'Pinpoint'} SMS sent`);
-      } else {
-        setSmsTestResult(prev => ({ ...prev, [provider]: `✗ ${data.error || 'Failed'}` }));
-        toast.error(`${provider === 'airtel' ? 'Airtel' : 'Pinpoint'} SMS failed: ${data.error || 'unknown'}`);
+      if ( res.ok && ( data.success || data.messageId ) )
+      {
+        setSmsTestResult( prev => ( { ...prev, [ provider ]: `✓ Sent (${data.messageId || data.providerMessageId || 'ok'})` } ) );
+        toast.success( `${provider === 'airtel' ? 'Airtel' : 'Pinpoint'} SMS sent` );
+      } else
+      {
+        setSmsTestResult( prev => ( { ...prev, [ provider ]: `✗ ${data.error || 'Failed'}` } ) );
+        toast.error( `${provider === 'airtel' ? 'Airtel' : 'Pinpoint'} SMS failed: ${data.error || 'unknown'}` );
       }
-    } catch (e: any) {
-      setSmsTestResult(prev => ({ ...prev, [provider]: `✗ ${e.message}` }));
-      toast.error(`SMS error: ${e.message}`);
+    } catch ( e: any )
+    {
+      setSmsTestResult( prev => ( { ...prev, [ provider ]: `✗ ${e.message}` } ) );
+      toast.error( `SMS error: ${e.message}` );
     }
-    setSmsTestSending('idle');
+    setSmsTestSending( 'idle' );
   };
 
   // Load active calls
   const loadActiveCalls = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/whatsapp/active`);
-      if (res.ok) {
+    try
+    {
+      const res = await fetch( `${API_BASE}/whatsapp/active` );
+      if ( res.ok )
+      {
         const data = await res.json();
-        setActiveCalls(data.calls || []);
+        setActiveCalls( data.calls || [] );
       }
-    } catch (e) { console.error('Active calls error:', e); }
+    } catch ( e ) { console.error( 'Active calls error:', e ); }
   };
 
   // Load call logs
   const loadCallLogs = async () => {
-    setLoadingCalls(true);
-    try {
-      const res = await fetch(`${API_BASE}/whatsapp/logs`);
-      if (res.ok) {
+    setLoadingCalls( true );
+    try
+    {
+      const res = await fetch( `${API_BASE}/whatsapp/logs` );
+      if ( res.ok )
+      {
         const data = await res.json();
-        setCallLogs(data.logs || []);
+        setCallLogs( data.logs || [] );
       }
-    } catch (e) { console.error('Logs error:', e); }
-    setLoadingCalls(false);
+    } catch ( e ) { console.error( 'Logs error:', e ); }
+    setLoadingCalls( false );
   };
 
   // Reject a ringing call
-  const rejectCall = async (callId: string, phoneNumberId: string) => {
-    try {
-      await fetch(`${API_BASE}/whatsapp/reject`, {
+  const rejectCall = async ( callId: string, phoneNumberId: string ) => {
+    try
+    {
+      await fetch( `${API_BASE}/whatsapp/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callId, phoneNumberId }),
-      });
-      toast.success('Call rejected');
+        body: JSON.stringify( { callId, phoneNumberId } ),
+      } );
+      toast.success( 'Call rejected' );
       loadActiveCalls();
-    } catch (e) { toast.error('Failed to reject call'); }
+    } catch ( e ) { toast.error( 'Failed to reject call' ); }
   };
 
   // Hangup an active call
-  const hangupCall = async (callId: string, phoneNumberId: string) => {
-    try {
-      await fetch(`${API_BASE}/whatsapp/hangup`, {
+  const hangupCall = async ( callId: string, phoneNumberId: string ) => {
+    try
+    {
+      await fetch( `${API_BASE}/whatsapp/hangup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callId, phoneNumberId }),
-      });
-      toast.success('Call ended');
+        body: JSON.stringify( { callId, phoneNumberId } ),
+      } );
+      toast.success( 'Call ended' );
       loadActiveCalls();
-    } catch (e) { toast.error('Failed to hang up'); }
+    } catch ( e ) { toast.error( 'Failed to hang up' ); }
   };
 
   // WebRTC state
-  const peerConnectionRef = React.useRef<RTCPeerConnection | null>(null);
-  const localStreamRef = React.useRef<MediaStream | null>(null);
+  const peerConnectionRef = React.useRef<RTCPeerConnection | null>( null );
+  const localStreamRef = React.useRef<MediaStream | null>( null );
 
   // Answer a call using WebRTC — sets up peer connection, generates SDP answer, sends to backend
-  const answerCallWebRTC = async (call: any) => {
+  const answerCallWebRTC = async ( call: any ) => {
     const { callId, phoneNumberId, sdpOffer } = call;
 
-    if (!sdpOffer) {
+    if ( !sdpOffer )
+    {
       // No SDP in the call record — just do server-side accept (auto-pickup style)
-      toast.info('No SDP offer available — sending server-side accept');
-      try {
-        const res = await fetch(`${API_BASE}/whatsapp/accept`, {
+      toast.info( 'No SDP offer available — sending server-side accept' );
+      try
+      {
+        const res = await fetch( `${API_BASE}/whatsapp/accept`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callId, phoneNumberId, sdpAnswer: '' }),
-        });
+          body: JSON.stringify( { callId, phoneNumberId, sdpAnswer: '' } ),
+        } );
         const data = await res.json();
-        if (data.success) toast.success('Call accepted (server-side)');
-        else toast.error(`Accept failed: ${JSON.stringify(data.error || data)}`);
-      } catch (e) { toast.error('Failed to accept call'); }
+        if ( data.success ) toast.success( 'Call accepted (server-side)' );
+        else toast.error( `Accept failed: ${JSON.stringify( data.error || data )}` );
+      } catch ( e ) { toast.error( 'Failed to accept call' ); }
       loadActiveCalls();
       return;
     }
 
-    try {
+    try
+    {
       // 1. Get microphone access
-      toast.info('Requesting microphone access...');
-      const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      toast.info( 'Requesting microphone access...' );
+      const localStream = await navigator.mediaDevices.getUserMedia( { audio: true } );
       localStreamRef.current = localStream;
 
       // 2. Create RTCPeerConnection
-      const pc = new RTCPeerConnection({
+      const pc = new RTCPeerConnection( {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
         ],
-      });
+      } );
       peerConnectionRef.current = pc;
 
       // 3. Add local audio tracks
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      localStream.getTracks().forEach( track => pc.addTrack( track, localStream ) );
 
       // 4. Handle remote audio stream
-      pc.ontrack = (event) => {
-        const audioEl = document.getElementById('remoteAudio') as HTMLAudioElement;
-        if (audioEl && event.streams[0]) {
-          audioEl.srcObject = event.streams[0];
+      pc.ontrack = ( event ) => {
+        const audioEl = document.getElementById( 'remoteAudio' ) as HTMLAudioElement;
+        if ( audioEl && event.streams[ 0 ] )
+        {
+          audioEl.srcObject = event.streams[ 0 ];
         }
       };
 
       // 5. Log ICE candidates
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          console.log('ICE candidate:', event.candidate.candidate);
+      pc.onicecandidate = ( event ) => {
+        if ( event.candidate )
+        {
+          console.log( 'ICE candidate:', event.candidate.candidate );
         }
       };
 
       pc.onconnectionstatechange = () => {
-        console.log('WebRTC connection state:', pc.connectionState);
-        if (pc.connectionState === 'connected') {
-          toast.success('WebRTC audio connected');
-        } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-          toast.error(`WebRTC ${pc.connectionState}`);
+        console.log( 'WebRTC connection state:', pc.connectionState );
+        if ( pc.connectionState === 'connected' )
+        {
+          toast.success( 'WebRTC audio connected' );
+        } else if ( pc.connectionState === 'failed' || pc.connectionState === 'disconnected' )
+        {
+          toast.error( `WebRTC ${pc.connectionState}` );
         }
       };
 
       // 6. Set remote description (SDP offer from Meta)
-      await pc.setRemoteDescription({ type: 'offer', sdp: sdpOffer });
+      await pc.setRemoteDescription( { type: 'offer', sdp: sdpOffer } );
 
       // 7. Create SDP answer
       const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      await pc.setLocalDescription( answer );
 
       // 8. Wait for ICE gathering to complete (or timeout after 3s)
-      const sdpAnswer = await new Promise<string>((resolve) => {
-        if (pc.iceGatheringState === 'complete') {
-          resolve(pc.localDescription?.sdp || answer.sdp || '');
+      const sdpAnswer = await new Promise<string>( ( resolve ) => {
+        if ( pc.iceGatheringState === 'complete' )
+        {
+          resolve( pc.localDescription?.sdp || answer.sdp || '' );
           return;
         }
-        const timeout = setTimeout(() => resolve(pc.localDescription?.sdp || answer.sdp || ''), 3000);
+        const timeout = setTimeout( () => resolve( pc.localDescription?.sdp || answer.sdp || '' ), 3000 );
         pc.onicegatheringstatechange = () => {
-          if (pc.iceGatheringState === 'complete') {
-            clearTimeout(timeout);
-            resolve(pc.localDescription?.sdp || answer.sdp || '');
+          if ( pc.iceGatheringState === 'complete' )
+          {
+            clearTimeout( timeout );
+            resolve( pc.localDescription?.sdp || answer.sdp || '' );
           }
         };
-      });
+      } );
 
       // 9. Send pre_accept + accept with SDP answer to backend → Meta
-      toast.info('Sending SDP answer to Meta...');
-      const res = await fetch(`${API_BASE}/whatsapp/accept`, {
+      toast.info( 'Sending SDP answer to Meta...' );
+      const res = await fetch( `${API_BASE}/whatsapp/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callId, phoneNumberId, sdpAnswer }),
-      });
+        body: JSON.stringify( { callId, phoneNumberId, sdpAnswer } ),
+      } );
       const data = await res.json();
 
-      if (data.success) {
-        toast.success('Call connected — audio active');
-      } else {
-        toast.error(`Accept failed: ${data.step || 'unknown'} — ${data.hint || JSON.stringify(data.error || {})}`);
+      if ( data.success )
+      {
+        toast.success( 'Call connected — audio active' );
+      } else
+      {
+        toast.error( `Accept failed: ${data.step || 'unknown'} — ${data.hint || JSON.stringify( data.error || {} )}` );
         cleanupWebRTC();
       }
       loadActiveCalls();
 
-    } catch (err: any) {
-      console.error('WebRTC answer error:', err);
-      toast.error(`WebRTC error: ${err.message || err}`);
+    } catch ( err: any )
+    {
+      console.error( 'WebRTC answer error:', err );
+      toast.error( `WebRTC error: ${err.message || err}` );
       cleanupWebRTC();
     }
   };
 
   // Cleanup WebRTC resources
   const cleanupWebRTC = () => {
-    if (peerConnectionRef.current) {
+    if ( peerConnectionRef.current )
+    {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(t => t.stop());
+    if ( localStreamRef.current )
+    {
+      localStreamRef.current.getTracks().forEach( t => t.stop() );
       localStreamRef.current = null;
     }
-    const audioEl = document.getElementById('remoteAudio') as HTMLAudioElement;
-    if (audioEl) audioEl.srcObject = null;
+    const audioEl = document.getElementById( 'remoteAudio' ) as HTMLAudioElement;
+    if ( audioEl ) audioEl.srcObject = null;
   };
 
   // Track which calls we've already auto-answered to avoid duplicates
-  const autoAnsweredRef = React.useRef<Set<string>>(new Set());
+  const autoAnsweredRef = React.useRef<Set<string>>( new Set() );
 
   // Helper: play audio URL into a WebRTC peer connection's audio track
-  const playAudioIntoPeer = (pc: RTCPeerConnection, audioUrl: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
+  const playAudioIntoPeer = ( pc: RTCPeerConnection, audioUrl: string ): Promise<void> => {
+    return new Promise( ( resolve, reject ) => {
       const audio = new Audio();
       audio.crossOrigin = 'anonymous';
       audio.src = audioUrl;
       const ctx = new AudioContext();
       audio.oncanplaythrough = () => {
-        try {
-          const source = ctx.createMediaElementSource(audio);
+        try
+        {
+          const source = ctx.createMediaElementSource( audio );
           const dest = ctx.createMediaStreamDestination();
-          source.connect(dest);
+          source.connect( dest );
           // Replace the silent/mic track with the audio track
-          const audioTrack = dest.stream.getAudioTracks()[0];
-          const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
-          if (sender && audioTrack) sender.replaceTrack(audioTrack);
+          const audioTrack = dest.stream.getAudioTracks()[ 0 ];
+          const sender = pc.getSenders().find( s => s.track?.kind === 'audio' );
+          if ( sender && audioTrack ) sender.replaceTrack( audioTrack );
           audio.play();
           audio.onended = () => { ctx.close(); resolve(); };
-        } catch (e) { reject(e); }
+        } catch ( e ) { reject( e ); }
       };
-      audio.onerror = () => reject(new Error('Failed to load audio'));
+      audio.onerror = () => reject( new Error( 'Failed to load audio' ) );
       // Timeout after 30s
-      setTimeout(() => { audio.pause(); ctx.close(); resolve(); }, 30000);
-    });
+      setTimeout( () => { audio.pause(); ctx.close(); resolve(); }, 30000 );
+    } );
   };
 
   // Auto-answer: when autoPickup is ON and a ringing call with SDP arrives, answer it automatically
-  const autoAnswerCall = React.useCallback(async (call: any) => {
+  const autoAnswerCall = React.useCallback( async ( call: any ) => {
     const { callId, phoneNumberId, sdpOffer } = call;
-    if (!callId || !phoneNumberId || !sdpOffer) return;
-    if (autoAnsweredRef.current.has(callId)) return;
-    autoAnsweredRef.current.add(callId);
+    if ( !callId || !phoneNumberId || !sdpOffer ) return;
+    if ( autoAnsweredRef.current.has( callId ) ) return;
+    autoAnsweredRef.current.add( callId );
 
     const mode = autoPickupMode;
-    console.log(`[AUTO-ANSWER] mode=${mode} call=${callId} from=${call.fromNumber || 'unknown'}`);
-    toast.info(`Auto-answering (${mode}) call from ${call.callerName || call.fromNumber || 'unknown'}...`);
+    console.log( `[AUTO-ANSWER] mode=${mode} call=${callId} from=${call.fromNumber || 'unknown'}` );
+    toast.info( `Auto-answering (${mode}) call from ${call.callerName || call.fromNumber || 'unknown'}...` );
 
-    try {
+    try
+    {
       // 1. Get microphone or create silent stream
       let localStream: MediaStream;
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
+      try
+      {
+        localStream = await navigator.mediaDevices.getUserMedia( { audio: true } );
+      } catch
+      {
         const ctx = new AudioContext();
         const oscillator = ctx.createOscillator();
         oscillator.frequency.value = 0; // silent
         const dest = ctx.createMediaStreamDestination();
-        oscillator.connect(dest);
+        oscillator.connect( dest );
         oscillator.start();
         localStream = dest.stream;
       }
       localStreamRef.current = localStream;
 
       // 2. Create RTCPeerConnection
-      const pc = new RTCPeerConnection({
+      const pc = new RTCPeerConnection( {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' },
         ],
-      });
+      } );
       peerConnectionRef.current = pc;
 
       // 3. Add local audio tracks
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+      localStream.getTracks().forEach( track => pc.addTrack( track, localStream ) );
 
       // 4. Handle remote audio
-      pc.ontrack = (event) => {
-        const audioEl = document.getElementById('remoteAudio') as HTMLAudioElement;
-        if (audioEl && event.streams[0]) audioEl.srcObject = event.streams[0];
+      pc.ontrack = ( event ) => {
+        const audioEl = document.getElementById( 'remoteAudio' ) as HTMLAudioElement;
+        if ( audioEl && event.streams[ 0 ] ) audioEl.srcObject = event.streams[ 0 ];
       };
 
       pc.onconnectionstatechange = () => {
-        console.log(`[AUTO-ANSWER] WebRTC state: ${pc.connectionState}`);
+        console.log( `[AUTO-ANSWER] WebRTC state: ${pc.connectionState}` );
       };
 
       // 5. Set remote SDP offer
-      await pc.setRemoteDescription({ type: 'offer', sdp: sdpOffer });
+      await pc.setRemoteDescription( { type: 'offer', sdp: sdpOffer } );
 
       // 6. Create SDP answer
       const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
+      await pc.setLocalDescription( answer );
 
       // 7. Wait for ICE gathering (max 3s)
-      const sdpAnswer = await new Promise<string>((resolve) => {
-        if (pc.iceGatheringState === 'complete') {
-          resolve(pc.localDescription?.sdp || answer.sdp || '');
+      const sdpAnswer = await new Promise<string>( ( resolve ) => {
+        if ( pc.iceGatheringState === 'complete' )
+        {
+          resolve( pc.localDescription?.sdp || answer.sdp || '' );
           return;
         }
-        const timeout = setTimeout(() => resolve(pc.localDescription?.sdp || answer.sdp || ''), 3000);
+        const timeout = setTimeout( () => resolve( pc.localDescription?.sdp || answer.sdp || '' ), 3000 );
         pc.onicegatheringstatechange = () => {
-          if (pc.iceGatheringState === 'complete') {
-            clearTimeout(timeout);
-            resolve(pc.localDescription?.sdp || answer.sdp || '');
+          if ( pc.iceGatheringState === 'complete' )
+          {
+            clearTimeout( timeout );
+            resolve( pc.localDescription?.sdp || answer.sdp || '' );
           }
         };
-      });
+      } );
 
       // 8. Send accept with SDP answer
-      const res = await fetch(`${API_BASE}/whatsapp/accept`, {
+      const res = await fetch( `${API_BASE}/whatsapp/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callId, phoneNumberId, sdpAnswer }),
-      });
+        body: JSON.stringify( { callId, phoneNumberId, sdpAnswer } ),
+      } );
       const data = await res.json();
 
-      if (!data.success) {
-        toast.error(`Auto-answer failed: ${data.step || 'unknown'}`);
+      if ( !data.success )
+      {
+        toast.error( `Auto-answer failed: ${data.step || 'unknown'}` );
         cleanupWebRTC();
-        autoAnsweredRef.current.delete(callId);
+        autoAnsweredRef.current.delete( callId );
         return;
       }
 
-      toast.success(`Call connected (${mode} mode)`);
+      toast.success( `Call connected (${mode} mode)` );
 
       // 9. Mode-specific behavior after call is connected
-      if (mode === 'ivr') {
+      if ( mode === 'ivr' )
+      {
         // IVR mode: play greeting audio → hang up
-        try {
-          await playAudioIntoPeer(pc, ivrUrl);
-          toast.info('IVR audio finished — disconnecting');
-        } catch (e) {
-          console.error('[IVR] Audio play error:', e);
+        try
+        {
+          await playAudioIntoPeer( pc, ivrUrl );
+          toast.info( 'IVR audio finished — disconnecting' );
+        } catch ( e )
+        {
+          console.error( '[IVR] Audio play error:', e );
         }
         // Hang up after audio
-        await fetch(`${API_BASE}/whatsapp/hangup`, {
+        await fetch( `${API_BASE}/whatsapp/hangup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callId, phoneNumberId }),
-        });
+          body: JSON.stringify( { callId, phoneNumberId } ),
+        } );
         cleanupWebRTC();
-        toast.info('IVR call completed');
+        toast.info( 'IVR call completed' );
 
       }
       // mode === 'manual': just connect, don't play anything — human takes over
 
-    } catch (err: any) {
-      console.error('[AUTO-ANSWER] Error:', err);
-      toast.error(`Auto-answer error: ${err.message || err}`);
+    } catch ( err: any )
+    {
+      console.error( '[AUTO-ANSWER] Error:', err );
+      toast.error( `Auto-answer error: ${err.message || err}` );
       cleanupWebRTC();
-      autoAnsweredRef.current.delete(callId);
+      autoAnsweredRef.current.delete( callId );
     }
-  }, [autoPickupMode, ivrUrl]);
+  }, [ autoPickupMode, ivrUrl ] );
 
   // Load on mount + poll active calls every 5s when on Live tab
   // When autoPickup is ON, auto-answer ringing calls with SDP offers
-  React.useEffect(() => {
+  React.useEffect( () => {
     loadConfig();
     loadCallLogs();
     return () => { cleanupWebRTC(); cleanupOutbound(); };
-  }, []);
+  }, [] );
 
-  React.useEffect(() => {
-    if (activeTab === 'live') {
+  React.useEffect( () => {
+    if ( activeTab === 'live' )
+    {
       loadActiveCalls();
-      const interval = setInterval(async () => {
-        try {
-          const res = await fetch(`${API_BASE}/whatsapp/active`);
-          if (res.ok) {
+      const interval = setInterval( async () => {
+        try
+        {
+          const res = await fetch( `${API_BASE}/whatsapp/active` );
+          if ( res.ok )
+          {
             const data = await res.json();
             const calls = data.calls || [];
-            setActiveCalls(calls);
+            setActiveCalls( calls );
 
             // Auto-answer: if enabled, pick up ringing calls with SDP offers
-            if (autoPickup) {
+            if ( autoPickup )
+            {
               const ringing = calls.filter(
-                (c: any) => (c.status === 'ringing' || c.status === 'pre_accepted') && c.sdpOffer && !autoAnsweredRef.current.has(c.callId)
+                ( c: any ) => ( c.status === 'ringing' || c.status === 'pre_accepted' ) && c.sdpOffer && !autoAnsweredRef.current.has( c.callId )
               );
-              if (ringing.length > 0) {
-                autoAnswerCall(ringing[0]); // answer one at a time
+              if ( ringing.length > 0 )
+              {
+                autoAnswerCall( ringing[ 0 ] ); // answer one at a time
               }
             }
           }
-        } catch (e) { console.error('Active calls poll error:', e); }
-      }, 3000); // poll every 3s for faster pickup
-      return () => clearInterval(interval);
+        } catch ( e ) { console.error( 'Active calls poll error:', e ); }
+      }, 3000 ); // poll every 3s for faster pickup
+      return () => clearInterval( interval );
     }
-  }, [activeTab, autoPickup, autoAnswerCall]);
+  }, [ activeTab, autoPickup, autoAnswerCall ] );
 
-  const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast.success('Copied to clipboard');
+  const copyCode = ( code: string ) => {
+    navigator.clipboard.writeText( code );
+    toast.success( 'Copied to clipboard' );
   };
 
   const s = {
@@ -887,18 +956,18 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
     } as React.CSSProperties,
   };
 
-  const tab = (active: boolean): React.CSSProperties => ({
+  const tab = ( active: boolean ): React.CSSProperties => ( {
     padding: '8px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer',
     fontSize: '13px', fontWeight: active ? 600 : 500,
     background: active ? '#1a3a2a' : 'transparent', color: active ? '#fff' : '#0f2a1d',
-  });
+  } );
 
-  const badge = (status: string): React.CSSProperties => ({
+  const badge = ( status: string ): React.CSSProperties => ( {
     display: 'inline-block', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
     background: status === 'active' || status === 'available' ? '#f9fafb' : status === 'planned' ? '#f9fafb' : '#f3f4f6',
     color: status === 'active' || status === 'available' ? '#0f2a1d' : status === 'planned' ? '#0f2a1d' : '#6b7280',
     border: `1px solid ${status === 'active' || status === 'available' ? '#e5e7eb' : status === 'planned' ? '#e5e7eb' : '#e5e7eb'}`,
-  });
+  } );
 
   const thStyle: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#374151', fontSize: '12px', whiteSpace: 'nowrap' };
   const tdStyle: React.CSSProperties = { padding: '8px 12px', fontSize: '12px', color: '#6b7280' };
@@ -906,437 +975,466 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
   const content = (
     <>
       <SEO title="WhatsApp Calling" description="WhatsApp Business Calling API" />
-      <div style={s.page}>
-        {/* Header */}
-        <div style={s.header}>
+      <div style={ s.page }>
+        {/* Header */ }
+        <div style={ s.header }>
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px', color: '#0f2a1d' }}>WhatsApp Business Calling</h2>
-            <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#0f2a1d' }}>
+            <h2 style={ { margin: 0, fontSize: '20px', color: '#0f2a1d' } }>WhatsApp Business Calling</h2>
+            <p style={ { margin: '6px 0 0', fontSize: '13px', color: '#0f2a1d' } }>
               VoIP calls in WhatsApp threads — Graph API/SIP signaling + WebRTC media (OPUS) + Amazon Polly IVR
             </p>
           </div>
-          <span style={badge('active')}>Webhook Deployed</span>
+          <span style={ badge( 'active' ) }>Webhook Deployed</span>
         </div>
 
-        {/* Tabs */}
-        <div style={s.tabs}>
-          <button style={tab(activeTab === 'overview')} onClick={() => setActiveTab('overview')}>Overview</button>
-          <button style={tab(activeTab === 'live')} onClick={() => setActiveTab('live')}>Live Calls</button>
-          <button style={tab(activeTab === 'webhook')} onClick={() => setActiveTab('webhook')}>Webhook Config</button>
-          <button style={tab(activeTab === 'setup')} onClick={() => setActiveTab('setup')}>Setup Guide</button>
-          <button style={tab(activeTab === 'resources')} onClick={() => setActiveTab('resources')}>AWS Resources</button>
-          <button style={tab(activeTab === 'settings')} onClick={() => { setActiveTab('settings'); loadCallingSettings(); }}>Calling Settings</button>
+        {/* Tabs */ }
+        <div style={ s.tabs }>
+          <button style={ tab( activeTab === 'overview' ) } onClick={ () => setActiveTab( 'overview' ) }>Overview</button>
+          <button style={ tab( activeTab === 'live' ) } onClick={ () => setActiveTab( 'live' ) }>Live Calls</button>
+          <button style={ tab( activeTab === 'webhook' ) } onClick={ () => setActiveTab( 'webhook' ) }>Webhook Config</button>
+          <button style={ tab( activeTab === 'setup' ) } onClick={ () => setActiveTab( 'setup' ) }>Setup Guide</button>
+          <button style={ tab( activeTab === 'resources' ) } onClick={ () => setActiveTab( 'resources' ) }>AWS Resources</button>
+          <button style={ tab( activeTab === 'settings' ) } onClick={ () => { setActiveTab( 'settings' ); loadCallingSettings(); } }>Calling Settings</button>
         </div>
 
-        {/* LIVE CALLS TAB — WebRTC Call Handling */}
-        {activeTab === 'live' && (
+        {/* LIVE CALLS TAB — WebRTC Call Handling */ }
+        { activeTab === 'live' && (
           <div>
-            {/* Auto-pickup toggle */}
-            <div style={{ ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            {/* Auto-pickup toggle */ }
+            <div style={ { ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' } }>
               <div>
-                <h3 style={{ margin: 0, fontSize: '15px', color: '#0f2a1d' }}>Live Call Dashboard</h3>
-                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#0f2a1d' }}>
+                <h3 style={ { margin: 0, fontSize: '15px', color: '#0f2a1d' } }>Live Call Dashboard</h3>
+                <p style={ { margin: '4px 0 0', fontSize: '12px', color: '#0f2a1d' } }>
                   Auto-pickup is ON by default. Incoming calls are answered, IVR plays, then disconnects.
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button onClick={loadActiveCalls} style={{ padding: '6px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+              <div style={ { display: 'flex', alignItems: 'center', gap: '12px' } }>
+                <button onClick={ loadActiveCalls } style={ { padding: '6px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
                   Refresh
                 </button>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#0f2a1d', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={autoPickup} onChange={toggleAutoPickup} disabled={autoPickupLoading}
-                    style={{ width: '16px', height: '16px', accentColor: '#1a3a2a' }} />
+                <label style={ { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#0f2a1d', cursor: 'pointer' } }>
+                  <input type="checkbox" checked={ autoPickup } onChange={ toggleAutoPickup } disabled={ autoPickupLoading }
+                    style={ { width: '16px', height: '16px', accentColor: '#1a3a2a' } } />
                   Auto-pickup
                 </label>
               </div>
             </div>
 
-            {/* Auto-pickup Mode Selector */}
-            {autoPickup && (
-              <div style={{ ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: '#f9fafb' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#0f2a1d' }}>Auto-pickup Mode:</label>
-                  {([
+            {/* Auto-pickup Mode Selector */ }
+            { autoPickup && (
+              <div style={ { ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: '#f9fafb' } }>
+                <div style={ { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' } }>
+                  <label style={ { fontSize: '13px', fontWeight: 600, color: '#0f2a1d' } }>Auto-pickup Mode:</label>
+                  { ( [
                     { value: 'manual' as const, label: 'Manual', desc: 'Connect call, human answers' },
                     { value: 'ivr' as const, label: 'IVR', desc: 'Play audio greeting, then hang up' },
-                  ]).map((m) => (
-                    <button key={m.value} onClick={async () => {
-                      setAutoPickupMode(m.value);
-                      try {
-                        await fetch(`${API_BASE}/whatsapp/config`, {
+                  ] ).map( ( m ) => (
+                    <button key={ m.value } onClick={ async () => {
+                      setAutoPickupMode( m.value );
+                      try
+                      {
+                        await fetch( `${API_BASE}/whatsapp/config`, {
                           method: 'POST', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ autoPickupMode: m.value }),
-                        });
-                        toast.success(`Mode: ${m.label}`);
-                      } catch { toast.error('Failed to save mode'); }
-                    }} style={{
+                          body: JSON.stringify( { autoPickupMode: m.value } ),
+                        } );
+                        toast.success( `Mode: ${m.label}` );
+                      } catch { toast.error( 'Failed to save mode' ); }
+                    } } style={ {
                       padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600,
                       border: autoPickupMode === m.value ? '2px solid #1a3a2a' : '1px solid #d1d5db',
                       background: autoPickupMode === m.value ? '#f9fafb' : '#fff',
                       color: autoPickupMode === m.value ? '#0f2a1d' : '#374151',
-                    }} title={m.desc}>
-                      {m.label}
+                    } } title={ m.desc }>
+                      { m.label }
                     </button>
-                  ))}
-                  <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '4px' }}>
-                    {autoPickupMode === 'manual' ? 'Call connects, you talk' : 'Plays IVR audio → disconnects'}
+                  ) ) }
+                  <span style={ { fontSize: '11px', color: '#6b7280', marginLeft: '4px' } }>
+                    { autoPickupMode === 'manual' ? 'Call connects, you talk' : 'Plays IVR audio → disconnects' }
                   </span>
                 </div>
               </div>
-            )}
+            ) }
 
-            {/* IVR Audio Config */}
-            <div style={{ ...s.card, marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '200px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>IVR Audio URL</label>
-                <input value={ivrUrl} onChange={e => setIvrUrl(e.target.value)} placeholder="https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16"
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace' }} />
+            {/* IVR Audio Config */ }
+            <div style={ { ...s.card, marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' } }>
+              <div style={ { flex: 1, minWidth: '200px' } }>
+                <label style={ { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>IVR Audio URL</label>
+                <input value={ ivrUrl } onChange={ e => setIvrUrl( e.target.value ) } placeholder="https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16"
+                  style={ { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace' } } />
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', paddingTop: '18px' }}>
-                <button onClick={async () => {
-                  try {
-                    const res = await fetch(`${API_BASE}/whatsapp/config`, {
+              <div style={ { display: 'flex', gap: '8px', alignItems: 'flex-end', paddingTop: '18px' } }>
+                <button onClick={ async () => {
+                  try
+                  {
+                    const res = await fetch( `${API_BASE}/whatsapp/config`, {
                       method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ ivrUrl }),
-                    });
-                    if (res.ok) toast.success('IVR URL saved');
-                    else toast.error('Failed to save IVR URL');
-                  } catch (e) { toast.error('Failed to save IVR URL'); }
-                }} style={{ padding: '8px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                      body: JSON.stringify( { ivrUrl } ),
+                    } );
+                    if ( res.ok ) toast.success( 'IVR URL saved' );
+                    else toast.error( 'Failed to save IVR URL' );
+                  } catch ( e ) { toast.error( 'Failed to save IVR URL' ); }
+                } } style={ { padding: '8px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
                   Save URL
                 </button>
-                <a href={ivrUrl} target="_blank" rel="noopener noreferrer"
-                  style={{ padding: '8px 14px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', color: '#374151' }}>
+                <a href={ ivrUrl } target="_blank" rel="noopener noreferrer"
+                  style={ { padding: '8px 14px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', color: '#374151' } }>
                   ▶ Test Play
                 </a>
               </div>
             </div>
 
-            {/* IVR SMS Configuration + Test */}
-            <div style={{ ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: '#f9fafb' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <h4 style={{ margin: 0, fontSize: '13px', color: '#0f2a1d' }}>IVR SMS (sent once on incoming call, 10-min dedup)</h4>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={smsOnCall} onChange={async () => {
+            {/* IVR SMS Configuration + Test */ }
+            <div style={ { ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: '#f9fafb' } }>
+              <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' } }>
+                <h4 style={ { margin: 0, fontSize: '13px', color: '#0f2a1d' } }>IVR SMS (sent once on incoming call, 10-min dedup)</h4>
+                <label style={ { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer' } }>
+                  <input type="checkbox" checked={ smsOnCall } onChange={ async () => {
                     const newVal = !smsOnCall;
-                    setSmsOnCall(newVal);
-                    try {
-                      await fetch(`${API_BASE}/whatsapp/config`, {
+                    setSmsOnCall( newVal );
+                    try
+                    {
+                      await fetch( `${API_BASE}/whatsapp/config`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ smsOnCall: newVal }),
-                      });
-                      toast.success(`SMS on call ${newVal ? 'enabled' : 'disabled'}`);
-                    } catch { toast.error('Failed to save'); }
-                  }}
-                    style={{ width: '14px', height: '14px', accentColor: '#1a3a2a' }} />
+                        body: JSON.stringify( { smsOnCall: newVal } ),
+                      } );
+                      toast.success( `SMS on call ${newVal ? 'enabled' : 'disabled'}` );
+                    } catch { toast.error( 'Failed to save' ); }
+                  } }
+                    style={ { width: '14px', height: '14px', accentColor: '#1a3a2a' } } />
                   SMS on call
                 </label>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
-                <div style={{ background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                  <div style={{ fontWeight: 600, color: '#111827', marginBottom: '4px' }}>🇮🇳 Indian Numbers (+91)</div>
-                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Provider: Airtel IQ (ap-south-1)</div>
-                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Sender: WDBEEP</div>
-                  <div style={{ color: '#6b7280', fontSize: '11px' }}>DLT: 1007277993798259629 (ivr-default)</div>
-                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Lambda: wecare-sms-in-airtel</div>
-                  <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dcfce7', color: '#166534', borderRadius: '4px', fontSize: '10px' }}>REGISTERED</span>
+              <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' } }>
+                <div style={ { background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
+                  <div style={ { fontWeight: 600, color: '#111827', marginBottom: '4px' } }>🇮🇳 Indian Numbers (+91)</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Provider: Airtel IQ (ap-south-1)</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Sender: WDBEEP</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>DLT: 1007277993798259629 (ivr-default)</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Lambda: wecare-sms-in-airtel</div>
+                  <span style={ { display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dcfce7', color: '#166534', borderRadius: '4px', fontSize: '10px' } }>REGISTERED</span>
                 </div>
-                <div style={{ background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                  <div style={{ fontWeight: 600, color: '#111827', marginBottom: '4px' }}>🌍 International Numbers</div>
-                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Provider: Pinpoint SMS v2 (us-east-1)</div>
-                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Origination: Account default</div>
-                  <div style={{ color: '#6b7280', fontSize: '11px' }}>Lambda: wecare-sms-aws</div>
-                  <span style={{ display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dbeafe', color: '#1e40af', borderRadius: '4px', fontSize: '10px' }}>PINPOINT SMS v2</span>
+                <div style={ { background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
+                  <div style={ { fontWeight: 600, color: '#111827', marginBottom: '4px' } }>🌍 International Numbers</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Provider: Pinpoint SMS v2 (us-east-1)</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Origination: Account default</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Lambda: wecare-sms-aws</div>
+                  <span style={ { display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dbeafe', color: '#1e40af', borderRadius: '4px', fontSize: '10px' } }>PINPOINT SMS v2</span>
                 </div>
               </div>
-              <div style={{ marginTop: '8px', padding: '8px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb', fontFamily: 'monospace', fontSize: '11px', color: '#374151', whiteSpace: 'pre-line' }}>
-                {`Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.`}
+              <div style={ { marginTop: '8px', padding: '8px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb', fontFamily: 'monospace', fontSize: '11px', color: '#374151', whiteSpace: 'pre-line' } }>
+                { `Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.` }
               </div>
-              {/* Test SMS Controls */}
-              <div style={{ marginTop: '10px', padding: '10px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Send Test SMS</div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input value={smsTestPhone} onChange={e => setSmsTestPhone(e.target.value)} placeholder="+919903300044"
-                    style={{ flex: 1, minWidth: '160px', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace' }} />
-                  <button onClick={() => sendTestSms('airtel')} disabled={smsTestSending !== 'idle'}
-                    style={{ padding: '6px 12px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '6px', fontSize: '11px', fontWeight: 600, color: '#166534', cursor: 'pointer' }}>
-                    {smsTestSending === 'airtel' ? '...' : '🇮🇳 Airtel'}
+              {/* Test SMS Controls */ }
+              <div style={ { marginTop: '10px', padding: '10px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
+                <div style={ { fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '6px' } }>Send Test SMS</div>
+                <div style={ { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }>
+                  <input value={ smsTestPhone } onChange={ e => setSmsTestPhone( e.target.value ) } placeholder="+919903300044"
+                    style={ { flex: 1, minWidth: '160px', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace' } } />
+                  <button onClick={ () => sendTestSms( 'airtel' ) } disabled={ smsTestSending !== 'idle' }
+                    style={ { padding: '6px 12px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '6px', fontSize: '11px', fontWeight: 600, color: '#166534', cursor: 'pointer' } }>
+                    { smsTestSending === 'airtel' ? '...' : '🇮🇳 Airtel' }
                   </button>
-                  <button onClick={() => sendTestSms('pinpoint')} disabled={smsTestSending !== 'idle'}
-                    style={{ padding: '6px 12px', background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: '6px', fontSize: '11px', fontWeight: 600, color: '#1e40af', cursor: 'pointer' }}>
-                    {smsTestSending === 'pinpoint' ? '...' : '🌍 Pinpoint'}
+                  <button onClick={ () => sendTestSms( 'pinpoint' ) } disabled={ smsTestSending !== 'idle' }
+                    style={ { padding: '6px 12px', background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: '6px', fontSize: '11px', fontWeight: 600, color: '#1e40af', cursor: 'pointer' } }>
+                    { smsTestSending === 'pinpoint' ? '...' : '🌍 Pinpoint' }
                   </button>
                 </div>
-                {smsTestResult && (
-                  <div style={{ marginTop: '6px', fontSize: '11px', fontFamily: 'monospace' }}>
-                    {smsTestResult.airtel && <div style={{ color: smsTestResult.airtel.startsWith('✓') ? '#166534' : '#dc2626' }}>{smsTestResult.airtel}</div>}
-                    {smsTestResult.pinpoint && <div style={{ color: smsTestResult.pinpoint.startsWith('✓') ? '#1e40af' : '#dc2626' }}>{smsTestResult.pinpoint}</div>}
+                { smsTestResult && (
+                  <div style={ { marginTop: '6px', fontSize: '11px', fontFamily: 'monospace' } }>
+                    { smsTestResult.airtel && <div style={ { color: smsTestResult.airtel.startsWith( '✓' ) ? '#166534' : '#dc2626' } }>{ smsTestResult.airtel }</div> }
+                    { smsTestResult.pinpoint && <div style={ { color: smsTestResult.pinpoint.startsWith( '✓' ) ? '#1e40af' : '#dc2626' } }>{ smsTestResult.pinpoint }</div> }
                   </div>
-                )}
+                ) }
               </div>
             </div>
 
-            {/* Active / Ringing Calls */}
-            <div style={{ ...s.card, marginTop: '12px' }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>
-                Active Calls {activeCalls.length > 0 && <span style={{ ...badge('active'), marginLeft: '8px' }}>{activeCalls.length}</span>}
+            {/* Post-call WhatsApp notification toggle */ }
+            <div style={ { ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: '#f9fafb' } }>
+              <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } }>
+                <div>
+                  <h4 style={ { margin: 0, fontSize: '13px', color: '#0f2a1d' } }>Post-call WhatsApp message (wd_menu)</h4>
+                  <p style={ { margin: '4px 0 0', fontSize: '11px', color: '#6b7280' } }>After a call ends, send the wd_menu video template on WhatsApp with quick-reply options. Disable to skip the post-call WhatsApp follow-up.</p>
+                </div>
+                <label style={ { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap' } }>
+                  <input type="checkbox" checked={ postCallWa } onChange={ async () => {
+                    const newVal = !postCallWa;
+                    setPostCallWa( newVal );
+                    try
+                    {
+                      await fetch( `${API_BASE}/whatsapp/config`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify( { postCallWa: newVal } ),
+                      } );
+                      toast.success( `Post-call WhatsApp ${newVal ? 'enabled' : 'disabled'}` );
+                    } catch { toast.error( 'Failed to save' ); }
+                  } }
+                    style={ { width: '14px', height: '14px', accentColor: '#1a3a2a' } } />
+                  Post-call WhatsApp
+                </label>
+              </div>
+            </div>
+
+            {/* Active / Ringing Calls */ }
+            <div style={ { ...s.card, marginTop: '12px' } }>
+              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#111827' } }>
+                Active Calls { activeCalls.length > 0 && <span style={ { ...badge( 'active' ), marginLeft: '8px' } }>{ activeCalls.length }</span> }
               </h4>
-              {activeCalls.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px 16px', color: '#9ca3af' }}>
-                  <div style={{ fontSize: '36px', marginBottom: '8px' }}>-</div>
-                  <p style={{ margin: 0, fontSize: '14px' }}>No active calls</p>
-                  <p style={{ margin: '4px 0 0', fontSize: '12px' }}>Incoming calls will appear here when a user calls your WhatsApp number</p>
+              { activeCalls.length === 0 ? (
+                <div style={ { textAlign: 'center', padding: '32px 16px', color: '#9ca3af' } }>
+                  <div style={ { fontSize: '36px', marginBottom: '8px' } }>-</div>
+                  <p style={ { margin: 0, fontSize: '14px' } }>No active calls</p>
+                  <p style={ { margin: '4px 0 0', fontSize: '12px' } }>Incoming calls will appear here when a user calls your WhatsApp number</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {activeCalls.map((call: any, i: number) => (
-                    <div key={call.callId || i} style={{
+                <div style={ { display: 'flex', flexDirection: 'column', gap: '10px' } }>
+                  { activeCalls.map( ( call: any, i: number ) => (
+                    <div key={ call.callId || i } style={ {
                       padding: '14px 16px', borderRadius: '10px',
                       background: call.status === 'ringing' ? '#f9fafb' : call.status === 'connected' ? '#f9fafb' : '#f3f4f6',
                       border: `1px solid ${call.status === 'ringing' ? '#e5e7eb' : call.status === 'connected' ? '#e5e7eb' : '#e5e7eb'}`,
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    } }>
+                      <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' } }>
                         <div>
-                          <span style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>
-                            {call.callerName || call.fromNumber || 'Unknown'}
+                          <span style={ { fontWeight: 600, fontSize: '14px', color: '#111827' } }>
+                            { call.callerName || call.fromNumber || 'Unknown' }
                           </span>
-                          {call.callerName && <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px' }}>{call.fromNumber}</span>}
-                          {call.fromBsuid && <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '6px' }} title={`BSUID: ${call.fromBsuid}`}>🆔</span>}
-                          <span style={{ ...badge(call.status === 'ringing' ? 'planned' : call.status === 'connected' ? 'active' : 'default'), marginLeft: '8px' }}>
-                            {call.status === 'ringing' ? 'Ringing' : call.status === 'connected' ? 'Connected' : call.status}
+                          { call.callerName && <span style={ { fontSize: '12px', color: '#6b7280', marginLeft: '8px' } }>{ call.fromNumber }</span> }
+                          { call.fromBsuid && <span style={ { fontSize: '11px', color: '#9ca3af', marginLeft: '6px' } } title={ `BSUID: ${call.fromBsuid}` }>🆔</span> }
+                          <span style={ { ...badge( call.status === 'ringing' ? 'planned' : call.status === 'connected' ? 'active' : 'default' ), marginLeft: '8px' } }>
+                            { call.status === 'ringing' ? 'Ringing' : call.status === 'connected' ? 'Connected' : call.status }
                           </span>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {call.status === 'ringing' && (
+                        <div style={ { display: 'flex', gap: '8px' } }>
+                          { call.status === 'ringing' && (
                             <>
-                              <button onClick={() => answerCallWebRTC(call)}
-                                style={{ padding: '6px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                              <button onClick={ () => answerCallWebRTC( call ) }
+                                style={ { padding: '6px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
                                 Answer
                               </button>
-                              <button onClick={() => rejectCall(call.callId, call.phoneNumberId)}
-                                style={{ padding: '6px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                              <button onClick={ () => rejectCall( call.callId, call.phoneNumberId ) }
+                                style={ { padding: '6px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
                                 Reject
                               </button>
                             </>
-                          )}
-                          {call.status === 'connected' && (
-                            <button onClick={() => { hangupCall(call.callId, call.phoneNumberId); cleanupWebRTC(); }}
-                              style={{ padding: '6px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                          ) }
+                          { call.status === 'connected' && (
+                            <button onClick={ () => { hangupCall( call.callId, call.phoneNumberId ); cleanupWebRTC(); } }
+                              style={ { padding: '6px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
                               Hang Up
                             </button>
-                          )}
+                          ) }
                         </div>
                       </div>
-                      <div style={{ marginTop: '6px', fontSize: '11px', color: '#6b7280' }}>
-                        Call ID: <code style={{ fontSize: '10px' }}>{call.callId}</code>
-                        {call.displayPhone && <> | To: {call.displayPhone}</>}
-                        {call.direction && <> | {call.direction}</>}
-                        {call.timestamp && <> | {new Date(parseInt(call.timestamp) * 1000).toLocaleTimeString()}</>}
+                      <div style={ { marginTop: '6px', fontSize: '11px', color: '#6b7280' } }>
+                        Call ID: <code style={ { fontSize: '10px' } }>{ call.callId }</code>
+                        { call.displayPhone && <> | To: { call.displayPhone }</> }
+                        { call.direction && <> | { call.direction }</> }
+                        { call.timestamp && <> | { new Date( parseInt( call.timestamp ) * 1000 ).toLocaleTimeString() }</> }
                       </div>
                     </div>
-                  ))}
+                  ) ) }
                 </div>
-              )}
+              ) }
             </div>
 
-            {/* Outbound Call — Business-Initiated */}
-            <div style={{ ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: outboundStep === 'connected' ? '#f9fafb' : outboundStep === 'calling' ? '#f9fafb' : '#f9fafb' }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#0f2a1d' }}>Outbound Call (Business-Initiated)</h4>
+            {/* Outbound Call — Business-Initiated */ }
+            <div style={ { ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: outboundStep === 'connected' ? '#f9fafb' : outboundStep === 'calling' ? '#f9fafb' : '#f9fafb' } }>
+              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#0f2a1d' } }>Outbound Call (Business-Initiated)</h4>
 
-              {outboundStep === 'idle' && (
+              { outboundStep === 'idle' && (
                 <div>
-                  <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#6b7280' }}>
+                  <p style={ { margin: '0 0 12px', fontSize: '12px', color: '#6b7280' } }>
                     Step 1: Send a call permission request. Step 2: After user accepts, initiate the call with WebRTC.
                     Limits: 1 permission request per 24h, 2 per 7 days per user. Not available in USA, Canada, Turkey, Egypt, Vietnam, Nigeria.
                   </p>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                    <div style={{ flex: '0 0 180px' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>From (WABA Number)</label>
-                      <select value={outboundPhoneNumberId} onChange={e => setOutboundPhoneNumberId(e.target.value)}
-                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px', background: '#fff' }}>
-                        {PHONE_NUMBERS.map(p => (
-                          <option key={p.metaId} value={p.metaId}>{p.display} ({p.name})</option>
-                        ))}
+                  <div style={ { display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' } }>
+                    <div style={ { flex: '0 0 180px' } }>
+                      <label style={ { display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>From (WABA Number)</label>
+                      <select value={ outboundPhoneNumberId } onChange={ e => setOutboundPhoneNumberId( e.target.value ) }
+                        style={ { width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px', background: '#fff' } }>
+                        { PHONE_NUMBERS.map( p => (
+                          <option key={ p.metaId } value={ p.metaId }>{ p.display } ({ p.name })</option>
+                        ) ) }
                       </select>
                     </div>
-                    <div style={{ flex: '1 1 200px' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>To (WhatsApp Number with country code)</label>
-                      <input value={outboundPhone} onChange={e => setOutboundPhone(e.target.value)} placeholder="919876543210"
-                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '13px', fontFamily: 'monospace' }} />
+                    <div style={ { flex: '1 1 200px' } }>
+                      <label style={ { display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>To (WhatsApp Number with country code)</label>
+                      <input value={ outboundPhone } onChange={ e => setOutboundPhone( e.target.value ) } placeholder="919876543210"
+                        style={ { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '13px', fontFamily: 'monospace' } } />
                     </div>
-                    <div style={{ flex: '1 1 250px' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Permission Message</label>
-                      <input value={outboundPermissionText} onChange={e => setOutboundPermissionText(e.target.value)}
-                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px' }} />
+                    <div style={ { flex: '1 1 250px' } }>
+                      <label style={ { display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>Permission Message</label>
+                      <input value={ outboundPermissionText } onChange={ e => setOutboundPermissionText( e.target.value ) }
+                        style={ { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px' } } />
                     </div>
-                    <button onClick={requestOutboundPermission} disabled={outboundLoading || !outboundPhone.trim()}
-                      style={{ padding: '8px 18px', background: outboundPhone.trim() ? '#1a3a2a' : '#d1d5db', color: '#fff', border: 'none', borderRadius: '8px', cursor: outboundPhone.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                      {outboundLoading ? 'Sending...' : 'Request Permission'}
+                    <button onClick={ requestOutboundPermission } disabled={ outboundLoading || !outboundPhone.trim() }
+                      style={ { padding: '8px 18px', background: outboundPhone.trim() ? '#1a3a2a' : '#d1d5db', color: '#fff', border: 'none', borderRadius: '8px', cursor: outboundPhone.trim() ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' } }>
+                      { outboundLoading ? 'Sending...' : 'Request Permission' }
                     </button>
                   </div>
                 </div>
-              )}
+              ) }
 
-              {outboundStep === 'permission_sent' && (
+              { outboundStep === 'permission_sent' && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '20px' }}>-</span>
+                  <div style={ { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' } }>
+                    <span style={ { fontSize: '20px' } }>-</span>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#0f2a1d' }}>Permission request sent to {outboundPhone}</div>
-                      <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+                      <div style={ { fontWeight: 600, fontSize: '14px', color: '#0f2a1d' } }>Permission request sent to { outboundPhone }</div>
+                      <div style={ { fontSize: '12px', color: '#6b7280', marginTop: '2px' } }>
                         Waiting for user to tap "Allow" in WhatsApp. Once granted, click "Call Now" to initiate.
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={initiateOutboundCall} disabled={outboundLoading}
-                      style={{ padding: '8px 20px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
-                      {outboundLoading ? 'Connecting...' : 'Call Now'}
+                  <div style={ { display: 'flex', gap: '8px' } }>
+                    <button onClick={ initiateOutboundCall } disabled={ outboundLoading }
+                      style={ { padding: '8px 20px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 } }>
+                      { outboundLoading ? 'Connecting...' : 'Call Now' }
                     </button>
-                    <button onClick={resetOutbound}
-                      style={{ padding: '8px 16px', background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>
+                    <button onClick={ resetOutbound }
+                      style={ { padding: '8px 16px', background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' } }>
                       Cancel
                     </button>
                   </div>
                 </div>
-              )}
+              ) }
 
-              {outboundStep === 'calling' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '24px' }}>-</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px', color: '#0f2a1d' }}>Calling {outboundPhone}...</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>Ringing — waiting for user to pick up</div>
+              { outboundStep === 'calling' && (
+                <div style={ { display: 'flex', alignItems: 'center', gap: '12px' } }>
+                  <span style={ { fontSize: '24px' } }>-</span>
+                  <div style={ { flex: 1 } }>
+                    <div style={ { fontWeight: 600, fontSize: '14px', color: '#0f2a1d' } }>Calling { outboundPhone }...</div>
+                    <div style={ { fontSize: '12px', color: '#6b7280' } }>Ringing — waiting for user to pick up</div>
                   </div>
-                  <button onClick={hangupOutbound}
-                    style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                  <button onClick={ hangupOutbound }
+                    style={ { padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
                     Cancel
                   </button>
                 </div>
-              )}
+              ) }
 
-              {outboundStep === 'connected' && (
+              { outboundStep === 'connected' && (
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '24px' }}>-</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: '14px', color: '#0f2a1d' }}>Connected to {outboundPhone}</div>
-                      <div style={{ fontSize: '20px', fontWeight: 700, color: '#111827', fontFamily: 'monospace' }}>{fmtDuration(outboundCallDuration)}</div>
+                  <div style={ { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' } }>
+                    <span style={ { fontSize: '24px' } }>-</span>
+                    <div style={ { flex: 1 } }>
+                      <div style={ { fontWeight: 600, fontSize: '14px', color: '#0f2a1d' } }>Connected to { outboundPhone }</div>
+                      <div style={ { fontSize: '20px', fontWeight: 700, color: '#111827', fontFamily: 'monospace' } }>{ fmtDuration( outboundCallDuration ) }</div>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button onClick={toggleOutboundMute}
-                        style={{ padding: '8px 14px', background: outboundMuted ? '#f9fafb' : '#f3f4f6', color: outboundMuted ? '#0f2a1d' : '#374151', border: `1px solid ${outboundMuted ? '#e5e7eb' : '#e5e7eb'}`, borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                        {outboundMuted ? 'Unmute' : 'Mute'}
+                    <div style={ { display: 'flex', gap: '8px' } }>
+                      <button onClick={ toggleOutboundMute }
+                        style={ { padding: '8px 14px', background: outboundMuted ? '#f9fafb' : '#f3f4f6', color: outboundMuted ? '#0f2a1d' : '#374151', border: `1px solid ${outboundMuted ? '#e5e7eb' : '#e5e7eb'}`, borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
+                        { outboundMuted ? 'Unmute' : 'Mute' }
                       </button>
-                      <button onClick={hangupOutbound}
-                        style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                      <button onClick={ hangupOutbound }
+                        style={ { padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
                         Hang Up
                       </button>
                     </div>
                   </div>
                 </div>
-              )}
+              ) }
 
-              {(outboundStep === 'ended' || outboundStep === 'failed') && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '20px' }}>{outboundStep === 'ended' ? 'Done' : 'Failed'}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px', color: outboundStep === 'ended' ? '#0f2a1d' : '#0f2a1d' }}>
-                      {outboundStep === 'ended' ? 'Call ended' : 'Call failed'}
+              { ( outboundStep === 'ended' || outboundStep === 'failed' ) && (
+                <div style={ { display: 'flex', alignItems: 'center', gap: '12px' } }>
+                  <span style={ { fontSize: '20px' } }>{ outboundStep === 'ended' ? 'Done' : 'Failed' }</span>
+                  <div style={ { flex: 1 } }>
+                    <div style={ { fontWeight: 600, fontSize: '14px', color: outboundStep === 'ended' ? '#0f2a1d' : '#0f2a1d' } }>
+                      { outboundStep === 'ended' ? 'Call ended' : 'Call failed' }
                     </div>
-                    {outboundError && <div style={{ fontSize: '12px', color: '#1a3a2a', marginTop: '2px', wordBreak: 'break-all' }}>{outboundError}</div>}
-                    {outboundCallDuration > 0 && <div style={{ fontSize: '12px', color: '#6b7280' }}>Duration: {fmtDuration(outboundCallDuration)}</div>}
+                    { outboundError && <div style={ { fontSize: '12px', color: '#1a3a2a', marginTop: '2px', wordBreak: 'break-all' } }>{ outboundError }</div> }
+                    { outboundCallDuration > 0 && <div style={ { fontSize: '12px', color: '#6b7280' } }>Duration: { fmtDuration( outboundCallDuration ) }</div> }
                   </div>
-                  <button onClick={resetOutbound}
-                    style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                  <button onClick={ resetOutbound }
+                    style={ { padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
                     New Call
                   </button>
                 </div>
-              )}
+              ) }
 
-              {outboundError && outboundStep !== 'ended' && outboundStep !== 'failed' && (
-                <div style={{ marginTop: '8px', padding: '8px 12px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', color: '#0f2a1d', wordBreak: 'break-all' }}>
-                  {outboundError}
+              { outboundError && outboundStep !== 'ended' && outboundStep !== 'failed' && (
+                <div style={ { marginTop: '8px', padding: '8px 12px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', color: '#0f2a1d', wordBreak: 'break-all' } }>
+                  { outboundError }
                 </div>
-              )}
+              ) }
 
-              {/* Hidden audio element for outbound remote stream */}
-              <audio id="remoteAudioOutbound" autoPlay style={{ display: 'none' }} />
+              {/* Hidden audio element for outbound remote stream */ }
+              <audio id="remoteAudioOutbound" autoPlay style={ { display: 'none' } } />
             </div>
 
-            {/* WebRTC Status */}
-            <div style={{ ...s.card, marginTop: '12px' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>WebRTC Status</h4>
-              <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.8 }}>
-                <div>Browser WebRTC: <span style={{ color: typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '#1a3a2a' : '#1a3a2a', fontWeight: 600 }}>
-                  {typeof window !== 'undefined' && (window as any).RTCPeerConnection ? '✓ Supported' : '✗ Not supported'}
+            {/* WebRTC Status */ }
+            <div style={ { ...s.card, marginTop: '12px' } }>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>WebRTC Status</h4>
+              <div style={ { fontSize: '13px', color: '#6b7280', lineHeight: 1.8 } }>
+                <div>Browser WebRTC: <span style={ { color: typeof window !== 'undefined' && ( window as any ).RTCPeerConnection ? '#1a3a2a' : '#1a3a2a', fontWeight: 600 } }>
+                  { typeof window !== 'undefined' && ( window as any ).RTCPeerConnection ? '✓ Supported' : '✗ Not supported' }
                 </span></div>
-                <div>Microphone: <span style={{ fontWeight: 500 }}>Will request permission when answering a call</span></div>
-                <div>Audio codec: <span style={{ fontWeight: 500 }}>OPUS (required by Meta)</span></div>
-                <div>ICE servers: <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>stun:stun.l.google.com:19302</span></div>
+                <div>Microphone: <span style={ { fontWeight: 500 } }>Will request permission when answering a call</span></div>
+                <div>Audio codec: <span style={ { fontWeight: 500 } }>OPUS (required by Meta)</span></div>
+                <div>ICE servers: <span style={ { fontFamily: 'monospace', fontSize: '12px' } }>stun:stun.l.google.com:19302</span></div>
               </div>
-              {/* Hidden audio element for remote stream */}
-              <audio id="remoteAudio" autoPlay style={{ display: 'none' }} />
+              {/* Hidden audio element for remote stream */ }
+              <audio id="remoteAudio" autoPlay style={ { display: 'none' } } />
             </div>
 
-            {/* Recent Call Logs */}
-            <div style={{ ...s.card, marginTop: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <h4 style={{ margin: 0, fontSize: '14px', color: '#111827' }}>Recent Call Logs</h4>
-                <button onClick={loadCallLogs} style={{ padding: '4px 12px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>
-                  {loadingCalls ? 'Loading...' : 'Refresh'}
+            {/* Recent Call Logs */ }
+            <div style={ { ...s.card, marginTop: '12px' } }>
+              <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' } }>
+                <h4 style={ { margin: 0, fontSize: '14px', color: '#111827' } }>Recent Call Logs</h4>
+                <button onClick={ loadCallLogs } style={ { padding: '4px 12px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' } }>
+                  { loadingCalls ? 'Loading...' : 'Refresh' }
                 </button>
               </div>
-              {callLogs.length === 0 ? (
-                <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '16px' }}>No call logs yet</p>
+              { callLogs.length === 0 ? (
+                <p style={ { margin: 0, fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '16px' } }>No call logs yet</p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <div style={ { overflowX: 'auto' } }>
+                  <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '12px' } }>
                     <thead>
-                      <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                        <th style={thStyle}>Time</th>
-                        <th style={thStyle}>From</th>
-                        <th style={thStyle}>BSUID</th>
-                        <th style={thStyle}>Event</th>
-                        <th style={thStyle}>Status</th>
-                        <th style={thStyle}>Reason</th>
-                        <th style={thStyle}>Duration</th>
+                      <tr style={ { background: '#f9fafb', borderBottom: '2px solid #e5e7eb' } }>
+                        <th style={ thStyle }>Time</th>
+                        <th style={ thStyle }>From</th>
+                        <th style={ thStyle }>BSUID</th>
+                        <th style={ thStyle }>Event</th>
+                        <th style={ thStyle }>Status</th>
+                        <th style={ thStyle }>Reason</th>
+                        <th style={ thStyle }>Duration</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {callLogs.slice(0, 20).map((log: any, i: number) => (
-                        <tr key={log.id || i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                          <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
-                            {log.createdAt ? new Date(parseFloat(log.createdAt) * 1000).toLocaleString() : '-'}
+                      { callLogs.slice( 0, 20 ).map( ( log: any, i: number ) => (
+                        <tr key={ log.id || i } style={ { borderBottom: '1px solid #f3f4f6' } }>
+                          <td style={ { ...tdStyle, whiteSpace: 'nowrap' } }>
+                            { log.createdAt ? new Date( parseFloat( log.createdAt ) * 1000 ).toLocaleString() : '-' }
                           </td>
-                          <td style={tdStyle}>{log.callerName || log.fromNumber || '-'}{log.callerUsername ? ` (${log.callerUsername})` : ''}</td>
-                          <td style={{ ...tdStyle, fontSize: '11px', color: '#6b7280', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }} title={log.fromBsuid || ''}>{log.fromBsuid || '-'}</td>
-                          <td style={tdStyle}>{log.eventType || '-'}</td>
-                          <td style={tdStyle}>
-                            <span style={badge(log.status === 'connected' ? 'active' : log.status === 'ringing' ? 'planned' : 'default')}>
-                              {log.status || '-'}
+                          <td style={ tdStyle }>{ log.callerName || log.fromNumber || '-' }{ log.callerUsername ? ` (${log.callerUsername})` : '' }</td>
+                          <td style={ { ...tdStyle, fontSize: '11px', color: '#6b7280', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' } } title={ log.fromBsuid || '' }>{ log.fromBsuid || '-' }</td>
+                          <td style={ tdStyle }>{ log.eventType || '-' }</td>
+                          <td style={ tdStyle }>
+                            <span style={ badge( log.status === 'connected' ? 'active' : log.status === 'ringing' ? 'planned' : 'default' ) }>
+                              { log.status || '-' }
                             </span>
                           </td>
-                          <td style={{ ...tdStyle, fontSize: '11px', color: log.errorCode ? '#dc2626' : '#6b7280' }} title={log.errorCode ? `Meta error ${log.errorCode}` : ''}>
-                            {log.terminateReason || log.errorCode || '-'}
+                          <td style={ { ...tdStyle, fontSize: '11px', color: log.errorCode ? '#dc2626' : '#6b7280' } } title={ log.errorCode ? `Meta error ${log.errorCode}` : '' }>
+                            { log.terminateReason || log.errorCode || '-' }
                           </td>
-                          <td style={tdStyle}>{log.duration ? `${log.duration}s` : '-'}</td>
+                          <td style={ tdStyle }>{ log.duration ? `${log.duration}s` : '-' }</td>
                         </tr>
-                      ))}
+                      ) ) }
                     </tbody>
                   </table>
                 </div>
-              )}
+              ) }
             </div>
           </div>
-        )}
+        ) }
 
-        {/* OVERVIEW TAB */}
-        {activeTab === 'overview' && (
+        {/* OVERVIEW TAB */ }
+        { activeTab === 'overview' && (
           <div>
-            <div style={{ ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb' }}>
-              <h3 style={{ margin: '0 0 8px', fontSize: '15px', color: '#0f2a1d' }}>How it works</h3>
-              <p style={{ margin: 0, fontSize: '13px', color: '#0f2a1d', lineHeight: 1.6 }}>
+            <div style={ { ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb' } }>
+              <h3 style={ { margin: '0 0 8px', fontSize: '15px', color: '#0f2a1d' } }>How it works</h3>
+              <p style={ { margin: 0, fontSize: '13px', color: '#0f2a1d', lineHeight: 1.6 } }>
                 The WhatsApp Business Calling API (launched July 2025) enables bidirectional VoIP calls
                 within WhatsApp conversation threads. Default signaling uses Graph APIs + HTTPS webhooks.
                 SIP signaling is available with explicit enablement. Media uses WebRTC with OPUS codec
@@ -1344,143 +1442,143 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               </p>
             </div>
 
-            {/* Signaling Configurations Table */}
-            <div style={{ ...s.card, marginTop: '16px' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Signaling & Media Configurations</h4>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+            {/* Signaling Configurations Table */ }
+            <div style={ { ...s.card, marginTop: '16px' } }>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Signaling & Media Configurations</h4>
+              <div style={ { overflowX: 'auto' } }>
+                <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '12px' } }>
                   <thead>
-                    <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                      <th style={thStyle}>Configuration</th>
-                      <th style={thStyle}>Signaling</th>
-                      <th style={thStyle}>Transport</th>
-                      <th style={thStyle}>Media</th>
-                      <th style={thStyle}>Codec</th>
+                    <tr style={ { background: '#f9fafb', borderBottom: '2px solid #e5e7eb' } }>
+                      <th style={ thStyle }>Configuration</th>
+                      <th style={ thStyle }>Signaling</th>
+                      <th style={ thStyle }>Transport</th>
+                      <th style={ thStyle }>Media</th>
+                      <th style={ thStyle }>Codec</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {SIGNAL_CONFIGS.map((c, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ ...tdStyle, fontWeight: 500, color: '#111827' }}>{c.config}</td>
-                        <td style={tdStyle}>{c.signaling}</td>
-                        <td style={tdStyle}>{c.transport}</td>
-                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '11px' }}>{c.media}</td>
-                        <td style={tdStyle}>{c.codec}</td>
+                    { SIGNAL_CONFIGS.map( ( c, i ) => (
+                      <tr key={ i } style={ { borderBottom: '1px solid #f3f4f6' } }>
+                        <td style={ { ...tdStyle, fontWeight: 500, color: '#111827' } }>{ c.config }</td>
+                        <td style={ tdStyle }>{ c.signaling }</td>
+                        <td style={ tdStyle }>{ c.transport }</td>
+                        <td style={ { ...tdStyle, fontFamily: 'monospace', fontSize: '11px' } }>{ c.media }</td>
+                        <td style={ tdStyle }>{ c.codec }</td>
                       </tr>
-                    ))}
+                    ) ) }
                   </tbody>
                 </table>
               </div>
-              <p style={{ margin: '8px 0 0', fontSize: '11px', color: '#9ca3af' }}>
+              <p style={ { margin: '8px 0 0', fontSize: '11px', color: '#9ca3af' } }>
                 Note: You can use SDES instead of ICE+DTLS with Graph API + Webhook signaling too.
               </p>
             </div>
 
-            {/* Call Flow Diagram */}
-            <div style={{ ...s.card, marginTop: '16px' }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>Call Flow (User-Initiated)</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
-                {[
+            {/* Call Flow Diagram */ }
+            <div style={ { ...s.card, marginTop: '16px' } }>
+              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#111827' } }>Call Flow (User-Initiated)</h4>
+              <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' } }>
+                { [
                   { icon: 'Call', label: 'User calls', desc: 'User taps call icon in WhatsApp' },
                   { icon: 'Hook', label: 'Webhook: connect', desc: 'Meta sends call event + SDP offer' },
                   { icon: 'OK', label: 'Pre-accept → Accept', desc: 'Business responds with SDP answer' },
                   { icon: 'RTC', label: 'WebRTC call', desc: 'Audio via OPUS codec' },
                   { icon: 'End', label: 'Webhook: terminate', desc: 'Call ends, log to DynamoDB' },
-                ].map((f, i) => (
-                  <div key={i} style={{ padding: '12px', background: '#f9fafb', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '24px', marginBottom: '6px' }}>{f.icon}</div>
-                    <div style={{ fontWeight: 600, fontSize: '12px', color: '#111827', marginBottom: '2px' }}>{f.label}</div>
-                    <div style={{ fontSize: '11px', color: '#6b7280' }}>{f.desc}</div>
+                ].map( ( f, i ) => (
+                  <div key={ i } style={ { padding: '12px', background: '#f9fafb', borderRadius: '8px', textAlign: 'center' } }>
+                    <div style={ { fontSize: '24px', marginBottom: '6px' } }>{ f.icon }</div>
+                    <div style={ { fontWeight: 600, fontSize: '12px', color: '#111827', marginBottom: '2px' } }>{ f.label }</div>
+                    <div style={ { fontSize: '11px', color: '#6b7280' } }>{ f.desc }</div>
                   </div>
-                ))}
+                ) ) }
               </div>
             </div>
 
-            {/* Limits */}
-            <div style={{ ...s.card, marginTop: '16px' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Limits & Configuration</h4>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            {/* Limits */ }
+            <div style={ { ...s.card, marginTop: '16px' } }>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Limits & Configuration</h4>
+              <div style={ { overflowX: 'auto' } }>
+                <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } }>
                   <tbody>
-                    {CALL_LIMITS.map((l, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: 500, color: '#374151', whiteSpace: 'nowrap' }}>{l.limit}</td>
-                        <td style={{ padding: '8px 12px', color: '#6b7280', fontFamily: 'monospace', fontSize: '12px' }}>{l.value}</td>
+                    { CALL_LIMITS.map( ( l, i ) => (
+                      <tr key={ i } style={ { borderBottom: '1px solid #f3f4f6' } }>
+                        <td style={ { padding: '8px 12px', fontWeight: 500, color: '#374151', whiteSpace: 'nowrap' } }>{ l.limit }</td>
+                        <td style={ { padding: '8px 12px', color: '#6b7280', fontFamily: 'monospace', fontSize: '12px' } }>{ l.value }</td>
                       </tr>
-                    ))}
+                    ) ) }
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Availability */}
-            <div style={{ ...s.card, marginTop: '16px' }}>
-              <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: '#111827' }}>Availability</h4>
-              <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.6 }}>
-                <p style={{ margin: '0 0 8px' }}>
-                  <span style={{ fontWeight: 500, color: '#0f2a1d' }}>User-initiated calling:</span> Available everywhere Cloud API is available.
+            {/* Availability */ }
+            <div style={ { ...s.card, marginTop: '16px' } }>
+              <h4 style={ { margin: '0 0 8px', fontSize: '14px', color: '#111827' } }>Availability</h4>
+              <div style={ { fontSize: '13px', color: '#6b7280', lineHeight: 1.6 } }>
+                <p style={ { margin: '0 0 8px' } }>
+                  <span style={ { fontWeight: 500, color: '#0f2a1d' } }>User-initiated calling:</span> Available everywhere Cloud API is available.
                 </p>
-                <p style={{ margin: '0 0 8px' }}>
-                  <span style={{ fontWeight: 500, color: '#0f2a1d' }}>Business-initiated calling:</span> Available everywhere Cloud API is available, except:
+                <p style={ { margin: '0 0 8px' } }>
+                  <span style={ { fontWeight: 500, color: '#0f2a1d' } }>Business-initiated calling:</span> Available everywhere Cloud API is available, except:
                 </p>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {BLOCKED_COUNTRIES.map((c, i) => (
-                    <span key={i} style={{ padding: '2px 10px', background: '#f9fafb', color: '#0f2a1d', borderRadius: '12px', fontSize: '11px', fontWeight: 500, border: '1px solid #e5e7eb' }}>{c}</span>
-                  ))}
+                <div style={ { display: 'flex', gap: '6px', flexWrap: 'wrap' } }>
+                  { BLOCKED_COUNTRIES.map( ( c, i ) => (
+                    <span key={ i } style={ { padding: '2px 10px', background: '#f9fafb', color: '#0f2a1d', borderRadius: '12px', fontSize: '11px', fontWeight: 500, border: '1px solid #e5e7eb' } }>{ c }</span>
+                  ) ) }
                 </div>
-                <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#9ca3af' }}>
+                <p style={ { margin: '8px 0 0', fontSize: '12px', color: '#9ca3af' } }>
                   The business phone number's country code must be in the supported list. Consumer phone can be from any Cloud API country.
                   Our numbers (+91) are eligible for both user-initiated and business-initiated calling.
                 </p>
               </div>
             </div>
 
-            {/* Phone Numbers */}
-            <div style={{ ...s.card, marginTop: '16px' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>WABA Phone Numbers</h4>
-              {PHONE_NUMBERS.map((p, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>{p.display}</span>
-                  <span style={{ fontSize: '12px', color: '#6b7280' }}>{p.name}</span>
-                  <span style={badge('available')}>{p.country}</span>
-                  <span style={{ ...badge(p.quality === 'GREEN' ? 'active' : 'planned'), fontSize: '10px' }}>Quality: {p.quality}</span>
-                  <span style={{ ...badge(p.tier === 'TIER_10K' || p.tier === 'TIER_UNLIMITED' ? 'active' : 'planned'), fontSize: '10px' }}>Tier: {p.tier}</span>
-                  <span style={{ ...badge(p.callingReady ? 'active' : 'planned'), fontSize: '10px' }}>{p.callingReady ? 'Calling Ready' : 'Needs 2K Tier'}</span>
-                  <code style={{ fontSize: '10px', color: '#9ca3af', marginLeft: 'auto', wordBreak: 'break-all' }}>Meta: {p.metaId}</code>
+            {/* Phone Numbers */ }
+            <div style={ { ...s.card, marginTop: '16px' } }>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>WABA Phone Numbers</h4>
+              { PHONE_NUMBERS.map( ( p, i ) => (
+                <div key={ i } style={ { display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none', flexWrap: 'wrap' } }>
+                  <span style={ { fontWeight: 600, fontSize: '14px', color: '#111827' } }>{ p.display }</span>
+                  <span style={ { fontSize: '12px', color: '#6b7280' } }>{ p.name }</span>
+                  <span style={ badge( 'available' ) }>{ p.country }</span>
+                  <span style={ { ...badge( p.quality === 'GREEN' ? 'active' : 'planned' ), fontSize: '10px' } }>Quality: { p.quality }</span>
+                  <span style={ { ...badge( p.tier === 'TIER_10K' || p.tier === 'TIER_UNLIMITED' ? 'active' : 'planned' ), fontSize: '10px' } }>Tier: { p.tier }</span>
+                  <span style={ { ...badge( p.callingReady ? 'active' : 'planned' ), fontSize: '10px' } }>{ p.callingReady ? 'Calling Ready' : 'Needs 2K Tier' }</span>
+                  <code style={ { fontSize: '10px', color: '#9ca3af', marginLeft: 'auto', wordBreak: 'break-all' } }>Meta: { p.metaId }</code>
                 </div>
-              ))}
+              ) ) }
             </div>
 
-            {/* Changelog */}
-            <div style={{ ...s.card, marginTop: '16px' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Changelog (Meta)</h4>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+            {/* Changelog */ }
+            <div style={ { ...s.card, marginTop: '16px' } }>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Changelog (Meta)</h4>
+              <div style={ { overflowX: 'auto' } }>
+                <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '12px' } }>
                   <thead>
-                    <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                      <th style={{ ...thStyle, width: '110px' }}>Date</th>
-                      <th style={thStyle}>Update</th>
-                      <th style={thStyle}>Details</th>
+                    <tr style={ { background: '#f9fafb', borderBottom: '2px solid #e5e7eb' } }>
+                      <th style={ { ...thStyle, width: '110px' } }>Date</th>
+                      <th style={ thStyle }>Update</th>
+                      <th style={ thStyle }>Details</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {CHANGELOG.map((c, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ ...tdStyle, whiteSpace: 'nowrap', fontWeight: 500, color: '#374151' }}>{c.date}</td>
-                        <td style={{ ...tdStyle, fontWeight: 500, color: '#111827' }}>{c.title}</td>
-                        <td style={tdStyle}>{c.desc}</td>
+                    { CHANGELOG.map( ( c, i ) => (
+                      <tr key={ i } style={ { borderBottom: '1px solid #f3f4f6' } }>
+                        <td style={ { ...tdStyle, whiteSpace: 'nowrap', fontWeight: 500, color: '#374151' } }>{ c.date }</td>
+                        <td style={ { ...tdStyle, fontWeight: 500, color: '#111827' } }>{ c.title }</td>
+                        <td style={ tdStyle }>{ c.desc }</td>
                       </tr>
-                    ))}
+                    ) ) }
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Docs */}
-            <div style={{ ...s.card, marginTop: '16px' }}>
-              <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: '#111827' }}>Documentation</h4>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                {[
+            {/* Docs */ }
+            <div style={ { ...s.card, marginTop: '16px' } }>
+              <h4 style={ { margin: '0 0 8px', fontSize: '14px', color: '#111827' } }>Documentation</h4>
+              <div style={ { display: 'flex', gap: '16px', flexWrap: 'wrap' } }>
+                { [
                   { label: 'Meta Calling API', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling' },
                   { label: 'Getting Started (Access Token)', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/get-started' },
                   { label: 'Webhooks Overview', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/webhooks/overview' },
@@ -1490,112 +1588,112 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                   { label: 'SIP Integration', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/sip' },
                   { label: 'Asterisk Guide', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/asterisk' },
                   { label: 'Sandbox Testing', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling/sandbox' },
-                ].map((d, i) => (
-                  <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: '13px', color: '#1a3a2a', textDecoration: 'none' }}>
-                    {d.label} ↗
+                ].map( ( d, i ) => (
+                  <a key={ i } href={ d.url } target="_blank" rel="noopener noreferrer"
+                    style={ { fontSize: '13px', color: '#1a3a2a', textDecoration: 'none' } }>
+                    { d.label } ↗
                   </a>
-                ))}
+                ) ) }
               </div>
             </div>
           </div>
-        )}
+        ) }
 
-        {/* WEBHOOK CONFIG TAB */}
-        {activeTab === 'webhook' && (
+        {/* WEBHOOK CONFIG TAB */ }
+        { activeTab === 'webhook' && (
           <div>
-            {/* Webhook Status */}
-            <div style={{ ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '18px' }}>-</span>
-                <h3 style={{ margin: 0, fontSize: '15px', color: '#0f2a1d' }}>Webhook Endpoint — Deployed & Verified</h3>
-                <span style={badge('active')}>live</span>
+            {/* Webhook Status */ }
+            <div style={ { ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', marginBottom: '16px' } }>
+              <div style={ { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' } }>
+                <span style={ { fontSize: '18px' } }>-</span>
+                <h3 style={ { margin: 0, fontSize: '15px', color: '#0f2a1d' } }>Webhook Endpoint — Deployed & Verified</h3>
+                <span style={ badge( 'active' ) }>live</span>
               </div>
-              <p style={{ margin: 0, fontSize: '13px', color: '#0f2a1d', lineHeight: 1.6 }}>
-                Lambda <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' }}>wecare-whatsapp-calling</code> handles
+              <p style={ { margin: 0, fontSize: '13px', color: '#0f2a1d', lineHeight: 1.6 } }>
+                Lambda <code style={ { background: '#f3f4f6', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' } }>wecare-whatsapp-calling</code> handles
                 webhook verification (GET hub.challenge) and call events (POST connect/terminate/permission).
-                Logs stored in DynamoDB <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' }}>WhatsAppCallingTable</code>.
+                Logs stored in DynamoDB <code style={ { background: '#f3f4f6', padding: '1px 6px', borderRadius: '4px', fontSize: '12px' } }>WhatsAppCallingTable</code>.
               </p>
             </div>
 
-            {/* Callback URL + Verify Token */}
-            <div style={s.card}>
-              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>Meta Dashboard Configuration</h4>
-              <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#6b7280' }}>
-                Enter these values in <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#1a3a2a' }}>Meta App Dashboard → WhatsApp → Configuration</a>
+            {/* Callback URL + Verify Token */ }
+            <div style={ s.card }>
+              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#111827' } }>Meta Dashboard Configuration</h4>
+              <p style={ { margin: '0 0 12px', fontSize: '12px', color: '#6b7280' } }>
+                Enter these values in <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a' } }>Meta App Dashboard → WhatsApp → Configuration</a>
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={ { display: 'flex', flexDirection: 'column', gap: '12px' } }>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Callback URL</label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <code style={{ flex: 1, background: '#1e293b', color: '#e2e8f0', padding: '10px 14px', borderRadius: '8px', fontSize: '12px', wordBreak: 'break-all' }}>
-                      {WEBHOOK_CONFIG.callbackUrl}
+                  <label style={ { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>Callback URL</label>
+                  <div style={ { display: 'flex', gap: '8px', alignItems: 'center' } }>
+                    <code style={ { flex: 1, background: '#1e293b', color: '#e2e8f0', padding: '10px 14px', borderRadius: '8px', fontSize: '12px', wordBreak: 'break-all' } }>
+                      { WEBHOOK_CONFIG.callbackUrl }
                     </code>
-                    <button onClick={() => { navigator.clipboard.writeText(WEBHOOK_CONFIG.callbackUrl); toast.success('Copied'); }}
-                      style={{ padding: '8px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    <button onClick={ () => { navigator.clipboard.writeText( WEBHOOK_CONFIG.callbackUrl ); toast.success( 'Copied' ); } }
+                      style={ { padding: '8px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' } }>
                       Copy
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Verify Token</label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <code style={{ flex: 1, background: '#1e293b', color: '#e2e8f0', padding: '10px 14px', borderRadius: '8px', fontSize: '12px' }}>
-                      {WEBHOOK_CONFIG.verifyToken}
+                  <label style={ { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>Verify Token</label>
+                  <div style={ { display: 'flex', gap: '8px', alignItems: 'center' } }>
+                    <code style={ { flex: 1, background: '#1e293b', color: '#e2e8f0', padding: '10px 14px', borderRadius: '8px', fontSize: '12px' } }>
+                      { WEBHOOK_CONFIG.verifyToken }
                     </code>
-                    <button onClick={() => { navigator.clipboard.writeText(WEBHOOK_CONFIG.verifyToken); toast.success('Copied'); }}
-                      style={{ padding: '8px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    <button onClick={ () => { navigator.clipboard.writeText( WEBHOOK_CONFIG.verifyToken ); toast.success( 'Copied' ); } }
+                      style={ { padding: '8px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' } }>
                       Copy
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Webhook Fields to Subscribe</label>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {['calls', 'messages', 'message_template_status_update', 'account_update'].map((field, i) => (
-                      <span key={i} style={{
+                  <label style={ { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>Webhook Fields to Subscribe</label>
+                  <div style={ { display: 'flex', gap: '6px', flexWrap: 'wrap' } }>
+                    { [ 'calls', 'messages', 'message_template_status_update', 'account_update' ].map( ( field, i ) => (
+                      <span key={ i } style={ {
                         padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
                         background: field === 'calls' ? '#f9fafb' : '#f3f4f6',
                         color: field === 'calls' ? '#0f2a1d' : '#6b7280',
                         border: `1px solid ${field === 'calls' ? '#e5e7eb' : '#e5e7eb'}`,
-                      }}>
-                        {field} {field === 'calls' && '← required for calling'}
+                      } }>
+                        { field } { field === 'calls' && '← required for calling' }
                       </span>
-                    ))}
+                    ) ) }
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Meta Access Token Info */}
-            <div style={{ ...s.card, marginTop: '12px' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Meta Access Token</h4>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            {/* Meta Access Token Info */ }
+            <div style={ { ...s.card, marginTop: '12px' } }>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Meta Access Token</h4>
+              <div style={ { overflowX: 'auto' } }>
+                <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } }>
                   <tbody>
-                    {[
+                    { [
                       { label: 'App', value: `${META_TOKEN.appId} (${META_TOKEN.appName})` },
                       { label: 'Secrets Manager', value: META_TOKEN.secretName },
                       { label: 'Token Type', value: META_TOKEN.tokenType },
                       { label: 'Status', value: META_TOKEN.status },
-                      { label: 'Scopes', value: META_TOKEN.scopes.join(', ') },
-                      { label: 'WABA Access', value: META_TOKEN.wabaAccess.join(', ') },
-                    ].map((row, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: 500, color: '#374151', whiteSpace: 'nowrap', width: '140px' }}>{row.label}</td>
-                        <td style={{ padding: '8px 12px', color: '#6b7280', fontFamily: 'monospace', fontSize: '12px' }}>{row.value}</td>
+                      { label: 'Scopes', value: META_TOKEN.scopes.join( ', ' ) },
+                      { label: 'WABA Access', value: META_TOKEN.wabaAccess.join( ', ' ) },
+                    ].map( ( row, i ) => (
+                      <tr key={ i } style={ { borderBottom: '1px solid #f3f4f6' } }>
+                        <td style={ { padding: '8px 12px', fontWeight: 500, color: '#374151', whiteSpace: 'nowrap', width: '140px' } }>{ row.label }</td>
+                        <td style={ { padding: '8px 12px', color: '#6b7280', fontFamily: 'monospace', fontSize: '12px' } }>{ row.value }</td>
                       </tr>
-                    ))}
+                    ) ) }
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Step-by-step: How to configure in Meta Dashboard */}
-            <div style={{ ...s.card, marginTop: '12px' }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#111827' }}>How to Configure Webhook in Meta Dashboard</h4>
-              <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#374151', lineHeight: 1.8 }}>
-                <li>Go to <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={{ color: '#1a3a2a' }}>developers.facebook.com → Your App → WhatsApp → Configuration</a></li>
+            {/* Step-by-step: How to configure in Meta Dashboard */ }
+            <div style={ { ...s.card, marginTop: '12px' } }>
+              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#111827' } }>How to Configure Webhook in Meta Dashboard</h4>
+              <ol style={ { margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#374151', lineHeight: 1.8 } }>
+                <li>Go to <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a' } }>developers.facebook.com → Your App → WhatsApp → Configuration</a></li>
                 <li>Under "Webhook", click "Edit" (or "Configure" if first time)</li>
                 <li>Paste the Callback URL above</li>
                 <li>Paste the Verify Token above</li>
@@ -1606,233 +1704,233 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
               </ol>
             </div>
 
-            {/* Phone Number Readiness */}
-            <div style={{ ...s.card, marginTop: '12px' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Phone Number Calling Readiness</h4>
-              {PHONE_NUMBERS.map((p, i) => (
-                <div key={i} style={{ padding: '10px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>{p.display}</span>
-                    <span style={{ fontSize: '12px', color: '#6b7280' }}>{p.name}</span>
-                    <span style={badge(p.callingReady ? 'active' : 'planned')}>{p.callingReady ? 'Ready' : 'Not Ready'}</span>
+            {/* Phone Number Readiness */ }
+            <div style={ { ...s.card, marginTop: '12px' } }>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Phone Number Calling Readiness</h4>
+              { PHONE_NUMBERS.map( ( p, i ) => (
+                <div key={ i } style={ { padding: '10px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none' } }>
+                  <div style={ { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' } }>
+                    <span style={ { fontWeight: 600, fontSize: '14px', color: '#111827' } }>{ p.display }</span>
+                    <span style={ { fontSize: '12px', color: '#6b7280' } }>{ p.name }</span>
+                    <span style={ badge( p.callingReady ? 'active' : 'planned' ) }>{ p.callingReady ? 'Ready' : 'Not Ready' }</span>
                   </div>
-                  <div style={{ marginTop: '6px', fontSize: '12px', color: '#6b7280' }}>
-                    Tier: <strong>{p.tier}</strong> | Quality: <strong>{p.quality}</strong> | Meta ID: <code style={{ fontSize: '11px' }}>{p.metaId}</code>
-                    {!p.callingReady && <span style={{ color: '#1a3a2a', marginLeft: '8px' }}>Needs TIER_2K+ (currently {p.tier})</span>}
+                  <div style={ { marginTop: '6px', fontSize: '12px', color: '#6b7280' } }>
+                    Tier: <strong>{ p.tier }</strong> | Quality: <strong>{ p.quality }</strong> | Meta ID: <code style={ { fontSize: '11px' } }>{ p.metaId }</code>
+                    { !p.callingReady && <span style={ { color: '#1a3a2a', marginLeft: '8px' } }>Needs TIER_2K+ (currently { p.tier })</span> }
                   </div>
                 </div>
-              ))}
+              ) ) }
             </div>
 
-            {/* Documentation Links */}
-            <div style={{ ...s.card, marginTop: '12px' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#111827' }}>Documentation</h4>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                {[
+            {/* Documentation Links */ }
+            <div style={ { ...s.card, marginTop: '12px' } }>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Documentation</h4>
+              <div style={ { display: 'flex', gap: '12px', flexWrap: 'wrap' } }>
+                { [
                   { label: 'Getting Started (Access Token)', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/get-started' },
                   { label: 'Webhooks Overview', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/webhooks/overview' },
                   { label: 'Calling API Docs', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling' },
                   { label: 'App Dashboard', url: 'https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/' },
                   { label: 'Meta Business Settings', url: 'https://business.facebook.com/settings' },
-                ].map((d, i) => (
-                  <a key={i} href={d.url} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: '13px', color: '#1a3a2a', textDecoration: 'none' }}>
-                    {d.label} ↗
+                ].map( ( d, i ) => (
+                  <a key={ i } href={ d.url } target="_blank" rel="noopener noreferrer"
+                    style={ { fontSize: '13px', color: '#1a3a2a', textDecoration: 'none' } }>
+                    { d.label } ↗
                   </a>
-                ))}
+                ) ) }
               </div>
             </div>
           </div>
-        )}
+        ) }
 
-        {/* SETUP TAB */}
-        {activeTab === 'setup' && (
+        {/* SETUP TAB */ }
+        { activeTab === 'setup' && (
           <div>
-            <div style={{ ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
-              <p style={{ margin: 0, fontSize: '13px', color: '#0f2a1d' }}>
+            <div style={ { ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', marginBottom: '20px' } }>
+              <p style={ { margin: 0, fontSize: '13px', color: '#0f2a1d' } }>
                 Follow these steps to enable WhatsApp Business Calling. Default: Graph API + Webhooks (HTTPS) signaling with WebRTC media. SIP available with explicit enablement.
               </p>
             </div>
-            {SETUP_STEPS.map((step) => (
-              <div key={step.step} style={{ ...s.card, cursor: step.code ? 'pointer' : 'default' }}
-                onClick={() => step.code && setExpandedStep(expandedStep === step.step ? null : step.step)}>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                  <div style={{
+            { SETUP_STEPS.map( ( step ) => (
+              <div key={ step.step } style={ { ...s.card, cursor: step.code ? 'pointer' : 'default' } }
+                onClick={ () => step.code && setExpandedStep( expandedStep === step.step ? null : step.step ) }>
+                <div style={ { display: 'flex', gap: '16px', alignItems: 'flex-start' } }>
+                  <div style={ {
                     width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
                     background: step.done ? '#1a3a2a' : '#e5e7eb', color: step.done ? '#fff' : '#6b7280',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '14px', fontWeight: 700,
-                  }}>
-                    {step.done ? '✓' : step.step}
+                  } }>
+                    { step.done ? '✓' : step.step }
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>{step.title}</span>
-                      {step.code && (
-                        <span style={{ fontSize: '11px', color: '#9ca3af' }}>
-                          {expandedStep === step.step ? '▼' : '▶'} code
+                  <div style={ { flex: 1, minWidth: 0 } }>
+                    <div style={ { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' } }>
+                      <span style={ { fontWeight: 600, fontSize: '14px', color: '#111827' } }>{ step.title }</span>
+                      { step.code && (
+                        <span style={ { fontSize: '11px', color: '#9ca3af' } }>
+                          { expandedStep === step.step ? '▼' : '▶' } code
                         </span>
-                      )}
+                      ) }
                     </div>
-                    <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.5 }}>{step.desc}</div>
+                    <div style={ { fontSize: '13px', color: '#6b7280', lineHeight: 1.5 } }>{ step.desc }</div>
                   </div>
                 </div>
-                {step.code && expandedStep === step.step && (
-                  <div style={{ marginTop: '12px', marginLeft: '48px' }}>
-                    <div style={{ position: 'relative' }}>
-                      <pre style={{
+                { step.code && expandedStep === step.step && (
+                  <div style={ { marginTop: '12px', marginLeft: '48px' } }>
+                    <div style={ { position: 'relative' } }>
+                      <pre style={ {
                         background: '#1e293b', color: '#e2e8f0', padding: '14px 16px',
                         borderRadius: '8px', fontSize: '12px', lineHeight: 1.5,
                         overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                      }}>
-                        {step.code}
+                      } }>
+                        { step.code }
                       </pre>
                       <button
-                        onClick={(e) => { e.stopPropagation(); copyCode(step.code!); }}
-                        style={{
+                        onClick={ ( e ) => { e.stopPropagation(); copyCode( step.code! ); } }
+                        style={ {
                           position: 'absolute', top: '8px', right: '8px',
                           background: '#334155', border: 'none', color: '#94a3b8',
                           padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer',
-                        }}
+                        } }
                       >
                         Copy
                       </button>
                     </div>
                   </div>
-                )}
+                ) }
               </div>
-            ))}
+            ) ) }
 
-            {/* Sandbox Testing Info */}
-            <div style={{ ...s.card, marginTop: '8px', background: '#f9fafb', border: '1px solid #e5e7eb' }}>
-              <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: '#0f2a1d' }}>Sandbox Testing</h4>
-              <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#0f2a1d', lineHeight: 1.5 }}>
+            {/* Sandbox Testing Info */ }
+            <div style={ { ...s.card, marginTop: '8px', background: '#f9fafb', border: '1px solid #e5e7eb' } }>
+              <h4 style={ { margin: '0 0 8px', fontSize: '14px', color: '#0f2a1d' } }>Sandbox Testing</h4>
+              <p style={ { margin: '0 0 8px', fontSize: '13px', color: '#0f2a1d', lineHeight: 1.5 } }>
                 Sandbox accounts (Tech Partners only) and public test numbers have relaxed limits for integration testing.
                 No 2,000 messaging limit requirement for test numbers.
               </p>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <div style={ { overflowX: 'auto' } }>
+                <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '12px' } }>
                   <tbody>
-                    <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#0f2a1d' }}>Permission requests</td>
-                      <td style={{ padding: '6px 10px', color: '#1a3a2a', fontFamily: 'monospace' }}>25/day, 100/week (vs 1/day, 2/week prod)</td>
+                    <tr style={ { borderBottom: '1px solid #e5e7eb' } }>
+                      <td style={ { padding: '6px 10px', fontWeight: 500, color: '#0f2a1d' } }>Permission requests</td>
+                      <td style={ { padding: '6px 10px', color: '#1a3a2a', fontFamily: 'monospace' } }>25/day, 100/week (vs 1/day, 2/week prod)</td>
                     </tr>
-                    <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#0f2a1d' }}>Unanswered → warning</td>
-                      <td style={{ padding: '6px 10px', color: '#1a3a2a', fontFamily: 'monospace' }}>5 consecutive (vs 2 prod)</td>
+                    <tr style={ { borderBottom: '1px solid #e5e7eb' } }>
+                      <td style={ { padding: '6px 10px', fontWeight: 500, color: '#0f2a1d' } }>Unanswered → warning</td>
+                      <td style={ { padding: '6px 10px', color: '#1a3a2a', fontFamily: 'monospace' } }>5 consecutive (vs 2 prod)</td>
                     </tr>
                     <tr>
-                      <td style={{ padding: '6px 10px', fontWeight: 500, color: '#0f2a1d' }}>Unanswered → revoke</td>
-                      <td style={{ padding: '6px 10px', color: '#1a3a2a', fontFamily: 'monospace' }}>10 consecutive (vs 4 prod)</td>
+                      <td style={ { padding: '6px 10px', fontWeight: 500, color: '#0f2a1d' } }>Unanswered → revoke</td>
+                      <td style={ { padding: '6px 10px', color: '#1a3a2a', fontFamily: 'monospace' } }>10 consecutive (vs 4 prod)</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
-        )}
+        ) }
 
-        {/* RESOURCES TAB */}
-        {activeTab === 'resources' && (
+        {/* RESOURCES TAB */ }
+        { activeTab === 'resources' && (
           <div>
-            <div style={{ ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
-              <p style={{ margin: 0, fontSize: '13px', color: '#0f2a1d' }}>
+            <div style={ { ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', marginBottom: '20px' } }>
+              <p style={ { margin: 0, fontSize: '13px', color: '#0f2a1d' } }>
                 AWS resources for WhatsApp Calling + TTS integration. Region: us-east-1.
               </p>
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <div style={ { overflowX: 'auto' } }>
+              <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } }>
                 <thead>
-                  <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Service</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Resource</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Purpose</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Status</th>
+                  <tr style={ { background: '#f9fafb', borderBottom: '2px solid #e5e7eb' } }>
+                    <th style={ { padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151' } }>Service</th>
+                    <th style={ { padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151' } }>Resource</th>
+                    <th style={ { padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151' } }>Purpose</th>
+                    <th style={ { padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#374151' } }>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {AWS_RESOURCES.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '10px 14px', fontWeight: 500, color: '#111827' }}>{r.service}</td>
-                      <td style={{ padding: '10px 14px', color: '#6b7280', fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all' }}>{r.resource}</td>
-                      <td style={{ padding: '10px 14px', color: '#6b7280' }}>{r.purpose}</td>
-                      <td style={{ padding: '10px 14px' }}><span style={badge(r.status)}>{r.status}</span></td>
+                  { AWS_RESOURCES.map( ( r, i ) => (
+                    <tr key={ i } style={ { borderBottom: '1px solid #f3f4f6' } }>
+                      <td style={ { padding: '10px 14px', fontWeight: 500, color: '#111827' } }>{ r.service }</td>
+                      <td style={ { padding: '10px 14px', color: '#6b7280', fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all' } }>{ r.resource }</td>
+                      <td style={ { padding: '10px 14px', color: '#6b7280' } }>{ r.purpose }</td>
+                      <td style={ { padding: '10px 14px' } }><span style={ badge( r.status ) }>{ r.status }</span></td>
                     </tr>
-                  ))}
+                  ) ) }
                 </tbody>
               </table>
             </div>
           </div>
-        )}
+        ) }
 
-        {/* CALLING SETTINGS TAB */}
-        {activeTab === 'settings' && (
+        {/* CALLING SETTINGS TAB */ }
+        { activeTab === 'settings' && (
           <div>
-            <div style={{ ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', marginBottom: '16px' }}>
-              <h3 style={{ margin: '0 0 6px', fontSize: '15px', color: '#0f2a1d' }}>Enable & Configure Calling</h3>
-              <p style={{ margin: 0, fontSize: '13px', color: '#0f2a1d' }}>
+            <div style={ { ...s.card, background: '#f9fafb', border: '1px solid #e5e7eb', marginBottom: '16px' } }>
+              <h3 style={ { margin: '0 0 6px', fontSize: '15px', color: '#0f2a1d' } }>Enable & Configure Calling</h3>
+              <p style={ { margin: 0, fontSize: '13px', color: '#0f2a1d' } }>
                 Use this to enable the call icon on your WhatsApp number, set business hours, and restrict calling to specific countries.
-                This sends a POST to <code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>/{'{phone-number-id}'}/settings</code> with the calling configuration.
+                This sends a POST to <code style={ { background: '#f3f4f6', padding: '1px 4px', borderRadius: 3, fontSize: 12 } }>/{ '{phone-number-id}' }/settings</code> with the calling configuration.
               </p>
             </div>
 
-            {/* Phone selector */}
-            <div style={{ ...s.card }}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Select Phone Number</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {PHONE_NUMBERS.map((p, i) => (
-                  <button key={i} onClick={() => { setSettingsPhone(p); }}
-                    style={{ padding: '8px 16px', borderRadius: 6, border: settingsPhone.metaId === p.metaId ? '2px solid #1a3a2a' : '1px solid #ddd', background: settingsPhone.metaId === p.metaId ? '#f9fafb' : '#fff', cursor: 'pointer', fontSize: 13 }}>
-                    {p.name} ({p.display})
-                    {p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#1a3a2a' }}>Ready</span>}
-                    {!p.callingReady && <span style={{ marginLeft: 6, fontSize: 11, color: '#1a3a2a' }}>Needs 2K</span>}
+            {/* Phone selector */ }
+            <div style={ { ...s.card } }>
+              <div style={ { fontSize: 13, fontWeight: 600, marginBottom: 10 } }>Select Phone Number</div>
+              <div style={ { display: 'flex', gap: 8, flexWrap: 'wrap' } }>
+                { PHONE_NUMBERS.map( ( p, i ) => (
+                  <button key={ i } onClick={ () => { setSettingsPhone( p ); } }
+                    style={ { padding: '8px 16px', borderRadius: 6, border: settingsPhone.metaId === p.metaId ? '2px solid #1a3a2a' : '1px solid #ddd', background: settingsPhone.metaId === p.metaId ? '#f9fafb' : '#fff', cursor: 'pointer', fontSize: 13 } }>
+                    { p.name } ({ p.display })
+                    { p.callingReady && <span style={ { marginLeft: 6, fontSize: 11, color: '#1a3a2a' } }>Ready</span> }
+                    { !p.callingReady && <span style={ { marginLeft: 6, fontSize: 11, color: '#1a3a2a' } }>Needs 2K</span> }
                   </button>
-                ))}
+                ) ) }
               </div>
-              <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
-                Meta Phone ID: <code style={{ fontSize: 11 }}>{settingsPhone.metaId}</code> | Tier: {settingsPhone.tier} | Quality: {settingsPhone.quality}
+              <div style={ { marginTop: 8, fontSize: 12, color: '#6b7280' } }>
+                Meta Phone ID: <code style={ { fontSize: 11 } }>{ settingsPhone.metaId }</code> | Tier: { settingsPhone.tier } | Quality: { settingsPhone.quality }
               </div>
             </div>
 
-            {/* Settings Form */}
-            <div style={{ ...s.card, marginTop: 12 }}>
-              <h4 style={{ margin: '0 0 14px', fontSize: 14 }}>Calling Configuration</h4>
-              <div style={{ display: 'grid', gap: 16 }}>
-                {/* Call Icon Visibility */}
+            {/* Settings Form */ }
+            <div style={ { ...s.card, marginTop: 12 } }>
+              <h4 style={ { margin: '0 0 14px', fontSize: 14 } }>Calling Configuration</h4>
+              <div style={ { display: 'grid', gap: 16 } }>
+                {/* Call Icon Visibility */ }
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Call Icon Visibility</label>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                      <input type="radio" name="visibility" checked={callingVisibility === 'default'} onChange={() => setCallingVisibility('default')} style={{ accentColor: '#1a3a2a' }} />
+                  <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 } }>Call Icon Visibility</label>
+                  <div style={ { display: 'flex', gap: 12 } }>
+                    <label style={ { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' } }>
+                      <input type="radio" name="visibility" checked={ callingVisibility === 'default' } onChange={ () => setCallingVisibility( 'default' ) } style={ { accentColor: '#1a3a2a' } } />
                       <span>Default (show call icon)</span>
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                      <input type="radio" name="visibility" checked={callingVisibility === 'disable_all'} onChange={() => setCallingVisibility('disable_all')} style={{ accentColor: '#1a3a2a' }} />
+                    <label style={ { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' } }>
+                      <input type="radio" name="visibility" checked={ callingVisibility === 'disable_all' } onChange={ () => setCallingVisibility( 'disable_all' ) } style={ { accentColor: '#1a3a2a' } } />
                       <span>Disable All (hide call icon)</span>
                     </label>
                   </div>
                 </div>
 
-                {/* Country Restriction */}
+                {/* Country Restriction */ }
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Restrict to Countries (comma-separated ISO codes)</label>
-                  <input value={restrictCountries} onChange={e => setRestrictCountries(e.target.value)} placeholder="IN, AE, GB"
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 }} />
-                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>Only users in these countries will see the call icon. Leave empty for all countries.</div>
+                  <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 4 } }>Restrict to Countries (comma-separated ISO codes)</label>
+                  <input value={ restrictCountries } onChange={ e => setRestrictCountries( e.target.value ) } placeholder="IN, AE, GB"
+                    style={ { width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 14 } } />
+                  <div style={ { fontSize: 11, color: '#9ca3af', marginTop: 4 } }>Only users in these countries will see the call icon. Leave empty for all countries.</div>
                 </div>
 
-                {/* Business Call Hours */}
+                {/* Business Call Hours */ }
                 <div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, marginBottom: 8, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={callHoursEnabled} onChange={e => setCallHoursEnabled(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#1a3a2a' }} />
+                  <label style={ { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, marginBottom: 8, cursor: 'pointer' } }>
+                    <input type="checkbox" checked={ callHoursEnabled } onChange={ e => setCallHoursEnabled( e.target.checked ) } style={ { width: 16, height: 16, accentColor: '#1a3a2a' } } />
                     Enable Business Call Hours
                   </label>
-                  {callHoursEnabled && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginLeft: 24 }}>
+                  { callHoursEnabled && (
+                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginLeft: 24 } }>
                       <div>
-                        <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>Timezone</label>
-                        <select value={callHoursTimezone} onChange={e => setCallHoursTimezone(e.target.value)}
-                          style={{ width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}>
+                        <label style={ { display: 'block', fontSize: 12, color: '#666', marginBottom: 4 } }>Timezone</label>
+                        <select value={ callHoursTimezone } onChange={ e => setCallHoursTimezone( e.target.value ) }
+                          style={ { width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 } }>
                           <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
                           <option value="Asia/Dubai">Asia/Dubai (GST)</option>
                           <option value="Europe/London">Europe/London (GMT)</option>
@@ -1840,68 +1938,68 @@ const WhatsAppCallingPage: React.FC<PageProps> = ({ signOut, user, embedded = fa
                         </select>
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>From</label>
-                        <input type="time" value={callHoursFrom} onChange={e => setCallHoursFrom(e.target.value)}
-                          style={{ width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+                        <label style={ { display: 'block', fontSize: 12, color: '#666', marginBottom: 4 } }>From</label>
+                        <input type="time" value={ callHoursFrom } onChange={ e => setCallHoursFrom( e.target.value ) }
+                          style={ { width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 } } />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: 12, color: '#666', marginBottom: 4 }}>To</label>
-                        <input type="time" value={callHoursTo} onChange={e => setCallHoursTo(e.target.value)}
-                          style={{ width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+                        <label style={ { display: 'block', fontSize: 12, color: '#666', marginBottom: 4 } }>To</label>
+                        <input type="time" value={ callHoursTo } onChange={ e => setCallHoursTo( e.target.value ) }
+                          style={ { width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 } } />
                       </div>
                     </div>
-                  )}
-                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, marginLeft: callHoursEnabled ? 24 : 0 }}>
+                  ) }
+                  <div style={ { fontSize: 11, color: '#9ca3af', marginTop: 4, marginLeft: callHoursEnabled ? 24 : 0 } }>
                     Same hours applied to all days (Sun-Sat). Outside these hours, users see a "message instead" prompt.
                   </div>
                 </div>
               </div>
 
-              {/* Save Button */}
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 20 }}>
-                <button onClick={saveCallingSettings} disabled={savingSettings}
-                  style={{ padding: '10px 24px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
-                  {savingSettings ? 'Saving...' : 'Enable Calling / Save Settings'}
+              {/* Save Button */ }
+              <div style={ { display: 'flex', gap: 12, alignItems: 'center', marginTop: 20 } }>
+                <button onClick={ saveCallingSettings } disabled={ savingSettings }
+                  style={ { padding: '10px 24px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 } }>
+                  { savingSettings ? 'Saving...' : 'Enable Calling / Save Settings' }
                 </button>
-                <button onClick={loadCallingSettings} disabled={loadingSettings}
-                  style={{ padding: '10px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>
-                  {loadingSettings ? 'Loading...' : 'Refresh Current Settings'}
+                <button onClick={ loadCallingSettings } disabled={ loadingSettings }
+                  style={ { padding: '10px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, cursor: 'pointer', fontSize: 13 } }>
+                  { loadingSettings ? 'Loading...' : 'Refresh Current Settings' }
                 </button>
               </div>
             </div>
 
-            {/* Current Settings Response */}
-            {callingSettingsResult && (
-              <div style={{ ...s.card, marginTop: 12 }}>
-                <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>Current Settings (from Meta API)</h4>
-                <pre style={{ background: '#1e293b', color: '#e2e8f0', padding: 14, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 250 }}>
-                  {JSON.stringify(callingSettingsResult, null, 2)}
+            {/* Current Settings Response */ }
+            { callingSettingsResult && (
+              <div style={ { ...s.card, marginTop: 12 } }>
+                <h4 style={ { margin: '0 0 8px', fontSize: 14 } }>Current Settings (from Meta API)</h4>
+                <pre style={ { background: '#1e293b', color: '#e2e8f0', padding: 14, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 250 } }>
+                  { JSON.stringify( callingSettingsResult, null, 2 ) }
                 </pre>
               </div>
-            )}
+            ) }
 
-            {/* API Reference */}
-            <div style={{ ...s.card, marginTop: 12 }}>
-              <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>API Reference</h4>
-              <div style={{ fontSize: 13, color: '#666', lineHeight: 1.8 }}>
-                <div>Enable calling: <code style={{ fontSize: 12, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>POST /{'{phone-number-id}'}/settings</code> with <code>calling</code> object</div>
-                <div>call_icon_visibility: <code style={{ fontSize: 12 }}>"default"</code> (show) or <code style={{ fontSize: 12 }}>"disable_all"</code> (hide)</div>
+            {/* API Reference */ }
+            <div style={ { ...s.card, marginTop: 12 } }>
+              <h4 style={ { margin: '0 0 8px', fontSize: 14 } }>API Reference</h4>
+              <div style={ { fontSize: 13, color: '#666', lineHeight: 1.8 } }>
+                <div>Enable calling: <code style={ { fontSize: 12, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 } }>POST /{ '{phone-number-id}' }/settings</code> with <code>calling</code> object</div>
+                <div>call_icon_visibility: <code style={ { fontSize: 12 } }>"default"</code> (show) or <code style={ { fontSize: 12 } }>"disable_all"</code> (hide)</div>
                 <div>restrict_to_user_countries: Array of ISO country codes (e.g. ["IN", "AE"])</div>
                 <div>call_hours: Timezone + per-day schedule with from/to times</div>
-                <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/calling/call-control" target="_blank" rel="noopener noreferrer" style={{ color: '#1a3a2a' }}>Call Control Settings ↗</a></div>
+                <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/calling/call-control" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a' } }>Call Control Settings ↗</a></div>
               </div>
             </div>
           </div>
-        )}
+        ) }
       </div>
     </>
   );
 
-  if (embedded) return content;
+  if ( embedded ) return content;
 
   return (
-    <Layout user={user} onSignOut={signOut}>
-      {content}
+    <Layout user={ user } onSignOut={ signOut }>
+      { content }
     </Layout>
   );
 };

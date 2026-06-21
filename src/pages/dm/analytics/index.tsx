@@ -54,6 +54,47 @@ const AnalyticsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         return { per, total };
     }, [ messages ] );
 
+    // ── Call analytics — computed from channel=voice breadcrumbs (AWS / Airtel / WhatsApp) ──
+    const callStats = useMemo( () => {
+        const wk = Date.now() - 7 * 86400000;
+        const calls = messages.filter( m => ( m.channel || '' ).toLowerCase() === 'voice' );
+        const isAnswered = ( m: api.Message ) => {
+            const st = ( m.status || '' ).toLowerCase();
+            return ( m.duration || 0 ) > 0 || st === 'completed' || st === 'answered' || st === 'connected';
+        };
+        const byProv: Record<string, { total: number; answered: number; durSum: number }> = {};
+        let total = 0, inbound = 0, outbound = 0, answered = 0, durSum = 0, week = 0;
+        for ( const m of calls )
+        {
+            total++;
+            ( ( m.direction || '' ).toUpperCase() === 'OUTBOUND' ) ? outbound++ : inbound++;
+            const ans = isAnswered( m );
+            if ( ans ) { answered++; durSum += ( m.duration || 0 ); }
+            if ( ( new Date( m.timestamp ).getTime() || 0 ) >= wk ) week++;
+            const prov = ( m.callType || 'other' ).toLowerCase();
+            if ( !byProv[ prov ] ) byProv[ prov ] = { total: 0, answered: 0, durSum: 0 };
+            byProv[ prov ].total++;
+            if ( ans ) { byProv[ prov ].answered++; byProv[ prov ].durSum += ( m.duration || 0 ); }
+        }
+        return {
+            total, inbound, outbound, answered, week,
+            pickupRate: total > 0 ? Math.round( ( answered / total ) * 100 ) : 0,
+            avgDuration: answered > 0 ? Math.round( durSum / answered ) : 0,
+            byProv,
+        };
+    }, [ messages ] );
+
+    const fmtDur = ( s: number ) => {
+        if ( !s ) return '0:00';
+        const m = Math.floor( s / 60 ), sec = s % 60;
+        return `${m}:${String( sec ).padStart( 2, '0' )}`;
+    };
+    const PROV_META: Record<string, { label: string; fg: string }> = {
+        aws: { label: 'AWS', fg: '#1d4ed8' },
+        airtel: { label: 'Airtel', fg: '#b91c1c' },
+        whatsapp: { label: 'WhatsApp', fg: '#15803d' },
+    };
+
     const maxTotal = Math.max( 1, ...CH.map( c => stats.per[ c ]?.total || 0 ) );
 
     const content = (
@@ -91,6 +132,31 @@ const AnalyticsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                 );
                             } ) }
                         </div>
+
+                        <div className="an-section">Call analytics</div>
+                        <div className="an-cards">
+                            <div className="an-card"><div className="an-num">{ callStats.total }</div><div className="an-lbl">Total calls</div><div className="an-rate">{ callStats.week } this week</div></div>
+                            <div className="an-card"><div className="an-num">{ callStats.pickupRate }%</div><div className="an-lbl">Pickup rate</div><div className="an-rate">{ callStats.answered } / { callStats.total } answered</div></div>
+                            <div className="an-card"><div className="an-num">{ fmtDur( callStats.avgDuration ) }</div><div className="an-lbl">Avg duration</div><div className="an-rate">answered calls</div></div>
+                            <div className="an-card"><div className="an-num">{ callStats.inbound }↓ / { callStats.outbound }↑</div><div className="an-lbl">In / Out</div></div>
+                        </div>
+                        { callStats.total > 0 && (
+                            <div className="an-bars" style={ { marginTop: '6px' } }>
+                                { Object.keys( callStats.byProv ).sort( ( a, b ) => callStats.byProv[ b ].total - callStats.byProv[ a ].total ).map( prov => {
+                                    const p = callStats.byProv[ prov ];
+                                    const meta = PROV_META[ prov ] || { label: prov.charAt( 0 ).toUpperCase() + prov.slice( 1 ), fg: colors.textMuted };
+                                    const pick = p.total > 0 ? Math.round( ( p.answered / p.total ) * 100 ) : 0;
+                                    const avg = p.answered > 0 ? Math.round( p.durSum / p.answered ) : 0;
+                                    return (
+                                        <div key={ prov } className="an-bar-row">
+                                            <span className="an-bar-label" style={ { color: meta.fg, fontWeight: 600 } }>{ meta.label }</span>
+                                            <div className="an-bar-track"><div className="an-bar-fill" style={ { width: `${( p.total / callStats.total ) * 100}%`, background: meta.fg } } /></div>
+                                            <span className="an-bar-val">{ p.total } <span className="an-bar-sub">({ pick }% pickup · { fmtDur( avg ) } avg)</span></span>
+                                        </div>
+                                    );
+                                } ) }
+                            </div>
+                        ) }
                     </>
                 ) }
             </div>
