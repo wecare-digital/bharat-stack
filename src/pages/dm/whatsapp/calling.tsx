@@ -240,10 +240,18 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
         } ),
       } );
       const data = await res.json();
-      if ( data.success )
+      const alreadyGranted = data?.result?.errorCode === 138017 || JSON.stringify( data?.result || '' ).includes( '138017' );
+      if ( data.success || alreadyGranted )
       {
         setOutboundStep( 'permission_sent' );
-        toast.success( 'Permission request sent — waiting for user to accept' );
+        if ( alreadyGranted )
+        {
+          setOutboundPermStatus( 'permanent' );
+          toast.success( 'Already approved by this user — you can Call Now' );
+        } else
+        {
+          toast.success( 'Permission request sent — waiting for user to accept' );
+        }
       } else
       {
         setOutboundError( JSON.stringify( data.error || data.result || 'Failed' ) );
@@ -309,10 +317,18 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
         } ),
       } );
       const data = await res.json();
-      if ( data.success )
+      const alreadyGranted = data?.result?.errorCode === 138017 || JSON.stringify( data?.result || '' ).includes( '138017' );
+      if ( data.success || alreadyGranted )
       {
         setOutboundStep( 'permission_sent' );
-        toast.success( 'Permission template sent — waiting for user to accept' );
+        if ( alreadyGranted )
+        {
+          setOutboundPermStatus( 'permanent' );
+          toast.success( 'Already approved by this user — you can Call Now' );
+        } else
+        {
+          toast.success( 'Permission template sent — waiting for user to accept' );
+        }
       } else
       {
         const detail = JSON.stringify( data.result || data.error || 'Failed' );
