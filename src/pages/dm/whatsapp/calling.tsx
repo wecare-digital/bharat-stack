@@ -204,10 +204,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
   const [ settingsPhone, setSettingsPhone ] = useState( PHONE_NUMBERS[ 1 ] ); // default to calling-ready number
   const [ callingVisibility, setCallingVisibility ] = useState<'default' | 'disable_all'>( 'default' );
   const [ restrictCountries, setRestrictCountries ] = useState( 'IN' );
-  const [ callHoursEnabled, setCallHoursEnabled ] = useState( true );
-  const [ callHoursTimezone, setCallHoursTimezone ] = useState( 'Asia/Kolkata' );
-  const [ callHoursFrom, setCallHoursFrom ] = useState( '09:00' );
-  const [ callHoursTo, setCallHoursTo ] = useState( '21:00' );
+  // Call hours are always disabled (24/7) — no UI state needed
   const [ savingSettings, setSavingSettings ] = useState( false );
   const [ callingSettingsResult, setCallingSettingsResult ] = useState<any>( null );
   const [ loadingSettings, setLoadingSettings ] = useState( false );
@@ -440,15 +437,14 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
       {
         settings.restrictToCountries = restrictCountries.split( ',' ).map( ( c: string ) => c.trim() ).filter( Boolean );
       }
-      if ( callHoursEnabled )
-      {
-        const daySchedule = [ { from: callHoursFrom, to: callHoursTo } ];
-        settings.callHours = {
-          timezone: callHoursTimezone,
-          sun: daySchedule, mon: daySchedule, tue: daySchedule,
-          wed: daySchedule, thu: daySchedule, fri: daySchedule, sat: daySchedule,
-        };
-      }
+      // Call hours disabled at Meta → calls accepted 24/7, every day.
+      // Meta's schema still requires timezone_id + weekly_operating_hours even when DISABLED.
+      settings.callHours = {
+        status: 'DISABLED',
+        timezone_id: 'Asia/Kolkata',
+        weekly_operating_hours: [ 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY' ]
+          .map( d => ( { day_of_week: d, open_time: '0000', close_time: '2359' } ) ),
+      };
       const ok = await api.updateCallingSettings( settingsPhone.metaId, settings );
       if ( ok ) { toast.success( 'Calling settings updated' ); loadCallingSettings(); }
       else toast.error( 'Failed to update calling settings' );
@@ -1919,38 +1915,14 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                   <div style={ { fontSize: 11, color: '#9ca3af', marginTop: 4 } }>Only users in these countries will see the call icon. Leave empty for all countries.</div>
                 </div>
 
-                {/* Business Call Hours */ }
+                {/* Call availability — always 24/7 (call_hours disabled at Meta) */ }
                 <div>
-                  <label style={ { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, marginBottom: 8, cursor: 'pointer' } }>
-                    <input type="checkbox" checked={ callHoursEnabled } onChange={ e => setCallHoursEnabled( e.target.checked ) } style={ { width: 16, height: 16, accentColor: '#1a3a2a' } } />
-                    Enable Business Call Hours
+                  <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 8 } }>
+                    Call Availability
                   </label>
-                  { callHoursEnabled && (
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginLeft: 24 } }>
-                      <div>
-                        <label style={ { display: 'block', fontSize: 12, color: '#666', marginBottom: 4 } }>Timezone</label>
-                        <select value={ callHoursTimezone } onChange={ e => setCallHoursTimezone( e.target.value ) }
-                          style={ { width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 } }>
-                          <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                          <option value="Asia/Dubai">Asia/Dubai (GST)</option>
-                          <option value="Europe/London">Europe/London (GMT)</option>
-                          <option value="America/New_York">America/New_York (EST)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style={ { display: 'block', fontSize: 12, color: '#666', marginBottom: 4 } }>From</label>
-                        <input type="time" value={ callHoursFrom } onChange={ e => setCallHoursFrom( e.target.value ) }
-                          style={ { width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 } } />
-                      </div>
-                      <div>
-                        <label style={ { display: 'block', fontSize: 12, color: '#666', marginBottom: 4 } }>To</label>
-                        <input type="time" value={ callHoursTo } onChange={ e => setCallHoursTo( e.target.value ) }
-                          style={ { width: '100%', padding: '6px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 } } />
-                      </div>
-                    </div>
-                  ) }
-                  <div style={ { fontSize: 11, color: '#9ca3af', marginTop: 4, marginLeft: callHoursEnabled ? 24 : 0 } }>
-                    Same hours applied to all days (Sun-Sat). Outside these hours, users see a "message instead" prompt.
+                  <div style={ { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8 } }>
+                    <span style={ { fontSize: 12, fontWeight: 700, color: '#166534', background: '#dcfce7', padding: '2px 8px', borderRadius: 9999 } }>24 / 7</span>
+                    <span style={ { fontSize: 12, color: '#166534' } }>Calls accepted at any time, every day. Business call hours are disabled.</span>
                   </div>
                 </div>
               </div>
