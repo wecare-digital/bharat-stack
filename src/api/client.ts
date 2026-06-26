@@ -5488,3 +5488,145 @@ export async function addConversationNote ( conversationId: string, text: string
   } );
   return data?.meta || null;
 }
+
+// ============================================================================
+// WA GRAPH ADMIN MODULES (schedules, commerce, QR, conversational automation,
+// link preview, assigned users/WABAs, bot details, AI pricing policy)
+// ============================================================================
+
+export interface CampaignSchedule {
+  id?: string;
+  name?: string;
+  description?: string;
+  delivery_time?: number;
+  status?: 'COMPLETED' | 'FAILED' | 'SCHEDULED' | 'SENDING';
+}
+
+export async function listSchedules ( wabaId: string ): Promise<CampaignSchedule[]> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/schedules?wabaId=${encodeURIComponent( wabaId )}` );
+  return data?.schedules || [];
+}
+
+export async function createSchedule ( wabaId: string, body: Record<string, unknown> ): Promise<{ success: boolean; id?: string; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/schedules`, {
+    method: 'POST',
+    body: JSON.stringify( { wabaId, ...body } ),
+  } );
+  if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
+  return { success: true, id: data?.id };
+}
+
+export interface CommerceSettings { is_cart_enabled?: boolean; is_catalog_visible?: boolean; id?: string; }
+
+export async function getCommerceSettings ( phoneId: string ): Promise<CommerceSettings> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/commerce-settings?phoneId=${phoneId}` );
+  return data?.commerceSettings || {};
+}
+
+export async function updateCommerceSettings ( phoneId: string, settings: CommerceSettings ): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/commerce-settings`, {
+    method: 'POST',
+    body: JSON.stringify( { phoneId, ...settings } ),
+  } );
+  if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
+  return { success: true };
+}
+
+export interface QrCode { code: string; prefilled_message: string; deep_link_url: string; qr_image_url?: string; }
+
+export async function listQrCodes ( phoneId: string ): Promise<QrCode[]> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/qr-codes?phoneId=${phoneId}&fields=${encodeURIComponent( 'code,prefilled_message,deep_link_url,qr_image_url.format(PNG)' )}` );
+  return data?.qrCodes || [];
+}
+
+export async function createQrCode ( phoneId: string, prefilledMessage: string, format: 'PNG' | 'SVG' = 'PNG' ): Promise<{ success: boolean; qrCode?: QrCode; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/qr-codes`, {
+    method: 'POST',
+    body: JSON.stringify( { phoneId, prefilled_message: prefilledMessage, generate_qr_image: format } ),
+  } );
+  if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
+  return { success: true, qrCode: data?.qrCode };
+}
+
+export async function deleteQrCode ( phoneId: string, qrId: string ): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/qr-codes?phoneId=${phoneId}&qrId=${qrId}`, { method: 'DELETE' } );
+  if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
+  return { success: true };
+}
+
+export interface BotCommand { command_name: string; command_description: string; }
+
+export async function configureConversationalAutomation (
+  phoneId: string,
+  config: { enable_welcome_message?: boolean; prompts?: string[]; commands?: BotCommand[] }
+): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/conversational-automation`, {
+    method: 'POST',
+    body: JSON.stringify( { phoneId, ...config } ),
+  } );
+  if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
+  return { success: true };
+}
+
+export interface LinkPreviewResult { url: string; ok: boolean; og: Record<string, string>; warnings: string[]; note?: string; }
+
+export async function checkLinkPreview ( url: string ): Promise<LinkPreviewResult> {
+  return apiCall<LinkPreviewResult>( `${WA_BIZ_BASE}/link-preview`, {
+    method: 'POST',
+    body: JSON.stringify( { url } ),
+  } );
+}
+
+export interface AssignedUser { id: string; name: string; user_type?: string; }
+
+export async function listAssignedUsers ( wabaId: string, business: string ): Promise<{ users: AssignedUser[]; total: number }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/assigned-users?wabaId=${wabaId}&business=${encodeURIComponent( business )}` );
+  return { users: data?.users || data?.data || [], total: data?.summary?.total_count || 0 };
+}
+
+export async function addAssignedUser ( wabaId: string, user: string, tasks: string[] ): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/assigned-users`, {
+    method: 'POST', body: JSON.stringify( { wabaId, user, tasks } ),
+  } );
+  if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
+  return { success: true };
+}
+
+export async function removeAssignedUser ( wabaId: string, user: string ): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/assigned-users?wabaId=${wabaId}`, {
+    method: 'DELETE', body: JSON.stringify( { wabaId, user } ),
+  } );
+  if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
+  return { success: true };
+}
+
+export async function listAssignedWabas ( userId: string ): Promise<Array<{ id: string; name?: string }>> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/assigned-wabas?userId=${userId}` );
+  return data?.wabas || [];
+}
+
+export interface AiPolicyMarket { countryCode: string; country?: string; effectiveDate?: string; active?: boolean; note?: string; }
+
+export async function listAiPolicyMarkets (): Promise<{ markets: AiPolicyMarket[]; activeCount: number; analyticsPricingCategory: string; webhookPricingCategory: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/ai-pricing-policy` );
+  return {
+    markets: data?.markets || [],
+    activeCount: data?.activeCount || 0,
+    analyticsPricingCategory: data?.analyticsPricingCategory || 'AI_BOT',
+    webhookPricingCategory: data?.webhookPricingCategory || 'general_purpose_ai',
+  };
+}
+
+export async function upsertAiPolicyMarket ( market: AiPolicyMarket ): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/ai-pricing-policy`, {
+    method: 'POST', body: JSON.stringify( market ),
+  } );
+  if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
+  return { success: true };
+}
+
+export async function deleteAiPolicyMarket ( countryCode: string ): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/ai-pricing-policy?countryCode=${encodeURIComponent( countryCode )}`, { method: 'DELETE' } );
+  if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
+  return { success: true };
+}

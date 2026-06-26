@@ -242,8 +242,11 @@ def _send_direct_api_reaction(to_number: str, whatsapp_message_id: str, emoji: s
     return _send_direct_api_message(to_number, payload)
 
 
-def _send_direct_api_read_receipt(whatsapp_message_id: str, meta_phone_id: str = None) -> Dict:
-    """Send a read receipt via Meta Graph API for Direct API phones."""
+def _send_direct_api_read_receipt(whatsapp_message_id: str, meta_phone_id: str = None, show_typing: bool = False) -> Dict:
+    """Send a read receipt via Meta Graph API for Direct API phones.
+    When show_typing=True, also displays the in-app typing indicator (auto-dismisses
+    when you reply or after 25s) — per Meta's typing_indicator API. Only use when a
+    reply will follow."""
     token = _load_direct_api_token()
     if not token:
         return {'error': True, 'detail': 'No Direct API token available'}
@@ -252,6 +255,8 @@ def _send_direct_api_read_receipt(whatsapp_message_id: str, meta_phone_id: str =
         'status': 'read',
         'message_id': whatsapp_message_id
     }
+    if show_typing:
+        payload['typing_indicator'] = {'type': 'text'}
     phone_id = meta_phone_id or _current_direct_api_phone or PHONE1_META_ID
     url = f"https://graph.facebook.com/{META_API_VERSION}/{phone_id}/messages"
     app_secret = _direct_api_token_cache.get('app_secret', '')
@@ -269,13 +274,13 @@ def _send_direct_api_read_receipt(whatsapp_message_id: str, meta_phone_id: str =
         return {'error': True, 'detail': str(e)}
 
 
-def _send_direct_api_typing(to_number: str) -> Dict:
-    """Send typing indicator via Meta Graph API via Direct API.
-    Uses read receipt as proxy since Meta doesn't expose typing via API."""
-    # Meta doesn't have a public typing indicator API for Cloud API.
-    # We use read receipt as the closest proxy.
-    # This is a no-op placeholder  -  the read receipt already signals engagement.
-    return {'success': True, 'note': 'typing_proxy_via_read_receipt'}
+def _send_direct_api_typing(whatsapp_message_id: str, meta_phone_id: str = None) -> Dict:
+    """Show the WhatsApp typing indicator via Meta's real typing_indicator API.
+    Marks the message read and displays 'typing…' (auto-dismisses on reply or after 25s).
+    Requires the inbound WhatsApp message_id."""
+    if not whatsapp_message_id:
+        return {'error': True, 'detail': 'whatsapp_message_id required for typing indicator'}
+    return _send_direct_api_read_receipt(whatsapp_message_id, meta_phone_id=meta_phone_id, show_typing=True)
 
 
 def _download_media_direct_api(whatsapp_media_id: str, message_id: str, media_type: str,
@@ -1154,7 +1159,7 @@ def _process_message(
             except Exception as e:
                 logger.warning(f"Direct API auto-reaction failed: {e}")
             try:
-                _send_direct_api_read_receipt(whatsapp_message_id)
+                _send_direct_api_read_receipt(whatsapp_message_id, show_typing=True)
                 logger.info(json.dumps({
                     'event': 'read_receipt_sent_direct_api',
                     'whatsappMessageId': whatsapp_message_id,

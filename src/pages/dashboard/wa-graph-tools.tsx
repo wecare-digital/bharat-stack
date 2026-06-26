@@ -1,0 +1,403 @@
+/**
+ * WhatsApp Graph Admin Tools
+ * One hub for the WhatsApp Business Platform admin modules that proxy the Meta Graph API:
+ * Campaign Schedules, Commerce Settings, QR Codes, Conversational Automation,
+ * Link Preview Validator, Assigned Users, and AI-Provider Pricing Policy.
+ */
+import React, { useState, useEffect, useCallback } from 'react';
+import Layout from '../../components/Layout';
+import SEO from '../../components/SEO';
+import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
+import { useToastContext } from '../../contexts/ToastContext';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import * as api from '../../api/client';
+import { WHATSAPP_PHONES } from '../../config/constants';
+
+interface PageProps { signOut?: () => void; user?: any; }
+
+const PHONES = [
+    { label: `WABA 1 · ${WHATSAPP_PHONES.primary.name}`, phoneId: WHATSAPP_PHONES.primary.metaPhoneId, wabaId: WHATSAPP_PHONES.primary.wabaId },
+    { label: `WABA 2 · ${WHATSAPP_PHONES.secondary.name}`, phoneId: WHATSAPP_PHONES.secondary.metaPhoneId, wabaId: WHATSAPP_PHONES.secondary.wabaId },
+];
+
+const TABS = [
+    'Schedules', 'Commerce', 'QR Codes', 'Conversational Automation',
+    'Link Preview', 'Assigned Users', 'AI Pricing Policy',
+] as const;
+type Tab = typeof TABS[ number ];
+
+const card: React.CSSProperties = { border: '1px solid var(--border)', borderRadius: 12, padding: 20, background: 'var(--surface)', marginBottom: 16 };
+const input: React.CSSProperties = { width: '100%', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 'var(--text-md)', marginTop: 4 };
+const label: React.CSSProperties = { fontSize: 'var(--text-sm)', color: 'var(--text-muted)', display: 'block' };
+
+export default function WAGraphTools ( { signOut, user }: PageProps ) {
+    const toast = useToastContext();
+    const confirm = useConfirm();
+    const [ tab, setTab ] = useState<Tab>( 'Schedules' );
+    const [ phoneIdx, setPhoneIdx ] = useState( 0 );
+    const phone = PHONES[ phoneIdx ];
+
+    return (
+        <Layout onSignOut={ signOut } user={ user }>
+            <SEO title="WA Graph Tools" description="WhatsApp Business Platform admin tools" />
+            <div style={ { padding: 24, maxWidth: 1000 } }>
+                <h1 style={ { fontSize: 'var(--h2)', fontWeight: 600, margin: 0 } }>WhatsApp Graph Admin Tools</h1>
+                <p style={ { color: 'var(--text-secondary)', marginTop: 8 } }>
+                    Manage Meta Graph API features for your WhatsApp Business accounts. All calls run server-side with secure token handling.
+                </p>
+
+                {/* Account selector */ }
+                <div style={ { ...card, display: 'flex', gap: 16, alignItems: 'center' } }>
+                    <label style={ label }>Account</label>
+                    <select value={ phoneIdx } onChange={ e => setPhoneIdx( Number( e.target.value ) ) } style={ { ...input, width: 320, marginTop: 0 } }>
+                        { PHONES.map( ( p, i ) => <option key={ p.phoneId } value={ i }>{ p.label }</option> ) }
+                    </select>
+                    <span style={ { color: 'var(--text-muted)', fontSize: 'var(--text-sm)' } }>
+                        phoneId { phone.phoneId } · wabaId { phone.wabaId }
+                    </span>
+                </div>
+
+                {/* Tabs */ }
+                <div style={ { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 } }>
+                    { TABS.map( t => (
+                        <button key={ t } onClick={ () => setTab( t ) } style={ {
+                            padding: '6px 14px', borderRadius: 8, cursor: 'pointer',
+                            border: `1px solid ${tab === t ? 'var(--accent)' : 'var(--border)'}`,
+                            background: tab === t ? 'var(--accent-light, #eef2ff)' : 'var(--bg-secondary)',
+                            fontWeight: tab === t ? 600 : 400, fontSize: 'var(--text-sm)',
+                        } }>{ t }</button>
+                    ) ) }
+                </div>
+
+                { tab === 'Schedules' && <SchedulesTab wabaId={ phone.wabaId } toast={ toast } /> }
+                { tab === 'Commerce' && <CommerceTab phoneId={ phone.phoneId } toast={ toast } /> }
+                { tab === 'QR Codes' && <QrTab phoneId={ phone.phoneId } toast={ toast } confirm={ confirm } /> }
+                { tab === 'Conversational Automation' && <ConvAutomationTab phoneId={ phone.phoneId } toast={ toast } /> }
+                { tab === 'Link Preview' && <LinkPreviewTab toast={ toast } /> }
+                { tab === 'Assigned Users' && <AssignedUsersTab wabaId={ phone.wabaId } toast={ toast } confirm={ confirm } /> }
+                { tab === 'AI Pricing Policy' && <AiPolicyTab toast={ toast } confirm={ confirm } /> }
+            </div>
+        </Layout>
+    );
+}
+
+// ── Schedules ──
+function SchedulesTab ( { wabaId, toast }: { wabaId: string; toast: any } ) {
+    const [ rows, setRows ] = useState<api.CampaignSchedule[]>( [] );
+    const [ loading, setLoading ] = useState( false );
+    const [ form, setForm ] = useState( { hsm_id: '', audience_id: '', waba_cs_id: '', name: '', description: '', delivery_time: '' } );
+    const [ saving, setSaving ] = useState( false );
+
+    const load = useCallback( async () => {
+        setLoading( true );
+        try { setRows( await api.listSchedules( wabaId ) ); }
+        catch ( e: any ) { toast.error( e.message || 'Failed to load schedules' ); }
+        finally { setLoading( false ); }
+    }, [ wabaId, toast ] );
+    useEffect( () => { load(); }, [ load ] );
+
+    const create = async () => {
+        if ( !form.hsm_id || !form.audience_id || !form.waba_cs_id || !form.name || !form.description || !form.delivery_time )
+        {
+            toast.error( 'All fields are required' ); return;
+        }
+        setSaving( true );
+        try
+        {
+            const res = await api.createSchedule( wabaId, { ...form, delivery_time: Math.floor( new Date( form.delivery_time ).getTime() / 1000 ) } );
+            if ( res.success ) { toast.success( 'Schedule created' ); setForm( { hsm_id: '', audience_id: '', waba_cs_id: '', name: '', description: '', delivery_time: '' } ); load(); }
+            else toast.error( res.error || 'Failed to create schedule' );
+        } finally { setSaving( false ); }
+    };
+
+    return (
+        <div style={ card }>
+            <h3>Campaign Schedules</h3>
+            { loading ? <Spinner /> : (
+                <table style={ { width: '100%', fontSize: 'var(--text-sm)', borderCollapse: 'collapse', marginBottom: 16 } }>
+                    <thead><tr style={ { textAlign: 'left', color: 'var(--text-muted)' } }><th>Name</th><th>Delivery</th><th>Status</th></tr></thead>
+                    <tbody>
+                        { rows.length === 0 && <tr><td colSpan={ 3 } style={ { color: 'var(--text-muted)', padding: 8 } }>No schedules</td></tr> }
+                        { rows.map( r => (
+                            <tr key={ r.id } style={ { borderTop: '1px solid var(--border-light)' } }>
+                                <td style={ { padding: 6 } }>{ r.name }</td>
+                                <td>{ r.delivery_time ? new Date( r.delivery_time * 1000 ).toLocaleString() : '—' }</td>
+                                <td>{ r.status }</td>
+                            </tr>
+                        ) ) }
+                    </tbody>
+                </table>
+            ) }
+            <h4>Create schedule</h4>
+            <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 } }>
+                { ( [ 'name', 'description', 'hsm_id', 'audience_id', 'waba_cs_id' ] as const ).map( k => (
+                    <div key={ k }><label style={ label }>{ k }</label>
+                        <input style={ input } value={ ( form as any )[ k ] } onChange={ e => setForm( { ...form, [ k ]: e.target.value } ) } /></div>
+                ) ) }
+                <div><label style={ label }>delivery_time</label>
+                    <input type="datetime-local" style={ input } value={ form.delivery_time } onChange={ e => setForm( { ...form, delivery_time: e.target.value } ) } /></div>
+            </div>
+            <div style={ { marginTop: 12 } }><Button variant="primary" onClick={ create } loading={ saving }>Create Schedule</Button></div>
+        </div>
+    );
+}
+
+// ── Commerce ──
+function CommerceTab ( { phoneId, toast }: { phoneId: string; toast: any } ) {
+    const [ s, setS ] = useState<api.CommerceSettings>( {} );
+    const [ loading, setLoading ] = useState( false );
+    const [ saving, setSaving ] = useState( false );
+    const load = useCallback( async () => {
+        setLoading( true );
+        try { setS( await api.getCommerceSettings( phoneId ) ); } catch ( e: any ) { toast.error( e.message ); } finally { setLoading( false ); }
+    }, [ phoneId, toast ] );
+    useEffect( () => { load(); }, [ load ] );
+    const save = async () => {
+        setSaving( true );
+        try
+        {
+            const res = await api.updateCommerceSettings( phoneId, { is_cart_enabled: !!s.is_cart_enabled, is_catalog_visible: !!s.is_catalog_visible } );
+            res.success ? toast.success( 'Commerce settings saved' ) : toast.error( res.error || 'Failed' );
+        } finally { setSaving( false ); }
+    };
+    return (
+        <div style={ card }>
+            <h3>Commerce Settings</h3>
+            { loading ? <Spinner /> : (
+                <>
+                    <label style={ { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 } }>
+                        <input type="checkbox" checked={ !!s.is_cart_enabled } onChange={ e => setS( { ...s, is_cart_enabled: e.target.checked } ) } /> Cart enabled
+                    </label>
+                    <label style={ { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 } }>
+                        <input type="checkbox" checked={ !!s.is_catalog_visible } onChange={ e => setS( { ...s, is_catalog_visible: e.target.checked } ) } /> Catalog visible
+                    </label>
+                    <Button variant="primary" onClick={ save } loading={ saving }>Save</Button>
+                </>
+            ) }
+        </div>
+    );
+}
+
+// ── QR Codes ──
+function QrTab ( { phoneId, toast, confirm }: { phoneId: string; toast: any; confirm: any } ) {
+    const [ rows, setRows ] = useState<api.QrCode[]>( [] );
+    const [ loading, setLoading ] = useState( false );
+    const [ msg, setMsg ] = useState( '' );
+    const [ saving, setSaving ] = useState( false );
+    const load = useCallback( async () => {
+        setLoading( true );
+        try { setRows( await api.listQrCodes( phoneId ) ); } catch ( e: any ) { toast.error( e.message ); } finally { setLoading( false ); }
+    }, [ phoneId, toast ] );
+    useEffect( () => { load(); }, [ load ] );
+    const create = async () => {
+        if ( !msg.trim() ) { toast.error( 'Prefilled message required' ); return; }
+        setSaving( true );
+        try { const r = await api.createQrCode( phoneId, msg.trim() ); r.success ? ( toast.success( 'QR created' ), setMsg( '' ), load() ) : toast.error( r.error || 'Failed' ); }
+        finally { setSaving( false ); }
+    };
+    const del = async ( code: string ) => {
+        if ( !( await confirm( { title: 'Delete QR code', message: 'This invalidates the deep link permanently.', danger: true, confirmText: 'Delete' } ) ) ) return;
+        const r = await api.deleteQrCode( phoneId, code ); r.success ? ( toast.success( 'Deleted' ), load() ) : toast.error( r.error || 'Failed' );
+    };
+    return (
+        <div style={ card }>
+            <h3>Message QR Codes</h3>
+            <div style={ { display: 'flex', gap: 8, marginBottom: 16 } }>
+                <input style={ { ...input, marginTop: 0 } } placeholder="Prefilled message" value={ msg } onChange={ e => setMsg( e.target.value ) } />
+                <Button variant="primary" onClick={ create } loading={ saving }>Create</Button>
+            </div>
+            { loading ? <Spinner /> : rows.map( q => (
+                <div key={ q.code } style={ { display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid var(--border-light)', padding: '8px 0' } }>
+                    { q.qr_image_url && <img src={ q.qr_image_url } alt="qr" width={ 48 } height={ 48 } /> }
+                    <div style={ { flex: 1 } }>
+                        <div style={ { fontFamily: 'var(--font-mono)' } }>{ q.code }</div>
+                        <div style={ { fontSize: 'var(--text-sm)', color: 'var(--text-muted)' } }>{ q.prefilled_message }</div>
+                    </div>
+                    <Button variant="danger" size="sm" onClick={ () => del( q.code ) }>Delete</Button>
+                </div>
+            ) ) }
+            { !loading && rows.length === 0 && <p style={ { color: 'var(--text-muted)' } }>No QR codes</p> }
+        </div>
+    );
+}
+
+// ── Conversational Automation ──
+function ConvAutomationTab ( { phoneId, toast }: { phoneId: string; toast: any } ) {
+    const [ welcome, setWelcome ] = useState( true );
+    const [ prompts, setPrompts ] = useState( '' );
+    const [ commands, setCommands ] = useState<api.BotCommand[]>( [ { command_name: '', command_description: '' } ] );
+    const [ saving, setSaving ] = useState( false );
+    const save = async () => {
+        const promptList = prompts.split( '\n' ).map( p => p.trim() ).filter( Boolean ).slice( 0, 4 );
+        const cmds = commands.filter( c => c.command_name && c.command_description );
+        setSaving( true );
+        try
+        {
+            const r = await api.configureConversationalAutomation( phoneId, { enable_welcome_message: welcome, prompts: promptList, commands: cmds } );
+            r.success ? toast.success( 'Saved' ) : toast.error( r.error || 'Failed' );
+        } finally { setSaving( false ); }
+    };
+    return (
+        <div style={ card }>
+            <h3>Conversational Automation</h3>
+            <label style={ { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 } }>
+                <input type="checkbox" checked={ welcome } onChange={ e => setWelcome( e.target.checked ) } /> Enable welcome message
+            </label>
+            <label style={ label }>Ice-breaker prompts (one per line, max 4)</label>
+            <textarea style={ { ...input, minHeight: 80 } } value={ prompts } onChange={ e => setPrompts( e.target.value ) } />
+            <label style={ { ...label, marginTop: 12 } }>Commands (max 30, unique names)</label>
+            { commands.map( ( c, i ) => (
+                <div key={ i } style={ { display: 'flex', gap: 8, marginTop: 6 } }>
+                    <input style={ { ...input, marginTop: 0 } } placeholder="command_name" value={ c.command_name }
+                        onChange={ e => setCommands( commands.map( ( x, j ) => j === i ? { ...x, command_name: e.target.value } : x ) ) } />
+                    <input style={ { ...input, marginTop: 0 } } placeholder="description" value={ c.command_description }
+                        onChange={ e => setCommands( commands.map( ( x, j ) => j === i ? { ...x, command_description: e.target.value } : x ) ) } />
+                </div>
+            ) ) }
+            <div style={ { marginTop: 8, display: 'flex', gap: 8 } }>
+                <Button variant="secondary" size="sm" onClick={ () => setCommands( [ ...commands, { command_name: '', command_description: '' } ] ) } disabled={ commands.length >= 30 }>+ Command</Button>
+                <Button variant="primary" onClick={ save } loading={ saving }>Save</Button>
+            </div>
+        </div>
+    );
+}
+
+// ── Link Preview ──
+function LinkPreviewTab ( { toast }: { toast: any } ) {
+    const [ url, setUrl ] = useState( '' );
+    const [ result, setResult ] = useState<api.LinkPreviewResult | null>( null );
+    const [ loading, setLoading ] = useState( false );
+    const check = async () => {
+        if ( !url.startsWith( 'http' ) ) { toast.error( 'Enter a valid http(s) URL' ); return; }
+        setLoading( true );
+        try { setResult( await api.checkLinkPreview( url ) ); } catch ( e: any ) { toast.error( e.message ); } finally { setLoading( false ); }
+    };
+    return (
+        <div style={ card }>
+            <h3>Link Preview Validator</h3>
+            <div style={ { display: 'flex', gap: 8 } }>
+                <input style={ { ...input, marginTop: 0 } } placeholder="https://example.com/page" value={ url } onChange={ e => setUrl( e.target.value ) } />
+                <Button variant="primary" onClick={ check } loading={ loading }>Check</Button>
+            </div>
+            { result && (
+                <div style={ { marginTop: 16 } }>
+                    <p style={ { fontWeight: 600, color: result.ok ? '#166534' : '#92400e' } }>{ result.ok ? '✓ Looks good for WhatsApp previews' : '⚠ Issues found' }</p>
+                    <table style={ { fontSize: 'var(--text-sm)', marginTop: 8 } }>
+                        <tbody>{ Object.entries( result.og || {} ).map( ( [ k, v ] ) => (
+                            <tr key={ k }><td style={ { color: 'var(--text-muted)', paddingRight: 12 } }>{ k }</td><td>{ v || <em style={ { color: '#b91c1c' } }>missing</em> }</td></tr>
+                        ) ) }</tbody>
+                    </table>
+                    { result.warnings?.length > 0 && (
+                        <ul style={ { marginTop: 8, color: '#92400e' } }>{ result.warnings.map( ( w, i ) => <li key={ i }>{ w }</li> ) }</ul>
+                    ) }
+                    { result.note && <p style={ { fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 8 } }>{ result.note }</p> }
+                </div>
+            ) }
+        </div>
+    );
+}
+
+// ── Assigned Users ──
+const PERMISSION_TASKS = [ 'MANAGE', 'DEVELOP', 'MANAGE_TEMPLATES', 'MANAGE_PHONE', 'VIEW_COST', 'MANAGE_EXTENSIONS', 'VIEW_PHONE_ASSETS', 'MANAGE_PHONE_ASSETS', 'VIEW_TEMPLATES', 'MESSAGING' ];
+function AssignedUsersTab ( { wabaId, toast, confirm }: { wabaId: string; toast: any; confirm: any } ) {
+    const [ business, setBusiness ] = useState( '' );
+    const [ rows, setRows ] = useState<api.AssignedUser[]>( [] );
+    const [ loading, setLoading ] = useState( false );
+    const [ newUser, setNewUser ] = useState( '' );
+    const [ tasks, setTasks ] = useState<string[]>( [ 'MESSAGING' ] );
+    const load = async () => {
+        if ( !business ) { toast.error( 'business ID required' ); return; }
+        setLoading( true );
+        try { const r = await api.listAssignedUsers( wabaId, business ); setRows( r.users ); } catch ( e: any ) { toast.error( e.message ); } finally { setLoading( false ); }
+    };
+    const add = async () => {
+        if ( !newUser ) { toast.error( 'user ID required' ); return; }
+        const r = await api.addAssignedUser( wabaId, newUser, tasks ); r.success ? ( toast.success( 'User added' ), setNewUser( '' ), load() ) : toast.error( r.error || 'Failed' );
+    };
+    const remove = async ( uid: string ) => {
+        if ( !( await confirm( { title: 'Remove user', message: 'Revoke all access for this user?', danger: true, confirmText: 'Remove' } ) ) ) return;
+        const r = await api.removeAssignedUser( wabaId, uid ); r.success ? ( toast.success( 'Removed' ), load() ) : toast.error( r.error || 'Failed' );
+    };
+    return (
+        <div style={ card }>
+            <h3>Assigned Users</h3>
+            <div style={ { display: 'flex', gap: 8, marginBottom: 12 } }>
+                <input style={ { ...input, marginTop: 0 } } placeholder="Business ID" value={ business } onChange={ e => setBusiness( e.target.value ) } />
+                <Button variant="secondary" onClick={ load } loading={ loading }>Load</Button>
+            </div>
+            { rows.map( u => (
+                <div key={ u.id } style={ { display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid var(--border-light)', padding: '8px 0' } }>
+                    <div style={ { flex: 1 } }>{ u.name } <span style={ { color: 'var(--text-muted)' } }>· { u.id } · { u.user_type }</span></div>
+                    <Button variant="danger" size="sm" onClick={ () => remove( u.id ) }>Remove</Button>
+                </div>
+            ) ) }
+            <h4 style={ { marginTop: 16 } }>Add user</h4>
+            <input style={ input } placeholder="Facebook user ID" value={ newUser } onChange={ e => setNewUser( e.target.value ) } />
+            <div style={ { display: 'flex', flexWrap: 'wrap', gap: 6, margin: '8px 0' } }>
+                { PERMISSION_TASKS.map( t => (
+                    <button key={ t } onClick={ () => setTasks( tasks.includes( t ) ? tasks.filter( x => x !== t ) : [ ...tasks, t ] ) } style={ {
+                        padding: '2px 10px', borderRadius: 6, fontSize: 'var(--text-xs)', cursor: 'pointer',
+                        border: `1px solid ${tasks.includes( t ) ? 'var(--accent)' : 'var(--border)'}`,
+                        background: tasks.includes( t ) ? 'var(--accent-light, #eef2ff)' : 'var(--bg-secondary)',
+                    } }>{ t }</button>
+                ) ) }
+            </div>
+            <Button variant="primary" onClick={ add }>Add User</Button>
+        </div>
+    );
+}
+
+// ── AI Pricing Policy ──
+function AiPolicyTab ( { toast, confirm }: { toast: any; confirm: any } ) {
+    const [ markets, setMarkets ] = useState<api.AiPolicyMarket[]>( [] );
+    const [ meta, setMeta ] = useState( { activeCount: 0, analyticsPricingCategory: 'AI_BOT', webhookPricingCategory: 'general_purpose_ai' } );
+    const [ loading, setLoading ] = useState( false );
+    const [ form, setForm ] = useState<api.AiPolicyMarket>( { countryCode: '', country: '', effectiveDate: '', active: false, note: '' } );
+    const load = useCallback( async () => {
+        setLoading( true );
+        try { const r = await api.listAiPolicyMarkets(); setMarkets( r.markets ); setMeta( { activeCount: r.activeCount, analyticsPricingCategory: r.analyticsPricingCategory, webhookPricingCategory: r.webhookPricingCategory } ); }
+        catch ( e: any ) { toast.error( e.message ); } finally { setLoading( false ); }
+    }, [ toast ] );
+    useEffect( () => { load(); }, [ load ] );
+    const save = async () => {
+        if ( !form.countryCode ) { toast.error( 'countryCode required' ); return; }
+        const r = await api.upsertAiPolicyMarket( form ); r.success ? ( toast.success( 'Saved' ), setForm( { countryCode: '', country: '', effectiveDate: '', active: false, note: '' } ), load() ) : toast.error( r.error || 'Failed' );
+    };
+    const del = async ( cc: string ) => {
+        if ( !( await confirm( { title: 'Delete market', message: `Remove ${cc}?`, danger: true, confirmText: 'Delete' } ) ) ) return;
+        const r = await api.deleteAiPolicyMarket( cc ); r.success ? ( toast.success( 'Deleted' ), load() ) : toast.error( r.error || 'Failed' );
+    };
+    return (
+        <div style={ card }>
+            <h3>AI-Provider Pricing Policy</h3>
+            <p style={ { fontSize: 'var(--text-sm)', color: 'var(--text-muted)' } }>
+                Markets where non-template AI-Provider messages are billable. Analytics category <code>{ meta.analyticsPricingCategory }</code>,
+                webhook category <code>{ meta.webhookPricingCategory }</code>. Active markets: <b>{ meta.activeCount }</b>. Rates are imported separately (CSV/PDF), not stored here.
+            </p>
+            { loading ? <Spinner /> : (
+                <table style={ { width: '100%', fontSize: 'var(--text-sm)', borderCollapse: 'collapse', margin: '12px 0' } }>
+                    <thead><tr style={ { textAlign: 'left', color: 'var(--text-muted)' } }><th>Code</th><th>Country</th><th>Effective</th><th>Active</th><th></th></tr></thead>
+                    <tbody>{ markets.map( m => (
+                        <tr key={ m.countryCode } style={ { borderTop: '1px solid var(--border-light)' } }>
+                            <td style={ { padding: 6, fontFamily: 'var(--font-mono)' } }>{ m.countryCode }</td>
+                            <td>{ m.country }</td><td>{ m.effectiveDate }</td>
+                            <td>{ m.active ? '✅' : '—' }</td>
+                            <td><Button variant="ghost" size="sm" onClick={ () => del( m.countryCode ) }>✕</Button></td>
+                        </tr>
+                    ) ) }</tbody>
+                </table>
+            ) }
+            <h4>Add / update market</h4>
+            <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 } }>
+                <div><label style={ label }>countryCode</label><input style={ input } placeholder="+55" value={ form.countryCode } onChange={ e => setForm( { ...form, countryCode: e.target.value } ) } /></div>
+                <div><label style={ label }>country</label><input style={ input } value={ form.country } onChange={ e => setForm( { ...form, country: e.target.value } ) } /></div>
+                <div><label style={ label }>effectiveDate</label><input style={ input } placeholder="2026-03-11" value={ form.effectiveDate } onChange={ e => setForm( { ...form, effectiveDate: e.target.value } ) } /></div>
+            </div>
+            <label style={ { display: 'flex', gap: 8, alignItems: 'center', margin: '10px 0' } }>
+                <input type="checkbox" checked={ !!form.active } onChange={ e => setForm( { ...form, active: e.target.checked } ) } /> Active (billable)
+            </label>
+            <Button variant="primary" onClick={ save }>Save Market</Button>
+        </div>
+    );
+}
