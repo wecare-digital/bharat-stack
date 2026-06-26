@@ -45,8 +45,9 @@ import uuid
 import boto3
 import urllib.request
 import urllib.parse
+import urllib.error
 from decimal import Decimal
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
@@ -393,6 +394,315 @@ def _get_bot_details(bot_id: str, params: Dict) -> Dict:
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'bot': result})
+
+
+# ============================================================================
+# ASSIGNED WHATSAPP BUSINESS ACCOUNTS (for a user)
+# GET /{User-ID}/assigned_whatsapp_business_accounts
+# ============================================================================
+def _list_assigned_wabas(user_id: str, params: Dict) -> Dict:
+    """List WABAs assigned to a user, with pagination."""
+    if not user_id:
+        return _resp(400, {'error': 'userId required'})
+    query = {'fields': params.get('fields', 'id,name')}
+    if params.get('limit'):
+        query['limit'] = params['limit']
+    if params.get('after'):
+        query['after'] = params['after']
+    if params.get('before'):
+        query['before'] = params['before']
+    result = _graph_api(f'{user_id}/assigned_whatsapp_business_accounts', params=query)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {
+        'wabas': result.get('data', []),
+        'paging': result.get('paging', {}),
+    })
+
+
+# ============================================================================
+# CAMPAIGN SCHEDULES
+# GET/POST /{WABA-ID}/schedules
+# ============================================================================
+_SCHEDULE_STATUSES = {'COMPLETED', 'FAILED', 'SCHEDULED', 'SENDING'}
+
+
+def _list_schedules(waba_id: str, params: Dict) -> Dict:
+    """List campaign schedules for a WABA."""
+    query = {'fields': params.get('fields', 'id,name,description,delivery_time,status')}
+    if params.get('limit'):
+        query['limit'] = params['limit']
+    if params.get('after'):
+        query['after'] = params['after']
+    if params.get('before'):
+        query['before'] = params['before']
+    result = _graph_api(f'{waba_id}/schedules', params=query, waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'schedules': result.get('data', []), 'paging': result.get('paging', {})})
+
+
+def _create_schedule(waba_id: str, body: Dict) -> Dict:
+    """Create a campaign schedule. Requires hsm_id, audience_id, waba_cs_id, name, description, delivery_time."""
+    required = ['hsm_id', 'audience_id', 'waba_cs_id', 'name', 'description', 'delivery_time']
+    missing = [f for f in required if not body.get(f)]
+    if missing:
+        return _resp(400, {'error': f'Missing required fields: {", ".join(missing)}'})
+    try:
+        delivery_time = int(body['delivery_time'])
+    except (ValueError, TypeError):
+        return _resp(400, {'error': 'delivery_time must be a Unix timestamp (integer)'})
+    if delivery_time <= int(time.time()):
+        return _resp(400, {'error': 'delivery_time must be in the future'})
+    payload = {
+        'hsm_id': body['hsm_id'],
+        'audience_id': body['audience_id'],
+        'waba_cs_id': body['waba_cs_id'],
+        'name': body['name'],
+        'description': body['description'],
+        'delivery_time': delivery_time,
+    }
+    result = _graph_api(f'{waba_id}/schedules', method='POST', payload=payload, waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'id': result.get('id', ''), 'result': result})
+
+
+# ============================================================================
+# WHATSAPP COMMERCE SETTINGS
+# GET/POST /{Phone-Number-ID}/whatsapp_commerce_settings
+# ============================================================================
+def _get_commerce_settings(phone_id: str) -> Dict:
+    """Get cart/catalog visibility settings for a phone number."""
+    result = _graph_api(f'{phone_id}/whatsapp_commerce_settings', phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    data = result.get('data', [])
+    return _resp(200, {'commerceSettings': data[0] if data else {}, 'raw': result})
+
+
+def _update_commerce_settings(phone_id: str, body: Dict) -> Dict:
+    """Update cart enabled / catalog visible. Meta expects these as query params on POST."""
+    query = {}
+    if 'is_cart_enabled' in body:
+        query['is_cart_enabled'] = 'true' if body['is_cart_enabled'] in (True, 'true', 'True', 1) else 'false'
+    if 'is_catalog_visible' in body:
+        query['is_catalog_visible'] = 'true' if body['is_catalog_visible'] in (True, 'true', 'True', 1) else 'false'
+    if not query:
+        return _resp(400, {'error': 'Provide is_cart_enabled and/or is_catalog_visible'})
+    result = _graph_api(f'{phone_id}/whatsapp_commerce_settings', method='POST', params=query, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': result.get('success', True), 'result': result})
+
+
+# ============================================================================
+# MESSAGE QR CODES
+# GET/DELETE /{Phone-Number-ID}/message_qrdls/{QR-Code-ID}
+# ============================================================================
+def _is_valid_qr_id(qr_id: str) -> bool:
+    """QR code IDs are 14-character alphanumeric strings."""
+    return bool(qr_id) and len(qr_id) == 14 and qr_id.isalnum()
+
+
+def _get_qr_code(phone_id: str, qr_id: str, params: Dict) -> Dict:
+    """Retrieve a single QR code (or list all when qr_id omitted)."""
+    if qr_id and not _is_valid_qr_id(qr_id):
+        return _resp(400, {'error': 'Invalid QR code ID format. Expected 14-character alphanumeric string'})
+    fields = params.get('fields', 'code,prefilled_message,deep_link_url,qr_image_url.format(PNG)')
+    endpoint = f'{phone_id}/message_qrdls/{qr_id}' if qr_id else f'{phone_id}/message_qrdls'
+    result = _graph_api(endpoint, params={'fields': fields}, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'qrCodes': result.get('data', []), 'raw': result})
+
+
+def _delete_qr_code(phone_id: str, qr_id: str) -> Dict:
+    """Permanently delete a QR code."""
+    if not _is_valid_qr_id(qr_id):
+        return _resp(400, {'error': 'Invalid QR code ID format. Expected 14-character alphanumeric string'})
+    result = _graph_api(f'{phone_id}/message_qrdls/{qr_id}', method='DELETE', phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': result.get('success', True)})
+
+
+def _create_qr_code(phone_id: str, body: Dict) -> Dict:
+    """Create a QR code / deep link. Body: { prefilled_message, generate_qr_image: SVG|PNG }."""
+    prefilled = (body.get('prefilled_message') or '').strip()
+    if not prefilled:
+        return _resp(400, {'error': 'prefilled_message is required'})
+    payload = {
+        'prefilled_message': prefilled,
+        'generate_qr_image': (body.get('generate_qr_image') or 'PNG').upper(),
+    }
+    result = _graph_api(f'{phone_id}/message_qrdls', method='POST', payload=payload, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'qrCode': result})
+
+
+# ============================================================================
+# CONVERSATIONAL AUTOMATION (welcome message, ice-breaker prompts, bot commands)
+# POST /{Phone-Number-ID}/conversational_automation
+# ============================================================================
+# WhatsApp limits (documented): up to 4 ice-breaker prompts, up to 30 commands.
+_MAX_PROMPTS = 4
+_MAX_COMMANDS = 30
+
+
+def _configure_conversational_automation(phone_id: str, body: Dict) -> Dict:
+    """Configure welcome message, ice-breaker prompts and bot commands with validation."""
+    prompts = body.get('prompts', [])
+    commands = body.get('commands', [])
+    enable_welcome = body.get('enable_welcome_message')
+
+    if not isinstance(prompts, list) or not isinstance(commands, list):
+        return _resp(400, {'error': 'prompts and commands must be arrays'})
+    if len(prompts) > _MAX_PROMPTS:
+        return _resp(400, {'error': f'Maximum {_MAX_PROMPTS} prompts (ice breakers) allowed'})
+    if len(commands) > _MAX_COMMANDS:
+        return _resp(400, {'error': f'Maximum {_MAX_COMMANDS} commands allowed'})
+
+    seen_names = set()
+    norm_commands = []
+    for cmd in commands:
+        name = (cmd.get('command_name') or '').strip()
+        desc = (cmd.get('command_description') or '').strip()
+        if not name or not desc:
+            return _resp(400, {'error': 'Each command requires command_name and command_description'})
+        key = name.lower().lstrip('/')
+        if key in seen_names:
+            return _resp(400, {'error': f'Duplicate command name: {name}. Command names must be unique'})
+        seen_names.add(key)
+        norm_commands.append({'command_name': key, 'command_description': desc})
+
+    payload = {'commands': norm_commands, 'prompts': prompts}
+    if enable_welcome is not None:
+        payload['enable_welcome_message'] = bool(enable_welcome)
+
+    result = _graph_api(f'{phone_id}/conversational_automation', method='POST', payload=payload, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': result.get('success', True), 'result': result})
+
+
+# ============================================================================
+# LINK PREVIEW VALIDATOR (Open Graph requirements for WhatsApp link previews)
+# ============================================================================
+def _check_link_preview(url: str) -> Dict:
+    """Fetch a URL and check whether it meets WhatsApp link-preview (Open Graph) requirements.
+    Returns warnings (best-effort) rather than hard failures, per WhatsApp behavior."""
+    if not url or not url.startswith('http'):
+        return _resp(400, {'error': 'A valid http(s) url is required'})
+    warnings = []
+    found = {'og:title': '', 'og:description': '', 'og:url': '', 'og:image': ''}
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'WhatsApp/2.25.0.0 A'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read(300 * 1024)  # only first 300KB matters for OG tags
+        html = raw.decode('utf-8', errors='ignore')
+        head = html.split('</head>', 1)[0] if '</head>' in html else html
+        if '</head>' not in html:
+            warnings.append('No closing </head> found within the first 300KB; Open Graph tags must be inside <head>.')
+        import re as _re
+        for prop in found:
+            m = _re.search(
+                r'<meta[^>]+property=["\']%s["\'][^>]+content=["\']([^"\']*)["\']' % _re.escape(prop),
+                head, _re.IGNORECASE)
+            if not m:
+                m = _re.search(
+                    r'<meta[^>]+content=["\']([^"\']*)["\'][^>]+property=["\']%s["\']' % _re.escape(prop),
+                    head, _re.IGNORECASE)
+            found[prop] = (m.group(1).strip() if m else '')
+
+        if not found['og:title']:
+            warnings.append('og:title is missing or empty (shown as the bold preview title).')
+        if not found['og:description']:
+            warnings.append('og:description is missing or empty (shown under the title).')
+        if not found['og:url']:
+            warnings.append('og:url is missing or empty (should be the canonical, undecorated URL).')
+        if not found['og:image']:
+            warnings.append('og:image is missing (no thumbnail will be shown).')
+        elif not found['og:image'].startswith('http'):
+            warnings.append('og:image must be an absolute URL (starting with http/https).')
+    except urllib.error.HTTPError as e:
+        return _resp(200, {'url': url, 'ok': False, 'warnings': [f'HTTP {e.code} fetching the page.'], 'og': found})
+    except Exception as e:
+        return _resp(200, {'url': url, 'ok': False, 'warnings': [f'Could not fetch/parse the page: {e}'], 'og': found})
+
+    return _resp(200, {
+        'url': url,
+        'ok': len(warnings) == 0,
+        'og': found,
+        'warnings': warnings,
+        'note': 'WhatsApp link previews are best-effort. Image should be <600KB, width >=300px, aspect ratio <=4:1.',
+        'crawlerUserAgents': ['WhatsApp/2.x.x.x A', 'WhatsApp/2.x.x.x I', 'WhatsApp/2.x.x.x N'],
+    })
+
+
+# ============================================================================
+# TEMPLATE VALIDATION HELPERS (TTL by category + button grouping rules)
+# Reusable validators per WhatsApp template docs.
+# ============================================================================
+def _validate_ttl(category: str, seconds) -> Optional[str]:
+    """Validate message_send_ttl_seconds against the template category. Returns error string or None."""
+    if seconds is None:
+        return None
+    try:
+        s = int(seconds)
+    except (ValueError, TypeError):
+        return 'message_send_ttl_seconds must be an integer'
+    cat = (category or '').upper()
+    if cat == 'AUTHENTICATION':
+        if s == -1 or 30 <= s <= 900:
+            return None
+        return 'AUTHENTICATION TTL must be 30-900 seconds (or -1 for 30 days)'
+    if cat == 'UTILITY':
+        if s == -1 or 30 <= s <= 43200:
+            return None
+        return 'UTILITY TTL must be 30-43200 seconds (or -1 for 30 days)'
+    if cat == 'MARKETING':
+        if 43200 <= s <= 2592000:
+            return None
+        return 'MARKETING TTL must be 43200-2592000 seconds (-1 not allowed)'
+    return f'Unknown template category: {category}'
+
+
+def _validate_template_buttons(buttons: list) -> Optional[str]:
+    """Validate WhatsApp template button counts and quick-reply grouping. Returns error string or None."""
+    if not buttons:
+        return None
+    if len(buttons) > 10:
+        return 'A template may have at most 10 buttons'
+    counts = {}
+    for b in buttons:
+        t = (b.get('type') or '').upper()
+        counts[t] = counts.get(t, 0) + 1
+        text = b.get('text', '')
+        if t in ('QUICK_REPLY', 'URL', 'PHONE_NUMBER', 'VOICE_CALL') and len(text) > 25:
+            return f'{t} button text must be <= 25 characters'
+        if t == 'COPY_CODE' and len(str(b.get('example', ''))) > 20:
+            return 'COPY_CODE example must be <= 20 characters'
+        if t == 'PHONE_NUMBER' and len(str(b.get('phone_number', ''))) > 20:
+            return 'PHONE_NUMBER must be <= 20 characters'
+        if t == 'URL' and len(str(b.get('url', ''))) > 2000:
+            return 'URL must be <= 2000 characters'
+    if counts.get('COPY_CODE', 0) > 1:
+        return 'At most 1 COPY_CODE button allowed'
+    if counts.get('PHONE_NUMBER', 0) > 1:
+        return 'At most 1 PHONE_NUMBER button allowed'
+    if counts.get('URL', 0) > 2:
+        return 'At most 2 URL buttons allowed'
+    if counts.get('QUICK_REPLY', 0) > 10:
+        return 'At most 10 QUICK_REPLY buttons allowed'
+    # Quick-reply grouping: all quick replies must be contiguous (one group)
+    types = [(b.get('type') or '').upper() for b in buttons]
+    qr_positions = [i for i, t in enumerate(types) if t == 'QUICK_REPLY']
+    if qr_positions and (max(qr_positions) - min(qr_positions) + 1) != len(qr_positions):
+        return 'Quick reply buttons must be grouped together (contiguous), not interleaved with other button types'
+    return None
+
 
 # ============================================================================
 # GROUPS
@@ -3356,6 +3666,49 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _resp(400, {'error': 'botId required'})
             if method == 'GET':
                 return _get_bot_details(bot_id, params)
+
+        elif '/assigned-wabas' in path:
+            user_id = params.get('userId') or body.get('userId')
+            if not user_id:
+                return _resp(400, {'error': 'userId required'})
+            return _list_assigned_wabas(user_id, params)
+
+        elif '/schedules' in path:
+            waba_id = params.get('wabaId') or body.get('wabaId')
+            if not waba_id:
+                return _resp(400, {'error': 'wabaId required'})
+            if method == 'GET':
+                return _list_schedules(waba_id, params)
+            elif method == 'POST':
+                return _create_schedule(waba_id, body)
+
+        elif '/commerce-settings' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            if method == 'GET':
+                return _get_commerce_settings(phone_id)
+            return _update_commerce_settings(phone_id, body)
+
+        elif '/qr-codes' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            qr_id = params.get('qrId') or body.get('qrId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            if method == 'DELETE':
+                return _delete_qr_code(phone_id, qr_id or '')
+            if method == 'POST':
+                return _create_qr_code(phone_id, body)
+            return _get_qr_code(phone_id, qr_id or '', params)
+
+        elif '/conversational-automation' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            return _configure_conversational_automation(phone_id, body)
+
+        elif '/link-preview' in path:
+            return _check_link_preview(params.get('url') or body.get('url') or '')
 
         elif '/groups/participants' in path:
             return _manage_group_participants(params.get('groupId') or body.get('groupId') or '', body)

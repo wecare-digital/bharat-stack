@@ -267,11 +267,99 @@ def _get_template_details(waba_id, template_id, query_params):
 
 # ── CREATE ──
 
+def _validate_template_ttl(category, seconds):
+    """Validate message_send_ttl_seconds against category. Returns error string or None."""
+    if seconds is None:
+        return None
+    try:
+        s = int(seconds)
+    except (ValueError, TypeError):
+        return 'message_send_ttl_seconds must be an integer'
+    cat = (category or '').upper()
+    if cat == 'AUTHENTICATION':
+        return None if (s == -1 or 30 <= s <= 900) else 'AUTHENTICATION TTL must be 30-900 seconds (or -1 for 30 days)'
+    if cat == 'UTILITY':
+        return None if (s == -1 or 30 <= s <= 43200) else 'UTILITY TTL must be 30-43200 seconds (or -1 for 30 days)'
+    if cat == 'MARKETING':
+        return None if (43200 <= s <= 2592000) else 'MARKETING TTL must be 43200-2592000 seconds (-1 not allowed)'
+    return f'Unknown template category: {category}'
+
+
+def _validate_template_button_group(buttons):
+    """Validate button counts and quick-reply grouping. Returns error string or None."""
+    if not buttons:
+        return None
+    if len(buttons) > 10:
+        return 'A template may have at most 10 buttons'
+    counts = {}
+    for b in buttons:
+        t = (b.get('type') or '').upper()
+        counts[t] = counts.get(t, 0) + 1
+        if t in ('QUICK_REPLY', 'URL', 'PHONE_NUMBER', 'VOICE_CALL') and len(b.get('text', '')) > 25:
+            return f'{t} button text must be <= 25 characters'
+        if t == 'COPY_CODE' and len(str(b.get('example', ''))) > 20:
+            return 'COPY_CODE example must be <= 20 characters'
+        if t == 'PHONE_NUMBER' and len(str(b.get('phone_number', ''))) > 20:
+            return 'PHONE_NUMBER must be <= 20 characters'
+        if t == 'URL' and len(str(b.get('url', ''))) > 2000:
+            return 'URL must be <= 2000 characters'
+    if counts.get('COPY_CODE', 0) > 1:
+        return 'At most 1 COPY_CODE button allowed'
+    if counts.get('PHONE_NUMBER', 0) > 1:
+        return 'At most 1 PHONE_NUMBER button allowed'
+    if counts.get('URL', 0) > 2:
+        return 'At most 2 URL buttons allowed'
+    if counts.get('QUICK_REPLY', 0) > 10:
+        return 'At most 10 QUICK_REPLY buttons allowed'
+    types = [(b.get('type') or '').upper() for b in buttons]
+    qr = [i for i, t in enumerate(types) if t == 'QUICK_REPLY']
+    if qr and (max(qr) - min(qr) + 1) != len(qr):
+        return 'Quick reply buttons must be grouped together (contiguous)'
+    return None
+
+
+def _validate_template_definition(template_def):
+    """Validate a Meta template definition (category, TTL, components, buttons). Returns error string or None."""
+    category = template_def.get('category', '')
+    if category and category.upper() not in ('MARKETING', 'UTILITY', 'AUTHENTICATION'):
+        return f'Invalid category: {category}. Must be MARKETING, UTILITY, or AUTHENTICATION'
+    ttl_err = _validate_template_ttl(category, template_def.get('message_send_ttl_seconds'))
+    if ttl_err:
+        return ttl_err
+    has_body = False
+    for comp in template_def.get('components', []):
+        ctype = (comp.get('type') or '').upper()
+        if ctype == 'BODY':
+            has_body = True
+            if len(comp.get('text', '')) > 1024:
+                return 'BODY text must be <= 1024 characters'
+        elif ctype == 'HEADER':
+            fmt = (comp.get('format') or '').upper()
+            if fmt == 'TEXT' and len(comp.get('text', '')) > 60:
+                return 'TEXT header must be <= 60 characters'
+            if fmt == 'LOCATION' and category.upper() == 'AUTHENTICATION':
+                return 'LOCATION header is only allowed for UTILITY or MARKETING templates'
+        elif ctype == 'FOOTER':
+            if len(comp.get('text', '')) > 60:
+                return 'FOOTER text must be <= 60 characters'
+        elif ctype == 'BUTTONS':
+            btn_err = _validate_template_button_group(comp.get('buttons', []))
+            if btn_err:
+                return btn_err
+    if not has_body:
+        return 'Template must include a BODY component'
+    return None
+
+
 def _create_template(waba_id, body):
     try:
         template_def = body.get('templateDefinition')
         if not template_def:
             return _error_response(400, 'templateDefinition required')
+        # Local validation before hitting Meta (clear errors, fewer rejected submissions)
+        validation_error = _validate_template_definition(template_def)
+        if validation_error:
+            return _error_response(400, validation_error)
         meta_waba_id = _resolve_meta_waba_id(waba_id)
         url = f'{META_GRAPH_URL}/{meta_waba_id}/message_templates'
         data = _meta_request(url, method='POST', data=json.dumps(template_def).encode())
