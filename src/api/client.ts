@@ -5571,10 +5571,11 @@ export async function configureConversationalAutomation (
 export interface LinkPreviewResult { url: string; ok: boolean; og: Record<string, string>; warnings: string[]; note?: string; }
 
 export async function checkLinkPreview ( url: string ): Promise<LinkPreviewResult> {
-  return apiCall<LinkPreviewResult>( `${WA_BIZ_BASE}/link-preview`, {
+  const data = await apiCall<LinkPreviewResult>( `${WA_BIZ_BASE}/link-preview`, {
     method: 'POST',
     body: JSON.stringify( { url } ),
   } );
+  return data || { url, ok: false, og: {}, warnings: [ 'No response from server' ] };
 }
 
 export interface AssignedUser { id: string; name: string; user_type?: string; }

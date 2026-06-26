@@ -39,7 +39,6 @@ export const WHATSAPP_PHONES = {
     username: 'wecaredigital',  // Fixed WhatsApp business username (only allowed value)
     wabaId: '2094615664435155',
     metaPhoneId: '1016149501586345',
-    username: 'wecaredigital',  // Fixed WhatsApp business username for WABA 1 (only option)
     hasPayment: true,
     paymentConfigName: 'WECARE-RAZOR-PAY',
     paymentConfigs: [ 'WECARE-RAZOR-PAY', 'WECARE-RAZORPAY-UPIVPA', 'WECARE-PAYU', 'Payu-UPIVPA' ],
