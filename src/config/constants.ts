@@ -36,11 +36,13 @@ export const WHATSAPP_PHONES = {
     id: 'phone-number-id-waba1-direct-1016149501586345',
     display: '+91 93309 94400',
     name: 'WECARE.DIGITAL',
+    username: 'wecaredigital',  // Fixed WhatsApp business username (only allowed value)
     wabaId: '2094615664435155',
     metaPhoneId: '1016149501586345',
+    username: 'wecaredigital',  // Fixed WhatsApp business username for WABA 1 (only option)
     hasPayment: true,
     paymentConfigName: 'WECARE-RAZOR-PAY',
-    paymentConfigs: ['WECARE-RAZOR-PAY', 'WECARE-RAZORPAY-UPIVPA', 'WECARE-PAYU', 'Payu-UPIVPA'],
+    paymentConfigs: [ 'WECARE-RAZOR-PAY', 'WECARE-RAZORPAY-UPIVPA', 'WECARE-PAYU', 'Payu-UPIVPA' ],
     paymentProtected: false,
     pendingRegistration: true,  // Blocked by Meta rate limit — registration pending
   },
@@ -48,11 +50,12 @@ export const WHATSAPP_PHONES = {
     id: 'phone-number-id-waba-t-direct-1055232054343117',
     display: '+91 99033 00044',
     name: 'Manish Agarwal',
+    username: 'manish',  // Fixed WhatsApp business username (only allowed value)
     wabaId: '2513394156072604',
     metaPhoneId: '1055232054343117',
     hasPayment: true,
     paymentConfigName: 'Razorpay_ManishAgarwal',
-    paymentConfigs: ['Razorpay_ManishAgarwal', 'Razorpay_UPI', 'PayU_ManishAgarwal', 'PayU_UPI'],
+    paymentConfigs: [ 'Razorpay_ManishAgarwal', 'Razorpay_UPI', 'PayU_ManishAgarwal', 'PayU_UPI' ],
     paymentProtected: true,
     directApi: true,
   },
@@ -88,7 +91,7 @@ export const PAYMENT_DETAILS = {
 };
 
 // All payment-enabled phones (convenience helper)
-export const PAYMENT_PHONES = Object.values(WHATSAPP_PHONES).filter(p => p.hasPayment);
+export const PAYMENT_PHONES = Object.values( WHATSAPP_PHONES ).filter( p => p.hasPayment );
 
 // Message TTL (30 days in seconds)
 export const MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60;

@@ -1,7 +1,9 @@
 /**
  * WABA Business Usernames Manager
- * Fetch, claim, and manage WhatsApp Business usernames for WABA 1 & WABA 2.
- * Uses Meta Graph API via whatsapp-business-api Lambda.
+ * Each WhatsApp number has ONE fixed business username (no free-text, no suggestions):
+ *   WABA 1 (WECARE.DIGITAL) → @wecaredigital
+ *   WABA 2 (Manish Agarwal) → @manish
+ * Uses Meta Graph API via the whatsapp-business-api Lambda.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -19,74 +21,56 @@ interface PhoneUsernameState {
     loading: boolean;
     username?: string;
     status?: string;
-    suggestions: string[];
     error?: string;
 }
 
+// One fixed username per number — the only value that can be claimed.
 const PHONES = [
     {
         key: 'primary',
         label: 'WABA 1 — WECARE.DIGITAL',
         phoneId: WHATSAPP_PHONES.primary.metaPhoneId,
         display: WHATSAPP_PHONES.primary.display,
-        name: WHATSAPP_PHONES.primary.name,
         wabaId: WHATSAPP_PHONES.primary.wabaId,
+        fixedUsername: WHATSAPP_PHONES.primary.username, // 'wecaredigital'
     },
     {
         key: 'secondary',
         label: 'WABA 2 — Manish Agarwal',
         phoneId: WHATSAPP_PHONES.secondary.metaPhoneId,
         display: WHATSAPP_PHONES.secondary.display,
-        name: WHATSAPP_PHONES.secondary.name,
         wabaId: WHATSAPP_PHONES.secondary.wabaId,
+        fixedUsername: WHATSAPP_PHONES.secondary.username, // 'manish'
     },
 ];
 
-// Username validation per Meta docs
-function validateUsername ( value: string ): string | null {
-    if ( !value ) return 'Username is required';
-    if ( value.length < 3 || value.length > 35 ) return 'Must be 3–35 characters';
-    if ( !/[a-zA-Z]/.test( value ) ) return 'Must contain at least one letter (a-z)';
-    if ( !/^[a-zA-Z0-9._]+$/.test( value ) ) return 'Only letters, digits, period (.) and underscore (_) allowed';
-    if ( value.startsWith( '.' ) || value.endsWith( '.' ) ) return 'Cannot start or end with a period';
-    if ( /\.\./.test( value ) ) return 'Cannot have consecutive periods';
-    if ( value.toLowerCase().startsWith( 'www' ) ) return 'Cannot start with www';
-    const domainEndings = [ '.com', '.org', '.net', '.int', '.edu', '.gov', '.mil', '.us', '.in', '.html' ];
-    for ( const ending of domainEndings )
-    {
-        if ( value.toLowerCase().endsWith( ending ) ) return `Cannot end with ${ending}`;
-    }
-    return null;
+// Detect Meta's "feature not yet enabled for this account" gate (error code 147000).
+function isFeatureGatedError ( msg?: string ): boolean {
+    if ( !msg ) return false;
+    const m = msg.toLowerCase();
+    return m.includes( '147000' ) || m.includes( 'not available' ) || m.includes( 'not yet available' ) || m.includes( 'feature is unavailable' );
 }
 
 export default function WABAUsernames ( { signOut, user }: PageProps ) {
     const toast = useToastContext();
     const [ states, setStates ] = useState<Record<string, PhoneUsernameState>>( {} );
-    const [ claimInputs, setClaimInputs ] = useState<Record<string, string>>( {} );
     const [ claiming, setClaiming ] = useState<Record<string, boolean>>( {} );
     const [ deleting, setDeleting ] = useState<Record<string, boolean>>( {} );
-    const [ validationErrors, setValidationErrors ] = useState<Record<string, string | null>>( {} );
 
     const fetchUsername = useCallback( async ( phoneId: string ) => {
         setStates( prev => ( {
             ...prev,
             [ phoneId ]: { ...prev[ phoneId ], loading: true, error: undefined },
         } ) );
-
         try
         {
-            const [ usernameData, suggestionsData ] = await Promise.all( [
-                api.getBusinessUsername( phoneId ),
-                api.getBusinessUsernameSuggestions( phoneId ),
-            ] );
-
+            const usernameData = await api.getBusinessUsername( phoneId );
             setStates( prev => ( {
                 ...prev,
                 [ phoneId ]: {
                     loading: false,
                     username: usernameData?.username,
                     status: usernameData?.status,
-                    suggestions: suggestionsData?.suggestions || [],
                     error: undefined,
                 },
             } ) );
@@ -94,11 +78,7 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
         {
             setStates( prev => ( {
                 ...prev,
-                [ phoneId ]: {
-                    loading: false,
-                    suggestions: [],
-                    error: err.message || 'Failed to fetch username',
-                },
+                [ phoneId ]: { loading: false, error: err.message || 'Failed to fetch username' },
             } ) );
         }
     }, [] );
@@ -107,24 +87,15 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
         PHONES.forEach( p => fetchUsername( p.phoneId ) );
     }, [ fetchUsername ] );
 
-    const handleClaim = async ( phoneId: string ) => {
-        const username = ( claimInputs[ phoneId ] || '' ).trim();
-        const validationError = validateUsername( username );
-        if ( validationError )
-        {
-            setValidationErrors( prev => ( { ...prev, [ phoneId ]: validationError } ) );
-            return;
-        }
-        setValidationErrors( prev => ( { ...prev, [ phoneId ]: null } ) );
+    // Claim the single fixed username for this number.
+    const handleClaim = async ( phoneId: string, username: string ) => {
         setClaiming( prev => ( { ...prev, [ phoneId ]: true } ) );
-
         try
         {
             const result = await api.claimBusinessUsername( phoneId, username );
             if ( result.success )
             {
                 toast.success( `Username @${username} claimed successfully` );
-                setClaimInputs( prev => ( { ...prev, [ phoneId ]: '' } ) );
                 fetchUsername( phoneId );
             } else
             {
@@ -142,7 +113,6 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
     const handleDelete = async ( phoneId: string ) => {
         if ( !confirm( 'Are you sure you want to delete this business username?' ) ) return;
         setDeleting( prev => ( { ...prev, [ phoneId ]: true } ) );
-
         try
         {
             const result = await api.deleteBusinessUsername( phoneId );
@@ -163,19 +133,6 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
         }
     };
 
-    const handleInputChange = ( phoneId: string, value: string ) => {
-        // Strip @ prefix if user types it
-        const clean = value.startsWith( '@' ) ? value.slice( 1 ) : value;
-        setClaimInputs( prev => ( { ...prev, [ phoneId ]: clean } ) );
-        if ( clean )
-        {
-            setValidationErrors( prev => ( { ...prev, [ phoneId ]: validateUsername( clean ) } ) );
-        } else
-        {
-            setValidationErrors( prev => ( { ...prev, [ phoneId ]: null } ) );
-        }
-    };
-
     return (
         <Layout onSignOut={ signOut } user={ user }>
             <SEO title="WABA Usernames" description="Manage WhatsApp Business usernames" />
@@ -186,7 +143,7 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
                         WhatsApp Business Usernames
                     </h1>
                     <p style={ { color: 'var(--text-secondary)', marginTop: '8px', fontSize: 'var(--text-md)' } }>
-                        Manage business usernames for your WhatsApp numbers. Usernames let customers find and message your business directly.
+                        Each number has one fixed business username. Customers can find and message your business directly by it.
                     </p>
                     <p style={ {
                         color: 'var(--text-muted)', marginTop: '4px', fontSize: 'var(--text-sm)',
@@ -197,11 +154,11 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
                 </div>
 
                 { PHONES.map( phone => {
-                    const state = states[ phone.phoneId ] || { loading: true, suggestions: [] };
-                    const input = claimInputs[ phone.phoneId ] || '';
+                    const state = states[ phone.phoneId ] || { loading: true };
                     const isClaiming = claiming[ phone.phoneId ] || false;
                     const isDeleting = deleting[ phone.phoneId ] || false;
-                    const validationError = validationErrors[ phone.phoneId ];
+                    const fixed = phone.fixedUsername || '';
+                    const alreadyClaimed = !!state.username && state.username.toLowerCase() === fixed.toLowerCase();
 
                     return (
                         <div key={ phone.key } style={ {
@@ -238,39 +195,52 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
                                 </div>
                             ) }
 
-                            {/* Error */ }
+                            {/* Error / Meta feature-gate banner */ }
                             { !state.loading && state.error && (
-                                <div style={ {
-                                    background: 'var(--danger-light)', border: '1px solid var(--danger)',
-                                    borderRadius: '8px', padding: '12px 16px', marginBottom: '12px',
-                                    fontSize: 'var(--text-sm)', color: 'var(--danger)',
-                                } }>
-                                    ⚠️ { state.error }
-                                </div>
+                                isFeatureGatedError( state.error ) ? (
+                                    <div style={ {
+                                        background: '#fef3c7', border: '1px solid #f59e0b',
+                                        borderRadius: '8px', padding: '12px 16px', marginBottom: '12px',
+                                        fontSize: 'var(--text-sm)', color: '#92400e',
+                                    } }>
+                                        ⏳ Usernames aren’t enabled by Meta for this account yet (rolling out later in 2026).
+                                        The fixed username <strong>@{ fixed }</strong> is ready — claiming will succeed as soon as Meta turns the feature on.
+                                    </div>
+                                ) : (
+                                    <div style={ {
+                                        background: 'var(--danger-light)', border: '1px solid var(--danger)',
+                                        borderRadius: '8px', padding: '12px 16px', marginBottom: '12px',
+                                        fontSize: 'var(--text-sm)', color: 'var(--danger)',
+                                    } }>
+                                        ⚠️ { state.error }
+                                    </div>
+                                )
                             ) }
 
-                            {/* Current Username */ }
-                            { !state.loading && !state.error && (
-                                <div style={ { marginBottom: '16px' } }>
-                                    <label style={ { fontSize: 'var(--text-sm)', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' } }>
-                                        Current Username
+                            {/* Fixed username + actions */ }
+                            { !state.loading && (
+                                <div>
+                                    <label style={ { fontSize: 'var(--text-sm)', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' } }>
+                                        Business Username
                                     </label>
-                                    { state.username ? (
-                                        <div style={ { display: 'flex', alignItems: 'center', gap: '12px' } }>
-                                            <span style={ {
-                                                fontSize: 'var(--text-xl)', fontWeight: 600,
-                                                color: 'var(--accent)', fontFamily: 'var(--font-mono)',
-                                            } }>
-                                                @{ state.username }
-                                            </span>
+                                    <div style={ { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' } }>
+                                        <span style={ {
+                                            fontSize: 'var(--text-xl)', fontWeight: 600,
+                                            color: 'var(--accent)', fontFamily: 'var(--font-mono)',
+                                        } }>
+                                            @{ fixed }
+                                        </span>
+                                        { state.username && (
                                             <span style={ {
                                                 fontSize: 'var(--text-xs)', padding: '2px 8px',
                                                 borderRadius: '4px', fontWeight: 500,
                                                 background: state.status === 'approved' ? '#dcfce7' : state.status === 'reserved' ? '#fef3c7' : 'var(--bg-secondary)',
                                                 color: state.status === 'approved' ? '#166534' : state.status === 'reserved' ? '#92400e' : 'var(--text-muted)',
                                             } }>
-                                                { state.status || 'unknown' }
+                                                { state.status || 'set' }
                                             </span>
+                                        ) }
+                                        { alreadyClaimed ? (
                                             <Button
                                                 variant="danger"
                                                 size="sm"
@@ -279,88 +249,19 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
                                             >
                                                 { isDeleting ? <Spinner /> : 'Delete' }
                                             </Button>
-                                        </div>
-                                    ) : (
-                                        <span style={ { color: 'var(--text-muted)', fontSize: 'var(--text-md)' } }>
-                                            No username set
-                                        </span>
-                                    ) }
-                                </div>
-                            ) }
-
-                            {/* Reserved Suggestions */ }
-                            { !state.loading && state.suggestions.length > 0 && (
-                                <div style={ { marginBottom: '16px' } }>
-                                    <label style={ { fontSize: 'var(--text-sm)', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' } }>
-                                        Reserved Suggestions (click to use)
-                                    </label>
-                                    <div style={ { display: 'flex', flexWrap: 'wrap', gap: '8px' } }>
-                                        { state.suggestions.map( s => (
-                                            <button
-                                                key={ s }
-                                                onClick={ () => setClaimInputs( prev => ( { ...prev, [ phone.phoneId ]: s } ) ) }
-                                                style={ {
-                                                    padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--border)',
-                                                    background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: 'var(--text-sm)',
-                                                    fontFamily: 'var(--font-mono)', transition: 'all 0.15s',
-                                                } }
-                                                onMouseOver={ e => { ( e.target as HTMLElement ).style.borderColor = 'var(--accent)'; } }
-                                                onMouseOut={ e => { ( e.target as HTMLElement ).style.borderColor = 'var(--border)'; } }
+                                        ) : (
+                                            <Button
+                                                variant="primary"
+                                                size="sm"
+                                                onClick={ () => handleClaim( phone.phoneId, fixed ) }
+                                                disabled={ isClaiming }
                                             >
-                                                @{ s }
-                                            </button>
-                                        ) ) }
+                                                { isClaiming ? <Spinner /> : `Claim @${fixed}` }
+                                            </Button>
+                                        ) }
                                     </div>
-                                </div>
-                            ) }
-
-                            {/* Claim / Change Username */ }
-                            { !state.loading && (
-                                <div style={ { borderTop: '1px solid var(--border-light)', paddingTop: '16px' } }>
-                                    <label style={ { fontSize: 'var(--text-sm)', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' } }>
-                                        { state.username ? 'Change Username' : 'Claim Username' }
-                                    </label>
-                                    <div style={ { display: 'flex', gap: '8px', alignItems: 'flex-start' } }>
-                                        <div style={ { flex: 1 } }>
-                                            <div style={ { position: 'relative' } }>
-                                                <span style={ {
-                                                    position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-                                                    color: 'var(--text-muted)', fontSize: 'var(--text-md)', fontFamily: 'var(--font-mono)',
-                                                } }>@</span>
-                                                <input
-                                                    type="text"
-                                                    value={ input }
-                                                    onChange={ e => handleInputChange( phone.phoneId, e.target.value ) }
-                                                    onKeyDown={ e => { if ( e.key === 'Enter' && input ) handleClaim( phone.phoneId ); } }
-                                                    placeholder="desired_username"
-                                                    style={ {
-                                                        width: '100%', padding: '8px 12px 8px 28px',
-                                                        border: `1px solid ${validationError ? 'var(--danger)' : 'var(--border)'}`,
-                                                        borderRadius: '8px', fontSize: 'var(--text-md)',
-                                                        fontFamily: 'var(--font-mono)', outline: 'none',
-                                                        transition: 'border-color 0.15s',
-                                                    } }
-                                                    onFocus={ e => { if ( !validationError ) e.target.style.borderColor = 'var(--accent)'; } }
-                                                    onBlur={ e => { if ( !validationError ) e.target.style.borderColor = 'var(--border)'; } }
-                                                />
-                                            </div>
-                                            { validationError && (
-                                                <p style={ { color: 'var(--danger)', fontSize: 'var(--text-xs)', margin: '4px 0 0' } }>
-                                                    { validationError }
-                                                </p>
-                                            ) }
-                                        </div>
-                                        <Button
-                                            variant="primary"
-                                            size="md"
-                                            onClick={ () => handleClaim( phone.phoneId ) }
-                                            disabled={ isClaiming || !input || !!validationError }
-                                        >
-                                            { isClaiming ? <Spinner /> : ( state.username ? 'Change' : 'Claim' ) }
-                                        </Button>
-                                    </div>
-                                    <p style={ { color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: '8px' } }>
-                                        Rules: 3–35 chars, letters + digits + period + underscore only, must contain a letter, no consecutive periods, cannot start/end with period.
+                                    <p style={ { color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: '10px' } }>
+                                        This number is locked to a single username. To change it, update the configuration in code.
                                     </p>
                                 </div>
                             ) }

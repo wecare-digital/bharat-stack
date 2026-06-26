@@ -30,11 +30,20 @@ export const IAM_POLICIES = {
           'dynamodb:DeleteItem',
           'dynamodb:Query',
           'dynamodb:Scan',
+          'dynamodb:DescribeTable',
         ],
         Resource: [
           `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/stack-wecare-digital-*`,
           `arn:aws:dynamodb:${AWS_REGION}:${AWS_ACCOUNT_ID}:table/stack-wecare-digital-*/index/*`,
         ],
+      },
+      {
+        // Account-level action (not resource-scoped) — needed for factory-reset discovery
+        Effect: 'Allow',
+        Action: [
+          'dynamodb:ListTables',
+        ],
+        Resource: '*',
       },
       {
         Effect: 'Allow',

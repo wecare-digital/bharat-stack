@@ -579,13 +579,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                                 'requestId': request_id
                             }))
                 
-                # Process business_username_update webhook
-                if field == 'business_username_update':
+                # Process business_username_updates webhook (Meta field is plural;
+                # accept singular too for forward/backward compatibility)
+                if field in ('business_username_updates', 'business_username_update'):
                     try:
-                        _store_system_event('business_username_update', value, request_id)
+                        _store_system_event('business_username_updates', value, request_id)
                     except Exception as e:
                         logger.error(json.dumps({
-                            'event': 'business_username_update_error',
+                            'event': 'business_username_updates_error',
                             'error': str(e),
                             'requestId': request_id
                         }))

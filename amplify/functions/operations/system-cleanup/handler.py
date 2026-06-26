@@ -347,6 +347,101 @@ CLEANUP_RESOURCES = {
     },
 }
 
+# ── Dynamic discovery config ──
+TABLE_PREFIX = 'stack-wecare-digital-'
+S3_ROOT_PREFIX = 'stack/'
+S3_MAX_DEPTH = 3  # how many folder levels under stack/ to expose
+
+# Tables that must NEVER be wiped (config, not records)
+PROTECTED_TABLES = {
+    'stack-wecare-digital-SystemConfigTable',
+    'stack-wecare-digital-SystemConfig',
+}
+
+
+def _discover_tables() -> List[str]:
+    """List every DynamoDB table that belongs to this stack (by name prefix)."""
+    names: List[str] = []
+    kwargs: Dict[str, Any] = {}
+    try:
+        while True:
+            resp = dynamodb_client.list_tables(**kwargs)
+            names.extend(resp.get('TableNames', []))
+            last = resp.get('LastEvaluatedTableName')
+            if not last:
+                break
+            kwargs['ExclusiveStartTableName'] = last
+    except Exception as e:
+        logger.warning(f'{{"event":"list_tables_error","error":"{e}"}}')
+    return [n for n in names if n.startswith(TABLE_PREFIX) and n not in PROTECTED_TABLES]
+
+
+def _discover_s3_prefixes(max_depth: int = S3_MAX_DEPTH) -> List[str]:
+    """List every 'folder' (common prefix) under the stack/ root, up to max_depth levels."""
+    found: List[str] = []
+
+    def walk(prefix: str, depth: int) -> None:
+        if depth > max_depth:
+            return
+        token = None
+        while True:
+            kwargs = {'Bucket': BUCKET, 'Prefix': prefix, 'Delimiter': '/'}
+            if token:
+                kwargs['ContinuationToken'] = token
+            try:
+                resp = s3.list_objects_v2(**kwargs)
+            except Exception as e:
+                logger.warning(f'{{"event":"s3_walk_error","prefix":"{prefix}","error":"{e}"}}')
+                return
+            for cp in resp.get('CommonPrefixes', []):
+                p = cp['Prefix']
+                found.append(p)
+                walk(p, depth + 1)
+            if resp.get('IsTruncated'):
+                token = resp.get('NextContinuationToken')
+            else:
+                break
+
+    walk(S3_ROOT_PREFIX, 1)
+    return found
+
+
+def _build_resources() -> Dict[str, Dict[str, Any]]:
+    """
+    Build the full id -> resource map: curated entries (with friendly labels/categories)
+    merged with every dynamically discovered table and S3 folder so nothing is missed.
+    Used by both preview (counts) and cleanup (delete) so ids always resolve consistently.
+    """
+    resources: Dict[str, Dict[str, Any]] = {k: dict(v) for k, v in CLEANUP_RESOURCES.items()}
+
+    curated_tables = {v['table'] for v in CLEANUP_RESOURCES.values() if v['type'] == 'dynamodb'}
+    curated_prefixes = {v['prefix'] for v in CLEANUP_RESOURCES.values() if v['type'] == 's3'}
+
+    # Add any stack table not already curated
+    for table in _discover_tables():
+        if table in curated_tables:
+            continue
+        resources['auto_tbl_' + table] = {
+            'label': table[len(TABLE_PREFIX):] or table,
+            'category': 'Other Tables',
+            'type': 'dynamodb',
+            'table': table,
+        }
+
+    # Add any S3 folder not already curated
+    for prefix in _discover_s3_prefixes():
+        if prefix in curated_prefixes:
+            continue
+        resources['auto_s3_' + prefix] = {
+            'label': 'S3: ' + prefix,
+            'category': 'S3 Storage',
+            'type': 's3',
+            'prefix': prefix,
+        }
+
+    return resources
+
+
 # Module-level origin for CORS (set per-invocation in handler)
 origin = ''
 
@@ -416,9 +511,9 @@ def _get_sqs_count(queue_name: str) -> int:
 
 
 def _preview() -> Dict[str, Any]:
-    """Return item counts for all clearable resources."""
+    """Return live item counts for every clearable resource (curated + auto-discovered)."""
     resources = []
-    for key, res in CLEANUP_RESOURCES.items():
+    for key, res in _build_resources().items():
         entry = {
             'id': key,
             'label': res['label'],
@@ -521,11 +616,12 @@ def _cleanup(event: Dict[str, Any]) -> Dict[str, Any]:
     if not selected:
         return {'statusCode': 400, 'headers': cors_headers(origin), 'body': json.dumps({'error': 'No resources selected'})}
 
+    all_resources = _build_resources()
     results = []
     total_deleted = 0
 
     for key in selected:
-        res = CLEANUP_RESOURCES.get(key)
+        res = all_resources.get(key)
         if not res:
             results.append({'id': key, 'error': 'Unknown resource', 'deleted': 0})
             continue
