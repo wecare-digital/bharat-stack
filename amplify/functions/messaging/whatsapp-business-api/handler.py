@@ -705,6 +705,76 @@ def _validate_template_buttons(buttons: list) -> Optional[str]:
 
 
 # ============================================================================
+# AI PROVIDER PRICING POLICY (table-driven markets + effective dates)
+# Backed by DynamoDB so markets/dates are editable without code changes.
+# Analytics pricing_category for AI-Provider traffic: AI_BOT
+# Webhook pricing.category for these non-template messages: general_purpose_ai
+# Rates are NOT hardcoded — import rate cards (CSV/PDF) separately.
+# ============================================================================
+AI_POLICY_TABLE = os.environ.get('AI_PROVIDER_POLICY_TABLE', 'stack-wecare-digital-AIProviderPolicyTable')
+AI_ANALYTICS_PRICING_CATEGORY = 'AI_BOT'
+AI_WEBHOOK_PRICING_CATEGORY = 'general_purpose_ai'
+
+
+def _list_ai_policy_markets() -> Dict:
+    """List all AI-Provider pricing-policy markets (country + effective date + active flag)."""
+    try:
+        table = dynamodb.Table(AI_POLICY_TABLE)
+        items = []
+        resp = table.scan()
+        items.extend(resp.get('Items', []))
+        while 'LastEvaluatedKey' in resp:
+            resp = table.scan(ExclusiveStartKey=resp['LastEvaluatedKey'])
+            items.extend(resp.get('Items', []))
+        items.sort(key=lambda x: (not x.get('active', False), x.get('country', '')))
+        return _resp(200, {
+            'markets': items,
+            'count': len(items),
+            'activeCount': sum(1 for i in items if i.get('active')),
+            'analyticsPricingCategory': AI_ANALYTICS_PRICING_CATEGORY,
+            'webhookPricingCategory': AI_WEBHOOK_PRICING_CATEGORY,
+            'note': 'Applies only to AI Providers per Meta ToS. Non-template messages to ACTIVE markets are billable. Rates are imported separately (CSV/PDF), not stored here.',
+        })
+    except Exception as e:
+        return _resp(500, {'error': f'Failed to list AI policy markets: {e}'})
+
+
+def _upsert_ai_policy_market(body: Dict) -> Dict:
+    """Create/update a market. Body: { countryCode, country, effectiveDate, active, note }."""
+    country_code = (body.get('countryCode') or '').strip()
+    if not country_code:
+        return _resp(400, {'error': 'countryCode is required (e.g. +55)'})
+    if not country_code.startswith('+'):
+        country_code = '+' + country_code.lstrip('+')
+    item = {
+        'countryCode': country_code,
+        'country': (body.get('country') or '').strip(),
+        'effectiveDate': (body.get('effectiveDate') or '').strip(),
+        'active': bool(body.get('active', False)),
+        'note': (body.get('note') or '').strip(),
+        'updatedAt': int(time.time()),
+    }
+    try:
+        dynamodb.Table(AI_POLICY_TABLE).put_item(Item=item)
+        return _resp(200, {'success': True, 'market': item})
+    except Exception as e:
+        return _resp(500, {'error': f'Failed to save market: {e}'})
+
+
+def _delete_ai_policy_market(country_code: str) -> Dict:
+    """Delete a market by countryCode."""
+    if not country_code:
+        return _resp(400, {'error': 'countryCode is required'})
+    if not country_code.startswith('+'):
+        country_code = '+' + country_code.lstrip('+')
+    try:
+        dynamodb.Table(AI_POLICY_TABLE).delete_item(Key={'countryCode': country_code})
+        return _resp(200, {'success': True})
+    except Exception as e:
+        return _resp(500, {'error': f'Failed to delete market: {e}'})
+
+
+# ============================================================================
 # GROUPS
 # ============================================================================
 def _list_groups(waba_id: str, phone_id: str = None) -> Dict:
@@ -3709,6 +3779,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         elif '/link-preview' in path:
             return _check_link_preview(params.get('url') or body.get('url') or '')
+
+        elif '/ai-pricing-policy' in path:
+            if method == 'GET':
+                return _list_ai_policy_markets()
+            elif method in ('POST', 'PUT'):
+                return _upsert_ai_policy_market(body)
+            elif method == 'DELETE':
+                return _delete_ai_policy_market(params.get('countryCode') or body.get('countryCode') or '')
 
         elif '/groups/participants' in path:
             return _manage_group_participants(params.get('groupId') or body.get('groupId') or '', body)
