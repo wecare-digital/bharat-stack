@@ -122,12 +122,12 @@ class TestPagination:
             {'data': [{'id': 1}, {'id': 2}], 'paging': {'cursors': {'after': 'CUR1'}}},
             {'data': [{'id': 3}], 'paging': {'cursors': {}}},
         ]
-        with patch.object(c, 'graph', side_effect=pages):
+        with patch.object(c, 'get', side_effect=pages):
             items = list(c.paginate('waba/message_templates', waba_id='2094615664435155'))
         assert [i['id'] for i in items] == [1, 2, 3]
 
     def test_paginate_stops_on_error(self):
         c = _client()
-        with patch.object(c, 'graph', return_value={'error': {'message': 'nope'}}):
+        with patch.object(c, 'get', return_value={'error': {'message': 'nope'}}):
             items = list(c.paginate('waba/x', waba_id='2094615664435155'))
         assert items == []

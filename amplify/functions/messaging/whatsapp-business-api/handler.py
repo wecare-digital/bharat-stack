@@ -49,6 +49,8 @@ import urllib.error
 from decimal import Decimal
 from typing import Dict, Any, Optional
 
+from lambda_utils.meta_client import MetaGraphClient  # shared Meta Graph client (Part 2 pilot)
+
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.middleware import require_auth
@@ -386,12 +388,13 @@ def _remove_assigned_user(waba_id: str, body: Dict) -> Dict:
 # BOT DETAILS
 # ============================================================================
 def _get_bot_details(bot_id: str, params: Dict) -> Dict:
-    """GET /{WABA-Bot-ID} — retrieve bot prompts, commands, welcome message config."""
+    """GET /{WABA-Bot-ID} — retrieve bot prompts, commands, welcome message config.
+    Pilot: uses the shared MetaGraphClient (Part 2)."""
     if not bot_id:
         return _resp(400, {'error': 'botId required'})
     fields = params.get('fields', 'id,prompts,commands,enable_welcome_message')
-    result = _graph_api(bot_id, params={'fields': fields})
-    if 'error' in result:
+    result = MetaGraphClient().get(bot_id, params={'fields': fields})
+    if MetaGraphClient.is_error(result):
         return _resp(400, result)
     return _resp(200, {'bot': result})
 
