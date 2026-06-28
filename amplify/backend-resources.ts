@@ -182,8 +182,13 @@ export function addBackendResources ( stack: Stack ) {
     perLambdaAlarms.push( alarm );
   }
 
-  // ─── WAF Web ACL for Webhook Endpoints ─────────────────────────────
-  const webhookWaf = new wafv2.CfnWebACL( stack, 'WebhookWAF', {
+  // ─── WAF Web ACL for Webhook Endpoints (cost-gated) ────────────────
+  // Part 6: WAF is a paid resource (~$5/web ACL + $1/rule per month + per-request).
+  // Only created when ENABLE_WAF=true so it is OFF by default. Removing it on a
+  // deploy drops webhook rate-limiting — Lambda-side rate_limit + HMAC signature
+  // verification still apply regardless. See docs/AWS_COST_CONTROL.md.
+  const ENABLE_WAF = process.env.ENABLE_WAF === 'true';
+  const webhookWaf = ENABLE_WAF ? new wafv2.CfnWebACL( stack, 'WebhookWAF', {
     name: 'wecare-webhook-waf',
     scope: 'REGIONAL',
     defaultAction: { allow: {} },
@@ -226,7 +231,7 @@ export function addBackendResources ( stack: Stack ) {
         },
       },
     ],
-  } );
+  } ) : undefined;
 
   return {
     queues: {

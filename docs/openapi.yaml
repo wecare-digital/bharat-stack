@@ -394,3 +394,139 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+
+  # ── WhatsApp Business — Flows ──
+  /wa-business/flows:
+    get:
+      tags: [WhatsApp Flows]
+      summary: List or get flows (flowId query for detail)
+      parameters:
+        - { name: wabaId, in: query, schema: { type: string } }
+        - { name: flowId, in: query, schema: { type: string } }
+      responses: { '200': { description: Flow list or detail } }
+    post:
+      tags: [WhatsApp Flows]
+      summary: Create a flow
+      responses: { '200': { description: Flow created } }
+    put:
+      tags: [WhatsApp Flows]
+      summary: Update a draft flow
+      responses: { '200': { description: Flow updated } }
+    delete:
+      tags: [WhatsApp Flows]
+      summary: Delete a flow
+      responses: { '200': { description: Flow deleted } }
+  /wa-business/flows/publish:
+    post: { tags: [WhatsApp Flows], summary: Publish a flow, responses: { '200': { description: Published } } }
+  /wa-business/flows/deprecate:
+    post: { tags: [WhatsApp Flows], summary: Deprecate a flow, responses: { '200': { description: Deprecated } } }
+  /wa-business/flows/preview:
+    post: { tags: [WhatsApp Flows], summary: Generate a flow preview URL, responses: { '200': { description: Preview URL } } }
+  /wa-business/flows/assets:
+    post:
+      tags: [WhatsApp Flows]
+      summary: Upload a FLOW_JSON asset (multipart). Locally validated; returns Meta validation_errors.
+      parameters: [ { name: flowId, in: query, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Asset uploaded }, '400': { description: Validation error } }
+  /wa-business/flows/migrate:
+    post:
+      tags: [WhatsApp Flows]
+      summary: Migrate flows between WABAs (Meta migrate_flows)
+      responses: { '200': { description: Migration result } }
+  /wa-business/flows/sync:
+    post:
+      tags: [WhatsApp Flows]
+      summary: Reconcile Meta flows into FlowRegistry
+      parameters: [ { name: wabaId, in: query, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Sync summary } }
+
+  # ── WhatsApp Business — Template TTL ──
+  /wa-business/template-ttl/rules:
+    get: { tags: [WhatsApp Templates], summary: Get TTL rules per category, responses: { '200': { description: TTL rules } } }
+  /wa-business/template-ttl/validate:
+    post:
+      tags: [WhatsApp Templates]
+      summary: Validate a category/TTL pair
+      responses: { '200': { description: Validation result } }
+  /wa-business/templates/{templateId}/ttl:
+    post:
+      tags: [WhatsApp Templates]
+      summary: Update a template's message_send_ttl_seconds
+      parameters: [ { name: templateId, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: TTL updated }, '400': { description: Invalid TTL } }
+
+  # ── WhatsApp Templates — validation / presets / send-test / refresh ──
+  /whatsapp/templates/validate:
+    post:
+      tags: [WhatsApp Templates]
+      summary: Validate a template definition (errors + warnings)
+      responses: { '200': { description: Validation result } }
+  /whatsapp/templates/presets:
+    get: { tags: [WhatsApp Templates], summary: List preset template definitions, responses: { '200': { description: Preset list } } }
+  /whatsapp/templates/presets/{name}:
+    get:
+      tags: [WhatsApp Templates]
+      summary: Get a single preset definition
+      parameters: [ { name: name, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Preset }, '404': { description: Unknown preset } }
+  /whatsapp/templates/{templateId}/send-test:
+    post:
+      tags: [WhatsApp Templates]
+      summary: Send a template test message
+      parameters: [ { name: templateId, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Sent } }
+  /whatsapp/templates/{templateId}/refresh:
+    post:
+      tags: [WhatsApp Templates]
+      summary: Re-fetch a template's live status/category/quality
+      parameters: [ { name: templateId, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Template detail } }
+
+  # ── WhatsApp Business — Media ──
+  /wa-business/media:
+    post:
+      tags: [WhatsApp Media]
+      summary: Upload media (base64 or s3Key). MIME + size validated.
+      responses: { '200': { description: mediaId }, '400': { description: Invalid media } }
+  /wa-business/media/{mediaId}:
+    get:
+      tags: [WhatsApp Media]
+      summary: Media info (masked URL + expiry; download=true stages to S3)
+      parameters:
+        - { name: mediaId, in: path, required: true, schema: { type: string } }
+        - { name: download, in: query, schema: { type: boolean } }
+      responses: { '200': { description: Media info } }
+    delete:
+      tags: [WhatsApp Media]
+      summary: Delete media
+      parameters: [ { name: mediaId, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Deleted } }
+  /wa-business/media/resumable/session:
+    post: { tags: [WhatsApp Media], summary: Start a resumable upload session, responses: { '200': { description: sessionId } } }
+  /wa-business/media/resumable/{sessionId}/chunk:
+    post:
+      tags: [WhatsApp Media]
+      summary: Append a base64 chunk
+      parameters: [ { name: sessionId, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Progress } }
+  /wa-business/media/resumable/{sessionId}/finish:
+    post:
+      tags: [WhatsApp Media]
+      summary: Assemble + upload (target=handle for template headers, or media)
+      parameters: [ { name: sessionId, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: headerHandle or mediaId } }
+
+  # ── WhatsApp Business — Send test messages ──
+  /wa-business/messages/send/text:
+    post: { tags: [WhatsApp Messaging], summary: Send a text message, responses: { '200': { description: messageId } } }
+  /wa-business/messages/send/template:
+    post: { tags: [WhatsApp Messaging], summary: Send a template message, responses: { '200': { description: messageId } } }
+  /wa-business/messages/send/media:
+    post: { tags: [WhatsApp Messaging], summary: Send a media message, responses: { '200': { description: messageId } } }
+  /wa-business/messages/send/interactive:
+    post: { tags: [WhatsApp Messaging], summary: Send an interactive message, responses: { '200': { description: messageId } } }
+  /wa-business/messages/send/flow:
+    post:
+      tags: [WhatsApp Messaging]
+      summary: Send a flow message by id or name (draft/published)
+      responses: { '200': { description: messageId } }

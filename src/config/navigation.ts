@@ -73,7 +73,27 @@ export const navigationConfig: NavItem[] = [
       {
         path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
           { path: '/dm/whatsapp', label: 'Inbox' },
+          // Setup
+          { path: '/dm/whatsapp/waba-dashboard', label: 'WABA Dashboard' },
+          { path: '/dm/whatsapp/business-profile', label: 'Business Profile' },
+          { path: '/dm/whatsapp/webhooks', label: 'Webhooks' },
+          { path: '/dm/whatsapp/migration', label: 'WABA Migration' },
           { path: '/dm/whatsapp/settings', label: 'Settings' },
+          // Messaging
+          { path: '/dm/whatsapp/send-test', label: 'Send Test' },
+          { path: '/dm/whatsapp/campaign', label: 'Campaign' },
+          { path: '/dm/whatsapp/interactive-lists', label: 'Interactive Lists' },
+          { path: '/dm/whatsapp/auto-response', label: 'Auto Response' },
+          { path: '/dm/whatsapp/logs', label: 'Message Logs' },
+          // Templates
+          { path: '/dm/whatsapp/templates', label: 'Templates' },
+          // Flows
+          { path: '/dm/whatsapp/flow-hub', label: 'Flow Hub' },
+          { path: '/dm/whatsapp/flows', label: 'Flows' },
+          { path: '/dm/whatsapp/flow-responses', label: 'Flow Responses' },
+          // Groups & Calling
+          { path: '/dm/whatsapp/groups', label: 'Groups' },
+          { path: '/dm/whatsapp/calling', label: 'Calling' },
         ]
       },
       { path: '/dm/sms', label: 'SMS', icon: 'sms' },
