@@ -1,6 +1,7 @@
 """Tests for lambda_utils.response module."""
 import json
 import pytest
+from unittest.mock import patch
 from lambda_utils.response import (
     cors_headers, cors_response, options_response,
     extract_origin, error_response, ALLOWED_ORIGINS,
@@ -21,8 +22,17 @@ class TestCorsHeaders:
         assert h['Access-Control-Allow-Origin'] == ALLOWED_ORIGINS[0]
 
     def test_localhost_allowed(self):
+        # localhost is only an allowed origin in non-production env (APP_ENV).
+        # Validate that behavior by patching the module's allow-list.
+        import lambda_utils.response as r
+        with patch.object(r, 'ALLOWED_ORIGINS', r._PROD_ORIGINS + ['http://localhost:3000']):
+            h = r.cors_headers('http://localhost:3000')
+            assert h['Access-Control-Allow-Origin'] == 'http://localhost:3000'
+
+    def test_localhost_blocked_in_production(self):
+        # Default (production) env must NOT reflect localhost — falls back to prod origin.
         h = cors_headers('http://localhost:3000')
-        assert h['Access-Control-Allow-Origin'] == 'http://localhost:3000'
+        assert h['Access-Control-Allow-Origin'] == ALLOWED_ORIGINS[0]
 
     def test_default_methods(self):
         h = cors_headers()

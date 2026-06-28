@@ -107,19 +107,19 @@ class TestOrderStatusSend:
     def setup(self):
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'outbound-whatsapp'))
         with patch.dict(os.environ, {'AWS_REGION': 'us-east-1', 'SEND_MODE': 'LIVE'}):
-            with patch('boto3.resource') as mock_res, patch('boto3.client') as mock_client:
-                self.mock_social = MagicMock()
-                self.mock_social.send_whatsapp_message.return_value = {'messageId': 'wamid.test'}
-                mock_client.return_value = self.mock_social
+            with patch('boto3.resource') as mock_res, patch('boto3.client'):
                 self.mock_table = MagicMock()
                 mock_res.return_value.Table.return_value = self.mock_table
-                from handler import _handle_order_status_send
-                self.send_order_status = _handle_order_status_send
+                import handler as h
+                self.h = h
+                self.send_order_status = h._handle_order_status_send
 
     def test_completed_order_status(self):
         details = {'reference_id': 'WD-001', 'order_status': 'completed', 'amount': 49.00}
-        result = self.send_order_status('msg-1', 'contact-1', '+919330994400',
-                                         'phone-id-1', details, 'req-1')
+        with patch.object(self.h, '_send_message', return_value={'messageId': 'wamid.test'}), \
+             patch.object(self.h, '_store_message_record'):
+            result = self.send_order_status('msg-1', 'contact-1', '+919330994400',
+                                             'phone-id-1', details, 'req-1')
         assert result['statusCode'] == 200
         body = json.loads(result['body'])
         assert body['type'] == 'order_status'
@@ -127,8 +127,10 @@ class TestOrderStatusSend:
 
     def test_failed_order_status(self):
         details = {'reference_id': 'WD-002', 'order_status': 'failed', 'amount': 0}
-        result = self.send_order_status('msg-2', 'contact-2', '+919330994400',
-                                         'phone-id-1', details, 'req-2')
+        with patch.object(self.h, '_send_message', return_value={'messageId': 'wamid.test'}), \
+             patch.object(self.h, '_store_message_record'):
+            result = self.send_order_status('msg-2', 'contact-2', '+919330994400',
+                                             'phone-id-1', details, 'req-2')
         assert result['statusCode'] == 200
         body = json.loads(result['body'])
         assert body['orderStatus'] == 'failed'

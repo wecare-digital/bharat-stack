@@ -134,10 +134,13 @@ class TestCallEventHandling:
             'timestamp': str(int(time.time())),
         }
         metadata = {'phone_number_id': '1016149501586345', 'display_phone_number': '919330994400'}
-        with patch('handler._store_call_log') as mock_store:
+        with patch('handler._store_call_log') as mock_store, \
+             patch('handler._send_call_whatsapp_notification'), \
+             patch('handler._is_auto_pickup_enabled', return_value=False):
             self.handle_event('waba-1', call, metadata, [], 'req-1')
-            mock_store.assert_called_once()
-            stored = mock_store.call_args[0][0]
+            # connect now also auto-grants permission (2nd store); first store is the connect log
+            assert mock_store.called
+            stored = mock_store.call_args_list[0].args[0]
             assert stored['callId'] == 'call-123'
             assert stored['status'] == 'ringing'
 
@@ -152,14 +155,17 @@ class TestCallEventHandling:
         }
         metadata = {'phone_number_id': '1016149501586345'}
         with patch('handler._store_call_log') as mock_store, \
-             patch('handler._send_post_call_reaction'):
+             patch('handler._send_post_call_reaction'), \
+             patch('handler._is_sms_on_call_enabled', return_value=False):
             self.handle_event('waba-1', call, metadata, [], 'req-2')
-            mock_store.assert_called_once()
-            stored = mock_store.call_args[0][0]
+            assert mock_store.called
+            stored = mock_store.call_args_list[0].args[0]
             assert stored['status'] == 'ended'
             assert stored['duration'] == 45
 
-    def test_permission_event(self):
+    def test_permission_event_not_stored(self):
+        # call_permission_status is now log-only (permission is auto-granted post-call),
+        # so it no longer writes a call-log row.
         call = {
             'event': 'call_permission_status',
             'status': 'GRANTED',
@@ -169,9 +175,7 @@ class TestCallEventHandling:
         metadata = {'phone_number_id': '1016149501586345'}
         with patch('handler._store_call_log') as mock_store:
             self.handle_event('waba-1', call, metadata, [], 'req-3')
-            mock_store.assert_called_once()
-            stored = mock_store.call_args[0][0]
-            assert stored['permission'] == 'GRANTED'
+            mock_store.assert_not_called()
 
     def test_bsuid_extraction_from_contacts(self):
         call = {
@@ -184,9 +188,11 @@ class TestCallEventHandling:
         }
         contacts = [{'profile': {'name': 'Test User', 'username': '@testuser'}, 'user_id': 'IN.123456'}]
         metadata = {'phone_number_id': '1016149501586345'}
-        with patch('handler._store_call_log') as mock_store:
+        with patch('handler._store_call_log') as mock_store, \
+             patch('handler._send_call_whatsapp_notification'), \
+             patch('handler._is_auto_pickup_enabled', return_value=False):
             self.handle_event('waba-1', call, metadata, contacts, 'req-4')
-            stored = mock_store.call_args[0][0]
+            stored = mock_store.call_args_list[0].args[0]  # connect log
             assert stored['callerName'] == 'Test User'
             assert stored.get('callerUsername') == '@testuser'
 
@@ -212,22 +218,22 @@ class TestCredentialRouting:
             assert self.handler._get_meta_token('1016149501586345') == 'tok_waba1'
             assert self.handler._get_app_secret('1016149501586345') == 'sec1'
 
-    def test_waba2_uses_token2(self):
-        """WABA2 phone (997428863451102) should resolve to token2."""
+    def test_waba2_phone_resolves_to_token1_after_single_app_migration(self):
+        """WABA2 phone now uses the WECARE.DIGITAL app (token1) — WABA2_IDS is empty."""
         with patch.object(self.handler, '_token_cache', {
             'loaded': True, 'token1': 'tok_waba1', 'token2': 'tok_waba2',
             'app_secret1': 'sec1', 'app_secret2': 'sec2',
         }):
-            assert self.handler._get_meta_token('997428863451102') == 'tok_waba2'
-            assert self.handler._get_app_secret('997428863451102') == 'sec2'
+            assert self.handler._get_meta_token('997428863451102') == 'tok_waba1'
+            assert self.handler._get_app_secret('997428863451102') == 'sec1'
 
-    def test_waba2_id_uses_token2(self):
-        """WABA2 ID (2513394156072604) should also resolve to token2."""
+    def test_waba2_id_resolves_to_token1_after_single_app_migration(self):
+        """WABA2 ID also uses token1 now (single-app architecture)."""
         with patch.object(self.handler, '_token_cache', {
             'loaded': True, 'token1': 'tok_waba1', 'token2': 'tok_waba2',
             'app_secret1': 'sec1', 'app_secret2': 'sec2',
         }):
-            assert self.handler._get_meta_token('2513394156072604') == 'tok_waba2'
+            assert self.handler._get_meta_token('2513394156072604') == 'tok_waba1'
 
     def test_unknown_phone_defaults_to_token1(self):
         """Unknown phone_number_id should default to token1."""
@@ -312,50 +318,44 @@ class TestIVRAutoPickup:
                 self.handler = handler
 
     def test_all_phones_use_direct_api_full_flow(self):
-        """All phones should do pre_accept → IVR menu → terminate via Direct API."""
-        with patch.object(self.handler, '_update_call_status') as mock_status, \
-             patch.object(self.handler, '_send_ivr_menu') as mock_menu, \
+        """All phones should pre_accept → accept → audio greeting → terminate via Direct API."""
+        with patch.object(self.handler, '_update_call_status'), \
+             patch.object(self.handler, '_send_audio_to_caller') as mock_audio, \
              patch.object(self.handler, '_meta_api_call', return_value={'success': True}) as mock_api, \
              patch('time.sleep'):
             self.handler._auto_pickup_and_play('call-1', '1016149501586345', '+919876543210', 'sdp')
-            # Should call Meta API for pre_accept and terminate
-            api_calls = mock_api.call_args_list
-            assert len(api_calls) == 2
-            assert api_calls[0][0][2]['action'] == 'pre_accept'
-            assert api_calls[1][0][2]['action'] == 'terminate'
-            # Should send IVR menu
-            mock_menu.assert_called_once_with('1016149501586345', '+919876543210', 'call-1')
+            actions = [c.args[2].get('action') for c in mock_api.call_args_list
+                       if len(c.args) >= 3 and isinstance(c.args[2], dict)]
+            assert 'pre_accept' in actions
+            assert 'terminate' in actions
+            mock_audio.assert_called_once()
 
     def test_direct_api_phone2_full_flow(self):
-        """Phone 2 (WABA-T) should do pre_accept → IVR menu → terminate."""
-        with patch.object(self.handler, '_update_call_status') as mock_status, \
-             patch.object(self.handler, '_send_ivr_menu') as mock_menu, \
+        """Phone 2 (WABA-T) should also run the full Direct API flow on its own phone id."""
+        with patch.object(self.handler, '_update_call_status'), \
+             patch.object(self.handler, '_send_audio_to_caller'), \
              patch.object(self.handler, '_meta_api_call', return_value={'success': True}) as mock_api, \
              patch('time.sleep'):
             self.handler._auto_pickup_and_play('call-2', '1055232054343117', '+919876543210', 'sdp')
-            # Should call Meta API for pre_accept and terminate
-            api_calls = mock_api.call_args_list
-            assert len(api_calls) == 2
-            assert api_calls[0][0][0] == '1055232054343117/calls'
-            assert api_calls[0][1].get('payload', api_calls[0][0][2])['action'] == 'pre_accept'
-            assert api_calls[1][0][0] == '1055232054343117/calls'
-            assert api_calls[1][1].get('payload', api_calls[1][0][2])['action'] == 'terminate'
-            # Should send IVR menu
-            mock_menu.assert_called_once()
+            endpoints = [c.args[0] for c in mock_api.call_args_list]
+            actions = [c.args[2].get('action') for c in mock_api.call_args_list
+                       if len(c.args) >= 3 and isinstance(c.args[2], dict)]
+            assert all(e == '1055232054343117/calls' for e in endpoints)
+            assert 'pre_accept' in actions and 'terminate' in actions
 
     def test_waba2_phone_uses_direct_api(self):
-        """WABA2 phone should also use full Direct API flow."""
-        with patch.object(self.handler, '_update_call_status') as mock_status, \
-             patch.object(self.handler, '_send_ivr_menu') as mock_menu, \
+        """WABA2 phone should also use the full Direct API flow (not skipped)."""
+        with patch.object(self.handler, '_update_call_status'), \
+             patch.object(self.handler, '_send_audio_to_caller'), \
              patch.object(self.handler, '_meta_api_call', return_value={'success': True}) as mock_api, \
              patch('time.sleep'):
             self.handler._auto_pickup_and_play('call-3', '997428863451102', '+919876543210', 'sdp')
-            # Should call Meta API (not skip like before)
-            assert mock_api.call_count == 2
-            mock_menu.assert_called_once()
+            actions = [c.args[2].get('action') for c in mock_api.call_args_list
+                       if len(c.args) >= 3 and isinstance(c.args[2], dict)]
+            assert 'pre_accept' in actions and 'terminate' in actions
 
-    def test_ivr_mode_triggers_auto_pickup(self):
-        """When pickup_mode is 'ivr', _handle_call_event should call _auto_pickup_and_play."""
+    def test_auto_pickup_enabled_triggers_ivr(self):
+        """When auto-pickup is enabled, _handle_call_event should call _auto_pickup_and_play."""
         call = {
             'event': 'connect', 'id': 'call-ivr-1', 'from': '+919876543210',
             'direction': 'USER_INITIATED', 'session': {'sdp': 'v=0\r\n'},
@@ -363,14 +363,14 @@ class TestIVRAutoPickup:
         }
         metadata = {'phone_number_id': '1016149501586345', 'display_phone_number': '919330994400'}
         with patch.object(self.handler, '_store_call_log'), \
+             patch.object(self.handler, '_send_call_whatsapp_notification'), \
              patch.object(self.handler, '_is_auto_pickup_enabled', return_value=True), \
-             patch.object(self.handler, '_get_auto_pickup_mode', return_value='ivr'), \
              patch.object(self.handler, '_auto_pickup_and_play') as mock_ivr:
             self.handler._handle_call_event('waba-1', call, metadata, [], 'req-1')
             mock_ivr.assert_called_once_with('call-ivr-1', '1016149501586345', '+919876543210', 'v=0\r\n')
 
-    def test_manual_mode_does_not_trigger_ivr(self):
-        """When pickup_mode is 'manual', _handle_call_event should NOT call _auto_pickup_and_play."""
+    def test_auto_pickup_disabled_does_not_trigger_ivr(self):
+        """When auto-pickup is disabled, _handle_call_event should NOT call _auto_pickup_and_play."""
         call = {
             'event': 'connect', 'id': 'call-man-1', 'from': '+919876543210',
             'direction': 'USER_INITIATED', 'session': {'sdp': 'v=0\r\n'},
@@ -378,11 +378,9 @@ class TestIVRAutoPickup:
         }
         metadata = {'phone_number_id': '1016149501586345', 'display_phone_number': '919330994400'}
         with patch.object(self.handler, '_store_call_log'), \
-             patch.object(self.handler, '_is_auto_pickup_enabled', return_value=True), \
-             patch.object(self.handler, '_get_auto_pickup_mode', return_value='manual'), \
-             patch.object(self.handler, '_auto_pickup_and_play') as mock_ivr, \
-             patch.object(self.handler, '_meta_api_call', return_value={'success': True}), \
-             patch.object(self.handler, '_update_call_status'):
+             patch.object(self.handler, '_send_call_whatsapp_notification'), \
+             patch.object(self.handler, '_is_auto_pickup_enabled', return_value=False), \
+             patch.object(self.handler, '_auto_pickup_and_play') as mock_ivr:
             self.handler._handle_call_event('waba-1', call, metadata, [], 'req-2')
             mock_ivr.assert_not_called()
 
