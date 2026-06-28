@@ -759,6 +759,30 @@ def _get_ttl_rules() -> Dict:
     return _resp(200, {'rules': ttl_rules()})
 
 
+def _get_cost_flags() -> Dict:
+    """Return all cost-control feature flags and their effective on/off state."""
+    try:
+        from lambda_utils.cost_flags import all_flags
+        flags = all_flags()
+    except Exception as e:
+        logger.error(f'cost_flags read failed: {e}')
+        flags = {}
+    # Static cost-risk metadata for the UI (kept here so the page needs no second call).
+    meta = {
+        'ENABLE_WAF': {'risk': 'medium', 'service': 'AWS WAF'},
+        'ENABLE_CLOUDFRONT': {'risk': 'medium', 'service': 'CloudFront'},
+        'ENABLE_STEP_FUNCTIONS': {'risk': 'medium', 'service': 'Step Functions'},
+        'ENABLE_ATHENA_ANALYTICS': {'risk': 'high', 'service': 'Athena'},
+        'ENABLE_GLUE': {'risk': 'high', 'service': 'Glue'},
+        'ENABLE_TEXTRACT_IMPORT': {'risk': 'high', 'service': 'Textract'},
+        'ENABLE_BEDROCK_ASSIST': {'risk': 'high', 'service': 'Bedrock'},
+        'ENABLE_XRAY': {'risk': 'medium', 'service': 'X-Ray'},
+        'ENABLE_ADVANCED_CLOUDWATCH_DASHBOARD': {'risk': 'medium', 'service': 'CloudWatch dashboards'},
+        'ENABLE_RAW_WEBHOOK_ARCHIVE': {'risk': 'medium', 'service': 'S3 raw archive'},
+    }
+    return _resp(200, {'flags': flags, 'meta': meta})
+
+
 def _validate_template_ttl_route(body: Dict) -> Dict:
     """Validate a category/TTL pair. Body: { category, ttl | message_send_ttl_seconds }."""
     from lambda_utils.template_ttl import validate_ttl
@@ -4436,6 +4460,9 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         elif '/template-ttl/rules' in path:
             return _get_ttl_rules()
+
+        elif '/cost-flags' in path:
+            return _get_cost_flags()
 
         elif '/template-ttl/validate' in path:
             if method == 'POST':

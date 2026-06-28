@@ -4163,6 +4163,14 @@ export async function syncFlows ( wabaId: string ): Promise<{ success?: boolean;
   return data || { error: 'No response' };
 }
 
+// ── Cost-control feature flags ──
+export interface CostFlagMeta { risk: 'low' | 'medium' | 'high'; service: string; }
+export interface CostFlagsResponse { flags: Record<string, boolean>; meta: Record<string, CostFlagMeta>; }
+
+export async function getCostFlags (): Promise<CostFlagsResponse | null> {
+  return apiCall<CostFlagsResponse>( `${WA_BIZ_BASE}/cost-flags` );
+}
+
 export async function updateGroupSettings ( groupId: string, settings: {
   subject?: string; description?: string;
   messaging_permission?: 'all' | 'admins';

@@ -87,13 +87,17 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/logs', label: 'Message Logs' },
           // Templates
           { path: '/dm/whatsapp/templates', label: 'Templates' },
+          { path: '/dm/whatsapp/template-builder', label: 'Template Builder' },
           // Flows
           { path: '/dm/whatsapp/flow-hub', label: 'Flow Hub' },
           { path: '/dm/whatsapp/flows', label: 'Flows' },
+          { path: '/dm/whatsapp/flow-publish', label: 'Flow Publish Checklist' },
           { path: '/dm/whatsapp/flow-responses', label: 'Flow Responses' },
           // Groups & Calling
           { path: '/dm/whatsapp/groups', label: 'Groups' },
           { path: '/dm/whatsapp/calling', label: 'Calling' },
+          // Operations
+          { path: '/dm/whatsapp/cost-controls', label: 'Cost Controls' },
         ]
       },
       { path: '/dm/sms', label: 'SMS', icon: 'sms' },
