@@ -10,7 +10,7 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import {
     WabaSelector, TemplatePreviewCard, ValidationErrorList, WarningList,
-    CurlPreview, RawJsonDrawer, MetaErrorPanel,
+    CurlPreview, RawJsonDrawer, MetaErrorPanel, WABA_OPTIONS,
 } from '../../../components/wa';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
@@ -24,7 +24,7 @@ type BtnType = 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER' | 'COPY_CODE';
 const TemplateBuilder: React.FC<PageProps> = ( { signOut, user, embedded = false } ) => {
     const toast = useToastContext();
     const [ step, setStep ] = useState( 0 );
-    const [ wabaId, setWabaId ] = useState( api.WABA_OPTIONS?.[ 0 ]?.wabaId || '' );
+    const [ wabaId, setWabaId ] = useState( WABA_OPTIONS?.[ 0 ]?.wabaId || '' );
 
     // Basics
     const [ name, setName ] = useState( '' );

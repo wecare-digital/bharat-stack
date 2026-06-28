@@ -9,7 +9,7 @@ import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import {
     WabaSelector, ValidationErrorList, FlowHealthPanel, FlowPreviewCard,
-    StatusBadge, useConfirmDanger, RawJsonDrawer, MetaErrorPanel,
+    StatusBadge, useConfirmDanger, RawJsonDrawer, MetaErrorPanel, WABA_OPTIONS,
 } from '../../../components/wa';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
@@ -19,7 +19,7 @@ interface CheckItem { label: string; ok: boolean; detail?: string; }
 const FlowPublishChecklist: React.FC<PageProps> = ( { signOut, user, embedded = false } ) => {
     const toast = useToastContext();
     const confirmDanger = useConfirmDanger();
-    const [ wabaId, setWabaId ] = useState( api.WABA_OPTIONS?.[ 0 ]?.wabaId || '' );
+    const [ wabaId, setWabaId ] = useState( WABA_OPTIONS?.[ 0 ]?.wabaId || '' );
     const [ flowId, setFlowId ] = useState( '' );
     const [ flow, setFlow ] = useState<any>( null );
     const [ loading, setLoading ] = useState( false );
