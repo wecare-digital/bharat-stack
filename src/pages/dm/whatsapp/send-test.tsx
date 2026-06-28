@@ -17,7 +17,7 @@ const PHONES = [
     { key: 'secondary', ...WHATSAPP_PHONES.secondary },
 ];
 
-type SendTab = 'text' | 'template' | 'media' | 'flow' | 'tools';
+type SendTab = 'text' | 'template' | 'media' | 'flow' | 'tools' | 'mediamgmt' | 'flowadmin';
 
 const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e5e5', borderRadius: 8, padding: 16, marginBottom: 16 };
 const input: React.CSSProperties = { width: '100%', padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, marginTop: 4, marginBottom: 10, fontSize: 14 };
@@ -58,6 +58,24 @@ const SendTestConsole: React.FC<PageProps> = ( { signOut, user, embedded = false
     const [ presets, setPresets ] = useState<api.TemplatePresetSummary[]>( [] );
     const [ validateJson, setValidateJson ] = useState( '' );
     const [ validateResult, setValidateResult ] = useState<api.TemplateValidationResult | null>( null );
+
+    // media management
+    const [ mmFile, setMmFile ] = useState<File | null>( null );
+    const [ mmUploadedId, setMmUploadedId ] = useState( '' );
+    const [ mmLookupId, setMmLookupId ] = useState( '' );
+    const [ mmInfo, setMmInfo ] = useState<api.WaMediaInfo | null>( null );
+    const [ mmResumeTarget, setMmResumeTarget ] = useState<'handle' | 'media'>( 'handle' );
+    const [ mmProgress, setMmProgress ] = useState( '' );
+
+    // flow admin
+    const [ faFlowId, setFaFlowId ] = useState( '' );
+    const [ faFlowJson, setFaFlowJson ] = useState( '' );
+    const [ faAssetResult, setFaAssetResult ] = useState<any>( null );
+    const [ faSourceWaba, setFaSourceWaba ] = useState( WHATSAPP_PHONES.secondary.wabaId );
+    const [ faDestWaba, setFaDestWaba ] = useState( WHATSAPP_PHONES.primary.wabaId );
+    const [ faMigrateResult, setFaMigrateResult ] = useState<any>( null );
+    const [ faSyncWaba, setFaSyncWaba ] = useState( WHATSAPP_PHONES.primary.wabaId );
+    const [ faSyncResult, setFaSyncResult ] = useState<any>( null );
 
     const loadTools = useCallback( async () => {
         try
@@ -114,6 +132,96 @@ const SendTestConsole: React.FC<PageProps> = ( { signOut, user, embedded = false
         if ( p ) { setValidateJson( JSON.stringify( p, null, 2 ) ); toast.success( `Loaded preset ${name}` ); }
     };
 
+    // ── media management helpers ──
+    const fileToBase64 = ( file: File ): Promise<string> => new Promise( ( resolve, reject ) => {
+        const r = new FileReader();
+        r.onload = () => resolve( ( ( r.result as string ) || '' ).split( ',' )[ 1 ] || '' );
+        r.onerror = reject;
+        r.readAsDataURL( file );
+    } );
+
+    const uploadMedia = async () => {
+        if ( !mmFile ) { toast.error( 'Pick a file first' ); return; }
+        setBusy( true );
+        try
+        {
+            const b64 = await fileToBase64( mmFile );
+            const r = await api.uploadWaMedia( { phoneId: phone.metaPhoneId, fileData: b64, contentType: mmFile.type, filename: mmFile.name } );
+            if ( r.mediaId ) { setMmUploadedId( r.mediaId ); setMmLookupId( r.mediaId ); toast.success( `Uploaded — ${r.mediaId}` ); }
+            else toast.error( r.error || 'Upload failed' );
+        } catch ( e: any ) { toast.error( e?.message || 'Upload failed' ); }
+        finally { setBusy( false ); }
+    };
+
+    const lookupMedia = async () => {
+        if ( !mmLookupId.trim() ) { toast.error( 'Media ID required' ); return; }
+        try { setMmInfo( await api.getWaMedia( mmLookupId.trim(), { phoneId: phone.metaPhoneId } ) ); }
+        catch ( e: any ) { toast.error( e?.message || 'Lookup failed' ); }
+    };
+
+    const removeMedia = async () => {
+        if ( !mmLookupId.trim() ) { toast.error( 'Media ID required' ); return; }
+        const ok = await api.deleteWaMedia( mmLookupId.trim(), phone.metaPhoneId );
+        if ( ok ) { toast.success( 'Deleted' ); setMmInfo( null ); } else toast.error( 'Delete failed' );
+    };
+
+    const resumableUpload = async () => {
+        if ( !mmFile ) { toast.error( 'Pick a file first' ); return; }
+        setBusy( true );
+        setMmProgress( 'Starting session…' );
+        try
+        {
+            const s = await api.startResumableMediaSession( mmFile.name, mmFile.type, mmFile.size );
+            if ( !s.sessionId ) { toast.error( s.error || 'Session failed' ); return; }
+            const buf = new Uint8Array( await mmFile.arrayBuffer() );
+            const CHUNK = 256 * 1024;
+            for ( let off = 0; off < buf.length; off += CHUNK )
+            {
+                const slice = buf.subarray( off, Math.min( off + CHUNK, buf.length ) );
+                let bin = '';
+                for ( let i = 0; i < slice.length; i++ ) bin += String.fromCharCode( slice[ i ] );
+                const res = await api.uploadResumableChunk( s.sessionId, btoa( bin ) );
+                setMmProgress( `Uploaded ${res.received || 0}/${mmFile.size} bytes` );
+                if ( res.error ) { toast.error( res.error ); return; }
+            }
+            const fin = await api.finishResumableMedia( s.sessionId, { target: mmResumeTarget, phoneId: phone.metaPhoneId } );
+            if ( fin.headerHandle ) { setMmProgress( `Done — header handle: ${fin.headerHandle.slice( 0, 24 )}…` ); toast.success( 'Resumable upload complete (handle)' ); }
+            else if ( fin.mediaId ) { setMmProgress( `Done — mediaId: ${fin.mediaId}` ); setMmUploadedId( fin.mediaId ); toast.success( 'Resumable upload complete (media)' ); }
+            else { toast.error( fin.error || 'Finish failed' ); }
+        } catch ( e: any ) { toast.error( e?.message || 'Resumable upload failed' ); }
+        finally { setBusy( false ); }
+    };
+
+    // ── flow admin helpers ──
+    const submitFlowAsset = async () => {
+        if ( !faFlowId.trim() ) { toast.error( 'Flow ID required' ); return; }
+        let parsed: any;
+        try { parsed = JSON.parse( faFlowJson ); } catch { toast.error( 'Flow JSON is invalid' ); return; }
+        setBusy( true );
+        try { setFaAssetResult( await api.uploadFlowAsset( faFlowId.trim(), parsed, { wabaId: phone.wabaId } ) ); }
+        catch ( e: any ) { toast.error( e?.message || 'Asset upload failed' ); }
+        finally { setBusy( false ); }
+    };
+
+    const runMigrate = async () => {
+        setBusy( true );
+        try { setFaMigrateResult( await api.migrateFlows( faSourceWaba, faDestWaba ) ); }
+        catch ( e: any ) { toast.error( e?.message || 'Migrate failed' ); }
+        finally { setBusy( false ); }
+    };
+
+    const runSync = async () => {
+        setBusy( true );
+        try
+        {
+            const r = await api.syncFlows( faSyncWaba );
+            setFaSyncResult( r );
+            if ( r.success ) toast.success( `Synced ${r.synced}/${r.total} flows` );
+            else toast.error( ( r.error && ( r.error.message || JSON.stringify( r.error ) ) ) || 'Sync failed' );
+        } catch ( e: any ) { toast.error( e?.message || 'Sync failed' ); }
+        finally { setBusy( false ); }
+    };
+
     const content = (
         <div style={ { maxWidth: 820, margin: '0 auto', padding: 16 } }>
             <SEO title="WhatsApp Send Test Console" description="Send live WhatsApp test messages and validate templates/TTL." noindex />
@@ -136,8 +244,8 @@ const SendTestConsole: React.FC<PageProps> = ( { signOut, user, embedded = false
             </div>
 
             <div style={ { display: 'flex', gap: 4, borderBottom: '1px solid #e5e5e5', marginBottom: 16 } }>
-                { ( [ 'text', 'template', 'media', 'flow', 'tools' ] as SendTab[] ).map( t => (
-                    <button key={ t } style={ tabBtn( tab === t ) } onClick={ () => setTab( t ) }>{ t[ 0 ].toUpperCase() + t.slice( 1 ) }</button>
+                { ( [ 'text', 'template', 'media', 'flow', 'tools', 'mediamgmt', 'flowadmin' ] as SendTab[] ).map( t => (
+                    <button key={ t } style={ tabBtn( tab === t ) } onClick={ () => setTab( t ) }>{ t === 'mediamgmt' ? 'Media Mgmt' : t === 'flowadmin' ? 'Flow Admin' : t[ 0 ].toUpperCase() + t.slice( 1 ) }</button>
                 ) ) }
             </div>
 
@@ -244,6 +352,96 @@ const SendTestConsole: React.FC<PageProps> = ( { signOut, user, embedded = false
                                 { validateResult.errors?.map( ( e, i ) => <div key={ i } style={ { color: '#a11' } }>• { e }</div> ) }
                                 { validateResult.warnings?.map( ( w, i ) => <div key={ i } style={ { color: '#a60' } }>⚠ { w }</div> ) }
                             </div>
+                        ) }
+                    </div>
+                </>
+            ) }
+
+            { tab === 'mediamgmt' && (
+                <>
+                    <div style={ card }>
+                        <h3 style={ { marginTop: 0, fontSize: 15 } }>Upload media (single request)</h3>
+                        <input style={ input } type="file" onChange={ e => setMmFile( e.target.files?.[ 0 ] || null ) } />
+                        <button style={ btn } disabled={ busy } onClick={ uploadMedia }>Upload</button>
+                        { mmUploadedId && <div style={ { marginTop: 8, fontSize: 12, color: '#1a3a2a' } }>Media ID: { mmUploadedId }</div> }
+                    </div>
+
+                    <div style={ card }>
+                        <h3 style={ { marginTop: 0, fontSize: 15 } }>Resumable upload (chunked)</h3>
+                        <p style={ { fontSize: 12, color: '#777', marginTop: 0 } }>Uses the same file picked above. Sends 256KB chunks then finishes.</p>
+                        <div style={ label }>Finish as</div>
+                        <select style={ input } value={ mmResumeTarget } onChange={ e => setMmResumeTarget( e.target.value as any ) }>
+                            <option value="handle">header handle (for template headers)</option>
+                            <option value="media">media id (for sending)</option>
+                        </select>
+                        <button style={ btn } disabled={ busy } onClick={ resumableUpload }>Start resumable upload</button>
+                        { mmProgress && <div style={ { marginTop: 8, fontSize: 12, color: '#444' } }>{ mmProgress }</div> }
+                    </div>
+
+                    <div style={ card }>
+                        <h3 style={ { marginTop: 0, fontSize: 15 } }>Lookup / delete media</h3>
+                        <div style={ label }>Media ID</div>
+                        <input style={ input } value={ mmLookupId } onChange={ e => setMmLookupId( e.target.value ) } placeholder="media id" />
+                        <div style={ { display: 'flex', gap: 8 } }>
+                            <button style={ btn } onClick={ lookupMedia }>Get info</button>
+                            <button style={ { ...btn, background: '#7a1a1a' } } onClick={ removeMedia }>Delete</button>
+                        </div>
+                        { mmInfo && (
+                            <div style={ { marginTop: 10, fontSize: 12, color: '#444' } }>
+                                <div>MIME: { mmInfo.mimeType } · { mmInfo.fileSize } bytes</div>
+                                <div>URL (masked): { mmInfo.url }</div>
+                                <div>Expires in: { mmInfo.urlExpiresInSeconds }s</div>
+                                { mmInfo.downloadUrl && <div><a href={ mmInfo.downloadUrl } target="_blank" rel="noreferrer">Download (S3, 1h)</a></div> }
+                            </div>
+                        ) }
+                    </div>
+                </>
+            ) }
+
+            { tab === 'flowadmin' && (
+                <>
+                    <div style={ card }>
+                        <h3 style={ { marginTop: 0, fontSize: 15 } }>Upload flow asset (FLOW_JSON)</h3>
+                        <div style={ label }>Flow ID</div>
+                        <input style={ input } value={ faFlowId } onChange={ e => setFaFlowId( e.target.value ) } placeholder="Meta flow id" />
+                        <div style={ label }>Flow JSON</div>
+                        <textarea style={ { ...input, minHeight: 140, fontFamily: 'monospace', fontSize: 12 } } value={ faFlowJson } onChange={ e => setFaFlowJson( e.target.value ) } placeholder='{"version":"7.0","screens":[...]}' />
+                        <button style={ btn } disabled={ busy } onClick={ submitFlowAsset }>Upload asset</button>
+                        { faAssetResult && (
+                            <div style={ { marginTop: 10, fontSize: 13 } }>
+                                <div style={ { color: faAssetResult.hasErrors ? '#a11' : '#1a3a2a', fontWeight: 600 } }>{ faAssetResult.hasErrors ? 'Validation errors' : 'Uploaded' }</div>
+                                { ( faAssetResult.validationErrors || [] ).map( ( v: any, i: number ) => <div key={ i } style={ { color: '#a11' } }>• { typeof v === 'string' ? v : JSON.stringify( v ) }</div> ) }
+                            </div>
+                        ) }
+                    </div>
+
+                    <div style={ card }>
+                        <h3 style={ { marginTop: 0, fontSize: 15 } }>Migrate flows between WABAs</h3>
+                        <div style={ { display: 'flex', gap: 12 } }>
+                            <div style={ { flex: 1 } }>
+                                <div style={ label }>Source WABA ID</div>
+                                <input style={ input } value={ faSourceWaba } onChange={ e => setFaSourceWaba( e.target.value ) } />
+                            </div>
+                            <div style={ { flex: 1 } }>
+                                <div style={ label }>Dest WABA ID</div>
+                                <input style={ input } value={ faDestWaba } onChange={ e => setFaDestWaba( e.target.value ) } />
+                            </div>
+                        </div>
+                        <button style={ btn } disabled={ busy } onClick={ runMigrate }>Migrate</button>
+                        { faMigrateResult && (
+                            <div style={ { marginTop: 10, fontSize: 13, color: '#444' } }>
+                                Migrated: { ( faMigrateResult.migratedFlows || [] ).length } · Failed: { ( faMigrateResult.failedFlows || [] ).length }
+                            </div>
+                        ) }
+                    </div>
+
+                    <div style={ card }>
+                        <h3 style={ { marginTop: 0, fontSize: 15 } }>Sync flows into registry</h3>
+                        <div style={ label }>WABA ID</div>
+                        <input style={ input } value={ faSyncWaba } onChange={ e => setFaSyncWaba( e.target.value ) } />
+                        <button style={ btn } disabled={ busy } onClick={ runSync }>Sync from Meta</button>
+                        { faSyncResult && faSyncResult.success && (
+                            <div style={ { marginTop: 10, fontSize: 13, color: '#1a3a2a' } }>Synced { faSyncResult.synced }/{ faSyncResult.total } flows</div>
                         ) }
                     </div>
                 </>
