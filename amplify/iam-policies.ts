@@ -323,7 +323,7 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   'wecare-whatsapp-voice': [ 'common', 'whatsapp', 'polly' ],
   'wecare-whatsapp-template-management': [ 'common', 'whatsapp', 'secrets' ],
   'wecare-whatsapp-templates': [ 'common', 'whatsapp', 'secrets' ], // alias
-  'wecare-whatsapp-business-api': [ 'common', 'secrets' ],
+  'wecare-whatsapp-business-api': [ 'common', 'secrets', 's3' ],
   'wecare-waba-management': [ 'common', 'whatsapp', 'sns' ],
   'wecare-media-cleanup': [ 'common', 'whatsapp' ],
   'wecare-template-analytics': [ 'common' ],

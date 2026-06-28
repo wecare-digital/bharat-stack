@@ -1147,6 +1147,20 @@ const schema = a.schema( {
       publishedAt: a.integer(),
       createdAt: a.integer(),
       updatedAt: a.integer(),
+      // Extended lifecycle/sync metadata (Part 4 A)
+      categories: a.string(), // JSON array of Meta categories
+      healthStatusJson: a.string(), // JSON of Meta health_status
+      validationErrorsJson: a.string(), // JSON of Meta validation_errors
+      previewUrl: a.string(),
+      previewExpiresAt: a.integer(),
+      lastSyncedAt: a.integer(),
+      lastPublishedAt: a.integer(),
+      lastDeprecatedAt: a.integer(),
+      clonedFromFlowId: a.string(),
+      migrationBatchId: a.string(),
+      dataChannelUri: a.string(),
+      jsonVersion: a.string(),
+      applicationId: a.string(),
     } )
     .identifier( [ 'flowId' ] )
     .secondaryIndexes( ( index ) => [

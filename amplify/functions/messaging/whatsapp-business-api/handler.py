@@ -13,6 +13,16 @@ Routes:
   POST      /wa-business/flows/publish → Publish flow
   POST      /wa-business/flows/deprecate → Deprecate flow
   POST      /wa-business/flows/preview → Get flow preview URL
+  GET       /wa-business/template-ttl/rules    → TTL rules per category
+  POST      /wa-business/template-ttl/validate → Validate category/TTL pair
+  POST      /wa-business/templates/{id}/ttl    → Update a template's TTL
+  POST      /wa-business/media                 → Upload media (returns mediaId)
+  GET       /wa-business/media/{mediaId}       → Media info (masked URL + expiry)
+  DELETE    /wa-business/media/{mediaId}       → Delete media
+  POST      /wa-business/media/resumable/session            → Start resumable upload
+  POST      /wa-business/media/resumable/{sessionId}/chunk  → Append chunk
+  POST      /wa-business/media/resumable/{sessionId}/finish → Assemble + upload (handle/media)
+  POST      /wa-business/messages/send/text|template|media|interactive|flow → Send test messages
   GET       /wa-business/webhooks      → Get webhook subscriptions
   POST      /wa-business/webhooks      → Subscribe to webhook fields
   DELETE    /wa-business/webhooks      → Unsubscribe webhook fields
@@ -38,6 +48,7 @@ Routes:
 import os
 import json
 import logging
+import base64
 import hmac
 import hashlib
 import time
@@ -81,7 +92,36 @@ ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'stack-wecare-digital-Wi
 
 # Lambda client for invoking outbound WhatsApp (payment after flow)
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp')
+
+# Media handling (Part 4 D)
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_RESUMABLE_PREFIX = os.environ.get('MEDIA_RESUMABLE_PREFIX', 'stack/whatsapp-media/resumable/')
+MEDIA_DOWNLOAD_PREFIX = os.environ.get('MEDIA_DOWNLOAD_PREFIX', 'stack/whatsapp-media/downloads/')
+META_APP_ID = os.environ.get('META_APP_ID', '2238810740192680')
+# Meta media URLs are short-lived; treat as ~5 min for expiry tracking.
+MEDIA_URL_TTL_SECONDS = int(os.environ.get('MEDIA_URL_TTL_SECONDS', '300'))
+# MIME → category for size limits (per WhatsApp Cloud API)
+MEDIA_SIZE_LIMITS = {
+    'image': 5 * 1024 * 1024,
+    'video': 16 * 1024 * 1024,
+    'audio': 16 * 1024 * 1024,
+    'document': 100 * 1024 * 1024,
+    'sticker': 500 * 1024,
+}
+MEDIA_ALLOWED_MIME = {
+    'image/jpeg', 'image/png', 'image/webp',
+    'video/mp4', 'video/3gpp',
+    'audio/aac', 'audio/amr', 'audio/mpeg', 'audio/mp4', 'audio/ogg',
+    'application/pdf', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+}
 INVOICE_ENGINE_FUNCTION = os.environ.get('INVOICE_ENGINE_FUNCTION', 'wecare-invoice-engine')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'stack-wecare-digital-SubmitRequestsTable')
@@ -649,27 +689,12 @@ def _check_link_preview(url: str) -> Dict:
 # Reusable validators per WhatsApp template docs.
 # ============================================================================
 def _validate_ttl(category: str, seconds) -> Optional[str]:
-    """Validate message_send_ttl_seconds against the template category. Returns error string or None."""
-    if seconds is None:
-        return None
-    try:
-        s = int(seconds)
-    except (ValueError, TypeError):
-        return 'message_send_ttl_seconds must be an integer'
-    cat = (category or '').upper()
-    if cat == 'AUTHENTICATION':
-        if s == -1 or 30 <= s <= 900:
-            return None
-        return 'AUTHENTICATION TTL must be 30-900 seconds (or -1 for 30 days)'
-    if cat == 'UTILITY':
-        if s == -1 or 30 <= s <= 43200:
-            return None
-        return 'UTILITY TTL must be 30-43200 seconds (or -1 for 30 days)'
-    if cat == 'MARKETING':
-        if 43200 <= s <= 2592000:
-            return None
-        return 'MARKETING TTL must be 43200-2592000 seconds (-1 not allowed)'
-    return f'Unknown template category: {category}'
+    """Validate message_send_ttl_seconds against the template category. Returns error string or None.
+
+    Delegates to the consolidated TTL service (lambda_utils.template_ttl).
+    """
+    from lambda_utils.template_ttl import validate_ttl_error
+    return validate_ttl_error(category, seconds)
 
 
 def _validate_template_buttons(buttons: list) -> Optional[str]:
@@ -705,6 +730,512 @@ def _validate_template_buttons(buttons: list) -> Optional[str]:
     if qr_positions and (max(qr_positions) - min(qr_positions) + 1) != len(qr_positions):
         return 'Quick reply buttons must be grouped together (contiguous), not interleaved with other button types'
     return None
+
+
+# ============================================================================
+# TEMPLATE TTL ROUTES
+#   GET  /wa-business/template-ttl/rules         → human-readable rule set
+#   POST /wa-business/template-ttl/validate      → validate a (category, ttl)
+#   POST /wa-business/templates/{templateId}/ttl → update a template's TTL
+# Backed by the consolidated lambda_utils.template_ttl service.
+# ============================================================================
+def _get_ttl_rules() -> Dict:
+    """Return the full TTL rule set (bounds + human-readable descriptions)."""
+    from lambda_utils.template_ttl import ttl_rules
+    return _resp(200, {'rules': ttl_rules()})
+
+
+def _validate_template_ttl_route(body: Dict) -> Dict:
+    """Validate a category/TTL pair. Body: { category, ttl | message_send_ttl_seconds }."""
+    from lambda_utils.template_ttl import validate_ttl
+    category = body.get('category')
+    if not category:
+        return _resp(400, {'error': 'category is required'})
+    seconds = body.get('ttl', body.get('message_send_ttl_seconds'))
+    result = validate_ttl(category, seconds)
+    return _resp(200, result)
+
+
+def _update_template_ttl(template_id: str, body: Dict, waba_id: str = None) -> Dict:
+    """Update a template's message_send_ttl_seconds via Meta after validation.
+
+    Fetches the template's current category so the TTL is validated against the
+    correct bounds, then warns if a category change has cleared the TTL.
+    """
+    from lambda_utils.template_ttl import validate_ttl, detect_null_ttl_after_category_change
+    if not template_id:
+        return _resp(400, {'error': 'templateId required'})
+    seconds = body.get('ttl', body.get('message_send_ttl_seconds'))
+    if seconds is None:
+        return _resp(400, {'error': 'ttl (message_send_ttl_seconds) is required'})
+
+    # Resolve category: prefer the live template category over any client-supplied value.
+    detail = _graph_api(template_id, params={'fields': 'name,category,message_send_ttl_seconds'}, waba_id=waba_id)
+    if 'error' in detail:
+        return _resp(400, detail)
+    category = detail.get('category') or body.get('category')
+
+    result = validate_ttl(category, seconds)
+    if not result['ok']:
+        return _resp(400, {'error': result['error'], 'validation': result})
+
+    update = _graph_api(template_id, method='POST', payload={'message_send_ttl_seconds': int(seconds)}, waba_id=waba_id)
+    if 'error' in update:
+        return _resp(400, update)
+
+    warning = detect_null_ttl_after_category_change(
+        body.get('previousCategory'), category, seconds if seconds is not None else None
+    )
+    resp_body = {
+        'success': True,
+        'templateId': template_id,
+        'category': category,
+        'ttl': int(seconds),
+        'human': result.get('human'),
+    }
+    if warning:
+        resp_body['warning'] = warning
+    return _resp(200, resp_body)
+
+
+# ============================================================================
+# MEDIA (Part 4 D)
+#   POST   /wa-business/media                              → upload media
+#   GET    /wa-business/media/{mediaId}                    → media info (masked URL + expiry)
+#   DELETE /wa-business/media/{mediaId}                    → delete media
+#   POST   /wa-business/media/resumable/session           → start resumable session
+#   POST   /wa-business/media/resumable/{sessionId}/chunk  → append a chunk
+#   POST   /wa-business/media/resumable/{sessionId}/finish → assemble + upload, return handle
+# ============================================================================
+def _media_category(content_type: str) -> str:
+    ct = (content_type or '').lower()
+    if ct == 'image/webp':
+        return 'sticker'
+    if ct.startswith('image/'):
+        return 'image'
+    if ct.startswith('video/'):
+        return 'video'
+    if ct.startswith('audio/'):
+        return 'audio'
+    return 'document'
+
+
+def _validate_media(content_type: str, size: int) -> Optional[str]:
+    """Validate MIME type and size against WhatsApp Cloud API limits."""
+    ct = (content_type or '').lower()
+    if ct not in MEDIA_ALLOWED_MIME:
+        return f'Unsupported media MIME type: {content_type}'
+    limit = MEDIA_SIZE_LIMITS.get(_media_category(ct))
+    if limit and size > limit:
+        return f'{content_type} exceeds the {limit} byte limit for its category'
+    return None
+
+
+def _mask_media_url(url: str) -> str:
+    """Drop the query string (temporary token) from a Meta media URL."""
+    if not url:
+        return url
+    base = url.split('?', 1)[0]
+    return base + ('?***' if '?' in url else '')
+
+
+def _graph_media_multipart(phone_id: str, file_bytes: bytes, content_type: str, filename: str) -> Dict:
+    """POST /{phone_id}/media as multipart/form-data. Returns Meta JSON ({id} or {error})."""
+    token = _get_meta_token(phone_id=phone_id)
+    app_secret = _get_app_secret(phone_id=phone_id)
+    boundary = uuid.uuid4().hex
+    parts = []
+    parts.append(f'--{boundary}\r\n'.encode())
+    parts.append(b'Content-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n')
+    parts.append(f'--{boundary}\r\n'.encode())
+    parts.append(f'Content-Disposition: form-data; name="type"\r\n\r\n{content_type}\r\n'.encode())
+    parts.append(f'--{boundary}\r\n'.encode())
+    parts.append(f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'.encode())
+    parts.append(f'Content-Type: {content_type}\r\n\r\n'.encode())
+    parts.append(file_bytes)
+    parts.append(f'\r\n--{boundary}--\r\n'.encode())
+    multipart_body = b''.join(parts)
+
+    url = f'{GRAPH_BASE}/{phone_id}/media'
+    if app_secret:
+        proof = hmac.new(app_secret.encode('utf-8'), token.encode('utf-8'), hashlib.sha256).hexdigest()
+        url += '?' + urllib.parse.urlencode({'appsecret_proof': proof})
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': f'multipart/form-data; boundary={boundary}',
+    }
+    req = urllib.request.Request(url, data=multipart_body, headers=headers, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else str(e)
+        logger.error(f'Media upload error {e.code}: {error_body}')
+        try:
+            return {'error': json.loads(error_body)}
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return {'error': {'message': error_body, 'code': e.code}}
+
+
+def _upload_media(body: Dict) -> Dict:
+    """Upload media for sending. Body: { phoneId, fileData(base64) | s3Key, contentType, filename }."""
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+    content_type = body.get('contentType', 'application/octet-stream')
+    filename = body.get('filename', 'upload.bin')
+    file_data_b64 = body.get('fileData')
+    s3_key = body.get('s3Key')
+
+    if not file_data_b64 and not s3_key:
+        return _resp(400, {'error': 'fileData (base64) or s3Key required'})
+    try:
+        if s3_key:
+            obj = s3_client.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
+            file_bytes = obj['Body'].read()
+            content_type = obj.get('ContentType', content_type)
+        else:
+            file_bytes = base64.b64decode(file_data_b64)
+    except Exception as e:
+        return _resp(400, {'error': f'Failed to read media bytes: {e}'})
+
+    err = _validate_media(content_type, len(file_bytes))
+    if err:
+        return _resp(400, {'error': err})
+
+    result = _graph_media_multipart(phone_id, file_bytes, content_type, filename)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'mediaId': result.get('id', ''), 'contentType': content_type, 'size': len(file_bytes)})
+
+
+def _get_media(media_id: str, phone_id: str, params: Dict) -> Dict:
+    """GET /{media_id} → media metadata with masked URL + expiry. download=true stages to S3."""
+    if not media_id:
+        return _resp(400, {'error': 'mediaId required'})
+    info = _graph_api(media_id, phone_id=phone_id or None)
+    if 'error' in info:
+        return _resp(400, info)
+    media_url = info.get('url', '')
+    result = {
+        'mediaId': media_id,
+        'mimeType': info.get('mime_type', ''),
+        'fileSize': info.get('file_size', 0),
+        'sha256': info.get('sha256', ''),
+        'url': _mask_media_url(media_url),
+        'urlExpiresAt': int(time.time()) + MEDIA_URL_TTL_SECONDS,
+        'urlExpiresInSeconds': MEDIA_URL_TTL_SECONDS,
+    }
+    if (params.get('download', 'false') or '').lower() == 'true' and media_url:
+        try:
+            token = _get_meta_token(phone_id=phone_id or None)
+            req = urllib.request.Request(media_url, headers={'Authorization': f'Bearer {token}'})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                media_bytes = resp.read()
+            s3_key = f'{MEDIA_DOWNLOAD_PREFIX}wecare-digital-{media_id}'
+            s3_client.put_object(Bucket=MEDIA_BUCKET, Key=s3_key, Body=media_bytes,
+                                 ContentType=info.get('mime_type', 'application/octet-stream'))
+            result['s3Key'] = s3_key
+            result['downloadUrl'] = s3_client.generate_presigned_url(
+                'get_object', Params={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, ExpiresIn=3600)
+        except Exception as e:
+            logger.error(f'Media download failed for {media_id}: {e}')
+            result['downloadError'] = str(e)
+    return _resp(200, result)
+
+
+def _delete_media(media_id: str, phone_id: str) -> Dict:
+    """DELETE /{media_id}."""
+    if not media_id:
+        return _resp(400, {'error': 'mediaId required'})
+    result = _graph_api(media_id, method='DELETE', phone_id=phone_id or None)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': result.get('success', True), 'mediaId': media_id})
+
+
+def _resumable_session(body: Dict) -> Dict:
+    """Start a resumable upload session. Body: { fileName, fileType, fileLength }."""
+    file_type = body.get('fileType', 'application/octet-stream')
+    file_length = body.get('fileLength')
+    file_name = body.get('fileName', 'upload.bin')
+    if file_length is None:
+        return _resp(400, {'error': 'fileLength (bytes) required'})
+    try:
+        file_length = int(file_length)
+    except (ValueError, TypeError):
+        return _resp(400, {'error': 'fileLength must be an integer'})
+    err = _validate_media(file_type, file_length)
+    if err:
+        return _resp(400, {'error': err})
+
+    session_id = uuid.uuid4().hex
+    manifest = {
+        'sessionId': session_id,
+        'fileName': file_name,
+        'fileType': file_type,
+        'fileLength': file_length,
+        'received': 0,
+        'createdAt': int(time.time()),
+    }
+    s3_client.put_object(
+        Bucket=MEDIA_BUCKET, Key=f'{MEDIA_RESUMABLE_PREFIX}{session_id}.json',
+        Body=json.dumps(manifest).encode('utf-8'), ContentType='application/json')
+    return _resp(200, {'sessionId': session_id, 'received': 0, 'fileLength': file_length})
+
+
+def _resumable_load_manifest(session_id: str) -> Optional[Dict]:
+    try:
+        obj = s3_client.get_object(Bucket=MEDIA_BUCKET, Key=f'{MEDIA_RESUMABLE_PREFIX}{session_id}.json')
+        return json.loads(obj['Body'].read().decode('utf-8'))
+    except Exception:
+        return None
+
+
+def _resumable_chunk(session_id: str, body: Dict) -> Dict:
+    """Append a chunk. Body: { data (base64) }. Chunks are appended in order."""
+    manifest = _resumable_load_manifest(session_id)
+    if not manifest:
+        return _resp(404, {'error': 'Unknown or expired session'})
+    data_b64 = body.get('data')
+    if not data_b64:
+        return _resp(400, {'error': 'data (base64 chunk) required'})
+    try:
+        chunk = base64.b64decode(data_b64)
+    except Exception as e:
+        return _resp(400, {'error': f'Invalid base64 chunk: {e}'})
+
+    bin_key = f'{MEDIA_RESUMABLE_PREFIX}{session_id}.bin'
+    existing = b''
+    if manifest['received'] > 0:
+        try:
+            existing = s3_client.get_object(Bucket=MEDIA_BUCKET, Key=bin_key)['Body'].read()
+        except Exception:
+            existing = b''
+    combined = existing + chunk
+    if len(combined) > manifest['fileLength']:
+        return _resp(400, {'error': 'Received more bytes than declared fileLength'})
+    s3_client.put_object(Bucket=MEDIA_BUCKET, Key=bin_key, Body=combined,
+                         ContentType=manifest['fileType'])
+    manifest['received'] = len(combined)
+    s3_client.put_object(Bucket=MEDIA_BUCKET, Key=f'{MEDIA_RESUMABLE_PREFIX}{session_id}.json',
+                         Body=json.dumps(manifest).encode('utf-8'), ContentType='application/json')
+    return _resp(200, {
+        'sessionId': session_id,
+        'received': manifest['received'],
+        'fileLength': manifest['fileLength'],
+        'complete': manifest['received'] >= manifest['fileLength'],
+    })
+
+
+def _meta_resumable_upload(file_bytes: bytes, file_name: str, file_type: str) -> Dict:
+    """Meta App-level Resumable Upload → returns {h: handle} for template header media."""
+    token = _get_meta_token()
+    # Step 1: open a session on the app.
+    params = urllib.parse.urlencode({
+        'file_name': file_name, 'file_length': len(file_bytes), 'file_type': file_type,
+        'access_token': token,
+    })
+    open_url = f'{GRAPH_BASE}/{META_APP_ID}/uploads?{params}'
+    try:
+        req = urllib.request.Request(open_url, data=b'', method='POST')
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            session = json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        return {'error': {'message': e.read().decode('utf-8') if e.fp else str(e), 'code': e.code}}
+    upload_session_id = session.get('id', '')
+    if not upload_session_id:
+        return {'error': {'message': 'No upload session id returned', 'raw': session}}
+
+    # Step 2: upload the bytes at offset 0.
+    up_url = f'{GRAPH_BASE}/{upload_session_id}'
+    headers = {'Authorization': f'OAuth {token}', 'file_offset': '0'}
+    try:
+        req = urllib.request.Request(up_url, data=file_bytes, headers=headers, method='POST')
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        return {'error': {'message': e.read().decode('utf-8') if e.fp else str(e), 'code': e.code}}
+
+
+def _resumable_finish(session_id: str, body: Dict) -> Dict:
+    """Assemble the session and upload.
+
+    target='handle' (default) → Meta resumable upload, returns header handle (for templates).
+    target='media'            → upload to phone media endpoint, returns mediaId.
+    """
+    manifest = _resumable_load_manifest(session_id)
+    if not manifest:
+        return _resp(404, {'error': 'Unknown or expired session'})
+    if manifest['received'] < manifest['fileLength']:
+        return _resp(400, {
+            'error': 'Upload incomplete',
+            'received': manifest['received'],
+            'fileLength': manifest['fileLength'],
+        })
+    bin_key = f'{MEDIA_RESUMABLE_PREFIX}{session_id}.bin'
+    try:
+        file_bytes = s3_client.get_object(Bucket=MEDIA_BUCKET, Key=bin_key)['Body'].read()
+    except Exception as e:
+        return _resp(400, {'error': f'Failed to read assembled bytes: {e}'})
+
+    target = (body.get('target') or 'handle').lower()
+    if target == 'media':
+        phone_id = body.get('phoneId') or PHONE1_META_ID
+        result = _graph_media_multipart(phone_id, file_bytes, manifest['fileType'], manifest['fileName'])
+        if 'error' in result:
+            return _resp(400, result)
+        out = {'mediaId': result.get('id', '')}
+    else:
+        result = _meta_resumable_upload(file_bytes, manifest['fileName'], manifest['fileType'])
+        if 'error' in result:
+            return _resp(400, result)
+        out = {'headerHandle': result.get('h', '')}
+
+    # Best-effort cleanup of session artifacts.
+    for key in (bin_key, f'{MEDIA_RESUMABLE_PREFIX}{session_id}.json'):
+        try:
+            s3_client.delete_object(Bucket=MEDIA_BUCKET, Key=key)
+        except Exception:
+            pass
+    out['sessionId'] = session_id
+    return _resp(200, out)
+
+
+# ============================================================================
+# SEND TEST MESSAGES (Part 4 E)
+#   POST /wa-business/messages/send/text        → text
+#   POST /wa-business/messages/send/template    → template (incl. flow template)
+#   POST /wa-business/messages/send/media       → image/video/document/audio/sticker
+#   POST /wa-business/messages/send/interactive → list/button/product/catalog (pass-through)
+#   POST /wa-business/messages/send/flow        → flow message by id or name (draft/published)
+# All post to {phone_id}/messages via the Graph API.
+# ============================================================================
+def _send_message(phone_id: str, message: Dict) -> Dict:
+    """POST a fully-formed message to {phone_id}/messages and normalize the response."""
+    message.setdefault('messaging_product', 'whatsapp')
+    message.setdefault('recipient_type', 'individual')
+    result = _graph_api(f'{phone_id}/messages', method='POST', payload=message, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    msg_id = ''
+    msgs = result.get('messages', []) if isinstance(result, dict) else []
+    if msgs:
+        msg_id = msgs[0].get('id', '')
+    return _resp(200, {'success': True, 'messageId': msg_id, 'to': message.get('to', '')})
+
+
+def _send_text(body: Dict) -> Dict:
+    to = (body.get('to') or '').strip()
+    text = body.get('text') or body.get('body')
+    if not to or not text:
+        return _resp(400, {'error': 'to and text are required'})
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+    message = {
+        'to': to, 'type': 'text',
+        'text': {'body': text, 'preview_url': bool(body.get('previewUrl', False))},
+    }
+    return _send_message(phone_id, message)
+
+
+def _send_template_msg(body: Dict) -> Dict:
+    to = (body.get('to') or '').strip()
+    name = body.get('templateName') or body.get('name')
+    if not to or not name:
+        return _resp(400, {'error': 'to and templateName are required'})
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+    template = {'name': name, 'language': {'code': body.get('language', 'en')}}
+    if body.get('components'):
+        template['components'] = body['components']
+    return _send_message(phone_id, {'to': to, 'type': 'template', 'template': template})
+
+
+def _send_media_msg(body: Dict) -> Dict:
+    to = (body.get('to') or '').strip()
+    media_type = (body.get('mediaType') or body.get('type') or '').lower()
+    if not to or media_type not in ('image', 'video', 'document', 'audio', 'sticker'):
+        return _resp(400, {'error': 'to and a valid mediaType (image|video|document|audio|sticker) are required'})
+    media_id = body.get('mediaId')
+    media_url = body.get('mediaUrl') or body.get('link')
+    if not media_id and not media_url:
+        return _resp(400, {'error': 'mediaId or mediaUrl required'})
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+    obj: Dict[str, Any] = {}
+    if media_id:
+        obj['id'] = media_id
+    else:
+        obj['link'] = media_url
+    if body.get('caption') and media_type in ('image', 'video', 'document'):
+        obj['caption'] = body['caption']
+    if body.get('filename') and media_type == 'document':
+        obj['filename'] = body['filename']
+    return _send_message(phone_id, {'to': to, 'type': media_type, media_type: obj})
+
+
+def _send_interactive_msg(body: Dict) -> Dict:
+    to = (body.get('to') or '').strip()
+    interactive = body.get('interactive')
+    if not to or not interactive:
+        return _resp(400, {'error': 'to and interactive object are required'})
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+    return _send_message(phone_id, {'to': to, 'type': 'interactive', 'interactive': interactive})
+
+
+def _send_flow_msg(body: Dict) -> Dict:
+    """Send an interactive Flow message by flow_id or flow_name.
+
+    Body: { to, flowId|flowName, flowToken?, flowCta, bodyText, headerText?, footerText?,
+            screen, flowAction(navigate|data_exchange), flowActionPayload?, mode(draft|published), phoneId }
+    """
+    to = (body.get('to') or '').strip()
+    flow_id = body.get('flowId')
+    flow_name = body.get('flowName')
+    if not to or (not flow_id and not flow_name):
+        return _resp(400, {'error': 'to and one of flowId/flowName are required'})
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+
+    parameters: Dict[str, Any] = {
+        'flow_message_version': '3',
+        'flow_token': body.get('flowToken') or f'test-{uuid.uuid4().hex[:12]}',
+        'flow_cta': body.get('flowCta', 'Open'),
+        'flow_action': body.get('flowAction', 'navigate'),
+    }
+    if flow_id:
+        parameters['flow_id'] = flow_id
+    else:
+        parameters['flow_name'] = flow_name
+    if (body.get('mode') or '').lower() == 'draft':
+        parameters['mode'] = 'draft'
+    if parameters['flow_action'] == 'navigate':
+        parameters['flow_action_payload'] = body.get('flowActionPayload') or {
+            'screen': body.get('screen', 'WELCOME'),
+            'data': body.get('data', {}),
+        }
+
+    interactive: Dict[str, Any] = {
+        'type': 'flow',
+        'body': {'text': body.get('bodyText', 'Tap below to continue')},
+        'action': {'name': 'flow', 'parameters': parameters},
+    }
+    if body.get('headerText'):
+        interactive['header'] = {'type': 'text', 'text': body['headerText']}
+    if body.get('footerText'):
+        interactive['footer'] = {'text': body['footerText']}
+
+    return _send_message(phone_id, {'to': to, 'type': 'interactive', 'interactive': interactive})
+
+
+def _route_send_message(path: str, body: Dict) -> Dict:
+    """Dispatch /messages/send/{type}."""
+    if path.rstrip('/').endswith('/text'):
+        return _send_text(body)
+    if path.rstrip('/').endswith('/template'):
+        return _send_template_msg(body)
+    if path.rstrip('/').endswith('/media'):
+        return _send_media_msg(body)
+    if path.rstrip('/').endswith('/interactive'):
+        return _send_interactive_msg(body)
+    if path.rstrip('/').endswith('/flow'):
+        return _send_flow_msg(body)
+    return _resp(404, {'error': f'Unknown send path: {path}'})
 
 
 # ============================================================================
@@ -1932,6 +2463,15 @@ def _upsert_flow_registry(body: Dict) -> Dict:
         }
         if body.get('publishedAt'):
             item['publishedAt'] = Decimal(str(body['publishedAt']))
+        # Optional extended metadata (Part 4 A) — only persisted when provided.
+        for opt_key in ('preferredGateway', 'abTestConfig', 'healthStatusJson', 'validationErrorsJson',
+                        'previewUrl', 'clonedFromFlowId', 'migrationBatchId', 'dataChannelUri',
+                        'jsonVersion', 'applicationId', 'categories'):
+            if body.get(opt_key):
+                item[opt_key] = body[opt_key]
+        for opt_ts in ('previewExpiresAt', 'lastSyncedAt', 'lastPublishedAt', 'lastDeprecatedAt'):
+            if body.get(opt_ts):
+                item[opt_ts] = Decimal(str(body[opt_ts]))
         table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
         # Invalidate cache
         global _flow_registry_cache, _flow_registry_cache_ts
@@ -1949,6 +2489,168 @@ def _upsert_flow_registry(body: Dict) -> Dict:
     except Exception as e:
         logger.error(f'Upsert flow registry error: {e}')
         return _resp(500, {'error': str(e)})
+
+
+# ============================================================================
+# FLOW ASSETS / MIGRATE / SYNC (Part 4 A)
+# ============================================================================
+def _upload_flow_asset(flow_id: str, body: Dict) -> Dict:
+    """POST /{FLOW-ID}/assets — upload a FLOW_JSON asset (multipart).
+
+    Validates the flow JSON locally first, then parses Meta validation_errors.
+    Published flows/assets are immutable; Meta will reject edits to them.
+    """
+    if not flow_id:
+        return _resp(400, {'error': 'flowId required'})
+    flow_json = body.get('flowJson')
+    if flow_json is None:
+        return _resp(400, {'error': 'flowJson required'})
+
+    # Validate JSON locally before upload.
+    if isinstance(flow_json, str):
+        try:
+            parsed = json.loads(flow_json)
+        except json.JSONDecodeError as e:
+            return _resp(400, {'error': f'flowJson is not valid JSON: {e}'})
+        json_bytes = flow_json.encode('utf-8')
+    elif isinstance(flow_json, dict):
+        parsed = flow_json
+        json_bytes = json.dumps(flow_json).encode('utf-8')
+    else:
+        return _resp(400, {'error': 'flowJson must be a JSON object or string'})
+    if 'screens' not in parsed and 'version' not in parsed:
+        return _resp(400, {'error': 'flowJson missing required keys (version/screens)'})
+
+    asset_type = body.get('assetType', 'FLOW_JSON')
+    asset_name = body.get('name', 'flow.json')
+    waba_id = body.get('wabaId')
+
+    token = _get_meta_token(waba_id=waba_id)
+    app_secret = _get_app_secret(waba_id=waba_id)
+    boundary = uuid.uuid4().hex
+    parts = []
+    parts.append(f'--{boundary}\r\n'.encode())
+    parts.append(f'Content-Disposition: form-data; name="name"\r\n\r\n{asset_name}\r\n'.encode())
+    parts.append(f'--{boundary}\r\n'.encode())
+    parts.append(f'Content-Disposition: form-data; name="asset_type"\r\n\r\n{asset_type}\r\n'.encode())
+    parts.append(f'--{boundary}\r\n'.encode())
+    parts.append(f'Content-Disposition: form-data; name="file"; filename="{asset_name}"\r\n'.encode())
+    parts.append(b'Content-Type: application/json\r\n\r\n')
+    parts.append(json_bytes)
+    parts.append(f'\r\n--{boundary}--\r\n'.encode())
+    multipart_body = b''.join(parts)
+
+    url = f'{GRAPH_BASE}/{flow_id}/assets'
+    if app_secret:
+        proof = hmac.new(app_secret.encode('utf-8'), token.encode('utf-8'), hashlib.sha256).hexdigest()
+        url += '?' + urllib.parse.urlencode({'appsecret_proof': proof})
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': f'multipart/form-data; boundary={boundary}',
+    }
+    req = urllib.request.Request(url, data=multipart_body, headers=headers, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8') if e.fp else str(e)
+        logger.error(f'Flow asset upload error {e.code}: {error_body}')
+        try:
+            return _resp(400, {'error': json.loads(error_body)})
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return _resp(400, {'error': {'message': error_body, 'code': e.code}})
+
+    validation_errors = result.get('validation_errors', [])
+    return _resp(200, {
+        'success': result.get('success', True),
+        'flowId': flow_id,
+        'validationErrors': validation_errors,
+        'hasErrors': bool(validation_errors),
+    })
+
+
+def _migrate_flows(body: Dict) -> Dict:
+    """POST /{DEST-WABA-ID}/migrate_flows — migrate flows between WABAs."""
+    dest_waba_id = body.get('destWabaId') or body.get('wabaId')
+    source_waba_id = body.get('sourceWabaId')
+    if not dest_waba_id or not source_waba_id:
+        return _resp(400, {'error': 'sourceWabaId and destWabaId are required'})
+    payload = {'source_waba_id': source_waba_id}
+    if body.get('sourceFlowNames'):
+        names = body['sourceFlowNames']
+        payload['source_flow_names'] = names if isinstance(names, str) else ','.join(names)
+    result = _graph_api(f'{dest_waba_id}/migrate_flows', method='POST', payload=payload, waba_id=dest_waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {
+        'migratedFlows': result.get('migrated_flows', []),
+        'failedFlows': result.get('failed_flows', []),
+        'migrationBatchId': body.get('migrationBatchId', uuid.uuid4().hex),
+    })
+
+
+def _sync_flows(params: Dict, body: Dict) -> Dict:
+    """POST /wa-business/flows/sync — reconcile Meta flows into FlowRegistry.
+
+    Lists flows from Meta for a WABA and upserts live status/category/validation
+    metadata into the registry (preserving existing config fields).
+    """
+    waba_id = params.get('wabaId') or body.get('wabaId')
+    if not waba_id:
+        return _resp(400, {'error': 'wabaId required'})
+    fields = ('id,name,status,categories,validation_errors,json_version,'
+              'data_api_version,health_status,preview')
+    result = _graph_api(f'{waba_id}/flows', params={'fields': fields}, waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+
+    flows = result.get('data', [])
+    now = int(time.time())
+    table = dynamodb.Table(FLOW_REGISTRY_TABLE)
+    synced = 0
+    for f in flows:
+        flow_id = f.get('id')
+        if not flow_id:
+            continue
+        try:
+            existing = table.get_item(Key={'flowId': flow_id}).get('Item', {})
+        except Exception:
+            existing = {}
+        categories = f.get('categories', [])
+        validation_errors = f.get('validation_errors', [])
+        health = f.get('health_status', {})
+        preview = f.get('preview', {})
+        update = {
+            'flowId': flow_id,
+            'flowName': f.get('name', existing.get('flowName', '')),
+            'status': f.get('status', existing.get('status', 'DRAFT')),
+            'category': categories[0] if categories else existing.get('category', ''),
+            'categories': json.dumps(categories) if categories else existing.get('categories', '[]'),
+            'wabaId': waba_id,
+            'jsonVersion': str(f.get('json_version', existing.get('jsonVersion', ''))),
+            'dataApiVersion': str(f.get('data_api_version', existing.get('dataApiVersion', ''))),
+            'validationErrorsJson': json.dumps(validation_errors) if validation_errors else '[]',
+            'healthStatusJson': json.dumps(health) if health else '{}',
+            'lastSyncedAt': Decimal(str(now)),
+            'updatedAt': Decimal(str(now)),
+        }
+        if preview.get('preview_url'):
+            update['previewUrl'] = preview['preview_url']
+            update['previewExpiresAt'] = Decimal(str(now + 600))
+        # Preserve config-only fields already present.
+        for keep in ('flowCode', 'flowType', 'flowVersion', 'requiresPayment', 'paymentAmount',
+                     'paymentConfigName', 'screenConfig', 'contactMapping', 'dataFetchers',
+                     'submissionPrefix', 'endpointUri', 'createdAt'):
+            if keep in existing and keep not in update:
+                update[keep] = existing[keep]
+        update.setdefault('createdAt', Decimal(str(now)))
+        table.put_item(Item={k: v for k, v in update.items() if v is not None and v != ''})
+        synced += 1
+
+    global _flow_registry_cache, _flow_registry_cache_ts
+    _flow_registry_cache = {}
+    _flow_registry_cache_ts = 0
+    return _resp(200, {'success': True, 'synced': synced, 'total': len(flows), 'wabaId': waba_id})
 
 
 def _get_flow_submission_stats(params: Dict) -> Dict:
@@ -3693,12 +4395,68 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _get_business_profile(phone_id)
             return _update_business_profile(phone_id, body)
 
+        elif '/messages/send/' in path:
+            if method == 'POST':
+                return _route_send_message(path, body)
+            return _resp(405, {'error': 'POST only'})
+
+        elif '/template-ttl/rules' in path:
+            return _get_ttl_rules()
+
+        elif '/template-ttl/validate' in path:
+            if method == 'POST':
+                return _validate_template_ttl_route(body)
+            return _resp(405, {'error': 'POST only'})
+
+        elif '/templates/' in path and path.rstrip('/').endswith('/ttl'):
+            if method == 'POST':
+                template_id = _svc_path_param(path, 'templates')
+                waba_id = params.get('wabaId') or body.get('wabaId')
+                return _update_template_ttl(template_id, body, waba_id)
+            return _resp(405, {'error': 'POST only'})
+
+        elif '/media/resumable' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId') or ''
+            if method != 'POST':
+                return _resp(405, {'error': 'POST only'})
+            if path.rstrip('/').endswith('/session'):
+                return _resumable_session(body)
+            session_id = _svc_path_param(path, 'resumable')
+            if path.rstrip('/').endswith('/chunk'):
+                return _resumable_chunk(session_id, body)
+            if path.rstrip('/').endswith('/finish'):
+                return _resumable_finish(session_id, body)
+            return _resp(404, {'error': f'Unknown media resumable path: {path}'})
+
+        elif '/media' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId') or ''
+            media_id = _svc_path_param(path, 'media')
+            if method == 'POST':
+                return _upload_media(body)
+            elif method == 'GET':
+                return _get_media(media_id, phone_id, params)
+            elif method == 'DELETE':
+                return _delete_media(media_id, phone_id)
+            return _resp(405, {'error': 'GET/POST/DELETE only'})
+
         elif '/flows/publish' in path:
             return _publish_flow(params.get('flowId') or body.get('flowId'))
         elif '/flows/deprecate' in path:
             return _deprecate_flow(params.get('flowId') or body.get('flowId'))
         elif '/flows/preview' in path:
             return _get_flow_preview(params.get('flowId') or body.get('flowId'))
+        elif '/flows/assets' in path:
+            if method == 'POST':
+                return _upload_flow_asset(params.get('flowId') or body.get('flowId') or '', body)
+            return _resp(405, {'error': 'POST only'})
+        elif '/flows/migrate' in path:
+            if method == 'POST':
+                return _migrate_flows(body)
+            return _resp(405, {'error': 'POST only'})
+        elif '/flows/sync' in path:
+            if method == 'POST':
+                return _sync_flows(params, body)
+            return _resp(405, {'error': 'POST only'})
         elif '/flows' in path:
             waba_id = params.get('wabaId') or body.get('wabaId')
             flow_id = params.get('flowId') or body.get('flowId')

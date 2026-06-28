@@ -168,12 +168,19 @@ def handler(event, context):
                 return _list_template_library(waba_id, query_params)
             if '/templates/send-media' in path:
                 return _list_send_media(query_params)
+            if '/templates/presets' in path:
+                preset_name = _extract_path_param(path, '/templates/presets/')
+                if preset_name:
+                    return _get_preset(preset_name)
+                return _list_presets()
             template_id = _extract_path_param(path, '/templates/')
-            if template_id and template_id not in ('library', 'analytics', 'carousel', 'carousel-media', 'media', 'from-library', 'send-media'):
+            if template_id and template_id not in ('library', 'analytics', 'carousel', 'carousel-media', 'media', 'from-library', 'send-media', 'presets', 'validate'):
                 return _get_template_details(waba_id, template_id, query_params)
             return _list_templates(waba_id, query_params)
 
         elif http_method == 'POST':
+            if '/templates/validate' in path:
+                return _validate_template_route(body)
             if '/templates/from-library' in path:
                 return _create_from_library(waba_id, body)
             if '/templates/carousel-media' in path:
@@ -184,6 +191,12 @@ def handler(event, context):
                 return _upload_send_media(body)
             if '/templates/media' in path:
                 return _upload_template_media(waba_id, body)
+            if path.rstrip('/').endswith('/send-test'):
+                template_id = _extract_path_param(path, '/templates/')
+                return _send_test_template(waba_id, template_id, body)
+            if path.rstrip('/').endswith('/refresh'):
+                template_id = _extract_path_param(path, '/templates/')
+                return _refresh_template(waba_id, template_id)
             return _create_template(waba_id, body)
 
         elif http_method == 'PUT':
@@ -357,9 +370,10 @@ def _create_template(waba_id, body):
         if not template_def:
             return _error_response(400, 'templateDefinition required')
         # Local validation before hitting Meta (clear errors, fewer rejected submissions)
-        validation_error = _validate_template_definition(template_def)
-        if validation_error:
-            return _error_response(400, validation_error)
+        from lambda_utils import template_validation as tv
+        result = tv.validate_template(template_def)
+        if not result['ok']:
+            return _error_response(400, '; '.join(result['errors']))
         meta_waba_id = _resolve_meta_waba_id(waba_id)
         url = f'{META_GRAPH_URL}/{meta_waba_id}/message_templates'
         data = _meta_request(url, method='POST', data=json.dumps(template_def).encode())
@@ -370,7 +384,124 @@ def _create_template(waba_id, body):
                 'metaTemplateId': data.get('id', ''),
                 'category': data.get('category', ''),
                 'templateStatus': data.get('status', 'PENDING'),
+                'warnings': result.get('warnings', []),
             })
+        }
+    except Exception as e:
+        return _error_response(500, str(e))
+
+
+def _validate_template_route(body):
+    """POST /templates/validate — validate a template definition without creating it."""
+    from lambda_utils import template_validation as tv
+    template_def = body.get('templateDefinition') or body
+    result = tv.validate_template(template_def)
+    return {
+        'statusCode': 200,
+        'headers': cors_headers(origin),
+        'body': json.dumps(result),
+    }
+
+
+def _list_presets():
+    """GET /templates/presets — list available preset template definitions."""
+    from lambda_utils import template_presets as tp
+    return {
+        'statusCode': 200,
+        'headers': cors_headers(origin),
+        'body': json.dumps({'presets': tp.list_presets()}),
+    }
+
+
+def _get_preset(name):
+    """GET /templates/presets/{name} — return a single preset definition."""
+    from lambda_utils import template_presets as tp
+    preset = tp.get_preset(name)
+    if not preset:
+        return _error_response(404, f'Unknown preset: {name}')
+    return {
+        'statusCode': 200,
+        'headers': cors_headers(origin),
+        'body': json.dumps({'preset': preset}),
+    }
+
+
+def _refresh_template(waba_id, template_id):
+    """POST /templates/{id}/refresh — re-fetch a template's live status/category/quality from Meta."""
+    try:
+        if not template_id:
+            return _error_response(400, 'Template ID required')
+        url = (f'{META_GRAPH_URL}/{template_id}'
+               '?fields=name,status,category,language,components,id,quality_score,'
+               'message_send_ttl_seconds,rejected_reason')
+        data = _meta_request(url)
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({
+                'template': {
+                    'metaTemplateId': data.get('id'),
+                    'templateName': data.get('name'),
+                    'templateStatus': data.get('status'),
+                    'category': data.get('category', ''),
+                    'language': data.get('language', ''),
+                    'qualityScore': data.get('quality_score', {}),
+                    'messageSendTtlSeconds': data.get('message_send_ttl_seconds'),
+                    'rejectedReason': data.get('rejected_reason', ''),
+                    'components': data.get('components', []),
+                }
+            })
+        }
+    except Exception as e:
+        return _error_response(500, str(e))
+
+
+def _send_test_template(waba_id, template_id, body):
+    """POST /templates/{id}/send-test — send a template message to a test recipient.
+
+    Body: { to, templateName, language, components?, phoneId? }
+    Fetches the template by id to resolve name/language when not supplied.
+    """
+    try:
+        to = (body.get('to') or '').strip()
+        if not to:
+            return _error_response(400, 'to (recipient phone in E.164 without +) is required')
+
+        template_name = body.get('templateName')
+        language = body.get('language')
+        if (not template_name or not language) and template_id:
+            detail = _meta_request(f'{META_GRAPH_URL}/{template_id}?fields=name,language')
+            template_name = template_name or detail.get('name')
+            language = language or detail.get('language')
+        if not template_name:
+            return _error_response(400, 'templateName is required (or a resolvable templateId)')
+
+        template_payload = {
+            'name': template_name,
+            'language': {'code': language or 'en'},
+        }
+        if body.get('components'):
+            template_payload['components'] = body['components']
+
+        message = {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to,
+            'type': 'template',
+            'template': template_payload,
+        }
+        phone_id = body.get('phoneId') or DEFAULT_PHONE_ID
+        url = f'{META_GRAPH_URL}/{phone_id}/messages'
+        data = _meta_request(url, method='POST', data=json.dumps(message).encode())
+        msg_id = ''
+        if isinstance(data, dict):
+            msgs = data.get('messages', [])
+            if msgs:
+                msg_id = msgs[0].get('id', '')
+        return {
+            'statusCode': 200,
+            'headers': cors_headers(origin),
+            'body': json.dumps({'success': True, 'messageId': msg_id, 'to': to}),
         }
     except Exception as e:
         return _error_response(500, str(e))

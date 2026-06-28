@@ -193,21 +193,13 @@ def validate_template_category(category: Optional[str]) -> bool:
 
 
 def validate_template_ttl(category: Optional[str], seconds: Any) -> Optional[str]:
-    """Return error string or None. -1 allowed only for AUTH/UTILITY (=30d)."""
-    if seconds is None:
-        return None
-    try:
-        s = int(seconds)
-    except (TypeError, ValueError):
-        return 'message_send_ttl_seconds must be an integer'
-    cat = (category or '').upper()
-    if cat == 'AUTHENTICATION':
-        return None if (s == -1 or 30 <= s <= 900) else 'AUTHENTICATION TTL must be 30-900s (or -1)'
-    if cat == 'UTILITY':
-        return None if (s == -1 or 30 <= s <= 43200) else 'UTILITY TTL must be 30-43200s (or -1)'
-    if cat == 'MARKETING':
-        return None if (43200 <= s <= 2592000) else 'MARKETING TTL must be 43200-2592000s (-1 not allowed)'
-    return f'Unknown template category: {category}'
+    """Return error string or None. -1 allowed only for AUTH/UTILITY (=30d).
+
+    Delegates to the consolidated TTL service (lambda_utils.template_ttl) so
+    the bounds live in exactly one place.
+    """
+    from lambda_utils.template_ttl import validate_ttl_error
+    return validate_ttl_error(category, seconds)
 
 
 def validate_template_buttons(buttons: Optional[list]) -> Optional[str]:

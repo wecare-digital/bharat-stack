@@ -119,3 +119,74 @@ class TestTemplatePayloadValidation:
         carousel = [c for c in payload['components'] if c['type'] == 'CAROUSEL']
         assert len(carousel) == 1
         assert len(carousel[0]['cards']) >= 1
+
+
+class TestTemplateRoutesB:
+    """Handler-level tests for validate / presets / send-test / refresh routes."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'whatsapp-template-management'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1'}):
+            with patch('boto3.client'):
+                import handler as h
+                self.h = h
+
+    def test_validate_route_ok(self):
+        res = self.h._validate_template_route({'templateDefinition': {
+            'name': 'order_ok', 'language': 'en', 'category': 'UTILITY',
+            'components': [{'type': 'BODY', 'text': 'Hi {{1}}', 'example': {'body_text': [['Asha']]}}],
+        }})
+        body = json.loads(res['body'])
+        assert res['statusCode'] == 200
+        assert body['ok'] is True
+
+    def test_validate_route_reports_errors(self):
+        res = self.h._validate_template_route({'templateDefinition': {
+            'name': 'Bad Name', 'language': 'en', 'category': 'UTILITY',
+            'components': [{'type': 'FOOTER', 'text': 'hi'}],
+        }})
+        body = json.loads(res['body'])
+        assert body['ok'] is False
+        assert len(body['errors']) >= 1
+
+    def test_list_presets(self):
+        res = self.h._list_presets()
+        body = json.loads(res['body'])
+        names = [p['name'] for p in body['presets']]
+        assert 'order_confirmation' in names
+        assert 'flow_lead_generation' in names
+
+    def test_get_preset(self):
+        res = self.h._get_preset('order_confirmation')
+        body = json.loads(res['body'])
+        assert res['statusCode'] == 200
+        assert body['preset']['name'] == 'order_confirmation'
+
+    def test_get_unknown_preset_404(self):
+        res = self.h._get_preset('nope')
+        assert res['statusCode'] == 404
+
+    def test_refresh_template(self):
+        with patch.object(self.h, '_meta_request', return_value={
+            'id': 't1', 'name': 'order_ok', 'status': 'APPROVED', 'category': 'UTILITY',
+            'quality_score': {'score': 'GREEN'}, 'message_send_ttl_seconds': 600,
+        }):
+            res = self.h._refresh_template('waba-x', 't1')
+            body = json.loads(res['body'])
+            assert res['statusCode'] == 200
+            assert body['template']['templateStatus'] == 'APPROVED'
+
+    def test_send_test_requires_to(self):
+        res = self.h._send_test_template('waba-x', 't1', {})
+        assert res['statusCode'] == 400
+
+    def test_send_test_success(self):
+        with patch.object(self.h, '_meta_request', side_effect=[
+            {'name': 'order_ok', 'language': 'en'},
+            {'messages': [{'id': 'wamid.123'}]},
+        ]):
+            res = self.h._send_test_template('waba-x', 't1', {'to': '919900000000'})
+            body = json.loads(res['body'])
+            assert res['statusCode'] == 200
+            assert body['messageId'] == 'wamid.123'
