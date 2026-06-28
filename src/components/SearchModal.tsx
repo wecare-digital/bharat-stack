@@ -28,6 +28,7 @@ const NAVIGATION_ITEMS: SearchResult[] = [
   { id: 'nav-messages', type: 'page', title: 'WhatsApp Inbox', subtitle: 'Messages', icon: '◇', path: '/dm/whatsapp' },
   { id: 'nav-contacts', type: 'page', title: 'Contacts', subtitle: 'Manage contacts', icon: '⊕', path: '/contacts' },
   { id: 'nav-templates', type: 'page', title: 'Templates', subtitle: 'WhatsApp templates', icon: '⎙', path: '/dm/whatsapp/templates' },
+  { id: 'nav-send-test', type: 'page', title: 'Send Test Console', subtitle: 'Test sends, TTL & template validation', icon: '➤', path: '/dm/whatsapp/send-test' },
   { id: 'nav-campaign', type: 'page', title: 'WhatsApp Campaign', subtitle: 'Send bulk messages', icon: '⫶', path: '/dm/whatsapp/campaign' },
   { id: 'nav-interactive-lists', type: 'page', title: 'Interactive Lists', subtitle: 'WhatsApp list messages', icon: '☰', path: '/dm/whatsapp/interactive-lists' },
   { id: 'nav-pay', type: 'page', title: 'Payments', subtitle: 'WhatsApp Pay', icon: '◈', path: '/pay' },

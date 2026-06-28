@@ -3988,6 +3988,181 @@ export async function sendGroupMessage ( phoneId: string, groupId: string, conte
   return data;
 }
 
+
+// ============================================================================
+// PART 4 — TTL, Template validation/presets, Media, Send-test, Flow admin
+// ============================================================================
+
+// ── Template TTL ──
+export interface TtlCategoryRule {
+  minSeconds: number; maxSeconds: number; minHuman: string; maxHuman: string;
+  allowNeg1: boolean; neg1Meaning: string | null; description: string; recommendation?: string;
+}
+export interface TtlRules {
+  field: string; categories: Record<string, TtlCategoryRule>; notes: string[];
+}
+export interface TtlValidationResult {
+  ok: boolean; error: string | null; warnings: string[];
+  category: string; seconds: number | null; human: string | null;
+}
+
+export async function getTemplateTtlRules (): Promise<TtlRules | null> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/template-ttl/rules` );
+  return data?.rules || null;
+}
+
+export async function validateTemplateTtl ( category: string, ttl: number ): Promise<TtlValidationResult | null> {
+  return apiCall<TtlValidationResult>( `${WA_BIZ_BASE}/template-ttl/validate`, {
+    method: 'POST',
+    body: JSON.stringify( { category, ttl } ),
+  } );
+}
+
+export async function updateTemplateTtl ( templateId: string, ttl: number, wabaId?: string ): Promise<{ success?: boolean; error?: string; warning?: string; human?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/templates/${templateId}/ttl`, {
+    method: 'POST',
+    body: JSON.stringify( { ttl, wabaId } ),
+  } );
+  return data || { success: false, error: 'No response' };
+}
+
+// ── Template validation / presets / send-test / refresh (template-management lambda) ──
+const WA_TPL_BASE = `${API_BASE}/whatsapp/templates`;
+
+export interface TemplateValidationResult { ok: boolean; errors: string[]; warnings: string[]; }
+export interface TemplatePresetSummary { name: string; category: string; language: string; hasFlowButton: boolean; }
+
+export async function validateTemplateDefinition ( templateDefinition: any ): Promise<TemplateValidationResult | null> {
+  return apiCall<TemplateValidationResult>( `${WA_TPL_BASE}/validate`, {
+    method: 'POST',
+    body: JSON.stringify( { templateDefinition } ),
+  } );
+}
+
+export async function listTemplatePresets (): Promise<TemplatePresetSummary[]> {
+  const data = await apiCall<any>( `${WA_TPL_BASE}/presets` );
+  return data?.presets || [];
+}
+
+export async function getTemplatePreset ( name: string ): Promise<any> {
+  const data = await apiCall<any>( `${WA_TPL_BASE}/presets/${name}` );
+  return data?.preset || null;
+}
+
+export async function sendTestTemplateMessage ( templateId: string, to: string, opts?: { templateName?: string; language?: string; components?: any[]; phoneId?: string } ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  const data = await apiCall<any>( `${WA_TPL_BASE}/${templateId}/send-test`, {
+    method: 'POST',
+    body: JSON.stringify( { to, ...opts } ),
+  } );
+  return data || { success: false, error: 'No response' };
+}
+
+export async function refreshTemplate ( templateId: string ): Promise<any> {
+  const data = await apiCall<any>( `${WA_TPL_BASE}/${templateId}/refresh`, { method: 'POST' } );
+  return data?.template || null;
+}
+
+// ── Media ──
+export interface WaMediaInfo {
+  mediaId: string; mimeType: string; fileSize: number; sha256?: string;
+  url?: string; urlExpiresAt?: number; urlExpiresInSeconds?: number;
+  s3Key?: string; downloadUrl?: string;
+}
+
+export async function uploadWaMedia ( opts: { phoneId?: string; fileData?: string; s3Key?: string; contentType?: string; filename?: string } ): Promise<{ mediaId?: string; error?: string; size?: number }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/media`, {
+    method: 'POST',
+    body: JSON.stringify( opts ),
+  } );
+  return data || { error: 'No response' };
+}
+
+export async function getWaMedia ( mediaId: string, opts?: { phoneId?: string; download?: boolean } ): Promise<WaMediaInfo | null> {
+  const params = new URLSearchParams();
+  if ( opts?.phoneId ) params.set( 'phoneId', opts.phoneId );
+  if ( opts?.download ) params.set( 'download', 'true' );
+  const qs = params.toString();
+  return apiCall<WaMediaInfo>( `${WA_BIZ_BASE}/media/${mediaId}${qs ? `?${qs}` : ''}` );
+}
+
+export async function deleteWaMedia ( mediaId: string, phoneId?: string ): Promise<boolean> {
+  const qs = phoneId ? `?phoneId=${phoneId}` : '';
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/media/${mediaId}${qs}`, { method: 'DELETE' } );
+  return data?.success === true;
+}
+
+export async function startResumableMediaSession ( fileName: string, fileType: string, fileLength: number ): Promise<{ sessionId?: string; received?: number; fileLength?: number; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/media/resumable/session`, {
+    method: 'POST',
+    body: JSON.stringify( { fileName, fileType, fileLength } ),
+  } );
+  return data || { error: 'No response' };
+}
+
+export async function uploadResumableChunk ( sessionId: string, dataB64: string ): Promise<{ received?: number; fileLength?: number; complete?: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/media/resumable/${sessionId}/chunk`, {
+    method: 'POST',
+    body: JSON.stringify( { data: dataB64 } ),
+  } );
+  return data || { error: 'No response' };
+}
+
+export async function finishResumableMedia ( sessionId: string, opts?: { target?: 'handle' | 'media'; phoneId?: string } ): Promise<{ headerHandle?: string; mediaId?: string; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/media/resumable/${sessionId}/finish`, {
+    method: 'POST',
+    body: JSON.stringify( opts || {} ),
+  } );
+  return data || { error: 'No response' };
+}
+
+// ── Send test messages ──
+const WA_SEND_BASE = `${WA_BIZ_BASE}/messages/send`;
+
+export async function sendTestText ( to: string, text: string, opts?: { phoneId?: string; previewUrl?: boolean } ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  return apiCall<any>( `${WA_SEND_BASE}/text`, { method: 'POST', body: JSON.stringify( { to, text, ...opts } ) } ) as any;
+}
+
+export async function sendTestTemplate ( to: string, templateName: string, opts?: { language?: string; components?: any[]; phoneId?: string } ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  return apiCall<any>( `${WA_SEND_BASE}/template`, { method: 'POST', body: JSON.stringify( { to, templateName, ...opts } ) } ) as any;
+}
+
+export async function sendTestMedia ( to: string, mediaType: 'image' | 'video' | 'document' | 'audio' | 'sticker', opts: { mediaId?: string; mediaUrl?: string; caption?: string; filename?: string; phoneId?: string } ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  return apiCall<any>( `${WA_SEND_BASE}/media`, { method: 'POST', body: JSON.stringify( { to, mediaType, ...opts } ) } ) as any;
+}
+
+export async function sendTestInteractive ( to: string, interactive: any, phoneId?: string ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  return apiCall<any>( `${WA_SEND_BASE}/interactive`, { method: 'POST', body: JSON.stringify( { to, interactive, phoneId } ) } ) as any;
+}
+
+export async function sendTestFlow ( to: string, opts: { flowId?: string; flowName?: string; flowToken?: string; flowCta?: string; bodyText?: string; headerText?: string; footerText?: string; screen?: string; flowAction?: 'navigate' | 'data_exchange'; mode?: 'draft' | 'published'; phoneId?: string } ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  return apiCall<any>( `${WA_SEND_BASE}/flow`, { method: 'POST', body: JSON.stringify( { to, ...opts } ) } ) as any;
+}
+
+// ── Flow admin (assets / migrate / sync) ──
+export async function uploadFlowAsset ( flowId: string, flowJson: any, opts?: { assetType?: string; name?: string; wabaId?: string } ): Promise<{ success?: boolean; validationErrors?: any[]; hasErrors?: boolean; error?: any }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows/assets?flowId=${flowId}`, {
+    method: 'POST',
+    body: JSON.stringify( { flowId, flowJson, ...opts } ),
+  } );
+  return data || { error: 'No response' };
+}
+
+export async function migrateFlows ( sourceWabaId: string, destWabaId: string, opts?: { sourceFlowNames?: string[]; migrationBatchId?: string } ): Promise<{ migratedFlows?: any[]; failedFlows?: any[]; migrationBatchId?: string; error?: any }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows/migrate`, {
+    method: 'POST',
+    body: JSON.stringify( { sourceWabaId, destWabaId, ...opts } ),
+  } );
+  return data || { error: 'No response' };
+}
+
+export async function syncFlows ( wabaId: string ): Promise<{ success?: boolean; synced?: number; total?: number; error?: any }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/flows/sync?wabaId=${wabaId}`, {
+    method: 'POST',
+    body: JSON.stringify( { wabaId } ),
+  } );
+  return data || { error: 'No response' };
+}
+
 export async function updateGroupSettings ( groupId: string, settings: {
   subject?: string; description?: string;
   messaging_permission?: 'all' | 'admins';
