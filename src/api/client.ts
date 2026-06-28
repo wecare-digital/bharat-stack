@@ -3840,13 +3840,13 @@ export async function getBusinessUsernameSuggestions ( phoneId: string ): Promis
   return data || { suggestions: [] };
 }
 
-export async function claimBusinessUsername ( phoneId: string, username: string ): Promise<{ success: boolean; username?: string; error?: string }> {
+export async function claimBusinessUsername ( phoneId: string, username: string, opts?: { transferAction?: 'none' | 'force_transfer'; autoForceTransfer?: boolean } ): Promise<{ success: boolean; username?: string; transferAction?: string; error?: string }> {
   const data = await apiCall<any>( `${WA_BIZ_BASE}/username`, {
     method: 'POST',
-    body: JSON.stringify( { phoneId, username } ),
+    body: JSON.stringify( { phoneId, username, transferAction: opts?.transferAction || 'none', autoForceTransfer: opts?.autoForceTransfer || false } ),
   } );
-  if ( data?.error ) return { success: false, error: data.error.message || data.error.details || 'Failed to claim username' };
-  return { success: true, username: data?.username };
+  if ( data?.error ) return { success: false, error: data.error.message || data.error.details || data.hint || 'Failed to claim username' };
+  return { success: true, username: data?.username, transferAction: data?.transferAction };
 }
 
 export async function deleteBusinessUsername ( phoneId: string ): Promise<{ success: boolean; error?: string }> {
@@ -4136,6 +4136,18 @@ export async function sendTestInteractive ( to: string, interactive: any, phoneI
 
 export async function sendTestFlow ( to: string, opts: { flowId?: string; flowName?: string; flowToken?: string; flowCta?: string; bodyText?: string; headerText?: string; footerText?: string; screen?: string; flowAction?: 'navigate' | 'data_exchange'; mode?: 'draft' | 'published'; phoneId?: string } ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
   return apiCall<any>( `${WA_SEND_BASE}/flow`, { method: 'POST', body: JSON.stringify( { to, ...opts } ) } ) as any;
+}
+
+export async function sendTestContacts ( to: string, contacts: any[], phoneId?: string ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  return apiCall<any>( `${WA_SEND_BASE}/contacts`, { method: 'POST', body: JSON.stringify( { to, contacts, phoneId } ) } ) as any;
+}
+
+export async function sendTestLocation ( to: string, latitude: number, longitude: number, opts?: { name?: string; address?: string; phoneId?: string } ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  return apiCall<any>( `${WA_SEND_BASE}/location`, { method: 'POST', body: JSON.stringify( { to, latitude, longitude, ...opts } ) } ) as any;
+}
+
+export async function sendTestProduct ( to: string, catalogId: string, opts: { productRetailerId?: string; sections?: any[]; headerText?: string; bodyText?: string; footerText?: string; phoneId?: string } ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  return apiCall<any>( `${WA_SEND_BASE}/product`, { method: 'POST', body: JSON.stringify( { to, catalogId, ...opts } ) } ) as any;
 }
 
 // ── Flow admin (assets / migrate / sync) ──

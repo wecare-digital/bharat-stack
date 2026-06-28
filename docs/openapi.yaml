@@ -530,3 +530,36 @@ paths:
       tags: [WhatsApp Messaging]
       summary: Send a flow message by id or name (draft/published)
       responses: { '200': { description: messageId } }
+
+  /wa-business/messages/send/contacts:
+    post: { tags: [WhatsApp Messaging], summary: Send a contacts message, responses: { '200': { description: messageId } } }
+  /wa-business/messages/send/location:
+    post: { tags: [WhatsApp Messaging], summary: Send a location message, responses: { '200': { description: messageId } } }
+  /wa-business/messages/send/product:
+    post:
+      tags: [WhatsApp Messaging]
+      summary: Send a single product or multi-product (sections[]) message
+      responses: { '200': { description: messageId } }
+
+  # ── WhatsApp Business — Username (set-username) ──
+  /wa-business/username:
+    get:
+      tags: [WhatsApp]
+      summary: Get current business username + status
+      parameters: [ { name: phoneId, in: query, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Username + status } }
+    post:
+      tags: [WhatsApp]
+      summary: Claim a username via set-username (transferAction none|force_transfer; 147005=transfer required)
+      responses: { '200': { description: Claimed }, '400': { description: Invalid format or transfer required } }
+    delete:
+      tags: [WhatsApp]
+      summary: Release the current username
+      parameters: [ { name: phoneId, in: query, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Released } }
+  /wa-business/username/suggestions:
+    get:
+      tags: [WhatsApp]
+      summary: Get reserved username suggestions
+      parameters: [ { name: phoneId, in: query, required: true, schema: { type: string } } ]
+      responses: { '200': { description: Suggestions } }

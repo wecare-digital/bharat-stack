@@ -371,6 +371,98 @@ class TestSendMessages:
             assert res['statusCode'] == 200
         assert self.h._route_send_message('/messages/send/unknown', {})['statusCode'] == 404
 
+    def test_contacts_requires_fields(self):
+        assert self.h._send_contacts_msg({'to': '919900000000'})['statusCode'] == 400
+
+    def test_location_requires_coords(self):
+        assert self.h._send_location_msg({'to': '919900000000'})['statusCode'] == 400
+
+    def test_location_success(self):
+        with self._ok_send():
+            res = self.h._send_location_msg({'to': '919900000000', 'latitude': 22.5, 'longitude': 88.3, 'name': 'HQ'})
+            assert res['statusCode'] == 200
+
+    def test_product_single_requires_retailer(self):
+        assert self.h._send_product_msg({'to': '919900000000', 'catalogId': 'cat1'})['statusCode'] == 400
+
+    def test_product_single_success(self):
+        with self._ok_send():
+            res = self.h._send_product_msg({'to': '919900000000', 'catalogId': 'cat1', 'productRetailerId': 'sku1'})
+            assert res['statusCode'] == 200
+
+    def test_product_multi_success(self):
+        captured = {}
+
+        def fake(endpoint, method='GET', payload=None, params=None, **kw):
+            captured['payload'] = payload
+            return {'messages': [{'id': 'x'}]}
+
+        with patch.object(self.h, '_graph_api', side_effect=fake):
+            self.h._send_product_msg({'to': '919900000000', 'catalogId': 'cat1', 'sections': [{'title': 'A', 'product_items': [{'product_retailer_id': 'sku1'}]}]})
+            assert captured['payload']['interactive']['type'] == 'product_list'
+
+
+class TestUsername:
+    """Test the corrected set-username claim flow."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'whatsapp-business-api'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                import handler as h
+                self.h = h
+
+    def test_validate_username(self):
+        assert self.h._validate_wa_username('wecaredigital') is None
+        assert self.h._validate_wa_username('ab') is not None          # too short
+        assert self.h._validate_wa_username('Caps_Name') is not None   # uppercase
+        assert self.h._validate_wa_username('has space') is not None
+
+    def test_claim_requires_username(self):
+        assert self.h._claim_username('123', {})['statusCode'] == 400
+
+    def test_claim_rejects_bad_format(self):
+        assert self.h._claim_username('123', {'username': 'BAD NAME'})['statusCode'] == 400
+
+    def test_claim_uses_set_username_endpoint(self):
+        captured = {}
+
+        def fake(endpoint, method='GET', payload=None, params=None, **kw):
+            captured['endpoint'] = endpoint
+            captured['payload'] = payload
+            return {'success': True}
+
+        with patch.object(self.h, '_graph_api', side_effect=fake):
+            res = self.h._claim_username('1016149501586345', {'username': 'wecaredigital'})
+            assert res['statusCode'] == 200
+            assert captured['endpoint'] == '1016149501586345/set-username'
+            assert captured['payload']['transfer_action'] == 'none'
+
+    def test_claim_auto_force_transfer_on_147005(self):
+        calls = []
+
+        def fake(endpoint, method='GET', payload=None, params=None, **kw):
+            calls.append(payload['transfer_action'])
+            if payload['transfer_action'] == 'none':
+                return {'error': {'code': 147005, 'message': 'transfer required'}}
+            return {'success': True}
+
+        with patch.object(self.h, '_graph_api', side_effect=fake):
+            res = self.h._claim_username('123', {'username': 'wecaredigital', 'autoForceTransfer': True})
+            assert res['statusCode'] == 200
+            assert calls == ['none', 'force_transfer']
+
+    def test_claim_147005_without_auto_returns_hint(self):
+        def fake(endpoint, method='GET', payload=None, params=None, **kw):
+            return {'error': {'code': 147005, 'message': 'transfer required'}}
+
+        with patch.object(self.h, '_graph_api', side_effect=fake):
+            res = self.h._claim_username('123', {'username': 'wecaredigital'})
+            body = json.loads(res['body'])
+            assert res['statusCode'] == 400
+            assert 'force_transfer' in body.get('hint', '')
+
 
 class TestGroups:
     """Test WhatsApp Groups CRUD."""

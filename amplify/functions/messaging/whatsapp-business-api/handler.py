@@ -1296,6 +1296,62 @@ def _send_flow_msg(body: Dict) -> Dict:
     return _send_message(phone_id, {'to': to, 'type': 'interactive', 'interactive': interactive})
 
 
+def _send_contacts_msg(body: Dict) -> Dict:
+    to = (body.get('to') or '').strip()
+    contacts = body.get('contacts')
+    if not to or not contacts:
+        return _resp(400, {'error': 'to and contacts[] are required'})
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+    return _send_message(phone_id, {'to': to, 'type': 'contacts', 'contacts': contacts})
+
+
+def _send_location_msg(body: Dict) -> Dict:
+    to = (body.get('to') or '').strip()
+    lat = body.get('latitude')
+    lng = body.get('longitude')
+    if not to or lat is None or lng is None:
+        return _resp(400, {'error': 'to, latitude and longitude are required'})
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+    location: Dict[str, Any] = {'latitude': lat, 'longitude': lng}
+    if body.get('name'):
+        location['name'] = body['name']
+    if body.get('address'):
+        location['address'] = body['address']
+    return _send_message(phone_id, {'to': to, 'type': 'location', 'location': location})
+
+
+def _send_product_msg(body: Dict) -> Dict:
+    """Single product (interactive 'product') or multi-product ('product_list')."""
+    to = (body.get('to') or '').strip()
+    catalog_id = body.get('catalogId')
+    if not to or not catalog_id:
+        return _resp(400, {'error': 'to and catalogId are required'})
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+    sections = body.get('sections')
+    if sections:
+        # Multi-product message
+        interactive = {
+            'type': 'product_list',
+            'header': {'type': 'text', 'text': body.get('headerText', 'Products')},
+            'body': {'text': body.get('bodyText', 'Browse our products')},
+            'action': {'catalog_id': catalog_id, 'sections': sections},
+        }
+        if body.get('footerText'):
+            interactive['footer'] = {'text': body['footerText']}
+    else:
+        retailer_id = body.get('productRetailerId')
+        if not retailer_id:
+            return _resp(400, {'error': 'productRetailerId required for a single product (or provide sections[] for multi-product)'})
+        interactive = {
+            'type': 'product',
+            'body': {'text': body.get('bodyText', '')} if body.get('bodyText') else {'text': ' '},
+            'action': {'catalog_id': catalog_id, 'product_retailer_id': retailer_id},
+        }
+        if not body.get('bodyText'):
+            interactive.pop('body', None)
+    return _send_message(phone_id, {'to': to, 'type': 'interactive', 'interactive': interactive})
+
+
 def _route_send_message(path: str, body: Dict) -> Dict:
     """Dispatch /messages/send/{type}."""
     if path.rstrip('/').endswith('/text'):
@@ -1308,6 +1364,12 @@ def _route_send_message(path: str, body: Dict) -> Dict:
         return _send_interactive_msg(body)
     if path.rstrip('/').endswith('/flow'):
         return _send_flow_msg(body)
+    if path.rstrip('/').endswith('/contacts'):
+        return _send_contacts_msg(body)
+    if path.rstrip('/').endswith('/location'):
+        return _send_location_msg(body)
+    if path.rstrip('/').endswith('/product') or path.rstrip('/').endswith('/products'):
+        return _send_product_msg(body)
     return _resp(404, {'error': f'Unknown send path: {path}'})
 
 
@@ -1797,10 +1859,11 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
 # ============================================================================
 # USERNAME MANAGEMENT
 # Meta Graph API endpoints for WhatsApp Business usernames.
-# GET /<phone_id>/username — current username + status
-# GET /<phone_id>/username_suggestions — reserved suggestions
-# POST /<phone_id>/username — claim a username
-# DELETE /<phone_id>/username — delete current username
+# GET  /<phone_id>/username             — current username + status
+# GET  /<phone_id>/username_suggestions — reserved suggestions
+# POST /<phone_id>/set-username         — claim a username (transfer_action: none|force_transfer)
+# POST /<phone_id>/set-username {username:''} — release current username
+# Uses the Phone Number ID (not WABA ID). Requires whatsapp_business_management.
 # ============================================================================
 
 def _get_username(phone_id: str) -> Dict:
@@ -1822,21 +1885,61 @@ def _get_username_suggestions(phone_id: str) -> Dict:
     return _resp(200, {'suggestions': suggestions, 'raw': result})
 
 
+def _validate_wa_username(username: str) -> Optional[str]:
+    """Meta rule: 3-35 chars, lowercase letters, numbers, periods, underscores."""
+    import re as _re
+    if not _re.fullmatch(r'[a-z0-9._]{3,35}', username or ''):
+        return 'Username must be 3-35 characters: lowercase letters, numbers, periods, or underscores only'
+    return None
+
+
 def _claim_username(phone_id: str, body: Dict) -> Dict:
-    """Claim/set a username for a phone number. Body: { "username": "desired_username" }"""
-    username = body.get('username', '').strip()
+    """Claim/set a username for a phone number via Meta's set-username endpoint.
+
+    Body: {
+      "username": "your_brand_name",          # 3-35 chars, [a-z0-9._]
+      "transferAction": "none"|"force_transfer",  # default none
+      "autoForceTransfer": bool                # if true, auto-retry on 147005
+    }
+    NOTE: uses the Phone Number ID (not the WABA ID). Requires a token with
+    whatsapp_business_management. Error 147005 = handle is on another phone in
+    your portfolio → retry with force_transfer.
+    """
+    username = (body.get('username') or '').strip().lower()
     if not username:
         return _resp(400, {'error': 'username is required'})
-    result = _graph_api(f'{phone_id}/username', method='POST',
-                        payload={'username': username}, phone_id=phone_id)
+    fmt_err = _validate_wa_username(username)
+    if fmt_err:
+        return _resp(400, {'error': fmt_err})
+
+    transfer_action = (body.get('transferAction') or body.get('transfer_action') or 'none').lower()
+    if transfer_action not in ('none', 'force_transfer'):
+        transfer_action = 'none'
+
+    def _set(action: str) -> Dict:
+        return _graph_api(f'{phone_id}/set-username', method='POST',
+                          payload={'username': username, 'transfer_action': action}, phone_id=phone_id)
+
+    result = _set(transfer_action)
     if 'error' in result:
+        err_obj = result.get('error', {}) if isinstance(result.get('error'), dict) else {}
+        code = err_obj.get('code')
+        # 147005: handle belongs to another phone in the portfolio.
+        if code == 147005 and transfer_action == 'none' and body.get('autoForceTransfer'):
+            retry = _set('force_transfer')
+            if 'error' not in retry:
+                return _resp(200, {'success': True, 'username': username, 'transferAction': 'force_transfer', 'result': retry})
+            return _resp(400, retry)
+        if code == 147005:
+            result['hint'] = 'Username is linked to another phone number in your portfolio. Retry with transferAction=force_transfer (or autoForceTransfer=true).'
         return _resp(400, result)
-    return _resp(200, {'success': True, 'username': username, 'result': result})
+    return _resp(200, {'success': True, 'username': username, 'transferAction': transfer_action, 'result': result})
 
 
 def _delete_username(phone_id: str) -> Dict:
-    """Delete the current username for a phone number."""
-    result = _graph_api(f'{phone_id}/username', method='DELETE', phone_id=phone_id)
+    """Release the current username for a phone number (set to empty via set-username)."""
+    result = _graph_api(f'{phone_id}/set-username', method='POST',
+                        payload={'username': ''}, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, {'success': True, 'result': result})

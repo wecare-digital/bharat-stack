@@ -4,11 +4,15 @@ There are **two different "username" features**. Don't confuse them.
 
 ## 1. Business username (vanity handle, e.g. @wecaredigital)
 A public handle for the **business**, claimed per phone number.
-- API (already implemented in `whatsapp-business-api/handler.py`):
+- API (implemented in `whatsapp-business-api/handler.py`):
   - `GET /<phone_id>/username` — current handle + status
   - `GET /<phone_id>/username_suggestions` — reserved suggestions
-  - `POST /<phone_id>/username` — claim
-  - `DELETE /<phone_id>/username` — release
+  - `POST /<phone_id>/set-username` — claim (`transfer_action`: `none` | `force_transfer`)
+  - `POST /<phone_id>/set-username` with `{username:''}` — release
+  - Exposed at `/wa-business/username*`. Format: 3–35 chars, `[a-z0-9._]`.
+  - Error **147005** = handle is on another phone in your portfolio → retry with
+    `transferAction=force_transfer` (or pass `autoForceTransfer=true`).
+  - Uses the **Phone Number ID** (not WABA ID); needs `whatsapp_business_management`.
 - **Availability:** rolled out by Meta in limited/gated waves. If the GET
   `/username_suggestions` call returns a permission/`#100`-type error for a WABA,
   access is **not yet enabled** for that account → send the email below.
