@@ -201,6 +201,19 @@ class MetaGraphClient:
         except Exception as e:  # noqa: BLE001
             return {'error': {'message': str(e), 'type': 'NetworkError', 'code': None}}
 
+    # ── raw binary download (media lookaside URLs) ──
+    def download_file(self, url: str, token_context: Optional[Dict] = None,
+                      waba_id: Optional[str] = None, phone_id: Optional[str] = None) -> bytes:
+        """Download raw bytes from a Meta-authenticated URL (e.g. a media lookaside URL).
+
+        Raises urllib.error.URLError / HTTPError on failure so callers can decide how
+        to surface binary-download problems (these are not JSON Graph responses)."""
+        waba_id, phone_id = _ctx(token_context, waba_id, phone_id)
+        token, _ = self._creds(waba_id, phone_id)
+        req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}'})
+        with urllib.request.urlopen(req, timeout=max(_TIMEOUT, 60)) as resp:
+            return resp.read()
+
     # ── pagination ──
     def paginate(self, endpoint: str, params: Optional[Dict] = None, token_context: Optional[Dict] = None,
                  waba_id: Optional[str] = None, phone_id: Optional[str] = None, limit_pages: int = 50) -> Iterator[Dict]:

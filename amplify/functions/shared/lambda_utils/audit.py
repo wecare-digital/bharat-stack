@@ -37,6 +37,9 @@ ACTIONS = {
     'commerce.update', 'group.create', 'group.update', 'group.delete', 'payment.lookup',
     'payment.refund', 'dlq.replay', 'secret.update', 'feature_flag.update', 'username.claim',
     'username.delete', 'ai_policy.update',
+    # WABA management (Part 3 Module 1)
+    'event_destination.update', 'media.upload', 'media.delete', 'phone.register',
+    'phone.migrate', 'phone.request_otp', 'phone.verify_otp', 'conversational.update',
 }
 
 

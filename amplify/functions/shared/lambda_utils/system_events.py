@@ -33,6 +33,8 @@ EVENT_TYPES = {
     'flow_validation_error', 'flow_health_blocked', 'webhook_signature_failure',
     'dlq_depth_alert', 'general_purpose_ai_pricing_seen', 'token_rotation_reminder',
     'waba_quality_warning', 'phone_quality_update', 'account_update', 'user_id_update',
+    # Flow lifecycle (Part 4 A)
+    'flow_published', 'flow_publish_failed', 'flow_deprecated', 'flow_migrated', 'flow_cloned',
 }
 SEVERITIES = {'info', 'warning', 'error', 'critical'}
 

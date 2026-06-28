@@ -219,6 +219,17 @@ def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params:
 def _resp(code: int, body: Dict, resp_origin: str = '') -> Dict:
     return {'statusCode': code, 'headers': cors_headers(resp_origin or origin), 'body': json.dumps(body, default=str)}
 
+
+def _emit_event(event_type: str, severity: str = 'info', waba_id: str = None,
+                phone_id: str = None, data: Dict = None) -> None:
+    """Fail-open wrapper around the shared SystemEvent recorder."""
+    try:
+        from lambda_utils.system_events import record_system_event
+        record_system_event(event_type, waba_id=waba_id, phone_number_id=phone_id,
+                            severity=severity, data=data or {})
+    except Exception as e:  # never let telemetry break a request
+        logger.warning(f'system_event emit failed ({event_type}): {e}')
+
 # ============================================================================
 # BUSINESS PROFILE
 # ============================================================================
@@ -316,7 +327,9 @@ def _publish_flow(flow_id: str) -> Dict:
         return _resp(400, {'error': 'flowId required'})
     result = _graph_api(f'{flow_id}/publish', method='POST')
     if 'error' in result:
+        _emit_event('flow_publish_failed', severity='error', data={'flowId': flow_id, 'error': result.get('error')})
         return _resp(400, result)
+    _emit_event('flow_published', severity='info', data={'flowId': flow_id})
     return _resp(200, {'success': True})
 
 def _deprecate_flow(flow_id: str) -> Dict:
@@ -325,6 +338,7 @@ def _deprecate_flow(flow_id: str) -> Dict:
     result = _graph_api(flow_id, method='POST', payload={'status': 'DEPRECATED'})
     if 'error' in result:
         return _resp(400, result)
+    _emit_event('flow_deprecated', severity='warning', data={'flowId': flow_id})
     return _resp(200, {'success': True})
 
 def _get_flow_preview(flow_id: str) -> Dict:
@@ -795,6 +809,8 @@ def _update_template_ttl(template_id: str, body: Dict, waba_id: str = None) -> D
     }
     if warning:
         resp_body['warning'] = warning
+        _emit_event('template_ttl_cleared', severity='warning', waba_id=waba_id,
+                    data={'templateId': template_id, 'category': category, 'warning': warning})
     return _resp(200, resp_body)
 
 
@@ -2561,6 +2577,9 @@ def _upload_flow_asset(flow_id: str, body: Dict) -> Dict:
             return _resp(400, {'error': {'message': error_body, 'code': e.code}})
 
     validation_errors = result.get('validation_errors', [])
+    if validation_errors:
+        _emit_event('flow_validation_error', severity='warning', waba_id=waba_id,
+                    data={'flowId': flow_id, 'validationErrors': validation_errors})
     return _resp(200, {
         'success': result.get('success', True),
         'flowId': flow_id,
@@ -2582,10 +2601,17 @@ def _migrate_flows(body: Dict) -> Dict:
     result = _graph_api(f'{dest_waba_id}/migrate_flows', method='POST', payload=payload, waba_id=dest_waba_id)
     if 'error' in result:
         return _resp(400, result)
+    batch_id = body.get('migrationBatchId', uuid.uuid4().hex)
+    _emit_event('flow_migrated', severity='info', waba_id=dest_waba_id, data={
+        'sourceWabaId': source_waba_id, 'destWabaId': dest_waba_id,
+        'migrated': len(result.get('migrated_flows', [])),
+        'failed': len(result.get('failed_flows', [])),
+        'migrationBatchId': batch_id,
+    })
     return _resp(200, {
         'migratedFlows': result.get('migrated_flows', []),
         'failedFlows': result.get('failed_flows', []),
-        'migrationBatchId': body.get('migrationBatchId', uuid.uuid4().hex),
+        'migrationBatchId': batch_id,
     })
 
 
@@ -2620,6 +2646,12 @@ def _sync_flows(params: Dict, body: Dict) -> Dict:
         validation_errors = f.get('validation_errors', [])
         health = f.get('health_status', {})
         preview = f.get('preview', {})
+        if validation_errors:
+            _emit_event('flow_validation_error', severity='warning', waba_id=waba_id,
+                        data={'flowId': flow_id, 'validationErrors': validation_errors})
+        if isinstance(health, dict) and str(health.get('can_send_message', 'AVAILABLE')).upper() == 'BLOCKED':
+            _emit_event('flow_health_blocked', severity='error', waba_id=waba_id,
+                        data={'flowId': flow_id, 'health': health})
         update = {
             'flowId': flow_id,
             'flowName': f.get('name', existing.get('flowName', '')),
@@ -2847,6 +2879,8 @@ def _clone_flow_to_waba(body: Dict) -> Dict:
         table.put_item(Item={k: v for k, v in clone.items() if v is not None and v != ''})
         global _flow_registry_cache_ts
         _flow_registry_cache_ts = 0
+        _emit_event('flow_cloned', severity='info', data={
+            'sourceFlowCode': source_flow_code, 'clonedFlowId': target_flow_id})
         return _resp(200, {'success': True, 'clonedFlowId': target_flow_id, 'sourceFlowCode': source_flow_code})
     except Exception as e:
         return _resp(500, {'error': str(e)})
