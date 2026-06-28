@@ -198,6 +198,7 @@ const TemplateManagement: React.FC<PageProps> = ( { signOut, user, embedded = fa
       title: 'Delete Template',
       message: ( <p>Are you sure you want to delete <strong>{ templateName }</strong>?<br /><br /><span style={ { color: '#666', fontSize: 13 } }>This action cannot be undone.</span></p> ),
       confirmText: 'Delete',
+      confirmInput: 'DELETE',
       danger: true,
     } );
     if ( !ok ) return;
