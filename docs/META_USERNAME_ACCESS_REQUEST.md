@@ -1,5 +1,15 @@
 # Meta — WhatsApp Business Username API access request
 
+> **CONFIRMED STATUS (probed live against phone `1016149501586345`, Graph v25.0):**
+> The username feature is **GATED / not enabled** for this account.
+> `GET /{phone}/username_suggestions` → `147000` *"Username feature not available —
+> This feature is not yet available for this account"* (error_subcode 2655129).
+> The `username` field is not readable (`#100`), and `/set-username` / `/usernames`
+> return `2500 Unknown path`. A `POST /{phone}` with a `username` field returns a
+> misleading `200 {"success":true}` **no-op** — it does NOT claim a handle.
+> **Action: send the request below to have Meta enable the feature**, then re-probe
+> to confirm the exact GA edge name.
+
 There are **two different "username" features**. Don't confuse them.
 
 ## 1. Business username (vanity handle, e.g. @wecaredigital)
