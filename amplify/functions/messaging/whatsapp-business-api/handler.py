@@ -647,11 +647,44 @@ def _configure_conversational_automation(phone_id: str, body: Dict) -> Dict:
 # ============================================================================
 # LINK PREVIEW VALIDATOR (Open Graph requirements for WhatsApp link previews)
 # ============================================================================
+def _is_ssrf_safe_url(url: str) -> bool:
+    """SSRF guard for link-preview: only allow public http(s) hosts.
+    Blocks loopback, private, link-local (incl. 169.254.169.254 metadata),
+    reserved, multicast and unspecified addresses after DNS resolution."""
+    import ipaddress
+    import socket
+    try:
+        p = urllib.parse.urlparse(url)
+    except Exception:
+        return False
+    if p.scheme not in ('http', 'https') or not p.hostname:
+        return False
+    h = p.hostname.lower()
+    if h == 'localhost' or h.endswith('.localhost') or h.endswith('.internal') or h.endswith('.local'):
+        return False
+    try:
+        infos = socket.getaddrinfo(p.hostname, None)
+    except Exception:
+        return False
+    for info in infos:
+        ip = info[4][0]
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            continue
+        if (addr.is_private or addr.is_loopback or addr.is_link_local
+                or addr.is_reserved or addr.is_multicast or addr.is_unspecified):
+            return False
+    return True
+
+
 def _check_link_preview(url: str) -> Dict:
     """Fetch a URL and check whether it meets WhatsApp link-preview (Open Graph) requirements.
     Returns warnings (best-effort) rather than hard failures, per WhatsApp behavior."""
     if not url or not url.startswith('http'):
         return _resp(400, {'error': 'A valid http(s) url is required'})
+    if not _is_ssrf_safe_url(url):
+        return _resp(400, {'error': 'URL host is not allowed (private, loopback, link-local, or non-public addresses are blocked).'})
     warnings = []
     found = {'og:title': '', 'og:description': '', 'og:url': '', 'og:image': ''}
     try:
