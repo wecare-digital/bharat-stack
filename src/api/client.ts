@@ -4150,6 +4150,11 @@ export async function sendTestProduct ( to: string, catalogId: string, opts: { p
   return apiCall<any>( `${WA_SEND_BASE}/product`, { method: 'POST', body: JSON.stringify( { to, catalogId, ...opts } ) } ) as any;
 }
 
+// Request a user's phone number (BSUID-friendly; for username-adopters whose phone is hidden).
+export async function sendRequestContactInfo ( opts: { to?: string; recipient?: string; bodyText?: string; phoneId?: string } ): Promise<{ success?: boolean; messageId?: string; error?: string }> {
+  return apiCall<any>( `${WA_SEND_BASE}/request-contact-info`, { method: 'POST', body: JSON.stringify( opts ) } ) as any;
+}
+
 // ── Flow admin (assets / migrate / sync) ──
 export async function uploadFlowAsset ( flowId: string, flowJson: any, opts?: { assetType?: string; name?: string; wabaId?: string } ): Promise<{ success?: boolean; validationErrors?: any[]; hasErrors?: boolean; error?: any }> {
   const data = await apiCall<any>( `${WA_BIZ_BASE}/flows/assets?flowId=${flowId}`, {

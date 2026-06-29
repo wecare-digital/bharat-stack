@@ -540,6 +540,11 @@ paths:
       tags: [WhatsApp Messaging]
       summary: Send a single product or multi-product (sections[]) message
       responses: { '200': { description: messageId } }
+  /wa-business/messages/send/request-contact-info:
+    post:
+      tags: [WhatsApp Messaging]
+      summary: Send a request_contact_info interactive message (collect phone from username-adopters; supports BSUID recipient)
+      responses: { '200': { description: messageId } }
 
   # ── WhatsApp Business — Username (set-username) ──
   /wa-business/username:

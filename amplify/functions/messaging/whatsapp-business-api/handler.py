@@ -1182,10 +1182,23 @@ def _resumable_finish(session_id: str, body: Dict) -> Dict:
 #   POST /wa-business/messages/send/flow        → flow message by id or name (draft/published)
 # All post to {phone_id}/messages via the Graph API.
 # ============================================================================
-def _send_message(phone_id: str, message: Dict) -> Dict:
-    """POST a fully-formed message to {phone_id}/messages and normalize the response."""
+def _send_message(phone_id: str, message: Dict, body: Dict = None) -> Dict:
+    """POST a fully-formed message to {phone_id}/messages and normalize the response.
+
+    Destination: pass `body` to resolve `to` (phone) and/or `recipient` (BSUID or
+    parent BSUID) per Meta's BSUID API. If both are given, Meta uses `to`.
+    """
     message.setdefault('messaging_product', 'whatsapp')
     message.setdefault('recipient_type', 'individual')
+    if body is not None:
+        to = (body.get('to') or '').strip()
+        recipient = (body.get('recipient') or '').strip()  # BSUID / parent BSUID
+        if not to and not recipient:
+            return _resp(400, {'error': 'to (phone number) or recipient (BSUID) is required'})
+        if to:
+            message['to'] = to
+        if recipient:
+            message['recipient'] = recipient
     result = _graph_api(f'{phone_id}/messages', method='POST', payload=message, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
@@ -1193,39 +1206,35 @@ def _send_message(phone_id: str, message: Dict) -> Dict:
     msgs = result.get('messages', []) if isinstance(result, dict) else []
     if msgs:
         msg_id = msgs[0].get('id', '')
-    return _resp(200, {'success': True, 'messageId': msg_id, 'to': message.get('to', '')})
+    contacts = result.get('contacts', []) if isinstance(result, dict) else []
+    user_id = contacts[0].get('user_id', '') if contacts else ''
+    return _resp(200, {'success': True, 'messageId': msg_id, 'to': message.get('to', ''), 'recipient': message.get('recipient', ''), 'userId': user_id})
 
 
 def _send_text(body: Dict) -> Dict:
-    to = (body.get('to') or '').strip()
     text = body.get('text') or body.get('body')
-    if not to or not text:
-        return _resp(400, {'error': 'to and text are required'})
+    if not text:
+        return _resp(400, {'error': 'text is required'})
     phone_id = body.get('phoneId') or PHONE1_META_ID
-    message = {
-        'to': to, 'type': 'text',
-        'text': {'body': text, 'preview_url': bool(body.get('previewUrl', False))},
-    }
-    return _send_message(phone_id, message)
+    message = {'type': 'text', 'text': {'body': text, 'preview_url': bool(body.get('previewUrl', False))}}
+    return _send_message(phone_id, message, body)
 
 
 def _send_template_msg(body: Dict) -> Dict:
-    to = (body.get('to') or '').strip()
     name = body.get('templateName') or body.get('name')
-    if not to or not name:
-        return _resp(400, {'error': 'to and templateName are required'})
+    if not name:
+        return _resp(400, {'error': 'templateName is required'})
     phone_id = body.get('phoneId') or PHONE1_META_ID
     template = {'name': name, 'language': {'code': body.get('language', 'en')}}
     if body.get('components'):
         template['components'] = body['components']
-    return _send_message(phone_id, {'to': to, 'type': 'template', 'template': template})
+    return _send_message(phone_id, {'type': 'template', 'template': template}, body)
 
 
 def _send_media_msg(body: Dict) -> Dict:
-    to = (body.get('to') or '').strip()
     media_type = (body.get('mediaType') or body.get('type') or '').lower()
-    if not to or media_type not in ('image', 'video', 'document', 'audio', 'sticker'):
-        return _resp(400, {'error': 'to and a valid mediaType (image|video|document|audio|sticker) are required'})
+    if media_type not in ('image', 'video', 'document', 'audio', 'sticker'):
+        return _resp(400, {'error': 'a valid mediaType (image|video|document|audio|sticker) is required'})
     media_id = body.get('mediaId')
     media_url = body.get('mediaUrl') or body.get('link')
     if not media_id and not media_url:
@@ -1240,29 +1249,39 @@ def _send_media_msg(body: Dict) -> Dict:
         obj['caption'] = body['caption']
     if body.get('filename') and media_type == 'document':
         obj['filename'] = body['filename']
-    return _send_message(phone_id, {'to': to, 'type': media_type, media_type: obj})
+    return _send_message(phone_id, {'type': media_type, media_type: obj}, body)
 
 
 def _send_interactive_msg(body: Dict) -> Dict:
-    to = (body.get('to') or '').strip()
     interactive = body.get('interactive')
-    if not to or not interactive:
-        return _resp(400, {'error': 'to and interactive object are required'})
+    if not interactive:
+        return _resp(400, {'error': 'interactive object is required'})
     phone_id = body.get('phoneId') or PHONE1_META_ID
-    return _send_message(phone_id, {'to': to, 'type': 'interactive', 'interactive': interactive})
+    return _send_message(phone_id, {'type': 'interactive', 'interactive': interactive}, body)
+
+
+def _send_request_contact_info(body: Dict) -> Dict:
+    """Send a request_contact_info interactive message to collect a user's phone
+    number (useful for username-adopters whose phone is hidden). BSUID-friendly."""
+    phone_id = body.get('phoneId') or PHONE1_META_ID
+    interactive = {
+        'type': 'request_contact_info',
+        'body': {'text': body.get('bodyText', 'Please share your contact info so we can assist you.')},
+        'action': {'name': 'request_contact_info'},
+    }
+    return _send_message(phone_id, {'type': 'interactive', 'interactive': interactive}, body)
 
 
 def _send_flow_msg(body: Dict) -> Dict:
     """Send an interactive Flow message by flow_id or flow_name.
 
-    Body: { to, flowId|flowName, flowToken?, flowCta, bodyText, headerText?, footerText?,
+    Body: { to|recipient, flowId|flowName, flowToken?, flowCta, bodyText, headerText?, footerText?,
             screen, flowAction(navigate|data_exchange), flowActionPayload?, mode(draft|published), phoneId }
     """
-    to = (body.get('to') or '').strip()
     flow_id = body.get('flowId')
     flow_name = body.get('flowName')
-    if not to or (not flow_id and not flow_name):
-        return _resp(400, {'error': 'to and one of flowId/flowName are required'})
+    if not flow_id and not flow_name:
+        return _resp(400, {'error': 'one of flowId/flowName is required'})
     phone_id = body.get('phoneId') or PHONE1_META_ID
 
     parameters: Dict[str, Any] = {
@@ -1293,39 +1312,36 @@ def _send_flow_msg(body: Dict) -> Dict:
     if body.get('footerText'):
         interactive['footer'] = {'text': body['footerText']}
 
-    return _send_message(phone_id, {'to': to, 'type': 'interactive', 'interactive': interactive})
+    return _send_message(phone_id, {'type': 'interactive', 'interactive': interactive}, body)
 
 
 def _send_contacts_msg(body: Dict) -> Dict:
-    to = (body.get('to') or '').strip()
     contacts = body.get('contacts')
-    if not to or not contacts:
-        return _resp(400, {'error': 'to and contacts[] are required'})
+    if not contacts:
+        return _resp(400, {'error': 'contacts[] is required'})
     phone_id = body.get('phoneId') or PHONE1_META_ID
-    return _send_message(phone_id, {'to': to, 'type': 'contacts', 'contacts': contacts})
+    return _send_message(phone_id, {'type': 'contacts', 'contacts': contacts}, body)
 
 
 def _send_location_msg(body: Dict) -> Dict:
-    to = (body.get('to') or '').strip()
     lat = body.get('latitude')
     lng = body.get('longitude')
-    if not to or lat is None or lng is None:
-        return _resp(400, {'error': 'to, latitude and longitude are required'})
+    if lat is None or lng is None:
+        return _resp(400, {'error': 'latitude and longitude are required'})
     phone_id = body.get('phoneId') or PHONE1_META_ID
     location: Dict[str, Any] = {'latitude': lat, 'longitude': lng}
     if body.get('name'):
         location['name'] = body['name']
     if body.get('address'):
         location['address'] = body['address']
-    return _send_message(phone_id, {'to': to, 'type': 'location', 'location': location})
+    return _send_message(phone_id, {'type': 'location', 'location': location}, body)
 
 
 def _send_product_msg(body: Dict) -> Dict:
     """Single product (interactive 'product') or multi-product ('product_list')."""
-    to = (body.get('to') or '').strip()
     catalog_id = body.get('catalogId')
-    if not to or not catalog_id:
-        return _resp(400, {'error': 'to and catalogId are required'})
+    if not catalog_id:
+        return _resp(400, {'error': 'catalogId is required'})
     phone_id = body.get('phoneId') or PHONE1_META_ID
     sections = body.get('sections')
     if sections:
@@ -1349,7 +1365,7 @@ def _send_product_msg(body: Dict) -> Dict:
         }
         if not body.get('bodyText'):
             interactive.pop('body', None)
-    return _send_message(phone_id, {'to': to, 'type': 'interactive', 'interactive': interactive})
+    return _send_message(phone_id, {'type': 'interactive', 'interactive': interactive}, body)
 
 
 def _route_send_message(path: str, body: Dict) -> Dict:
@@ -1370,6 +1386,8 @@ def _route_send_message(path: str, body: Dict) -> Dict:
         return _send_location_msg(body)
     if path.rstrip('/').endswith('/product') or path.rstrip('/').endswith('/products'):
         return _send_product_msg(body)
+    if path.rstrip('/').endswith('/request-contact-info'):
+        return _send_request_contact_info(body)
     return _resp(404, {'error': f'Unknown send path: {path}'})
 
 

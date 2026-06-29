@@ -371,6 +371,41 @@ class TestSendMessages:
             assert res['statusCode'] == 200
         assert self.h._route_send_message('/messages/send/unknown', {})['statusCode'] == 404
 
+    def test_send_requires_to_or_recipient(self):
+        assert self.h._send_text({'text': 'hi'})['statusCode'] == 400
+
+    def test_send_by_bsuid_recipient(self):
+        captured = {}
+
+        def fake(endpoint, method='GET', payload=None, params=None, **kw):
+            captured['payload'] = payload
+            return {'messages': [{'id': 'x'}], 'contacts': [{'user_id': 'US.13491208655302741918'}]}
+
+        with patch.object(self.h, '_graph_api', side_effect=fake):
+            res = self.h._send_text({'recipient': 'US.13491208655302741918', 'text': 'hi'})
+            body = json.loads(res['body'])
+            assert res['statusCode'] == 200
+            assert captured['payload']['recipient'] == 'US.13491208655302741918'
+            assert 'to' not in captured['payload']
+            assert body['userId'] == 'US.13491208655302741918'
+
+    def test_send_both_to_and_recipient(self):
+        captured = {}
+
+        def fake(endpoint, method='GET', payload=None, params=None, **kw):
+            captured['payload'] = payload
+            return {'messages': [{'id': 'x'}]}
+
+        with patch.object(self.h, '_graph_api', side_effect=fake):
+            self.h._send_text({'to': '919900000000', 'recipient': 'US.123', 'text': 'hi'})
+            assert captured['payload']['to'] == '919900000000'
+            assert captured['payload']['recipient'] == 'US.123'
+
+    def test_request_contact_info(self):
+        with self._ok_send():
+            res = self.h._send_request_contact_info({'recipient': 'US.123', 'bodyText': 'Share your number'})
+            assert res['statusCode'] == 200
+
     def test_contacts_requires_fields(self):
         assert self.h._send_contacts_msg({'to': '919900000000'})['statusCode'] == 400
 

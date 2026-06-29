@@ -30,6 +30,8 @@ const WEBHOOK_FIELDS = [
   { field: 'template_category_update', desc: 'Template category change notifications' },
   { field: 'flows', desc: 'Flow status changes and data exchange events' },
   { field: 'calls', desc: 'WhatsApp Business Calling events (connect, terminate, permission)' },
+  { field: 'business_username_updates', desc: 'Business username status changes (reserved → approved/deleted) — 2026 usernames rollout' },
+  { field: 'user_id_update', desc: 'Business-scoped User ID (BSUID) changes for a user — subscribe to track identity continuity' },
 ];
 
 const EXISTING_WEBHOOKS = [
