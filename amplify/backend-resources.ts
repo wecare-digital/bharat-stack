@@ -55,26 +55,34 @@ export function addBackendResources ( stack: Stack ) {
   );
 
   // CloudWatch Alarms
+  // Global Lambda error catch-all (Sum across the account). The previous version
+  // used Average with a 0.01 threshold, which is not an error *rate* and fires on
+  // noise. Per-function rate alarms below give precise coverage; this is a coarse
+  // "something is broadly wrong" signal.
   const lambdaErrorAlarm = new cloudwatch.Alarm( stack, 'LambdaErrorRateAlarm', {
-    alarmName: 'wecare-lambda-error-rate',
-    alarmDescription: 'Lambda error rate exceeds 1%',
+    alarmName: 'wecare-lambda-errors-total',
+    alarmDescription: 'Total Lambda errors exceed 25 in 5 minutes (account-wide)',
     metric: new cloudwatch.Metric( {
       namespace: 'AWS/Lambda',
       metricName: 'Errors',
-      statistic: 'Average',
+      statistic: 'Sum',
       period: Duration.minutes( 5 ),
     } ),
-    threshold: 0.01,
-    evaluationPeriods: 2,
+    threshold: 25,
+    evaluationPeriods: 1,
     comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
     treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
   } );
   lambdaErrorAlarm.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
 
-  const dlqDepthAlarm = new cloudwatch.Alarm( stack, 'DLQDepthAlarm', {
-    alarmName: 'wecare-dlq-depth',
-    alarmDescription: 'DLQ depth exceeds 10 messages',
-    metric: inboundDlq.metricApproximateNumberOfMessagesVisible( {
+  // Global Lambda throttle alarm — concurrency exhaustion / reserved-concurrency issues.
+  const lambdaThrottleAlarm = new cloudwatch.Alarm( stack, 'LambdaThrottleAlarm', {
+    alarmName: 'wecare-lambda-throttles',
+    alarmDescription: 'Lambda throttles detected (account-wide)',
+    metric: new cloudwatch.Metric( {
+      namespace: 'AWS/Lambda',
+      metricName: 'Throttles',
+      statistic: 'Sum',
       period: Duration.minutes( 5 ),
     } ),
     threshold: 10,
@@ -82,7 +90,43 @@ export function addBackendResources ( stack: Stack ) {
     comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
     treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
   } );
-  dlqDepthAlarm.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
+  lambdaThrottleAlarm.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
+
+  // DLQ depth alarms — one per DLQ (previously only inbound was covered).
+  const dlqDepthAlarms: cloudwatch.Alarm[] = [];
+  const dlqs: Array<[ string, sqs.Queue ]> = [
+    [ 'Inbound', inboundDlq ],
+    [ 'Bulk', bulkDlq ],
+    [ 'Outbound', outboundDlq ],
+  ];
+  for ( const [ label, q ] of dlqs )
+  {
+    const a = new cloudwatch.Alarm( stack, `DLQDepthAlarm${label}`, {
+      alarmName: `wecare-dlq-depth-${label.toLowerCase()}`,
+      alarmDescription: `${label} DLQ depth exceeds 10 messages`,
+      metric: q.metricApproximateNumberOfMessagesVisible( { period: Duration.minutes( 5 ) } ),
+      threshold: 10,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    } );
+    a.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
+    dlqDepthAlarms.push( a );
+  }
+  const dlqDepthAlarm = dlqDepthAlarms[ 0 ]; // back-compat reference
+
+  // Stuck-queue alarm — bulk work queue oldest message age > 15 min means the
+  // bulk-worker is not draining (deploy issue, throttling, or poison messages).
+  const bulkQueueAgeAlarm = new cloudwatch.Alarm( stack, 'BulkQueueAgeAlarm', {
+    alarmName: 'wecare-bulk-queue-stuck',
+    alarmDescription: 'Bulk queue oldest message age exceeds 15 minutes',
+    metric: bulkQueue.metricApproximateAgeOfOldestMessage( { period: Duration.minutes( 5 ) } ),
+    threshold: 900,
+    evaluationPeriods: 2,
+    comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+    treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+  } );
+  bulkQueueAgeAlarm.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
 
   // CloudWatch Dashboard
   new cloudwatch.Dashboard( stack, 'WECAREDashboard', {
@@ -124,25 +168,26 @@ export function addBackendResources ( stack: Stack ) {
   } );
 
   // ─── CloudWatch Log Retention Policies ───────────────────────────────
-  // Set 90-day retention on all Lambda log groups to control costs
+  // Set 90-day retention on all Lambda log groups to control costs.
+  // Authoritative list = deployed `wecare-*` functions (aws lambda list-functions).
   const LAMBDA_FUNCTIONS = [
     'wecare-inbound-whatsapp', 'wecare-outbound-whatsapp', 'wecare-whatsapp-calling',
     'wecare-whatsapp-business-api', 'wecare-whatsapp-voice', 'wecare-whatsapp-template-management',
-    'wecare-scheduled-messages', 'wecare-bulk-job-create', 'wecare-bulk-worker',
-    'wecare-ai-query-kb', 'wecare-ai-generate-response', 'wecare-razorpay-webhook',
-    'wecare-dlq-replay', 'wecare-contacts', 'wecare-meta-analytics',
-    'wecare-catalog-management', 'wecare-ad-attribution',
-    'wecare-outbound-sms', 'wecare-outbound-email', 'wecare-outbound-voice',
-    'wecare-sms-aws', 'wecare-voice-aws', 'wecare-sms-in-airtel',
-    'wecare-voice-in-c2c', 'wecare-voice-in-obd', 'wecare-voice-in-cdr',
-    'wecare-voice-cdr-read', 'wecare-billing', 'wecare-system-cleanup',
-    'wecare-bulk-job-control', 'wecare-payu-webhook', 'wecare-payments-read',
-    'wecare-invoice-engine', 'wecare-wix-store', 'wecare-product-image-gen',
-    'wecare-auth-middleware', 'wecare-faq-handler', 'wecare-messages-read',
-    'wecare-messages-delete', 'wecare-ai-config-management', 'wecare-waba-management',
+    'wecare-whatsapp-templates', 'wecare-scheduled-messages', 'wecare-bulk-job-create',
+    'wecare-bulk-worker', 'wecare-bulk-job-control', 'wecare-ai-query-kb',
+    'wecare-ai-generate-response', 'wecare-ai-config-management', 'wecare-agent-action-group',
+    'wecare-razorpay-webhook', 'wecare-payu-webhook', 'wecare-payments-read', 'wecare-invoice-engine',
+    'wecare-dlq-replay', 'wecare-contacts', 'wecare-meta-analytics', 'wecare-catalog-management',
+    'wecare-ad-attribution', 'wecare-outbound-sms', 'wecare-outbound-email', 'wecare-outbound-voice',
+    'wecare-sms-aws', 'wecare-voice-aws', 'wecare-sms-in-airtel', 'wecare-voice-in-c2c',
+    'wecare-voice-in-obd', 'wecare-voice-in-cdr', 'wecare-voice-cdr-read', 'wecare-billing',
+    'wecare-system-cleanup', 'wecare-wix-store', 'wecare-product-image-gen', 'wecare-auth-middleware',
+    'wecare-faq-handler', 'wecare-messages-read', 'wecare-messages-delete', 'wecare-waba-management',
     'wecare-push-notifications', 'wecare-media-cleanup', 'wecare-template-analytics',
-    'wecare-whatsapp-templates', 'wecare-agent-action-group',
-    'wecare-rcs-send', 'wecare-rcs-dlr',
+    'wecare-rcs-send', 'wecare-rcs-dlr', 'wecare-sinch-dlr',
+    // Previously missing from retention (orphaned, never-expiring log groups):
+    'wecare-sla-engine', 'wecare-conversation-meta', 'wecare-automation-rules',
+    'wecare-url-shortener', 'wecare-service-api',
   ];
 
   for ( const fnName of LAMBDA_FUNCTIONS )
@@ -154,10 +199,14 @@ export function addBackendResources ( stack: Stack ) {
   }
 
   // ─── Per-Lambda Error Rate Alarms ──────────────────────────────────
+  // Critical, customer-facing or money/data-path functions get a dedicated alarm.
   const CRITICAL_LAMBDAS = [
     'wecare-inbound-whatsapp', 'wecare-outbound-whatsapp', 'wecare-whatsapp-calling',
-    'wecare-razorpay-webhook', 'wecare-bulk-worker', 'wecare-payu-webhook',
-    'wecare-invoice-engine', 'wecare-scheduled-messages',
+    'wecare-whatsapp-business-api', 'wecare-razorpay-webhook', 'wecare-payu-webhook',
+    'wecare-invoice-engine', 'wecare-scheduled-messages', 'wecare-bulk-worker',
+    'wecare-contacts', 'wecare-ai-generate-response', 'wecare-service-api',
+    'wecare-waba-management', 'wecare-sms-aws', 'wecare-voice-aws',
+    'wecare-sla-engine', 'wecare-wix-store',
   ];
 
   const perLambdaAlarms: cloudwatch.Alarm[] = [];
@@ -242,7 +291,10 @@ export function addBackendResources ( stack: Stack ) {
     },
     alarms: {
       lambdaErrorAlarm,
+      lambdaThrottleAlarm,
       dlqDepthAlarm,
+      dlqDepthAlarms,
+      bulkQueueAgeAlarm,
       perLambdaAlarms,
     },
     waf: webhookWaf,
