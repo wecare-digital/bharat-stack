@@ -550,8 +550,8 @@ paths:
       responses: { '200': { description: Username + status } }
     post:
       tags: [WhatsApp]
-      summary: Claim a username via set-username (transferAction none|force_transfer; 147005=transfer required)
-      responses: { '200': { description: Claimed }, '400': { description: Invalid format or transfer required } }
+      summary: Claim a username via POST /{phone}/username (transferAction none|force_transfer; 147005=transfer required)
+      responses: { '200': { description: Claimed (status approved/reserved) }, '400': { description: Invalid format or transfer required } }
     delete:
       tags: [WhatsApp]
       summary: Release the current username

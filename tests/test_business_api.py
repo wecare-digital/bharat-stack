@@ -425,19 +425,21 @@ class TestUsername:
     def test_claim_rejects_bad_format(self):
         assert self.h._claim_username('123', {'username': 'BAD NAME'})['statusCode'] == 400
 
-    def test_claim_uses_set_username_endpoint(self):
+    def test_claim_uses_username_endpoint(self):
         captured = {}
 
         def fake(endpoint, method='GET', payload=None, params=None, **kw):
             captured['endpoint'] = endpoint
             captured['payload'] = payload
-            return {'success': True}
+            return {'status': 'reserved'}
 
         with patch.object(self.h, '_graph_api', side_effect=fake):
             res = self.h._claim_username('1016149501586345', {'username': 'wecaredigital'})
+            body = json.loads(res['body'])
             assert res['statusCode'] == 200
-            assert captured['endpoint'] == '1016149501586345/set-username'
+            assert captured['endpoint'] == '1016149501586345/username'
             assert captured['payload']['transfer_action'] == 'none'
+            assert body['status'] == 'reserved'
 
     def test_claim_auto_force_transfer_on_147005(self):
         calls = []

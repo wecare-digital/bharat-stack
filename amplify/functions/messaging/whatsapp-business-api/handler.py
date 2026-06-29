@@ -1857,12 +1857,11 @@ def _update_phone_settings(phone_id: str, body: Dict) -> Dict:
 
 
 # ============================================================================
-# USERNAME MANAGEMENT
-# Meta Graph API endpoints for WhatsApp Business usernames.
-# GET  /<phone_id>/username             — current username + status
-# GET  /<phone_id>/username_suggestions — reserved suggestions
-# POST /<phone_id>/set-username         — claim a username (transfer_action: none|force_transfer)
-# POST /<phone_id>/set-username {username:''} — release current username
+# USERNAME MANAGEMENT (Meta Username API — official, Jun 2026)
+# GET    /<phone_id>/username             — current username + status
+# GET    /<phone_id>/username_suggestions — reserved username suggestions
+# POST   /<phone_id>/username             — claim/adopt (transfer_action: none|force_transfer)
+# DELETE /<phone_id>/username             — delete username
 # Uses the Phone Number ID (not WABA ID). Requires whatsapp_business_management.
 # ============================================================================
 
@@ -1886,24 +1885,35 @@ def _get_username_suggestions(phone_id: str) -> Dict:
 
 
 def _validate_wa_username(username: str) -> Optional[str]:
-    """Meta rule: 3-35 chars, lowercase letters, numbers, periods, underscores."""
+    """Meta business-username format rules (official doc, Jun 2026).
+    Lowercased by caller. 3-35 chars; [a-z0-9._]; >=1 letter; no leading/trailing
+    period; no '..'; not start with www; not end with a domain suffix."""
     import re as _re
-    if not _re.fullmatch(r'[a-z0-9._]{3,35}', username or ''):
-        return 'Username must be 3-35 characters: lowercase letters, numbers, periods, or underscores only'
+    u = username or ''
+    if not (3 <= len(u) <= 35):
+        return 'Username must be 3-35 characters'
+    if not _re.fullmatch(r'[a-z0-9._]+', u):
+        return 'Username may only contain lowercase letters, numbers, periods, and underscores'
+    if not _re.search(r'[a-z]', u):
+        return 'Username must contain at least one letter'
+    if u.startswith('.') or u.endswith('.'):
+        return 'Username must not start or end with a period'
+    if '..' in u:
+        return 'Username must not contain two consecutive periods'
+    if u.startswith('www'):
+        return 'Username must not start with www'
+    if _re.search(r'\.(com|org|net|int|edu|gov|mil|us|in|html)$', u):
+        return 'Username must not end with a domain suffix (.com, .org, etc.)'
     return None
 
 
 def _claim_username(phone_id: str, body: Dict) -> Dict:
-    """Claim/set a username for a phone number via Meta's set-username endpoint.
+    """Claim/adopt a business username via Meta's Username API.
 
-    Body: {
-      "username": "your_brand_name",          # 3-35 chars, [a-z0-9._]
-      "transferAction": "none"|"force_transfer",  # default none
-      "autoForceTransfer": bool                # if true, auto-retry on 147005
-    }
-    NOTE: uses the Phone Number ID (not the WABA ID). Requires a token with
-    whatsapp_business_management. Error 147005 = handle is on another phone in
-    your portfolio → retry with force_transfer.
+    Official endpoint: POST /{phone-number-id}/username with
+    { username, transfer_action }. Success returns { status: approved|reserved }.
+    Body: { username, transferAction(none|force_transfer), autoForceTransfer }
+    Uses the Phone Number ID (not WABA ID); requires whatsapp_business_management.
     """
     username = (body.get('username') or '').strip().lower()
     if not username:
@@ -1917,32 +1927,40 @@ def _claim_username(phone_id: str, body: Dict) -> Dict:
         transfer_action = 'none'
 
     def _set(action: str) -> Dict:
-        return _graph_api(f'{phone_id}/set-username', method='POST',
+        return _graph_api(f'{phone_id}/username', method='POST',
                           payload={'username': username, 'transfer_action': action}, phone_id=phone_id)
 
     result = _set(transfer_action)
     if 'error' in result:
         err_obj = result.get('error', {}) if isinstance(result.get('error'), dict) else {}
         code = err_obj.get('code')
-        # 147005: handle belongs to another phone in the portfolio.
         if code == 147005 and transfer_action == 'none' and body.get('autoForceTransfer'):
             retry = _set('force_transfer')
             if 'error' not in retry:
-                return _resp(200, {'success': True, 'username': username, 'transferAction': 'force_transfer', 'result': retry})
+                return _resp(200, {'success': True, 'username': username, 'transferAction': 'force_transfer', 'status': retry.get('status'), 'result': retry})
             return _resp(400, retry)
-        if code == 147005:
-            result['hint'] = 'Username is linked to another phone number in your portfolio. Retry with transferAction=force_transfer (or autoForceTransfer=true).'
+        hints = {
+            147005: 'Username is on another phone in your portfolio. Retry with transferAction=force_transfer (or autoForceTransfer=true).',
+            147001: 'Username not available (claimed/failed checks). Try a different username.',
+            147002: 'Account not eligible — the business portfolio needs a higher messaging limit.',
+            147003: 'Link the phone number to the Facebook Page that already uses this username.',
+            147004: 'Link the phone number to the Instagram account that already uses this username.',
+            133010: 'Register the phone number for API use before claiming a username.',
+            33: 'Token lacks whatsapp_business_management or is not assigned to this asset.',
+            100: 'Invalid username format.',
+        }
+        if code in hints:
+            result['hint'] = hints[code]
         return _resp(400, result)
-    return _resp(200, {'success': True, 'username': username, 'transferAction': transfer_action, 'result': result})
+    return _resp(200, {'success': True, 'username': username, 'transferAction': transfer_action, 'status': result.get('status'), 'result': result})
 
 
 def _delete_username(phone_id: str) -> Dict:
-    """Release the current username for a phone number (set to empty via set-username)."""
-    result = _graph_api(f'{phone_id}/set-username', method='POST',
-                        payload={'username': ''}, phone_id=phone_id)
+    """Delete the business username (official: DELETE /{phone-number-id}/username)."""
+    result = _graph_api(f'{phone_id}/username', method='DELETE', phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
-    return _resp(200, {'success': True, 'result': result})
+    return _resp(200, {'success': result.get('success', True), 'result': result})
 
 
 # ============================================================================

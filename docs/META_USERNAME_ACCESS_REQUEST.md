@@ -14,14 +14,16 @@ There are **two different "username" features**. Don't confuse them.
 
 ## 1. Business username (vanity handle, e.g. @wecaredigital)
 A public handle for the **business**, claimed per phone number.
-- API (implemented in `whatsapp-business-api/handler.py`):
-  - `GET /<phone_id>/username` — current handle + status
-  - `GET /<phone_id>/username_suggestions` — reserved suggestions
-  - `POST /<phone_id>/set-username` — claim (`transfer_action`: `none` | `force_transfer`)
-  - `POST /<phone_id>/set-username` with `{username:''}` — release
-  - Exposed at `/wa-business/username*`. Format: 3–35 chars, `[a-z0-9._]`.
-  - Error **147005** = handle is on another phone in your portfolio → retry with
-    `transferAction=force_transfer` (or pass `autoForceTransfer=true`).
+- API (implemented in `whatsapp-business-api/handler.py`), per the official
+  [Business-scoped user IDs](https://developers.facebook.com/documentation/business-messaging/whatsapp/business-scoped-user-ids/) doc:
+  - `GET /<phone_id>/username` — current handle + status (approved/reserved)
+  - `GET /<phone_id>/username_suggestions` — reserved suggestions (claim from these — higher approval chance)
+  - `POST /<phone_id>/username` — claim (`transfer_action`: `none` | `force_transfer`); success → `{status: approved|reserved}`
+  - `DELETE /<phone_id>/username` — release
+  - Exposed at `/wa-business/username*`. Format: 3–35 chars `[a-z0-9._]`, ≥1 letter,
+    no leading/trailing `.`, no `..`, not starting with `www`, not ending with a domain suffix.
+  - Errors: 147001 not available · 147002 needs higher messaging limit · 147003/4 link FB/IG ·
+    147005 transfer required (retry `force_transfer`) · 133010 register phone first.
   - Uses the **Phone Number ID** (not WABA ID); needs `whatsapp_business_management`.
 - **Availability:** rolled out by Meta in limited/gated waves. If the GET
   `/username_suggestions` call returns a permission/`#100`-type error for a WABA,
