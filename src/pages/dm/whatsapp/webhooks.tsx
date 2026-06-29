@@ -32,6 +32,8 @@ const WEBHOOK_FIELDS = [
   { field: 'calls', desc: 'WhatsApp Business Calling events (connect, terminate, permission)' },
   { field: 'business_username_updates', desc: 'Business username status changes (reserved → approved/deleted) — 2026 usernames rollout' },
   { field: 'user_id_update', desc: 'Business-scoped User ID (BSUID) changes for a user — subscribe to track identity continuity' },
+  { field: 'message_echoes', desc: 'Echoes of messages sent by the business (required for Meta Business Agent)' },
+  { field: 'messaging_handovers', desc: 'Conversation handoff between Meta Business Agent and human agents (required for MBA)' },
 ];
 
 const EXISTING_WEBHOOKS = [
