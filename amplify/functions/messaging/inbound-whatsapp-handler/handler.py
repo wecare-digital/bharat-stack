@@ -574,6 +574,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 
                 # Process BSUID changes (user_id_update)  -  separate webhook field
                 if field == 'user_id_update':
+                    _store_system_event('user_id_update', value, request_id)  # audit trail
                     for uid_update in value.get('user_id_update', []):
                         try:
                             _process_user_id_update(uid_update, contacts_map, request_id)
@@ -588,7 +589,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 # accept singular too for forward/backward compatibility)
                 if field in ('business_username_updates', 'business_username_update'):
                     try:
-                        _store_system_event('business_username_updates', value, request_id)
+                        _process_business_username_update(value, request_id)
                     except Exception as e:
                         logger.error(json.dumps({
                             'event': 'business_username_updates_error',
@@ -1890,6 +1891,51 @@ def _process_user_id_update(uid_update: Dict, contacts_map: Dict, request_id: st
             'old_user_id': old_user_id,
             'new_user_id': new_user_id,
             'error': str(e),
+            'requestId': request_id,
+        }))
+
+
+def _process_business_username_update(value: Dict, request_id: str) -> None:
+    """Handle business_username_updates webhook — our business username status changed.
+
+    Payload (per Meta BSUID doc): { display_phone_number, username, status }
+    status: approved | reserved | deleted. Stores a SystemEvent and logs the
+    status so the username claim lifecycle is observable end-to-end.
+    """
+    display_phone = value.get('display_phone_number', '')
+    username = value.get('username', '')
+    status = (value.get('status') or '').lower()
+
+    # Audit trail (kept for the dashboard).
+    _store_system_event('business_username_updates', value, request_id)
+
+    logger.info(json.dumps({
+        'event': 'business_username_update',
+        'displayPhoneNumber': display_phone[:6] + '***' if display_phone else '',
+        'username': username,
+        'status': status,
+        'requestId': request_id,
+    }))
+
+    # Best-effort: reflect the live username/status onto the FlowRegistry-adjacent
+    # phone config if a WhatsAppPhone record exists (non-fatal if table absent).
+    try:
+        if status in ('approved', 'reserved', 'deleted') and display_phone:
+            phones_table = dynamodb.Table(os.environ.get('WHATSAPP_PHONES_TABLE', 'stack-wecare-digital-WhatsAppPhonesTable'))
+            phones_table.update_item(
+                Key={'displayPhoneNumber': display_phone},
+                UpdateExpression='SET businessUsername = :u, businessUsernameStatus = :s, updatedAt = :now',
+                ExpressionAttributeValues={
+                    ':u': '' if status == 'deleted' else username,
+                    ':s': status,
+                    ':now': Decimal(str(int(time.time()))),
+                },
+            )
+    except Exception as e:
+        # Table/record may not exist — the SystemEvent above is the source of truth.
+        logger.info(json.dumps({
+            'event': 'business_username_phone_update_skipped',
+            'reason': str(e)[:160],
             'requestId': request_id,
         }))
 

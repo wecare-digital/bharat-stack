@@ -248,3 +248,50 @@ class TestMessageTypes:
     def test_unsupported_message(self):
         msg = self._make_msg('unsupported', {'errors': [{'code': 131051, 'details': 'Live location'}]})
         assert msg['type'] == 'unsupported'
+
+
+class TestBsuidWebhookProcessing:
+    """Exercise the BSUID/username webhook processors in the inbound handler."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'inbound-whatsapp-handler'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                import handler as h
+                self.h = h
+
+    def test_business_username_update_stores_event(self):
+        seen = []
+        with patch.object(self.h, '_store_system_event', side_effect=lambda et, *a, **k: seen.append(et)):
+            with patch.object(self.h.dynamodb, 'Table', return_value=MagicMock()):
+                self.h._process_business_username_update(
+                    {'display_phone_number': '15550783881', 'username': 'wecaredigital', 'status': 'approved'}, 'req1')
+        assert 'business_username_updates' in seen
+
+    def test_user_id_update_updates_contact(self):
+        fake_table = MagicMock()
+        fake_table.query.return_value = {'Items': [{'id': 'c1', 'bsuid': 'IN.old'}]}
+        with patch.object(self.h.dynamodb, 'Table', return_value=fake_table):
+            self.h._process_user_id_update(
+                {'user_id': {'previous': 'IN.old', 'current': 'IN.new'}, 'parent_user_id': {'current': 'IN.ENT.x'}},
+                {}, 'req1')
+        assert fake_table.update_item.called
+        # the new BSUID must be written
+        kwargs = fake_table.update_item.call_args.kwargs
+        assert kwargs['ExpressionAttributeValues'][':new_bsuid'] == 'IN.new'
+        assert kwargs['ExpressionAttributeValues'][':new_parent'] == 'IN.ENT.x'
+
+    def test_user_id_update_missing_ids_noop(self):
+        fake_table = MagicMock()
+        with patch.object(self.h.dynamodb, 'Table', return_value=fake_table):
+            self.h._process_user_id_update({'user_id': {}}, {}, 'req1')
+        assert not fake_table.update_item.called
+
+    def test_user_id_update_contact_not_found_noop(self):
+        fake_table = MagicMock()
+        fake_table.query.return_value = {'Items': []}
+        with patch.object(self.h.dynamodb, 'Table', return_value=fake_table):
+            self.h._process_user_id_update(
+                {'user_id': {'previous': 'IN.old', 'current': 'IN.new'}}, {}, 'req1')
+        assert not fake_table.update_item.called
