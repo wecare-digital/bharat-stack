@@ -2344,7 +2344,7 @@ def _process_account_settings_update(waba_id: str, value: Dict, request_id: str)
         'status': status or 'updated',
         'apiResponse': json.dumps(value, default=str)[:1000],
         'timestamp': Decimal(str(now)),
-        'expiresAt': Decimal(str(now + TTL_SECONDS)),
+        'ttl': Decimal(str(now + TTL_SECONDS)),
     })
 
     if restrictions:
@@ -2363,7 +2363,7 @@ def _process_account_settings_update(waba_id: str, value: Dict, request_id: str)
             'status': 'restricted',
             'apiResponse': json.dumps(restrictions, default=str)[:1000],
             'timestamp': Decimal(str(now)),
-            'expiresAt': Decimal(str(now + TTL_SECONDS)),
+            'ttl': Decimal(str(now + TTL_SECONDS)),
         })
 
 
