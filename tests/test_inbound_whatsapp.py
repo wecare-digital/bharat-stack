@@ -295,3 +295,55 @@ class TestBsuidWebhookProcessing:
             self.h._process_user_id_update(
                 {'user_id': {'previous': 'IN.old', 'current': 'IN.new'}}, {}, 'req1')
         assert not fake_table.update_item.called
+
+
+class TestInboundAutoThumbReaction:
+    """Auto 👍 on messages SENT from the inbound handler (auto-replies/IVR), with loop guard."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'inbound-whatsapp-handler'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                import handler as h
+                self.h = h
+
+    def _run(self, payload, send_fn='message'):
+        sent = []
+
+        def fake_urlopen(req, timeout=30):
+            sent.append(json.loads(req.data.decode()))
+            cm = MagicMock()
+            cm.read.return_value = json.dumps({'messages': [{'id': 'wamid.IN'}]}).encode()
+            ctx = MagicMock()
+            ctx.__enter__.return_value = cm
+            ctx.__exit__.return_value = False
+            return ctx
+
+        with patch.object(self.h, '_load_direct_api_token', return_value='tok'):
+            self.h._direct_api_token_cache['app_secret'] = ''
+            with patch('urllib.request.urlopen', side_effect=fake_urlopen):
+                if send_fn == 'message':
+                    self.h._send_direct_api_message('919812345678', payload, meta_phone_id='1016149501586345')
+                else:
+                    self.h._send_direct_api_reaction('919812345678', 'wamid.ORIG')
+        return sent
+
+    def test_outbound_text_gets_auto_reaction(self):
+        sent = self._run({'type': 'text', 'text': {'body': 'hi'}})
+        assert len(sent) == 2
+        assert sent[0]['type'] == 'text'
+        assert sent[1]['type'] == 'reaction'
+        assert sent[1]['reaction']['message_id'] == 'wamid.IN'
+
+    def test_reaction_send_does_not_recurse(self):
+        # Sending a reaction must NOT trigger another reaction (loop guard).
+        sent = self._run(None, send_fn='reaction')
+        assert len(sent) == 1
+        assert sent[0]['type'] == 'reaction'
+
+    def test_disabled_toggle_skips(self):
+        with patch.object(self.h, 'AUTO_THUMB_REACTION_ENABLED', False):
+            sent = self._run({'type': 'text', 'text': {'body': 'hi'}})
+            assert len(sent) == 1
+            assert sent[0]['type'] == 'text'

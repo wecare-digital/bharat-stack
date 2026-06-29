@@ -187,6 +187,12 @@ def _get_meta_phone_id_for_direct_api(aws_phone_id: str) -> str:
 # Track current phone context for Direct API calls
 _current_direct_api_phone = None
 
+# Auto 👍 reaction toggle. Applies to outbound messages sent from THIS handler
+# (AI auto-replies, IVR responses). Inbound received-message reactions are sent in
+# _process_message. Toggle via Lambda env var (no redeploy). Default ON.
+AUTO_THUMB_REACTION_ENABLED = os.environ.get('AUTO_THUMB_REACTION_ENABLED', 'true').strip().lower() in ('true', '1', 'yes', 'on')
+AUTO_THUMB_EMOJI = os.environ.get('AUTO_THUMB_EMOJI', '\U0001F44D')
+
 
 def _send_direct_api_message(to_number: str, message_payload: Dict, meta_phone_id: str = None) -> Dict:
     """Send a WhatsApp message via Meta Graph API for Direct API phones."""
@@ -220,6 +226,18 @@ def _send_direct_api_message(to_number: str, message_payload: Dict, meta_phone_i
             messages = result.get('messages', [])
             if messages:
                 msg_id = messages[0].get('id', '')
+            # Auto 👍 on outbound messages sent from this handler (auto-replies, IVR).
+            # Skip reaction-type payloads to prevent recursion. React from the SAME
+            # phone (phone_id) that sent the message so the wamid resolves.
+            if (AUTO_THUMB_REACTION_ENABLED and msg_id
+                    and message_payload.get('type') != 'reaction'):
+                try:
+                    _send_direct_api_message(to_number, {
+                        'type': 'reaction',
+                        'reaction': {'message_id': msg_id, 'emoji': AUTO_THUMB_EMOJI},
+                    }, meta_phone_id=phone_id)
+                except Exception:
+                    pass  # reaction is best-effort; never affect the primary send
             return {'success': True, 'messageId': msg_id}
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''
@@ -1150,7 +1168,8 @@ def _process_message(
         if _is_direct_api_phone(aws_phone_number_id):
             # Send reaction and read receipt via Meta Graph API
             try:
-                _send_direct_api_reaction(sender_phone, whatsapp_message_id)
+                if AUTO_THUMB_REACTION_ENABLED:
+                    _send_direct_api_reaction(sender_phone, whatsapp_message_id, emoji=AUTO_THUMB_EMOJI)
                 logger.info(json.dumps({
                     'event': 'auto_reaction_triggered_direct_api',
                     'contactId': contact_id,

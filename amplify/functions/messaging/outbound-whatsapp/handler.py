@@ -69,6 +69,51 @@ def _is_direct_api_phone(phone_number_id: str) -> bool:
     """Check if phone uses Direct API. All phones are now Direct API."""
     return phone_number_id in DIRECT_API_PHONE_IDS
 
+# Auto 👍 reaction: when enabled, every outbound message/template gets a thumbs-up
+# reaction from the same phone that sent it. Toggle via Lambda env var (no redeploy).
+# Default ON per product requirement.
+AUTO_THUMB_REACTION_ENABLED = os.environ.get('AUTO_THUMB_REACTION_ENABLED', 'true').strip().lower() in ('true', '1', 'yes', 'on')
+AUTO_THUMB_EMOJI = os.environ.get('AUTO_THUMB_EMOJI', '\U0001F44D')
+
+
+def _post_reaction_direct(meta_phone_id: str, token: str, app_secret: str,
+                          to: str, message_id: str) -> None:
+    """Low-level 👍 reaction POST to the Graph API, reusing an already-resolved
+    meta_phone_id + token. Sent from the SAME phone that owns message_id (required
+    for the wamid to resolve). Best-effort; never raises."""
+    if not (meta_phone_id and to and message_id):
+        return
+    import hmac as _hmac, hashlib as _hashlib
+    import urllib.request, urllib.error
+    payload = json.dumps({
+        'messaging_product': 'whatsapp',
+        'recipient_type': 'individual',
+        'to': to,
+        'type': 'reaction',
+        'reaction': {'message_id': message_id, 'emoji': AUTO_THUMB_EMOJI},
+    })
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/messages"
+    if app_secret:
+        proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
+        url = f"{url}?appsecret_proof={proof}"
+    req = urllib.request.Request(url, data=payload.encode(), headers={
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+    }, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            r.read()
+        logger.info(json.dumps({'event': 'auto_thumb_reaction_sent',
+                                'metaPhoneId': meta_phone_id, 'wamid': message_id}))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode('utf-8') if e.fp else ''
+        logger.warning(json.dumps({'event': 'auto_thumb_reaction_failed',
+                                   'wamid': message_id, 'code': e.code, 'error': body[:200]}))
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'auto_thumb_reaction_error',
+                                   'wamid': message_id, 'error': str(e)[:200]}))
+
+
 def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
     """Send message via Meta Graph API for Direct API phones."""
     import hmac as _hmac, hashlib as _hashlib
@@ -105,6 +150,15 @@ def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
             result = json.loads(r.read().decode())
         msg_id = result.get('messages', [{}])[0].get('id', '')
         wa_id = ( result.get('contacts') or [ {} ] )[0].get('wa_id', '')
+        # Auto 👍 reaction on every outbound message/template (best-effort, never
+        # blocks the send). Skip reaction-type sends to prevent recursion/noise.
+        if AUTO_THUMB_REACTION_ENABLED and msg_id:
+            try:
+                _pj = json.loads(message_json) if isinstance(message_json, str) else (message_json or {})
+                if isinstance(_pj, dict) and _pj.get('type') != 'reaction' and _pj.get('to'):
+                    _post_reaction_direct(meta_phone_id, token, app_secret, _pj.get('to', ''), msg_id)
+            except Exception:
+                pass  # reaction is best-effort; never affect the primary send result
         return {'messageId': msg_id, 'waId': wa_id}
     except urllib.error.HTTPError as e:
         error_body = e.read().decode('utf-8') if e.fp else ''

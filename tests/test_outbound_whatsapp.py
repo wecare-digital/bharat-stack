@@ -168,3 +168,89 @@ class TestMetaMessageErrors:
                     assert 'msg' in info, f"Error {code} missing 'msg'"
                     assert 'action' in info, f"Error {code} missing 'action'"
                     assert 'retry' in info, f"Error {code} missing 'retry'"
+
+
+def _mk_urlopen(response_dict):
+    """Build a urlopen context-manager mock returning the given JSON."""
+    cm = MagicMock()
+    cm.read.return_value = json.dumps(response_dict).encode()
+    ctx = MagicMock()
+    ctx.__enter__.return_value = cm
+    ctx.__exit__.return_value = False
+    return ctx
+
+
+class TestOutboundAutoThumbReaction:
+    """Auto 👍 reaction on every outbound message/template via the _send_direct_api choke point."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'outbound-whatsapp'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1', 'SEND_MODE': 'LIVE'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                import handler as h
+                self.h = h
+                # Seed the token cache so _send_direct_api skips Secrets Manager.
+                h._direct_api_cache['token'] = 'tok'
+                h._direct_api_cache['app_secret'] = ''
+
+    PHONE = 'phone-number-id-waba1-direct-1016149501586345'
+
+    def test_reaction_triggered_for_text(self):
+        with patch.object(self.h, '_post_reaction_direct') as react:
+            with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.OUT'}], 'contacts': [{'wa_id': '9199'}]})):
+                resp = self.h._send_direct_api(self.PHONE, json.dumps({'type': 'text', 'to': '919812345678', 'text': {'body': 'hi'}}))
+            assert resp['messageId'] == 'wamid.OUT'
+            react.assert_called_once()
+            args = react.call_args.args
+            assert args[0] == '1016149501586345'   # meta_phone_id (same WABA)
+            assert args[3] == '919812345678'        # to
+            assert args[4] == 'wamid.OUT'           # message_id
+
+    def test_reaction_triggered_for_template(self):
+        with patch.object(self.h, '_post_reaction_direct') as react:
+            with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.TMPL'}]})):
+                self.h._send_direct_api(self.PHONE, json.dumps({'type': 'template', 'to': '919812345678', 'template': {'name': 'wd_menu'}}))
+            react.assert_called_once()
+            assert react.call_args.args[4] == 'wamid.TMPL'
+
+    def test_no_reaction_for_reaction_payload(self):
+        with patch.object(self.h, '_post_reaction_direct') as react:
+            with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.R'}]})):
+                self.h._send_direct_api(self.PHONE, json.dumps({'type': 'reaction', 'to': '919', 'reaction': {'message_id': 'x', 'emoji': '\U0001F44D'}}))
+            react.assert_not_called()
+
+    def test_no_reaction_when_send_returns_no_id(self):
+        with patch.object(self.h, '_post_reaction_direct') as react:
+            with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{}]})):
+                self.h._send_direct_api(self.PHONE, json.dumps({'type': 'text', 'to': '919', 'text': {'body': 'hi'}}))
+            react.assert_not_called()
+
+    def test_disabled_toggle_skips(self):
+        with patch.object(self.h, 'AUTO_THUMB_REACTION_ENABLED', False):
+            with patch.object(self.h, '_post_reaction_direct') as react:
+                with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.O'}]})):
+                    self.h._send_direct_api(self.PHONE, json.dumps({'type': 'text', 'to': '919', 'text': {'body': 'hi'}}))
+                react.assert_not_called()
+
+    def test_post_reaction_direct_builds_payload(self):
+        captured = {}
+
+        def fake_urlopen(req, timeout=10):
+            captured['url'] = req.full_url
+            captured['data'] = req.data
+            return _mk_urlopen({})
+
+        with patch('urllib.request.urlopen', side_effect=fake_urlopen):
+            self.h._post_reaction_direct('1016149501586345', 'tok', '', '919812345678', 'wamid.X')
+        body = json.loads(captured['data'].decode())
+        assert body['type'] == 'reaction'
+        assert body['reaction']['message_id'] == 'wamid.X'
+        assert body['reaction']['emoji'] == '\U0001F44D'
+        assert body['to'] == '919812345678'
+        assert '/1016149501586345/messages' in captured['url']
+
+    def test_post_reaction_direct_skips_empty_args(self):
+        with patch('urllib.request.urlopen') as uo:
+            self.h._post_reaction_direct('1016149501586345', 'tok', '', '919', '')
+            uo.assert_not_called()
