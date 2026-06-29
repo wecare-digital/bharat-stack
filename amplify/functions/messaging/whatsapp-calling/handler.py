@@ -823,6 +823,59 @@ def _handle_cert_check(event: Dict, request_id: str) -> Dict[str, Any]:
     return {'statusCode': 200, 'body': json.dumps({'daysRemaining': days, 'critical': critical, 'warnThreshold': CERT_WARN_DAYS})}
 
 
+def _is_auto_thumb_reaction_enabled() -> bool:
+    """Whether to auto-send a 👍 reaction alongside call-related wd_menu template
+    messages. Default: True. Toggle via SystemConfig id='whatsapp_calling_auto_thumb'."""
+    try:
+        table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        result = table.get_item(Key={'id': 'whatsapp_calling_auto_thumb'})
+        item = result.get('Item')
+        if item and 'configValue' in item:
+            return str(item.get('configValue')).lower() in ('true', '1', 'yes', 'on')
+    except Exception as e:
+        logger.warning(f"auto_thumb config check failed (default True): {e}")
+    return True
+
+
+def _react_thumbs_up(meta_id: str, to_phone: str, message_id: str,
+                     request_id: str = '', emoji: str = '\U0001F44D') -> bool:
+    """Send an auto 👍 reaction to a message that THIS WABA (meta_id) just sent.
+
+    CRITICAL: a reaction's message_id must belong to meta_id's own conversation.
+    Reacting via a different WABA phone returns a Meta 'message not found' error,
+    so callers MUST pass the same meta_id that produced message_id. This is what
+    makes the auto-thumb work on BOTH WABA numbers — each WABA reacts to its own
+    template message. Best-effort; never raises.
+    """
+    if not (meta_id and to_phone and message_id):
+        return False
+    if not _is_auto_thumb_reaction_enabled():
+        return False
+    try:
+        result = _meta_api_call(f"{meta_id}/messages", 'POST', {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to_phone.lstrip('+'),
+            'type': 'reaction',
+            'reaction': {'message_id': message_id, 'emoji': emoji},
+        }, phone_number_id=meta_id)
+        if isinstance(result, dict) and result.get('error'):
+            logger.warning(json.dumps({
+                'event': 'auto_thumb_reaction_failed',
+                'waba': meta_id, 'messageId': message_id,
+                'error': str(result.get('error'))[:300], 'requestId': request_id,
+            }))
+            return False
+        logger.info(json.dumps({
+            'event': 'auto_thumb_reaction_sent',
+            'waba': meta_id, 'messageId': message_id, 'requestId': request_id,
+        }))
+        return True
+    except Exception as e:
+        logger.warning(f"auto thumb reaction error via {meta_id}: {e}")
+        return False
+
+
 def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     """
     Handle post-call actions from Asterisk AGI (SIP mode).
@@ -899,6 +952,8 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
                 msg_id = msgs[0].get('id', '')
         if msg_id:
             logger.info(f"Post-call SIP wd_menu sent via {label}: {msg_id}")
+            # Auto 👍 from the SAME WABA that sent this message (works on both WABAs).
+            _react_thumbs_up(meta_id, caller_phone, msg_id, request_id)
             if not first_msg_id:
                 first_msg_id = msg_id
         else:
@@ -947,23 +1002,6 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.info(f"Post-call message stored in outbound table: id={store_id}")
         except Exception as e:
             logger.error(f"Failed to store post-call message: {e}", exc_info=True)
-
-        # React with thumbs up to the message we just sent
-        if msg_id:
-            react_result = _meta_api_call(f"{WABA1_META_ID}/messages", 'POST', {
-                'messaging_product': 'whatsapp',
-                'recipient_type': 'individual',
-                'to': caller_phone.lstrip('+'),
-                'type': 'reaction',
-                'reaction': {
-                    'message_id': msg_id,
-                    'emoji': '\U0001F44D',
-                },
-            }, phone_number_id=WABA1_META_ID)
-            if react_result.get('error'):
-                logger.warning(f"Post-call reaction failed: {react_result}")
-            else:
-                logger.info(f"Post-call thumbs up sent for {msg_id}")
 
     # Step 4: Call permission request removed — not sending interactive permission_response after calls
 
@@ -1996,6 +2034,9 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
             if msgs:
                 msg_id = msgs[0].get('id', '')
         logger.info(f"IVR wd_menu template sent to {to_number}: messageId={msg_id}")
+        # Auto 👍 from WABA1 (the sender of this template).
+        if msg_id:
+            _react_thumbs_up(WABA1_META_ID, to_number, msg_id, call_id)
     except Exception as e:
         logger.warning(f"IVR wd_menu template failed: {e}")
         # Fallback: send as plain text from the receiving phone
@@ -2576,6 +2617,8 @@ def _send_call_whatsapp_notification(caller_phone: str, call_id: str, receiving_
                         wamid=msg_id,
                         request_id=request_id,
                     )
+                    # Auto 👍 from the SAME WABA that sent this template (both WABAs).
+                    _react_thumbs_up(meta_id, caller_phone, msg_id, request_id)
                 else:
                     # Detailed error logging for template delivery failures
                     error_detail = str(api_result)[:400]

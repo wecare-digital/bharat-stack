@@ -467,3 +467,55 @@ class TestAccountSettingsUpdate:
         with patch('handler._store_call_log') as store:
             self.process('WABA1', 'not-a-dict', 'req-3')
             assert not store.called
+
+
+class TestAutoThumbReaction:
+    """Test _react_thumbs_up — auto 👍 on call-related wd_menu templates, both WABAs."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'whatsapp-calling'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1', 'VERIFY_TOKEN': 'test_token'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                from handler import _react_thumbs_up
+                self.react = _react_thumbs_up
+
+    def test_reaction_sent_from_same_waba(self):
+        with patch('handler._is_auto_thumb_reaction_enabled', return_value=True):
+            with patch('handler._meta_api_call', return_value={'messages': [{'id': 'r1'}]}) as api:
+                ok = self.react('WABA2_PHONE', '+919812345678', 'wamid.ABC', 'req-1')
+                assert ok is True
+                # Must POST to the SAME meta_id that sent the original message
+                assert api.call_args.args[0] == 'WABA2_PHONE/messages'
+                assert api.call_args.kwargs['phone_number_id'] == 'WABA2_PHONE'
+                payload = api.call_args.args[2]
+                assert payload['type'] == 'reaction'
+                assert payload['reaction']['message_id'] == 'wamid.ABC'
+                assert payload['reaction']['emoji'] == '\U0001F44D'
+                assert payload['to'] == '919812345678'  # + stripped
+
+    def test_missing_message_id_skips(self):
+        with patch('handler._meta_api_call') as api:
+            assert self.react('WABA1_PHONE', '+919812345678', '', 'req-2') is False
+            api.assert_not_called()
+
+    def test_missing_meta_id_skips(self):
+        with patch('handler._meta_api_call') as api:
+            assert self.react('', '+919812345678', 'wamid.X', 'req-3') is False
+            api.assert_not_called()
+
+    def test_disabled_toggle_skips(self):
+        with patch('handler._is_auto_thumb_reaction_enabled', return_value=False):
+            with patch('handler._meta_api_call') as api:
+                assert self.react('WABA1_PHONE', '+91981', 'wamid.X', 'req-4') is False
+                api.assert_not_called()
+
+    def test_meta_error_returns_false(self):
+        with patch('handler._is_auto_thumb_reaction_enabled', return_value=True):
+            with patch('handler._meta_api_call', return_value={'error': 'message not found'}):
+                assert self.react('WABA1_PHONE', '+91981', 'wamid.X', 'req-5') is False
+
+    def test_api_exception_is_swallowed(self):
+        with patch('handler._is_auto_thumb_reaction_enabled', return_value=True):
+            with patch('handler._meta_api_call', side_effect=RuntimeError('boom')):
+                assert self.react('WABA1_PHONE', '+91981', 'wamid.X', 'req-6') is False
