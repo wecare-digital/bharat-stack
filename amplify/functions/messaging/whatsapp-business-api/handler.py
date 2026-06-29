@@ -1904,11 +1904,15 @@ def _update_calling_settings(phone_id: str, body: Dict) -> Dict:
             return _resp(400, {'error': err})
         calling['call_hours'] = call_hours
 
-    # Voicemail config (status / triggers / audio.default.announcement_media_id /
-    # timeout_seconds). Passed through to Meta as-is when provided.
+    # Voicemail config (advanced / not yet in the public Calling API reference as of
+    # Nov 2025 — passed through to Meta as-is when provided). Structural check only:
+    # must be a JSON object. No field-level rules are invented here.
     voicemail = body.get('voicemail')
-    if voicemail:
-        calling['voicemail'] = voicemail
+    if voicemail is not None:
+        if not isinstance(voicemail, dict):
+            return _resp(400, {'error': 'voicemail must be a JSON object'})
+        if voicemail:
+            calling['voicemail'] = voicemail
 
     callback = body.get('callbackRequest')
     if callback:

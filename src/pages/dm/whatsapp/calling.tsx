@@ -206,6 +206,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
   const [ restrictCountries, setRestrictCountries ] = useState( 'IN' );
   const [ audioCodecs, setAudioCodecs ] = useState<Array<'PCMA' | 'PCMU'>>( [] );
   const [ callbackPermission, setCallbackPermission ] = useState<'ENABLED' | 'DISABLED'>( 'ENABLED' );
+  const [ voicemailJson, setVoicemailJson ] = useState( '' );
+  const [ voicemailError, setVoicemailError ] = useState( '' );
   // Call hours are always disabled (24/7) — no UI state needed
   const [ savingSettings, setSavingSettings ] = useState( false );
   const [ callingSettingsResult, setCallingSettingsResult ] = useState<any>( null );
@@ -514,6 +516,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
         if ( c.call_icons?.restrict_to_user_countries ) setRestrictCountries( c.call_icons.restrict_to_user_countries.join( ', ' ) );
         if ( c.audio?.additional_codecs ) setAudioCodecs( c.audio.additional_codecs.filter( ( x: string ) => x === 'PCMA' || x === 'PCMU' ) );
         if ( c.callback_permission_status ) setCallbackPermission( c.callback_permission_status );
+        if ( c.voicemail ) setVoicemailJson( JSON.stringify( c.voicemail, null, 2 ) );
       }
       setCallingSettingsResult( data );
     } catch ( e ) { console.error( 'Load calling settings error:', e ); }
@@ -532,6 +535,29 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
       }
       if ( audioCodecs.length ) settings.audioCodecs = audioCodecs;
       settings.callbackPermissionStatus = callbackPermission;
+      // Voicemail (advanced passthrough): parse the raw JSON if provided.
+      setVoicemailError( '' );
+      if ( voicemailJson.trim() )
+      {
+        try
+        {
+          const parsed = JSON.parse( voicemailJson );
+          if ( typeof parsed !== 'object' || Array.isArray( parsed ) || parsed === null )
+          {
+            setVoicemailError( 'Voicemail must be a JSON object' );
+            toast.error( 'Voicemail must be a JSON object' );
+            setSavingSettings( false );
+            return;
+          }
+          settings.voicemail = parsed;
+        } catch ( err )
+        {
+          setVoicemailError( 'Invalid JSON in voicemail config' );
+          toast.error( 'Invalid JSON in voicemail config' );
+          setSavingSettings( false );
+          return;
+        }
+      }
       // Call hours disabled at Meta → calls accepted 24/7, every day.
       // Meta's schema still requires timezone_id + weekly_operating_hours even when DISABLED.
       settings.callHours = {
@@ -2060,6 +2086,28 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                   </div>
                   <div style={ { fontSize: 11, color: '#9ca3af', marginTop: 4 } }>Enable G.711 only for interoperability with legacy telephony / PSTN gateways. Adds transcoding latency and uses more bandwidth.</div>
                 </div>
+
+                {/* Voicemail (advanced passthrough) */ }
+                <details style={ { border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px' } }>
+                  <summary style={ { fontSize: 13, fontWeight: 500, cursor: 'pointer' } }>Voicemail (advanced)</summary>
+                  <div style={ { marginTop: 10 } }>
+                    <div style={ { display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, marginBottom: 10 } }>
+                      <span style={ { fontSize: 11, color: '#92400e', lineHeight: 1.5 } }>
+                        Voicemail is not part of Meta's published Calling API reference (as of Nov 2025).
+                        This editor passes a raw JSON <code>voicemail</code> object straight through to
+                        <code> POST /{ '{phone-number-id}' }/settings</code>. Use only with a schema confirmed by your Meta contact.
+                      </span>
+                    </div>
+                    <textarea
+                      value={ voicemailJson }
+                      onChange={ e => { setVoicemailJson( e.target.value ); setVoicemailError( '' ); } }
+                      placeholder={ '{\n  "status": "ENABLED",\n  "timeout_seconds": 30\n}' }
+                      rows={ 7 }
+                      style={ { width: '100%', padding: '8px 12px', border: `1px solid ${voicemailError ? '#ef4444' : '#ddd'}`, borderRadius: 6, fontSize: 12, fontFamily: 'monospace' } } />
+                    { voicemailError && <div style={ { fontSize: 11, color: '#ef4444', marginTop: 4 } }>{ voicemailError }</div> }
+                    <div style={ { fontSize: 11, color: '#9ca3af', marginTop: 4 } }>Leave empty to omit voicemail settings. Must be a valid JSON object.</div>
+                  </div>
+                </details>
 
                 {/* Call availability — always 24/7 (call_hours disabled at Meta) */ }
                 <div>

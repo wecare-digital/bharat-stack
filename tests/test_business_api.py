@@ -864,3 +864,14 @@ class TestUpdateCallingSettings:
             self.update('123', {'voicemail': vm})
             payload = gapi.call_args.kwargs['payload']
             assert payload['calling']['voicemail'] == vm
+
+    def test_voicemail_non_object_rejected(self):
+        with patch('handler._graph_api') as gapi:
+            resp = self.update('123', {'voicemail': 'ENABLED'})
+            assert resp['statusCode'] == 400
+            gapi.assert_not_called()
+
+    def test_voicemail_empty_object_omitted(self):
+        # An empty {} voicemail should not be forwarded, and with no other fields → 400
+        resp = self.update('123', {'voicemail': {}})
+        assert resp['statusCode'] == 400
