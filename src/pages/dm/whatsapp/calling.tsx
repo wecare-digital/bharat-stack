@@ -204,6 +204,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
   const [ settingsPhone, setSettingsPhone ] = useState( PHONE_NUMBERS[ 1 ] ); // default to calling-ready number
   const [ callingVisibility, setCallingVisibility ] = useState<'default' | 'disable_all'>( 'default' );
   const [ restrictCountries, setRestrictCountries ] = useState( 'IN' );
+  const [ audioCodecs, setAudioCodecs ] = useState<Array<'PCMA' | 'PCMU'>>( [] );
+  const [ callbackPermission, setCallbackPermission ] = useState<'ENABLED' | 'DISABLED'>( 'ENABLED' );
   // Call hours are always disabled (24/7) — no UI state needed
   const [ savingSettings, setSavingSettings ] = useState( false );
   const [ callingSettingsResult, setCallingSettingsResult ] = useState<any>( null );
@@ -509,6 +511,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
         const c = data.calling;
         if ( c.call_icon_visibility ) setCallingVisibility( c.call_icon_visibility );
         if ( c.restrict_to_user_countries ) setRestrictCountries( c.restrict_to_user_countries.join( ', ' ) );
+        if ( c.call_icons?.restrict_to_user_countries ) setRestrictCountries( c.call_icons.restrict_to_user_countries.join( ', ' ) );
+        if ( c.audio?.additional_codecs ) setAudioCodecs( c.audio.additional_codecs.filter( ( x: string ) => x === 'PCMA' || x === 'PCMU' ) );
+        if ( c.callback_permission_status ) setCallbackPermission( c.callback_permission_status );
       }
       setCallingSettingsResult( data );
     } catch ( e ) { console.error( 'Load calling settings error:', e ); }
@@ -525,6 +530,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
       {
         settings.restrictToCountries = restrictCountries.split( ',' ).map( ( c: string ) => c.trim() ).filter( Boolean );
       }
+      if ( audioCodecs.length ) settings.audioCodecs = audioCodecs;
+      settings.callbackPermissionStatus = callbackPermission;
       // Call hours disabled at Meta → calls accepted 24/7, every day.
       // Meta's schema still requires timezone_id + weekly_operating_hours even when DISABLED.
       settings.callHours = {
@@ -2018,6 +2025,42 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                   <div style={ { fontSize: 11, color: '#9ca3af', marginTop: 4 } }>Only users in these countries will see the call icon. Leave empty for all countries.</div>
                 </div>
 
+                {/* Callback Permission */ }
+                <div>
+                  <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 } }>Callback Permission Request</label>
+                  <div style={ { display: 'flex', gap: 12 } }>
+                    <label style={ { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' } }>
+                      <input type="radio" name="callbackPerm" checked={ callbackPermission === 'ENABLED' } onChange={ () => setCallbackPermission( 'ENABLED' ) } style={ { accentColor: '#1a3a2a' } } />
+                      <span>Enabled (auto-show permission UI when a user calls)</span>
+                    </label>
+                    <label style={ { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' } }>
+                      <input type="radio" name="callbackPerm" checked={ callbackPermission === 'DISABLED' } onChange={ () => setCallbackPermission( 'DISABLED' ) } style={ { accentColor: '#1a3a2a' } } />
+                      <span>Disabled</span>
+                    </label>
+                  </div>
+                  <div style={ { fontSize: 11, color: '#9ca3af', marginTop: 4 } }>Calling a user requires explicit permission. Enable to request it automatically when a user calls your business.</div>
+                </div>
+
+                {/* Audio Codecs */ }
+                <div>
+                  <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 } }>Audio Codecs</label>
+                  <div style={ { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, marginBottom: 8 } }>
+                    <span style={ { fontSize: 12, fontWeight: 700, color: '#166534' } }>Opus</span>
+                    <span style={ { fontSize: 12, color: '#166534' } }>Default codec (best quality, lowest bandwidth) — always enabled.</span>
+                  </div>
+                  <div style={ { display: 'flex', gap: 16 } }>
+                    { ( [ 'PCMA', 'PCMU' ] as const ).map( codec => (
+                      <label key={ codec } style={ { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' } }>
+                        <input type="checkbox" checked={ audioCodecs.includes( codec ) }
+                          onChange={ e => setAudioCodecs( prev => e.target.checked ? [ ...prev, codec ] : prev.filter( x => x !== codec ) ) }
+                          style={ { accentColor: '#1a3a2a' } } />
+                        <span>G.711 { codec }</span>
+                      </label>
+                    ) ) }
+                  </div>
+                  <div style={ { fontSize: 11, color: '#9ca3af', marginTop: 4 } }>Enable G.711 only for interoperability with legacy telephony / PSTN gateways. Adds transcoding latency and uses more bandwidth.</div>
+                </div>
+
                 {/* Call availability — always 24/7 (call_hours disabled at Meta) */ }
                 <div>
                   <label style={ { display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 8 } }>
@@ -2060,7 +2103,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                 <div>Enable calling: <code style={ { fontSize: 12, background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 } }>POST /{ '{phone-number-id}' }/settings</code> with <code>calling</code> object</div>
                 <div>call_icon_visibility: <code style={ { fontSize: 12 } }>"default"</code> (show) or <code style={ { fontSize: 12 } }>"disable_all"</code> (hide)</div>
                 <div>restrict_to_user_countries: Array of ISO country codes (e.g. ["IN", "AE"])</div>
-                <div>call_hours: Timezone + per-day schedule with from/to times</div>
+                <div>callback_permission_status: <code style={ { fontSize: 12 } }>"ENABLED"</code> / <code style={ { fontSize: 12 } }>"DISABLED"</code></div>
+                <div>audio.additional_codecs: <code style={ { fontSize: 12 } }>["PCMA","PCMU"]</code> (G.711; Opus is always default)</div>
+                <div>call_hours: status + timezone_id + weekly_operating_hours (max 2/day, no overlap) + holiday_schedule</div>
                 <div>Docs: <a href="https://developers.facebook.com/docs/whatsapp/cloud-api/calling/call-control" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a' } }>Call Control Settings ↗</a></div>
               </div>
             </div>

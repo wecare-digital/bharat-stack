@@ -433,3 +433,37 @@ class TestIVRMenuParity:
                 all_button_ids.add(btn['id'])
         for btn_id in all_button_ids:
             assert btn_id in self.handler.IVR_RESPONSES, f"Missing IVR response for {btn_id}"
+
+
+class TestAccountSettingsUpdate:
+    """Test _process_account_settings_update persists settings + restriction events."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'whatsapp-calling'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1', 'VERIFY_TOKEN': 'test_token'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                from handler import _process_account_settings_update
+                self.process = _process_account_settings_update
+
+    def test_settings_update_stored(self):
+        value = {'calling': {'status': 'ENABLED'}, 'phone_number_id': '1016149501586345'}
+        with patch('handler._store_call_log') as store:
+            self.process('WABA1', value, 'req-1')
+            assert store.called
+            logged = store.call_args_list[0].args[0]
+            assert logged['eventType'] == 'settings_update'
+            assert logged['status'] == 'ENABLED'
+
+    def test_restriction_event_stored_separately(self):
+        value = {'calling': {'status': 'DISABLED', 'restrictions': [{'type': 'ACCOUNT_RESTRICTION'}]}}
+        with patch('handler._store_call_log') as store:
+            self.process('WABA1', value, 'req-2')
+            event_types = [c.args[0]['eventType'] for c in store.call_args_list]
+            assert 'settings_update' in event_types
+            assert 'calling_restriction' in event_types
+
+    def test_non_dict_value_safe(self):
+        with patch('handler._store_call_log') as store:
+            self.process('WABA1', 'not-a-dict', 'req-3')
+            assert not store.called

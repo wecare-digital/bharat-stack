@@ -1778,6 +1778,71 @@ def _get_calling_settings(phone_id: str) -> Dict:
     return _resp(200, {'settings': result})
 
 
+def _validate_call_hours(call_hours: Dict) -> Optional[str]:
+    """Validate call_hours per Meta Calling API rules (Configure Call Settings doc).
+    Returns an error string if invalid, or None if valid.
+    Rules:
+      - timezone required when enabled
+      - weekly_operating_hours cannot be empty when enabled
+      - times must be HHMM (e.g. 0900); open_time < close_time
+      - max 2 entries per day_of_week; no overlapping schedule per day
+      - holiday_schedule dates must be valid YYYY-MM-DD and not in the past
+    """
+    import re as _re
+    from datetime import datetime as _dt, timezone as _tz
+    if not isinstance(call_hours, dict):
+        return 'call_hours must be an object'
+
+    status = (call_hours.get('status') or '').upper()
+    tz = call_hours.get('timezone_id') or call_hours.get('timezone')
+    if status == 'ENABLED' and not tz:
+        return 'call_hours.timezone_id is required when call hours are enabled'
+
+    weekly = call_hours.get('weekly_operating_hours')
+    if status == 'ENABLED' and not weekly:
+        return 'weekly_operating_hours in call_hours cannot be empty'
+
+    if weekly is not None:
+        if not isinstance(weekly, list):
+            return 'weekly_operating_hours must be an array'
+        per_day: Dict[str, list] = {}
+        for slot in weekly:
+            if not isinstance(slot, dict):
+                return 'Each weekly_operating_hours entry must be an object'
+            day = (slot.get('day_of_week') or '').upper()
+            if not day:
+                return 'Each weekly_operating_hours entry requires day_of_week'
+            open_t = str(slot.get('open_time', ''))
+            close_t = str(slot.get('close_time', ''))
+            if not _re.fullmatch(r'\d{4}', open_t) or not _re.fullmatch(r'\d{4}', close_t):
+                return f'open_time/close_time must be HHMM (e.g. 0900) for {day}'
+            if int(open_t) >= int(close_t):
+                return f'open_time must be earlier than close_time for {day}'
+            per_day.setdefault(day, []).append((int(open_t), int(close_t)))
+        for day, slots in per_day.items():
+            if len(slots) > 2:
+                return f'More than 2 entries not allowed in weekly_operating_hours for {day}'
+            ordered = sorted(slots)
+            for i in range(1, len(ordered)):
+                if ordered[i][0] < ordered[i - 1][1]:
+                    return f'Overlapping schedule in call_hours is not allowed for {day}'
+
+    holidays = call_hours.get('holiday_schedule')
+    if holidays is not None:
+        if not isinstance(holidays, list):
+            return 'holiday_schedule must be an array'
+        today = _dt.now(_tz.utc).date()
+        for h in holidays:
+            date_str = (h or {}).get('date', '') if isinstance(h, dict) else ''
+            try:
+                d = _dt.strptime(date_str, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                return f'Invalid date format in holiday_schedule for call_hours: {date_str} (expected YYYY-MM-DD)'
+            if d < today:
+                return f'Holiday given in call_hours is a past date: {date_str}'
+    return None
+
+
 def _update_calling_settings(phone_id: str, body: Dict) -> Dict:
     """
     Enable or update calling settings on a phone number.
@@ -1785,7 +1850,10 @@ def _update_calling_settings(phone_id: str, body: Dict) -> Dict:
     Body: {
       callIconVisibility: 'default' | 'disable_all',
       restrictToCountries: ['IN', 'AE'],
-      callHours: { timezone, sun, mon, ... },
+      callIcons: ['IN','AE'] | { restrict_to_user_countries: [...] },
+      audioCodecs: ['PCMA','PCMU'],   # G.711 codecs (Opus is always default)
+      callHours: { status, timezone_id, weekly_operating_hours: [{day_of_week, open_time, close_time}], holiday_schedule },
+      voicemail: { status, triggers, audio, timeout_seconds },
       callbackRequest: { enabled: bool, bodyText: str },
       sip: { status: 'ENABLED'|'DISABLED', servers: [{ hostname, port?, request_uri_user_params? }] },
       srtpKeyExchangeProtocol: 'DTLS' | 'SDES',
@@ -1812,9 +1880,35 @@ def _update_calling_settings(phone_id: str, body: Dict) -> Dict:
     if countries:
         calling['restrict_to_user_countries'] = countries
 
-    call_hours = body.get('callHours')
+    # call_icons: per Meta doc, restrict which countries see the call icon.
+    # Accept either a full object or a list of country codes.
+    call_icons = body.get('callIcons')
+    if call_icons is not None:
+        if isinstance(call_icons, list):
+            calling['call_icons'] = {'restrict_to_user_countries': call_icons}
+        elif isinstance(call_icons, dict):
+            calling['call_icons'] = call_icons
+
+    # Audio codecs: Opus is default. Optionally enable G.711 (PCMA/PCMU) for
+    # interoperability with legacy telephony / PSTN gateways.
+    audio_codecs = body.get('audioCodecs') or body.get('additionalCodecs')
+    if audio_codecs:
+        valid = [c.upper() for c in audio_codecs if str(c).upper() in ('PCMA', 'PCMU')]
+        if valid:
+            calling['audio'] = {'additional_codecs': valid}
+
+    call_hours = body.get('callHours') or body.get('call_hours')
     if call_hours:
+        err = _validate_call_hours(call_hours)
+        if err:
+            return _resp(400, {'error': err})
         calling['call_hours'] = call_hours
+
+    # Voicemail config (status / triggers / audio.default.announcement_media_id /
+    # timeout_seconds). Passed through to Meta as-is when provided.
+    voicemail = body.get('voicemail')
+    if voicemail:
+        calling['voicemail'] = voicemail
 
     callback = body.get('callbackRequest')
     if callback:

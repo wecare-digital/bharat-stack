@@ -731,3 +731,136 @@ class TestWebhookSubscribeOverride:
             call_kwargs = mock_api.call_args
             payload = call_kwargs[1].get('payload') if call_kwargs[1] else None
             assert payload is None
+
+
+class TestCallHoursValidation:
+    """Test _validate_call_hours per Meta Configure Call Settings rules."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'whatsapp-business-api'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                from handler import _validate_call_hours
+                self.validate = _validate_call_hours
+
+    def test_valid_schedule_passes(self):
+        ch = {
+            'status': 'ENABLED',
+            'timezone_id': 'Asia/Kolkata',
+            'weekly_operating_hours': [
+                {'day_of_week': 'MONDAY', 'open_time': '0900', 'close_time': '1700'},
+            ],
+        }
+        assert self.validate(ch) is None
+
+    def test_enabled_requires_timezone(self):
+        ch = {'status': 'ENABLED', 'weekly_operating_hours': [
+            {'day_of_week': 'MONDAY', 'open_time': '0900', 'close_time': '1700'}]}
+        assert 'timezone' in (self.validate(ch) or '').lower()
+
+    def test_enabled_requires_non_empty_hours(self):
+        ch = {'status': 'ENABLED', 'timezone_id': 'Asia/Kolkata', 'weekly_operating_hours': []}
+        assert 'empty' in (self.validate(ch) or '').lower()
+
+    def test_open_must_be_before_close(self):
+        ch = {'status': 'ENABLED', 'timezone_id': 'Asia/Kolkata', 'weekly_operating_hours': [
+            {'day_of_week': 'MONDAY', 'open_time': '1700', 'close_time': '0900'}]}
+        assert 'earlier' in (self.validate(ch) or '').lower()
+
+    def test_bad_time_format_rejected(self):
+        ch = {'status': 'ENABLED', 'timezone_id': 'Asia/Kolkata', 'weekly_operating_hours': [
+            {'day_of_week': 'MONDAY', 'open_time': '9:00', 'close_time': '17:00'}]}
+        assert 'HHMM' in (self.validate(ch) or '')
+
+    def test_max_two_entries_per_day(self):
+        ch = {'status': 'ENABLED', 'timezone_id': 'Asia/Kolkata', 'weekly_operating_hours': [
+            {'day_of_week': 'MONDAY', 'open_time': '0900', 'close_time': '1000'},
+            {'day_of_week': 'MONDAY', 'open_time': '1100', 'close_time': '1200'},
+            {'day_of_week': 'MONDAY', 'open_time': '1300', 'close_time': '1400'}]}
+        assert 'More than 2' in (self.validate(ch) or '')
+
+    def test_overlapping_schedule_rejected(self):
+        ch = {'status': 'ENABLED', 'timezone_id': 'Asia/Kolkata', 'weekly_operating_hours': [
+            {'day_of_week': 'MONDAY', 'open_time': '0900', 'close_time': '1200'},
+            {'day_of_week': 'MONDAY', 'open_time': '1100', 'close_time': '1400'}]}
+        assert 'Overlapping' in (self.validate(ch) or '')
+
+    def test_two_non_overlapping_entries_ok(self):
+        ch = {'status': 'ENABLED', 'timezone_id': 'Asia/Kolkata', 'weekly_operating_hours': [
+            {'day_of_week': 'MONDAY', 'open_time': '0900', 'close_time': '1200'},
+            {'day_of_week': 'MONDAY', 'open_time': '1300', 'close_time': '1700'}]}
+        assert self.validate(ch) is None
+
+    def test_past_holiday_rejected(self):
+        ch = {'status': 'DISABLED', 'weekly_operating_hours': [
+            {'day_of_week': 'MONDAY', 'open_time': '0000', 'close_time': '2359'}],
+            'holiday_schedule': [{'date': '2020-01-01'}]}
+        assert 'past' in (self.validate(ch) or '').lower()
+
+    def test_bad_holiday_date_format_rejected(self):
+        ch = {'status': 'DISABLED', 'holiday_schedule': [{'date': '01/01/2030'}]}
+        assert 'date format' in (self.validate(ch) or '').lower()
+
+    def test_disabled_24x7_schedule_ok(self):
+        # Mirrors the frontend's DISABLED 24/7 payload — must validate cleanly.
+        ch = {
+            'status': 'DISABLED',
+            'timezone_id': 'Asia/Kolkata',
+            'weekly_operating_hours': [
+                {'day_of_week': d, 'open_time': '0000', 'close_time': '2359'}
+                for d in ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+            ],
+        }
+        assert self.validate(ch) is None
+
+
+class TestUpdateCallingSettings:
+    """Test _update_calling_settings body mapping and validation."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'whatsapp-business-api'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                from handler import _update_calling_settings
+                self.update = _update_calling_settings
+
+    def test_audio_codecs_mapped(self):
+        with patch('handler._graph_api', return_value={'success': True}) as gapi:
+            resp = self.update('123', {'audioCodecs': ['PCMA', 'pcmu', 'BAD']})
+            assert resp['statusCode'] == 200
+            payload = gapi.call_args.kwargs['payload']
+            assert payload['calling']['audio']['additional_codecs'] == ['PCMA', 'PCMU']
+
+    def test_call_icons_list_wrapped(self):
+        with patch('handler._graph_api', return_value={'ok': 1}) as gapi:
+            self.update('123', {'callIcons': ['IN', 'AE']})
+            payload = gapi.call_args.kwargs['payload']
+            assert payload['calling']['call_icons'] == {'restrict_to_user_countries': ['IN', 'AE']}
+
+    def test_callback_permission_mapped(self):
+        with patch('handler._graph_api', return_value={'ok': 1}) as gapi:
+            self.update('123', {'callbackPermissionStatus': 'ENABLED'})
+            payload = gapi.call_args.kwargs['payload']
+            assert payload['calling']['callback_permission_status'] == 'ENABLED'
+
+    def test_invalid_call_hours_rejected_before_api(self):
+        with patch('handler._graph_api') as gapi:
+            resp = self.update('123', {'callHours': {
+                'status': 'ENABLED', 'timezone_id': 'Asia/Kolkata',
+                'weekly_operating_hours': [
+                    {'day_of_week': 'MONDAY', 'open_time': '1700', 'close_time': '0900'}]}})
+            assert resp['statusCode'] == 400
+            gapi.assert_not_called()
+
+    def test_empty_body_rejected(self):
+        resp = self.update('123', {})
+        assert resp['statusCode'] == 400
+
+    def test_voicemail_passthrough(self):
+        with patch('handler._graph_api', return_value={'ok': 1}) as gapi:
+            vm = {'status': 'ENABLED', 'timeout_seconds': 30}
+            self.update('123', {'voicemail': vm})
+            payload = gapi.call_args.kwargs['payload']
+            assert payload['calling']['voicemail'] == vm

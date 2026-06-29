@@ -461,6 +461,10 @@ def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
                     'value_preview': json.dumps(value)[:500],
                     'requestId': request_id,
                 }))
+                try:
+                    _process_account_settings_update(waba_id, value, request_id)
+                except Exception as e:
+                    logger.error(f"account_settings_update processing error: {e}", exc_info=True)
             elif field in ('account_update', 'account_alerts', 'account_review_update',
                            'business_capability_update', 'message_template_status_update',
                            'message_template_quality_update', 'message_template_components_update',
@@ -2251,6 +2255,61 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
     return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': 'ivr', 'smsOnCall': sms_on_call, 'postCallWa': post_call_wa})
 
 # ─── Storage Helpers ─────────────────────────────────────────────────
+
+def _process_account_settings_update(waba_id: str, value: Dict, request_id: str) -> None:
+    """Persist calling settings / restriction webhook events for audit + admin visibility.
+
+    Handles the `account_settings_update` field which Meta sends when calling
+    configuration changes (status, call_icon_visibility, sip.status) OR when the
+    phone number's calling functionality is restricted/paused due to negative user
+    feedback or low pickup rates.
+    """
+    if not isinstance(value, dict):
+        return
+    now = int(time.time())
+    calling = value.get('calling', {}) if isinstance(value.get('calling'), dict) else {}
+    metadata = value.get('metadata', {}) if isinstance(value.get('metadata'), dict) else {}
+    phone_id = value.get('phone_number_id') or metadata.get('phone_number_id', '')
+    status = (calling.get('status') or value.get('status') or '').upper()
+
+    # Detect calling-restriction signals (pause / violation / low pickup)
+    restrictions = (
+        calling.get('restrictions')
+        or value.get('restrictions')
+        or calling.get('calling_restrictions')
+        or []
+    )
+
+    _store_call_log({
+        'callId': f"settings_{waba_id}_{now}",
+        'wabaId': waba_id,
+        'phoneNumberId': phone_id,
+        'eventType': 'settings_update',
+        'status': status or 'updated',
+        'apiResponse': json.dumps(value, default=str)[:1000],
+        'timestamp': Decimal(str(now)),
+        'expiresAt': Decimal(str(now + TTL_SECONDS)),
+    })
+
+    if restrictions:
+        logger.warning(json.dumps({
+            'event': 'calling_restriction_detected',
+            'wabaId': waba_id,
+            'phoneNumberId': mask_phone(phone_id) if phone_id else '',
+            'restrictions': restrictions,
+            'requestId': request_id,
+        }))
+        _store_call_log({
+            'callId': f"restriction_{waba_id}_{now}",
+            'wabaId': waba_id,
+            'phoneNumberId': phone_id,
+            'eventType': 'calling_restriction',
+            'status': 'restricted',
+            'apiResponse': json.dumps(restrictions, default=str)[:1000],
+            'timestamp': Decimal(str(now)),
+            'expiresAt': Decimal(str(now + TTL_SECONDS)),
+        })
+
 
 def _store_call_log(item: Dict) -> None:
     """Store call event in DynamoDB."""

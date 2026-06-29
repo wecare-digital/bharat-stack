@@ -4320,7 +4320,10 @@ export async function getCallingSettings ( phoneId: string ): Promise<any> {
 export async function updateCallingSettings ( phoneId: string, settings: {
   callIconVisibility?: 'default' | 'disable_all';
   restrictToCountries?: string[];
+  callIcons?: string[] | { restrict_to_user_countries: string[] };
+  audioCodecs?: Array<'PCMA' | 'PCMU'>;
   callHours?: Record<string, any>;
+  voicemail?: Record<string, any>;
   callbackRequest?: { enabled: boolean; bodyText?: string };
   sip?: { status: 'ENABLED' | 'DISABLED'; servers?: Array<{ hostname: string; port?: string; request_uri_user_params?: Record<string, string> }> };
   srtpKeyExchangeProtocol?: 'DTLS' | 'SDES';
