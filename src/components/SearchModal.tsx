@@ -29,6 +29,7 @@ const NAVIGATION_ITEMS: SearchResult[] = [
   { id: 'nav-contacts', type: 'page', title: 'Contacts', subtitle: 'Manage contacts', icon: '⊕', path: '/contacts' },
   { id: 'nav-templates', type: 'page', title: 'Templates', subtitle: 'WhatsApp templates', icon: '⎙', path: '/dm/whatsapp/templates' },
   { id: 'nav-send-test', type: 'page', title: 'Send Test Console', subtitle: 'Test sends, TTL & template validation', icon: '➤', path: '/dm/whatsapp/send-test' },
+  { id: 'nav-bsuid', type: 'page', title: 'BSUID & Usernames', subtitle: 'BSUID webhooks, contact book, parent BSUID', icon: '◉', path: '/dm/whatsapp/bsuid' },
   { id: 'nav-template-builder', type: 'page', title: 'Template Builder', subtitle: 'Build & validate WhatsApp templates', icon: '⎙', path: '/dm/whatsapp/template-builder' },
   { id: 'nav-flow-publish', type: 'page', title: 'Flow Publish Checklist', subtitle: 'Verify flow before publishing', icon: '✓', path: '/dm/whatsapp/flow-publish' },
   { id: 'nav-cost-controls', type: 'page', title: 'Cost Controls', subtitle: 'AWS feature flags & cost risk', icon: '💰', path: '/dm/whatsapp/cost-controls' },

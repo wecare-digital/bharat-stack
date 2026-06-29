@@ -3934,6 +3934,29 @@ export async function unsubscribeWebhook ( wabaId: string ): Promise<boolean> {
   return data?.success === true;
 }
 
+// Subscribe the app to specific webhook fields (e.g. business_username_updates, user_id_update).
+export async function subscribeWebhookFields ( wabaId: string, fields: string[] ): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/webhooks`, {
+    method: 'POST',
+    body: JSON.stringify( { wabaId, subscribed_fields: fields } ),
+  } );
+  if ( data?.error ) return { success: false, error: data.error.message || 'Subscribe failed' };
+  return { success: data?.success === true };
+}
+
+// ── BSUID: Contact Book + Parent BSUID accounts ──
+export async function deleteContactBookEntry ( phoneId: string, bsuid: string ): Promise<{ success?: boolean; deleted?: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/contact-book?phoneId=${phoneId}&bsuid=${encodeURIComponent( bsuid )}`, { method: 'DELETE' } );
+  if ( data?.error ) return { success: false, error: data.error.message || 'Delete failed' };
+  return { success: data?.success, deleted: data?.deleted };
+}
+
+export async function getParentBsuidAccounts ( businessId: string ): Promise<{ parentBsuidAccountId?: string; enrolledBusinessPortfolios?: string[]; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/parent-bsuid-accounts?businessId=${businessId}` );
+  if ( data?.error ) return { error: data.error.message || 'Failed to fetch parent BSUID accounts' };
+  return { parentBsuidAccountId: data?.parentBsuidAccountId, enrolledBusinessPortfolios: data?.enrolledBusinessPortfolios };
+}
+
 // Groups
 export async function listGroups ( wabaId: string, phoneId?: string ): Promise<any[]> {
   const params = new URLSearchParams( { wabaId } );

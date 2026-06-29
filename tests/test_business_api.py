@@ -501,6 +501,56 @@ class TestUsername:
             assert 'force_transfer' in body.get('hint', '')
 
 
+class TestBsuidApis:
+    """Contact Book delete + Parent BSUID accounts + BSUID validation."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'whatsapp-business-api'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                import handler as h
+                self.h = h
+
+    def test_bsuid_validation(self):
+        assert self.h._is_valid_bsuid('US.13491208655302741918') is True
+        assert self.h._is_valid_bsuid('US.ENT.11815799212886844830') is True
+        assert self.h._is_valid_bsuid('13491208655302741918') is False
+        assert self.h._is_valid_bsuid('') is False
+
+    def test_contact_book_requires_valid_bsuid(self):
+        assert self.h._delete_contact_book('123', 'notabsuid')['statusCode'] == 400
+
+    def test_contact_book_delete_success(self):
+        captured = {}
+
+        def fake(endpoint, method='GET', payload=None, params=None, **kw):
+            captured['endpoint'] = endpoint
+            captured['method'] = method
+            captured['params'] = params
+            return {'success': True, 'deleted': True}
+
+        with patch.object(self.h, '_graph_api', side_effect=fake):
+            res = self.h._delete_contact_book('1016149501586345', 'US.13491208655302741918')
+            body = json.loads(res['body'])
+            assert res['statusCode'] == 200
+            assert body['deleted'] is True
+            assert captured['endpoint'] == '1016149501586345/contact_book'
+            assert captured['method'] == 'DELETE'
+            assert captured['params']['bsuid'] == 'US.13491208655302741918'
+
+    def test_parent_bsuid_requires_business(self):
+        assert self.h._get_parent_bsuid_accounts('')['statusCode'] == 400
+
+    def test_parent_bsuid_success(self):
+        with patch.object(self.h, '_api_facebook_get', return_value={'parent_bsuid_account_id': 'pba1', 'enrolled_business_portfolios': ['b1', 'b2']}):
+            res = self.h._get_parent_bsuid_accounts('biz1')
+            body = json.loads(res['body'])
+            assert res['statusCode'] == 200
+            assert body['parentBsuidAccountId'] == 'pba1'
+            assert body['enrolledBusinessPortfolios'] == ['b1', 'b2']
+
+
 class TestGroups:
     """Test WhatsApp Groups CRUD."""
 

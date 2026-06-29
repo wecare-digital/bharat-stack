@@ -2055,6 +2055,73 @@ def _get_blocked_users(waba_id: str) -> Dict:
 
 
 # ============================================================================
+# BSUID — Contact Book + Parent BSUID accounts (Meta usernames/BSUID rollout)
+# ============================================================================
+_BSUID_RE = None
+
+
+def _is_valid_bsuid(bsuid: str) -> bool:
+    """BSUID format: <CC>.<alnum> or parent <CC>.ENT.<alnum> (e.g. US.13491208655302741918)."""
+    import re as _re
+    global _BSUID_RE
+    if _BSUID_RE is None:
+        _BSUID_RE = _re.compile(r'^[A-Za-z]{2}\.(ENT\.)?[0-9A-Za-z]+$')
+    return bool(bsuid) and bool(_BSUID_RE.match(bsuid))
+
+
+def _delete_contact_book(phone_id: str, bsuid: str) -> Dict:
+    """DELETE /{phone-number-id}/contact_book?messaging_product=whatsapp&bsuid=<BSUID>.
+    Removes a user's phone+BSUID from the portfolio contact book."""
+    if not phone_id:
+        return _resp(400, {'error': 'phoneId required'})
+    if not _is_valid_bsuid(bsuid):
+        return _resp(400, {'error': 'A valid BSUID is required (e.g. US.13491208655302741918). Parent BSUIDs are not supported here.'})
+    result = _graph_api(f'{phone_id}/contact_book', method='DELETE',
+                        params={'messaging_product': 'whatsapp', 'bsuid': bsuid}, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {
+        'success': result.get('success', True),
+        'deleted': result.get('deleted', False),
+        'bsuid': bsuid,
+    })
+
+
+def _api_facebook_get(path: str, business_id: str = None) -> Dict:
+    """GET against api.facebook.com (used by Parent BSUID Accounts API, per Meta doc)."""
+    token = _get_meta_token()
+    app_secret = _get_app_secret()
+    params = {'access_token': token}
+    if app_secret:
+        params['appsecret_proof'] = hmac.new(app_secret.encode('utf-8'), token.encode('utf-8'), hashlib.sha256).hexdigest()
+    url = f'https://api.facebook.com/{path}?' + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}'}, method='GET')
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode('utf-8') if e.fp else str(e)
+        try:
+            return {'error': json.loads(body).get('error', json.loads(body))}
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return {'error': {'message': body, 'code': e.code}}
+
+
+def _get_parent_bsuid_accounts(business_id: str) -> Dict:
+    """GET /{business_id}/parent-bsuid-accounts — parent BSUID account + enrolled portfolios."""
+    if not business_id:
+        return _resp(400, {'error': 'businessId required'})
+    result = _api_facebook_get(f'{business_id}/parent-bsuid-accounts')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {
+        'parentBsuidAccountId': result.get('parent_bsuid_account_id', ''),
+        'enrolledBusinessPortfolios': result.get('enrolled_business_portfolios', []),
+        'raw': result,
+    })
+
+
+# ============================================================================
 # PAYMENT CONFIGURATION
 # Razorpay MID and UPI ID loaded from environment variables (not hardcoded).
 # MCC: 4722 | Purpose Code: 03
@@ -4910,6 +4977,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _resp(400, {'error': 'wabaId required'})
             if method == 'POST':
                 return _unblock_users(waba_id, body)
+
+        elif '/contact-book' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId') or ''
+            if method == 'DELETE':
+                return _delete_contact_book(phone_id, params.get('bsuid') or body.get('bsuid') or '')
+            return _resp(405, {'error': 'DELETE only'})
+
+        elif '/parent-bsuid-accounts' in path:
+            if method == 'GET':
+                return _get_parent_bsuid_accounts(params.get('businessId') or body.get('businessId') or '')
+            return _resp(405, {'error': 'GET only'})
 
         elif '/flow-data' in path:
             if method == 'POST':
