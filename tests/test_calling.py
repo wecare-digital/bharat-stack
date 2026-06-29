@@ -519,3 +519,47 @@ class TestAutoThumbReaction:
         with patch('handler._is_auto_thumb_reaction_enabled', return_value=True):
             with patch('handler._meta_api_call', side_effect=RuntimeError('boom')):
                 assert self.react('WABA1_PHONE', '+91981', 'wamid.X', 'req-6') is False
+
+
+class TestCallingAutoThumbConfig:
+    """Unified runtime toggle: _get_config exposes autoThumb, _update_config writes
+    the unified key, and _is_auto_thumb_reaction_enabled reads it."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'whatsapp-calling'))
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1', 'VERIFY_TOKEN': 'test_token'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                import handler as h
+                self.h = h
+
+    def test_reader_uses_unified_key(self):
+        mock_table = MagicMock()
+        mock_table.get_item.return_value = {'Item': {'configValue': 'false'}}
+        with patch.object(self.h.dynamodb, 'Table', return_value=mock_table):
+            assert self.h._is_auto_thumb_reaction_enabled() is False
+            mock_table.get_item.assert_called_with(Key={'id': 'whatsapp_auto_thumb'})
+
+    def test_reader_defaults_true_when_unset(self):
+        mock_table = MagicMock()
+        mock_table.get_item.return_value = {}
+        with patch.object(self.h.dynamodb, 'Table', return_value=mock_table):
+            assert self.h._is_auto_thumb_reaction_enabled() is True
+
+    def test_get_config_includes_auto_thumb(self):
+        with patch.object(self.h, '_is_auto_pickup_enabled', return_value=True), \
+             patch.object(self.h, '_get_auto_pickup_audio_url', return_value='u'), \
+             patch.object(self.h, '_is_sms_on_call_enabled', return_value=True), \
+             patch.object(self.h, '_is_postcall_wa_enabled', return_value=True), \
+             patch.object(self.h, '_is_auto_thumb_reaction_enabled', return_value=True):
+            resp = self.h._get_config('req-1')
+            body = json.loads(resp['body'])
+            assert body['autoThumb'] is True
+
+    def test_update_config_writes_unified_key(self):
+        mock_table = MagicMock()
+        with patch.object(self.h.dynamodb, 'Table', return_value=mock_table):
+            resp = self.h._update_config({'body': json.dumps({'autoThumb': False})}, 'req-2')
+            assert resp['statusCode'] == 200
+            keys_written = [c.kwargs['Item']['id'] for c in mock_table.put_item.call_args_list]
+            assert 'whatsapp_auto_thumb' in keys_written

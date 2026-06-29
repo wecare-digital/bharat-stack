@@ -190,6 +190,9 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
   const [ smsOnCall, setSmsOnCall ] = useState( true );
   // Post-call WhatsApp wd_menu notification toggle
   const [ postCallWa, setPostCallWa ] = useState( true );
+
+  // Auto 👍 reaction toggle (all messages, templates & call notifications)
+  const [ autoThumb, setAutoThumb ] = useState( true );
   const [ smsTestPhone, setSmsTestPhone ] = useState( '+919903300044' );
   const [ smsTestSending, setSmsTestSending ] = useState<'idle' | 'airtel' | 'pinpoint'>( 'idle' );
   const [ smsTestResult, setSmsTestResult ] = useState<{ airtel?: string; pinpoint?: string } | null>( null );
@@ -589,6 +592,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
         }
         if ( data.smsOnCall !== undefined ) setSmsOnCall( data.smsOnCall !== false );
         if ( data.postCallWa !== undefined ) setPostCallWa( data.postCallWa !== false );
+        if ( data.autoThumb !== undefined ) setAutoThumb( data.autoThumb !== false );
       }
     } catch ( e ) { console.error( 'Config load error:', e ); }
   };
@@ -1291,7 +1295,31 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
               </div>
             </div>
 
-            {/* Active / Ringing Calls */ }
+            {/* Auto 👍 reaction toggle (global: all messages, templates & calls) */ }
+            <div style={ { ...s.card, marginTop: '12px', border: '1px solid #e5e7eb', background: '#f9fafb' } }>
+              <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } }>
+                <div>
+                  <h4 style={ { margin: 0, fontSize: '13px', color: '#0f2a1d' } }>Auto 👍 reaction</h4>
+                  <p style={ { margin: '4px 0 0', fontSize: '11px', color: '#6b7280' } }>Send a thumbs-up reaction on every WhatsApp message and template — inbound (received), outbound (sent), and call notifications — from the same number. Applies across both WABA numbers. Changes take effect within ~5 minutes.</p>
+                </div>
+                <label style={ { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap' } }>
+                  <input type="checkbox" checked={ autoThumb } onChange={ async () => {
+                    const newVal = !autoThumb;
+                    setAutoThumb( newVal );
+                    try
+                    {
+                      await fetch( `${API_BASE}/whatsapp/config`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify( { autoThumb: newVal } ),
+                      } );
+                      toast.success( `Auto 👍 reaction ${newVal ? 'enabled' : 'disabled'}` );
+                    } catch { toast.error( 'Failed to save' ); }
+                  } }
+                    style={ { width: '14px', height: '14px', accentColor: '#1a3a2a' } } />
+                  Auto 👍
+                </label>
+              </div>
+            </div>
             <div style={ { ...s.card, marginTop: '12px' } }>
               <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#111827' } }>
                 Active Calls { activeCalls.length > 0 && <span style={ { ...badge( 'active' ), marginLeft: '8px' } }>{ activeCalls.length }</span> }

@@ -193,41 +193,48 @@ class TestOutboundAutoThumbReaction:
                 # Seed the token cache so _send_direct_api skips Secrets Manager.
                 h._direct_api_cache['token'] = 'tok'
                 h._direct_api_cache['app_secret'] = ''
+                # Reset the auto-thumb config cache between tests.
+                h._auto_thumb_cache['value'] = None
+                h._auto_thumb_cache['ts'] = 0.0
 
     PHONE = 'phone-number-id-waba1-direct-1016149501586345'
 
     def test_reaction_triggered_for_text(self):
-        with patch.object(self.h, '_post_reaction_direct') as react:
-            with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.OUT'}], 'contacts': [{'wa_id': '9199'}]})):
-                resp = self.h._send_direct_api(self.PHONE, json.dumps({'type': 'text', 'to': '919812345678', 'text': {'body': 'hi'}}))
-            assert resp['messageId'] == 'wamid.OUT'
-            react.assert_called_once()
-            args = react.call_args.args
-            assert args[0] == '1016149501586345'   # meta_phone_id (same WABA)
-            assert args[3] == '919812345678'        # to
-            assert args[4] == 'wamid.OUT'           # message_id
+        with patch.object(self.h, '_auto_thumb_enabled', return_value=True):
+            with patch.object(self.h, '_post_reaction_direct') as react:
+                with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.OUT'}], 'contacts': [{'wa_id': '9199'}]})):
+                    resp = self.h._send_direct_api(self.PHONE, json.dumps({'type': 'text', 'to': '919812345678', 'text': {'body': 'hi'}}))
+                assert resp['messageId'] == 'wamid.OUT'
+                react.assert_called_once()
+                args = react.call_args.args
+                assert args[0] == '1016149501586345'   # meta_phone_id (same WABA)
+                assert args[3] == '919812345678'        # to
+                assert args[4] == 'wamid.OUT'           # message_id
 
     def test_reaction_triggered_for_template(self):
-        with patch.object(self.h, '_post_reaction_direct') as react:
-            with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.TMPL'}]})):
-                self.h._send_direct_api(self.PHONE, json.dumps({'type': 'template', 'to': '919812345678', 'template': {'name': 'wd_menu'}}))
-            react.assert_called_once()
-            assert react.call_args.args[4] == 'wamid.TMPL'
+        with patch.object(self.h, '_auto_thumb_enabled', return_value=True):
+            with patch.object(self.h, '_post_reaction_direct') as react:
+                with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.TMPL'}]})):
+                    self.h._send_direct_api(self.PHONE, json.dumps({'type': 'template', 'to': '919812345678', 'template': {'name': 'wd_menu'}}))
+                react.assert_called_once()
+                assert react.call_args.args[4] == 'wamid.TMPL'
 
     def test_no_reaction_for_reaction_payload(self):
-        with patch.object(self.h, '_post_reaction_direct') as react:
-            with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.R'}]})):
-                self.h._send_direct_api(self.PHONE, json.dumps({'type': 'reaction', 'to': '919', 'reaction': {'message_id': 'x', 'emoji': '\U0001F44D'}}))
-            react.assert_not_called()
+        with patch.object(self.h, '_auto_thumb_enabled', return_value=True):
+            with patch.object(self.h, '_post_reaction_direct') as react:
+                with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.R'}]})):
+                    self.h._send_direct_api(self.PHONE, json.dumps({'type': 'reaction', 'to': '919', 'reaction': {'message_id': 'x', 'emoji': '\U0001F44D'}}))
+                react.assert_not_called()
 
     def test_no_reaction_when_send_returns_no_id(self):
-        with patch.object(self.h, '_post_reaction_direct') as react:
-            with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{}]})):
-                self.h._send_direct_api(self.PHONE, json.dumps({'type': 'text', 'to': '919', 'text': {'body': 'hi'}}))
-            react.assert_not_called()
+        with patch.object(self.h, '_auto_thumb_enabled', return_value=True):
+            with patch.object(self.h, '_post_reaction_direct') as react:
+                with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{}]})):
+                    self.h._send_direct_api(self.PHONE, json.dumps({'type': 'text', 'to': '919', 'text': {'body': 'hi'}}))
+                react.assert_not_called()
 
     def test_disabled_toggle_skips(self):
-        with patch.object(self.h, 'AUTO_THUMB_REACTION_ENABLED', False):
+        with patch.object(self.h, '_auto_thumb_enabled', return_value=False):
             with patch.object(self.h, '_post_reaction_direct') as react:
                 with patch('urllib.request.urlopen', return_value=_mk_urlopen({'messages': [{'id': 'wamid.O'}]})):
                     self.h._send_direct_api(self.PHONE, json.dumps({'type': 'text', 'to': '919', 'text': {'body': 'hi'}}))
@@ -254,3 +261,23 @@ class TestOutboundAutoThumbReaction:
         with patch('urllib.request.urlopen') as uo:
             self.h._post_reaction_direct('1016149501586345', 'tok', '', '919', '')
             uo.assert_not_called()
+
+    def test_auto_thumb_enabled_reads_config_false(self):
+        mock_table = MagicMock()
+        mock_table.get_item.return_value = {'Item': {'configValue': 'false'}}
+        with patch.object(self.h.dynamodb, 'Table', return_value=mock_table):
+            assert self.h._auto_thumb_enabled() is False
+
+    def test_auto_thumb_enabled_caches_within_ttl(self):
+        mock_table = MagicMock()
+        mock_table.get_item.return_value = {'Item': {'configValue': 'true'}}
+        with patch.object(self.h.dynamodb, 'Table', return_value=mock_table) as t:
+            assert self.h._auto_thumb_enabled() is True
+            assert self.h._auto_thumb_enabled() is True
+            t.assert_called_once()  # second call served from cache
+
+    def test_auto_thumb_enabled_defaults_when_unset(self):
+        mock_table = MagicMock()
+        mock_table.get_item.return_value = {}  # no Item → fall back to env default (True)
+        with patch.object(self.h.dynamodb, 'Table', return_value=mock_table):
+            assert self.h._auto_thumb_enabled() is True

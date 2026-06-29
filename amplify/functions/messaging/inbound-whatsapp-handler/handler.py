@@ -188,10 +188,31 @@ def _get_meta_phone_id_for_direct_api(aws_phone_id: str) -> str:
 _current_direct_api_phone = None
 
 # Auto 👍 reaction toggle. Applies to outbound messages sent from THIS handler
-# (AI auto-replies, IVR responses). Inbound received-message reactions are sent in
-# _process_message. Toggle via Lambda env var (no redeploy). Default ON.
+# (AI auto-replies, IVR responses) and to inbound received-message reactions.
+# Resolved at runtime from SystemConfig (id='whatsapp_auto_thumb', cached) with the
+# env var as the default. Default ON.
 AUTO_THUMB_REACTION_ENABLED = os.environ.get('AUTO_THUMB_REACTION_ENABLED', 'true').strip().lower() in ('true', '1', 'yes', 'on')
 AUTO_THUMB_EMOJI = os.environ.get('AUTO_THUMB_EMOJI', '\U0001F44D')
+_auto_thumb_cache = {'value': None, 'ts': 0.0}
+_AUTO_THUMB_CACHE_TTL = 300  # seconds — admin toggles propagate within 5 min
+
+
+def _auto_thumb_enabled() -> bool:
+    """Runtime auto 👍 toggle. Reads SystemConfig 'whatsapp_auto_thumb' at most once
+    per _AUTO_THUMB_CACHE_TTL seconds (cached); falls back to the env default."""
+    now = time.time()
+    if _auto_thumb_cache['value'] is not None and (now - _auto_thumb_cache['ts']) < _AUTO_THUMB_CACHE_TTL:
+        return _auto_thumb_cache['value']
+    val = AUTO_THUMB_REACTION_ENABLED
+    try:
+        item = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'whatsapp_auto_thumb'}).get('Item')
+        if item and 'configValue' in item:
+            val = str(item.get('configValue')).lower() in ('true', '1', 'yes', 'on')
+    except Exception as e:
+        logger.warning(f"auto_thumb config read failed (using default {val}): {e}")
+    _auto_thumb_cache['value'] = val
+    _auto_thumb_cache['ts'] = now
+    return val
 
 
 def _send_direct_api_message(to_number: str, message_payload: Dict, meta_phone_id: str = None) -> Dict:
@@ -229,8 +250,8 @@ def _send_direct_api_message(to_number: str, message_payload: Dict, meta_phone_i
             # Auto 👍 on outbound messages sent from this handler (auto-replies, IVR).
             # Skip reaction-type payloads to prevent recursion. React from the SAME
             # phone (phone_id) that sent the message so the wamid resolves.
-            if (AUTO_THUMB_REACTION_ENABLED and msg_id
-                    and message_payload.get('type') != 'reaction'):
+            if (msg_id and message_payload.get('type') != 'reaction'
+                    and _auto_thumb_enabled()):
                 try:
                     _send_direct_api_message(to_number, {
                         'type': 'reaction',
@@ -1168,7 +1189,7 @@ def _process_message(
         if _is_direct_api_phone(aws_phone_number_id):
             # Send reaction and read receipt via Meta Graph API
             try:
-                if AUTO_THUMB_REACTION_ENABLED:
+                if _auto_thumb_enabled():
                     _send_direct_api_reaction(sender_phone, whatsapp_message_id, emoji=AUTO_THUMB_EMOJI)
                 logger.info(json.dumps({
                     'event': 'auto_reaction_triggered_direct_api',

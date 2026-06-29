@@ -825,10 +825,11 @@ def _handle_cert_check(event: Dict, request_id: str) -> Dict[str, Any]:
 
 def _is_auto_thumb_reaction_enabled() -> bool:
     """Whether to auto-send a 👍 reaction alongside call-related wd_menu template
-    messages. Default: True. Toggle via SystemConfig id='whatsapp_calling_auto_thumb'."""
+    messages. Unified runtime toggle (controls call + message reactions across all
+    handlers). Default: True. Toggle via SystemConfig id='whatsapp_auto_thumb'."""
     try:
         table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
-        result = table.get_item(Key={'id': 'whatsapp_calling_auto_thumb'})
+        result = table.get_item(Key={'id': 'whatsapp_auto_thumb'})
         item = result.get('Item')
         if item and 'configValue' in item:
             return str(item.get('configValue')).lower() in ('true', '1', 'yes', 'on')
@@ -2229,6 +2230,7 @@ def _get_config(request_id: str) -> Dict[str, Any]:
         'autoPickupMode': 'ivr',
         'smsOnCall': sms_on_call,
         'postCallWa': _is_postcall_wa_enabled(),
+        'autoThumb': _is_auto_thumb_reaction_enabled(),
     })
 
 
@@ -2293,7 +2295,20 @@ def _update_config(event: Dict, request_id: str) -> Dict[str, Any]:
             logger.error(f"Failed to update postcall_wa config: {e}")
             return _response(500, {'error': str(e)})
 
-    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': 'ivr', 'smsOnCall': sms_on_call, 'postCallWa': post_call_wa})
+    auto_thumb = body.get('autoThumb')
+    if auto_thumb is not None:
+        try:
+            table.put_item(Item={
+                'id': 'whatsapp_auto_thumb',
+                'configValue': str(auto_thumb).lower(),
+                'updatedAt': Decimal(str(int(time.time()))),
+            })
+            logger.info(f"Auto 👍 reaction set to: {auto_thumb}")
+        except Exception as e:
+            logger.error(f"Failed to update auto_thumb config: {e}")
+            return _response(500, {'error': str(e)})
+
+    return _response(200, {'success': True, 'autoPickup': enabled, 'ivrUrl': ivr_url, 'autoPickupMode': 'ivr', 'smsOnCall': sms_on_call, 'postCallWa': post_call_wa, 'autoThumb': auto_thumb})
 
 # ─── Storage Helpers ─────────────────────────────────────────────────
 

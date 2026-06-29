@@ -308,7 +308,7 @@ class TestInboundAutoThumbReaction:
                 import handler as h
                 self.h = h
 
-    def _run(self, payload, send_fn='message'):
+    def _run(self, payload, send_fn='message', enabled=True):
         sent = []
 
         def fake_urlopen(req, timeout=30):
@@ -321,12 +321,13 @@ class TestInboundAutoThumbReaction:
             return ctx
 
         with patch.object(self.h, '_load_direct_api_token', return_value='tok'):
-            self.h._direct_api_token_cache['app_secret'] = ''
-            with patch('urllib.request.urlopen', side_effect=fake_urlopen):
-                if send_fn == 'message':
-                    self.h._send_direct_api_message('919812345678', payload, meta_phone_id='1016149501586345')
-                else:
-                    self.h._send_direct_api_reaction('919812345678', 'wamid.ORIG')
+            with patch.object(self.h, '_auto_thumb_enabled', return_value=enabled):
+                self.h._direct_api_token_cache['app_secret'] = ''
+                with patch('urllib.request.urlopen', side_effect=fake_urlopen):
+                    if send_fn == 'message':
+                        self.h._send_direct_api_message('919812345678', payload, meta_phone_id='1016149501586345')
+                    else:
+                        self.h._send_direct_api_reaction('919812345678', 'wamid.ORIG')
         return sent
 
     def test_outbound_text_gets_auto_reaction(self):
@@ -343,7 +344,6 @@ class TestInboundAutoThumbReaction:
         assert sent[0]['type'] == 'reaction'
 
     def test_disabled_toggle_skips(self):
-        with patch.object(self.h, 'AUTO_THUMB_REACTION_ENABLED', False):
-            sent = self._run({'type': 'text', 'text': {'body': 'hi'}})
-            assert len(sent) == 1
-            assert sent[0]['type'] == 'text'
+        sent = self._run({'type': 'text', 'text': {'body': 'hi'}}, enabled=False)
+        assert len(sent) == 1
+        assert sent[0]['type'] == 'text'
