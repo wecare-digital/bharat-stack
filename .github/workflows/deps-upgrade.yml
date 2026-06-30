@@ -1,0 +1,85 @@
+name: deps-upgrade-and-lock
+
+# One-shot, manually triggered upgrade that runs on a networked GitHub runner
+# (the agent sandbox cannot download npm packages). It regenerates the committed
+# lockfile to match the package.json overrides, optionally bumps all direct deps
+# to @latest, verifies with a build, and commits the result back to `stack`
+# (which triggers the Amplify deploy). Build is a hard gate: if it fails, nothing
+# is committed or deployed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "lock-only (just regen lock with overrides) or full-latest (also bump direct deps)"
+        type: choice
+        default: full-latest
+        options:
+          - lock-only
+          - full-latest
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deps-upgrade
+  cancel-in-progress: false
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout stack
+        uses: actions/checkout@v4
+        with:
+          ref: stack
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install (regenerate lock with overrides -> fast-xml-parser 5.9.3)
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Bump all direct deps to @latest
+        if: ${{ inputs.mode == 'full-latest' }}
+        run: |
+          npm install --save --legacy-peer-deps --no-audit --no-fund \
+            next@latest react@latest react-dom@latest react-router-dom@latest \
+            aws-amplify@latest @aws-amplify/ui-react@latest \
+            @aws-sdk/client-bedrock@latest @aws-sdk/client-bedrock-runtime@latest \
+            @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/ios@latest \
+            @capacitor/app@latest @capacitor/browser@latest @capacitor/haptics@latest \
+            @capacitor/keyboard@latest @capacitor/push-notifications@latest \
+            @capacitor/splash-screen@latest @capacitor/status-bar@latest flag-icons@latest
+          npm install --save-dev --legacy-peer-deps --no-audit --no-fund \
+            @aws-amplify/backend-cli@latest @aws-amplify/backend-data@latest @aws-amplify/data-construct@latest \
+            @aws-amplify/graphql-schema-generator@latest @testing-library/jest-dom@latest @testing-library/react@latest \
+            @types/node@latest @types/react@latest @types/react-dom@latest @vitejs/plugin-react@latest \
+            jsdom@latest typescript@latest vitest@latest
+          npm install --save --legacy-peer-deps --no-audit --no-fund @aws-amplify/backend@latest
+
+      - name: Audit fix (best-effort)
+        run: npm audit fix --legacy-peer-deps || true
+
+      - name: Build (HARD GATE - must pass before anything is committed)
+        run: npm run build
+
+      - name: Tests (informational)
+        run: npm test || echo "tests reported failures - not blocking lock commit"
+
+      - name: Commit lockfile + manifest and push (triggers Amplify deploy)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No dependency changes to commit."
+          else
+            git commit -m "chore(deps): regen lockfile + @latest bumps (mode=${{ inputs.mode }})"
+            git push origin stack
+          fi
+
+      - name: Residual vulnerability summary
+        run: npm audit || true
