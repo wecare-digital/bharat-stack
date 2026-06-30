@@ -65,6 +65,6 @@
   "packageManager": "npm@11.6.2",
   "overrides": {
     "lodash": "4.17.21",
-    "fast-xml-parser": "5.3.4"
+    "fast-xml-parser": "5.9.3"
   }
 }
