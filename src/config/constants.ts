@@ -36,7 +36,7 @@ export const WHATSAPP_PHONES = {
     id: 'phone-number-id-waba1-direct-1016149501586345',
     display: '+91 93309 94400',
     name: 'WECARE.DIGITAL',
-    username: 'wecaredigital',  // Fixed WhatsApp business username (only allowed value)
+    username: 'wecare.digital',  // Fixed WhatsApp business username (reserved with Meta)
     wabaId: '2094615664435155',
     metaPhoneId: '1016149501586345',
     hasPayment: true,
@@ -49,7 +49,7 @@ export const WHATSAPP_PHONES = {
     id: 'phone-number-id-waba-t-direct-1055232054343117',
     display: '+91 99033 00044',
     name: 'Manish Agarwal',
-    username: 'manish',  // Fixed WhatsApp business username (only allowed value)
+    username: 'manishagarwal',  // Fixed WhatsApp business username (reserved with Meta)
     wabaId: '2513394156072604',
     metaPhoneId: '1055232054343117',
     hasPayment: true,

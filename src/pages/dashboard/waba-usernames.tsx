@@ -1,8 +1,8 @@
 /**
  * WABA Business Usernames Manager
- * Each WhatsApp number has ONE fixed business username (no free-text, no suggestions):
- *   WABA 1 (WECARE.DIGITAL) → @wecaredigital
- *   WABA 2 (Manish Agarwal) → @manish
+ * Shows the LIVE business username for each WhatsApp number (from Meta), with its status:
+ *   WABA 1 (WECARE.DIGITAL) → @wecare.digital
+ *   WABA 2 (Manish Agarwal) → @manishagarwal
  * Uses Meta Graph API via the whatsapp-business-api Lambda.
  */
 
@@ -44,18 +44,10 @@ const PHONES = [
     },
 ];
 
-// Detect Meta's "feature not yet enabled for this account" gate (error code 147000).
-function isFeatureGatedError ( msg?: string ): boolean {
-    if ( !msg ) return false;
-    const m = msg.toLowerCase();
-    return m.includes( '147000' ) || m.includes( 'not available' ) || m.includes( 'not yet available' ) || m.includes( 'feature is unavailable' );
-}
-
 export default function WABAUsernames ( { signOut, user }: PageProps ) {
     const toast = useToastContext();
     const [ states, setStates ] = useState<Record<string, PhoneUsernameState>>( {} );
     const [ claiming, setClaiming ] = useState<Record<string, boolean>>( {} );
-    const [ deleting, setDeleting ] = useState<Record<string, boolean>>( {} );
 
     const fetchUsername = useCallback( async ( phoneId: string ) => {
         setStates( prev => ( {
@@ -110,29 +102,6 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
         }
     };
 
-    const handleDelete = async ( phoneId: string ) => {
-        if ( !confirm( 'Are you sure you want to delete this business username?' ) ) return;
-        setDeleting( prev => ( { ...prev, [ phoneId ]: true } ) );
-        try
-        {
-            const result = await api.deleteBusinessUsername( phoneId );
-            if ( result.success )
-            {
-                toast.success( 'Username deleted' );
-                fetchUsername( phoneId );
-            } else
-            {
-                toast.error( result.error || 'Failed to delete username' );
-            }
-        } catch ( err: any )
-        {
-            toast.error( err.message || 'Failed to delete username' );
-        } finally
-        {
-            setDeleting( prev => ( { ...prev, [ phoneId ]: false } ) );
-        }
-    };
-
     return (
         <Layout onSignOut={ signOut } user={ user }>
             <SEO title="WABA Usernames" description="Manage WhatsApp Business usernames" />
@@ -145,20 +114,12 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
                     <p style={ { color: 'var(--text-secondary)', marginTop: '8px', fontSize: 'var(--text-md)' } }>
                         Each number has one fixed business username. Customers can find and message your business directly by it.
                     </p>
-                    <p style={ {
-                        color: 'var(--text-muted)', marginTop: '4px', fontSize: 'var(--text-sm)',
-                        background: 'var(--bg-secondary)', padding: '8px 12px', borderRadius: '6px', display: 'inline-block'
-                    } }>
-                        ℹ️ This feature is rolling out later in 2026. The API may not be available in all regions yet.
-                    </p>
                 </div>
 
                 { PHONES.map( phone => {
                     const state = states[ phone.phoneId ] || { loading: true };
                     const isClaiming = claiming[ phone.phoneId ] || false;
-                    const isDeleting = deleting[ phone.phoneId ] || false;
                     const fixed = phone.fixedUsername || '';
-                    const alreadyClaimed = !!state.username && state.username.toLowerCase() === fixed.toLowerCase();
 
                     return (
                         <div key={ phone.key } style={ {
@@ -195,29 +156,18 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
                                 </div>
                             ) }
 
-                            {/* Error / Meta feature-gate banner */ }
+                            {/* Error banner */ }
                             { !state.loading && state.error && (
-                                isFeatureGatedError( state.error ) ? (
-                                    <div style={ {
-                                        background: '#fef3c7', border: '1px solid #f59e0b',
-                                        borderRadius: '8px', padding: '12px 16px', marginBottom: '12px',
-                                        fontSize: 'var(--text-sm)', color: '#92400e',
-                                    } }>
-                                        ⏳ Usernames aren’t enabled by Meta for this account yet (rolling out later in 2026).
-                                        The fixed username <strong>@{ fixed }</strong> is ready — claiming will succeed as soon as Meta turns the feature on.
-                                    </div>
-                                ) : (
-                                    <div style={ {
-                                        background: 'var(--danger-light)', border: '1px solid var(--danger)',
-                                        borderRadius: '8px', padding: '12px 16px', marginBottom: '12px',
-                                        fontSize: 'var(--text-sm)', color: 'var(--danger)',
-                                    } }>
-                                        ⚠️ { state.error }
-                                    </div>
-                                )
+                                <div style={ {
+                                    background: 'var(--danger-light)', border: '1px solid var(--danger)',
+                                    borderRadius: '8px', padding: '12px 16px', marginBottom: '12px',
+                                    fontSize: 'var(--text-sm)', color: 'var(--danger)',
+                                } }>
+                                    ⚠️ { state.error }
+                                </div>
                             ) }
 
-                            {/* Fixed username + actions */ }
+                            {/* Live username + actions */ }
                             { !state.loading && (
                                 <div>
                                     <label style={ { fontSize: 'var(--text-sm)', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' } }>
@@ -226,9 +176,9 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
                                     <div style={ { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' } }>
                                         <span style={ {
                                             fontSize: 'var(--text-xl)', fontWeight: 600,
-                                            color: 'var(--accent)', fontFamily: 'var(--font-mono)',
+                                            color: state.username ? 'var(--accent)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)',
                                         } }>
-                                            @{ fixed }
+                                            @{ state.username || fixed }
                                         </span>
                                         { state.username && (
                                             <span style={ {
@@ -240,16 +190,7 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
                                                 { state.status || 'set' }
                                             </span>
                                         ) }
-                                        { alreadyClaimed ? (
-                                            <Button
-                                                variant="danger"
-                                                size="sm"
-                                                onClick={ () => handleDelete( phone.phoneId ) }
-                                                disabled={ isDeleting }
-                                            >
-                                                { isDeleting ? <Spinner /> : 'Delete' }
-                                            </Button>
-                                        ) : (
+                                        { !state.username && (
                                             <Button
                                                 variant="primary"
                                                 size="sm"
@@ -261,7 +202,9 @@ export default function WABAUsernames ( { signOut, user }: PageProps ) {
                                         ) }
                                     </div>
                                     <p style={ { color: 'var(--text-muted)', fontSize: 'var(--text-xs)', marginTop: '10px' } }>
-                                        This number is locked to a single username. To change it, update the configuration in code.
+                                        { state.username
+                                            ? 'Live username from Meta. Reserved names become visible to users once Meta enables the feature for everyone.'
+                                            : 'No username claimed yet for this number.' }
                                     </p>
                                 </div>
                             ) }

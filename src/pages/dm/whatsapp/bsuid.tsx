@@ -5,13 +5,13 @@
  * - View Parent BSUID account + enrolled portfolios
  * - Claim-status guidance (gated until Meta enables the feature)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { WHATSAPP_PHONES } from '../../../config/constants';
-import { useConfirmDanger, RawJsonDrawer } from '../../../components/wa';
+import { RawJsonDrawer } from '../../../components/wa';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -33,7 +33,6 @@ const btn: React.CSSProperties = { padding: '9px 16px', background: '#1a3a2a', c
 
 const BsuidConsole: React.FC<PageProps> = ( { signOut, user, embedded = false } ) => {
     const toast = useToastContext();
-    const confirmDanger = useConfirmDanger();
 
     const [ phoneIdx, setPhoneIdx ] = useState( 0 );
     const phone = PHONES[ phoneIdx ];
@@ -42,9 +41,12 @@ const BsuidConsole: React.FC<PageProps> = ( { signOut, user, embedded = false } 
     const [ selectedFields, setSelectedFields ] = useState<string[]>( [ 'business_username_updates', 'user_id_update' ] );
     const [ subBusy, setSubBusy ] = useState( false );
 
-    // Contact book
-    const [ cbBsuid, setCbBsuid ] = useState( '' );
-    const [ cbBusy, setCbBusy ] = useState( false );
+    // Business username (live status + claim)
+    const [ unameInfo, setUnameInfo ] = useState<api.UsernameInfo | null>( null );
+    const [ suggestions, setSuggestions ] = useState<string[]>( [] );
+    const [ unameLoading, setUnameLoading ] = useState( false );
+    const [ claimInput, setClaimInput ] = useState( '' );
+    const [ claiming, setClaiming ] = useState( false );
 
     // Parent BSUID
     const [ businessId, setBusinessId ] = useState( '' );
@@ -54,6 +56,46 @@ const BsuidConsole: React.FC<PageProps> = ( { signOut, user, embedded = false } 
     const toggleField = ( f: string ) =>
         setSelectedFields( s => s.includes( f ) ? s.filter( x => x !== f ) : [ ...s, f ] );
 
+    const loadUsername = useCallback( async () => {
+        setUnameLoading( true );
+        setUnameInfo( null );
+        setSuggestions( [] );
+        try
+        {
+            const [ info, sug ] = await Promise.all( [
+                api.getBusinessUsername( phone.metaPhoneId ),
+                api.getBusinessUsernameSuggestions( phone.metaPhoneId ),
+            ] );
+            setUnameInfo( info );
+            setSuggestions( sug?.suggestions || [] );
+        } catch
+        {
+            toast.error( 'Could not load username status' );
+        } finally
+        {
+            setUnameLoading( false );
+        }
+    }, [ phone.metaPhoneId, toast ] );
+
+    useEffect( () => { loadUsername(); }, [ loadUsername ] );
+
+    const claimUsername = async () => {
+        const desired = claimInput.trim().toLowerCase().replace( /^@/, '' );
+        if ( !desired ) { toast.error( 'Enter a username to claim' ); return; }
+        setClaiming( true );
+        const res = await api.claimBusinessUsername( phone.metaPhoneId, desired );
+        if ( res.success )
+        {
+            toast.success( `Claimed @${res.username || desired}` );
+            setClaimInput( '' );
+            await loadUsername();
+        } else
+        {
+            toast.error( res.error || 'Claim failed' );
+        }
+        setClaiming( false );
+    };
+
     const subscribe = async () => {
         if ( !selectedFields.length ) { toast.error( 'Select at least one field' ); return; }
         setSubBusy( true );
@@ -61,16 +103,6 @@ const BsuidConsole: React.FC<PageProps> = ( { signOut, user, embedded = false } 
         if ( res.success ) toast.success( 'Subscribed to ' + selectedFields.join( ', ' ) );
         else toast.error( res.error || 'Subscribe failed' );
         setSubBusy( false );
-    };
-
-    const deleteContact = async () => {
-        if ( !cbBsuid.trim() ) { toast.error( 'Enter a BSUID' ); return; }
-        if ( !( await confirmDanger( 'delete', `Delete contact-book entry for BSUID ${cbBsuid}? Their phone number will stop appearing in webhooks (subject to the 30-day cache).` ) ) ) return;
-        setCbBusy( true );
-        const res = await api.deleteContactBookEntry( phone.metaPhoneId, cbBsuid.trim() );
-        if ( res.success ) toast.success( res.deleted ? 'Contact-book entry deleted' : 'No entry found for that BSUID' );
-        else toast.error( res.error || 'Delete failed' );
-        setCbBusy( false );
     };
 
     const loadParent = async () => {
@@ -87,7 +119,7 @@ const BsuidConsole: React.FC<PageProps> = ( { signOut, user, embedded = false } 
             <SEO title="BSUID & Usernames" description="WhatsApp BSUID and username tooling" noindex />
             <h1 style={ { fontSize: 22, fontWeight: 700, marginBottom: 4 } }>BSUID &amp; Usernames</h1>
             <p style={ { color: '#777', fontSize: 13, marginBottom: 16 } }>
-                Manage WhatsApp username/BSUID webhooks and contact-book entries. BSUIDs appear in webhooks (early Apr 2026) and can be messaged (from May 2026); phone numbers may be hidden for username-adopters.
+                Manage WhatsApp username/BSUID webhooks and contact-book entries. BSUIDs appear in webhooks (early Apr 2026) and can be messaged (from July 2026); phone numbers may be hidden for username-adopters.
             </p>
 
             <div style={ card }>
@@ -110,11 +142,10 @@ const BsuidConsole: React.FC<PageProps> = ( { signOut, user, embedded = false } 
             </div>
 
             <div style={ card }>
-                <h3 style={ { marginTop: 0, fontSize: 15 } }>Contact book — delete entry</h3>
-                <p style={ { fontSize: 12, color: '#777' } }>Remove a user\u2019s phone+BSUID from the portfolio contact book.</p>
-                <label style={ label }>BSUID (e.g. US.13491208655302741918)</label>
-                <input style={ input } value={ cbBsuid } onChange={ e => setCbBsuid( e.target.value ) } placeholder="CC.alphanumeric" />
-                <button style={ { ...btn, background: '#fee2e2', color: '#991b1b' } } disabled={ cbBusy } onClick={ deleteContact }>{ cbBusy ? 'Deleting…' : 'Delete contact-book entry' }</button>
+                <h3 style={ { marginTop: 0, fontSize: 15 } }>Contact book</h3>
+                <p style={ { fontSize: 12, color: '#777', margin: 0 } }>
+                    Meta stores each contact phone number and BSUID in the portfolio contact book automatically. Deletion is disabled here to prevent accidental removal &mdash; a deleted entry stops the phone number appearing in webhooks (subject to the 30-day cache) and cannot be restored.
+                </p>
             </div>
 
             <div style={ card }>
@@ -133,10 +164,49 @@ const BsuidConsole: React.FC<PageProps> = ( { signOut, user, embedded = false } 
             </div>
 
             <div style={ { ...card, background: '#f0f9ff', border: '1px solid #bae6fd' } }>
-                <h3 style={ { marginTop: 0, fontSize: 15, color: '#0369a1' } }>Business username claim</h3>
-                <p style={ { fontSize: 13, color: '#0369a1', margin: 0 } }>
-                    The username feature is currently <strong>gated</strong> for these accounts (Meta error 147000). Claim via the API once enabled: run <code>scripts/_claim_username.py --phone { phone.metaPhoneId } --suggest</code>. See <code>docs/META_USERNAME_ACCESS_REQUEST.md</code> for the access-request email.
-                </p>
+                <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } }>
+                    <h3 style={ { marginTop: 0, marginBottom: 0, fontSize: 15, color: '#0369a1' } }>Business username</h3>
+                    <button style={ { ...btn, padding: '4px 10px', fontSize: 12, background: '#e0f2fe', color: '#0369a1' } } disabled={ unameLoading } onClick={ loadUsername }>{ unameLoading ? 'Refreshing…' : 'Refresh' }</button>
+                </div>
+                <div style={ { marginTop: 10, fontSize: 14 } }>
+                    { unameLoading ? (
+                        <span style={ { color: '#0369a1' } }>Loading…</span>
+                    ) : unameInfo?.username ? (
+                        <span>
+                            Current: <strong>@{ unameInfo.username }</strong>
+                            <span style={ {
+                                marginLeft: 8, padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 600,
+                                background: unameInfo.status === 'approved' ? '#dcfce7' : '#fef9c3',
+                                color: unameInfo.status === 'approved' ? '#166534' : '#854d0e',
+                            } }>
+                                { unameInfo.status || 'unknown' }
+                            </span>
+                        </span>
+                    ) : (
+                        <span style={ { color: '#666' } }>No username claimed for this number yet.</span>
+                    ) }
+                </div>
+                { suggestions.length > 0 && (
+                    <div style={ { marginTop: 10, fontSize: 13 } }>
+                        <span style={ { color: '#666' } }>Reserved for you: </span>
+                        { suggestions.map( s => (
+                            <button key={ s } onClick={ () => setClaimInput( s ) }
+                                style={ { marginRight: 6, marginTop: 4, padding: '3px 10px', borderRadius: 999, border: '1px solid #bae6fd', background: '#fff', color: '#0369a1', cursor: 'pointer', fontSize: 12 } }>
+                                @{ s }
+                            </button>
+                        ) ) }
+                    </div>
+                ) }
+                <div style={ { marginTop: 12 } }>
+                    <label style={ label }>Claim / change username (3&ndash;35 chars, a&ndash;z 0&ndash;9 . _)</label>
+                    <div style={ { display: 'flex', gap: 8 } }>
+                        <input style={ { ...input, marginBottom: 0 } } value={ claimInput } onChange={ e => setClaimInput( e.target.value ) } placeholder="e.g. wecaredigital" />
+                        <button style={ { ...btn, whiteSpace: 'nowrap' } } disabled={ claiming || !claimInput.trim() } onClick={ claimUsername }>{ claiming ? 'Claiming…' : 'Claim' }</button>
+                    </div>
+                    <p style={ { fontSize: 11, color: '#777', marginTop: 6, marginBottom: 0 } }>
+                        A username maps 1:1 to this phone number and replaces the number in the chat profile once active. No delete option is provided here to avoid accidental removal.
+                    </p>
+                </div>
             </div>
         </div>
     );

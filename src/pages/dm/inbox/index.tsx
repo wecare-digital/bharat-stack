@@ -415,6 +415,8 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             if ( replyChannel === 'whatsapp' )
             {
                 if ( !contactId ) { toast.error( 'WhatsApp reply needs a saved contact — open the WhatsApp inbox' ); setSending( false ); return; }
+                // Username-adopters may have their phone hidden, so fall back to the BSUID recipient when one is known.
+                const bsuid = selected ? contactDir[ selected ]?.bsuid : undefined;
                 if ( hasMedia )
                 {
                     let sent = 0;
@@ -424,14 +426,14 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                         const type = file.type || inferMimeFromName( file.name );
                         const s3Key = await api.uploadMediaForSend( file, type, file.name );
                         if ( !s3Key ) { toast.error( `Upload failed: ${file.name}` ); continue; }
-                        const r = await api.sendWhatsAppMessage( { contactId, content: i === 0 ? waText : '', phoneNumberId: selectedWaba || waba || undefined, mediaFile: s3Key, mediaType: type, mediaFileName: file.name, contextMessageId: i === 0 ? waContext : undefined } );
+                        const r = await api.sendWhatsAppMessage( { contactId, content: i === 0 ? waText : '', phoneNumberId: selectedWaba || waba || undefined, recipientBsuid: bsuid, mediaFile: s3Key, mediaType: type, mediaFileName: file.name, contextMessageId: i === 0 ? waContext : undefined } );
                         if ( r ) sent++;
                     }
                     ok = sent > 0;
                     if ( ok ) { setMediaFiles( [] ); setMediaPreview( null ); }
                 } else
                 {
-                    const r = await api.sendWhatsAppMessage( { contactId, content: waText, phoneNumberId: selectedWaba || waba || undefined, contextMessageId: waContext } );
+                    const r = await api.sendWhatsAppMessage( { contactId, content: waText, phoneNumberId: selectedWaba || waba || undefined, recipientBsuid: bsuid, contextMessageId: waContext } );
                     ok = !!r;
                 }
             } else if ( replyChannel === 'sms' )
@@ -467,7 +469,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         {
             setSending( false );
         }
-    }, [ replyText, sending, replyingTo, replyTarget, replyChannel, selectedWaba, smsType, emailSubject, mediaFiles, toast, loadData ] );
+    }, [ replyText, sending, replyingTo, replyTarget, replyChannel, selectedWaba, smsType, emailSubject, mediaFiles, selected, contactDir, toast, loadData ] );
 
     const handleSuggest = useCallback( async () => {
         if ( aiSuggesting || !thread.length ) return;
@@ -525,11 +527,12 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         if ( !wamid || !contactId ) { toast.error( 'Cannot react to this message' ); return; }
         try
         {
-            await api.sendWhatsAppReaction( { contactId, reactionMessageId: wamid, reactionEmoji: emoji, phoneNumberId: ( m as any ).awsPhoneNumberId || selectedWaba } );
+            const bsuid = selected ? contactDir[ selected ]?.bsuid : undefined;
+            await api.sendWhatsAppReaction( { contactId, reactionMessageId: wamid, reactionEmoji: emoji, phoneNumberId: ( m as any ).awsPhoneNumberId || selectedWaba, recipientBsuid: bsuid } );
             toast.success( `Reacted ${emoji}` );
             setTimeout( loadData, 800 );
         } catch { toast.error( 'Reaction failed' ); }
-    }, [ replyTarget, selectedWaba, toast, loadData ] );
+    }, [ replyTarget, selectedWaba, selected, contactDir, toast, loadData ] );
 
     const updatePayItem = ( i: number, field: 'name' | 'amount' | 'quantity' | 'gstRate', val: string ) =>
         setPayItems( p => p.map( ( it, idx ) => idx === i ? { ...it, [ field ]: val } : it ) );
@@ -774,8 +777,10 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                         <span className="ui-thread-name">{ selectedConv?.name }</span>
                                         <span className="ui-thread-sub">
                                             { [
-                                                replyTarget.phone,
-                                                selected && contactDir[ selected ]?.username ? `@${contactDir[ selected ]!.username!.replace( /^@/, '' )}` : '',
+                                                // Prefer the WhatsApp username in the profile; fall back to the phone number only when no username exists.
+                                                selected && contactDir[ selected ]?.username
+                                                    ? `@${contactDir[ selected ]!.username!.replace( /^@/, '' )}`
+                                                    : replyTarget.phone,
                                                 `${thread.length} message${thread.length === 1 ? '' : 's'}`,
                                             ].filter( Boolean ).join( ' · ' ) }
                                             { selected && contactDir[ selected ]?.bsuid && (
