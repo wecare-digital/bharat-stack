@@ -3,6 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   trailingSlash: true,
   output: process.env.NODE_ENV === 'production' ? 'export' : undefined,
+  // Pin the workspace root to this folder so Turbopack doesn't pick the parent
+  // dir's stray package-lock.json (silences the "multiple lockfiles" warning).
+  turbopack: {
+    root: import.meta.dirname,
+  },
   images: {
     unoptimized: true
   },
