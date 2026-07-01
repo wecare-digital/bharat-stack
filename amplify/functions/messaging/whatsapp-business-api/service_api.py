@@ -57,7 +57,6 @@ RX_SLOTS_TABLE = f'{TABLE_PREFIX}-RxSlotTable'
 ENTERPRISE_TABLE = f'{TABLE_PREFIX}-EnterpriseAssistTable'
 REVIEWS_TABLE = f'{TABLE_PREFIX}-ReviewTable'
 AMENDMENT_HISTORY_TABLE = f'{TABLE_PREFIX}-AmendmentHistoryTable'
-ADMIN_ACTION_LOG_TABLE = f'{TABLE_PREFIX}-AdminActionLogTable'
 AUDIT_LOG_TABLE = f'{TABLE_PREFIX}-AuditLogsTable'
 
 DOCS_S3_BUCKET = os.environ.get('DOCS_S3_BUCKET', 'wecare-digital-documents')
