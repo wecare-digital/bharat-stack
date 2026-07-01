@@ -36,11 +36,14 @@ const backend = defineBackend( {
 // ─── DynamoDB TTL Configuration ──────────────────────────────────────
 // Enable TTL on tables that have expiresAt/ttl fields.
 // Amplify Gen 2 doesn't support TTL natively, so we use CDK overrides.
+// NOTE: TTL is also enforced directly on the physical tables via
+// scripts/_fix_ddb_ttl.py (the CDK override below historically failed silently).
+// RateLimitTracker is intentionally OMITTED: its only time field is 'lastUpdatedAt',
+// which is NOT an expiry — enabling TTL on it would purge the entire table.
 const TTL_CONFIG: Record<string, string> = {
   Message: 'expiresAt',
   DLQMessage: 'expiresAt',
   AuditLog: 'expiresAt',
-  RateLimitTracker: 'lastUpdatedAt',
   VoiceCall: 'expiresAt',
   SmsAws: 'expiresAt',
   VoiceAws: 'expiresAt',
