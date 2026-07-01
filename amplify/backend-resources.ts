@@ -234,45 +234,10 @@ export function addBackendResources ( stack: Stack ) {
   }
 
   // ─── DynamoDB per-table throttle/error alarms ──────────────────────
-  // Previously there were NO DynamoDB alarms, so no table (incl. TTL tables) ever
-  // notified the SNS/email topic on trouble. These cover the hot/critical tables.
-  const DDB_HOT_TABLES = [
-    'ContactsTable', 'MessagesTable', 'WhatsAppInboundTable', 'WhatsAppOutboundTable',
-    'PaymentsTable', 'InvoicesTable', 'OrderTable', 'SubmitRequestsTable',
-    'ConversationHistoryTable', 'BulkRecipientsTable', 'RateLimitTable', 'SystemConfigTable',
-    'UsersTable', 'AuditLogsTable',
-  ];
-  const ddbAlarms: cloudwatch.Alarm[] = [];
-  for ( const t of DDB_HOT_TABLES )
-  {
-    const full = `stack-wecare-digital-${t}`;
-    const throttle = new cloudwatch.Alarm( stack, `DDBThrottle-${t}`, {
-      alarmName: `wecare-ddb-throttle-${t}`,
-      alarmDescription: `DynamoDB throttled requests on ${t}`,
-      metric: new cloudwatch.Metric( {
-        namespace: 'AWS/DynamoDB', metricName: 'ThrottledRequests',
-        dimensionsMap: { TableName: full }, statistic: 'Sum', period: Duration.minutes( 5 ),
-      } ),
-      threshold: 1, evaluationPeriods: 1,
-      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-    } );
-    throttle.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
-    ddbAlarms.push( throttle );
-  }
-  // Account-wide DynamoDB user errors (400s — bad keys, conditional failures spikes).
-  const ddbUserErrorsAlarm = new cloudwatch.Alarm( stack, 'DDBUserErrorsAlarm', {
-    alarmName: 'wecare-ddb-user-errors',
-    alarmDescription: 'DynamoDB UserErrors (4xx) spike account-wide',
-    metric: new cloudwatch.Metric( {
-      namespace: 'AWS/DynamoDB', metricName: 'UserErrors',
-      statistic: 'Sum', period: Duration.minutes( 5 ),
-    } ),
-    threshold: 25, evaluationPeriods: 1,
-    comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-    treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-  } );
-  ddbUserErrorsAlarm.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
+  // Managed via scripts/_create_alarms.py (boto3) because ampx cannot run in the
+  // agent environment. They already exist live under names `wecare-ddb-throttle-*`
+  // and `wecare-ddb-user-errors`. Do NOT re-add them here or a pipeline-deploy will
+  // fail on "already exists". If you later fully adopt IaC, import them first.
 
   // ─── Amplify build-failure notification ────────────────────────────
   // Notify the SNS/email topic when an Amplify Hosting deploy FAILS.
@@ -352,8 +317,6 @@ export function addBackendResources ( stack: Stack ) {
       dlqDepthAlarms,
       bulkQueueAgeAlarm,
       perLambdaAlarms,
-      ddbAlarms,
-      ddbUserErrorsAlarm,
     },
     rules: { amplifyBuildFailedRule },
     waf: webhookWaf,
