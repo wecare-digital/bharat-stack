@@ -12,6 +12,8 @@ import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cloudwatch_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import { Duration } from 'aws-cdk-lib';
 
 const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || '';
@@ -231,6 +233,60 @@ export function addBackendResources ( stack: Stack ) {
     perLambdaAlarms.push( alarm );
   }
 
+  // ─── DynamoDB per-table throttle/error alarms ──────────────────────
+  // Previously there were NO DynamoDB alarms, so no table (incl. TTL tables) ever
+  // notified the SNS/email topic on trouble. These cover the hot/critical tables.
+  const DDB_HOT_TABLES = [
+    'ContactsTable', 'MessagesTable', 'WhatsAppInboundTable', 'WhatsAppOutboundTable',
+    'PaymentsTable', 'InvoicesTable', 'OrderTable', 'SubmitRequestsTable',
+    'ConversationHistoryTable', 'BulkRecipientsTable', 'RateLimitTable', 'SystemConfigTable',
+    'UsersTable', 'AuditLogsTable',
+  ];
+  const ddbAlarms: cloudwatch.Alarm[] = [];
+  for ( const t of DDB_HOT_TABLES )
+  {
+    const full = `stack-wecare-digital-${t}`;
+    const throttle = new cloudwatch.Alarm( stack, `DDBThrottle-${t}`, {
+      alarmName: `wecare-ddb-throttle-${t}`,
+      alarmDescription: `DynamoDB throttled requests on ${t}`,
+      metric: new cloudwatch.Metric( {
+        namespace: 'AWS/DynamoDB', metricName: 'ThrottledRequests',
+        dimensionsMap: { TableName: full }, statistic: 'Sum', period: Duration.minutes( 5 ),
+      } ),
+      threshold: 1, evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    } );
+    throttle.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
+    ddbAlarms.push( throttle );
+  }
+  // Account-wide DynamoDB user errors (400s — bad keys, conditional failures spikes).
+  const ddbUserErrorsAlarm = new cloudwatch.Alarm( stack, 'DDBUserErrorsAlarm', {
+    alarmName: 'wecare-ddb-user-errors',
+    alarmDescription: 'DynamoDB UserErrors (4xx) spike account-wide',
+    metric: new cloudwatch.Metric( {
+      namespace: 'AWS/DynamoDB', metricName: 'UserErrors',
+      statistic: 'Sum', period: Duration.minutes( 5 ),
+    } ),
+    threshold: 25, evaluationPeriods: 1,
+    comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+    treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+  } );
+  ddbUserErrorsAlarm.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
+
+  // ─── Amplify build-failure notification ────────────────────────────
+  // Notify the SNS/email topic when an Amplify Hosting deploy FAILS.
+  const amplifyBuildFailedRule = new events.Rule( stack, 'AmplifyBuildFailedRule', {
+    ruleName: 'wecare-amplify-build-failed',
+    description: 'Notify on failed Amplify Hosting deployments',
+    eventPattern: {
+      source: [ 'aws.amplify' ],
+      detailType: [ 'Amplify Deployment Status Change' ],
+      detail: { jobStatus: [ 'FAILED' ] },
+    },
+    targets: [ new targets.SnsTopic( alarmTopic ) ],
+  } );
+
   // ─── WAF Web ACL for Webhook Endpoints (cost-gated) ────────────────
   // Part 6: WAF is a paid resource (~$5/web ACL + $1/rule per month + per-request).
   // Only created when ENABLE_WAF=true so it is OFF by default. Removing it on a
@@ -296,7 +352,10 @@ export function addBackendResources ( stack: Stack ) {
       dlqDepthAlarms,
       bulkQueueAgeAlarm,
       perLambdaAlarms,
+      ddbAlarms,
+      ddbUserErrorsAlarm,
     },
+    rules: { amplifyBuildFailedRule },
     waf: webhookWaf,
   };
 }
