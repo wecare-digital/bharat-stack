@@ -35,7 +35,18 @@ logger = get_logger(__name__)
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
+def _secret_from_sm(secret_id: str, key: str) -> str:
+    """Fetch a key from a Secrets Manager JSON secret. Returns '' on any failure (fail-safe)."""
+    try:
+        import json as _json
+        _sm = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        return _json.loads(_sm.get_secret_value(SecretId=secret_id)['SecretString']).get(key, '') or ''
+    except Exception:
+        return ''
+
+
+# env-first for back-compat + tests; Secrets Manager fallback once the env var is removed
+WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '') or _secret_from_sm('wecare/razorpay-webhook', 'webhook_secret')
 PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'stack-wecare-digital-PaymentsTable')
 INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')

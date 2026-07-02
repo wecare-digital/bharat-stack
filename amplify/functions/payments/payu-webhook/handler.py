@@ -37,8 +37,19 @@ logger = get_logger(__name__)
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-PAYU_MERCHANT_KEY = os.environ.get('PAYU_MERCHANT_KEY', '')
-PAYU_MERCHANT_SALT = os.environ.get('PAYU_MERCHANT_SALT', '')
+def _secret_from_sm(secret_id: str, key: str) -> str:
+    """Fetch a key from a Secrets Manager JSON secret. Returns '' on any failure (fail-safe)."""
+    try:
+        import json as _json
+        _sm = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        return _json.loads(_sm.get_secret_value(SecretId=secret_id)['SecretString']).get(key, '') or ''
+    except Exception:
+        return ''
+
+
+# env-first for back-compat + tests; Secrets Manager fallback once the env vars are removed
+PAYU_MERCHANT_KEY = os.environ.get('PAYU_MERCHANT_KEY', '') or _secret_from_sm('wecare/payu', 'merchant_key')
+PAYU_MERCHANT_SALT = os.environ.get('PAYU_MERCHANT_SALT', '') or _secret_from_sm('wecare/payu', 'merchant_salt')
 PAYU_CLIENT_ID = os.environ.get('PAYU_CLIENT_ID', '')
 PAYU_CLIENT_SECRET = os.environ.get('PAYU_CLIENT_SECRET', '')
 PAYU_MID = os.environ.get('PAYU_MID', '')
