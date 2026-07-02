@@ -147,3 +147,28 @@ tracking. These are build efforts requiring product decisions, not autonomous in
 ### Verified this round
 - 550 backend tests pass · Amplify build #510 SUCCEED · 55 Lambdas Active · 63 tables ACTIVE
 - Alarm total remains 39 + health dashboard; email confirmed.
+
+---
+
+## ROUND 3 — DLQ recovery tooling (safe form of auto-remediation)
+
+- **`scripts/dlq_redrive.py`** — operator-run DLQ inspect + redrive tool. Delivers the recovery
+  capability of "auto-remediation" WITHOUT the poison-loop risk: a human runs it after fixing
+  root cause. Uses SQS-native `StartMessageMoveTask` (redrive-to-source) with a 10 msg/s rate cap.
+  Modes: inspect (all DLQ depths), `--peek` (sample without delete), `--redrive` (move back to source).
+  Verified in inspect mode: all 4 DLQs at depth 0 (healthy).
+
+### Why the AUTOMATIC auto-remediation is still NOT done
+Auto-redrive on alarm can re-trigger the same failure in a loop (poison messages). The operator
+tool is the safe equivalent; a fully-automatic version needs a max-receive guard + testing against
+a real failed message before it can run unattended.
+
+### Honest status on the remaining structural items (no safe unattended path)
+- **Lambda `live` alias + canary** — NOT a toggle. The current deploy path
+  (`_deploy_everything.py`) does direct `update_function_code` on `$LATEST`; a CodeDeploy canary
+  requires reworking the deploy pipeline to shift alias traffic. Supervised infra effort.
+- **Synthetics canary** — creates IAM + S3 + hits endpoints (login needs a stored credential).
+- **DynamoDB consolidation** — data migration (dual-write → backfill → cutover → soak).
+- **Frontend de-dup** — deletes/merges live routes; SEO/nav/404 risk; needs visual verification.
+- **Lambda → IaC** — hard-blocked locally (needs Docker + CI runner).
+- **P3/P4 features** — product builds requiring Meta API access + product decisions.
