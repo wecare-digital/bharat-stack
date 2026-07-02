@@ -24,13 +24,15 @@ Consolidated report of the audit/upgrade work. Single source of truth. Excludes 
 
 ## 3. Outstanding work (prioritized; S3 versioning & KMS rotation excluded)
 
-### P0 — additive, no risk to live traffic
-1. **Confirm the SNS email** (click link in `one@wecare.digital`) — alerts are dead until then.
-2. **DynamoDB alarms** — `ThrottledRequests`, `SystemErrors`, `UserErrors` on critical tables.
-3. **API Gateway alarms** — 5xx + p99 latency per HTTP API.
-4. **Amplify build-failure alarm** — EventBridge (job FAILED) → SNS.
-5. **EventBridge target DLQ + `FailedInvocations` alarm** — stop silent scheduler misses.
-   > Best practice: add these in `amplify/backend-resources.ts` (IaC), deploy via `ampx pipeline-deploy`. Avoid console-created alarms (drift).
+### P0 — ✅ COMPLETE (see `AUTOPILOT_COMPLETION_REPORT.md`)
+1. ✅ SNS email `one@wecare.digital` — confirmed (verified live).
+2. ✅ DynamoDB alarms — 15 live (throttle per-table + account user-errors).
+3. ✅ API Gateway alarms — 5xx + p99 latency on both HTTP APIs.
+4. ✅ Amplify build-failure rule — EventBridge (job FAILED) → SNS, ENABLED.
+5. ✅ EventBridge DLQ + `FailedInvocations` alarms — both scheduler rules; new `wecare-eventbridge-dlq`.
+6. ✅ `RateLimitTable` TTL enabled; bulk-DLQ + Lambda-throttle + critical-fn error alarms + health dashboard.
+   > Delivered via idempotent boto3 (`scripts/_create_*_alarms.py`, `_create_p1_observability.py`) —
+   > ampx-free by design (local deploy needs Docker/CI, confirmed absent). **39 alarms live total.**
 
 ### P1 — safe deploys + self-healing (maintenance window)
 6. **Lambda versions + `live` alias + CodeDeploy canary w/ auto-rollback** on error alarm.
