@@ -10,28 +10,30 @@ Triggered while evaluating the Lambda alias work. Audited all 55 functions
 |---|---|---|---|
 | `wecare-razorpay-webhook` | HMAC-SHA256, `compare_digest`, **fail-closed**, secret set (15) | ✅ Secure | none |
 | `wecare-payu-webhook` | sha512 reverse-hash, salt set (32) | ⚠️ **Fixed** | was fail-**open** if salt unset → now fail-closed |
-| `wecare-ai-generate-response` | **none** | 🔴 Open | see below |
+| `wecare-ai-generate-response` | ~~none~~ → **AWS_IAM** | ✅ **Resolved** | URL locked to IAM; anonymous blocked |
 | `wecare-voice-in-cdr` | **none** | 🟠 Open | see below |
 
-## Fixed this pass
-- **`payu-webhook` fail-open → fail-closed** (`_verify_payu_hash`): previously returned
-  `True` (accept) when `PAYU_MERCHANT_SALT` was missing. Now returns `False`. Salt is
-  currently set in prod so the branch wasn't reachable, but this is correct defense-in-depth
-  matching the Razorpay handler. 10/10 payments tests pass. **Needs redeploy to take effect**
-  (low urgency — inactive branch in prod).
+## Usage evidence (CloudWatch `UrlRequestCount`, 30 days)
+All 4 Function URLs show **0 requests in 30 days** (`scripts/_check_url_usage.py`). Combined
+with the payment webhooks having API Gateway routes and the AI function's callers using boto3
+`invoke()`, the public URLs are unused leftovers — the real entry points are API Gateway / internal invoke.
 
-## Open findings (require caller coordination — NOT safe to change blind)
+## Resolved this pass
+- **`payu-webhook` fail-open → fail-closed** (`_verify_payu_hash`): now returns `False` when
+  `PAYU_MERCHANT_SALT` is missing. 10/10 payments tests pass.
+- **`ai-generate-response` URL locked to `AWS_IAM`** (`scripts/_lockdown_ai_url.py`). Was public
+  `NONE` → Bedrock cost-abuse exposure. Confirmed safe: 0 URL requests in 30d, and its only
+  callers (IVR engine `ivr_engine.py`, `inbound-whatsapp-handler`) invoke it via boto3
+  `lambda.invoke()` (action `lambda:InvokeFunction`), which is unaffected by URL auth. Reversible.
 
-### 🔴 `wecare-ai-generate-response` — Bedrock cost-abuse exposure
-- Public URL, no caller auth. Anyone with the URL can invoke Amazon Nova Pro on the account.
-- Input length is capped (2000) and tool-use is rate-limited per `sessionId`, but the caller
-  supplies `sessionId`, so the limit is trivially bypassed.
-- **Recommended:** put it behind API Gateway with a usage plan/API key, OR add a shared-secret
-  header check, OR restrict the Function URL to `AWS_IAM` and have callers sign. Requires
-  knowing the caller (frontend chat widget?) to avoid breakage. Add a per-source-IP or global
-  request-rate alarm in the interim.
+## Open findings (require caller/dashboard verification — NOT changed blind)
 
-### 🟠 `wecare-voice-in-cdr` — forged-CDR / data-integrity exposure
+### 🟠 payment webhook URLs (`razorpay-webhook`, `payu-webhook`) — redundant leftovers
+- Both invoked via **API Gateway** (`zllr9lrg7j`) in practice; their Function URLs show 0 requests
+  in 30d → almost certainly redundant. **Do NOT remove blind** — first confirm the Razorpay/PayU
+  dashboards POST to the API Gateway route (not the Function URL). Then delete the URLs.
+
+### 🟠 `wecare-voice-in-cdr` — unknown external caller
 - Public URL, no signature/token/source check. Anyone can POST fabricated call records.
 - Source `handler.py` not locatable in the repo under this name → also a possible **IaC drift**
   data point (part of the "54 Lambdas outside IaC" gap).
