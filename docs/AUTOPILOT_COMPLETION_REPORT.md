@@ -119,3 +119,31 @@ tracking. These are build efforts requiring product decisions, not autonomous in
   (build-time only, unreachable by `overrides`). Clears when Amplify ships an updated construct.
 - Repo clean, HEAD = `origin/stack`, Amplify build **#509 SUCCEED**.
 - All boto3 tooling is idempotent and re-runnable in `scripts/`.
+
+---
+
+## ROUND 2 — additional safe improvements (executed & verified)
+
+- **PITR backup coverage 59% → 92%** (`scripts/_enable_pitr.py`). Enabled Point-in-Time
+  Recovery on 21 business-data tables that lacked it (ScheduledMessages, OBDCampaigns,
+  BulkRecipients, SmsOutbound, Sms/Airtel*, Voice*, WhatsAppVoice/Group, CallNotifications,
+  AdClickAttribution, LinkClicks, ShortLinks, SystemEvent, AIInteractions, AIProviderPolicy,
+  PushTokens, DLTTemplates). Now **58/63 tables have PITR**; the 5 remaining are intentionally
+  skipped caches/ephemeral (CatalogCache, WixOrders/ProductsCache, RateLimit, DLQMessages).
+- **Cost anomaly detection** (`scripts/_create_cost_anomaly.py`) — ML per-service monitor
+  → daily email digest to `one@wecare.digital` on anomalies ≥ $20 impact. Guess-free (no
+  fixed budget). Closes the "no cost monitoring" gap.
+
+### Deferred (with reason, NOT done)
+- **`datetime.utcnow()` deprecation** — spread across 25+ sites in 5-6 handler files. NOT a
+  safe blind replace: `utcnow().isoformat()` emits a naive string while the recommended
+  `now(timezone.utc).isoformat()` emits an offset-bearing string, which would break string
+  comparisons against stored timestamps (e.g. url-shortener expiry). Needs a behavior-preserving
+  helper + full retest + redeploy of affected functions. Low urgency (Python 3.12 still supports
+  it). Deserves its own tested PR — do not rush.
+- **Cognito sign-in anomaly alarm** — skipped; those metrics require Advanced Security (Plus
+  tier), which is on hold.
+
+### Verified this round
+- 550 backend tests pass · Amplify build #510 SUCCEED · 55 Lambdas Active · 63 tables ACTIVE
+- Alarm total remains 39 + health dashboard; email confirmed.
