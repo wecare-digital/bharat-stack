@@ -19,9 +19,13 @@ Read-only scan of all 55 functions + APIs (`scripts/_best_practice_audit.py`), p
 - **Log retention = 90 days** on 7 groups (automation-rules, conversation-meta, payu-webhook,
   rcs-dlr, rcs-send, sinch-dlr, url-shortener). Stops unbounded CloudWatch storage cost.
 
+## X-Ray tracing — ✅ DONE
+- Enabled `TracingConfig=Active` on **all 55 functions** + attached `AWSXRayDaemonWriteAccess`
+  to the shared role `wecare-digital-lambda-role` (`scripts/_enable_xray.py`).
+- **Cost:** within the X-Ray free tier (100k traces recorded/mo; platform volume is far below)
+  → effectively free; ~$5/million traces only beyond the free tier.
+
 ## Recommended (needs care / a decision — not applied blind)
-- **X-Ray tracing** — enable `TracingConfig=Active` + add `xray:PutTraceSegments` to each
-  execution role. Big observability win for a 55-Lambda system; do as a batched, tested change.
 - **Reserved concurrency** — reserve a slice for `razorpay-webhook`, `payu-webhook`,
   `inbound-whatsapp-handler` so a spike elsewhere can't starve them; cap `bulk-worker` /
   `ai-generate-response` so they can't exhaust the account pool. Needs a peak-usage review first.
@@ -41,3 +45,6 @@ Read-only scan of all 55 functions + APIs (`scripts/_best_practice_audit.py`), p
     salt/key loaded from Secrets Manager. Bad-hash probe rejected (401), no processing.
 - **Result:** payment webhook secrets no longer live in Lambda env vars — sourced from Secrets
   Manager (encrypted, versioned, rotatable), matching the Meta-token pattern.
+- **PayU client credentials** (`PAYU_CLIENT_ID` / `PAYU_CLIENT_SECRET`, used for outbound PayU
+  API calls) also migrated into `wecare/payu` and removed from env; verified via clean cold-start
+  module load. All payment secrets now in Secrets Manager.
