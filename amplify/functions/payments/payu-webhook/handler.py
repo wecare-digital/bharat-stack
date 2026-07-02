@@ -50,8 +50,8 @@ def _secret_from_sm(secret_id: str, key: str) -> str:
 # env-first for back-compat + tests; Secrets Manager fallback once the env vars are removed
 PAYU_MERCHANT_KEY = os.environ.get('PAYU_MERCHANT_KEY', '') or _secret_from_sm('wecare/payu', 'merchant_key')
 PAYU_MERCHANT_SALT = os.environ.get('PAYU_MERCHANT_SALT', '') or _secret_from_sm('wecare/payu', 'merchant_salt')
-PAYU_CLIENT_ID = os.environ.get('PAYU_CLIENT_ID', '')
-PAYU_CLIENT_SECRET = os.environ.get('PAYU_CLIENT_SECRET', '')
+PAYU_CLIENT_ID = os.environ.get('PAYU_CLIENT_ID', '') or _secret_from_sm('wecare/payu', 'client_id')
+PAYU_CLIENT_SECRET = os.environ.get('PAYU_CLIENT_SECRET', '') or _secret_from_sm('wecare/payu', 'client_secret')
 PAYU_MID = os.environ.get('PAYU_MID', '')
 
 # PayU API Endpoints
