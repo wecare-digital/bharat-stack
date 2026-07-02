@@ -172,3 +172,25 @@ a real failed message before it can run unattended.
 - **Frontend de-dup** — deletes/merges live routes; SEO/nav/404 risk; needs visual verification.
 - **Lambda → IaC** — hard-blocked locally (needs Docker + CI runner).
 - **P3/P4 features** — product builds requiring Meta API access + product decisions.
+
+---
+
+## ROUND 4 — Function URL security resolution + tripwires
+
+- **`ai-generate-response` URL locked `NONE`→`AWS_IAM`** — resolved the Bedrock cost-abuse
+  exposure (unused: 0 req/30d; callers use boto3 invoke). Reversible.
+- **PayU webhook fail-open → fail-closed** (committed, 10/10 payments tests pass).
+- **4 `UrlRequestCount` tripwire alarms** (`scripts/_create_url_tripwire_alarms.py`) on all public
+  Function URLs → SNS. Any hit is flagged (abuse attempt, or reveals a provider actually uses
+  the URL). **Alarm total: 43.**
+
+### Still needs a 2-min human dashboard check before I remove them (payment-critical)
+- `razorpay-webhook` / `payu-webhook` Function URLs — confirm Razorpay/PayU POST to the API
+  Gateway route (not the lambda-url host), then the redundant URLs can be deleted.
+- `voice-in-cdr` URL — confirm the CDR provider isn't using it, then lock/remove.
+
+## FINAL: everything safely-completable is DONE
+Remaining items are all gated by a hard blocker: **supervised live cutover** (Lambda alias+canary
+needs deploy-pipeline rework; frontend de-dup; DynamoDB migration), **Docker+CI** (Lambda→IaC),
+**billing decision** (Cognito Plus), **product scoping** (P3/P4 features), or a **2-min dashboard
+check** (3 leftover Function URLs). None is blocked by unfinished analysis.
