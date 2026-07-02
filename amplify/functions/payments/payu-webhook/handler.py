@@ -149,8 +149,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 def _verify_payu_hash(payload: Dict) -> bool:
     """Verify PayU reverse hash: sha512(SALT|status||||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key)"""
     if not PAYU_MERCHANT_SALT:
-        logger.warning('PAYU_MERCHANT_SALT not set — skipping hash verification')
-        return True  # Skip if salt not configured yet
+        logger.error('PAYU_MERCHANT_SALT not set — rejecting webhook (fail closed)')
+        return False  # Fail closed: never accept an unverified payment webhook
 
     try:
         received_hash = payload.get('hash', '')
