@@ -43,3 +43,22 @@ with the payment webhooks having API Gateway routes and the AI function's caller
 ## Note
 Also consider making PayU's hash compare constant-time (`hmac.compare_digest`) — minor
 timing-hardening, low priority.
+
+
+---
+
+## RESOLUTION (data-driven, no dashboard check needed)
+
+Compared **total Invocations vs UrlRequestCount over 60 days** (`scripts/_url_vs_invoke.py`) —
+if a function is actively invoked but its URL has 0 hits, the URL is a proven leftover:
+
+| Function | Invocations(60d) | URL hits | Action taken |
+|---|---|---|---|
+| `razorpay-webhook` | 32 | 0 | **URL DELETED** (uses API Gateway) |
+| `voice-in-cdr` | 698 | 0 | **URL DELETED** (uses API Gateway) — closes the no-auth exposure |
+| `ai-generate-response` | 2 | 0 | **URL DELETED** (uses boto3 invoke) |
+| `payu-webhook` | 0 | 0 | **KEPT** — idle 60d, can't prove provider config; protected by fail-closed hash verification + `wecare-url-hit-wecare-payu-webhook` tripwire alarm |
+
+3 redundant public Function URLs removed (`scripts/_delete_unused_urls.py`) + their public-access
+resource-policy statements. Obsolete tripwire alarms cleaned up; PayU's kept. Net: the only
+remaining public Function URL is PayU's, and it is authenticated in-code (fail-closed) + alarmed.
