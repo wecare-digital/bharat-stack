@@ -29,14 +29,15 @@ Read-only scan of all 55 functions + APIs (`scripts/_best_practice_audit.py`), p
   a per-function least-privilege split is a future hardening.
 - **datetime.utcnow()** deprecation across handlers — dedicated tested PR (see completion report).
 
-## Secrets → Secrets Manager migration (payment webhooks) — DEPLOYED (env-first)
-- Created SM secrets `wecare/razorpay-webhook` + `wecare/payu` from live env values
-  (`scripts/_migrate_payment_secrets.py`).
-- Handlers refactored to read **env-first, Secrets-Manager-fallback** (`_secret_from_sm`),
-  so current behavior is identical and tests pass (550/550). Granted the Lambda role scoped
-  `secretsmanager:GetSecretValue` on the 2 secrets. **Deployed** both functions (Active/Successful).
-- **Final step (supervised, ~2 min):** remove the `RAZORPAY_WEBHOOK_SECRET` / `PAYU_MERCHANT_SALT`
-  / `PAYU_MERCHANT_KEY` env vars → the code then reads purely from Secrets Manager. Verify with a
-  provider test-webhook (or the next live webhook) returning 200 before considering it complete.
-  Kept env-primary until then because the secret is only read at cold start, so the SM path can't
-  be runtime-verified without removing env first.
+## Secrets → Secrets Manager migration (payment webhooks) — ✅ COMPLETE
+- Created SM secrets `wecare/razorpay-webhook` + `wecare/payu` from live env values.
+- Handlers read **env-first, Secrets-Manager-fallback** (`_secret_from_sm`); role granted scoped
+  `secretsmanager:GetSecretValue`; both functions deployed; 550/550 tests pass.
+- **Env vars removed and VERIFIED** via cold-start probe + inline logs (auto-rollback armed):
+  - `razorpay-webhook`: log showed `signature_mismatch_debug secretLen=15` on a cold start with
+    the env var gone → secret loaded from Secrets Manager. Bad-signature probe rejected (401), no
+    processing.
+  - `payu-webhook`: log showed `payu_hash_invalid` (not "fail closed") with SALT+KEY removed →
+    salt/key loaded from Secrets Manager. Bad-hash probe rejected (401), no processing.
+- **Result:** payment webhook secrets no longer live in Lambda env vars — sourced from Secrets
+  Manager (encrypted, versioned, rotatable), matching the Meta-token pattern.
