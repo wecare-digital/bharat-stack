@@ -50,13 +50,22 @@ CORS = {
 }
 
 
-def _token() -> str:
+import hmac
+import hashlib
+
+
+def _creds():
     if "t" in _token_cache:
-        return _token_cache["t"]
+        return _token_cache["t"], _token_cache["s"]
     resp = secrets_client.get_secret_value(SecretId=META_TOKEN_SECRET)
     data = json.loads(resp["SecretString"])
     _token_cache["t"] = (data.get("access_token") or "").strip()
-    return _token_cache["t"]
+    _token_cache["s"] = (data.get("app_secret") or "").strip()
+    return _token_cache["t"], _token_cache["s"]
+
+
+def _appsecret_proof(token: str, secret: str) -> str:
+    return hmac.new(secret.encode("utf-8"), token.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def _resp(status, body):
@@ -64,9 +73,13 @@ def _resp(status, body):
 
 
 def _meta_request(method: str, url: str, payload: dict | None):
+    token, secret = _creds()
+    if secret:  # api.facebook.com requires appsecret_proof
+        sep = "&" if "?" in url else "?"
+        url = f"{url}{sep}appsecret_proof={_appsecret_proof(token, secret)}"
     body = json.dumps(payload or {}).encode("utf-8")
     req = urllib.request.Request(url, data=body if method != "GET" else None, method=method)
-    req.add_header("Authorization", f"Bearer {_token()}")
+    req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Content-Type", "application/json")
     req.add_header("X-API-Version", API_VERSION)
     try:
