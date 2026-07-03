@@ -1,13 +1,24 @@
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
+
+// Resolve this file's directory reliably. `import.meta.dirname` can be
+// undefined depending on how Next evaluates the config, whereas
+// `import.meta.url` is always present in an ES module.
+const projectRoot = dirname( fileURLToPath( import.meta.url ) );
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   trailingSlash: true,
   output: process.env.NODE_ENV === 'production' ? 'export' : undefined,
-  // Pin the workspace root to this folder so Turbopack doesn't pick the parent
-  // dir's stray package-lock.json (silences the "multiple lockfiles" warning).
+  // Pin the workspace root to this folder so Turbopack doesn't walk up to the
+  // parent dir's stray package-lock.json / node_modules (the repo is nested
+  // inside another npm project on some dev machines). On CI the repo is
+  // checked out standalone, so this is a no-op there.
   turbopack: {
-    root: import.meta.dirname,
+    root: projectRoot,
   },
+  outputFileTracingRoot: projectRoot,
   images: {
     unoptimized: true
   },

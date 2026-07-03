@@ -47,7 +47,6 @@ export const navigationConfig: NavItem[] = [
       { path: '/dashboard/system-architecture', label: 'Control Center' },
       { path: '/dashboard/lambda-functions', label: 'Lambda Functions' },
       { path: '/dashboard/code-repo', label: 'Code Repo' },
-      { path: '/dashboard/wa-auto-response', label: 'Auto Response' },
       { path: '/dashboard/waba-usernames', label: 'WABA Usernames' },
       { path: '/dashboard/wa-graph-tools', label: 'WA Graph Tools' },
       { path: '/dashboard/design-reference', label: 'Design Reference' },
@@ -85,6 +84,7 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/campaign', label: 'Campaign' },
           { path: '/dm/whatsapp/interactive-lists', label: 'Interactive Lists' },
           { path: '/dm/whatsapp/auto-response', label: 'Auto Response' },
+          { path: '/dm/meta-agent', label: 'Meta AI Agent' },
           { path: '/dm/whatsapp/logs', label: 'Message Logs' },
           // Templates
           { path: '/dm/whatsapp/templates', label: 'Templates' },
@@ -107,6 +107,7 @@ export const navigationConfig: NavItem[] = [
       { path: '/dm/ses', label: 'Email', icon: 'email' },
       { path: '/dm/rcs', label: 'RCS', icon: 'rcs' },
       { path: '/dm/push', label: 'Push', icon: 'push' },
+      { path: '/dm/docs', label: 'Docs Scraper', icon: 'message' },
     ],
   },
   {
@@ -187,9 +188,7 @@ export const navigationConfig: NavItem[] = [
       { path: '/seo/sitemaps', label: 'Sitemaps' },
       { path: '/seo/tools', label: 'Tools' },
       { path: '/seo/blog-manager', label: 'Blog SEO' },
-      { path: '/seo/site-pages', label: 'Site Pages SEO' },
-      { path: '/seo/product-pages', label: 'Product SEO' },
-      { path: '/seo/system-pages', label: 'System Pages' },
+      { path: '/seo/pages-manager', label: 'Site Pages SEO' },
     ],
   },
 ];

@@ -11,20 +11,21 @@ import SEO from '../../components/SEO';
 interface PageProps { signOut?: () => void; user?: any; }
 
 // ─── Auto-Refresh Hook ───
-function useAutoRefresh(intervalMs = 60000) {
-  const [lastRefresh, setLastRefresh] = useState(() => new Date());
-  const [isAutoRefresh, setIsAutoRefresh] = useState(true);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+function useAutoRefresh ( intervalMs = 60000 ) {
+  const [ lastRefresh, setLastRefresh ] = useState( () => new Date() );
+  const [ isAutoRefresh, setIsAutoRefresh ] = useState( true );
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>( null );
 
-  useEffect(() => {
-    if (isAutoRefresh) {
-      timerRef.current = setInterval(() => setLastRefresh(new Date()), intervalMs);
+  useEffect( () => {
+    if ( isAutoRefresh )
+    {
+      timerRef.current = setInterval( () => setLastRefresh( new Date() ), intervalMs );
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isAutoRefresh, intervalMs]);
+    return () => { if ( timerRef.current ) clearInterval( timerRef.current ); };
+  }, [ isAutoRefresh, intervalMs ] );
 
-  const refresh = useCallback(() => setLastRefresh(new Date()), []);
-  const toggleAutoRefresh = useCallback(() => setIsAutoRefresh(prev => !prev), []);
+  const refresh = useCallback( () => setLastRefresh( new Date() ), [] );
+  const toggleAutoRefresh = useCallback( () => setIsAutoRefresh( prev => !prev ), [] );
 
   return { lastRefresh, isAutoRefresh, refresh, toggleAutoRefresh };
 }
@@ -41,17 +42,17 @@ const C = {
   radius: 13, radiusSm: 10,
 };
 
-const pill = (bg: string, color: string): React.CSSProperties => ({
+const pill = ( bg: string, color: string ): React.CSSProperties => ( {
   display: 'inline-block', padding: '2px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: bg, color,
-});
+} );
 
-const card = (active = false): React.CSSProperties => ({
+const card = ( active = false ): React.CSSProperties => ( {
   border: `2px solid ${active ? C.borderActive : C.border}`, borderRadius: C.radius, background: C.bg, padding: 16, transition: 'border-color 0.15s',
-});
+} );
 
-const statCard = (bg: string, color: string): React.CSSProperties => ({
+const statCard = ( bg: string, color: string ): React.CSSProperties => ( {
   padding: '14px 16px', background: bg, borderRadius: C.radius, border: `2px solid ${C.border}`,
-});
+} );
 
 const sectionTitle: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: C.textDark, margin: '0 0 12px' };
 const label: React.CSSProperties = { fontSize: 10, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em' };
@@ -396,10 +397,8 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   // Dashboard
   { path: '/dashboard', label: 'Dashboard Overview', backend: 'billing, meta-analytics', tables: 'MetaAnalyticsLog' },
   { path: '/dashboard/system-architecture', label: 'Project Control Center', backend: '(this page)', tables: '-' },
-  { path: '/dashboard/admin', label: 'Admin', backend: '(redirect → Control Center)', tables: '-' },
   { path: '/dashboard/lambda-functions', label: 'Lambda Functions', backend: '(static data)', tables: '-' },
   { path: '/dashboard/code-repo', label: 'Code Repo', backend: '(static data)', tables: '-' },
-  { path: '/dashboard/wa-auto-response', label: 'WA Auto Response', backend: 'ai-config-management', tables: 'SystemConfig, ConversationHistory' },
   // WhatsApp
   { path: '/dm/whatsapp', label: 'WhatsApp Inbox', backend: 'messages-read, inbound-whatsapp, outbound-whatsapp', tables: 'WhatsAppInbound, WhatsAppOutbound, Contact' },
   { path: '/dm/whatsapp/templates', label: 'WA Templates', backend: 'whatsapp-templates, whatsapp-template-management', tables: 'TemplateAnalytics' },
@@ -484,53 +483,53 @@ const CODE_MAP: CodeFolder[] = [
 // ─── Data: Lambda Detailed (with env vars, runtime, memory) ───
 interface LambdaDetailed { name: string; displayName: string; category: string; runtime: string; timeout: number; memory: number; description: string; apiRoute: string; envVars: Record<string, string>; triggers: string[]; status: 'active' | 'warning' | 'error'; }
 const LAMBDA_DETAILED: LambdaDetailed[] = [
-  { name: 'wecare-contacts', displayName: 'Contacts', category: 'Core', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'CRUD operations for contacts', apiRoute: '/contacts', envVars: { CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable', INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-auth-middleware', displayName: 'Auth Middleware', category: 'Core', runtime: 'Python 3.12', timeout: 10, memory: 128, description: 'Cognito token validation for API Gateway', apiRoute: '/auth', envVars: { USER_POOL_ID: 'us-east-1_*', CLIENT_ID: '*' }, triggers: ['API Gateway Authorizer'], status: 'active' },
-  { name: 'wecare-messages-read', displayName: 'Messages Read', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'Read messages from all channels', apiRoute: '/messages', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-messages-delete', displayName: 'Messages Delete', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Delete messages by ID', apiRoute: '/messages/{id}', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-faq-handler', displayName: 'FAQ Handler', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'FAQ auto-response engine', apiRoute: '/faq', envVars: { FAQ_TABLE: 'stack-wecare-digital-FAQTable' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-url-shortener', displayName: 'URL Shortener', category: 'Core', runtime: 'Python 3.12', timeout: 10, memory: 128, description: 'Short link creation and redirect', apiRoute: '/link', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-inbound-whatsapp', displayName: 'Inbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 512, description: 'Process incoming WhatsApp messages, media, reactions', apiRoute: '/webhook/whatsapp', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['API Gateway (Webhook)'], status: 'active' },
-  { name: 'wecare-outbound-whatsapp', displayName: 'Outbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Send WhatsApp messages via Cloud API', apiRoute: '/whatsapp/send', envVars: { OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['API Gateway', 'SQS'], status: 'active' },
-  { name: 'wecare-outbound-sms', displayName: 'Outbound SMS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send SMS via Pinpoint/Airtel', apiRoute: '/sms/send', envVars: { SMS_TABLE: 'stack-wecare-digital-SmsAwsTable' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-outbound-email', displayName: 'Outbound Email', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send email via Amazon SES', apiRoute: '/email/send', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-outbound-voice', displayName: 'Outbound Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Initiate voice calls', apiRoute: '/voice/call', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceCallTable' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-whatsapp-calling', displayName: 'WhatsApp Calling', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'WhatsApp voice/video call handling', apiRoute: '/whatsapp-calling', envVars: { CALLING_TABLE: 'stack-wecare-digital-WhatsAppVoiceTable' }, triggers: ['API Gateway (Webhook)'], status: 'active' },
-  { name: 'wecare-scheduled-messages', displayName: 'Scheduled Messages', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Schedule and send messages at specific times', apiRoute: '/scheduled', envVars: { SCHEDULED_TABLE: 'stack-wecare-digital-ScheduledMessageTable' }, triggers: ['API Gateway', 'EventBridge'], status: 'active' },
-  { name: 'wecare-bulk-worker', displayName: 'Bulk Worker', category: 'Operations', runtime: 'Python 3.12', timeout: 300, memory: 512, description: 'Process bulk message queue items', apiRoute: '-', envVars: { QUEUE_URL: 'stack-wecare-digital-bulk-queue' }, triggers: ['SQS'], status: 'active' },
-  { name: 'wecare-ai-generate-response', displayName: 'AI Generate Response', category: 'AI', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Generate AI responses via Bedrock', apiRoute: '/ai/generate', envVars: { BEDROCK_MODEL_ID: 'anthropic.claude-3-sonnet' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-razorpay-webhook', displayName: 'Razorpay Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Razorpay payment webhook handler', apiRoute: '/webhook/razorpay', envVars: { WEBHOOK_SECRET: '(env var)', PAYMENTS_TABLE: 'stack-wecare-digital-RazorpayWebhookLogTable' }, triggers: ['API Gateway (Webhook)'], status: 'active' },
-  { name: 'wecare-payu-webhook', displayName: 'PayU Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'PayU payment webhook handler', apiRoute: '/webhook/payu', envVars: { PAYMENTS_TABLE: 'stack-wecare-digital-PayUWebhookLogTable' }, triggers: ['API Gateway (Webhook)'], status: 'active' },
-  { name: 'wecare-invoice-engine', displayName: 'Invoice Engine', category: 'Payments', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Invoice creation, PDF generation, payment links', apiRoute: '/invoices', envVars: { INVOICE_TABLE: 'stack-wecare-digital-InvoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-wix-store', displayName: 'Wix Store', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Wix ecommerce integration', apiRoute: '/store/wix', envVars: { WIX_API_KEY: '(env var)', WIX_SITE_ID: '(env var)' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-catalog-management', displayName: 'Catalog Management', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'WhatsApp Commerce catalog sync', apiRoute: '/catalog', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-product-image-gen', displayName: 'Product Image Gen', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'AI product image generation via Bedrock', apiRoute: '/store/image-gen', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-whatsapp-voice', displayName: 'WhatsApp Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'TTS voice notes via Polly, audio processing', apiRoute: '/whatsapp-voice', envVars: { VOICE_TABLE: 'stack-wecare-digital-WhatsAppVoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-whatsapp-templates', displayName: 'WhatsApp Templates', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Template CRUD via Meta Graph API', apiRoute: '/whatsapp/templates', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-whatsapp-template-mgmt', displayName: 'Template Management', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Advanced template operations', apiRoute: '/whatsapp/template-mgmt', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-whatsapp-business-api', displayName: 'WhatsApp Business API', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Meta Graph API wrapper — flows, payments, checkout', apiRoute: '/whatsapp/api', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-waba-management', displayName: 'WABA Management', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'WABA config, phone management, groups', apiRoute: '/waba', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-sms-aws', displayName: 'SMS AWS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS Pinpoint SMS handler', apiRoute: '/sms-aws', envVars: { SMS_TABLE: 'stack-wecare-digital-SmsAwsTable' }, triggers: ['API Gateway', 'SNS'], status: 'active' },
-  { name: 'wecare-sms-in', displayName: 'SMS In (Airtel)', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Airtel inbound SMS webhook', apiRoute: '/webhook/sms-in', envVars: {}, triggers: ['API Gateway (Webhook)'], status: 'active' },
-  { name: 'wecare-voice-aws', displayName: 'Voice AWS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS voice call handler', apiRoute: '/voice-aws', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceAwsTable' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-voice-in', displayName: 'Voice In (Airtel)', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Airtel voice webhooks — C2C, OBD, CDR', apiRoute: '/webhook/voice-*', envVars: {}, triggers: ['API Gateway (Webhook)'], status: 'active' },
-  { name: 'wecare-voice-cdr-read', displayName: 'Voice CDR Read', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Read voice CDR records', apiRoute: '/voice-cdr', envVars: { CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-template-analytics', displayName: 'Template Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Template performance metrics', apiRoute: '/whatsapp/template-analytics', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-meta-analytics', displayName: 'Meta Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Meta conversation analytics', apiRoute: '/meta-analytics', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-media-cleanup', displayName: 'Media Cleanup', category: 'Messaging', runtime: 'Python 3.12', timeout: 300, memory: 256, description: 'Clean up expired media from S3', apiRoute: '-', envVars: { MEDIA_BUCKET: 'app.wecare.digital' }, triggers: ['EventBridge Daily'], status: 'active' },
-  { name: 'wecare-ad-attribution', displayName: 'Ad Attribution', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Click-to-WhatsApp ad tracking', apiRoute: '/ad-attribution', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-push-notifications', displayName: 'Push Notifications', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Web push notification delivery', apiRoute: '/push', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-ai-query-kb', displayName: 'AI Query KB', category: 'AI', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'Query Bedrock Knowledge Base', apiRoute: '/ai/query', envVars: { KB_ID: '(env var)' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-ai-config-management', displayName: 'AI Config Management', category: 'AI', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Manage AI/bot configuration', apiRoute: '/ai/config', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-agent-action-group', displayName: 'Agent Action Group', category: 'AI', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Bedrock Agent action group handler', apiRoute: '-', envVars: {}, triggers: ['Bedrock Agent'], status: 'active' },
-  { name: 'wecare-payments-read', displayName: 'Payments Read', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Read payment records', apiRoute: '/payments', envVars: { PAYMENTS_TABLE: 'stack-wecare-digital-PaymentTable' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-bulk-job-create', displayName: 'Bulk Job Create', category: 'Operations', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Create bulk messaging jobs', apiRoute: '/bulk/create', envVars: { BULK_TABLE: 'stack-wecare-digital-BulkJobTable' }, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-bulk-job-control', displayName: 'Bulk Job Control', category: 'Operations', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Pause/resume/cancel bulk jobs', apiRoute: '/bulk/control', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-dlq-replay', displayName: 'DLQ Replay', category: 'Operations', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Replay failed messages from DLQ', apiRoute: '/dlq/replay', envVars: {}, triggers: ['API Gateway'], status: 'active' },
-  { name: 'wecare-system-cleanup', displayName: 'System Cleanup', category: 'Operations', runtime: 'Python 3.12', timeout: 300, memory: 256, description: 'TTL cleanup and maintenance', apiRoute: '-', envVars: {}, triggers: ['EventBridge Daily'], status: 'active' },
-  { name: 'wecare-billing', displayName: 'Billing', category: 'Operations', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS billing and usage tracking', apiRoute: '/billing', envVars: {}, triggers: ['API Gateway', 'EventBridge'], status: 'active' },
+  { name: 'wecare-contacts', displayName: 'Contacts', category: 'Core', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'CRUD operations for contacts', apiRoute: '/contacts', envVars: { CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable', INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-auth-middleware', displayName: 'Auth Middleware', category: 'Core', runtime: 'Python 3.12', timeout: 10, memory: 128, description: 'Cognito token validation for API Gateway', apiRoute: '/auth', envVars: { USER_POOL_ID: 'us-east-1_*', CLIENT_ID: '*' }, triggers: [ 'API Gateway Authorizer' ], status: 'active' },
+  { name: 'wecare-messages-read', displayName: 'Messages Read', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'Read messages from all channels', apiRoute: '/messages', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-messages-delete', displayName: 'Messages Delete', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Delete messages by ID', apiRoute: '/messages/{id}', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-faq-handler', displayName: 'FAQ Handler', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'FAQ auto-response engine', apiRoute: '/faq', envVars: { FAQ_TABLE: 'stack-wecare-digital-FAQTable' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-url-shortener', displayName: 'URL Shortener', category: 'Core', runtime: 'Python 3.12', timeout: 10, memory: 128, description: 'Short link creation and redirect', apiRoute: '/link', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-inbound-whatsapp', displayName: 'Inbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 512, description: 'Process incoming WhatsApp messages, media, reactions', apiRoute: '/webhook/whatsapp', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  { name: 'wecare-outbound-whatsapp', displayName: 'Outbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Send WhatsApp messages via Cloud API', apiRoute: '/whatsapp/send', envVars: { OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway', 'SQS' ], status: 'active' },
+  { name: 'wecare-outbound-sms', displayName: 'Outbound SMS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send SMS via Pinpoint/Airtel', apiRoute: '/sms/send', envVars: { SMS_TABLE: 'stack-wecare-digital-SmsAwsTable' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-outbound-email', displayName: 'Outbound Email', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send email via Amazon SES', apiRoute: '/email/send', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-outbound-voice', displayName: 'Outbound Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Initiate voice calls', apiRoute: '/voice/call', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceCallTable' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-whatsapp-calling', displayName: 'WhatsApp Calling', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'WhatsApp voice/video call handling', apiRoute: '/whatsapp-calling', envVars: { CALLING_TABLE: 'stack-wecare-digital-WhatsAppVoiceTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  { name: 'wecare-scheduled-messages', displayName: 'Scheduled Messages', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Schedule and send messages at specific times', apiRoute: '/scheduled', envVars: { SCHEDULED_TABLE: 'stack-wecare-digital-ScheduledMessageTable' }, triggers: [ 'API Gateway', 'EventBridge' ], status: 'active' },
+  { name: 'wecare-bulk-worker', displayName: 'Bulk Worker', category: 'Operations', runtime: 'Python 3.12', timeout: 300, memory: 512, description: 'Process bulk message queue items', apiRoute: '-', envVars: { QUEUE_URL: 'stack-wecare-digital-bulk-queue' }, triggers: [ 'SQS' ], status: 'active' },
+  { name: 'wecare-ai-generate-response', displayName: 'AI Generate Response', category: 'AI', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Generate AI responses via Bedrock', apiRoute: '/ai/generate', envVars: { BEDROCK_MODEL_ID: 'anthropic.claude-3-sonnet' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-razorpay-webhook', displayName: 'Razorpay Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Razorpay payment webhook handler', apiRoute: '/webhook/razorpay', envVars: { WEBHOOK_SECRET: '(env var)', PAYMENTS_TABLE: 'stack-wecare-digital-RazorpayWebhookLogTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  { name: 'wecare-payu-webhook', displayName: 'PayU Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'PayU payment webhook handler', apiRoute: '/webhook/payu', envVars: { PAYMENTS_TABLE: 'stack-wecare-digital-PayUWebhookLogTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  { name: 'wecare-invoice-engine', displayName: 'Invoice Engine', category: 'Payments', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Invoice creation, PDF generation, payment links', apiRoute: '/invoices', envVars: { INVOICE_TABLE: 'stack-wecare-digital-InvoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-wix-store', displayName: 'Wix Store', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Wix ecommerce integration', apiRoute: '/store/wix', envVars: { WIX_API_KEY: '(env var)', WIX_SITE_ID: '(env var)' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-catalog-management', displayName: 'Catalog Management', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'WhatsApp Commerce catalog sync', apiRoute: '/catalog', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-product-image-gen', displayName: 'Product Image Gen', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'AI product image generation via Bedrock', apiRoute: '/store/image-gen', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-whatsapp-voice', displayName: 'WhatsApp Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'TTS voice notes via Polly, audio processing', apiRoute: '/whatsapp-voice', envVars: { VOICE_TABLE: 'stack-wecare-digital-WhatsAppVoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-whatsapp-templates', displayName: 'WhatsApp Templates', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Template CRUD via Meta Graph API', apiRoute: '/whatsapp/templates', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-whatsapp-template-mgmt', displayName: 'Template Management', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Advanced template operations', apiRoute: '/whatsapp/template-mgmt', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-whatsapp-business-api', displayName: 'WhatsApp Business API', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Meta Graph API wrapper — flows, payments, checkout', apiRoute: '/whatsapp/api', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-waba-management', displayName: 'WABA Management', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'WABA config, phone management, groups', apiRoute: '/waba', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-sms-aws', displayName: 'SMS AWS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS Pinpoint SMS handler', apiRoute: '/sms-aws', envVars: { SMS_TABLE: 'stack-wecare-digital-SmsAwsTable' }, triggers: [ 'API Gateway', 'SNS' ], status: 'active' },
+  { name: 'wecare-sms-in', displayName: 'SMS In (Airtel)', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Airtel inbound SMS webhook', apiRoute: '/webhook/sms-in', envVars: {}, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  { name: 'wecare-voice-aws', displayName: 'Voice AWS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS voice call handler', apiRoute: '/voice-aws', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceAwsTable' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-voice-in', displayName: 'Voice In (Airtel)', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Airtel voice webhooks — C2C, OBD, CDR', apiRoute: '/webhook/voice-*', envVars: {}, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  { name: 'wecare-voice-cdr-read', displayName: 'Voice CDR Read', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Read voice CDR records', apiRoute: '/voice-cdr', envVars: { CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-template-analytics', displayName: 'Template Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Template performance metrics', apiRoute: '/whatsapp/template-analytics', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-meta-analytics', displayName: 'Meta Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Meta conversation analytics', apiRoute: '/meta-analytics', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-media-cleanup', displayName: 'Media Cleanup', category: 'Messaging', runtime: 'Python 3.12', timeout: 300, memory: 256, description: 'Clean up expired media from S3', apiRoute: '-', envVars: { MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'EventBridge Daily' ], status: 'active' },
+  { name: 'wecare-ad-attribution', displayName: 'Ad Attribution', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Click-to-WhatsApp ad tracking', apiRoute: '/ad-attribution', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-push-notifications', displayName: 'Push Notifications', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Web push notification delivery', apiRoute: '/push', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-ai-query-kb', displayName: 'AI Query KB', category: 'AI', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'Query Bedrock Knowledge Base', apiRoute: '/ai/query', envVars: { KB_ID: '(env var)' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-ai-config-management', displayName: 'AI Config Management', category: 'AI', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Manage AI/bot configuration', apiRoute: '/ai/config', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-agent-action-group', displayName: 'Agent Action Group', category: 'AI', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Bedrock Agent action group handler', apiRoute: '-', envVars: {}, triggers: [ 'Bedrock Agent' ], status: 'active' },
+  { name: 'wecare-payments-read', displayName: 'Payments Read', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Read payment records', apiRoute: '/payments', envVars: { PAYMENTS_TABLE: 'stack-wecare-digital-PaymentTable' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-bulk-job-create', displayName: 'Bulk Job Create', category: 'Operations', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Create bulk messaging jobs', apiRoute: '/bulk/create', envVars: { BULK_TABLE: 'stack-wecare-digital-BulkJobTable' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-bulk-job-control', displayName: 'Bulk Job Control', category: 'Operations', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Pause/resume/cancel bulk jobs', apiRoute: '/bulk/control', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-dlq-replay', displayName: 'DLQ Replay', category: 'Operations', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Replay failed messages from DLQ', apiRoute: '/dlq/replay', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-system-cleanup', displayName: 'System Cleanup', category: 'Operations', runtime: 'Python 3.12', timeout: 300, memory: 256, description: 'TTL cleanup and maintenance', apiRoute: '-', envVars: {}, triggers: [ 'EventBridge Daily' ], status: 'active' },
+  { name: 'wecare-billing', displayName: 'Billing', category: 'Operations', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS billing and usage tracking', apiRoute: '/billing', envVars: {}, triggers: [ 'API Gateway', 'EventBridge' ], status: 'active' },
 ];
-const LAMBDA_DETAIL_CATEGORIES = ['All', ...Array.from(new Set(LAMBDA_DETAILED.map(l => l.category)))];
+const LAMBDA_DETAIL_CATEGORIES = [ 'All', ...Array.from( new Set( LAMBDA_DETAILED.map( l => l.category ) ) ) ];
 
 // ─── Data: Code Repository Assets ───
 interface CodeAsset { id: string; category: string; name: string; description: string; path: string; type: string; status?: string; }
@@ -607,7 +606,7 @@ const CODE_ASSETS: CodeAsset[] = [
   { id: 'l-catalog', category: 'Ecommerce', name: 'Catalog Management', description: 'WhatsApp Commerce catalog sync and product management.', path: 'amplify/functions/ecommerce/catalog-management/handler.py', type: 'Lambda' },
   { id: 'l-img-gen', category: 'Ecommerce', name: 'Product Image Gen', description: 'AI product image generation via Bedrock.', path: 'amplify/functions/ecommerce/product-image-gen/handler.py', type: 'Lambda' },
 ];
-const CODE_ASSET_CATEGORIES = ['All', ...Array.from(new Set(CODE_ASSETS.map(a => a.category)))];
+const CODE_ASSET_CATEGORIES = [ 'All', ...Array.from( new Set( CODE_ASSETS.map( a => a.category ) ) ) ];
 
 // ─── Data: WhatsApp Bot Menu (Persistent Menu / Welcome Message) ───
 interface BotMenuItem { row: number; section: string; icon: string; title: string; description: string; action: string; }
@@ -639,19 +638,19 @@ const SELFSERVICE_MENU: SelfserviceItem[] = [
 
 // ─── Searchable Index ───
 interface SearchEntry { type: string; name: string; detail: string; category: string; }
-function buildSearchIndex(): SearchEntry[] {
+function buildSearchIndex (): SearchEntry[] {
   const entries: SearchEntry[] = [];
-  DB_TABLES.forEach(t => entries.push({ type: 'Table', name: t.name, detail: t.purpose, category: t.category }));
-  LAMBDAS.forEach(l => entries.push({ type: 'Lambda', name: l.name, detail: l.description, category: l.category }));
-  AWS_RESOURCES.forEach(r => entries.push({ type: 'AWS', name: r.name, detail: r.purpose, category: r.module }));
-  STORAGE_PATHS.forEach(s => entries.push({ type: 'Storage', name: s.path, detail: s.purpose, category: 'Storage' }));
-  FRONTEND_ROUTES.forEach(f => entries.push({ type: 'Route', name: f.path, detail: f.label, category: 'Frontend' }));
-  CODE_MAP.forEach(c => entries.push({ type: 'Code', name: c.path, detail: c.purpose, category: 'Codebase' }));
-  ENV_VARS.forEach(e => entries.push({ type: 'Env', name: e.key, detail: e.value, category: e.category }));
-  RISKS.forEach(r => entries.push({ type: 'Risk', name: r.title, detail: r.description, category: r.category }));
-  IMPROVEMENTS.forEach(i => entries.push({ type: 'Improvement', name: i.title, detail: i.description, category: i.category }));
-  BOT_MENU.forEach(m => entries.push({ type: 'Bot Menu', name: `${m.icon} ${m.title}`, detail: m.description, category: m.section }));
-  SELFSERVICE_MENU.forEach(m => entries.push({ type: 'Selfservice', name: `${m.icon} ${m.title}`, detail: m.description, category: m.section }));
+  DB_TABLES.forEach( t => entries.push( { type: 'Table', name: t.name, detail: t.purpose, category: t.category } ) );
+  LAMBDAS.forEach( l => entries.push( { type: 'Lambda', name: l.name, detail: l.description, category: l.category } ) );
+  AWS_RESOURCES.forEach( r => entries.push( { type: 'AWS', name: r.name, detail: r.purpose, category: r.module } ) );
+  STORAGE_PATHS.forEach( s => entries.push( { type: 'Storage', name: s.path, detail: s.purpose, category: 'Storage' } ) );
+  FRONTEND_ROUTES.forEach( f => entries.push( { type: 'Route', name: f.path, detail: f.label, category: 'Frontend' } ) );
+  CODE_MAP.forEach( c => entries.push( { type: 'Code', name: c.path, detail: c.purpose, category: 'Codebase' } ) );
+  ENV_VARS.forEach( e => entries.push( { type: 'Env', name: e.key, detail: e.value, category: e.category } ) );
+  RISKS.forEach( r => entries.push( { type: 'Risk', name: r.title, detail: r.description, category: r.category } ) );
+  IMPROVEMENTS.forEach( i => entries.push( { type: 'Improvement', name: i.title, detail: i.description, category: i.category } ) );
+  BOT_MENU.forEach( m => entries.push( { type: 'Bot Menu', name: `${m.icon} ${m.title}`, detail: m.description, category: m.section } ) );
+  SELFSERVICE_MENU.forEach( m => entries.push( { type: 'Selfservice', name: `${m.icon} ${m.title}`, detail: m.description, category: m.section } ) );
   return entries;
 }
 
@@ -659,85 +658,88 @@ function buildSearchIndex(): SearchEntry[] {
 // Dynamic — updated by auto-refresh hook
 
 // ─── Main Component ───
-const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
-  const { lastRefresh, isAutoRefresh, refresh, toggleAutoRefresh } = useAutoRefresh(60000);
-  const LAST_SCAN = lastRefresh.toISOString().slice(0, 16).replace('T', ' ');
-  const [activeTab, setActiveTab] = useState('overview');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tableFilter, setTableFilter] = useState('All');
-  const [lambdaFilter, setLambdaFilter] = useState('All');
-  const [riskFilter, setRiskFilter] = useState('All');
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
-  const [lambdaDetailFilter, setLambdaDetailFilter] = useState('All');
-  const [lambdaDetailSearch, setLambdaDetailSearch] = useState('');
-  const [codeRepoSearch, setCodeRepoSearch] = useState('');
-  const [codeRepoCategory, setCodeRepoCategory] = useState('All');
-  const [expandedAsset, setExpandedAsset] = useState<string | null>(null);
-  const [envUnlocked, setEnvUnlocked] = useState(false);
-  const [envPassword, setEnvPassword] = useState('');
-  const [showEnvUnlock, setShowEnvUnlock] = useState(false);
-  const [envUnlockError, setEnvUnlockError] = useState('');
+const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
+  const { lastRefresh, isAutoRefresh, refresh, toggleAutoRefresh } = useAutoRefresh( 60000 );
+  const LAST_SCAN = lastRefresh.toISOString().slice( 0, 16 ).replace( 'T', ' ' );
+  const [ activeTab, setActiveTab ] = useState( 'overview' );
+  const [ searchQuery, setSearchQuery ] = useState( '' );
+  const [ tableFilter, setTableFilter ] = useState( 'All' );
+  const [ lambdaFilter, setLambdaFilter ] = useState( 'All' );
+  const [ riskFilter, setRiskFilter ] = useState( 'All' );
+  const [ expandedItems, setExpandedItems ] = useState<Set<string>>( new Set() );
+  const [ revealedKeys, setRevealedKeys ] = useState<Set<string>>( new Set() );
+  const [ lambdaDetailFilter, setLambdaDetailFilter ] = useState( 'All' );
+  const [ lambdaDetailSearch, setLambdaDetailSearch ] = useState( '' );
+  const [ codeRepoSearch, setCodeRepoSearch ] = useState( '' );
+  const [ codeRepoCategory, setCodeRepoCategory ] = useState( 'All' );
+  const [ expandedAsset, setExpandedAsset ] = useState<string | null>( null );
+  const [ envUnlocked, setEnvUnlocked ] = useState( false );
+  const [ envPassword, setEnvPassword ] = useState( '' );
+  const [ showEnvUnlock, setShowEnvUnlock ] = useState( false );
+  const [ envUnlockError, setEnvUnlockError ] = useState( '' );
 
-  const toggleReveal = useCallback((key: string) => {
-    if (!envUnlocked) { setShowEnvUnlock(true); return; }
-    setRevealedKeys(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+  const toggleReveal = useCallback( ( key: string ) => {
+    if ( !envUnlocked ) { setShowEnvUnlock( true ); return; }
+    setRevealedKeys( prev => {
+      const next = new Set( prev );
+      next.has( key ) ? next.delete( key ) : next.add( key );
       return next;
-    });
-  }, [envUnlocked]);
+    } );
+  }, [ envUnlocked ] );
 
-  const handleEnvUnlock = useCallback(() => {
-    if (envPassword === (process.env.NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD || 'admin')) {
-      setEnvUnlocked(true);
-      setShowEnvUnlock(false);
-      setEnvPassword('');
-      setEnvUnlockError('');
-    } else {
-      setEnvUnlockError('Incorrect password');
+  const handleEnvUnlock = useCallback( () => {
+    if ( envPassword === ( process.env.NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD || 'admin' ) )
+    {
+      setEnvUnlocked( true );
+      setShowEnvUnlock( false );
+      setEnvPassword( '' );
+      setEnvUnlockError( '' );
+    } else
+    {
+      setEnvUnlockError( 'Incorrect password' );
     }
-  }, [envPassword]);
+  }, [ envPassword ] );
 
-  const toggleExpand = useCallback((id: string) => {
-    setExpandedItems(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+  const toggleExpand = useCallback( ( id: string ) => {
+    setExpandedItems( prev => {
+      const next = new Set( prev );
+      next.has( id ) ? next.delete( id ) : next.add( id );
       return next;
-    });
-  }, []);
+    } );
+  }, [] );
 
-  const searchIndex = useMemo(() => buildSearchIndex(), []);
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
+  const searchIndex = useMemo( () => buildSearchIndex(), [] );
+  const searchResults = useMemo( () => {
+    if ( !searchQuery.trim() ) return [];
     const q = searchQuery.toLowerCase();
-    return searchIndex.filter(e => e.name.toLowerCase().includes(q) || e.detail.toLowerCase().includes(q) || e.category.toLowerCase().includes(q));
-  }, [searchQuery, searchIndex]);
+    return searchIndex.filter( e => e.name.toLowerCase().includes( q ) || e.detail.toLowerCase().includes( q ) || e.category.toLowerCase().includes( q ) );
+  }, [ searchQuery, searchIndex ] );
 
   // Keyboard shortcut: Ctrl+K to jump to search
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+  useEffect( () => {
+    const handler = ( e: KeyboardEvent ) => {
+      if ( ( e.ctrlKey || e.metaKey ) && e.key === 'k' )
+      {
         e.preventDefault();
-        setActiveTab('search');
+        setActiveTab( 'search' );
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
+    window.addEventListener( 'keydown', handler );
+    return () => window.removeEventListener( 'keydown', handler );
+  }, [] );
 
-  const tableCategories = useMemo(() => ['All', ...Array.from(new Set(DB_TABLES.map(t => t.category)))], []);
-  const filteredTables = useMemo(() => tableFilter === 'All' ? DB_TABLES : DB_TABLES.filter(t => t.category === tableFilter), [tableFilter]);
+  const tableCategories = useMemo( () => [ 'All', ...Array.from( new Set( DB_TABLES.map( t => t.category ) ) ) ], [] );
+  const filteredTables = useMemo( () => tableFilter === 'All' ? DB_TABLES : DB_TABLES.filter( t => t.category === tableFilter ), [ tableFilter ] );
 
-  const lambdaCategories = useMemo(() => ['All', ...Array.from(new Set(LAMBDAS.map(l => l.category)))], []);
-  const filteredLambdas = useMemo(() => lambdaFilter === 'All' ? LAMBDAS : LAMBDAS.filter(l => l.category === lambdaFilter), [lambdaFilter]);
+  const lambdaCategories = useMemo( () => [ 'All', ...Array.from( new Set( LAMBDAS.map( l => l.category ) ) ) ], [] );
+  const filteredLambdas = useMemo( () => lambdaFilter === 'All' ? LAMBDAS : LAMBDAS.filter( l => l.category === lambdaFilter ), [ lambdaFilter ] );
 
   // ─── Tab Renderers ───
   const renderOverview = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-        {[
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 20 } }>
+      {/* Stats Grid */ }
+      <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 } }>
+        { [
           { label: 'Lambda Functions', value: '42', color: C.greenBg, text: C.green },
           { label: 'DynamoDB Tables', value: `${DB_TABLES.length}`, color: C.blueBg, text: C.blue },
           { label: 'AWS Services', value: `${AWS_RESOURCES.length}`, color: C.amberBg, text: C.amber },
@@ -748,141 +750,141 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
           { label: 'Bot Menu Items', value: `${BOT_MENU.length}`, color: '#f5f3ff', text: '#7c3aed' },
           { label: 'Selfservice Flows', value: `${SELFSERVICE_MENU.length}`, color: C.greenBg, text: C.green },
           { label: 'Risks Found', value: `${RISKS.length}`, color: C.redBg, text: C.red },
-        ].map(s => (
-          <div key={s.label} style={statCard(s.color, s.text)}>
-            <div style={{ fontSize: 28, fontWeight: 800, color: s.text }}>{s.value}</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: C.textMuted, marginTop: 2 }}>{s.label}</div>
+        ].map( s => (
+          <div key={ s.label } style={ statCard( s.color, s.text ) }>
+            <div style={ { fontSize: 28, fontWeight: 800, color: s.text } }>{ s.value }</div>
+            <div style={ { fontSize: 12, fontWeight: 500, color: C.textMuted, marginTop: 2 } }>{ s.label }</div>
           </div>
-        ))}
+        ) ) }
       </div>
 
-      {/* System Summary */}
-      <div style={card()}>
-        <h3 style={sectionTitle}>System Summary</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 13, color: C.text }}>
+      {/* System Summary */ }
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>System Summary</h3>
+        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, fontSize: 13, color: C.text } }>
           <div>
-            <div style={label}>Platform</div>
-            <div style={{ marginTop: 4 }}>Next.js 16 + React 19 + AWS Amplify Gen 2</div>
+            <div style={ label }>Platform</div>
+            <div style={ { marginTop: 4 } }>Next.js 16 + React 19 + AWS Amplify Gen 2</div>
           </div>
           <div>
-            <div style={label}>AWS Account</div>
-            <div style={{ marginTop: 4, ...mono }}>775261844268 (us-east-1)</div>
+            <div style={ label }>AWS Account</div>
+            <div style={ { marginTop: 4, ...mono } }>775261844268 (us-east-1)</div>
           </div>
           <div>
-            <div style={label}>Domain</div>
-            <div style={{ marginTop: 4 }}>stack.wecare.digital / api.wecare.digital / r.wecare.digital</div>
+            <div style={ label }>Domain</div>
+            <div style={ { marginTop: 4 } }>stack.wecare.digital / api.wecare.digital / r.wecare.digital</div>
           </div>
           <div>
-            <div style={label}>Authentication</div>
-            <div style={{ marginTop: 4 }}>Cognito (3 roles: Viewer, Operator, Admin)</div>
+            <div style={ label }>Authentication</div>
+            <div style={ { marginTop: 4 } }>Cognito (3 roles: Viewer, Operator, Admin)</div>
           </div>
           <div>
-            <div style={label}>Backend Runtime</div>
-            <div style={{ marginTop: 4 }}>Python 3.12 (42 Lambda functions)</div>
+            <div style={ label }>Backend Runtime</div>
+            <div style={ { marginTop: 4 } }>Python 3.12 (42 Lambda functions)</div>
           </div>
           <div>
-            <div style={label}>Database</div>
-            <div style={{ marginTop: 4 }}>DynamoDB ({DB_TABLES.length} tables, PAY_PER_REQUEST)</div>
+            <div style={ label }>Database</div>
+            <div style={ { marginTop: 4 } }>DynamoDB ({ DB_TABLES.length } tables, PAY_PER_REQUEST)</div>
           </div>
           <div>
-            <div style={label}>Storage</div>
-            <div style={{ marginTop: 4 }}>S3 (app.wecare.digital) — stack/ + stream/</div>
+            <div style={ label }>Storage</div>
+            <div style={ { marginTop: 4 } }>S3 (app.wecare.digital) — stack/ + stream/</div>
           </div>
           <div>
-            <div style={label}>Channels</div>
-            <div style={{ marginTop: 4 }}>WhatsApp, SMS, Email, Voice, RCS, Push</div>
+            <div style={ label }>Channels</div>
+            <div style={ { marginTop: 4 } }>WhatsApp, SMS, Email, Voice, RCS, Push</div>
           </div>
           <div>
-            <div style={label}>Payments</div>
-            <div style={{ marginTop: 4 }}>Razorpay + PayU (WhatsApp Payments)</div>
+            <div style={ label }>Payments</div>
+            <div style={ { marginTop: 4 } }>Razorpay + PayU (WhatsApp Payments)</div>
           </div>
           <div>
-            <div style={label}>AI</div>
-            <div style={{ marginTop: 4 }}>Amazon Bedrock (Claude 3 Sonnet) + Knowledge Base</div>
+            <div style={ label }>AI</div>
+            <div style={ { marginTop: 4 } }>Amazon Bedrock (Claude 3 Sonnet) + Knowledge Base</div>
           </div>
           <div>
-            <div style={label}>Mobile</div>
-            <div style={{ marginTop: 4 }}>Capacitor (iOS + Android)</div>
+            <div style={ label }>Mobile</div>
+            <div style={ { marginTop: 4 } }>Capacitor (iOS + Android)</div>
           </div>
           <div>
-            <div style={label}>Last Scan</div>
-            <div style={{ marginTop: 4 }}>{LAST_SCAN}</div>
+            <div style={ label }>Last Scan</div>
+            <div style={ { marginTop: 4 } }>{ LAST_SCAN }</div>
           </div>
         </div>
       </div>
 
-      {/* Quick Risk Summary */}
-      <div style={card()}>
-        <h3 style={sectionTitle}>Risk Summary</h3>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <span style={pill(C.redBg, C.red)}>{RISKS.filter(r => r.priority === 'Critical').length} Critical</span>
-          <span style={pill(C.amberBg, C.amber)}>{RISKS.filter(r => r.priority === 'Important').length} Important</span>
-          <span style={pill(C.blueBg, C.blue)}>{RISKS.filter(r => r.priority === 'Nice to have').length} Nice to have</span>
+      {/* Quick Risk Summary */ }
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>Risk Summary</h3>
+        <div style={ { display: 'flex', gap: 12, flexWrap: 'wrap' } }>
+          <span style={ pill( C.redBg, C.red ) }>{ RISKS.filter( r => r.priority === 'Critical' ).length } Critical</span>
+          <span style={ pill( C.amberBg, C.amber ) }>{ RISKS.filter( r => r.priority === 'Important' ).length } Important</span>
+          <span style={ pill( C.blueBg, C.blue ) }>{ RISKS.filter( r => r.priority === 'Nice to have' ).length } Nice to have</span>
         </div>
-        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {RISKS.filter(r => r.priority === 'Critical').map(r => (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
-              <span style={{ color: C.red, fontSize: 10, marginTop: 4, flexShrink: 0 }}>●</span>
+        <div style={ { marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 } }>
+          { RISKS.filter( r => r.priority === 'Critical' ).map( r => (
+            <div key={ r.id } style={ { display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 } }>
+              <span style={ { color: C.red, fontSize: 10, marginTop: 4, flexShrink: 0 } }>●</span>
               <div>
-                <span style={{ fontWeight: 600, color: C.textDark }}>{r.title}</span>
-                <span style={{ ...pill('#f9fafb', C.textMuted), marginLeft: 6 }}>{r.category}</span>
-                <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{r.description.slice(0, 120)}...</div>
+                <span style={ { fontWeight: 600, color: C.textDark } }>{ r.title }</span>
+                <span style={ { ...pill( '#f9fafb', C.textMuted ), marginLeft: 6 } }>{ r.category }</span>
+                <div style={ { fontSize: 12, color: C.textMuted, marginTop: 2 } }>{ r.description.slice( 0, 120 ) }...</div>
               </div>
             </div>
-          ))}
+          ) ) }
         </div>
       </div>
-      {/* WhatsApp Bot Menu */}
-      <div style={card()}>
-        <h3 style={sectionTitle}>WhatsApp Bot Menu (Persistent Menu)</h3>
-        <p style={{ fontSize: 13, color: C.textMuted, margin: '0 0 12px' }}>9 menu items across 3 sections — shown to users when they open the WhatsApp chat.</p>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      {/* WhatsApp Bot Menu */ }
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>WhatsApp Bot Menu (Persistent Menu)</h3>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: '0 0 12px' } }>9 menu items across 3 sections — shown to users when they open the WhatsApp chat.</p>
+        <div style={ { overflowX: 'auto' } }>
+          <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
             <thead>
-              <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                {['#', 'Section', 'Title', 'Description', 'Action'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
-                ))}
+              <tr style={ { borderBottom: `2px solid ${C.border}` } }>
+                { [ '#', 'Section', 'Title', 'Description', 'Action' ].map( h => (
+                  <th key={ h } style={ { textAlign: 'left', padding: '8px 10px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 } }>{ h }</th>
+                ) ) }
               </tr>
             </thead>
             <tbody>
-              {BOT_MENU.map(m => (
-                <tr key={m.row} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <td style={{ padding: '8px 10px', color: C.textMuted, fontWeight: 600 }}>{m.row}</td>
-                  <td style={{ padding: '8px 10px' }}><span style={pill(m.section === 'Start Here' ? C.greenBg : m.section === 'Explore WECARE' ? C.blueBg : C.amberBg, m.section === 'Start Here' ? C.green : m.section === 'Explore WECARE' ? C.blue : C.amber)}>{m.section}</span></td>
-                  <td style={{ padding: '8px 10px', fontWeight: 600, color: C.textDark }}>{m.icon} {m.title}</td>
-                  <td style={{ padding: '8px 10px', color: C.text }}>{m.description}</td>
-                  <td style={{ padding: '8px 10px', color: C.textMuted, fontSize: 12 }}>{m.action}</td>
+              { BOT_MENU.map( m => (
+                <tr key={ m.row } style={ { borderBottom: `1px solid ${C.border}` } }>
+                  <td style={ { padding: '8px 10px', color: C.textMuted, fontWeight: 600 } }>{ m.row }</td>
+                  <td style={ { padding: '8px 10px' } }><span style={ pill( m.section === 'Start Here' ? C.greenBg : m.section === 'Explore WECARE' ? C.blueBg : C.amberBg, m.section === 'Start Here' ? C.green : m.section === 'Explore WECARE' ? C.blue : C.amber ) }>{ m.section }</span></td>
+                  <td style={ { padding: '8px 10px', fontWeight: 600, color: C.textDark } }>{ m.icon } { m.title }</td>
+                  <td style={ { padding: '8px 10px', color: C.text } }>{ m.description }</td>
+                  <td style={ { padding: '8px 10px', color: C.textMuted, fontSize: 12 } }>{ m.action }</td>
                 </tr>
-              ))}
+              ) ) }
             </tbody>
           </table>
         </div>
       </div>
-      {/* Selfservice Sub-Menu */}
-      <div style={card()}>
-        <h3 style={sectionTitle}>🚀 Selfservice Menu (WhatsApp Interactive List)</h3>
-        <p style={{ fontSize: 13, color: C.textMuted, margin: '0 0 12px' }}>9 self-service options — triggered when user taps "🚀 Selfservice" from the bot menu. Each row opens a WhatsApp Flow.</p>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      {/* Selfservice Sub-Menu */ }
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>🚀 Selfservice Menu (WhatsApp Interactive List)</h3>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: '0 0 12px' } }>9 self-service options — triggered when user taps "🚀 Selfservice" from the bot menu. Each row opens a WhatsApp Flow.</p>
+        <div style={ { overflowX: 'auto' } }>
+          <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
             <thead>
-              <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-                {['#', 'Section', 'Title', 'Description', 'Flow ID', 'Keywords'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
-                ))}
+              <tr style={ { borderBottom: `2px solid ${C.border}` } }>
+                { [ '#', 'Section', 'Title', 'Description', 'Flow ID', 'Keywords' ].map( h => (
+                  <th key={ h } style={ { textAlign: 'left', padding: '8px 10px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 } }>{ h }</th>
+                ) ) }
               </tr>
             </thead>
             <tbody>
-              {SELFSERVICE_MENU.map(m => (
-                <tr key={m.row} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <td style={{ padding: '8px 10px', color: C.textMuted, fontWeight: 600 }}>{m.row}</td>
-                  <td style={{ padding: '8px 10px' }}><span style={pill('#f9fafb', C.textMuted)}>{m.section}</span></td>
-                  <td style={{ padding: '8px 10px', fontWeight: 600, color: C.textDark }}>{m.icon} {m.title}</td>
-                  <td style={{ padding: '8px 10px', color: C.text }}>{m.description}</td>
-                  <td style={{ padding: '8px 10px', ...mono, fontSize: 11, color: C.textMuted }}>{m.flowId}</td>
-                  <td style={{ padding: '8px 10px', fontSize: 11, color: C.textMuted }}>{m.keywords}</td>
+              { SELFSERVICE_MENU.map( m => (
+                <tr key={ m.row } style={ { borderBottom: `1px solid ${C.border}` } }>
+                  <td style={ { padding: '8px 10px', color: C.textMuted, fontWeight: 600 } }>{ m.row }</td>
+                  <td style={ { padding: '8px 10px' } }><span style={ pill( '#f9fafb', C.textMuted ) }>{ m.section }</span></td>
+                  <td style={ { padding: '8px 10px', fontWeight: 600, color: C.textDark } }>{ m.icon } { m.title }</td>
+                  <td style={ { padding: '8px 10px', color: C.text } }>{ m.description }</td>
+                  <td style={ { padding: '8px 10px', ...mono, fontSize: 11, color: C.textMuted } }>{ m.flowId }</td>
+                  <td style={ { padding: '8px 10px', fontSize: 11, color: C.textMuted } }>{ m.keywords }</td>
                 </tr>
-              ))}
+              ) ) }
             </tbody>
           </table>
         </div>
@@ -892,11 +894,11 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   // ─── Architecture Diagram (ASCII-style visual) ───
   const renderArchitecture = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={card()}>
-        <h3 style={sectionTitle}>Full System Architecture</h3>
-        <div style={{ background: '#0f172a', borderRadius: C.radiusSm, padding: 20, overflowX: 'auto' }}>
-          <pre style={{ color: '#e2e8f0', fontSize: 12, lineHeight: 1.6, fontFamily: 'monospace', margin: 0, whiteSpace: 'pre' }}>{`
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 20 } }>
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>Full System Architecture</h3>
+        <div style={ { background: '#0f172a', borderRadius: C.radiusSm, padding: 20, overflowX: 'auto' } }>
+          <pre style={ { color: '#e2e8f0', fontSize: 12, lineHeight: 1.6, fontFamily: 'monospace', margin: 0, whiteSpace: 'pre' } }>{ `
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
 │                              WECARE.DIGITAL ARCHITECTURE                            │
 ├─────────────────────────────────────────────────────────────────────────────────────┤
@@ -952,143 +954,143 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
         </div>
       </div>
 
-      {/* Service Categories */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-        {[
-          { title: 'Core Services', count: 6, items: ['contacts', 'auth-middleware', 'messages-read', 'messages-delete', 'faq-handler', 'url-shortener'], color: C.green },
-          { title: 'Messaging', count: 22, items: ['inbound-whatsapp', 'outbound-whatsapp', 'outbound-sms', 'outbound-email', 'outbound-voice', 'whatsapp-calling', '...+16 more'], color: C.blue },
-          { title: 'AI / ML', count: 4, items: ['ai-generate-response', 'ai-query-kb', 'ai-config-management', 'agent-action-group'], color: '#7c3aed' },
-          { title: 'Payments', count: 4, items: ['razorpay-webhook', 'payu-webhook', 'payments-read', 'invoice-engine'], color: C.amber },
-          { title: 'Operations', count: 6, items: ['bulk-job-create', 'bulk-job-control', 'bulk-worker', 'dlq-replay', 'system-cleanup', 'billing'], color: '#ec4899' },
-          { title: 'Ecommerce', count: 3, items: ['wix-store', 'catalog-management', 'product-image-gen'], color: '#06b6d4' },
-        ].map(cat => (
-          <div key={cat.title} style={card()}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: cat.color }} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.textDark }}>{cat.title}</span>
-              <span style={pill('#f9fafb', C.textMuted)}>{cat.count}</span>
+      {/* Service Categories */ }
+      <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 } }>
+        { [
+          { title: 'Core Services', count: 6, items: [ 'contacts', 'auth-middleware', 'messages-read', 'messages-delete', 'faq-handler', 'url-shortener' ], color: C.green },
+          { title: 'Messaging', count: 22, items: [ 'inbound-whatsapp', 'outbound-whatsapp', 'outbound-sms', 'outbound-email', 'outbound-voice', 'whatsapp-calling', '...+16 more' ], color: C.blue },
+          { title: 'AI / ML', count: 4, items: [ 'ai-generate-response', 'ai-query-kb', 'ai-config-management', 'agent-action-group' ], color: '#7c3aed' },
+          { title: 'Payments', count: 4, items: [ 'razorpay-webhook', 'payu-webhook', 'payments-read', 'invoice-engine' ], color: C.amber },
+          { title: 'Operations', count: 6, items: [ 'bulk-job-create', 'bulk-job-control', 'bulk-worker', 'dlq-replay', 'system-cleanup', 'billing' ], color: '#ec4899' },
+          { title: 'Ecommerce', count: 3, items: [ 'wix-store', 'catalog-management', 'product-image-gen' ], color: '#06b6d4' },
+        ].map( cat => (
+          <div key={ cat.title } style={ card() }>
+            <div style={ { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 } }>
+              <span style={ { width: 8, height: 8, borderRadius: '50%', background: cat.color } } />
+              <span style={ { fontSize: 14, fontWeight: 700, color: C.textDark } }>{ cat.title }</span>
+              <span style={ pill( '#f9fafb', C.textMuted ) }>{ cat.count }</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {cat.items.map(item => (
-                <div key={item} style={{ fontSize: 12, color: C.textMuted, ...mono }}>{item}</div>
-              ))}
+            <div style={ { display: 'flex', flexDirection: 'column', gap: 4 } }>
+              { cat.items.map( item => (
+                <div key={ item } style={ { fontSize: 12, color: C.textMuted, ...mono } }>{ item }</div>
+              ) ) }
             </div>
           </div>
-        ))}
+        ) ) }
       </div>
     </div>
   );
 
   // ─── Frontend → Backend Flow ───
   const renderFlow = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={card()}>
-        <h3 style={sectionTitle}>Frontend → Backend → Database Flow</h3>
-        <p style={{ fontSize: 13, color: C.textMuted, margin: '0 0 16px' }}>Every frontend route mapped to its backend services and database tables.</p>
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>Frontend → Backend → Database Flow</h3>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: '0 0 16px' } }>Every frontend route mapped to its backend services and database tables.</p>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {FRONTEND_ROUTES.map(route => (
-          <div key={route.path} style={card()}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-              <div style={{ minWidth: 180 }}>
-                <div style={label}>Frontend Route</div>
-                <div style={{ ...mono, fontSize: 13, fontWeight: 600, color: C.textDark, marginTop: 4 }}>{route.path}</div>
-                <div style={{ fontSize: 12, color: C.textMuted }}>{route.label}</div>
+      <div style={ { display: 'flex', flexDirection: 'column', gap: 8 } }>
+        { FRONTEND_ROUTES.map( route => (
+          <div key={ route.path } style={ card() }>
+            <div style={ { display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' } }>
+              <div style={ { minWidth: 180 } }>
+                <div style={ label }>Frontend Route</div>
+                <div style={ { ...mono, fontSize: 13, fontWeight: 600, color: C.textDark, marginTop: 4 } }>{ route.path }</div>
+                <div style={ { fontSize: 12, color: C.textMuted } }>{ route.label }</div>
               </div>
-              <div style={{ fontSize: 18, color: C.textLight, alignSelf: 'center' }}>→</div>
-              <div style={{ minWidth: 200, flex: 1 }}>
-                <div style={label}>Backend Services</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                  {route.backend.split(', ').map(b => (
-                    <span key={b} style={pill(C.greenBg, C.green)}>{b}</span>
-                  ))}
+              <div style={ { fontSize: 18, color: C.textLight, alignSelf: 'center' } }>→</div>
+              <div style={ { minWidth: 200, flex: 1 } }>
+                <div style={ label }>Backend Services</div>
+                <div style={ { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 } }>
+                  { route.backend.split( ', ' ).map( b => (
+                    <span key={ b } style={ pill( C.greenBg, C.green ) }>{ b }</span>
+                  ) ) }
                 </div>
               </div>
-              <div style={{ fontSize: 18, color: C.textLight, alignSelf: 'center' }}>→</div>
-              <div style={{ minWidth: 200, flex: 1 }}>
-                <div style={label}>Database Tables</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                  {route.tables.split(', ').map(t => (
-                    <span key={t} style={pill(C.blueBg, C.blue)}>{t}</span>
-                  ))}
+              <div style={ { fontSize: 18, color: C.textLight, alignSelf: 'center' } }>→</div>
+              <div style={ { minWidth: 200, flex: 1 } }>
+                <div style={ label }>Database Tables</div>
+                <div style={ { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 } }>
+                  { route.tables.split( ', ' ).map( t => (
+                    <span key={ t } style={ pill( C.blueBg, C.blue ) }>{ t }</span>
+                  ) ) }
                 </div>
               </div>
             </div>
           </div>
-        ))}
+        ) ) }
       </div>
     </div>
   );
 
   // ─── Backend Services ───
   const renderBackend = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-        {lambdaCategories.map(cat => (
-          <button key={cat} onClick={() => setLambdaFilter(cat)} style={{ padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${lambdaFilter === cat ? C.bgDark : C.border}`, background: lambdaFilter === cat ? C.bgDark : C.bg, color: lambdaFilter === cat ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            {cat} {cat !== 'All' && `(${LAMBDAS.filter(l => l.category === cat).length})`}
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 } }>
+        { lambdaCategories.map( cat => (
+          <button key={ cat } onClick={ () => setLambdaFilter( cat ) } style={ { padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${lambdaFilter === cat ? C.bgDark : C.border}`, background: lambdaFilter === cat ? C.bgDark : C.bg, color: lambdaFilter === cat ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' } }>
+            { cat } { cat !== 'All' && `(${LAMBDAS.filter( l => l.category === cat ).length})` }
           </button>
-        ))}
+        ) ) }
       </div>
-      <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>{filteredLambdas.length} service{filteredLambdas.length !== 1 ? 's' : ''}</p>
-      {filteredLambdas.map(fn => (
-        <div key={fn.name} style={card(expandedItems.has(fn.name))}>
-          <button onClick={() => toggleExpand(fn.name)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}>
-            <span style={{ fontSize: 10, color: C.green }}>●</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{fn.name}</span>
-                <span style={pill('#f9fafb', C.textMuted)}>{fn.category}</span>
-                {fn.apiRoute !== '-' && <span style={{ ...pill(C.greenBg, C.green), ...mono }}>{fn.apiRoute}</span>}
+      <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>{ filteredLambdas.length } service{ filteredLambdas.length !== 1 ? 's' : '' }</p>
+      { filteredLambdas.map( fn => (
+        <div key={ fn.name } style={ card( expandedItems.has( fn.name ) ) }>
+          <button onClick={ () => toggleExpand( fn.name ) } style={ { width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 } }>
+            <span style={ { fontSize: 10, color: C.green } }>●</span>
+            <div style={ { flex: 1 } }>
+              <div style={ { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } }>
+                <span style={ { fontSize: 14, fontWeight: 600, color: C.textDark } }>{ fn.name }</span>
+                <span style={ pill( '#f9fafb', C.textMuted ) }>{ fn.category }</span>
+                { fn.apiRoute !== '-' && <span style={ { ...pill( C.greenBg, C.green ), ...mono } }>{ fn.apiRoute }</span> }
               </div>
-              <p style={{ margin: '4px 0 0', fontSize: 12, color: C.textMuted }}>{fn.description}</p>
+              <p style={ { margin: '4px 0 0', fontSize: 12, color: C.textMuted } }>{ fn.description }</p>
             </div>
-            <span style={{ transform: expandedItems.has(fn.name) ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.15s', fontSize: 12, color: C.textLight }}>▶</span>
+            <span style={ { transform: expandedItems.has( fn.name ) ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.15s', fontSize: 12, color: C.textLight } }>▶</span>
           </button>
-          {expandedItems.has(fn.name) && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: `2px solid ${C.border}`, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
-              <div><div style={label}>Trigger</div><div style={{ fontSize: 13, marginTop: 4 }}>{fn.trigger}</div></div>
-              <div><div style={label}>Tables</div><div style={{ fontSize: 13, marginTop: 4, ...mono }}>{fn.tables}</div></div>
-              <div><div style={label}>Runtime</div><div style={{ fontSize: 13, marginTop: 4 }}>Python 3.12</div></div>
+          { expandedItems.has( fn.name ) && (
+            <div style={ { marginTop: 12, paddingTop: 12, borderTop: `2px solid ${C.border}`, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 } }>
+              <div><div style={ label }>Trigger</div><div style={ { fontSize: 13, marginTop: 4 } }>{ fn.trigger }</div></div>
+              <div><div style={ label }>Tables</div><div style={ { fontSize: 13, marginTop: 4, ...mono } }>{ fn.tables }</div></div>
+              <div><div style={ label }>Runtime</div><div style={ { fontSize: 13, marginTop: 4 } }>Python 3.12</div></div>
             </div>
-          )}
+          ) }
         </div>
-      ))}
+      ) ) }
     </div>
   );
 
   // ─── Database Tables ───
   const renderDatabase = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-        {tableCategories.map(cat => (
-          <button key={cat} onClick={() => setTableFilter(cat)} style={{ padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${tableFilter === cat ? C.bgDark : C.border}`, background: tableFilter === cat ? C.bgDark : C.bg, color: tableFilter === cat ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            {cat} {cat !== 'All' && `(${DB_TABLES.filter(t => t.category === cat).length})`}
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 } }>
+        { tableCategories.map( cat => (
+          <button key={ cat } onClick={ () => setTableFilter( cat ) } style={ { padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${tableFilter === cat ? C.bgDark : C.border}`, background: tableFilter === cat ? C.bgDark : C.bg, color: tableFilter === cat ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' } }>
+            { cat } { cat !== 'All' && `(${DB_TABLES.filter( t => t.category === cat ).length})` }
           </button>
-        ))}
+        ) ) }
       </div>
-      <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>{filteredTables.length} table{filteredTables.length !== 1 ? 's' : ''} — PAY_PER_REQUEST billing</p>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>{ filteredTables.length } table{ filteredTables.length !== 1 ? 's' : '' } — PAY_PER_REQUEST billing</p>
+      <div style={ { overflowX: 'auto' } }>
+        <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
           <thead>
-            <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-              {['Table', 'Purpose', 'Key', 'TTL', 'Indexes', 'Used By', 'Category'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
-              ))}
+            <tr style={ { borderBottom: `2px solid ${C.border}` } }>
+              { [ 'Table', 'Purpose', 'Key', 'TTL', 'Indexes', 'Used By', 'Category' ].map( h => (
+                <th key={ h } style={ { textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 } }>{ h }</th>
+              ) ) }
             </tr>
           </thead>
           <tbody>
-            {filteredTables.map(t => (
-              <tr key={t.name} style={{ borderBottom: `1px solid ${C.border}` }}>
-                <td style={{ padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono }}>{t.name}</td>
-                <td style={{ padding: '10px 12px', color: C.text, maxWidth: 250 }}>{t.purpose}</td>
-                <td style={{ padding: '10px 12px', ...mono, color: C.textMuted }}>{t.keyFields}</td>
-                <td style={{ padding: '10px 12px' }}>{t.ttl ? <span style={pill(C.amberBg, C.amber)}>{t.ttl}</span> : <span style={{ color: C.textLight }}>—</span>}</td>
-                <td style={{ padding: '10px 12px', ...mono, color: C.textMuted, fontSize: 11 }}>{t.indexes}</td>
-                <td style={{ padding: '10px 12px', ...mono, color: C.textMuted, fontSize: 11 }}>{t.usedBy}</td>
-                <td style={{ padding: '10px 12px' }}><span style={pill('#f9fafb', C.textMuted)}>{t.category}</span></td>
+            { filteredTables.map( t => (
+              <tr key={ t.name } style={ { borderBottom: `1px solid ${C.border}` } }>
+                <td style={ { padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono } }>{ t.name }</td>
+                <td style={ { padding: '10px 12px', color: C.text, maxWidth: 250 } }>{ t.purpose }</td>
+                <td style={ { padding: '10px 12px', ...mono, color: C.textMuted } }>{ t.keyFields }</td>
+                <td style={ { padding: '10px 12px' } }>{ t.ttl ? <span style={ pill( C.amberBg, C.amber ) }>{ t.ttl }</span> : <span style={ { color: C.textLight } }>—</span> }</td>
+                <td style={ { padding: '10px 12px', ...mono, color: C.textMuted, fontSize: 11 } }>{ t.indexes }</td>
+                <td style={ { padding: '10px 12px', ...mono, color: C.textMuted, fontSize: 11 } }>{ t.usedBy }</td>
+                <td style={ { padding: '10px 12px' } }><span style={ pill( '#f9fafb', C.textMuted ) }>{ t.category }</span></td>
               </tr>
-            ))}
+            ) ) }
           </tbody>
         </table>
       </div>
@@ -1100,31 +1102,31 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   // ─── AWS Resources ───
   const renderAWS = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={card()}>
-        <h3 style={sectionTitle}>AWS Resources ({AWS_RESOURCES.length} services)</h3>
-        <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>All AWS resources used by the platform. Account: 775261844268 | Region: us-east-1</p>
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>AWS Resources ({ AWS_RESOURCES.length } services)</h3>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>All AWS resources used by the platform. Account: 775261844268 | Region: us-east-1</p>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={ { overflowX: 'auto' } }>
+        <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
           <thead>
-            <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-              {['Resource', 'Type', 'Purpose', 'Module', 'Environment', 'Status'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
-              ))}
+            <tr style={ { borderBottom: `2px solid ${C.border}` } }>
+              { [ 'Resource', 'Type', 'Purpose', 'Module', 'Environment', 'Status' ].map( h => (
+                <th key={ h } style={ { textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 } }>{ h }</th>
+              ) ) }
             </tr>
           </thead>
           <tbody>
-            {AWS_RESOURCES.map((r, i) => (
-              <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-                <td style={{ padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono, fontSize: 12 }}>{r.name}</td>
-                <td style={{ padding: '10px 12px' }}><span style={pill(C.blueBg, C.blue)}>{r.type}</span></td>
-                <td style={{ padding: '10px 12px', color: C.text, maxWidth: 250 }}>{r.purpose}</td>
-                <td style={{ padding: '10px 12px' }}><span style={pill('#f9fafb', C.textMuted)}>{r.module}</span></td>
-                <td style={{ padding: '10px 12px' }}><span style={pill(C.greenBg, C.green)}>{r.env}</span></td>
-                <td style={{ padding: '10px 12px' }}><span style={{ color: C.green, fontSize: 10 }}>● </span>{r.status}</td>
+            { AWS_RESOURCES.map( ( r, i ) => (
+              <tr key={ i } style={ { borderBottom: `1px solid ${C.border}` } }>
+                <td style={ { padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono, fontSize: 12 } }>{ r.name }</td>
+                <td style={ { padding: '10px 12px' } }><span style={ pill( C.blueBg, C.blue ) }>{ r.type }</span></td>
+                <td style={ { padding: '10px 12px', color: C.text, maxWidth: 250 } }>{ r.purpose }</td>
+                <td style={ { padding: '10px 12px' } }><span style={ pill( '#f9fafb', C.textMuted ) }>{ r.module }</span></td>
+                <td style={ { padding: '10px 12px' } }><span style={ pill( C.greenBg, C.green ) }>{ r.env }</span></td>
+                <td style={ { padding: '10px 12px' } }><span style={ { color: C.green, fontSize: 10 } }>● </span>{ r.status }</td>
               </tr>
-            ))}
+            ) ) }
           </tbody>
         </table>
       </div>
@@ -1134,88 +1136,114 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
   // ─── AWS Resource Tree ───
   const renderAWSTree = () => {
     const tree = [
-      { name: 'WECARE.DIGITAL (775261844268)', children: [
-        { name: '🔐 Authentication', children: [
-          { name: 'Cognito User Pool (us-east-1_cSx0RHCIR)', children: [
-            { name: 'Groups: Viewer, Operator, Admin' },
-            { name: 'OAuth Domain: signin.wecare.digital' },
-          ]},
-          { name: 'Cognito Identity Pool' },
-          { name: 'IAM Roles (Lambda execution)' },
-        ]},
-        { name: '🌐 Networking', children: [
-          { name: 'Route 53 (DNS)', children: [
-            { name: 'wecare.digital' }, { name: 'api.wecare.digital' }, { name: 'stack.wecare.digital' }, { name: 'r.wecare.digital' }, { name: 'signin.wecare.digital' }, { name: 'app.wecare.digital' },
-          ]},
-          { name: 'CloudFront (CDN)' },
-          { name: 'ACM Certificates (SSL/TLS)' },
-          { name: 'WAF Web ACL (rate limiting)' },
-        ]},
-        { name: '⚡ Compute — Lambda (42 functions)', children: [
-          { name: 'Core (6): contacts, auth, messages, faq, url-shortener' },
-          { name: 'Messaging (22): whatsapp, sms, voice, email, push' },
-          { name: 'AI (4): generate-response, query-kb, config, agent' },
-          { name: 'Payments (4): razorpay, payu, payments-read, invoice' },
-          { name: 'Operations (6): bulk-jobs, dlq, cleanup, billing' },
-          { name: 'Ecommerce (3): wix-store, catalog, image-gen' },
-        ]},
-        { name: '🗄️ Database — DynamoDB (' + DB_TABLES.length + ' tables)', children: [
-          { name: 'Core: Contact, Message, User, MediaFile, AuditLog, SystemConfig, WebhookDedup, ...' },
-          { name: 'WhatsApp: WhatsAppInbound, WhatsAppOutbound, WhatsAppVoice, WhatsAppCalling, WhatsAppGroup, ...' },
-          { name: 'SMS/Voice: SmsAws, AirtelSMS, VoiceCall, VoiceAws, AirtelC2C, VoiceCDR, OBDCampaign, DLTTemplates' },
-          { name: 'Payments: Payment, Invoice, InvoiceItem, InvoiceAsset, InvoiceDeliveryLog, InvoiceSequence, RazorpayWebhookLog, PayUWebhookLog' },
-          { name: 'Ecommerce: WixProductsCache, WixOrdersCache, WixOrderId, WixOrderMapping, CatalogCache' },
-          { name: 'AI: AIInteraction, ConversationHistory' },
-          { name: 'Flows: FlowRegistry, FlowSubmission, FlowLog' },
-          { name: 'Operations: BulkJob, BulkRecipient, DLQMessage, ScheduledMessage, SystemEvent, ...' },
-          { name: 'Analytics: TemplateAnalytics, AdClickAttribution, MetaAnalyticsLog' },
-        ]},
-        { name: '📦 Storage — S3', children: [
-          { name: 'app.wecare.digital', children: [
-            { name: 'stack/ (user data — factory reset wipes this)' },
-            { name: 'stream/ (static assets — never wiped)' },
-          ]},
-        ]},
-        { name: '📨 Messaging Services', children: [
-          { name: 'SQS (4 queues): bulk-queue, inbound-dlq, bulk-dlq, outbound-dlq' },
-          { name: 'SNS Topics (delivery notifications)' },
-          { name: 'Amazon SES (email)' },
-          { name: 'Amazon Pinpoint (SMS)' },
-          { name: 'Amazon Polly (TTS)' },
-        ]},
-        { name: '🤖 AI / ML', children: [
-          { name: 'Amazon Bedrock (Claude 3 Sonnet)' },
-          { name: 'Bedrock Knowledge Base' },
-          { name: 'Bedrock Agent + Action Groups' },
-        ]},
-        { name: '📊 Monitoring', children: [
-          { name: 'CloudWatch Logs (42 log groups, 90d retention)' },
-          { name: 'CloudWatch Alarms (error rate, DLQ depth)' },
-          { name: 'EventBridge Rules (scheduled triggers)' },
-        ]},
-        { name: '🔒 Security', children: [
-          { name: 'Secrets Manager (API keys, webhook secrets)' },
-          { name: 'WAF (2000 req/5min rate limit)' },
-          { name: 'ACM (SSL certificates)' },
-        ]},
-      ]},
+      {
+        name: 'WECARE.DIGITAL (775261844268)', children: [
+          {
+            name: '🔐 Authentication', children: [
+              {
+                name: 'Cognito User Pool (us-east-1_cSx0RHCIR)', children: [
+                  { name: 'Groups: Viewer, Operator, Admin' },
+                  { name: 'OAuth Domain: signin.wecare.digital' },
+                ]
+              },
+              { name: 'Cognito Identity Pool' },
+              { name: 'IAM Roles (Lambda execution)' },
+            ]
+          },
+          {
+            name: '🌐 Networking', children: [
+              {
+                name: 'Route 53 (DNS)', children: [
+                  { name: 'wecare.digital' }, { name: 'api.wecare.digital' }, { name: 'stack.wecare.digital' }, { name: 'r.wecare.digital' }, { name: 'signin.wecare.digital' }, { name: 'app.wecare.digital' },
+                ]
+              },
+              { name: 'CloudFront (CDN)' },
+              { name: 'ACM Certificates (SSL/TLS)' },
+              { name: 'WAF Web ACL (rate limiting)' },
+            ]
+          },
+          {
+            name: '⚡ Compute — Lambda (42 functions)', children: [
+              { name: 'Core (6): contacts, auth, messages, faq, url-shortener' },
+              { name: 'Messaging (22): whatsapp, sms, voice, email, push' },
+              { name: 'AI (4): generate-response, query-kb, config, agent' },
+              { name: 'Payments (4): razorpay, payu, payments-read, invoice' },
+              { name: 'Operations (6): bulk-jobs, dlq, cleanup, billing' },
+              { name: 'Ecommerce (3): wix-store, catalog, image-gen' },
+            ]
+          },
+          {
+            name: '🗄️ Database — DynamoDB (' + DB_TABLES.length + ' tables)', children: [
+              { name: 'Core: Contact, Message, User, MediaFile, AuditLog, SystemConfig, WebhookDedup, ...' },
+              { name: 'WhatsApp: WhatsAppInbound, WhatsAppOutbound, WhatsAppVoice, WhatsAppCalling, WhatsAppGroup, ...' },
+              { name: 'SMS/Voice: SmsAws, AirtelSMS, VoiceCall, VoiceAws, AirtelC2C, VoiceCDR, OBDCampaign, DLTTemplates' },
+              { name: 'Payments: Payment, Invoice, InvoiceItem, InvoiceAsset, InvoiceDeliveryLog, InvoiceSequence, RazorpayWebhookLog, PayUWebhookLog' },
+              { name: 'Ecommerce: WixProductsCache, WixOrdersCache, WixOrderId, WixOrderMapping, CatalogCache' },
+              { name: 'AI: AIInteraction, ConversationHistory' },
+              { name: 'Flows: FlowRegistry, FlowSubmission, FlowLog' },
+              { name: 'Operations: BulkJob, BulkRecipient, DLQMessage, ScheduledMessage, SystemEvent, ...' },
+              { name: 'Analytics: TemplateAnalytics, AdClickAttribution, MetaAnalyticsLog' },
+            ]
+          },
+          {
+            name: '📦 Storage — S3', children: [
+              {
+                name: 'app.wecare.digital', children: [
+                  { name: 'stack/ (user data — factory reset wipes this)' },
+                  { name: 'stream/ (static assets — never wiped)' },
+                ]
+              },
+            ]
+          },
+          {
+            name: '📨 Messaging Services', children: [
+              { name: 'SQS (4 queues): bulk-queue, inbound-dlq, bulk-dlq, outbound-dlq' },
+              { name: 'SNS Topics (delivery notifications)' },
+              { name: 'Amazon SES (email)' },
+              { name: 'Amazon Pinpoint (SMS)' },
+              { name: 'Amazon Polly (TTS)' },
+            ]
+          },
+          {
+            name: '🤖 AI / ML', children: [
+              { name: 'Amazon Bedrock (Claude 3 Sonnet)' },
+              { name: 'Bedrock Knowledge Base' },
+              { name: 'Bedrock Agent + Action Groups' },
+            ]
+          },
+          {
+            name: '📊 Monitoring', children: [
+              { name: 'CloudWatch Logs (42 log groups, 90d retention)' },
+              { name: 'CloudWatch Alarms (error rate, DLQ depth)' },
+              { name: 'EventBridge Rules (scheduled triggers)' },
+            ]
+          },
+          {
+            name: '🔒 Security', children: [
+              { name: 'Secrets Manager (API keys, webhook secrets)' },
+              { name: 'WAF (2000 req/5min rate limit)' },
+              { name: 'ACM (SSL certificates)' },
+            ]
+          },
+        ]
+      },
     ];
 
-    const renderTreeNode = (node: any, depth = 0): React.ReactNode => (
-      <div key={node.name} style={{ marginLeft: depth * 20, marginBottom: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 6, background: depth === 0 ? C.bgDark : depth === 1 ? '#f9fafb' : 'transparent', color: depth === 0 ? C.lime : C.text, fontSize: depth <= 1 ? 13 : 12, fontWeight: depth <= 1 ? 600 : 400 }}>
-          {node.children && <span style={{ fontSize: 10 }}>▸</span>}
-          {node.name}
+    const renderTreeNode = ( node: any, depth = 0 ): React.ReactNode => (
+      <div key={ node.name } style={ { marginLeft: depth * 20, marginBottom: 4 } }>
+        <div style={ { display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 6, background: depth === 0 ? C.bgDark : depth === 1 ? '#f9fafb' : 'transparent', color: depth === 0 ? C.lime : C.text, fontSize: depth <= 1 ? 13 : 12, fontWeight: depth <= 1 ? 600 : 400 } }>
+          { node.children && <span style={ { fontSize: 10 } }>▸</span> }
+          { node.name }
         </div>
-        {node.children?.map((child: any) => renderTreeNode(child, depth + 1))}
+        { node.children?.map( ( child: any ) => renderTreeNode( child, depth + 1 ) ) }
       </div>
     );
 
     return (
-      <div style={card()}>
-        <h3 style={sectionTitle}>AWS Resource Hierarchy</h3>
-        <div style={{ maxHeight: 700, overflowY: 'auto' }}>
-          {tree.map(node => renderTreeNode(node))}
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>AWS Resource Hierarchy</h3>
+        <div style={ { maxHeight: 700, overflowY: 'auto' } }>
+          { tree.map( node => renderTreeNode( node ) ) }
         </div>
       </div>
     );
@@ -1223,51 +1251,51 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   // ─── Storage / Buckets ───
   const renderStorage = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={card()}>
-        <h3 style={sectionTitle}>S3 Bucket: app.wecare.digital</h3>
-        <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>Two top-level prefixes: <code style={mono}>stack/</code> (user data, wipeable) and <code style={mono}>stream/</code> (static assets, permanent).</p>
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>S3 Bucket: app.wecare.digital</h3>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Two top-level prefixes: <code style={ mono }>stack/</code> (user data, wipeable) and <code style={ mono }>stream/</code> (static assets, permanent).</p>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={ { overflowX: 'auto' } }>
+        <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
           <thead>
-            <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-              {['Path', 'Purpose', 'Read By', 'Written By'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
-              ))}
+            <tr style={ { borderBottom: `2px solid ${C.border}` } }>
+              { [ 'Path', 'Purpose', 'Read By', 'Written By' ].map( h => (
+                <th key={ h } style={ { textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 } }>{ h }</th>
+              ) ) }
             </tr>
           </thead>
           <tbody>
-            {STORAGE_PATHS.map(s => (
-              <tr key={s.path} style={{ borderBottom: `1px solid ${C.border}` }}>
-                <td style={{ padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono }}>{s.path}</td>
-                <td style={{ padding: '10px 12px', color: C.text }}>{s.purpose}</td>
-                <td style={{ padding: '10px 12px' }}><span style={pill(C.blueBg, C.blue)}>{s.readBy}</span></td>
-                <td style={{ padding: '10px 12px' }}><span style={pill(C.greenBg, C.green)}>{s.writtenBy}</span></td>
+            { STORAGE_PATHS.map( s => (
+              <tr key={ s.path } style={ { borderBottom: `1px solid ${C.border}` } }>
+                <td style={ { padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono } }>{ s.path }</td>
+                <td style={ { padding: '10px 12px', color: C.text } }>{ s.purpose }</td>
+                <td style={ { padding: '10px 12px' } }><span style={ pill( C.blueBg, C.blue ) }>{ s.readBy }</span></td>
+                <td style={ { padding: '10px 12px' } }><span style={ pill( C.greenBg, C.green ) }>{ s.writtenBy }</span></td>
               </tr>
-            ))}
+            ) ) }
           </tbody>
         </table>
       </div>
-      {/* SQS Queues */}
-      <div style={card()}>
-        <h3 style={sectionTitle}>SQS Queues (4)</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 10 }}>
-          {[
+      {/* SQS Queues */ }
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>SQS Queues (4)</h3>
+        <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 10 } }>
+          { [
             { name: 'stack-wecare-digital-bulk-queue', purpose: 'Bulk message job processing', retention: '1 day', visibility: '5 min' },
             { name: 'stack-wecare-digital-inbound-dlq', purpose: 'Failed inbound processing', retention: '7 days', visibility: '5 min' },
             { name: 'stack-wecare-digital-bulk-dlq', purpose: 'Failed bulk chunks', retention: '7 days', visibility: '5 min' },
             { name: 'stack-wecare-digital-outbound-dlq', purpose: 'Failed outbound messages', retention: '7 days', visibility: '5 min' },
-          ].map(q => (
-            <div key={q.name} style={{ padding: 12, background: C.bgSoft, borderRadius: C.radiusSm }}>
-              <div style={{ ...mono, fontSize: 12, fontWeight: 600, color: C.textDark, wordBreak: 'break-all' }}>{q.name}</div>
-              <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>{q.purpose}</div>
-              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                <span style={pill(C.amberBg, C.amber)}>Retention: {q.retention}</span>
-                <span style={pill('#f9fafb', C.textMuted)}>Visibility: {q.visibility}</span>
+          ].map( q => (
+            <div key={ q.name } style={ { padding: 12, background: C.bgSoft, borderRadius: C.radiusSm } }>
+              <div style={ { ...mono, fontSize: 12, fontWeight: 600, color: C.textDark, wordBreak: 'break-all' } }>{ q.name }</div>
+              <div style={ { fontSize: 12, color: C.textMuted, marginTop: 4 } }>{ q.purpose }</div>
+              <div style={ { display: 'flex', gap: 6, marginTop: 6 } }>
+                <span style={ pill( C.amberBg, C.amber ) }>Retention: { q.retention }</span>
+                <span style={ pill( '#f9fafb', C.textMuted ) }>Visibility: { q.visibility }</span>
               </div>
             </div>
-          ))}
+          ) ) }
         </div>
       </div>
     </div>
@@ -1275,29 +1303,29 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   // ─── Code Map ───
   const renderCodeMap = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={card()}>
-        <h3 style={sectionTitle}>Codebase Structure</h3>
-        <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>Monorepo: stack.wecare.digital/ — Next.js frontend + Amplify Gen 2 backend</p>
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>Codebase Structure</h3>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Monorepo: stack.wecare.digital/ — Next.js frontend + Amplify Gen 2 backend</p>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={ { overflowX: 'auto' } }>
+        <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
           <thead>
-            <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-              {['Folder', 'Purpose', 'Files', 'Linked To'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
-              ))}
+            <tr style={ { borderBottom: `2px solid ${C.border}` } }>
+              { [ 'Folder', 'Purpose', 'Files', 'Linked To' ].map( h => (
+                <th key={ h } style={ { textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 } }>{ h }</th>
+              ) ) }
             </tr>
           </thead>
           <tbody>
-            {CODE_MAP.map(c => (
-              <tr key={c.path} style={{ borderBottom: `1px solid ${C.border}` }}>
-                <td style={{ padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono }}>{c.path}</td>
-                <td style={{ padding: '10px 12px', color: C.text }}>{c.purpose}</td>
-                <td style={{ padding: '10px 12px', color: C.textMuted }}>{c.files}</td>
-                <td style={{ padding: '10px 12px' }}><span style={pill('#f9fafb', C.textMuted)}>{c.linkedTo}</span></td>
+            { CODE_MAP.map( c => (
+              <tr key={ c.path } style={ { borderBottom: `1px solid ${C.border}` } }>
+                <td style={ { padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono } }>{ c.path }</td>
+                <td style={ { padding: '10px 12px', color: C.text } }>{ c.purpose }</td>
+                <td style={ { padding: '10px 12px', color: C.textMuted } }>{ c.files }</td>
+                <td style={ { padding: '10px 12px' } }><span style={ pill( '#f9fafb', C.textMuted ) }>{ c.linkedTo }</span></td>
               </tr>
-            ))}
+            ) ) }
           </tbody>
         </table>
       </div>
@@ -1306,54 +1334,54 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   // ─── Search ───
   const renderSearch = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ position: 'relative', maxWidth: 600 }}>
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-          <path stroke={C.textDark} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/>
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 16 } }>
+      <div style={ { position: 'relative', maxWidth: 600 } }>
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" style={ { position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' } }>
+          <path stroke={ C.textDark } strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m21 21-4.35-4.35M11 6a5 5 0 0 1 5 5m3 0a8 8 0 1 1-16 0 8 8 0 0 1 16 0" />
         </svg>
         <input
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          value={ searchQuery }
+          onChange={ e => setSearchQuery( e.target.value ) }
           placeholder="Search tables, Lambda functions, AWS resources, routes, env vars, risks... (Ctrl+K)"
           aria-label="Search system architecture"
-          style={{ width: '100%', padding: '12px 16px 12px 40px', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+          style={ { width: '100%', padding: '12px 16px 12px 40px', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', boxSizing: 'border-box' } }
           autoFocus
         />
       </div>
-      {searchQuery && (
-        <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>{searchResults.length} result{searchResults.length !== 1 ? 's' : ''} for "{searchQuery}"</p>
-      )}
-      {searchResults.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {searchResults.map((r, i) => (
-            <div key={i} style={card()}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={pill(
+      { searchQuery && (
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>{ searchResults.length } result{ searchResults.length !== 1 ? 's' : '' } for "{ searchQuery }"</p>
+      ) }
+      { searchResults.length > 0 && (
+        <div style={ { display: 'flex', flexDirection: 'column', gap: 8 } }>
+          { searchResults.map( ( r, i ) => (
+            <div key={ i } style={ card() }>
+              <div style={ { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } }>
+                <span style={ pill(
                   r.type === 'Table' ? C.blueBg : r.type === 'Lambda' ? C.greenBg : r.type === 'AWS' ? C.amberBg : r.type === 'Risk' ? C.redBg : '#f9fafb',
                   r.type === 'Table' ? C.blue : r.type === 'Lambda' ? C.green : r.type === 'AWS' ? C.amber : r.type === 'Risk' ? C.red : C.textMuted
-                )}>{r.type}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{r.name}</span>
-                <span style={pill('#f9fafb', C.textMuted)}>{r.category}</span>
+                ) }>{ r.type }</span>
+                <span style={ { fontSize: 14, fontWeight: 600, color: C.textDark } }>{ r.name }</span>
+                <span style={ pill( '#f9fafb', C.textMuted ) }>{ r.category }</span>
               </div>
-              <p style={{ margin: '6px 0 0', fontSize: 12, color: C.textMuted }}>{r.detail}</p>
+              <p style={ { margin: '6px 0 0', fontSize: 12, color: C.textMuted } }>{ r.detail }</p>
             </div>
-          ))}
+          ) ) }
         </div>
-      )}
-      {!searchQuery && (
-        <div style={card()}>
-          <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>
-            Search across {searchIndex.length} indexed items: {DB_TABLES.length} tables, {LAMBDAS.length} Lambda functions, {AWS_RESOURCES.length} AWS resources, {FRONTEND_ROUTES.length} routes, {STORAGE_PATHS.length} storage paths, {CODE_MAP.length} code folders, {ENV_VARS.length} env vars, {RISKS.length} risks, {IMPROVEMENTS.length} improvements.
+      ) }
+      { !searchQuery && (
+        <div style={ card() }>
+          <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>
+            Search across { searchIndex.length } indexed items: { DB_TABLES.length } tables, { LAMBDAS.length } Lambda functions, { AWS_RESOURCES.length } AWS resources, { FRONTEND_ROUTES.length } routes, { STORAGE_PATHS.length } storage paths, { CODE_MAP.length } code folders, { ENV_VARS.length } env vars, { RISKS.length } risks, { IMPROVEMENTS.length } improvements.
           </p>
         </div>
-      )}
+      ) }
     </div>
   );
 
   // ─── Eye Icon SVG ───
-  const EyeIcon = ({ open }: { open: boolean }) => (
+  const EyeIcon = ( { open }: { open: boolean } ) => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      {open ? (
+      { open ? (
         <>
           <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12z" />
           <circle cx="12" cy="12" r="3" />
@@ -1364,94 +1392,94 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
           <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
           <line x1="1" y1="1" x2="23" y2="23" />
         </>
-      )}
+      ) }
     </svg>
   );
 
   // ─── Environment Settings ───
   const renderEnv = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Unlock Modal */}
-      {showEnvUnlock && (
-        <div role="dialog" aria-modal="true" aria-label="Unlock Secrets" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { setShowEnvUnlock(false); setEnvUnlockError(''); }}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: 24, width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700, color: C.textDark }}>🔐 Unlock Secret Values</h3>
-            <p style={{ fontSize: 13, color: C.textMuted, margin: '0 0 16px' }}>Enter admin password to reveal masked values. Values are only shown in your current session.</p>
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      {/* Unlock Modal */ }
+      { showEnvUnlock && (
+        <div role="dialog" aria-modal="true" aria-label="Unlock Secrets" style={ { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 } } onClick={ () => { setShowEnvUnlock( false ); setEnvUnlockError( '' ); } }>
+          <div style={ { background: '#fff', borderRadius: 14, padding: 24, width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' } } onClick={ e => e.stopPropagation() }>
+            <h3 style={ { margin: '0 0 8px', fontSize: 16, fontWeight: 700, color: C.textDark } }>🔐 Unlock Secret Values</h3>
+            <p style={ { fontSize: 13, color: C.textMuted, margin: '0 0 16px' } }>Enter admin password to reveal masked values. Values are only shown in your current session.</p>
             <input
               type="password"
-              value={envPassword}
-              onChange={e => { setEnvPassword(e.target.value); setEnvUnlockError(''); }}
-              onKeyDown={e => e.key === 'Enter' && handleEnvUnlock()}
+              value={ envPassword }
+              onChange={ e => { setEnvPassword( e.target.value ); setEnvUnlockError( '' ); } }
+              onKeyDown={ e => e.key === 'Enter' && handleEnvUnlock() }
               placeholder="Admin password"
               aria-label="Admin password"
-              style={{ width: '100%', padding: '10px 14px', border: `2px solid ${envUnlockError ? C.red : C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', marginBottom: 8, boxSizing: 'border-box' }}
+              style={ { width: '100%', padding: '10px 14px', border: `2px solid ${envUnlockError ? C.red : C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', marginBottom: 8, boxSizing: 'border-box' } }
               autoFocus
             />
-            {envUnlockError && <p style={{ fontSize: 12, color: C.red, margin: '0 0 8px' }}>{envUnlockError}</p>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-              <button onClick={() => { setShowEnvUnlock(false); setEnvUnlockError(''); }} style={{ padding: '8px 16px', background: '#fff', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleEnvUnlock} style={{ padding: '8px 20px', background: C.lime, color: C.textDark, border: 'none', borderRadius: C.radius, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Unlock</button>
+            { envUnlockError && <p style={ { fontSize: 12, color: C.red, margin: '0 0 8px' } }>{ envUnlockError }</p> }
+            <div style={ { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 } }>
+              <button onClick={ () => { setShowEnvUnlock( false ); setEnvUnlockError( '' ); } } style={ { padding: '8px 16px', background: '#fff', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 13, cursor: 'pointer' } }>Cancel</button>
+              <button onClick={ handleEnvUnlock } style={ { padding: '8px 20px', background: C.lime, color: C.textDark, border: 'none', borderRadius: C.radius, fontSize: 13, fontWeight: 600, cursor: 'pointer' } }>Unlock</button>
             </div>
           </div>
         </div>
-      )}
+      ) }
 
-      <div style={card()}>
-        <h3 style={sectionTitle}>Environment Configuration</h3>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={pill(C.greenBg, C.green)}>Production (active)</span>
-          <span style={pill(C.redBg, C.red)}>No staging detected</span>
-          <span style={pill(C.redBg, C.red)}>No dev detected</span>
-          <span style={pill(C.redBg, C.red)}>{ENV_VARS.filter(e => e.risk).length} issues found</span>
-          {envUnlocked ? (
-            <button onClick={() => { setEnvUnlocked(false); setRevealedKeys(new Set()); }} style={{ ...pill(C.greenBg, C.green), border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <EyeIcon open={true} /> Secrets unlocked — click to lock
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>Environment Configuration</h3>
+        <div style={ { display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' } }>
+          <span style={ pill( C.greenBg, C.green ) }>Production (active)</span>
+          <span style={ pill( C.redBg, C.red ) }>No staging detected</span>
+          <span style={ pill( C.redBg, C.red ) }>No dev detected</span>
+          <span style={ pill( C.redBg, C.red ) }>{ ENV_VARS.filter( e => e.risk ).length } issues found</span>
+          { envUnlocked ? (
+            <button onClick={ () => { setEnvUnlocked( false ); setRevealedKeys( new Set() ); } } style={ { ...pill( C.greenBg, C.green ), border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 } }>
+              <EyeIcon open={ true } /> Secrets unlocked — click to lock
             </button>
           ) : (
-            <button onClick={() => setShowEnvUnlock(true)} style={{ ...pill('#f9fafb', C.textMuted), border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <EyeIcon open={false} /> Secrets locked
+            <button onClick={ () => setShowEnvUnlock( true ) } style={ { ...pill( '#f9fafb', C.textMuted ), border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 } }>
+              <EyeIcon open={ false } /> Secrets locked
             </button>
-          )}
+          ) }
         </div>
-        <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>Includes .env.local variables, hardcoded secrets found in source code, and Secrets Manager entries. Click the 👁 eye icon on any sensitive row to reveal/hide its real value.</p>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Includes .env.local variables, hardcoded secrets found in source code, and Secrets Manager entries. Click the 👁 eye icon on any sensitive row to reveal/hide its real value.</p>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={ { overflowX: 'auto' } }>
+        <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
           <thead>
-            <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-              {['Variable', 'Value', '', 'Category', 'Sensitive', 'Risk'].map((h, i) => (
-                <th key={h || `eye-${i}`} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, width: h === '' ? 36 : undefined }}>{h}</th>
-              ))}
+            <tr style={ { borderBottom: `2px solid ${C.border}` } }>
+              { [ 'Variable', 'Value', '', 'Category', 'Sensitive', 'Risk' ].map( ( h, i ) => (
+                <th key={ h || `eye-${i}` } style={ { textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, width: h === '' ? 36 : undefined } }>{ h }</th>
+              ) ) }
             </tr>
           </thead>
           <tbody>
-            {ENV_VARS.map(e => {
-              const isRevealed = revealedKeys.has(e.key);
+            { ENV_VARS.map( e => {
+              const isRevealed = revealedKeys.has( e.key );
               const displayValue = e.sensitive
-                ? (isRevealed && e.realValue ? e.realValue : '••••••••')
+                ? ( isRevealed && e.realValue ? e.realValue : '••••••••' )
                 : e.value;
               return (
-                <tr key={e.key} style={{ borderBottom: `1px solid ${C.border}`, background: e.risk?.startsWith('CRITICAL') ? '#fef2f2' : 'transparent' }}>
-                  <td style={{ padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono, fontSize: 12 }}>{e.key}</td>
-                  <td style={{ padding: '10px 12px', ...mono, color: e.sensitive ? (isRevealed ? C.red : C.amber) : C.textMuted, fontSize: 12, wordBreak: 'break-all', maxWidth: 340 }}>{displayValue}</td>
-                  <td style={{ padding: '4px 6px', width: 36, textAlign: 'center' }}>
-                    {e.sensitive && e.realValue && (
+                <tr key={ e.key } style={ { borderBottom: `1px solid ${C.border}`, background: e.risk?.startsWith( 'CRITICAL' ) ? '#fef2f2' : 'transparent' } }>
+                  <td style={ { padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono, fontSize: 12 } }>{ e.key }</td>
+                  <td style={ { padding: '10px 12px', ...mono, color: e.sensitive ? ( isRevealed ? C.red : C.amber ) : C.textMuted, fontSize: 12, wordBreak: 'break-all', maxWidth: 340 } }>{ displayValue }</td>
+                  <td style={ { padding: '4px 6px', width: 36, textAlign: 'center' } }>
+                    { e.sensitive && e.realValue && (
                       <button
-                        onClick={() => toggleReveal(e.key)}
-                        title={isRevealed ? 'Hide value' : 'Reveal value'}
-                        aria-label={isRevealed ? `Hide ${e.key}` : `Reveal ${e.key}`}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: isRevealed ? C.red : C.textLight, display: 'inline-flex', alignItems: 'center' }}
+                        onClick={ () => toggleReveal( e.key ) }
+                        title={ isRevealed ? 'Hide value' : 'Reveal value' }
+                        aria-label={ isRevealed ? `Hide ${e.key}` : `Reveal ${e.key}` }
+                        style={ { background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: isRevealed ? C.red : C.textLight, display: 'inline-flex', alignItems: 'center' } }
                       >
-                        <EyeIcon open={isRevealed} />
+                        <EyeIcon open={ isRevealed } />
                       </button>
-                    )}
+                    ) }
                   </td>
-                  <td style={{ padding: '10px 12px' }}><span style={pill(e.category.includes('Hardcoded') ? C.redBg : e.category.includes('✓') ? C.greenBg : '#f9fafb', e.category.includes('Hardcoded') ? C.red : e.category.includes('✓') ? C.green : C.textMuted)}>{e.category}</span></td>
-                  <td style={{ padding: '10px 12px' }}>{e.sensitive ? <span style={pill(C.amberBg, C.amber)}>Sensitive</span> : <span style={{ color: C.textLight }}>—</span>}</td>
-                  <td style={{ padding: '10px 12px', fontSize: 12, color: e.risk?.startsWith('CRITICAL') ? C.red : C.amber, fontWeight: e.risk ? 600 : 400 }}>{e.risk || <span style={{ color: C.textLight }}>—</span>}</td>
+                  <td style={ { padding: '10px 12px' } }><span style={ pill( e.category.includes( 'Hardcoded' ) ? C.redBg : e.category.includes( '✓' ) ? C.greenBg : '#f9fafb', e.category.includes( 'Hardcoded' ) ? C.red : e.category.includes( '✓' ) ? C.green : C.textMuted ) }>{ e.category }</span></td>
+                  <td style={ { padding: '10px 12px' } }>{ e.sensitive ? <span style={ pill( C.amberBg, C.amber ) }>Sensitive</span> : <span style={ { color: C.textLight } }>—</span> }</td>
+                  <td style={ { padding: '10px 12px', fontSize: 12, color: e.risk?.startsWith( 'CRITICAL' ) ? C.red : C.amber, fontWeight: e.risk ? 600 : 400 } }>{ e.risk || <span style={ { color: C.textLight } }>—</span> }</td>
                 </tr>
               );
-            })}
+            } ) }
           </tbody>
         </table>
       </div>
@@ -1460,13 +1488,13 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   // ─── Logs / Change History ───
   const renderLogs = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={card()}>
-        <h3 style={sectionTitle}>Logs & Change History</h3>
-        <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>Log sources and change tracking across the platform.</p>
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>Logs & Change History</h3>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Log sources and change tracking across the platform.</p>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
-        {[
+      <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 } }>
+        { [
           { title: 'CloudWatch Logs', source: '42 Lambda log groups', retention: '90 days', status: 'Active', detail: 'All Lambda function execution logs. Access via AWS Console → CloudWatch → Log Groups → /aws/lambda/wecare-*' },
           { title: 'DynamoDB AuditLog', source: 'AuditLog table', retention: '180 days (TTL)', status: 'Active', detail: 'System audit trail: user actions, resource changes, API calls. Fields: userId, action, resourceType, resourceId, details.' },
           { title: 'DLQ Messages', source: 'DLQMessage table', retention: '7 days (TTL)', status: 'Active', detail: 'Failed message processing records. Includes original payload, retry count, error details.' },
@@ -1475,59 +1503,59 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
           { title: 'Meta Analytics', source: 'MetaAnalyticsLog table', retention: 'Permanent', status: 'Active', detail: 'WhatsApp conversation analytics from Meta Business API.' },
           { title: 'CloudWatch Alarms', source: 'CloudWatch Alarms', retention: 'Permanent', status: 'Active', detail: 'Alerts for Lambda error rates, DLQ depth, and per-function error tracking.' },
           { title: 'Deployment Logs', source: 'Not configured', retention: '-', status: 'Missing', detail: 'No CI/CD pipeline detected. Deployment history not tracked. Recommend adding GitHub Actions or CodePipeline.' },
-        ].map(log => (
-          <div key={log.title} style={card()}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 10, color: log.status === 'Active' ? C.green : C.red }}>●</span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{log.title}</span>
+        ].map( log => (
+          <div key={ log.title } style={ card() }>
+            <div style={ { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } }>
+              <span style={ { fontSize: 10, color: log.status === 'Active' ? C.green : C.red } }>●</span>
+              <span style={ { fontSize: 14, fontWeight: 600, color: C.textDark } }>{ log.title }</span>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-              <span style={pill('#f9fafb', C.textMuted)}>{log.source}</span>
-              <span style={pill(C.amberBg, C.amber)}>{log.retention}</span>
+            <div style={ { display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' } }>
+              <span style={ pill( '#f9fafb', C.textMuted ) }>{ log.source }</span>
+              <span style={ pill( C.amberBg, C.amber ) }>{ log.retention }</span>
             </div>
-            <p style={{ fontSize: 12, color: C.textMuted, margin: 0 }}>{log.detail}</p>
+            <p style={ { fontSize: 12, color: C.textMuted, margin: 0 } }>{ log.detail }</p>
           </div>
-        ))}
+        ) ) }
       </div>
     </div>
   );
 
   // ─── Dependencies ───
   const renderDeps = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={card()}>
-        <h3 style={sectionTitle}>Dependency Analysis</h3>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <span style={pill(C.greenBg, C.green)}>{DEPENDENCIES.filter(d => d.status === 'ok').length} OK</span>
-          <span style={pill(C.amberBg, C.amber)}>{DEPENDENCIES.filter(d => d.status === 'warning').length} Warnings</span>
-          <span style={pill(C.redBg, C.red)}>{DEPENDENCIES.filter(d => d.status === 'outdated').length} Outdated</span>
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>Dependency Analysis</h3>
+        <div style={ { display: 'flex', gap: 8, flexWrap: 'wrap' } }>
+          <span style={ pill( C.greenBg, C.green ) }>{ DEPENDENCIES.filter( d => d.status === 'ok' ).length } OK</span>
+          <span style={ pill( C.amberBg, C.amber ) }>{ DEPENDENCIES.filter( d => d.status === 'warning' ).length } Warnings</span>
+          <span style={ pill( C.redBg, C.red ) }>{ DEPENDENCIES.filter( d => d.status === 'outdated' ).length } Outdated</span>
         </div>
-        <p style={{ fontSize: 13, color: C.textMuted, margin: '8px 0 0' }}>Node ≥24.0.0 | npm 11.6.2 | {DEPENDENCIES.filter(d => d.type === 'prod').length} production, {DEPENDENCIES.filter(d => d.type === 'dev').length} dev dependencies</p>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: '8px 0 0' } }>Node ≥24.0.0 | npm 11.6.2 | { DEPENDENCIES.filter( d => d.type === 'prod' ).length } production, { DEPENDENCIES.filter( d => d.type === 'dev' ).length } dev dependencies</p>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={ { overflowX: 'auto' } }>
+        <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
           <thead>
-            <tr style={{ borderBottom: `2px solid ${C.border}` }}>
-              {['Package', 'Version', 'Type', 'Status', 'Notes'].map(h => (
-                <th key={h} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{h}</th>
-              ))}
+            <tr style={ { borderBottom: `2px solid ${C.border}` } }>
+              { [ 'Package', 'Version', 'Type', 'Status', 'Notes' ].map( h => (
+                <th key={ h } style={ { textAlign: 'left', padding: '10px 12px', fontSize: 11, color: C.textLight, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 } }>{ h }</th>
+              ) ) }
             </tr>
           </thead>
           <tbody>
-            {DEPENDENCIES.map(d => (
-              <tr key={d.name} style={{ borderBottom: `1px solid ${C.border}` }}>
-                <td style={{ padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono }}>{d.name}</td>
-                <td style={{ padding: '10px 12px', ...mono, color: C.textMuted }}>{d.version}</td>
-                <td style={{ padding: '10px 12px' }}><span style={pill(d.type === 'prod' ? C.blueBg : '#f9fafb', d.type === 'prod' ? C.blue : C.textMuted)}>{d.type}</span></td>
-                <td style={{ padding: '10px 12px' }}>
-                  <span style={pill(
+            { DEPENDENCIES.map( d => (
+              <tr key={ d.name } style={ { borderBottom: `1px solid ${C.border}` } }>
+                <td style={ { padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono } }>{ d.name }</td>
+                <td style={ { padding: '10px 12px', ...mono, color: C.textMuted } }>{ d.version }</td>
+                <td style={ { padding: '10px 12px' } }><span style={ pill( d.type === 'prod' ? C.blueBg : '#f9fafb', d.type === 'prod' ? C.blue : C.textMuted ) }>{ d.type }</span></td>
+                <td style={ { padding: '10px 12px' } }>
+                  <span style={ pill(
                     d.status === 'ok' ? C.greenBg : d.status === 'warning' ? C.amberBg : C.redBg,
                     d.status === 'ok' ? C.green : d.status === 'warning' ? C.amber : C.red
-                  )}>{d.status}</span>
+                  ) }>{ d.status }</span>
                 </td>
-                <td style={{ padding: '10px 12px', color: C.textMuted, fontSize: 12 }}>{d.note}</td>
+                <td style={ { padding: '10px 12px', color: C.textMuted, fontSize: 12 } }>{ d.note }</td>
               </tr>
-            ))}
+            ) ) }
           </tbody>
         </table>
       </div>
@@ -1536,164 +1564,165 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   // ─── Risks / Gaps ───
   const renderRisks = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
-        {['All', 'Critical', 'Important', 'Nice to have'].map(p => (
-          <button key={p} onClick={() => setRiskFilter(p)} style={{ padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${riskFilter === p ? C.bgDark : C.border}`, background: riskFilter === p ? C.bgDark : C.bg, color: riskFilter === p ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-            {p} {p !== 'All' && `(${RISKS.filter(r => r.priority === p).length})`}
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 } }>
+        { [ 'All', 'Critical', 'Important', 'Nice to have' ].map( p => (
+          <button key={ p } onClick={ () => setRiskFilter( p ) } style={ { padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${riskFilter === p ? C.bgDark : C.border}`, background: riskFilter === p ? C.bgDark : C.bg, color: riskFilter === p ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' } }>
+            { p } { p !== 'All' && `(${RISKS.filter( r => r.priority === p ).length})` }
           </button>
-        ))}
+        ) ) }
       </div>
-      {(riskFilter === 'All' ? RISKS : RISKS.filter(r => r.priority === riskFilter)).map(r => (
-        <div key={r.id} style={card()}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={pill(
+      { ( riskFilter === 'All' ? RISKS : RISKS.filter( r => r.priority === riskFilter ) ).map( r => (
+        <div key={ r.id } style={ card() }>
+          <div style={ { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } }>
+            <span style={ pill(
               r.priority === 'Critical' ? C.redBg : r.priority === 'Important' ? C.amberBg : C.blueBg,
               r.priority === 'Critical' ? C.red : r.priority === 'Important' ? C.amber : C.blue
-            )}>{r.priority}</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{r.title}</span>
-            <span style={pill('#f9fafb', C.textMuted)}>{r.category}</span>
+            ) }>{ r.priority }</span>
+            <span style={ { fontSize: 14, fontWeight: 600, color: C.textDark } }>{ r.title }</span>
+            <span style={ pill( '#f9fafb', C.textMuted ) }>{ r.category }</span>
           </div>
-          <p style={{ margin: '8px 0 0', fontSize: 13, color: C.text }}>{r.description}</p>
+          <p style={ { margin: '8px 0 0', fontSize: 13, color: C.text } }>{ r.description }</p>
         </div>
-      ))}
+      ) ) }
     </div>
   );
 
   // ─── Improvements ───
   const renderImprovements = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={card()}>
-        <h3 style={sectionTitle}>Improvement Recommendations ({IMPROVEMENTS.length})</h3>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <span style={pill(C.redBg, C.red)}>{IMPROVEMENTS.filter(i => i.priority === 'Critical').length} Critical</span>
-          <span style={pill(C.amberBg, C.amber)}>{IMPROVEMENTS.filter(i => i.priority === 'Important').length} Important</span>
-          <span style={pill(C.blueBg, C.blue)}>{IMPROVEMENTS.filter(i => i.priority === 'Nice to have').length} Nice to have</span>
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ card() }>
+        <h3 style={ sectionTitle }>Improvement Recommendations ({ IMPROVEMENTS.length })</h3>
+        <div style={ { display: 'flex', gap: 8, flexWrap: 'wrap' } }>
+          <span style={ pill( C.redBg, C.red ) }>{ IMPROVEMENTS.filter( i => i.priority === 'Critical' ).length } Critical</span>
+          <span style={ pill( C.amberBg, C.amber ) }>{ IMPROVEMENTS.filter( i => i.priority === 'Important' ).length } Important</span>
+          <span style={ pill( C.blueBg, C.blue ) }>{ IMPROVEMENTS.filter( i => i.priority === 'Nice to have' ).length } Nice to have</span>
         </div>
       </div>
-      {IMPROVEMENTS.map(imp => (
-        <div key={imp.id} style={card()}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={pill(
+      { IMPROVEMENTS.map( imp => (
+        <div key={ imp.id } style={ card() }>
+          <div style={ { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } }>
+            <span style={ pill(
               imp.priority === 'Critical' ? C.redBg : imp.priority === 'Important' ? C.amberBg : C.blueBg,
               imp.priority === 'Critical' ? C.red : imp.priority === 'Important' ? C.amber : C.blue
-            )}>{imp.priority}</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{imp.title}</span>
-            <span style={pill('#f9fafb', C.textMuted)}>{imp.category}</span>
+            ) }>{ imp.priority }</span>
+            <span style={ { fontSize: 14, fontWeight: 600, color: C.textDark } }>{ imp.title }</span>
+            <span style={ pill( '#f9fafb', C.textMuted ) }>{ imp.category }</span>
           </div>
-          <p style={{ margin: '8px 0 0', fontSize: 13, color: C.text }}>{imp.description}</p>
+          <p style={ { margin: '8px 0 0', fontSize: 13, color: C.text } }>{ imp.description }</p>
         </div>
-      ))}
+      ) ) }
     </div>
   );
 
   // ─── Lambda Admin (Detailed) ───
-  const filteredLambdaDetail = useMemo(() => {
+  const filteredLambdaDetail = useMemo( () => {
     const q = lambdaDetailSearch.toLowerCase();
-    return LAMBDA_DETAILED.filter(fn => {
+    return LAMBDA_DETAILED.filter( fn => {
       const matchCat = lambdaDetailFilter === 'All' || fn.category === lambdaDetailFilter;
-      const matchSearch = !q || fn.name.toLowerCase().includes(q) || fn.displayName.toLowerCase().includes(q) || fn.description.toLowerCase().includes(q);
+      const matchSearch = !q || fn.name.toLowerCase().includes( q ) || fn.displayName.toLowerCase().includes( q ) || fn.description.toLowerCase().includes( q );
       return matchCat && matchSearch;
-    });
-  }, [lambdaDetailSearch, lambdaDetailFilter]);
+    } );
+  }, [ lambdaDetailSearch, lambdaDetailFilter ] );
 
   const renderLambdaDetail = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: 400 }}>
-          <input value={lambdaDetailSearch} onChange={e => setLambdaDetailSearch(e.target.value)} placeholder="Search functions..." aria-label="Search Lambda functions" style={{ width: '100%', padding: '10px 14px', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' } }>
+        <div style={ { position: 'relative', flex: 1, maxWidth: 400 } }>
+          <input value={ lambdaDetailSearch } onChange={ e => setLambdaDetailSearch( e.target.value ) } placeholder="Search functions..." aria-label="Search Lambda functions" style={ { width: '100%', padding: '10px 14px', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', boxSizing: 'border-box' } } />
         </div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {LAMBDA_DETAIL_CATEGORIES.map(cat => (
-            <button key={cat} onClick={() => setLambdaDetailFilter(cat)} style={{ padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${lambdaDetailFilter === cat ? C.bgDark : C.border}`, background: lambdaDetailFilter === cat ? C.bgDark : C.bg, color: lambdaDetailFilter === cat ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{cat}</button>
-          ))}
+        <div style={ { display: 'flex', gap: 4, flexWrap: 'wrap' } }>
+          { LAMBDA_DETAIL_CATEGORIES.map( cat => (
+            <button key={ cat } onClick={ () => setLambdaDetailFilter( cat ) } style={ { padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${lambdaDetailFilter === cat ? C.bgDark : C.border}`, background: lambdaDetailFilter === cat ? C.bgDark : C.bg, color: lambdaDetailFilter === cat ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' } }>{ cat }</button>
+          ) ) }
         </div>
       </div>
-      <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>{filteredLambdaDetail.length} function{filteredLambdaDetail.length !== 1 ? 's' : ''} — with env vars, runtime, memory, triggers</p>
-      {filteredLambdaDetail.map(fn => {
-        const isExp = expandedItems.has('ld-' + fn.name);
+      <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>{ filteredLambdaDetail.length } function{ filteredLambdaDetail.length !== 1 ? 's' : '' } — with env vars, runtime, memory, triggers</p>
+      { filteredLambdaDetail.map( fn => {
+        const isExp = expandedItems.has( 'ld-' + fn.name );
         return (
-          <div key={fn.name} style={card(isExp)}>
-            <button onClick={() => toggleExpand('ld-' + fn.name)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}>
-              <span style={{ fontSize: 10, color: C.green }}>●</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{fn.displayName}</span>
-                  <span style={pill('#f9fafb', C.textMuted)}>{fn.category}</span>
-                  {fn.apiRoute && fn.apiRoute !== '-' && <span style={{ ...pill(C.greenBg, C.green), ...mono }}>{fn.apiRoute}</span>}
+          <div key={ fn.name } style={ card( isExp ) }>
+            <button onClick={ () => toggleExpand( 'ld-' + fn.name ) } style={ { width: '100%', display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 } }>
+              <span style={ { fontSize: 10, color: C.green } }>●</span>
+              <div style={ { flex: 1 } }>
+                <div style={ { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } }>
+                  <span style={ { fontSize: 14, fontWeight: 600, color: C.textDark } }>{ fn.displayName }</span>
+                  <span style={ pill( '#f9fafb', C.textMuted ) }>{ fn.category }</span>
+                  { fn.apiRoute && fn.apiRoute !== '-' && <span style={ { ...pill( C.greenBg, C.green ), ...mono } }>{ fn.apiRoute }</span> }
                 </div>
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: C.textMuted }}>{fn.description}</p>
+                <p style={ { margin: '4px 0 0', fontSize: 12, color: C.textMuted } }>{ fn.description }</p>
               </div>
-              <span style={{ transform: isExp ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.15s', fontSize: 12, color: C.textLight }}>▶</span>
+              <span style={ { transform: isExp ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.15s', fontSize: 12, color: C.textLight } }>▶</span>
             </button>
-            {isExp && (
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `2px solid ${C.border}` }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 12 }}>
-                  <div style={{ padding: '10px 12px', background: C.bgSoft, borderRadius: C.radiusSm }}><div style={label}>Runtime</div><div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginTop: 2 }}>{fn.runtime}</div></div>
-                  <div style={{ padding: '10px 12px', background: C.bgSoft, borderRadius: C.radiusSm }}><div style={label}>Timeout</div><div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginTop: 2 }}>{fn.timeout}s</div></div>
-                  <div style={{ padding: '10px 12px', background: C.bgSoft, borderRadius: C.radiusSm }}><div style={label}>Memory</div><div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginTop: 2 }}>{fn.memory} MB</div></div>
-                  <div style={{ padding: '10px 12px', background: C.bgSoft, borderRadius: C.radiusSm }}><div style={label}>Status</div><div style={{ fontSize: 13, fontWeight: 600, color: C.green, marginTop: 2 }}>{fn.status}</div></div>
+            { isExp && (
+              <div style={ { marginTop: 12, paddingTop: 12, borderTop: `2px solid ${C.border}` } }>
+                <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 12 } }>
+                  <div style={ { padding: '10px 12px', background: C.bgSoft, borderRadius: C.radiusSm } }><div style={ label }>Runtime</div><div style={ { fontSize: 13, fontWeight: 600, color: C.text, marginTop: 2 } }>{ fn.runtime }</div></div>
+                  <div style={ { padding: '10px 12px', background: C.bgSoft, borderRadius: C.radiusSm } }><div style={ label }>Timeout</div><div style={ { fontSize: 13, fontWeight: 600, color: C.text, marginTop: 2 } }>{ fn.timeout }s</div></div>
+                  <div style={ { padding: '10px 12px', background: C.bgSoft, borderRadius: C.radiusSm } }><div style={ label }>Memory</div><div style={ { fontSize: 13, fontWeight: 600, color: C.text, marginTop: 2 } }>{ fn.memory } MB</div></div>
+                  <div style={ { padding: '10px 12px', background: C.bgSoft, borderRadius: C.radiusSm } }><div style={ label }>Status</div><div style={ { fontSize: 13, fontWeight: 600, color: C.green, marginTop: 2 } }>{ fn.status }</div></div>
                 </div>
-                <div style={{ marginBottom: 10 }}><div style={label}>Triggers</div><div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>{fn.triggers.map(t => <span key={t} style={pill('#f9fafb', C.text)}>{t}</span>)}</div></div>
-                {Object.keys(fn.envVars).length > 0 && (
-                  <div><div style={label}>Environment Variables</div><div style={{ background: C.bgSoft, borderRadius: C.radiusSm, padding: 10, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {Object.entries(fn.envVars).map(([k, v]) => (
-                      <div key={k} style={{ display: 'flex', gap: 8 }}><code style={{ ...mono, fontWeight: 600, color: C.textDark, minWidth: 160 }}>{k}</code><code style={{ ...mono, color: C.textMuted }}>{v}</code></div>
-                    ))}
+                <div style={ { marginBottom: 10 } }><div style={ label }>Triggers</div><div style={ { display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 } }>{ fn.triggers.map( t => <span key={ t } style={ pill( '#f9fafb', C.text ) }>{ t }</span> ) }</div></div>
+                { Object.keys( fn.envVars ).length > 0 && (
+                  <div><div style={ label }>Environment Variables</div><div style={ { background: C.bgSoft, borderRadius: C.radiusSm, padding: 10, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 } }>
+                    { Object.entries( fn.envVars ).map( ( [ k, v ] ) => (
+                      <div key={ k } style={ { display: 'flex', gap: 8 } }><code style={ { ...mono, fontWeight: 600, color: C.textDark, minWidth: 160 } }>{ k }</code><code style={ { ...mono, color: C.textMuted } }>{ v }</code></div>
+                    ) ) }
                   </div></div>
-                )}
+                ) }
               </div>
-            )}
+            ) }
           </div>
         );
-      })}
+      } ) }
     </div>
   );
 
   // ─── Code Repository ───
-  const filteredCodeAssets = useMemo(() => {
+  const filteredCodeAssets = useMemo( () => {
     const q = codeRepoSearch.toLowerCase();
-    return CODE_ASSETS.filter(a => {
+    return CODE_ASSETS.filter( a => {
       const matchCat = codeRepoCategory === 'All' || a.category === codeRepoCategory;
-      const matchSearch = !q || a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q) || a.path.toLowerCase().includes(q);
+      const matchSearch = !q || a.name.toLowerCase().includes( q ) || a.description.toLowerCase().includes( q ) || a.path.toLowerCase().includes( q );
       return matchCat && matchSearch;
-    });
-  }, [codeRepoSearch, codeRepoCategory]);
+    } );
+  }, [ codeRepoSearch, codeRepoCategory ] );
 
   const renderCodeRepo = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input value={codeRepoSearch} onChange={e => setCodeRepoSearch(e.target.value)} placeholder="Search flows, lambdas, templates..." aria-label="Search code assets" style={{ flex: 1, maxWidth: 400, padding: '10px 14px', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {CODE_ASSET_CATEGORIES.map(cat => (
-            <button key={cat} onClick={() => setCodeRepoCategory(cat)} style={{ padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${codeRepoCategory === cat ? C.bgDark : C.border}`, background: codeRepoCategory === cat ? C.bgDark : C.bg, color: codeRepoCategory === cat ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{cat}</button>
-          ))}
+    <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
+      <div style={ { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' } }>
+        <input value={ codeRepoSearch } onChange={ e => setCodeRepoSearch( e.target.value ) } placeholder="Search flows, lambdas, templates..." aria-label="Search code assets" style={ { flex: 1, maxWidth: 400, padding: '10px 14px', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', boxSizing: 'border-box' } } />
+        <div style={ { display: 'flex', gap: 4, flexWrap: 'wrap' } }>
+          { CODE_ASSET_CATEGORIES.map( cat => (
+            <button key={ cat } onClick={ () => setCodeRepoCategory( cat ) } style={ { padding: '6px 14px', borderRadius: C.radius, border: `2px solid ${codeRepoCategory === cat ? C.bgDark : C.border}`, background: codeRepoCategory === cat ? C.bgDark : C.bg, color: codeRepoCategory === cat ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' } }>{ cat }</button>
+          ) ) }
         </div>
       </div>
-      <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>{filteredCodeAssets.length} asset{filteredCodeAssets.length !== 1 ? 's' : ''}</p>
-      {filteredCodeAssets.map(asset => (
-        <div key={asset.id} style={card(expandedAsset === asset.id)} onClick={() => setExpandedAsset(expandedAsset === asset.id ? null : asset.id)} role="button" tabIndex={0}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={pill(asset.type === 'Flow JSON' ? C.lime : C.bgSoft, C.textDark)}>{asset.type}</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.textDark }}>{asset.name}</span>
-            {asset.status && <span style={pill(asset.status === 'Published' ? C.greenBg : C.amberBg, asset.status === 'Published' ? C.green : C.amber)}>{asset.status}</span>}
-            <span style={pill('#f9fafb', C.textMuted)}>{asset.category}</span>
+      <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>{ filteredCodeAssets.length } asset{ filteredCodeAssets.length !== 1 ? 's' : '' }</p>
+      { filteredCodeAssets.map( asset => (
+        <div key={ asset.id } style={ card( expandedAsset === asset.id ) } onClick={ () => setExpandedAsset( expandedAsset === asset.id ? null : asset.id ) } role="button" tabIndex={ 0 }>
+          <div style={ { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' } }>
+            <span style={ pill( asset.type === 'Flow JSON' ? C.lime : C.bgSoft, C.textDark ) }>{ asset.type }</span>
+            <span style={ { fontSize: 14, fontWeight: 600, color: C.textDark } }>{ asset.name }</span>
+            { asset.status && <span style={ pill( asset.status === 'Published' ? C.greenBg : C.amberBg, asset.status === 'Published' ? C.green : C.amber ) }>{ asset.status }</span> }
+            <span style={ pill( '#f9fafb', C.textMuted ) }>{ asset.category }</span>
           </div>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: C.textMuted }}>{asset.description}</p>
-          {expandedAsset === asset.id && (
-            <div style={{ marginTop: 10, padding: '8px 10px', background: C.bgSoft, borderRadius: C.radiusSm }}>
-              <div style={label}>File Path</div>
-              <code style={{ ...mono, color: C.textDark, fontSize: 11 }}>{asset.path}</code>
+          <p style={ { margin: '4px 0 0', fontSize: 12, color: C.textMuted } }>{ asset.description }</p>
+          { expandedAsset === asset.id && (
+            <div style={ { marginTop: 10, padding: '8px 10px', background: C.bgSoft, borderRadius: C.radiusSm } }>
+              <div style={ label }>File Path</div>
+              <code style={ { ...mono, color: C.textDark, fontSize: 11 } }>{ asset.path }</code>
             </div>
-          )}
+          ) }
         </div>
-      ))}
+      ) ) }
     </div>
   );
 
   // ─── Tab Router ───
   const renderTab = () => {
-    switch (activeTab) {
+    switch ( activeTab )
+    {
       case 'overview': return renderOverview();
       case 'architecture': return renderArchitecture();
       case 'flow': return renderFlow();
@@ -1718,38 +1747,38 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
 
   // ─── Main Render ───
   return (
-    <Layout onSignOut={signOut} user={user}>
+    <Layout onSignOut={ signOut } user={ user }>
       <SEO title="Project Control Center" description="Unified admin dashboard — architecture, Lambda, code repo, risks" noindex />
-      <div className="inner-page-container" style={{ background: C.bg }}>
-        {/* Page Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+      <div className="inner-page-container" style={ { background: C.bg } }>
+        {/* Page Header */ }
+        <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 } }>
           <div>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: C.textDark }}>Project Control Center</h2>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: C.textMuted }}>
-              Full system architecture — {LAMBDAS.length} Lambda functions · {DB_TABLES.length} tables · {AWS_RESOURCES.length} AWS resources · {STORAGE_PATHS.length} storage paths
+            <h2 style={ { margin: 0, fontSize: 22, fontWeight: 700, color: C.textDark } }>Project Control Center</h2>
+            <p style={ { margin: '4px 0 0', fontSize: 13, color: C.textMuted } }>
+              Full system architecture — { LAMBDAS.length } Lambda functions · { DB_TABLES.length } tables · { AWS_RESOURCES.length } AWS resources · { STORAGE_PATHS.length } storage paths
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button onClick={refresh} title="Refresh now" style={{ padding: '6px 12px', borderRadius: C.radius, border: `2px solid ${C.border}`, background: C.bg, color: C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <div style={ { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }>
+            <button onClick={ refresh } title="Refresh now" style={ { padding: '6px 12px', borderRadius: C.radius, border: `2px solid ${C.border}`, background: C.bg, color: C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 } }>
               ↻ Refresh
             </button>
-            <button onClick={toggleAutoRefresh} title={isAutoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'} style={{ padding: '6px 12px', borderRadius: C.radius, border: `2px solid ${isAutoRefresh ? C.borderActive : C.border}`, background: isAutoRefresh ? C.bgDark : C.bg, color: isAutoRefresh ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              {isAutoRefresh ? '⏱ Auto' : '⏸ Paused'}
+            <button onClick={ toggleAutoRefresh } title={ isAutoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh' } style={ { padding: '6px 12px', borderRadius: C.radius, border: `2px solid ${isAutoRefresh ? C.borderActive : C.border}`, background: isAutoRefresh ? C.bgDark : C.bg, color: isAutoRefresh ? C.lime : C.textMuted, fontSize: 12, fontWeight: 600, cursor: 'pointer' } }>
+              { isAutoRefresh ? '⏱ Auto' : '⏸ Paused' }
             </button>
-            <span style={pill(C.greenBg, C.green)}>Scan: {LAST_SCAN}</span>
+            <span style={ pill( C.greenBg, C.green ) }>Scan: { LAST_SCAN }</span>
           </div>
         </div>
 
-        {/* Tab Bar */}
-        <div style={{ overflowX: 'auto', marginBottom: 20, paddingBottom: 2 }}>
-          <div style={{ display: 'flex', gap: 4, minWidth: 'max-content' }} role="tablist">
-            {TABS.map(tab => (
+        {/* Tab Bar */ }
+        <div style={ { overflowX: 'auto', marginBottom: 20, paddingBottom: 2 } }>
+          <div style={ { display: 'flex', gap: 4, minWidth: 'max-content' } } role="tablist">
+            { TABS.map( tab => (
               <button
-                key={tab.id}
+                key={ tab.id }
                 role="tab"
-                aria-selected={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
+                aria-selected={ activeTab === tab.id }
+                onClick={ () => setActiveTab( tab.id ) }
+                style={ {
                   padding: '8px 16px',
                   borderRadius: C.radius,
                   border: `2px solid ${activeTab === tab.id ? C.bgDark : 'transparent'}`,
@@ -1760,17 +1789,17 @@ const SystemArchitecturePage: React.FC<PageProps> = ({ signOut, user }) => {
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.15s',
-                }}
+                } }
               >
-                {tab.label}
+                { tab.label }
               </button>
-            ))}
+            ) ) }
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div role="tabpanel" style={{ minHeight: 400 }}>
-          {renderTab()}
+        {/* Tab Content */ }
+        <div role="tabpanel" style={ { minHeight: 400 } }>
+          { renderTab() }
         </div>
       </div>
     </Layout>
