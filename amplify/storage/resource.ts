@@ -46,13 +46,14 @@ export const storage = defineStorage( {
 
 /**
  * SQS Queue Configuration
- * 
- * 4 Queues to be created:
+ *
+ * 5 Queues (match deployed reality):
  * 1. inbound-dlq: Failed inbound message processing
  * 2. bulk-queue: Bulk message job processing
  * 3. bulk-dlq: Failed bulk message chunks
  * 4. outbound-dlq: Failed outbound messages
- * 
+ * 5. eventbridge-dlq: Failed EventBridge -> Lambda target invocations
+ *
  * Note: SQS queues are defined via CDK in backend.ts custom resources
  */
 export const queueConfig = {
@@ -73,6 +74,11 @@ export const queueConfig = {
   },
   outboundDlq: {
     name: 'stack-wecare-digital-outbound-dlq',
+    visibilityTimeout: 300,
+    messageRetentionPeriod: 604800, // 7 days
+  },
+  eventbridgeDlq: {
+    name: 'wecare-eventbridge-dlq',
     visibilityTimeout: 300,
     messageRetentionPeriod: 604800, // 7 days
   },
