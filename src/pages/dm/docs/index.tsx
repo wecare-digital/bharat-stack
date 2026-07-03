@@ -140,16 +140,16 @@ const DocsScraperPage: React.FC<PageProps> = ( { signOut, user, embedded = false
                 {/* Sources */ }
                 <div style={ card }>
                     <h2 style={ h2 }>Sources ({ sources.length })</h2>
-                    { loading ? <p>Loading…</p> : sources.length === 0 ? <p style={ { color: '#6b7280' } }>No sources yet. Add one above.</p> : (
+                    { loading ? <p>Loading…</p> : sources.length === 0 ? <p style={ { color: 'var(--text-muted)' } }>No sources yet. Add one above.</p> : (
                         <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 14 } }>
                             <thead>
-                                <tr style={ { textAlign: 'left', color: '#6b7280' } }>
+                                <tr style={ { textAlign: 'left', color: 'var(--text-muted)' } }>
                                     <th style={ th }>Name</th><th style={ th }>Root URL</th><th style={ th }>Added</th><th style={ th }></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 { sources.map( s => (
-                                    <tr key={ s.name } style={ { borderTop: '1px solid #f0f0f0' } }>
+                                    <tr key={ s.name } style={ { borderTop: '1px solid var(--border-light)' } }>
                                         <td style={ td }>{ s.name }</td>
                                         <td style={ td }><a href={ s.rootUrl } target="_blank" rel="noreferrer">{ s.rootUrl }</a></td>
                                         <td style={ td }>{ s.addedAt ? new Date( s.addedAt ).toLocaleDateString() : '—' }</td>
@@ -168,14 +168,14 @@ const DocsScraperPage: React.FC<PageProps> = ( { signOut, user, embedded = false
                 {/* Change log */ }
                 <div style={ card }>
                     <h2 style={ h2 }>Change log ({ changelog.length })</h2>
-                    { changelog.length === 0 ? <p style={ { color: '#6b7280' } }>No changes recorded yet.</p> : (
+                    { changelog.length === 0 ? <p style={ { color: 'var(--text-muted)' } }>No changes recorded yet.</p> : (
                         <div style={ { maxHeight: 360, overflowY: 'auto' } }>
                             { changelog.map( ( c, i ) => (
-                                <div key={ i } style={ { padding: '8px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 } }>
-                                    <span style={ badge( c.type ) }>{ c.type }</span>
+                                <div key={ i } style={ { padding: '8px 0', borderTop: '1px solid var(--border-light)', fontSize: 13 } }>
+                                    <span className={ badgeClass( c.type ) }>{ c.type }</span>
                                     <strong style={ { marginLeft: 8 } }>{ c.source }</strong>
-                                    <span style={ { color: '#6b7280', marginLeft: 8 } }>{ new Date( c.ts ).toLocaleString() }</span>
-                                    <div style={ { color: '#374151', wordBreak: 'break-all' } }>{ c.url }{ c.error ? ` — ${c.error}` : '' }</div>
+                                    <span style={ { color: 'var(--text-muted)', marginLeft: 8 } }>{ new Date( c.ts ).toLocaleString() }</span>
+                                    <div style={ { color: 'var(--text-secondary)', wordBreak: 'break-all' } }>{ c.url }{ c.error ? ` — ${c.error}` : '' }</div>
                                 </div>
                             ) ) }
                         </div>
@@ -188,14 +188,15 @@ const DocsScraperPage: React.FC<PageProps> = ( { signOut, user, embedded = false
     return embedded ? body : <Layout user={ user } onSignOut={ signOut }>{ body }</Layout>;
 };
 
-const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, marginBottom: 16 };
-const h2: React.CSSProperties = { fontSize: 15, fontWeight: 600, margin: '0 0 12px' };
-const input: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 14, width: '100%' };
-const th: React.CSSProperties = { padding: '6px 8px', fontWeight: 600 };
-const td: React.CSSProperties = { padding: '8px' };
-const badge = ( type: string ): React.CSSProperties => ( {
-    display: 'inline-block', padding: '1px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-    color: '#fff', background: type === 'new' ? '#16a34a' : type === 'updated' ? '#2563eb' : '#dc2626',
-} );
+// Styling uses shared design tokens (src/styles/tokens.css) so the page matches
+// the site theme — no hard-coded colors. Inputs/buttons are globally themed.
+const card: React.CSSProperties = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', marginBottom: 'var(--space-4)', boxShadow: 'var(--shadow-sm)' };
+const h2: React.CSSProperties = { fontSize: 'var(--h4)', fontWeight: 600, margin: '0 0 var(--space-3)', color: 'var(--text)' };
+const input: React.CSSProperties = { width: '100%' };
+const th: React.CSSProperties = { padding: '6px 8px', fontWeight: 600, color: 'var(--text-muted)' };
+const td: React.CSSProperties = { padding: 'var(--space-2)' };
+// changelog entry type -> shared .status-pill class (new=read/green, updated=sent/blue, error=failed/red)
+const badgeClass = ( type: string ): string =>
+    `status-pill ${type === 'new' ? 'status-read' : type === 'updated' ? 'status-sent' : 'status-failed'}`;
 
 export default DocsScraperPage;
