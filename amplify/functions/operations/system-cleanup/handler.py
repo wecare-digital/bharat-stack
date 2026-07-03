@@ -352,10 +352,15 @@ TABLE_PREFIX = 'stack-wecare-digital-'
 S3_ROOT_PREFIX = 'stack/'
 S3_MAX_DEPTH = 3  # how many folder levels under stack/ to expose
 
-# Tables that must NEVER be wiped (config, not records)
+# Tables that must NEVER be wiped by factory reset (config + durable assets).
+# Short links (r.wecare.digital) are permanent by design — they are printed on
+# materials, embedded in messages, and shared externally, so a factory reset must
+# NEVER break them. They can only be removed manually via the URL-shortener DELETE.
 PROTECTED_TABLES = {
     'stack-wecare-digital-SystemConfigTable',
     'stack-wecare-digital-SystemConfig',
+    'stack-wecare-digital-ShortLinksTable',   # short links — manual-delete only
+    'stack-wecare-digital-LinkClicksTable',   # short-link click analytics
 }
 
 
@@ -540,6 +545,11 @@ def _preview() -> Dict[str, Any]:
 
 def _wipe_table(table_name: str) -> int:
     """Delete all items from a DynamoDB table."""
+    # Hard guard: protected tables (config + short links) can never be wiped,
+    # even if explicitly selected. Short links are manual-delete only.
+    if table_name in PROTECTED_TABLES:
+        logger.warning(f'{{"event":"wipe_blocked_protected","table":"{table_name}"}}')
+        return 0
     try:
         key_schema = dynamodb_client.describe_table(TableName=table_name)['Table']['KeySchema']
     except Exception as e:

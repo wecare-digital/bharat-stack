@@ -37,7 +37,28 @@ logger = get_logger(__name__)
 WIX_MODE = os.environ.get('WIX_MODE', 'api')
 
 # REST API config
-WIX_API_KEY = os.environ.get('WIX_API_KEY', '')
+# WIX_API_KEY is loaded from Secrets Manager (wecare/wix-api-key), with a
+# fallback to the WIX_API_KEY env var during migration. Handles both a JSON
+# secret ({"api_key": "..."}) and a plain-string secret.
+secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', 'wecare/wix-api-key')
+
+
+def _load_wix_api_key() -> str:
+    try:
+        raw = secrets_client.get_secret_value(SecretId=WIX_API_KEY_SECRET).get('SecretString', '') or ''
+        try:
+            data = json.loads(raw)
+            return (data.get('api_key') or data.get('apiKey') or data.get('WIX_API_KEY')
+                    or data.get('key') or data.get('value') or '').strip()
+        except (ValueError, TypeError):
+            return raw.strip()  # secret stored as a plain string
+    except Exception as e:
+        logger.warning(f'Wix API key: Secrets Manager load failed, falling back to env: {e}')
+        return os.environ.get('WIX_API_KEY', '')
+
+
+WIX_API_KEY = _load_wix_api_key()
 WIX_SITE_ID = os.environ.get('WIX_SITE_ID', '')
 WIX_ACCOUNT_ID = os.environ.get('WIX_ACCOUNT_ID', '')
 WIX_API_BASE = os.environ.get('WIX_API_BASE_URL', 'https://www.wixapis.com')

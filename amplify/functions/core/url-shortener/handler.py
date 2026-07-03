@@ -28,6 +28,26 @@ SHORT_DOMAIN = os.environ.get("SHORT_DOMAIN", "r.wecare.digital")
 links_table = dynamodb.Table(SHORT_LINKS_TABLE)
 clicks_table = dynamodb.Table(LINK_CLICKS_TABLE)
 
+# ── In-memory link cache (per warm container) for fast repeat redirects ──
+# Content-addressed by shortCode; bounded by TTL so edits/deactivations
+# propagate within LINK_CACHE_TTL seconds. Explicitly invalidated on write.
+_link_cache = {}
+_CACHE_TTL = int(os.environ.get("LINK_CACHE_TTL", "60"))
+
+
+def _get_link_cached(code):
+    now = time.time()
+    hit = _link_cache.get(code)
+    if hit and (now - hit[1]) < _CACHE_TTL:
+        return hit[0]
+    item = links_table.get_item(Key={"shortCode": code}).get("Item")
+    _link_cache[code] = (item, now)
+    return item
+
+
+def _invalidate(code):
+    _link_cache.pop(code, None)
+
 HEADERS = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
@@ -180,6 +200,7 @@ def get_link(code):
 
 def delete_link(code):
     links_table.delete_item(Key={"shortCode": code})
+    _invalidate(code)
     return {"statusCode": 200, "headers": HEADERS, "body": json.dumps({"success": True})}
 
 
@@ -205,13 +226,14 @@ def update_link(code, body):
         ExpressionAttributeValues=expr_values,
     )
 
+    _invalidate(code)
     updated = links_table.get_item(Key={"shortCode": code}).get("Item", {})
     return {"statusCode": 200, "headers": HEADERS, "body": json.dumps({"success": True, "link": updated}, default=str)}
 
 
 def redirect(code, event):
     """Redirect to original URL, track click, handle deep links."""
-    item = links_table.get_item(Key={"shortCode": code}).get("Item")
+    item = _get_link_cached(code)
     if not item or not item.get("active", True):
         return {
             "statusCode": 302,
@@ -249,22 +271,24 @@ def redirect(code, event):
     elif "android" in ua_lower:
         platform = "android"
 
-    clicks_table.put_item(
-        Item={
-            "shortCode": code,
-            "clickedAt": datetime.utcnow().isoformat(),
-            "platform": platform,
-            "userAgent": user_agent[:500],
-            "sourceIp": source_ip,
-        }
-    )
-
-    # Increment click counter
-    links_table.update_item(
-        Key={"shortCode": code},
-        UpdateExpression="SET clicks = clicks + :inc",
-        ExpressionAttributeValues={":inc": 1},
-    )
+    # Click tracking is best-effort — it must NEVER block or break the redirect.
+    try:
+        clicks_table.put_item(
+            Item={
+                "shortCode": code,
+                "clickedAt": datetime.utcnow().isoformat(),
+                "platform": platform,
+                "userAgent": user_agent[:500],
+                "sourceIp": source_ip,
+            }
+        )
+        links_table.update_item(
+            Key={"shortCode": code},
+            UpdateExpression="SET clicks = if_not_exists(clicks, :zero) + :inc",
+            ExpressionAttributeValues={":inc": 1, ":zero": 0},
+        )
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"click tracking failed for {code}: {e}")
 
     # Deep link routing
     if item.get("deepLink"):

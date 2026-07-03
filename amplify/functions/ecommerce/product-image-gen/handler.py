@@ -43,6 +43,32 @@ from lambda_utils.logging import get_logger
 logger = get_logger(__name__)
 
 S3_BUCKET = 'app.wecare.digital'
+
+# Wix API key is loaded from Secrets Manager (wecare/wix-api-key), with a
+# fallback to the WIX_API_KEY env var during migration. Cached per container.
+_secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', 'wecare/wix-api-key')
+_wix_key_cache = {}
+
+
+def _load_wix_api_key() -> str:
+    if 'key' in _wix_key_cache:
+        return _wix_key_cache['key']
+    key = ''
+    try:
+        raw = _secrets_client.get_secret_value(SecretId=WIX_API_KEY_SECRET).get('SecretString', '') or ''
+        try:
+            data = json.loads(raw)
+            key = (data.get('api_key') or data.get('apiKey') or data.get('WIX_API_KEY')
+                   or data.get('key') or data.get('value') or '').strip()
+        except (ValueError, TypeError):
+            key = raw.strip()  # secret stored as a plain string
+    except Exception as e:
+        logger.warning(f'Wix API key: Secrets Manager load failed, falling back to env: {e}')
+    if not key:
+        key = os.environ.get('WIX_API_KEY', '')
+    _wix_key_cache['key'] = key
+    return key
 S3_PREFIX = 'stack/store/products'
 
 # Image dimensions (Wix ideal: 3000x3000 for zoom)
@@ -384,7 +410,7 @@ def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
         pid = body.get('productId', '')
         if pid:
             try:
-                WIX_API_KEY = os.environ.get('WIX_API_KEY', '')
+                WIX_API_KEY = _load_wix_api_key()
                 WIX_SITE_ID = os.environ.get('WIX_SITE_ID', '')
                 WIX_API_BASE = 'https://www.wixapis.com'
                 headers = {

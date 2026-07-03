@@ -1,0 +1,83 @@
+name: Deploy docs-scraper (container Lambda)
+
+# Builds the Playwright/Chromium container image and deploys wecare-docs-scraper.
+# Runs on a CI runner (has Docker) — solves the "no Docker locally" blocker.
+#
+# Required repo secrets:
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY   (an IAM user/role scoped to ECR + Lambda)
+# Or configure OIDC role-to-assume instead (recommended).
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+    paths:
+      - 'amplify/functions/operations/docs-scraper/**'
+      - '.github/workflows/docs-scraper-deploy.yml'
+
+env:
+  AWS_REGION: us-east-1
+  ACCOUNT_ID: '775261844268'
+  ECR_REPO: wecare-docs-scraper
+  FUNCTION: wecare-docs-scraper
+  FUNCTION_DIR: amplify/functions/operations/docs-scraper
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Ensure ECR repository exists
+        run: |
+          aws ecr describe-repositories --repository-names "$ECR_REPO" --region "$AWS_REGION" \
+            || aws ecr create-repository --repository-name "$ECR_REPO" --region "$AWS_REGION"
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+
+      - name: Build & push image
+        run: |
+          IMAGE="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${GITHUB_SHA::7}"
+          IMAGE_LATEST="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:latest"
+          docker build -t "$IMAGE" -t "$IMAGE_LATEST" "$FUNCTION_DIR"
+          docker push "$IMAGE"
+          docker push "$IMAGE_LATEST"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Create or update Lambda
+        run: |
+          if aws lambda get-function --function-name "$FUNCTION" --region "$AWS_REGION" >/dev/null 2>&1; then
+            aws lambda update-function-code --function-name "$FUNCTION" \
+              --image-uri "$IMAGE" --region "$AWS_REGION"
+          else
+            aws lambda create-function --function-name "$FUNCTION" \
+              --package-type Image \
+              --code ImageUri="$IMAGE" \
+              --role "arn:aws:iam::$ACCOUNT_ID:role/wecare-digital-lambda-role" \
+              --timeout 300 --memory-size 2048 --region "$AWS_REGION"
+          fi
+
+      - name: Ensure daily EventBridge trigger
+        run: |
+          aws events put-rule --name wecare-docs-scraper-daily \
+            --schedule-expression "rate(1 day)" --region "$AWS_REGION"
+          aws lambda add-permission --function-name "$FUNCTION" --statement-id docs-cron \
+            --action lambda:InvokeFunction --principal events.amazonaws.com \
+            --source-arn "arn:aws:events:$AWS_REGION:$ACCOUNT_ID:rule/wecare-docs-scraper-daily" \
+            --region "$AWS_REGION" 2>/dev/null || true
+          aws events put-targets --rule wecare-docs-scraper-daily \
+            --targets "Id"="1","Arn"="arn:aws:lambda:$AWS_REGION:$ACCOUNT_ID:function:$FUNCTION" \
+            --region "$AWS_REGION"
