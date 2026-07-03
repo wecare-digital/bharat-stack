@@ -114,6 +114,22 @@ def _onboard(body: dict):
     return _resp(status if status in (200, 201) else 502, {"onboarding": data, "entityId": entity_id, "channel": channel})
 
 
+GRAPH = os.environ.get("META_GRAPH_BASE", "https://graph.facebook.com/v22.0")
+# WABA IDs (not phone-number IDs) — subscribed_apps is per WABA
+WABA_IDS = {"WABA1": "2094615664435155", "WABA-T": "2513394156072604"}
+
+
+def _readiness(body: dict):
+    """Step 6/7 check: is the app subscribed to each WABA, and which webhook
+    fields are set? (Uses Graph API, not the ToS-gated agent API.)"""
+    out = {}
+    for name, waba in WABA_IDS.items():
+        status, data = _meta_request("GET", f"{GRAPH}/{waba}/subscribed_apps", None)
+        out[name] = {"waba": waba, "httpStatus": status, "subscribed_apps": data}
+    return _resp(200, {"readiness": out,
+                       "need_fields": ["messages", "standby", "messaging_handovers"]})
+
+
 def _eligibility(body: dict):
     """GET /{entity_id}/agent_eligibility/ -> {is_eligible: bool}"""
     entity_id = body.get("entityId") or DEFAULT_ENTITIES.get(body.get("waba", ""), "")
@@ -224,6 +240,8 @@ def lambda_handler(event, context):
     body = {**event, **body}
     action = body.get("action") or ("onboard" if "onboard" in (event.get("routeKey", "") + event.get("rawPath", "")) else "")
 
+    if action == "readiness":
+        return _readiness(body)
     if action == "eligibility":
         return _eligibility(body)
     if action == "onboard":
