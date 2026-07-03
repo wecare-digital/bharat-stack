@@ -48,14 +48,34 @@ MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 
 # Airtel IQ SMS Configuration
 AIRTEL_IQ_HOST = os.environ.get('AIRTEL_IQ_HOST', 'iqmessaging.airtel.in')
-AIRTEL_IQ_USERNAME = os.environ.get('AIRTEL_IQ_USERNAME', '')
-AIRTEL_IQ_PASSWORD = os.environ.get('AIRTEL_IQ_PASSWORD', '')
 # Static IP proxy for Airtel (Lightsail 52.3.44.165) — Airtel whitelists this IP
 SMS_PROXY_URL = os.environ.get('SMS_PROXY_URL', 'http://52.3.44.165:8899')
-AIRTEL_IQ_CUSTOMER_ID = os.environ.get('AIRTEL_IQ_CUSTOMER_ID', '')
 # DLT Registration - WECARE.DIGITAL
 AIRTEL_IQ_ENTITY_ID = os.environ.get('AIRTEL_IQ_ENTITY_ID', '1201161991108627443')  # PE ID
 AIRTEL_IQ_SOURCE_ADDRESS = os.environ.get('AIRTEL_IQ_SOURCE_ADDRESS', 'WDBEEP')  # Header
+
+# Airtel IQ SMS credentials — loaded from Secrets Manager (wecare/airtel-iq),
+# with env fallback during migration. Secret is JSON: {username, password, customerId}.
+_sms_secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+AIRTEL_IQ_SECRET = os.environ.get('AIRTEL_IQ_SECRET', 'wecare/airtel-iq')
+
+
+def _load_airtel_iq_creds():
+    u = os.environ.get('AIRTEL_IQ_USERNAME', '')
+    p = os.environ.get('AIRTEL_IQ_PASSWORD', '')
+    c = os.environ.get('AIRTEL_IQ_CUSTOMER_ID', '')
+    try:
+        raw = _sms_secrets_client.get_secret_value(SecretId=AIRTEL_IQ_SECRET).get('SecretString', '') or ''
+        data = json.loads(raw)
+        u = (data.get('username') or u or '').strip()
+        p = (data.get('password') or p or '').strip()
+        c = (data.get('customerId') or data.get('customer_id') or c or '').strip()
+    except Exception as e:
+        logger.warning(f'Airtel IQ creds: Secrets Manager load failed, using env fallback: {e}')
+    return u, p, c
+
+
+AIRTEL_IQ_USERNAME, AIRTEL_IQ_PASSWORD, AIRTEL_IQ_CUSTOMER_ID = _load_airtel_iq_creds()
 
 
 # Module-level origin for CORS (set per-invocation in handler)
