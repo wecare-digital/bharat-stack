@@ -114,6 +114,15 @@ def _onboard(body: dict):
     return _resp(status if status in (200, 201) else 502, {"onboarding": data, "entityId": entity_id, "channel": channel})
 
 
+def _eligibility(body: dict):
+    """GET /{entity_id}/agent_eligibility/ -> {is_eligible: bool}"""
+    entity_id = body.get("entityId") or DEFAULT_ENTITIES.get(body.get("waba", ""), "")
+    if not entity_id:
+        return _resp(400, {"error": "entityId required"})
+    status, data = _meta_request("GET", f"{GRAPH_HOST}/{entity_id}/agent_eligibility/", None)
+    return _resp(status if status == 200 else 502, {"eligibility": data, "entityId": entity_id})
+
+
 def _settings_url(entity_id: str, agent_id: str | None) -> str:
     url = f"{GRAPH_HOST}/{entity_id}/agent_config/settings"
     return f"{url}?agent_id={agent_id}" if agent_id else url
@@ -163,6 +172,40 @@ def _settings_update(body: dict):
     return _resp(status if status == 200 else 502, {"settings": data, "entityId": entity_id})
 
 
+def _allowlist_url(entity_id: str, entry_id: str | None = None) -> str:
+    base = f"{GRAPH_HOST}/{entity_id}/agent_config/allowlist"
+    return f"{base}/{entry_id}" if entry_id else base
+
+
+def _allowlist_list(body: dict):
+    """GET /{entity_id}/agent_config/allowlist -> [{id, consumer_phone_number}]"""
+    entity_id = body.get("entityId") or DEFAULT_ENTITIES.get(body.get("waba", ""), "")
+    if not entity_id:
+        return _resp(400, {"error": "entityId required"})
+    status, data = _meta_request("GET", _allowlist_url(entity_id), None)
+    return _resp(status if status == 200 else 502, {"allowlist": data, "entityId": entity_id})
+
+
+def _allowlist_add(body: dict):
+    """POST /{entity_id}/agent_config/allowlist  {consumer_phone_number} (E.164)"""
+    entity_id = body.get("entityId") or DEFAULT_ENTITIES.get(body.get("waba", ""), "")
+    phone = (body.get("consumerPhoneNumber") or body.get("phone") or "").strip()
+    if not entity_id or not phone:
+        return _resp(400, {"error": "entityId and consumerPhoneNumber (E.164, e.g. +15551234567) required"})
+    status, data = _meta_request("POST", _allowlist_url(entity_id), {"consumer_phone_number": phone})
+    return _resp(status if status in (200, 201) else 502, {"entry": data, "entityId": entity_id})
+
+
+def _allowlist_remove(body: dict):
+    """DELETE /{entity_id}/agent_config/allowlist/{entry_id} -> 204"""
+    entity_id = body.get("entityId") or DEFAULT_ENTITIES.get(body.get("waba", ""), "")
+    entry_id = (body.get("entryId") or "").strip()
+    if not entity_id or not entry_id:
+        return _resp(400, {"error": "entityId and entryId required"})
+    status, data = _meta_request("DELETE", _allowlist_url(entity_id, entry_id), None)
+    return _resp(200 if status in (200, 204) else 502, {"deleted": status in (200, 204), "detail": data})
+
+
 def lambda_handler(event, context):
     if isinstance(event, str):
         try:
@@ -181,6 +224,8 @@ def lambda_handler(event, context):
     body = {**event, **body}
     action = body.get("action") or ("onboard" if "onboard" in (event.get("routeKey", "") + event.get("rawPath", "")) else "")
 
+    if action == "eligibility":
+        return _eligibility(body)
     if action == "onboard":
         return _onboard(body)
     if action in ("settings", "settings_get"):
@@ -191,7 +236,14 @@ def lambda_handler(event, context):
         elif action == "disable":
             body["enabled"] = False
         return _settings_update(body)
+    if action in ("allowlist", "allowlist_list"):
+        return _allowlist_list(body)
+    if action == "allowlist_add":
+        return _allowlist_add(body)
+    if action == "allowlist_remove":
+        return _allowlist_remove(body)
     if action == "entities":
         return _resp(200, {"entities": DEFAULT_ENTITIES, "channels": sorted(CHANNELS)})
-    return _resp(400, {"error": "unknown action",
-                       "supported": ["onboard", "settings", "settings_update", "enable", "disable", "entities"]})
+    return _resp(400, {"error": "unknown action", "supported": [
+        "eligibility", "onboard", "settings", "settings_update", "enable", "disable",
+        "allowlist", "allowlist_add", "allowlist_remove", "entities"]})
