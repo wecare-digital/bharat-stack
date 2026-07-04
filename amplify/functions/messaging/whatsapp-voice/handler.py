@@ -912,9 +912,19 @@ def _list_logs(params: Dict, request_id: str) -> Dict[str, Any]:
     """List WhatsApp voice message logs."""
     try:
         table = dynamodb.Table(VOICE_LOG_TABLE)
-        result = table.scan(Limit=int(params.get('limit', 100)))
-        items = result.get('Items', [])
+        limit = int(params.get('limit', 100))
+        # Paginate then sort, so we return the true most-recent logs (a single
+        # page + Limit would sort only an arbitrary first slice).
+        items = []
+        scan_kwargs = {}
+        while True:
+            result = table.scan(**scan_kwargs)
+            items.extend(result.get('Items', []))
+            if 'LastEvaluatedKey' not in result or len(items) >= 2000:
+                break
+            scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
         items.sort(key=lambda x: float(x.get('createdAt', 0)), reverse=True)
+        items = items[:limit]
         return _response(200, {
             'logs': [_normalize_log(i) for i in items],
             'count': len(items)

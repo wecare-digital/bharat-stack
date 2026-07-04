@@ -554,11 +554,13 @@ def _get_system_events(query_params: Dict, request_id: str) -> Dict[str, Any]:
         }))
         return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps(events)}
     except Exception as e:
+        # Surface total failures instead of masking them as an empty 200.
+        # (Per-event-type failures are already handled gracefully above.)
         logger.error(json.dumps({'event': 'get_system_events_error', 'error': str(e), 'requestId': request_id}))
         return {
-            'statusCode': 200,
+            'statusCode': 500,
             'headers': cors_headers(origin),
-            'body': json.dumps({'templateStatus': [], 'phoneQuality': [], 'accountUpdates': []})
+            'body': json.dumps({'error': 'Failed to fetch system events'})
         }
 
 

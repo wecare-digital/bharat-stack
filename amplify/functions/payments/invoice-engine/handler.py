@@ -2476,10 +2476,15 @@ def _lookup_contact_by_phone(phone: str) -> Optional[Dict]:
         if not clean.startswith('+'):
             clean = '+' + clean
 
-        result = table.scan(
-            FilterExpression=boto3.dynamodb.conditions.Attr('phone').contains(clean[-10:]),
-        )
-        items = result.get('Items', [])
+        # Paginate until a match is found (single-page scan could miss it).
+        scan_kwargs = {'FilterExpression': boto3.dynamodb.conditions.Attr('phone').contains(clean[-10:])}
+        items = []
+        while True:
+            result = table.scan(**scan_kwargs)
+            items = result.get('Items', [])
+            if items or 'LastEvaluatedKey' not in result:
+                break
+            scan_kwargs['ExclusiveStartKey'] = result['LastEvaluatedKey']
         return items[0] if items else None
     except Exception as e:
         logger.warning(f"Contact lookup error: {e}")
