@@ -1849,11 +1849,13 @@ def _generate_sdp_answer(sdp_offer: str) -> Optional[str]:
             elif line.startswith('a=ssrc:') and not ssrc:
                 ssrc = line.split(':')[1].split(' ')[0]
 
-        # Generate our own ICE credentials for the answer
-        import random
+        # Generate our own ICE credentials for the answer.
+        # secrets (not random) so creds stay unique under Lambda SnapStart, where
+        # a restored snapshot would otherwise share the random PRNG state.
+        import secrets
         import string
-        our_ufrag = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-        our_pwd = ''.join(random.choices(string.ascii_letters + string.digits, k=24))
+        our_ufrag = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
+        our_pwd = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(24))
 
         # Build minimal SDP answer accepting OPUS codec (payload type 111)
         answer_lines = [

@@ -15,7 +15,7 @@ import os
 import time
 import logging
 import uuid
-import random
+import secrets
 import string
 import boto3
 from datetime import datetime
@@ -132,8 +132,10 @@ def handler(event, context):
 
 
 def generate_code(length=6):
+    # secrets (not random) so codes stay unique under Lambda SnapStart, where a
+    # restored snapshot would otherwise share the random module's PRNG state.
     chars = string.ascii_lowercase + string.digits
-    return "".join(random.choices(chars, k=length))
+    return "".join(secrets.choice(chars) for _ in range(length))
 
 
 def create_link(body):
