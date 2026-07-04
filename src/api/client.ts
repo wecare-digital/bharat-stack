@@ -35,6 +35,23 @@ async function getAuthToken (): Promise<string | null> {
   }
 }
 
+/**
+ * Authenticated fetch — attaches the Cognito access token as a Bearer header.
+ * Use on pages that make raw fetch() calls to protected API routes instead of
+ * going through apiCall(). Unauthenticated/webhook routes simply ignore it.
+ */
+export async function authFetch ( input: string, init: RequestInit = {} ): Promise<Response> {
+  const token = await getAuthToken();
+  return fetch( input, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...( init.headers as Record<string, string> || {} ),
+      ...( token ? { Authorization: `Bearer ${token}` } : {} ),
+    },
+  } );
+}
+
 // Helper function for API calls with retry logic and better error handling
 async function apiCall<T> ( url: string, options?: RequestInit, retryCount = 0 ): Promise<T | null> {
   try
