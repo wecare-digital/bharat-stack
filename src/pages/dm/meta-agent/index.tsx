@@ -10,6 +10,7 @@ import SEO from '../../../components/SEO';
 import Button from '../../../components/ui/Button';
 import { useToastContext } from '../../../contexts/ToastContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -39,10 +40,14 @@ const MetaAgentPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
     const [ busy, setBusy ] = useState( '' );
 
     const call = async ( action: string, extra: Record<string, any> = {} ) => {
+        let token: string | null = null;
+        try { token = ( await fetchAuthSession() ).tokens?.accessToken?.toString() ?? null; } catch { token = null; }
         const res = await fetch( `${API_BASE}/meta-agent`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...( token ? { Authorization: `Bearer ${token}` } : {} ) },
             body: JSON.stringify( { action, entityId, ...extra } ),
         } );
+        if ( res.status === 401 || res.status === 403 ) { toast.error( 'Not authorized — please sign in again' ); return {}; }
         return res.json();
     };
 
@@ -87,6 +92,71 @@ const MetaAgentPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
         try { await call( 'settings_update', patch ); toast.success( 'Settings saved' ); loadSettings(); }
         finally { setBusy( '' ); }
     };
+
+    // ── Skills (system instructions) ──
+    const [ skills, setSkills ] = useState( '' );
+    const loadSkills = useCallback( async () => {
+        const d = await call( 'skills' );
+        const s = Array.isArray( d.skills ) ? d.skills[ 0 ] : d.skills;
+        setSkills( s?.system_instructions || s?.instructions || '' );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ entityId ] );
+    const saveSkills = async () => {
+        setBusy( 'skills' );
+        try { await call( 'skills_update', { instructions: skills } ); toast.success( 'Skills saved' ); }
+        finally { setBusy( '' ); }
+    };
+
+    // ── FAQs (knowledge) ──
+    const [ faqs, setFaqs ] = useState<any[]>( [] );
+    const [ faqQ, setFaqQ ] = useState( '' );
+    const [ faqA, setFaqA ] = useState( '' );
+    const loadFaqs = useCallback( async () => {
+        const d = await call( 'knowledge', { resource: 'faqs' } );
+        setFaqs( Array.isArray( d.items ) ? d.items : ( d.items?.data || [] ) );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ entityId ] );
+    const addFaq = async () => {
+        if ( !faqQ.trim() || !faqA.trim() ) return;
+        setBusy( 'faq' );
+        try { await call( 'knowledge_add', { resource: 'faqs', item: { question: faqQ, answer: faqA } } ); setFaqQ( '' ); setFaqA( '' ); toast.success( 'FAQ added' ); loadFaqs(); }
+        finally { setBusy( '' ); }
+    };
+    const removeFaq = async ( id: string ) => {
+        if ( !( await confirm( 'Remove this FAQ?' ) ) ) return;
+        await call( 'knowledge_remove', { resource: 'faqs', itemId: id } ); toast.success( 'Removed' ); loadFaqs();
+    };
+
+    // ── Allowlist ──
+    const [ allow, setAllow ] = useState<any[]>( [] );
+    const [ allowPhone, setAllowPhone ] = useState( '' );
+    const loadAllow = useCallback( async () => {
+        const d = await call( 'allowlist' );
+        setAllow( Array.isArray( d.allowlist ) ? d.allowlist : ( d.allowlist?.data || [] ) );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ entityId ] );
+    const addAllow = async () => {
+        if ( !allowPhone.trim() ) return;
+        setBusy( 'allow' );
+        try { await call( 'allowlist_add', { consumerPhoneNumber: allowPhone.trim() } ); setAllowPhone( '' ); toast.success( 'Added to allowlist' ); loadAllow(); }
+        finally { setBusy( '' ); }
+    };
+    const removeAllow = async ( id: string ) => {
+        if ( !( await confirm( 'Remove from allowlist?' ) ) ) return;
+        await call( 'allowlist_remove', { entryId: id } ); toast.success( 'Removed' ); loadAllow();
+    };
+
+    // ── Test ──
+    const [ testMsg, setTestMsg ] = useState( '' );
+    const [ testOut, setTestOut ] = useState( '' );
+    const runTest = async () => {
+        if ( !testMsg.trim() ) return;
+        setBusy( 'test' );
+        try { const d = await call( 'agent_test', { message: testMsg } ); setTestOut( JSON.stringify( d.result || d, null, 2 ) ); }
+        finally { setBusy( '' ); }
+    };
+
+    useEffect( () => { loadSkills(); loadFaqs(); loadAllow(); }, [ loadSkills, loadFaqs, loadAllow ] );
 
     const enabled = !!settings?.rollout?.enabled;
 
@@ -137,6 +207,76 @@ const MetaAgentPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
                         </select>
                     </div>
                 ) }
+
+                {/* Allowlist */ }
+                <div style={ card }>
+                    <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' } }>
+                        <h2 style={ h2 }>Allowlist</h2>
+                        <Button variant="secondary" onClick={ loadAllow } disabled={ busy !== '' }>Refresh</Button>
+                    </div>
+                    <p style={ { color: 'var(--text-muted)', fontSize: 13, margin: '0 0 10px' } }>Limit the agent to specific consumer numbers (used when Audience = Allowlisted only).</p>
+                    <div style={ { display: 'flex', gap: 'var(--space-2)', marginBottom: 10 } }>
+                        <input value={ allowPhone } onChange={ e => setAllowPhone( e.target.value ) } placeholder="+15551234567" style={ { flex: 1 } } />
+                        <Button onClick={ addAllow } disabled={ busy !== '' || !allowPhone.trim() }>Add</Button>
+                    </div>
+                    { allow.length === 0 ? <p style={ { color: 'var(--text-muted)', fontSize: 13 } }>No allowlisted numbers.</p> : (
+                        <ul style={ { listStyle: 'none', padding: 0, margin: 0 } }>
+                            { allow.map( ( a: any ) => (
+                                <li key={ a.id } style={ { display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)' } }>
+                                    <span>{ a.consumer_phone_number || a.phone || a.id }</span>
+                                    <button onClick={ () => removeAllow( a.id ) } style={ { border: 'none', background: 'none', color: 'var(--danger, #dc2626)', cursor: 'pointer' } }>Remove</button>
+                                </li>
+                            ) ) }
+                        </ul>
+                    ) }
+                </div>
+
+                {/* Skills / system instructions */ }
+                <div style={ card }>
+                    <h2 style={ h2 }>Skills — system instructions</h2>
+                    <p style={ { color: 'var(--text-muted)', fontSize: 13, margin: '0 0 8px' } }>Instructions that shape how the agent responds (tone, policies, do/don&apos;t).</p>
+                    <textarea value={ skills } onChange={ e => setSkills( e.target.value ) } rows={ 6 } placeholder="e.g. You are WECARE's support assistant. Be concise, polite, and never share pricing you are unsure about…" style={ { width: '100%', fontFamily: 'inherit', fontSize: 13 } } />
+                    <div style={ { marginTop: 8, display: 'flex', gap: 'var(--space-2)' } }>
+                        <Button onClick={ saveSkills } disabled={ busy !== '' }>{ busy === 'skills' ? 'Saving…' : 'Save skills' }</Button>
+                        <Button variant="secondary" onClick={ loadSkills } disabled={ busy !== '' }>Reload</Button>
+                    </div>
+                </div>
+
+                {/* FAQs knowledge */ }
+                <div style={ card }>
+                    <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' } }>
+                        <h2 style={ h2 }>Knowledge — FAQs</h2>
+                        <Button variant="secondary" onClick={ loadFaqs } disabled={ busy !== '' }>Refresh</Button>
+                    </div>
+                    <div style={ { display: 'grid', gap: 8, marginBottom: 10 } }>
+                        <input value={ faqQ } onChange={ e => setFaqQ( e.target.value ) } placeholder="Question" style={ { width: '100%' } } />
+                        <textarea value={ faqA } onChange={ e => setFaqA( e.target.value ) } rows={ 2 } placeholder="Answer" style={ { width: '100%', fontFamily: 'inherit' } } />
+                        <div><Button onClick={ addFaq } disabled={ busy !== '' || !faqQ.trim() || !faqA.trim() }>Add FAQ</Button></div>
+                    </div>
+                    { faqs.length === 0 ? <p style={ { color: 'var(--text-muted)', fontSize: 13 } }>No FAQs yet.</p> : (
+                        <ul style={ { listStyle: 'none', padding: 0, margin: 0 } }>
+                            { faqs.map( ( f: any, i: number ) => (
+                                <li key={ f.id || i } style={ { padding: '8px 0', borderBottom: '1px solid var(--border)' } }>
+                                    <div style={ { display: 'flex', justifyContent: 'space-between', gap: 8 } }>
+                                        <div><strong style={ { fontSize: 13 } }>{ f.question }</strong><div style={ { fontSize: 13, color: 'var(--text-muted)' } }>{ f.answer }</div></div>
+                                        { f.id && <button onClick={ () => removeFaq( f.id ) } style={ { border: 'none', background: 'none', color: 'var(--danger, #dc2626)', cursor: 'pointer', flexShrink: 0 } }>Remove</button> }
+                                    </div>
+                                </li>
+                            ) ) }
+                        </ul>
+                    ) }
+                </div>
+
+                {/* Test */ }
+                <div style={ card }>
+                    <h2 style={ h2 }>Test the agent</h2>
+                    <p style={ { color: 'var(--text-muted)', fontSize: 13, margin: '0 0 8px' } }>Send a test message and see the agent&apos;s response.</p>
+                    <div style={ { display: 'flex', gap: 'var(--space-2)', marginBottom: 8 } }>
+                        <input value={ testMsg } onChange={ e => setTestMsg( e.target.value ) } placeholder="Type a customer message…" style={ { flex: 1 } } />
+                        <Button onClick={ runTest } disabled={ busy !== '' || !testMsg.trim() }>{ busy === 'test' ? 'Running…' : 'Send' }</Button>
+                    </div>
+                    { testOut && <pre style={ { background: 'var(--surface-2, #f5f5f5)', padding: 12, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 240 } }>{ testOut }</pre> }
+                </div>
             </div>
         </>
     );

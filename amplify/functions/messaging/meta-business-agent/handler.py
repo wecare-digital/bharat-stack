@@ -26,6 +26,8 @@ import urllib.error
 
 import boto3
 
+from lambda_utils.middleware import require_auth
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -222,6 +224,142 @@ def _allowlist_remove(body: dict):
     return _resp(200 if status in (200, 204) else 502, {"deleted": status in (200, 204), "detail": data})
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Configure group — skills, knowledge, connectors.
+# Paths follow the agent_config/ + agent_knowledge/ convention used by the
+# settings/allowlist endpoints above. Request bodies mirror Meta's docs; verify
+# exact shapes against the per-endpoint OpenAPI specs when refining.
+# ─────────────────────────────────────────────────────────────────────────
+
+_KNOWLEDGE = {"business_info", "faqs", "websites", "files"}
+
+
+def _entity(body: dict) -> str:
+    return body.get("entityId") or DEFAULT_ENTITIES.get(body.get("waba", ""), "")
+
+
+def _with_agent(url: str, agent_id: str | None) -> str:
+    return f"{url}?agent_id={agent_id}" if agent_id else url
+
+
+def _skills_get(body: dict):
+    """GET /{entity_id}/agent_config/skills — system instructions that shape replies."""
+    eid = _entity(body)
+    if not eid:
+        return _resp(400, {"error": "entityId required"})
+    st, d = _meta_request("GET", _with_agent(f"{GRAPH_HOST}/{eid}/agent_config/skills", body.get("agentId")), None)
+    return _resp(st if st == 200 else 502, {"skills": d, "entityId": eid})
+
+
+def _skills_update(body: dict):
+    """PUT /{entity_id}/agent_config/skills  {system_instructions}"""
+    eid = _entity(body)
+    instructions = body.get("instructions")
+    if not eid or instructions is None:
+        return _resp(400, {"error": "entityId and instructions (system prompt) required"})
+    st, d = _meta_request("PUT", _with_agent(f"{GRAPH_HOST}/{eid}/agent_config/skills", body.get("agentId")),
+                          {"system_instructions": instructions})
+    return _resp(st if st in (200, 201) else 502, {"skills": d, "entityId": eid})
+
+
+def _knowledge_list(body: dict):
+    """GET /{entity_id}/agent_knowledge/{resource}  resource in business_info|faqs|websites|files"""
+    eid = _entity(body); res = body.get("resource", "")
+    if not eid or res not in _KNOWLEDGE:
+        return _resp(400, {"error": f"entityId and resource in {sorted(_KNOWLEDGE)} required"})
+    st, d = _meta_request("GET", _with_agent(f"{GRAPH_HOST}/{eid}/agent_knowledge/{res}", body.get("agentId")), None)
+    return _resp(st if st == 200 else 502, {"resource": res, "items": d, "entityId": eid})
+
+
+def _knowledge_add(body: dict):
+    """POST /{entity_id}/agent_knowledge/{resource}  {item...}"""
+    eid = _entity(body); res = body.get("resource", ""); item = body.get("item") or {}
+    if not eid or res not in _KNOWLEDGE or not item:
+        return _resp(400, {"error": f"entityId, resource in {sorted(_KNOWLEDGE)}, and item{{}} required"})
+    st, d = _meta_request("POST", _with_agent(f"{GRAPH_HOST}/{eid}/agent_knowledge/{res}", body.get("agentId")), item)
+    return _resp(st if st in (200, 201) else 502, {"resource": res, "created": d, "entityId": eid})
+
+
+def _knowledge_remove(body: dict):
+    """DELETE /{entity_id}/agent_knowledge/{resource}/{item_id}"""
+    eid = _entity(body); res = body.get("resource", ""); item_id = body.get("itemId", "")
+    if not eid or res not in _KNOWLEDGE or not item_id:
+        return _resp(400, {"error": "entityId, resource, itemId required"})
+    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_knowledge/{res}/{item_id}", None)
+    return _resp(200 if st in (200, 204) else 502, {"deleted": st in (200, 204), "detail": d})
+
+
+def _connectors_list(body: dict):
+    """GET /{entity_id}/agent_config/connectors — external APIs the agent can call."""
+    eid = _entity(body)
+    if not eid:
+        return _resp(400, {"error": "entityId required"})
+    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_config/connectors", None)
+    return _resp(st if st == 200 else 502, {"connectors": d, "entityId": eid})
+
+
+def _connectors_add(body: dict):
+    """POST /{entity_id}/agent_config/connectors  {connector...}"""
+    eid = _entity(body); spec = body.get("connector") or {}
+    if not eid or not spec:
+        return _resp(400, {"error": "entityId and connector{} required"})
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_config/connectors", spec)
+    return _resp(st if st in (200, 201) else 502, {"created": d, "entityId": eid})
+
+
+def _connectors_remove(body: dict):
+    """DELETE /{entity_id}/agent_config/connectors/{connector_id}"""
+    eid = _entity(body); cid = body.get("connectorId", "")
+    if not eid or not cid:
+        return _resp(400, {"error": "entityId and connectorId required"})
+    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_config/connectors/{cid}", None)
+    return _resp(200 if st in (200, 204) else 502, {"deleted": st in (200, 204), "detail": d})
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Operate group — thread control, agent events, test, eval.
+# ─────────────────────────────────────────────────────────────────────────
+
+def _thread_control(body: dict):
+    """Cloud API handover: pass control back to the agent, or take it.
+    op: pass|take ; recipient = consumer phone (E.164)."""
+    eid = _entity(body); recipient = (body.get("recipient") or "").strip()
+    op = (body.get("op") or "pass").lower()
+    if not eid or not recipient:
+        return _resp(400, {"error": "entityId and recipient required"})
+    verb = "pass_thread_control" if op == "pass" else "take_thread_control"
+    st, d = _meta_request("POST", f"{GRAPH}/{eid}/{verb}",
+                          {"messaging_product": "whatsapp", "recipient": recipient})
+    return _resp(st if st in (200, 201) else 502, {"thread_control": d, "op": op, "entityId": eid})
+
+
+def _agent_event(body: dict):
+    """POST /{entity_id}/agent_event — trigger an agent action for a business event."""
+    eid = _entity(body); payload = body.get("event") or {}
+    if not eid or not payload:
+        return _resp(400, {"error": "entityId and event{} required"})
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_event", payload)
+    return _resp(st if st in (200, 201) else 502, {"event": d, "entityId": eid})
+
+
+def _agent_test(body: dict):
+    """POST /{entity_id}/agent_test — send a test message to the agent."""
+    eid = _entity(body); msg = body.get("message")
+    if not eid or not msg:
+        return _resp(400, {"error": "entityId and message required"})
+    st, d = _meta_request("POST", _with_agent(f"{GRAPH_HOST}/{eid}/agent_test", body.get("agentId")), {"message": msg})
+    return _resp(st if st in (200, 201) else 502, {"result": d, "entityId": eid})
+
+
+def _agent_eval(body: dict):
+    """GET /{entity_id}/agent_eval — agent performance metrics."""
+    eid = _entity(body)
+    if not eid:
+        return _resp(400, {"error": "entityId required"})
+    st, d = _meta_request("GET", _with_agent(f"{GRAPH_HOST}/{eid}/agent_eval", body.get("agentId")), None)
+    return _resp(st if st == 200 else 502, {"eval": d, "entityId": eid})
+
+
 def lambda_handler(event, context):
     if isinstance(event, str):
         try:
@@ -231,6 +369,13 @@ def lambda_handler(event, context):
     method = event.get("httpMethod") or event.get("requestContext", {}).get("http", {}).get("method", "")
     if method == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
+
+    # Inbound auth: require a valid Cognito token (gateway routes are NONE, so
+    # protection is enforced here — consistent with the platform middleware).
+    auth = require_auth(event)
+    if auth is not None:
+        return auth
+
     body = {}
     if isinstance(event.get("body"), str):
         try:
@@ -260,8 +405,37 @@ def lambda_handler(event, context):
         return _allowlist_add(body)
     if action == "allowlist_remove":
         return _allowlist_remove(body)
+    # Configure group
+    if action == "skills":
+        return _skills_get(body)
+    if action == "skills_update":
+        return _skills_update(body)
+    if action in ("knowledge", "knowledge_list"):
+        return _knowledge_list(body)
+    if action == "knowledge_add":
+        return _knowledge_add(body)
+    if action == "knowledge_remove":
+        return _knowledge_remove(body)
+    if action in ("connectors", "connectors_list"):
+        return _connectors_list(body)
+    if action == "connectors_add":
+        return _connectors_add(body)
+    if action == "connectors_remove":
+        return _connectors_remove(body)
+    # Operate group
+    if action == "thread_control":
+        return _thread_control(body)
+    if action == "agent_event":
+        return _agent_event(body)
+    if action == "agent_test":
+        return _agent_test(body)
+    if action == "agent_eval":
+        return _agent_eval(body)
     if action == "entities":
         return _resp(200, {"entities": DEFAULT_ENTITIES, "channels": sorted(CHANNELS)})
     return _resp(400, {"error": "unknown action", "supported": [
-        "eligibility", "onboard", "settings", "settings_update", "enable", "disable",
-        "allowlist", "allowlist_add", "allowlist_remove", "entities"]})
+        "eligibility", "onboard", "readiness", "settings", "settings_update", "enable", "disable",
+        "allowlist", "allowlist_add", "allowlist_remove",
+        "skills", "skills_update", "knowledge", "knowledge_add", "knowledge_remove",
+        "connectors", "connectors_add", "connectors_remove",
+        "thread_control", "agent_event", "agent_test", "agent_eval", "entities"]})
