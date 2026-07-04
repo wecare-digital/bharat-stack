@@ -41,7 +41,9 @@ export const whatsappBusinessApi = defineFunction( {
     WIX_ORDERS_CACHE_TABLE: 'stack-wecare-digital-WixOrdersCache',
     WIX_ORDER_IDS_TABLE: 'stack-wecare-digital-WixOrderIds',
     FLOW_PRIVATE_KEY_SECRET: 'wecare/flow-private-key',
-    FLOW_PRIVATE_KEY_PASSPHRASE: '',
+    // Passphrase intentionally omitted — the flow private key is stored
+    // unencrypted in Secrets Manager (wecare/flow-private-key). If a passphrase
+    // is ever needed, store it in Secrets Manager, not as a plaintext env var.
     WIX_SITE_URL: 'https://www.wecare.digital',
     SUBMIT_REQUESTS_TABLE: 'stack-wecare-digital-SubmitRequestsTable',
     FLOW_REGISTRY_TABLE: 'stack-wecare-digital-FlowRegistryTable',
