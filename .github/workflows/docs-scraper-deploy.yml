@@ -43,6 +43,11 @@ jobs:
           aws ecr describe-repositories --repository-names "$ECR_REPO" --region "$AWS_REGION" \
             || aws ecr create-repository --repository-name "$ECR_REPO" --region "$AWS_REGION"
 
+      - name: Ensure Lambda can pull from ECR (repository policy)
+        run: |
+          aws ecr set-repository-policy --repository-name "$ECR_REPO" --region "$AWS_REGION" \
+            --policy-text "file://$FUNCTION_DIR/ecr-policy.json" || true
+
       - name: Login to ECR
         run: |
           aws ecr get-login-password --region "$AWS_REGION" \
