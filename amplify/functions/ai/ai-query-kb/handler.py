@@ -30,7 +30,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Query static knowledge base for relevant context."""
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
-    
+
+    # Internal Lambda-to-Lambda invokes (no HTTP context) are auto-exempt.
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     query = event.get('query', '')
     message_id = event.get('messageId', '')
     kb_type = event.get('kbType', 'external')  # kept for compatibility

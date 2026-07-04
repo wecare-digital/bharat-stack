@@ -124,6 +124,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # Handle OPTIONS preflight
     if http_method == 'OPTIONS':
         return options_response(origin)
+
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
     
     try:
         body = {}

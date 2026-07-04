@@ -48,6 +48,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     global origin
     origin = extract_origin(event)
 
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     http_method = event.get('requestContext', {}).get('http', {}).get('method', 'PUT')
     path_params = event.get('pathParameters') or {}
     job_id = path_params.get('jobId')

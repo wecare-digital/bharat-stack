@@ -109,6 +109,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if method == 'OPTIONS':
         return _resp(200, {'ok': True})
 
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
     except (json.JSONDecodeError, TypeError):

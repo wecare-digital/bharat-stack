@@ -41,6 +41,12 @@ def handler(event, context):
     method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET')).upper()
     if method == 'OPTIONS':
         return options_response(origin)
+
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     pp = event.get('pathParameters') or {}
     cid = pp.get('conversationId')
     path = event.get('rawPath', event.get('path', ''))

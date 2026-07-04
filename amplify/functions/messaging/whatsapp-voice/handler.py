@@ -231,6 +231,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
 
+        from lambda_utils.middleware import require_auth
+        _auth = require_auth(event)
+        if _auth is not None:
+            return _auth
+
         # DELETE /whatsapp-voice/clear-logs
         if http_method == 'DELETE' and 'clear-logs' in path:
             return _clear_logs(request_id)

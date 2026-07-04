@@ -104,6 +104,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if http_method == 'OPTIONS':
         return _resp(200, {'ok': True})
 
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     waba_id = query.get('wabaId', WABA1_ID)
 
     if 'conversation' in path:

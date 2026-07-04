@@ -79,6 +79,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if http_method == 'OPTIONS':
         return options_response(origin)
 
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     if http_method == 'GET':
         return cors_response(200, {'status': 'ok', 'service': 'sinch-rcs'}, origin)
 
