@@ -90,6 +90,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if method == 'OPTIONS':
         return options_response(origin)
 
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     path_params = event.get('pathParameters', {}) or {}
     query_params = event.get('queryStringParameters', {}) or {}
     contact_id = path_params.get('contactId') or path_params.get('proxy')

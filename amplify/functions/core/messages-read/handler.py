@@ -59,7 +59,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET')).upper()
     if method == 'OPTIONS':
         return options_response(origin)
-    
+
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     try:
         # Extract query parameters
         params = event.get('queryStringParameters', {}) or {}

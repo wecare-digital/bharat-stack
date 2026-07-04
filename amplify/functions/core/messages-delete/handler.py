@@ -69,6 +69,11 @@ def handler(event, context):
     if evt_method == 'OPTIONS':
         return options_response(origin)
 
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     # Support both API Gateway v1 (REST) and v2 (HTTP) event formats
     request_context = event.get('requestContext', {})
     if 'http' in request_context:
