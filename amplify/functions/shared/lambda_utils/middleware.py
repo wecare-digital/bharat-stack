@@ -115,12 +115,15 @@ def require_auth(
             'currentRole': role,
         }, origin)
 
-    # Attach auth info to event for downstream use
+    # Attach auth info to event for downstream use.
+    # `attributes` includes any custom attributes (e.g. custom:partner_waba_id)
+    # so handlers can scope data to a specific tenant for customer users.
     event['_auth'] = {
         'username': username,
         'email': attributes.get('email', ''),
         'role': role,
         'groups': groups,
+        'attributes': attributes,
     }
 
     return None

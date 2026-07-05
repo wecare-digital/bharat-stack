@@ -28,16 +28,29 @@ interface SignupResult { wabaId?: string; phoneNumberId?: string; businessId?: s
 const cta: React.CSSProperties = { padding: '14px 26px', background: LIME, color: GREEN, border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' };
 const ctaDisabled: React.CSSProperties = { ...cta, background: '#eee', color: '#999', cursor: 'not-allowed' };
 
+interface StepResult { step: string; ok: boolean | null; detail?: string; }
+
 interface Props {
     /** internal admin context shows richer status + is not gated by the flag */
     admin?: boolean;
+    /** 'onboard' = new/existing number, 'migrate' = move a number from another provider */
+    mode?: 'onboard' | 'migrate';
+    /** optional customer email — when set, a limited-access login is auto-created for them */
+    customerEmail?: string;
     onConnected?: ( r: SignupResult ) => void;
 }
 
-const EmbeddedSignupPanel: React.FC<Props> = ( { admin = false, onConnected } ) => {
+const STEP_LABELS: Record<string, string> = {
+    share_credit_line: 'Share line of credit',
+    subscribe_app: 'Subscribe app to WABA',
+    register_phone: 'Register number for Cloud API',
+};
+
+const EmbeddedSignupPanel: React.FC<Props> = ( { admin = false, mode = 'onboard', customerEmail, onConnected } ) => {
     const [ status, setStatus ] = useState<Status>( 'idle' );
     const [ result, setResult ] = useState<SignupResult>( {} );
     const [ message, setMessage ] = useState<string>( '' );
+    const [ steps, setSteps ] = useState<StepResult[]>( [] );
 
     const usable = ENABLED || ( admin && !!ES_CONFIG_ID );
 
@@ -73,19 +86,20 @@ const EmbeddedSignupPanel: React.FC<Props> = ( { admin = false, onConnected } ) 
             const res = await fetch( `${API_BASE}/partners/embedded-signup`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify( { code, wabaId: r.wabaId, phoneNumberId: r.phoneNumberId, businessId: r.businessId } ),
+                body: JSON.stringify( { code, wabaId: r.wabaId, phoneNumberId: r.phoneNumberId, businessId: r.businessId, mode, customerEmail: customerEmail || undefined } ),
             } );
             const data = await res.json().catch( () => ( {} ) );
             if ( !res.ok || data?.success === false ) throw new Error( data?.error || `Onboarding service returned ${res.status}` );
+            setSteps( Array.isArray( data?.steps ) ? data.steps : [] );
             setStatus( 'done' );
-            setMessage( admin ? `Connected WABA ${r.wabaId || ''}.` : 'Your WhatsApp Business Account is connected. Our team will reach out with next steps.' );
+            setMessage( admin ? `${mode === 'migrate' ? 'Migrated' : 'Connected'} WABA ${r.wabaId || ''}.` : 'Your WhatsApp Business Account is connected. Our team will reach out with next steps.' );
             onConnected?.( r );
         } catch ( e: any )
         {
             setStatus( 'error' );
             setMessage( e?.message || 'Could not complete onboarding. Please try again.' );
         }
-    }, [ admin, onConnected ] );
+    }, [ admin, mode, customerEmail, onConnected ] );
 
     const launch = useCallback( () => {
         const FB = ( typeof window !== 'undefined' && ( window as any ).FB ) || null;
@@ -121,6 +135,8 @@ const EmbeddedSignupPanel: React.FC<Props> = ( { admin = false, onConnected } ) 
         } );
     }, [ exchange ] );
 
+    const launchLabel = mode === 'migrate' ? 'Migrate WhatsApp Number' : 'Connect WhatsApp Business';
+
     const busy = status === 'launching' || status === 'exchanging';
 
     if ( !usable )
@@ -140,16 +156,28 @@ const EmbeddedSignupPanel: React.FC<Props> = ( { admin = false, onConnected } ) 
     return (
         <div>
             <button style={ busy ? ctaDisabled : cta } onClick={ launch } disabled={ busy }>
-                { status === 'launching' ? 'Opening Meta signup…' : status === 'exchanging' ? 'Finishing setup…' : 'Connect WhatsApp Business' }
+                { status === 'launching' ? 'Opening Meta signup…' : status === 'exchanging' ? 'Finishing setup…' : launchLabel }
             </button>
             <p style={ { fontSize: 13, color: '#777', marginTop: 12 } }>
-                You’ll be guided through Meta’s secure Embedded Signup. WECARE.DIGITAL never sees the Facebook password.
+                { mode === 'migrate'
+                    ? 'Migration requires two-step verification to be OFF on the number at the current provider. You’ll be guided through Meta’s secure flow.'
+                    : 'You’ll be guided through Meta’s secure Embedded Signup. WECARE.DIGITAL never sees the Facebook password.' }
             </p>
             { status === 'captured' && (
                 <div style={ { marginTop: 16, fontSize: 14, color: GREEN } }>Account received (WABA { result.wabaId || '—' }). Finalizing…</div>
             ) }
             { ( status === 'done' || status === 'error' ) && (
                 <div style={ { marginTop: 16, fontSize: 14, color: status === 'done' ? GREEN : '#a11' } }>{ message }</div>
+            ) }
+            { status === 'done' && steps.length > 0 && (
+                <ul style={ { marginTop: 12, paddingLeft: 18, fontSize: 13, lineHeight: 1.7 } }>
+                    { steps.map( ( s, i ) => (
+                        <li key={ i } style={ { color: s.ok === true ? GREEN : s.ok === false ? '#a11' : '#a60' } }>
+                            { s.ok === true ? '✓' : s.ok === false ? '✕' : '•' } { STEP_LABELS[ s.step ] || s.step }
+                            { s.detail ? ` — ${s.detail}` : '' }
+                        </li>
+                    ) ) }
+                </ul>
             ) }
             { status === 'idle' && message && (
                 <div style={ { marginTop: 16, fontSize: 14, color: '#a60' } }>{ message }</div>

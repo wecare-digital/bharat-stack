@@ -25,5 +25,8 @@ export const partnerOnboarding = defineFunction( {
         META_TOKEN_SECRET: 'wecare/meta-system-user-token',
         SYSTEM_CONFIG_TABLE: 'stack-wecare-digital-SystemConfigTable',
         WA_REG_PIN: '',
+        META_EXTENDED_CREDIT_ID: '',
+        COGNITO_USER_POOL_ID: 'us-east-1_cSx0RHCIR',
+        PARTNER_GROUP: 'Partner',
     },
 } );

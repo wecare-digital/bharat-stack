@@ -1,26 +1,30 @@
 """
 Partner Onboarding Lambda  (Option B — Tech-Provider / Embedded Signup)
 
-Public endpoint that completes WhatsApp Embedded Signup for a business that
-connected its own WhatsApp Business Account to WECARE.DIGITAL through the
-Facebook Login for Business flow on /partners/.
+Completes the full WhatsApp Embedded Signup lifecycle for a business that
+connects (onboards a new number) OR migrates an existing number to
+WECARE.DIGITAL through Facebook Login for Business on /partners/ or the in-app
+Connect WABA page.
 
-Route:  POST /partners/embedded-signup   (+ OPTIONS for CORS preflight)
-Public: yes (the security boundary is the short-lived Meta OAuth `code`), with
-        IP rate-limiting.
+Routes (HTTP API zllr9lrg7j, base api.wecare.digital):
+  POST   /partners/embedded-signup   public  — complete onboarding/migration
+  GET    /partners/tenants           admin   — list connected accounts (+ live status)
+  DELETE /partners/tenants           admin   — disconnect a tenant
+  OPTIONS *                          CORS preflight
 
-Flow:
-  1. Receive { code, wabaId, phoneNumberId, businessId } from the browser.
-  2. Exchange the OAuth `code` for a business access token server-side
-     (needs the app secret — never exposed to the browser).
-  3. Best-effort: subscribe our app to the business's WABA and register the
-     phone number so we can send/receive on their behalf.
-  4. Persist a tenant record (SystemConfigTable) and store the business token in
-     a per-tenant secret (wecare/partners/<wabaId>). The token is never returned.
-  5. Return a sanitized result (no secrets).
+Doc-accurate onboarding/migration sequence (Meta Solution Partner guide):
+  1. Exchange OAuth `code` -> business (system-user) access token   [server-side]
+  2. Share credit line with the WABA        POST /{extended_credit_id}/whatsapp_credit_sharing_and_attach
+  3. Subscribe our app to the WABA          POST /{waba_id}/subscribed_apps
+  4. Register the number for Cloud API      POST /{phone_number_id}/register  { messaging_product, pin }
+     (registration re-associates a migrated number to the destination WABA;
+      the client must have disabled two-step verification first for migrations)
+  5. Fetch WABA + phone details for the tenant record
+  6. Persist tenant + store token in per-tenant secret (auto-refreshed daily)
 
-Meta reference:
-  https://developers.facebook.com/docs/whatsapp/embedded-signup
+Refs:
+  /whatsapp/embedded-signup  and  /solution-providers  (share credit line,
+  manage webhooks, register phone numbers, migrate-phone-to-different-waba).
 """
 import os
 import json
@@ -34,6 +38,7 @@ import boto3
 from lambda_utils.response import cors_response, options_response, extract_origin
 from lambda_utils.logging import get_logger
 from lambda_utils.rate_limit import check_rate_limit
+from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -43,14 +48,51 @@ GRAPH_BASE = f'https://graph.facebook.com/{API_VERSION}'
 APP_ID = os.environ.get('META_APP_ID', '2238810740192680')
 TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
-REG_PIN = os.environ.get('WA_REG_PIN', '')  # 6-digit PIN for phone registration (optional)
+REG_PIN = os.environ.get('WA_REG_PIN', '')                       # default 6-digit 2FA PIN
+EXTENDED_CREDIT_ID = os.environ.get('META_EXTENDED_CREDIT_ID', '')  # solution-partner line of credit
+USER_POOL_ID = os.environ.get('COGNITO_USER_POOL_ID', 'us-east-1_cSx0RHCIR')
+PARTNER_GROUP = os.environ.get('PARTNER_GROUP', 'Partner')       # limited-access group for customers
 
 _secrets = boto3.client('secretsmanager', region_name=REGION)
 _ddb = boto3.resource('dynamodb', region_name=REGION)
-
+_cognito = boto3.client('cognito-idp', region_name=REGION)
 _cache = {}
 
 
+def _provision_customer_user(email: str, waba_id: str) -> dict:
+    """Create (or update) a limited-access Cognito login for the customer,
+    scoped to their own WABA via custom:partner_waba_id and the Partner group.
+    Cognito emails them an invite with a temporary password. Best-effort."""
+    if not email or not waba_id:
+        return {'step': 'customer_login', 'ok': None, 'detail': 'skipped (no email)'}
+    attrs = [
+        {'Name': 'email', 'Value': email},
+        {'Name': 'email_verified', 'Value': 'true'},
+        {'Name': 'custom:partner_waba_id', 'Value': waba_id},
+    ]
+    try:
+        _cognito.admin_create_user(
+            UserPoolId=USER_POOL_ID, Username=email, UserAttributes=attrs,
+            DesiredDeliveryMediums=['EMAIL'])
+        created = True
+    except _cognito.exceptions.UsernameExistsException:
+        try:
+            _cognito.admin_update_user_attributes(
+                UserPoolId=USER_POOL_ID, Username=email,
+                UserAttributes=[{'Name': 'custom:partner_waba_id', 'Value': waba_id}])
+        except Exception as e:  # noqa: BLE001
+            return {'step': 'customer_login', 'ok': False, 'detail': f'update failed: {e}'}
+        created = False
+    except Exception as e:  # noqa: BLE001
+        return {'step': 'customer_login', 'ok': False, 'detail': str(e)}
+    try:
+        _cognito.admin_add_user_to_group(UserPoolId=USER_POOL_ID, Username=email, GroupName=PARTNER_GROUP)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(json.dumps({'event': 'partner_group_add_error', 'email': email, 'error': str(e)}))
+    return {'step': 'customer_login', 'ok': True, 'detail': 'invited' if created else 'updated'}
+
+
+# ── secret / graph helpers ────────────────────────────────────────────────
 def _app_secret() -> str:
     if 'app_secret' not in _cache:
         raw = _secrets.get_secret_value(SecretId=TOKEN_SECRET).get('SecretString', '') or '{}'
@@ -61,31 +103,17 @@ def _app_secret() -> str:
     return _cache['app_secret']
 
 
-def _graph_get(path: str, params: dict) -> dict:
-    url = f'{GRAPH_BASE}/{path}?' + urllib.parse.urlencode(params)
-    try:
-        with urllib.request.urlopen(url, timeout=15) as r:
-            raw = r.read().decode('utf-8')
-            return json.loads(raw) if raw else {}
-    except urllib.error.HTTPError as e:
-        body = e.read().decode('utf-8') if e.fp else str(e)
-        try:
-            return {'error': json.loads(body).get('error', {'message': body}), '_status': e.code}
-        except json.JSONDecodeError:
-            return {'error': {'message': body}, '_status': e.code}
-    except Exception as e:  # noqa: BLE001
-        return {'error': {'message': str(e)}}
-
-
-def _graph_post(path: str, token: str, payload: dict) -> dict:
+def _graph(method: str, path: str, token: str = '', params: dict = None, payload: dict = None) -> dict:
     url = f'{GRAPH_BASE}/{path}'
-    data = json.dumps(payload).encode('utf-8')
-    req = urllib.request.Request(
-        url, data=data, method='POST',
-        headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
-    )
+    if params:
+        url += '?' + urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
+    data = json.dumps(payload).encode('utf-8') if payload is not None else None
+    headers = {'Content-Type': 'application/json'}
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
+    req = urllib.request.Request(url, data=data, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with urllib.request.urlopen(req, timeout=20) as r:
             raw = r.read().decode('utf-8')
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
@@ -99,29 +127,71 @@ def _graph_post(path: str, token: str, payload: dict) -> dict:
 
 
 def _exchange_code(code: str) -> dict:
-    """Exchange the Embedded Signup OAuth code for a business access token."""
-    return _graph_get('oauth/access_token', {
-        'client_id': APP_ID,
-        'client_secret': _app_secret(),
-        'code': code,
+    return _graph('GET', 'oauth/access_token', params={
+        'client_id': APP_ID, 'client_secret': _app_secret(), 'code': code,
     })
 
 
-def _store_token(waba_id: str, token: str, expires_in: int = 0) -> bool:
-    """Store the business token in a per-tenant secret. Never logged/returned.
+# ── onboarding steps ──────────────────────────────────────────────────────
+def _share_credit_line(waba_id: str, token: str, currency: str) -> dict:
+    """Step: share the solution-partner line of credit with the client WABA."""
+    if not EXTENDED_CREDIT_ID:
+        return {'step': 'share_credit_line', 'ok': None, 'detail': 'skipped (no line of credit configured)'}
+    res = _graph('POST', f'{EXTENDED_CREDIT_ID}/whatsapp_credit_sharing_and_attach', token=token,
+                 params={'waba_id': waba_id, 'waba_currency': currency or 'USD'})
+    if res.get('error'):
+        return {'step': 'share_credit_line', 'ok': False, 'detail': res['error'].get('message')}
+    return {'step': 'share_credit_line', 'ok': True,
+            'detail': res.get('allocation_config_id') or res.get('id') or 'shared'}
 
-    Records expiresAt so the scheduled refresher (wecare-partner-token-refresh)
-    can renew it before the 60-day system-user token lapses.
-    """
+
+def _subscribe_app(waba_id: str, token: str) -> dict:
+    res = _graph('POST', f'{waba_id}/subscribed_apps', token=token, payload={})
+    if res.get('error'):
+        return {'step': 'subscribe_app', 'ok': False, 'detail': res['error'].get('message')}
+    return {'step': 'subscribe_app', 'ok': bool(res.get('success', True)), 'detail': 'subscribed'}
+
+
+def _register_phone(phone_number_id: str, token: str, pin: str) -> dict:
+    """Register the number for Cloud API. For a migrated number this re-associates
+    it with the destination WABA (client must have disabled 2FA first)."""
+    if not pin:
+        return {'step': 'register_phone', 'ok': None, 'detail': 'skipped (no PIN provided)'}
+    res = _graph('POST', f'{phone_number_id}/register', token=token,
+                 payload={'messaging_product': 'whatsapp', 'pin': pin})
+    if res.get('error'):
+        return {'step': 'register_phone', 'ok': False, 'detail': res['error'].get('message')}
+    return {'step': 'register_phone', 'ok': bool(res.get('success', True)), 'detail': 'registered'}
+
+
+def _fetch_details(waba_id: str, phone_number_id: str, token: str) -> dict:
+    out = {}
+    if waba_id:
+        w = _graph('GET', waba_id, token=token,
+                   params={'fields': 'id,name,currency,account_review_status,timezone_id'})
+        if not w.get('error'):
+            out['waba'] = {'name': w.get('name'), 'currency': w.get('currency'),
+                           'reviewStatus': w.get('account_review_status')}
+    if phone_number_id:
+        p = _graph('GET', phone_number_id, token=token,
+                   params={'fields': 'id,display_phone_number,verified_name,quality_rating,'
+                                     'code_verification_status,platform_type'})
+        if not p.get('error'):
+            out['phone'] = {'display': p.get('display_phone_number'), 'name': p.get('verified_name'),
+                            'quality': p.get('quality_rating'),
+                            'codeStatus': p.get('code_verification_status'),
+                            'platform': p.get('platform_type')}
+    return out
+
+
+# ── persistence ───────────────────────────────────────────────────────────
+def _store_token(waba_id: str, token: str, expires_in: int = 0) -> bool:
     now = datetime.now(timezone.utc)
-    ttl = expires_in if expires_in and expires_in > 0 else 60 * 24 * 3600  # default 60d
-    expires_at = now.timestamp() + ttl
+    ttl = expires_in if expires_in and expires_in > 0 else 60 * 24 * 3600
     secret_name = f'wecare/partners/{waba_id}'
     payload = json.dumps({
-        'access_token': token,
-        'wabaId': waba_id,
-        'updatedAt': now.isoformat(),
-        'expiresAt': datetime.fromtimestamp(expires_at, tz=timezone.utc).isoformat(),
+        'access_token': token, 'wabaId': waba_id, 'updatedAt': now.isoformat(),
+        'expiresAt': datetime.fromtimestamp(now.timestamp() + ttl, tz=timezone.utc).isoformat(),
     })
     try:
         _secrets.create_secret(Name=secret_name, SecretString=payload)
@@ -136,96 +206,178 @@ def _store_token(waba_id: str, token: str, expires_in: int = 0) -> bool:
 
 def _persist_tenant(record: dict) -> None:
     try:
-        table = _ddb.Table(SYSTEM_CONFIG_TABLE)
-        table.put_item(Item={
+        _ddb.Table(SYSTEM_CONFIG_TABLE).put_item(Item={
             'id': f"partner_tenant_{record['wabaId']}",
-            'configValue': json.dumps(record),
-            'updatedAt': record['connectedAt'],
+            'configValue': json.dumps(record), 'updatedAt': record.get('connectedAt', ''),
         })
     except Exception as e:  # noqa: BLE001
         logger.error(json.dumps({'event': 'partner_tenant_persist_error', 'error': str(e)}))
 
 
-def handler(event, context):
-    request_id = getattr(context, 'aws_request_id', 'local')
-    origin = extract_origin(event)
+def _list_tenants() -> list:
+    tenants = []
+    table = _ddb.Table(SYSTEM_CONFIG_TABLE)
+    kwargs = {'FilterExpression': 'begins_with(id, :p)', 'ExpressionAttributeValues': {':p': 'partner_tenant_'}}
+    while True:
+        resp = table.scan(**kwargs)
+        for item in resp.get('Items', []):
+            try:
+                tenants.append(json.loads(item.get('configValue', '{}')))
+            except json.JSONDecodeError:
+                continue
+        lek = resp.get('LastEvaluatedKey')
+        if not lek:
+            break
+        kwargs['ExclusiveStartKey'] = lek
+    return tenants
 
-    rc = event.get('requestContext', {})
-    method = rc.get('http', {}).get('method') or event.get('httpMethod', 'POST')
-    source_ip = (rc.get('http', {}) or {}).get('sourceIp') or rc.get('identity', {}).get('sourceIp', 'unknown')
 
-    if method == 'OPTIONS':
-        return options_response(origin)
-
-    if method != 'POST':
-        return cors_response(405, {'error': 'Method not allowed'}, origin)
-
-    # IP rate-limit: onboarding is public; cap attempts.
-    if not check_rate_limit('partner-onboarding', source_ip, max_per_second=2):
-        return cors_response(429, {'error': 'Too many requests. Please retry shortly.'}, origin)
-
-    try:
-        body = json.loads(event.get('body') or '{}')
-    except json.JSONDecodeError:
-        return cors_response(400, {'error': 'Invalid JSON body'}, origin)
-
+# ── HTTP handlers ─────────────────────────────────────────────────────────
+def _do_onboard(body: dict, origin: str, request_id: str):
     code = (body.get('code') or '').strip()
     waba_id = (body.get('wabaId') or '').strip()
     phone_number_id = (body.get('phoneNumberId') or '').strip()
     business_id = (body.get('businessId') or '').strip()
+    mode = (body.get('mode') or 'onboard').strip()          # 'onboard' | 'migrate'
+    pin = (body.get('pin') or REG_PIN or '').strip()
+    currency = (body.get('currency') or 'USD').strip()
+    customer_email = (body.get('customerEmail') or '').strip()
 
     if not code:
         return cors_response(400, {'error': 'Missing authorization code'}, origin)
 
-    logger.info(json.dumps({
-        'event': 'partner_onboarding_start', 'wabaId': waba_id,
-        'phoneNumberId': phone_number_id, 'businessId': business_id, 'requestId': request_id,
-    }))
+    logger.info(json.dumps({'event': 'partner_onboarding_start', 'mode': mode, 'wabaId': waba_id,
+                            'phoneNumberId': phone_number_id, 'requestId': request_id}))
 
-    # 1) Exchange code -> business token
     token_resp = _exchange_code(code)
     if token_resp.get('error') or not token_resp.get('access_token'):
         err = token_resp.get('error', {})
-        logger.warning(json.dumps({'event': 'partner_code_exchange_failed',
-                                   'error': err.get('message'), 'requestId': request_id}))
         return cors_response(400, {'success': False, 'error': err.get('message', 'Code exchange failed')}, origin)
+    token = token_resp['access_token']
+    expires_in = int(token_resp.get('expires_in') or 0)
 
-    business_token = token_resp['access_token']
-    token_expires_in = int(token_resp.get('expires_in') or 0)
-
-    # 2) Best-effort provisioning on the connected WABA
-    provisioning = {'subscribedApp': None, 'phoneRegistered': None}
+    steps = []
     if waba_id:
-        sub = _graph_post(f'{waba_id}/subscribed_apps', business_token, {})
-        provisioning['subscribedApp'] = bool(sub.get('success')) if not sub.get('error') else False
-    if phone_number_id and REG_PIN:
-        reg = _graph_post(f'{phone_number_id}/register', business_token,
-                          {'messaging_product': 'whatsapp', 'pin': REG_PIN})
-        provisioning['phoneRegistered'] = bool(reg.get('success')) if not reg.get('error') else False
+        steps.append(_share_credit_line(waba_id, token, currency))
+        steps.append(_subscribe_app(waba_id, token))
+    if phone_number_id:
+        steps.append(_register_phone(phone_number_id, token, pin))
+    details = _fetch_details(waba_id, phone_number_id, token)
 
-    # 3) Persist tenant + store token securely (never returned)
+    # Provision the customer's limited-access login (scoped to their WABA)
+    if customer_email and waba_id:
+        steps.append(_provision_customer_user(customer_email, waba_id))
+
     connected_at = datetime.now(timezone.utc).isoformat()
-    token_stored = _store_token(waba_id or f'unknown-{request_id}', business_token, token_expires_in)
+    token_stored = _store_token(waba_id or f'unknown-{request_id}', token, expires_in)
     _persist_tenant({
-        'wabaId': waba_id,
-        'phoneNumberId': phone_number_id,
-        'businessId': business_id,
-        'connectedAt': connected_at,
-        'status': 'CONNECTED',
-        'provisioning': provisioning,
-        'tokenStored': token_stored,
+        'wabaId': waba_id, 'phoneNumberId': phone_number_id, 'businessId': business_id,
+        'customerEmail': customer_email, 'mode': mode, 'connectedAt': connected_at,
+        'status': 'CONNECTED', 'steps': steps, 'details': details, 'tokenStored': token_stored,
     })
 
-    logger.info(json.dumps({
-        'event': 'partner_onboarding_done', 'wabaId': waba_id,
-        'provisioning': provisioning, 'tokenStored': token_stored, 'requestId': request_id,
-    }))
-
+    logger.info(json.dumps({'event': 'partner_onboarding_done', 'mode': mode, 'wabaId': waba_id,
+                            'steps': steps, 'requestId': request_id}))
     return cors_response(200, {
-        'success': True,
-        'wabaId': waba_id,
-        'phoneNumberId': phone_number_id,
-        'businessId': business_id,
-        'connectedAt': connected_at,
-        'provisioning': provisioning,
+        'success': True, 'mode': mode, 'wabaId': waba_id, 'phoneNumberId': phone_number_id,
+        'businessId': business_id, 'connectedAt': connected_at, 'steps': steps, 'details': details,
     }, origin)
+
+
+ADMIN_ROLES = {'Admin', 'Operator'}
+
+
+def _auth_ctx(event: dict) -> dict:
+    a = event.get('_auth') or {}
+    attrs = a.get('attributes') or {}
+    return {
+        'role': a.get('role', 'Viewer'),
+        'isAdmin': a.get('role') in ADMIN_ROLES,
+        'wabaId': (attrs.get('custom:partner_waba_id') or '').strip(),
+        'username': a.get('username', ''),
+    }
+
+
+def _do_list(event: dict, origin: str):
+    """Admin/Operator → all tenants. Customer (Viewer) → only their own WABA
+    (scoped by the custom:partner_waba_id Cognito attribute)."""
+    ctx = _auth_ctx(event)
+    tenants = _list_tenants()  # records contain no tokens/secrets
+    if not ctx['isAdmin']:
+        tenants = [t for t in tenants if t.get('wabaId') and t.get('wabaId') == ctx['wabaId']]
+    return cors_response(200, {'tenants': tenants, 'count': len(tenants), 'scope': ctx['role']}, origin)
+
+
+def _do_me(event: dict, origin: str):
+    """Customer self-view: return only the caller's own linked tenant."""
+    ctx = _auth_ctx(event)
+    if ctx['isAdmin']:
+        # admins have no single 'own' tenant; direct them to the full list
+        return cors_response(200, {'tenant': None, 'isAdmin': True}, origin)
+    if not ctx['wabaId']:
+        return cors_response(200, {'tenant': None, 'linked': False}, origin)
+    for t in _list_tenants():
+        if t.get('wabaId') == ctx['wabaId']:
+            return cors_response(200, {'tenant': t, 'linked': True}, origin)
+    return cors_response(200, {'tenant': None, 'linked': False}, origin)
+
+
+def _do_disconnect(waba_id: str, origin: str):
+    if not waba_id:
+        return cors_response(400, {'error': 'wabaId required'}, origin)
+    try:
+        table = _ddb.Table(SYSTEM_CONFIG_TABLE)
+        item = table.get_item(Key={'id': f'partner_tenant_{waba_id}'}).get('Item')
+        rec = json.loads(item['configValue']) if item else {'wabaId': waba_id}
+        rec['status'] = 'DISCONNECTED'
+        rec['disconnectedAt'] = datetime.now(timezone.utc).isoformat()
+        table.put_item(Item={'id': f'partner_tenant_{waba_id}', 'configValue': json.dumps(rec),
+                             'updatedAt': rec['disconnectedAt']})
+    except Exception as e:  # noqa: BLE001
+        return cors_response(500, {'error': str(e)}, origin)
+    return cors_response(200, {'success': True, 'wabaId': waba_id, 'status': 'DISCONNECTED'}, origin)
+
+
+def handler(event, context):
+    request_id = getattr(context, 'aws_request_id', 'local')
+    origin = extract_origin(event)
+    rc = event.get('requestContext', {})
+    method = rc.get('http', {}).get('method') or event.get('httpMethod', 'POST')
+    path = rc.get('http', {}).get('path') or event.get('rawPath', '') or event.get('path', '')
+    source_ip = (rc.get('http', {}) or {}).get('sourceIp') or rc.get('identity', {}).get('sourceIp', 'unknown')
+    qs = event.get('queryStringParameters') or {}
+
+    if method == 'OPTIONS':
+        return options_response(origin)
+
+    # Customer self-view (any authenticated user): only their own tenant
+    if '/partners/me' in path:
+        auth = require_auth(event)
+        if auth is not None:
+            return auth
+        return _do_me(event, origin)
+
+    # Tenant management: GET (role-scoped list) / DELETE (Admin-only)
+    if '/partners/tenants' in path or method in ('GET', 'DELETE'):
+        if method == 'DELETE':
+            auth = require_auth(event, required_role='Admin')
+            if auth is not None:
+                return auth
+            return _do_disconnect((qs.get('wabaId') or '').strip(), origin)
+        if method == 'GET':
+            auth = require_auth(event)
+            if auth is not None:
+                return auth
+            return _do_list(event, origin)
+        return cors_response(405, {'error': 'Method not allowed'}, origin)
+
+    # Public onboarding endpoint
+    if method != 'POST':
+        return cors_response(405, {'error': 'Method not allowed'}, origin)
+    if not check_rate_limit('partner-onboarding', source_ip, max_per_second=2):
+        return cors_response(429, {'error': 'Too many requests. Please retry shortly.'}, origin)
+    try:
+        body = json.loads(event.get('body') or '{}')
+    except json.JSONDecodeError:
+        return cors_response(400, {'error': 'Invalid JSON body'}, origin)
+    return _do_onboard(body, origin, request_id)
