@@ -27,7 +27,7 @@ import { ConfirmProvider } from '../contexts/ConfirmContext';
 import { initCapacitor, isNative } from '../lib/capacitor';
 
 // Configure Amplify — all secrets from env vars
-Amplify.configure({
+Amplify.configure( {
   Auth: {
     Cognito: {
       userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID || '',
@@ -36,7 +36,7 @@ Amplify.configure({
       loginWith: {
         oauth: {
           domain: process.env.NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN || '',
-          scopes: ['openid', 'email', 'profile'],
+          scopes: [ 'openid', 'email', 'profile' ],
           redirectSignIn: [
             process.env.NEXT_PUBLIC_APP_URL || 'https://stack.wecare.digital/',
           ],
@@ -50,7 +50,7 @@ Amplify.configure({
       }
     }
   }
-});
+} );
 
 const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 const LOGO_SVG_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.svg';
@@ -165,7 +165,7 @@ const organizationSchema = {
     "@type": "ContactPoint",
     "contactType": "customer service",
     "url": "https://www.wecare.digital/contact",
-    "availableLanguage": ["English", "Hindi"]
+    "availableLanguage": [ "English", "Hindi" ]
   },
   "address": {
     "@type": "PostalAddress",
@@ -332,7 +332,7 @@ const serviceSchema = {
 };
 
 // Breadcrumb schema for internal pages
-const getBreadcrumbSchema = (pageName: string, pageUrl: string) => ({
+const getBreadcrumbSchema = ( pageName: string, pageUrl: string ) => ( {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
@@ -349,24 +349,24 @@ const getBreadcrumbSchema = (pageName: string, pageUrl: string) => ({
       "item": pageUrl
     }
   ]
-});
+} );
 
 /**
  * AuthGate — shows Header + Footer around the login form only when unauthenticated.
  * Once authenticated, renders children directly (Layout handles its own Header/Footer).
  */
-const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { authStatus } = useAuthenticator((ctx) => [ctx.authStatus]);
+const AuthGate: React.FC<{ children: React.ReactNode }> = ( { children } ) => {
+  const { authStatus } = useAuthenticator( ( ctx ) => [ ctx.authStatus ] );
   const isAuthed = authStatus === 'authenticated';
 
-  if (isAuthed) return <>{children}</>;
+  if ( isAuthed ) return <>{ children }</>;
 
   return (
     <>
       <Header />
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', paddingTop: 96 }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {children}
+      <div style={ { display: 'flex', flexDirection: 'column', minHeight: '100vh', paddingTop: 96 } }>
+        <div style={ { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' } }>
+          { children }
         </div>
         <Footer />
       </div>
@@ -374,29 +374,32 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
-export default function App({ Component, pageProps }: AppProps) {
+export default function App ( { Component, pageProps }: AppProps ) {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-  
-  const isPublic = router.pathname === '/' || router.pathname === '/crm' || router.pathname === '/studio' || router.pathname === '/sustainability' || router.pathname === '/contact-test' || router.pathname === '/faq';
+  const [ mounted, setMounted ] = useState( false );
 
-  useEffect(() => {
-    setMounted(true);
+  const isPublic = router.pathname === '/' || router.pathname === '/crm' || router.pathname === '/studio' || router.pathname === '/sustainability' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners';
+
+  useEffect( () => {
+    setMounted( true );
     // Register service worker for PWA + offline
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    if ( 'serviceWorker' in navigator )
+    {
+      navigator.serviceWorker.register( '/sw.js' ).catch( () => { } );
     }
     // Init Capacitor native plugins
-    initCapacitor({ push: (p) => router.push(p), back: () => router.back() });
-  }, []);
+    initCapacitor( { push: ( p ) => router.push( p ), back: () => router.back() } );
+  }, [] );
 
   // Wait for client-side mount
-  if (!mounted) {
+  if ( !mounted )
+  {
     return null;
   }
 
   // Public page
-  if (isPublic) {
+  if ( isPublic )
+  {
     return (
       <ErrorBoundary>
         <Head>
@@ -407,29 +410,29 @@ export default function App({ Component, pageProps }: AppProps) {
           <meta name="description" content="Enterprise WhatsApp Business API platform for India. Send bulk WhatsApp messages, SMS, Email & Voice. AI-powered CRM with Razorpay payments. Connect with 2B+ users. Start free today." />
           <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications, WECARE.DIGITAL, Stack CRM" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <link rel="icon" href={FAVICON_URL} />
-          <link rel="apple-touch-icon" href={LOGO_URL} />
+          <link rel="icon" href={ FAVICON_URL } />
+          <link rel="apple-touch-icon" href={ LOGO_URL } />
           <link rel="canonical" href="https://stack.wecare.digital/" />
-          
-          {/* Open Graph */}
+
+          {/* Open Graph */ }
           <meta property="og:type" content="website" />
           <meta property="og:url" content="https://stack.wecare.digital/" />
           <meta property="og:title" content="Bharat Stack - WhatsApp Business API Platform | WECARE.DIGITAL" />
           <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
-          <meta property="og:image" content={LOGO_URL} />
+          <meta property="og:image" content={ LOGO_URL } />
           <meta property="og:image:width" content="512" />
           <meta property="og:image:height" content="512" />
           <meta property="og:site_name" content="Bharat Stack by WECARE.DIGITAL" />
           <meta property="og:locale" content="en_IN" />
-          
-          {/* Twitter */}
+
+          {/* Twitter */ }
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:url" content="https://stack.wecare.digital/" />
           <meta name="twitter:title" content="Bharat Stack - WhatsApp Business API Platform" />
           <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
-          <meta name="twitter:image" content={LOGO_URL} />
-          
-          {/* SEO */}
+          <meta name="twitter:image" content={ LOGO_URL } />
+
+          {/* SEO */ }
           <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
           <meta name="googlebot" content="index, follow" />
           <meta name="author" content="WECARE.DIGITAL" />
@@ -438,33 +441,33 @@ export default function App({ Component, pageProps }: AppProps) {
           <meta name="geo.region" content="IN" />
           <meta name="geo.placename" content="India" />
           <meta name="theme-color" content="#000000" />
-          
-          {/* PWA / Mobile App */}
+
+          {/* PWA / Mobile App */ }
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           <meta name="mobile-web-app-capable" content="yes" />
           <link rel="manifest" href="/manifest.json" />
-          
-          {/* Structured Data */}
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }} />
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }} />
+
+          {/* Structured Data */ }
+          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( organizationSchema ) } } />
+          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( softwareSchema ) } } />
+          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( websiteSchema ) } } />
+          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( faqSchema ) } } />
+          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( serviceSchema ) } } />
         </Head>
-        {/* Google Analytics 4 (G-S3G6REP6Q7) */}
-        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
+        {/* Google Analytics 4 (G-S3G6REP6Q7) */ }
+        <Script src={ `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}` } strategy="afterInteractive" />
         <Script id="google-analytics-ads" strategy="afterInteractive">
-          {`
+          { `
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
             gtag('config', '${GA_MEASUREMENT_ID}', { 'send_page_view': true });
           `}
         </Script>
-        {/* Facebook SDK for JavaScript */}
+        {/* Facebook SDK for JavaScript */ }
         <Script id="facebook-sdk-init-public" strategy="afterInteractive">
-          {`
+          { `
             window.fbAsyncInit = function() {
               FB.init({
                 appId: '${process.env.NEXT_PUBLIC_FB_APP_ID || ''}',
@@ -478,14 +481,14 @@ export default function App({ Component, pageProps }: AppProps) {
         </Script>
         <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="afterInteractive" id="facebook-jssdk-public" />
         <Header />
-        <Component {...pageProps} />
+        <Component { ...pageProps } />
         <Footer />
       </ErrorBoundary>
     );
   }
 
   // Get page name for breadcrumb
-  const pageName = router.pathname.split('/').filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' > ') || 'Dashboard';
+  const pageName = router.pathname.split( '/' ).filter( Boolean ).map( s => s.charAt( 0 ).toUpperCase() + s.slice( 1 ) ).join( ' > ' ) || 'Dashboard';
   const pageUrl = `https://stack.wecare.digital${router.pathname}`;
 
   // Protected pages
@@ -498,30 +501,30 @@ export default function App({ Component, pageProps }: AppProps) {
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
         <meta name="description" content="Stack CRM Dashboard - Multi-channel messaging platform" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href={FAVICON_URL} />
-        <link rel="apple-touch-icon" href={LOGO_URL} />
+        <link rel="icon" href={ FAVICON_URL } />
+        <link rel="apple-touch-icon" href={ LOGO_URL } />
         <meta name="robots" content="noindex, nofollow" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#1a3a2a" />
         <link rel="manifest" href="/manifest.json" />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(getBreadcrumbSchema(pageName, pageUrl)) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( organizationSchema ) } } />
+        <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( getBreadcrumbSchema( pageName, pageUrl ) ) } } />
       </Head>
-      {/* Google Analytics 4 (G-S3G6REP6Q7) */}
-      <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
+      {/* Google Analytics 4 (G-S3G6REP6Q7) */ }
+      <Script src={ `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}` } strategy="afterInteractive" />
       <Script id="google-analytics-ads" strategy="afterInteractive">
-        {`
+        { `
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
           gtag('config', '${GA_MEASUREMENT_ID}', { 'send_page_view': true });
         `}
       </Script>
-      {/* Facebook SDK for JavaScript */}
+      {/* Facebook SDK for JavaScript */ }
       <Script id="facebook-sdk-init" strategy="afterInteractive">
-        {`
+        { `
           window.fbAsyncInit = function() {
             FB.init({
               appId: '${process.env.NEXT_PUBLIC_FB_APP_ID || ''}',
@@ -534,25 +537,26 @@ export default function App({ Component, pageProps }: AppProps) {
         `}
       </Script>
       <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="afterInteractive" id="facebook-jssdk" />
-      {/* WhatsApp Chat Widget */}
+      {/* WhatsApp Chat Widget */ }
       <Script src="https://app.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
-      <ThemeProvider theme={authTheme}>
+      <ThemeProvider theme={ authTheme }>
         <Authenticator.Provider>
           <AuthGate>
-            <Authenticator hideSignUp={true}>
-              {({ signOut, user }) => {
-                if (typeof window !== 'undefined' && (window as any).FB) {
-                  (window as any).FB.AppEvents.logEvent('CompletedRegistration');
+            <Authenticator hideSignUp={ true }>
+              { ( { signOut, user } ) => {
+                if ( typeof window !== 'undefined' && ( window as any ).FB )
+                {
+                  ( window as any ).FB.AppEvents.logEvent( 'CompletedRegistration' );
                 }
                 return (
                   <ToastProvider>
                     <ConfirmProvider>
-                      <Component {...pageProps} signOut={() => { signOut?.(); router.push('/'); }} user={user} />
+                      <Component { ...pageProps } signOut={ () => { signOut?.(); router.push( '/' ); } } user={ user } />
                       <FloatingAgent />
                     </ConfirmProvider>
                   </ToastProvider>
                 );
-              }}
+              } }
             </Authenticator>
           </AuthGate>
         </Authenticator.Provider>
