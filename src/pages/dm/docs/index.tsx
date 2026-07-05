@@ -9,6 +9,7 @@ import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import Button from '../../../components/ui/Button';
 import { useToastContext } from '../../../contexts/ToastContext';
+import { authFetch } from '../../../api/client';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -42,8 +43,8 @@ const DocsScraperPage: React.FC<PageProps> = ( { signOut, user, embedded = false
         try
         {
             const [ srcRes, logRes ] = await Promise.all( [
-                fetch( `${API_BASE}/docs/sources` ).then( r => r.json() ).catch( () => [] ),
-                fetch( `${API_BASE}/docs/changelog?limit=100` ).then( r => r.json() ).catch( () => [] ),
+                authFetch( `${API_BASE}/docs/sources` ).then( r => r.json() ).catch( () => [] ),
+                authFetch( `${API_BASE}/docs/changelog?limit=100` ).then( r => r.json() ).catch( () => [] ),
             ] );
             setSources( Array.isArray( srcRes ) ? srcRes : [] );
             setChangelog( Array.isArray( logRes ) ? logRes : [] );
@@ -67,7 +68,7 @@ const DocsScraperPage: React.FC<PageProps> = ( { signOut, user, embedded = false
         setAdding( true );
         try
         {
-            const res = await fetch( `${API_BASE}/docs/sources`, {
+            const res = await authFetch( `${API_BASE}/docs/sources`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify( { action: 'add_source', ...form } ),
@@ -90,7 +91,7 @@ const DocsScraperPage: React.FC<PageProps> = ( { signOut, user, embedded = false
         try
         {
             toast.info( source ? `Re-fetching "${source}"…` : 'Re-fetching all sources…' );
-            const res = await fetch( `${API_BASE}/docs/scrape`, {
+            const res = await authFetch( `${API_BASE}/docs/scrape`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify( { action: 'scrape', source } ),

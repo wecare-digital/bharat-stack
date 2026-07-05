@@ -31,227 +31,235 @@ const TABS: ShellTab[] = [
   { id: 'campaign', label: 'Campaign' },
 ];
 
-const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
-  const [calls, setCalls] = useState<VoiceCall[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [page, setPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [directionFilter, setDirectionFilter] = useState<'all' | 'inbound' | 'outbound'>('all');
-  const [showCallModal, setShowCallModal] = useState(false);
-  const [callPhone, setCallPhone] = useState('');
-  const [callMessage, setCallMessage] = useState('');
-  const [calling, setCalling] = useState(false);
-  const [showCampaignModal, setShowCampaignModal] = useState(false);
-  const [campaignName, setCampaignName] = useState('');
-  const [campaignMessage, setCampaignMessage] = useState('');
-  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
-  const [campaignSending, setCampaignSending] = useState(false);
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [showContactPicker, setShowContactPicker] = useState<'single' | 'campaign' | null>(null);
-  const [contactSearch, setContactSearch] = useState('');
-  const [loadingContacts, setLoadingContacts] = useState(false);
-  const [clearing, setClearing] = useState(false);
+const VoicePage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
+  const [ calls, setCalls ] = useState<VoiceCall[]>( [] );
+  const [ campaigns, setCampaigns ] = useState<Campaign[]>( [] );
+  const [ loading, setLoading ] = useState( true );
+  const [ loadError, setLoadError ] = useState( false );
+  const [ page, setPage ] = useState( 1 );
+  const [ searchQuery, setSearchQuery ] = useState( '' );
+  const [ directionFilter, setDirectionFilter ] = useState<'all' | 'inbound' | 'outbound'>( 'all' );
+  const [ showCallModal, setShowCallModal ] = useState( false );
+  const [ callPhone, setCallPhone ] = useState( '' );
+  const [ callMessage, setCallMessage ] = useState( '' );
+  const [ calling, setCalling ] = useState( false );
+  const [ showCampaignModal, setShowCampaignModal ] = useState( false );
+  const [ campaignName, setCampaignName ] = useState( '' );
+  const [ campaignMessage, setCampaignMessage ] = useState( '' );
+  const [ selectedContacts, setSelectedContacts ] = useState<string[]>( [] );
+  const [ campaignSending, setCampaignSending ] = useState( false );
+  const [ contacts, setContacts ] = useState<Contact[]>( [] );
+  const [ showContactPicker, setShowContactPicker ] = useState<'single' | 'campaign' | null>( null );
+  const [ contactSearch, setContactSearch ] = useState( '' );
+  const [ loadingContacts, setLoadingContacts ] = useState( false );
+  const [ clearing, setClearing ] = useState( false );
   const toast = useToastContext();
   const confirm = useConfirm();
 
-  const loadContacts = useCallback(async () => {
-    setLoadingContacts(true);
-    try {
+  const loadContacts = useCallback( async () => {
+    setLoadingContacts( true );
+    try
+    {
       const data = await api.listContacts();
-      setContacts(data.filter(c => c.phone).map(c => ({ contactId: c.contactId, name: c.name || c.phone || 'Unknown', phone: c.phone || '' })));
-    } catch (err) { console.error('Load contacts error:', err); } finally { setLoadingContacts(false); }
-  }, []);
+      setContacts( data.filter( c => c.phone ).map( c => ( { contactId: c.contactId, name: c.name || c.phone || 'Unknown', phone: c.phone || '' } ) ) );
+    } catch ( err ) { console.error( 'Load contacts error:', err ); } finally { setLoadingContacts( false ); }
+  }, [] );
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setLoadError(false);
-    try {
-      const [callsData, contactsData] = await Promise.all([api.listVoiceAwsCalls(), api.listContacts()]);
+  const loadData = useCallback( async () => {
+    setLoading( true );
+    setLoadError( false );
+    try
+    {
+      const [ callsData, contactsData ] = await Promise.all( [ api.listVoiceAwsCalls(), api.listContacts() ] );
       const contactMap = new Map<string, api.Contact>();
-      contactsData.forEach(c => contactMap.set(c.contactId, c));
+      contactsData.forEach( c => contactMap.set( c.contactId, c ) );
       let formattedCalls: VoiceCall[];
-      if (callsData.length > 0) {
-        formattedCalls = callsData.map(c => ({
-          callId: c.callId, contactId: c.contactId, contactName: contactMap.get(c.contactId)?.name,
-          phoneNumber: c.phoneNumber || contactMap.get(c.contactId)?.phone || '', direction: c.direction || 'OUTBOUND',
+      if ( callsData.length > 0 )
+      {
+        formattedCalls = callsData.map( c => ( {
+          callId: c.callId, contactId: c.contactId, contactName: contactMap.get( c.contactId )?.name,
+          phoneNumber: c.phoneNumber || contactMap.get( c.contactId )?.phone || '', direction: c.direction || 'OUTBOUND',
           status: c.status || 'unknown', duration: c.duration || 0, callType: c.callType || 'tts',
-          message: (c as any).messageText, campaignId: (c as any).campaignId, campaignName: (c as any).campaignName,
-          createdAt: c.createdAt ? new Date(c.createdAt * 1000).toISOString() : new Date().toISOString()
-        }));
-      } else {
-        const sharedCalls = await api.listVoiceCalls(undefined, 'aws');
-        formattedCalls = sharedCalls.map(c => ({
-          callId: c.callId, contactId: c.contactId, contactName: contactMap.get(c.contactId)?.name,
-          phoneNumber: c.phoneNumber || contactMap.get(c.contactId)?.phone || '', direction: c.direction || 'OUTBOUND',
+          message: ( c as any ).messageText, campaignId: ( c as any ).campaignId, campaignName: ( c as any ).campaignName,
+          createdAt: c.createdAt ? new Date( c.createdAt * 1000 ).toISOString() : new Date().toISOString()
+        } ) );
+      } else
+      {
+        const sharedCalls = await api.listVoiceCalls( undefined, 'aws' );
+        formattedCalls = sharedCalls.map( c => ( {
+          callId: c.callId, contactId: c.contactId, contactName: contactMap.get( c.contactId )?.name,
+          phoneNumber: c.phoneNumber || contactMap.get( c.contactId )?.phone || '', direction: c.direction || 'OUTBOUND',
           status: c.status || 'unknown', duration: c.duration || 0, callType: c.callType || 'tts',
           message: '', campaignId: undefined, campaignName: undefined, createdAt: c.createdAt
-        }));
+        } ) );
       }
-      formattedCalls.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setCalls(formattedCalls);
+      formattedCalls.sort( ( a, b ) => new Date( b.createdAt ).getTime() - new Date( a.createdAt ).getTime() );
+      setCalls( formattedCalls );
       const campaignMap = new Map<string, Campaign>();
-      formattedCalls.filter(c => c.campaignId).forEach(c => {
+      formattedCalls.filter( c => c.campaignId ).forEach( c => {
         const cid = c.campaignId!;
-        if (!campaignMap.has(cid)) campaignMap.set(cid, { id: cid, name: c.campaignName || cid, recipients: 0, connected: 0, completed: 0, failed: 0, createdAt: c.createdAt });
-        const camp = campaignMap.get(cid)!; camp.recipients++;
-        if (c.status === 'connected' || c.status === 'completed') camp.connected++;
-        if (c.status === 'completed') camp.completed++;
-        if (c.status === 'failed') camp.failed++;
-      });
-      setCampaigns(Array.from(campaignMap.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (err) { console.error('Load error:', err); setLoadError(true); toast.error('Failed to load data'); } finally { setLoading(false); }
-  }, [toast]);
+        if ( !campaignMap.has( cid ) ) campaignMap.set( cid, { id: cid, name: c.campaignName || cid, recipients: 0, connected: 0, completed: 0, failed: 0, createdAt: c.createdAt } );
+        const camp = campaignMap.get( cid )!; camp.recipients++;
+        if ( c.status === 'connected' || c.status === 'completed' ) camp.connected++;
+        if ( c.status === 'completed' ) camp.completed++;
+        if ( c.status === 'failed' ) camp.failed++;
+      } );
+      setCampaigns( Array.from( campaignMap.values() ).sort( ( a, b ) => new Date( b.createdAt ).getTime() - new Date( a.createdAt ).getTime() ) );
+    } catch ( err ) { console.error( 'Load error:', err ); setLoadError( true ); toast.error( 'Failed to load data' ); } finally { setLoading( false ); }
+  }, [ toast ] );
 
-  useEffect(() => { loadData(); }, [loadData]);
-  useEffect(() => { setPage(1); }, [searchQuery, directionFilter]);
-  useEffect(() => { if (showContactPicker) loadContacts(); }, [showContactPicker, loadContacts]);
+  useEffect( () => { loadData(); }, [ loadData ] );
+  useEffect( () => { setPage( 1 ); }, [ searchQuery, directionFilter ] );
+  useEffect( () => { if ( showContactPicker ) loadContacts(); }, [ showContactPicker, loadContacts ] );
 
-  const filteredContacts = contacts.filter(c => c.name.toLowerCase().includes(contactSearch.toLowerCase()) || c.phone.includes(contactSearch));
-  const selectContact = (contact: Contact) => {
-    if (showContactPicker === 'single') { setCallPhone(contact.phone); setShowContactPicker(null); }
-    else if (showContactPicker === 'campaign' && !selectedContacts.includes(contact.contactId)) setSelectedContacts(prev => [...prev, contact.contactId]);
-    setContactSearch('');
+  const filteredContacts = contacts.filter( c => c.name.toLowerCase().includes( contactSearch.toLowerCase() ) || c.phone.includes( contactSearch ) );
+  const selectContact = ( contact: Contact ) => {
+    if ( showContactPicker === 'single' ) { setCallPhone( contact.phone ); setShowContactPicker( null ); }
+    else if ( showContactPicker === 'campaign' && !selectedContacts.includes( contact.contactId ) ) setSelectedContacts( prev => [ ...prev, contact.contactId ] );
+    setContactSearch( '' );
   };
-  const formatDuration = (seconds: number) => { if (!seconds) return '0:00'; const mins = Math.floor(seconds / 60); const secs = Math.round(seconds % 60); return `${mins}:${secs.toString().padStart(2, '0')}`; };
+  const formatDuration = ( seconds: number ) => { if ( !seconds ) return '0:00'; const mins = Math.floor( seconds / 60 ); const secs = Math.round( seconds % 60 ); return `${mins}:${secs.toString().padStart( 2, '0' )}`; };
 
   const handleMakeCall = async () => {
-    if (!callPhone) { toast.error('Phone number required'); return; }
-    setCalling(true);
-    try {
-      const result = await api.makeVoiceAwsCall({ phoneNumber: callPhone, messageText: callMessage || 'Hello, this is a call from WECARE Digital.', callType: 'tts' });
-      if (result && (result.callId || result.status)) { toast.success('Call initiated!'); setShowCallModal(false); setCallPhone(''); setCallMessage(''); await loadData(); }
-      else toast.error('Failed to initiate call');
-    } catch (err) { toast.error('Failed to make call'); } finally { setCalling(false); }
+    if ( !callPhone ) { toast.error( 'Phone number required' ); return; }
+    setCalling( true );
+    try
+    {
+      const result = await api.makeVoiceAwsCall( { phoneNumber: callPhone, messageText: callMessage || 'Hello, this is a call from WECARE Digital.', callType: 'tts' } );
+      if ( result && ( result.callId || result.status ) ) { toast.success( 'Call initiated!' ); setShowCallModal( false ); setCallPhone( '' ); setCallMessage( '' ); await loadData(); }
+      else toast.error( 'Failed to initiate call' );
+    } catch ( err ) { toast.error( 'Failed to make call' ); } finally { setCalling( false ); }
   };
 
   const handleSendCampaign = async () => {
-    if (!campaignName.trim() || !campaignMessage.trim() || selectedContacts.length === 0) { toast.error('Campaign name, message, and contacts required'); return; }
-    setCampaignSending(true);
-    try {
+    if ( !campaignName.trim() || !campaignMessage.trim() || selectedContacts.length === 0 ) { toast.error( 'Campaign name, message, and contacts required' ); return; }
+    setCampaignSending( true );
+    try
+    {
       let sent = 0, failed = 0;
-      for (const contactId of selectedContacts) {
-        const contact = contacts.find(c => c.contactId === contactId);
-        if (!contact?.phone) { failed++; continue; }
-        try { const result = await api.makeVoiceAwsCall({ contactId, phoneNumber: contact.phone, messageText: campaignMessage, callType: 'tts' }); if (result && result.callId) sent++; else failed++; } catch { failed++; }
-        if (sent % 5 === 0) await new Promise(r => setTimeout(r, 500));
+      for ( const contactId of selectedContacts )
+      {
+        const contact = contacts.find( c => c.contactId === contactId );
+        if ( !contact?.phone ) { failed++; continue; }
+        try { const result = await api.makeVoiceAwsCall( { contactId, phoneNumber: contact.phone, messageText: campaignMessage, callType: 'tts' } ); if ( result && result.callId ) sent++; else failed++; } catch { failed++; }
+        if ( sent % 5 === 0 ) await new Promise( r => setTimeout( r, 500 ) );
       }
-      toast.success(`Campaign initiated: ${sent} calls, ${failed} failed`);
-      setShowCampaignModal(false); setCampaignName(''); setCampaignMessage(''); setSelectedContacts([]); await loadData();
-    } catch (err) { toast.error('Campaign failed'); } finally { setCampaignSending(false); }
+      toast.success( `Campaign initiated: ${sent} calls, ${failed} failed` );
+      setShowCampaignModal( false ); setCampaignName( '' ); setCampaignMessage( '' ); setSelectedContacts( [] ); await loadData();
+    } catch ( err ) { toast.error( 'Campaign failed' ); } finally { setCampaignSending( false ); }
   };
 
   const handleClearLogs = async () => {
-    if (!(await confirm('Clear all voice logs?'))) return;
-    setClearing(true);
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/voice-aws/clear-logs`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+    if ( !( await confirm( 'Clear all voice logs?' ) ) ) return;
+    setClearing( true );
+    try
+    {
+      const response = await api.authFetch( `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/voice-aws/clear-logs`, { method: 'DELETE' } );
       const result = await response.json();
-      if (result.success) { toast.success(`Cleared logs`); await loadData(); }
-      else toast.error(result.error || 'Failed');
-    } catch (err) { toast.error('Failed to clear logs'); } finally { setClearing(false); }
+      if ( result.success ) { toast.success( `Cleared logs` ); await loadData(); }
+      else toast.error( result.error || 'Failed' );
+    } catch ( err ) { toast.error( 'Failed to clear logs' ); } finally { setClearing( false ); }
   };
 
-  const filteredCalls = calls.filter(call => {
-    if (directionFilter === 'inbound' && call.direction !== 'INBOUND') return false;
-    if (directionFilter === 'outbound' && call.direction !== 'OUTBOUND') return false;
-    if (searchQuery) { const q = searchQuery.toLowerCase(); return call.contactName?.toLowerCase().includes(q) || call.phoneNumber?.includes(q) || call.status?.toLowerCase().includes(q); }
+  const filteredCalls = calls.filter( call => {
+    if ( directionFilter === 'inbound' && call.direction !== 'INBOUND' ) return false;
+    if ( directionFilter === 'outbound' && call.direction !== 'OUTBOUND' ) return false;
+    if ( searchQuery ) { const q = searchQuery.toLowerCase(); return call.contactName?.toLowerCase().includes( q ) || call.phoneNumber?.includes( q ) || call.status?.toLowerCase().includes( q ); }
     return true;
-  });
-  const totalPages = Math.ceil(filteredCalls.length / ITEMS_PER_PAGE);
-  const paginatedCalls = filteredCalls.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-  const inboundCount = calls.filter(c => c.direction === 'INBOUND').length;
-  const outboundCount = calls.filter(c => c.direction === 'OUTBOUND').length;
+  } );
+  const totalPages = Math.ceil( filteredCalls.length / ITEMS_PER_PAGE );
+  const paginatedCalls = filteredCalls.slice( ( page - 1 ) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE );
+  const inboundCount = calls.filter( c => c.direction === 'INBOUND' ).length;
+  const outboundCount = calls.filter( c => c.direction === 'OUTBOUND' ).length;
 
   const shellContent = (
     <>
-      <PageShell title="Voice" subtitle="AWS Pinpoint & Airtel IQ � Calls, OBD, CDR" tabs={TABS} defaultTab="aws">
-        {(activeTab) => (
+      <PageShell title="Voice" subtitle="AWS Pinpoint & Airtel IQ � Calls, OBD, CDR" tabs={ TABS } defaultTab="aws">
+        { ( activeTab ) => (
           <>
-            {/* ===== AWS PINPOINT TAB ===== */}
-            {activeTab === 'aws' && (
+            {/* ===== AWS PINPOINT TAB ===== */ }
+            { activeTab === 'aws' && (
               <div className="voice-tab-content">
                 <div className="tab-header">
                   <div className="tab-header-left"><span className="provider-badge">AWS Pinpoint</span><span className="region-badge">us-east-1</span></div>
                   <div className="tab-header-actions">
-                    <Button variant="primary" onClick={() => setShowCallModal(true)}>Make Call</Button>
-                    <Button variant="secondary" onClick={handleClearLogs} disabled={clearing} loading={clearing}>Clear</Button>
-                    <Button variant="secondary" icon="refresh" onClick={loadData} disabled={loading} loading={loading}>Refresh</Button>
+                    <Button variant="primary" onClick={ () => setShowCallModal( true ) }>Make Call</Button>
+                    <Button variant="secondary" onClick={ handleClearLogs } disabled={ clearing } loading={ clearing }>Clear</Button>
+                    <Button variant="secondary" icon="refresh" onClick={ loadData } disabled={ loading } loading={ loading }>Refresh</Button>
                   </div>
                 </div>
                 <div className="controls-row">
                   <div className="filter-tabs">
-                    <button className={directionFilter === 'all' ? 'active' : ''} onClick={() => setDirectionFilter('all')}>All ({calls.length})</button>
-                    <button className={directionFilter === 'inbound' ? 'active' : ''} onClick={() => setDirectionFilter('inbound')}>In ({inboundCount})</button>
-                    <button className={directionFilter === 'outbound' ? 'active' : ''} onClick={() => setDirectionFilter('outbound')}>Out ({outboundCount})</button>
+                    <button className={ directionFilter === 'all' ? 'active' : '' } onClick={ () => setDirectionFilter( 'all' ) }>All ({ calls.length })</button>
+                    <button className={ directionFilter === 'inbound' ? 'active' : '' } onClick={ () => setDirectionFilter( 'inbound' ) }>In ({ inboundCount })</button>
+                    <button className={ directionFilter === 'outbound' ? 'active' : '' } onClick={ () => setDirectionFilter( 'outbound' ) }>Out ({ outboundCount })</button>
                   </div>
-                  <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="v-search" />
-                  <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+                  <input type="text" placeholder="Search..." value={ searchQuery } onChange={ e => setSearchQuery( e.target.value ) } className="v-search" />
+                  <Pagination currentPage={ page } totalPages={ totalPages } onPageChange={ setPage } />
                 </div>
-                <div className="table-area">{loading ? <div className="loading-state">Loading...</div> : (
+                <div className="table-area">{ loading ? <div className="loading-state">Loading...</div> : (
                   <table><thead><tr><th>Time</th><th>Dir</th><th>Contact</th><th className="hide-mobile">Phone</th><th>Duration</th><th>Type</th><th>Status</th></tr></thead><tbody>
-                    {paginatedCalls.map(call => (<tr key={call.callId}><td className="time-cell">{new Date(call.createdAt).toLocaleString()}</td><td><span className={call.direction === 'INBOUND' ? 'dir-in' : 'dir-out'}>{call.direction === 'INBOUND' ? '?' : '?'}</span></td><td>{call.contactName || '-'}</td><td className="phone-cell hide-mobile">{call.phoneNumber}</td><td>{formatDuration(call.duration)}</td><td><span className="type-badge">{call.callType}</span></td><td><span className={`st-badge ${call.status?.toLowerCase()}`}>{call.status}</span></td></tr>))}
-                    {paginatedCalls.length === 0 && <tr><td colSpan={7} className="empty-row">No calls</td></tr>}
+                    { paginatedCalls.map( call => ( <tr key={ call.callId }><td className="time-cell">{ new Date( call.createdAt ).toLocaleString() }</td><td><span className={ call.direction === 'INBOUND' ? 'dir-in' : 'dir-out' }>{ call.direction === 'INBOUND' ? '?' : '?' }</span></td><td>{ call.contactName || '-' }</td><td className="phone-cell hide-mobile">{ call.phoneNumber }</td><td>{ formatDuration( call.duration ) }</td><td><span className="type-badge">{ call.callType }</span></td><td><span className={ `st-badge ${call.status?.toLowerCase()}` }>{ call.status }</span></td></tr> ) ) }
+                    { paginatedCalls.length === 0 && <tr><td colSpan={ 7 } className="empty-row">No calls</td></tr> }
                   </tbody></table>
-                )}</div>
+                ) }</div>
               </div>
-            )}
+            ) }
 
-            {/* ===== AIRTEL IN TAB (embedded voice-in page) ===== */}
-            {activeTab === 'airtel' && (
-              <VoiceInPage signOut={signOut} user={user} embedded />
-            )}
+            {/* ===== AIRTEL IN TAB (embedded voice-in page) ===== */ }
+            { activeTab === 'airtel' && (
+              <VoiceInPage signOut={ signOut } user={ user } embedded />
+            ) }
 
-            {/* ===== CAMPAIGN TAB ===== */}
-            {activeTab === 'campaign' && (
+            {/* ===== CAMPAIGN TAB ===== */ }
+            { activeTab === 'campaign' && (
               <div className="voice-tab-content">
                 <div className="tab-header">
                   <div className="tab-header-left"><span className="provider-badge">Voice Campaigns</span></div>
                   <div className="tab-header-actions">
-                    <Button variant="primary" onClick={() => { setShowCampaignModal(true); loadContacts(); }}>New Campaign</Button>
+                    <Button variant="primary" onClick={ () => { setShowCampaignModal( true ); loadContacts(); } }>New Campaign</Button>
                   </div>
                 </div>
                 <div className="table-area">
                   <table><thead><tr><th>Campaign</th><th>Recipients</th><th>Connected</th><th>Completed</th><th>Failed</th><th>Date</th></tr></thead><tbody>
-                    {campaigns.map(c => (<tr key={c.id}><td className="name-cell">{c.name}</td><td>{c.recipients}</td><td className="success-cell">{c.connected}</td><td>{c.completed}</td><td className="failed-cell">{c.failed}</td><td className="time-cell">{new Date(c.createdAt).toLocaleDateString()}</td></tr>))}
-                    {campaigns.length === 0 && <tr><td colSpan={6} className="empty-row">No campaigns yet</td></tr>}
+                    { campaigns.map( c => ( <tr key={ c.id }><td className="name-cell">{ c.name }</td><td>{ c.recipients }</td><td className="success-cell">{ c.connected }</td><td>{ c.completed }</td><td className="failed-cell">{ c.failed }</td><td className="time-cell">{ new Date( c.createdAt ).toLocaleDateString() }</td></tr> ) ) }
+                    { campaigns.length === 0 && <tr><td colSpan={ 6 } className="empty-row">No campaigns yet</td></tr> }
                   </tbody></table>
                 </div>
               </div>
-            )}
+            ) }
 
-            {/* ===== MODALS ===== */}
-            {showCallModal && (<div className="modal-overlay" onClick={() => setShowCallModal(false)}><div className="modal-content" onClick={e => e.stopPropagation()}>
+            {/* ===== MODALS ===== */ }
+            { showCallModal && ( <div className="modal-overlay" onClick={ () => setShowCallModal( false ) }><div className="modal-content" onClick={ e => e.stopPropagation() }>
               <h3>Make Voice Call (AWS)</h3>
-              <div className="form-group"><label>Phone *</label><div className="input-row"><input type="tel" value={callPhone} onChange={e => setCallPhone(e.target.value)} placeholder="+1234567890" /><button type="button" className="pick-btn" onClick={() => setShowContactPicker('single')}>Contacts</button></div></div>
-              <div className="form-group"><label>Message (TTS)</label><textarea value={callMessage} onChange={e => setCallMessage(e.target.value)} placeholder="Message to be spoken..." rows={3} /></div>
-              <div className="modal-actions"><Button variant="secondary" onClick={() => setShowCallModal(false)}>Cancel</Button><Button variant="primary" onClick={handleMakeCall} loading={calling} disabled={!callPhone}>Call</Button></div>
-            </div></div>)}
+              <div className="form-group"><label>Phone *</label><div className="input-row"><input type="tel" value={ callPhone } onChange={ e => setCallPhone( e.target.value ) } placeholder="+1234567890" /><button type="button" className="pick-btn" onClick={ () => setShowContactPicker( 'single' ) }>Contacts</button></div></div>
+              <div className="form-group"><label>Message (TTS)</label><textarea value={ callMessage } onChange={ e => setCallMessage( e.target.value ) } placeholder="Message to be spoken..." rows={ 3 } /></div>
+              <div className="modal-actions"><Button variant="secondary" onClick={ () => setShowCallModal( false ) }>Cancel</Button><Button variant="primary" onClick={ handleMakeCall } loading={ calling } disabled={ !callPhone }>Call</Button></div>
+            </div></div> ) }
 
-            {showCampaignModal && (<div className="modal-overlay" onClick={() => setShowCampaignModal(false)}><div className="modal-content campaign-modal" onClick={e => e.stopPropagation()}>
+            { showCampaignModal && ( <div className="modal-overlay" onClick={ () => setShowCampaignModal( false ) }><div className="modal-content campaign-modal" onClick={ e => e.stopPropagation() }>
               <h3>Create Voice Campaign</h3>
-              <div className="form-group"><label>Name *</label><input type="text" value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="My Campaign" /></div>
-              <div className="form-group"><label>Voice Message (TTS) *</label><textarea value={campaignMessage} onChange={e => setCampaignMessage(e.target.value)} placeholder="Message to be spoken..." rows={3} /></div>
-              <div className="form-group"><label>Recipients ({selectedContacts.length})</label><button type="button" className="pick-btn full-w" onClick={() => setShowContactPicker('campaign')}>Select Contacts</button>
-                {selectedContacts.length > 0 && (<div className="tags">{selectedContacts.map(id => { const c = contacts.find(x => x.contactId === id); return c ? <span key={id} className="tag">{c.name} <button onClick={() => setSelectedContacts(prev => prev.filter(x => x !== id))}>�</button></span> : null; })}</div>)}
+              <div className="form-group"><label>Name *</label><input type="text" value={ campaignName } onChange={ e => setCampaignName( e.target.value ) } placeholder="My Campaign" /></div>
+              <div className="form-group"><label>Voice Message (TTS) *</label><textarea value={ campaignMessage } onChange={ e => setCampaignMessage( e.target.value ) } placeholder="Message to be spoken..." rows={ 3 } /></div>
+              <div className="form-group"><label>Recipients ({ selectedContacts.length })</label><button type="button" className="pick-btn full-w" onClick={ () => setShowContactPicker( 'campaign' ) }>Select Contacts</button>
+                { selectedContacts.length > 0 && ( <div className="tags">{ selectedContacts.map( id => { const c = contacts.find( x => x.contactId === id ); return c ? <span key={ id } className="tag">{ c.name } <button onClick={ () => setSelectedContacts( prev => prev.filter( x => x !== id ) ) }>�</button></span> : null; } ) }</div> ) }
               </div>
-              <div className="modal-actions"><Button variant="secondary" onClick={() => setShowCampaignModal(false)}>Cancel</Button><Button variant="primary" onClick={handleSendCampaign} loading={campaignSending} disabled={!campaignName || !campaignMessage || selectedContacts.length === 0}>Call {selectedContacts.length}</Button></div>
-            </div></div>)}
+              <div className="modal-actions"><Button variant="secondary" onClick={ () => setShowCampaignModal( false ) }>Cancel</Button><Button variant="primary" onClick={ handleSendCampaign } loading={ campaignSending } disabled={ !campaignName || !campaignMessage || selectedContacts.length === 0 }>Call { selectedContacts.length }</Button></div>
+            </div></div> ) }
 
-            {showContactPicker && (<div className="modal-overlay" onClick={() => setShowContactPicker(null)}><div className="modal-content contact-picker" onClick={e => e.stopPropagation()}>
-              <h3>Select Contact{showContactPicker === 'campaign' ? 's' : ''}</h3>
-              <input type="text" placeholder="Search..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} className="contact-search" />
-              <div className="contact-list">{loadingContacts ? <div className="loading-state">Loading...</div> : filteredContacts.length === 0 ? <div className="loading-state">No contacts</div> : (
-                filteredContacts.slice(0, 50).map(contact => (<div key={contact.contactId} className={`contact-row ${selectedContacts.includes(contact.contactId) ? 'selected' : ''}`} onClick={() => selectContact(contact)}><div className="contact-avatar">{contact.name.charAt(0).toUpperCase()}</div><div className="contact-details"><div className="c-name">{contact.name}</div><div className="c-phone">{contact.phone}</div></div>{showContactPicker === 'campaign' && selectedContacts.includes(contact.contactId) && <span className="check">?</span>}</div>))
-              )}</div>
-              <div className="modal-actions"><Button variant="secondary" onClick={() => setShowContactPicker(null)}>{showContactPicker === 'campaign' ? 'Done' : 'Cancel'}</Button></div>
-            </div></div>)}
+            { showContactPicker && ( <div className="modal-overlay" onClick={ () => setShowContactPicker( null ) }><div className="modal-content contact-picker" onClick={ e => e.stopPropagation() }>
+              <h3>Select Contact{ showContactPicker === 'campaign' ? 's' : '' }</h3>
+              <input type="text" placeholder="Search..." value={ contactSearch } onChange={ e => setContactSearch( e.target.value ) } className="contact-search" />
+              <div className="contact-list">{ loadingContacts ? <div className="loading-state">Loading...</div> : filteredContacts.length === 0 ? <div className="loading-state">No contacts</div> : (
+                filteredContacts.slice( 0, 50 ).map( contact => ( <div key={ contact.contactId } className={ `contact-row ${selectedContacts.includes( contact.contactId ) ? 'selected' : ''}` } onClick={ () => selectContact( contact ) }><div className="contact-avatar">{ contact.name.charAt( 0 ).toUpperCase() }</div><div className="contact-details"><div className="c-name">{ contact.name }</div><div className="c-phone">{ contact.phone }</div></div>{ showContactPicker === 'campaign' && selectedContacts.includes( contact.contactId ) && <span className="check">?</span> }</div> ) )
+              ) }</div>
+              <div className="modal-actions"><Button variant="secondary" onClick={ () => setShowContactPicker( null ) }>{ showContactPicker === 'campaign' ? 'Done' : 'Cancel' }</Button></div>
+            </div></div> ) }
           </>
-        )}
+        ) }
       </PageShell>
 
-      <style jsx>{`
+      <style jsx>{ `
         .voice-tab-content { padding: 0; }
         .tab-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
         .tab-header-left { display: flex; align-items: center; gap: 8px; }
@@ -335,12 +343,12 @@ const VoicePage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     </>
   );
 
-  if (embedded) return shellContent;
+  if ( embedded ) return shellContent;
 
   return (
-    <Layout user={user} onSignOut={signOut}>
+    <Layout user={ user } onSignOut={ signOut }>
       <SEO title="Voice" description="Voice — AWS Pinpoint & Airtel IQ" />
-      {shellContent}
+      { shellContent }
     </Layout>
   );
 };
