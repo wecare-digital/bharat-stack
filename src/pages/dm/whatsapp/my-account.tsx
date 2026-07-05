@@ -26,18 +26,29 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
     const [ tenant, setTenant ] = useState<any>( null );
     const [ isAdmin, setIsAdmin ] = useState( false );
     const [ linked, setLinked ] = useState<boolean | null>( null );
+    const [ wallet, setWallet ] = useState<any>( null );
+    const [ ledger, setLedger ] = useState<any[]>( [] );
     const [ loading, setLoading ] = useState( true );
 
     useEffect( () => {
         ( async () => {
             try
             {
-                const res = await authFetch( `${API_BASE}/partners/me` );
-                const data = await res.json();
-                if ( !res.ok ) throw new Error( data?.error || 'Failed to load' );
+                const [ meRes, billRes ] = await Promise.all( [
+                    authFetch( `${API_BASE}/partners/me` ),
+                    authFetch( `${API_BASE}/partners/billing` ),
+                ] );
+                const data = await meRes.json();
+                if ( !meRes.ok ) throw new Error( data?.error || 'Failed to load' );
                 setTenant( data.tenant || null );
                 setIsAdmin( !!data.isAdmin );
                 setLinked( data.linked ?? !!data.tenant );
+                if ( billRes.ok )
+                {
+                    const bd = await billRes.json();
+                    setWallet( bd.wallet || null );
+                    setLedger( Array.isArray( bd.ledger ) ? bd.ledger : [] );
+                }
             } catch ( e: any )
             {
                 toast.error( e?.message || 'Failed to load your account' );
@@ -76,6 +87,31 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
                         <div style={ { ...row, borderBottom: 'none' } }><span style={ key }>Connected on</span><span>{ tenant?.connectedAt ? new Date( tenant.connectedAt ).toLocaleString() : '—' }</span></div>
                     </div>
                 ) }
+
+            { !loading && !isAdmin && linked && (
+                <div style={ card }>
+                    <h3 style={ { marginTop: 0, fontSize: 16 } }>Wallet & Usage</h3>
+                    <div style={ row }>
+                        <span style={ key }>Prepaid balance</span>
+                        <span style={ { fontWeight: 700 } }>{ wallet ? `${wallet.balance} ${wallet.currency}` : '—' }
+                            { wallet?.status === 'SUSPENDED' && <span style={ { color: '#a11', marginLeft: 8, fontSize: 12 } }>SUSPENDED — top up to resume</span> }
+                        </span>
+                    </div>
+                    <div style={ { marginTop: 10, fontSize: 13, color: '#555' } }>Recent activity</div>
+                    { ledger.length === 0 ? <div style={ { fontSize: 13, color: '#999', marginTop: 4 } }>No usage yet.</div>
+                        : (
+                            <div style={ { marginTop: 6 } }>
+                                { ledger.slice( 0, 10 ).map( ( l, i ) => (
+                                    <div key={ i } style={ { display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f5f5f5' } }>
+                                        <span style={ { color: '#666' } }>{ l.ts ? new Date( l.ts ).toLocaleString() : '' } · { l.type }{ l.category ? ` (${l.category})` : '' }</span>
+                                        <span style={ { color: l.type === 'topup' ? '#1a3a2a' : '#a11' } }>{ l.type === 'topup' ? '+' : '−' }{ l.amount } · bal { l.balanceAfter }</span>
+                                    </div>
+                                ) ) }
+                            </div>
+                        ) }
+                    <p style={ { fontSize: 12, color: '#999', marginTop: 10 } }>To add funds, contact WECARE.DIGITAL.</p>
+                </div>
+            ) }
         </div>
     );
 

@@ -39,6 +39,7 @@ from lambda_utils.response import cors_response, options_response, extract_origi
 from lambda_utils.logging import get_logger
 from lambda_utils.rate_limit import check_rate_limit
 from lambda_utils.middleware import require_auth
+from lambda_utils import partner_billing as billing
 
 logger = get_logger(__name__)
 
@@ -338,9 +339,43 @@ def _do_disconnect(waba_id: str, origin: str):
     return cors_response(200, {'success': True, 'wabaId': waba_id, 'status': 'DISCONNECTED'}, origin)
 
 
+def _do_billing_get(event: dict, origin: str):
+    """Admin → all wallets. Customer → own wallet + recent ledger."""
+    ctx = _auth_ctx(event)
+    if ctx['isAdmin']:
+        return cors_response(200, {'wallets': billing.list_wallets(), 'rateCard': billing.RATE_CARD}, origin)
+    if not ctx['wabaId']:
+        return cors_response(200, {'wallet': None, 'ledger': []}, origin)
+    return cors_response(200, {
+        'wallet': billing.get_wallet(ctx['wabaId']) or None,
+        'ledger': billing.recent_ledger(ctx['wabaId'], limit=20),
+    }, origin)
+
+
+def _do_topup(event: dict, body: dict, origin: str):
+    waba_id = (body.get('wabaId') or '').strip()
+    try:
+        amount = float(body.get('amount') or 0)
+    except (TypeError, ValueError):
+        return cors_response(400, {'error': 'Invalid amount'}, origin)
+    if not waba_id or amount <= 0:
+        return cors_response(400, {'error': 'wabaId and positive amount required'}, origin)
+    actor = (event.get('_auth') or {}).get('username', 'admin')
+    res = billing.topup(waba_id, amount, note=(body.get('note') or ''), actor=actor,
+                        currency=(body.get('currency') or None))
+    return cors_response(200, {'success': True, **res}, origin)
+
+
 def handler(event, context):
     request_id = getattr(context, 'aws_request_id', 'local')
     origin = extract_origin(event)
+
+    # Internal Lambda-to-Lambda metering: {action:'charge', wabaId, category, messageId, amount?}
+    if event.get('action') == 'charge' and not event.get('requestContext'):
+        return billing.charge(event.get('wabaId', ''), amount=event.get('amount'),
+                              category=event.get('category', ''), message_id=event.get('messageId', ''),
+                              note=event.get('note', ''))
+
     rc = event.get('requestContext', {})
     method = rc.get('http', {}).get('method') or event.get('httpMethod', 'POST')
     path = rc.get('http', {}).get('path') or event.get('rawPath', '') or event.get('path', '')
@@ -356,6 +391,24 @@ def handler(event, context):
         if auth is not None:
             return auth
         return _do_me(event, origin)
+
+    # Billing: top-up (Admin) / view wallets (admin all, customer own)
+    if '/partners/billing' in path:
+        if '/topup' in path and method == 'POST':
+            auth = require_auth(event, required_role='Admin')
+            if auth is not None:
+                return auth
+            try:
+                body = json.loads(event.get('body') or '{}')
+            except json.JSONDecodeError:
+                return cors_response(400, {'error': 'Invalid JSON body'}, origin)
+            return _do_topup(event, body, origin)
+        if method == 'GET':
+            auth = require_auth(event)
+            if auth is not None:
+                return auth
+            return _do_billing_get(event, origin)
+        return cors_response(405, {'error': 'Method not allowed'}, origin)
 
     # Tenant management: GET (role-scoped list) / DELETE (Admin-only)
     if '/partners/tenants' in path or method in ('GET', 'DELETE'):

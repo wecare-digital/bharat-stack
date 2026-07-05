@@ -42,15 +42,27 @@ const ConnectedAccountsPage: React.FC<PageProps> = ( { signOut, user, embedded =
     const [ loading, setLoading ] = useState( true );
     const [ mode, setMode ] = useState<'onboard' | 'migrate'>( 'onboard' );
     const [ customerEmail, setCustomerEmail ] = useState( '' );
+    const [ wallets, setWallets ] = useState<Record<string, any>>( {} );
+    const [ topupAmt, setTopupAmt ] = useState<Record<string, string>>( {} );
 
     const load = useCallback( async () => {
         setLoading( true );
         try
         {
-            const res = await authFetch( `${API_BASE}/partners/tenants` );
-            const data = await res.json();
-            if ( !res.ok ) throw new Error( data?.error || 'Failed to load' );
+            const [ tRes, bRes ] = await Promise.all( [
+                authFetch( `${API_BASE}/partners/tenants` ),
+                authFetch( `${API_BASE}/partners/billing` ),
+            ] );
+            const data = await tRes.json();
+            if ( !tRes.ok ) throw new Error( data?.error || 'Failed to load' );
             setTenants( Array.isArray( data.tenants ) ? data.tenants : [] );
+            if ( bRes.ok )
+            {
+                const bd = await bRes.json();
+                const map: Record<string, any> = {};
+                ( bd.wallets || [] ).forEach( ( w: any ) => { map[ w.wabaId ] = w; } );
+                setWallets( map );
+            }
         } catch ( e: any )
         {
             toast.error( e?.message || 'Failed to load connected accounts' );
@@ -59,6 +71,23 @@ const ConnectedAccountsPage: React.FC<PageProps> = ( { signOut, user, embedded =
             setLoading( false );
         }
     }, [ toast ] );
+
+    const topup = async ( wabaId?: string ) => {
+        if ( !wabaId ) return;
+        const amount = parseFloat( topupAmt[ wabaId ] || '' );
+        if ( !amount || amount <= 0 ) { toast.error( 'Enter a valid amount' ); return; }
+        try
+        {
+            const res = await authFetch( `${API_BASE}/partners/billing/topup`, {
+                method: 'POST', body: JSON.stringify( { wabaId, amount } ),
+            } );
+            const data = await res.json();
+            if ( !res.ok ) throw new Error( data?.error || 'Top-up failed' );
+            toast.success( `Balance: ${data.balance}` );
+            setTopupAmt( ( m ) => ( { ...m, [ wabaId ]: '' } ) );
+            load();
+        } catch ( e: any ) { toast.error( e?.message || 'Top-up failed' ); }
+    };
 
     useEffect( () => { load(); }, [ load ] );
 
@@ -139,6 +168,19 @@ const ConnectedAccountsPage: React.FC<PageProps> = ( { signOut, user, embedded =
                                             { t.status === 'CONNECTED' && (
                                                 <button style={ btnDanger } onClick={ () => disconnect( t.wabaId ) }>Disconnect</button>
                                             ) }
+                                        </div>
+                                        <div style={ { marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } }>
+                                            <span style={ { fontSize: 13, fontWeight: 600 } }>
+                                                Wallet: { wallets[ t.wabaId || '' ] ? `${wallets[ t.wabaId! ].balance} ${wallets[ t.wabaId! ].currency}` : '—' }
+                                            </span>
+                                            { wallets[ t.wabaId || '' ]?.status === 'SUSPENDED' && (
+                                                <span style={ { ...tag( '' ), background: '#fbeaea', color: '#a11' } }>SUSPENDED (low balance)</span>
+                                            ) }
+                                            <input value={ topupAmt[ t.wabaId || '' ] || '' } onChange={ e => setTopupAmt( m => ( { ...m, [ t.wabaId || '' ]: e.target.value } ) ) }
+                                                placeholder="amount" type="number"
+                                                style={ { width: 100, padding: '5px 8px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 13 } } />
+                                            <button onClick={ () => topup( t.wabaId ) }
+                                                style={ { padding: '5px 12px', background: '#1a3a2a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 } }>Top up</button>
                                         </div>
                                     </div>
                                 ) ) }
