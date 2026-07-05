@@ -389,6 +389,37 @@ def _do_billing_get(event: dict, origin: str):
     }, origin)
 
 
+def _do_analytics(event: dict, origin: str):
+    ctx = _auth_ctx(event)
+    qs = event.get('queryStringParameters') or {}
+    waba_id = (qs.get('wabaId') or '').strip() if ctx['isAdmin'] else ctx['wabaId']
+    try:
+        days = int(qs.get('days') or 30)
+    except (TypeError, ValueError):
+        days = 30
+    if not waba_id:
+        return cors_response(200, {'analytics': None}, origin)
+    return cors_response(200, {'analytics': billing.analytics(waba_id, days=days)}, origin)
+
+
+def _do_settings(event: dict, body: dict, origin: str):
+    waba_id = (body.get('wabaId') or '').strip()
+    if not waba_id:
+        return cors_response(400, {'error': 'wabaId required'}, origin)
+    markup = body.get('markupPct')
+    threshold = body.get('threshold')
+    res = billing.set_settings(
+        waba_id,
+        currency=(body.get('currency') or None),
+        markup_pct=float(markup) if markup is not None else None,
+        threshold=float(threshold) if threshold is not None else None)
+    actor = (event.get('_auth') or {}).get('username', 'admin')
+    record_audit(action='partner.wallet_settings', actor=actor, resource_type='partner_wallet',
+                 resource_id=waba_id, details={'currency': res.get('currency'),
+                 'markupPct': res.get('markupPct'), 'threshold': res.get('threshold')})
+    return cors_response(200, {'success': True, **res}, origin)
+
+
 def _do_topup(event: dict, body: dict, origin: str):
     waba_id = (body.get('wabaId') or '').strip()
     try:
@@ -593,8 +624,22 @@ def handler(event, context):
             return cors_response(400, {'error': 'Invalid JSON body'}, origin)
         return _do_send(event, body, origin)
 
-    # Billing: top-up (Admin) / self-service top-up order / view wallets
+    # Billing: analytics / settings / top-up / self-service order / view wallets
     if '/partners/billing' in path:
+        if '/analytics' in path and method == 'GET':
+            auth = require_auth(event)
+            if auth is not None:
+                return auth
+            return _do_analytics(event, origin)
+        if '/settings' in path and method == 'POST':
+            auth = require_auth(event, required_role='Admin')
+            if auth is not None:
+                return auth
+            try:
+                body = json.loads(event.get('body') or '{}')
+            except json.JSONDecodeError:
+                return cors_response(400, {'error': 'Invalid JSON body'}, origin)
+            return _do_settings(event, body, origin)
         if '/topup-order' in path and method == 'POST':
             auth = require_auth(event)
             if auth is not None:

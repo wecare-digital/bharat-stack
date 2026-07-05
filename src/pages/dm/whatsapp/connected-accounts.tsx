@@ -44,6 +44,23 @@ const ConnectedAccountsPage: React.FC<PageProps> = ( { signOut, user, embedded =
     const [ customerEmail, setCustomerEmail ] = useState( '' );
     const [ wallets, setWallets ] = useState<Record<string, any>>( {} );
     const [ topupAmt, setTopupAmt ] = useState<Record<string, string>>( {} );
+    const [ markup, setMarkup ] = useState<Record<string, string>>( {} );
+
+    const saveSettings = async ( wabaId?: string ) => {
+        if ( !wabaId ) return;
+        const m = parseFloat( markup[ wabaId ] || '' );
+        if ( isNaN( m ) ) { toast.error( 'Enter a markup %' ); return; }
+        try
+        {
+            const res = await authFetch( `${API_BASE}/partners/billing/settings`, {
+                method: 'POST', body: JSON.stringify( { wabaId, markupPct: m } ),
+            } );
+            const data = await res.json();
+            if ( !res.ok ) throw new Error( data?.error || 'Save failed' );
+            toast.success( `Markup set to ${m}%` );
+            load();
+        } catch ( e: any ) { toast.error( e?.message || 'Save failed' ); }
+    };
 
     const load = useCallback( async () => {
         setLoading( true );
@@ -181,6 +198,12 @@ const ConnectedAccountsPage: React.FC<PageProps> = ( { signOut, user, embedded =
                                                 style={ { width: 100, padding: '5px 8px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 13 } } />
                                             <button onClick={ () => topup( t.wabaId ) }
                                                 style={ { padding: '5px 12px', background: '#1a3a2a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 } }>Top up</button>
+                                            <span style={ { fontSize: 12, color: '#777', marginLeft: 8 } }>Markup { wallets[ t.wabaId || '' ]?.markupPct ?? 0 }%</span>
+                                            <input value={ markup[ t.wabaId || '' ] || '' } onChange={ e => setMarkup( m => ( { ...m, [ t.wabaId || '' ]: e.target.value } ) ) }
+                                                placeholder="markup %" type="number"
+                                                style={ { width: 90, padding: '5px 8px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 13 } } />
+                                            <button onClick={ () => saveSettings( t.wabaId ) }
+                                                style={ { padding: '5px 12px', background: '#fff', color: '#1a3a2a', border: '1px solid #1a3a2a', borderRadius: 6, cursor: 'pointer', fontSize: 13 } }>Save</button>
                                         </div>
                                     </div>
                                 ) ) }

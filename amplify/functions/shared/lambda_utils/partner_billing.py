@@ -103,7 +103,25 @@ def get_wallet(waba_id: str) -> dict:
     if item:
         item['balance'] = float(item.get('balance', 0))
         item['threshold'] = float(item.get('threshold', 0))
+        item['markupPct'] = float(item.get('markupPct', 0))
     return item
+
+
+def set_settings(waba_id: str, currency: str = None, markup_pct: float = None,
+                 threshold: float = None) -> dict:
+    """Admin: configure a tenant wallet's currency, markup %, and low-balance threshold."""
+    ensure_wallet(waba_id, currency)
+    expr, vals, names = ['updatedAt = :t'], {':t': datetime.now(timezone.utc).isoformat()}, {}
+    if currency:
+        expr.append('currency = :c'); vals[':c'] = currency
+    if markup_pct is not None:
+        expr.append('markupPct = :m'); vals[':m'] = _dec(markup_pct)
+    if threshold is not None:
+        expr.append('threshold = :th'); vals[':th'] = _dec(threshold)
+    _wallet_tbl().update_item(Key={'wabaId': waba_id},
+                              UpdateExpression='SET ' + ', '.join(expr),
+                              ExpressionAttributeValues=vals)
+    return get_wallet(waba_id)
 
 
 def ensure_wallet(waba_id: str, currency: str = None) -> dict:
@@ -166,6 +184,10 @@ def charge(waba_id: str, amount: float = None, category: str = '', message_id: s
     if not w:
         return {'charged': False, 'reason': 'no wallet'}
     amt = amount if amount is not None else rate_for(category, to_number=to_number)
+    # Apply per-tenant markup on top of the base rate (0 by default).
+    markup = float(w.get('markupPct', 0) or 0)
+    if amount is None and markup:
+        amt = round(amt * (1 + markup / 100.0), 4)
     if amt <= 0:
         return {'charged': False, 'reason': 'zero cost', 'category': category}
     resp = _wallet_tbl().update_item(
@@ -201,6 +223,43 @@ def list_wallets() -> list:
             break
         kwargs['ExclusiveStartKey'] = lek
     return wallets
+
+
+def analytics(waba_id: str, days: int = 30) -> dict:
+    """Aggregate a tenant's usage from the ledger: total spend, spend + count by
+    category, top-ups, and current balance — over the last `days`."""
+    from datetime import timedelta
+    if not waba_id:
+        return {}
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    spend_by_cat, count_by_cat = {}, {}
+    total_spend = total_topup = charge_count = 0.0
+    kwargs = {'KeyConditionExpression': 'wabaId = :w AND ts >= :s',
+              'ExpressionAttributeValues': {':w': waba_id, ':s': since},
+              'ScanIndexForward': False}
+    while True:
+        resp = _ledger_tbl().query(**kwargs)
+        for it in resp.get('Items', []):
+            amt = float(it.get('amount', 0))
+            if it.get('type') == 'charge':
+                cat = it.get('category', '') or 'OTHER'
+                spend_by_cat[cat] = round(spend_by_cat.get(cat, 0) + amt, 4)
+                count_by_cat[cat] = count_by_cat.get(cat, 0) + 1
+                total_spend = round(total_spend + amt, 4)
+                charge_count += 1
+            elif it.get('type') == 'topup':
+                total_topup = round(total_topup + amt, 4)
+        lek = resp.get('LastEvaluatedKey')
+        if not lek:
+            break
+        kwargs['ExclusiveStartKey'] = lek
+    w = get_wallet(waba_id)
+    return {
+        'wabaId': waba_id, 'days': days, 'balance': float(w.get('balance', 0)) if w else 0,
+        'currency': w.get('currency', DEFAULT_CURRENCY) if w else DEFAULT_CURRENCY,
+        'totalSpend': total_spend, 'totalTopup': total_topup, 'messageCount': int(charge_count),
+        'spendByCategory': spend_by_cat, 'countByCategory': count_by_cat,
+    }
 
 
 def recent_ledger(waba_id: str, limit: int = 20) -> list:

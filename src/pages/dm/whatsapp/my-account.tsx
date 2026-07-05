@@ -35,6 +35,7 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
     const [ addAmt, setAddAmt ] = useState( '' );
     const [ adding, setAdding ] = useState( false );
     const [ messages, setMessages ] = useState<any[]>( [] );
+    const [ analytics, setAnalytics ] = useState<any>( null );
 
     const loadMessages = async () => {
         try
@@ -101,7 +102,15 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
                     setWallet( bd.wallet || null );
                     setLedger( Array.isArray( bd.ledger ) ? bd.ledger : [] );
                 }
-                if ( !data.isAdmin && ( data.linked ?? !!data.tenant ) ) loadMessages();
+                if ( !data.isAdmin && ( data.linked ?? !!data.tenant ) )
+                {
+                    loadMessages();
+                    try
+                    {
+                        const aRes = await authFetch( `${API_BASE}/partners/billing/analytics?days=30` );
+                        if ( aRes.ok ) setAnalytics( ( await aRes.json() ).analytics || null );
+                    } catch { /* ignore */ }
+                }
             } catch ( e: any )
             {
                 toast.error( e?.message || 'Failed to load your account' );
@@ -171,6 +180,19 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
                         </button>
                     </div>
                     <p style={ { fontSize: 12, color: '#999', marginTop: 8 } }>Secure payment via Razorpay. Your balance updates automatically after payment.</p>
+                    { analytics && (
+                        <div style={ { marginTop: 14, paddingTop: 12, borderTop: '1px solid #f0f0f0' } }>
+                            <div style={ { fontSize: 13, fontWeight: 600, marginBottom: 6 } }>Usage (last 30 days)</div>
+                            <div style={ { fontSize: 13, color: '#444' } }>
+                                { analytics.messageCount || 0 } messages · spent { analytics.totalSpend || 0 } { analytics.currency } · topped up { analytics.totalTopup || 0 } { analytics.currency }
+                            </div>
+                            { analytics.spendByCategory && Object.keys( analytics.spendByCategory ).length > 0 && (
+                                <div style={ { fontSize: 12, color: '#666', marginTop: 4 } }>
+                                    { Object.entries( analytics.spendByCategory ).map( ( [ c, v ]: any ) => `${c}: ${v}` ).join( ' · ' ) }
+                                </div>
+                            ) }
+                        </div>
+                    ) }
                 </div>
             ) }
 
