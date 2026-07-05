@@ -30,6 +30,10 @@ from lambda_utils.privacy import mask_phone, redact_pii
 from lambda_utils.validation import normalize_phone
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
+try:
+    from lambda_utils import partner_billing  # per-tenant prepaid metering (optional)
+except Exception:  # noqa: BLE001
+    partner_billing = None
 
 # Sub-modules (monolith decomposition)
 from modules.content import extract_content as _extract_content_v2
@@ -566,9 +570,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         error_count += 1
                 
                 # Process status updates
+                _status_waba_id = (meta_waba_ids[0] if meta_waba_ids else '')
                 for status in value.get('statuses', []):
                     try:
-                        _process_status(status, request_id, contacts_map=contacts_map)
+                        _process_status(status, request_id, contacts_map=contacts_map, waba_id=_status_waba_id)
                     except Exception as e:
                         logger.error(json.dumps({
                             'event': 'status_processing_error',
@@ -2352,7 +2357,29 @@ def _ingest_whatsapp_document(
         }))
 
 
-def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) -> None:
+def _meter_partner_usage(status: Dict, waba_id: str, request_id: str) -> None:
+    """Charge a partner (Embedded-Signup) tenant's prepaid wallet for a billable
+    message. No-op for platform-owned numbers (no wallet). Never raises."""
+    if not partner_billing or not waba_id:
+        return
+    try:
+        pricing = status.get('pricing', {}) or {}
+        billable = pricing.get('billable', False)
+        # Charge once per message on the 'sent' status (which carries pricing).
+        if status.get('status') != 'sent' or not billable:
+            return
+        category = pricing.get('category', '') or ''
+        res = partner_billing.charge(waba_id, category=category,
+                                     message_id=status.get('id', ''), note='wa message')
+        if res.get('charged'):
+            logger.info(json.dumps({'event': 'partner_usage_charged', 'wabaId': waba_id,
+                                    'category': category, 'amount': res.get('amount'),
+                                    'balance': res.get('balance'), 'requestId': request_id}))
+    except Exception as e:  # noqa: BLE001
+        logger.warning(json.dumps({'event': 'partner_metering_error', 'wabaId': waba_id, 'error': str(e)}))
+
+
+def _process_status(status: Dict, request_id: str, contacts_map: Dict = None, waba_id: str = '') -> None:
     """
     Process message status update (sent|delivered|read|failed|payment).
     Checks BOTH InboundTable and OutboundTable using GSI for O(1) lookup.
@@ -2394,6 +2421,10 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None) ->
     
     if not whatsapp_message_id or not status_value:
         return
+
+    # Meter partner (Embedded-Signup) tenant usage against their prepaid wallet.
+    # No-op for platform-owned numbers. Guarded — never breaks status processing.
+    _meter_partner_usage(status, waba_id, request_id)
     
     # Search BOTH tables for the message using GSI
     OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
