@@ -1,10 +1,13 @@
-# Create/deploy wecare-meta-business-agent (zip Python lambda; no external deps).
+# Create/deploy wecare-meta-business-agent (zip Python lambda).
+# Bundles shared lambda_utils (needed for require_auth inbound auth).
 $ErrorActionPreference = "Continue"
 $FN = "wecare-meta-business-agent"
 $pkg = "scripts\_pkg_$FN"
 if (Test-Path $pkg) { Remove-Item -Recurse -Force $pkg }
 New-Item -ItemType Directory -Path $pkg -Force | Out-Null
+New-Item -ItemType Directory -Path "$pkg\lambda_utils" -Force | Out-Null
 Copy-Item "amplify\functions\messaging\meta-business-agent\handler.py" "$pkg\handler.py"
+Copy-Item "amplify\functions\shared\lambda_utils\*.py" "$pkg\lambda_utils\"
 $zip = "scripts\$FN.zip"
 if (Test-Path $zip) { Remove-Item -Force $zip }
 Compress-Archive -Path "$pkg\*" -DestinationPath $zip -Force
@@ -25,3 +28,7 @@ if ($LASTEXITCODE -eq 0) {
 }
 if (Test-Path $pkg) { Remove-Item -Recurse -Force $pkg }
 if (Test-Path $zip) { Remove-Item -Force $zip }
+
+# SnapStart: publish a fresh version and move the 'live' alias so the new code
+# actually reaches the API (which invokes :live, not $LATEST).
+python scripts\_snapstart_publish.py $FN

@@ -29,3 +29,6 @@ Deploy-Lambda "wecare-voice-in-c2c" "amplify\functions\messaging\voice-in\c2c\ha
 Deploy-Lambda "wecare-billing" "amplify\functions\operations\billing\handler.py"
 
 Write-Host "`n=== All 5 Lambdas deployed ===" -ForegroundColor Green
+
+# SnapStart: publish fresh versions + move 'live' alias for the deployed functions.
+python scripts\_snapstart_publish.py wecare-payu-webhook wecare-whatsapp-business-api wecare-outbound-whatsapp wecare-voice-in-c2c wecare-billing

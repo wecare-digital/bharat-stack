@@ -149,3 +149,9 @@ Write-Host "Deploy complete: $succeeded succeeded, $failed failed, $skipped skip
 if ($failedNames.Count -gt 0) {
     Write-Host "Failed functions: $($failedNames -join ', ')" -ForegroundColor Red
 }
+
+# SnapStart: these functions are invoked via the ':live' alias by the API, so
+# after updating $LATEST code we must publish a new version and move the alias.
+Write-Host ""
+Write-Host "Publishing SnapStart versions + moving 'live' alias..." -ForegroundColor Cyan
+python scripts\_snapstart_publish.py
