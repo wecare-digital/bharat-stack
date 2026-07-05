@@ -2369,8 +2369,16 @@ def _meter_partner_usage(status: Dict, waba_id: str, request_id: str) -> None:
         if status.get('status') != 'sent' or not billable:
             return
         category = pricing.get('category', '') or ''
+        msg_id = status.get('id', '')
+        # Idempotency: charge once per message even if the 'sent' webhook is redelivered.
+        try:
+            from lambda_utils.webhook_dedup import claim_event
+            if msg_id and not claim_event(f'meter_{msg_id}', source='partner_meter'):
+                return
+        except Exception:  # noqa: BLE001 — dedup must never block real metering
+            pass
         res = partner_billing.charge(waba_id, category=category,
-                                     message_id=status.get('id', ''), note='wa message')
+                                     message_id=msg_id, note='wa message')
         if res.get('charged'):
             logger.info(json.dumps({'event': 'partner_usage_charged', 'wabaId': waba_id,
                                     'category': category, 'amount': res.get('amount'),

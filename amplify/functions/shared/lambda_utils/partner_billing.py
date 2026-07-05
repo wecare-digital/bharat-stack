@@ -34,6 +34,7 @@ logger = get_logger(__name__)
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
 WALLET_TABLE = os.environ.get('PARTNER_WALLET_TABLE', 'stack-wecare-digital-PartnerWallet')
 LEDGER_TABLE = os.environ.get('PARTNER_LEDGER_TABLE', 'stack-wecare-digital-PartnerLedger')
+ALERT_SNS_ARN = os.environ.get('SNS_TOPIC_ARN', 'arn:aws:sns:us-east-1:775261844268:stack-wecare-digital')
 DEFAULT_CURRENCY = os.environ.get('PARTNER_DEFAULT_CURRENCY', 'INR')
 LEDGER_TTL_DAYS = int(os.environ.get('PARTNER_LEDGER_TTL_DAYS', '400'))
 
@@ -46,6 +47,14 @@ except json.JSONDecodeError:
     RATE_CARD = DEFAULT_RATE_CARD
 
 _ddb = boto3.resource('dynamodb', region_name=REGION)
+_sns = boto3.client('sns', region_name=REGION)
+
+
+def _alert(subject: str, message: str) -> None:
+    try:
+        _sns.publish(TopicArn=ALERT_SNS_ARN, Subject=subject[:100], Message=message)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(json.dumps({'event': 'partner_alert_error', 'error': str(e)}))
 
 
 def _wallet_tbl():
@@ -149,6 +158,8 @@ def charge(waba_id: str, amount: float = None, category: str = '', message_id: s
             Key={'wabaId': waba_id}, UpdateExpression='SET #s = :s',
             ExpressionAttributeNames={'#s': 'status'}, ExpressionAttributeValues={':s': 'SUSPENDED'})
         logger.warning(json.dumps({'event': 'partner_wallet_suspended', 'wabaId': waba_id, 'balance': bal}))
+        _alert('WECARE partner wallet suspended',
+               f'Partner WABA {waba_id} wallet dropped to {bal} {w.get("currency", "")} and was suspended. Top up to resume messaging.')
     return {'charged': True, 'amount': amt, 'balance': bal, 'category': category}
 
 

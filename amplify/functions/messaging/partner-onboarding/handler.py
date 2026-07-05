@@ -40,6 +40,11 @@ from lambda_utils.logging import get_logger
 from lambda_utils.rate_limit import check_rate_limit
 from lambda_utils.middleware import require_auth
 from lambda_utils import partner_billing as billing
+try:
+    from lambda_utils.audit import record_audit
+except Exception:  # noqa: BLE001
+    def record_audit(**kwargs):  # type: ignore
+        return None
 
 logger = get_logger(__name__)
 
@@ -277,6 +282,9 @@ def _do_onboard(body: dict, origin: str, request_id: str):
         'status': 'CONNECTED', 'steps': steps, 'details': details, 'tokenStored': token_stored,
     })
 
+    record_audit(action=f'partner.{mode}', actor=(customer_email or 'self-serve'),
+                 resource_type='partner_waba', resource_id=waba_id,
+                 details={'phoneNumberId': phone_number_id, 'steps': steps})
     logger.info(json.dumps({'event': 'partner_onboarding_done', 'mode': mode, 'wabaId': waba_id,
                             'steps': steps, 'requestId': request_id}))
     return cors_response(200, {
@@ -323,20 +331,48 @@ def _do_me(event: dict, origin: str):
     return cors_response(200, {'tenant': None, 'linked': False}, origin)
 
 
-def _do_disconnect(waba_id: str, origin: str):
+def _do_disconnect(event: dict, waba_id: str, origin: str):
     if not waba_id:
         return cors_response(400, {'error': 'wabaId required'}, origin)
+    actor = (event.get('_auth') or {}).get('username', 'admin')
+    cleanup = {'cognitoDisabled': None, 'walletSuspended': None}
     try:
         table = _ddb.Table(SYSTEM_CONFIG_TABLE)
         item = table.get_item(Key={'id': f'partner_tenant_{waba_id}'}).get('Item')
         rec = json.loads(item['configValue']) if item else {'wabaId': waba_id}
+
+        # Disable the customer's Cognito login (best-effort)
+        cust_email = rec.get('customerEmail')
+        if cust_email:
+            try:
+                _cognito.admin_disable_user(UserPoolId=USER_POOL_ID, Username=cust_email)
+                cleanup['cognitoDisabled'] = True
+            except Exception as e:  # noqa: BLE001
+                cleanup['cognitoDisabled'] = False
+                logger.warning(json.dumps({'event': 'partner_cognito_disable_error', 'error': str(e)}))
+
+        # Suspend the wallet so no further sends/metering occur (best-effort)
+        try:
+            w = billing.get_wallet(waba_id)
+            if w:
+                billing._wallet_tbl().update_item(  # noqa: SLF001
+                    Key={'wabaId': waba_id}, UpdateExpression='SET #s = :s',
+                    ExpressionAttributeNames={'#s': 'status'}, ExpressionAttributeValues={':s': 'SUSPENDED'})
+                cleanup['walletSuspended'] = True
+        except Exception as e:  # noqa: BLE001
+            logger.warning(json.dumps({'event': 'partner_wallet_suspend_error', 'error': str(e)}))
+
         rec['status'] = 'DISCONNECTED'
         rec['disconnectedAt'] = datetime.now(timezone.utc).isoformat()
+        rec['disconnectedBy'] = actor
         table.put_item(Item={'id': f'partner_tenant_{waba_id}', 'configValue': json.dumps(rec),
                              'updatedAt': rec['disconnectedAt']})
     except Exception as e:  # noqa: BLE001
         return cors_response(500, {'error': str(e)}, origin)
-    return cors_response(200, {'success': True, 'wabaId': waba_id, 'status': 'DISCONNECTED'}, origin)
+
+    record_audit(action='partner.disconnect', actor=actor, resource_type='partner_waba',
+                 resource_id=waba_id, details=cleanup)
+    return cors_response(200, {'success': True, 'wabaId': waba_id, 'status': 'DISCONNECTED', 'cleanup': cleanup}, origin)
 
 
 def _do_billing_get(event: dict, origin: str):
@@ -363,6 +399,8 @@ def _do_topup(event: dict, body: dict, origin: str):
     actor = (event.get('_auth') or {}).get('username', 'admin')
     res = billing.topup(waba_id, amount, note=(body.get('note') or ''), actor=actor,
                         currency=(body.get('currency') or None))
+    record_audit(action='partner.topup', actor=actor, resource_type='partner_wallet',
+                 resource_id=waba_id, details={'amount': amount, 'balance': res.get('balance')})
     return cors_response(200, {'success': True, **res}, origin)
 
 
@@ -416,7 +454,7 @@ def handler(event, context):
             auth = require_auth(event, required_role='Admin')
             if auth is not None:
                 return auth
-            return _do_disconnect((qs.get('wabaId') or '').strip(), origin)
+            return _do_disconnect(event, (qs.get('wabaId') or '').strip(), origin)
         if method == 'GET':
             auth = require_auth(event)
             if auth is not None:
