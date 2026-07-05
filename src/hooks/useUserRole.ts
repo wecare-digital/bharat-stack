@@ -53,10 +53,11 @@ export function useUserRole (): UserRole {
     return state;
 }
 
-/** Routes a limited-access partner customer is allowed to open. */
+/** Routes a limited-access partner customer is allowed to open.
+ *  The shared WhatsApp inbox is intentionally excluded until it is tenant-scoped,
+ *  otherwise a customer would see platform-wide data. */
 export const PARTNER_ALLOWED_PATHS = [
     '/dm/whatsapp/my-account',
-    '/dm/whatsapp',          // their WhatsApp inbox
     '/',
 ];
 

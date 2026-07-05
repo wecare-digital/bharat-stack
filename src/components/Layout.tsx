@@ -14,7 +14,7 @@ const PARTNER_NAV: NavItem[] = [
   {
     path: '/dm/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
       { path: '/dm/whatsapp/my-account', label: 'My WhatsApp Account' },
-      { path: '/dm/whatsapp', label: 'Inbox' },
+      // Inbox intentionally omitted until tenant-scoped (avoids data leakage).
     ],
   },
 ];
