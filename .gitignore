@@ -86,6 +86,9 @@ credentials.json
 # Utility scripts (local only)
 _*.py
 _*.json
+_*.ps1
+_*.txt
+recordings/
 _*.txt
 _*.cmd
 tmp-*.py
