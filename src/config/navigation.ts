@@ -74,6 +74,7 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp', label: 'Inbox' },
           // Setup
           { path: '/dm/whatsapp/waba-dashboard', label: 'WABA Dashboard' },
+          { path: '/dm/whatsapp/embedded-signup', label: 'Connect WABA' },
           { path: '/dm/whatsapp/business-profile', label: 'Business Profile' },
           { path: '/dm/whatsapp/webhooks', label: 'Webhooks' },
           { path: '/dm/whatsapp/bsuid', label: 'BSUID & Usernames' },
