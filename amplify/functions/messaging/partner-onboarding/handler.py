@@ -40,6 +40,7 @@ from lambda_utils.logging import get_logger
 from lambda_utils.rate_limit import check_rate_limit
 from lambda_utils.middleware import require_auth
 from lambda_utils import partner_billing as billing
+from lambda_utils import partner_tokens
 try:
     from lambda_utils.audit import record_audit
 except Exception:  # noqa: BLE001
@@ -404,6 +405,119 @@ def _do_topup(event: dict, body: dict, origin: str):
     return cors_response(200, {'success': True, **res}, origin)
 
 
+def _tenant_phone(waba_id: str) -> str:
+    try:
+        item = _ddb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': f'partner_tenant_{waba_id}'}).get('Item')
+        if item:
+            return (json.loads(item['configValue']) or {}).get('phoneNumberId', '')
+    except Exception:  # noqa: BLE001
+        pass
+    return ''
+
+
+def _do_send(event: dict, body: dict, origin: str):
+    """Send a WhatsApp message ON BEHALF of a partner, using THEIR token, gated by
+    THEIR prepaid wallet. Admin can send for any WABA; a customer can only send
+    from their own (custom:partner_waba_id). The charge is metered later from the
+    status webhook (avoids double-charging)."""
+    ctx = _auth_ctx(event)
+    waba_id = (body.get('wabaId') or '').strip()
+    if not ctx['isAdmin']:
+        waba_id = ctx['wabaId']            # customers are locked to their own WABA
+    if not waba_id:
+        return cors_response(400, {'error': 'wabaId required'}, origin)
+
+    token = partner_tokens.get_partner_token(waba_id)
+    if not token:
+        return cors_response(400, {'error': 'Not a connected partner WABA'}, origin)
+    phone_id = _tenant_phone(waba_id)
+    if not phone_id:
+        return cors_response(400, {'error': 'No registered phone number for this WABA'}, origin)
+
+    to = (body.get('to') or '').strip().lstrip('+')
+    if not to:
+        return cors_response(400, {'error': 'recipient (to) required, E.164 without +'}, origin)
+
+    # Wallet gate: block if suspended or unable to afford at least one message.
+    estimate = billing.rate_for('MARKETING', to_number=to)
+    if not billing.is_sufficient(waba_id, estimate):
+        return cors_response(402, {'success': False,
+                                   'error': 'Insufficient wallet balance or wallet suspended. Please top up.'}, origin)
+
+    msg_type = (body.get('type') or 'text').strip()
+    if msg_type == 'template':
+        name = (body.get('templateName') or '').strip()
+        if not name:
+            return cors_response(400, {'error': 'templateName required'}, origin)
+        payload = {'messaging_product': 'whatsapp', 'to': to, 'type': 'template',
+                   'template': {'name': name, 'language': {'code': (body.get('language') or 'en').strip()}}}
+    else:
+        text = (body.get('text') or '').strip()
+        if not text:
+            return cors_response(400, {'error': 'text required'}, origin)
+        payload = {'messaging_product': 'whatsapp', 'to': to, 'type': 'text', 'text': {'body': text}}
+
+    res = _graph('POST', f'{phone_id}/messages', token=token, payload=payload)
+    if res.get('error'):
+        status = res.get('_status') or 502
+        return cors_response(int(status) if status in (400, 401, 403, 404, 429, 500, 502) else 502,
+                             {'success': False, 'error': res['error'].get('message')}, origin)
+    msg_id = ((res.get('messages') or [{}])[0] or {}).get('id', '')
+    record_audit(action='partner.send', actor=ctx['username'], resource_type='partner_waba',
+                 resource_id=waba_id, details={'to': (to[:4] + '****'), 'type': msg_type, 'messageId': msg_id})
+    return cors_response(200, {'success': True, 'messageId': msg_id, 'wabaId': waba_id}, origin)
+
+
+def _razorpay_creds():
+    try:
+        raw = _secrets.get_secret_value(SecretId='wecare/razorpay-webhook').get('SecretString', '') or '{}'
+        d = json.loads(raw)
+        return (d.get('key_id') or '').strip(), (d.get('key_secret') or '').strip()
+    except Exception:  # noqa: BLE001
+        return '', ''
+
+
+def _do_topup_order(event: dict, body: dict, origin: str):
+    """Self-service wallet top-up: create a Razorpay payment link tagged with the
+    tenant's WABA. On payment, the Razorpay webhook credits the wallet."""
+    import base64
+    ctx = _auth_ctx(event)
+    waba_id = (body.get('wabaId') or '').strip()
+    if not ctx['isAdmin']:
+        waba_id = ctx['wabaId']
+    if not waba_id:
+        return cors_response(400, {'error': 'wabaId required'}, origin)
+    try:
+        amount = float(body.get('amount') or 0)
+    except (TypeError, ValueError):
+        return cors_response(400, {'error': 'Invalid amount'}, origin)
+    if amount <= 0:
+        return cors_response(400, {'error': 'positive amount required'}, origin)
+
+    key_id, key_secret = _razorpay_creds()
+    if not key_id or not key_secret:
+        return cors_response(501, {'error': 'Razorpay API keys not configured. Add key_id/key_secret to wecare/razorpay-webhook to enable self-service top-up.'}, origin)
+
+    payload = {
+        'amount': int(round(amount * 100)), 'currency': 'INR', 'accept_partial': False,
+        'description': f'WECARE wallet top-up ({waba_id})',
+        'notes': {'purpose': 'wallet_topup', 'wabaId': waba_id},
+        'reminder_enable': True,
+    }
+    auth = base64.b64encode(f'{key_id}:{key_secret}'.encode()).decode()
+    req = urllib.request.Request('https://api.razorpay.com/v1/payment_links',
+                                 data=json.dumps(payload).encode('utf-8'), method='POST',
+                                 headers={'Authorization': f'Basic {auth}', 'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            data = json.loads(r.read().decode('utf-8'))
+        return cors_response(200, {'success': True, 'shortUrl': data.get('short_url'), 'id': data.get('id')}, origin)
+    except urllib.error.HTTPError as e:
+        return cors_response(502, {'success': False, 'error': (e.read().decode()[:200] if e.fp else str(e))}, origin)
+    except Exception as e:  # noqa: BLE001
+        return cors_response(502, {'success': False, 'error': str(e)}, origin)
+
+
 def handler(event, context):
     request_id = getattr(context, 'aws_request_id', 'local')
     origin = extract_origin(event)
@@ -430,8 +544,30 @@ def handler(event, context):
             return auth
         return _do_me(event, origin)
 
-    # Billing: top-up (Admin) / view wallets (admin all, customer own)
+    # Partner send (auth): admin=any WABA, customer=own WABA. Wallet-gated.
+    if '/partners/send' in path:
+        if method != 'POST':
+            return cors_response(405, {'error': 'Method not allowed'}, origin)
+        auth = require_auth(event)
+        if auth is not None:
+            return auth
+        try:
+            body = json.loads(event.get('body') or '{}')
+        except json.JSONDecodeError:
+            return cors_response(400, {'error': 'Invalid JSON body'}, origin)
+        return _do_send(event, body, origin)
+
+    # Billing: top-up (Admin) / self-service top-up order / view wallets
     if '/partners/billing' in path:
+        if '/topup-order' in path and method == 'POST':
+            auth = require_auth(event)
+            if auth is not None:
+                return auth
+            try:
+                body = json.loads(event.get('body') or '{}')
+            except json.JSONDecodeError:
+                return cors_response(400, {'error': 'Invalid JSON body'}, origin)
+            return _do_topup_order(event, body, origin)
         if '/topup' in path and method == 'POST':
             auth = require_auth(event, required_role='Admin')
             if auth is not None:

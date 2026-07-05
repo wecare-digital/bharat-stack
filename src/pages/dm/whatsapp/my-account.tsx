@@ -29,6 +29,44 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
     const [ wallet, setWallet ] = useState<any>( null );
     const [ ledger, setLedger ] = useState<any[]>( [] );
     const [ loading, setLoading ] = useState( true );
+    const [ sendTo, setSendTo ] = useState( '' );
+    const [ sendText, setSendText ] = useState( '' );
+    const [ sending, setSending ] = useState( false );
+    const [ addAmt, setAddAmt ] = useState( '' );
+    const [ adding, setAdding ] = useState( false );
+
+    const addFunds = async () => {
+        const amount = parseFloat( addAmt );
+        if ( !amount || amount <= 0 ) { toast.error( 'Enter a valid amount' ); return; }
+        setAdding( true );
+        try
+        {
+            const res = await authFetch( `${API_BASE}/partners/billing/topup-order`, {
+                method: 'POST', body: JSON.stringify( { amount } ),
+            } );
+            const data = await res.json();
+            if ( !res.ok || data?.success === false ) throw new Error( data?.error || 'Could not create payment link' );
+            if ( data.shortUrl ) { window.open( data.shortUrl, '_blank' ); setAddAmt( '' ); }
+            else throw new Error( 'No payment link returned' );
+        } catch ( e: any ) { toast.error( e?.message || 'Top-up failed' ); }
+        finally { setAdding( false ); }
+    };
+
+    const sendMessage = async () => {
+        if ( !sendTo.trim() || !sendText.trim() ) { toast.error( 'Enter recipient and message' ); return; }
+        setSending( true );
+        try
+        {
+            const res = await authFetch( `${API_BASE}/partners/send`, {
+                method: 'POST', body: JSON.stringify( { to: sendTo.trim(), type: 'text', text: sendText.trim() } ),
+            } );
+            const data = await res.json();
+            if ( !res.ok || data?.success === false ) throw new Error( data?.error || 'Send failed' );
+            toast.success( `Sent — ${data.messageId || ''}` );
+            setSendText( '' );
+        } catch ( e: any ) { toast.error( e?.message || 'Send failed' ); }
+        finally { setSending( false ); }
+    };
 
     useEffect( () => {
         ( async () => {
@@ -109,7 +147,30 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
                                 ) ) }
                             </div>
                         ) }
-                    <p style={ { fontSize: 12, color: '#999', marginTop: 10 } }>To add funds, contact WECARE.DIGITAL.</p>
+                    <div style={ { marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }>
+                        <input value={ addAmt } onChange={ e => setAddAmt( e.target.value ) } type="number" placeholder="amount (INR)"
+                            style={ { width: 140, padding: '7px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14 } } />
+                        <button onClick={ addFunds } disabled={ adding }
+                            style={ { padding: '8px 16px', background: adding ? '#ccc' : '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 6, cursor: adding ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700 } }>
+                            { adding ? 'Creating link…' : 'Add funds' }
+                        </button>
+                    </div>
+                    <p style={ { fontSize: 12, color: '#999', marginTop: 8 } }>Secure payment via Razorpay. Your balance updates automatically after payment.</p>
+                </div>
+            ) }
+
+            { !loading && !isAdmin && linked && (
+                <div style={ card }>
+                    <h3 style={ { marginTop: 0, fontSize: 16 } }>Send a message</h3>
+                    <p style={ { fontSize: 12, color: '#777', marginTop: 0 } }>Sends from your WhatsApp number. Charged to your prepaid wallet.</p>
+                    <input value={ sendTo } onChange={ e => setSendTo( e.target.value ) } placeholder="Recipient (E.164, e.g. 919900000000)"
+                        style={ { width: '100%', padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14, marginBottom: 8 } } />
+                    <textarea value={ sendText } onChange={ e => setSendText( e.target.value ) } placeholder="Message text"
+                        style={ { width: '100%', minHeight: 80, padding: '8px 10px', border: '1px solid #d0d0d0', borderRadius: 6, fontSize: 14, marginBottom: 8 } } />
+                    <button onClick={ sendMessage } disabled={ sending }
+                        style={ { padding: '9px 16px', background: sending ? '#ccc' : '#1a3a2a', color: '#fff', border: 'none', borderRadius: 6, cursor: sending ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600 } }>
+                        { sending ? 'Sending…' : 'Send message' }
+                    </button>
                 </div>
             ) }
         </div>

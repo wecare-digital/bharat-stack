@@ -2377,8 +2377,8 @@ def _meter_partner_usage(status: Dict, waba_id: str, request_id: str) -> None:
                 return
         except Exception:  # noqa: BLE001 — dedup must never block real metering
             pass
-        res = partner_billing.charge(waba_id, category=category,
-                                     message_id=msg_id, note='wa message')
+        res = partner_billing.charge(waba_id, category=category, message_id=msg_id,
+                                     note='wa message', to_number=status.get('recipient_id', ''))
         if res.get('charged'):
             logger.info(json.dumps({'event': 'partner_usage_charged', 'wabaId': waba_id,
                                     'category': category, 'amount': res.get('amount'),

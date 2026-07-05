@@ -380,6 +380,21 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     description = payment.get('description', '')
     notes = payment.get('notes', {})
 
+    # Partner prepaid wallet top-up (self-service): if this payment was created for
+    # a wallet top-up, credit the tenant's wallet and stop (not an invoice payment).
+    if (notes or {}).get('purpose') == 'wallet_topup' and (notes or {}).get('wabaId'):
+        try:
+            from lambda_utils import partner_billing
+            r = partner_billing.topup(notes['wabaId'], amount_rupees,
+                                      note=f'Razorpay top-up {payment_id}', actor='self-service')
+            logger.info(json.dumps({'event': 'partner_wallet_topup_paid', 'wabaId': notes['wabaId'],
+                                    'amount': amount_rupees, 'balance': r.get('balance'),
+                                    'paymentId': payment_id, 'requestId': request_id}))
+        except Exception as e:  # noqa: BLE001
+            logger.error(json.dumps({'event': 'partner_wallet_topup_error', 'error': str(e),
+                                     'paymentId': payment_id, 'requestId': request_id}))
+        return
+
     # Try to find referenceId from multiple locations in Razorpay notes
     # Meta passes our notes through to Razorpay, but the key name may vary:
     # - 'referenceId' (our standard)

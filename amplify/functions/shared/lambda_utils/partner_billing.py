@@ -39,12 +39,21 @@ DEFAULT_CURRENCY = os.environ.get('PARTNER_DEFAULT_CURRENCY', 'INR')
 LEDGER_TTL_DAYS = int(os.environ.get('PARTNER_LEDGER_TTL_DAYS', '400'))
 
 # Per-message rate card by WhatsApp category, in wallet currency. Includes any
-# markup you want over Meta's cost. Override with RATE_CARD env (JSON).
+# markup over Meta's cost. Override the flat default with RATE_CARD env (JSON).
 DEFAULT_RATE_CARD = {'MARKETING': 0.90, 'UTILITY': 0.15, 'AUTHENTICATION': 0.12, 'SERVICE': 0.0}
 try:
     RATE_CARD = {**DEFAULT_RATE_CARD, **json.loads(os.environ.get('RATE_CARD', '{}') or '{}')}
 except json.JSONDecodeError:
     RATE_CARD = DEFAULT_RATE_CARD
+
+# Optional per-country override. RATE_CARD_BY_COUNTRY env (JSON), keyed by ISO
+# dial-code prefix or country code, each mapping category->rate. Falls back to
+# the flat RATE_CARD when a country/category isn't listed. Example:
+#   {"91": {"MARKETING": 0.73, "UTILITY": 0.12}, "1": {"MARKETING": 1.10}}
+try:
+    RATE_CARD_BY_COUNTRY = json.loads(os.environ.get('RATE_CARD_BY_COUNTRY', '{}') or '{}')
+except json.JSONDecodeError:
+    RATE_CARD_BY_COUNTRY = {}
 
 _ddb = boto3.resource('dynamodb', region_name=REGION)
 _sns = boto3.client('sns', region_name=REGION)
@@ -69,8 +78,22 @@ def _dec(x) -> Decimal:
     return Decimal(str(x))
 
 
-def rate_for(category: str) -> float:
-    return float(RATE_CARD.get((category or '').upper(), 0.0))
+def _country_prefix(to_number: str) -> str:
+    """Best-effort dial-code prefix from an E.164 number (no +). Tries 2- then
+    1-digit country codes present in the per-country card."""
+    n = (to_number or '').lstrip('+')
+    for length in (3, 2, 1):
+        if n[:length] in RATE_CARD_BY_COUNTRY:
+            return n[:length]
+    return ''
+
+
+def rate_for(category: str, country: str = '', to_number: str = '') -> float:
+    cat = (category or '').upper()
+    key = country or _country_prefix(to_number)
+    if key and key in RATE_CARD_BY_COUNTRY and cat in RATE_CARD_BY_COUNTRY[key]:
+        return float(RATE_CARD_BY_COUNTRY[key][cat])
+    return float(RATE_CARD.get(cat, 0.0))
 
 
 def get_wallet(waba_id: str) -> dict:
@@ -135,13 +158,14 @@ def is_sufficient(waba_id: str, estimate: float = 0.0) -> bool:
     return float(w.get('balance', 0)) >= float(estimate)
 
 
-def charge(waba_id: str, amount: float = None, category: str = '', message_id: str = '', note: str = '') -> dict:
+def charge(waba_id: str, amount: float = None, category: str = '', message_id: str = '',
+           note: str = '', to_number: str = '') -> dict:
     """Deduct usage from a partner wallet. If amount is None it is derived from
-    the category rate card. Auto-suspends when balance hits the threshold."""
+    the (country-aware) category rate card. Auto-suspends at the threshold."""
     w = get_wallet(waba_id)
     if not w:
         return {'charged': False, 'reason': 'no wallet'}
-    amt = amount if amount is not None else rate_for(category)
+    amt = amount if amount is not None else rate_for(category, to_number=to_number)
     if amt <= 0:
         return {'charged': False, 'reason': 'zero cost', 'category': category}
     resp = _wallet_tbl().update_item(
