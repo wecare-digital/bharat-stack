@@ -2476,7 +2476,17 @@ def _lookup_contact_by_phone(phone: str) -> Optional[Dict]:
         if not clean.startswith('+'):
             clean = '+' + clean
 
-        # Paginate until a match is found (single-page scan could miss it).
+        # Fast path: exact-match via the phone-index GSI (avoids a table scan).
+        try:
+            from boto3.dynamodb.conditions import Key
+            q = table.query(IndexName='phone-index', KeyConditionExpression=Key('phone').eq(clean))
+            if q.get('Items'):
+                return q['Items'][0]
+        except Exception as e:
+            logger.debug(f"phone-index query failed, falling back to scan: {e}")
+
+        # Fallback: paginated fuzzy scan (last-10-digit contains) for numbers
+        # not stored in normalized E.164 form.
         scan_kwargs = {'FilterExpression': boto3.dynamodb.conditions.Attr('phone').contains(clean[-10:])}
         items = []
         while True:
