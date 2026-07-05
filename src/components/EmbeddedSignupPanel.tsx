@@ -109,9 +109,15 @@ const EmbeddedSignupPanel: React.FC<Props> = ( { admin = false, onConnected } ) 
             }
         }, {
             config_id: ES_CONFIG_ID,
-            response_type: 'code',
+            response_type: 'code',                 // System User access token flow
             override_default_response_type: true,
-            extras: { setup: {}, featureType: '', sessionInfoVersion: '3' },
+            extras: {
+                setup: {},
+                featureType: 'whatsapp_business_app_onboarding',
+                sessionInfoVersion: '3',
+                version: 'v4-public-preview',
+                features: [ { name: 'marketing_messages_lite' } ],
+            },
         } );
     }, [ exchange ] );
 

@@ -107,10 +107,22 @@ def _exchange_code(code: str) -> dict:
     })
 
 
-def _store_token(waba_id: str, token: str) -> bool:
-    """Store the business token in a per-tenant secret. Never logged/returned."""
+def _store_token(waba_id: str, token: str, expires_in: int = 0) -> bool:
+    """Store the business token in a per-tenant secret. Never logged/returned.
+
+    Records expiresAt so the scheduled refresher (wecare-partner-token-refresh)
+    can renew it before the 60-day system-user token lapses.
+    """
+    now = datetime.now(timezone.utc)
+    ttl = expires_in if expires_in and expires_in > 0 else 60 * 24 * 3600  # default 60d
+    expires_at = now.timestamp() + ttl
     secret_name = f'wecare/partners/{waba_id}'
-    payload = json.dumps({'access_token': token, 'wabaId': waba_id, 'updatedAt': datetime.now(timezone.utc).isoformat()})
+    payload = json.dumps({
+        'access_token': token,
+        'wabaId': waba_id,
+        'updatedAt': now.isoformat(),
+        'expiresAt': datetime.fromtimestamp(expires_at, tz=timezone.utc).isoformat(),
+    })
     try:
         _secrets.create_secret(Name=secret_name, SecretString=payload)
         return True
@@ -179,6 +191,7 @@ def handler(event, context):
         return cors_response(400, {'success': False, 'error': err.get('message', 'Code exchange failed')}, origin)
 
     business_token = token_resp['access_token']
+    token_expires_in = int(token_resp.get('expires_in') or 0)
 
     # 2) Best-effort provisioning on the connected WABA
     provisioning = {'subscribedApp': None, 'phoneRegistered': None}
@@ -192,7 +205,7 @@ def handler(event, context):
 
     # 3) Persist tenant + store token securely (never returned)
     connected_at = datetime.now(timezone.utc).isoformat()
-    token_stored = _store_token(waba_id or f'unknown-{request_id}', business_token)
+    token_stored = _store_token(waba_id or f'unknown-{request_id}', business_token, token_expires_in)
     _persist_tenant({
         'wabaId': waba_id,
         'phoneNumberId': phone_number_id,
