@@ -34,6 +34,19 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
     const [ sending, setSending ] = useState( false );
     const [ addAmt, setAddAmt ] = useState( '' );
     const [ adding, setAdding ] = useState( false );
+    const [ messages, setMessages ] = useState<any[]>( [] );
+
+    const loadMessages = async () => {
+        try
+        {
+            const res = await authFetch( `${API_BASE}/partners/messages` );
+            if ( res.ok )
+            {
+                const d = await res.json();
+                setMessages( Array.isArray( d.messages ) ? d.messages : [] );
+            }
+        } catch { /* ignore */ }
+    };
 
     const addFunds = async () => {
         const amount = parseFloat( addAmt );
@@ -64,6 +77,7 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
             if ( !res.ok || data?.success === false ) throw new Error( data?.error || 'Send failed' );
             toast.success( `Sent — ${data.messageId || ''}` );
             setSendText( '' );
+            setTimeout( loadMessages, 1500 );
         } catch ( e: any ) { toast.error( e?.message || 'Send failed' ); }
         finally { setSending( false ); }
     };
@@ -87,6 +101,7 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
                     setWallet( bd.wallet || null );
                     setLedger( Array.isArray( bd.ledger ) ? bd.ledger : [] );
                 }
+                if ( !data.isAdmin && ( data.linked ?? !!data.tenant ) ) loadMessages();
             } catch ( e: any )
             {
                 toast.error( e?.message || 'Failed to load your account' );
@@ -171,6 +186,29 @@ const MyAccountPage: React.FC<PageProps> = ( { signOut, user, embedded = false }
                         style={ { padding: '9px 16px', background: sending ? '#ccc' : '#1a3a2a', color: '#fff', border: 'none', borderRadius: 6, cursor: sending ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 600 } }>
                         { sending ? 'Sending…' : 'Send message' }
                     </button>
+                </div>
+            ) }
+
+            { !loading && !isAdmin && linked && (
+                <div style={ card }>
+                    <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } }>
+                        <h3 style={ { margin: 0, fontSize: 16 } }>Recent messages</h3>
+                        <button onClick={ loadMessages } style={ { padding: '5px 10px', border: '1px solid #d0d0d0', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 12 } }>Refresh</button>
+                    </div>
+                    { messages.length === 0 ? <div style={ { fontSize: 13, color: '#999', marginTop: 8 } }>No messages yet.</div>
+                        : (
+                            <div style={ { marginTop: 8 } }>
+                                { messages.map( ( m, i ) => (
+                                    <div key={ m.id || i } style={ { padding: '8px 0', borderBottom: '1px solid #f5f5f5', fontSize: 13 } }>
+                                        <div style={ { display: 'flex', justifyContent: 'space-between', color: '#666', fontSize: 11 } }>
+                                            <span>{ m.direction === 'inbound' ? '⬇ received' : '⬆ sent' }{ m.senderPhone ? ` · ${m.senderPhone}` : '' }</span>
+                                            <span>{ m.timestamp ? new Date( m.timestamp * 1000 ).toLocaleString() : '' } · { m.status }</span>
+                                        </div>
+                                        <div style={ { marginTop: 2, color: '#222' } }>{ ( m.content || m.messageType || '' ).slice( 0, 200 ) }</div>
+                                    </div>
+                                ) ) }
+                            </div>
+                        ) }
                 </div>
             ) }
         </div>

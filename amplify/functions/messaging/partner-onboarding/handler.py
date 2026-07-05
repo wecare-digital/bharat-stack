@@ -415,6 +415,35 @@ def _tenant_phone(waba_id: str) -> str:
     return ''
 
 
+UNIFIED_MESSAGES_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
+
+
+def _do_messages(event: dict, origin: str):
+    """Tenant-scoped message list. Customer → own WABA only; admin → ?wabaId=.
+    Bounded scan filtered by metaWabaIds (add a GSI for scale)."""
+    ctx = _auth_ctx(event)
+    qs = event.get('queryStringParameters') or {}
+    waba_id = (qs.get('wabaId') or '').strip() if ctx['isAdmin'] else ctx['wabaId']
+    if not waba_id:
+        return cors_response(200, {'messages': [], 'wabaId': ''}, origin)
+    try:
+        resp = _ddb.Table(UNIFIED_MESSAGES_TABLE).scan(
+            FilterExpression='contains(metaWabaIds, :w)',
+            ExpressionAttributeValues={':w': waba_id}, Limit=400)
+        items = resp.get('Items', [])
+    except Exception as e:  # noqa: BLE001
+        return cors_response(500, {'error': str(e)}, origin)
+    msgs = []
+    for it in items:
+        msgs.append({
+            'id': it.get('id'), 'direction': it.get('direction'), 'content': it.get('content', ''),
+            'status': it.get('status'), 'timestamp': int(it.get('timestamp', 0) or 0),
+            'senderPhone': it.get('senderPhone', ''), 'messageType': it.get('messageType', ''),
+        })
+    msgs.sort(key=lambda m: m['timestamp'], reverse=True)
+    return cors_response(200, {'messages': msgs[:100], 'wabaId': waba_id}, origin)
+
+
 def _do_send(event: dict, body: dict, origin: str):
     """Send a WhatsApp message ON BEHALF of a partner, using THEIR token, gated by
     THEIR prepaid wallet. Admin can send for any WABA; a customer can only send
@@ -543,6 +572,13 @@ def handler(event, context):
         if auth is not None:
             return auth
         return _do_me(event, origin)
+
+    # Tenant-scoped messages (auth): customer=own WABA, admin=?wabaId=
+    if '/partners/messages' in path:
+        auth = require_auth(event)
+        if auth is not None:
+            return auth
+        return _do_messages(event, origin)
 
     # Partner send (auth): admin=any WABA, customer=own WABA. Wallet-gated.
     if '/partners/send' in path:
