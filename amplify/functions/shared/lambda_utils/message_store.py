@@ -108,6 +108,7 @@ def build_message_item(
         'sender_name': 'senderName',
         'receiving_phone': 'receivingPhone',
         'aws_phone_number_id': 'awsPhoneNumberId',
+        'partner_waba_id': 'partnerWabaId',
         'message_type': 'messageType',
         'detected_language': 'detectedLanguage',
         'call_type': 'callType',

@@ -99,6 +99,7 @@ const schema = a.schema( {
       senderUsername: a.string(), // Sender's WhatsApp username (inbound)
       receivingPhone: a.string(), // Receiving phone number (outbound)
       awsPhoneNumberId: a.string(), // WABA phone number ID
+      partnerWabaId: a.string(), // Embedded-Signup tenant WABA id (scalar, for tenant-scoped inbox GSI)
       transcription: a.string(), // English transcription of voice notes (audio messages)
       detectedLanguage: a.string(), // Detected language of voice note (e.g. "hi-IN", "en-US")
       expiresAt: a.integer(), // TTL: Unix epoch seconds (30 days)
@@ -107,6 +108,7 @@ const schema = a.schema( {
     .secondaryIndexes( ( index ) => [
       index( 'contactId' ),
       index( 'whatsappMessageId' ),
+      index( 'partnerWabaId' ), // tenant-scoped customer inbox (scales past a bounded scan)
     ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 

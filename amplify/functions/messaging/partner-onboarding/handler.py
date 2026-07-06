@@ -457,13 +457,23 @@ def _do_messages(event: dict, origin: str):
     waba_id = (qs.get('wabaId') or '').strip() if ctx['isAdmin'] else ctx['wabaId']
     if not waba_id:
         return cors_response(200, {'messages': [], 'wabaId': ''}, origin)
+    table = _ddb.Table(UNIFIED_MESSAGES_TABLE)
+    items = []
+    # Prefer the partnerWabaId GSI (scales); fall back to a bounded scan until the
+    # index finishes deploying via ampx.
     try:
-        resp = _ddb.Table(UNIFIED_MESSAGES_TABLE).scan(
-            FilterExpression='contains(metaWabaIds, :w)',
-            ExpressionAttributeValues={':w': waba_id}, Limit=400)
+        resp = table.query(
+            IndexName='partnerWabaId-index',
+            KeyConditionExpression='partnerWabaId = :w',
+            ExpressionAttributeValues={':w': waba_id}, Limit=200)
         items = resp.get('Items', [])
-    except Exception as e:  # noqa: BLE001
-        return cors_response(500, {'error': str(e)}, origin)
+    except Exception:  # noqa: BLE001 — index may not exist yet
+        try:
+            resp = table.scan(FilterExpression='partnerWabaId = :w OR contains(metaWabaIds, :w)',
+                              ExpressionAttributeValues={':w': waba_id}, Limit=400)
+            items = resp.get('Items', [])
+        except Exception as e:  # noqa: BLE001
+            return cors_response(500, {'error': str(e)}, origin)
     msgs = []
     for it in items:
         msgs.append({

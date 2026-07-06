@@ -97,6 +97,11 @@ META_PHONE_ID_MAP = {
 # All phones use Direct API
 DIRECT_API_PHONE_IDS = {PHONE_NUMBER_ID_1, PHONE_NUMBER_ID_2}
 
+# Platform-owned Meta WABA ids. Any OTHER WABA hitting our webhook is an
+# Embedded-Signup partner tenant — tag its messages with partnerWabaId so the
+# tenant-scoped customer inbox can query the partnerWabaId GSI.
+PLATFORM_WABAS = {'2094615664435155', '2513394156072604'}
+
 
 def _get_welcome_config_key(phone_number_id: str) -> str:
     """Return the SystemConfig key for welcome message based on phone number.
@@ -1013,6 +1018,7 @@ def _process_message(
     # Unified Inbox dual-write — mirror inbound WhatsApp to the canonical MessagesTable
     # (Phase 1). Same messageId as the WhatsApp inbound row, so messages-read dedups by
     # messageId. Guarded inside put_message — can never break inbound processing.
+    _partner_waba = next((str(w) for w in (meta_waba_ids or []) if str(w) not in PLATFORM_WABAS), None)
     put_message(
         channel='whatsapp',
         direction='inbound',
@@ -1028,6 +1034,7 @@ def _process_message(
         sender_name=sender_name,
         receiving_phone=receiving_phone,
         aws_phone_number_id=aws_phone_number_id,
+        partner_waba_id=_partner_waba,
         timestamp=timestamp,
     )
 
