@@ -69,6 +69,29 @@ def _is_direct_api_phone(phone_number_id: str) -> bool:
     """Check if phone uses Direct API. All phones are now Direct API."""
     return phone_number_id in DIRECT_API_PHONE_IDS
 
+
+# Known template -> flow-key map so template-launched Flows get a *routable*
+# flow_token. The flow-data endpoint routes by the token prefix and extracts the
+# recipient phone from the "-ph-" segment; a bare "unused" token is unroutable
+# and silently breaks flow submission (e.g. the subscribe REVIEW step).
+_TEMPLATE_FLOW_KEYS = {
+    '01_wecare_doc': 'subscribe', '02_wecare_video': 'subscribe', '03_wecare_images_': 'subscribe',
+    '01_manish_doc': 'subscribe', '02_manish_video': 'subscribe', '03_manish_image': 'subscribe',
+}
+
+
+def _infer_flow_key_from_template(template_name: str) -> str:
+    """Best-effort flow-key for a template's Flow button, used to build a routable
+    flow_token when the caller doesn't supply one."""
+    if not template_name:
+        return ''
+    name = str(template_name).strip().lower()
+    if name in _TEMPLATE_FLOW_KEYS:
+        return _TEMPLATE_FLOW_KEYS[name]
+    if 'subscribe' in name or 'profile' in name:
+        return 'subscribe'
+    return ''
+
 # Auto 👍 reaction: when enabled, every outbound message/template gets a thumbs-up
 # reaction from the same phone that sent it. Resolved at runtime from SystemConfig
 # (id='whatsapp_auto_thumb', cached) with the env var as the default. Default ON.
@@ -3060,7 +3083,17 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             try:
                 _fb_index = template_flow_button.get('index', 0)
                 _fb_token = (template_flow_button.get('flowToken')
-                             or template_flow_button.get('flow_token') or 'unused')
+                             or template_flow_button.get('flow_token'))
+                if not _fb_token:
+                    # No explicit token: generate a routable one so the flow-data
+                    # endpoint can extract the recipient phone + WABA and route the
+                    # data_exchange (e.g. subscribe REVIEW) correctly. A bare
+                    # "unused" token cannot be routed and breaks flow submission.
+                    _fb_key = (template_flow_button.get('flowKey')
+                               or _infer_flow_key_from_template(template_name) or 'flow')
+                    _fb_waba = '1' if phone_number_id == PHONE_NUMBER_ID_1 else '2'
+                    _fb_ph = ''.join(c for c in str(recipient_phone or '') if c.isdigit())
+                    _fb_token = f'{_fb_key[:10]}-{uuid.uuid4()}-waba-{_fb_waba}-ph-{_fb_ph}'
                 _fb_action = {'flow_token': str(_fb_token)}
                 _fb_data = (template_flow_button.get('flowActionData')
                             or template_flow_button.get('flow_action_data'))

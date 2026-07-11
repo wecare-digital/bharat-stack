@@ -61,8 +61,22 @@ def require_auth(
     if method == 'OPTIONS':
         return None
 
-    # Skip auth for Lambda-to-Lambda invocations (no HTTP context at all)
-    if not rc.get('http') and not event.get('httpMethod'):
+    # Skip auth for internal Lambda-to-Lambda invocations.
+    # Requests that arrive through API Gateway (the only externally reachable
+    # path) always carry an API Gateway request context — apiId, domainName, and
+    # http.sourceIp are injected by API Gateway HTTP APIs. Internal invokes built
+    # by our own code (e.g. flow -> invoice-engine payment links, inbound -> pay)
+    # do not have these, even though some include a minimal requestContext.http
+    # for routing. The previous "no http context at all" check missed those and
+    # returned 401 on legitimate internal calls. Treat any event lacking an API
+    # Gateway context as internal. This does NOT create external exposure:
+    # unauthenticated external callers can only reach the function via API Gateway
+    # (apiId present -> auth enforced); direct Lambda invokes already require IAM.
+    is_api_gateway = bool(
+        rc.get('apiId') or rc.get('domainName')
+        or rc.get('http', {}).get('sourceIp')
+    )
+    if not is_api_gateway:
         return None
 
     # Skip auth for configured paths (webhooks, etc.)

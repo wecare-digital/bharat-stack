@@ -4204,7 +4204,7 @@ def _send_flow_confirmation(phone: str, order_id: str, subject: str, request_id:
                 f'*Amount:* {amount_display}\n'
                 f'*Order:* {order_id}\n'
                 f'*Subject:* {subject}\n\n'
-                'Please complete the payment using the payment card sent above \u2b06\ufe0f\n'
+                'Please complete the payment using the payment link sent above \u2b06\ufe0f\n'
                 'Our team will review your request within 24 hours.\n\n'
                 '_Thank you for choosing WECARE.DIGITAL_'
             ).replace('{flow_name}', flow_name)

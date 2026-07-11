@@ -261,7 +261,7 @@ def send_confirmation(phone: str, phone_number_id: str, request_id: str,
             f'*Request No:* {request_number}\n{inv}'
             f'*Payment Ref:* {payment_ref_id}\n*Amount:* {amt}\n'
             f'*Order:* {order_id}\n*Subject:* {subject}\n\n'
-            'Please complete the payment using the payment card sent above ⬆️\n'
+            'Please complete the payment using the payment link sent above ⬆️\n'
             'Our team will review your request within 24 hours.\n\n'
             '_Thank you for choosing WECARE.DIGITAL_'
         )

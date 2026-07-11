@@ -4234,8 +4234,16 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
         _waba_suffix = '1' if phone_number_id == PHONE_NUMBER_ID_1 else '2'
         flow_token = f'{flow_key[:10]}-{uuid.uuid4()}-waba-{_waba_suffix}-ph-{sender_phone}'
 
-        # All flows use data_exchange so backend receives form submissions
-        flow_action = 'data_exchange'
+        # Flows whose FIRST screen is STATIC (needs no endpoint data at open) must
+        # open with NAVIGATE, not data_exchange. NAVIGATE renders the first screen
+        # client-side and SKIPS the endpoint INIT round-trip — removing the "stuck
+        # on loading" latency (per Meta Flows performance guidance). The endpoint is
+        # still called later on data_exchange screens (e.g. REVIEW), so no data is
+        # lost. Only order-fetching flows (submit_request, etc.) need data_exchange
+        # at open to populate their first screen.
+        STATIC_ENTRY_SCREENS = {'subscribe': 'PERSONAL_INFO'}
+        _entry_screen = STATIC_ENTRY_SCREENS.get(flow_key, '')
+        flow_action = 'navigate' if _entry_screen else 'data_exchange'
 
         interactive_data = {
             'body': msg.get('body', 'Please fill in the details below.'),
@@ -4245,6 +4253,8 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
             'flowAction': flow_action,
             'flowToken': flow_token,
         }
+        if _entry_screen:
+            interactive_data['screenId'] = _entry_screen
 
         header_val = msg.get('header', '')
         if header_val:
