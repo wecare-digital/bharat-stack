@@ -1109,6 +1109,13 @@ def _process_message(
                 _handle_address_submission(nfm, contact_id, sender_phone, aws_phone_number_id, request_id)
                 return  # Stop processing — address submission handled
 
+    # ── Cart order (native catalog checkout) ──
+    # Customer sent a cart from the catalog (message.type='order'). Convert the
+    # product_items into a native order_details (Review & Pay) with GST + convenience.
+    if msg_type == 'order':
+        _handle_cart_order(message, contact_id, sender_phone, aws_phone_number_id, request_id)
+        return
+
     # Handle system status messages with user_changed_user_id
     # Per Meta BSUID docs: system messages can have type=user_changed_user_id
     # when a user changes their phone number, triggering a new BSUID
@@ -4618,6 +4625,82 @@ def _auto_transcribe_voice_note(message_id: str, s3_key: str, request_id: str) -
             'error': str(e),
             'requestId': request_id,
         }))
+
+
+def _handle_cart_order(message: Dict, contact_id: str, sender_phone: str,
+                       phone_number_id: str, request_id: str) -> None:
+    """Native catalog checkout. A customer sent a cart (message.type='order').
+    Convert product_items into a native order_details (Review & Pay) carrying the
+    business's standard 18% GST + 2% convenience fee (via _send_payment_request),
+    and collect a shipping address (Address Message) for physical fulfillment."""
+    try:
+        order = message.get('order', {}) or {}
+        product_items = order.get('product_items', []) or []
+        items = []
+        subtotal = 0.0
+        for pi in product_items:
+            qty = int(pi.get('quantity', 1) or 1)
+            price = float(pi.get('item_price', 0) or 0)  # currency units (rupees)
+            if price <= 0 or qty <= 0:
+                continue
+            subtotal += price * qty
+            items.append({
+                'name': str(pi.get('product_retailer_id') or 'Item')[:60],
+                'amount_paise': int(round(price * 100)),
+                'quantity': qty,
+                'gst_rate': 18.0,
+            })
+        if not items:
+            logger.warning(json.dumps({'event': 'cart_order_no_items', 'requestId': request_id}))
+            return
+
+        ship_addr = ''
+        cust_name = ''
+        try:
+            if contact_id:
+                c = dynamodb.Table(CONTACTS_TABLE).get_item(Key={'id': contact_id}).get('Item', {})
+                ship_addr = c.get('shippingAddress', '') or ''
+                cust_name = c.get('contactBookName', '') or c.get('name', '') or ''
+        except Exception:
+            pass
+
+        logger.info(json.dumps({
+            'event': 'cart_order_received', 'itemCount': len(items),
+            'subtotal': round(subtotal, 2), 'catalogId': order.get('catalog_id', ''),
+            'hasAddress': bool(ship_addr), 'phone_suffix': sender_phone[-4:] if sender_phone else '',
+            'requestId': request_id,
+        }))
+
+        # Native Review & Pay (order_details) with GST + convenience via shared builder.
+        _send_payment_request(
+            contact_id=contact_id, phone_number_id=phone_number_id, amount=subtotal,
+            request_id=request_id, gst_rate=18, shipping=0, sender_phone=sender_phone,
+            items=items, payment_purpose='Catalog order',
+            order_id=order.get('catalog_id', 'Catalog'),
+            customer_name=cust_name, customer_phone=sender_phone,
+            shipping_address=ship_addr,
+        )
+
+        # Physical goods: collect a shipping address if we don't have one on file.
+        if not ship_addr:
+            try:
+                _vals = {'phone_number': f'+{sender_phone}'}
+                if cust_name:
+                    _vals['name'] = cust_name
+                addr_payload = {'body': json.dumps({
+                    'contactId': contact_id, 'phoneNumberId': phone_number_id,
+                    'isInteractive': True, 'interactiveType': 'address_message',
+                    'interactiveData': {
+                        'body': 'To deliver your order, please share your delivery address.',
+                        'country': 'IN', 'values': _vals,
+                    },
+                })}
+                lambda_client.invoke(FunctionName=OUTBOUND_WHATSAPP_FUNCTION,
+                                     InvocationType='Event', Payload=json.dumps(addr_payload))
+            except Exception as _ae:
+                logger.warning(json.dumps({'event': 'cart_address_request_error', 'error': str(_ae), 'requestId': request_id}))
+    except Exception as e:
+        logger.error(json.dumps({'event': 'cart_order_error', 'error': str(e), 'requestId': request_id}))
 
 
 def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, request_id: str,
