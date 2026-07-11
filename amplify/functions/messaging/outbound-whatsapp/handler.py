@@ -3317,10 +3317,22 @@ def _get_contact(contact_id: str) -> Optional[Dict[str, Any]]:
 
 def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
     """Look up contact by phone number, or auto-create if not found.
-    Ensures outbound messages always have a valid contactId for inbox display."""
+    Uses a deterministic phone-derived id (wa<digits>) + strongly-consistent get_item
+    so outbound never creates duplicate (churned) contacts for the same number."""
     contacts_table = dynamodb.Table(CONTACTS_TABLE)
-    clean = phone.lstrip('+')
+    clean = ''.join(c for c in (phone or '') if c.isdigit())
     with_plus = f'+{clean}'
+    det_id = f'wa{clean}' if clean else ''
+
+    # 0) Strongly-consistent lookup by deterministic phone id (no GSI lag / no churn)
+    if det_id:
+        try:
+            r = contacts_table.get_item(Key={'id': det_id}, ConsistentRead=True)
+            existing = r.get('Item')
+            if existing and not existing.get('deletedAt'):
+                return existing
+        except Exception as e:
+            logger.warning(f"deterministic contact get failed for {det_id}: {e}")
 
     # Try GSI phone-index lookup (both formats)
     for variant in [with_plus, clean]:
@@ -3356,8 +3368,8 @@ def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
     except Exception:
         pass
 
-    # Not found — create new contact
-    contact_id = str(uuid.uuid4())
+    # Not found — create with DETERMINISTIC id (idempotent, no duplicates)
+    contact_id = det_id or str(uuid.uuid4())
     now = int(time.time())
     contact = {
         'id': contact_id,
@@ -3373,13 +3385,20 @@ def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
         'createdAt': Decimal(str(now)),
         'updatedAt': Decimal(str(now)),
     }
-    contacts_table.put_item(Item=contact)
-    logger.info(json.dumps({
-        'event': 'contact_auto_created_outbound',
-        'contactId': contact_id,
-        'phone': with_plus,
-    }))
-    return contact
+    try:
+        contacts_table.put_item(Item=contact, ConditionExpression='attribute_not_exists(id)')
+        logger.info(json.dumps({'event': 'contact_auto_created_outbound', 'contactId': contact_id, 'phone': with_plus}))
+        return contact
+    except Exception as e:
+        # Race / already exists — fetch and reuse (never create a duplicate)
+        if 'ConditionalCheckFailedException' in str(e):
+            try:
+                r = contacts_table.get_item(Key={'id': contact_id}, ConsistentRead=True)
+                if r.get('Item'):
+                    return r['Item']
+            except Exception:
+                pass
+        return contact
 
 
 def _enrich_contact_identity(contact_id: str, wa_id: str) -> None:

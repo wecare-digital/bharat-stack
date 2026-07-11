@@ -1690,10 +1690,33 @@ def _message_exists(whatsapp_message_id: str) -> bool:
             return False
 
 
+def _deterministic_contact_id(phone: str) -> str:
+    """Stable, phone-derived contact id so ONE phone always maps to ONE contact
+    (eliminates churn/duplicates from GSI eventual-consistency). Digits only."""
+    digits = normalize_phone(phone) if phone else ''
+    if not digits:
+        digits = ''.join(c for c in (phone or '') if c.isdigit())
+    return f'wa{digits}' if digits else ''
+
+
 def _get_or_create_contact(phone: str, sender_name: str = '', bsuid: str = '', username: str = '', contact_book_name: str = '', parent_bsuid: str = '') -> Dict[str, Any]:
-    """Get existing contact or create new one. Supports BSUID and parent BSUID lookup and storage."""
+    """Get existing contact or create new one. Supports BSUID and parent BSUID lookup and storage.
+    Uses a deterministic phone-derived id + strongly-consistent get_item so repeated
+    inbound/outbound events never create duplicate (churned) contacts."""
     contacts_table = dynamodb.Table(CONTACTS_TABLE)
-    
+
+    # 0) Strongly-consistent lookup by deterministic phone id (no GSI lag / no churn)
+    det_id = _deterministic_contact_id(phone)
+    if det_id:
+        try:
+            r = contacts_table.get_item(Key={'id': det_id}, ConsistentRead=True)
+            existing = r.get('Item')
+            if existing and not existing.get('deletedAt'):
+                _update_contact_bsuid_fields(contacts_table, existing, sender_name, username, phone, bsuid, contact_book_name, parent_bsuid)
+                return existing
+        except Exception as e:
+            logger.warning(f"deterministic contact get failed for {det_id}: {e}")
+
     # Try BSUID lookup first (most reliable identifier going forward)
     if bsuid:
         try:
@@ -1769,15 +1792,15 @@ def _get_or_create_contact(phone: str, sender_name: str = '', bsuid: str = '', u
         _update_contact_bsuid_fields(contacts_table, contact, sender_name, username, phone, bsuid, contact_book_name, parent_bsuid)
         return contact
     
-    # Create new contact
-    contact_id = str(uuid.uuid4())
+    # Create new contact with a DETERMINISTIC phone-derived id (idempotent).
+    contact_id = det_id or str(uuid.uuid4())
     now = int(time.time())
-    
+
     # Ensure phone has + prefix for international format (easier for SMS)
     formatted_phone = ''
     if phone:
         formatted_phone = phone if phone.startswith('+') else f'+{phone}'
-    
+
     contact = {
         'id': contact_id,
         'contactId': contact_id,
@@ -1798,19 +1821,31 @@ def _get_or_create_contact(phone: str, sender_name: str = '', bsuid: str = '', u
         'createdAt': Decimal(str(now)),
         'updatedAt': Decimal(str(now)),
     }
-    
-    contacts_table.put_item(Item={k: v for k, v in contact.items() if v is not None})
-    
-    logger.info(json.dumps({
-        'event': 'contact_auto_created',
-        'contactId': contact_id,
-        'phone': phone,
-        'name': sender_name,
-        'bsuid': bsuid,
-        'username': username,
-    }))
-    
-    return contact
+
+    try:
+        contacts_table.put_item(
+            Item={k: v for k, v in contact.items() if v is not None},
+            ConditionExpression='attribute_not_exists(id)',
+        )
+        logger.info(json.dumps({
+            'event': 'contact_auto_created', 'contactId': contact_id,
+            'phone': phone, 'name': sender_name, 'bsuid': bsuid, 'username': username,
+        }))
+        return contact
+    except Exception as e:
+        # Race: another invocation created it first — fetch and reuse (no duplicate).
+        if 'ConditionalCheckFailedException' in str(e):
+            try:
+                r = contacts_table.get_item(Key={'id': contact_id}, ConsistentRead=True)
+                existing = r.get('Item')
+                if existing:
+                    _update_contact_bsuid_fields(contacts_table, existing, sender_name, username, phone, bsuid, contact_book_name, parent_bsuid)
+                    return existing
+            except Exception:
+                pass
+        else:
+            logger.warning(json.dumps({'event': 'contact_create_error', 'error': str(e), 'contactId': contact_id}))
+        return contact
 
 
 def _update_contact_bsuid_fields(contacts_table, contact: Dict, sender_name: str, username: str, phone: str = '', bsuid: str = '', contact_book_name: str = '', parent_bsuid: str = '') -> None:
