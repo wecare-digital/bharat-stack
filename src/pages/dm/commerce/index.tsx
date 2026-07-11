@@ -36,6 +36,8 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
     const [ payments, setPayments ] = useState<any[]>( [] );
     const [ products, setProducts ] = useState<any[]>( [] );
     const [ productSearch, setProductSearch ] = useState( '' );
+    const [ feeds, setFeeds ] = useState<any[]>( [] );
+    const [ feedUrl, setFeedUrl ] = useState( '' );
 
     const call = async ( path: string, method = 'GET', body?: any ) => {
         let token: string | null = null;
@@ -116,8 +118,40 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
         setProducts( Array.isArray( r?.products ) ? r.products : [] );
     }, [ phoneId, productSearch ] );
 
+    const loadFeeds = useCallback( async () => {
+        const waba = WABAS.find( w => w.phoneId === phoneId ) || WABAS[ 0 ];
+        const r = await call( `/wa-business/catalog-feed?catalogId=${encodeURIComponent( waba.catalogId )}` );
+        const list = Array.isArray( r?.feeds ) ? r.feeds : [];
+        setFeeds( list );
+        setFeedUrl( list[ 0 ]?.url || '' );
+    }, [ phoneId ] );
+
+    const saveFeed = async () => {
+        if ( !feedUrl.trim().startsWith( 'https://' ) ) { toast.error( 'Enter a valid https feed URL' ); return; }
+        const waba = WABAS.find( w => w.phoneId === phoneId ) || WABAS[ 0 ];
+        setBusy( 'feed' );
+        try
+        {
+            const r = await call( '/wa-business/catalog-feed', 'POST', {
+                catalogId: waba.catalogId, url: feedUrl.trim(), name: 'WECARE Wix Feed', interval: 'DAILY', hour: 4,
+            } );
+            if ( r?.success ) { toast.success( `Feed ${r.action} (daily auto-sync)` ); loadFeeds(); }
+            else toast.error( 'Feed save failed' );
+        } finally { setBusy( '' ); }
+    };
+
+    const syncFeedNow = async ( feedId: string ) => {
+        setBusy( 'feedsync' );
+        try
+        {
+            const r = await call( '/wa-business/catalog-feed/fetch', 'POST', { feedId } );
+            if ( r?.success ) toast.success( 'Sync started — products refresh shortly' );
+            else toast.error( 'Sync failed' );
+        } finally { setBusy( '' ); }
+    };
+
     useEffect( () => { loadOrders(); loadPayments(); }, [ loadOrders, loadPayments ] );
-    useEffect( () => { loadProducts(); }, [ loadProducts ] );
+    useEffect( () => { loadProducts(); loadFeeds(); }, [ loadProducts, loadFeeds ] );
 
     const addProductToBill = ( p: any ) => {
         // price like "100.00 INR" or "₹100.00"; extract the numeric rupee value
@@ -184,6 +218,26 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
                                 </li>
                             ) ) }
                         </ul>
+                    ) }
+                </div>
+
+                <div style={ card }>
+                    <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } }>
+                        <h2 style={ h2 }>Catalog data feed (Wix → Meta auto-sync)</h2>
+                        <Button variant="secondary" onClick={ loadFeeds }>Refresh</Button>
+                    </div>
+                    <p style={ { fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px' } }>
+                        Paste the Wix Facebook-channel feed URL. Meta fetches it daily and keeps <b>{ activeWaba.catalog }</b> in sync — product name, price and availability changes flow through automatically. The URL holds a secret token; treat it like a password.
+                    </p>
+                    <input value={ feedUrl } onChange={ e => setFeedUrl( e.target.value ) } placeholder="https://manage.wix.com/catalog-feed/v2/feed.tsv?channel=facebook&..." style={ { width: '100%' } } />
+                    <div style={ { display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' } }>
+                        <Button onClick={ saveFeed } disabled={ busy !== '' }>{ busy === 'feed' ? 'Saving…' : 'Save feed (daily)' }</Button>
+                        { feeds[ 0 ]?.feedId && <Button variant="secondary" onClick={ () => syncFeedNow( feeds[ 0 ].feedId ) } disabled={ busy !== '' }>{ busy === 'feedsync' ? 'Syncing…' : 'Sync now' }</Button> }
+                    </div>
+                    { feeds.length > 0 && (
+                        <p style={ { fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0' } }>
+                            Feed: <b>{ feeds[ 0 ].name }</b> · { feeds[ 0 ].interval }{ feeds[ 0 ].lastUploadEnd ? ` · last sync ${feeds[ 0 ].lastUploadEnd}` : '' }{ feeds[ 0 ].lastItems !== '' ? ` · ${feeds[ 0 ].lastItems} items` : '' }
+                        </p>
                     ) }
                 </div>
 

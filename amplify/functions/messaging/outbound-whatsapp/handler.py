@@ -632,7 +632,23 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Requirement 5.9: Check rate limit
         if not _check_rate_limit(phone_number_id):
             return _error_response(429, 'Rate limit exceeded. Try again later.')
-        
+
+        # ── Typing indicator before send (default on) ──
+        # Meta's typing_indicator API marks the customer's last received message as
+        # read (blue ticks) and shows a "typing…" bubble for up to 25s or until we
+        # send. It requires the WAMID of the customer's most recent inbound message,
+        # which we store on the contact as lastInboundWamid. Works for ANY outgoing
+        # type (text, media, template, interactive) as long as there is a recent
+        # inbound message (i.e. within the 24h window). Skipped for reactions and
+        # explicit typing-only requests.
+        if body.get('showTyping', True) and not is_reaction and within_window:
+            try:
+                _last_wamid = (contact or {}).get('lastInboundWamid') or ''
+                if _last_wamid:
+                    _send_typing_indicator(phone_number_id, _last_wamid)
+            except Exception as _te:
+                logger.warning(json.dumps({'event': 'pre_send_typing_error', 'error': str(_te), 'requestId': request_id}))
+
         # Generate message ID
         message_id = str(uuid.uuid4())
         

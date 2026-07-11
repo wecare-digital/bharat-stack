@@ -582,6 +582,94 @@ def _list_catalog_products(catalog_id: str, params: Dict) -> Dict:
     return _resp(200, {'products': products, 'count': len(products)})
 
 
+def _list_catalog_feeds(catalog_id: str) -> Dict:
+    """List scheduled product feeds (data sources) on a catalog.
+    GET /wa-business/catalog-feed?catalogId=<id>"""
+    if not catalog_id:
+        return _resp(400, {'error': 'catalogId is required'})
+    result = _graph_api(f'{catalog_id}/product_feeds',
+                        params={'fields': 'id,name,schedule,latest_upload{end_time,error_count,warning_count,num_detected_items}'})
+    if 'error' in result:
+        return _resp(400, result)
+    feeds = []
+    for f in result.get('data', []):
+        sched = f.get('schedule', {}) or {}
+        up = f.get('latest_upload', {}) or {}
+        feeds.append({
+            'feedId': f.get('id', ''),
+            'name': f.get('name', ''),
+            'interval': sched.get('interval', ''),
+            'url': sched.get('url', ''),
+            'hour': sched.get('hour', ''),
+            'lastUploadEnd': up.get('end_time', ''),
+            'lastItems': up.get('num_detected_items', ''),
+            'lastErrors': up.get('error_count', ''),
+        })
+    return _resp(200, {'feeds': feeds, 'count': len(feeds)})
+
+
+def _upsert_catalog_feed(body: Dict) -> Dict:
+    """Create or update a scheduled product feed (data source) on a catalog so Meta
+    auto-fetches the Wix TSV on a schedule and keeps the WhatsApp catalog in sync.
+    POST /wa-business/catalog-feed
+    Body: { catalogId, url, name?, interval(HOURLY|DAILY|WEEKLY)?, hour?, feedId? }
+    - If feedId or a feed with the same name exists -> update its schedule (url/interval).
+    - Else -> create a new scheduled feed.
+    The feed URL may embed a secret token; it is stored by Meta, not logged here."""
+    catalog_id = body.get('catalogId') or body.get('catalog_id')
+    url = (body.get('url') or '').strip()
+    if not catalog_id or not url:
+        return _resp(400, {'error': 'catalogId and url are required'})
+    if not url.lower().startswith('https://'):
+        return _resp(400, {'error': 'url must be https'})
+    name = (body.get('name') or 'WECARE Scheduled Feed').strip()
+    interval = (body.get('interval') or 'DAILY').upper()
+    if interval not in ('HOURLY', 'DAILY', 'WEEKLY'):
+        interval = 'DAILY'
+    schedule = {'interval': interval, 'url': url, 'hour': str(body.get('hour', 4))}
+    if body.get('intervalCount'):
+        schedule['interval_count'] = str(body['intervalCount'])
+
+    # Locate existing feed (by explicit feedId or matching name) to update in place.
+    feed_id = body.get('feedId', '')
+    if not feed_id:
+        existing = _graph_api(f'{catalog_id}/product_feeds', params={'fields': 'id,name'})
+        for f in existing.get('data', []) if isinstance(existing, dict) else []:
+            if f.get('name') == name:
+                feed_id = f.get('id', '')
+                break
+
+    if feed_id:
+        result = _graph_api(feed_id, method='POST', payload={'schedule': schedule})
+        if 'error' in result:
+            return _resp(400, result)
+        return _resp(200, {'success': True, 'action': 'updated', 'feedId': feed_id, 'interval': interval})
+
+    result = _graph_api(f'{catalog_id}/product_feeds', method='POST',
+                        payload={'name': name, 'schedule': schedule})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'action': 'created', 'feedId': result.get('id', ''), 'interval': interval})
+
+
+def _trigger_catalog_feed_fetch(feed_id: str, url: str = '') -> Dict:
+    """Force an immediate feed upload (outside the schedule). Meta's uploads edge
+    requires the feed url, so we read it from the feed's schedule when not provided.
+    POST /wa-business/catalog-feed/fetch  Body: { feedId, url? }"""
+    if not feed_id:
+        return _resp(400, {'error': 'feedId is required'})
+    fetch_url = (url or '').strip()
+    if not fetch_url:
+        info = _graph_api(feed_id, params={'fields': 'schedule'})
+        fetch_url = ((info.get('schedule') or {}).get('url') or '') if isinstance(info, dict) else ''
+    if not fetch_url:
+        return _resp(400, {'error': 'No feed url available; pass url or configure a scheduled feed first'})
+    result = _graph_api(f'{feed_id}/uploads', method='POST', params={'url': fetch_url})
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'uploadId': result.get('id', ''), 'feedId': feed_id})
+
+
 # ============================================================================
 # MESSAGE QR CODES
 # GET/DELETE /{Phone-Number-ID}/message_qrdls/{QR-Code-ID}
@@ -4952,6 +5040,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'GET':
                 return _list_catalog_products(params.get('catalogId') or params.get('catalog_id'), params)
             return _resp(405, {'error': 'GET only'})
+
+        elif '/catalog-feed/fetch' in path:
+            if method == 'POST':
+                return _trigger_catalog_feed_fetch(body.get('feedId') or params.get('feedId'), body.get('url', ''))
+            return _resp(405, {'error': 'POST only'})
+
+        elif '/catalog-feed' in path:
+            if method == 'GET':
+                return _list_catalog_feeds(params.get('catalogId') or params.get('catalog_id'))
+            elif method == 'POST':
+                return _upsert_catalog_feed(body)
+            return _resp(405, {'error': 'GET or POST'})
 
         elif '/qr-codes' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')

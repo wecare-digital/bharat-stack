@@ -498,8 +498,78 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                 Payload=json.dumps(order_status_payload),
             )
             logger.info(json.dumps({'event': 'razorpay_order_status_sent', 'phone': clean_phone, 'referenceId': reference_id, 'phoneId': originating_phone_id, 'requestId': request_id}))
+
+            # Post-payment flow: after payment is confirmed, optionally start a
+            # WhatsApp Flow (e.g. submit-request) so the customer completes service
+            # details for the order they just paid for.
+            _trigger_post_payment_flow(clean_phone, originating_phone_id, reference_id, notes, request_id)
         except Exception as e:
             logger.warning(json.dumps({'event': 'razorpay_order_status_error', 'error': str(e), 'requestId': request_id}))
+
+
+# Map phone-number-id -> WABA id (for building routable flow tokens)
+_PHONE_ID_TO_WABA = {
+    'phone-number-id-waba1-direct-1016149501586345': '2094615664435155',
+    'phone-number-id-waba-t-direct-1055232054343117': '2513394156072604',
+}
+
+
+def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: str,
+                               notes: Dict, request_id: str) -> None:
+    """After a payment is captured, send a WhatsApp Flow so the customer completes
+    post-payment details. Fires only when a flow is configured:
+      1) notes.postPaymentFlowId (per-order, explicit) — highest priority
+      2) env POST_PAYMENT_FLOW_WABA1 / POST_PAYMENT_FLOW_WABA2 (per-WABA default)
+    If none is configured, this is a no-op (so simple bills / wallet top-ups are unaffected).
+    The flow token embeds the reference_id + phone so the submission links to the order."""
+    import uuid as _uuid
+    try:
+        waba_id = _PHONE_ID_TO_WABA.get(phone_id, '')
+        # Resolve flow id (explicit per-order marker wins, else per-WABA default env)
+        flow_id = (notes or {}).get('postPaymentFlowId') or (notes or {}).get('post_payment_flow_id')
+        if not flow_id:
+            if waba_id == '2094615664435155':
+                flow_id = os.environ.get('POST_PAYMENT_FLOW_WABA1', '')
+            elif waba_id == '2513394156072604':
+                flow_id = os.environ.get('POST_PAYMENT_FLOW_WABA2', '')
+        if not flow_id:
+            logger.info(json.dumps({'event': 'post_payment_flow_skipped', 'reason': 'no flow configured',
+                                    'referenceId': reference_id, 'requestId': request_id}))
+            return
+
+        # Routable token: flow-data endpoint routes by prefix and reads phone from -ph-.
+        flow_token = f'postpay-{_uuid.uuid4()}-waba-{waba_id}-ph-{clean_phone}'
+        cta = (notes or {}).get('postPaymentFlowCta', 'Complete details')[:20]
+        body_text = (notes or {}).get('postPaymentFlowBody',
+                     'Thank you for your payment! Please tap below to complete your order details.')
+        flow_payload = {
+            'body': json.dumps({
+                'recipientPhone': f'+{clean_phone}',
+                'phoneNumberId': phone_id,
+                'isInteractive': True,
+                'interactiveType': 'flow',
+                'interactiveData': {
+                    'flowId': str(flow_id),
+                    'flowCta': cta,
+                    'flowAction': 'navigate',
+                    'flowToken': flow_token,
+                    'body': body_text,
+                    'footer': 'WECARE.DIGITAL',
+                    'flowData': {'reference_id': reference_id, 'order_id': reference_id},
+                },
+            })
+        }
+        lambda_client.invoke(
+            FunctionName=os.environ.get('OUTBOUND_FUNCTION', 'wecare-outbound-whatsapp'),
+            InvocationType='Event',
+            Payload=json.dumps(flow_payload),
+        )
+        logger.info(json.dumps({'event': 'post_payment_flow_sent', 'phone': clean_phone,
+                                'flowId': str(flow_id), 'referenceId': reference_id,
+                                'phoneId': phone_id, 'requestId': request_id}))
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'post_payment_flow_error', 'error': str(e),
+                                   'referenceId': reference_id, 'requestId': request_id}))
 
 
 def _handle_payment_authorized(event_data: Dict, request_id: str) -> None:

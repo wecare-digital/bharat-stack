@@ -1187,8 +1187,8 @@ def _process_message(
                     except Exception as cr_err:
                         logger.warning(f'Contact request phone update failed: {cr_err}')
     
-    # Update Contact.lastInboundMessageAt for 24-hour window
-    _update_contact_timestamp(contact_id, now)
+    # Update Contact.lastInboundMessageAt for 24-hour window (+ WAMID for typing)
+    _update_contact_timestamp(contact_id, now, wamid=whatsapp_message_id or '')
     
     logger.info(json.dumps({
         'event': 'message_stored',
@@ -2006,15 +2006,24 @@ def _process_business_username_update(value: Dict, request_id: str) -> None:
         }))
 
 
-def _update_contact_timestamp(contact_id: str, timestamp: int) -> None:
-    """Update contact's lastInboundMessageAt for 24-hour window tracking."""
+def _update_contact_timestamp(contact_id: str, timestamp: int, wamid: str = '') -> None:
+    """Update contact's lastInboundMessageAt for 24-hour window tracking.
+    Also stores the latest inbound WAMID so outbound can show a typing indicator
+    (Meta's typing_indicator API requires the customer's last received message_id)."""
     try:
         contacts_table = dynamodb.Table(CONTACTS_TABLE)
-        contacts_table.update_item(
-            Key={'id': contact_id},
-            UpdateExpression='SET lastInboundMessageAt = :ts, updatedAt = :ts',
-            ExpressionAttributeValues={':ts': Decimal(str(timestamp))}
-        )
+        if wamid:
+            contacts_table.update_item(
+                Key={'id': contact_id},
+                UpdateExpression='SET lastInboundMessageAt = :ts, updatedAt = :ts, lastInboundWamid = :w',
+                ExpressionAttributeValues={':ts': Decimal(str(timestamp)), ':w': wamid}
+            )
+        else:
+            contacts_table.update_item(
+                Key={'id': contact_id},
+                UpdateExpression='SET lastInboundMessageAt = :ts, updatedAt = :ts',
+                ExpressionAttributeValues={':ts': Decimal(str(timestamp))}
+            )
     except Exception as e:
         logger.error(f"Failed to update contact timestamp: {str(e)}")
 
