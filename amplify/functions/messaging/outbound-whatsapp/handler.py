@@ -643,7 +643,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # explicit typing-only requests.
         if body.get('showTyping', True) and not is_reaction and within_window:
             try:
-                _last_wamid = (contact or {}).get('lastInboundWamid') or ''
+                # Prefer a FRESH wamid straight from the InboundTable (the contact's
+                # cached lastInboundWamid can be stale → Meta 400 "does not exist").
+                _last_wamid = _get_latest_inbound_wamid(recipient_phone)
+                if not _last_wamid:
+                    _last_wamid = (contact or {}).get('lastInboundWamid') or ''
                 if _last_wamid:
                     _send_typing_indicator(phone_number_id, _last_wamid)
             except Exception as _te:
@@ -3832,6 +3836,59 @@ def _error_response(status_code: int, error: str, message: str = None) -> Dict[s
         'headers': cors_headers(origin),
         'body': json.dumps(body)
     }
+
+
+def _get_latest_inbound_wamid(recipient_phone: str, max_age_seconds: int = 86400) -> str:
+    """Fetch the freshest inbound WAMID for a recipient from the InboundTable.
+
+    Meta's typing_indicator API requires the WAMID of the customer's MOST RECENT
+    inbound message and returns HTTP 400 ("Message ID ... does not exist") if the
+    WAMID is stale. The contact.lastInboundWamid field can go stale (contact churn,
+    older sessions), so this queries the live InboundTable via the
+    senderPhone-status-index GSI (senderPhone HASH + status RANGE) for
+    status='received' messages, then returns the WAMID with the greatest timestamp
+    that is still within the 24h window. Returns '' if none found (never raises)."""
+    try:
+        digits = _normalize_phone_number(recipient_phone or '')
+        if not digits:
+            return ''
+        inbound_table_name = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
+        inbound_table = dynamodb.Table(inbound_table_name)
+        now = int(time.time())
+        best_id = ''
+        best_ts = 0
+        # The senderPhone-status-index projects the base key (id) + createdAt but
+        # NOT whatsappMessageId, so we pick the newest record here (by createdAt)
+        # then fetch its whatsappMessageId from the base table with a single get_item.
+        # senderPhone is stored as the Meta wa_id (digits only); also try the +E.164
+        # variant defensively in case older records used a different format.
+        for sp in (digits, f'+{digits}'):
+            resp = inbound_table.query(
+                IndexName='senderPhone-status-index',
+                KeyConditionExpression='senderPhone = :sp AND #st = :rcv',
+                ExpressionAttributeNames={'#st': 'status'},
+                ExpressionAttributeValues={':sp': sp, ':rcv': 'received'},
+                ProjectionExpression='id, createdAt',
+            )
+            for it in resp.get('Items', []):
+                rec_id = it.get('id') or ''
+                try:
+                    ts = int(it.get('createdAt') or 0)
+                except (TypeError, ValueError):
+                    ts = 0
+                if rec_id and ts > best_ts:
+                    best_ts = ts
+                    best_id = rec_id
+            if best_id:
+                break
+        # Freshness guard: only use it if within the typing-eligible window.
+        if not best_id or (now - best_ts) > max_age_seconds:
+            return ''
+        rec = inbound_table.get_item(Key={'id': best_id}, ProjectionExpression='whatsappMessageId').get('Item') or {}
+        return rec.get('whatsappMessageId') or ''
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'latest_inbound_wamid_error', 'error': str(e)}))
+        return ''
 
 
 def _send_typing_indicator(phone_number_id: str, message_id: str) -> None:
