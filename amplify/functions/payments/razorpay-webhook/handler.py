@@ -564,8 +564,16 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
                 logger.warning(json.dumps({'event': 'post_payment_flow_guard_error', 'error': str(guard_err),
                                            'invoiceId': invoice_id, 'requestId': request_id}))
 
-        # Routable token: flow-data endpoint routes by prefix and reads phone from -ph-.
-        flow_token = f'postpay-{_uuid.uuid4()}-waba-{waba_id}-ph-{clean_phone}'
+        # Data-exchange flow needs the referenceId so the flow-data endpoint can
+        # server-fetch the order + payment. We embed it (hex, hyphen-safe) in the
+        # token: postpay-{hexRef}-waba-{1|2}-ph-{phone}. Requires a referenceId.
+        if not reference_id:
+            logger.info(json.dumps({'event': 'post_payment_flow_skipped', 'reason': 'no reference_id',
+                                    'requestId': request_id}))
+            return
+        waba_suffix = '1' if waba_id == '2094615664435155' else '2'
+        hexref = reference_id.encode('utf-8').hex()
+        flow_token = f'postpay-{hexref}-waba-{waba_suffix}-ph-{clean_phone}'
         cta = (notes or {}).get('postPaymentFlowCta', 'Complete details')[:20]
         body_text = (notes or {}).get('postPaymentFlowBody',
                      'Thank you for your payment! Please tap below to complete your order details.')
@@ -578,11 +586,10 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
                 'interactiveData': {
                     'flowId': str(flow_id),
                     'flowCta': cta,
-                    'flowAction': 'navigate',
+                    'flowAction': 'data_exchange',
                     'flowToken': flow_token,
                     'body': body_text,
                     'footer': 'WECARE.DIGITAL',
-                    'flowData': {'reference_id': reference_id, 'order_id': reference_id},
                 },
             })
         }

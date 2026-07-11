@@ -38,6 +38,8 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
     const [ productSearch, setProductSearch ] = useState( '' );
     const [ feeds, setFeeds ] = useState<any[]>( [] );
     const [ feedUrl, setFeedUrl ] = useState( '' );
+    const [ postpayFlow, setPostpayFlow ] = useState<any>( null );
+    const [ postpaySubs, setPostpaySubs ] = useState<any[]>( [] );
 
     const call = async ( path: string, method = 'GET', body?: any ) => {
         let token: string | null = null;
@@ -150,8 +152,16 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
         } finally { setBusy( '' ); }
     };
 
+    const loadPostpay = useCallback( async () => {
+        const reg = await call( '/wa-business/flow-registry?flowCode=02.WD_POSTPAY' );
+        const flows = Array.isArray( reg?.flows ) ? reg.flows : [];
+        setPostpayFlow( flows[ 0 ] || null );
+        const subs = await call( '/wa-business/flow-submissions?flowCode=02.WD_POSTPAY&limit=25' );
+        setPostpaySubs( Array.isArray( subs?.flows ) ? subs.flows : ( Array.isArray( subs?.submissions ) ? subs.submissions : [] ) );
+    }, [] );
+
     useEffect( () => { loadOrders(); loadPayments(); }, [ loadOrders, loadPayments ] );
-    useEffect( () => { loadProducts(); loadFeeds(); }, [ loadProducts, loadFeeds ] );
+    useEffect( () => { loadProducts(); loadFeeds(); loadPostpay(); }, [ loadProducts, loadFeeds, loadPostpay ] );
 
     const addProductToBill = ( p: any ) => {
         // price like "100.00 INR" or "₹100.00"; extract the numeric rupee value
@@ -263,6 +273,31 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
                         <Button onClick={ sendBill } disabled={ busy !== '' }>{ busy === 'bill' ? 'Sending…' : 'Send bill (Review & Pay)' }</Button>
                     </div>
                     <p style={ { fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0' } }>18% GST + 2% convenience fee are added automatically; a GST invoice is generated on payment.</p>
+                </div>
+
+                <div style={ card }>
+                    <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } }>
+                        <h2 style={ h2 }>Post-payment flow</h2>
+                        <Button variant="secondary" onClick={ loadPostpay }>Refresh</Button>
+                    </div>
+                    <p style={ { fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px' } }>
+                        After a payment is captured, the customer gets a WhatsApp Flow (data_exchange) that shows the real Order # and Payment ID and collects order details. One flow per payment (idempotent).
+                    </p>
+                    { postpayFlow ? (
+                        <p style={ { fontSize: 13, margin: '0 0 8px' } }>
+                            Flow: <b>{ postpayFlow.flowName || postpayFlow.flowCode }</b> · { postpayFlow.status } · id { postpayFlow.flowId }
+                        </p>
+                    ) : <p style={ muted }>No post-payment flow registered.</p> }
+                    { postpaySubs.length === 0 ? <p style={ muted }>No post-payment submissions yet.</p> : (
+                        <ul style={ list }>
+                            { postpaySubs.slice( 0, 15 ).map( ( s: any, i: number ) => (
+                                <li key={ s.submissionId || i } style={ row }>
+                                    <span style={ { fontSize: 13 } }>{ s.referenceId || s.orderId || s.submissionNumber } · { s.phone } · <b>{ s.paymentStatus || s.status }</b></span>
+                                    <span style={ { fontSize: 12, color: 'var(--text-muted)' } }>{ s.createdAt ? new Date( Number( s.createdAt ) * 1000 ).toLocaleDateString() : '' }</span>
+                                </li>
+                            ) ) }
+                        </ul>
+                    ) }
                 </div>
 
                 <div style={ card }>

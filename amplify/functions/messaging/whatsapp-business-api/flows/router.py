@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Dict, Callable
 
-from flows import subscribe, submit_request, track_request, amend_request, appointment, rx_slot, drop_docs, enterprise_assist, leave_review, order_notes, generic
+from flows import subscribe, submit_request, track_request, amend_request, appointment, rx_slot, drop_docs, enterprise_assist, leave_review, order_notes, generic, postpay
 from flows.common import get_phone_from_token, log_flow_event
 from flows.orders import fetch_orders_for_flow as _orders_fetch
 
@@ -61,6 +61,17 @@ def route_flow(action: str, screen: str, data: Dict, flow_token: str,
     # ── Ping ──
     if action == 'ping':
         return {'data': {'status': 'active'}}
+
+    # ── POST-PAYMENT DETAILS FLOW (data_exchange) ──
+    if flow_token and flow_token.startswith('postpay'):
+        if action == 'INIT':
+            return postpay.handle_init(data, flow_token, request_id)
+        if screen in ('THANK_YOU', 'SUCCESS', 'COMPLETE'):
+            return _terminal_response(flow_token)
+        if screen == 'DETAILS':
+            return postpay.handle_submit(data, flow_token, request_id)
+        # Any other data_exchange (e.g. THANK_YOU footer) completes the flow
+        return _terminal_response(flow_token)
 
     # ── SUBSCRIBE FLOW ──
     if flow_token and flow_token.startswith('subscribe'):

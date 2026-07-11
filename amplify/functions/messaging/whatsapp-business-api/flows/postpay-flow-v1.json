@@ -1,0 +1,180 @@
+{
+    "version": "7.3",
+    "data_api_version": "4.0",
+    "routing_model": {
+        "DETAILS": [
+            "THANK_YOU"
+        ],
+        "THANK_YOU": []
+    },
+    "screens": [
+        {
+            "id": "DETAILS",
+            "title": "Complete Your Order",
+            "data": {
+                "order_number": {
+                    "type": "string",
+                    "__example__": "WD-INV-000123"
+                },
+                "payment_id": {
+                    "type": "string",
+                    "__example__": "pay_Qabc123XYZ"
+                },
+                "amount": {
+                    "type": "string",
+                    "__example__": "\u20b91.00"
+                },
+                "product": {
+                    "type": "string",
+                    "__example__": "WECARE Test Product"
+                }
+            },
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "TextHeading",
+                        "text": "Payment received \u2705"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "Please share a few details so we can process your order."
+                    },
+                    {
+                        "type": "TextCaption",
+                        "text": "Order Number",
+                        "font-weight": "bold"
+                    },
+                    {
+                        "type": "TextSubheading",
+                        "text": "${data.order_number}"
+                    },
+                    {
+                        "type": "TextCaption",
+                        "text": "Payment ID",
+                        "font-weight": "bold"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "${data.payment_id}"
+                    },
+                    {
+                        "type": "TextCaption",
+                        "text": "Amount Paid",
+                        "font-weight": "bold"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "${data.amount}"
+                    },
+                    {
+                        "type": "TextCaption",
+                        "text": "Product",
+                        "font-weight": "bold"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "${data.product}"
+                    },
+                    {
+                        "type": "Form",
+                        "name": "details_form",
+                        "children": [
+                            {
+                                "type": "TextInput",
+                                "name": "delivery_note",
+                                "label": "Delivery instructions",
+                                "required": false,
+                                "input-type": "text",
+                                "max-chars": 200,
+                                "helper-text": "Optional \u2014 e.g. leave at reception"
+                            },
+                            {
+                                "type": "TextInput",
+                                "name": "preferred_time",
+                                "label": "Preferred delivery time",
+                                "required": false,
+                                "input-type": "text",
+                                "max-chars": 60
+                            },
+                            {
+                                "type": "Footer",
+                                "label": "Submit details",
+                                "on-click-action": {
+                                    "name": "data_exchange",
+                                    "payload": {
+                                        "order_number": "${data.order_number}",
+                                        "payment_id": "${data.payment_id}",
+                                        "delivery_note": "${form.delivery_note}",
+                                        "preferred_time": "${form.preferred_time}"
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "id": "THANK_YOU",
+            "title": "All done",
+            "terminal": true,
+            "success": true,
+            "data": {
+                "order_number": {
+                    "type": "string",
+                    "__example__": "WD-INV-000123"
+                },
+                "payment_id": {
+                    "type": "string",
+                    "__example__": "pay_Qabc123XYZ"
+                },
+                "request_number": {
+                    "type": "string",
+                    "__example__": "postpay-WD-INV-000123"
+                }
+            },
+            "layout": {
+                "type": "SingleColumnLayout",
+                "children": [
+                    {
+                        "type": "TextHeading",
+                        "text": "Thank you! \ud83c\udf89"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "Your order details have been saved. Our team will process your order shortly."
+                    },
+                    {
+                        "type": "TextCaption",
+                        "text": "Order Number",
+                        "font-weight": "bold"
+                    },
+                    {
+                        "type": "TextSubheading",
+                        "text": "${data.order_number}"
+                    },
+                    {
+                        "type": "TextCaption",
+                        "text": "Payment ID",
+                        "font-weight": "bold"
+                    },
+                    {
+                        "type": "TextBody",
+                        "text": "${data.payment_id}"
+                    },
+                    {
+                        "type": "Footer",
+                        "label": "Done",
+                        "on-click-action": {
+                            "name": "data_exchange",
+                            "payload": {
+                                "confirmed": "true"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
