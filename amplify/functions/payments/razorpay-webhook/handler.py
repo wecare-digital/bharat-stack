@@ -606,22 +606,20 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
             'product': disp.get('product', 'Your order'),
             'reference_id': reference_id,
         }
+        # Send as an approved FLOW TEMPLATE so it works even outside the 24h service
+        # window (a payment link may be paid hours later). The template's FLOW button
+        # is navigate->DETAILS; flowActionData pre-fills the (endpointless) first
+        # screen with the order/payment data, so it still opens instantly.
+        tmpl_name = os.environ.get('POST_PAYMENT_FLOW_TEMPLATE', 'postpay_details_v1')
+        tmpl_lang = os.environ.get('POST_PAYMENT_FLOW_TEMPLATE_LANG', 'en')
         flow_payload = {
             'body': json.dumps({
                 'recipientPhone': f'+{clean_phone}',
                 'phoneNumberId': phone_id,
-                'isInteractive': True,
-                'interactiveType': 'flow',
-                'interactiveData': {
-                    'flowId': str(flow_id),
-                    'flowCta': cta,
-                    'flowAction': 'navigate',
-                    'screenId': 'DETAILS',
-                    'flowToken': flow_token,
-                    'body': body_text,
-                    'footer': 'WECARE.DIGITAL',
-                    'flowData': flow_data,
-                },
+                'isTemplate': True,
+                'templateName': tmpl_name,
+                'templateParams': [tmpl_lang],
+                'flowButton': {'index': 0, 'flowActionData': flow_data},
             })
         }
         lambda_client.invoke(
