@@ -4627,15 +4627,50 @@ def _auto_transcribe_voice_note(message_id: str, s3_key: str, request_id: str) -
         }))
 
 
+def _fetch_catalog_product_names(catalog_id: str, retailer_ids: list) -> dict:
+    """Fetch real product display names from a Meta catalog by retailer_id, so the
+    order/invoice shows 'WECARE Test Product' instead of a raw SKU like 'htlu35lrs1'.
+    Returns {retailer_id: name}; best-effort (empty on failure)."""
+    names = {}
+    rids = [r for r in {str(x) for x in (retailer_ids or [])} if r]
+    if not catalog_id or not rids:
+        return names
+    try:
+        import urllib.parse as _up
+        token = _load_direct_api_token()
+        app_secret = _direct_api_token_cache.get('app_secret', '')
+        flt = json.dumps({'retailer_id': {'is_any': rids}})
+        url = (f"https://graph.facebook.com/{META_API_VERSION}/{catalog_id}/products"
+               f"?fields=name,retailer_id&limit=100&filter={_up.quote(flt)}&access_token={token}")
+        if app_secret:
+            url += '&appsecret_proof=' + hmac.new(app_secret.encode(), token.encode(), hashlib.sha256).hexdigest()
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=15) as r:
+            data = json.loads(r.read().decode())
+        for it in data.get('data', []):
+            rid = it.get('retailer_id', '')
+            if rid:
+                names[rid] = it.get('name', rid)
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'catalog_name_fetch_error', 'error': str(e)}))
+    return names
+
+
 def _handle_cart_order(message: Dict, contact_id: str, sender_phone: str,
                        phone_number_id: str, request_id: str) -> None:
     """Native catalog checkout. A customer sent a cart (message.type='order').
-    Convert product_items into a native order_details (Review & Pay) carrying the
-    business's standard 18% GST + 2% convenience fee (via _send_payment_request),
-    and collect a shipping address (Address Message) for physical fulfillment."""
+    Convert product_items into a native PHYSICAL-GOODS order_details (Review & Pay)
+    carrying the business's standard 18% GST + 2% convenience fee, with real product
+    names and the saved shipping address as beneficiaries; collect the address via
+    an Address Message if none is on file. Invoice is generated on payment capture."""
     try:
         order = message.get('order', {}) or {}
         product_items = order.get('product_items', []) or []
+        catalog_id = order.get('catalog_id', '')
+
+        # Resolve real product names from the catalog (fixes vague SKU display).
+        rids = [str(pi.get('product_retailer_id') or '') for pi in product_items if pi.get('product_retailer_id')]
+        name_map = _fetch_catalog_product_names(catalog_id, rids)
+
         items = []
         subtotal = 0.0
         for pi in product_items:
@@ -4644,8 +4679,9 @@ def _handle_cart_order(message: Dict, contact_id: str, sender_phone: str,
             if price <= 0 or qty <= 0:
                 continue
             subtotal += price * qty
+            rid = str(pi.get('product_retailer_id') or '')
             items.append({
-                'name': str(pi.get('product_retailer_id') or 'Item')[:60],
+                'name': (name_map.get(rid) or rid or 'Item')[:60],
                 'amount_paise': int(round(price * 100)),
                 'quantity': qty,
                 'gst_rate': 18.0,
@@ -4654,31 +4690,42 @@ def _handle_cart_order(message: Dict, contact_id: str, sender_phone: str,
             logger.warning(json.dumps({'event': 'cart_order_no_items', 'requestId': request_id}))
             return
 
+        # Load contact + structured shipping address (captured via Address Message).
         ship_addr = ''
         cust_name = ''
+        ship_info = None
         try:
             if contact_id:
                 c = dynamodb.Table(CONTACTS_TABLE).get_item(Key={'id': contact_id}).get('Item', {})
                 ship_addr = c.get('shippingAddress', '') or ''
                 cust_name = c.get('contactBookName', '') or c.get('name', '') or ''
+                if ship_addr or c.get('addressLine1'):
+                    ship_info = {'addresses': [{
+                        'name': cust_name or 'Customer',
+                        'address': (c.get('addressLine1') or ship_addr or '')[:100],
+                        'landmark_area': c.get('landmark', '') or '',
+                        'city': c.get('city', '') or '',
+                        'state': c.get('state', '') or '',
+                        'in_pin_code': (c.get('postalCode', '') or '')[:6],
+                    }]}
         except Exception:
             pass
 
         logger.info(json.dumps({
             'event': 'cart_order_received', 'itemCount': len(items),
-            'subtotal': round(subtotal, 2), 'catalogId': order.get('catalog_id', ''),
-            'hasAddress': bool(ship_addr), 'phone_suffix': sender_phone[-4:] if sender_phone else '',
-            'requestId': request_id,
+            'subtotal': round(subtotal, 2), 'catalogId': catalog_id,
+            'namesResolved': len(name_map), 'hasAddress': bool(ship_addr),
+            'phone_suffix': sender_phone[-4:] if sender_phone else '', 'requestId': request_id,
         }))
 
-        # Native Review & Pay (order_details) with GST + convenience via shared builder.
+        # Native Review & Pay (physical-goods order_details) with GST + convenience.
         _send_payment_request(
             contact_id=contact_id, phone_number_id=phone_number_id, amount=subtotal,
             request_id=request_id, gst_rate=18, shipping=0, sender_phone=sender_phone,
             items=items, payment_purpose='Catalog order',
-            order_id=order.get('catalog_id', 'Catalog'),
+            order_id=catalog_id or 'Catalog',
             customer_name=cust_name, customer_phone=sender_phone,
-            shipping_address=ship_addr,
+            shipping_address=ship_addr, goods_type='physical-goods', shipping_info=ship_info,
         )
 
         # Physical goods: collect a shipping address if we don't have one on file.
@@ -4713,7 +4760,8 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                           order_id: str = 'Offline', customer_name: str = '',
                           customer_phone: str = '', customer_email: str = '',
                           shipping_address: str = '', billing_address: str = '',
-                          pay_for: str = 'self') -> None:
+                          pay_for: str = 'self',
+                          goods_type: str = 'digital-goods', shipping_info: dict = None) -> None:
     """Send WhatsApp Pay order_details message with per-item GST and payment log.
     
     Supports multi-item via `items` list of dicts:
@@ -4780,7 +4828,8 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 'isInteractivePayment': True,
                 'orderDetails': {
                     'reference_id': reference_id,
-                    'type': 'digital-goods',
+                    'type': goods_type or 'digital-goods',
+                    'shipping_info': shipping_info or {},
                     'currency': 'INR',
                     'itemName': order_items[0]['name'] if order_items else item_name,
                     'quantity': qty,

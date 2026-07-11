@@ -1527,6 +1527,23 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
                 interactive_payload['header'] = {'type': 'text', 'text': str(interactive_data['header'])[:60]}
             payload['interactive'] = interactive_payload
 
+        elif interactive_type == 'catalog_message':
+            # Full-catalog message — a "View catalog" button that opens the whole
+            # product catalog in-chat (optional thumbnail via product_retailer_id).
+            body_text = interactive_data.get('body', 'Browse our catalog and add items to your cart.')
+            action = {'name': 'catalog_message'}
+            thumb = interactive_data.get('thumbnailProductRetailerId') or interactive_data.get('thumbnail_product_retailer_id')
+            if thumb:
+                action['parameters'] = {'thumbnail_product_retailer_id': str(thumb)}
+            interactive_payload = {
+                'type': 'catalog_message',
+                'body': {'text': str(body_text)[:1024]},
+                'action': action,
+            }
+            if interactive_data.get('footer'):
+                interactive_payload['footer'] = {'text': str(interactive_data['footer'])[:60]}
+            payload['interactive'] = interactive_payload
+
         elif interactive_type == 'product_list':
             # Multi-Product Message — catalog_id + sections of product_items.
             catalog_id = interactive_data.get('catalogId') or interactive_data.get('catalog_id')
