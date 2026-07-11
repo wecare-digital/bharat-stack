@@ -276,26 +276,30 @@ RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 # +919903300044 (Manish Agarwal) WABA: 2513394156072604 — active, Direct API
 # Both use same Razorpay MID (from env RAZORPAY_MID) | MCC: 4722 | Purpose: 03
 # Config names MUST match exactly what's in Meta Business Manager
+# Config names MUST match EXACTLY what is registered on Meta (WhatsApp Manager >
+# Payments). Verified live via Graph API /{waba}/payment_configurations 2026-07-11:
+#   WABA1 (2094615664435155): Razorpay_wecare.digital, Razorpay_UPI, PayU_wecare.digital, PayU_UPI
+#   WABA2 (2513394156072604): Razorpay_ManishAgarwal, Razorpay_UPI, PayU_ManishAgarwal, PayU_UPI
+# Business decision: Razorpay is the primary/default gateway.
 VALID_PAYMENT_CONFIGS = {
-    'WECARE-RAZOR-PAY', 'WECARE-RAZOR-UPI', 'WECARE-PAYU',
-    'WECARE-RAZORPAY-UPIVPA', 'WECARE-RAZOR-UPIVPA', 'Payu-UPIVPA',
-    'Razorpay_ManishAgarwal', 'Razorpay_UPI', 'PayU_ManishAgarwal', 'PayU_UPI',
+    'Razorpay_wecare.digital', 'PayU_wecare.digital',   # WABA1
+    'Razorpay_ManishAgarwal', 'PayU_ManishAgarwal',     # WABA2
+    'Razorpay_UPI', 'PayU_UPI',                         # exist on BOTH WABAs
 }
 DEFAULT_PAYMENT_CONFIG = 'Razorpay_ManishAgarwal'
-# Map phone number ID to its default payment config name
+# Map phone number ID to its default (Razorpay) payment config name.
 PHONE_PAYMENT_CONFIG = {
-    PHONE_NUMBER_ID_1: 'WECARE-RAZOR-PAY',              # +919330994400
-    PHONE_NUMBER_ID_2: 'Razorpay_ManishAgarwal',         # +919903300044
+    PHONE_NUMBER_ID_1: 'Razorpay_wecare.digital',        # +919330994400 (WABA1)
+    PHONE_NUMBER_ID_2: 'Razorpay_ManishAgarwal',         # +919903300044 (WABA2)
 }
 
-# Per-phone payment gateway configs (Razorpay + PayU)
-# Each phone's WABA has different config names registered on Meta
+# Per-phone payment gateway configs. Razorpay is default; PayU kept for completeness.
 PHONE_PAYMENT_GATEWAYS = {
-    PHONE_NUMBER_ID_1: {                                  # +919330994400
-        'razorpay': 'WECARE-RAZOR-PAY',
-        'payu': 'WECARE-PAYU',
+    PHONE_NUMBER_ID_1: {                                  # +919330994400 (WABA1)
+        'razorpay': 'Razorpay_wecare.digital',
+        'payu': 'PayU_wecare.digital',
     },
-    PHONE_NUMBER_ID_2: {                                  # +919903300044
+    PHONE_NUMBER_ID_2: {                                  # +919903300044 (WABA2)
         'razorpay': 'Razorpay_ManishAgarwal',
         'payu': 'PayU_ManishAgarwal',
     },
@@ -358,27 +362,29 @@ def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
     # Cross-WABA validation: ensure config belongs to the sending phone's WABA
     # WABA 1 configs: WECARE-RAZOR-PAY, WECARE-PAYU, WECARE-RAZORPAY-UPIVPA, Payu-UPIVPA, etc.
     # WABA 2 configs: Razorpay_ManishAgarwal, PayU_ManishAgarwal, Razorpay_UPI, PayU_UPI
+    # Cross-WABA guard: WABA1 configs contain "wecare.digital", WABA2 contain
+    # "ManishAgarwal". Razorpay_UPI / PayU_UPI exist on BOTH WABAs, so they are
+    # never treated as cross-WABA.
     is_phone1 = '1016149501586345' in str(phone_number_id)
-    is_waba1_config = 'WECARE-' in config_name.upper() or 'UPIVPA' in config_name.upper()
-    is_waba2_config = 'ManishAgarwal' in config_name or config_name in ('Razorpay_UPI', 'PayU_UPI')
+    _cfg_l = config_name.lower()
+    is_waba1_config = 'wecare.digital' in _cfg_l
+    is_waba2_config = 'manishagarwal' in _cfg_l
 
     if is_phone1 and is_waba2_config:
-        # Wrong config for this phone — override to Phone 1's config
+        corrected = 'Razorpay_wecare.digital' if gw_type == 'razorpay' else 'PayU_wecare.digital'
         logger.warning(json.dumps({
-            'event': 'cross_waba_config_corrected',
-            'phone': 'phone1', 'wrongConfig': config_name,
-            'correctedTo': 'WECARE-RAZOR-PAY' if gw_type == 'razorpay' else 'WECARE-PAYU',
+            'event': 'cross_waba_config_corrected', 'phone': 'phone1',
+            'wrongConfig': config_name, 'correctedTo': corrected,
         }))
-        config_name = 'WECARE-RAZOR-PAY' if gw_type == 'razorpay' else 'WECARE-PAYU'
+        config_name = corrected
         pg_obj['configuration_name'] = config_name
     elif not is_phone1 and is_waba1_config:
-        # Wrong config for this phone — override to Phone 2's config
+        corrected = 'Razorpay_ManishAgarwal' if gw_type == 'razorpay' else 'PayU_ManishAgarwal'
         logger.warning(json.dumps({
-            'event': 'cross_waba_config_corrected',
-            'phone': 'phone2', 'wrongConfig': config_name,
-            'correctedTo': 'Razorpay_ManishAgarwal' if gw_type == 'razorpay' else 'PayU_ManishAgarwal',
+            'event': 'cross_waba_config_corrected', 'phone': 'phone2',
+            'wrongConfig': config_name, 'correctedTo': corrected,
         }))
-        config_name = 'Razorpay_ManishAgarwal' if gw_type == 'razorpay' else 'PayU_ManishAgarwal'
+        config_name = corrected
         pg_obj['configuration_name'] = config_name
 
     # Add PG-specific fields per Meta docs
