@@ -54,6 +54,7 @@ MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsApp
 UNIFIED_MESSAGES_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'stack-wecare-digital-MediaFilesTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
+FLOW_SUBMISSIONS_TABLE = os.environ.get('FLOW_SUBMISSIONS_TABLE', 'stack-wecare-digital-FlowSubmissionTable')
 AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'stack-wecare-digital-AIInteractionsTable')
 INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable')
 INBOUND_DLQ_URL = os.environ.get('INBOUND_DLQ_URL', '')
@@ -1108,6 +1109,17 @@ def _process_message(
             if nfm.get('name') == 'address_message':
                 _handle_address_submission(nfm, contact_id, sender_phone, aws_phone_number_id, request_id)
                 return  # Stop processing — address submission handled
+            # Post-payment (endpointless) flow completion: the DETAILS screen's
+            # "complete" action returns a payload with reference_id + order details.
+            try:
+                _raw = nfm.get('response_json', '{}')
+                _rj = json.loads(_raw) if isinstance(_raw, str) else (_raw or {})
+                if isinstance(_rj, dict) and _rj.get('reference_id') and (
+                    'delivery_note' in _rj or 'preferred_time' in _rj or 'order_number' in _rj):
+                    _handle_postpay_submission(_rj, contact_id, sender_phone, aws_phone_number_id, request_id)
+                    return  # Stop processing — post-payment submission handled
+            except Exception as _pp_err:
+                logger.warning(json.dumps({'event': 'postpay_nfm_parse_error', 'error': str(_pp_err), 'requestId': request_id}))
 
     # ── Cart order (native catalog checkout) ──
     # Customer sent a cart from the catalog (message.type='order'). Convert the
@@ -5695,6 +5707,65 @@ DEFAULT_FLOW_TRIGGERS = {
         'enabled': True,
     },
 }
+
+
+def _handle_postpay_submission(data: Dict, contact_id: str, sender_phone: str,
+                               phone_number_id: str, request_id: str) -> None:
+    """Handle a post-payment (endpointless) flow completion. The flow's 'complete'
+    action returns reference_id + order/payment ids + the customer's details.
+    Saves ONE submission per payment (idempotent, keyed on reference_id) and sends
+    a confirmation message."""
+    try:
+        reference_id = str(data.get('reference_id', '')).strip()
+        if not reference_id:
+            return
+        now = int(time.time())
+        sub_id = f'postpay-{reference_id}'
+        form = {k: v for k, v in data.items() if k not in ('flow_token',)}
+        item = {
+            'submissionId': sub_id,
+            'flowCode': '02.WD_POSTPAY',
+            'flowType': 'post_payment',
+            'phone': sender_phone,
+            'contactId': contact_id or '',
+            'formData': json.dumps(form),
+            'submissionNumber': sub_id,
+            'orderId': reference_id,
+            'referenceId': reference_id,
+            'orderNumber': str(data.get('order_number', '')),
+            'paymentId': str(data.get('payment_id', '')),
+            'deliveryNote': str(data.get('delivery_note', '')),
+            'preferredTime': str(data.get('preferred_time', '')),
+            'status': 'open',
+            'paymentStatus': 'paid',
+            'createdAt': Decimal(str(now)),
+            'updatedAt': Decimal(str(now)),
+            'ttl': now + (365 * 86400),
+        }
+        try:
+            dynamodb.Table(FLOW_SUBMISSIONS_TABLE).put_item(
+                Item={k: v for k, v in item.items() if v is not None and v != ''},
+                ConditionExpression='attribute_not_exists(submissionId)',
+            )
+            logger.info(json.dumps({'event': 'postpay_submission_saved', 'submissionId': sub_id,
+                                    'referenceId': reference_id, 'requestId': request_id}))
+        except Exception as e:
+            if 'ConditionalCheckFailedException' in str(e):
+                logger.info(json.dumps({'event': 'postpay_submission_duplicate', 'submissionId': sub_id,
+                                        'requestId': request_id}))
+                return  # already recorded — do not send a second confirmation
+            raise
+        # Confirmation message
+        try:
+            order_no = str(data.get('order_number', reference_id))
+            msg = (f'\u2705 *Order details received*\n\nOrder: *{order_no}*\n'
+                   'Our team will process your order shortly.\n\n_Thank you for choosing WECARE.DIGITAL_')
+            meta_pid = _get_meta_phone_id_for_direct_api(phone_number_id)
+            _send_direct_api_message(sender_phone, {'type': 'text', 'text': {'body': msg}}, meta_pid)
+        except Exception:
+            pass
+    except Exception as e:
+        logger.error(json.dumps({'event': 'postpay_submission_error', 'error': str(e), 'requestId': request_id}))
 
 
 def _handle_address_submission(nfm: Dict, contact_id: str, sender_phone: str,

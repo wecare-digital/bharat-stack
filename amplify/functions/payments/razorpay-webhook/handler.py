@@ -604,6 +604,7 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
             'payment_id': disp.get('payment_id', 'Processing'),
             'amount': disp.get('amount', ''),
             'product': disp.get('product', 'Your order'),
+            'reference_id': reference_id,
         }
         flow_payload = {
             'body': json.dumps({
