@@ -459,6 +459,7 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
 
             # Resolve which phone sent the original payment — look up from invoice
             originating_phone_id = ''
+            originating_invoice_id = ''
             try:
                 inv_table = dynamodb.Table(INVOICES_TABLE)
                 inv_resp = inv_table.query(
@@ -469,6 +470,7 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                 )
                 inv_items = inv_resp.get('Items', [])
                 if inv_items:
+                    originating_invoice_id = inv_items[0].get('invoiceId', '')
                     stored_config = inv_items[0].get('paymentConfiguration', '')
                     if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
                         originating_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
@@ -501,8 +503,9 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
 
             # Post-payment flow: after payment is confirmed, optionally start a
             # WhatsApp Flow (e.g. submit-request) so the customer completes service
-            # details for the order they just paid for.
-            _trigger_post_payment_flow(clean_phone, originating_phone_id, reference_id, notes, request_id)
+            # details for the order they just paid for. One flow per payment (idempotent).
+            _trigger_post_payment_flow(clean_phone, originating_phone_id, reference_id, notes,
+                                       request_id, invoice_id=originating_invoice_id)
         except Exception as e:
             logger.warning(json.dumps({'event': 'razorpay_order_status_error', 'error': str(e), 'requestId': request_id}))
 
@@ -515,12 +518,16 @@ _PHONE_ID_TO_WABA = {
 
 
 def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: str,
-                               notes: Dict, request_id: str) -> None:
+                               notes: Dict, request_id: str, invoice_id: str = '') -> None:
     """After a payment is captured, send a WhatsApp Flow so the customer completes
     post-payment details. Fires only when a flow is configured:
       1) notes.postPaymentFlowId (per-order, explicit) — highest priority
       2) env POST_PAYMENT_FLOW_WABA1 / POST_PAYMENT_FLOW_WABA2 (per-WABA default)
     If none is configured, this is a no-op (so simple bills / wallet top-ups are unaffected).
+
+    ONE FLOW PER PAYMENT: enforced idempotently via a conditional write of
+    postPaymentFlowSentAt on the invoice record — duplicate/retried webhooks for
+    the same order will not re-send the flow.
     The flow token embeds the reference_id + phone so the submission links to the order."""
     import uuid as _uuid
     try:
@@ -536,6 +543,26 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
             logger.info(json.dumps({'event': 'post_payment_flow_skipped', 'reason': 'no flow configured',
                                     'referenceId': reference_id, 'requestId': request_id}))
             return
+
+        # One-time guard: mark the invoice as "flow sent" only if not already set.
+        # If the conditional write fails, a flow was already sent for this payment/order.
+        if invoice_id:
+            try:
+                import time as _time
+                dynamodb.Table(INVOICES_TABLE).update_item(
+                    Key={'invoiceId': invoice_id},
+                    UpdateExpression='SET postPaymentFlowSentAt = :now',
+                    ConditionExpression='attribute_not_exists(postPaymentFlowSentAt)',
+                    ExpressionAttributeValues={':now': int(_time.time())},
+                )
+            except Exception as guard_err:
+                if 'ConditionalCheckFailedException' in str(guard_err):
+                    logger.info(json.dumps({'event': 'post_payment_flow_skipped', 'reason': 'already sent (idempotent)',
+                                            'invoiceId': invoice_id, 'referenceId': reference_id, 'requestId': request_id}))
+                    return
+                # Non-conditional error (e.g. table/key issue) — log and continue to send once
+                logger.warning(json.dumps({'event': 'post_payment_flow_guard_error', 'error': str(guard_err),
+                                           'invoiceId': invoice_id, 'requestId': request_id}))
 
         # Routable token: flow-data endpoint routes by prefix and reads phone from -ph-.
         flow_token = f'postpay-{_uuid.uuid4()}-waba-{waba_id}-ph-{clean_phone}'
