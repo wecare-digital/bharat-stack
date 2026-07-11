@@ -553,6 +553,35 @@ def _update_commerce_settings(phone_id: str, body: Dict) -> Dict:
     return _resp(200, {'success': result.get('success', True), 'result': result})
 
 
+def _list_catalog_products(catalog_id: str, params: Dict) -> Dict:
+    """List products in a Meta commerce catalog (for the admin product browser).
+    GET /wa-business/catalog-products?catalogId=<id>&search=<q>&limit=<n>
+    Returns normalized products: retailer_id, name, price, availability, image_url."""
+    if not catalog_id:
+        return _resp(400, {'error': 'catalogId is required'})
+    limit = str(params.get('limit', '100'))
+    fields = 'name,retailer_id,price,currency,availability,image_url,url'
+    gp: Dict = {'fields': fields, 'limit': limit}
+    search = params.get('search')
+    if search:
+        gp['filter'] = json.dumps({'name': {'i_contains': search}})
+    result = _graph_api(f'{catalog_id}/products', params=gp)
+    if 'error' in result:
+        return _resp(400, result)
+    products = []
+    for it in result.get('data', []):
+        products.append({
+            'retailerId': it.get('retailer_id', ''),
+            'name': it.get('name', ''),
+            'price': it.get('price', ''),
+            'currency': it.get('currency', 'INR'),
+            'availability': it.get('availability', ''),
+            'imageUrl': it.get('image_url', ''),
+            'url': it.get('url', ''),
+        })
+    return _resp(200, {'products': products, 'count': len(products)})
+
+
 # ============================================================================
 # MESSAGE QR CODES
 # GET/DELETE /{Phone-Number-ID}/message_qrdls/{QR-Code-ID}
@@ -4918,6 +4947,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'GET':
                 return _get_commerce_settings(phone_id)
             return _update_commerce_settings(phone_id, body)
+
+        elif '/catalog-products' in path:
+            if method == 'GET':
+                return _list_catalog_products(params.get('catalogId') or params.get('catalog_id'), params)
+            return _resp(405, {'error': 'GET only'})
 
         elif '/qr-codes' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')
