@@ -172,12 +172,13 @@ def handle_submit(data: dict, flow_token: str, request_id: str) -> dict:
         else:
             logger.warning(f'postpay submission save failed: {e}')
 
-    od = _lookup_order(ref) if ref else {}
+    # THANK_YOU uses the identifiers echoed in the submit payload (no DB lookup -> fast).
+    d = data or {}
     return {
         'screen': 'THANK_YOU',
         'data': {
-            'order_number': od.get('order_number', ref or 'N/A'),
-            'payment_id': od.get('payment_id', ''),
+            'order_number': d.get('order_number') or ref or 'N/A',
+            'payment_id': d.get('payment_id') or '',
             'request_number': sub_id,
         },
     }

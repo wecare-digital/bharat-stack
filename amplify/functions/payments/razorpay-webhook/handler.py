@@ -460,6 +460,8 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
             # Resolve which phone sent the original payment — look up from invoice
             originating_phone_id = ''
             originating_invoice_id = ''
+            order_display_number = reference_id
+            order_product = 'Your order'
             try:
                 inv_table = dynamodb.Table(INVOICES_TABLE)
                 inv_resp = inv_table.query(
@@ -470,8 +472,19 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                 )
                 inv_items = inv_resp.get('Items', [])
                 if inv_items:
-                    originating_invoice_id = inv_items[0].get('invoiceId', '')
-                    stored_config = inv_items[0].get('paymentConfiguration', '')
+                    _inv = inv_items[0]
+                    originating_invoice_id = _inv.get('invoiceId', '')
+                    order_display_number = (_inv.get('invoiceNumber') or _inv.get('orderId')
+                                            or originating_invoice_id or reference_id)
+                    _its = _inv.get('items')
+                    if isinstance(_its, str):
+                        try:
+                            _its = json.loads(_its)
+                        except Exception:
+                            _its = []
+                    if isinstance(_its, list) and _its and isinstance(_its[0], dict):
+                        order_product = _its[0].get('name', '') or order_product
+                    stored_config = _inv.get('paymentConfiguration', '')
                     if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
                         originating_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
                     else:
@@ -505,7 +518,11 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
             # WhatsApp Flow (e.g. submit-request) so the customer completes service
             # details for the order they just paid for. One flow per payment (idempotent).
             _trigger_post_payment_flow(clean_phone, originating_phone_id, reference_id, notes,
-                                       request_id, invoice_id=originating_invoice_id)
+                                       request_id, invoice_id=originating_invoice_id,
+                                       display={'order_number': str(order_display_number),
+                                                'payment_id': str(payment_id or ''),
+                                                'amount': f'\u20b9{amount_rupees:.2f}',
+                                                'product': str(order_product)})
         except Exception as e:
             logger.warning(json.dumps({'event': 'razorpay_order_status_error', 'error': str(e), 'requestId': request_id}))
 
@@ -518,7 +535,8 @@ _PHONE_ID_TO_WABA = {
 
 
 def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: str,
-                               notes: Dict, request_id: str, invoice_id: str = '') -> None:
+                               notes: Dict, request_id: str, invoice_id: str = '',
+                               display: Dict = None) -> None:
     """After a payment is captured, send a WhatsApp Flow so the customer completes
     post-payment details. Fires only when a flow is configured:
       1) notes.postPaymentFlowId (per-order, explicit) — highest priority
@@ -577,6 +595,16 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
         cta = (notes or {}).get('postPaymentFlowCta', 'Complete details')[:20]
         body_text = (notes or {}).get('postPaymentFlowBody',
                      'Thank you for your payment! Please tap below to complete your order details.')
+        # Launch as NAVIGATE with the order/payment data pre-filled by the server so
+        # the flow opens INSTANTLY (no endpoint round-trip on open). The DETAILS screen
+        # footer still uses data_exchange, so the submit is saved server-side (idempotent).
+        disp = display or {}
+        flow_data = {
+            'order_number': disp.get('order_number', reference_id),
+            'payment_id': disp.get('payment_id', 'Processing'),
+            'amount': disp.get('amount', ''),
+            'product': disp.get('product', 'Your order'),
+        }
         flow_payload = {
             'body': json.dumps({
                 'recipientPhone': f'+{clean_phone}',
@@ -586,10 +614,12 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
                 'interactiveData': {
                     'flowId': str(flow_id),
                     'flowCta': cta,
-                    'flowAction': 'data_exchange',
+                    'flowAction': 'navigate',
+                    'screenId': 'DETAILS',
                     'flowToken': flow_token,
                     'body': body_text,
                     'footer': 'WECARE.DIGITAL',
+                    'flowData': flow_data,
                 },
             })
         }

@@ -195,6 +195,15 @@ export async function testConnection (): Promise<{ success: boolean; message: st
       return { success: true, message: `Connected (${latency}ms)`, latency };
     }
 
+    // A 401/403 means the API Gateway IS reachable — it responded, just needs a
+    // valid token (auth is handled separately). Don't show "unreachable" for that.
+    if ( response.status === 401 || response.status === 403 )
+    {
+      connectionStatus = 'connected';
+      lastConnectionError = null;
+      return { success: true, message: `Connected (${latency}ms, auth required)`, latency };
+    }
+
     connectionStatus = 'disconnected';
     lastConnectionError = `HTTP ${response.status}`;
     return { success: false, message: `API returned ${response.status}: ${response.statusText}` };
