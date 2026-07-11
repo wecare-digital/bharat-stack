@@ -1499,7 +1499,34 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             if interactive_data.get('footer'):
                 interactive_payload['footer'] = {'text': interactive_data['footer']}
             payload['interactive'] = interactive_payload
-            
+
+        elif interactive_type == 'address_message':
+            # Native India Address Message — collect a shipping address for physical
+            # goods. Docs: interactive.type=address_message, action.name=address_message,
+            # parameters.country (ISO code) is REQUIRED. India-only feature.
+            body_text = interactive_data.get('body',
+                "Thanks for your order! Please share the delivery address.")
+            params = {'country': interactive_data.get('country', 'IN')}
+            _vals = interactive_data.get('values')
+            if _vals:
+                params['values'] = _vals
+            _saved = interactive_data.get('savedAddresses') or interactive_data.get('saved_addresses')
+            if _saved:
+                params['saved_addresses'] = _saved
+            _verr = interactive_data.get('validationErrors') or interactive_data.get('validation_errors')
+            if _verr:
+                params['validation_errors'] = _verr
+            interactive_payload = {
+                'type': 'address_message',
+                'body': {'text': str(body_text)[:1024]},
+                'action': {'name': 'address_message', 'parameters': params},
+            }
+            if interactive_data.get('footer'):
+                interactive_payload['footer'] = {'text': str(interactive_data['footer'])[:60]}
+            if interactive_data.get('header'):
+                interactive_payload['header'] = {'type': 'text', 'text': str(interactive_data['header'])[:60]}
+            payload['interactive'] = interactive_payload
+
         elif interactive_type == 'product_list':
             # Multi-Product Message — catalog_id + sections of product_items.
             catalog_id = interactive_data.get('catalogId') or interactive_data.get('catalog_id')

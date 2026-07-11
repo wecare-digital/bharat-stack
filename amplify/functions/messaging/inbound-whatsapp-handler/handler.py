@@ -1101,7 +1101,14 @@ def _process_message(
                     request_id=request_id,
                 )
                 return  # Stop processing  -  list reply handled
-    
+        # Native Flow Message reply — India Address Message submission arrives here
+        # as nfm_reply with name='address_message' (also used by flow completions).
+        elif interactive_type == 'nfm_reply':
+            nfm = interactive.get('nfm_reply', {})
+            if nfm.get('name') == 'address_message':
+                _handle_address_submission(nfm, contact_id, sender_phone, aws_phone_number_id, request_id)
+                return  # Stop processing — address submission handled
+
     # Handle system status messages with user_changed_user_id
     # Per Meta BSUID docs: system messages can have type=user_changed_user_id
     # when a user changes their phone number, triggering a new BSUID
@@ -5547,6 +5554,54 @@ DEFAULT_FLOW_TRIGGERS = {
         'enabled': True,
     },
 }
+
+
+def _handle_address_submission(nfm: Dict, contact_id: str, sender_phone: str,
+                               phone_number_id: str, request_id: str) -> None:
+    """Handle a native India Address Message submission (nfm_reply,
+    name='address_message'). Parses response_json and saves the structured
+    shipping address to the contact so checkout / order_details can reuse it."""
+    try:
+        raw = nfm.get('response_json', '{}')
+        data = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        vals = data.get('values', data) or {}
+        house = vals.get('house_number', '')
+        floor = vals.get('floor_number', '')
+        tower = vals.get('tower_number', '')
+        building = vals.get('building_name', '')
+        addr = vals.get('address', '')
+        landmark = vals.get('landmark_area', '')
+        city = vals.get('city', '')
+        state = vals.get('state', '')
+        pin = vals.get('in_pin_code', '')
+        name = vals.get('name', '')
+        parts = [house, (f'Floor {floor}' if floor else ''), tower, building, addr, landmark, city, state, pin]
+        address_str = ', '.join(p for p in parts if p)
+        logger.info(json.dumps({
+            'event': 'address_submission', 'phone_suffix': sender_phone[-4:] if sender_phone else '',
+            'savedAddressId': data.get('saved_address_id', ''), 'pin': pin, 'city': city,
+            'requestId': request_id,
+        }))
+        if not contact_id:
+            return
+        ct = dynamodb.Table(CONTACTS_TABLE)
+        expr_names = {'#st': 'state'}
+        expr_vals = {
+            ':sa': address_str, ':hn': house, ':fl': floor, ':tw': tower, ':bn': building,
+            ':al': addr, ':lm': landmark, ':cy': city, ':st': state, ':pc': pin,
+            ':co': 'India', ':ua': int(time.time()),
+        }
+        update_expr = ('SET shippingAddress=:sa, houseNumber=:hn, floorNumber=:fl, towerNumber=:tw, '
+                       'buildingName=:bn, addressLine1=:al, landmark=:lm, city=:cy, #st=:st, '
+                       'postalCode=:pc, country=:co, updatedAt=:ua')
+        if name:
+            update_expr += ', contactBookName=:nm'
+            expr_vals[':nm'] = name
+        ct.update_item(Key={'id': contact_id}, UpdateExpression=update_expr,
+                       ExpressionAttributeNames=expr_names, ExpressionAttributeValues=expr_vals)
+        logger.info(json.dumps({'event': 'address_saved', 'contactId': contact_id, 'requestId': request_id}))
+    except Exception as e:
+        logger.error(json.dumps({'event': 'address_submission_error', 'error': str(e), 'requestId': request_id}))
 
 
 def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
