@@ -914,6 +914,66 @@ def _direct_send(phone_id: str, body: Dict) -> Dict:
                       'templateName': template_name or None, 'result': result})
 
 
+def _direct_send_upload_sample(waba_id: str, body: Dict) -> Dict:
+    """Direct Send onboarding — upload a sample message payload so Meta can
+    classify the use case and auto-generate a template.
+    POST /{waba_id}/message_samples  → {success, category}.
+    Accepts either a full Meta sample object in body['sample'] OR a simple
+    {type:'text', text:'...'} shorthand."""
+    sample = body.get('sample')
+    if not sample:
+        text = body.get('text') or body.get('content') or ''
+        if not text:
+            return _resp(400, {'error': 'Provide a sample object or text'})
+        sample = {'type': 'text', 'text': {'body': text}}
+    result = _graph_api(f'{waba_id}/message_samples', method='POST', payload=sample, waba_id=waba_id)
+    if 'error' in result:
+        err = result.get('error', {})
+        # Meta errors can be nested ({'error': {'error': {...}}}) — dig for code/subcode.
+        inner = err.get('error') if isinstance(err, dict) and isinstance(err.get('error'), dict) else err
+        code = inner.get('code') if isinstance(inner, dict) else None
+        subcode = inner.get('error_subcode') if isinstance(inner, dict) else None
+        hint = (_DIRECT_SEND_ERROR_HINTS.get(str(code))
+                or _DIRECT_SEND_ERROR_HINTS.get(str(subcode))
+                or ('Samples API access is restricted for this WABA — ask your Meta rep to enable Direct Send beta (139200 / 2388341).'
+                    if str(code) == '139200' or str(subcode) == '2388341' else None))
+        return _resp(400, {'error': err, 'directSendHint': hint})
+    return _resp(200, {'success': result.get('success', True),
+                      'category': result.get('category', '')})
+
+
+def _list_generated_templates(waba_id: str) -> Dict:
+    """List Direct Send auto-generated templates (content-based + business-named).
+    GET /{waba_id}/message_templates?source=AUTO_GENERATED"""
+    result = _graph_api(f'{waba_id}/message_templates', method='GET',
+                        params={'source': 'AUTO_GENERATED', 'limit': 200,
+                                'fields': 'name,status,category,correct_category,source,language,components'},
+                        waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    data = result.get('data', []) or []
+    return _resp(200, {'wabaId': waba_id, 'total': len(data), 'templates': data})
+
+
+def _get_mm_onboarding_status(waba_id: str) -> Dict:
+    """Marketing Messages (MM Lite) API onboarding/eligibility for a WABA.
+    GET /{waba_id}?fields=marketing_messages_onboarding_status
+    Values include ELIGIBLE, ONBOARDED, NOT_ELIGIBLE, etc."""
+    result = _graph_api(waba_id, method='GET',
+                        params={'fields': 'marketing_messages_onboarding_status'}, waba_id=waba_id)
+    if 'error' in result:
+        return _resp(400, result)
+    status = result.get('marketing_messages_onboarding_status', '')
+    # Field may be a plain string or an object {status, time}
+    if isinstance(status, dict):
+        status_val = status.get('status', '')
+        status_time = status.get('time', '')
+    else:
+        status_val = status
+        status_time = ''
+    return _resp(200, {'wabaId': waba_id, 'onboardingStatus': status_val, 'time': status_time})
+
+
 # ============================================================================
 # LINK PREVIEW VALIDATOR (Open Graph requirements for WhatsApp link previews)
 # ============================================================================
@@ -5231,6 +5291,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _resp(400, {'error': 'phoneId required'})
             return _get_throughput(phone_id)
 
+        elif '/direct-send/samples' in path:
+            waba_id = params.get('wabaId') or body.get('wabaId')
+            if not waba_id:
+                return _resp(400, {'error': 'wabaId required'})
+            if method == 'POST':
+                return _direct_send_upload_sample(waba_id, body)
+            return _resp(405, {'error': 'POST only'})
+
+        elif '/direct-send/templates' in path:
+            waba_id = params.get('wabaId') or body.get('wabaId')
+            if not waba_id:
+                return _resp(400, {'error': 'wabaId required'})
+            return _list_generated_templates(waba_id)
+
         elif '/direct-send' in path:
             phone_id = params.get('phoneId') or body.get('phoneId')
             if not phone_id:
@@ -5238,6 +5312,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'POST':
                 return _direct_send(phone_id, body)
             return _resp(405, {'error': 'POST only'})
+
+        elif '/mm-onboarding-status' in path:
+            waba_id = params.get('wabaId') or body.get('wabaId')
+            if not waba_id:
+                return _resp(400, {'error': 'wabaId required'})
+            return _get_mm_onboarding_status(waba_id)
 
         elif '/link-preview' in path:
             return _check_link_preview(params.get('url') or body.get('url') or '')

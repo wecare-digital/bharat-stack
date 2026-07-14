@@ -76,7 +76,7 @@ export default function WAGraphTools ( { signOut, user }: PageProps ) {
                 { tab === 'Conversational Automation' && <ConvAutomationTab phoneId={ phone.phoneId } toast={ toast } /> }
                 { tab === 'Link Preview' && <LinkPreviewTab toast={ toast } /> }
                 { tab === 'Throughput' && <ThroughputTab phoneId={ phone.phoneId } toast={ toast } /> }
-                { tab === 'Direct Send' && <DirectSendTab phoneId={ phone.phoneId } toast={ toast } /> }
+                { tab === 'Direct Send' && <DirectSendTab phoneId={ phone.phoneId } wabaId={ phone.wabaId } toast={ toast } /> }
                 { tab === 'Assigned Users' && <AssignedUsersTab wabaId={ phone.wabaId } toast={ toast } confirm={ confirm } /> }
                 { tab === 'AI Pricing Policy' && <AiPolicyTab toast={ toast } confirm={ confirm } /> }
             </div>
@@ -367,7 +367,7 @@ function ThroughputTab ( { phoneId, toast }: { phoneId: string; toast: any } ) {
 }
 
 // ── Direct Send (Beta) ──
-function DirectSendTab ( { phoneId, toast }: { phoneId: string; toast: any } ) {
+function DirectSendTab ( { phoneId, wabaId, toast }: { phoneId: string; wabaId: string; toast: any } ) {
     const [ to, setTo ] = useState( '' );
     const [ category, setCategory ] = useState<'utility' | 'authentication'>( 'utility' );
     const [ text, setText ] = useState( '' );
@@ -375,6 +375,35 @@ function DirectSendTab ( { phoneId, toast }: { phoneId: string; toast: any } ) {
     const [ ttl, setTtl ] = useState( '' );
     const [ sending, setSending ] = useState( false );
     const [ resultMsg, setResultMsg ] = useState<{ ok: boolean; text: string; hint?: string } | null>( null );
+
+    // Onboarding: sample upload + generated templates + MM Lite status
+    const [ sampleText, setSampleText ] = useState( '' );
+    const [ sampleBusy, setSampleBusy ] = useState( false );
+    const [ gen, setGen ] = useState<api.GeneratedTemplate[]>( [] );
+    const [ genBusy, setGenBusy ] = useState( false );
+    const [ mm, setMm ] = useState<{ onboardingStatus: string; time: string } | null>( null );
+
+    const loadGen = useCallback( async () => {
+        setGenBusy( true );
+        try { setGen( ( await api.listGeneratedTemplates( wabaId ) ).templates ); }
+        catch ( e: any ) { toast.error( e.message || 'Failed to load templates' ); }
+        finally { setGenBusy( false ); }
+    }, [ wabaId, toast ] );
+    const loadMm = useCallback( async () => {
+        try { setMm( await api.getMmOnboardingStatus( wabaId ) ); } catch { /* non-fatal */ }
+    }, [ wabaId ] );
+    useEffect( () => { loadMm(); }, [ loadMm ] );
+
+    const uploadSample = async () => {
+        if ( !sampleText.trim() ) { toast.error( 'Enter a sample message' ); return; }
+        setSampleBusy( true );
+        try
+        {
+            const r = await api.directSendUploadSample( wabaId, { text: sampleText.trim() } );
+            if ( r.success ) toast.success( `Sample accepted · classified ${r.category || '—'}` );
+            else toast.error( r.directSendHint || r.error || 'Failed' );
+        } finally { setSampleBusy( false ); }
+    };
 
     const send = async () => {
         if ( !to ) { toast.error( 'Recipient phone required' ); return; }
@@ -419,6 +448,40 @@ function DirectSendTab ( { phoneId, toast }: { phoneId: string; toast: any } ) {
                 <div style={ { marginTop: 12, fontSize: 'var(--text-sm)' } }>
                     <p style={ { fontWeight: 600, color: resultMsg.ok ? '#166534' : '#b91c1c' } }>{ resultMsg.text }</p>
                     { resultMsg.hint && <p style={ { color: '#92400e', marginTop: 4 } }>{ resultMsg.hint }</p> }
+                </div>
+            ) }
+
+            {/* Onboarding: sample upload */ }
+            <div style={ { marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border-light)' } }>
+                <h4 style={ { margin: 0 } }>Onboarding — upload sample</h4>
+                <p style={ { fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 4 } }>
+                    Upload 3–4 sample messages you plan to send so Meta classifies the use case (returns UTILITY / MARKETING / AUTHENTICATION) and auto-generates templates.
+                </p>
+                <textarea style={ { ...input, minHeight: 60 } } placeholder="e.g. Hi {{1}}, your order #{{2}} has shipped." value={ sampleText } onChange={ e => setSampleText( e.target.value ) } />
+                <div style={ { marginTop: 8 } }>
+                    <Button variant="secondary" size="sm" onClick={ uploadSample } loading={ sampleBusy }>Upload sample</Button>
+                </div>
+            </div>
+
+            {/* Generated templates */ }
+            <div style={ { marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border-light)' } }>
+                <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } }>
+                    <h4 style={ { margin: 0 } }>Auto-generated templates</h4>
+                    <Button variant="secondary" size="sm" onClick={ loadGen } loading={ genBusy }>Load</Button>
+                </div>
+                { gen.length > 0 ? (
+                    <table style={ { fontSize: 'var(--text-sm)', marginTop: 8, width: '100%' } }>
+                        <tbody>{ gen.map( t => (
+                            <tr key={ t.name }><td style={ { fontFamily: 'var(--font-mono)', paddingRight: 12 } }>{ t.name }</td><td style={ { color: 'var(--text-muted)' } }>{ t.category }</td><td style={ { color: t.status === 'APPROVED' ? '#166534' : '#92400e' } }>{ t.status }</td></tr>
+                        ) ) }</tbody>
+                    </table>
+                ) : <p style={ { fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 8 } }>No auto-generated templates loaded. (These appear after Direct Send is active and messages are sent.)</p> }
+            </div>
+
+            {/* MM Lite onboarding status */ }
+            { mm && (
+                <div style={ { marginTop: 16, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' } }>
+                    Marketing Messages (MM Lite) onboarding: <b style={ { color: 'var(--text-primary)' } }>{ mm.onboardingStatus || 'unknown' }</b>{ mm.time ? ` · ${mm.time}` : '' }
                 </div>
             ) }
         </div>

@@ -5874,11 +5874,40 @@ export async function directSend (
     method: 'POST',
     body: JSON.stringify( { phoneId, ...payload } ),
   } );
-  if ( data?.error ) {
+  if ( data?.error )
+  {
     const msg = typeof data.error === 'string' ? data.error : ( data.error?.message || data.error?.error?.message || JSON.stringify( data.error ) );
     return { success: false, error: msg, directSendHint: data.directSendHint, betaGated: data.betaGated };
   }
   return { success: true, result: data?.result };
+}
+
+export async function directSendUploadSample (
+  wabaId: string,
+  sample: { text?: string; sample?: any }
+): Promise<{ success: boolean; category?: string; error?: string; directSendHint?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/direct-send/samples`, {
+    method: 'POST',
+    body: JSON.stringify( { wabaId, ...sample } ),
+  } );
+  if ( data?.error )
+  {
+    const msg = typeof data.error === 'string' ? data.error : ( data.error?.message || JSON.stringify( data.error ) );
+    return { success: false, error: msg, directSendHint: data.directSendHint };
+  }
+  return { success: true, category: data?.category };
+}
+
+export interface GeneratedTemplate { name: string; status: string; category: string; correct_category?: string; source: string; language: string; }
+
+export async function listGeneratedTemplates ( wabaId: string ): Promise<{ total: number; templates: GeneratedTemplate[] }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/direct-send/templates?wabaId=${encodeURIComponent( wabaId )}` );
+  return { total: data?.total || 0, templates: data?.templates || [] };
+}
+
+export async function getMmOnboardingStatus ( wabaId: string ): Promise<{ onboardingStatus: string; time: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/mm-onboarding-status?wabaId=${encodeURIComponent( wabaId )}` );
+  return { onboardingStatus: data?.onboardingStatus || '', time: data?.time || '' };
 }
 
 export interface LinkPreviewResult { url: string; ok: boolean; og: Record<string, string>; warnings: string[]; note?: string; }
