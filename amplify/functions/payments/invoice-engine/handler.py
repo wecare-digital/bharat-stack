@@ -1869,7 +1869,6 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
             'name': item.get('name', 'Item'),
             'amount': {'value': amt_paise, 'offset': 100},
             'quantity': qty,
-            'gstRate': item_gst,
         }
         if item.get('name', '').strip().lower() in CHARGE_ITEM_NAMES:
             charge_items.append(entry)
@@ -1885,11 +1884,26 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
         subtotal_paise += line_paise
         order_items.append(entry)
 
-    discount_paise = int(float(invoice.get('discount', 0)) * 100)
-    shipping_paise = int(float(invoice.get('shipping', 0)) * 100)
-    # Don't pass tax here — outbound handler recalculates GST from per-item gstRate
-    # Don't calculate total here — outbound handler computes it from components
-    gst_paise = 0  # Let outbound handler calculate from item gstRate
+    discount_paise = int(round(float(invoice.get('discount', 0)) * 100))
+    shipping_paise = int(round(float(invoice.get('shipping', 0)) * 100))
+    # GST (tax) and convenience fee are already computed on the invoice. The
+    # checkout-template send path does NOT recompute them, so we MUST populate the
+    # order_details here — otherwise the customer sees only the bare item price
+    # (missing GST + convenience fee, and a total that mismatches the invoice).
+    gst_paise = int(round(float(invoice.get('tax', 0)) * 100))
+    conv_paise = int(round(float(invoice.get('convenienceFee', 0)) * 100))
+    # Meta's order_details has no dedicated fee field, so add the convenience fee as
+    # a transparent line item (its own GST is already baked into convenienceFee).
+    if conv_paise > 0:
+        order_items.append({
+            'name': 'Convenience Fee (2% + GST)',
+            'amount': {'value': conv_paise, 'offset': 100},
+            'quantity': 1,
+            'retailer_id': f'ITEM_{len(order_items) + 1}',
+        })
+        subtotal_paise += conv_paise
+    # Internally-consistent total (Meta validates total == subtotal + tax + shipping - discount).
+    total_paise = subtotal_paise + gst_paise + shipping_paise - discount_paise
 
     order_id = invoice.get('orderId', 'Offline')
 
@@ -1929,6 +1943,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
         'gstRate': gst_rate,
         'gstin': invoice.get('gstin', COMPANY['gstin']),
         'orderId': order_id,
+        'total_amount': {'value': total_paise, 'offset': 100},
         'order': {
             'status': 'pending',
             'items': order_items,

@@ -645,9 +645,19 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             try:
                 # Prefer a FRESH wamid straight from the InboundTable (the contact's
                 # cached lastInboundWamid can be stale → Meta 400 "does not exist").
-                _last_wamid = _get_latest_inbound_wamid(recipient_phone)
+                # Meta only accepts read/typing markers on RECENT inbound messages, so
+                # cap freshness tightly (15 min). Typing is only meaningful right after
+                # the customer messages anyway; this avoids the stale-wamid 400 noise.
+                _last_wamid = _get_latest_inbound_wamid(recipient_phone, max_age_seconds=900)
+                # Only fall back to the cached contact wamid if it is also fresh.
                 if not _last_wamid:
-                    _last_wamid = (contact or {}).get('lastInboundWamid') or ''
+                    _li = (contact or {}).get('lastInboundMessageAt')
+                    try:
+                        _fresh = _li and (int(time.time()) - int(_li)) <= 900
+                    except (TypeError, ValueError):
+                        _fresh = False
+                    if _fresh:
+                        _last_wamid = (contact or {}).get('lastInboundWamid') or ''
                 if _last_wamid:
                     _send_typing_indicator(phone_number_id, _last_wamid)
             except Exception as _te:
