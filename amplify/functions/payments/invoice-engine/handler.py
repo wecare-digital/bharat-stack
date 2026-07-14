@@ -1933,9 +1933,15 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
     cust_name = invoice.get('customerName', 'Customer')
     goods_type = invoice.get('goodsType', 'digital-goods')
 
+    # Respect the invoice's goodsType. Services / digital goods (e.g. the ₹2
+    # service sample) must NOT prompt for a delivery address — only physical
+    # goods collect shipping_info. Forcing physical-goods everywhere made every
+    # service checkout demand an address, which is wrong and confusing.
+    order_type = 'physical-goods' if goods_type == 'physical-goods' else 'digital-goods'
+
     order_details_obj = {
         'reference_id': reference_id,
-        'type': 'physical-goods',  # Always physical-goods for checkout template (enables address + coupons)
+        'type': order_type,
         'payment_configuration': payment_configuration or invoice.get('paymentConfiguration', ''),
         'currency': 'INR',
         'itemName': order_items[0]['name'] if order_items else 'Payment',
@@ -1954,55 +1960,38 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
         },
     }
 
-    # Always add shipping_info for checkout button template.
-    # If address is known, pre-fill it. If not, send empty addresses[] so WhatsApp asks user.
-    addr_line1 = invoice.get('addressLine1', '')
-    addr_city = invoice.get('city', '')
-    addr_state = invoice.get('state', '')
-    addr_postal = invoice.get('postalCode', '')
-    addr_line2 = invoice.get('addressLine2', '') or invoice.get('landmark', '')
-
-    if addr_line1 and addr_city and addr_postal:
-        order_details_obj['shipping_info'] = {
-            'country': 'IN',
-            'addresses': [{
-                'name': cust_name,
-                'phone_number': customer_phone.replace('+', ''),
-                'address': addr_line1,
-                'city': addr_city,
-                'state': addr_state or addr_city,
-                'in_pin_code': addr_postal[:6],
-                'landmark_area': addr_line2,
-            }]
-        }
-    elif ship_addr:
-        # Fallback: parse flat string address
-        addr_obj = {}
-        try:
-            import json as _json
-            addr_obj = _json.loads(ship_addr) if ship_addr.strip().startswith('{') else {}
-        except Exception:
-            addr_obj = {}
-
-        if addr_obj and addr_obj.get('city') and addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')):
+    # ── Address / shipping_info: physical goods ONLY ──
+    if order_type == 'physical-goods':
+        # Pre-fill from the invoice first, then the CONTACT's saved structured
+        # address (captured on a previous Address Message → _handle_address_submission,
+        # which persists addressLine1/city/state/postalCode/landmark on the contact).
+        c = contact or {}
+        a_name = cust_name or c.get('contactBookName') or c.get('name') or 'Customer'
+        a_line1 = invoice.get('addressLine1') or c.get('addressLine1') or ''
+        a_city = invoice.get('city') or c.get('city') or ''
+        a_state = invoice.get('state') or c.get('state') or ''
+        a_postal = str(invoice.get('postalCode') or c.get('postalCode') or '')
+        a_land = (invoice.get('addressLine2') or invoice.get('landmark')
+                  or c.get('landmark') or '')
+        if a_line1 and a_city and a_postal:
+            # Known address → pre-fill so the customer can confirm in one tap.
             order_details_obj['shipping_info'] = {
                 'country': 'IN',
                 'addresses': [{
-                    'name': addr_obj.get('name', cust_name),
+                    'name': a_name,
                     'phone_number': customer_phone.replace('+', ''),
-                    'address': addr_obj.get('address', addr_obj.get('address_line1', '')),
-                    'city': addr_obj.get('city', ''),
-                    'state': addr_obj.get('state', ''),
-                    'in_pin_code': addr_obj.get('in_pin_code', addr_obj.get('postal_code', '')),
-                    'landmark_area': addr_obj.get('landmark_area', ''),
-                }]
+                    'address': a_line1,
+                    'city': a_city,
+                    'state': a_state or a_city,
+                    'in_pin_code': a_postal[:6],
+                    'landmark_area': a_land,
+                }],
             }
         else:
-            # No address — empty array so WhatsApp asks user to add
+            # No address on file → empty array so WhatsApp collects it at checkout
+            # (the submitted address is saved back to the contact on nfm_reply).
             order_details_obj['shipping_info'] = {'country': 'IN', 'addresses': []}
-    else:
-        # No address at all — empty array so WhatsApp asks user to add
-        order_details_obj['shipping_info'] = {'country': 'IN', 'addresses': []}
+    # digital-goods / services: no shipping_info → no address prompt.
 
     wa_payload = {
         'body': json.dumps({
