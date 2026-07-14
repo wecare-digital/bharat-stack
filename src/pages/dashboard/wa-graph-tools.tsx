@@ -23,7 +23,7 @@ const PHONES = [
 
 const TABS = [
     'Schedules', 'Commerce', 'QR Codes', 'Conversational Automation',
-    'Link Preview', 'Throughput', 'Assigned Users', 'AI Pricing Policy',
+    'Link Preview', 'Throughput', 'Direct Send', 'Assigned Users', 'AI Pricing Policy',
 ] as const;
 type Tab = typeof TABS[ number ];
 
@@ -76,6 +76,7 @@ export default function WAGraphTools ( { signOut, user }: PageProps ) {
                 { tab === 'Conversational Automation' && <ConvAutomationTab phoneId={ phone.phoneId } toast={ toast } /> }
                 { tab === 'Link Preview' && <LinkPreviewTab toast={ toast } /> }
                 { tab === 'Throughput' && <ThroughputTab phoneId={ phone.phoneId } toast={ toast } /> }
+                { tab === 'Direct Send' && <DirectSendTab phoneId={ phone.phoneId } toast={ toast } /> }
                 { tab === 'Assigned Users' && <AssignedUsersTab wabaId={ phone.wabaId } toast={ toast } confirm={ confirm } /> }
                 { tab === 'AI Pricing Policy' && <AiPolicyTab toast={ toast } confirm={ confirm } /> }
             </div>
@@ -360,6 +361,65 @@ function ThroughputTab ( { phoneId, toast }: { phoneId: string; toast: any } ) {
                         { info.platformType && <tr><td style={ { color: 'var(--text-muted)', padding: '6px 16px 6px 0' } }>Platform</td><td>{ info.platformType }</td></tr> }
                     </tbody>
                 </table>
+            ) }
+        </div>
+    );
+}
+
+// ── Direct Send (Beta) ──
+function DirectSendTab ( { phoneId, toast }: { phoneId: string; toast: any } ) {
+    const [ to, setTo ] = useState( '' );
+    const [ category, setCategory ] = useState<'utility' | 'authentication'>( 'utility' );
+    const [ text, setText ] = useState( '' );
+    const [ templateName, setTemplateName ] = useState( '' );
+    const [ ttl, setTtl ] = useState( '' );
+    const [ sending, setSending ] = useState( false );
+    const [ resultMsg, setResultMsg ] = useState<{ ok: boolean; text: string; hint?: string } | null>( null );
+
+    const send = async () => {
+        if ( !to ) { toast.error( 'Recipient phone required' ); return; }
+        if ( !text ) { toast.error( 'Message body required' ); return; }
+        setSending( true ); setResultMsg( null );
+        try
+        {
+            const r = await api.directSend( phoneId, {
+                to, category, text,
+                templateName: templateName.trim() || undefined,
+                ttlSeconds: ttl ? Number( ttl ) : undefined,
+            } );
+            if ( r.success ) { setResultMsg( { ok: true, text: 'Sent ✓' } ); toast.success( 'Direct Send accepted' ); }
+            else { setResultMsg( { ok: false, text: r.error || 'Failed', hint: r.directSendHint } ); toast.error( r.betaGated ? 'Direct Send not enabled for this WABA' : ( r.error || 'Failed' ) ); }
+        } catch ( e: any ) { setResultMsg( { ok: false, text: e.message } ); toast.error( e.message ); }
+        finally { setSending( false ); }
+    };
+
+    return (
+        <div style={ card }>
+            <h3 style={ { margin: 0 } }>Direct Send <span style={ { fontSize: 'var(--text-xs)', color: '#92400e', background: '#fef3c7', padding: '2px 8px', borderRadius: 6, marginLeft: 8 } }>BETA</span></h3>
+            <p style={ { fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6 } }>
+                Send a utility/authentication message without pre-creating a template — Meta auto-generates the template. Requires this WABA to be onboarded to the Direct Send beta by your Meta representative; until then sends return a beta-gate error (139200 / 131064).
+            </p>
+            <label style={ label }>Recipient phone (digits or +E.164)</label>
+            <input style={ input } placeholder="918100640044" value={ to } onChange={ e => setTo( e.target.value ) } />
+            <label style={ { ...label, marginTop: 12 } }>Category</label>
+            <select style={ input } value={ category } onChange={ e => setCategory( e.target.value as any ) }>
+                <option value="utility">utility</option>
+                <option value="authentication">authentication</option>
+            </select>
+            <label style={ { ...label, marginTop: 12 } }>Message body (max 1024 chars)</label>
+            <textarea style={ { ...input, minHeight: 80 } } maxLength={ 1024 } value={ text } onChange={ e => setText( e.target.value ) } />
+            <label style={ { ...label, marginTop: 12 } }>Business template name (optional, utility only — lowercase a-z 0-9 _)</label>
+            <input style={ input } placeholder="order_shipment_update" value={ templateName } onChange={ e => setTemplateName( e.target.value ) } />
+            <label style={ { ...label, marginTop: 12 } }>TTL seconds (optional, 30–43200)</label>
+            <input style={ input } type="number" placeholder="3600" value={ ttl } onChange={ e => setTtl( e.target.value ) } />
+            <div style={ { marginTop: 12 } }>
+                <Button variant="primary" onClick={ send } loading={ sending }>Send</Button>
+            </div>
+            { resultMsg && (
+                <div style={ { marginTop: 12, fontSize: 'var(--text-sm)' } }>
+                    <p style={ { fontWeight: 600, color: resultMsg.ok ? '#166534' : '#b91c1c' } }>{ resultMsg.text }</p>
+                    { resultMsg.hint && <p style={ { color: '#92400e', marginTop: 4 } }>{ resultMsg.hint }</p> }
+                </div>
             ) }
         </div>
     );

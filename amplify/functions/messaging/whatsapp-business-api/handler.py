@@ -806,6 +806,115 @@ def _get_throughput(phone_id: str) -> Dict:
 
 
 # ============================================================================
+# DIRECT SEND API (BETA) — send utility/authentication messages WITHOUT
+# pre-creating a template. Meta auto-generates/matches a template from the
+# message body. POST /{phone_id}/messages with a top-level `category` field.
+#
+# BETA GATE: the WABA must be onboarded to the Direct Send beta by a Meta rep
+# (submit WABA id + sample use cases + contacts). Until then Meta returns
+# 139200 (access blocked) or 131064 (limit / misclassification). This scaffold
+# builds the correct payload and surfaces those gate errors clearly.
+# ============================================================================
+_DIRECT_SEND_CATEGORIES = {'utility', 'authentication'}
+_DIRECT_SEND_ERROR_HINTS = {
+    '139200': 'Direct Send is not enabled for this WABA. Ask your Meta representative to onboard this WABA to the Direct Send beta (submit WABA id, sample use cases, and contacts).',
+    '131064': 'Direct Send messaging limit reached for this 24h window due to category-misclassification enforcement. Wait for the next window.',
+    '132021': 'A template with this template_name already exists and was not created by Direct Send. Choose a different name.',
+    '131000': 'Direct Send could not create the named template after retries (infrastructure failure). Try again or drop template_name.',
+    '132015': 'The matched template is paused due to low quality.',
+}
+
+
+def _direct_send(phone_id: str, body: Dict) -> Dict:
+    """Direct Send API (beta). Supports text (+ optional interactive buttons),
+    category utility|authentication, optional business-named template, optional TTL."""
+    import re as _re
+    to = (body.get('to') or body.get('recipientPhone') or '').strip()
+    category = (body.get('category') or 'utility').lower()
+    text = body.get('text') or body.get('content') or ''
+    template_name = (body.get('templateName') or '').strip()
+    ttl_seconds = body.get('ttlSeconds')
+    buttons = body.get('buttons') or []  # [{type:'reply'|'url', text, id?, url?}]
+
+    if not to:
+        return _resp(400, {'error': 'to (recipient phone, digits or +E.164) is required'})
+    if category not in _DIRECT_SEND_CATEGORIES:
+        return _resp(400, {'error': "category must be 'utility' or 'authentication'"})
+    if not text:
+        return _resp(400, {'error': 'text (message body) is required'})
+    if len(text) > 1024:
+        return _resp(400, {'error': 'Body text exceeds 1024 characters (Direct Send limit)'})
+
+    payload = {
+        'messaging_product': 'whatsapp',
+        'recipient_type': 'individual',
+        'to': to,
+        'category': category,
+    }
+
+    # Interactive buttons are utility-only in the beta (max 10 reply, max 2 CTA URL).
+    reply_btns = [b for b in buttons if (b.get('type') or 'reply') == 'reply']
+    url_btns = [b for b in buttons if b.get('type') == 'url']
+    if buttons and category == 'utility':
+        if len(reply_btns) > 10:
+            return _resp(400, {'error': 'Max 10 quick-reply buttons'})
+        if len(url_btns) > 2:
+            return _resp(400, {'error': 'Max 2 call-to-action URL buttons'})
+        action_buttons = []
+        for i, b in enumerate(reply_btns):
+            action_buttons.append({'type': 'reply', 'reply': {
+                'id': b.get('id') or f'btn_{i}', 'title': (b.get('text') or '')[:20]}})
+        if url_btns and not action_buttons:
+            # Pure CTA URL button → cta_url interactive
+            b = url_btns[0]
+            payload['type'] = 'interactive'
+            payload['interactive'] = {
+                'type': 'cta_url',
+                'body': {'text': text},
+                'action': {'name': 'cta_url', 'parameters': {
+                    'display_text': (b.get('text') or 'Open')[:20], 'url': b.get('url') or ''}},
+            }
+        else:
+            payload['type'] = 'interactive'
+            payload['interactive'] = {
+                'type': 'button',
+                'body': {'text': text},
+                'action': {'buttons': action_buttons},
+            }
+    else:
+        payload['type'] = 'text'
+        payload['text'] = {'body': text}
+
+    if template_name:
+        if not _re.match(r'^[a-z0-9_]+$', template_name) or len(template_name) > 512:
+            return _resp(400, {'error': 'templateName must match ^[a-z0-9_]+$ and be <= 512 chars'})
+        if category != 'utility':
+            return _resp(400, {'error': 'Business-named templates are supported only for category "utility"'})
+        payload['direct_send_config'] = {'template_name': template_name}
+
+    if ttl_seconds is not None and ttl_seconds != '':
+        try:
+            ttl = int(ttl_seconds)
+        except (TypeError, ValueError):
+            return _resp(400, {'error': 'ttlSeconds must be an integer'})
+        if not (30 <= ttl <= 43200):
+            return _resp(400, {'error': 'ttlSeconds must be between 30 and 43200 (30s to 12h)'})
+        payload['ttl'] = ttl
+
+    result = _graph_api(f'{phone_id}/messages', method='POST', payload=payload, phone_id=phone_id)
+    if 'error' in result:
+        err = result.get('error', {})
+        code = err.get('code') if isinstance(err, dict) else None
+        if code is None and isinstance(err, dict):
+            code = (err.get('error') or {}).get('code')
+        hint = _DIRECT_SEND_ERROR_HINTS.get(str(code))
+        return _resp(400, {'error': err, 'directSendHint': hint,
+                          'betaGated': str(code) in ('139200', '131064')})
+    return _resp(200, {'success': True, 'category': category,
+                      'templateName': template_name or None, 'result': result})
+
+
+# ============================================================================
 # LINK PREVIEW VALIDATOR (Open Graph requirements for WhatsApp link previews)
 # ============================================================================
 def _is_ssrf_safe_url(url: str) -> bool:
@@ -5121,6 +5230,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not phone_id:
                 return _resp(400, {'error': 'phoneId required'})
             return _get_throughput(phone_id)
+
+        elif '/direct-send' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            if method == 'POST':
+                return _direct_send(phone_id, body)
+            return _resp(405, {'error': 'POST only'})
 
         elif '/link-preview' in path:
             return _check_link_preview(params.get('url') or body.get('url') or '')

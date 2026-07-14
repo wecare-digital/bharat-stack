@@ -5862,6 +5862,25 @@ export async function getThroughput ( phoneId: string ): Promise<ThroughputInfo>
   };
 }
 
+export interface DirectSendButton { type: 'reply' | 'url'; text: string; id?: string; url?: string; }
+
+export interface DirectSendResult { success: boolean; error?: string; directSendHint?: string; betaGated?: boolean; result?: any; }
+
+export async function directSend (
+  phoneId: string,
+  payload: { to: string; category: 'utility' | 'authentication'; text: string; templateName?: string; ttlSeconds?: number; buttons?: DirectSendButton[] }
+): Promise<DirectSendResult> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/direct-send`, {
+    method: 'POST',
+    body: JSON.stringify( { phoneId, ...payload } ),
+  } );
+  if ( data?.error ) {
+    const msg = typeof data.error === 'string' ? data.error : ( data.error?.message || data.error?.error?.message || JSON.stringify( data.error ) );
+    return { success: false, error: msg, directSendHint: data.directSendHint, betaGated: data.betaGated };
+  }
+  return { success: true, result: data?.result };
+}
+
 export interface LinkPreviewResult { url: string; ok: boolean; og: Record<string, string>; warnings: string[]; note?: string; }
 
 export async function checkLinkPreview ( url: string ): Promise<LinkPreviewResult> {
