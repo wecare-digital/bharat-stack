@@ -1132,11 +1132,23 @@ def _handle_checkout_template_send(
                 'country_code': 'IN',
             },
         }
+        # Meta's order_details item schema is strict — any extra key (e.g. our
+        # per-item 'gstRate') causes error 100 "Unexpected key ...". Keep only the
+        # keys Meta allows, then add India-compliance defaults.
+        _ALLOWED_ITEM_KEYS = {
+            'retailer_id', 'name', 'amount', 'sale_amount', 'quantity',
+            'country_of_origin', 'importer_name', 'importer_address',
+        }
+        _sanitized_items = []
         for item in order_obj.get('items', []):
-            if not item.get('importer_name'):
-                item.update(WECARE_IMPORTER)
-            if not item.get('country_of_origin'):
-                item['country_of_origin'] = 'India'
+            clean_item = {k: v for k, v in item.items() if k in _ALLOWED_ITEM_KEYS}
+            if not clean_item.get('importer_name'):
+                clean_item.update(WECARE_IMPORTER)
+            if not clean_item.get('country_of_origin'):
+                clean_item['country_of_origin'] = 'India'
+            _sanitized_items.append(clean_item)
+        if 'items' in order_obj:
+            order_obj['items'] = _sanitized_items
 
         # Build template components
         components = []
