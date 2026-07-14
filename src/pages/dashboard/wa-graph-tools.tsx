@@ -23,7 +23,7 @@ const PHONES = [
 
 const TABS = [
     'Schedules', 'Commerce', 'QR Codes', 'Conversational Automation',
-    'Link Preview', 'Assigned Users', 'AI Pricing Policy',
+    'Link Preview', 'Throughput', 'Assigned Users', 'AI Pricing Policy',
 ] as const;
 type Tab = typeof TABS[ number ];
 
@@ -75,6 +75,7 @@ export default function WAGraphTools ( { signOut, user }: PageProps ) {
                 { tab === 'QR Codes' && <QrTab phoneId={ phone.phoneId } toast={ toast } confirm={ confirm } /> }
                 { tab === 'Conversational Automation' && <ConvAutomationTab phoneId={ phone.phoneId } toast={ toast } /> }
                 { tab === 'Link Preview' && <LinkPreviewTab toast={ toast } /> }
+                { tab === 'Throughput' && <ThroughputTab phoneId={ phone.phoneId } toast={ toast } /> }
                 { tab === 'Assigned Users' && <AssignedUsersTab wabaId={ phone.wabaId } toast={ toast } confirm={ confirm } /> }
                 { tab === 'AI Pricing Policy' && <AiPolicyTab toast={ toast } confirm={ confirm } /> }
             </div>
@@ -228,6 +229,22 @@ function ConvAutomationTab ( { phoneId, toast }: { phoneId: string; toast: any }
     const [ prompts, setPrompts ] = useState( '' );
     const [ commands, setCommands ] = useState<api.BotCommand[]>( [ { command_name: '', command_description: '' } ] );
     const [ saving, setSaving ] = useState( false );
+    const [ loading, setLoading ] = useState( false );
+
+    // Load the LIVE config from Meta so the editor reflects what's actually set.
+    const load = useCallback( async () => {
+        setLoading( true );
+        try
+        {
+            const ca = await api.getConversationalAutomation( phoneId );
+            setWelcome( ca.enable_welcome_message );
+            setPrompts( ( ca.prompts || [] ).join( '\n' ) );
+            setCommands( ca.commands.length ? ca.commands : [ { command_name: '', command_description: '' } ] );
+        } catch ( e: any ) { toast.error( e.message || 'Failed to load current config' ); }
+        finally { setLoading( false ); }
+    }, [ phoneId, toast ] );
+    useEffect( () => { load(); }, [ load ] );
+
     const save = async () => {
         const promptList = prompts.split( '\n' ).map( p => p.trim() ).filter( Boolean ).slice( 0, 4 );
         const cmds = commands.filter( c => c.command_name && c.command_description );
@@ -240,8 +257,14 @@ function ConvAutomationTab ( { phoneId, toast }: { phoneId: string; toast: any }
     };
     return (
         <div style={ card }>
-            <h3>Conversational Automation</h3>
-            <label style={ { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 } }>
+            <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } }>
+                <h3 style={ { margin: 0 } }>Conversational Automation</h3>
+                <Button variant="secondary" size="sm" onClick={ load } loading={ loading }>Reload live config</Button>
+            </div>
+            <p style={ { fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 4 } }>
+                Commands appear when a user types <b>/</b> in the chat. Ice-breakers show only in a brand-new chat thread. Names are lower-cased and cannot contain emojis.
+            </p>
+            <label style={ { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, marginTop: 12 } }>
                 <input type="checkbox" checked={ welcome } onChange={ e => setWelcome( e.target.checked ) } /> Enable welcome message
             </label>
             <label style={ label }>Ice-breaker prompts (one per line, max 4)</label>
@@ -293,6 +316,50 @@ function LinkPreviewTab ( { toast }: { toast: any } ) {
                     ) }
                     { result.note && <p style={ { fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 8 } }>{ result.note }</p> }
                 </div>
+            ) }
+        </div>
+    );
+}
+
+// ── Throughput ──
+function ThroughputTab ( { phoneId, toast }: { phoneId: string; toast: any } ) {
+    const [ info, setInfo ] = useState<api.ThroughputInfo | null>( null );
+    const [ loading, setLoading ] = useState( false );
+    const load = useCallback( async () => {
+        setLoading( true );
+        try { setInfo( await api.getThroughput( phoneId ) ); }
+        catch ( e: any ) { toast.error( e.message || 'Failed to load throughput' ); }
+        finally { setLoading( false ); }
+    }, [ phoneId, toast ] );
+    useEffect( () => { load(); }, [ load ] );
+
+    const levelLabel: Record<string, string> = {
+        STANDARD: 'Standard (80 msg/sec)',
+        HIGH: 'High (1,000 msg/sec)',
+        NOT_APPLICABLE: 'WhatsApp Business app number (fixed 20 msg/sec)',
+    };
+    const qualityColor: Record<string, string> = { GREEN: '#166534', YELLOW: '#92400e', RED: '#b91c1c' };
+
+    return (
+        <div style={ card }>
+            <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } }>
+                <h3 style={ { margin: 0 } }>Throughput &amp; Quality</h3>
+                <Button variant="secondary" size="sm" onClick={ load } loading={ loading }>Refresh</Button>
+            </div>
+            <p style={ { fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 4 } }>
+                Throughput is Meta-managed and auto-upgrades to 1,000 msg/sec when eligible (unlimited messaging limit, 100K+ unique recipients / 24h, quality YELLOW or higher). It cannot be set manually.
+            </p>
+            { loading && !info ? <Spinner /> : info && (
+                <table style={ { fontSize: 'var(--text-sm)', marginTop: 12, width: '100%' } }>
+                    <tbody>
+                        <tr><td style={ { color: 'var(--text-muted)', paddingRight: 16, padding: '6px 16px 6px 0' } }>Phone</td><td>{ info.displayPhoneNumber || phoneId } { info.verifiedName ? `· ${info.verifiedName}` : '' }</td></tr>
+                        <tr><td style={ { color: 'var(--text-muted)', padding: '6px 16px 6px 0' } }>Throughput level</td><td style={ { fontWeight: 600 } }>{ levelLabel[ info.throughputLevel ] || info.throughputLevel || 'Unknown' }</td></tr>
+                        <tr><td style={ { color: 'var(--text-muted)', padding: '6px 16px 6px 0' } }>Max messages/sec</td><td>{ info.messagesPerSecond ?? '—' }</td></tr>
+                        <tr><td style={ { color: 'var(--text-muted)', padding: '6px 16px 6px 0' } }>Quality rating</td><td style={ { fontWeight: 600, color: qualityColor[ info.qualityRating ] || 'inherit' } }>{ info.qualityRating || '—' }</td></tr>
+                        <tr><td style={ { color: 'var(--text-muted)', padding: '6px 16px 6px 0' } }>Status</td><td>{ info.status || '—' }</td></tr>
+                        { info.platformType && <tr><td style={ { color: 'var(--text-muted)', padding: '6px 16px 6px 0' } }>Platform</td><td>{ info.platformType }</td></tr> }
+                    </tbody>
+                </table>
             ) }
         </div>
     );

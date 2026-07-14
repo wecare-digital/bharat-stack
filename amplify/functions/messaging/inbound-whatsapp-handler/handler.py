@@ -1320,6 +1320,26 @@ def _process_message(
     if msg_type == 'text' and content:
         content_lower = content.strip().lower()
 
+        # ── Slash-command normalization (WhatsApp Conversational Components) ──
+        # A configured command can be tapped OR typed with arguments/trailing
+        # text, e.g. "/pay 500", "/menu ", "/imagine cars". Meta delivers the
+        # FULL body. Collapse a KNOWN "/command [args]" to just the command
+        # token so it reliably routes to the same handler as the bare command.
+        # Unknown "/foo" is left intact so free-form input still reaches the AI.
+        if content_lower.startswith('/'):
+            _cmd_token = content_lower.split(None, 1)[0]
+            _KNOWN_SLASH_COMMANDS = {
+                '/menu', '/subscribe', '/bharatstack', '/selfservice',
+                '/service', '/pay', '/help', '/commands',
+            }
+            if _cmd_token in _KNOWN_SLASH_COMMANDS:
+                logger.info(json.dumps({
+                    'event': 'slash_command_normalized',
+                    'original': content_lower[:80], 'command': _cmd_token,
+                    'contactId': contact_id, 'requestId': request_id,
+                }))
+                content_lower = _cmd_token
+
         # ── "Get my ID" / "my id" / "sub id" — fetch subscriber details ──
         MY_ID_KEYWORDS = {
             'my id', 'my sub id', 'sub id', 'subscriber id', 'my subscriber id',

@@ -5820,6 +5820,48 @@ export async function configureConversationalAutomation (
   return { success: true };
 }
 
+export interface ConversationalAutomation {
+  phoneId: string;
+  prompts: string[];
+  commands: BotCommand[];
+  enable_welcome_message: boolean;
+}
+
+export async function getConversationalAutomation ( phoneId: string ): Promise<ConversationalAutomation> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/conversational-automation?phoneId=${encodeURIComponent( phoneId )}` );
+  return {
+    phoneId,
+    prompts: data?.prompts || [],
+    commands: data?.commands || [],
+    enable_welcome_message: !!data?.enable_welcome_message,
+  };
+}
+
+export interface ThroughputInfo {
+  phoneId: string;
+  displayPhoneNumber: string;
+  verifiedName: string;
+  status: string;
+  platformType: string;
+  qualityRating: string;
+  throughputLevel: string;
+  messagesPerSecond: number | null;
+}
+
+export async function getThroughput ( phoneId: string ): Promise<ThroughputInfo> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/throughput?phoneId=${encodeURIComponent( phoneId )}` );
+  return {
+    phoneId,
+    displayPhoneNumber: data?.displayPhoneNumber || '',
+    verifiedName: data?.verifiedName || '',
+    status: data?.status || '',
+    platformType: data?.platformType || '',
+    qualityRating: data?.qualityRating || '',
+    throughputLevel: data?.throughputLevel || '',
+    messagesPerSecond: data?.messagesPerSecond ?? null,
+  };
+}
+
 export interface LinkPreviewResult { url: string; ok: boolean; og: Record<string, string>; warnings: string[]; note?: string; }
 
 export async function checkLinkPreview ( url: string ): Promise<LinkPreviewResult> {

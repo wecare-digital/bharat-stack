@@ -761,6 +761,50 @@ def _configure_conversational_automation(phone_id: str, body: Dict) -> Dict:
     return _resp(200, {'success': result.get('success', True), 'result': result})
 
 
+def _get_conversational_automation(phone_id: str) -> Dict:
+    """Read the currently-configured ice-breaker prompts + slash commands.
+    GET /{phone_id}?fields=conversational_automation"""
+    result = _graph_api(phone_id, method='GET',
+                        params={'fields': 'conversational_automation'}, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    ca = result.get('conversational_automation', {}) or {}
+    return _resp(200, {
+        'phoneId': phone_id,
+        'prompts': ca.get('prompts', []),
+        'commands': ca.get('commands', []),
+        'enable_welcome_message': ca.get('enable_welcome_message', False),
+    })
+
+
+# ============================================================================
+# THROUGHPUT (WhatsApp Cloud API messages-per-second level for a phone number)
+# GET /{phone_id}?fields=throughput
+# ============================================================================
+def _get_throughput(phone_id: str) -> Dict:
+    """Read the phone number's current throughput level + quality rating.
+    Throughput.level is STANDARD (80 mps), HIGH (1,000 mps) or NOT_APPLICABLE
+    (WhatsApp Business app numbers, fixed 20 mps). Auto-upgrades are Meta-managed."""
+    result = _graph_api(phone_id, method='GET', params={
+        'fields': 'throughput,quality_rating,display_phone_number,verified_name,status,platform_type'
+    }, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    throughput = result.get('throughput', {}) or {}
+    level = throughput.get('level', '')
+    mps = {'STANDARD': 80, 'HIGH': 1000, 'NOT_APPLICABLE': 20}.get(level)
+    return _resp(200, {
+        'phoneId': phone_id,
+        'displayPhoneNumber': result.get('display_phone_number', ''),
+        'verifiedName': result.get('verified_name', ''),
+        'status': result.get('status', ''),
+        'platformType': result.get('platform_type', ''),
+        'qualityRating': result.get('quality_rating', ''),
+        'throughputLevel': level,
+        'messagesPerSecond': mps,
+    })
+
+
 # ============================================================================
 # LINK PREVIEW VALIDATOR (Open Graph requirements for WhatsApp link previews)
 # ============================================================================
@@ -5068,7 +5112,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             phone_id = params.get('phoneId') or body.get('phoneId')
             if not phone_id:
                 return _resp(400, {'error': 'phoneId required'})
+            if method == 'GET':
+                return _get_conversational_automation(phone_id)
             return _configure_conversational_automation(phone_id, body)
+
+        elif '/throughput' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            return _get_throughput(phone_id)
 
         elif '/link-preview' in path:
             return _check_link_preview(params.get('url') or body.get('url') or '')
