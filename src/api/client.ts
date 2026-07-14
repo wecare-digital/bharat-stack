@@ -5910,6 +5910,22 @@ export async function getMmOnboardingStatus ( wabaId: string ): Promise<{ onboar
   return { onboardingStatus: data?.onboardingStatus || '', time: data?.time || '' };
 }
 
+export async function sendMarketingMessage (
+  phoneId: string,
+  payload: { to: string; templateName: string; language?: string; params?: string[]; messageActivitySharing?: boolean }
+): Promise<{ success: boolean; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/marketing-message`, {
+    method: 'POST',
+    body: JSON.stringify( { phoneId, ...payload } ),
+  } );
+  if ( data?.error )
+  {
+    const msg = typeof data.error === 'string' ? data.error : ( data.error?.message || data.error?.error?.message || JSON.stringify( data.error ) );
+    return { success: false, error: msg };
+  }
+  return { success: true };
+}
+
 export interface LinkPreviewResult { url: string; ok: boolean; og: Record<string, string>; warnings: string[]; note?: string; }
 
 export async function checkLinkPreview ( url: string ): Promise<LinkPreviewResult> {

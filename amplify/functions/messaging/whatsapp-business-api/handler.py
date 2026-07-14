@@ -955,6 +955,47 @@ def _list_generated_templates(waba_id: str) -> Dict:
     return _resp(200, {'wabaId': waba_id, 'total': len(data), 'templates': data})
 
 
+def _send_marketing_message(phone_id: str, body: Dict) -> Dict:
+    """Marketing Messages (MM Lite) API — send an OPTIMIZED marketing template
+    message over the same phone number as Cloud API. Both WABAs are ONBOARDED.
+    POST /{phone_id}/marketing_messages with a standard template payload.
+
+    Body: to, templateName, language(default en/en_US), params(list, body vars),
+    messageActivitySharing(bool, optional per-message override)."""
+    to = (body.get('to') or body.get('recipientPhone') or '').strip()
+    template_name = (body.get('templateName') or '').strip()
+    language = body.get('language') or 'en'
+    params = body.get('params') or []
+    activity_sharing = body.get('messageActivitySharing')
+
+    if not to:
+        return _resp(400, {'error': 'to (recipient phone) is required'})
+    if not template_name:
+        return _resp(400, {'error': 'templateName is required (must be an APPROVED marketing template)'})
+
+    template_obj = {'name': template_name, 'language': {'code': language}}
+    if params:
+        template_obj['components'] = [{
+            'type': 'body',
+            'parameters': [{'type': 'text', 'text': str(p)} for p in params],
+        }]
+
+    payload = {
+        'messaging_product': 'whatsapp',
+        'recipient_type': 'individual',
+        'to': to,
+        'type': 'template',
+        'template': template_obj,
+    }
+    if activity_sharing is not None:
+        payload['message_activity_sharing'] = bool(activity_sharing)
+
+    result = _graph_api(f'{phone_id}/marketing_messages', method='POST', payload=payload, phone_id=phone_id)
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True, 'result': result})
+
+
 def _get_mm_onboarding_status(waba_id: str) -> Dict:
     """Marketing Messages (MM Lite) API onboarding/eligibility for a WABA.
     GET /{waba_id}?fields=marketing_messages_onboarding_status
@@ -5318,6 +5359,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not waba_id:
                 return _resp(400, {'error': 'wabaId required'})
             return _get_mm_onboarding_status(waba_id)
+
+        elif '/marketing-message' in path:
+            phone_id = params.get('phoneId') or body.get('phoneId')
+            if not phone_id:
+                return _resp(400, {'error': 'phoneId required'})
+            if method == 'POST':
+                return _send_marketing_message(phone_id, body)
+            return _resp(405, {'error': 'POST only'})
 
         elif '/link-preview' in path:
             return _check_link_preview(params.get('url') or body.get('url') or '')

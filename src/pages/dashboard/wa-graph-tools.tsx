@@ -23,7 +23,7 @@ const PHONES = [
 
 const TABS = [
     'Schedules', 'Commerce', 'QR Codes', 'Conversational Automation',
-    'Link Preview', 'Throughput', 'Direct Send', 'Assigned Users', 'AI Pricing Policy',
+    'Link Preview', 'Throughput', 'Direct Send', 'Marketing (MM Lite)', 'Assigned Users', 'AI Pricing Policy',
 ] as const;
 type Tab = typeof TABS[ number ];
 
@@ -77,6 +77,7 @@ export default function WAGraphTools ( { signOut, user }: PageProps ) {
                 { tab === 'Link Preview' && <LinkPreviewTab toast={ toast } /> }
                 { tab === 'Throughput' && <ThroughputTab phoneId={ phone.phoneId } toast={ toast } /> }
                 { tab === 'Direct Send' && <DirectSendTab phoneId={ phone.phoneId } wabaId={ phone.wabaId } toast={ toast } /> }
+                { tab === 'Marketing (MM Lite)' && <MarketingTab phoneId={ phone.phoneId } wabaId={ phone.wabaId } toast={ toast } /> }
                 { tab === 'Assigned Users' && <AssignedUsersTab wabaId={ phone.wabaId } toast={ toast } confirm={ confirm } /> }
                 { tab === 'AI Pricing Policy' && <AiPolicyTab toast={ toast } confirm={ confirm } /> }
             </div>
@@ -484,6 +485,59 @@ function DirectSendTab ( { phoneId, wabaId, toast }: { phoneId: string; wabaId: 
                     Marketing Messages (MM Lite) onboarding: <b style={ { color: 'var(--text-primary)' } }>{ mm.onboardingStatus || 'unknown' }</b>{ mm.time ? ` · ${mm.time}` : '' }
                 </div>
             ) }
+        </div>
+    );
+}
+
+// ── Marketing (MM Lite) ──
+function MarketingTab ( { phoneId, wabaId, toast }: { phoneId: string; wabaId: string; toast: any } ) {
+    const [ to, setTo ] = useState( '' );
+    const [ templateName, setTemplateName ] = useState( '' );
+    const [ language, setLanguage ] = useState( 'en' );
+    const [ paramsText, setParamsText ] = useState( '' );
+    const [ sharing, setSharing ] = useState( true );
+    const [ sending, setSending ] = useState( false );
+    const [ mm, setMm ] = useState<{ onboardingStatus: string; time: string } | null>( null );
+
+    const loadMm = useCallback( async () => {
+        try { setMm( await api.getMmOnboardingStatus( wabaId ) ); } catch { /* non-fatal */ }
+    }, [ wabaId ] );
+    useEffect( () => { loadMm(); }, [ loadMm ] );
+
+    const send = async () => {
+        if ( !to ) { toast.error( 'Recipient phone required' ); return; }
+        if ( !templateName ) { toast.error( 'Approved marketing template name required' ); return; }
+        setSending( true );
+        try
+        {
+            const params = paramsText.split( ',' ).map( p => p.trim() ).filter( Boolean );
+            const r = await api.sendMarketingMessage( phoneId, { to, templateName, language, params, messageActivitySharing: sharing } );
+            r.success ? toast.success( 'Marketing message sent' ) : toast.error( r.error || 'Failed' );
+        } finally { setSending( false ); }
+    };
+
+    const onboarded = mm?.onboardingStatus === 'ONBOARDED';
+    return (
+        <div style={ card }>
+            <h3 style={ { margin: 0 } }>Marketing Messages (MM Lite)</h3>
+            <p style={ { fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 6 } }>
+                Send optimized marketing template messages over Cloud API. Requires an APPROVED marketing template on this WABA.
+                Onboarding status: <b style={ { color: onboarded ? '#166534' : '#92400e' } }>{ mm?.onboardingStatus || '…' }</b>
+            </p>
+            <label style={ label }>Recipient phone (digits or +E.164)</label>
+            <input style={ input } placeholder="918100640044" value={ to } onChange={ e => setTo( e.target.value ) } />
+            <label style={ { ...label, marginTop: 12 } }>Marketing template name (APPROVED)</label>
+            <input style={ input } placeholder="my_marketing_template" value={ templateName } onChange={ e => setTemplateName( e.target.value ) } />
+            <label style={ { ...label, marginTop: 12 } }>Language code</label>
+            <input style={ input } placeholder="en or en_US" value={ language } onChange={ e => setLanguage( e.target.value ) } />
+            <label style={ { ...label, marginTop: 12 } }>Body parameters (comma-separated, optional)</label>
+            <input style={ input } placeholder="John, 30%, WD-123" value={ paramsText } onChange={ e => setParamsText( e.target.value ) } />
+            <label style={ { display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 } }>
+                <input type="checkbox" checked={ sharing } onChange={ e => setSharing( e.target.checked ) } /> Share message activity with Meta (optimizes delivery)
+            </label>
+            <div style={ { marginTop: 12 } }>
+                <Button variant="primary" onClick={ send } loading={ sending } disabled={ !onboarded }>Send marketing message</Button>
+            </div>
         </div>
     );
 }
