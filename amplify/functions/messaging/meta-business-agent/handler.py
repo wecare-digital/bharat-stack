@@ -74,6 +74,25 @@ def _resp(status, body):
     return {"statusCode": status, "headers": CORS, "body": json.dumps(body)}
 
 
+def _pass_status(status, ok=(200,), success_status=None):
+    """Map an upstream Meta status to the HTTP status we return to the caller.
+
+    A non-2xx from Meta is NOT a gateway failure. In particular Meta returns
+    403 when the Business AI Terms of Service have not been accepted for the
+    WABA. Surfacing that as 502 falsely trips the apigw-5xx CloudWatch alarm.
+
+    - success (status in `ok`) -> success_status (or the upstream status)
+    - upstream client error (4xx) -> surface the SAME 4xx (e.g. 403) so API
+      Gateway records a 4xx, not a 5xx
+    - genuine upstream 5xx / network error -> 502 Bad Gateway
+    """
+    if status in ok:
+        return success_status or status
+    if 400 <= status < 500:
+        return status
+    return 502
+
+
 def _meta_request(method: str, url: str, payload: dict | None):
     token, secret = _creds()
     if secret:  # api.facebook.com requires appsecret_proof
@@ -113,7 +132,7 @@ def _onboard(body: dict):
     url = f"{GRAPH_HOST}/{entity_id}/agent_onboarding/?channel={channel}"
     status, data = _meta_request("POST", url, {})
     logger.info(json.dumps({"event": "agent_onboard", "entity": entity_id, "channel": channel, "status": status}))
-    return _resp(status if status in (200, 201) else 502, {"onboarding": data, "entityId": entity_id, "channel": channel})
+    return _resp(_pass_status(status, (200, 201)), {"onboarding": data, "entityId": entity_id, "channel": channel})
 
 
 GRAPH = os.environ.get("META_GRAPH_BASE", "https://graph.facebook.com/v22.0")
@@ -138,7 +157,7 @@ def _eligibility(body: dict):
     if not entity_id:
         return _resp(400, {"error": "entityId required"})
     status, data = _meta_request("GET", f"{GRAPH_HOST}/{entity_id}/agent_eligibility/", None)
-    return _resp(status if status == 200 else 502, {"eligibility": data, "entityId": entity_id})
+    return _resp(_pass_status(status, (200,)), {"eligibility": data, "entityId": entity_id})
 
 
 def _settings_url(entity_id: str, agent_id: str | None) -> str:
@@ -152,7 +171,7 @@ def _settings_get(body: dict):
     if not entity_id:
         return _resp(400, {"error": "entityId required"})
     status, data = _meta_request("GET", _settings_url(entity_id, body.get("agentId")), None)
-    return _resp(status if status == 200 else 502, {"settings": data, "entityId": entity_id})
+    return _resp(_pass_status(status, (200,)), {"settings": data, "entityId": entity_id})
 
 
 def _settings_update(body: dict):
@@ -187,7 +206,7 @@ def _settings_update(body: dict):
     status, data = _meta_request("PUT", _settings_url(entity_id, agent_id), payload)
     logger.info(json.dumps({"event": "agent_settings_update", "entity": entity_id,
                             "enabled": payload.get("rollout", {}).get("enabled"), "status": status}))
-    return _resp(status if status == 200 else 502, {"settings": data, "entityId": entity_id})
+    return _resp(_pass_status(status, (200,)), {"settings": data, "entityId": entity_id})
 
 
 def _allowlist_url(entity_id: str, entry_id: str | None = None) -> str:
@@ -201,7 +220,7 @@ def _allowlist_list(body: dict):
     if not entity_id:
         return _resp(400, {"error": "entityId required"})
     status, data = _meta_request("GET", _allowlist_url(entity_id), None)
-    return _resp(status if status == 200 else 502, {"allowlist": data, "entityId": entity_id})
+    return _resp(_pass_status(status, (200,)), {"allowlist": data, "entityId": entity_id})
 
 
 def _allowlist_add(body: dict):
@@ -211,7 +230,7 @@ def _allowlist_add(body: dict):
     if not entity_id or not phone:
         return _resp(400, {"error": "entityId and consumerPhoneNumber (E.164, e.g. +15551234567) required"})
     status, data = _meta_request("POST", _allowlist_url(entity_id), {"consumer_phone_number": phone})
-    return _resp(status if status in (200, 201) else 502, {"entry": data, "entityId": entity_id})
+    return _resp(_pass_status(status, (200, 201)), {"entry": data, "entityId": entity_id})
 
 
 def _allowlist_remove(body: dict):
@@ -221,7 +240,7 @@ def _allowlist_remove(body: dict):
     if not entity_id or not entry_id:
         return _resp(400, {"error": "entityId and entryId required"})
     status, data = _meta_request("DELETE", _allowlist_url(entity_id, entry_id), None)
-    return _resp(200 if status in (200, 204) else 502, {"deleted": status in (200, 204), "detail": data})
+    return _resp(_pass_status(status, (200, 204), success_status=200), {"deleted": status in (200, 204), "detail": data})
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -248,7 +267,7 @@ def _skills_get(body: dict):
     if not eid:
         return _resp(400, {"error": "entityId required"})
     st, d = _meta_request("GET", _with_agent(f"{GRAPH_HOST}/{eid}/agent_config/skills", body.get("agentId")), None)
-    return _resp(st if st == 200 else 502, {"skills": d, "entityId": eid})
+    return _resp(_pass_status(st, (200,)), {"skills": d, "entityId": eid})
 
 
 def _skills_update(body: dict):
@@ -259,7 +278,7 @@ def _skills_update(body: dict):
         return _resp(400, {"error": "entityId and instructions (system prompt) required"})
     st, d = _meta_request("PUT", _with_agent(f"{GRAPH_HOST}/{eid}/agent_config/skills", body.get("agentId")),
                           {"system_instructions": instructions})
-    return _resp(st if st in (200, 201) else 502, {"skills": d, "entityId": eid})
+    return _resp(_pass_status(st, (200, 201)), {"skills": d, "entityId": eid})
 
 
 def _knowledge_list(body: dict):
@@ -268,7 +287,7 @@ def _knowledge_list(body: dict):
     if not eid or res not in _KNOWLEDGE:
         return _resp(400, {"error": f"entityId and resource in {sorted(_KNOWLEDGE)} required"})
     st, d = _meta_request("GET", _with_agent(f"{GRAPH_HOST}/{eid}/agent_knowledge/{res}", body.get("agentId")), None)
-    return _resp(st if st == 200 else 502, {"resource": res, "items": d, "entityId": eid})
+    return _resp(_pass_status(st, (200,)), {"resource": res, "items": d, "entityId": eid})
 
 
 def _knowledge_add(body: dict):
@@ -277,7 +296,7 @@ def _knowledge_add(body: dict):
     if not eid or res not in _KNOWLEDGE or not item:
         return _resp(400, {"error": f"entityId, resource in {sorted(_KNOWLEDGE)}, and item{{}} required"})
     st, d = _meta_request("POST", _with_agent(f"{GRAPH_HOST}/{eid}/agent_knowledge/{res}", body.get("agentId")), item)
-    return _resp(st if st in (200, 201) else 502, {"resource": res, "created": d, "entityId": eid})
+    return _resp(_pass_status(st, (200, 201)), {"resource": res, "created": d, "entityId": eid})
 
 
 def _knowledge_remove(body: dict):
@@ -286,7 +305,7 @@ def _knowledge_remove(body: dict):
     if not eid or res not in _KNOWLEDGE or not item_id:
         return _resp(400, {"error": "entityId, resource, itemId required"})
     st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_knowledge/{res}/{item_id}", None)
-    return _resp(200 if st in (200, 204) else 502, {"deleted": st in (200, 204), "detail": d})
+    return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
 
 
 def _connectors_list(body: dict):
@@ -295,7 +314,7 @@ def _connectors_list(body: dict):
     if not eid:
         return _resp(400, {"error": "entityId required"})
     st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_config/connectors", None)
-    return _resp(st if st == 200 else 502, {"connectors": d, "entityId": eid})
+    return _resp(_pass_status(st, (200,)), {"connectors": d, "entityId": eid})
 
 
 def _connectors_add(body: dict):
@@ -304,7 +323,7 @@ def _connectors_add(body: dict):
     if not eid or not spec:
         return _resp(400, {"error": "entityId and connector{} required"})
     st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_config/connectors", spec)
-    return _resp(st if st in (200, 201) else 502, {"created": d, "entityId": eid})
+    return _resp(_pass_status(st, (200, 201)), {"created": d, "entityId": eid})
 
 
 def _connectors_remove(body: dict):
@@ -313,7 +332,7 @@ def _connectors_remove(body: dict):
     if not eid or not cid:
         return _resp(400, {"error": "entityId and connectorId required"})
     st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_config/connectors/{cid}", None)
-    return _resp(200 if st in (200, 204) else 502, {"deleted": st in (200, 204), "detail": d})
+    return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -330,7 +349,7 @@ def _thread_control(body: dict):
     verb = "pass_thread_control" if op == "pass" else "take_thread_control"
     st, d = _meta_request("POST", f"{GRAPH}/{eid}/{verb}",
                           {"messaging_product": "whatsapp", "recipient": recipient})
-    return _resp(st if st in (200, 201) else 502, {"thread_control": d, "op": op, "entityId": eid})
+    return _resp(_pass_status(st, (200, 201)), {"thread_control": d, "op": op, "entityId": eid})
 
 
 def _agent_event(body: dict):
@@ -339,7 +358,7 @@ def _agent_event(body: dict):
     if not eid or not payload:
         return _resp(400, {"error": "entityId and event{} required"})
     st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_event", payload)
-    return _resp(st if st in (200, 201) else 502, {"event": d, "entityId": eid})
+    return _resp(_pass_status(st, (200, 201)), {"event": d, "entityId": eid})
 
 
 def _agent_test(body: dict):
@@ -348,7 +367,7 @@ def _agent_test(body: dict):
     if not eid or not msg:
         return _resp(400, {"error": "entityId and message required"})
     st, d = _meta_request("POST", _with_agent(f"{GRAPH_HOST}/{eid}/agent_test", body.get("agentId")), {"message": msg})
-    return _resp(st if st in (200, 201) else 502, {"result": d, "entityId": eid})
+    return _resp(_pass_status(st, (200, 201)), {"result": d, "entityId": eid})
 
 
 def _agent_eval(body: dict):
@@ -357,7 +376,7 @@ def _agent_eval(body: dict):
     if not eid:
         return _resp(400, {"error": "entityId required"})
     st, d = _meta_request("GET", _with_agent(f"{GRAPH_HOST}/{eid}/agent_eval", body.get("agentId")), None)
-    return _resp(st if st == 200 else 502, {"eval": d, "entityId": eid})
+    return _resp(_pass_status(st, (200,)), {"eval": d, "entityId": eid})
 
 
 def lambda_handler(event, context):
