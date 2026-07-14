@@ -489,6 +489,13 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                         originating_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
                     else:
                         originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+                    # Carry the catalog product id so the post-payment flow resolver
+                    # can open the flow mapped to THIS product (catalog_flow_map).
+                    _rid = _inv.get('catalogRetailerId') or ''
+                    if _rid and 'catalogRetailerId' not in (notes or {}):
+                        if notes is None:
+                            notes = {}
+                        notes['catalogRetailerId'] = _rid
             except Exception:
                 pass
             if not originating_phone_id:

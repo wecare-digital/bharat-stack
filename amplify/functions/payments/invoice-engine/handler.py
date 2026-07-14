@@ -467,6 +467,9 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         'shippingAddress': shipping_address,
         'billingAddress': billing_address,
         'goodsType': body.get('goodsType', 'digital-goods'),
+        # Catalog product id (retailer_id) — used by the post-payment flow resolver
+        # to open the flow mapped to THIS product (catalog_flow_map).
+        'catalogRetailerId': body.get('catalogRetailerId', '') or body.get('retailerId', ''),
         # Amounts (stored in rupees)
         'subtotal': _dec(subtotal),
         'discount': _dec(discount),
