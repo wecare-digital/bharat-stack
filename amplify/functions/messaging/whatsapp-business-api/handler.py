@@ -125,6 +125,8 @@ MEDIA_ALLOWED_MIME = {
 INVOICE_ENGINE_FUNCTION = os.environ.get('INVOICE_ENGINE_FUNCTION', 'wecare-invoice-engine')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'stack-wecare-digital-SubmitRequestsTable')
+SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
+CATALOG_FLOW_MAP_ID = 'catalog_flow_map'  # SystemConfigTable key for product→flow mapping
 
 # Flow management tables
 FLOW_REGISTRY_TABLE = os.environ.get('FLOW_REGISTRY_TABLE', 'stack-wecare-digital-FlowRegistryTable')
@@ -953,6 +955,61 @@ def _list_generated_templates(waba_id: str) -> Dict:
         return _resp(400, result)
     data = result.get('data', []) or []
     return _resp(200, {'wabaId': waba_id, 'total': len(data), 'templates': data})
+
+
+# ============================================================================
+# CATALOG → FLOW MAPPING
+# Maps a catalog product (retailer_id) to the WhatsApp Flow that should open
+# after the customer pays for it. Lets each product open its OWN flow, on either
+# WABA. Read at payment capture by the razorpay-webhook resolution chain.
+# ============================================================================
+def _get_catalog_flow_map() -> Dict:
+    """Return the full product→flow mapping dict (retailer_id → config)."""
+    try:
+        t = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        item = t.get_item(Key={'id': CATALOG_FLOW_MAP_ID}).get('Item') or {}
+        raw = item.get('configValue') or item.get('value') or '{}'
+        mapping = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        return mapping if isinstance(mapping, dict) else {}
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'catalog_flow_map_read_error', 'error': str(e)}))
+        return {}
+
+
+def _list_catalog_flow_map(params: Dict) -> Dict:
+    return _resp(200, {'map': _get_catalog_flow_map()})
+
+
+def _upsert_catalog_flow_map(body: Dict) -> Dict:
+    """Create/update one product→flow mapping entry.
+    Body: retailerId (required), flowIdWaba1, flowIdWaba2, flowCode, cta, body.
+    If 'delete' is true, removes the entry."""
+    retailer_id = (body.get('retailerId') or body.get('retailer_id') or '').strip()
+    if not retailer_id:
+        return _resp(400, {'error': 'retailerId is required'})
+    mapping = _get_catalog_flow_map()
+    if body.get('delete'):
+        mapping.pop(retailer_id, None)
+    else:
+        entry = {
+            'flowIdWaba1': (body.get('flowIdWaba1') or '').strip(),
+            'flowIdWaba2': (body.get('flowIdWaba2') or '').strip(),
+            'flowCode': (body.get('flowCode') or '').strip(),
+            'cta': (body.get('cta') or 'Complete details')[:20],
+            'body': (body.get('body') or 'Payment received! Tap below to complete your request.')[:1024],
+        }
+        if not entry['flowIdWaba1'] and not entry['flowIdWaba2']:
+            return _resp(400, {'error': 'At least one of flowIdWaba1 / flowIdWaba2 is required'})
+        mapping[retailer_id] = entry
+    try:
+        t = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        t.put_item(Item={'id': CATALOG_FLOW_MAP_ID, 'configValue': json.dumps(mapping),
+                         'updatedAt': int(time.time())})
+    except Exception as e:
+        return _resp(500, {'error': f'Failed to save mapping: {e}'})
+    logger.info(json.dumps({'event': 'catalog_flow_map_upserted', 'retailerId': retailer_id,
+                            'deleted': bool(body.get('delete'))}))
+    return _resp(200, {'success': True, 'map': mapping})
 
 
 def _send_marketing_message(phone_id: str, body: Dict) -> Dict:
@@ -5367,6 +5424,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if method == 'POST':
                 return _send_marketing_message(phone_id, body)
             return _resp(405, {'error': 'POST only'})
+
+        elif '/catalog-flow-map' in path:
+            if method == 'GET':
+                return _list_catalog_flow_map(params)
+            elif method in ('POST', 'PUT'):
+                return _upsert_catalog_flow_map(body)
+            return _resp(405, {'error': 'GET/POST only'})
 
         elif '/link-preview' in path:
             return _check_link_preview(params.get('url') or body.get('url') or '')

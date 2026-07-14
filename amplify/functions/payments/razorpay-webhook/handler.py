@@ -550,8 +550,28 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
     import uuid as _uuid
     try:
         waba_id = _PHONE_ID_TO_WABA.get(phone_id, '')
-        # Resolve flow id (explicit per-order marker wins, else per-WABA default env)
+        # ── Flow resolution chain ──
+        # 1) explicit notes.postPaymentFlowId (per-order override) — highest priority
+        # 2) catalog product → flow map (each product opens its OWN flow)
+        # 3) per-WABA default env
         flow_id = (notes or {}).get('postPaymentFlowId') or (notes or {}).get('post_payment_flow_id')
+        mapped = {}
+        if not flow_id:
+            retailer_id = ((notes or {}).get('catalogRetailerId')
+                           or (notes or {}).get('retailer_id') or '')
+            if retailer_id:
+                try:
+                    _cfg_tbl = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
+                    _cfg = dynamodb.Table(_cfg_tbl).get_item(Key={'id': 'catalog_flow_map'}).get('Item') or {}
+                    _cmap = json.loads(_cfg.get('configValue') or '{}')
+                    mapped = _cmap.get(retailer_id) or {}
+                    flow_id = mapped.get('flowIdWaba1' if waba_id == '2094615664435155' else 'flowIdWaba2') or ''
+                    if flow_id:
+                        logger.info(json.dumps({'event': 'post_payment_flow_mapped', 'retailerId': retailer_id,
+                                                'flowId': flow_id, 'requestId': request_id}))
+                except Exception as _me:
+                    logger.warning(json.dumps({'event': 'catalog_flow_map_error', 'error': str(_me),
+                                               'requestId': request_id}))
         if not flow_id:
             if waba_id == '2094615664435155':
                 flow_id = os.environ.get('POST_PAYMENT_FLOW_WABA1', '')
@@ -592,9 +612,9 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
         waba_suffix = '1' if waba_id == '2094615664435155' else '2'
         hexref = reference_id.encode('utf-8').hex()
         flow_token = f'postpay-{hexref}-waba-{waba_suffix}-ph-{clean_phone}'
-        cta = (notes or {}).get('postPaymentFlowCta', 'Complete details')[:20]
-        body_text = (notes or {}).get('postPaymentFlowBody',
-                     'Thank you for your payment! Please tap below to complete your order details.')
+        cta = ((notes or {}).get('postPaymentFlowCta') or mapped.get('cta') or 'Complete details')[:20]
+        body_text = ((notes or {}).get('postPaymentFlowBody') or mapped.get('body')
+                     or 'Thank you for your payment! Please tap below to complete your order details.')
         # Launch as NAVIGATE with the order/payment data pre-filled by the server so
         # the flow opens INSTANTLY (no endpoint round-trip on open). The DETAILS screen
         # footer still uses data_exchange, so the submit is saved server-side (idempotent).
