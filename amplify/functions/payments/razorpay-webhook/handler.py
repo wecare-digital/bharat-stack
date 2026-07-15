@@ -684,7 +684,9 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
         # Pre-fill the flow's Address screen from the customer's saved address.
         cust_name = ''
         addr = {'line': '', 'city': '', 'state': '', 'pin': '', 'landmark': ''}
+        within_window = True  # catalog path is in-window; assume yes unless we learn otherwise
         try:
+            import time as _t
             _ct = dynamodb.Table(os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable'))
             _c = _ct.get_item(Key={'id': f'wa{clean_phone}'}).get('Item') or {}
             cust_name = _c.get('contactBookName') or _c.get('name') or ''
@@ -693,6 +695,9 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
                 'state': _c.get('state') or '', 'pin': str(_c.get('postalCode') or ''),
                 'landmark': _c.get('landmark') or '',
             }
+            _li = int(_c.get('lastInboundMessageAt') or 0)
+            if _li:
+                within_window = (int(_t.time()) - _li) < 24 * 3600
         except Exception:
             pass
         flow_data = {
@@ -713,26 +718,42 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
                     ExpressionAttributeValues={':r': service_request_id})
             except Exception:
                 pass
-        # Send the multi-screen flow as a DIRECT flow message (navigate → SUMMARY,
-        # data pre-filled) for an instant open. Valid within the 24h window — which
-        # the catalog path is, since the customer just paid in-chat.
-        flow_payload = {
-            'body': json.dumps({
-                'recipientPhone': f'+{clean_phone}',
-                'phoneNumberId': phone_id,
-                'isInteractive': True,
-                'interactiveType': 'flow',
-                'interactiveData': {
-                    'flowId': str(flow_id),
-                    'flowToken': flow_token,
-                    'flowCta': cta,
-                    'flowAction': 'navigate',
-                    'screenId': 'SUMMARY',
-                    'flowData': flow_data,
-                    'body': body_text,
-                },
-            })
-        }
+        if within_window:
+            # In-window (catalog path): send as a DIRECT flow message (navigate →
+            # SUMMARY, data pre-filled) for an instant open.
+            flow_payload = {
+                'body': json.dumps({
+                    'recipientPhone': f'+{clean_phone}',
+                    'phoneNumberId': phone_id,
+                    'isInteractive': True,
+                    'interactiveType': 'flow',
+                    'interactiveData': {
+                        'flowId': str(flow_id),
+                        'flowToken': flow_token,
+                        'flowCta': cta,
+                        'flowAction': 'navigate',
+                        'screenId': 'SUMMARY',
+                        'flowData': flow_data,
+                        'body': body_text,
+                    },
+                })
+            }
+            send_mode = 'flow_message'
+        else:
+            # Outside the 24h window (e.g. payment link paid days later): send the
+            # approved UTILITY template whose FLOW button opens the same flow.
+            tmpl_name = os.environ.get('POST_PAYMENT_REQUEST_TEMPLATE', 'postpay_request_v1')
+            flow_payload = {
+                'body': json.dumps({
+                    'recipientPhone': f'+{clean_phone}',
+                    'phoneNumberId': phone_id,
+                    'isTemplate': True,
+                    'templateName': tmpl_name,
+                    'templateParams': ['en'],
+                    'flowButton': {'index': 0, 'flowActionData': flow_data},
+                })
+            }
+            send_mode = 'flow_template'
         lambda_client.invoke(
             FunctionName=os.environ.get('OUTBOUND_FUNCTION', 'wecare-outbound-whatsapp'),
             InvocationType='Event',
@@ -740,6 +761,7 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
         )
         logger.info(json.dumps({'event': 'post_payment_flow_sent', 'phone': clean_phone,
                                 'flowId': str(flow_id), 'serviceRequestId': service_request_id,
+                                'sendMode': send_mode, 'withinWindow': within_window,
                                 'referenceId': reference_id, 'phoneId': phone_id, 'requestId': request_id}))
     except Exception as e:
         logger.warning(json.dumps({'event': 'post_payment_flow_error', 'error': str(e),
