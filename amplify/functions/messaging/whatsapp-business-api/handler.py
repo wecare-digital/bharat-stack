@@ -1772,6 +1772,20 @@ def _send_product_msg(body: Dict) -> Dict:
         return _resp(400, {'error': 'catalogId is required'})
     phone_id = body.get('phoneId') or PHONE1_META_ID
     sections = body.get('sections')
+    if body.get('catalogMessage') or body.get('viewCatalog'):
+        # Full catalog message — opens the whole catalog with a "View catalog"
+        # button so the customer browses ALL products, adds to cart, and checks out.
+        interactive = {
+            'type': 'catalog_message',
+            'body': {'text': body.get('bodyText', 'Browse our catalog and add items to your cart.')},
+            'action': {'name': 'catalog_message'},
+        }
+        thumb = body.get('productRetailerId') or body.get('thumbnailProductRetailerId')
+        if thumb:
+            interactive['action']['parameters'] = {'thumbnail_product_retailer_id': thumb}
+        if body.get('footerText'):
+            interactive['footer'] = {'text': body['footerText']}
+        return _send_message(phone_id, {'type': 'interactive', 'interactive': interactive}, body)
     if sections:
         # Multi-product message
         interactive = {
