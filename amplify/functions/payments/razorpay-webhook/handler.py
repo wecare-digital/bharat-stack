@@ -462,6 +462,8 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
             originating_invoice_id = ''
             order_display_number = reference_id
             order_product = 'Your order'
+            _inv = None
+            inv_items = []
             try:
                 inv_table = dynamodb.Table(INVOICES_TABLE)
                 inv_resp = inv_table.query(
@@ -502,7 +504,7 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
             # Guessing from paymentConfiguration is unreliable for catalog orders
             # (they carry no 'WECARE-' config) and caused WABA1 payments to reply
             # from WABA2. Fall back to the config guess only if the lookup fails.
-            resolved_phone = _resolve_originating_phone(reference_id)
+            resolved_phone = _resolve_originating_phone(reference_id, _inv)
             if resolved_phone:
                 originating_phone_id = resolved_phone
             else:
@@ -559,15 +561,13 @@ _PHONE_ID_TO_WABA = {
 }
 
 
-def _resolve_originating_phone(reference_id: str) -> str:
-    """Resolve the business phone (WABA) the payment message was sent from, so the
-    confirmation + post-pay flow reply from the SAME number/WABA (never cross-WABA).
-    Authoritative source: the OutboundTable record for this payment reference
-    (paymentReferenceId-index → awsPhoneNumberId/phoneNumberId). Returns '' if not found."""
-    if not reference_id:
-        return ''
+def _phone_from_payment_reference_table(table_name: str, reference_id: str) -> str:
+    """Look up a payment_request/outbound record by paymentReferenceId in the given
+    table and return its originating business phone id. Tries the GSI first, then a
+    bounded scan. Returns '' if not found."""
     try:
-        table = dynamodb.Table(os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable'))
+        table = dynamodb.Table(table_name)
+        items = []
         try:
             resp = table.query(
                 IndexName='paymentReferenceId-index',
@@ -577,19 +577,49 @@ def _resolve_originating_phone(reference_id: str) -> str:
             )
             items = resp.get('Items', [])
         except Exception:
-            # GSI missing → bounded scan fallback
             resp = table.scan(
                 FilterExpression='paymentReferenceId = :ref',
                 ExpressionAttributeValues={':ref': reference_id},
                 ProjectionExpression='awsPhoneNumberId, phoneNumberId',
-                Limit=1000,
+                Limit=2000,
             )
             items = resp.get('Items', [])
         if items:
             return items[0].get('awsPhoneNumberId') or items[0].get('phoneNumberId') or ''
     except Exception as e:
-        logger.warning(json.dumps({'event': 'resolve_originating_phone_error', 'error': str(e),
-                                   'referenceId': reference_id}))
+        logger.warning(json.dumps({'event': 'phone_lookup_error', 'table': table_name,
+                                   'error': str(e), 'referenceId': reference_id}))
+    return ''
+
+
+def _resolve_originating_phone(reference_id: str, invoice_item: Dict = None) -> str:
+    """Resolve the business phone (WABA) the payment message was sent from, so the
+    confirmation + post-pay flow reply from the SAME number/WABA (NEVER cross-WABA).
+
+    Layered, in priority order (each is an authoritative record tied to this exact
+    payment reference — no config guessing):
+      1) the invoice record's own awsPhoneNumberId (stored at send time)
+      2) OutboundTable  paymentReferenceId-index  → awsPhoneNumberId
+      3) InboundTable   payment_request record    → awsPhoneNumberId  (catalog cart path;
+         the outbound Lambda writes this with the sending phone)
+    Returns '' only if none of the sources know the phone (caller then guesses)."""
+    # 1) invoice record (most reliable — the webhook already fetched it)
+    if invoice_item:
+        inv_phone = invoice_item.get('awsPhoneNumberId') or invoice_item.get('phoneNumberId') or ''
+        if inv_phone:
+            return inv_phone
+    if not reference_id:
+        return ''
+    # 2) OutboundTable
+    phone = _phone_from_payment_reference_table(
+        os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable'), reference_id)
+    if phone:
+        return phone
+    # 3) InboundTable payment_request record (catalog cart interactive-payment send)
+    phone = _phone_from_payment_reference_table(
+        os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable'), reference_id)
+    if phone:
+        return phone
     return ''
 
 

@@ -2030,11 +2030,20 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
 
     # Update invoice status to pending_payment
     try:
+        # Persist the sending business phone id on the invoice so the Razorpay
+        # webhook can reply + open the post-payment flow from the SAME WABA
+        # (never cross-WABA). This is the most reliable phone source.
+        _upd_expr = 'SET #st = :st, #ua = :now'
+        _upd_names = {'#st': 'status', '#ua': 'updatedAt'}
+        _upd_vals = {':st': 'pending_payment', ':now': int(time.time())}
+        if phone_number_id:
+            _upd_expr += ', awsPhoneNumberId = :ph'
+            _upd_vals[':ph'] = phone_number_id
         table.update_item(
             Key={'invoiceId': invoice_id},
-            UpdateExpression='SET #st = :st, #ua = :now',
-            ExpressionAttributeNames={'#st': 'status', '#ua': 'updatedAt'},
-            ExpressionAttributeValues={':st': 'pending_payment', ':now': int(time.time())},
+            UpdateExpression=_upd_expr,
+            ExpressionAttributeNames=_upd_names,
+            ExpressionAttributeValues=_upd_vals,
         )
     except Exception as e:
         logger.error(f'Failed to update invoice {invoice_id} status to pending_payment: {e}')
