@@ -3305,11 +3305,30 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
         }))
 
 
+def _auto_next_due_enabled() -> bool:
+    """Config toggle for the post-payment 'next due' auto-push. Default OFF —
+    auto-sending the next pending invoice + a balance-due nag right after a
+    customer pays is spammy (a payment produced 5-6 messages). Businesses that
+    want sequential bill collection can enable SystemConfig id='whatsapp_auto_next_due'."""
+    try:
+        item = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'whatsapp_auto_next_due'}).get('Item')
+        if item and 'configValue' in item:
+            return str(item.get('configValue')).lower() in ('true', '1', 'yes', 'on')
+    except Exception:
+        pass
+    return False
+
+
 def _check_and_notify_balance_due(recipient_id: str, paid_reference_id: str,
                                   phone_number_id: str, request_id: str) -> None:
     """After a payment is captured, check InvoicesTable for remaining pending dues.
     If found, auto-send the next payment link (sequential pay) and notify user.
+    Gated behind whatsapp_auto_next_due (default OFF) to avoid post-payment spam.
     """
+    if not _auto_next_due_enabled():
+        logger.info(json.dumps({'event': 'balance_due_followup_skipped',
+                                'reason': 'auto_next_due disabled', 'requestId': request_id}))
+        return
     try:
         clean_phone = recipient_id.replace('+', '').replace(' ', '').replace('-', '')
         # Normalize to 10-digit local number for strict matching
@@ -3792,6 +3811,20 @@ def _lookup_payment_amount(reference_id: str, request_id: str) -> float:
         return 0.0
 
 
+def _inbound_order_status_enabled() -> bool:
+    """The razorpay-webhook is the authoritative payment path and already sends the
+    order-status confirmation on payment.captured. This inbound (Meta payment webhook)
+    path would send a SECOND, duplicate confirmation. Gated OFF by default to avoid
+    the duplicate; enable SystemConfig id='whatsapp_inbound_order_status' to restore."""
+    try:
+        item = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'whatsapp_inbound_order_status'}).get('Item')
+        if item and 'configValue' in item:
+            return str(item.get('configValue')).lower() in ('true', '1', 'yes', 'on')
+    except Exception:
+        pass
+    return False
+
+
 def _send_order_status_message(recipient_id: str, reference_id: str, 
                                 order_status: str, amount: float, description: str,
                                 request_id: str, phone_number_id: str = None) -> None:
@@ -3800,6 +3833,11 @@ def _send_order_status_message(recipient_id: str, reference_id: str,
     Uses the phone_number_id that received the original payment if available,
     otherwise falls back to PHONE_NUMBER_ID_1.
     """
+    if not _inbound_order_status_enabled():
+        logger.info(json.dumps({'event': 'order_status_skipped_dedup',
+                                'reason': 'razorpay-webhook is sole sender',
+                                'referenceId': reference_id, 'requestId': request_id}))
+        return
     try:
         # Find contact by phone number
         contact = _get_contact_by_phone(recipient_id)

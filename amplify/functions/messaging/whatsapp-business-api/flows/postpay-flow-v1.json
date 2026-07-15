@@ -37,11 +37,11 @@
           },
           {
             "type": "TextBody",
-            "text": "Please share a few details so we can process your order."
+            "text": "Thanks! Here is your request summary. Please add a few details so we can process it."
           },
           {
             "type": "TextCaption",
-            "text": "Order Number",
+            "text": "Request ID",
             "font-weight": "bold"
           },
           {
@@ -50,12 +50,12 @@
           },
           {
             "type": "TextCaption",
-            "text": "Payment ID",
+            "text": "Service",
             "font-weight": "bold"
           },
           {
             "type": "TextBody",
-            "text": "${data.payment_id}"
+            "text": "${data.product}"
           },
           {
             "type": "TextCaption",
@@ -65,15 +65,6 @@
           {
             "type": "TextBody",
             "text": "${data.amount}"
-          },
-          {
-            "type": "TextCaption",
-            "text": "Product",
-            "font-weight": "bold"
-          },
-          {
-            "type": "TextBody",
-            "text": "${data.product}"
           },
           {
             "type": "Form",
