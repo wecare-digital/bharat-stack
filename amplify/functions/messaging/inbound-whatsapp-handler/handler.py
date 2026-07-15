@@ -1114,8 +1114,9 @@ def _process_message(
             try:
                 _raw = nfm.get('response_json', '{}')
                 _rj = json.loads(_raw) if isinstance(_raw, str) else (_raw or {})
-                if isinstance(_rj, dict) and _rj.get('reference_id') and (
-                    'delivery_note' in _rj or 'preferred_time' in _rj or 'order_number' in _rj):
+                if isinstance(_rj, dict) and (_rj.get('reference_id') or _rj.get('request_id')) and (
+                    'delivery_note' in _rj or 'preferred_time' in _rj or 'order_number' in _rj
+                    or 'description' in _rj or 'request_id' in _rj):
                     _handle_postpay_submission(_rj, contact_id, sender_phone, aws_phone_number_id, request_id)
                     return  # Stop processing — post-payment submission handled
             except Exception as _pp_err:
@@ -5814,24 +5815,42 @@ def _handle_postpay_submission(data: Dict, contact_id: str, sender_phone: str,
     Saves ONE submission per payment (idempotent, keyed on reference_id) and sends
     a confirmation message."""
     try:
-        reference_id = str(data.get('reference_id', '')).strip()
-        if not reference_id:
+        # New multi-screen flow uses request_id + order_number (+ full address/details).
+        # Stay backward-compatible with the old payload (reference_id/delivery_note).
+        request_sr_id = str(data.get('request_id', '')).strip()
+        reference_id = str(data.get('reference_id') or data.get('order_number') or '').strip()
+        if not request_sr_id and not reference_id:
             return
         now = int(time.time())
-        sub_id = f'postpay-{reference_id}'
+        # Key on the unique Request ID (falls back to reference for old payloads).
+        sub_id = request_sr_id or f'postpay-{reference_id}'
+        # Compose a human-readable shipping address from the flow's address fields.
+        addr_parts = [data.get('address', ''), data.get('landmark', ''), data.get('city', ''),
+                      data.get('state', ''), data.get('pin', '')]
+        address_str = ', '.join(str(p).strip() for p in addr_parts if str(p).strip())
         form = {k: v for k, v in data.items() if k not in ('flow_token',)}
         item = {
             'submissionId': sub_id,
-            'flowCode': '02.WD_POSTPAY',
-            'flowType': 'post_payment',
+            'flowCode': '03.WD_POSTPAY_REQUEST',
+            'flowType': 'service_request',
             'phone': sender_phone,
             'contactId': contact_id or '',
             'formData': json.dumps(form),
             'submissionNumber': sub_id,
+            'requestId': request_sr_id,
             'orderId': reference_id,
             'referenceId': reference_id,
             'orderNumber': str(data.get('order_number', '')),
-            'paymentId': str(data.get('payment_id', '')),
+            'product': str(data.get('product', '')),
+            'amount': str(data.get('amount', '')),
+            'customerName': str(data.get('name', '')),
+            'shippingAddress': address_str,
+            'addressLine1': str(data.get('address', '')),
+            'city': str(data.get('city', '')),
+            'state': str(data.get('state', '')),
+            'postalCode': str(data.get('pin', '')),
+            'landmark': str(data.get('landmark', '')),
+            'description': str(data.get('description', '')),
             'deliveryNote': str(data.get('delivery_note', '')),
             'preferredTime': str(data.get('preferred_time', '')),
             'status': 'open',
@@ -5846,18 +5865,36 @@ def _handle_postpay_submission(data: Dict, contact_id: str, sender_phone: str,
                 ConditionExpression='attribute_not_exists(submissionId)',
             )
             logger.info(json.dumps({'event': 'postpay_submission_saved', 'submissionId': sub_id,
-                                    'referenceId': reference_id, 'requestId': request_id}))
+                                    'requestId2': request_sr_id, 'referenceId': reference_id,
+                                    'requestId': request_id}))
         except Exception as e:
             if 'ConditionalCheckFailedException' in str(e):
                 logger.info(json.dumps({'event': 'postpay_submission_duplicate', 'submissionId': sub_id,
                                         'requestId': request_id}))
                 return  # already recorded — do not send a second confirmation
             raise
-        # Confirmation message
+        # Update the customer's saved address from the flow so future orders pre-fill.
         try:
-            order_no = str(data.get('order_number', reference_id))
-            msg = (f'\u2705 *Order details received*\n\nOrder: *{order_no}*\n'
-                   'Our team will process your order shortly.\n\n_Thank you for choosing WECARE.DIGITAL_')
+            if contact_id and address_str:
+                dynamodb.Table(CONTACTS_TABLE).update_item(
+                    Key={'id': contact_id},
+                    UpdateExpression=('SET shippingAddress=:sa, addressLine1=:al, city=:cy, '
+                                      '#st=:st, postalCode=:pc, landmark=:lm, updatedAt=:ua'),
+                    ExpressionAttributeNames={'#st': 'state'},
+                    ExpressionAttributeValues={
+                        ':sa': address_str, ':al': str(data.get('address', '')),
+                        ':cy': str(data.get('city', '')), ':st': str(data.get('state', '')),
+                        ':pc': str(data.get('pin', '')), ':lm': str(data.get('landmark', '')),
+                        ':ua': now})
+        except Exception:
+            pass
+        # Confirmation message showing the Request ID.
+        try:
+            rid = request_sr_id or sub_id
+            msg = (f'\u2705 *Request confirmed*\n\nRequest ID: *{rid}*\n'
+                   'Our team will process it within 24-48 hours. You can send any photos '
+                   'or documents here and we\u2019ll attach them to your request.\n\n'
+                   '_Thank you for choosing WECARE.DIGITAL_')
             meta_pid = _get_meta_phone_id_for_direct_api(phone_number_id)
             _send_direct_api_message(sender_phone, {'type': 'text', 'text': {'body': msg}}, meta_pid)
         except Exception:

@@ -678,27 +678,59 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
         # the flow opens INSTANTLY (no endpoint round-trip on open). The DETAILS screen
         # footer still uses data_exchange, so the submit is saved server-side (idempotent).
         disp = display or {}
+        # Customer-facing Request ID — shown on the flow's success screen and saved
+        # with the submission (unique per payment).
+        service_request_id = 'WD-SR-' + _uuid.uuid4().hex[:8].upper()
+        # Pre-fill the flow's Address screen from the customer's saved address.
+        cust_name = ''
+        addr = {'line': '', 'city': '', 'state': '', 'pin': '', 'landmark': ''}
+        try:
+            _ct = dynamodb.Table(os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable'))
+            _c = _ct.get_item(Key={'id': f'wa{clean_phone}'}).get('Item') or {}
+            cust_name = _c.get('contactBookName') or _c.get('name') or ''
+            addr = {
+                'line': _c.get('addressLine1') or '', 'city': _c.get('city') or '',
+                'state': _c.get('state') or '', 'pin': str(_c.get('postalCode') or ''),
+                'landmark': _c.get('landmark') or '',
+            }
+        except Exception:
+            pass
         flow_data = {
-            'order_number': disp.get('order_number', reference_id),
-            'payment_id': disp.get('payment_id', 'Processing'),
-            'amount': disp.get('amount', ''),
-            'product': disp.get('product', 'Your order'),
-            'reference_id': reference_id,
+            'request_id': service_request_id,
+            'order_number': str(disp.get('order_number', reference_id)),
+            'product': str(disp.get('product', 'Your order')),
+            'amount': str(disp.get('amount', '')),
+            'cust_name': cust_name,
+            'addr_line': addr['line'], 'addr_city': addr['city'], 'addr_state': addr['state'],
+            'addr_pin': addr['pin'], 'addr_landmark': addr['landmark'],
         }
-        # Send as an approved FLOW TEMPLATE so it works even outside the 24h service
-        # window (a payment link may be paid hours later). The template's FLOW button
-        # is navigate->DETAILS; flowActionData pre-fills the (endpointless) first
-        # screen with the order/payment data, so it still opens instantly.
-        tmpl_name = os.environ.get('POST_PAYMENT_FLOW_TEMPLATE', 'postpay_details_v1')
-        tmpl_lang = os.environ.get('POST_PAYMENT_FLOW_TEMPLATE_LANG', 'en')
+        # Persist the Request ID on the invoice so the saved submission correlates.
+        if invoice_id:
+            try:
+                dynamodb.Table(INVOICES_TABLE).update_item(
+                    Key={'invoiceId': invoice_id},
+                    UpdateExpression='SET serviceRequestId = :r',
+                    ExpressionAttributeValues={':r': service_request_id})
+            except Exception:
+                pass
+        # Send the multi-screen flow as a DIRECT flow message (navigate → SUMMARY,
+        # data pre-filled) for an instant open. Valid within the 24h window — which
+        # the catalog path is, since the customer just paid in-chat.
         flow_payload = {
             'body': json.dumps({
                 'recipientPhone': f'+{clean_phone}',
                 'phoneNumberId': phone_id,
-                'isTemplate': True,
-                'templateName': tmpl_name,
-                'templateParams': [tmpl_lang],
-                'flowButton': {'index': 0, 'flowActionData': flow_data},
+                'isInteractive': True,
+                'interactiveType': 'flow',
+                'interactiveData': {
+                    'flowId': str(flow_id),
+                    'flowToken': flow_token,
+                    'flowCta': cta,
+                    'flowAction': 'navigate',
+                    'screenId': 'SUMMARY',
+                    'flowData': flow_data,
+                    'body': body_text,
+                },
             })
         }
         lambda_client.invoke(
@@ -707,8 +739,8 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
             Payload=json.dumps(flow_payload),
         )
         logger.info(json.dumps({'event': 'post_payment_flow_sent', 'phone': clean_phone,
-                                'flowId': str(flow_id), 'referenceId': reference_id,
-                                'phoneId': phone_id, 'requestId': request_id}))
+                                'flowId': str(flow_id), 'serviceRequestId': service_request_id,
+                                'referenceId': reference_id, 'phoneId': phone_id, 'requestId': request_id}))
     except Exception as e:
         logger.warning(json.dumps({'event': 'post_payment_flow_error', 'error': str(e),
                                    'referenceId': reference_id, 'requestId': request_id}))
