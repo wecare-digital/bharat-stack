@@ -921,6 +921,14 @@ def _process_message(
                         media_data.get('file_size', 0),
                         request_id,
                     )
+                # Attach media to the customer's OPEN service request (photos/files
+                # sent after the flow are saved under the request's folder + linked).
+                try:
+                    _link_media_to_service_request(contact_id, s3_key, msg_type,
+                                                   media_data.get('filename', ''),
+                                                   media_data.get('mime_type', ''), request_id)
+                except Exception as _le:
+                    logger.warning(json.dumps({'event': 'attach_link_error', 'error': str(_le), 'requestId': request_id}))
     
     # Ephemeral messages may carry media nested inside  -  try to extract
     if msg_type == 'ephemeral' and not s3_key:
@@ -5808,6 +5816,49 @@ DEFAULT_FLOW_TRIGGERS = {
 }
 
 
+def _link_media_to_service_request(contact_id: str, s3_key: str, media_type: str,
+                                   filename: str, mime: str, request_id: str) -> None:
+    """If the contact has a recent OPEN service request, copy the media into the
+    request's folder (stack/service-requests/{req}/) under the app bucket and append
+    it to the request's attachments list so the team can service it from the dashboard."""
+    if not contact_id or not s3_key:
+        return
+    try:
+        c = dynamodb.Table(CONTACTS_TABLE).get_item(Key={'id': contact_id}).get('Item') or {}
+        req = c.get('openServiceRequestId') or ''
+        opened_at = int(c.get('openServiceRequestAt') or 0)
+        # Only link within 14 days of the request being opened.
+        if not req or (int(time.time()) - opened_at) > 14 * 86400:
+            return
+        base = s3_key.split('/')[-1]
+        dest_key = f"stack/service-requests/{req}/{int(time.time())}-{base}"
+        try:
+            s3.copy_object(Bucket=MEDIA_BUCKET, CopySource={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, Key=dest_key)
+        except Exception:
+            dest_key = s3_key  # fall back to the original key if copy fails
+        attachment = {
+            'key': dest_key,
+            'url': f'https://{MEDIA_BUCKET}/{dest_key}',
+            'type': media_type,
+            'filename': filename or base,
+            'mime': mime or '',
+            'ts': int(time.time()),
+        }
+        try:
+            dynamodb.Table(FLOW_SUBMISSIONS_TABLE).update_item(
+                Key={'submissionId': req},
+                UpdateExpression='SET attachments = list_append(if_not_exists(attachments, :empty), :a), updatedAt = :u',
+                ExpressionAttributeValues={':a': [attachment], ':empty': [], ':u': int(time.time())},
+            )
+            logger.info(json.dumps({'event': 'service_request_attachment_added', 'submissionId': req,
+                                    'key': dest_key, 'requestId': request_id}))
+        except Exception as e:
+            logger.warning(json.dumps({'event': 'service_request_attachment_error', 'error': str(e),
+                                       'requestId': request_id}))
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'link_media_error', 'error': str(e), 'requestId': request_id}))
+
+
 def _handle_postpay_submission(data: Dict, contact_id: str, sender_phone: str,
                                phone_number_id: str, request_id: str) -> None:
     """Handle a post-payment (endpointless) flow completion. The flow's 'complete'
@@ -5875,17 +5926,24 @@ def _handle_postpay_submission(data: Dict, contact_id: str, sender_phone: str,
             raise
         # Update the customer's saved address from the flow so future orders pre-fill.
         try:
-            if contact_id and address_str:
-                dynamodb.Table(CONTACTS_TABLE).update_item(
-                    Key={'id': contact_id},
-                    UpdateExpression=('SET shippingAddress=:sa, addressLine1=:al, city=:cy, '
-                                      '#st=:st, postalCode=:pc, landmark=:lm, updatedAt=:ua'),
-                    ExpressionAttributeNames={'#st': 'state'},
-                    ExpressionAttributeValues={
-                        ':sa': address_str, ':al': str(data.get('address', '')),
-                        ':cy': str(data.get('city', '')), ':st': str(data.get('state', '')),
-                        ':pc': str(data.get('pin', '')), ':lm': str(data.get('landmark', '')),
-                        ':ua': now})
+            if contact_id:
+                # Tag the contact with the open request so any media they send next
+                # gets attached to THIS request. Also save the address for reuse.
+                _uexpr = 'SET openServiceRequestId=:rid, openServiceRequestAt=:ua, updatedAt=:ua'
+                _names = {}
+                _vals = {':rid': sub_id, ':ua': now}
+                if address_str:
+                    _uexpr += (', shippingAddress=:sa, addressLine1=:al, city=:cy, '
+                               '#st=:st, postalCode=:pc, landmark=:lm')
+                    _names['#st'] = 'state'
+                    _vals.update({':sa': address_str, ':al': str(data.get('address', '')),
+                                  ':cy': str(data.get('city', '')), ':st': str(data.get('state', '')),
+                                  ':pc': str(data.get('pin', '')), ':lm': str(data.get('landmark', ''))})
+                _kwargs = {'Key': {'id': contact_id}, 'UpdateExpression': _uexpr,
+                           'ExpressionAttributeValues': _vals}
+                if _names:
+                    _kwargs['ExpressionAttributeNames'] = _names
+                dynamodb.Table(CONTACTS_TABLE).update_item(**_kwargs)
         except Exception:
             pass
         # Confirmation message showing the Request ID.
