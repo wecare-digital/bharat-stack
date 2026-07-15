@@ -3166,6 +3166,7 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
                 'customerEmail': customer_email,
                 'shippingAddress': shipping_address,
                 'billingAddress': billing_address,
+                'catalogRetailerId': pr.get('catalogRetailerId', ''),
                 'items': [{'name': item_name, 'amount': unit_price, 'quantity': quantity}],
                 'gstRate': gst_rate,
                 'shipping': shipping,
@@ -4795,6 +4796,7 @@ def _handle_cart_order(message: Dict, contact_id: str, sender_phone: str,
         }))
 
         # Native Review & Pay (physical-goods order_details) with GST + convenience.
+        _first_retailer_id = str((product_items[0] or {}).get('product_retailer_id') or '') if product_items else ''
         _send_payment_request(
             contact_id=contact_id, phone_number_id=phone_number_id, amount=subtotal,
             request_id=request_id, gst_rate=18, shipping=0, sender_phone=sender_phone,
@@ -4802,6 +4804,7 @@ def _handle_cart_order(message: Dict, contact_id: str, sender_phone: str,
             order_id=catalog_id or 'Catalog',
             customer_name=cust_name, customer_phone=sender_phone,
             shipping_address=ship_addr, goods_type='physical-goods', shipping_info=ship_info,
+            catalog_retailer_id=_first_retailer_id,
         )
 
         # Physical goods: collect a shipping address if we don't have one on file.
@@ -4837,7 +4840,8 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                           customer_phone: str = '', customer_email: str = '',
                           shipping_address: str = '', billing_address: str = '',
                           pay_for: str = 'self',
-                          goods_type: str = 'digital-goods', shipping_info: dict = None) -> None:
+                          goods_type: str = 'digital-goods', shipping_info: dict = None,
+                          catalog_retailer_id: str = '') -> None:
     """Send WhatsApp Pay order_details message with per-item GST and payment log.
     
     Supports multi-item via `items` list of dicts:
@@ -4977,6 +4981,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 'paymentShippingAddress': shipping_address or '',
                 'paymentBillingAddress': billing_address or '',
                 'paymentPayFor': pay_for or 'self',
+                'catalogRetailerId': catalog_retailer_id or '',
                 'status': 'pending',
                 'senderPhone': sender_phone,
                 'createdAt': Decimal(str(now)),
