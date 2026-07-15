@@ -484,11 +484,6 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                             _its = []
                     if isinstance(_its, list) and _its and isinstance(_its[0], dict):
                         order_product = _its[0].get('name', '') or order_product
-                    stored_config = _inv.get('paymentConfiguration', '')
-                    if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
-                        originating_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
-                    else:
-                        originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
                     # Carry the catalog product id so the post-payment flow resolver
                     # can open the flow mapped to THIS product (catalog_flow_map).
                     _rid = _inv.get('catalogRetailerId') or ''
@@ -498,8 +493,31 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                         notes['catalogRetailerId'] = _rid
             except Exception:
                 pass
-            if not originating_phone_id:
-                originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+
+            # ── Resolve the ORIGINATING WABA phone reliably ──
+            # The payment message was SENT from a specific business number; the
+            # confirmation + post-pay flow MUST go back from that SAME number/WABA
+            # (never cross-WABA). The authoritative source is the OutboundTable
+            # record (paymentReferenceId-index → awsPhoneNumberId/phoneNumberId).
+            # Guessing from paymentConfiguration is unreliable for catalog orders
+            # (they carry no 'WECARE-' config) and caused WABA1 payments to reply
+            # from WABA2. Fall back to the config guess only if the lookup fails.
+            resolved_phone = _resolve_originating_phone(reference_id)
+            if resolved_phone:
+                originating_phone_id = resolved_phone
+            else:
+                stored_config = ''
+                try:
+                    stored_config = (_inv or {}).get('paymentConfiguration', '')
+                except Exception:
+                    stored_config = ''
+                if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
+                    originating_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
+                else:
+                    originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+            logger.info(json.dumps({'event': 'razorpay_phone_resolved', 'referenceId': reference_id,
+                                    'phoneId': originating_phone_id, 'fromOutbound': bool(resolved_phone),
+                                    'requestId': request_id}))
 
             order_status_payload = {
                 'body': json.dumps({
@@ -539,6 +557,40 @@ _PHONE_ID_TO_WABA = {
     'phone-number-id-waba1-direct-1016149501586345': '2094615664435155',
     'phone-number-id-waba-t-direct-1055232054343117': '2513394156072604',
 }
+
+
+def _resolve_originating_phone(reference_id: str) -> str:
+    """Resolve the business phone (WABA) the payment message was sent from, so the
+    confirmation + post-pay flow reply from the SAME number/WABA (never cross-WABA).
+    Authoritative source: the OutboundTable record for this payment reference
+    (paymentReferenceId-index → awsPhoneNumberId/phoneNumberId). Returns '' if not found."""
+    if not reference_id:
+        return ''
+    try:
+        table = dynamodb.Table(os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable'))
+        try:
+            resp = table.query(
+                IndexName='paymentReferenceId-index',
+                KeyConditionExpression='paymentReferenceId = :ref',
+                ExpressionAttributeValues={':ref': reference_id},
+                Limit=1,
+            )
+            items = resp.get('Items', [])
+        except Exception:
+            # GSI missing → bounded scan fallback
+            resp = table.scan(
+                FilterExpression='paymentReferenceId = :ref',
+                ExpressionAttributeValues={':ref': reference_id},
+                ProjectionExpression='awsPhoneNumberId, phoneNumberId',
+                Limit=1000,
+            )
+            items = resp.get('Items', [])
+        if items:
+            return items[0].get('awsPhoneNumberId') or items[0].get('phoneNumberId') or ''
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'resolve_originating_phone_error', 'error': str(e),
+                                   'referenceId': reference_id}))
+    return ''
 
 
 def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: str,
