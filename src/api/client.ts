@@ -5030,6 +5030,20 @@ export interface FlowSubmissionItem {
   resolvedAt?: number;
   createdAt: number;
   updatedAt?: number;
+  // Service-request (post-payment) fields
+  requestId?: string;
+  referenceId?: string;
+  orderNumber?: string;
+  product?: string;
+  amount?: string;
+  customerName?: string;
+  shippingAddress?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  landmark?: string;
+  preferredTime?: string;
+  attachments?: { key?: string; url?: string; type?: string; filename?: string; mime?: string; ts?: number }[];
 }
 
 export interface FlowSubmissionStats {
@@ -5138,6 +5152,46 @@ export async function getCatalogProducts ( params?: { wabaId?: string; phoneNumb
   const query = qs.toString();
   const data = await apiCall<any>( `${CATALOG_BASE}/products${query ? '?' + query : ''}` );
   return data || { products: [] };
+}
+
+// ── Catalog product admin (Meta catalog create/list/delete via WA Business API) ──
+export interface CatalogProductInput {
+  catalogId: string;
+  retailerId: string;
+  name: string;
+  price: number;            // rupees
+  description?: string;
+  imageUrl?: string;
+  url?: string;
+  currency?: string;
+  availability?: string;
+  brand?: string;
+  condition?: string;
+  salePrice?: number;       // rupees
+}
+
+export async function listCatalogProductsAdmin ( catalogId: string, search?: string ): Promise<any[]> {
+  const qs = new URLSearchParams( { catalogId } );
+  if ( search ) qs.set( 'search', search );
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/catalog-products?${qs.toString()}` );
+  return data?.products || [];
+}
+
+export async function createCatalogProduct (
+  input: CatalogProductInput
+): Promise<{ success: boolean; productId?: string; imageFetchStatus?: string; error?: string }> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/catalog-products`, {
+    method: 'POST', body: JSON.stringify( input ),
+  } );
+  if ( !data || data.error ) {
+    return { success: false, error: typeof data?.error === 'string' ? data.error : ( data?.error?.message || data?.error?.error_user_msg || 'Failed to create product' ) };
+  }
+  return { success: true, productId: data.productId, imageFetchStatus: data.imageFetchStatus };
+}
+
+export async function deleteCatalogProduct ( productId: string ): Promise<boolean> {
+  const data = await apiCall<any>( `${WA_BIZ_BASE}/catalog-products?productId=${encodeURIComponent( productId )}`, { method: 'DELETE' } );
+  return data?.success === true;
 }
 
 // ============================================================================

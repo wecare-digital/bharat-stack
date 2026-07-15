@@ -584,6 +584,70 @@ def _list_catalog_products(catalog_id: str, params: Dict) -> Dict:
     return _resp(200, {'products': products, 'count': len(products)})
 
 
+def _create_catalog_product(body: Dict) -> Dict:
+    """Create a product in a Meta commerce catalog.
+    POST /wa-business/catalog-products
+    Body: { catalogId, retailerId, name, price (rupees), description?, imageUrl?, url?,
+            currency?, availability?, brand?, condition?, salePrice? }
+    Price is accepted in RUPEES from the UI and converted to the minor unit (paise)
+    that the Graph API expects. Returns the new product id and its image_fetch_status."""
+    catalog_id = body.get('catalogId') or body.get('catalog_id')
+    retailer_id = (body.get('retailerId') or body.get('retailer_id') or '').strip()
+    name = (body.get('name') or '').strip()
+    if not catalog_id or not retailer_id or not name:
+        return _resp(400, {'error': 'catalogId, retailerId and name are required'})
+    try:
+        price_rupees = float(body.get('price', 0) or 0)
+    except (TypeError, ValueError):
+        return _resp(400, {'error': 'price must be a number'})
+    if price_rupees <= 0:
+        return _resp(400, {'error': 'price must be greater than 0'})
+    currency = (body.get('currency') or 'INR').upper()
+    payload = {
+        'retailer_id': retailer_id,
+        'name': name[:200],
+        'price': int(round(price_rupees * 100)),   # rupees -> paise (minor unit)
+        'currency': currency,
+        'availability': (body.get('availability') or 'in stock'),
+        'condition': (body.get('condition') or 'new'),
+        'url': (body.get('url') or 'https://www.wecare.digital/'),
+        'image_url': (body.get('imageUrl') or body.get('image_url')
+                      or 'https://app.wecare.digital/stream/media/m/wecare-digital.png'),
+    }
+    if body.get('description'):
+        payload['description'] = str(body['description'])[:1000]
+    if body.get('brand'):
+        payload['brand'] = str(body['brand'])[:100]
+    if body.get('salePrice'):
+        try:
+            payload['sale_price'] = int(round(float(body['salePrice']) * 100))
+        except (TypeError, ValueError):
+            pass
+    result = _graph_api(f'{catalog_id}/products', method='POST', payload=payload)
+    if 'error' in result:
+        return _resp(400, result)
+    product_id = result.get('id', '')
+    # Best-effort read-back of image fetch status so the UI can warn on FETCH_FAILED.
+    fetch_status = ''
+    if product_id:
+        chk = _graph_api(product_id, params={'fields': 'image_fetch_status'})
+        if isinstance(chk, dict) and 'error' not in chk:
+            fetch_status = chk.get('image_fetch_status', '')
+    return _resp(200, {'success': True, 'productId': product_id,
+                       'retailerId': retailer_id, 'imageFetchStatus': fetch_status})
+
+
+def _delete_catalog_product(product_id: str) -> Dict:
+    """Delete a product from a Meta commerce catalog by its product id.
+    DELETE /wa-business/catalog-products?productId=<id>"""
+    if not product_id:
+        return _resp(400, {'error': 'productId is required'})
+    result = _graph_api(product_id, method='DELETE')
+    if 'error' in result:
+        return _resp(400, result)
+    return _resp(200, {'success': True})
+
+
 def _list_catalog_feeds(catalog_id: str) -> Dict:
     """List scheduled product feeds (data sources) on a catalog.
     GET /wa-business/catalog-feed?catalogId=<id>"""
@@ -5364,7 +5428,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif '/catalog-products' in path:
             if method == 'GET':
                 return _list_catalog_products(params.get('catalogId') or params.get('catalog_id'), params)
-            return _resp(405, {'error': 'GET only'})
+            elif method == 'POST':
+                return _create_catalog_product(body)
+            elif method == 'DELETE':
+                return _delete_catalog_product(params.get('productId') or params.get('product_id') or body.get('productId') or '')
+            return _resp(405, {'error': 'GET/POST/DELETE only'})
 
         elif '/catalog-feed/fetch' in path:
             if method == 'POST':

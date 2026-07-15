@@ -94,6 +94,7 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/templates', label: 'Templates' },
           { path: '/dm/whatsapp/template-builder', label: 'Template Builder' },
           // Flows
+          { path: '/dm/whatsapp/catalog-builder', label: 'Catalog & Flow Builder' },
           { path: '/dm/whatsapp/flow-hub', label: 'Flow Hub' },
           { path: '/dm/whatsapp/flows', label: 'Flows' },
           { path: '/dm/whatsapp/flow-publish', label: 'Flow Publish Checklist' },
