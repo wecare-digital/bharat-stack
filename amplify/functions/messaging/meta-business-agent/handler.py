@@ -74,6 +74,88 @@ def _appsecret_proof(token: str, secret: str) -> str:
     return hmac.new(secret.encode("utf-8"), token.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Agent Tool endpoint — the target that Meta Business Agent connector tools call.
+# Public route (POST /agent-tool) but GATED by a scoped static token in the
+# X-Agent-Token header (secret wecare/agent-connector-token). Read-only.
+# ─────────────────────────────────────────────────────────────────────────
+AGENT_TOOL_SECRET = os.environ.get("AGENT_TOOL_SECRET", "wecare/agent-connector-token")
+# WABA phone-number-id -> its Meta product catalog id
+_CATALOG_BY_ENTITY = {
+    "1016149501586345": "1607047307067517",   # WABA1 wecare_catalog
+    "1055232054343117": "1424934879646296",   # WABA2 Catalogue_Products
+}
+
+
+def _agent_tool_token() -> str:
+    if "agent_tool" in _token_cache:
+        return _token_cache["agent_tool"]
+    try:
+        resp = secrets_client.get_secret_value(SecretId=AGENT_TOOL_SECRET)
+        tok = (json.loads(resp["SecretString"]).get("token") or "").strip()
+    except Exception:
+        tok = ""
+    _token_cache["agent_tool"] = tok
+    return tok
+
+
+def _tool_product_lookup(body: dict):
+    """Return catalog products matching a query (name substring) or retailer_id.
+    Read-only; used by the agent to answer product/price/availability questions."""
+    query = (body.get("query") or body.get("product") or "").strip().lower()
+    retailer_id = (body.get("retailer_id") or "").strip()
+    entity_id = str(body.get("entity_id") or "1016149501586345")
+    catalog_id = _CATALOG_BY_ENTITY.get(entity_id, "1607047307067517")
+    token, secret = _creds()
+    fields = "retailer_id,name,price,sale_price,availability,description,url"
+    url = f"https://graph.facebook.com/v22.0/{catalog_id}/products?fields={fields}&limit=100&access_token={token}"
+    if secret:
+        url += "&appsecret_proof=" + _appsecret_proof(token, secret)
+    try:
+        with urllib.request.urlopen(url, timeout=20) as r:
+            data = json.loads(r.read().decode())
+        products = data.get("data", [])
+    except Exception as e:
+        return {"statusCode": 200, "headers": CORS,
+                "body": json.dumps({"status": "error", "error": str(e)[:120], "products": []})}
+    out = []
+    for p in products:
+        rid = p.get("retailer_id", "")
+        name = (p.get("name") or "")
+        if retailer_id and rid != retailer_id:
+            continue
+        if query and query not in name.lower():
+            continue
+        out.append({"retailer_id": rid, "name": name, "price": p.get("price"),
+                    "sale_price": p.get("sale_price"), "availability": p.get("availability"),
+                    "description": p.get("description"), "url": p.get("url")})
+    if not out and not query and not retailer_id:
+        out = [{"retailer_id": p.get("retailer_id"), "name": p.get("name"), "price": p.get("price"),
+                "availability": p.get("availability")} for p in products]
+    return {"statusCode": 200, "headers": CORS, "body": json.dumps({"status": "success", "products": out})}
+
+
+def _agent_tool(event: dict):
+    """Token-gated, read-only endpoint the Meta agent connector tools call."""
+    headers = {str(k).lower(): v for k, v in (event.get("headers") or {}).items()}
+    supplied = headers.get("x-agent-token", "")
+    expected = _agent_tool_token()
+    if not expected or supplied != expected:
+        return {"statusCode": 401, "headers": CORS, "body": json.dumps({"error": "unauthorized"})}
+    body = {}
+    if isinstance(event.get("body"), str):
+        try:
+            body = json.loads(event["body"])
+        except Exception:
+            body = {}
+    elif isinstance(event.get("body"), dict):
+        body = event["body"]
+    op = (body.get("op") or "product_lookup").lower()
+    if op == "product_lookup":
+        return _tool_product_lookup(body)
+    return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "unknown op", "supported": ["product_lookup"]})}
+
+
 def _resp(status, body):
     return {"statusCode": status, "headers": CORS, "body": json.dumps(body)}
 
@@ -552,6 +634,13 @@ def lambda_handler(event, context):
     method = event.get("httpMethod") or event.get("requestContext", {}).get("http", {}).get("method", "")
     if method == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
+
+    # Agent Tool endpoint (POST /agent-tool) — called by Meta's agent connector,
+    # gated by the X-Agent-Token header (NOT Cognito). Must run before require_auth.
+    _path = (event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path", "")
+             or event.get("routeKey", ""))
+    if "agent-tool" in _path:
+        return _agent_tool(event)
 
     # Inbound auth: require a valid Cognito token (gateway routes are NONE, so
     # protection is enforced here — consistent with the platform middleware).
