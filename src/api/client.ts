@@ -6145,4 +6145,19 @@ export const aiAgentApi = {
 
   removeAllowlist: ( waba: WabaKey, entryId: string ) =>
     metaAgent<{ deleted: boolean }>( 'allowlist_remove', { waba, entryId } ),
+
+  listWebsites: ( waba: WabaKey ) =>
+    metaAgent<{ websites: AgentWebsite[]; entityId: string }>( 'websites', { waba } ),
+
+  addWebsite: ( waba: WabaKey, url: string ) =>
+    metaAgent<{ website: AgentWebsite; entityId: string }>( 'websites_add', { waba, url } ),
+
+  removeWebsite: ( waba: WabaKey, websiteId: string ) =>
+    metaAgent<{ deleted: boolean }>( 'websites_remove', { waba, websiteId } ),
 };
+
+export interface AgentWebsite {
+  id: string;
+  url: string;
+  crawl_status?: string;
+}

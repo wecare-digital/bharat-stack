@@ -376,6 +376,36 @@ def _faq_delete(body: dict):
     return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
 
 
+# ── Websites (agent_config/websites) — crawled knowledge sources ──
+def _websites_list(body: dict):
+    """GET /{entity_id}/agent_config/websites -> [{id, url, crawl_status}]"""
+    eid = _entity(body)
+    if not eid:
+        return _resp(400, {"error": "entityId required"})
+    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_config/websites", None)
+    return _resp(_pass_status(st, (200,)), {"websites": d, "entityId": eid})
+
+
+def _websites_add(body: dict):
+    """POST /{entity_id}/agent_config/websites  {url}"""
+    eid = _entity(body)
+    url = (body.get("url") or "").strip()
+    if not eid or not url:
+        return _resp(400, {"error": "entityId and url required"})
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_config/websites", {"url": url})
+    return _resp(_pass_status(st, (200, 201)), {"website": d, "entityId": eid})
+
+
+def _websites_remove(body: dict):
+    """DELETE /{entity_id}/agent_config/websites/{website_id}"""
+    eid = _entity(body)
+    wid = (body.get("websiteId") or "").strip()
+    if not eid or not wid:
+        return _resp(400, {"error": "entityId and websiteId required"})
+    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_config/websites/{wid}", None)
+    return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
+
+
 # ── Connectors + Tools (agent_connectors/{connector_id}/tools) — lets the AI call our APIs ──
 def _connectors_list(body: dict):
     """GET /{entity_id}/agent_connectors — external APIs the agent can call."""
@@ -551,6 +581,13 @@ def lambda_handler(event, context):
         return _faq_update(body)
     if action == "faq_delete":
         return _faq_delete(body)
+    # Websites
+    if action in ("websites", "websites_list"):
+        return _websites_list(body)
+    if action == "websites_add":
+        return _websites_add(body)
+    if action == "websites_remove":
+        return _websites_remove(body)
     # Connectors + tools
     if action in ("connectors", "connectors_list"):
         return _connectors_list(body)
@@ -583,6 +620,7 @@ def lambda_handler(event, context):
         "skills", "skills_update",
         "business_info", "business_info_update", "business_info_reset",
         "faq", "faq_create", "faq_update", "faq_delete",
+        "websites", "websites_add", "websites_remove",
         "connectors", "connectors_add", "connectors_remove",
         "tools", "tools_add", "tools_remove", "tools_run",
         "thread_control", "agent_event", "agent_test", "agent_eval", "entities"]})

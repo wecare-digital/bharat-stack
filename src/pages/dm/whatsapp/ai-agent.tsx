@@ -16,7 +16,7 @@ import Spinner from '../../../components/ui/Spinner';
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 type WabaKey = api.WabaKey;
-type Tab = 'settings' | 'business' | 'faqs' | 'allowlist';
+type Tab = 'settings' | 'business' | 'faqs' | 'websites' | 'allowlist';
 
 const WABAS: { key: WabaKey; label: string }[] = [
     { key: 'WABA1', label: 'WABA1 · WECARE.DIGITAL (+91 93309 94400)' },
@@ -51,6 +51,11 @@ export default function AiAgentPage ( { }: PageProps ) {
     const [ faqsLoading, setFaqsLoading ] = useState( false );
     const [ newQ, setNewQ ] = useState( '' );
     const [ newA, setNewA ] = useState( '' );
+
+    // Websites
+    const [ sites, setSites ] = useState<api.AgentWebsite[]>( [] );
+    const [ sitesLoading, setSitesLoading ] = useState( false );
+    const [ newUrl, setNewUrl ] = useState( '' );
 
     // Allowlist
     const [ allow, setAllow ] = useState<api.AgentAllowlistEntry[]>( [] );
@@ -91,12 +96,20 @@ export default function AiAgentPage ( { }: PageProps ) {
         finally { setAllowLoading( false ); }
     }, [ waba, toast ] );
 
+    const loadSites = useCallback( async () => {
+        setSitesLoading( true );
+        try { const r = await api.aiAgentApi.listWebsites( waba ); setSites( Array.isArray( r?.websites ) ? r!.websites : [] ); }
+        catch { toast.error( 'Failed to load websites' ); }
+        finally { setSitesLoading( false ); }
+    }, [ waba, toast ] );
+
     useEffect( () => {
         if ( tab === 'settings' ) loadSettings();
         else if ( tab === 'business' ) loadInfo();
         else if ( tab === 'faqs' ) loadFaqs();
+        else if ( tab === 'websites' ) loadSites();
         else if ( tab === 'allowlist' ) loadAllow();
-    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadAllow ] );
+    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadSites, loadAllow ] );
 
     // ── settings mutators ──
     const saveSettings = async ( patch: Partial<api.AgentSettings> & { enabled?: boolean; aiAudience?: string } ) => {
@@ -144,6 +157,7 @@ export default function AiAgentPage ( { }: PageProps ) {
                 <TabBtn id="settings">Status & Settings</TabBtn>
                 <TabBtn id="business">Business Info</TabBtn>
                 <TabBtn id="faqs">FAQs</TabBtn>
+                <TabBtn id="websites">Websites</TabBtn>
                 <TabBtn id="allowlist">Allowlist</TabBtn>
             </div>
 
@@ -238,6 +252,38 @@ export default function AiAgentPage ( { }: PageProps ) {
                                         const ok = await api.aiAgentApi.deleteFaq( waba, f.id );
                                         if ( ok?.deleted ) { toast.success( 'Deleted' ); loadFaqs(); } else toast.error( 'Delete failed' );
                                     } } style={ { ...btn( '#fef2f2' ), color: '#dc2626', padding: '4px 10px', fontSize: 12 } }>Delete</button>
+                                </div>
+                            ) ) }
+                        </div>
+                    ) }
+                </div>
+            ) }
+
+            {/* ── WEBSITES ── */ }
+            { tab === 'websites' && (
+                <div>
+                    <div style={ card }>
+                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Website knowledge sources</h3>
+                        <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 12px' } }>The AI crawls these URLs and answers from their content.</p>
+                        <div style={ { display: 'flex', gap: 8 } }>
+                            <input style={ { ...input, marginBottom: 0 } } value={ newUrl } onChange={ e => setNewUrl( e.target.value ) } placeholder="https://wecare.digital/" />
+                            <button disabled={ saving || !newUrl.trim() } onClick={ async () => {
+                                setSaving( true );
+                                try { const r = await api.aiAgentApi.addWebsite( waba, newUrl.trim() ); if ( r?.website ) { setNewUrl( '' ); toast.success( 'Website added' ); loadSites(); } else toast.error( 'Add failed' ); }
+                                finally { setSaving( false ); }
+                            } } style={ btn( '#059669' ) }>Add</button>
+                        </div>
+                    </div>
+                    { sitesLoading ? <Spinner /> : (
+                        <div style={ card }>
+                            { sites.length === 0 && <div style={ { color: '#9ca3af', fontSize: 14 } }>No websites added.</div> }
+                            { sites.map( s => (
+                                <div key={ s.id } style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f3f4f6', padding: '8px 0' } }>
+                                    <span style={ { fontSize: 13 } }>{ s.url } { s.crawl_status && <span style={ { fontSize: 11, color: '#9ca3af' } }>· { s.crawl_status }</span> }</span>
+                                    <button onClick={ async () => {
+                                        const ok = await api.aiAgentApi.removeWebsite( waba, s.id );
+                                        if ( ok?.deleted ) { toast.success( 'Removed' ); loadSites(); } else toast.error( 'Remove failed' );
+                                    } } style={ { ...btn( '#fef2f2' ), color: '#dc2626', padding: '4px 10px', fontSize: 12 } }>Remove</button>
                                 </div>
                             ) ) }
                         </div>
