@@ -282,15 +282,43 @@ def _skills_get(body: dict):
     return _resp(_pass_status(st, (200,)), {"skills": d, "entityId": eid})
 
 
-def _skills_update(body: dict):
-    """PUT /{entity_id}/agent_config/skills  {system_instructions}"""
+def _skills_create(body: dict):
+    """POST /{entity_id}/agent_config/skills — create a skill.
+    Passes through the caller-supplied `skill` object so any BizAIOmniChannelSkillsRequest
+    shape works; falls back to {title, description, instruction} from top-level fields."""
     eid = _entity(body)
-    instructions = body.get("instructions")
-    if not eid or instructions is None:
-        return _resp(400, {"error": "entityId and instructions (system prompt) required"})
-    st, d = _meta_request("PUT", _with_agent(f"{GRAPH_HOST}/{eid}/agent_config/skills", body.get("agentId")),
-                          {"system_instructions": instructions})
-    return _resp(_pass_status(st, (200, 201)), {"skills": d, "entityId": eid})
+    if not eid:
+        return _resp(400, {"error": "entityId required"})
+    skill = body.get("skill")
+    if not isinstance(skill, dict) or not skill:
+        skill = {k: body[k] for k in ("title", "description", "instruction") if body.get(k) is not None}
+    if not skill:
+        return _resp(400, {"error": "skill{} (or title/description/instruction) required"})
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_config/skills", skill)
+    return _resp(_pass_status(st, (200, 201)), {"skill": d, "entityId": eid})
+
+
+def _skills_update(body: dict):
+    """PUT /{entity_id}/agent_config/skills/{skill_id} — full replace of one skill."""
+    eid = _entity(body)
+    sid = (body.get("skillId") or "").strip()
+    skill = body.get("skill")
+    if not isinstance(skill, dict) or not skill:
+        skill = {k: body[k] for k in ("title", "description", "instruction") if body.get(k) is not None}
+    if not eid or not sid or not skill:
+        return _resp(400, {"error": "entityId, skillId and skill{} required"})
+    st, d = _meta_request("PUT", f"{GRAPH_HOST}/{eid}/agent_config/skills/{sid}", skill)
+    return _resp(_pass_status(st, (200,)), {"skill": d, "entityId": eid})
+
+
+def _skills_delete(body: dict):
+    """DELETE /{entity_id}/agent_config/skills/{skill_id} -> 204"""
+    eid = _entity(body)
+    sid = (body.get("skillId") or "").strip()
+    if not eid or not sid:
+        return _resp(400, {"error": "entityId and skillId required"})
+    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_config/skills/{sid}", None)
+    return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
 
 
 # ── Business Info (agent_config/business_info) — VERIFIED paths ──
@@ -561,10 +589,14 @@ def lambda_handler(event, context):
     if action == "allowlist_remove":
         return _allowlist_remove(body)
     # Configure group
-    if action == "skills":
+    if action in ("skills", "skills_list"):
         return _skills_get(body)
+    if action == "skills_create":
+        return _skills_create(body)
     if action == "skills_update":
         return _skills_update(body)
+    if action == "skills_delete":
+        return _skills_delete(body)
     # Business info (knowledge)
     if action in ("business_info", "business_info_get"):
         return _business_info_get(body)
@@ -617,7 +649,7 @@ def lambda_handler(event, context):
     return _resp(400, {"error": "unknown action", "supported": [
         "eligibility", "onboard", "readiness", "settings", "settings_update", "enable", "disable",
         "allowlist", "allowlist_add", "allowlist_remove",
-        "skills", "skills_update",
+        "skills", "skills_create", "skills_update", "skills_delete",
         "business_info", "business_info_update", "business_info_reset",
         "faq", "faq_create", "faq_update", "faq_delete",
         "websites", "websites_add", "websites_remove",
