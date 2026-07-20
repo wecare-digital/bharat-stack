@@ -5183,7 +5183,8 @@ export async function createCatalogProduct (
   const data = await apiCall<any>( `${WA_BIZ_BASE}/catalog-products`, {
     method: 'POST', body: JSON.stringify( input ),
   } );
-  if ( !data || data.error ) {
+  if ( !data || data.error )
+  {
     return { success: false, error: typeof data?.error === 'string' ? data.error : ( data?.error?.message || data?.error?.error_user_msg || 'Failed to create product' ) };
   }
   return { success: true, productId: data.productId, imageFetchStatus: data.imageFetchStatus };
@@ -6060,3 +6061,88 @@ export async function deleteAiPolicyMarket ( countryCode: string ): Promise<{ su
   if ( data?.error ) return { success: false, error: typeof data.error === 'string' ? data.error : data.error?.message };
   return { success: true };
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Meta Business AI Agent — management API (POST ${API_BASE}/meta-agent)
+// The Lambda dispatches on `action`; every call takes a WABA entity.
+// ═══════════════════════════════════════════════════════════════════
+
+export type WabaKey = 'WABA1' | 'WABA2';
+
+export interface AgentSettings {
+  agent_id?: string;
+  channel?: string;
+  rollout?: { enabled: boolean };
+  handoff?: { enabled: boolean; message?: string };
+  followup?: { enabled: boolean; followup_interval_in_seconds?: number; message?: string };
+  ai_audience?: 'ALLOWLISTED_ONLY' | 'EVERYONE';
+}
+
+export interface AgentBusinessInfo {
+  payment_method?: string;
+  return_policy?: string;
+  purchase_info?: string;
+  delivery_and_shipping?: string;
+  business_description?: string;
+  contact_info?: { email?: string; hours_of_operation?: string; address?: string };
+}
+
+export interface AgentFaq {
+  id?: string;
+  question: string;
+  answer: string;
+  created_at?: number;
+}
+
+export interface AgentAllowlistEntry {
+  id: string;
+  consumer_phone_number: string;
+}
+
+async function metaAgent<T> ( action: string, params: Record<string, unknown> = {} ): Promise<T | null> {
+  return apiCall<T>( `${API_BASE}/meta-agent`, {
+    method: 'POST',
+    body: JSON.stringify( { action, ...params } ),
+  } );
+}
+
+export const aiAgentApi = {
+  eligibility: ( waba: WabaKey ) =>
+    metaAgent<{ eligibility: { is_eligible?: boolean }; entityId: string }>( 'eligibility', { waba } ),
+
+  getSettings: ( waba: WabaKey ) =>
+    metaAgent<{ settings: AgentSettings[] | AgentSettings; entityId: string }>( 'settings', { waba } ),
+
+  updateSettings: ( waba: WabaKey, settings: Partial<AgentSettings> & { enabled?: boolean; aiAudience?: string } ) =>
+    metaAgent<{ settings: AgentSettings; entityId: string }>( 'settings_update', { waba, ...settings } ),
+
+  enable: ( waba: WabaKey ) => metaAgent<unknown>( 'enable', { waba } ),
+  disable: ( waba: WabaKey ) => metaAgent<unknown>( 'disable', { waba } ),
+
+  getBusinessInfo: ( waba: WabaKey ) =>
+    metaAgent<{ business_info: AgentBusinessInfo; entityId: string }>( 'business_info', { waba } ),
+
+  updateBusinessInfo: ( waba: WabaKey, businessInfo: AgentBusinessInfo ) =>
+    metaAgent<{ business_info: AgentBusinessInfo; entityId: string }>( 'business_info_update', { waba, businessInfo } ),
+
+  listFaqs: ( waba: WabaKey ) =>
+    metaAgent<{ faqs: AgentFaq[]; entityId: string }>( 'faq', { waba } ),
+
+  createFaq: ( waba: WabaKey, question: string, answer: string ) =>
+    metaAgent<{ faq: AgentFaq; entityId: string }>( 'faq_create', { waba, question, answer } ),
+
+  updateFaq: ( waba: WabaKey, faqId: string, question: string, answer: string ) =>
+    metaAgent<{ faq: AgentFaq; entityId: string }>( 'faq_update', { waba, faqId, question, answer } ),
+
+  deleteFaq: ( waba: WabaKey, faqId: string ) =>
+    metaAgent<{ deleted: boolean }>( 'faq_delete', { waba, faqId } ),
+
+  listAllowlist: ( waba: WabaKey ) =>
+    metaAgent<{ allowlist: AgentAllowlistEntry[]; entityId: string }>( 'allowlist', { waba } ),
+
+  addAllowlist: ( waba: WabaKey, consumerPhoneNumber: string ) =>
+    metaAgent<{ entry: AgentAllowlistEntry }>( 'allowlist_add', { waba, consumerPhoneNumber } ),
+
+  removeAllowlist: ( waba: WabaKey, entryId: string ) =>
+    metaAgent<{ deleted: boolean }>( 'allowlist_remove', { waba, entryId } ),
+};

@@ -43,6 +43,10 @@ DEFAULT_ENTITIES = {
     "WABA-T": "1055232054343117",  # +91 99033 00044
 }
 
+# agent_config/settings enum constraints (per Meta Business Agent spec)
+_AI_AUDIENCES = {"ALLOWLISTED_ONLY", "EVERYONE"}
+_FOLLOWUP_INTERVALS = {0, 300, 900, 1800, 3600, 7200, 28800, 86400}
+
 _token_cache = {}
 CORS = {
     "Content-Type": "application/json",
@@ -184,6 +188,14 @@ def _settings_update(body: dict):
         return _resp(400, {"error": "entityId required"})
     agent_id = body.get("agentId")
 
+    # ── validate enum fields against the Meta spec (fail fast with a clear 400) ──
+    if "aiAudience" in body and body["aiAudience"] not in _AI_AUDIENCES:
+        return _resp(400, {"error": f"aiAudience must be one of {sorted(_AI_AUDIENCES)}"})
+    if "followup" in body and isinstance(body["followup"], dict):
+        _iv = body["followup"].get("followup_interval_in_seconds")
+        if _iv is not None and _iv not in _FOLLOWUP_INTERVALS:
+            return _resp(400, {"error": f"followup_interval_in_seconds must be one of {sorted(_FOLLOWUP_INTERVALS)}"})
+
     # merge base = current settings (if any)
     _, cur = _meta_request("GET", _settings_url(entity_id, agent_id), None)
     current = cur[0] if isinstance(cur, list) and cur else (cur if isinstance(cur, dict) else {})
@@ -281,58 +293,152 @@ def _skills_update(body: dict):
     return _resp(_pass_status(st, (200, 201)), {"skills": d, "entityId": eid})
 
 
-def _knowledge_list(body: dict):
-    """GET /{entity_id}/agent_knowledge/{resource}  resource in business_info|faqs|websites|files"""
-    eid = _entity(body); res = body.get("resource", "")
-    if not eid or res not in _KNOWLEDGE:
-        return _resp(400, {"error": f"entityId and resource in {sorted(_KNOWLEDGE)} required"})
-    st, d = _meta_request("GET", _with_agent(f"{GRAPH_HOST}/{eid}/agent_knowledge/{res}", body.get("agentId")), None)
-    return _resp(_pass_status(st, (200,)), {"resource": res, "items": d, "entityId": eid})
+# ── Business Info (agent_config/business_info) — VERIFIED paths ──
+_BUSINESS_INFO_FIELDS = {"payment_method", "return_policy", "purchase_info",
+                         "delivery_and_shipping", "business_description", "contact_info"}
 
 
-def _knowledge_add(body: dict):
-    """POST /{entity_id}/agent_knowledge/{resource}  {item...}"""
-    eid = _entity(body); res = body.get("resource", ""); item = body.get("item") or {}
-    if not eid or res not in _KNOWLEDGE or not item:
-        return _resp(400, {"error": f"entityId, resource in {sorted(_KNOWLEDGE)}, and item{{}} required"})
-    st, d = _meta_request("POST", _with_agent(f"{GRAPH_HOST}/{eid}/agent_knowledge/{res}", body.get("agentId")), item)
-    return _resp(_pass_status(st, (200, 201)), {"resource": res, "created": d, "entityId": eid})
-
-
-def _knowledge_remove(body: dict):
-    """DELETE /{entity_id}/agent_knowledge/{resource}/{item_id}"""
-    eid = _entity(body); res = body.get("resource", ""); item_id = body.get("itemId", "")
-    if not eid or res not in _KNOWLEDGE or not item_id:
-        return _resp(400, {"error": "entityId, resource, itemId required"})
-    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_knowledge/{res}/{item_id}", None)
-    return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
-
-
-def _connectors_list(body: dict):
-    """GET /{entity_id}/agent_config/connectors — external APIs the agent can call."""
+def _business_info_get(body: dict):
+    """GET /{entity_id}/agent_config/business_info"""
     eid = _entity(body)
     if not eid:
         return _resp(400, {"error": "entityId required"})
-    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_config/connectors", None)
+    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_config/business_info", None)
+    return _resp(_pass_status(st, (200,)), {"business_info": d, "entityId": eid})
+
+
+def _business_info_update(body: dict):
+    """PUT /{entity_id}/agent_config/business_info — full replace with provided fields."""
+    eid = _entity(body)
+    info = body.get("businessInfo") or body.get("business_info") or {}
+    if not eid or not isinstance(info, dict) or not info:
+        return _resp(400, {"error": "entityId and businessInfo{} required"})
+    payload = {k: v for k, v in info.items() if k in _BUSINESS_INFO_FIELDS}
+    st, d = _meta_request("PUT", f"{GRAPH_HOST}/{eid}/agent_config/business_info", payload)
+    return _resp(_pass_status(st, (200,)), {"business_info": d, "entityId": eid})
+
+
+def _business_info_reset(body: dict):
+    """DELETE /{entity_id}/agent_config/business_info — reset to defaults."""
+    eid = _entity(body)
+    if not eid:
+        return _resp(400, {"error": "entityId required"})
+    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_config/business_info", None)
+    return _resp(_pass_status(st, (200,)), {"business_info": d, "entityId": eid})
+
+
+# ── FAQs (agent_config/faq) — VERIFIED paths ──
+def _faq_list(body: dict):
+    """GET /{entity_id}/agent_config/faq -> [{id, question, answer, created_at}]"""
+    eid = _entity(body)
+    if not eid:
+        return _resp(400, {"error": "entityId required"})
+    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_config/faq", None)
+    return _resp(_pass_status(st, (200,)), {"faqs": d, "entityId": eid})
+
+
+def _faq_create(body: dict):
+    """POST /{entity_id}/agent_config/faq  {question, answer, metadata?}"""
+    eid = _entity(body)
+    q = (body.get("question") or "").strip()
+    a = (body.get("answer") or "").strip()
+    if not eid or not q or not a:
+        return _resp(400, {"error": "entityId, question and answer required"})
+    item = {"question": q, "answer": a}
+    if isinstance(body.get("metadata"), dict):
+        item["metadata"] = body["metadata"]
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_config/faq", item)
+    return _resp(_pass_status(st, (200, 201)), {"faq": d, "entityId": eid})
+
+
+def _faq_update(body: dict):
+    """PUT /{entity_id}/agent_config/faq/{faq_id}  {question, answer}"""
+    eid = _entity(body)
+    fid = (body.get("faqId") or "").strip()
+    q = (body.get("question") or "").strip()
+    a = (body.get("answer") or "").strip()
+    if not eid or not fid or not q or not a:
+        return _resp(400, {"error": "entityId, faqId, question and answer required"})
+    item = {"question": q, "answer": a}
+    if isinstance(body.get("metadata"), dict):
+        item["metadata"] = body["metadata"]
+    st, d = _meta_request("PUT", f"{GRAPH_HOST}/{eid}/agent_config/faq/{fid}", item)
+    return _resp(_pass_status(st, (200,)), {"faq": d, "entityId": eid})
+
+
+def _faq_delete(body: dict):
+    """DELETE /{entity_id}/agent_config/faq/{faq_id} -> 204"""
+    eid = _entity(body)
+    fid = (body.get("faqId") or "").strip()
+    if not eid or not fid:
+        return _resp(400, {"error": "entityId and faqId required"})
+    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_config/faq/{fid}", None)
+    return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
+
+
+# ── Connectors + Tools (agent_connectors/{connector_id}/tools) — lets the AI call our APIs ──
+def _connectors_list(body: dict):
+    """GET /{entity_id}/agent_connectors — external APIs the agent can call."""
+    eid = _entity(body)
+    if not eid:
+        return _resp(400, {"error": "entityId required"})
+    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_connectors", None)
     return _resp(_pass_status(st, (200,)), {"connectors": d, "entityId": eid})
 
 
 def _connectors_add(body: dict):
-    """POST /{entity_id}/agent_config/connectors  {connector...}"""
+    """POST /{entity_id}/agent_connectors  {connector...}"""
     eid = _entity(body); spec = body.get("connector") or {}
     if not eid or not spec:
         return _resp(400, {"error": "entityId and connector{} required"})
-    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_config/connectors", spec)
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_connectors", spec)
     return _resp(_pass_status(st, (200, 201)), {"created": d, "entityId": eid})
 
 
 def _connectors_remove(body: dict):
-    """DELETE /{entity_id}/agent_config/connectors/{connector_id}"""
+    """DELETE /{entity_id}/agent_connectors/{connector_id}"""
     eid = _entity(body); cid = body.get("connectorId", "")
     if not eid or not cid:
         return _resp(400, {"error": "entityId and connectorId required"})
-    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_config/connectors/{cid}", None)
+    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}", None)
     return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
+
+
+def _tools_list(body: dict):
+    """GET /{entity_id}/agent_connectors/{connector_id}/tools"""
+    eid = _entity(body); cid = body.get("connectorId", "")
+    if not eid or not cid:
+        return _resp(400, {"error": "entityId and connectorId required"})
+    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}/tools", None)
+    return _resp(_pass_status(st, (200,)), {"tools": d, "entityId": eid})
+
+
+def _tools_add(body: dict):
+    """POST /{entity_id}/agent_connectors/{connector_id}/tools  {tool...}"""
+    eid = _entity(body); cid = body.get("connectorId", ""); spec = body.get("tool") or {}
+    if not eid or not cid or not spec:
+        return _resp(400, {"error": "entityId, connectorId and tool{} required"})
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}/tools", spec)
+    return _resp(_pass_status(st, (200, 201)), {"created": d, "entityId": eid})
+
+
+def _tools_remove(body: dict):
+    """DELETE /{entity_id}/agent_connectors/{connector_id}/tools/{tool_id}"""
+    eid = _entity(body); cid = body.get("connectorId", ""); tid = body.get("toolId", "")
+    if not eid or not cid or not tid:
+        return _resp(400, {"error": "entityId, connectorId and toolId required"})
+    st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}/tools/{tid}", None)
+    return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
+
+
+def _tools_run(body: dict):
+    """POST /{entity_id}/agent_connectors/{connector_id}/tools/{tool_id}/run  {input}"""
+    eid = _entity(body); cid = body.get("connectorId", ""); tid = body.get("toolId", "")
+    if not eid or not cid or not tid:
+        return _resp(400, {"error": "entityId, connectorId and toolId required"})
+    payload = {"input": body.get("input") or "{}"}
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}/tools/{tid}/run", payload)
+    return _resp(_pass_status(st, (200,)), {"result": d, "entityId": eid})
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -429,18 +535,37 @@ def lambda_handler(event, context):
         return _skills_get(body)
     if action == "skills_update":
         return _skills_update(body)
-    if action in ("knowledge", "knowledge_list"):
-        return _knowledge_list(body)
-    if action == "knowledge_add":
-        return _knowledge_add(body)
-    if action == "knowledge_remove":
-        return _knowledge_remove(body)
+    # Business info (knowledge)
+    if action in ("business_info", "business_info_get"):
+        return _business_info_get(body)
+    if action == "business_info_update":
+        return _business_info_update(body)
+    if action == "business_info_reset":
+        return _business_info_reset(body)
+    # FAQs
+    if action in ("faq", "faq_list", "faqs"):
+        return _faq_list(body)
+    if action == "faq_create":
+        return _faq_create(body)
+    if action == "faq_update":
+        return _faq_update(body)
+    if action == "faq_delete":
+        return _faq_delete(body)
+    # Connectors + tools
     if action in ("connectors", "connectors_list"):
         return _connectors_list(body)
     if action == "connectors_add":
         return _connectors_add(body)
     if action == "connectors_remove":
         return _connectors_remove(body)
+    if action in ("tools", "tools_list"):
+        return _tools_list(body)
+    if action == "tools_add":
+        return _tools_add(body)
+    if action == "tools_remove":
+        return _tools_remove(body)
+    if action == "tools_run":
+        return _tools_run(body)
     # Operate group
     if action == "thread_control":
         return _thread_control(body)
@@ -455,6 +580,9 @@ def lambda_handler(event, context):
     return _resp(400, {"error": "unknown action", "supported": [
         "eligibility", "onboard", "readiness", "settings", "settings_update", "enable", "disable",
         "allowlist", "allowlist_add", "allowlist_remove",
-        "skills", "skills_update", "knowledge", "knowledge_add", "knowledge_remove",
+        "skills", "skills_update",
+        "business_info", "business_info_update", "business_info_reset",
+        "faq", "faq_create", "faq_update", "faq_delete",
         "connectors", "connectors_add", "connectors_remove",
+        "tools", "tools_add", "tools_remove", "tools_run",
         "thread_control", "agent_event", "agent_test", "agent_eval", "entities"]})

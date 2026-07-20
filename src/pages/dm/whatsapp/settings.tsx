@@ -23,6 +23,7 @@ import ScriptsPage from './scripts';
 import FlowResponsesPage from './flow-responses';
 import FlowHubPage from './flow-hub';
 import MigrationPage from './migration';
+import AiAgentPage from './ai-agent';
 
 interface PageProps {
   signOut?: () => void;
@@ -119,6 +120,7 @@ const BotMenuTab: React.FC = () => (
 );
 
 const TABS: ShellTab[] = [
+  { id: 'ai-agent', label: '🤖 AI Agent' },
   { id: 'auto-response', label: 'Auto-Response' },
   { id: 'bot-menu', label: 'Bot Menu' },
   { id: 'scripts', label: 'Scripts' },
@@ -148,6 +150,7 @@ const WhatsAppSettingsPage: React.FC<PageProps> = ( { signOut, user } ) => (
     >
       { ( activeTab ) => (
         <Suspense fallback={ <div style={ { padding: 40, textAlign: 'center' } }>Loading...</div> }>
+          { activeTab === 'ai-agent' && <AiAgentPage signOut={ signOut } user={ user } embedded /> }
           { activeTab === 'auto-response' && <AutoResponsePage signOut={ signOut } user={ user } embedded /> }
           { activeTab === 'bot-menu' && <BotMenuTab /> }
           { activeTab === 'scripts' && <ScriptsPage signOut={ signOut } user={ user } embedded /> }
