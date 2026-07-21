@@ -588,24 +588,53 @@ def _tools_run(body: dict):
 # ─────────────────────────────────────────────────────────────────────────
 
 def _thread_control(body: dict):
-    """Cloud API handover: pass control back to the agent, or take it.
-    op: pass|take ; recipient = consumer phone (E.164)."""
-    eid = _entity(body); recipient = (body.get("recipient") or "").strip()
-    op = (body.get("op") or "pass").lower()
-    if not eid or not recipient:
-        return _resp(400, {"error": "entityId and recipient required"})
-    verb = "pass_thread_control" if op == "pass" else "take_thread_control"
-    st, d = _meta_request("POST", f"{GRAPH}/{eid}/{verb}",
-                          {"messaging_product": "whatsapp", "recipient": recipient})
-    return _resp(_pass_status(st, (200, 201)), {"thread_control": d, "op": op, "entityId": eid})
+    """Release thread control back to the Meta Business Agent (Cloud API).
+    POST /business/whatsapp/phone_numbers/{phone_number_id}/thread_control
+    Only 'release' is supported (hands the conversation back to the AI responder).
+    To TAKE control, the app simply sends a message to the conversation.
+    Requires only whatsapp_business_messaging (NOT the enterprise capability)."""
+    phone_id = _entity(body)  # WhatsApp Business Phone Number ID
+    to = (body.get("to") or body.get("recipient") or "").strip()
+    action = (body.get("action") or "release").lower()
+    if not phone_id or not to:
+        return _resp(400, {"error": "entityId (phone_number_id) and to (consumer phone/E.164) required"})
+    token, secret = _creds()
+    url = (f"{GRAPH_HOST}/business/whatsapp/phone_numbers/{phone_id}/thread_control"
+           f"?access_token={token}&oauth_token={token}")
+    if secret:
+        url += "&appsecret_proof=" + _appsecret_proof(token, secret)
+    req = urllib.request.Request(url, data=json.dumps(
+        {"messaging_product": "whatsapp", "action": action, "to": to}).encode(), method="POST")
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("X-API-Version", "1.0.0")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            t = r.read().decode()
+            return _resp(200, {"thread_control": (json.loads(t) if t else {}), "action": action, "to": to})
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")
+        try:
+            detail = json.loads(detail)
+        except Exception:
+            pass
+        return _resp(_pass_status(e.code, (200,)), {"error": detail, "action": action})
+    except Exception as e:
+        return _resp(502, {"error": str(e)})
 
 
 def _agent_event(body: dict):
-    """POST /{entity_id}/agent_event — trigger an agent action for a business event."""
-    eid = _entity(body); payload = body.get("event") or {}
-    if not eid or not payload:
-        return _resp(400, {"error": "entityId and event{} required"})
-    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_event", payload)
+    """POST /{entity_id}/agent_event — trigger an agent action on a business event
+    (e.g. payment_received, document_verified). Body: {to, event:{type, description, payload}}."""
+    eid = _entity(body)
+    to = (body.get("to") or "").strip()
+    event = body.get("event") or {}
+    if not eid or not to or not isinstance(event, dict) or not event.get("type"):
+        return _resp(400, {"error": "entityId, to (E.164) and event{type, description, payload} required"})
+    # payload must be an opaque JSON string
+    if isinstance(event.get("payload"), (dict, list)):
+        event["payload"] = json.dumps(event["payload"])
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_event", {"to": to, "event": event})
     return _resp(_pass_status(st, (200, 201)), {"event": d, "entityId": eid})
 
 
@@ -619,12 +648,23 @@ def _agent_test(body: dict):
 
 
 def _agent_eval(body: dict):
-    """GET /{entity_id}/agent_eval — agent performance metrics."""
+    """Agent eval (agent-eval, hyphen) — GET /cases|/summary|/details|/run, POST /run.
+    Defaults to listing eval cases. sub = cases|summary|details|run ; extra query passthrough."""
     eid = _entity(body)
     if not eid:
         return _resp(400, {"error": "entityId required"})
-    st, d = _meta_request("GET", _with_agent(f"{GRAPH_HOST}/{eid}/agent_eval", body.get("agentId")), None)
-    return _resp(_pass_status(st, (200,)), {"eval": d, "entityId": eid})
+    sub = (body.get("sub") or "cases").lower()
+    method = (body.get("method") or ("POST" if body.get("evalCaseIds") else "GET")).upper()
+    qs = []
+    for k in ("job_id", "eval_ids", "summary_ids", "eval_case_ids"):
+        camel = ''.join([k.split('_')[0]] + [p.capitalize() for p in k.split('_')[1:]])
+        if body.get(camel):
+            qs.append(f"{k}={body[camel]}")
+    url = f"{GRAPH_HOST}/{eid}/agent-eval/{sub}"
+    if qs:
+        url += "?" + "&".join(qs)
+    st, d = _meta_request(method, url, body.get("payload") if method == "POST" else None)
+    return _resp(_pass_status(st, (200,)), {"eval": d, "sub": sub, "entityId": eid})
 
 
 def lambda_handler(event, context):
