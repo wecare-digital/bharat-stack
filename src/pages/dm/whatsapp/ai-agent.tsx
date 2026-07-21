@@ -16,7 +16,7 @@ import Spinner from '../../../components/ui/Spinner';
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 type WabaKey = api.WabaKey;
-type Tab = 'settings' | 'business' | 'faqs' | 'websites' | 'allowlist';
+type Tab = 'settings' | 'business' | 'faqs' | 'skills' | 'websites' | 'allowlist';
 
 const WABAS: { key: WabaKey; label: string }[] = [
     { key: 'WABA1', label: 'WABA1 · WECARE.DIGITAL (+91 93309 94400)' },
@@ -51,6 +51,13 @@ export default function AiAgentPage ( { }: PageProps ) {
     const [ faqsLoading, setFaqsLoading ] = useState( false );
     const [ newQ, setNewQ ] = useState( '' );
     const [ newA, setNewA ] = useState( '' );
+
+    // Skills
+    const [ skills, setSkills ] = useState<api.AgentSkill[]>( [] );
+    const [ skillsLoading, setSkillsLoading ] = useState( false );
+    const [ skTitle, setSkTitle ] = useState( '' );
+    const [ skDesc, setSkDesc ] = useState( '' );
+    const [ skBody, setSkBody ] = useState( '' );
 
     // Websites
     const [ sites, setSites ] = useState<api.AgentWebsite[]>( [] );
@@ -103,13 +110,21 @@ export default function AiAgentPage ( { }: PageProps ) {
         finally { setSitesLoading( false ); }
     }, [ waba, toast ] );
 
+    const loadSkills = useCallback( async () => {
+        setSkillsLoading( true );
+        try { const r = await api.aiAgentApi.listSkills( waba ); setSkills( Array.isArray( r?.skills ) ? r!.skills : [] ); }
+        catch { toast.error( 'Failed to load skills' ); }
+        finally { setSkillsLoading( false ); }
+    }, [ waba, toast ] );
+
     useEffect( () => {
         if ( tab === 'settings' ) loadSettings();
         else if ( tab === 'business' ) loadInfo();
         else if ( tab === 'faqs' ) loadFaqs();
+        else if ( tab === 'skills' ) loadSkills();
         else if ( tab === 'websites' ) loadSites();
         else if ( tab === 'allowlist' ) loadAllow();
-    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadSites, loadAllow ] );
+    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadSkills, loadSites, loadAllow ] );
 
     // ── settings mutators ──
     const saveSettings = async ( patch: Partial<api.AgentSettings> & { enabled?: boolean; aiAudience?: string } ) => {
@@ -157,6 +172,7 @@ export default function AiAgentPage ( { }: PageProps ) {
                 <TabBtn id="settings">Status & Settings</TabBtn>
                 <TabBtn id="business">Business Info</TabBtn>
                 <TabBtn id="faqs">FAQs</TabBtn>
+                <TabBtn id="skills">Skills</TabBtn>
                 <TabBtn id="websites">Websites</TabBtn>
                 <TabBtn id="allowlist">Allowlist</TabBtn>
             </div>
@@ -251,6 +267,45 @@ export default function AiAgentPage ( { }: PageProps ) {
                                         if ( !f.id ) return;
                                         const ok = await api.aiAgentApi.deleteFaq( waba, f.id );
                                         if ( ok?.deleted ) { toast.success( 'Deleted' ); loadFaqs(); } else toast.error( 'Delete failed' );
+                                    } } style={ { ...btn( '#fef2f2' ), color: '#dc2626', padding: '4px 10px', fontSize: 12 } }>Delete</button>
+                                </div>
+                            ) ) }
+                        </div>
+                    ) }
+                </div>
+            ) }
+
+            {/* ── SKILLS ── */ }
+            { tab === 'skills' && (
+                <div>
+                    <div style={ card }>
+                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Add a skill (behaviour / tone directive)</h3>
+                        <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 12px' } }>Skills shape how the AI responds. Title must be lowercase letters, numbers and hyphens (e.g. brand-voice).</p>
+                        <label style={ label }>Title (lowercase-hyphen)</label>
+                        <input style={ input } value={ skTitle } onChange={ e => setSkTitle( e.target.value ) } placeholder="brand-voice" />
+                        <label style={ label }>When to apply (description)</label>
+                        <input style={ input } value={ skDesc } onChange={ e => setSkDesc( e.target.value ) } placeholder="Apply to every conversation." />
+                        <label style={ label }>Instructions</label>
+                        <textarea style={ { ...input, minHeight: 90 } } value={ skBody } onChange={ e => setSkBody( e.target.value ) } placeholder="Reply warmly and concisely..." />
+                        <button disabled={ saving || !skTitle.trim() || !skBody.trim() } onClick={ async () => {
+                            setSaving( true );
+                            try { const r = await api.aiAgentApi.createSkill( waba, skTitle.trim(), skDesc.trim(), skBody.trim() ); if ( r?.skill ) { setSkTitle( '' ); setSkDesc( '' ); setSkBody( '' ); toast.success( 'Skill added' ); loadSkills(); } else toast.error( 'Add failed (title must be lowercase-hyphen)' ); }
+                            finally { setSaving( false ); }
+                        } } style={ btn( '#059669' ) }>Add skill</button>
+                    </div>
+                    { skillsLoading ? <Spinner /> : (
+                        <div style={ card }>
+                            <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#111827' } }>Skills ({ skills.length })</h3>
+                            { skills.length === 0 && <div style={ { color: '#9ca3af', fontSize: 14 } }>No skills yet.</div> }
+                            { skills.map( s => (
+                                <div key={ s.id } style={ { borderBottom: '1px solid #f3f4f6', padding: '10px 0' } }>
+                                    <div style={ { fontWeight: 600, color: '#111827' } }>{ s.title || '(untitled)' }</div>
+                                    { s.description && <div style={ { fontSize: 12, color: '#9ca3af' } }>{ s.description }</div> }
+                                    <div style={ { fontSize: 13, color: '#4b5563', margin: '4px 0', whiteSpace: 'pre-wrap' } }>{ s.skill }</div>
+                                    <button onClick={ async () => {
+                                        if ( !s.id ) return;
+                                        const ok = await api.aiAgentApi.deleteSkill( waba, s.id );
+                                        if ( ok?.deleted ) { toast.success( 'Deleted' ); loadSkills(); } else toast.error( 'Delete failed' );
                                     } } style={ { ...btn( '#fef2f2' ), color: '#dc2626', padding: '4px 10px', fontSize: 12 } }>Delete</button>
                                 </div>
                             ) ) }

@@ -364,32 +364,34 @@ def _skills_get(body: dict):
     return _resp(_pass_status(st, (200,)), {"skills": d, "entityId": eid})
 
 
+def _skill_payload(body: dict) -> dict:
+    """Build a BizAIOmniChannelSkillsRequest: {title, description, skill}.
+    `title` must be lowercase letters/numbers/hyphens; `skill` is the instruction body."""
+    return {k: v for k, v in {
+        "title": body.get("title"),
+        "description": body.get("description"),
+        "skill": body.get("skill") or body.get("instruction"),  # `skill` is the instruction text
+    }.items() if v is not None}
+
+
 def _skills_create(body: dict):
-    """POST /{entity_id}/agent_config/skills — create a skill.
-    Passes through the caller-supplied `skill` object so any BizAIOmniChannelSkillsRequest
-    shape works; falls back to {title, description, instruction} from top-level fields."""
+    """POST /{entity_id}/agent_config/skills — create a skill {title, description, skill}."""
     eid = _entity(body)
-    if not eid:
-        return _resp(400, {"error": "entityId required"})
-    skill = body.get("skill")
-    if not isinstance(skill, dict) or not skill:
-        skill = {k: body[k] for k in ("title", "description", "instruction") if body.get(k) is not None}
-    if not skill:
-        return _resp(400, {"error": "skill{} (or title/description/instruction) required"})
-    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_config/skills", skill)
+    payload = _skill_payload(body)
+    if not eid or not payload.get("title") or not payload.get("skill"):
+        return _resp(400, {"error": "entityId, title (lowercase-hyphen) and skill (instruction text) required"})
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_config/skills", payload)
     return _resp(_pass_status(st, (200, 201)), {"skill": d, "entityId": eid})
 
 
 def _skills_update(body: dict):
-    """PUT /{entity_id}/agent_config/skills/{skill_id} — full replace of one skill."""
+    """PUT /{entity_id}/agent_config/skills/{skill_id} — replace one skill."""
     eid = _entity(body)
     sid = (body.get("skillId") or "").strip()
-    skill = body.get("skill")
-    if not isinstance(skill, dict) or not skill:
-        skill = {k: body[k] for k in ("title", "description", "instruction") if body.get(k) is not None}
-    if not eid or not sid or not skill:
-        return _resp(400, {"error": "entityId, skillId and skill{} required"})
-    st, d = _meta_request("PUT", f"{GRAPH_HOST}/{eid}/agent_config/skills/{sid}", skill)
+    payload = _skill_payload(body)
+    if not eid or not sid or not payload.get("skill"):
+        return _resp(400, {"error": "entityId, skillId and skill (instruction text) required"})
+    st, d = _meta_request("PUT", f"{GRAPH_HOST}/{eid}/agent_config/skills/{sid}", payload)
     return _resp(_pass_status(st, (200,)), {"skill": d, "entityId": eid})
 
 

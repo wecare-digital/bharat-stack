@@ -6154,10 +6154,30 @@ export const aiAgentApi = {
 
   removeWebsite: ( waba: WabaKey, websiteId: string ) =>
     metaAgent<{ deleted: boolean }>( 'websites_remove', { waba, websiteId } ),
+
+  listSkills: ( waba: WabaKey ) =>
+    metaAgent<{ skills: AgentSkill[]; entityId: string }>( 'skills', { waba } ),
+
+  createSkill: ( waba: WabaKey, title: string, description: string, skill: string ) =>
+    metaAgent<{ skill: AgentSkill; entityId: string }>( 'skills_create', { waba, title, description, skill } ),
+
+  updateSkill: ( waba: WabaKey, skillId: string, title: string, description: string, skill: string ) =>
+    metaAgent<{ skill: AgentSkill; entityId: string }>( 'skills_update', { waba, skillId, title, description, skill } ),
+
+  deleteSkill: ( waba: WabaKey, skillId: string ) =>
+    metaAgent<{ deleted: boolean }>( 'skills_delete', { waba, skillId } ),
 };
 
 export interface AgentWebsite {
   id: string;
   url: string;
   crawl_status?: string;
+}
+
+export interface AgentSkill {
+  id?: string;
+  title?: string;
+  description?: string;
+  skill: string;
+  created_at?: number;
 }
