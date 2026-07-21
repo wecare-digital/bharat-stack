@@ -115,6 +115,66 @@ def _get_welcome_config_key(phone_number_id: str) -> str:
 DEFAULT_FALLBACK_MESSAGE = "Thanks for your message! Type 'menu' to see available options, or 'subscribe' to get started."
 
 
+# Deterministic-trigger keywords for the Meta Business Agent hybrid. When the AI
+# holds control (standby), we take control + run OUR flow only for these; free-form
+# text is left to the AI.
+_DETERMINISTIC_KEYWORDS = {
+    'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'browse menu', '/menu',
+    'start', 'get started', 'need help!', 'subscribe', 'help',
+}
+_DETERMINISTIC_CONTAINS = (
+    'get started', 'main menu', 'subscribe', 'track request', 'track', 'submit request',
+    'amend request', 'appointment', 'rx slot', 'drop docs', 'enterprise', 'leave review',
+    'catalog', 'catalogue', 'pay', 'payment', 'invoice', 'faq',
+)
+
+
+def _is_deterministic_trigger(message: Dict) -> bool:
+    """True if the message should be handled by OUR deterministic flows (menu,
+    lists, flows, catalog/cart, commands) rather than the Meta AI agent."""
+    t = message.get('type')
+    if t in ('button', 'interactive', 'order'):
+        return True  # ice-breaker taps, list/flow replies, catalog cart orders
+    if t == 'text':
+        body = ((message.get('text', {}) or {}).get('body', '') or '').strip().lower()
+        if not body:
+            return False
+        if body.startswith('/'):
+            return True  # slash commands
+        if body in _DETERMINISTIC_KEYWORDS:
+            return True
+        return any(kw in body for kw in _DETERMINISTIC_CONTAINS)
+    return False
+
+
+# ── Meta Business Agent hybrid: which standby messages our bot should take over ──
+# When the Meta AI holds control, messages arrive on the `standby` field. For our
+# deterministic experiences (menu/keywords/commands/flows/catalog) we TAKE control
+# by processing them; free-form questions are left to the AI.
+_STANDBY_TEXT_TRIGGERS = {
+    'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start', 'get started',
+    'browse menu', '/menu', 'need help!', 'subscribe', 'pay', '/pay', 'catalog',
+    'view catalog', 'submit request', 'track request', 'track', 'amend request',
+    'appointment', 'rx slot', 'drop docs', 'enterprise', 'leave review', 'faq',
+}
+
+
+def _is_deterministic_trigger(message: dict) -> bool:
+    """True if this message should be handled by our deterministic bot (menu/flow/
+    catalog/command), rather than left to the Meta AI."""
+    t = (message or {}).get('type', '')
+    if t in ('interactive', 'order', 'button', 'nfm_reply'):
+        return True
+    if t == 'text':
+        txt = ((message.get('text') or {}).get('body') or '').strip().lower()
+        if not txt:
+            return False
+        if txt.startswith('/'):
+            return True
+        return txt in _STANDBY_TEXT_TRIGGERS
+    return False
+
+
 def _load_fallback_message(phone_number_id: str) -> str:
     """Load configurable fallback message from SystemConfigTable."""
     try:
@@ -498,15 +558,31 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 # AI's thread by implicitly taking control). Capture the payload for
                 # audit + to finalise command routing, then skip normal processing.
                 _wh_field = change.get('field', '')
-                if _wh_field in ('standby', 'messaging_handovers'):
+                if _wh_field == 'messaging_handovers':
+                    # Control-change notification — audit only.
                     try:
                         _store_system_event(_wh_field, value, request_id)
-                        logger.info(json.dumps({'event': 'handover_webhook', 'field': _wh_field,
-                                                'value': json.dumps(value)[:1800], 'requestId': request_id}))
-                    except Exception as _he:
-                        logger.warning(json.dumps({'event': 'handover_webhook_error',
-                                                   'field': _wh_field, 'error': str(_he), 'requestId': request_id}))
+                    except Exception:
+                        pass
                     continue
+                if _wh_field == 'standby':
+                    # AI holds control. Take control + run OUR flow ONLY for deterministic
+                    # triggers (menu/list/flow/catalog/commands); leave free-form to the AI.
+                    try:
+                        _msgs = value.get('messages', []) or []
+                        _det = [m for m in _msgs if _is_deterministic_trigger(m)]
+                        logger.info(json.dumps({'event': 'standby_webhook', 'total': len(_msgs),
+                                                'deterministic': len(_det), 'requestId': request_id}))
+                        if not _det:
+                            continue  # free-form → let the Meta AI agent respond
+                        # Process only the deterministic triggers below (sending a reply
+                        # takes thread control from the AI and runs our menu/flow/catalog).
+                        value['messages'] = _det
+                        # fall through to normal message processing
+                    except Exception as _he:
+                        logger.warning(json.dumps({'event': 'standby_webhook_error',
+                                                   'error': str(_he), 'requestId': request_id}))
+                        continue
 
                 # Extract receiving phone number info from metadata
                 display_phone_number = metadata.get('display_phone_number', '')
