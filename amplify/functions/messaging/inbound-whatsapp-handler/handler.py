@@ -566,18 +566,29 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                         pass
                     continue
                 if _wh_field == 'standby':
-                    # AI holds control. Take control + run OUR flow ONLY for deterministic
-                    # triggers (menu/list/flow/catalog/commands); leave free-form to the AI.
+                    # AI holds control. In the handover payload the message + contacts are
+                    # nested under value["standby"] (not value["messages"]). Unwrap it, then
+                    # take control + run OUR flow ONLY for deterministic triggers
+                    # (menu/list/flow/catalog/commands); leave free-form to the AI.
                     try:
-                        _msgs = value.get('messages', []) or []
+                        _sb = value.get('standby')
+                        if isinstance(_sb, dict):
+                            _msgs = _sb.get('messages', []) or value.get('messages', []) or []
+                            _contacts = _sb.get('contacts')
+                        elif isinstance(_sb, list):
+                            _msgs = _sb; _contacts = None
+                        else:
+                            _msgs = value.get('messages', []) or []; _contacts = None
                         _det = [m for m in _msgs if _is_deterministic_trigger(m)]
                         logger.info(json.dumps({'event': 'standby_webhook', 'total': len(_msgs),
                                                 'deterministic': len(_det), 'requestId': request_id}))
                         if not _det:
                             continue  # free-form → let the Meta AI agent respond
-                        # Process only the deterministic triggers below (sending a reply
-                        # takes thread control from the AI and runs our menu/flow/catalog).
+                        # Unwrap so normal processing (below) handles the deterministic
+                        # triggers — sending a reply takes thread control from the AI.
                         value['messages'] = _det
+                        if _contacts is not None:
+                            value['contacts'] = _contacts
                         # fall through to normal message processing
                     except Exception as _he:
                         logger.warning(json.dumps({'event': 'standby_webhook_error',
