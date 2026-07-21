@@ -127,6 +127,18 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-Contacts
 SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'stack-wecare-digital-SubmitRequestsTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 CATALOG_FLOW_MAP_ID = 'catalog_flow_map'  # SystemConfigTable key for product→flow mapping
+AI_ROUTING_ID = 'ai_hybrid_routing'  # SystemConfigTable key for AI-vs-bot routing rules
+DEFAULT_AI_ROUTING = {
+    'enabled': True,
+    'keywords': ['hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'browse menu',
+                 '/menu', 'start', 'get started', 'need help!', 'subscribe', 'help'],
+    'contains': ['get started', 'main menu', 'subscribe', 'track request', 'track',
+                 'submit request', 'amend request', 'appointment', 'rx slot', 'drop docs',
+                 'enterprise', 'leave review', 'catalog', 'catalogue', 'pay', 'payment',
+                 'invoice', 'faq'],
+    'types': ['button', 'interactive', 'order'],
+    'commandPrefix': '/',
+}
 
 # Flow management tables
 FLOW_REGISTRY_TABLE = os.environ.get('FLOW_REGISTRY_TABLE', 'stack-wecare-digital-FlowRegistryTable')
@@ -1074,6 +1086,45 @@ def _upsert_catalog_flow_map(body: Dict) -> Dict:
     logger.info(json.dumps({'event': 'catalog_flow_map_upserted', 'retailerId': retailer_id,
                             'deleted': bool(body.get('delete'))}))
     return _resp(200, {'success': True, 'map': mapping})
+
+
+# ============================================================================
+# AI Hybrid Routing — which triggers the bot handles vs the Meta AI agent.
+# Read by the inbound handler (id='ai_hybrid_routing') to decide, on standby,
+# whether to take control (deterministic keyword/command/type) or let the AI reply.
+# ============================================================================
+def _get_ai_routing() -> Dict:
+    try:
+        t = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        item = t.get_item(Key={'id': AI_ROUTING_ID}).get('Item') or {}
+        raw = item.get('configValue') or '{}'
+        data = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        cfg = dict(DEFAULT_AI_ROUTING)
+        cfg.update({k: v for k, v in data.items() if v is not None})
+        return cfg
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'ai_routing_read_error', 'error': str(e)}))
+        return dict(DEFAULT_AI_ROUTING)
+
+
+def _list_ai_routing(params: Dict) -> Dict:
+    return _resp(200, {'routing': _get_ai_routing(), 'defaults': DEFAULT_AI_ROUTING})
+
+
+def _update_ai_routing(body: Dict) -> Dict:
+    """Update AI routing rules. Body may include: enabled(bool), keywords[list],
+    contains[list], types[list], commandPrefix(str). Missing keys keep current values."""
+    cfg = _get_ai_routing()
+    for k in ('enabled', 'keywords', 'contains', 'types', 'commandPrefix'):
+        if k in body and body[k] is not None:
+            cfg[k] = body[k]
+    try:
+        dynamodb.Table(SYSTEM_CONFIG_TABLE).put_item(Item={
+            'id': AI_ROUTING_ID, 'configValue': json.dumps(cfg), 'updatedAt': int(time.time())})
+    except Exception as e:
+        return _resp(500, {'error': f'Failed to save routing: {e}'})
+    logger.info(json.dumps({'event': 'ai_routing_updated', 'enabled': cfg.get('enabled')}))
+    return _resp(200, {'success': True, 'routing': cfg})
 
 
 def _send_marketing_message(phone_id: str, body: Dict) -> Dict:
@@ -5512,6 +5563,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _list_catalog_flow_map(params)
             elif method in ('POST', 'PUT'):
                 return _upsert_catalog_flow_map(body)
+            return _resp(405, {'error': 'GET/POST only'})
+
+        elif '/ai-routing' in path:
+            if method == 'GET':
+                return _list_ai_routing(params)
+            elif method in ('POST', 'PUT'):
+                return _update_ai_routing(body)
             return _resp(405, {'error': 'GET/POST only'})
 
         elif '/link-preview' in path:

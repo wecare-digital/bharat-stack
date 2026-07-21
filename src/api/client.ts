@@ -6181,3 +6181,22 @@ export interface AgentSkill {
   skill: string;
   created_at?: number;
 }
+
+// ── AI Hybrid Routing (which triggers the bot handles vs the Meta AI) ──
+export interface AiRoutingConfig {
+  enabled: boolean;
+  keywords: string[];
+  contains: string[];
+  types: string[];
+  commandPrefix: string;
+}
+
+export async function getAiRouting (): Promise<{ routing: AiRoutingConfig; defaults: AiRoutingConfig } | null> {
+  return apiCall<{ routing: AiRoutingConfig; defaults: AiRoutingConfig }>( `${API_BASE}/wa-business/ai-routing` );
+}
+
+export async function updateAiRouting ( cfg: Partial<AiRoutingConfig> ): Promise<{ success: boolean; routing: AiRoutingConfig } | null> {
+  return apiCall<{ success: boolean; routing: AiRoutingConfig }>( `${API_BASE}/wa-business/ai-routing`, {
+    method: 'POST', body: JSON.stringify( cfg ),
+  } );
+}

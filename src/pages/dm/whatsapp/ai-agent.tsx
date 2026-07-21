@@ -16,7 +16,7 @@ import Spinner from '../../../components/ui/Spinner';
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 type WabaKey = api.WabaKey;
-type Tab = 'settings' | 'business' | 'faqs' | 'skills' | 'websites' | 'allowlist';
+type Tab = 'settings' | 'business' | 'faqs' | 'skills' | 'websites' | 'allowlist' | 'routing';
 
 const WABAS: { key: WabaKey; label: string }[] = [
     { key: 'WABA1', label: 'WABA1 · WECARE.DIGITAL (+91 93309 94400)' },
@@ -51,6 +51,12 @@ export default function AiAgentPage ( { }: PageProps ) {
     const [ faqsLoading, setFaqsLoading ] = useState( false );
     const [ newQ, setNewQ ] = useState( '' );
     const [ newA, setNewA ] = useState( '' );
+
+    // Routing (bot vs AI) — shared across WABAs
+    const [ routing, setRouting ] = useState<api.AiRoutingConfig | null>( null );
+    const [ routingLoading, setRoutingLoading ] = useState( false );
+    const [ rKeywords, setRKeywords ] = useState( '' );
+    const [ rContains, setRContains ] = useState( '' );
 
     // Skills
     const [ skills, setSkills ] = useState<api.AgentSkill[]>( [] );
@@ -117,6 +123,19 @@ export default function AiAgentPage ( { }: PageProps ) {
         finally { setSkillsLoading( false ); }
     }, [ waba, toast ] );
 
+    const loadRouting = useCallback( async () => {
+        setRoutingLoading( true );
+        try
+        {
+            const r = await api.getAiRouting();
+            const cfg = r?.routing || null;
+            setRouting( cfg );
+            setRKeywords( ( cfg?.keywords || [] ).join( ', ' ) );
+            setRContains( ( cfg?.contains || [] ).join( ', ' ) );
+        } catch { toast.error( 'Failed to load routing' ); }
+        finally { setRoutingLoading( false ); }
+    }, [ toast ] );
+
     useEffect( () => {
         if ( tab === 'settings' ) loadSettings();
         else if ( tab === 'business' ) loadInfo();
@@ -124,7 +143,8 @@ export default function AiAgentPage ( { }: PageProps ) {
         else if ( tab === 'skills' ) loadSkills();
         else if ( tab === 'websites' ) loadSites();
         else if ( tab === 'allowlist' ) loadAllow();
-    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadSkills, loadSites, loadAllow ] );
+        else if ( tab === 'routing' ) loadRouting();
+    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadSkills, loadSites, loadAllow, loadRouting ] );
 
     // ── settings mutators ──
     const saveSettings = async ( patch: Partial<api.AgentSettings> & { enabled?: boolean; aiAudience?: string } ) => {
@@ -135,6 +155,22 @@ export default function AiAgentPage ( { }: PageProps ) {
             if ( r?.settings ) { setSettings( r.settings ); toast.success( 'Agent settings updated' ); }
             else toast.error( 'Update failed (check terms accepted)' );
         } catch { toast.error( 'Update failed' ); }
+        finally { setSaving( false ); }
+    };
+
+    const saveRouting = async ( patch: Partial<api.AiRoutingConfig> ) => {
+        setSaving( true );
+        try
+        {
+            const r = await api.updateAiRouting( patch );
+            if ( r?.routing )
+            {
+                setRouting( r.routing );
+                setRKeywords( ( r.routing.keywords || [] ).join( ', ' ) );
+                setRContains( ( r.routing.contains || [] ).join( ', ' ) );
+                toast.success( 'Routing updated' );
+            } else toast.error( 'Routing update failed' );
+        } catch { toast.error( 'Routing update failed' ); }
         finally { setSaving( false ); }
     };
 
@@ -174,6 +210,7 @@ export default function AiAgentPage ( { }: PageProps ) {
                 <TabBtn id="faqs">FAQs</TabBtn>
                 <TabBtn id="skills">Skills</TabBtn>
                 <TabBtn id="websites">Websites</TabBtn>
+                <TabBtn id="routing">Routing (Bot vs AI)</TabBtn>
                 <TabBtn id="allowlist">Allowlist</TabBtn>
             </div>
 
@@ -345,6 +382,41 @@ export default function AiAgentPage ( { }: PageProps ) {
                     ) }
                 </div>
             ) }
+
+            {/* ── ROUTING (BOT vs AI) ── */ }
+            { tab === 'routing' && ( routingLoading ? <Spinner /> : (
+                <div style={ card }>
+                    <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Bot vs AI routing</h3>
+                    <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 16px' } }>
+                        When the AI holds a conversation, messages matching these rules are handled by YOUR deterministic
+                        bot (menu, flows, catalog, commands). Everything else is answered by the Meta AI. Applies to both WABAs.
+                    </p>
+                    <div style={ { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 } }>
+                        <b>Hybrid routing</b>
+                        <button disabled={ saving } onClick={ () => saveRouting( { enabled: !( routing?.enabled ?? true ) } ) }
+                            style={ btn( ( routing?.enabled ?? true ) ? '#059669' : '#6b7280' ) }>
+                            { ( routing?.enabled ?? true ) ? 'ON (bot handles triggers)' : 'OFF (AI handles everything)' }
+                        </button>
+                    </div>
+                    <label style={ label }>Keyword triggers (exact match, comma-separated)</label>
+                    <textarea style={ { ...input, minHeight: 60 } } value={ rKeywords } onChange={ e => setRKeywords( e.target.value ) }
+                        placeholder="get started, menu, hi, subscribe" />
+                    <label style={ label }>Contains triggers (message contains any, comma-separated)</label>
+                    <textarea style={ { ...input, minHeight: 60 } } value={ rContains } onChange={ e => setRContains( e.target.value ) }
+                        placeholder="track request, appointment, pay, catalog" />
+                    <label style={ label }>Command prefix</label>
+                    <input style={ input } value={ routing?.commandPrefix ?? '/' }
+                        onChange={ e => setRouting( routing ? { ...routing, commandPrefix: e.target.value } : routing ) } placeholder="/" />
+                    <p style={ { fontSize: 12, color: '#9ca3af', margin: '0 0 12px' } }>
+                        Also always handled by the bot: button/ice-breaker taps, list & flow replies, and catalog/cart orders.
+                    </p>
+                    <button disabled={ saving } onClick={ () => saveRouting( {
+                        keywords: rKeywords.split( ',' ).map( s => s.trim() ).filter( Boolean ),
+                        contains: rContains.split( ',' ).map( s => s.trim() ).filter( Boolean ),
+                        commandPrefix: routing?.commandPrefix ?? '/',
+                    } ) } style={ btn( '#059669' ) }>Save routing</button>
+                </div>
+            ) ) }
 
             {/* ── ALLOWLIST ── */ }
             { tab === 'allowlist' && (

@@ -129,21 +129,60 @@ _DETERMINISTIC_CONTAINS = (
 )
 
 
+_routing_cache = {'v': None, 't': 0.0}
+
+
+def _get_routing_config() -> Dict:
+    """Load the AI hybrid routing config (which triggers the bot handles vs the AI)
+    from SystemConfigTable id='ai_hybrid_routing'. Cached 60s. Falls back to the
+    built-in defaults so behaviour is safe if unset."""
+    import time as _t
+    now = _t.time()
+    if _routing_cache['v'] is not None and (now - _routing_cache['t']) < 60:
+        return _routing_cache['v']
+    cfg = {
+        'enabled': True,
+        'keywords': sorted(_DETERMINISTIC_KEYWORDS),
+        'contains': list(_DETERMINISTIC_CONTAINS),
+        'types': ['button', 'interactive', 'order'],
+        'commandPrefix': '/',
+    }
+    try:
+        item = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(Key={'id': 'ai_hybrid_routing'}).get('Item')
+        if item:
+            raw = item.get('configValue')
+            data = json.loads(raw) if isinstance(raw, str) else (raw or {})
+            for k in ('enabled', 'keywords', 'contains', 'types', 'commandPrefix'):
+                if k in data and data[k] is not None:
+                    cfg[k] = data[k]
+    except Exception:
+        pass
+    _routing_cache['v'] = cfg
+    _routing_cache['t'] = now
+    return cfg
+
+
 def _is_deterministic_trigger(message: Dict) -> bool:
     """True if the message should be handled by OUR deterministic flows (menu,
-    lists, flows, catalog/cart, commands) rather than the Meta AI agent."""
+    lists, flows, catalog/cart, commands) rather than the Meta AI agent. Driven by
+    the configurable ai_hybrid_routing table (with safe built-in defaults)."""
+    cfg = _get_routing_config()
+    if not cfg.get('enabled', True):
+        return False  # hybrid off → everything goes to the AI
     t = message.get('type')
-    if t in ('button', 'interactive', 'order'):
+    if t in set(cfg.get('types') or ['button', 'interactive', 'order']):
         return True  # ice-breaker taps, list/flow replies, catalog cart orders
     if t == 'text':
         body = ((message.get('text', {}) or {}).get('body', '') or '').strip().lower()
         if not body:
             return False
-        if body.startswith('/'):
+        prefix = cfg.get('commandPrefix', '/')
+        if prefix and body.startswith(prefix):
             return True  # slash commands
-        if body in _DETERMINISTIC_KEYWORDS:
+        kws = {k.lower() for k in (cfg.get('keywords') or [])}
+        if body in kws:
             return True
-        return any(kw in body for kw in _DETERMINISTIC_CONTAINS)
+        return any(kw.lower() in body for kw in (cfg.get('contains') or []))
     return False
 
 
