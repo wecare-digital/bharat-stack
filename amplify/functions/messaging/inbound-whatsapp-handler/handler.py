@@ -489,7 +489,25 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             for change in webhook_entry.get('changes', []):
                 value = change.get('value', {})
                 metadata = value.get('metadata', {})
-                
+
+                # ── Meta Business Agent handover protocol ──
+                # When the Meta AI agent is the primary responder it HOLDS control,
+                # and the customer's messages arrive on the `standby` field (copies),
+                # while `messaging_handovers` notifies of control changes. We must NOT
+                # run our normal responder on standby traffic (that would hijack the
+                # AI's thread by implicitly taking control). Capture the payload for
+                # audit + to finalise command routing, then skip normal processing.
+                _wh_field = change.get('field', '')
+                if _wh_field in ('standby', 'messaging_handovers'):
+                    try:
+                        _store_system_event(_wh_field, value, request_id)
+                        logger.info(json.dumps({'event': 'handover_webhook', 'field': _wh_field,
+                                                'value': json.dumps(value)[:1800], 'requestId': request_id}))
+                    except Exception as _he:
+                        logger.warning(json.dumps({'event': 'handover_webhook_error',
+                                                   'field': _wh_field, 'error': str(_he), 'requestId': request_id}))
+                    continue
+
                 # Extract receiving phone number info from metadata
                 display_phone_number = metadata.get('display_phone_number', '')
                 phone_number_id = metadata.get('phone_number_id', '')
