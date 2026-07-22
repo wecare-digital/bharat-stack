@@ -6200,3 +6200,56 @@ export async function updateAiRouting ( cfg: Partial<AiRoutingConfig> ): Promise
     method: 'POST', body: JSON.stringify( cfg ),
   } );
 }
+
+// ============================================================================
+// Conversions API for Business Messaging (Click-to-WhatsApp)
+// Uses whatsapp_business_manage_events. Logs in-thread conversions (Purchase,
+// LeadSubmitted, ...) to Meta so CTWA ad campaigns can optimize & measure.
+// ============================================================================
+export interface CapiCapturedClick {
+  ctwaClid?: string;
+  phone?: string;
+  wabaId?: string;
+  sourceType?: string;
+  sourceId?: string;
+  headline?: string;
+  ts?: number;
+}
+export interface CapiEventLogEntry {
+  ts?: number;
+  wabaId?: string;
+  event?: string;
+  ctwaClid?: string;
+  phone?: string;
+  value?: number;
+  currency?: string;
+  ok?: boolean;
+  response?: any;
+}
+export interface CapiStatus {
+  wabaId: string;
+  partnerAgent: string;
+  dataset: { datasetId?: string; wabaId?: string; cached?: boolean; error?: any };
+  supportedEvents: string[];
+  capturedClicks: CapiCapturedClick[];
+  recentEvents: CapiEventLogEntry[];
+}
+
+export async function getCapiStatus ( wabaId?: string ): Promise<CapiStatus | null> {
+  const qs = wabaId ? `?wabaId=${encodeURIComponent( wabaId )}` : '';
+  return apiCall<CapiStatus>( `${API_BASE}/wa-business/capi${qs}` );
+}
+
+export async function createCapiDataset ( wabaId: string ): Promise<{ success: boolean; datasetId?: string; error?: any } | null> {
+  return apiCall<{ success: boolean; datasetId?: string; error?: any }>( `${API_BASE}/wa-business/capi/dataset`, {
+    method: 'POST', body: JSON.stringify( { wabaId } ),
+  } );
+}
+
+export async function logCapiEvent ( input: {
+  wabaId?: string; eventName: string; phone?: string; ctwaClid?: string;
+  value?: number; currency?: string; orderId?: string;
+} ): Promise<{ success: boolean; datasetId?: string; eventName?: string; result?: any; error?: any } | null> {
+  return apiCall<{ success: boolean; datasetId?: string; eventName?: string; result?: any; error?: any }>(
+    `${API_BASE}/wa-business/capi/event`, { method: 'POST', body: JSON.stringify( input ) } );
+}

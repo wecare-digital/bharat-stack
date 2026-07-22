@@ -89,6 +89,7 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/auto-response', label: 'Auto Response' },
           { path: '/dm/meta-agent', label: 'Meta AI Agent' },
           { path: '/dm/commerce', label: 'Commerce' },
+          { path: '/dm/whatsapp/conversions-api', label: 'Conversions API (CTWA)' },
           { path: '/dm/whatsapp/logs', label: 'Message Logs' },
           // Templates
           { path: '/dm/whatsapp/templates', label: 'Templates' },

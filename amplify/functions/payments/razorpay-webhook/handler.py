@@ -450,6 +450,11 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
     # Post-payment: create invoice, generate image, send on WhatsApp
     _post_payment_handler(payment_id, amount_rupees, currency, contact, email, description, notes, request_id)
 
+    # Conversions API: if this conversation started from a Click-to-WhatsApp ad,
+    # log a Purchase event to Meta so the ad campaign can optimize/measure. No-op
+    # (returns 400, just logged) for non-ad conversations. Fire-and-forget.
+    _log_ctwa_purchase(contact, amount_rupees, currency, order_id, notes, request_id)
+
     # Send order_status message to customer (GAP FIX: Razorpay webhook was not sending this)
     if contact and reference_id:
         try:
@@ -590,6 +595,43 @@ def _phone_from_payment_reference_table(table_name: str, reference_id: str) -> s
         logger.warning(json.dumps({'event': 'phone_lookup_error', 'table': table_name,
                                    'error': str(e), 'referenceId': reference_id}))
     return ''
+
+
+def _log_ctwa_purchase(contact: str, amount_rupees: float, currency: str,
+                       order_id: str, notes: Dict, request_id: str) -> None:
+    """Fire a Click-to-WhatsApp Purchase conversion event via the Conversions API.
+    Delegates to wecare-whatsapp-business-api (which owns the dataset + ctwa_clid
+    lookup). If the customer's conversation didn't originate from a CTWA ad, the
+    business-api returns 400 and this is a harmless no-op. Never blocks payment."""
+    try:
+        phone = ''.join(ch for ch in (contact or '') if ch.isdigit())
+        if not phone:
+            return
+        waba_id = (notes or {}).get('wabaId', '') or (notes or {}).get('metaWabaId', '')
+        payload = {
+            'eventName': 'Purchase',
+            'phone': phone,
+            'value': round(float(amount_rupees or 0), 2),
+            'currency': currency or 'INR',
+            'orderId': order_id or (notes or {}).get('referenceId', ''),
+        }
+        if waba_id:
+            payload['wabaId'] = waba_id
+        event = {
+            'requestContext': {'http': {'method': 'POST', 'path': '/wa-business/capi/event'}},
+            'rawPath': '/wa-business/capi/event',
+            'body': json.dumps(payload),
+        }
+        lambda_client.invoke(
+            FunctionName=os.environ.get('WA_BUSINESS_FUNCTION', 'wecare-whatsapp-business-api'),
+            InvocationType='Event',  # async, fire-and-forget
+            Payload=json.dumps(event),
+        )
+        logger.info(json.dumps({'event': 'ctwa_purchase_event_dispatched',
+                                'phone': phone[-4:], 'amount': amount_rupees,
+                                'requestId': request_id}))
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f'ctwa purchase event dispatch failed (non-blocking): {e}')
 
 
 def _resolve_originating_phone(reference_id: str, invoice_item: Dict = None) -> str:

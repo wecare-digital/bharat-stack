@@ -1126,11 +1126,36 @@ def _process_message(
         message_record['referralSourceUrl'] = referral.get('source_url', '')
         message_record['referralHeadline'] = referral.get('headline', '')
         message_record['referralBody'] = referral.get('body', '')
+        # Click-to-WhatsApp Click ID — required by the Conversions API to attribute
+        # in-thread conversions (Purchase/Lead) back to the ad. Persist it against the
+        # customer's phone so wecare-whatsapp-business-api can log events later.
+        ctwa_clid = referral.get('ctwa_clid', '')
+        if ctwa_clid:
+            message_record['ctwaClid'] = ctwa_clid
+            try:
+                _digits = ''.join(ch for ch in sender_phone if ch.isdigit())
+                _waba = meta_waba_ids[0] if meta_waba_ids else ''
+                dynamodb.Table(SYSTEM_CONFIG_TABLE).put_item(Item={
+                    'id': 'capi_clid_' + _digits,
+                    'configValue': json.dumps({
+                        'ctwaClid': ctwa_clid,
+                        'phone': _digits,
+                        'wabaId': _waba,
+                        'sourceType': referral.get('source_type', ''),
+                        'sourceId': referral.get('source_id', ''),
+                        'headline': referral.get('headline', ''),
+                        'ts': int(time.time()),
+                    }),
+                    'updatedAt': int(time.time()),
+                })
+            except Exception as _e:
+                logger.warning(f'ctwa_clid capture failed (non-blocking): {_e}')
         logger.info(json.dumps({
             'event': 'referral_context',
             'senderPhone': mask_phone(sender_phone),
             'sourceType': referral.get('source_type', ''),
             'sourceUrl': referral.get('source_url', ''),
+            'ctwaClid': bool(ctwa_clid),
             'requestId': request_id
         }))
         

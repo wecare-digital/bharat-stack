@@ -54,6 +54,7 @@ import hashlib
 import time
 import uuid
 import boto3
+from boto3.dynamodb.conditions import Attr
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -1125,6 +1126,203 @@ def _update_ai_routing(body: Dict) -> Dict:
         return _resp(500, {'error': f'Failed to save routing: {e}'})
     logger.info(json.dumps({'event': 'ai_routing_updated', 'enabled': cfg.get('enabled')}))
     return _resp(200, {'success': True, 'routing': cfg})
+
+
+# ============================================================================
+# CONVERSIONS API for Business Messaging (Click-to-WhatsApp)
+# Uses the whatsapp_business_manage_events permission. Logs conversion events
+# (Purchase, LeadSubmitted, etc.) that happen INSIDE the WhatsApp thread back to
+# Meta so Click-to-WhatsApp ad campaigns can optimize & measure.
+#   Dataset:  GET/POST /{waba_id}/dataset            -> dataset_id (cached)
+#   Log:      POST     /{dataset_id}/events          -> event ingested
+#   ctwa_clid captured from the inbound `referral` object (ad-originated msgs).
+# Docs: developers.facebook.com/docs/marketing-api/conversions-api/business-messaging
+# ============================================================================
+CAPI_DATASET_PREFIX = 'capi_dataset_'   # SystemConfigTable id: capi_dataset_<wabaId>
+CAPI_CLID_PREFIX = 'capi_clid_'         # SystemConfigTable id: capi_clid_<phone>
+CAPI_EVENT_LOG_ID = 'capi_event_log'    # SystemConfigTable id: bounded recent-events list
+CAPI_PARTNER_AGENT = os.environ.get('CAPI_PARTNER_AGENT', 'wecare-digital')
+CAPI_EVENT_TYPES = {
+    'Purchase', 'LeadSubmitted', 'InitiateCheckout', 'AddToCart', 'ViewContent',
+    'OrderCreated', 'OrderShipped', 'OrderDelivered', 'OrderCanceled', 'OrderReturned',
+    'CartAbandoned', 'QualifiedLead', 'RatingProvided', 'ReviewProvided',
+}
+
+
+def _capi_resolve_waba(src: Dict) -> str:
+    wid = str(src.get('wabaId') or src.get('waba_id') or '').strip()
+    u = wid.upper()
+    if u in ('WABA1', '1'):
+        return WABA1_ID
+    if u in ('WABA2', 'WABA-T', '2'):
+        return WABA2_ID
+    return wid or WABA1_ID
+
+
+def _capi_get_dataset(waba_id: str, create: bool = False) -> Dict:
+    """Get (or create) the Conversions API dataset for a WABA. Caches the id."""
+    t = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+    cache_id = CAPI_DATASET_PREFIX + waba_id
+    if not create:
+        try:
+            item = t.get_item(Key={'id': cache_id}).get('Item') or {}
+            if item.get('configValue'):
+                return {'datasetId': item['configValue'], 'wabaId': waba_id, 'cached': True}
+        except Exception:
+            pass
+    # POST returns the existing dataset_id if one is already linked, else creates it.
+    result = _graph_api(f'{waba_id}/dataset', method='POST', waba_id=waba_id)
+    if 'error' in result:
+        return {'error': result['error']}
+    dataset_id = str(result.get('id') or '')
+    if dataset_id:
+        try:
+            t.put_item(Item={'id': cache_id, 'configValue': dataset_id,
+                             'updatedAt': int(time.time())})
+        except Exception:
+            pass
+    return {'datasetId': dataset_id, 'wabaId': waba_id, 'cached': False}
+
+
+def _capi_lookup_clid(phone: str) -> Dict:
+    """Return the stored ctwa_clid capture for a customer phone (if any)."""
+    if not phone:
+        return {}
+    digits = ''.join(ch for ch in phone if ch.isdigit())
+    try:
+        item = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(
+            Key={'id': CAPI_CLID_PREFIX + digits}).get('Item') or {}
+        raw = item.get('configValue')
+        return json.loads(raw) if isinstance(raw, str) else (raw or {})
+    except Exception:
+        return {}
+
+
+def _capi_append_log(entry: Dict) -> None:
+    t = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+    try:
+        item = t.get_item(Key={'id': CAPI_EVENT_LOG_ID}).get('Item') or {}
+        raw = item.get('configValue') or '[]'
+        log = json.loads(raw) if isinstance(raw, str) else (raw or [])
+    except Exception:
+        log = []
+    log.insert(0, entry)
+    log = log[:100]
+    try:
+        t.put_item(Item={'id': CAPI_EVENT_LOG_ID, 'configValue': json.dumps(log),
+                         'updatedAt': int(time.time())})
+    except Exception:
+        pass
+
+
+def _capi_list_clids(limit: int = 50) -> list:
+    try:
+        t = dynamodb.Table(SYSTEM_CONFIG_TABLE)
+        resp = t.scan(FilterExpression=Attr('id').begins_with(CAPI_CLID_PREFIX), Limit=200)
+        out = []
+        for it in resp.get('Items', []):
+            raw = it.get('configValue')
+            data = json.loads(raw) if isinstance(raw, str) else (raw or {})
+            out.append(data)
+        out.sort(key=lambda x: x.get('ts', 0), reverse=True)
+        return out[:limit]
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'capi_clids_scan_error', 'error': str(e)}))
+        return []
+
+
+def _capi_status(params: Dict) -> Dict:
+    """Console overview: dataset id per WABA + recent captured click ids + event log."""
+    waba_id = _capi_resolve_waba(params)
+    ds = _capi_get_dataset(waba_id, create=False)
+    try:
+        item = dynamodb.Table(SYSTEM_CONFIG_TABLE).get_item(
+            Key={'id': CAPI_EVENT_LOG_ID}).get('Item') or {}
+        raw = item.get('configValue') or '[]'
+        log = json.loads(raw) if isinstance(raw, str) else (raw or [])
+    except Exception:
+        log = []
+    return _resp(200, {
+        'wabaId': waba_id,
+        'partnerAgent': CAPI_PARTNER_AGENT,
+        'dataset': ds,
+        'supportedEvents': sorted(CAPI_EVENT_TYPES),
+        'capturedClicks': _capi_list_clids(),
+        'recentEvents': log[:50],
+    })
+
+
+def _capi_create_dataset(body: Dict) -> Dict:
+    waba_id = _capi_resolve_waba(body)
+    ds = _capi_get_dataset(waba_id, create=True)
+    if 'error' in ds:
+        return _resp(400, ds)
+    return _resp(200, {'success': True, **ds})
+
+
+def _capi_log_event(body: Dict) -> Dict:
+    """Log a business-messaging conversion event to Meta via the Conversions API."""
+    explicit_waba = bool(str(body.get('wabaId') or body.get('waba_id') or '').strip())
+    waba_id = _capi_resolve_waba(body)
+    event_name = (body.get('eventName') or 'Purchase').strip()
+    if event_name not in CAPI_EVENT_TYPES:
+        return _resp(400, {'error': f'Invalid eventName. Allowed: {sorted(CAPI_EVENT_TYPES)}'})
+
+    ctwa_clid = (body.get('ctwaClid') or body.get('ctwa_clid') or '').strip()
+    phone = (body.get('phone') or body.get('to') or '').strip()
+    capture = {}
+    if not ctwa_clid and phone:
+        capture = _capi_lookup_clid(phone)
+        ctwa_clid = (capture.get('ctwaClid') or '').strip()
+        # Attribute to the WABA the click was captured on unless caller was explicit.
+        if not explicit_waba and capture.get('wabaId'):
+            waba_id = capture['wabaId']
+    if not ctwa_clid:
+        return _resp(400, {'error': 'No ctwa_clid available. Conversion events only apply to '
+                                    'conversations that started from a Click-to-WhatsApp ad.'})
+
+    ds = _capi_get_dataset(waba_id, create=False)
+    if 'error' in ds:
+        return _resp(400, ds)
+    dataset_id = ds.get('datasetId')
+    if not dataset_id:
+        return _resp(400, {'error': 'Could not resolve dataset_id for this WABA. Create the dataset first.'})
+
+    event = {
+        'event_name': event_name,
+        'event_time': int(body.get('eventTime') or time.time()),
+        'action_source': 'business_messaging',
+        'messaging_channel': 'whatsapp',
+        'user_data': {
+            'whatsapp_business_account_id': waba_id,
+            'ctwa_clid': ctwa_clid,
+        },
+    }
+    custom: Dict = {}
+    if body.get('value') is not None:
+        try:
+            custom['value'] = float(body['value'])
+            custom['currency'] = (body.get('currency') or 'INR').upper()
+        except (TypeError, ValueError):
+            pass
+    if body.get('orderId'):
+        custom['order_id'] = str(body['orderId'])
+    if custom:
+        event['custom_data'] = custom
+
+    payload = {'data': [event], 'partner_agent': CAPI_PARTNER_AGENT}
+    result = _graph_api(f'{dataset_id}/events', method='POST', payload=payload, waba_id=waba_id)
+    ok = 'error' not in result
+    _capi_append_log({
+        'ts': int(time.time()), 'wabaId': waba_id, 'event': event_name,
+        'ctwaClid': ctwa_clid[:16] + '…', 'phone': phone,
+        'value': custom.get('value'), 'currency': custom.get('currency'),
+        'ok': ok, 'response': result,
+    })
+    if not ok:
+        return _resp(400, {'success': False, 'datasetId': dataset_id, 'error': result.get('error')})
+    return _resp(200, {'success': True, 'datasetId': dataset_id, 'eventName': event_name,
+                       'eventsReceived': result.get('events_received'), 'result': result})
 
 
 def _send_marketing_message(phone_id: str, body: Dict) -> Dict:
@@ -5571,6 +5769,21 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             elif method in ('POST', 'PUT'):
                 return _update_ai_routing(body)
             return _resp(405, {'error': 'GET/POST only'})
+
+        elif '/capi' in path:
+            # Conversions API for Business Messaging (whatsapp_business_manage_events)
+            if '/capi/event' in path:
+                if method == 'POST':
+                    return _capi_log_event(body)
+                return _resp(405, {'error': 'POST only'})
+            elif '/capi/dataset' in path:
+                if method == 'POST':
+                    return _capi_create_dataset(body)
+                return _resp(405, {'error': 'POST only'})
+            else:
+                if method == 'GET':
+                    return _capi_status(params)
+                return _resp(405, {'error': 'GET only'})
 
         elif '/link-preview' in path:
             return _check_link_preview(params.get('url') or body.get('url') or '')
