@@ -25,3 +25,5 @@ if ($LASTEXITCODE -eq 0) { Write-Host "OK: $FuncName" -ForegroundColor Green }
 else { Write-Host "FAIL: $FuncName" -ForegroundColor Red }
 if (Test-Path $pkgDir) { Remove-Item -Recurse -Force $pkgDir }
 if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
+# Publish a fresh version + move the 'live' alias (API invokes :live, not $LATEST).
+python scripts\_snapstart_publish.py $FuncName

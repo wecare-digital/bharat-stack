@@ -28,6 +28,7 @@ export default function FlowHubPage ( { embedded }: FlowHubProps ) {
   const [ subsFlowFilter, setSubsFlowFilter ] = useState( '' );
   const [ subsStatusFilter, setSubsStatusFilter ] = useState( '' );
   const [ subsPaymentFilter, setSubsPaymentFilter ] = useState( '' );
+  const [ expandedSub, setExpandedSub ] = useState<string | null>( null );
 
   // Stats state
   const [ stats, setStats ] = useState<api.FlowSubmissionStats | null>( null );
@@ -385,28 +386,63 @@ export default function FlowHubPage ( { embedded }: FlowHubProps ) {
                     const ft = ( s as any ).flowToken || '';
                     const wabaLabel = ft.includes( '-waba-2-' ) ? 'Phone 2' : ft.includes( '-waba-1-' ) ? 'Phone 1' : '—';
                     const wabaColor = ft.includes( '-waba-2-' ) ? '#7c3aed' : ft.includes( '-waba-1-' ) ? '#2563eb' : '#9ca3af';
+                    const d = s as any;
+                    const isOpen = expandedSub === s.submissionId;
+                    const attachments: any[] = Array.isArray( d.attachments ) ? d.attachments : [];
+                    const addrParts = [ d.shippingAddress || d.addressLine1, d.landmark, d.city, d.state, d.postalCode || d.pin ]
+                      .filter( Boolean );
                     return (
-                      <tr key={ s.submissionId } style={ { borderBottom: '1px solid #f3f4f6' } }>
-                        <td style={ { padding: '6px 10px', fontFamily: 'monospace' } }><MaskedPhone value={ s.phone } allowReveal /></td>
-                        <td style={ { padding: '6px 10px' } }>
-                          <span style={ { background: '#e0e7ff', color: '#3730a3', padding: '1px 6px', borderRadius: '9999px', fontSize: '0.7rem' } }>
-                            { s.flowCode }
-                          </span>
-                        </td>
-                        <td style={ { padding: '6px 10px', fontFamily: 'monospace', fontSize: '0.7rem' } }>{ s.submissionNumber || '—' }</td>
-                        <td style={ { padding: '6px 10px' } }>{ s.subject || s.requestType || '—' }</td>
-                        <td style={ { padding: '6px 10px' } }>
-                          <span style={ { color: statusColor( s.status ), fontWeight: 600, fontSize: '0.75rem' } }>{ s.status }</span>
-                        </td>
-                        <td style={ { padding: '6px 10px' } }>
-                          <span style={ { color: payColor( s.paymentStatus ), fontWeight: 600, fontSize: '0.75rem' } }>{ s.paymentStatus }</span>
-                        </td>
-                        <td style={ { padding: '6px 10px' } }>{ s.paymentAmount ? formatPaise( s.paymentAmount ) : '—' }</td>
-                        <td style={ { padding: '6px 10px' } }>
-                          <span style={ { color: wabaColor, fontWeight: 600, fontSize: '0.7rem' } }>{ wabaLabel }</span>
-                        </td>
-                        <td style={ { padding: '6px 10px', fontSize: '0.7rem', color: '#6b7280' } }>{ formatDate( s.createdAt ) }</td>
-                      </tr>
+                      <React.Fragment key={ s.submissionId }>
+                        <tr onClick={ () => setExpandedSub( isOpen ? null : s.submissionId ) }
+                          style={ { borderBottom: '1px solid #f3f4f6', cursor: 'pointer', background: isOpen ? '#f5f3ff' : 'transparent' } }>
+                          <td style={ { padding: '6px 10px', fontFamily: 'monospace' } }><MaskedPhone value={ s.phone } allowReveal /></td>
+                          <td style={ { padding: '6px 10px' } }>
+                            <span style={ { background: '#e0e7ff', color: '#3730a3', padding: '1px 6px', borderRadius: '9999px', fontSize: '0.7rem' } }>
+                              { s.flowCode }
+                            </span>
+                          </td>
+                          <td style={ { padding: '6px 10px', fontFamily: 'monospace', fontSize: '0.7rem' } }>{ ( d.requestId || s.submissionNumber ) || '—' }</td>
+                          <td style={ { padding: '6px 10px' } }>{ s.subject || s.requestType || d.product || '—' }</td>
+                          <td style={ { padding: '6px 10px' } }>
+                            <span style={ { color: statusColor( s.status ), fontWeight: 600, fontSize: '0.75rem' } }>{ s.status }</span>
+                          </td>
+                          <td style={ { padding: '6px 10px' } }>
+                            <span style={ { color: payColor( s.paymentStatus ), fontWeight: 600, fontSize: '0.75rem' } }>{ s.paymentStatus }</span>
+                          </td>
+                          <td style={ { padding: '6px 10px' } }>{ s.paymentAmount ? formatPaise( s.paymentAmount ) : '—' }</td>
+                          <td style={ { padding: '6px 10px' } }>
+                            <span style={ { color: wabaColor, fontWeight: 600, fontSize: '0.7rem' } }>{ wabaLabel }</span>
+                          </td>
+                          <td style={ { padding: '6px 10px', fontSize: '0.7rem', color: '#6b7280' } }>{ formatDate( s.createdAt ) }{ isOpen ? ' ▲' : ' ▼' }</td>
+                        </tr>
+                        { isOpen && (
+                          <tr style={ { background: '#faf5ff' } }>
+                            <td colSpan={ 9 } style={ { padding: '10px 16px', borderBottom: '2px solid #e5e7eb' } }>
+                              <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px', fontSize: '0.78rem' } }>
+                                <div><b>Request ID:</b> { d.requestId || s.submissionNumber || '—' }</div>
+                                <div><b>Customer:</b> { d.customerName || '—' }</div>
+                                <div style={ { gridColumn: '1 / -1' } }><b>Address:</b> { addrParts.length ? addrParts.join( ', ' ) : '—' }</div>
+                                <div style={ { gridColumn: '1 / -1' } }><b>Description:</b> { d.description || '—' }</div>
+                                <div><b>Preferred time:</b> { d.preferredTime || '—' }</div>
+                                <div><b>Order #:</b> { d.orderNumber || d.referenceId || '—' }</div>
+                              </div>
+                              <div style={ { marginTop: 10 } }>
+                                <b style={ { fontSize: '0.78rem' } }>Attachments { attachments.length ? `(${attachments.length})` : '' }:</b>
+                                { attachments.length === 0 && <span style={ { color: '#9ca3af', fontSize: '0.75rem', marginLeft: 6 } }>none</span> }
+                                <div style={ { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 } }>
+                                  { attachments.map( ( a: any, i: number ) => {
+                                    const url = typeof a === 'string' ? a : ( a.url || a.link || '' );
+                                    const isImg = /\.(png|jpe?g|gif|webp)(\?|$)/i.test( url ) || ( a.type || '' ).startsWith( 'image' );
+                                    return isImg
+                                      ? <a key={ i } href={ url } target="_blank" rel="noreferrer"><img src={ url } alt="attachment" style={ { width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb' } } /></a>
+                                      : <a key={ i } href={ url } target="_blank" rel="noreferrer" style={ { fontSize: '0.75rem', color: '#7c3aed', textDecoration: 'underline' } }>{ ( a.filename || a.name || `File ${i + 1}` ) }</a>;
+                                  } ) }
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) }
+                      </React.Fragment>
                     );
                   } ) }
                 </tbody>
