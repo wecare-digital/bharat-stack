@@ -218,7 +218,7 @@ const ConversionsApiPage: React.FC<PageProps> = ( { signOut, user, embedded = fa
 
     if ( embedded ) return body;
     return (
-        <Layout signOut={ signOut } user={ user }>
+        <Layout onSignOut={ signOut } user={ user }>
             <SEO title="Conversions API | WECARE.DIGITAL" noindex />
             { body }
         </Layout>
