@@ -836,6 +836,7 @@ def _agent_eval(body: dict):
 #   4. (provider): Tech Provider Get Started completed (already true)
 # ─────────────────────────────────────────────────────────────────────────
 PARTNER_WALLET_TABLE = os.environ.get("PARTNER_WALLET_TABLE", "stack-wecare-digital-PartnerWallet")
+BUSINESS_PORTFOLIO_ID = os.environ.get("META_BUSINESS_ID", "382642103987922")
 _QUALITY_OK = {"GREEN"}
 
 
@@ -878,19 +879,31 @@ def _tp_eligibility(_body):
     avg_per_day = round(total_msgs / 7.0, 1)
     v_pass = avg_per_day >= 2500
 
-    # ── Gate 3: active clients (onboarded partner tenants) ──
-    active_clients = 0
+    # ── Gate 3: active clients ──
+    # Meta counts CLIENT WhatsApp Business Accounts shared to the app (separate
+    # businesses), NOT the app owner's own owned WABAs. So we read the business
+    # portfolio's client_whatsapp_business_accounts edge. Test/sandbox WABAs are
+    # flagged so the operator sees exactly what counts.
     clients_err = ""
+    client_list = []
+    owned_count = 0
     try:
-        ddb = boto3.client("dynamodb", region_name=REGION)
-        resp = ddb.scan(TableName=PARTNER_WALLET_TABLE, Select="COUNT")
-        active_clients = resp.get("Count", 0)
-        while resp.get("LastEvaluatedKey"):
-            resp = ddb.scan(TableName=PARTNER_WALLET_TABLE, Select="COUNT",
-                            ExclusiveStartKey=resp["LastEvaluatedKey"])
-            active_clients += resp.get("Count", 0)
+        st, cd = _meta_request(
+            "GET", f"{GRAPH}/{BUSINESS_PORTFOLIO_ID}/client_whatsapp_business_accounts?fields=id,name",
+            None)
+        for w in ((cd or {}).get("data") or []):
+            nm = w.get("name") or ""
+            client_list.append({"id": w.get("id"), "name": nm,
+                                 "isTest": "test" in nm.lower()})
+        st2, od = _meta_request(
+            "GET", f"{GRAPH}/{BUSINESS_PORTFOLIO_ID}/owned_whatsapp_business_accounts?fields=id",
+            None)
+        owned_count = len((od or {}).get("data") or [])
     except Exception as e:  # noqa: BLE001
         clients_err = str(e)[:160]
+    # "real" clients exclude sandbox/test WABAs
+    real_clients = [c for c in client_list if not c["isTest"]]
+    active_clients = len(real_clients)
     c_pass = active_clients >= 10
 
     gates = {
@@ -902,7 +915,9 @@ def _tp_eligibility(_body):
                    "avgPerDay": avg_per_day, "threshold": 2500,
                    "total7d": total_msgs, "byWaba": per_waba},
         "clients": {"pass": c_pass, "label": "≥ 10 active client businesses",
-                    "active": active_clients, "threshold": 10, "error": clients_err},
+                    "active": active_clients, "threshold": 10, "error": clients_err,
+                    "ownedWabas": owned_count, "clientList": client_list,
+                    "testCount": len(client_list) - len(real_clients)},
     }
     return _resp(200, {
         "eligible": all(g["pass"] for g in gates.values()),

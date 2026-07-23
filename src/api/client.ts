@@ -6224,7 +6224,11 @@ export interface TechPartnerReadiness {
       avgPerDay: number; threshold: number; total7d: number;
       byWaba: Record<string, { total7d: number; points: number }>;
     };
-    clients: TechPartnerGate & { active: number; threshold: number; error?: string };
+    clients: TechPartnerGate & {
+      active: number; threshold: number; error?: string;
+      ownedWabas?: number; testCount?: number;
+      clientList?: Array<{ id: string; name: string; isTest: boolean }>;
+    };
   };
 }
 

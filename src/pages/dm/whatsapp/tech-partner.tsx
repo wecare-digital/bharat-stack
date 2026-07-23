@@ -134,7 +134,24 @@ const TechPartnerPage: React.FC<PageProps> = ( { signOut, user, embedded = false
                     </div>
                     <Bar value={ g.clients.active } target={ g.clients.threshold } />
                     { g.clients.error && <div style={ { fontSize: 12, color: '#b45309' } }>Note: { g.clients.error }</div> }
-                    <div style={ { fontSize: 12, color: '#6b7280' } }>Counted from PartnerWallet (onboarded partner tenants).</div>
+                    <div style={ { fontSize: 12, color: '#6b7280' } }>
+                        Meta counts <b>client</b> WhatsApp Business Accounts shared to your app — not your own owned
+                        numbers ({ g.clients.ownedWabas ?? 0 } owned).
+                        { ( g.clients.testCount ?? 0 ) > 0 ? ` ${g.clients.testCount} test WABA(s) excluded.` : '' }
+                    </div>
+                    { ( g.clients.clientList?.length ?? 0 ) > 0 && (
+                        <div style={ { marginTop: 6 } }>
+                            { g.clients.clientList!.map( c => (
+                                <div key={ c.id } style={ { fontSize: 12, color: c.isTest ? '#9ca3af' : '#374151' } }>
+                                    • { c.name } <span style={ { color: '#9ca3af' } }>({ c.id }){ c.isTest ? ' — test, not counted' : '' }</span>
+                                </div>
+                            ) ) }
+                        </div>
+                    ) }
+                    <div style={ { fontSize: 12, color: '#6b7280', marginTop: 6 } }>
+                        To grow this, onboard external businesses through Embedded Signup
+                        (DM → WhatsApp → Connect WABA). Each becomes a client WABA.
+                    </div>
                 </> }
             </div>
 
