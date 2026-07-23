@@ -90,6 +90,7 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/meta-agent', label: 'Meta AI Agent' },
           { path: '/dm/commerce', label: 'Commerce' },
           { path: '/dm/whatsapp/conversions-api', label: 'Conversions API (CTWA)' },
+          { path: '/dm/whatsapp/ctwa-ads', label: 'Ads → WhatsApp (CTWA)' },
           { path: '/dm/whatsapp/logs', label: 'Message Logs' },
           // Templates
           { path: '/dm/whatsapp/templates', label: 'Templates' },

@@ -6207,6 +6207,57 @@ export const aiAgentApi = {
     metaAgent<{ providers: AgentProviderStatus[] }>( 'provider_status', waba ? { waba } : {} ),
 };
 
+// ═══════════════════════════════════════════════════════════════════
+// Marketing Ads — Ads that Click to WhatsApp (CTWA) via the Marketing API
+// (POST ${API_BASE}/marketing-ads, dispatched on `action`). Everything is
+// created PAUSED; publishing an ad is an explicit, separate call.
+// ═══════════════════════════════════════════════════════════════════
+export interface AdAccount { id: string; account_id: string; name: string; account_status: number; currency: string; }
+export interface FbPage { id: string; name: string; }
+export interface AdEntity { id: string; name?: string; status?: string; effective_status?: string; objective?: string; adset_id?: string; campaign_id?: string; created_time?: string; }
+
+async function marketingAds<T> ( action: string, params: Record<string, unknown> = {} ): Promise<T | null> {
+  return apiCall<T>( `${API_BASE}/marketing-ads`, {
+    method: 'POST',
+    body: JSON.stringify( { action, ...params } ),
+  } );
+}
+
+export const marketingAdsApi = {
+  adAccounts: () => marketingAds<{ adAccounts: { data?: AdAccount[] } }>( 'ad_accounts' ),
+  pages: () => marketingAds<{ pages: { data?: FbPage[] } }>( 'pages' ),
+  campaigns: ( adAccountId?: string ) =>
+    marketingAds<{ campaigns: { data?: AdEntity[] } }>( 'campaigns', adAccountId ? { adAccountId } : {} ),
+  ads: ( adAccountId?: string ) =>
+    marketingAds<{ ads: { data?: AdEntity[] } }>( 'ads', adAccountId ? { adAccountId } : {} ),
+  uploadImage: ( imageData: string, contentType = 'image/jpeg', adAccountId?: string ) =>
+    marketingAds<{ imageHash: string | null; raw: unknown }>( 'upload_image', { imageData, contentType, adAccountId } ),
+  // One-shot create of campaign+adset+creative+ad (all PAUSED).
+  fullCreate: ( input: MarketingAdInput ) =>
+    marketingAds<{ created?: Record<string, { id?: string; error?: unknown }>; error?: string; steps?: unknown }>( 'full_create', input as unknown as Record<string, unknown> ),
+  publish: ( adId: string ) => marketingAds<{ updated: unknown; status: string }>( 'ad_publish', { adId } ),
+  pause: ( adId: string ) => marketingAds<{ updated: unknown; status: string }>( 'ad_pause', { adId } ),
+  adStatus: ( adId: string ) => marketingAds<{ ad: AdEntity }>( 'ad_status', { adId } ),
+};
+
+export interface MarketingAdInput {
+  name: string;
+  objective?: 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS' | 'OUTCOME_SALES' | 'OUTCOME_TRAFFIC';
+  optimizationGoal?: string;
+  waba?: WabaKey;
+  adAccountId?: string;
+  pageId?: string;
+  whatsappPhoneNumber?: string;
+  dailyBudget: number;          // minor units (paise for INR); must be > ~9600
+  headline?: string;
+  primaryText?: string;
+  description?: string;
+  greeting?: string;
+  autofill?: string;
+  imageHash?: string;
+  targeting?: Record<string, unknown>;
+}
+
 // ── Meta Business Agent connectors (external APIs the agent can call) ──
 export interface AgentConnector {
   id: string;
