@@ -6188,6 +6188,23 @@ export const aiAgentApi = {
 
   runTool: ( waba: WabaKey, connectorId: string, toolId: string, input: string ) =>
     metaAgent<{ result: unknown; entityId: string }>( 'tools_run', { waba, connectorId, toolId, input } ),
+
+  // ── Tech Provider panel extras ──
+  getConnector: ( waba: WabaKey, connectorId: string ) =>
+    metaAgent<{ connector: AgentConnector; entityId: string }>( 'connector_get', { waba, connectorId } ),
+
+  connectorLogs: ( waba: WabaKey, connectorId: string, includeStats = true ) =>
+    metaAgent<{ logs: AgentConnectorLogs | { error?: unknown }; entityId: string }>( 'connector_logs', { waba, connectorId, includeStats } ),
+
+  upsertConnectorApiKey: ( waba: WabaKey, connectorId: string, headerName: string, headerValue: string, prefix?: string ) =>
+    metaAgent<{ result: unknown; entityId: string }>( 'connector_upsert_apikey', { waba, connectorId, headerName, headerValue, prefix } ),
+
+  upsertConnectorOAuth: ( waba: WabaKey, connectorId: string, auth: Record<string, unknown> ) =>
+    metaAgent<{ result: unknown; entityId: string }>( 'connector_upsert_oauth', { waba, connectorId, auth } ),
+
+  // Consolidated Tech Provider overview for both WABAs (or one, if waba passed)
+  providerStatus: ( waba?: WabaKey ) =>
+    metaAgent<{ providers: AgentProviderStatus[] }>( 'provider_status', waba ? { waba } : {} ),
 };
 
 // ── Meta Business Agent connectors (external APIs the agent can call) ──
@@ -6219,6 +6236,39 @@ export interface AgentTool {
   name?: string;
   description?: string;
   [ k: string ]: unknown;
+}
+
+export interface AgentConnectorLogs {
+  data?: Array<Record<string, unknown>>;
+  stats?: {
+    total?: number;
+    success?: number;
+    error?: number;
+    success_rate?: number;
+    [ k: string ]: unknown;
+  };
+  [ k: string ]: unknown;
+}
+
+export interface AgentProviderStatusConnector {
+  id: string;
+  name?: string;
+  status?: string;
+  authType?: string;
+  baseUrl?: string;
+}
+
+export interface AgentProviderStatus {
+  waba: WabaKey;
+  entityId: string;
+  wabaId: string;
+  eligible: boolean;
+  eligibilityStatus: number;
+  eligibility?: unknown;
+  connectorsReadable: boolean;
+  workspaceProvisioned: boolean;
+  connectorCount: number;
+  connectors: AgentProviderStatusConnector[];
 }
 
 export interface AgentWebsite {

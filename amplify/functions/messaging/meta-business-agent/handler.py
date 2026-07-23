@@ -529,22 +529,71 @@ def _connectors_list(body: dict):
     return _resp(_pass_status(st, (200,)), {"connectors": d, "entityId": eid})
 
 
+def _list_connectors_raw(eid: str) -> list:
+    """Return the raw connectors array for an entity (empty list on any error)."""
+    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_connectors", None)
+    if st != 200:
+        return []
+    if isinstance(d, dict):
+        return d.get("data") if isinstance(d.get("data"), list) else []
+    return d if isinstance(d, list) else []
+
+
+def _find_connector(connectors: list, *, name: str | None = None, cid: str | None = None):
+    """Find a connector by name or id in a raw connectors array."""
+    for c in connectors:
+        if not isinstance(c, dict):
+            continue
+        if cid and str(c.get("id") or c.get("connector_id") or "") == str(cid):
+            return c
+        if name and str(c.get("name") or "") == str(name):
+            return c
+    return None
+
+
 def _connectors_add(body: dict):
-    """POST /{entity_id}/agent_connectors  {connector...}"""
+    """POST /{entity_id}/agent_connectors  {connector...}
+
+    Meta's Membrane backend returns a cosmetic 500 ("Membrane: Authorization
+    failed") on create even though the connector IS provisioned and becomes
+    ACTIVE. So on any non-2xx we re-list and, if the named connector now exists,
+    treat it as success. Verified live against WABA1 (2026-07)."""
     eid = _entity(body); spec = body.get("connector") or {}
     if not eid or not spec:
         return _resp(400, {"error": "entityId and connector{} required"})
     st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_connectors", spec)
+    if st in (200, 201):
+        return _resp(st, {"created": d, "entityId": eid})
+    # cosmetic-500 tolerance: re-list and confirm the connector actually exists
+    found = _find_connector(_list_connectors_raw(eid), name=spec.get("name"))
+    if found:
+        logger.info(json.dumps({"event": "connector_add_recovered", "entity": eid,
+                                "name": spec.get("name"), "upstreamStatus": st}))
+        return _resp(200, {"created": found, "entityId": eid, "recovered": True,
+                           "note": "upstream returned %s but connector is provisioned" % st})
     return _resp(_pass_status(st, (200, 201)), {"created": d, "entityId": eid})
 
 
 def _connectors_remove(body: dict):
-    """DELETE /{entity_id}/agent_connectors/{connector_id}"""
+    """DELETE /{entity_id}/agent_connectors/{connector_id}
+
+    Same cosmetic-500 handling as create: DELETE can return 500 while actually
+    archiving the connector. On non-2xx we re-list and, if the connector id is
+    gone, report success."""
     eid = _entity(body); cid = body.get("connectorId", "")
     if not eid or not cid:
         return _resp(400, {"error": "entityId and connectorId required"})
     st, d = _meta_request("DELETE", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}", None)
-    return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": st in (200, 204), "detail": d})
+    if st in (200, 204):
+        return _resp(200, {"deleted": True, "detail": d})
+    # cosmetic-500 tolerance: if the connector is no longer listed, it's gone
+    still_there = _find_connector(_list_connectors_raw(eid), cid=cid)
+    if not still_there:
+        logger.info(json.dumps({"event": "connector_remove_recovered", "entity": eid,
+                                "connectorId": cid, "upstreamStatus": st}))
+        return _resp(200, {"deleted": True, "recovered": True,
+                           "note": "upstream returned %s but connector is gone" % st})
+    return _resp(_pass_status(st, (200, 204), success_status=200), {"deleted": False, "detail": d})
 
 
 def _tools_list(body: dict):
@@ -582,6 +631,115 @@ def _tools_run(body: dict):
     payload = {"input": body.get("input") or "{}"}
     st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}/tools/{tid}/run", payload)
     return _resp(_pass_status(st, (200,)), {"result": d, "entityId": eid})
+
+
+def _connector_get(body: dict):
+    """GET /{entity_id}/agent_connectors/{connector_id} — single connector detail."""
+    eid = _entity(body); cid = body.get("connectorId", "")
+    if not eid or not cid:
+        return _resp(400, {"error": "entityId and connectorId required"})
+    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}", None)
+    return _resp(_pass_status(st, (200,)), {"connector": d, "entityId": eid})
+
+
+def _connector_logs(body: dict):
+    """GET /{entity_id}/agent_connectors/{connector_id}/logs?include_stats=true
+    Returns recent tool-call logs + success-rate stats for the connector."""
+    eid = _entity(body); cid = body.get("connectorId", "")
+    if not eid or not cid:
+        return _resp(400, {"error": "entityId and connectorId required"})
+    inc = "true" if body.get("includeStats", True) else "false"
+    st, d = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}/logs?include_stats={inc}", None)
+    return _resp(_pass_status(st, (200,)), {"logs": d, "entityId": eid})
+
+
+def _connector_upsert_apikey(body: dict):
+    """POST /{entity_id}/agent_connectors/{connector_id}/upsertApiKey
+    Sets/updates the API_KEY auth for a connector.
+    Expects auth{api_key:{headers:[{field_name,value,prefix?}]}} or a flat
+    {headerName, headerValue, prefix?} shorthand."""
+    eid = _entity(body); cid = body.get("connectorId", "")
+    if not eid or not cid:
+        return _resp(400, {"error": "entityId and connectorId required"})
+    auth = body.get("auth")
+    if not auth:
+        hn = (body.get("headerName") or "").strip()
+        hv = (body.get("headerValue") or "").strip()
+        if not hn or not hv:
+            return _resp(400, {"error": "auth{} or headerName+headerValue required"})
+        header = {"field_name": hn, "value": hv}
+        if body.get("prefix"):
+            header["prefix"] = body["prefix"]
+        auth = {"api_key": {"headers": [header]}}
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}/upsertApiKey", auth)
+    return _resp(_pass_status(st, (200, 201)), {"result": d, "entityId": eid})
+
+
+def _connector_upsert_oauth(body: dict):
+    """POST /{entity_id}/agent_connectors/{connector_id}/upsertOAuth
+    Sets/updates OAUTH2_CLIENT_CREDENTIALS auth for a connector."""
+    eid = _entity(body); cid = body.get("connectorId", "")
+    if not eid or not cid:
+        return _resp(400, {"error": "entityId and connectorId required"})
+    auth = body.get("auth") or {}
+    if not auth:
+        return _resp(400, {"error": "auth{oauth2_client_credentials:{...}} required"})
+    st, d = _meta_request("POST", f"{GRAPH_HOST}/{eid}/agent_connectors/{cid}/upsertOAuth", auth)
+    return _resp(_pass_status(st, (200, 201)), {"result": d, "entityId": eid})
+
+
+def _provider_status(body: dict):
+    """Consolidated Tech Provider overview for BOTH WABAs, so the console can
+    render per-WABA workspace/connector state in one call. For each WABA we
+    report: phone entity id, eligibility, connector count + names/statuses, and
+    whether a connector workspace appears provisioned."""
+    # Which WABAs to report — default both.
+    targets = [
+        {"waba": "WABA1", "entityId": DEFAULT_ENTITIES["WABA1"], "wabaId": WABA_IDS["WABA1"]},
+        {"waba": "WABA2", "entityId": DEFAULT_ENTITIES["WABA2"], "wabaId": WABA_IDS["WABA2"]},
+    ]
+    only = (body.get("waba") or "").upper()
+    if only in ("WABA1", "WABA2"):
+        targets = [t for t in targets if t["waba"] == only]
+
+    out = []
+    for t in targets:
+        eid = t["entityId"]
+        # eligibility (200 => agent eligible)
+        est, edata = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_eligibility/", None)
+        connectors = _list_connectors_raw(eid)
+        conn_summ = []
+        for c in connectors:
+            if not isinstance(c, dict):
+                continue
+            conn_summ.append({
+                "id": str(c.get("id") or c.get("connector_id") or ""),
+                "name": c.get("name"),
+                "status": (c.get("connection_status") or {}).get("status") if isinstance(c.get("connection_status"), dict) else c.get("status"),
+                "authType": c.get("auth_type"),
+                "baseUrl": c.get("base_url"),
+            })
+        # Connector API readability: does the connectors endpoint respond 200?
+        # NOTE: a 200 list does NOT guarantee create works — the per-WABA
+        # connector *workspace* is provisioned separately by Meta and create can
+        # still return 400 "No workspace found" (observed on WABA2, 2026-07).
+        # We infer write-readiness from the presence of connectors: if any exist
+        # the workspace clearly accepts writes; otherwise it's unconfirmed.
+        lst_st, _ = _meta_request("GET", f"{GRAPH_HOST}/{eid}/agent_connectors", None)
+        out.append({
+            "waba": t["waba"],
+            "entityId": eid,
+            "wabaId": t["wabaId"],
+            "eligible": est == 200 and bool((edata or {}).get("is_eligible", True)),
+            "eligibilityStatus": est,
+            "eligibility": edata,
+            "connectorsReadable": lst_st == 200,
+            # workspace confirmed writable only when it already holds connectors
+            "workspaceProvisioned": lst_st == 200 and len(conn_summ) > 0,
+            "connectorCount": len(conn_summ),
+            "connectors": conn_summ,
+        })
+    return _resp(200, {"providers": out})
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -767,6 +925,16 @@ def lambda_handler(event, context):
         return _tools_remove(body)
     if action == "tools_run":
         return _tools_run(body)
+    if action in ("connector_get", "connector"):
+        return _connector_get(body)
+    if action in ("connector_logs", "logs"):
+        return _connector_logs(body)
+    if action in ("connector_upsert_apikey", "upsert_apikey"):
+        return _connector_upsert_apikey(body)
+    if action in ("connector_upsert_oauth", "upsert_oauth"):
+        return _connector_upsert_oauth(body)
+    if action in ("provider_status", "tech_provider", "providers"):
+        return _provider_status(body)
     # Operate group
     if action == "thread_control":
         return _thread_control(body)
@@ -786,5 +954,7 @@ def lambda_handler(event, context):
         "faq", "faq_create", "faq_update", "faq_delete",
         "websites", "websites_add", "websites_remove",
         "connectors", "connectors_add", "connectors_remove",
+        "connector_get", "connector_logs", "connector_upsert_apikey", "connector_upsert_oauth",
+        "provider_status",
         "tools", "tools_add", "tools_remove", "tools_run",
         "thread_control", "agent_event", "agent_test", "agent_eval", "entities"]})

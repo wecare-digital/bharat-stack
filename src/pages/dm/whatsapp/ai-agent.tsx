@@ -16,7 +16,7 @@ import Spinner from '../../../components/ui/Spinner';
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 type WabaKey = api.WabaKey;
-type Tab = 'settings' | 'business' | 'faqs' | 'skills' | 'websites' | 'allowlist' | 'routing' | 'connectors';
+type Tab = 'settings' | 'business' | 'faqs' | 'skills' | 'websites' | 'allowlist' | 'routing' | 'connectors' | 'techprovider';
 
 const WABAS: { key: WabaKey; label: string }[] = [
     { key: 'WABA1', label: 'WABA1 · WECARE.DIGITAL (+91 93309 94400)' },
@@ -30,6 +30,11 @@ const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e7
 const label: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' };
 const input: React.CSSProperties = { width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, marginBottom: 12 };
 const btn = ( bg: string ): React.CSSProperties => ( { padding: '8px 16px', background: bg, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' } );
+
+const pillBase: React.CSSProperties = { fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap' };
+const Pill = ( { ok, okText, badText }: { ok: boolean; okText: string; badText: string } ) => (
+    <span style={ { ...pillBase, background: ok ? '#ecfdf5' : '#fef2f2', color: ok ? '#047857' : '#b91c1c' } }>{ ok ? okText : badText }</span>
+);
 
 export default function AiAgentPage ( { }: PageProps ) {
     const toast = useToastContext();
@@ -85,6 +90,11 @@ export default function AiAgentPage ( { }: PageProps ) {
     const [ cAuth, setCAuth ] = useState<'API_KEY' | 'NONE'>( 'API_KEY' );
     const [ cHeaderName, setCHeaderName ] = useState( 'X-Agent-Token' );
     const [ cHeaderValue, setCHeaderValue ] = useState( '' );
+
+    // Tech Provider panel (both-WABA overview + per-connector logs/tools)
+    const [ providers, setProviders ] = useState<api.AgentProviderStatus[]>( [] );
+    const [ provLoading, setProvLoading ] = useState( false );
+    const [ provDetail, setProvDetail ] = useState<Record<string, { logs?: api.AgentConnectorLogs; tools?: api.AgentTool[]; open?: boolean }>>( {} );
 
     // ── loaders ──
     const loadSettings = useCallback( async () => {
@@ -159,6 +169,16 @@ export default function AiAgentPage ( { }: PageProps ) {
         finally { setConnLoading( false ); }
     }, [ waba, toast ] );
 
+    const loadProviders = useCallback( async () => {
+        setProvLoading( true );
+        try
+        {
+            const r = await api.aiAgentApi.providerStatus();
+            setProviders( Array.isArray( r?.providers ) ? r!.providers : [] );
+        } catch { toast.error( 'Failed to load Tech Provider status' ); }
+        finally { setProvLoading( false ); }
+    }, [ toast ] );
+
     useEffect( () => {
         if ( tab === 'settings' ) loadSettings();
         else if ( tab === 'business' ) loadInfo();
@@ -168,7 +188,8 @@ export default function AiAgentPage ( { }: PageProps ) {
         else if ( tab === 'allowlist' ) loadAllow();
         else if ( tab === 'routing' ) loadRouting();
         else if ( tab === 'connectors' ) loadConnectors();
-    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadSkills, loadSites, loadAllow, loadRouting, loadConnectors ] );
+        else if ( tab === 'techprovider' ) loadProviders();
+    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadSkills, loadSites, loadAllow, loadRouting, loadConnectors, loadProviders ] );
 
     // ── settings mutators ──
     const saveSettings = async ( patch: Partial<api.AgentSettings> & { enabled?: boolean; aiAudience?: string } ) => {
@@ -236,6 +257,7 @@ export default function AiAgentPage ( { }: PageProps ) {
                 <TabBtn id="websites">Websites</TabBtn>
                 <TabBtn id="routing">Routing (Bot vs AI)</TabBtn>
                 <TabBtn id="connectors">Connectors</TabBtn>
+                <TabBtn id="techprovider">Tech Provider</TabBtn>
                 <TabBtn id="allowlist">Allowlist</TabBtn>
             </div>
 
@@ -502,6 +524,87 @@ export default function AiAgentPage ( { }: PageProps ) {
                             ) ) }
                         </div>
                     ) }
+                </div>
+            ) }
+
+            {/* ── TECH PROVIDER ── */ }
+            { tab === 'techprovider' && (
+                <div>
+                    <div style={ card }>
+                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Tech Provider — both WABAs</h3>
+                        <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 8px' } }>
+                            Per-WABA workspace, eligibility and connector state. Reading connectors works on both WABAs.
+                            Connector <b>create</b> on Meta may return a cosmetic <code>500 "Membrane: Authorization failed"</code>
+                            while the connector is actually provisioned (backend re-lists and reports the real result).
+                            A WABA showing <b>"Workspace not confirmed"</b> means Meta hasn't finished provisioning its
+                            connector workspace yet — create returns <code>400 "No workspace found"</code> until it does.
+                        </p>
+                        <button onClick={ loadProviders } style={ { ...btn( '#059669' ), padding: '6px 12px', fontSize: 13 } }>Refresh</button>
+                    </div>
+                    { provLoading ? <Spinner /> : providers.map( p => (
+                        <div key={ p.waba } style={ card }>
+                            <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 } }>
+                                <div>
+                                    <b style={ { fontSize: 15 } }>{ p.waba }</b>
+                                    <span style={ { color: '#9ca3af', fontSize: 12, marginLeft: 8 } }>phone { p.entityId } · waba { p.wabaId }</span>
+                                </div>
+                                <div style={ { display: 'flex', gap: 6, flexWrap: 'wrap' } }>
+                                    <Pill ok={ p.connectorsReadable } okText="Connector API readable" badText="No connector access" />
+                                    <Pill ok={ p.workspaceProvisioned } okText="Workspace writable" badText="Workspace not confirmed" />
+                                    <Pill ok={ p.eligible } okText="Agent eligible" badText={ `Not eligible (${p.eligibilityStatus})` } />
+                                    <span style={ { ...pillBase, background: '#eef2ff', color: '#3730a3' } }>{ p.connectorCount } connector{ p.connectorCount === 1 ? '' : 's' }</span>
+                                </div>
+                            </div>
+                            { p.connectors.length === 0 && <div style={ { color: '#9ca3af', fontSize: 13, marginTop: 10 } }>No connectors on this WABA yet.</div> }
+                            { p.connectors.map( c => {
+                                const key = `${p.waba}:${c.id}`;
+                                const det = provDetail[ key ] || {};
+                                return (
+                                    <div key={ c.id } style={ { borderTop: '1px solid #f3f4f6', padding: '10px 0' } }>
+                                        <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 } }>
+                                            <div style={ { fontSize: 13 } }>
+                                                <b>{ c.name }</b> <span style={ { color: '#9ca3af' } }>· { c.authType || '—' } · { c.status || '—' }</span>
+                                                <div style={ { color: '#6b7280', fontSize: 12 } }>{ c.baseUrl }</div>
+                                            </div>
+                                            <div style={ { display: 'flex', gap: 6 } }>
+                                                <button style={ { ...btn( '#f3f4f6' ), padding: '4px 10px', fontSize: 12 } } onClick={ async () => {
+                                                    const [ lg, tl ] = await Promise.all( [
+                                                        api.aiAgentApi.connectorLogs( p.waba, c.id ),
+                                                        api.aiAgentApi.listTools( p.waba, c.id ),
+                                                    ] );
+                                                    const logs = ( lg?.logs && !( lg.logs as any ).error ) ? lg.logs as api.AgentConnectorLogs : undefined;
+                                                    const tools = Array.isArray( tl?.tools ) ? tl!.tools as api.AgentTool[] : [];
+                                                    setProvDetail( d => ( { ...d, [ key ]: { logs, tools, open: !det.open } } ) );
+                                                } }>{ det.open ? 'Hide' : 'Logs & tools' }</button>
+                                                <button style={ { ...btn( '#fef2f2' ), color: '#dc2626', padding: '4px 10px', fontSize: 12 } } onClick={ async () => {
+                                                    const ok = await api.aiAgentApi.removeConnector( p.waba, c.id );
+                                                    if ( ok?.deleted ) { toast.success( 'Removed' ); loadProviders(); } else toast.error( 'Remove failed (may be propagating)' );
+                                                } }>Remove</button>
+                                            </div>
+                                        </div>
+                                        { det.open && (
+                                            <div style={ { background: '#f9fafb', borderRadius: 8, padding: 10, marginTop: 8, fontSize: 12 } }>
+                                                <div style={ { fontWeight: 600, marginBottom: 4 } }>Call stats</div>
+                                                { det.logs?.stats ? (
+                                                    <div style={ { color: '#374151' } }>
+                                                        total { String( det.logs.stats.total ?? '—' ) } · success { String( det.logs.stats.success ?? '—' ) } · errors { String( det.logs.stats.error ?? '—' ) }
+                                                        { det.logs.stats.success_rate != null && <> · rate { String( det.logs.stats.success_rate ) }</> }
+                                                    </div>
+                                                ) : <div style={ { color: '#9ca3af' } }>No stats yet.</div> }
+                                                <div style={ { fontWeight: 600, margin: '8px 0 4px' } }>Tools ({ ( det.tools || [] ).length })</div>
+                                                { ( det.tools || [] ).length === 0 && <div style={ { color: '#9ca3af' } }>No tools defined.</div> }
+                                                { ( det.tools || [] ).map( ( t, i ) => (
+                                                    <div key={ t.id || i } style={ { borderTop: '1px solid #eef0f2', padding: '4px 0' } }>
+                                                        <b>{ t.name || t.id }</b>{ t.description ? <span style={ { color: '#6b7280' } }> — { t.description }</span> : null }
+                                                    </div>
+                                                ) ) }
+                                            </div>
+                                        ) }
+                                    </div>
+                                );
+                            } ) }
+                        </div>
+                    ) ) }
                 </div>
             ) }
 

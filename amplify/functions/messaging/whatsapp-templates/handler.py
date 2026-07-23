@@ -34,6 +34,20 @@ AWS_TO_META_WABA = {
 }
 DEFAULT_META_WABA_ID = '2094615664435155'  # WABA1
 
+# Meta WABA id -> phone-number-id. Media for a template header MUST be uploaded
+# to a phone number that belongs to the SAME WABA the template is created on,
+# otherwise the header handle is invalid for that WABA (breaks WABA2 templates).
+META_WABA_TO_PHONE = {
+    '2094615664435155': '1016149501586345',  # WABA1
+    '2513394156072604': '1055232054343117',  # WABA2/WABA-T
+}
+
+
+def _resolve_phone_id(waba_id) -> str:
+    """Resolve the phone-number-id for the given WABA (AWS or Meta id)."""
+    meta_waba = _resolve_meta_waba_id(str(waba_id or ''))
+    return META_WABA_TO_PHONE.get(meta_waba, DEFAULT_PHONE_ID)
+
 # Cached token/secret
 _meta_creds = {}
 
@@ -393,8 +407,12 @@ def _delete_template(waba_id, template_name, query_params):
 
 # ── MEDIA UPLOAD ──
 
-def _upload_media_to_meta(file_bytes: bytes, content_type: str, filename: str) -> str:
-    """Upload media to Meta via the phone media endpoint. Returns the media ID (header handle)."""
+def _upload_media_to_meta(file_bytes: bytes, content_type: str, filename: str, phone_id: str = None) -> str:
+    """Upload media to Meta via the phone media endpoint. Returns the media ID (header handle).
+
+    phone_id MUST belong to the same WABA the template will be created on.
+    """
+    phone_id = phone_id or DEFAULT_PHONE_ID
     boundary = uuid.uuid4().hex
     body_parts = []
     body_parts.append(f'--{boundary}\r\n'.encode())
@@ -406,7 +424,7 @@ def _upload_media_to_meta(file_bytes: bytes, content_type: str, filename: str) -
     body_parts.append(f'\r\n--{boundary}--\r\n'.encode())
     multipart_body = b''.join(body_parts)
 
-    url = f'{META_GRAPH_URL}/{DEFAULT_PHONE_ID}/media'
+    url = f'{META_GRAPH_URL}/{phone_id}/media'
     headers = {'Content-Type': f'multipart/form-data; boundary={boundary}'}
     data = _meta_request(url, method='POST', data=multipart_body, headers=headers)
     return data.get('id', '')
@@ -432,8 +450,9 @@ def _upload_template_media(waba_id, body):
         upload_key = f'{TEMPLATE_MEDIA_PREFIX}wecare-digital-{uuid.uuid4().hex[:8]}_{filename}'
         s3.put_object(Bucket=MEDIA_BUCKET, Key=upload_key, Body=file_bytes, ContentType=content_type)
 
-        # Upload to Meta
-        header_handle = _upload_media_to_meta(file_bytes, content_type, filename)
+        # Upload to Meta — use a phone number that belongs to the SAME WABA
+        phone_id = _resolve_phone_id(waba_id)
+        header_handle = _upload_media_to_meta(file_bytes, content_type, filename, phone_id=phone_id)
 
         logger.info(json.dumps({
             'event': 'template_media_uploaded',
@@ -475,7 +494,9 @@ def _upload_carousel_media(waba_id, body, query_params):
         upload_key = f'{TEMPLATE_MEDIA_PREFIX}wecare-digital-{uuid.uuid4().hex[:8]}_card{card_index}'
         s3.put_object(Bucket=MEDIA_BUCKET, Key=upload_key, Body=file_bytes, ContentType=content_type)
 
-        header_handle = _upload_media_to_meta(file_bytes, content_type, f'card{card_index}')
+        # Upload to a phone that belongs to the SAME WABA (WABA2 carousel fix)
+        phone_id = _resolve_phone_id(waba_id)
+        header_handle = _upload_media_to_meta(file_bytes, content_type, f'card{card_index}', phone_id=phone_id)
 
         return {
             'statusCode': 201,
