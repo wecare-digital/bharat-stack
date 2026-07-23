@@ -24,6 +24,8 @@ import logging
 import urllib.request
 import urllib.error
 
+import time
+
 import boto3
 
 from lambda_utils.middleware import require_auth
@@ -826,6 +828,89 @@ def _agent_eval(body: dict):
     return _resp(_pass_status(st, (200,)), {"eval": d, "sub": sub, "entityId": eid})
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Tech Partner readiness — live measurement of the 4 upgrade eligibility gates
+#   1. quality   : phone quality rating >= GREEN on both WABAs
+#   2. volume    : >= 2,500 avg daily messages (sent+delivered) over last 7 days
+#   3. clients   : >= 10 onboarded partner tenants (active senders in 30d)
+#   4. (provider): Tech Provider Get Started completed (already true)
+# ─────────────────────────────────────────────────────────────────────────
+PARTNER_WALLET_TABLE = os.environ.get("PARTNER_WALLET_TABLE", "stack-wecare-digital-PartnerWallet")
+_QUALITY_OK = {"GREEN"}
+
+
+def _tp_eligibility(_body):
+    now = int(time.time())
+    start = now - 7 * 86400
+
+    # ── Gate 1: phone quality rating (per WABA) ──
+    quality = {}
+    q_pass = True
+    for name, pid in (("WABA1", DEFAULT_ENTITIES["WABA1"]), ("WABA2", DEFAULT_ENTITIES["WABA2"])):
+        st, d = _meta_request(
+            "GET",
+            f"{GRAPH}/{pid}?fields=display_phone_number,verified_name,quality_rating,status",
+            None,
+        )
+        rating = (d or {}).get("quality_rating") if isinstance(d, dict) else None
+        quality[name] = {
+            "phone": (d or {}).get("display_phone_number") if isinstance(d, dict) else None,
+            "rating": rating,
+            "status": (d or {}).get("status") if isinstance(d, dict) else None,
+            "ok": rating in _QUALITY_OK,
+        }
+        q_pass = q_pass and (rating in _QUALITY_OK)
+
+    # ── Gate 2: message volume (7-day avg/day across both WABAs) ──
+    per_waba = {}
+    total_msgs = 0
+    for name, waba in (("WABA1", WABA_IDS["WABA1"]), ("WABA2", WABA_IDS["WABA2"])):
+        st, d = _meta_request(
+            "GET",
+            f"{GRAPH}/{waba}?fields=analytics.start({start}).end({now}).granularity(DAY)",
+            None,
+        )
+        pts = (((d or {}).get("analytics") or {}).get("data_points")
+               if isinstance(d, dict) else None) or []
+        wtotal = sum((p.get("sent", 0) + p.get("delivered", 0)) for p in pts)
+        per_waba[name] = {"total7d": wtotal, "points": len(pts)}
+        total_msgs += wtotal
+    avg_per_day = round(total_msgs / 7.0, 1)
+    v_pass = avg_per_day >= 2500
+
+    # ── Gate 3: active clients (onboarded partner tenants) ──
+    active_clients = 0
+    clients_err = ""
+    try:
+        ddb = boto3.client("dynamodb", region_name=REGION)
+        resp = ddb.scan(TableName=PARTNER_WALLET_TABLE, Select="COUNT")
+        active_clients = resp.get("Count", 0)
+        while resp.get("LastEvaluatedKey"):
+            resp = ddb.scan(TableName=PARTNER_WALLET_TABLE, Select="COUNT",
+                            ExclusiveStartKey=resp["LastEvaluatedKey"])
+            active_clients += resp.get("Count", 0)
+    except Exception as e:  # noqa: BLE001
+        clients_err = str(e)[:160]
+    c_pass = active_clients >= 10
+
+    gates = {
+        "provider": {"pass": True, "label": "Tech Provider Get Started",
+                     "detail": "Completed — app has Tech Provider status."},
+        "quality": {"pass": q_pass, "label": "Phone quality rating ≥ GREEN",
+                    "byWaba": quality},
+        "volume": {"pass": v_pass, "label": "≥ 2,500 avg daily messages (7d)",
+                   "avgPerDay": avg_per_day, "threshold": 2500,
+                   "total7d": total_msgs, "byWaba": per_waba},
+        "clients": {"pass": c_pass, "label": "≥ 10 active client businesses",
+                    "active": active_clients, "threshold": 10, "error": clients_err},
+    }
+    return _resp(200, {
+        "eligible": all(g["pass"] for g in gates.values()),
+        "gates": gates,
+        "checkedAt": now,
+    })
+
+
 def lambda_handler(event, context):
     if isinstance(event, str):
         try:
@@ -935,6 +1020,8 @@ def lambda_handler(event, context):
         return _connector_upsert_oauth(body)
     if action in ("provider_status", "tech_provider", "providers"):
         return _provider_status(body)
+    if action in ("tp_eligibility", "tech_partner_readiness", "readiness_partner"):
+        return _tp_eligibility(body)
     # Operate group
     if action == "thread_control":
         return _thread_control(body)
@@ -955,6 +1042,6 @@ def lambda_handler(event, context):
         "websites", "websites_add", "websites_remove",
         "connectors", "connectors_add", "connectors_remove",
         "connector_get", "connector_logs", "connector_upsert_apikey", "connector_upsert_oauth",
-        "provider_status",
+        "provider_status", "tp_eligibility",
         "tools", "tools_add", "tools_remove", "tools_run",
         "thread_control", "agent_event", "agent_test", "agent_eval", "entities"]})

@@ -6205,7 +6205,28 @@ export const aiAgentApi = {
   // Consolidated Tech Provider overview for both WABAs (or one, if waba passed)
   providerStatus: ( waba?: WabaKey ) =>
     metaAgent<{ providers: AgentProviderStatus[] }>( 'provider_status', waba ? { waba } : {} ),
+
+  // Tech Partner upgrade readiness — live measurement of the 4 eligibility gates.
+  techPartnerReadiness: () =>
+    metaAgent<TechPartnerReadiness>( 'tp_eligibility' ),
 };
+
+export interface TechPartnerGate { pass: boolean; label: string; }
+export interface TechPartnerReadiness {
+  eligible: boolean;
+  checkedAt: number;
+  gates: {
+    provider: TechPartnerGate & { detail?: string };
+    quality: TechPartnerGate & {
+      byWaba: Record<string, { phone?: string; rating?: string; status?: string; ok: boolean }>;
+    };
+    volume: TechPartnerGate & {
+      avgPerDay: number; threshold: number; total7d: number;
+      byWaba: Record<string, { total7d: number; points: number }>;
+    };
+    clients: TechPartnerGate & { active: number; threshold: number; error?: string };
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Marketing Ads — Ads that Click to WhatsApp (CTWA) via the Marketing API
