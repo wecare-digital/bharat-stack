@@ -16,7 +16,7 @@ import Spinner from '../../../components/ui/Spinner';
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 type WabaKey = api.WabaKey;
-type Tab = 'settings' | 'business' | 'faqs' | 'skills' | 'websites' | 'allowlist' | 'routing';
+type Tab = 'settings' | 'business' | 'faqs' | 'skills' | 'websites' | 'allowlist' | 'routing' | 'connectors';
 
 const WABAS: { key: WabaKey; label: string }[] = [
     { key: 'WABA1', label: 'WABA1 · WECARE.DIGITAL (+91 93309 94400)' },
@@ -74,6 +74,17 @@ export default function AiAgentPage ( { }: PageProps ) {
     const [ allow, setAllow ] = useState<api.AgentAllowlistEntry[]>( [] );
     const [ allowLoading, setAllowLoading ] = useState( false );
     const [ newPhone, setNewPhone ] = useState( '' );
+
+    // Connectors (external APIs the agent can call)
+    const [ connectors, setConnectors ] = useState<api.AgentConnector[]>( [] );
+    const [ connErr, setConnErr ] = useState<string>( '' );
+    const [ connLoading, setConnLoading ] = useState( false );
+    const [ cName, setCName ] = useState( 'WECARE_API' );
+    const [ cDesc, setCDesc ] = useState( 'WECARE.DIGITAL catalog product lookup' );
+    const [ cUrl, setCUrl ] = useState( 'https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod' );
+    const [ cAuth, setCAuth ] = useState<'API_KEY' | 'NONE'>( 'API_KEY' );
+    const [ cHeaderName, setCHeaderName ] = useState( 'X-Agent-Token' );
+    const [ cHeaderValue, setCHeaderValue ] = useState( '' );
 
     // ── loaders ──
     const loadSettings = useCallback( async () => {
@@ -136,6 +147,18 @@ export default function AiAgentPage ( { }: PageProps ) {
         finally { setRoutingLoading( false ); }
     }, [ toast ] );
 
+    const loadConnectors = useCallback( async () => {
+        setConnLoading( true ); setConnErr( '' );
+        try
+        {
+            const r = await api.aiAgentApi.listConnectors( waba );
+            const c = r?.connectors;
+            if ( Array.isArray( c ) ) setConnectors( c );
+            else { setConnectors( [] ); if ( c && ( c as any ).error ) setConnErr( JSON.stringify( ( c as any ).error ).slice( 0, 300 ) ); }
+        } catch { toast.error( 'Failed to load connectors' ); }
+        finally { setConnLoading( false ); }
+    }, [ waba, toast ] );
+
     useEffect( () => {
         if ( tab === 'settings' ) loadSettings();
         else if ( tab === 'business' ) loadInfo();
@@ -144,7 +167,8 @@ export default function AiAgentPage ( { }: PageProps ) {
         else if ( tab === 'websites' ) loadSites();
         else if ( tab === 'allowlist' ) loadAllow();
         else if ( tab === 'routing' ) loadRouting();
-    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadSkills, loadSites, loadAllow, loadRouting ] );
+        else if ( tab === 'connectors' ) loadConnectors();
+    }, [ tab, waba, loadSettings, loadInfo, loadFaqs, loadSkills, loadSites, loadAllow, loadRouting, loadConnectors ] );
 
     // ── settings mutators ──
     const saveSettings = async ( patch: Partial<api.AgentSettings> & { enabled?: boolean; aiAudience?: string } ) => {
@@ -211,6 +235,7 @@ export default function AiAgentPage ( { }: PageProps ) {
                 <TabBtn id="skills">Skills</TabBtn>
                 <TabBtn id="websites">Websites</TabBtn>
                 <TabBtn id="routing">Routing (Bot vs AI)</TabBtn>
+                <TabBtn id="connectors">Connectors</TabBtn>
                 <TabBtn id="allowlist">Allowlist</TabBtn>
             </div>
 
@@ -417,6 +442,68 @@ export default function AiAgentPage ( { }: PageProps ) {
                     } ) } style={ btn( '#059669' ) }>Save routing</button>
                 </div>
             ) ) }
+
+            {/* ── CONNECTORS ── */ }
+            { tab === 'connectors' && (
+                <div>
+                    <div style={ card }>
+                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Connectors (external APIs the agent can call)</h3>
+                        <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 12px' } }>
+                            Define an external API the Meta AI can call. Name must be letters/numbers/underscores.
+                            For our token-gated tool endpoint use API key auth with header <code>X-Agent-Token</code>.
+                            Requires Tech-Provider connector access to be fully provisioned on this WABA.
+                        </p>
+                        <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 } }>
+                            <div><label style={ label }>Name</label><input style={ input } value={ cName } onChange={ e => setCName( e.target.value ) } /></div>
+                            <div><label style={ label }>Auth type</label>
+                                <select style={ input } value={ cAuth } onChange={ e => setCAuth( e.target.value as 'API_KEY' | 'NONE' ) }>
+                                    <option value="API_KEY">API_KEY (header)</option>
+                                    <option value="NONE">NONE</option>
+                                </select>
+                            </div>
+                            <div style={ { gridColumn: '1 / span 2' } }><label style={ label }>Description</label><input style={ input } value={ cDesc } onChange={ e => setCDesc( e.target.value ) } /></div>
+                            <div style={ { gridColumn: '1 / span 2' } }><label style={ label }>Base URL</label><input style={ input } value={ cUrl } onChange={ e => setCUrl( e.target.value ) } /></div>
+                            { cAuth === 'API_KEY' && ( <>
+                                <div><label style={ label }>Header name</label><input style={ input } value={ cHeaderName } onChange={ e => setCHeaderName( e.target.value ) } /></div>
+                                <div><label style={ label }>Header value (token)</label><input style={ input } value={ cHeaderValue } onChange={ e => setCHeaderValue( e.target.value ) } placeholder="agent connector token" /></div>
+                            </> ) }
+                        </div>
+                        <button disabled={ saving || !cName.trim() || !cUrl.trim() } onClick={ async () => {
+                            setSaving( true );
+                            try
+                            {
+                                const connector: api.AgentConnectorInput = {
+                                    name: cName.trim(), description: cDesc.trim(), base_url: cUrl.trim(),
+                                    auth_type: cAuth,
+                                    ...( cAuth === 'API_KEY' ? { auth_config: { api_key: { headers: [ { field_name: cHeaderName.trim(), value: cHeaderValue } ] } } } : {} ),
+                                };
+                                const r = await api.aiAgentApi.addConnector( waba, connector );
+                                const created = r?.created as any;
+                                if ( created && !created.error ) { toast.success( 'Connector created' ); loadConnectors(); }
+                                else toast.error( 'Create failed: ' + JSON.stringify( created?.error || r ).slice( 0, 160 ) );
+                            } finally { setSaving( false ); }
+                        } } style={ btn( '#059669' ) }>Create connector</button>
+                    </div>
+                    { connLoading ? <Spinner /> : (
+                        <div style={ card }>
+                            { connErr && <div style={ { color: '#b45309', fontSize: 12, marginBottom: 8 } }>Read note: { connErr }</div> }
+                            { connectors.length === 0 && !connErr && <div style={ { color: '#9ca3af', fontSize: 14 } }>No connectors yet.</div> }
+                            { connectors.map( c => (
+                                <div key={ c.id } style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f3f4f6', padding: '10px 0' } }>
+                                    <div style={ { fontSize: 13 } }>
+                                        <b>{ c.name }</b> <span style={ { color: '#9ca3af' } }>· { c.auth_type } · { c.connection_status?.status || '—' }</span>
+                                        <div style={ { color: '#6b7280', fontSize: 12 } }>{ c.base_url }</div>
+                                    </div>
+                                    <button onClick={ async () => {
+                                        const ok = await api.aiAgentApi.removeConnector( waba, c.id );
+                                        if ( ok?.deleted ) { toast.success( 'Removed' ); loadConnectors(); } else toast.error( 'Remove failed (may be propagating)' );
+                                    } } style={ { ...btn( '#fef2f2' ), color: '#dc2626', padding: '4px 10px', fontSize: 12 } }>Remove</button>
+                                </div>
+                            ) ) }
+                        </div>
+                    ) }
+                </div>
+            ) }
 
             {/* ── ALLOWLIST ── */ }
             { tab === 'allowlist' && (

@@ -6166,7 +6166,60 @@ export const aiAgentApi = {
 
   deleteSkill: ( waba: WabaKey, skillId: string ) =>
     metaAgent<{ deleted: boolean }>( 'skills_delete', { waba, skillId } ),
+
+  // ── Connectors + Tools (agent_connectors) — enterprise/Tech-Provider ──
+  listConnectors: ( waba: WabaKey ) =>
+    metaAgent<{ connectors: AgentConnector[] | { error?: unknown }; entityId: string }>( 'connectors', { waba } ),
+
+  addConnector: ( waba: WabaKey, connector: AgentConnectorInput ) =>
+    metaAgent<{ created: AgentConnector | { error?: unknown }; entityId: string }>( 'connectors_add', { waba, connector } ),
+
+  removeConnector: ( waba: WabaKey, connectorId: string ) =>
+    metaAgent<{ deleted: boolean; detail?: unknown }>( 'connectors_remove', { waba, connectorId } ),
+
+  listTools: ( waba: WabaKey, connectorId: string ) =>
+    metaAgent<{ tools: AgentTool[] | { error?: unknown }; entityId: string }>( 'tools', { waba, connectorId } ),
+
+  addTool: ( waba: WabaKey, connectorId: string, tool: Record<string, unknown> ) =>
+    metaAgent<{ created: AgentTool | { error?: unknown }; entityId: string }>( 'tools_add', { waba, connectorId, tool } ),
+
+  removeTool: ( waba: WabaKey, connectorId: string, toolId: string ) =>
+    metaAgent<{ deleted: boolean; detail?: unknown }>( 'tools_remove', { waba, connectorId, toolId } ),
+
+  runTool: ( waba: WabaKey, connectorId: string, toolId: string, input: string ) =>
+    metaAgent<{ result: unknown; entityId: string }>( 'tools_run', { waba, connectorId, toolId, input } ),
 };
+
+// ── Meta Business Agent connectors (external APIs the agent can call) ──
+export interface AgentConnector {
+  id: string;
+  name: string;
+  description?: string;
+  base_url?: string;
+  auth_type?: 'OAUTH2_CLIENT_CREDENTIALS' | 'API_KEY' | 'NONE' | string;
+  connection_status?: { status?: string; error_message?: string };
+}
+
+export interface AgentConnectorInput {
+  name: string;                 // letters/numbers/underscores only
+  description: string;
+  base_url: string;
+  auth_type: 'API_KEY' | 'NONE' | 'OAUTH2_CLIENT_CREDENTIALS';
+  auth_config?: {
+    api_key?: {
+      headers?: { field_name: string; value: string; prefix?: string }[];
+      query_params?: { field_name: string; value: string; prefix?: string }[];
+      body_params?: { field_name: string; value: string; prefix?: string }[];
+    };
+  };
+}
+
+export interface AgentTool {
+  id?: string;
+  name?: string;
+  description?: string;
+  [ k: string ]: unknown;
+}
 
 export interface AgentWebsite {
   id: string;

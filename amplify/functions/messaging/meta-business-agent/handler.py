@@ -39,6 +39,7 @@ GRAPH_HOST = os.environ.get("META_AGENT_HOST", "https://api.facebook.com")
 
 # Default WhatsApp Business phone-number IDs (entity_id candidates)
 DEFAULT_ENTITIES = {
+    "WABA2": "1055232054343117",   # +91 99033 00044 (alias for WABA-T; frontend sends WABA2)
     "WABA1": "1016149501586345",   # +91 93309 94400
     "WABA-T": "1055232054343117",  # +91 99033 00044
 }
@@ -223,7 +224,7 @@ def _onboard(body: dict):
 
 GRAPH = os.environ.get("META_GRAPH_BASE", "https://graph.facebook.com/v22.0")
 # WABA IDs (not phone-number IDs) — subscribed_apps is per WABA
-WABA_IDS = {"WABA1": "2094615664435155", "WABA-T": "2513394156072604"}
+WABA_IDS = {"WABA1": "2094615664435155", "WABA-T": "2513394156072604", "WABA2": "2513394156072604"}
 
 
 def _readiness(body: dict):
