@@ -15,7 +15,7 @@ import json
 import os
 import boto3
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 sns = boto3.client("sns")
 dynamodb = boto3.resource("dynamodb")
@@ -107,8 +107,8 @@ def register_token(body, headers):
             "userId": user_id,
             "platform": platform,
             "endpointArn": endpoint_arn,
-            "registeredAt": datetime.utcnow().isoformat(),
-            "updatedAt": datetime.utcnow().isoformat(),
+            "registeredAt": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            "updatedAt": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         }
     )
 

@@ -29,7 +29,7 @@ import json
 import boto3
 from typing import Dict, Any, Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.middleware import require_auth
@@ -799,9 +799,9 @@ def _subscribe_waba_to_sns(waba_id: str, body: Dict, request_id: str) -> Dict[st
         'id': f'waba_sns_subscription_{waba_id}',
         'configValue': json.dumps({
             'wabaId': waba_id, 'metaWabaId': meta_waba_id, 'snsTopicArn': topic_arn,
-            'roleArn': role_arn, 'subscribedAt': datetime.utcnow().isoformat(), 'status': 'ACTIVE'
+            'roleArn': role_arn, 'subscribedAt': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), 'status': 'ACTIVE'
         }),
-        'updatedAt': datetime.utcnow().isoformat()
+        'updatedAt': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     })
 
     record_audit(action='webhook.subscribe', actor=_actor, resource_type='waba',
@@ -835,9 +835,9 @@ def _unsubscribe_waba_from_sns(waba_id: str, body: Dict, request_id: str) -> Dic
         'id': f'waba_sns_subscription_{waba_id}',
         'configValue': json.dumps({
             'wabaId': waba_id, 'metaWabaId': meta_waba_id, 'snsTopicArn': '', 'roleArn': '',
-            'unsubscribedAt': datetime.utcnow().isoformat(), 'status': 'INACTIVE'
+            'unsubscribedAt': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), 'status': 'INACTIVE'
         }),
-        'updatedAt': datetime.utcnow().isoformat()
+        'updatedAt': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     })
 
     record_audit(action='webhook.unsubscribe', actor=_actor, resource_type='waba',
@@ -989,9 +989,9 @@ def _register_phone(body: Dict, request_id: str) -> Dict[str, Any]:
         'id': f'phone_registration_{phone_number_id}',
         'configValue': json.dumps({
             'phoneNumberId': phone_number_id, 'metaPhoneId': meta_phone_id, 'pin': pin,
-            'registeredAt': datetime.utcnow().isoformat(), 'status': 'REGISTERED'
+            'registeredAt': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), 'status': 'REGISTERED'
         }),
-        'updatedAt': datetime.utcnow().isoformat()
+        'updatedAt': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     })
 
     record_audit(action='phone.register', actor=_actor, resource_type='phone',
@@ -1053,14 +1053,14 @@ def _migrate_phone(body: Dict, request_id: str) -> Dict[str, Any]:
     # Step 3: Store migration record
     config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
     config_table.put_item(Item={
-        'id': f'phone_migration_{phone_number_id}_{int(datetime.utcnow().timestamp())}',
+        'id': f'phone_migration_{phone_number_id}_{int(datetime.now(timezone.utc).replace(tzinfo=None).timestamp())}',
         'configValue': json.dumps({
             'phoneNumberId': phone_number_id, 'metaPhoneId': meta_phone_id,
             'sourceWabaId': source_waba_id, 'targetWabaId': target_waba_id, 'pin': pin,
             'pinSent': send_pin, 'pinMethod': pin_method,
-            'migratedAt': datetime.utcnow().isoformat(), 'status': 'INITIATED'
+            'migratedAt': datetime.now(timezone.utc).replace(tzinfo=None).isoformat(), 'status': 'INITIATED'
         }),
-        'updatedAt': datetime.utcnow().isoformat()
+        'updatedAt': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
     })
 
     record_audit(action='phone.migrate', actor=_actor, resource_type='phone', resource_id=meta_phone_id,

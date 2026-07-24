@@ -1019,8 +1019,20 @@ def _process_message(
     if not sender_name and 'profile' in message:
         sender_name = message.get('profile', {}).get('name', '')
     
-    # Deduplicate using whatsappMessageId
-    if _message_exists(whatsapp_message_id):
+    # Deduplicate using whatsappMessageId.
+    # claim_event() is an atomic, strongly-consistent guard that closes the
+    # fast-redelivery race window (Meta redelivering within the GSI's eventual-
+    # consistency lag). _message_exists() is kept as a fallback so redeliveries
+    # older than the dedup table's TTL are still caught. Either signalling a
+    # duplicate skips processing.
+    _dup = False
+    try:
+        from lambda_utils.webhook_dedup import claim_event
+        if whatsapp_message_id and not claim_event(whatsapp_message_id, source='whatsapp_inbound'):
+            _dup = True
+    except Exception:  # noqa: BLE001 — dedup must never block a real inbound message
+        pass
+    if _dup or _message_exists(whatsapp_message_id):
         logger.info(json.dumps({
             'event': 'message_duplicate_skipped',
             'whatsappMessageId': whatsapp_message_id,
@@ -3270,13 +3282,17 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
         messages_table = dynamodb.Table(MESSAGES_TABLE)
         items = []
 
-        # Try GSI query first, fall back to scan if index doesn't exist
+        # Look up the original payment_request message by its payment reference via
+        # the existing paymentReferenceId GSI. The previous code queried a
+        # 'messageId-index' that does not exist on MessagesTable, so it ALWAYS threw
+        # and fell through to a full table scan on every captured payment. This is an
+        # indexed query with the same result; the scan below remains as a safety net.
         try:
             resp = messages_table.query(
-                IndexName='messageId-index',
-                KeyConditionExpression='messageId = :mid',
-                ExpressionAttributeValues={':mid': reference_id},
-                Limit=1,
+                IndexName='paymentReferenceId-index',
+                KeyConditionExpression='paymentReferenceId = :ref',
+                FilterExpression='messageType = :mt',
+                ExpressionAttributeValues={':ref': reference_id, ':mt': 'payment_request'},
             )
             items = resp.get('Items', [])
         except Exception as gsi_err:

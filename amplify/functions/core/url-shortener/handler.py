@@ -18,7 +18,7 @@ import uuid
 import secrets
 import string
 import boto3
-from datetime import datetime
+from datetime import datetime, timezone
 
 dynamodb = boto3.resource("dynamodb")
 SHORT_LINKS_TABLE = os.environ.get("SHORT_LINKS_TABLE", "stack-wecare-digital-ShortLinksTable")
@@ -144,7 +144,7 @@ def create_link(body):
         return {"statusCode": 400, "headers": HEADERS, "body": json.dumps({"error": "originalUrl required"})}
 
     short_code = body.get("shortCode", generate_code())
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
     item = {
         "shortCode": short_code,
@@ -245,7 +245,7 @@ def redirect(code, event):
 
     # Check expiry
     expires = item.get("expiresAt")
-    if expires and expires < datetime.utcnow().isoformat():
+    if expires and expires < datetime.now(timezone.utc).replace(tzinfo=None).isoformat():
         return {
             "statusCode": 302,
             "headers": {**HEADERS, "Location": FALLBACK_URL},
@@ -278,7 +278,7 @@ def redirect(code, event):
         clicks_table.put_item(
             Item={
                 "shortCode": code,
-                "clickedAt": datetime.utcnow().isoformat(),
+                "clickedAt": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                 "platform": platform,
                 "userAgent": user_agent[:500],
                 "sourceIp": source_ip,

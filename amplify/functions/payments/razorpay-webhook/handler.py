@@ -307,54 +307,19 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
 
 
 def _is_duplicate_event(razorpay_event_id: str, request_id: str) -> bool:
-    """Check if a Razorpay webhook event was already processed (idempotency).
-    Uses paymentId GSI for efficient lookup when possible, falls back to scan."""
+    """Idempotency via the shared WebhookDedup table (atomic conditional claim).
+
+    Returns True if this event was already processed (caller should skip).
+    Replaces the previous read-then-write query+scan against the log table, which
+    had a race window (check, then log) and could fall back to a full-table scan.
+    claim_event() does a single atomic conditional put. Fails open (process) on
+    infra errors — better to process twice than to drop a real payment event."""
     if not razorpay_event_id:
         return False
     try:
-        table = dynamodb.Table(WEBHOOK_LOG_TABLE)
-        # Extract paymentId from razorpay_event_id (format: pay_xxx:event_type)
-        parts = razorpay_event_id.split(':')
-        payment_id = parts[0] if parts else ''
-        event_type = parts[1] if len(parts) > 1 else ''
-
-        if payment_id and event_type:
-            # Use paymentId GSI for efficient lookup
-            try:
-                resp = table.query(
-                    IndexName='paymentId-index',
-                    KeyConditionExpression='paymentId = :pid',
-                    ExpressionAttributeValues={':pid': payment_id},
-                )
-                for item in resp.get('Items', []):
-                    if item.get('eventType') == event_type:
-                        return True
-                # Paginate if needed
-                while 'LastEvaluatedKey' in resp:
-                    resp = table.query(
-                        IndexName='paymentId-index',
-                        KeyConditionExpression='paymentId = :pid',
-                        ExpressionAttributeValues={':pid': payment_id},
-                        ExclusiveStartKey=resp['LastEvaluatedKey'],
-                    )
-                    for item in resp.get('Items', []):
-                        if item.get('eventType') == event_type:
-                            return True
-                return False
-            except Exception:
-                pass  # Fall through to scan if GSI not available
-
-        # Fallback: scan for razorpayEventId (legacy records)
-        from boto3.dynamodb.conditions import Attr
-        scan_kwargs = {
-            'FilterExpression': Attr('razorpayEventId').eq(razorpay_event_id),
-            'ProjectionExpression': 'id',
-            'Limit': 100,
-        }
-        response = table.scan(**scan_kwargs)
-        if response.get('Items'):
-            return True
-        return False
+        from lambda_utils.webhook_dedup import claim_event
+        # claim_event returns True when newly claimed (process); duplicate = not claimed.
+        return not claim_event(razorpay_event_id, source='razorpay')
     except Exception as e:
         logger.warning(json.dumps({'event': 'idempotency_check_failed', 'error': str(e), 'requestId': request_id}))
         return False  # Fail open on check errors — better to process twice than miss

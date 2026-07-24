@@ -3406,7 +3406,7 @@ def log_tool_execution(tool_name: str, params: Dict, result: Any, duration: floa
                        session_id: str, status: str = 'success', error: str = ''):
     """Log every tool execution for audit trail and monitoring"""
     try:
-        audit_table = dynamodb.Table('stack-wecare-digital-AuditLog')
+        audit_table = dynamodb.Table('stack-wecare-digital-AuditLogsTable')
         
         # Truncate large results
         result_str = json.dumps(result, default=str)

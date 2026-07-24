@@ -197,11 +197,14 @@ def _verify_payu_hash(payload: Dict) -> bool:
 
 
 def _is_duplicate(event_id: str, request_id: str) -> bool:
-    """Check if this event was already processed."""
+    """Idempotency via the shared WebhookDedup table (atomic conditional claim).
+
+    Returns True if already processed (caller should skip). Replaces a non-atomic,
+    eventually-consistent get_item on the log table (check-then-log race). Fails
+    open (process) on infra errors."""
     try:
-        table = dynamodb.Table(WEBHOOK_LOG_TABLE)
-        response = table.get_item(Key={'id': event_id}, ProjectionExpression='id')
-        return 'Item' in response
+        from lambda_utils.webhook_dedup import claim_event
+        return not claim_event(event_id, source='payu')
     except Exception:
         return False
 

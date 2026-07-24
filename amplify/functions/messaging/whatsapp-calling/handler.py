@@ -1038,9 +1038,11 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
         # Skip post-call reaction if the call was AI-redirected
         try:
             table = dynamodb.Table(CALL_LOG_TABLE)
-            from boto3.dynamodb.conditions import Attr as DDBAttr
-            result_check = table.scan(
-                FilterExpression=DDBAttr('callId').eq(call_id),
+            from boto3.dynamodb.conditions import Key as DDBKey
+            # Indexed lookup on callId-index (GSI exists) instead of a full-table scan.
+            result_check = table.query(
+                IndexName='callId-index',
+                KeyConditionExpression=DDBKey('callId').eq(call_id),
                 Limit=10,
             )
             ai_handled = any(
@@ -2385,10 +2387,14 @@ def _update_call_status(call_id: str, new_status: str, extra: Dict = None) -> No
     """Update the status of the most recent log entry for a call."""
     try:
         table = dynamodb.Table(CALL_LOG_TABLE)
-        # Scan with filter — no GSI on callId
-        from boto3.dynamodb.conditions import Attr
-        result = table.scan(
-            FilterExpression=Attr('callId').eq(call_id) & Attr('eventType').eq('connect'),
+        # Indexed query on callId-index (GSI exists) + eventType filter, replacing
+        # the previous full-table scan. Also more correct: the old scan(Limit=10)
+        # only inspected the first 10 rows table-wide and could miss the target row.
+        from boto3.dynamodb.conditions import Key, Attr
+        result = table.query(
+            IndexName='callId-index',
+            KeyConditionExpression=Key('callId').eq(call_id),
+            FilterExpression=Attr('eventType').eq('connect'),
             Limit=10,
         )
         items = result.get('Items', [])

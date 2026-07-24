@@ -28,7 +28,7 @@ import boto3
 import uuid
 from typing import Dict, Any, Optional
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
@@ -361,7 +361,7 @@ def _create_contact(params: Dict, request_id: str) -> Dict:
     try:
         contacts_table = dynamodb.Table(CONTACTS_TABLE)
         contact_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         
         contact = {
             'id': contact_id,
@@ -408,7 +408,7 @@ def _update_contact(params: Dict, request_id: str) -> Dict:
         contacts_table = dynamodb.Table(CONTACTS_TABLE)
         
         update_expr_parts = ['updatedAt = :now']
-        expr_values = {':now': datetime.utcnow().isoformat()}
+        expr_values = {':now': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}
         
         if params.get('name'):
             update_expr_parts.append('#n = :name')
@@ -455,7 +455,7 @@ def _delete_contact(params: Dict, request_id: str) -> Dict:
         contacts_table.update_item(
             Key={'id': contact_id},
             UpdateExpression='SET deletedAt = :now',
-            ExpressionAttributeValues={':now': datetime.utcnow().isoformat()}
+            ExpressionAttributeValues={':now': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}
         )
         
         logger.info(json.dumps({

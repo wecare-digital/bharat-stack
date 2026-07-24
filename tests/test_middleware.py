@@ -8,8 +8,15 @@ class TestRequireAuth:
     """Test auth middleware with mocked Cognito."""
 
     def _make_event(self, method='POST', path='/test', token='valid-token', origin='https://stack.wecare.digital'):
+        # Include an API Gateway context (apiId + sourceIp) so require_auth
+        # treats the event as an externally-reachable request and enforces
+        # auth. Events lacking this context are treated as trusted internal
+        # Lambda-to-Lambda invocations and skip auth by design.
         event = {
-            'requestContext': {'http': {'method': method, 'path': path}},
+            'requestContext': {
+                'apiId': 'test-api-id',
+                'http': {'method': method, 'path': path, 'sourceIp': '203.0.113.1'},
+            },
             'headers': {'origin': origin},
             'body': '{}',
         }

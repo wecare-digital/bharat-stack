@@ -190,6 +190,10 @@ export function addBackendResources ( stack: Stack ) {
     // Previously missing from retention (orphaned, never-expiring log groups):
     'wecare-sla-engine', 'wecare-conversation-meta', 'wecare-automation-rules',
     'wecare-url-shortener', 'wecare-service-api',
+    // Live functions found during the 2026-07 drift audit that were absent from
+    // this list (their log groups existed with no retention policy).
+    'wecare-marketing-ads', 'wecare-meta-business-agent', 'wecare-partner-onboarding',
+    'wecare-partner-token-refresh', 'wecare-docs-scraper',
   ];
 
   for ( const fnName of LAMBDA_FUNCTIONS )
@@ -232,6 +236,44 @@ export function addBackendResources ( stack: Stack ) {
     alarm.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
     perLambdaAlarms.push( alarm );
   }
+
+  // ─── Webhook idempotency guardrail ─────────────────────────────────
+  // lambda_utils/webhook_dedup.claim_event() fails OPEN on infra errors and logs
+  // {"event":"webhook_dedup_error",...}. If the WebhookDedup table is ever missing
+  // or broken, dedup silently disables and duplicate webhooks/metering get processed
+  // twice. This metric filter + alarm surfaces that immediately.
+  // Cost: metric filters are free; ~1 custom metric + 1 alarm (~$0.40/mo max, less
+  // under free tier). Additive; only deploys when the Amplify backend is deployed.
+  const WEBHOOK_CONSUMERS = [
+    'wecare-inbound-whatsapp', 'wecare-razorpay-webhook',
+    'wecare-payu-webhook', 'wecare-whatsapp-business-api',
+  ];
+  for ( const fn of WEBHOOK_CONSUMERS )
+  {
+    new logs.MetricFilter( stack, `DedupErrFilter-${fn}`, {
+      logGroup: logs.LogGroup.fromLogGroupName( stack, `DedupLG-${fn}`, `/aws/lambda/${fn}` ),
+      filterPattern: logs.FilterPattern.literal( '"webhook_dedup_error"' ),
+      metricNamespace: 'WECARE.DIGITAL',
+      metricName: 'WebhookDedupErrors',
+      metricValue: '1',
+      defaultValue: 0,
+    } );
+  }
+  const dedupErrorAlarm = new cloudwatch.Alarm( stack, 'WebhookDedupErrorAlarm', {
+    alarmName: 'wecare-webhook-dedup-errors',
+    alarmDescription: 'webhook_dedup_error logged — idempotency failing open (possible missing/broken WebhookDedup table)',
+    metric: new cloudwatch.Metric( {
+      namespace: 'WECARE.DIGITAL',
+      metricName: 'WebhookDedupErrors',
+      statistic: 'Sum',
+      period: Duration.minutes( 5 ),
+    } ),
+    threshold: 5,
+    evaluationPeriods: 1,
+    comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+    treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+  } );
+  dedupErrorAlarm.addAlarmAction( new cloudwatch_actions.SnsAction( alarmTopic ) );
 
   // ─── DynamoDB per-table throttle/error alarms ──────────────────────
   // Managed via scripts/_create_alarms.py (boto3) because ampx cannot run in the
@@ -320,5 +362,6 @@ export function addBackendResources ( stack: Stack ) {
     },
     rules: { amplifyBuildFailedRule },
     waf: webhookWaf,
+    dedupErrorAlarm,
   };
 }

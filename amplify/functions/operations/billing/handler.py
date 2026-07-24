@@ -11,7 +11,7 @@ Uses AWS Cost Explorer, Health, and Support APIs.
 import os
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 import boto3
 from botocore.exceptions import ClientError
@@ -59,7 +59,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         include_health = query_params.get('health', 'true').lower() == 'true'
         include_advisor = query_params.get('advisor', 'true').lower() == 'true'
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         
         # Calculate target month
         if month_offset == 0:
@@ -242,7 +242,7 @@ def get_cost_and_usage(start_date: str, end_date: str, request_id: str) -> Dict[
         'totalCost': round(total_cost, 2),
         'period': f'{start_date} to {end_date}',
         'services': services,
-        'lastUpdated': datetime.utcnow().isoformat() + 'Z',
+        'lastUpdated': datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + 'Z',
         'accountId': AWS_ACCOUNT_ID,
         'currency': 'USD',
         'recommendations': recommendations
@@ -563,7 +563,7 @@ def get_free_tier_limit(service_name: str) -> str:
 
 def get_fallback_billing_data() -> Dict[str, Any]:
     """Return fallback billing data when Cost Explorer is not accessible."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     start_of_month = datetime(now.year, now.month, 1)
     
     return {
@@ -594,7 +594,7 @@ def _response(status_code: int, body: Dict) -> Dict[str, Any]:
 def get_aws_health_status(request_id: str) -> Dict[str, Any]:
     """Fetch AWS Health Dashboard status."""
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         seven_days_ago = now - timedelta(days=7)
         
         # Get open events
@@ -659,7 +659,7 @@ def get_aws_health_status(request_id: str) -> Dict[str, Any]:
             'events': [],
             'scheduledEvents': [],
             'notifications': [],
-            'lastChecked': datetime.utcnow().isoformat() + 'Z',
+            'lastChecked': datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + 'Z',
             'status': 'unknown',
             'error': str(e)
         }
@@ -751,7 +751,7 @@ def get_trusted_advisor_checks(request_id: str) -> Dict[str, Any]:
                 logger.warning(f'Trusted Advisor API error: {e}')
                 checks_summary['error'] = str(e)
         
-        checks_summary['lastChecked'] = datetime.utcnow().isoformat() + 'Z'
+        checks_summary['lastChecked'] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + 'Z'
         return checks_summary
         
     except Exception as e:
@@ -763,6 +763,6 @@ def get_trusted_advisor_checks(request_id: str) -> Dict[str, Any]:
             'notAvailable': 0,
             'checks': [],
             'categories': {},
-            'lastChecked': datetime.utcnow().isoformat() + 'Z',
+            'lastChecked': datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + 'Z',
             'error': str(e)
         }

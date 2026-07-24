@@ -23,7 +23,7 @@ FLOW_SUBMISSIONS_TABLE = os.environ.get('FLOW_SUBMISSIONS_TABLE', 'stack-wecare-
 FLOW_LOGS_TABLE = os.environ.get('FLOW_LOGS_TABLE', 'stack-wecare-digital-FlowLogTable')
 OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp')
 INVOICE_ENGINE_FUNCTION = os.environ.get('INVOICE_ENGINE_FUNCTION', 'wecare-invoice-engine')
-DRAFTS_TABLE = os.environ.get('DRAFTS_TABLE', 'stack-wecare-digital-DraftsTable')
+DRAFTS_TABLE = os.environ.get('DRAFTS_TABLE', 'stack-wecare-digital-FlowDraftTable')
 STATUS_HISTORY_TABLE = os.environ.get('STATUS_HISTORY_TABLE', 'stack-wecare-digital-RequestStatusHistoryTable')
 
 PHONE1_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
