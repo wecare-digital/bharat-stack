@@ -563,3 +563,50 @@ class TestCallingAutoThumbConfig:
             assert resp['statusCode'] == 200
             keys_written = [c.kwargs['Item']['id'] for c in mock_table.put_item.call_args_list]
             assert 'whatsapp_auto_thumb' in keys_written
+
+
+class TestCallingRouteAuthorization:
+    """Exact Meta callback is public; all calling management routes are Admin-only."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        with patch.dict(os.environ, {'AWS_REGION': 'us-east-1', 'VERIFY_TOKEN': 'test-token'}):
+            with patch('boto3.resource'), patch('boto3.client'):
+                import handler as h
+                self.h = h
+
+    def test_exact_get_callback_skips_cognito_auth(self):
+        event = {
+            'requestContext': {
+                'apiId': 'api-1',
+                'http': {'method': 'GET', 'path': '/whatsapp', 'sourceIp': '127.0.0.1'},
+            },
+            'queryStringParameters': {},
+        }
+        expected = {'statusCode': 200, 'body': 'challenge'}
+        with patch.object(self.h, '_verify_webhook', return_value=expected), \
+                patch.object(self.h, 'require_auth') as require_auth:
+            assert self.h.handler(event, None) is expected
+        require_auth.assert_not_called()
+
+    def test_management_get_requires_admin(self):
+        event = {
+            'requestContext': {
+                'apiId': 'api-1',
+                'http': {'method': 'GET', 'path': '/whatsapp/config', 'sourceIp': '127.0.0.1'},
+            },
+        }
+        denied = {'statusCode': 403, 'body': '{}'}
+        with patch.object(self.h, 'require_auth', return_value=denied) as require_auth, \
+                patch.object(self.h, '_get_config') as get_config:
+            assert self.h.handler(event, None) is denied
+        require_auth.assert_called_once_with(event, required_role='Admin')
+        get_config.assert_not_called()
+
+    def test_internal_iam_action_remains_before_http_auth(self):
+        event = {'action': 'cert_check'}
+        expected = {'statusCode': 200, 'body': '{}'}
+        with patch.object(self.h, '_handle_cert_check', return_value=expected), \
+                patch.object(self.h, 'require_auth') as require_auth:
+            assert self.h.handler(event, None) is expected
+        require_auth.assert_not_called()

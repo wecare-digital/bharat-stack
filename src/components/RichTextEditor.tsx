@@ -8,7 +8,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styles from '../styles/RichTextEditor.module.css';
 import * as api from '../api/client';
 import { generateReferenceId } from '../lib/formatters';
-import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES, PAYMENT_UNLOCK_PASSWORD } from '../config/constants';
+import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES } from '../config/constants';
 
 // Payment dialog state
 interface PaymentItem {
@@ -111,8 +111,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   });
   const [sendingPayment, setSendingPayment] = useState(false);
   const [payPhone2Unlocked, setPayPhone2Unlocked] = useState(false);
-  const [payPasswordInput, setPayPasswordInput] = useState('');
-  const [payPasswordError, setPayPasswordError] = useState('');
   // TTS state
   const [showTTSPanel, setShowTTSPanel] = useState(false);
   const [ttsText, setTtsText] = useState('');
@@ -315,13 +313,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     return phone?.paymentProtected && !payPhone2Unlocked;
   };
 
-  const handlePayPhoneUnlock = () => {
-    if (payPasswordInput === PAYMENT_UNLOCK_PASSWORD) {
-      setPayPhone2Unlocked(true);
-      setPayPasswordError('');
-      setPayPasswordInput('');
-    } else {
-      setPayPasswordError('Incorrect password');
+  const handlePayPhoneUnlock = async () => {
+    try {
+      setPayPhone2Unlocked( await api.verifyAdminAccess() );
+    } catch {
+      setPayPhone2Unlocked( false );
     }
   };
   
@@ -611,7 +607,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 <label>Send From</label>
                 <select
                   value={paymentForm.phoneNumberId}
-                  onChange={(e) => { setPaymentForm({...paymentForm, phoneNumberId: e.target.value}); setPayPasswordError(''); setPayPasswordInput(''); }}
+                  onChange={(e) => { setPaymentForm({...paymentForm, phoneNumberId: e.target.value}); setPayPhone2Unlocked(false); }}
                 >
                   {PAYMENT_PHONES.map(p => (
                     <option key={p.id} value={p.id}>{p.display} ({p.name}){p.paymentProtected ? ' [Protected]' : ''}</option>
@@ -620,19 +616,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               </div>
               {isPayPhoneLocked() && (
                 <div className={`${styles['variable-input-row']} ${styles['full-width']}`}>
-                  <label>Password required for this number</label>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <input
-                      type="password"
-                      value={payPasswordInput}
-                      onChange={e => { setPayPasswordInput(e.target.value); setPayPasswordError(''); }}
-                      onKeyDown={e => e.key === 'Enter' && handlePayPhoneUnlock()}
-                      placeholder="Enter password"
-                      style={{ flex: 1, borderColor: payPasswordError ? '#1a3a2a' : undefined }}
-                    />
-                    <button onClick={handlePayPhoneUnlock} style={{ padding: '4px 12px', borderRadius: '6px', background: '#d1f470', color: '#1a3a2a', border: 'none', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Unlock</button>
-                  </div>
-                  {payPasswordError && <span style={{ color: '#1a3a2a', fontSize: '11px' }}>{payPasswordError}</span>}
+                  <label>Admin authorization required for this number</label>
+                  <button onClick={handlePayPhoneUnlock} style={{ padding: '6px 12px', borderRadius: '6px', background: '#d1f470', color: '#1a3a2a', border: 'none', fontSize: '12px', cursor: 'pointer' }}>Verify Admin access</button>
                 </div>
               )}
               {!isPayPhoneLocked() && PAYMENT_PHONES.find(p => p.id === paymentForm.phoneNumberId)?.paymentProtected && (

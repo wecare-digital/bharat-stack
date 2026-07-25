@@ -12,52 +12,52 @@ interface Props { data: DashboardData; }
 /* ── SVG Icons (inline, no emoji) ── */
 const AppleIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2C9.5 2 8 3.5 8 3.5S6.5 2 4 4c-2 2-1 5.5 1 8s4 5 5 6c.5.5 1.5 1 2 1s1.5-.5 2-1c1-1 3-3.5 5-6s3-6 1-8c-2.5-2-4-.5-4-.5S14.5 2 12 2z"/>
+    <path d="M12 2C9.5 2 8 3.5 8 3.5S6.5 2 4 4c-2 2-1 5.5 1 8s4 5 5 6c.5.5 1.5 1 2 1s1.5-.5 2-1c1-1 3-3.5 5-6s3-6 1-8c-2.5-2-4-.5-4-.5S14.5 2 12 2z" />
   </svg>
 );
 const PlayStoreIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="5 3 19 12 5 21 5 3"/>
+    <polygon points="5 3 19 12 5 21 5 3" />
   </svg>
 );
 const BuildIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
   </svg>
 );
 const ShieldIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
   </svg>
 );
 const UploadIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
   </svg>
 );
 const CheckCircleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 );
 const AlertIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
   </svg>
 );
 const GlobeIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
   </svg>
 );
 
 type SubTab = 'overview' | 'ios' | 'android' | 'pwa' | 'config' | 'deploy';
 
-const AppBuilderTab: React.FC<Props> = ({ data }) => {
-  const [subTab, setSubTab] = useState<SubTab>('overview');
+const AppBuilderTab: React.FC<Props> = ( { data } ) => {
+  const [ subTab, setSubTab ] = useState<SubTab>( 'overview' );
 
   /* ── App Config State ── */
-  const [appConfig, setAppConfig] = useState({
+  const [ appConfig, setAppConfig ] = useState( {
     appName: 'WECARE.DIGITAL',
     bundleId: 'digital.wecare.app',
     packageName: 'digital.wecare.app',
@@ -70,99 +70,97 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
     orientation: 'portrait' as 'portrait' | 'landscape' | 'both',
     deepLinkScheme: 'wecare',
     universalLinkDomain: 'stack.wecare.digital',
-  });
+  } );
 
   /* ── Store Connection State ── */
-  const [storeConfig, setStoreConfig] = useState({
+  const [ storeConfig, setStoreConfig ] = useState( {
     // Apple
     appleTeamId: '',
     appleBundleId: 'digital.wecare.app',
     appleAppId: '',
-    appStoreConnectKeyId: '',
-    appStoreConnectIssuerId: '',
-    appStoreConnectKey: '',
     appleConnected: false,
     // Google
     googlePackageName: 'digital.wecare.app',
-    googleServiceAccountJson: '',
     googlePlayTrack: 'internal' as 'internal' | 'alpha' | 'beta' | 'production',
     googleConnected: false,
-  });
+  } );
 
   /* ── Build State ── */
-  const [builds, setBuilds] = useState<Array<{
+  const [ builds, setBuilds ] = useState<Array<{
     id: string; platform: 'ios' | 'android'; status: 'queued' | 'building' | 'success' | 'failed';
     version: string; createdAt: string; downloadUrl?: string; size?: string;
-  }>>([
+  }>>( [
     { id: 'b1', platform: 'ios', status: 'success', version: '1.0.0 (1)', createdAt: '2026-03-08T10:30:00Z', downloadUrl: '#', size: '24.3 MB' },
     { id: 'b2', platform: 'android', status: 'success', version: '1.0.0 (1)', createdAt: '2026-03-08T10:28:00Z', downloadUrl: '#', size: '18.7 MB' },
-  ]);
+  ] );
 
-  const [building, setBuilding] = useState(false);
+  const [ building, setBuilding ] = useState( false );
 
-  const triggerBuild = (platform: 'ios' | 'android' | 'both') => {
-    setBuilding(true);
+  const triggerBuild = ( platform: 'ios' | 'android' | 'both' ) => {
+    setBuilding( true );
     const newBuilds: typeof builds = [];
-    if (platform === 'ios' || platform === 'both') {
-      newBuilds.push({ id: `b${Date.now()}`, platform: 'ios' as const, status: 'building' as const, version: `${appConfig.version} (${appConfig.buildNumber})`, createdAt: new Date().toISOString() });
+    if ( platform === 'ios' || platform === 'both' )
+    {
+      newBuilds.push( { id: `b${Date.now()}`, platform: 'ios' as const, status: 'building' as const, version: `${appConfig.version} (${appConfig.buildNumber})`, createdAt: new Date().toISOString() } );
     }
-    if (platform === 'android' || platform === 'both') {
-      newBuilds.push({ id: `b${Date.now()+1}`, platform: 'android' as const, status: 'building' as const, version: `${appConfig.version} (${appConfig.buildNumber})`, createdAt: new Date().toISOString() });
+    if ( platform === 'android' || platform === 'both' )
+    {
+      newBuilds.push( { id: `b${Date.now() + 1}`, platform: 'android' as const, status: 'building' as const, version: `${appConfig.version} (${appConfig.buildNumber})`, createdAt: new Date().toISOString() } );
     }
-    setBuilds(prev => [...newBuilds, ...prev]);
-    setTimeout(() => {
-      setBuilds(prev => prev.map(b => b.status === 'building' ? { ...b, status: 'success' as const, downloadUrl: '#', size: b.platform === 'ios' ? '24.3 MB' : '18.7 MB' } : b));
-      setBuilding(false);
-    }, 3000);
+    setBuilds( prev => [ ...newBuilds, ...prev ] );
+    setTimeout( () => {
+      setBuilds( prev => prev.map( b => b.status === 'building' ? { ...b, status: 'success' as const, downloadUrl: '#', size: b.platform === 'ios' ? '24.3 MB' : '18.7 MB' } : b ) );
+      setBuilding( false );
+    }, 3000 );
   };
 
-  const statusBadge = (status: string) => {
+  const statusBadge = ( status: string ) => {
     const colors: Record<string, { bg: string; color: string; border: string }> = {
       queued: { bg: '#f9fafb', color: '#6b7280', border: '#e5e7eb' },
       building: { bg: '#f9fafb', color: '#1a3a2a', border: '#d1f470' },
       success: { bg: '#f0fdf4', color: '#1a3a2a', border: '#d1f470' },
       failed: { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
     };
-    const c = colors[status] || colors.queued;
-    return <span style={{ padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{status}</span>;
+    const c = colors[ status ] || colors.queued;
+    return <span style={ { padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color, border: `1px solid ${c.border}` } }>{ status }</span>;
   };
 
   return (
     <div className="app-builder-tab">
-      {/* Sub-tabs */}
+      {/* Sub-tabs */ }
       <div className="ab-subtabs">
-        {([
+        { ( [
           { id: 'overview', label: 'Overview' },
           { id: 'ios', label: 'iOS' },
           { id: 'android', label: 'Android' },
           { id: 'pwa', label: 'PWA' },
           { id: 'config', label: 'App Config' },
           { id: 'deploy', label: 'Deploy' },
-        ] as { id: SubTab; label: string }[]).map(t => (
-          <button key={t.id} className={`ab-subtab ${subTab === t.id ? 'active' : ''}`} onClick={() => setSubTab(t.id)}>{t.label}</button>
-        ))}
+        ] as { id: SubTab; label: string }[] ).map( t => (
+          <button key={ t.id } className={ `ab-subtab ${subTab === t.id ? 'active' : ''}` } onClick={ () => setSubTab( t.id ) }>{ t.label }</button>
+        ) ) }
       </div>
 
-      {/* ═══ OVERVIEW ═══ */}
-      {subTab === 'overview' && (
+      {/* ═══ OVERVIEW ═══ */ }
+      { subTab === 'overview' && (
         <div className="ab-section">
-          {/* Status Cards */}
+          {/* Status Cards */ }
           <div className="ab-status-grid">
             <div className="ab-status-card">
               <div className="ab-status-icon"><AppleIcon /></div>
               <div className="ab-status-info">
                 <div className="ab-status-label">iOS App Store</div>
-                <div className="ab-status-value">{storeConfig.appleConnected ? 'Connected' : 'Not Connected'}</div>
+                <div className="ab-status-value">{ storeConfig.appleConnected ? 'Connected' : 'Not Connected' }</div>
               </div>
-              {storeConfig.appleConnected ? <CheckCircleIcon /> : <AlertIcon />}
+              { storeConfig.appleConnected ? <CheckCircleIcon /> : <AlertIcon /> }
             </div>
             <div className="ab-status-card">
               <div className="ab-status-icon"><PlayStoreIcon /></div>
               <div className="ab-status-info">
                 <div className="ab-status-label">Google Play Store</div>
-                <div className="ab-status-value">{storeConfig.googleConnected ? 'Connected' : 'Not Connected'}</div>
+                <div className="ab-status-value">{ storeConfig.googleConnected ? 'Connected' : 'Not Connected' }</div>
               </div>
-              {storeConfig.googleConnected ? <CheckCircleIcon /> : <AlertIcon />}
+              { storeConfig.googleConnected ? <CheckCircleIcon /> : <AlertIcon /> }
             </div>
             <div className="ab-status-card">
               <div className="ab-status-icon"><GlobeIcon /></div>
@@ -176,34 +174,34 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
               <div className="ab-status-icon"><BuildIcon /></div>
               <div className="ab-status-info">
                 <div className="ab-status-label">Latest Build</div>
-                <div className="ab-status-value">v{appConfig.version}</div>
+                <div className="ab-status-value">v{ appConfig.version }</div>
               </div>
               <CheckCircleIcon />
             </div>
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Actions */ }
           <h3 className="ab-heading">Quick Actions</h3>
           <div className="ab-actions-grid">
-            <button className="ab-action-btn" onClick={() => triggerBuild('both')} disabled={building}>
+            <button className="ab-action-btn" onClick={ () => triggerBuild( 'both' ) } disabled={ building }>
               <BuildIcon />
-              <span>{building ? 'Building...' : 'Build iOS + Android'}</span>
+              <span>{ building ? 'Building...' : 'Build iOS + Android' }</span>
             </button>
-            <button className="ab-action-btn" onClick={() => setSubTab('ios')}>
+            <button className="ab-action-btn" onClick={ () => setSubTab( 'ios' ) }>
               <AppleIcon />
               <span>Connect App Store</span>
             </button>
-            <button className="ab-action-btn" onClick={() => setSubTab('android')}>
+            <button className="ab-action-btn" onClick={ () => setSubTab( 'android' ) }>
               <PlayStoreIcon />
               <span>Connect Play Store</span>
             </button>
-            <button className="ab-action-btn" onClick={() => setSubTab('config')}>
+            <button className="ab-action-btn" onClick={ () => setSubTab( 'config' ) }>
               <ShieldIcon />
               <span>App Configuration</span>
             </button>
           </div>
 
-          {/* Recent Builds */}
+          {/* Recent Builds */ }
           <h3 className="ab-heading">Recent Builds</h3>
           <div className="ab-table-wrap">
             <table className="ab-table">
@@ -213,28 +211,28 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
                 </tr>
               </thead>
               <tbody>
-                {builds.slice(0, 5).map(b => (
-                  <tr key={b.id}>
-                    <td>{b.platform === 'ios' ? 'iOS' : 'Android'}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{b.version}</td>
-                    <td>{statusBadge(b.status)}</td>
-                    <td style={{ fontSize: 12, color: '#6b7280' }}>{new Date(b.createdAt).toLocaleString()}</td>
-                    <td style={{ fontSize: 12 }}>{b.size || '—'}</td>
+                { builds.slice( 0, 5 ).map( b => (
+                  <tr key={ b.id }>
+                    <td>{ b.platform === 'ios' ? 'iOS' : 'Android' }</td>
+                    <td style={ { fontFamily: 'monospace', fontSize: 12 } }>{ b.version }</td>
+                    <td>{ statusBadge( b.status ) }</td>
+                    <td style={ { fontSize: 12, color: '#6b7280' } }>{ new Date( b.createdAt ).toLocaleString() }</td>
+                    <td style={ { fontSize: 12 } }>{ b.size || '—' }</td>
                     <td>
-                      {b.downloadUrl && b.status === 'success' && (
-                        <button className="ab-sm-btn" onClick={() => {}}>Download</button>
-                      )}
+                      { b.downloadUrl && b.status === 'success' && (
+                        <button className="ab-sm-btn" onClick={ () => { } }>Download</button>
+                      ) }
                     </td>
                   </tr>
-                ))}
+                ) ) }
               </tbody>
             </table>
           </div>
 
-          {/* Mobile Readiness Checklist */}
+          {/* Mobile Readiness Checklist */ }
           <h3 className="ab-heading">Mobile App Readiness Checklist</h3>
           <div className="ab-checklist">
-            {[
+            { [
               { done: true, label: 'Safe area insets (notch/dynamic island)' },
               { done: true, label: '44px minimum touch targets' },
               { done: true, label: '16px input font (iOS zoom prevention)' },
@@ -253,85 +251,69 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
               { done: false, label: 'App icon + splash screen assets' },
               { done: false, label: 'Deep linking (wecare://)' },
               { done: false, label: 'App Store screenshots + metadata' },
-            ].map((item, i) => (
-              <div key={i} className={`ab-check-item ${item.done ? 'done' : 'pending'}`}>
-                {item.done ? <CheckCircleIcon /> : <span className="ab-check-empty" />}
-                <span>{item.label}</span>
+            ].map( ( item, i ) => (
+              <div key={ i } className={ `ab-check-item ${item.done ? 'done' : 'pending'}` }>
+                { item.done ? <CheckCircleIcon /> : <span className="ab-check-empty" /> }
+                <span>{ item.label }</span>
               </div>
-            ))}
+            ) ) }
           </div>
         </div>
-      )}
+      ) }
 
-      {/* ═══ iOS SUB-TAB ═══ */}
-      {subTab === 'ios' && (
+      {/* ═══ iOS SUB-TAB ═══ */ }
+      { subTab === 'ios' && (
         <div className="ab-section">
           <h3 className="ab-heading">Apple App Store Connect</h3>
-          <div className={`ab-conn-badge ${storeConfig.appleConnected ? 'connected' : 'disconnected'}`}>
-            {storeConfig.appleConnected ? 'Connected' : 'Not Connected'}
+          <div className={ `ab-conn-badge ${storeConfig.appleConnected ? 'connected' : 'disconnected'}` }>
+            { storeConfig.appleConnected ? 'Connected' : 'Not Connected' }
           </div>
           <div className="ab-form-section">
             <div className="ab-form-grid">
               <div className="ab-form-field">
                 <label>Apple Team ID</label>
-                <input type="text" value={storeConfig.appleTeamId} onChange={e => setStoreConfig({...storeConfig, appleTeamId: e.target.value})} placeholder="e.g. A1B2C3D4E5" />
+                <input type="text" value={ storeConfig.appleTeamId } onChange={ e => setStoreConfig( { ...storeConfig, appleTeamId: e.target.value } ) } placeholder="e.g. A1B2C3D4E5" />
               </div>
               <div className="ab-form-field">
                 <label>Bundle ID</label>
-                <input type="text" value={storeConfig.appleBundleId} onChange={e => setStoreConfig({...storeConfig, appleBundleId: e.target.value})} placeholder="digital.wecare.app" />
+                <input type="text" value={ storeConfig.appleBundleId } onChange={ e => setStoreConfig( { ...storeConfig, appleBundleId: e.target.value } ) } placeholder="digital.wecare.app" />
               </div>
               <div className="ab-form-field">
                 <label>App Store App ID</label>
-                <input type="text" value={storeConfig.appleAppId} onChange={e => setStoreConfig({...storeConfig, appleAppId: e.target.value})} placeholder="e.g. 1234567890" />
-              </div>
-              <div className="ab-form-field">
-                <label>App Store Connect API Key ID</label>
-                <input type="text" value={storeConfig.appStoreConnectKeyId} onChange={e => setStoreConfig({...storeConfig, appStoreConnectKeyId: e.target.value})} placeholder="e.g. ABC123DEF4" />
-              </div>
-              <div className="ab-form-field">
-                <label>Issuer ID</label>
-                <input type="text" value={storeConfig.appStoreConnectIssuerId} onChange={e => setStoreConfig({...storeConfig, appStoreConnectIssuerId: e.target.value})} placeholder="e.g. 57246542-96fe-1a63-e053-0824d011072a" />
+                <input type="text" value={ storeConfig.appleAppId } onChange={ e => setStoreConfig( { ...storeConfig, appleAppId: e.target.value } ) } placeholder="e.g. 1234567890" />
               </div>
               <div className="ab-form-field full">
-                <label>API Private Key (.p8)</label>
-                <textarea rows={4} value={storeConfig.appStoreConnectKey} onChange={e => setStoreConfig({...storeConfig, appStoreConnectKey: e.target.value})} placeholder="-----BEGIN PRIVATE KEY-----&#10;Paste your .p8 key content here&#10;-----END PRIVATE KEY-----" />
+                <label>App Store Connect Credentials</label>
+                <p>Signing credentials are managed server-side and are never entered or displayed in the browser. Current status: not configured.</p>
               </div>
-            </div>
-            <div className="ab-form-actions">
-              <button className="ab-btn primary" onClick={() => setStoreConfig({...storeConfig, appleConnected: true})}>
-                <ShieldIcon /> Test Connection
-              </button>
-              <button className="ab-btn secondary" onClick={() => setStoreConfig({...storeConfig, appleConnected: true})}>
-                Save Configuration
-              </button>
             </div>
           </div>
           <div className="ab-info-box">
             <ShieldIcon />
             <div>
-              <strong>How to get App Store Connect API Key</strong>
-              <p>Go to App Store Connect &gt; Users and Access &gt; Keys &gt; App Store Connect API. Generate a new key with "Admin" role. Download the .p8 file and paste its contents above.</p>
+              <strong>Server-side credentials required</strong>
+              <p>Provision the App Store Connect key through the approved server-side secret workflow before enabling iOS builds.</p>
             </div>
           </div>
         </div>
-      )}
+      ) }
 
-      {/* ═══ ANDROID SUB-TAB ═══ */}
-      {subTab === 'android' && (
+      {/* ═══ ANDROID SUB-TAB ═══ */ }
+      { subTab === 'android' && (
         <div className="ab-section">
           <h3 className="ab-heading">Google Play Console</h3>
-          <div className={`ab-conn-badge ${storeConfig.googleConnected ? 'connected' : 'disconnected'}`}>
-            {storeConfig.googleConnected ? 'Connected' : 'Not Connected'}
+          <div className={ `ab-conn-badge ${storeConfig.googleConnected ? 'connected' : 'disconnected'}` }>
+            { storeConfig.googleConnected ? 'Connected' : 'Not Connected' }
           </div>
           <div className="ab-form-section">
             <div className="ab-form-grid">
               <div className="ab-form-field">
                 <label>Package Name</label>
-                <input type="text" value={storeConfig.googlePackageName} onChange={e => setStoreConfig({...storeConfig, googlePackageName: e.target.value})} placeholder="digital.wecare.app" />
+                <input type="text" value={ storeConfig.googlePackageName } onChange={ e => setStoreConfig( { ...storeConfig, googlePackageName: e.target.value } ) } placeholder="digital.wecare.app" />
               </div>
               <div className="ab-form-field">
                 <label>Release Track</label>
-                <select value={storeConfig.googlePlayTrack} onChange={e => setStoreConfig({...storeConfig, googlePlayTrack: e.target.value as any})}>
+                <select value={ storeConfig.googlePlayTrack } onChange={ e => setStoreConfig( { ...storeConfig, googlePlayTrack: e.target.value as any } ) }>
                   <option value="internal">Internal Testing</option>
                   <option value="alpha">Closed Testing (Alpha)</option>
                   <option value="beta">Open Testing (Beta)</option>
@@ -339,31 +321,23 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
                 </select>
               </div>
               <div className="ab-form-field full">
-                <label>Google Play Service Account JSON</label>
-                <textarea rows={6} value={storeConfig.googleServiceAccountJson} onChange={e => setStoreConfig({...storeConfig, googleServiceAccountJson: e.target.value})} placeholder='{"type": "service_account", "project_id": "...", ...}' />
+                <label>Google Play Credentials</label>
+                <p>Service-account credentials are managed server-side and are never entered or displayed in the browser. Current status: not configured.</p>
               </div>
-            </div>
-            <div className="ab-form-actions">
-              <button className="ab-btn primary" onClick={() => setStoreConfig({...storeConfig, googleConnected: true})}>
-                <ShieldIcon /> Test Connection
-              </button>
-              <button className="ab-btn secondary" onClick={() => setStoreConfig({...storeConfig, googleConnected: true})}>
-                Save Configuration
-              </button>
             </div>
           </div>
           <div className="ab-info-box">
             <ShieldIcon />
             <div>
-              <strong>How to get Service Account JSON</strong>
-              <p>Go to Google Cloud Console &gt; IAM &amp; Admin &gt; Service Accounts. Create a service account, grant it the "Service Account User" role, then go to Google Play Console &gt; Settings &gt; API access and link the service account.</p>
+              <strong>Server-side credentials required</strong>
+              <p>Provision the Google Play service account through the approved server-side secret workflow before enabling Android builds.</p>
             </div>
           </div>
         </div>
-      )}
+      ) }
 
-      {/* ═══ PWA SUB-TAB ═══ */}
-      {subTab === 'pwa' && (
+      {/* ═══ PWA SUB-TAB ═══ */ }
+      { subTab === 'pwa' && (
         <div className="ab-section">
           <h3 className="ab-heading">Progressive Web App (PWA)</h3>
           <div className="ab-conn-badge connected">PWA Ready</div>
@@ -401,9 +375,9 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
               <CheckCircleIcon />
             </div>
           </div>
-          <h3 className="ab-heading" style={{marginTop: 24}}>Manifest Preview</h3>
+          <h3 className="ab-heading" style={ { marginTop: 24 } }>Manifest Preview</h3>
           <div className="ab-code-block">
-            <pre>{JSON.stringify({
+            <pre>{ JSON.stringify( {
               name: 'Bharat Stack by WECARE.DIGITAL',
               short_name: 'Bharat Stack',
               description: 'Enterprise WhatsApp Business API Platform',
@@ -416,7 +390,7 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
                 { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
                 { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }
               ]
-            }, null, 2)}</pre>
+            }, null, 2 ) }</pre>
           </div>
           <div className="ab-info-box">
             <GlobeIcon />
@@ -426,65 +400,65 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
             </div>
           </div>
         </div>
-      )}
+      ) }
 
-      {/* ═══ CONFIG SUB-TAB ═══ */}
-      {subTab === 'config' && (
+      {/* ═══ CONFIG SUB-TAB ═══ */ }
+      { subTab === 'config' && (
         <div className="ab-section">
           <h3 className="ab-heading">App Configuration</h3>
           <div className="ab-form-section">
             <div className="ab-form-grid">
               <div className="ab-form-field">
                 <label>App Name</label>
-                <input type="text" value={appConfig.appName} onChange={e => setAppConfig({...appConfig, appName: e.target.value})} />
+                <input type="text" value={ appConfig.appName } onChange={ e => setAppConfig( { ...appConfig, appName: e.target.value } ) } />
               </div>
               <div className="ab-form-field">
                 <label>Bundle ID (iOS)</label>
-                <input type="text" value={appConfig.bundleId} onChange={e => setAppConfig({...appConfig, bundleId: e.target.value})} />
+                <input type="text" value={ appConfig.bundleId } onChange={ e => setAppConfig( { ...appConfig, bundleId: e.target.value } ) } />
               </div>
               <div className="ab-form-field">
                 <label>Package Name (Android)</label>
-                <input type="text" value={appConfig.packageName} onChange={e => setAppConfig({...appConfig, packageName: e.target.value})} />
+                <input type="text" value={ appConfig.packageName } onChange={ e => setAppConfig( { ...appConfig, packageName: e.target.value } ) } />
               </div>
               <div className="ab-form-field">
                 <label>Version</label>
-                <input type="text" value={appConfig.version} onChange={e => setAppConfig({...appConfig, version: e.target.value})} />
+                <input type="text" value={ appConfig.version } onChange={ e => setAppConfig( { ...appConfig, version: e.target.value } ) } />
               </div>
               <div className="ab-form-field">
                 <label>Build Number</label>
-                <input type="text" value={appConfig.buildNumber} onChange={e => setAppConfig({...appConfig, buildNumber: e.target.value})} />
+                <input type="text" value={ appConfig.buildNumber } onChange={ e => setAppConfig( { ...appConfig, buildNumber: e.target.value } ) } />
               </div>
               <div className="ab-form-field">
                 <label>Primary Color</label>
                 <div className="ab-color-row">
-                  <input type="color" value={appConfig.primaryColor} onChange={e => setAppConfig({...appConfig, primaryColor: e.target.value})} />
-                  <input type="text" value={appConfig.primaryColor} onChange={e => setAppConfig({...appConfig, primaryColor: e.target.value})} />
+                  <input type="color" value={ appConfig.primaryColor } onChange={ e => setAppConfig( { ...appConfig, primaryColor: e.target.value } ) } />
+                  <input type="text" value={ appConfig.primaryColor } onChange={ e => setAppConfig( { ...appConfig, primaryColor: e.target.value } ) } />
                 </div>
               </div>
               <div className="ab-form-field">
                 <label>Accent Color</label>
                 <div className="ab-color-row">
-                  <input type="color" value={appConfig.accentColor} onChange={e => setAppConfig({...appConfig, accentColor: e.target.value})} />
-                  <input type="text" value={appConfig.accentColor} onChange={e => setAppConfig({...appConfig, accentColor: e.target.value})} />
+                  <input type="color" value={ appConfig.accentColor } onChange={ e => setAppConfig( { ...appConfig, accentColor: e.target.value } ) } />
+                  <input type="text" value={ appConfig.accentColor } onChange={ e => setAppConfig( { ...appConfig, accentColor: e.target.value } ) } />
                 </div>
               </div>
               <div className="ab-form-field">
                 <label>Splash Background</label>
                 <div className="ab-color-row">
-                  <input type="color" value={appConfig.splashBg} onChange={e => setAppConfig({...appConfig, splashBg: e.target.value})} />
-                  <input type="text" value={appConfig.splashBg} onChange={e => setAppConfig({...appConfig, splashBg: e.target.value})} />
+                  <input type="color" value={ appConfig.splashBg } onChange={ e => setAppConfig( { ...appConfig, splashBg: e.target.value } ) } />
+                  <input type="text" value={ appConfig.splashBg } onChange={ e => setAppConfig( { ...appConfig, splashBg: e.target.value } ) } />
                 </div>
               </div>
               <div className="ab-form-field">
                 <label>Status Bar Style</label>
-                <select value={appConfig.statusBarStyle} onChange={e => setAppConfig({...appConfig, statusBarStyle: e.target.value as any})}>
+                <select value={ appConfig.statusBarStyle } onChange={ e => setAppConfig( { ...appConfig, statusBarStyle: e.target.value as any } ) }>
                   <option value="dark-content">Dark Content</option>
                   <option value="light-content">Light Content</option>
                 </select>
               </div>
               <div className="ab-form-field">
                 <label>Orientation</label>
-                <select value={appConfig.orientation} onChange={e => setAppConfig({...appConfig, orientation: e.target.value as any})}>
+                <select value={ appConfig.orientation } onChange={ e => setAppConfig( { ...appConfig, orientation: e.target.value as any } ) }>
                   <option value="portrait">Portrait</option>
                   <option value="landscape">Landscape</option>
                   <option value="both">Both</option>
@@ -492,22 +466,22 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
               </div>
               <div className="ab-form-field">
                 <label>Deep Link Scheme</label>
-                <input type="text" value={appConfig.deepLinkScheme} onChange={e => setAppConfig({...appConfig, deepLinkScheme: e.target.value})} placeholder="wecare" />
+                <input type="text" value={ appConfig.deepLinkScheme } onChange={ e => setAppConfig( { ...appConfig, deepLinkScheme: e.target.value } ) } placeholder="wecare" />
               </div>
               <div className="ab-form-field">
                 <label>Universal Link Domain</label>
-                <input type="text" value={appConfig.universalLinkDomain} onChange={e => setAppConfig({...appConfig, universalLinkDomain: e.target.value})} placeholder="stack.wecare.digital" />
+                <input type="text" value={ appConfig.universalLinkDomain } onChange={ e => setAppConfig( { ...appConfig, universalLinkDomain: e.target.value } ) } placeholder="stack.wecare.digital" />
               </div>
             </div>
             <div className="ab-form-actions">
-              <button className="ab-btn primary" onClick={() => {}}>Save Configuration</button>
+              <button className="ab-btn primary" onClick={ () => { } }>Save Configuration</button>
             </div>
           </div>
         </div>
-      )}
+      ) }
 
-      {/* ═══ DEPLOY SUB-TAB ═══ */}
-      {subTab === 'deploy' && (
+      {/* ═══ DEPLOY SUB-TAB ═══ */ }
+      { subTab === 'deploy' && (
         <div className="ab-section">
           <h3 className="ab-heading">Deploy to Stores</h3>
           <div className="ab-deploy-grid">
@@ -516,12 +490,12 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
                 <AppleIcon />
                 <div>
                   <strong>Apple App Store</strong>
-                  <span className={storeConfig.appleConnected ? 'connected' : 'disconnected'}>{storeConfig.appleConnected ? 'Connected' : 'Not Connected'}</span>
+                  <span className={ storeConfig.appleConnected ? 'connected' : 'disconnected' }>{ storeConfig.appleConnected ? 'Connected' : 'Not Connected' }</span>
                 </div>
               </div>
               <p>Submit your iOS build to App Store Connect for TestFlight or production release.</p>
-              <button className="ab-btn primary" disabled={!storeConfig.appleConnected || building} onClick={() => triggerBuild('ios')}>
-                <UploadIcon /> {building ? 'Building...' : 'Build + Deploy iOS'}
+              <button className="ab-btn primary" disabled={ !storeConfig.appleConnected || building } onClick={ () => triggerBuild( 'ios' ) }>
+                <UploadIcon /> { building ? 'Building...' : 'Build + Deploy iOS' }
               </button>
             </div>
             <div className="ab-deploy-card">
@@ -529,17 +503,17 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
                 <PlayStoreIcon />
                 <div>
                   <strong>Google Play Store</strong>
-                  <span className={storeConfig.googleConnected ? 'connected' : 'disconnected'}>{storeConfig.googleConnected ? 'Connected' : 'Not Connected'}</span>
+                  <span className={ storeConfig.googleConnected ? 'connected' : 'disconnected' }>{ storeConfig.googleConnected ? 'Connected' : 'Not Connected' }</span>
                 </div>
               </div>
-              <p>Upload your Android build to Google Play Console on the {storeConfig.googlePlayTrack} track.</p>
-              <button className="ab-btn primary" disabled={!storeConfig.googleConnected || building} onClick={() => triggerBuild('android')}>
-                <UploadIcon /> {building ? 'Building...' : 'Build + Deploy Android'}
+              <p>Upload your Android build to Google Play Console on the { storeConfig.googlePlayTrack } track.</p>
+              <button className="ab-btn primary" disabled={ !storeConfig.googleConnected || building } onClick={ () => triggerBuild( 'android' ) }>
+                <UploadIcon /> { building ? 'Building...' : 'Build + Deploy Android' }
               </button>
             </div>
           </div>
 
-          <h3 className="ab-heading" style={{marginTop: 24}}>Build History</h3>
+          <h3 className="ab-heading" style={ { marginTop: 24 } }>Build History</h3>
           <div className="ab-table-wrap">
             <table className="ab-table">
               <thead>
@@ -548,28 +522,28 @@ const AppBuilderTab: React.FC<Props> = ({ data }) => {
                 </tr>
               </thead>
               <tbody>
-                {builds.map(b => (
-                  <tr key={b.id}>
-                    <td>{b.platform === 'ios' ? 'iOS' : 'Android'}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{b.version}</td>
-                    <td>{statusBadge(b.status)}</td>
-                    <td style={{ fontSize: 12, color: '#6b7280' }}>{new Date(b.createdAt).toLocaleString()}</td>
-                    <td style={{ fontSize: 12 }}>{b.size || '—'}</td>
+                { builds.map( b => (
+                  <tr key={ b.id }>
+                    <td>{ b.platform === 'ios' ? 'iOS' : 'Android' }</td>
+                    <td style={ { fontFamily: 'monospace', fontSize: 12 } }>{ b.version }</td>
+                    <td>{ statusBadge( b.status ) }</td>
+                    <td style={ { fontSize: 12, color: '#6b7280' } }>{ new Date( b.createdAt ).toLocaleString() }</td>
+                    <td style={ { fontSize: 12 } }>{ b.size || '—' }</td>
                     <td className="ab-action-cell">
-                      {b.downloadUrl && b.status === 'success' && (
+                      { b.downloadUrl && b.status === 'success' && (
                         <>
-                          <button className="ab-sm-btn" onClick={() => {}}>Download</button>
-                          <button className="ab-sm-btn deploy" onClick={() => {}}>Deploy</button>
+                          <button className="ab-sm-btn" onClick={ () => { } }>Download</button>
+                          <button className="ab-sm-btn deploy" onClick={ () => { } }>Deploy</button>
                         </>
-                      )}
+                      ) }
                     </td>
                   </tr>
-                ))}
+                ) ) }
               </tbody>
             </table>
           </div>
         </div>
-      )}
+      ) }
 
     </div>
   );
@@ -671,13 +645,15 @@ const styles = `
 `;
 
 // Inject styles
-if (typeof document !== 'undefined') {
+if ( typeof document !== 'undefined' )
+{
   const id = 'ab-tab-styles';
-  if (!document.getElementById(id)) {
-    const el = document.createElement('style');
+  if ( !document.getElementById( id ) )
+  {
+    const el = document.createElement( 'style' );
     el.id = id;
     el.textContent = styles;
-    document.head.appendChild(el);
+    document.head.appendChild( el );
   }
 }
 

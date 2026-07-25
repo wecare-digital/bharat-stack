@@ -5,30 +5,30 @@ const pre: React.CSSProperties = { background: '#0f1117', color: '#a3e635', padd
 const thI: React.CSSProperties = { padding: '8px 12px', textAlign: 'left' as const, fontSize: 11, fontWeight: 600 };
 const tdI: React.CSSProperties = { padding: '6px 12px', fontSize: 12 };
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="card" style={{ padding: 20, marginBottom: 16 }}><h3 style={S}>{title}</h3>{children}</div>;
+function Card ( { title, children }: { title: string; children: React.ReactNode } ) {
+  return <div className="card" style={ { padding: 20, marginBottom: 16 } }><h3 style={ S }>{ title }</h3>{ children }</div>;
 }
 
-function JCard({ n, title, desc, code }: { n: string; title: string; desc: string; code: string }) {
+function JCard ( { n, title, desc, code }: { n: string; title: string; desc: string; code: string } ) {
   return (
-    <div className="card" style={{ padding: 16, marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ padding: '2px 8px', background: '#d1f470', color: '#1a3a2a', borderRadius: 6, fontSize: 11, fontWeight: 700 }}>#{n}</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{title}</span>
+    <div className="card" style={ { padding: 16, marginBottom: 12 } }>
+      <div style={ { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } }>
+        <span style={ { padding: '2px 8px', background: '#d1f470', color: '#1a3a2a', borderRadius: 6, fontSize: 11, fontWeight: 700 } }>#{ n }</span>
+        <span style={ { fontSize: 13, fontWeight: 600, color: '#111827' } }>{ title }</span>
       </div>
-      <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>{desc}</div>
-      <pre style={pre}>{code}</pre>
+      <div style={ { fontSize: 11, color: '#6b7280', marginBottom: 8 } }>{ desc }</div>
+      <pre style={ pre }>{ code }</pre>
     </div>
   );
 }
 
-export default function InstructionsContent() {
+export default function InstructionsContent () {
   return (
-    <div style={{ maxWidth: 960 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>SEO Autopilot — Instructions & Standards</h2>
+    <div style={ { maxWidth: 960 } }>
+      <h2 style={ { fontSize: 18, fontWeight: 700, marginBottom: 16 } }>SEO Autopilot — Instructions & Standards</h2>
 
       <Card title="Overview">
-        <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.7, margin: 0 }}>
+        <p style={ { fontSize: 13, color: '#374151', lineHeight: 1.7, margin: 0 } }>
           AI-powered SEO for wecare.digital using Claude Sonnet 4.6 via AWS Bedrock.
           164 total pages: 108 blogs + 37 site pages + 5 products + 14 system pages.
           Every page gets clean JSON-LD (no duplicates), meta tags, keywords, FAQ schema, and SEO score.
@@ -36,10 +36,10 @@ export default function InstructionsContent() {
         </p>
       </Card>
 
-      {/* ═══ 1. BLOG POST JSON-LD ═══ */}
+      {/* ═══ 1. BLOG POST JSON-LD ═══ */ }
       <JCard n="1" title='Blog Post (/post/*) — BlogPosting + BreadcrumbList + FAQPage'
         desc="108 blog posts. Author: Person (Swdhya Vaksetu). FAQ extracted from content by AI. All 3 schemas pushed via Wix Blog API seoData.tags."
-        code={`// ── 1. BlogPosting ──
+        code={ `// ── 1. BlogPosting ──
 {
   "@context": "https://schema.org",
   "@type": "BlogPosting",
@@ -93,10 +93,10 @@ export default function InstructionsContent() {
   ]
 }`} />
 
-      {/* ═══ 2. SITE PAGE JSON-LD ═══ */}
+      {/* ═══ 2. SITE PAGE JSON-LD ═══ */ }
       <JCard n="2" title='Site Page (/, /bnb, /legal-champ...) — WebPage + Organization + BreadcrumbList + FAQPage'
         desc="37 public pages. Homepage also gets WebSite + ItemList. FAQ page gets FAQPage with all Q&As."
-        code={`// ── 1. WebPage ──
+        code={ `// ── 1. WebPage ──
 {
   "@context": "https://schema.org",
   "@type": "WebPage",
@@ -156,10 +156,10 @@ export default function InstructionsContent() {
   ]
 }`} />
 
-      {/* ═══ 3. PRODUCT JSON-LD ═══ */}
+      {/* ═══ 3. PRODUCT JSON-LD ═══ */ }
       <JCard n="3" title='Product (/product-page/*) — Product + Offer + BreadcrumbList + FAQPage'
         desc="5 products. Includes price, currency (INR), availability. FAQ about the product."
-        code={`// ── 1. Product + Offer ──
+        code={ `// ── 1. Product + Offer ──
 {
   "@context": "https://schema.org",
   "@type": "Product",
@@ -207,10 +207,10 @@ export default function InstructionsContent() {
   ]
 }`} />
 
-      {/* ═══ 4. SYSTEM PAGE JSON-LD ═══ */}
+      {/* ═══ 4. SYSTEM PAGE JSON-LD ═══ */ }
       <JCard n="4" title='System Page (cart, checkout, 404...) — WebPage (minimal) or null'
         desc="14 system pages. Noindex. No rich schema. Checkout/login get no JSON-LD at all."
-        code={`// Cart page — minimal WebPage only
+        code={ `// Cart page — minimal WebPage only
 {
   "@context": "https://schema.org",
   "@type": "WebPage",
@@ -227,10 +227,10 @@ export default function InstructionsContent() {
 // Login-gated pages → null (not crawlable)
 // Side Cart, Fullscreen, Search Suggestions → UI overlays, not pages`} />
 
-      {/* ═══ 5. NEW PAGE ═══ */}
+      {/* ═══ 5. NEW PAGE ═══ */ }
       <JCard n="5" title='Any New Page (future) — AI auto-detects type'
         desc="New blog/page/product created → AI detects type → applies correct schema set."
-        code={`// New blog post published → Wix Velo events.js fires automatically
+        code={ `// New blog post published → Wix Velo events.js fires automatically
 // AI reads content → generates: BlogPosting + BreadcrumbList + FAQPage
 // Saved as pending_review → admin approves in dashboard → pushed to Wix
 
@@ -242,23 +242,23 @@ export default function InstructionsContent() {
 
 // System page → minimal WebPage or null (noindex)`} />
 
-      {/* Phases */}
+      {/* Phases */ }
       <Card title="Phases">
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead><tr style={{ borderBottom: '2px solid #e5e7eb', background: '#f9fafb' }}>
-            <th style={thI}>Phase</th><th style={thI}>Scope</th><th style={{ ...thI, textAlign: 'center' as const }}>Cost</th><th style={{ ...thI, textAlign: 'center' as const }}>Status</th>
+        <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 12 } }>
+          <thead><tr style={ { borderBottom: '2px solid #e5e7eb', background: '#f9fafb' } }>
+            <th style={ thI }>Phase</th><th style={ thI }>Scope</th><th style={ { ...thI, textAlign: 'center' as const } }>Cost</th><th style={ { ...thI, textAlign: 'center' as const } }>Status</th>
           </tr></thead>
           <tbody>
-            {[['1. Pilot','Stand blog post','$0.08','✅ Done'],['2. All Blogs','108 blog posts','$6.48','⏳'],['3. Site Pages','37 public pages','$2.22','⏳'],['4. Products','5 products','$0.30','⏳'],['5. System','14 system pages','$0.84','⏳'],['6. Autopilot','New posts auto','$0.08/post','✅ Active']].map(([a,b,c,d]) => (
-              <tr key={a} style={{ borderBottom: '1px solid #f3f4f6' }}><td style={{ ...tdI, fontWeight: 600 }}>{a}</td><td style={tdI}>{b}</td><td style={{ ...tdI, textAlign: 'center' as const, fontWeight: 600 }}>{c}</td><td style={{ ...tdI, textAlign: 'center' as const }}>{d}</td></tr>
-            ))}
+            { [ [ '1. Pilot', 'Stand blog post', '$0.08', '✅ Done' ], [ '2. All Blogs', '108 blog posts', '$6.48', '⏳' ], [ '3. Site Pages', '37 public pages', '$2.22', '⏳' ], [ '4. Products', '5 products', '$0.30', '⏳' ], [ '5. System', '14 system pages', '$0.84', '⏳' ], [ '6. Autopilot', 'New posts auto', '$0.08/post', '✅ Active' ] ].map( ( [ a, b, c, d ] ) => (
+              <tr key={ a } style={ { borderBottom: '1px solid #f3f4f6' } }><td style={ { ...tdI, fontWeight: 600 } }>{ a }</td><td style={ tdI }>{ b }</td><td style={ { ...tdI, textAlign: 'center' as const, fontWeight: 600 } }>{ c }</td><td style={ { ...tdI, textAlign: 'center' as const } }>{ d }</td></tr>
+            ) ) }
           </tbody>
         </table>
       </Card>
 
-      {/* Rules */}
+      {/* Rules */ }
       <Card title="Rules">
-        <ul style={{ fontSize: 13, color: '#374151', lineHeight: 2, margin: 0, paddingLeft: 20 }}>
+        <ul style={ { fontSize: 13, color: '#374151', lineHeight: 2, margin: 0, paddingLeft: 20 } }>
           <li>🧹🤖 Clean + Audit = wipe all old SEO data first, then run AI audit (recommended for first time)</li>
           <li>🤖 Audit only = run AI on current state (use for re-audits after content changes)</li>
           <li>Blog titles: expert-written only — AI suggests but NEVER auto-publishes</li>
@@ -271,19 +271,20 @@ export default function InstructionsContent() {
         </ul>
       </Card>
 
-      {/* Architecture */}
+      {/* Architecture */ }
       <Card title="Architecture">
-        <pre style={{ ...pre, lineHeight: 1.8 }}>{`Dashboard → /api/seo-tools/blog-posts → Wix Blog API
-         → /api/seo-tools/seo-clean → Wipe old seoData (tags + keywords)
-         → /api/seo-tools/ai-seo-audit → AWS Bedrock (Claude Sonnet 4.6)
-         → .seo-data/audits.json (local storage)
-         → /api/seo-tools/seo-approve → Wix Blog API (PATCH + publish)
+        <pre style={ { ...pre, lineHeight: 1.8 } }>{ `Dashboard → authenticated api.wecare.digital/seo-tools/*
+         → Admin-only SEO Lambda → Wix Blog API / live page SEO
+         → AWS Bedrock (Claude Sonnet 4.6, fallback models)
+         → retained DynamoDB audit + AI log records (PITR)
+         → conditional approval → blog-only Wix apply
 
 Keywords: 1 focus (isMain:true) + 9 secondary pushed to Wix seoData.settings.keywords
 JSON-LD: BlogPosting + BreadcrumbList + FAQPage (3 scripts, no duplicates)
-Meta Tags: 19 tags (title + description + robots + 8 OG + 4 Twitter + article:author + canonical)
+Mutations: fail-closed idempotency claims; actor always comes from Cognito
+Pages/products: audit and review only; apply is intentionally unsupported
 
-Auto: Wix Publish → events.js → ai-seo-audit → pending_review → approve → apply`}</pre>
+Flow: clean or audit → pending_review → approve/reject → blog apply`}</pre>
       </Card>
     </div>
   );

@@ -232,7 +232,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _response(200, {'message': 'OK'})
 
         from lambda_utils.middleware import require_auth
-        _auth = require_auth(event)
+        required_role = 'Admin' if http_method in ('POST', 'PUT', 'DELETE') else None
+        _auth = require_auth(event, required_role=required_role)
         if _auth is not None:
             return _auth
 

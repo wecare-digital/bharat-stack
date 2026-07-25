@@ -84,6 +84,28 @@ paths:
         '200': { description: Message list }
 
   /messages/{messageId}:
+    get:
+      tags: [Core]
+      summary: Read one canonical message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Message details }
+        '404': { description: Message not found }
+    put:
+      tags: [Core]
+      summary: Update Admin-controlled payment fields on a message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Message updated }
+        '403': { description: Admin access required }
     delete:
       tags: [Core]
       summary: Delete a message
@@ -137,6 +159,20 @@ paths:
       responses:
         '200': { description: WABA details }
 
+  /waba/request-otp:
+    post: { tags: [WhatsApp], summary: Request phone verification OTP (Admin only), responses: { '200': { description: OTP requested } } }
+  /waba/verify-otp:
+    post: { tags: [WhatsApp], summary: Verify phone OTP (Admin only), responses: { '200': { description: OTP verified } } }
+  /waba/register-phone:
+    post: { tags: [WhatsApp], summary: Register a verified phone (Admin only), responses: { '200': { description: Phone registered } } }
+  /waba/migrate:
+    post: { tags: [WhatsApp], summary: Phone migration contract (currently returns 501), responses: { '501': { description: Migration not enabled } } }
+  /waba/{wabaId}/subscribe-sns:
+    parameters: [{ name: wabaId, in: path, required: true, schema: { type: string } }]
+    get: { tags: [WhatsApp], summary: Read WABA SNS subscription status (Admin only), responses: { '200': { description: Subscription status } } }
+    post: { tags: [WhatsApp], summary: Subscribe WABA events to SNS (Admin only), responses: { '200': { description: Subscribed } } }
+    delete: { tags: [WhatsApp], summary: Remove WABA SNS subscription (Admin only), responses: { '200': { description: Unsubscribed } } }
+
   /template-analytics:
     get:
       tags: [WhatsApp]
@@ -144,7 +180,7 @@ paths:
       responses:
         '200': { description: Analytics data }
 
-  /scheduled-messages:
+  /scheduled:
     get:
       tags: [WhatsApp]
       summary: List scheduled messages
@@ -155,6 +191,63 @@ paths:
       summary: Schedule a WhatsApp message
       responses:
         '200': { description: Message scheduled }
+
+  /scheduled/{scheduledId}:
+    put:
+      tags: [WhatsApp]
+      summary: Update a scheduled message (Admin only)
+      parameters: [{ name: scheduledId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Scheduled message updated } }
+    delete:
+      tags: [WhatsApp]
+      summary: Cancel a scheduled message (Admin only)
+      parameters: [{ name: scheduledId, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Scheduled message cancelled } }
+
+  /push/devices:
+    get:
+      tags: [Operations]
+      summary: List registered push devices without raw token values (Admin only)
+      responses: { '200': { description: Device list } }
+  /push/send:
+    post:
+      tags: [Operations]
+      summary: Send a push notification (Admin only)
+      responses: { '200': { description: Push accepted } }
+  /store/order-notifications:
+    get:
+      tags: [E-commerce]
+      summary: List protected Wix order-notification records
+      responses: { '200': { description: Notification list } }
+  /store/order-notifications/retry:
+    post:
+      tags: [E-commerce]
+      summary: Retry one order notification with fail-closed idempotency (Admin only)
+      responses: { '200': { description: Retry completed }, '409': { description: Duplicate retry } }
+
+  /docs/sources:
+    get: { tags: [Operations], summary: List documentation sources (Admin only), responses: { '200': { description: Source list } } }
+    post: { tags: [Operations], summary: Add a documentation source (Admin only), responses: { '200': { description: Source added } } }
+  /docs/scrape:
+    post: { tags: [Operations], summary: Run documentation scraping (Admin only), responses: { '200': { description: Scrape summary } } }
+  /docs/changelog:
+    get: { tags: [Operations], summary: Read documentation changes (Admin only), responses: { '200': { description: Changelog } } }
+
+  /seo-tools/{proxy}:
+    get:
+      tags: [SEO]
+      summary: Read Admin SEO tools data
+      parameters: [{ name: proxy, in: path, required: true, description: Greedy route suffix, schema: { type: string } }]
+      responses: { '200': { description: SEO data } }
+    post:
+      tags: [SEO]
+      summary: Execute a fail-closed Admin SEO action
+      parameters: [{ name: proxy, in: path, required: true, description: Greedy route suffix, schema: { type: string } }]
+      responses: { '200': { description: SEO action result }, '409': { description: Duplicate or stale transition } }
+
+  /whatsapp-voice/language-config:
+    get: { tags: [WhatsApp], summary: Read voice language configuration, responses: { '200': { description: Language configuration } } }
+    put: { tags: [WhatsApp], summary: Update voice language configuration (Admin only), responses: { '200': { description: Configuration updated } } }
 
   # ── WhatsApp Unified (Messaging + Calling) ──
   /whatsapp:

@@ -2,9 +2,14 @@ import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
+import { seoTools } from './functions/operations/seo-tools/resource';
 import { addLinkResources } from './link-resources';
 import { addBackendResources } from './backend-resources';
-import { addPushResources } from './push-resources';
+import { addSeoResources } from './seo-resources';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
 /**
  * WECARE.DIGITAL Admin Platform Backend
@@ -21,8 +26,8 @@ import { addPushResources } from './push-resources';
  * - SQS Queues (4): inbound-dlq, bulk-queue, bulk-dlq, outbound-dlq
  * - CloudWatch Alarms, Dashboard, Log Retention
  * - WAF Web ACL for webhook endpoints
- * - Push Notification infrastructure (DynamoDB + SNS)
  * - URL Shortener (r.wecare.digital): API Gateway + Lambda + DynamoDB + Route53
+ * - Durable Admin SEO audit/log storage and Lambda
  *
  * Lambda functions (42+ Python functions) are deployed separately
  * and already exist in AWS. They are not managed by Amplify Gen 2.
@@ -31,6 +36,7 @@ const backend = defineBackend( {
   auth,
   data,
   storage,
+  seoTools,
 } );
 
 // ─── DynamoDB TTL Configuration ──────────────────────────────────────
@@ -104,10 +110,42 @@ addLinkResources( dataStack );
 addBackendResources( dataStack );
 
 /**
- * Push Notification Resources
- * Creates PushTokensTable (DynamoDB) and IAM policies for
- * SNS platform application access (FCM + APNs).
+ * SEO Tools Resources
+ * Creates retained durable audit/log state. The Admin-only SEO Lambda is
+ * Amplify-managed, while routes are registered separately after canary approval.
  */
-addPushResources( dataStack );
+const seoTable = addSeoResources( dataStack );
+seoTable.grantReadWriteData( backend.seoTools.resources.lambda );
+( backend.seoTools.resources.lambda as lambda.Function ).addEnvironment(
+  'COGNITO_USER_POOL_ID',
+  backend.auth.resources.userPool.userPoolId,
+);
+
+const dedupTable = dynamodb.Table.fromTableName(
+  dataStack,
+  'SeoAdminDedupTable',
+  'stack-wecare-digital-WebhookDedup',
+);
+dedupTable.grantWriteData( backend.seoTools.resources.lambda );
+
+const wixApiKey = secretsmanager.Secret.fromSecretNameV2(
+  dataStack,
+  'SeoWixApiKeySecret',
+  'wecare/wix-api-key',
+);
+wixApiKey.grantRead( backend.seoTools.resources.lambda );
+
+backend.seoTools.resources.lambda.addToRolePolicy( new iam.PolicyStatement( {
+  actions: [ 'bedrock:InvokeModel' ],
+  resources: [
+    'arn:aws:bedrock:*::foundation-model/*',
+    `arn:aws:bedrock:*:${dataStack.account}:inference-profile/*`,
+    `arn:aws:bedrock:*:${dataStack.account}:application-inference-profile/*`,
+  ],
+} ) );
+backend.seoTools.resources.lambda.addToRolePolicy( new iam.PolicyStatement( {
+  actions: [ 'cognito-idp:GetUser', 'cognito-idp:AdminListGroupsForUser' ],
+  resources: [ backend.auth.resources.userPool.userPoolArn ],
+} ) );
 
 export default backend;

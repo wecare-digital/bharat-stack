@@ -66,7 +66,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _auth
 
     try:
-        # Extract query parameters
+        # Exact item routes use the canonical MessagesTable and never share the delete handler.
+        path_params = event.get('pathParameters', {}) or {}
+        message_id = path_params.get('messageId')
+        if message_id:
+            if method == 'GET':
+                return _read_one_message(message_id, request_id, origin)
+            if method == 'PUT':
+                return _update_payment_message(message_id, event, request_id, origin)
+            return cors_response(405, {'error': f'Method {method} not allowed'}, origin)
+
         params = event.get('queryStringParameters', {}) or {}
 
         # GET /messages?stats=count — lightweight count-only (no full scan)
@@ -118,6 +127,51 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     except Exception as e:
         log_event(logger, 'messages_read_error', level='error', error=str(e), requestId=request_id)
         return cors_response(500, {'error': 'Internal server error'}, origin)
+
+
+def _read_one_message(message_id: str, request_id: str, origin: str = '') -> Dict[str, Any]:
+    result = dynamodb.Table(MESSAGES_TABLE).get_item(Key={'id': message_id})
+    item = result.get('Item')
+    if not item:
+        return cors_response(404, {'error': 'Message not found'}, origin)
+    message = _convert_from_dynamodb(item)
+    log_event(logger, 'message_read_one', messageId=message_id, requestId=request_id)
+    return cors_response(200, {'message': message}, origin)
+
+
+def _update_payment_message(message_id: str, event: Dict[str, Any], request_id: str, origin: str = '') -> Dict[str, Any]:
+    from lambda_utils.middleware import require_auth
+    auth_result = require_auth(event, required_role='Admin')
+    if auth_result is not None:
+        return auth_result
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return cors_response(400, {'error': 'Invalid JSON in request body'}, origin)
+    allowed = {
+        'paymentItemName', 'paymentQuantity', 'paymentGstRate', 'paymentPurpose',
+        'paymentDueRef', 'status', 'paymentDiscount', 'paymentShipping',
+        'paymentOrderId', 'paymentCustomerName', 'paymentCustomerPhone',
+        'paymentCustomerEmail', 'paymentShippingAddress', 'paymentBillingAddress',
+        'paymentPayFor',
+    }
+    updates = {key: value for key, value in body.items() if key in allowed}
+    if not updates:
+        return cors_response(400, {'error': 'No valid fields to update'}, origin)
+    names, values, parts = {}, {}, []
+    for index, (key, value) in enumerate(updates.items()):
+        name, val = f'#f{index}', f':v{index}'
+        names[name], values[val] = key, value
+        parts.append(f'{name} = {val}')
+    dynamodb.Table(MESSAGES_TABLE).update_item(
+        Key={'id': message_id},
+        UpdateExpression='SET ' + ', '.join(parts),
+        ExpressionAttributeNames=names,
+        ExpressionAttributeValues=values,
+        ConditionExpression='attribute_exists(id)',
+    )
+    log_event(logger, 'message_payment_updated', messageId=message_id, fields=sorted(updates), requestId=request_id)
+    return cors_response(200, {'success': True, 'messageId': message_id, 'updated': sorted(updates)}, origin)
 
 
 def _count_messages(request_id: str, origin: str = '') -> Dict[str, Any]:

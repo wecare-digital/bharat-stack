@@ -126,7 +126,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
 
     from lambda_utils.middleware import require_auth
-    _auth = require_auth(event)
+    required_role = 'Admin' if method in ('POST', 'PUT', 'DELETE') else None
+    _auth = require_auth(event, required_role=required_role)
     if _auth is not None:
         return _auth
 

@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
 import InstructionsContent from './InstructionsContent';
+import { seoToolsFetch } from '../../api/seo';
 
 interface PageProps { signOut?: () => void; user?: any; }
 interface SitePage {
@@ -78,19 +79,19 @@ const PagesManager: React.FC<PageProps> = ({ signOut, user }) => {
   // ── DATA FETCHING ──
   const fetchSitePages = useCallback(async () => {
     setLoading(true); addLog('Fetching site pages...');
-    try { const d = await (await fetch('/api/seo-tools/site-pages')).json(); if (d.ok) { setSitePages(d.pages); addLog(`${d.total} site pages loaded`); } else addLog(d.error); }
+    try { const d = await (await seoToolsFetch('site-pages')).json(); if (d.ok) { setSitePages(d.pages); addLog(`${d.total} site pages loaded`); } else addLog(d.error); }
     catch (e: any) { addLog(e.message); } setLoading(false);
   }, []);
   const fetchProducts = useCallback(async () => {
     setLoading(true); addLog('Fetching product pages...');
-    try { const d = await (await fetch('/api/seo-tools/product-pages')).json(); if (d.ok) { setProducts(d.products); addLog(`${d.total} products loaded`); } else addLog(d.error); }
+    try { const d = await (await seoToolsFetch('product-pages')).json(); if (d.ok) { setProducts(d.products); addLog(`${d.total} products loaded`); } else addLog(d.error); }
     catch (e: any) { addLog(e.message); } setLoading(false);
   }, []);
   const fetchAudits = useCallback(async () => {
-    try { const d = await (await fetch('/api/seo-tools/seo-logs?type=audits&scope=pages')).json(); if (d.ok) setAudits(d.audits || []); } catch {}
+    try { const d = await (await seoToolsFetch('seo-logs?type=audits&scope=pages')).json(); if (d.ok) setAudits(d.audits || []); } catch {}
   }, []);
   const fetchLogs = useCallback(async () => {
-    try { const d = await (await fetch('/api/seo-tools/seo-logs?type=logs&scope=pages')).json(); if (d.ok) setLogs(d.logs || []); } catch {}
+    try { const d = await (await seoToolsFetch('seo-logs?type=logs&scope=pages')).json(); if (d.ok) setLogs(d.logs || []); } catch {}
   }, []);
   useEffect(() => { fetchSitePages(); fetchProducts(); fetchAudits(); }, [fetchSitePages, fetchProducts, fetchAudits]);
 
@@ -99,14 +100,14 @@ const PagesManager: React.FC<PageProps> = ({ signOut, user }) => {
   // ── ACTIONS ──
   const cleanPage = async (slug: string, name?: string, pageType?: string) => {
     addLog(`Cleaning "${slug}"...`);
-    try { const d = await (await fetch('/api/seo-tools/page-clean', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: slug, name, pageType }) })).json();
+    try { const d = await (await seoToolsFetch('page-clean', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: slug, name, pageType }) })).json();
       if (d.ok) { addLog(`Cleaned: ${d.cleaned.auditsRemoved} audit(s) removed. ${d.cleaned.message}`); await fetchAudits(); }
       else addLog(`Clean failed: ${d.error}`);
     } catch (e: any) { addLog(e.message); }
   };
   const runPageAudit = async (path: string, name: string, pageType: string) => {
     setAuditingSlug(path); addLog(`Auditing "${name}" (${path})...`);
-    try { const d = await (await fetch('/api/seo-tools/page-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path, name, pageType }) })).json();
+    try { const d = await (await seoToolsFetch('page-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path, name, pageType }) })).json();
       if (d.ok) { addLog(`Done: ${d.audit.seoScoreBefore} > ${d.audit.seoScoreAfter}${d.log?.costEstimate ? ' | $' + d.log.costEstimate : ''}`); await fetchAudits(); setSelectedAudit(d.audit); setTab('audit'); }
       else addLog(`Failed: ${d.error}`);
     } catch (e: any) { addLog(e.message); } setAuditingSlug(null);
@@ -114,7 +115,7 @@ const PagesManager: React.FC<PageProps> = ({ signOut, user }) => {
   const cleanAndAudit = async (path: string, name: string, pageType: string) => { await cleanPage(path, name, pageType); await runPageAudit(path, name, pageType); };
   const handleAction = async (id: string, action: string) => {
     addLog(`${action} ${id.substring(0, 20)}...`);
-    try { const d = await (await fetch('/api/seo-tools/seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action, reviewedBy: user?.username || 'admin' }) })).json();
+    try { const d = await (await seoToolsFetch('seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action }) })).json();
       if (d.ok) { addLog(`${action} done${d.applied ? ' — pushed to Wix' : ''}`); await fetchAudits(); if (selectedAudit?.id === id) setSelectedAudit(d.audit); }
       else addLog(d.error);
     } catch (e: any) { addLog(e.message); }
@@ -130,22 +131,16 @@ const PagesManager: React.FC<PageProps> = ({ signOut, user }) => {
     setBulkRunning('audit'); let ok = 0;
     for (const item of items) {
       addLog(`Auditing ${ok + 1}/${items.length}: ${item.name}`);
-      try { const d = await (await fetch('/api/seo-tools/page-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: item.path, name: item.name, pageType: item.type }) })).json(); if (d.ok) ok++; } catch {}
+      try { const d = await (await seoToolsFetch('page-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: item.path, name: item.name, pageType: item.type }) })).json(); if (d.ok) ok++; } catch {}
       await new Promise(r => setTimeout(r, 1000));
     }
     addLog(`Bulk audit done: ${ok}/${items.length}`); await fetchAudits(); setBulkRunning(null);
   };
   const bulkApprove = async (ids: string[]) => {
     setBulkRunning('approve'); let ok = 0;
-    for (const id of ids) { try { const d = await (await fetch('/api/seo-tools/seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action: 'approve', reviewedBy: user?.username || 'admin' }) })).json(); if (d.ok) ok++; } catch {} }
+    for (const id of ids) { try { const d = await (await seoToolsFetch('seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action: 'approve' }) })).json(); if (d.ok) ok++; } catch {} }
     addLog(`Bulk approve: ${ok}/${ids.length}`); await fetchAudits(); setBulkRunning(null);
   };
-  const bulkApply = async (ids: string[]) => {
-    setBulkRunning('apply'); let ok = 0;
-    for (const id of ids) { try { const d = await (await fetch('/api/seo-tools/seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action: 'apply', reviewedBy: user?.username || 'admin' }) })).json(); if (d.ok) ok++; } catch {} await new Promise(r => setTimeout(r, 2000)); }
-    addLog(`Bulk apply: ${ok}/${ids.length}`); await fetchAudits(); setBulkRunning(null);
-  };
-
   // ── HELPERS ──
   const toggleSel = (s: string) => setSelected(p => { const n = new Set(p); n.has(s) ? n.delete(s) : n.add(s); return n; });
   const addCustomPage = () => {
@@ -196,7 +191,7 @@ const PagesManager: React.FC<PageProps> = ({ signOut, user }) => {
           ))}
         </div>
 
-        {tab === 'site' && <SitePagesTab pages={sitePages} audits={audits} filter={filter} setFilter={setFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} selected={selected} toggleSel={toggleSel} setSelected={setSelected} auditingSlug={auditingSlug} bulkRunning={bulkRunning} onAudit={runPageAudit} onCleanAudit={cleanAndAudit} onBulkClean={bulkClean} onBulkAudit={bulkAudit} onBulkApprove={bulkApprove} onBulkApply={bulkApply} onViewAudit={(a: PageAudit) => { setSelectedAudit(a); setTab('audit'); }} getAudit={getAudit} search={search} setSearch={setSearch} />}
+        {tab === 'site' && <SitePagesTab pages={sitePages} audits={audits} filter={filter} setFilter={setFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} selected={selected} toggleSel={toggleSel} setSelected={setSelected} auditingSlug={auditingSlug} bulkRunning={bulkRunning} onAudit={runPageAudit} onCleanAudit={cleanAndAudit} onBulkClean={bulkClean} onBulkAudit={bulkAudit} onBulkApprove={bulkApprove} onViewAudit={(a: PageAudit) => { setSelectedAudit(a); setTab('audit'); }} getAudit={getAudit} search={search} setSearch={setSearch} />}
         {tab === 'system' && <SystemPagesTab pages={SYSTEM_PAGES} auditingSlug={auditingSlug} bulkRunning={bulkRunning} onAudit={runPageAudit} onCleanAudit={cleanAndAudit} onViewAudit={(a: PageAudit) => { setSelectedAudit(a); setTab('audit'); }} getAudit={getAudit} search={search} setSearch={setSearch} />}
         {tab === 'products' && <ProductPagesTab products={products} audits={audits} auditingSlug={auditingSlug} bulkRunning={bulkRunning} onAudit={runPageAudit} onCleanAudit={cleanAndAudit} onBulkAudit={bulkAudit} onViewAudit={(a: PageAudit) => { setSelectedAudit(a); setTab('audit'); }} getAudit={getAudit} search={search} setSearch={setSearch} />}
         {tab === 'new' && <NewPagesTab customPages={customPages} newPageUrl={newPageUrl} newPageName={newPageName} setNewPageUrl={setNewPageUrl} setNewPageName={setNewPageName} addCustomPage={addCustomPage} auditingSlug={auditingSlug} onAudit={runPageAudit} onCleanAudit={cleanAndAudit} onRemove={(path: string) => setCustomPages(p => p.filter(x => x.path !== path))} search={search} setSearch={setSearch} />}
@@ -218,9 +213,9 @@ const PagesManager: React.FC<PageProps> = ({ signOut, user }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// SITE PAGES TAB — full deep clean: select, filter, bulk clean/audit/approve/apply
+// SITE PAGES TAB — full deep clean: select, filter, bulk clean/audit/approve
 // ═══════════════════════════════════════════════════════════════
-function SitePagesTab({ pages, audits, filter, setFilter, statusFilter, setStatusFilter, selected, toggleSel, setSelected, auditingSlug, bulkRunning, onAudit, onCleanAudit, onBulkClean, onBulkAudit, onBulkApprove, onBulkApply, onViewAudit, getAudit, search, setSearch }: any) {
+function SitePagesTab({ pages, audits, filter, setFilter, statusFilter, setStatusFilter, selected, toggleSel, setSelected, auditingSlug, bulkRunning, onAudit, onCleanAudit, onBulkClean, onBulkAudit, onBulkApprove, onViewAudit, getAudit, search, setSearch }: any) {
   const types = [...new Set(pages.map((p: SitePage) => p.type))] as string[];
   let filtered: SitePage[] = filter === 'all' ? pages : pages.filter((p: SitePage) => p.type === filter);
   if (statusFilter === 'pending') filtered = filtered.filter((p: SitePage) => !getAudit(p.path));
@@ -257,7 +252,6 @@ function SitePagesTab({ pages, audits, filter, setFilter, statusFilter, setStatu
         <button onClick={() => onBulkClean([...selected].map((path: string) => { const p = pages.find((x: SitePage) => x.path === path); return { path, name: p?.name || path, type: p?.type || 'site' }; }))} disabled={!!bulkRunning} style={{ ...btn, background: '#fef3c7', fontWeight: 600 }}>{bulkRunning === 'clean' ? 'Cleaning...' : `Bulk Clean (${selected.size})`}</button>
         <button onClick={() => onBulkAudit([...selected].map((path: string) => { const p = pages.find((x: SitePage) => x.path === path); return { path, name: p?.name || path, type: p?.type || 'site' }; }))} disabled={!!bulkRunning} style={{ ...btn, background: '#d1f470', fontWeight: 600 }}>{bulkRunning === 'audit' ? 'Auditing...' : `Bulk Audit (${selected.size})`}</button>
         {(() => { const ids = [...selected].map((s: string) => getAudit(s)).filter((a: any) => a?.status === 'pending_review').map((a: any) => a!.id); return ids.length ? <button onClick={() => onBulkApprove(ids)} disabled={!!bulkRunning} style={{ ...btn, background: '#dbeafe', fontWeight: 600 }}>Bulk Approve ({ids.length})</button> : null; })()}
-        {(() => { const ids = [...selected].map((s: string) => getAudit(s)).filter((a: any) => a?.status === 'approved').map((a: any) => a!.id); return ids.length ? <button onClick={() => onBulkApply(ids)} disabled={!!bulkRunning} style={{ ...btn, background: '#dcfce7', fontWeight: 600 }}>Bulk Apply ({ids.length})</button> : null; })()}
         <button onClick={selNone} style={{ ...btn, background: '#f3f4f6' }}>Clear</button>
       </div>)}
       {selected.size === 0 && filtered.length > 0 && <button onClick={selAll} style={{ ...btn, background: '#f3f4f6' }}>Select All ({filtered.length})</button>}
@@ -376,7 +370,7 @@ function ProductPagesTab({ products, audits, auditingSlug, bulkRunning, onAudit,
           <th style={th}>#</th><th style={th}>Product</th><th style={th}>Price</th><th style={th}>Stock</th>
           <th style={{ ...th, textAlign: 'center' }}>JSON-LD</th><th style={{ ...th, textAlign: 'center' }}>Score</th><th style={{ ...th, textAlign: 'center' }}>Status</th><th style={{ ...th, textAlign: 'center' }}>Actions</th>
         </tr></thead>
-        <tbody>{filtered.map((p: ProductPage, i: number) => { const slug = p.slug || p.id; const a = getAudit(slug); const busy = auditingSlug === slug; return (
+        <tbody>{filtered.map((p: ProductPage, i: number) => { const slug = p.slug || p.id; const productPath = `/product-page/${slug}`; const a = getAudit(productPath); const busy = auditingSlug === productPath; return (
           <tr key={p.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
             <td style={td}>{i + 1}</td>
             <td style={{ ...td, maxWidth: 220 }}><div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -389,8 +383,8 @@ function ProductPagesTab({ products, audits, auditingSlug, bulkRunning, onAudit,
             <td style={{ ...td, textAlign: 'center' }}>{a ? <><span style={{ color: '#ef4444', fontSize: 11 }}>{a.seoScoreBefore}</span><span style={{ color: '#9ca3af' }}>{' > '}</span><span style={{ color: '#22c55e', fontWeight: 700, fontSize: 11 }}>{a.seoScoreAfter}</span></> : '-'}</td>
             <td style={{ ...td, textAlign: 'center' }}>{a ? <StatusBadge status={a.status} /> : <span style={{ color: '#9ca3af', fontSize: 10 }}>-</span>}</td>
             <td style={{ ...td, textAlign: 'center' }}><div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
-              <button onClick={() => onCleanAudit(slug, p.name, 'product')} disabled={busy || !!bulkRunning} title="Clean then Audit" style={{ ...btn, background: '#fef3c7' }}>Clean+Audit</button>
-              <button onClick={() => onAudit(slug, p.name, 'product')} disabled={busy || !!bulkRunning} style={{ ...btn, background: busy ? '#e5e7eb' : '#d1f470' }}>{busy ? 'Running...' : 'Audit'}</button>
+              <button onClick={() => onCleanAudit(productPath, p.name, 'product')} disabled={busy || !!bulkRunning} title="Clean then Audit" style={{ ...btn, background: '#fef3c7' }}>Clean+Audit</button>
+              <button onClick={() => onAudit(productPath, p.name, 'product')} disabled={busy || !!bulkRunning} style={{ ...btn, background: busy ? '#e5e7eb' : '#d1f470' }}>{busy ? 'Running...' : 'Audit'}</button>
               {a && <button onClick={() => onViewAudit(a)} style={{ ...btn, background: '#f3f4f6' }}>View</button>}
             </div></td>
           </tr>); })}{filtered.length === 0 && <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>No products match filter.</td></tr>}</tbody>
@@ -398,7 +392,7 @@ function ProductPagesTab({ products, audits, auditingSlug, bulkRunning, onAudit,
     </div>
     <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>{filtered.length} products</div>
     {filtered.length > 0 && <div style={{ marginTop: 12 }}>
-      <button onClick={() => onBulkAudit(filtered.map((p: ProductPage) => ({ path: p.slug || p.id, name: p.name, type: 'product' })))} disabled={!!bulkRunning} style={{ ...btn, background: '#d1f470', fontWeight: 600, padding: '6px 16px' }}>{bulkRunning === 'audit' ? 'Auditing...' : `Audit All ${filtered.length} Products`}</button>
+      <button onClick={() => onBulkAudit(filtered.map((p: ProductPage) => ({ path: `/product-page/${p.slug || p.id}`, name: p.name, type: 'product' })))} disabled={!!bulkRunning} style={{ ...btn, background: '#d1f470', fontWeight: 600, padding: '6px 16px' }}>{bulkRunning === 'audit' ? 'Auditing...' : `Audit All ${filtered.length} Products`}</button>
     </div>}
     <div className="card" style={{ padding: 16, marginTop: 16 }}>
       <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Product Page SEO Standard</h3>
@@ -520,7 +514,7 @@ function AuditDetail({ audit, audits, onSelect, onAction }: { audit: PageAudit |
       <div style={{ textAlign: 'center' }}><div style={{ fontSize: 11, color: '#6b7280' }}>AFTER</div><div style={{ fontSize: 32, fontWeight: 800, color: '#22c55e' }}>{audit.seoScoreAfter}</div></div>
       <div style={{ flex: 1 }} />
       {audit.status === 'pending_review' && <div style={{ display: 'flex', gap: 8 }}><button onClick={() => onAction(audit.id, 'approve')} style={{ ...btn, background: '#d1f470', fontWeight: 600, padding: '6px 16px' }}>Approve</button><button onClick={() => onAction(audit.id, 'reject')} style={{ ...btn, background: '#fee2e2', padding: '6px 16px' }}>Reject</button></div>}
-      {audit.status === 'approved' && <button onClick={() => onAction(audit.id, 'apply')} style={{ ...btn, background: '#d1f470', fontWeight: 600, padding: '6px 16px' }}>Apply to Wix</button>}
+      {audit.status === 'approved' && <span style={{ padding: '6px 14px', background: '#dbeafe', color: '#1e40af', borderRadius: 8, fontSize: 12, fontWeight: 600 }}>Approved — apply is available for blog posts only</span>}
       {audit.status === 'applied' && <span style={{ padding: '6px 14px', background: '#dcfce7', color: '#166534', borderRadius: 8, fontSize: 12, fontWeight: 600 }}>Applied {audit.appliedAt ? new Date(audit.appliedAt).toLocaleString() : ''}</span>}
     </div>
 
@@ -618,7 +612,7 @@ function BlogCreator({ addLog }: { addLog: (m: string) => void }) {
 
   useEffect(() => {
     if (loaded) return;
-    fetch('/api/seo-tools/blog-create').then(r => r.json()).then(d => {
+    seoToolsFetch('blog-create').then(r => r.json()).then(d => {
       if (d.ok) { setCategories(d.categories || []); setAvailableTags(d.tags || []); }
     }).catch(() => {}); setLoaded(true);
   }, [loaded]);
@@ -631,7 +625,7 @@ function BlogCreator({ addLog }: { addLog: (m: string) => void }) {
       if (selectedCat) body.categoryIds = [selectedCat];
       if (tags.trim()) body.tagLabels = tags.split(',').map(t => t.trim()).filter(Boolean);
       if (hashtags.trim()) body.hashtags = hashtags.split(',').map(h => h.trim()).filter(Boolean);
-      const d = await (await fetch('/api/seo-tools/blog-create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+      const d = await (await seoToolsFetch('blog-create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
       if (d.ok) { addLog(`Published: ${d.slug} (${d.postId})`); setTitle(''); setContent(''); setTags(''); setHashtags(''); }
       else addLog(`Failed: ${d.error}`);
     } catch (e: any) { addLog(e.message); }

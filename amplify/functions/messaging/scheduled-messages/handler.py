@@ -3,10 +3,10 @@ Scheduled Messages Lambda Function
 Manages scheduled template messages with CRUD operations and scheduled sending
 
 Routes:
-- GET /messages/scheduled - List scheduled messages
-- POST /messages/scheduled - Create scheduled message
-- PUT /messages/scheduled/{scheduledId} - Update scheduled message
-- DELETE /messages/scheduled/{scheduledId} - Cancel scheduled message
+- GET /scheduled - List scheduled messages
+- POST /scheduled - Create scheduled message
+- PUT /scheduled/{scheduledId} - Update scheduled message
+- DELETE /scheduled/{scheduledId} - Cancel scheduled message - Cancel scheduled message
 
 Also handles CloudWatch Events trigger for sending due messages.
 """
@@ -23,6 +23,7 @@ from typing import Dict, Any, List, Optional
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
 from lambda_utils.logging import get_logger
+from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -66,6 +67,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if http_method == 'OPTIONS':
         return options_response(origin)
 
+    auth_result = require_auth(event, required_role='Admin')
+    if auth_result is not None:
+        return auth_result
+
     try:
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
         
@@ -76,11 +81,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _create_scheduled(body, request_id)
         
         elif http_method == 'PUT':
-            scheduled_id = path_params.get('scheduledId') or path.split('/')[-1]
+            scheduled_id = path_params.get('scheduledId') or body.get('scheduledId') or query_params.get('scheduledId') or path.split('/')[-1]
             return _update_scheduled(scheduled_id, body, request_id)
         
         elif http_method == 'DELETE':
-            scheduled_id = path_params.get('scheduledId') or path.split('/')[-1]
+            scheduled_id = path_params.get('scheduledId') or body.get('scheduledId') or query_params.get('scheduledId') or path.split('/')[-1]
             return _cancel_scheduled(scheduled_id, request_id)
         
         return _error_response(400, 'Invalid request method')

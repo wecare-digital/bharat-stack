@@ -52,6 +52,15 @@ export async function authFetch ( input: string, init: RequestInit = {} ): Promi
   } );
 }
 
+/** Verify the signed-in user has the Admin role through the live Cognito-backed API. */
+export async function verifyAdminAccess (): Promise<boolean> {
+  const response = await authFetch( `${API_BASE}/auth/validate`, {
+    method: 'POST',
+    body: JSON.stringify( { requiredRole: 'Admin' } ),
+  } );
+  return response.ok;
+}
+
 // Helper function for API calls with retry logic and better error handling
 async function apiCall<T> ( url: string, options?: RequestInit, retryCount = 0 ): Promise<T | null> {
   try
@@ -1158,12 +1167,8 @@ export async function listVoiceCalls ( contactId?: string, provider?: string ): 
 }
 
 export async function getVoiceCall ( callId: string ): Promise<VoiceCall | null> {
-  const data = await apiCall<any>( `${API_BASE}/voice/calls/${callId}` );
-  if ( data )
-  {
-    return normalizeVoiceCall( data.call || data );
-  }
-  return null;
+  const calls = await listVoiceCalls();
+  return calls.find( call => call.callId === callId || call.id === callId ) || null;
 }
 
 export async function makeVoiceCall ( request: MakeVoiceCallRequest ): Promise<{ callId: string; status: string } | null> {
@@ -1253,7 +1258,7 @@ export interface SendSinchSmsRequest {
 }
 
 export async function sendSinchSms ( request: SendSinchSmsRequest ): Promise<{ success: boolean; messageId?: string; providerMessageId?: string; error?: string } | null> {
-  return apiCall<{ success: boolean; messageId?: string; providerMessageId?: string; error?: string }>( `${API_BASE}/messaging/sms`, {
+  return apiCall<{ success: boolean; messageId?: string; providerMessageId?: string; error?: string }>( `${API_BASE}/sms/send`, {
     method: 'POST',
     body: JSON.stringify( { ...request, provider: 'sinch', sourceAddress: request.sourceAddress || 'WDBEEP' } ),
   } );
@@ -3052,7 +3057,7 @@ export async function scheduleTemplateMessage ( request: {
   phoneNumberId?: string;
   scheduledAt: string;  // ISO timestamp
 } ): Promise<ScheduledMessage | null> {
-  const data = await apiCall<any>( `${API_BASE}/messages/scheduled`, {
+  const data = await apiCall<any>( `${API_BASE}/scheduled`, {
     method: 'POST',
     body: JSON.stringify( request ),
   } );
@@ -3068,7 +3073,7 @@ export async function scheduleTemplateMessage ( request: {
  * API: GET /messages/scheduled
  */
 export async function listScheduledMessages ( status?: string ): Promise<ScheduledMessage[]> {
-  let url = `${API_BASE}/messages/scheduled`;
+  let url = `${API_BASE}/scheduled`;
   if ( status ) url += `?status=${status}`;
 
   const data = await apiCall<any>( url );
@@ -3084,7 +3089,7 @@ export async function listScheduledMessages ( status?: string ): Promise<Schedul
  * API: DELETE /messages/scheduled/{scheduledId}
  */
 export async function cancelScheduledMessage ( scheduledId: string ): Promise<boolean> {
-  const data = await apiCall<any>( `${API_BASE}/messages/scheduled/${scheduledId}`, {
+  const data = await apiCall<any>( `${API_BASE}/scheduled/${scheduledId}`, {
     method: 'DELETE',
   } );
   return data?.success === true || data !== null;
@@ -3098,7 +3103,7 @@ export async function updateScheduledMessage ( scheduledId: string, updates: {
   scheduledAt?: string;
   templateParams?: string[];
 } ): Promise<ScheduledMessage | null> {
-  const data = await apiCall<any>( `${API_BASE}/messages/scheduled/${scheduledId}`, {
+  const data = await apiCall<any>( `${API_BASE}/scheduled/${scheduledId}`, {
     method: 'PUT',
     body: JSON.stringify( updates ),
   } );
@@ -3765,7 +3770,7 @@ export async function clearAllInboxData (): Promise<{
       try
       {
         // Try to delete voice call record via API
-        const response = await apiCall<any>( `${API_BASE}/voice/calls/${call.id}`, {
+        const response = await apiCall<any>( `${API_BASE}/voice-aws/calls/${call.id}`, {
           method: 'DELETE',
         } );
         if ( response )

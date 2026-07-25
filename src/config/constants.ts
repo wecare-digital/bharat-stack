@@ -60,11 +60,6 @@ export const WHATSAPP_PHONES = {
   },
 };
 
-// Password required to send payments from protected phone numbers
-// WARNING: This is still client-side. For true security, validate via a server-side API route.
-// TODO: Create /api/auth/verify-admin endpoint that checks against Cognito group membership.
-export const PAYMENT_UNLOCK_PASSWORD = process.env.NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD || '';
-
 // GST Rate Options
 export const GST_RATES = [
   { value: 0, label: '0%' },
@@ -107,6 +102,3 @@ export const RETRY_CONFIG = {
   baseDelayMs: 500,
   maxDelayMs: 3000,
 };
-
-// WhatsApp Calling Webhook
-export const WHATSAPP_CALLING_VERIFY_TOKEN = process.env.NEXT_PUBLIC_WHATSAPP_CALLING_VERIFY_TOKEN || '';

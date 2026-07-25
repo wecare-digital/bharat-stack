@@ -30,6 +30,7 @@ import boto3
 # ---------------------------------------------------------------------------
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.idempotency import claim_admin_action
 
 logger = get_logger(__name__)
 
@@ -70,6 +71,8 @@ dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', '
 PRODUCTS_CACHE_TABLE = os.environ.get('WIX_PRODUCTS_CACHE_TABLE', 'stack-wecare-digital-WixProductsCache')
 ORDERS_CACHE_TABLE = os.environ.get('WIX_ORDERS_CACHE_TABLE', 'stack-wecare-digital-WixOrdersCache')
 ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'stack-wecare-digital-WixOrderIds')
+ORDER_RETRY_WINDOW_SECONDS = int(os.environ.get('ORDER_RETRY_WINDOW_SECONDS', '300'))
+lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Module-level origin for CORS (set per-invocation in handler)
 origin = ''
@@ -111,16 +114,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     global origin
     origin = extract_origin(event)
 
-    # Internal/scheduled invokes (no HTTP context) are auto-exempt by require_auth.
-    from lambda_utils.middleware import require_auth
-    _auth = require_auth(event)
-    if _auth is not None:
-        return _auth
-
     try:
         http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', 'GET'))
         path = event.get('path', event.get('rawPath', '/'))
         params = event.get('queryStringParameters', {}) or {}
+
+        from lambda_utils.middleware import require_auth
+        required_role = 'Admin' if http_method != 'GET' else None
+        auth_result = require_auth(event, required_role=required_role)
+        if auth_result is not None:
+            return auth_result
 
         logger.info(json.dumps({
             'action': 'wix_store_request',
@@ -129,6 +132,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'mode': WIX_MODE,
             'requestId': request_id,
         }))
+
+        # Order notification BFF always uses the protected Velo collection bridge.
+        if '/order-notifications/retry' in path and http_method == 'POST':
+            return _retry_order_notification(event, request_id)
+        if '/order-notifications' in path and http_method == 'GET':
+            return _list_order_notifications(params, request_id)
 
         # ---- Velo mode: route through Velo HTTP Functions ----
         if WIX_MODE == 'velo':
@@ -1428,6 +1437,189 @@ def _sync_orders(request_id: str) -> Dict[str, Any]:
 # HELPERS
 # ===================================================================
 
+def _list_order_notifications(params: dict, request_id: str) -> Dict[str, Any]:
+    result = _velo_request('orderNotifications', {
+        'status': params.get('status', ''),
+        'limit': params.get('limit', '200'),
+    })
+    notifications = result.get('notifications', result.get('items', []))
+    return _response(200, {'notifications': notifications, 'count': len(notifications),
+                           'requestId': request_id})
+
+
+def _invoke_json(function_name: str, payload: dict) -> dict:
+    response = lambda_client.invoke(
+        FunctionName=function_name,
+        InvocationType='RequestResponse',
+        Payload=json.dumps(payload).encode('utf-8'),
+    )
+    raw = response['Payload'].read()
+    if response.get('FunctionError'):
+        raise RuntimeError(f'{function_name} invocation failed')
+    try:
+        result = json.loads(raw.decode('utf-8')) if raw else {}
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise RuntimeError(f'{function_name} returned an invalid response') from error
+    body = result.get('body', result)
+    if isinstance(body, str):
+        try:
+            body = json.loads(body or '{}')
+        except json.JSONDecodeError as error:
+            raise RuntimeError(f'{function_name} returned an invalid body') from error
+    if not isinstance(body, dict):
+        raise RuntimeError(f'{function_name} returned an invalid body')
+    if int(result.get('statusCode', 200)) >= 400:
+        raise RuntimeError(str(body.get('error') or f'{function_name} returned an error'))
+    return body
+
+
+def _persist_order_retry(order_id: str, channel: str, status: str, actor: str,
+                         attempted_at: str, provider_message_id: str = '',
+                         error: str = '') -> None:
+    _velo_request('orderNotificationStatus', method='POST', body={
+        'orderId': order_id,
+        'channel': channel,
+        'status': status,
+        'providerMessageId': provider_message_id,
+        'error': error[:500],
+        'actor': actor,
+        'attemptedAt': attempted_at,
+    })
+
+
+def _retry_order_notification(event: dict, request_id: str) -> Dict[str, Any]:
+    body = _parse_body(event)
+    order_id = str(body.get('orderId', '')).strip()
+    channel = str(body.get('channel', '')).lower()
+    if not order_id or channel not in {'whatsapp', 'sms'}:
+        return _response(400, {'error': 'orderId and channel (whatsapp or sms) are required'})
+
+    records = _velo_request('orderNotifications', {
+        'orderId': order_id,
+        'limit': '1',
+    }).get('notifications', [])
+    if not records:
+        return _response(404, {'error': 'Order notification not found'})
+    record = records[0]
+    phone = str(record.get('phone', '')).strip()
+    if not phone:
+        return _response(400, {'error': 'Order notification has no phone number'})
+
+    actor = (event.get('_auth') or {}).get('username', '')
+    bucket = int(datetime.now(timezone.utc).timestamp()) // ORDER_RETRY_WINDOW_SECONDS
+    claim_key = f'admin:order-retry:{order_id}:{channel}:{bucket}'
+    try:
+        claimed = claim_admin_action(
+            claim_key,
+            actor,
+            'order-notification.retry',
+            ORDER_RETRY_WINDOW_SECONDS * 2,
+        )
+    except Exception:
+        logger.exception('Order retry idempotency claim failed')
+        return _response(503, {'error': 'Retry guard unavailable; no message was sent'})
+    if not claimed:
+        return _response(409, {'error': 'A retry for this order and channel is already in progress'})
+
+    attempted_at = datetime.now(timezone.utc).isoformat()
+    try:
+        if channel == 'whatsapp':
+            payload = {'body': json.dumps({
+                'recipientPhone': phone,
+                'phoneNumberId': os.environ.get(
+                    'ORDER_WHATSAPP_PHONE_ID',
+                    'phone-number-id-waba1-direct-1016149501586345',
+                ),
+                'isTemplate': True,
+                'templateName': 'wd_order',
+                'templateParams': [],
+                'templateHeaderMedia': os.environ.get(
+                    'ORDER_TEMPLATE_VIDEO_URL',
+                    'https://app.wecare.digital/stream/media/m/selfservice.mp4',
+                ),
+                'templateHeaderType': 'video',
+            })}
+            sent = _invoke_json(
+                os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp'),
+                payload,
+            )
+            provider_id = sent.get('whatsappMessageId') or sent.get('messageId', '')
+        else:
+            sms_content = os.environ.get(
+                'ORDER_SMS_TEXT',
+                "Thanks for placing your order with WECARE.DIGITAL!\n\n"
+                "Your order has been received. We'll review it and share updates shortly.\n\n"
+                "Need help? Submit a request here: https://wecare.digital/selfservice "
+                "or message / voice note us on WhatsApp: https://r.wecare.digital/wa.",
+            )
+            sms_body = {
+                'phoneNumber': phone,
+                'content': sms_content,
+                'messageType': 'SERVICE_IMPLICIT',
+                'dltTemplateId': os.environ.get('ORDER_SMS_DLT_TEMPLATE_ID', '1007723091207562020'),
+                'entityId': os.environ.get('ORDER_SMS_ENTITY_ID', '1201161991108627443'),
+                'sourceAddress': os.environ.get('ORDER_SMS_SOURCE_ADDRESS', 'WDBEEP'),
+                'apiVersion': 'v5',
+                'metaData': {
+                    'orderId': order_id,
+                    'wdOrderId': str(record.get('wdOrderId', '')),
+                },
+            }
+            payload = {
+                'requestContext': {'http': {'method': 'POST'}},
+                'rawPath': '/sms-in/airtel',
+                'body': json.dumps(sms_body),
+            }
+            sent = _invoke_json(
+                os.environ.get('ORDER_SMS_FUNCTION', 'wecare-sms-in-airtel'),
+                payload,
+            )
+            provider_id = sent.get('providerMessageId') or sent.get('messageId', '')
+    except Exception as error:
+        provider_error = str(error)[:500] or 'Provider send failed'
+        logger.exception('Order notification retry failed before provider confirmation')
+        try:
+            _persist_order_retry(
+                order_id, channel, 'failed', actor, attempted_at, error=provider_error,
+            )
+        except Exception:
+            logger.exception('Failed to persist failed order notification retry')
+        return _response(502, {
+            'error': 'Notification provider retry failed',
+            'orderId': order_id,
+            'channel': channel,
+            'requestId': request_id,
+        })
+
+    try:
+        _persist_order_retry(
+            order_id,
+            channel,
+            'sent',
+            actor,
+            attempted_at,
+            provider_message_id=str(provider_id or ''),
+        )
+    except Exception:
+        logger.exception('Provider send succeeded but retry status persistence failed')
+        return _response(502, {
+            'error': 'Message was sent but delivery status could not be persisted; do not retry yet',
+            'messageSent': True,
+            'orderId': order_id,
+            'channel': channel,
+            'providerMessageId': provider_id,
+            'requestId': request_id,
+        })
+
+    return _response(200, {
+        'success': True,
+        'orderId': order_id,
+        'channel': channel,
+        'providerMessageId': provider_id,
+        'requestId': request_id,
+    })
+
+
 def _extract_id(path: str, resource: str) -> Optional[str]:
     """Extract resource ID from path like /orders/abc123 or /orders/abc123/fulfillments."""
     parts = path.rstrip('/').split('/')
@@ -1505,7 +1697,7 @@ def _velo_request(endpoint: str, params: dict = None, method: str = 'GET',
         'Accept': 'application/json',
     }
     if WIX_VELO_API_KEY:
-        headers['X-Api-Key'] = WIX_VELO_API_KEY
+        headers['x-api-key'] = WIX_VELO_API_KEY
 
     data = json.dumps(body).encode('utf-8') if body and method == 'POST' else None
     req = urllib.request.Request(url, data=data, headers=headers, method=method)

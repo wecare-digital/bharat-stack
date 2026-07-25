@@ -8,8 +8,8 @@ import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
-import { WHATSAPP_PHONES, WHATSAPP_CALLING_VERIFY_TOKEN } from '../../../config/constants';
-import { SecretField, RawJsonDrawer, LastSyncIndicator, StatusBadge, useConfirmDanger } from '../../../components/wa';
+import { WHATSAPP_PHONES } from '../../../config/constants';
+import { RawJsonDrawer, LastSyncIndicator, StatusBadge, useConfirmDanger } from '../../../components/wa';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -37,18 +37,17 @@ const WEBHOOK_FIELDS = [
 ];
 
 const EXISTING_WEBHOOKS = [
-  { name: 'Inbound Messages', url: 'https://api.wecare.digital/whatsapp-inbound', fields: [ 'messages' ], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verifyToken: 'N/A (Direct API webhook)' },
-  { name: 'WhatsApp Unified (Calls + Messages)', url: 'https://api.wecare.digital/whatsapp', fields: [ 'messages', 'calls' ], lambda: 'wecare-whatsapp-calling', status: 'active', verifyToken: WHATSAPP_CALLING_VERIFY_TOKEN || '(set via env)' },
-  { name: 'Voice CDR Webhook', url: 'https://api.wecare.digital/voice-cdr-webhook', fields: [ 'CDR', 'ALL' ], lambda: 'wecare-voice-cdr-webhook', status: 'active', verifyToken: 'N/A' },
-  { name: 'Voice C2C', url: 'https://api.wecare.digital/voice-in/c2c', fields: [ 'CDR' ], lambda: 'wecare-voice-in-c2c', status: 'active', verifyToken: 'N/A (HMAC-SHA256)' },
-  { name: 'Voice OBD', url: 'https://api.wecare.digital/voice-in/obd', fields: [ 'CDR' ], lambda: 'wecare-voice-in-obd', status: 'active', verifyToken: 'N/A' },
-  { name: 'SMS Airtel', url: 'https://api.wecare.digital/sms-in/airtel', fields: [ 'SMS' ], lambda: 'wecare-sms-in-airtel', status: 'active', verifyToken: 'N/A (Basic Auth)' },
-  { name: 'Wix Store', url: 'https://api.wecare.digital/wix-store/*', fields: [ 'orders', 'products', 'inventory', 'collections' ], lambda: 'wecare-wix-store', status: 'active', verifyToken: 'N/A (API Key)' },
+  { name: 'Inbound Messages', url: 'https://api.wecare.digital/whatsapp-inbound', fields: [ 'messages' ], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verification: 'Server-side' },
+  { name: 'WhatsApp Unified (Calls + Messages)', url: 'https://api.wecare.digital/whatsapp', fields: [ 'messages', 'calls' ], lambda: 'wecare-whatsapp-calling', status: 'active', verification: 'Server-side' },
+  { name: 'Voice CDR Webhook', url: 'https://api.wecare.digital/voice-cdr-webhook', fields: [ 'CDR', 'ALL' ], lambda: 'wecare-voice-cdr-webhook', status: 'active', verification: 'Server-side' },
+  { name: 'Voice C2C', url: 'https://api.wecare.digital/voice-in/c2c', fields: [ 'CDR' ], lambda: 'wecare-voice-in-c2c', status: 'active', verification: 'Server-side' },
+  { name: 'Voice OBD', url: 'https://api.wecare.digital/voice-in/obd', fields: [ 'CDR' ], lambda: 'wecare-voice-in-obd', status: 'active', verification: 'Server-side' },
+  { name: 'SMS Airtel', url: 'https://api.wecare.digital/sms-in/airtel', fields: [ 'SMS' ], lambda: 'wecare-sms-in-airtel', status: 'active', verification: 'Server-side' },
+  { name: 'Wix Store', url: 'https://api.wecare.digital/wix-store/*', fields: [ 'orders', 'products', 'inventory', 'collections' ], lambda: 'wecare-wix-store', status: 'active', verification: 'Server-side' },
 ];
 
 const META_WEBHOOK_CONFIG = {
   callbackUrl: 'https://api.wecare.digital/whatsapp',
-  verifyToken: WHATSAPP_CALLING_VERIFY_TOKEN,
   waba1: { appId: '2238810740192680', appName: 'WECARE.DIGITAL', business: 'Wecare.Digital' },
   waba2: { appId: '1224334845952721', appName: 'Manish Agarwal', business: 'Manish Agarwal' },
   tokenType: 'System User Token',
@@ -113,7 +112,7 @@ const WebhooksPage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
           <h3 style={ { fontSize: 16, marginBottom: 12, color: '#0369a1' } }>Meta App Webhook Configuration</h3>
           <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 } }>
             <div><span style={ { color: '#666', fontWeight: 500 } }>Callback URL:</span><br /><code style={ { fontSize: 12, background: '#e0f2fe', padding: '2px 6px', borderRadius: 4 } }>{ META_WEBHOOK_CONFIG.callbackUrl }</code></div>
-            <div><span style={ { color: '#666', fontWeight: 500 } }>Verify Token:</span><br /><SecretField value={ META_WEBHOOK_CONFIG.verifyToken } allowReveal /></div>
+            <div><span style={ { color: '#666', fontWeight: 500 } }>Verify Token:</span><br /><span>Configured server-side</span></div>
             <div><span style={ { color: '#666', fontWeight: 500 } }>WABA1 App:</span> { META_WEBHOOK_CONFIG.waba1.appId } ({ META_WEBHOOK_CONFIG.waba1.appName })</div>
             <div><span style={ { color: '#666', fontWeight: 500 } }>WABA2 App:</span> { META_WEBHOOK_CONFIG.waba2.appId } ({ META_WEBHOOK_CONFIG.waba2.appName })</div>
           </div>
@@ -133,7 +132,7 @@ const WebhooksPage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
                   <span style={ { padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, color: '#fff', background: '#1a3a2a' } }>{ wh.status }</span>
                 </div>
                 <div style={ { fontSize: 12, color: '#666', marginTop: 4 } }>URL: { wh.url }</div>
-                <div style={ { fontSize: 12, color: '#666' } }>Lambda: { wh.lambda } | Verify Token: { wh.verifyToken }</div>
+                <div style={ { fontSize: 12, color: '#666' } }>Lambda: { wh.lambda } | Verification: { wh.verification }</div>
                 <div style={ { fontSize: 12, color: '#666' } }>Fields: { wh.fields.join( ', ' ) }</div>
               </div>
             ) ) }

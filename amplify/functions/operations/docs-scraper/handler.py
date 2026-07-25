@@ -30,6 +30,9 @@ from typing import Any, Dict, List
 
 import boto3
 
+from lambda_utils.middleware import require_auth
+from lambda_utils.response import cors_headers, options_response, extract_origin
+
 BUCKET = os.environ.get('DOCS_BUCKET', 'app.wecare.digital')
 PREFIX = os.environ.get('DOCS_PREFIX', 'stream/docs')
 SOURCES_KEY = f'{PREFIX}/_sources.json'
@@ -223,12 +226,22 @@ def _changelog(event) -> Dict[str, Any]:
 
 
 def lambda_handler(event, context):
+    event = event or {}
+    origin = extract_origin(event) if isinstance(event, dict) else ''
+    method = (event.get('requestContext', {}).get('http', {}).get('method', '')
+              if isinstance(event, dict) else '')
+    if method == 'OPTIONS':
+        return options_response(origin)
     # Support both direct invoke and API Gateway proxy (body may be a JSON string).
     if isinstance(event, str):
         try:
             event = json.loads(event)
         except Exception:
             event = {}
+    auth_result = require_auth(event, required_role='Admin')
+    if auth_result is not None:
+        return auth_result
+
     route = (event or {}).get('routeKey', '')  # API GW v2, e.g. "GET /docs/sources"
     qs = (event or {}).get('queryStringParameters') or {}
     if isinstance(event.get('body'), str):
@@ -250,9 +263,12 @@ def lambda_handler(event, context):
     if qs.get('source') and 'source' not in event:
         event['source'] = qs['source']
     if action == 'add_source':
-        return _add_source(event)
-    if action == 'list_sources':
-        return _list_sources(event)
-    if action == 'changelog':
-        return _changelog(event)
-    return _scrape(event or {})
+        result = _add_source(event)
+    elif action == 'list_sources':
+        result = _list_sources(event)
+    elif action == 'changelog':
+        result = _changelog(event)
+    else:
+        result = _scrape(event or {})
+    result['headers'] = cors_headers(origin)
+    return result

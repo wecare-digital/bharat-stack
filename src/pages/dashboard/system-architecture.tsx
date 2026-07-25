@@ -219,7 +219,7 @@ const AWS_RESOURCES: AWSResource[] = [
 interface RiskItem { id: string; title: string; description: string; priority: 'Critical' | 'Important' | 'Nice to have'; category: string; }
 const RISKS: RiskItem[] = [
   // ── CRITICAL (13) — 7 FIXED ──
-  { id: 'R1', title: 'Payment unlock password exposed in client bundle', description: 'NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD is still shipped to every browser via the NEXT_PUBLIC_ prefix. Server-side /api/auth/verify-admin route created but requires removing output:export from next.config.js to activate.', priority: 'Critical', category: 'Security' },
+  { id: 'R1', title: '✅ FIXED — Browser payment password removed', description: 'Payment UI now verifies the signed-in Cognito Admin role through the live auth API; owning payment mutations require server-side authorization.', priority: 'Critical', category: 'Security' },
   { id: 'R2', title: '✅ FIXED — PayU credentials removed from source', description: 'Removed hardcoded PAYU_CLIENT_ID, PAYU_CLIENT_SECRET, PAYU_MERCHANT_KEY, PAYU_MERCHANT_SALT from payu-webhook/resource.ts and handler.py. All now require env vars. STILL NEEDED: Rotate credentials since they were in git history.', priority: 'Critical', category: 'Security' },
   { id: 'R3', title: '✅ FIXED — Airtel API key removed from comments', description: 'Removed literal Airtel HMAC signing key and app ID from c2c/handler.py comments. Now references Secrets Manager. STILL NEEDED: Rotate the key since it was in git history.', priority: 'Critical', category: 'Security' },
   { id: 'R3b', title: '✅ FIXED — PayU merchant key/salt removed', description: 'Removed PAYU_MERCHANT_KEY and PAYU_MERCHANT_SALT hardcoded defaults from payu-webhook/resource.ts. STILL NEEDED: Rotate credentials.', priority: 'Critical', category: 'Security' },
@@ -244,14 +244,14 @@ const RISKS: RiskItem[] = [
   { id: 'R20', title: '✅ FIXED — dangerouslySetInnerHTML removed from PageShell', description: 'Replaced dangerouslySetInnerHTML with safe React text rendering in PageShell.tsx. XSS vector eliminated.', priority: 'Important', category: 'Security' },
   { id: 'R21', title: '✅ FIXED — PayU MID removed from all files', description: 'Removed hardcoded PayU MID "8629516" from handler.py, resource.ts, dashboard/index.tsx, whatsapp-business-api/handler.py, outbound-whatsapp/handler.py. All now use env vars.', priority: 'Important', category: 'Configuration' },
   { id: 'R22', title: '✅ FIXED — Hardcoded GSTIN removed from constants.ts', description: 'Removed DEFAULT_GSTIN "19AADFW7431N1ZK" fallback. Now defaults to empty string if env var missing.', priority: 'Important', category: 'Security' },
-  { id: 'R23', title: 'WhatsApp calling verify token empty', description: 'WHATSAPP_CALLING_VERIFY_TOKEN defaults to empty string in constants.ts. If the env var is missing, webhook verification is effectively disabled.', priority: 'Important', category: 'Security' },
+  { id: 'R23', title: '✅ FIXED — Calling verification token server-side only', description: 'The browser export and all reveal/copy controls were removed. Meta verification remains in the calling Lambda.', priority: 'Important', category: 'Security' },
   { id: 'R24', title: 'Secrets Manager references not validated at startup', description: 'Lambda functions reference 5 Secrets Manager entries (meta-system-user-token, flow-private-key, airtel/c2c, airtel/sms, airtel/obd) but there is no startup validation. If a secret is missing, the function fails at runtime.', priority: 'Important', category: 'Backend' },
   { id: 'R25', title: 'react-router-dom potentially unused', description: 'react-router-dom ^7.13.0 is installed but Next.js has built-in routing. This adds ~45KB to the bundle. Verify if it is actually used or can be removed.', priority: 'Important', category: 'Dependencies' },
   { id: 'R26', title: '@capacitor/cli in production dependencies', description: '@capacitor/cli is a build tool that should be in devDependencies, not dependencies. It adds unnecessary weight to production installs.', priority: 'Important', category: 'Dependencies' },
   { id: 'R27', title: 'No input validation on frontend forms', description: 'Contact forms, payment forms, and GSTIN inputs have maxLength but no regex validation. Invalid data can reach the backend.', priority: 'Important', category: 'Frontend' },
   { id: 'R28', title: 'Cognito OAuth domain uses custom domain without fallback', description: 'NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN=signin.wecare.digital. If DNS or certificate expires, all authentication breaks with no fallback to the default Cognito domain.', priority: 'Important', category: 'Auth' },
   { id: 'R29', title: 'GA and FB tracking IDs empty', description: 'NEXT_PUBLIC_GA_MEASUREMENT_ID and NEXT_PUBLIC_FB_APP_ID are empty. Analytics scripts still load (googletagmanager, connect.facebook.net) but send no data — wasted bandwidth and privacy concern.', priority: 'Important', category: 'Configuration' },
-  { id: 'R30', title: 'Password comparison in client-side JavaScript', description: 'lambda-functions.tsx compares unlockPassword against process.env.NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD directly in the browser. This is security theater — the password is in the JS bundle.', priority: 'Important', category: 'Security' },
+  { id: 'R30', title: '✅ FIXED — Client password comparison removed', description: 'Edit and payment gates use Cognito Admin verification; no shared unlock password is evaluated in browser code.', priority: 'Important', category: 'Security' },
 
   // ── NICE TO HAVE (8) ──
   { id: 'R31', title: 'Single region deployment (us-east-1)', description: 'All resources in us-east-1 (Virginia). For an India-focused service, ap-south-1 (Mumbai) would provide 50-100ms lower latency for all API calls.', priority: 'Nice to have', category: 'Infrastructure' },
@@ -267,7 +267,7 @@ const RISKS: RiskItem[] = [
 const IMPROVEMENTS: RiskItem[] = [
   // ── CRITICAL (5) ──
   { id: 'I1', title: '✅ DONE — Removed all hardcoded secrets from source', description: 'Removed PayU client ID/secret/key/salt from payu-webhook. Removed Razorpay MID/UPI and PayU MID/UPI from whatsapp-business-api and outbound-whatsapp. Removed Airtel API key from c2c comments. Removed Wix Account ID fallback. Removed Razorpay live API key from dashboard UI. Removed all credential displays from dashboard/index.tsx. STILL NEEDED: Rotate all leaked credentials and audit git history.', priority: 'Critical', category: 'Security' },
-  { id: 'I2', title: '✅ DONE — Redacted all credentials from dashboard UI', description: 'Removed Razorpay live API key (rzp_live_SM1ozNck4LJ3VN), key secret partial, PayU API key/salt/client ID/secret, PayU MID, and Wix Account ID from dashboard/index.tsx. All now show masked placeholders referencing env vars or Secrets Manager.', priority: 'Critical', category: 'Security' },
+  { id: 'I2', title: '✅ DONE — Redacted all credentials from dashboard UI', description: 'Removed Razorpay live API key (server-side Razorpay key), key secret partial, PayU API key/salt/client ID/secret, PayU MID, and Wix Account ID from dashboard/index.tsx. All now show masked placeholders referencing env vars or Secrets Manager.', priority: 'Critical', category: 'Security' },
   { id: 'I3', title: 'Add staging environment', description: 'Create a separate staging stack with isolated DynamoDB tables (stack-staging-*), S3 prefix (staging/), and Lambda aliases. Use Amplify branch-based environments or a separate AWS account.', priority: 'Critical', category: 'Infrastructure' },
   { id: 'I4', title: 'Fix Amplify build pipeline', description: 'Build logs 85-88 all fail with "Artifacts base directory not found." Fix the buildSpec to point to the correct output directory (out/ for static export). This is blocking all automated deployments.', priority: 'Critical', category: 'DevOps' },
   { id: 'I5', title: 'Implement CI/CD pipeline', description: 'Set up GitHub Actions with: lint → type-check → test → build → deploy-staging → smoke-test → deploy-production. Add branch protection rules requiring passing checks before merge.', priority: 'Critical', category: 'DevOps' },
@@ -346,7 +346,7 @@ const STORAGE_PATHS: StoragePath[] = [
 ];
 
 // ─── Data: Environment Config ───
-interface EnvVar { key: string; value: string; realValue?: string; sensitive: boolean; category: string; risk?: string; }
+interface EnvVar { key: string; value: string; sensitive: boolean; category: string; risk?: string; }
 const ENV_VARS: EnvVar[] = [
   // Auth
   { key: 'NEXT_PUBLIC_COGNITO_USER_POOL_ID', value: 'us-east-1_cSx0RHCIR', sensitive: false, category: 'Auth' },
@@ -359,11 +359,11 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_SEND_MODE', value: 'LIVE', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_ENV', value: 'production', sensitive: false, category: 'App' },
   // ⚠️ SECRETS EXPOSED IN CLIENT BUNDLE
-  { key: 'NEXT_PUBLIC_INTERNAL_AGENT_URL', value: '(Lambda Function URL — bypasses WAF)', realValue: 'https://xijlt2fidotq7zbn3s5xlyzup40dxbcm.lambda-url.us-east-1.on.aws', sensitive: true, category: 'AI', risk: 'Direct Lambda URL exposed in browser, bypasses API Gateway WAF' },
-  { key: 'NEXT_PUBLIC_AWS_ACCOUNT_ID', value: '775261844268', realValue: '775261844268', sensitive: true, category: 'AWS', risk: 'AWS Account ID exposed in client bundle' },
+  { key: 'NEXT_PUBLIC_INTERNAL_AGENT_URL', value: '(Lambda Function URL — bypasses WAF)', sensitive: true, category: 'AI', risk: 'Direct Lambda URL exposed in browser, bypasses API Gateway WAF' },
+  { key: 'NEXT_PUBLIC_AWS_ACCOUNT_ID', value: '775261844268', sensitive: true, category: 'AWS', risk: 'AWS Account ID exposed in client bundle' },
   { key: 'NEXT_PUBLIC_AWS_REGION', value: 'us-east-1', sensitive: false, category: 'AWS' },
-  { key: 'NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD', value: '(plaintext password in JS bundle)', realValue: 'WeCare@Pay2025', sensitive: true, category: 'Payment', risk: 'CRITICAL: Password shipped to every browser' },
-  { key: 'NEXT_PUBLIC_DEFAULT_GSTIN', value: '(real business tax ID in code)', realValue: '19AADFW7431N1ZK', sensitive: true, category: 'Payment', risk: 'Real GSTIN hardcoded as fallback in constants.ts' },
+  { key: 'NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD', value: '(plaintext password in JS bundle)', sensitive: true, category: 'Payment', risk: 'CRITICAL: Password shipped to every browser' },
+  { key: 'NEXT_PUBLIC_DEFAULT_GSTIN', value: '(real business tax ID in code)', sensitive: true, category: 'Payment', risk: 'Real GSTIN hardcoded as fallback in constants.ts' },
   // Payment
   { key: 'NEXT_PUBLIC_PAYMENT_PHONE_ID', value: 'phone-number-id-waba-t-direct-1055232054343117', sensitive: false, category: 'Payment' },
   { key: 'NEXT_PUBLIC_PAYMENT_PHONE_DISPLAY', value: '+91 93309 94400', sensitive: false, category: 'Payment' },
@@ -372,23 +372,23 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_GA_MEASUREMENT_ID', value: 'G-S3G6REP6Q7', sensitive: false, category: 'Analytics' },
   { key: 'NEXT_PUBLIC_FB_APP_ID', value: '(empty — SDK still loads)', sensitive: false, category: 'Analytics', risk: 'FB SDK loads but sends no data' },
   // ⚠️ SECRETS IN SOURCE CODE (not env vars — hardcoded)
-  { key: 'PAYU_CLIENT_ID (hardcoded)', value: '(64-char hex in payu-webhook source)', realValue: 'c066d621f07afd57e1797306a33acd5f51d19400adb0741449784dc36c634d75', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU client ID committed to git' },
-  { key: 'PAYU_CLIENT_SECRET (hardcoded)', value: '(64-char hex in payu-webhook source)', realValue: '9b5c14bd86f0d8deabad339837e43ebce4cb039a26897d142ba0b1f91c38287f', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU client secret committed to git' },
-  { key: 'PAYU_MERCHANT_KEY (hardcoded)', value: '(in payu-webhook resource.ts)', realValue: 'Ghgoh6', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU merchant key committed to git' },
-  { key: 'PAYU_MERCHANT_SALT (hardcoded)', value: '(in payu-webhook resource.ts)', realValue: 'LtQP3Bo4sXMqJgZFz4cK9DpB8fMt3vzl', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU merchant salt committed to git' },
-  { key: 'PAYU_MID (hardcoded)', value: '8629516 (in 5+ files)', realValue: '8629516', sensitive: true, category: 'Payments — Hardcoded', risk: 'PayU Merchant ID duplicated across files' },
-  { key: 'Razorpay MID (hardcoded)', value: 'acc_HDfub6wOfQybuH', realValue: 'acc_HDfub6wOfQybuH', sensitive: true, category: 'Payments — Hardcoded', risk: 'Razorpay account ID in whatsapp-business-api handler' },
-  { key: 'Razorpay UPI VPA (hardcoded)', value: 'wecaredigital83.rzp@icici', realValue: 'wecaredigital83.rzp@icici', sensitive: true, category: 'Payments — Hardcoded', risk: 'UPI VPA in source code' },
-  { key: 'PayU UPI VPA (hardcoded)', value: '(in whatsapp-business-api handler)', realValue: 'wecareqr.payu@indus', sensitive: true, category: 'Payments — Hardcoded', risk: 'PayU UPI VPA in source code' },
-  { key: 'Airtel API Key (in comment)', value: '(visible in c2c/handler.py comment)', realValue: 'u^5KLtH@11', sensitive: true, category: 'Voice — Hardcoded', risk: 'CRITICAL: Airtel HMAC key in code comment' },
-  { key: 'Airtel App ID (hardcoded)', value: '(in c2c handler + data schema)', realValue: 'WECAREDIG_fD4BKqUbC8k90jNrPR0n', sensitive: true, category: 'Voice — Hardcoded', risk: 'Airtel App ID in multiple files' },
-  { key: 'WIX_ACCOUNT_ID (hardcoded)', value: '6b2d7a93-ef14-... (fallback default)', realValue: '6b2d7a93-ef14-45ab-a04e-d445f599e9f4', sensitive: true, category: 'Ecommerce — Hardcoded', risk: 'Wix Account ID as fallback in 2 files' },
+  { key: 'PAYU_CLIENT_ID (hardcoded)', value: '(64-char hex in payu-webhook source)', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU client ID committed to git' },
+  { key: 'PAYU_CLIENT_SECRET (hardcoded)', value: '(64-char hex in payu-webhook source)', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU client secret committed to git' },
+  { key: 'PAYU_MERCHANT_KEY (hardcoded)', value: '(in payu-webhook resource.ts)', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU merchant key committed to git' },
+  { key: 'PAYU_MERCHANT_SALT (hardcoded)', value: '(in payu-webhook resource.ts)', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU merchant salt committed to git' },
+  { key: 'PAYU_MID (hardcoded)', value: '8629516 (in 5+ files)', sensitive: true, category: 'Payments — Hardcoded', risk: 'PayU Merchant ID duplicated across files' },
+  { key: 'Razorpay MID (hardcoded)', value: 'acc_HDfub6wOfQybuH', sensitive: true, category: 'Payments — Hardcoded', risk: 'Razorpay account ID in whatsapp-business-api handler' },
+  { key: 'Razorpay UPI VPA (hardcoded)', value: 'wecaredigital83.rzp@icici', sensitive: true, category: 'Payments — Hardcoded', risk: 'UPI VPA in source code' },
+  { key: 'PayU UPI VPA (hardcoded)', value: '(in whatsapp-business-api handler)', sensitive: true, category: 'Payments — Hardcoded', risk: 'PayU UPI VPA in source code' },
+  { key: 'Airtel API Key (in comment)', value: '(visible in c2c/handler.py comment)', sensitive: true, category: 'Voice — Hardcoded', risk: 'CRITICAL: Airtel HMAC key in code comment' },
+  { key: 'Airtel App ID (hardcoded)', value: '(in c2c handler + data schema)', sensitive: true, category: 'Voice — Hardcoded', risk: 'Airtel App ID in multiple files' },
+  { key: 'WIX_ACCOUNT_ID (hardcoded)', value: '6b2d7a93-ef14-... (fallback default)', sensitive: true, category: 'Ecommerce — Hardcoded', risk: 'Wix Account ID as fallback in 2 files' },
   // Secrets Manager entries (server-side, properly stored)
-  { key: 'wecare/meta-system-user-token', value: '(Secrets Manager — 7 keys)', realValue: 'Keys: access_token, access_token_waba2, app_secret, app_secret_waba2, client_token, waba_t_id, waba_t_phone_meta_id', sensitive: true, category: 'Secrets Manager ✓' },
-  { key: 'wecare/flow-private-key', value: '(Secrets Manager — 1 key)', realValue: 'Keys: private_key', sensitive: true, category: 'Secrets Manager ✓' },
-  { key: 'wecare/airtel/c2c', value: '(Secrets Manager — 2 keys)', realValue: 'Keys: api_key, app_id', sensitive: true, category: 'Secrets Manager ✓' },
-  { key: 'wecare/airtel/sms', value: '(Secrets Manager — 3 keys)', realValue: 'Keys: username, password, customer_id', sensitive: true, category: 'Secrets Manager ✓' },
-  { key: 'wecare/airtel/obd', value: '(Secrets Manager — 1 key)', realValue: 'Keys: api_key', sensitive: true, category: 'Secrets Manager ✓' },
+  { key: 'wecare/meta-system-user-token', value: '(Secrets Manager — 7 keys)', sensitive: true, category: 'Secrets Manager ✓' },
+  { key: 'wecare/flow-private-key', value: '(Secrets Manager — 1 key)', sensitive: true, category: 'Secrets Manager ✓' },
+  { key: 'wecare/airtel/c2c', value: '(Secrets Manager — 2 keys)', sensitive: true, category: 'Secrets Manager ✓' },
+  { key: 'wecare/airtel/sms', value: '(Secrets Manager — 3 keys)', sensitive: true, category: 'Secrets Manager ✓' },
+  { key: 'wecare/airtel/obd', value: '(Secrets Manager — 1 key)', sensitive: true, category: 'Secrets Manager ✓' },
 ];
 
 // ─── Data: Frontend Routes ───
@@ -667,38 +667,11 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
   const [ lambdaFilter, setLambdaFilter ] = useState( 'All' );
   const [ riskFilter, setRiskFilter ] = useState( 'All' );
   const [ expandedItems, setExpandedItems ] = useState<Set<string>>( new Set() );
-  const [ revealedKeys, setRevealedKeys ] = useState<Set<string>>( new Set() );
   const [ lambdaDetailFilter, setLambdaDetailFilter ] = useState( 'All' );
   const [ lambdaDetailSearch, setLambdaDetailSearch ] = useState( '' );
   const [ codeRepoSearch, setCodeRepoSearch ] = useState( '' );
   const [ codeRepoCategory, setCodeRepoCategory ] = useState( 'All' );
   const [ expandedAsset, setExpandedAsset ] = useState<string | null>( null );
-  const [ envUnlocked, setEnvUnlocked ] = useState( false );
-  const [ envPassword, setEnvPassword ] = useState( '' );
-  const [ showEnvUnlock, setShowEnvUnlock ] = useState( false );
-  const [ envUnlockError, setEnvUnlockError ] = useState( '' );
-
-  const toggleReveal = useCallback( ( key: string ) => {
-    if ( !envUnlocked ) { setShowEnvUnlock( true ); return; }
-    setRevealedKeys( prev => {
-      const next = new Set( prev );
-      next.has( key ) ? next.delete( key ) : next.add( key );
-      return next;
-    } );
-  }, [ envUnlocked ] );
-
-  const handleEnvUnlock = useCallback( () => {
-    if ( envPassword === ( process.env.NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD || 'admin' ) )
-    {
-      setEnvUnlocked( true );
-      setShowEnvUnlock( false );
-      setEnvPassword( '' );
-      setEnvUnlockError( '' );
-    } else
-    {
-      setEnvUnlockError( 'Incorrect password' );
-    }
-  }, [ envPassword ] );
 
   const toggleExpand = useCallback( ( id: string ) => {
     setExpandedItems( prev => {
@@ -1399,30 +1372,6 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
   // ─── Environment Settings ───
   const renderEnv = () => (
     <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
-      {/* Unlock Modal */ }
-      { showEnvUnlock && (
-        <div role="dialog" aria-modal="true" aria-label="Unlock Secrets" style={ { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 } } onClick={ () => { setShowEnvUnlock( false ); setEnvUnlockError( '' ); } }>
-          <div style={ { background: '#fff', borderRadius: 14, padding: 24, width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.15)' } } onClick={ e => e.stopPropagation() }>
-            <h3 style={ { margin: '0 0 8px', fontSize: 16, fontWeight: 700, color: C.textDark } }>🔐 Unlock Secret Values</h3>
-            <p style={ { fontSize: 13, color: C.textMuted, margin: '0 0 16px' } }>Enter admin password to reveal masked values. Values are only shown in your current session.</p>
-            <input
-              type="password"
-              value={ envPassword }
-              onChange={ e => { setEnvPassword( e.target.value ); setEnvUnlockError( '' ); } }
-              onKeyDown={ e => e.key === 'Enter' && handleEnvUnlock() }
-              placeholder="Admin password"
-              aria-label="Admin password"
-              style={ { width: '100%', padding: '10px 14px', border: `2px solid ${envUnlockError ? C.red : C.border}`, borderRadius: C.radius, fontSize: 14, outline: 'none', marginBottom: 8, boxSizing: 'border-box' } }
-              autoFocus
-            />
-            { envUnlockError && <p style={ { fontSize: 12, color: C.red, margin: '0 0 8px' } }>{ envUnlockError }</p> }
-            <div style={ { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 } }>
-              <button onClick={ () => { setShowEnvUnlock( false ); setEnvUnlockError( '' ); } } style={ { padding: '8px 16px', background: '#fff', border: `2px solid ${C.border}`, borderRadius: C.radius, fontSize: 13, cursor: 'pointer' } }>Cancel</button>
-              <button onClick={ handleEnvUnlock } style={ { padding: '8px 20px', background: C.lime, color: C.textDark, border: 'none', borderRadius: C.radius, fontSize: 13, fontWeight: 600, cursor: 'pointer' } }>Unlock</button>
-            </div>
-          </div>
-        </div>
-      ) }
 
       <div style={ card() }>
         <h3 style={ sectionTitle }>Environment Configuration</h3>
@@ -1431,17 +1380,9 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           <span style={ pill( C.redBg, C.red ) }>No staging detected</span>
           <span style={ pill( C.redBg, C.red ) }>No dev detected</span>
           <span style={ pill( C.redBg, C.red ) }>{ ENV_VARS.filter( e => e.risk ).length } issues found</span>
-          { envUnlocked ? (
-            <button onClick={ () => { setEnvUnlocked( false ); setRevealedKeys( new Set() ); } } style={ { ...pill( C.greenBg, C.green ), border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 } }>
-              <EyeIcon open={ true } /> Secrets unlocked — click to lock
-            </button>
-          ) : (
-            <button onClick={ () => setShowEnvUnlock( true ) } style={ { ...pill( '#f9fafb', C.textMuted ), border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 } }>
-              <EyeIcon open={ false } /> Secrets locked
-            </button>
-          ) }
+          <span style={ pill( '#f9fafb', C.textMuted ) }>Values permanently redacted</span>
         </div>
-        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Includes .env.local variables, hardcoded secrets found in source code, and Secrets Manager entries. Click the 👁 eye icon on any sensitive row to reveal/hide its real value.</p>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Inventory contains variable names and risk metadata only. Secret values are never embedded in or revealed by the browser.</p>
       </div>
       <div style={ { overflowX: 'auto' } }>
         <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>
@@ -1454,26 +1395,12 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           </thead>
           <tbody>
             { ENV_VARS.map( e => {
-              const isRevealed = revealedKeys.has( e.key );
-              const displayValue = e.sensitive
-                ? ( isRevealed && e.realValue ? e.realValue : '••••••••' )
-                : e.value;
+              const displayValue = e.sensitive ? 'Server-side / redacted' : e.value;
               return (
                 <tr key={ e.key } style={ { borderBottom: `1px solid ${C.border}`, background: e.risk?.startsWith( 'CRITICAL' ) ? '#fef2f2' : 'transparent' } }>
                   <td style={ { padding: '10px 12px', fontWeight: 600, color: C.textDark, ...mono, fontSize: 12 } }>{ e.key }</td>
-                  <td style={ { padding: '10px 12px', ...mono, color: e.sensitive ? ( isRevealed ? C.red : C.amber ) : C.textMuted, fontSize: 12, wordBreak: 'break-all', maxWidth: 340 } }>{ displayValue }</td>
-                  <td style={ { padding: '4px 6px', width: 36, textAlign: 'center' } }>
-                    { e.sensitive && e.realValue && (
-                      <button
-                        onClick={ () => toggleReveal( e.key ) }
-                        title={ isRevealed ? 'Hide value' : 'Reveal value' }
-                        aria-label={ isRevealed ? `Hide ${e.key}` : `Reveal ${e.key}` }
-                        style={ { background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: isRevealed ? C.red : C.textLight, display: 'inline-flex', alignItems: 'center' } }
-                      >
-                        <EyeIcon open={ isRevealed } />
-                      </button>
-                    ) }
-                  </td>
+                  <td style={ { padding: '10px 12px', ...mono, color: e.sensitive ? C.amber : C.textMuted, fontSize: 12, wordBreak: 'break-all', maxWidth: 340 } }>{ displayValue }</td>
+                  <td style={ { padding: '4px 6px', width: 36 } } />
                   <td style={ { padding: '10px 12px' } }><span style={ pill( e.category.includes( 'Hardcoded' ) ? C.redBg : e.category.includes( '✓' ) ? C.greenBg : '#f9fafb', e.category.includes( 'Hardcoded' ) ? C.red : e.category.includes( '✓' ) ? C.green : C.textMuted ) }>{ e.category }</span></td>
                   <td style={ { padding: '10px 12px' } }>{ e.sensitive ? <span style={ pill( C.amberBg, C.amber ) }>Sensitive</span> : <span style={ { color: C.textLight } }>—</span> }</td>
                   <td style={ { padding: '10px 12px', fontSize: 12, color: e.risk?.startsWith( 'CRITICAL' ) ? C.red : C.amber, fontWeight: e.risk ? 600 : 400 } }>{ e.risk || <span style={ { color: C.textLight } }>—</span> }</td>

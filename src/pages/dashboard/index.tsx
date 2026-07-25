@@ -19,7 +19,7 @@ import {
   ContactsIcon, BulkIcon, SmsIcon, EmailIcon, RefreshIcon,
   DocumentIcon, HealthIcon, AdvisorIcon
 } from '../../lib/icons';
-import { AWS_ACCOUNT_ID, AWS_REGION, PAYMENT_CONFIG, API_BASE, WHATSAPP_CALLING_VERIFY_TOKEN } from '../../config/constants';
+import { AWS_ACCOUNT_ID, AWS_REGION, PAYMENT_CONFIG, API_BASE } from '../../config/constants';
 import { InternalAIConfig, WebhookConfig, DEFAULT_AI_CONFIG, TabType, PageProps } from '../../types/dashboard';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useToastContext } from '../../contexts/ToastContext';
@@ -2181,17 +2181,9 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Webhook URL</label>
                       <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' } }>https://api.wecare.digital/razorpay-webhook</code>
                     </div>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Webhook Secret</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>••••••••••••••• (stored in env)</code>
-                    </div>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Live API Key</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>rzp_live_•••••••••••••• (see Secrets Manager)</code>
-                    </div>
                     <div>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Live Key Secret</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>•••••••••••••••••••••• (see Secrets Manager)</code>
+                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Credentials</label>
+                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>Managed server-side; values are never exposed in the browser.</code>
                     </div>
                   </div>
 
@@ -2336,7 +2328,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                     </div>
                     <div>
                       <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>PayU Webhook</h3>
-                      <span className="badge" style={ { background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' } }>Active — MID: •••••• (see env)</span>
+                      <span className="badge" style={ { background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' } }>Active — credentials managed server-side</span>
                     </div>
                   </div>
 
@@ -2354,24 +2346,8 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                       <code style={ { fontSize: '0.85rem', color: '#111827' } }>SHA-512 reverse hash (SALT|status|...|key)</code>
                     </div>
                     <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Merchant Key / Salt</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>Stored in Lambda env (PAYU_MERCHANT_KEY, PAYU_MERCHANT_SALT)</code>
-                    </div>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>API Key</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>•••••• (stored in Lambda env PAYU_MERCHANT_KEY)</code>
-                    </div>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Salt</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>•••••••••••••••••••••• (stored in Lambda env PAYU_MERCHANT_SALT)</code>
-                    </div>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Client ID (Payment Links / Split Payment APIs)</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827', wordBreak: 'break-all' } }>•••••••••••••••••••••• (stored in Lambda env PAYU_CLIENT_ID)</code>
-                    </div>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Client Secret</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>•••••••••••••••••••••• (stored in Lambda env PAYU_CLIENT_SECRET)</code>
+                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Credential Status</label>
+                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>Managed server-side; values are never displayed in the browser</code>
                     </div>
                     <div>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Lambda Function</label>
@@ -3081,38 +3057,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                   <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' } }>
                     <h4 style={ { margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#0f2a1d' } }>Webhook Configuration</h4>
                     <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' } }>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Webhook URL</span><code style={ { color: '#111827' } }>https://api.wecare.digital/whatsapp/inbound</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Method</span><code style={ { color: '#111827' } }>POST</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Lambda</span><code style={ { color: '#111827' } }>wecare-inbound-whatsapp-handler</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Verify Token</span><code style={ { color: '#111827' } }>wecare_calling_verify_2026</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Subscribed Fields</span><code style={ { color: '#111827' } }>messages</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>WABA_+919330994400</span><code style={ { color: '#111827' } }>2094615664435155 (WECARE.DIGITAL, Direct API)</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>WABA_+919903300044</span><code style={ { color: '#111827' } }>2513394156072604 (Manish Agarwal, Direct API)</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Meta App</span><code style={ { color: '#111827' } }>2238810740192680 (WECARE.DIGITAL)</code></div>
-                    </div>
-                    <div style={ { fontSize: '0.75rem', color: '#0f2a1d', marginTop: '0.75rem', fontStyle: 'italic' } }>
-                      Webhook via Direct Meta Graph API — override_callback_uri on each WABA.
-                    </div>
-                  </div>
-                </div>
-
-                {/* WhatsApp Calling Webhook */ }
-                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #25D366' } }>
-                  <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
-                    <div style={ { width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' } }>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15.05 5A5 5 0 0119 8.95M15.05 1A9 9 0 0123 8.94m-1 7.98v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="#25D366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    </div>
-                    <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>WhatsApp Business Calling</h3>
-                      <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px' } }>Meta Graph API + WebRTC | Active</span>
-                    </div>
-                  </div>
-
-                  <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' } }>
-                    <h4 style={ { margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#0f2a1d' } }>Webhook Configuration (Meta App Dashboard)</h4>
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' } }>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Callback URL</span><code style={ { color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' } }>https://api.wecare.digital/whatsapp</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Verify Token</span><code style={ { color: '#111827', background: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', display: 'inline-block' } }>{ WHATSAPP_CALLING_VERIFY_TOKEN || '(not configured)' }</code></div>
+                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Verify Token</span><code style={ { color: '#111827' } }>Configured server-side</code></div>
                       <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Subscribed Fields</span><code style={ { color: '#111827' } }>messages, calls</code></div>
                       <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Lambda</span><code style={ { color: '#111827' } }>wecare-whatsapp-calling</code></div>
                       <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Meta App ID</span><code style={ { color: '#111827' } }>2238810740192680 (WECARE.DIGITAL)</code></div>
@@ -3164,10 +3109,6 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <button onClick={ () => { navigator.clipboard.writeText( 'https://api.wecare.digital/whatsapp' ); toast.success( 'Callback URL copied' ); } }
                       style={ { padding: '0.5rem 1rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 } }>
                       Copy Callback URL
-                    </button>
-                    <button onClick={ () => { navigator.clipboard.writeText( WHATSAPP_CALLING_VERIFY_TOKEN || '' ); toast.success( 'Verify token copied' ); } }
-                      style={ { padding: '0.5rem 1rem', background: '#0f2a1d', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 } }>
-                      Copy Verify Token
                     </button>
                     <a href="https://developers.facebook.com/apps/891766673609917/webhooks/" target="_blank" rel="noopener noreferrer"
                       style={ { padding: '0.5rem 1rem', background: '#1877F2', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none', display: 'inline-block' } }>

@@ -8,14 +8,16 @@ and sends push notifications via SNS.
 AWS Resources:
 - SNS Platform Application (FCM): for Android push via Firebase
 - SNS Platform Application (APNs): for iOS push via Apple
-- DynamoDB PushTokensTable: deviceToken (PK), userId (SK)
+- DynamoDB PushTokensTable: id (PK; SHA-256 of device token)
 """
 
 import json
 import os
 import boto3
-import time
+import logging
+import hashlib
 from datetime import datetime, timezone
+from lambda_utils.middleware import require_auth
 
 sns = boto3.client("sns")
 dynamodb = boto3.resource("dynamodb")
@@ -47,11 +49,21 @@ def handler(event, context):
         if method == "OPTIONS":
             return {"statusCode": 200, "headers": headers, "body": ""}
 
+        required_role = "Admin" if any(segment in path for segment in ("send", "devices")) else None
+        auth_result = require_auth(event, required_role=required_role)
+        if auth_result is not None:
+            return auth_result
+        if "register" in path and event.get("_auth"):
+            body["userId"] = event["_auth"]["username"]
+
         if "register" in path:
             if method == "POST":
                 return register_token(body, headers)
             elif method == "DELETE":
                 return unregister_token(body, headers)
+
+        if "devices" in path and method == "GET":
+            return list_devices(event.get("queryStringParameters") or {}, headers)
 
         if "send" in path and method == "POST":
             return send_push(body, headers)
@@ -71,10 +83,10 @@ def handler(event, context):
 
 
 def register_token(body, headers):
-    """Register a device push token with SNS and store mapping."""
-    device_token = body.get("deviceToken")
-    platform = body.get("platform", "android")  # 'android' or 'ios'
-    user_id = body.get("userId", "anonymous")
+    """Register a device push token with SNS and store its authenticated owner."""
+    device_token = str(body.get("deviceToken", "")).strip()
+    platform = str(body.get("platform", "android")).lower()
+    user_id = str(body.get("userId", "")).strip()
 
     if not device_token:
         return {
@@ -82,50 +94,53 @@ def register_token(body, headers):
             "headers": headers,
             "body": json.dumps({"error": "deviceToken required"}),
         }
+    if platform not in {"android", "ios"}:
+        return {
+            "statusCode": 400,
+            "headers": headers,
+            "body": json.dumps({"error": "platform must be android or ios"}),
+        }
 
-    # Choose SNS Platform Application ARN
     platform_arn = SNS_ANDROID_ARN if platform == "android" else SNS_IOS_ARN
     if not platform_arn:
         return {
-            "statusCode": 500,
+            "statusCode": 503,
             "headers": headers,
-            "body": json.dumps({"error": f"SNS Platform ARN not configured for {platform}"}),
+            "body": json.dumps({"error": f"Push delivery is not configured for {platform}"}),
         }
 
-    # Create SNS Platform Endpoint
     response = sns.create_platform_endpoint(
         PlatformApplicationArn=platform_arn,
         Token=device_token,
         CustomUserData=user_id,
     )
     endpoint_arn = response["EndpointArn"]
+    now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
-    # Store in DynamoDB
+    device_id = hashlib.sha256(device_token.encode("utf-8")).hexdigest()
     table.put_item(
         Item={
+            "id": device_id,
             "deviceToken": device_token,
             "userId": user_id,
             "platform": platform,
             "endpointArn": endpoint_arn,
-            "registeredAt": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
-            "updatedAt": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            "registeredAt": now,
+            "updatedAt": now,
         }
     )
 
     return {
         "statusCode": 200,
         "headers": headers,
-        "body": json.dumps({
-            "success": True,
-            "endpointArn": endpoint_arn,
-        }),
+        "body": json.dumps({"success": True}),
     }
 
 
 def unregister_token(body, headers):
-    """Remove device token from SNS and DynamoDB."""
-    device_token = body.get("deviceToken")
-    user_id = body.get("userId", "anonymous")
+    """Remove an authenticated user's device token from SNS and DynamoDB."""
+    device_token = str(body.get("deviceToken", "")).strip()
+    user_id = str(body.get("userId", "")).strip()
 
     if not device_token:
         return {
@@ -134,21 +149,59 @@ def unregister_token(body, headers):
             "body": json.dumps({"error": "deviceToken required"}),
         }
 
-    # Look up endpoint ARN
-    try:
-        item = table.get_item(Key={"deviceToken": device_token, "userId": user_id}).get("Item")
-        if item and item.get("endpointArn"):
+    device_id = hashlib.sha256(device_token.encode("utf-8")).hexdigest()
+    item = table.get_item(Key={"id": device_id}).get("Item")
+    if item and item.get("userId") != user_id:
+        return {
+            "statusCode": 403,
+            "headers": headers,
+            "body": json.dumps({"error": "Device token belongs to another user"}),
+        }
+
+    if item and item.get("endpointArn"):
+        try:
             sns.delete_endpoint(EndpointArn=item["endpointArn"])
-    except Exception as e:
-        logging.getLogger(__name__).warning(f"SNS endpoint cleanup failed for {device_token}: {e}")
+        except Exception as error:
+            logging.getLogger(__name__).warning("SNS endpoint cleanup failed: %s", error)
 
-    # Remove from DynamoDB
-    table.delete_item(Key={"deviceToken": device_token, "userId": user_id})
-
+    table.delete_item(Key={"id": device_id})
     return {
         "statusCode": 200,
         "headers": headers,
         "body": json.dumps({"success": True}),
+    }
+
+
+def list_devices(params, headers):
+    """List a bounded Admin view of registered devices without endpoint credentials."""
+    try:
+        limit = min(max(int(params.get("limit", 200)), 1), 500)
+    except (TypeError, ValueError):
+        limit = 200
+    scan_kwargs = {"Limit": limit}
+    platform = str(params.get("platform", "all")).lower()
+    if platform in {"android", "ios"}:
+        scan_kwargs.update({
+            "FilterExpression": "platform = :platform",
+            "ExpressionAttributeValues": {":platform": platform},
+        })
+    result = table.scan(**scan_kwargs)
+    devices = [{
+        "deviceId": item.get("id", ""),
+        "userId": item.get("userId", ""),
+        "platform": item.get("platform", ""),
+        "registeredAt": item.get("registeredAt", ""),
+        "updatedAt": item.get("updatedAt", ""),
+    } for item in result.get("Items", [])]
+    return {
+        "statusCode": 200,
+        "headers": headers,
+        "body": json.dumps({
+            "devices": devices,
+            "count": len(devices),
+            "truncated": "LastEvaluatedKey" in result,
+            "configured": {"android": bool(SNS_ANDROID_ARN), "ios": bool(SNS_IOS_ARN)},
+        }),
     }
 
 
@@ -163,23 +216,41 @@ def send_push(body, headers):
     endpoints = []
 
     if target_token:
-        # Send to specific device
-        item = table.get_item(Key={"deviceToken": target_token, "userId": target_user or "anonymous"}).get("Item")
-        if item:
+        device_id = hashlib.sha256(str(target_token).encode("utf-8")).hexdigest()
+        item = table.get_item(Key={"id": device_id}).get("Item")
+        if item and (not target_user or item.get("userId") == target_user):
             endpoints.append(item)
     elif target_user:
-        # Query userId-index GSI instead of full table scan
-        query_kwargs = {
-            "IndexName": "userId-index",
-            "KeyConditionExpression": "userId = :uid",
+        scan_kwargs = {
+            "FilterExpression": "userId = :uid",
             "ExpressionAttributeValues": {":uid": target_user},
         }
         while True:
-            result = table.query(**query_kwargs)
+            result = table.scan(**scan_kwargs)
             endpoints.extend(result.get("Items", []))
             if "LastEvaluatedKey" not in result:
                 break
-            query_kwargs["ExclusiveStartKey"] = result["LastEvaluatedKey"]
+            scan_kwargs["ExclusiveStartKey"] = result["LastEvaluatedKey"]
+    elif body.get("broadcast"):
+        scan_kwargs = {}
+        platform_filter = str(body.get("platform", "all")).lower()
+        if platform_filter in {"android", "ios"}:
+            scan_kwargs.update({
+                "FilterExpression": "platform = :platform",
+                "ExpressionAttributeValues": {":platform": platform_filter},
+            })
+        while True:
+            result = table.scan(**scan_kwargs)
+            endpoints.extend(result.get("Items", []))
+            if "LastEvaluatedKey" not in result:
+                break
+            scan_kwargs["ExclusiveStartKey"] = result["LastEvaluatedKey"]
+    else:
+        return {
+            "statusCode": 400,
+            "headers": headers,
+            "body": json.dumps({"error": "deviceToken, userId, or broadcast=true is required"}),
+        }
 
     if not endpoints:
         return {
@@ -191,11 +262,13 @@ def send_push(body, headers):
     sent = 0
     failed = 0
 
-    for ep in endpoints:
-        endpoint_arn = ep.get("endpointArn")
-        platform = ep.get("platform", "android")
+    for endpoint in endpoints:
+        endpoint_arn = endpoint.get("endpointArn")
+        platform = endpoint.get("platform", "android")
 
         try:
+            if not endpoint_arn:
+                raise ValueError("Stored device is missing an SNS endpoint")
             if platform == "ios":
                 # APNs payload
                 payload = json.dumps({
@@ -223,8 +296,8 @@ def send_push(body, headers):
                 MessageStructure="json",
             )
             sent += 1
-        except Exception as e:
-            print(f"Failed to send to {endpoint_arn}: {e}")
+        except Exception as error:
+            logging.getLogger(__name__).warning("Push delivery failed: %s", error)
             failed += 1
 
     return {

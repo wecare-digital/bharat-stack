@@ -19,7 +19,7 @@ import TemplateSender from '../../../components/TemplateSender';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
 import { colors, shadow } from '../../../lib/design-tokens';
-import { WHATSAPP_PHONES, PAYMENT_PHONES, DEFAULT_GSTIN, PAYMENT_CONFIG, PAYMENT_UNLOCK_PASSWORD, GST_RATES } from '../../../config/constants';
+import { WHATSAPP_PHONES, PAYMENT_PHONES, DEFAULT_GSTIN, PAYMENT_CONFIG, GST_RATES } from '../../../config/constants';
 import { searchEmojiCategories } from '../../../lib/emoji-data';
 import { inferMimeFromName, validateWaMediaSize, formatBytes } from '../../../lib/wa-media';
 import { waErrorTooltip } from '../../../lib/wa-errors';
@@ -161,8 +161,6 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const [ payGstin, setPayGstin ] = useState( DEFAULT_GSTIN );
     const [ payOrderId, setPayOrderId ] = useState( '' );
     const [ payUnlocked, setPayUnlocked ] = useState( false );
-    const [ payPassword, setPayPassword ] = useState( '' );
-    const [ payPasswordError, setPayPasswordError ] = useState( '' );
     // Catalog / product message
     const [ catalogId, setCatalogId ] = useState( '' );
     const [ catalogProducts, setCatalogProducts ] = useState( '' );
@@ -538,9 +536,13 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         setPayItems( p => p.map( ( it, idx ) => idx === i ? { ...it, [ field ]: val } : it ) );
     const addPayItem = () => setPayItems( p => [ ...p, { name: '', amount: '', quantity: '1', gstRate: '0' } ] );
     const removePayItem = ( i: number ) => setPayItems( p => p.length > 1 ? p.filter( ( _, idx ) => idx !== i ) : p );
-    const unlockPayPhone = () => {
-        if ( PAYMENT_UNLOCK_PASSWORD && payPassword === PAYMENT_UNLOCK_PASSWORD ) { setPayUnlocked( true ); setPayPasswordError( '' ); setPayPassword( '' ); }
-        else setPayPasswordError( 'Incorrect password' );
+    const unlockPayPhone = async () => {
+        try {
+            setPayUnlocked( await api.verifyAdminAccess() );
+        } catch {
+            setPayUnlocked( false );
+            toast.error( 'Unable to verify Admin access' );
+        }
     };
 
     const handleSendPayment = useCallback( async () => {
@@ -1053,14 +1055,12 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                 <div className="ui-pay">
                                     <div className="ui-pay-title">Request payment</div>
                                     <label className="ui-pay-label">Send from</label>
-                                    <select className="ui-pay-in" value={ payPhone } onChange={ e => { setPayPhone( e.target.value ); setPayUnlocked( false ); setPayPasswordError( '' ); } }>
+                                    <select className="ui-pay-in" value={ payPhone } onChange={ e => { setPayPhone( e.target.value ); setPayUnlocked( false ); } }>
                                         { PAYMENT_PHONES.map( p => <option key={ p.id } value={ p.id }>{ p.display } ({ p.name }){ p.paymentProtected ? ' [Protected]' : '' }</option> ) }
                                     </select>
                                     { locked && (
                                         <div className="ui-pay-lock">
-                                            <input className="ui-pay-in" type="password" placeholder="Password to unlock this number" value={ payPassword } onChange={ e => { setPayPassword( e.target.value ); setPayPasswordError( '' ); } } onKeyDown={ e => { if ( e.key === 'Enter' ) unlockPayPhone(); } } />
-                                            <button className="ui-pay-unlock" onClick={ unlockPayPhone }>Unlock</button>
-                                            { payPasswordError && <span className="ui-pay-err">{ payPasswordError }</span> }
+                                            <button className="ui-pay-unlock" onClick={ unlockPayPhone }>Verify Admin access</button>
                                         </div>
                                     ) }
                                     <label className="ui-pay-label">Items</label>

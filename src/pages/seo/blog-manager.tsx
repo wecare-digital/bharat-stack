@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
 import InstructionsContent from './InstructionsContent';
+import { seoToolsFetch } from '../../api/seo';
 
 interface PageProps { signOut?: () => void; user?: any; }
 interface BlogPost {
@@ -47,14 +48,14 @@ const BlogSeoManager: React.FC<PageProps> = ({ signOut, user }) => {
 
   const fetchPosts = useCallback(async () => {
     setLoading(true); addLog('Fetching posts...');
-    try { const r = await fetch('/api/seo-tools/blog-posts'); const d = await r.json(); if (d.ok) { setPosts(d.posts); addLog(`${d.total} posts loaded`); } else addLog(`Error: ${d.error}`); }
+    try { const r = await seoToolsFetch('blog-posts'); const d = await r.json(); if (d.ok) { setPosts(d.posts); addLog(`${d.total} posts loaded`); } else addLog(`Error: ${d.error}`); }
     catch (e: any) { addLog(e.message); } setLoading(false);
   }, []);
   const fetchAudits = useCallback(async () => {
-    try { const d = await (await fetch('/api/seo-tools/seo-logs?type=audits')).json(); if (d.ok) setAudits(d.audits || []); } catch {}
+    try { const d = await (await seoToolsFetch('seo-logs?type=audits')).json(); if (d.ok) setAudits(d.audits || []); } catch {}
   }, []);
   const fetchLogs = useCallback(async () => {
-    try { const d = await (await fetch('/api/seo-tools/seo-logs?type=logs')).json(); if (d.ok) setLogs(d.logs || []); } catch {}
+    try { const d = await (await seoToolsFetch('seo-logs?type=logs')).json(); if (d.ok) setLogs(d.logs || []); } catch {}
   }, []);
   useEffect(() => { fetchPosts(); fetchAudits(); }, [fetchPosts, fetchAudits]);
 
@@ -62,13 +63,13 @@ const BlogSeoManager: React.FC<PageProps> = ({ signOut, user }) => {
 
   const cleanPost = async (slug: string) => {
     addLog(`Cleaning "${slug}"...`);
-    try { const d = await (await fetch('/api/seo-tools/seo-clean', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug }) })).json();
+    try { const d = await (await seoToolsFetch('seo-clean', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug }) })).json();
       if (d.ok) addLog(`Cleaned: ${d.cleaned.tagsRemoved} tags removed`); else addLog(`Clean failed: ${d.error}`);
     } catch (e: any) { addLog(e.message); }
   };
   const runAudit = async (slug: string) => {
     setAuditingSlug(slug); addLog(`Auditing "${slug}"...`);
-    try { const d = await (await fetch('/api/seo-tools/ai-seo-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug }) })).json();
+    try { const d = await (await seoToolsFetch('ai-seo-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug }) })).json();
       if (d.ok) { addLog(`Done: ${d.audit.seoScoreBefore} > ${d.audit.seoScoreAfter} | $${d.log.costEstimate}`); await fetchAudits(); setSelectedAudit(d.audit); setTab('audit'); }
       else addLog(`Failed: ${d.error}`);
     } catch (e: any) { addLog(e.message); } setAuditingSlug(null);
@@ -76,7 +77,7 @@ const BlogSeoManager: React.FC<PageProps> = ({ signOut, user }) => {
   const cleanAndAudit = async (slug: string) => { await cleanPost(slug); await runAudit(slug); };
   const handleAction = async (id: string, action: string) => {
     addLog(`${action} ${id.substring(0, 20)}...`);
-    try { const d = await (await fetch('/api/seo-tools/seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action, reviewedBy: user?.username || 'admin' }) })).json();
+    try { const d = await (await seoToolsFetch('seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action }) })).json();
       if (d.ok) { addLog(`${action} done${d.applied ? ' - pushed to Wix' : ''}`); await fetchAudits(); if (selectedAudit?.id === id) setSelectedAudit(d.audit); }
       else addLog(d.error);
     } catch (e: any) { addLog(e.message); }
@@ -90,19 +91,19 @@ const BlogSeoManager: React.FC<PageProps> = ({ signOut, user }) => {
     setBulkRunning('audit'); let ok = 0;
     for (const s of slugs) {
       addLog(`Auditing ${ok+1}/${slugs.length}: ${s}`);
-      try { const d = await (await fetch('/api/seo-tools/ai-seo-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: s }) })).json();
+      try { const d = await (await seoToolsFetch('ai-seo-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: s }) })).json();
         if (d.ok) ok++; } catch {} await new Promise(r => setTimeout(r, 1000));
     }
     addLog(`Bulk audit done: ${ok}/${slugs.length}`); await fetchAudits(); setBulkRunning(null);
   };
   const bulkApprove = async (ids: string[]) => {
     setBulkRunning('approve'); let ok = 0;
-    for (const id of ids) { try { const d = await (await fetch('/api/seo-tools/seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action: 'approve', reviewedBy: user?.username || 'admin' }) })).json(); if (d.ok) ok++; } catch {} }
+    for (const id of ids) { try { const d = await (await seoToolsFetch('seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action: 'approve' }) })).json(); if (d.ok) ok++; } catch {} }
     addLog(`Bulk approve: ${ok}/${ids.length}`); await fetchAudits(); setBulkRunning(null);
   };
   const bulkApply = async (ids: string[]) => {
     setBulkRunning('apply'); let ok = 0;
-    for (const id of ids) { try { const d = await (await fetch('/api/seo-tools/seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action: 'apply', reviewedBy: user?.username || 'admin' }) })).json(); if (d.ok) ok++; } catch {} await new Promise(r => setTimeout(r, 2000)); }
+    for (const id of ids) { try { const d = await (await seoToolsFetch('seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action: 'apply' }) })).json(); if (d.ok) ok++; } catch {} await new Promise(r => setTimeout(r, 2000)); }
     addLog(`Bulk apply: ${ok}/${ids.length}`); await fetchAudits(); setBulkRunning(null);
   };
 
@@ -284,7 +285,7 @@ function BlogCreator({ addLog }: { addLog: (m: string) => void }) {
 
   useEffect(() => {
     if (loaded) return;
-    fetch('/api/seo-tools/blog-create').then(r => r.json()).then(d => {
+    seoToolsFetch('blog-create').then(r => r.json()).then(d => {
       if (d.ok) { setCategories(d.categories || []); setAvailableTags(d.tags || []); }
     }).catch(() => {}); setLoaded(true);
   }, [loaded]);
@@ -297,7 +298,7 @@ function BlogCreator({ addLog }: { addLog: (m: string) => void }) {
       if (selectedCat) body.categoryIds = [selectedCat];
       if (tags.trim()) body.tagLabels = tags.split(',').map(t => t.trim()).filter(Boolean);
       if (hashtags.trim()) body.hashtags = hashtags.split(',').map(h => h.trim()).filter(Boolean);
-      const d = await (await fetch('/api/seo-tools/blog-create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+      const d = await (await seoToolsFetch('blog-create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
       if (d.ok) { addLog(`Published: ${d.slug} (${d.postId})`); setTitle(''); setContent(''); setTags(''); setHashtags(''); }
       else addLog(`Failed: ${d.error}`);
     } catch (e: any) { addLog(e.message); }

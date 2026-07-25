@@ -474,16 +474,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         'requestId': request_id
     }))
 
-    # Enforce auth for HTTP-invoked requests. Lambda-to-Lambda invokes (inbound
-    # handler auto-replies, CDR/IVR notifications, scheduled sends) carry no HTTP
-    # context and are auto-exempt by require_auth, so internal callers keep working.
-    auth_result = require_auth(event)
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return _error_response(400, 'Invalid JSON in request body')
+
+    payment_action = any((
+        body.get('isPaymentTemplate'), body.get('isInteractivePayment'),
+        body.get('isCheckoutTemplate'), body.get('isOrderStatus'),
+    ))
+    auth_result = require_auth(event, required_role='Admin' if payment_action else None)
     if auth_result is not None:
         return auth_result
 
     try:
-        # Parse request body
-        body = json.loads(event.get('body', '{}'))
 
         # ── Presigned media upload (Issue 2 fix): large media must NOT be sent as base64
         # through API Gateway/Lambda (10MB GW / 6MB Lambda limits). Frontend requests a

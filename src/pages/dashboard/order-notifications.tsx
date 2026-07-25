@@ -12,6 +12,8 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { API_BASE } from '../../config/constants';
+import { authFetch } from '../../api/client';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
 
@@ -70,7 +72,7 @@ export default function OrderNotificationsPage ( { signOut, user }: PageProps ) 
     setLoading( true );
     try
     {
-      const res = await fetch( '/api/store/order-notifications' + ( filter !== 'all' ? '?status=' + filter : '' ) );
+      const res = await authFetch( `${API_BASE}/store/order-notifications` + ( filter !== 'all' ? '?status=' + filter : '' ) );
       if ( !res.ok ) throw new Error( 'Failed to fetch' );
       const data = await res.json();
       setNotifications( data.notifications || [] );
@@ -78,16 +80,7 @@ export default function OrderNotificationsPage ( { signOut, user }: PageProps ) 
     } catch ( e: any )
     {
       setError( e.message );
-      // Demo data for development
-      setNotifications( [
-        {
-          orderId: 'demo-001', wdOrderId: 'WD-ORD - A3F7B2C1 - 25-04-2026 - 17:43:01 - IST',
-          phone: '+919330994400', email: 'one@wecare.digital',
-          whatsappStatus: 'sent', whatsappMessageId: 'wamid.xxx', whatsappError: '',
-          smsStatus: 'sent', smsMessageId: 'airtel-xxx', smsError: '',
-          rcsStatus: 'not_available', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-        },
-      ] );
+      setNotifications( [] );
     }
     setLoading( false );
   }, [ filter ] );
@@ -97,13 +90,22 @@ export default function OrderNotificationsPage ( { signOut, user }: PageProps ) 
   const retryNotification = async ( orderId: string, channel: string ) => {
     try
     {
-      await fetch( '/api/store/order-notifications/retry', {
+      const response = await authFetch( `${API_BASE}/store/order-notifications/retry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify( { orderId, channel } ),
       } );
-      fetchNotifications();
-    } catch { }
+      if ( !response.ok )
+      {
+        const body = await response.json().catch( () => ( {} ) );
+        throw new Error( body.error || `Retry failed (${response.status})` );
+      }
+      setError( '' );
+      await fetchNotifications();
+    } catch ( retryError: any )
+    {
+      setError( retryError.message || 'Retry failed' );
+    }
   };
 
   const stats = {
@@ -214,7 +216,7 @@ export default function OrderNotificationsPage ( { signOut, user }: PageProps ) 
           </table>
         </div>
 
-        { error && <p style={ { fontSize: 12, color: C.amber, marginTop: 8 } }>API: { error } (showing demo data)</p> }
+        { error && <p style={ { fontSize: 12, color: C.amber, marginTop: 8 } }>API: { error }</p> }
 
         {/* Config Info */ }
         <div style={ { marginTop: 24, padding: 16, background: C.bgSoft, borderRadius: C.radius, border: '2px solid ' + C.border } }>

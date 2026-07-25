@@ -9,7 +9,6 @@ import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
-import { WHATSAPP_CALLING_VERIFY_TOKEN } from '../../../config/constants';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -21,7 +20,6 @@ const PHONE_NUMBERS = [
 // Webhook configuration — LIVE (Direct API, all WABAs use same endpoint)
 const WEBHOOK_CONFIG = {
   callbackUrl: 'https://api.wecare.digital/whatsapp',
-  verifyToken: 'wecare_calling_verify_2026',
   subscribedFields: [ 'messages', 'calls' ],
   lambda: 'wecare-whatsapp-calling',
   table: 'stack-wecare-digital-WhatsAppCallingTable',
@@ -1784,28 +1782,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
               </p>
               <div style={ { display: 'flex', flexDirection: 'column', gap: '12px' } }>
                 <div>
-                  <label style={ { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>Callback URL</label>
-                  <div style={ { display: 'flex', gap: '8px', alignItems: 'center' } }>
-                    <code style={ { flex: 1, background: '#1e293b', color: '#e2e8f0', padding: '10px 14px', borderRadius: '8px', fontSize: '12px', wordBreak: 'break-all' } }>
-                      { WEBHOOK_CONFIG.callbackUrl }
-                    </code>
-                    <button onClick={ () => { navigator.clipboard.writeText( WEBHOOK_CONFIG.callbackUrl ); toast.success( 'Copied' ); } }
-                      style={ { padding: '8px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' } }>
-                      Copy
-                    </button>
-                  </div>
-                </div>
-                <div>
                   <label style={ { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>Verify Token</label>
-                  <div style={ { display: 'flex', gap: '8px', alignItems: 'center' } }>
-                    <code style={ { flex: 1, background: '#1e293b', color: '#e2e8f0', padding: '10px 14px', borderRadius: '8px', fontSize: '12px' } }>
-                      { WEBHOOK_CONFIG.verifyToken }
-                    </code>
-                    <button onClick={ () => { navigator.clipboard.writeText( WEBHOOK_CONFIG.verifyToken ); toast.success( 'Copied' ); } }
-                      style={ { padding: '8px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' } }>
-                      Copy
-                    </button>
-                  </div>
+                  <div style={ { background: '#f3f4f6', color: '#374151', padding: '10px 14px', borderRadius: '8px', fontSize: '12px' } }>Configured server-side; never displayed or copied in the browser.</div>
                 </div>
                 <div>
                   <label style={ { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>Webhook Fields to Subscribe</label>

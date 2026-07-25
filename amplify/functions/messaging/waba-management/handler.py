@@ -200,7 +200,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     # Enforce auth. All /waba/* routes are admin-only (no public Meta webhooks
     # here). Internal Lambda-to-Lambda invokes are auto-exempt by require_auth.
-    auth_result = require_auth(event)
+    auth_result = require_auth(event, required_role='Admin')
     if auth_result is not None:
         return auth_result
 
@@ -248,7 +248,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             elif '/tags' in path:
                 return _tag_resource(body, request_id)
             elif '/migrate' in path:
-                return _migrate_phone(body, request_id)
+                return _error_response(501, 'Phone migration is not exposed until target-WABA transfer is implemented and verified')
             elif '/request-otp' in path:
                 return _request_otp(body, request_id)
             elif '/verify-otp' in path:

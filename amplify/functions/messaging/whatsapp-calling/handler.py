@@ -17,7 +17,7 @@ Routes (all under /whatsapp):
 - DELETE /whatsapp                 → Clear call logs
 
 Meta Webhook Fields: messages, calls, account_update, account_settings_update, ...
-Verify Token: wecare_calling_verify_2026
+Verification token: server-side configuration only
 
 IVR Audio Playback:
   Graph API mode: pre_accept with SDP → accept → send audio message → terminate
@@ -44,7 +44,8 @@ from typing import Dict, Any, Optional
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.privacy import mask_phone, redact_pii
-from lambda_utils.message_store import put_call_breadcrumb  # unified timeline breadcrumb
+from lambda_utils.message_store import put_call_breadcrumb
+from lambda_utils.middleware import require_auth  # unified timeline breadcrumb
 
 logger = get_logger(__name__)
 
@@ -198,89 +199,69 @@ origin = ''
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Main handler — routes to appropriate function."""
+    """Route the exact public Meta callback separately from Admin management routes."""
     request_id = context.aws_request_id if context else 'local'
     global origin
     origin = extract_origin(event)
 
-    # ── Direct invoke: post_call_sip from Asterisk AGI ──
     if event.get('action') == 'post_call_sip':
         return _handle_post_call_sip(event, request_id)
-
-    # ── Direct invoke: cert_check from Lightsail cron (SIP TLS cert expiry monitor) ──
     if event.get('action') == 'cert_check':
         return _handle_cert_check(event, request_id)
 
     rc = event.get('requestContext', {})
-    http_method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET'))
+    http_method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET')).upper()
     path = rc.get('http', {}).get('path', '') or event.get('rawPath', '') or event.get('path', '')
+    normalized_path = path.rstrip('/') or '/'
     query_params = event.get('queryStringParameters') or {}
 
-    logger.info(json.dumps({
-        'event': 'whatsapp_calling_request',
-        'method': http_method, 'path': path, 'requestId': request_id,
-    }))
+    logger.info(json.dumps({'event': 'whatsapp_calling_request', 'method': http_method,
+                            'path': path, 'requestId': request_id}))
 
     if http_method == 'OPTIONS':
         return _response(200, {'ok': True})
 
     try:
-        # GET routes
-        if http_method == 'GET':
-            # Webhook verification (no auth needed — Meta sends this)
-            if not any(x in path for x in ['config', 'active', 'logs']):
-                return _verify_webhook(query_params, request_id)
+        if normalized_path == '/whatsapp' and http_method == 'GET':
+            return _verify_webhook(query_params, request_id)
 
-            if 'config' in path:
-                return _get_config(request_id)
-            if 'active' in path:
-                return _get_active_calls(query_params, request_id)
-            if 'logs' in path:
-                return _list_logs(query_params, request_id)
+        if normalized_path == '/whatsapp' and http_method == 'POST':
+            if not _verify_webhook_signature(event, request_id):
+                logger.warning(json.dumps({'event': 'webhook_signature_rejected', 'requestId': request_id}))
+                return _response(401, {'error': 'Invalid webhook signature'})
+            body_str = event.get('body', '{}')
+            if event.get('isBase64Encoded'):
+                import base64
+                body_str = base64.b64decode(body_str).decode('utf-8')
+            try:
+                return _handle_webhook_event(json.loads(body_str), request_id)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                return _response(400, {'error': 'Invalid JSON in webhook body'})
 
-        # POST routes
-        if http_method == 'POST':
-            # Default POST with no sub-path = webhook event from Meta (no auth)
-            if not any(x in path for x in ['/config', '/reject', '/hangup', '/outbound']):
-                # P0 Security: Verify X-Hub-Signature-256 before processing
-                if not _verify_webhook_signature(event, request_id):
-                    logger.warning(json.dumps({'event': 'webhook_signature_rejected', 'requestId': request_id}))
-                    return _response(401, {'error': 'Invalid webhook signature'})
-                body_str = event.get('body', '{}')
-                if event.get('isBase64Encoded'):
-                    import base64
-                    body_str = base64.b64decode(body_str).decode('utf-8')
-                try:
-                    return _handle_webhook_event(json.loads(body_str), request_id)
-                except (json.JSONDecodeError, TypeError, ValueError):
-                    logger.warning(json.dumps({'event': 'webhook_invalid_json', 'requestId': request_id}))
-                    return _response(400, {'error': 'Invalid JSON in webhook body'})
+        auth_result = require_auth(event, required_role='Admin')
+        if auth_result is not None:
+            return auth_result
 
-            if '/config' in path:
-                return _update_config(event, request_id)
-            if '/reject' in path or '/hangup' in path:
-                return _terminate_call(event, request_id)
-            if '/outbound' in path:
-                return _outbound_call(event, request_id)
-
-        # DELETE
-        if http_method == 'DELETE':
+        if http_method == 'GET' and normalized_path == '/whatsapp/config':
+            return _get_config(request_id)
+        if http_method == 'GET' and normalized_path == '/whatsapp/active':
+            return _get_active_calls(query_params, request_id)
+        if http_method == 'GET' and normalized_path == '/whatsapp/logs':
+            return _list_logs(query_params, request_id)
+        if http_method == 'POST' and normalized_path == '/whatsapp/config':
+            return _update_config(event, request_id)
+        if http_method == 'POST' and normalized_path in ('/whatsapp/reject', '/whatsapp/hangup'):
+            return _terminate_call(event, request_id)
+        if http_method == 'POST' and normalized_path == '/whatsapp/outbound':
+            return _outbound_call(event, request_id)
+        if http_method == 'DELETE' and normalized_path == '/whatsapp':
             return _clear_logs(request_id)
-
-        return _response(200, {'message': 'OK'})
-
+        return _response(404, {'error': 'Route not found'})
     except Exception as e:
-        logger.error(json.dumps({
-            'event': 'handler_error',
-            'error': str(e),
-            'method': http_method,
-            'path': path,
-            'requestId': request_id,
-        }), exc_info=True)
+        logger.error(json.dumps({'event': 'handler_error', 'error': str(e), 'method': http_method,
+                                 'path': path, 'requestId': request_id}), exc_info=True)
         return _response(500, {'error': 'Internal server error'})
 
-
-# ─── Webhook Verification ───────────────────────────────────────────
 
 def _verify_webhook(params: Dict, request_id: str) -> Dict[str, Any]:
     """Handle Meta webhook verification (GET with hub.challenge)."""
