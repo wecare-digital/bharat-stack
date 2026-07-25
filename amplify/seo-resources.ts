@@ -1,9 +1,10 @@
-import { RemovalPolicy, Stack } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 export const SEO_TOOLS_TABLE_NAME = 'stack-wecare-digital-SeoToolsTable';
 
-/** Durable, single-table state for Admin SEO audits and Bedrock logs. */
+/** Durable Admin SEO storage and a Docker-free Python Lambda asset. */
 export function addSeoResources ( stack: Stack ) {
     const table = new dynamodb.Table( stack, 'SeoToolsTable', {
         tableName: SEO_TOOLS_TABLE_NAME,
@@ -27,5 +28,24 @@ export function addSeoResources ( stack: Stack ) {
         projectionType: dynamodb.ProjectionType.ALL,
     } );
 
-    return table;
+    const seoFunction = new lambda.Function( stack, 'SeoToolsFunction', {
+        functionName: 'wecare-seo-tools',
+        runtime: lambda.Runtime.PYTHON_3_12,
+        handler: 'seo_tools_handler.handler',
+        code: lambda.Code.fromAsset( 'amplify/functions' ),
+        timeout: Duration.seconds( 120 ),
+        memorySize: 512,
+        environment: {
+            LOG_LEVEL: 'INFO',
+            SEO_TOOLS_TABLE: SEO_TOOLS_TABLE_NAME,
+            WEBHOOK_DEDUP_TABLE: 'stack-wecare-digital-WebhookDedup',
+            WIX_API_KEY_SECRET: 'wecare/wix-api-key',
+            // Live WECARE.DIGITAL site. The API key in `wecare/wix-api-key` is
+            // scoped to the account that owns this site; 461dece3 returns 404.
+            WIX_SITE_ID: 'd3ed75eb-e0b7-45c2-a743-f83cfa19379a',
+            BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6',
+        },
+    } );
+
+    return { table, function: seoFunction };
 }

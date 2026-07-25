@@ -2,13 +2,11 @@ import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
-import { seoTools } from './functions/operations/seo-tools/resource';
 import { addLinkResources } from './link-resources';
 import { addBackendResources } from './backend-resources';
 import { addSeoResources } from './seo-resources';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
 /**
@@ -36,7 +34,6 @@ const backend = defineBackend( {
   auth,
   data,
   storage,
-  seoTools,
 } );
 
 // ─── DynamoDB TTL Configuration ──────────────────────────────────────
@@ -114,9 +111,9 @@ addBackendResources( dataStack );
  * Creates retained durable audit/log state. The Admin-only SEO Lambda is
  * Amplify-managed, while routes are registered separately after canary approval.
  */
-const seoTable = addSeoResources( dataStack );
-seoTable.grantReadWriteData( backend.seoTools.resources.lambda );
-( backend.seoTools.resources.lambda as lambda.Function ).addEnvironment(
+const { table: seoTable, function: seoLambda } = addSeoResources( dataStack );
+seoTable.grantReadWriteData( seoLambda );
+seoLambda.addEnvironment(
   'COGNITO_USER_POOL_ID',
   backend.auth.resources.userPool.userPoolId,
 );
@@ -126,16 +123,16 @@ const dedupTable = dynamodb.Table.fromTableName(
   'SeoAdminDedupTable',
   'stack-wecare-digital-WebhookDedup',
 );
-dedupTable.grantWriteData( backend.seoTools.resources.lambda );
+dedupTable.grantWriteData( seoLambda );
 
 const wixApiKey = secretsmanager.Secret.fromSecretNameV2(
   dataStack,
   'SeoWixApiKeySecret',
   'wecare/wix-api-key',
 );
-wixApiKey.grantRead( backend.seoTools.resources.lambda );
+wixApiKey.grantRead( seoLambda );
 
-backend.seoTools.resources.lambda.addToRolePolicy( new iam.PolicyStatement( {
+seoLambda.addToRolePolicy( new iam.PolicyStatement( {
   actions: [ 'bedrock:InvokeModel' ],
   resources: [
     'arn:aws:bedrock:*::foundation-model/*',
@@ -143,7 +140,7 @@ backend.seoTools.resources.lambda.addToRolePolicy( new iam.PolicyStatement( {
     `arn:aws:bedrock:*:${dataStack.account}:application-inference-profile/*`,
   ],
 } ) );
-backend.seoTools.resources.lambda.addToRolePolicy( new iam.PolicyStatement( {
+seoLambda.addToRolePolicy( new iam.PolicyStatement( {
   actions: [ 'cognito-idp:GetUser', 'cognito-idp:AdminListGroupsForUser' ],
   resources: [ backend.auth.resources.userPool.userPoolArn ],
 } ) );
