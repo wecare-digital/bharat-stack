@@ -1,14 +1,11 @@
 version: 1
-backend:
-  phases:
-    build:
-      commands:
-        - nvm install 24 || true
-        - nvm use 24 || true
-        - node -v
-        - npm -v
-        - npm install --no-audit --no-fund --legacy-peer-deps
-        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+# NOTE: No `backend:` phase. The Amplify Gen2 backend (auth=referenceAuth,
+# data, storage) and the 42+ Python Lambdas are deployed SEPARATELY via boto3
+# scripts (see scripts/deploy_task12.py etc.) and already exist in AWS — they
+# are not managed by `ampx pipeline-deploy`. A pipeline-deploy here would
+# collide with those existing resources. CI builds only the frontend, matching
+# the last known-good build (job 609). The SEO tools Lambda (wecare-seo-tools)
+# is deployed via its own boto3 script.
 frontend:
   phases:
     preBuild:
