@@ -34,6 +34,10 @@ DEDUP_TABLE = "stack-wecare-digital-WebhookDedup"
 ROLE_NAME = "wecare-digital-lambda-role"
 ROLE_ARN = f"arn:aws:iam::{ACCOUNT}:role/{ROLE_NAME}"
 
+# HTTP API behind api.wecare.digital (stage prod, AutoDeploy on).
+# Frontend calls https://api.wecare.digital/seo-tools/{route} (src/api/seo.ts).
+API_ID = "zllr9lrg7j"
+
 # Live Wix site (verified: API key is scoped to this site; 461dece3 returns 404).
 WIX_SITE_ID = "d3ed75eb-e0b7-45c2-a743-f83cfa19379a"
 
@@ -183,13 +187,67 @@ def deploy_lambda(zip_bytes: bytes) -> None:
           f"(runtime={cfg['Runtime']}, mem={cfg['MemorySize']}, timeout={cfg['Timeout']})")
 
 
+def ensure_api_route() -> None:
+    """Wire https://api.wecare.digital/seo-tools/* -> wecare-seo-tools (idempotent)."""
+    api = boto3.client("apigatewayv2", region_name=REGION)
+    lam = boto3.client("lambda", region_name=REGION)
+    fn_arn = f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{FUNCTION_NAME}"
+
+    # 1) Integration (reuse if one already targets this function)
+    integ_id = None
+    for it in api.get_integrations(ApiId=API_ID, MaxResults="500").get("Items", []):
+        if FUNCTION_NAME in (it.get("IntegrationUri") or ""):
+            integ_id = it["IntegrationId"]
+            break
+    if integ_id:
+        print(f"[api] reusing integration {integ_id}")
+    else:
+        integ_id = api.create_integration(
+            ApiId=API_ID,
+            IntegrationType="AWS_PROXY",
+            IntegrationUri=fn_arn,
+            IntegrationMethod="POST",
+            PayloadFormatVersion="2.0",
+        )["IntegrationId"]
+        print(f"[api] created integration {integ_id}")
+
+    # 2) Routes (ANY covers GET/POST/PUT/DELETE/OPTIONS; handler does its own auth)
+    target = f"integrations/{integ_id}"
+    existing = {r["RouteKey"] for r in api.get_routes(ApiId=API_ID, MaxResults="1000").get("Items", [])}
+    for rk in ["ANY /seo-tools", "ANY /seo-tools/{proxy+}"]:
+        if rk in existing:
+            print(f"[api] route exists: {rk}")
+        else:
+            api.create_route(ApiId=API_ID, RouteKey=rk, Target=target, AuthorizationType="NONE")
+            print(f"[api] created route: {rk}")
+
+    # 3) Allow API Gateway to invoke the Lambda
+    for sid, res in [
+        ("apigw-seo-tools-base", "seo-tools"),
+        ("apigw-seo-tools-proxy", "seo-tools/*"),
+    ]:
+        try:
+            lam.add_permission(
+                FunctionName=FUNCTION_NAME,
+                StatementId=sid,
+                Action="lambda:InvokeFunction",
+                Principal="apigateway.amazonaws.com",
+                SourceArn=f"arn:aws:execute-api:{REGION}:{ACCOUNT}:{API_ID}/*/*/{res}",
+            )
+            print(f"[api] added invoke permission {sid}")
+        except lam.exceptions.ResourceConflictException:
+            print(f"[api] invoke permission {sid} already present")
+
+
 def main() -> None:
     print("=== deploy wecare-seo-tools ===")
     ensure_table()
     ensure_bedrock_inference_profile_perms()
     zip_bytes = package()
     deploy_lambda(zip_bytes)
+    ensure_api_route()
     print("=== done ===")
+    print(f"Endpoint: https://api.wecare.digital/seo-tools/  (stage prod, auto-deploy)")
 
 
 if __name__ == "__main__":
