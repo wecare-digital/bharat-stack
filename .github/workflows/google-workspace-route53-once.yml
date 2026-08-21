@@ -2,6 +2,7 @@
 name: One-time Google Workspace Route53 verification
 
 on:
+  workflow_dispatch: {}
   push:
     branches: [ stack ]
     paths:
