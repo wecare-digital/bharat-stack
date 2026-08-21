@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          EXPECTED_ACCOUNT='809904170947'
+          EXPECTED_ACCOUNT='775261844268'
           ROOT_DOMAIN='wecare.digital.'
           CNAME_NAME='qu75cp2vx25y.wecare.digital.'
           CNAME_TARGET='gv-jipfxur7egi32x.dv.googlehosted.com'
