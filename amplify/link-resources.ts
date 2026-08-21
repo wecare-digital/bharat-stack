@@ -8,8 +8,9 @@
  * 3. ACM Certificate for r.wecare.digital
  * 4. API Gateway HTTP API with custom domain r.wecare.digital
  * 5. Route53 CNAME record: r.wecare.digital -> API Gateway
- * 6. Lambda integration for url-shortener
- * 7. IAM Policy for Lambda
+ * 6. Google Workspace domain verification TXT + CNAME records
+ * 7. Lambda integration for url-shortener
+ * 8. IAM Policy for Lambda
  *
  * API Gateway Routes:
  * - GET  /{code}        -> url-shortener Lambda (redirect)
@@ -179,7 +180,7 @@ export function addLinkResources(stack: Stack) {
   });
 
   // ═══════════════════════════════════════════
-  // 6. Route53 CNAME: r.wecare.digital -> API Gateway
+  // 6. Route53 records
   // ═══════════════════════════════════════════
 
   new route53.ARecord(stack, 'ShortLinkAliasRecord', {
@@ -192,6 +193,26 @@ export function addLinkResources(stack: Stack) {
       ),
     ),
     comment: 'URL Shortener - r.wecare.digital -> API Gateway',
+  });
+
+  // Google Workspace domain verification (primary TXT method)
+  new route53.TxtRecord(stack, 'GoogleWorkspaceVerificationTxt', {
+    zone: hostedZone,
+    recordName: ROOT_DOMAIN,
+    values: [
+      'google-site-verification=G74l7Vaf6_5214FKtpjHqCkaw4wQ6TEc2qMmVlRSg0k',
+    ],
+    ttl: Duration.minutes(5),
+    comment: 'Google Workspace domain verification',
+  });
+
+  // Google Workspace domain verification (alternative CNAME method)
+  new route53.CnameRecord(stack, 'GoogleWorkspaceVerificationCname', {
+    zone: hostedZone,
+    recordName: 'qu75cp2vx25y',
+    domainName: 'gv-jipfxur7egi32x.dv.googlehosted.com',
+    ttl: Duration.minutes(5),
+    comment: 'Google Workspace alternative domain verification',
   });
 
   // ═══════════════════════════════════════════
