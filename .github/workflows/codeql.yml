@@ -27,7 +27,10 @@ jobs:
     #   - https://gh.io/supported-runners-and-hardware-resources
     #   - https://gh.io/using-larger-runners (GitHub.com only)
     # Consider using larger runners or machines with greater resources for possible analysis time improvements.
-    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    # All analysed languages use build-mode 'none' and run on Linux. The 'swift'
+    # entry was removed (see matrix below), which is what previously forced
+    # macos-latest for that one job.
+    runs-on: ubuntu-latest
     permissions:
       # required for all workflows
       security-events: write
@@ -51,8 +54,28 @@ jobs:
           build-mode: none
         - language: python
           build-mode: none
-        - language: swift
-          build-mode: autobuild
+        #
+        # 'swift' is deliberately NOT analysed. Rationale:
+        #
+        #   * CodeQL has no 'none' build mode for Swift - only 'autobuild' or
+        #     'manual' - so the database cannot be built without compiling the
+        #     Xcode project.
+        #   * 'autobuild' cannot build a Capacitor iOS project. It has no way to
+        #     run `npm install`, `npx cap sync ios` and `pod install` first, so
+        #     it failed every run (17 min on macos-latest, exit 1 in
+        #     autobuild.sh) and therefore never produced a single finding.
+        #   * The only Swift here is Capacitor scaffolding - 89 lines total
+        #     across AppDelegate.swift, Package.swift (marked "DO NOT MODIFY -
+        #     managed by Capacitor CLI") and a 1-line SPM stub. There is no
+        #     application logic. All real logic is the Next.js bundle, covered
+        #     by the javascript-typescript analysis above.
+        #   * macos-latest bills at 10x the Linux rate, so this was ~170
+        #     Linux-equivalent minutes per push, per PR, and weekly on cron.
+        #
+        # If genuine Swift logic is ever added under ios/, re-add it with
+        # build-mode 'manual' and explicit build steps (npm ci, cap sync,
+        # pod install, xcodebuild) rather than 'autobuild'.
+        #
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
         # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
