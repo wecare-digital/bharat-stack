@@ -537,9 +537,11 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const addPayItem = () => setPayItems( p => [ ...p, { name: '', amount: '', quantity: '1', gstRate: '0' } ] );
     const removePayItem = ( i: number ) => setPayItems( p => p.length > 1 ? p.filter( ( _, idx ) => idx !== i ) : p );
     const unlockPayPhone = async () => {
-        try {
+        try
+        {
             setPayUnlocked( await api.verifyAdminAccess() );
-        } catch {
+        } catch
+        {
             setPayUnlocked( false );
             toast.error( 'Unable to verify Admin access' );
         }
@@ -565,7 +567,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                 delivery: Math.round( parseFloat( payDelivery || '0' ) * 100 ),
                 tax, gstin: payGstin || DEFAULT_GSTIN, orderId: payOrderId || 'Offline',
                 useInteractive: true,
-                paymentConfiguration: phoneObj?.paymentConfigName || 'WECARE-RAZOR-PAY',
+                paymentConfiguration: phoneObj?.paymentConfigName || 'WECAREDIGITAL',
             } );
             if ( r )
             {

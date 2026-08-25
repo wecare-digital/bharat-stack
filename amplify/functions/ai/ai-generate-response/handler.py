@@ -484,7 +484,7 @@ DEFAULT_BOT_FLOW = {
             'default_gst_rate': 18,
             'default_shipping': 49,
             'default_promo': 15,
-            'gstin': '19AADFW7431N1ZK',
+            'gstin': '19AAFFW7196L1Z8',
         },
     },
 

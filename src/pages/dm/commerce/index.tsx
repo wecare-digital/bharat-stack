@@ -20,7 +20,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital
 
 const WABAS = [
     { label: 'WABA1 · +91 93309 94400', phoneId: 'phone-number-id-waba1-direct-1016149501586345', catalog: 'wecare_catalog', catalogId: '1607047307067517', payConfig: 'Razorpay_wecare.digital' },
-    { label: 'WABA2 · +91 99033 00044', phoneId: 'phone-number-id-waba-t-direct-1055232054343117', catalog: 'Catalogue_Products', catalogId: '1424934879646296', payConfig: 'Razorpay_ManishAgarwal' },
+    { label: 'WABA2 · +91 99033 00044', phoneId: 'phone-number-id-waba-t-direct-1055232054343117', catalog: 'Catalogue_Products', catalogId: '1424934879646296', payConfig: 'WECAREDIGITAL' },
 ];
 
 interface LineItem { name: string; amount: string; quantity: string; }
@@ -72,7 +72,7 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
     const sendBill = async () => {
         // Backend (/whatsapp/send isInteractivePayment) reads orderDetails.order.items[]
         // where each item = { name, amount:{value(paise),offset:100}, quantity, gstRate, retailer_id }.
-        // Backend auto-adds 18% GST (per item gstRate) + 2% convenience fee and computes totals.
+        // Backend auto-adds 18% GST (per item gstRate) + 2.2% convenience fee and computes totals.
         const li = items
             .filter( i => i.name.trim() && Number( i.amount ) > 0 )
             .map( ( i, idx ) => ( {
@@ -94,7 +94,7 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
                 orderDetails: {
                     type: goodsType,
                     currency: 'INR',
-                    gstin: '19AADFW7431N1ZK',
+                    gstin: '19AAFFW7196L1Z8',
                     reference_id: `ADMINBILL-${Date.now()}`,
                     order: { items: li },
                 },
@@ -272,7 +272,7 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
                         <Button variant="secondary" onClick={ addItem } disabled={ busy !== '' }>+ Item</Button>
                         <Button onClick={ sendBill } disabled={ busy !== '' }>{ busy === 'bill' ? 'Sending…' : 'Send bill (Review & Pay)' }</Button>
                     </div>
-                    <p style={ { fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0' } }>18% GST + 2% convenience fee are added automatically; a GST invoice is generated on payment.</p>
+                    <p style={ { fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0' } }>18% GST + 2.2% convenience fee are added automatically; a GST invoice is generated on payment.</p>
                 </div>
 
                 <div style={ card }>

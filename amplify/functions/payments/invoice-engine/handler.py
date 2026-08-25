@@ -59,10 +59,14 @@ CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
 origin = ''
 
 # Company details for invoice
+# GSTIN/PAN appear on issued tax invoices. The PAN is embedded in the GSTIN at
+# characters 3-12, so the two MUST stay consistent:
+#   19 AAFFW7196L 1 Z 8  ->  state 19 (West Bengal), PAN AAFFW7196L
+# Env vars allow override without a redeploy.
 COMPANY = {
     'name': 'WECARE.DIGITAL',
-    'gstin': '19AADFW7431N1ZK',
-    'pan': 'AADFW7431N',
+    'gstin': os.environ.get('COMPANY_GSTIN', '19AAFFW7196L1Z8'),
+    'pan': os.environ.get('COMPANY_PAN', 'AAFFW7196L'),
     'address': 'The W.B.S.I.D.C. Building, Unit 1/20, 81/2/7, Phears Ln, Kolkata, WB 700012',
     'email': 'one@wecare.digital',
     'phone': '+91 93309 94400',
@@ -485,7 +489,7 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         'purpose': body.get('purpose', ''),
         'notes': body.get('notes', ''),
         # Payment routing — which PG config to use when customer triggers via keyword
-        'preferredGateway': body.get('preferredGateway', ''),  # 'razorpay' or 'payu'
+        'preferredGateway': body.get('preferredGateway', ''),  # 'razorpay' only
         'paymentConfiguration': body.get('paymentConfiguration', ''),  # exact Meta config name
         # Structured address for WhatsApp Payments shipping_info
         'addressLine1': body.get('addressLine1', ''),
@@ -1805,7 +1809,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
                       request_id: str, verify_phone: str = '') -> Dict:
     """Send WhatsApp interactive payment message for a pending invoice.
     Creates the order_details message with review_and_pay action.
-    payment_configuration: optional PG config name (e.g. 'PayU_ManishAgarwal', 'WECARE-PAYU').
+    payment_configuration: optional PG config name ('WECAREDIGITAL' or 'WECAREUPI').
     If empty, outbound handler uses the phone's default Razorpay config.
     verify_phone: if provided, blocks sending if invoice doesn't belong to this phone.
     """

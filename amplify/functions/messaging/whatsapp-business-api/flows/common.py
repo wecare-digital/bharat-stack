@@ -187,7 +187,7 @@ def send_payment(phone: str, phone_number_id: str, order_id: str, subject: str,
         'entryPoint': 'flow_payment',
         'purpose': f'{flow_name}: {subject}' if subject else flow_name,
         'notes': f'Request #{request_number}' if request_number else '',
-        'gstin': '19AADFW7431N1ZK',
+        'gstin': '19AAFFW7196L1Z8',
         'gstRate': 18,
         'items': [{'name': flow_name, 'amount': amount_rupees, 'quantity': 1, 'gstRate': 18}],
     }

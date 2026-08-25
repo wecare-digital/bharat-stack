@@ -1130,9 +1130,10 @@ const schema = a.schema( {
       requiresPayment: a.boolean().default( false ),
       paymentAmount: a.integer(), // paise (4900 = ₹49)
       paymentDescription: a.string(),
-      // Payment gateway preference: 'razorpay' or 'payu' (used when sending native payment)
+      // Payment gateway preference. Only 'razorpay' is supported since 2026-08-23;
+      // PayU was removed from both WABAs on Meta. Retained for historical records.
       preferredGateway: a.string(),
-      // Specific Meta payment config name (e.g. 'WECARE-RAZOR-PAY', 'PayU_ManishAgarwal')
+      // Specific Meta payment config name: 'WECAREDIGITAL' or 'WECAREUPI'
       paymentConfigName: a.string(),
       // Screen routing config (JSON string)
       screenConfig: a.string(),

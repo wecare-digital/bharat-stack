@@ -2977,37 +2977,43 @@ def _get_parent_bsuid_accounts(business_id: str) -> Dict:
 # ============================================================================
 # PAYMENT CONFIGURATION
 # Razorpay MID and UPI ID loaded from environment variables (not hardcoded).
-# MCC: 4722 | Purpose Code: 03
+# MCC: 7392 | Purpose Code: 03  (verified via Graph API 2026-08-23)
 # ============================================================================
 _RAZORPAY_MID = os.environ.get('RAZORPAY_MID', '')
 _RAZORPAY_UPI_ID = os.environ.get('RAZORPAY_UPI_ID', '')
-_PAYU_MID = os.environ.get('PAYU_MID', '')
-_PAYU_UPI_ID = os.environ.get('PAYU_UPI_ID', '')
+# PAYU_MID / PAYU_UPI_ID removed 2026-08-23 - no PayU payment configuration
+# exists on either WABA, so these were dead reads.
 _PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '')
+
+# Mirrors the live Meta state, verified via Graph API
+# /{waba}/payment_configurations on 2026-08-23. The configs were rebuilt on Meta
+# that day and every previously-listed name (Payu-UPIVPA, WECARE-PAYU,
+# WECARE-RAZORPAY-UPIVPA, WECARE-RAZOR-PAY, PayU_ManishAgarwal, PayU_UPI,
+# Razorpay_ManishAgarwal, Razorpay_UPI) no longer exists. Both WABAs now expose
+# an identical pair. No PayU configuration exists on either WABA.
+_RAZORPAY_ACC_MID = 'acc_TTFSyolquKEZEy'
+_WECARE_UPI_VPA = 'wecaredigitalbh511413.rzp@rxairtel'
+
+_LIVE_CONFIGS = [
+    {'name': 'WECAREDIGITAL', 'status': 'active', 'type': 'payment_gateway',
+     'gateway': 'razorpay', 'mid': _RAZORPAY_MID or _RAZORPAY_ACC_MID},
+    {'name': 'WECAREUPI', 'status': 'active', 'type': 'upi',
+     'gateway': 'razorpay', 'upiId': _RAZORPAY_UPI_ID or _WECARE_UPI_VPA},
+]
 
 PAYMENT_CONFIGS = {
     PHONE1_META_ID: {
         'phone': '+91 9330994400',
         'wabaId': WABA1_ID,
-        'configs': [
-            {'name': 'Payu-UPIVPA', 'status': 'active', 'type': 'upi', 'gateway': 'payu', 'mid': _PAYU_MID, 'upiId': _PAYU_UPI_ID},
-            {'name': 'WECARE-PAYU', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'payu', 'mid': _PAYU_MID},
-            {'name': 'WECARE-RAZORPAY-UPIVPA', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
-            {'name': 'WECARE-RAZOR-PAY', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
-        ],
-        'mcc': '4722',
+        'configs': list(_LIVE_CONFIGS),
+        'mcc': '7392',
         'purposeCode': '03',
     },
     PHONE2_META_ID: {
         'phone': '+91 9903300044',
         'wabaId': WABA2_ID,
-        'configs': [
-            {'name': 'PayU_ManishAgarwal', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'payu', 'mid': _PAYU_MID},
-            {'name': 'PayU_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'payu', 'mid': _PAYU_MID, 'upiId': _PAYU_UPI_ID},
-            {'name': 'Razorpay_ManishAgarwal', 'status': 'active', 'type': 'payment_gateway', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
-            {'name': 'Razorpay_UPI', 'status': 'active', 'type': 'upi', 'gateway': 'razorpay', 'mid': _RAZORPAY_MID, 'upiId': _RAZORPAY_UPI_ID},
-        ],
-        'mcc': '4722',
+        'configs': list(_LIVE_CONFIGS),
+        'mcc': '7392',
         'purposeCode': '03',
     },
 }
@@ -4649,8 +4655,8 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
     CRITICAL: payment_amount_paise MUST be passed by the caller from flow registry.
     Do NOT hardcode any amount — each flow defines its own payment config.
     
-    preferred_gateway: 'razorpay' or 'payu' — passed to invoice-engine
-    payment_config_name: specific Meta PG config name (e.g. 'WECARE-RAZOR-PAY')
+    preferred_gateway: 'razorpay' (only supported value) — passed to invoice-engine
+    payment_config_name: specific Meta PG config name ('WECAREDIGITAL' or 'WECAREUPI')
     
     Returns the invoice number (or empty string on failure).
     """
@@ -4704,7 +4710,7 @@ def _send_payment_after_flow(phone: str, order_id: str, subject: str, request_id
         'entryPoint': 'submit_request_flow',
         'purpose': f'{flow_name}: {subject}' if subject else flow_name,
         'notes': f'Request #{request_number}' if request_number else '',
-        'gstin': '19AADFW7431N1ZK',
+        'gstin': '19AAFFW7196L1Z8',
         'gstRate': 18,
         'items': [{
             'name': flow_name,
@@ -4883,7 +4889,7 @@ def _send_payment_direct_fallback(phone: str, order_id: str, subject: str,
                 'itemName': 'Service Request',
                 'quantity': 1,
                 'gstRate': gst_rate,
-                'gstin': '19AADFW7431N1ZK',
+                'gstin': '19AAFFW7196L1Z8',
                 'orderId': order_id,
                 'order': {
                     'status': 'pending',

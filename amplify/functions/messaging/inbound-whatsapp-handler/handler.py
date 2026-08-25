@@ -5146,7 +5146,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                     'itemName': order_items[0]['name'] if order_items else item_name,
                     'quantity': qty,
                     'gstRate': gst_rate,
-                    'gstin': '19AADFW7431N1ZK',
+                    'gstin': '19AAFFW7196L1Z8',
                     'orderId': order_id or 'Offline',
                     'order': {
                         'status': 'pending',
@@ -5155,7 +5155,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                         'discount': {'value': discount_paise, 'offset': 100, 'description': 'Promo'},
                         'shipping': {'value': shipping_paise, 'offset': 100, 'description': 'Express'},
                         'handling': {'value': handling_paise, 'offset': 100, 'description': 'Handling'},
-                        'tax': {'value': gst_paise, 'offset': 100, 'description': f'GSTIN: 19AADFW7431N1ZK'},
+                        'tax': {'value': gst_paise, 'offset': 100, 'description': f'GSTIN: 19AAFFW7196L1Z8'},
                     },
                 }
             })
@@ -5202,7 +5202,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
                 'paymentHandling': Decimal(str(handling_paise)),
                 'paymentConvFee': Decimal(str(conv_total_paise)),
                 'paymentTotal': Decimal(str(total_paise)),
-                'paymentGstin': '19AADFW7431N1ZK',
+                'paymentGstin': '19AAFFW7196L1Z8',
                 'paymentSource': 'whatsapp_bot',
                 'paymentPurpose': payment_purpose or '',
                 'paymentDueRef': due_ref or '',
@@ -5572,7 +5572,7 @@ def _build_invoice_lines(ref_id: str, pay_ref: str, item_name: str, unit_price: 
     lines.append('')
     lines.append('')  # space for logo
     lines.append(center('WECARE.DIGITAL'))
-    lines.append(center('GSTIN: 19AADFW7431N1ZK'))
+    lines.append(center('GSTIN: 19AAFFW7196L1Z8'))
     lines.append(center('The W.B.S.I.D.C. Building'))
     lines.append(center('Unit 1/20, 81/2/7 Phears Ln'))
     lines.append(center('Kolkata, WB 700012'))

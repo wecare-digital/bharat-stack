@@ -178,7 +178,7 @@ export function addBackendResources ( stack: Stack ) {
     'wecare-whatsapp-templates', 'wecare-scheduled-messages', 'wecare-bulk-job-create',
     'wecare-bulk-worker', 'wecare-bulk-job-control', 'wecare-ai-query-kb',
     'wecare-ai-generate-response', 'wecare-ai-config-management', 'wecare-agent-action-group',
-    'wecare-razorpay-webhook', 'wecare-payu-webhook', 'wecare-payments-read', 'wecare-invoice-engine',
+    'wecare-razorpay-webhook', 'wecare-payments-read', 'wecare-invoice-engine',
     'wecare-dlq-replay', 'wecare-contacts', 'wecare-meta-analytics', 'wecare-catalog-management',
     'wecare-ad-attribution', 'wecare-outbound-sms', 'wecare-outbound-email', 'wecare-outbound-voice',
     'wecare-sms-aws', 'wecare-voice-aws', 'wecare-sms-in-airtel', 'wecare-voice-in-c2c',
@@ -208,7 +208,7 @@ export function addBackendResources ( stack: Stack ) {
   // Critical, customer-facing or money/data-path functions get a dedicated alarm.
   const CRITICAL_LAMBDAS = [
     'wecare-inbound-whatsapp', 'wecare-outbound-whatsapp', 'wecare-whatsapp-calling',
-    'wecare-whatsapp-business-api', 'wecare-razorpay-webhook', 'wecare-payu-webhook',
+    'wecare-whatsapp-business-api', 'wecare-razorpay-webhook',
     'wecare-invoice-engine', 'wecare-scheduled-messages', 'wecare-bulk-worker',
     'wecare-contacts', 'wecare-ai-generate-response', 'wecare-service-api',
     'wecare-waba-management', 'wecare-sms-aws', 'wecare-voice-aws',

@@ -40,8 +40,8 @@ export const WHATSAPP_PHONES = {
     wabaId: '2094615664435155',
     metaPhoneId: '1016149501586345',
     hasPayment: true,
-    paymentConfigName: 'WECARE-RAZOR-PAY',
-    paymentConfigs: [ 'WECARE-RAZOR-PAY', 'WECARE-RAZORPAY-UPIVPA', 'WECARE-PAYU', 'Payu-UPIVPA' ],
+    paymentConfigName: 'WECAREDIGITAL',
+    paymentConfigs: [ 'WECAREDIGITAL', 'WECAREUPI' ],
     paymentProtected: false,
     pendingRegistration: true,  // Blocked by Meta rate limit — registration pending
   },
@@ -53,8 +53,8 @@ export const WHATSAPP_PHONES = {
     wabaId: '2513394156072604',
     metaPhoneId: '1055232054343117',
     hasPayment: true,
-    paymentConfigName: 'Razorpay_ManishAgarwal',
-    paymentConfigs: [ 'Razorpay_ManishAgarwal', 'Razorpay_UPI', 'PayU_ManishAgarwal', 'PayU_UPI' ],
+    paymentConfigName: 'WECAREDIGITAL',
+    paymentConfigs: [ 'WECAREDIGITAL', 'WECAREUPI' ],
     paymentProtected: true,
     directApi: true,
   },
@@ -71,8 +71,13 @@ export const GST_RATES = [
 ];
 
 // Convenience Fee Configuration
+// Fee is charged on the cart/collection subtotal, then GST is applied to the
+// fee itself: total = (subtotal x percent%) x (1 + gstPercent/100).
+// NOTE: the Wix checkout SPI keeps its own copy of these rates in
+// store/src/backend/ecom/additional-fees/convenience-fee.js because Velo code
+// cannot import from this bundle. Change both together.
 export const CONVENIENCE_FEE = {
-  percent: 2.0,
+  percent: 2.2,
   gstPercent: 18.0,
 };
 
@@ -80,7 +85,11 @@ export const CONVENIENCE_FEE = {
 // Payment gateway IDs are backend-only — not exposed in the browser bundle.
 // MCC and purpose code are non-sensitive category codes.
 export const PAYMENT_DETAILS = {
-  mcc: '4722',
+  // Verified against Graph API /{waba}/payment_configurations 2026-08-23:
+  // MCC 7392 (Management, consulting and public relations services) on all
+  // four configs across both WABAs. Was previously 4722 (travel agencies),
+  // which did not match Meta and could cause payment rejections.
+  mcc: '7392',
   purposeCode: '03',
 };
 

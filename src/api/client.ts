@@ -2013,7 +2013,7 @@ export interface SendPaymentMessageRequest {
   bodyText?: string;
   useInteractive?: boolean;
   paymentConfiguration?: string;
-  convenienceFee?: number; // In paise (2% + 18% GST)
+  convenienceFee?: number; // In paise (2.2% + 18% GST)
   orderId?: string;       // Order ID (blank = Offline)
 }
 
@@ -2039,7 +2039,7 @@ export async function sendWhatsAppPaymentMessage ( request: SendPaymentMessageRe
   const orderDetails: any = {
     reference_id: request.referenceId,
     type: 'physical-goods',
-    payment_configuration: request.paymentConfiguration || 'WECARE-RAZOR-PAY',
+    payment_configuration: request.paymentConfiguration || 'WECAREDIGITAL',
     currency: request.currency || 'INR',
     itemName: request.items[ 0 ]?.name || 'Service Fee',
     quantity: request.items[ 0 ]?.quantity || 1,
@@ -4639,7 +4639,7 @@ export interface CreateInvoiceEngineRequest {
   currency?: string;
   /** Preferred PG: 'razorpay' or 'payu' — used when customer triggers payment via keyword */
   preferredGateway?: string;
-  /** Exact Meta PG config name (e.g. 'PayU_ManishAgarwal') — stored on invoice for keyword-triggered payments */
+  /** Exact Meta PG config name (e.g. 'WECAREDIGITAL') — stored on invoice for keyword-triggered payments */
   paymentConfiguration?: string;
   /** Structured address fields for WhatsApp Payments shipping_info */
   addressLine1?: string;

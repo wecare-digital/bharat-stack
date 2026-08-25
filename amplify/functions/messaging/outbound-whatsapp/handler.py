@@ -274,35 +274,32 @@ RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 # WhatsApp Payment Configurations
 # +919330994400 (WECARE.DIGITAL) WABA: 2094615664435155 — Active, Direct API
 # +919903300044 (Manish Agarwal) WABA: 2513394156072604 — active, Direct API
-# Both use same Razorpay MID (from env RAZORPAY_MID) | MCC: 4722 | Purpose: 03
-# Config names MUST match exactly what's in Meta Business Manager
+# Both use the same Razorpay MID acc_TTFSyolquKEZEy | MCC: 7392 | Purpose: 03
 # Config names MUST match EXACTLY what is registered on Meta (WhatsApp Manager >
-# Payments). Verified live via Graph API /{waba}/payment_configurations 2026-07-11:
-#   WABA1 (2094615664435155): Razorpay_wecare.digital, Razorpay_UPI, PayU_wecare.digital, PayU_UPI
-#   WABA2 (2513394156072604): Razorpay_ManishAgarwal, Razorpay_UPI, PayU_ManishAgarwal, PayU_UPI
-# Business decision: Razorpay is the primary/default gateway.
+# Payments).
+# Verified live via Graph API /{waba}/payment_configurations on 2026-08-23.
+# The configs were rebuilt on Meta that same day (created_timestamp 1787629967-
+# 1787630432) and every previously-used name was removed. Both WABAs now carry
+# an IDENTICAL pair:
+#   WECAREDIGITAL - Razorpay gateway, provider_mid acc_TTFSyolquKEZEy
+#   WECAREUPI     - UPI VPA wecaredigitalbh511413.rzp@rxairtel
+# MCC 7392, purpose code 03 on all four. No PayU config exists on either WABA.
 VALID_PAYMENT_CONFIGS = {
-    'Razorpay_wecare.digital', 'PayU_wecare.digital',   # WABA1
-    'Razorpay_ManishAgarwal', 'PayU_ManishAgarwal',     # WABA2
-    'Razorpay_UPI', 'PayU_UPI',                         # exist on BOTH WABAs
+    'WECAREDIGITAL',   # Razorpay PG deep integration (default)
+    'WECAREUPI',       # UPI VPA
 }
-DEFAULT_PAYMENT_CONFIG = 'Razorpay_ManishAgarwal'
-# Map phone number ID to its default (Razorpay) payment config name.
+DEFAULT_PAYMENT_CONFIG = 'WECAREDIGITAL'
+# Both WABAs share the same config names, so the mapping is uniform. It is kept
+# per-phone so a future divergence needs only a value change here.
 PHONE_PAYMENT_CONFIG = {
-    PHONE_NUMBER_ID_1: 'Razorpay_wecare.digital',        # +919330994400 (WABA1)
-    PHONE_NUMBER_ID_2: 'Razorpay_ManishAgarwal',         # +919903300044 (WABA2)
+    PHONE_NUMBER_ID_1: 'WECAREDIGITAL',                  # +919330994400 (WABA1)
+    PHONE_NUMBER_ID_2: 'WECAREDIGITAL',                  # +919903300044 (WABA2)
 }
 
-# Per-phone payment gateway configs. Razorpay is default; PayU kept for completeness.
+# Razorpay is the only gateway. PayU was removed from both WABAs on Meta.
 PHONE_PAYMENT_GATEWAYS = {
-    PHONE_NUMBER_ID_1: {                                  # +919330994400 (WABA1)
-        'razorpay': 'Razorpay_wecare.digital',
-        'payu': 'PayU_wecare.digital',
-    },
-    PHONE_NUMBER_ID_2: {                                  # +919903300044 (WABA2)
-        'razorpay': 'Razorpay_ManishAgarwal',
-        'payu': 'PayU_ManishAgarwal',
-    },
+    PHONE_NUMBER_ID_1: {'razorpay': 'WECAREDIGITAL'},     # +919330994400 (WABA1)
+    PHONE_NUMBER_ID_2: {'razorpay': 'WECAREDIGITAL'},     # +919903300044 (WABA2)
 }
 
 
@@ -310,11 +307,11 @@ def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
     """Build payment_settings array per Meta's latest PG deep integration spec (v25.0).
 
     Supports 3 modes:
-    1. PG Deep Integration (default) — razorpay/payu with configuration_name
+    1. PG Deep Integration (default) — razorpay with configuration_name
     2. Enhanced Payment Links — payment_link with PG-generated URL
     3. UPI Intent — upi_intent_link with raw UPI deep link
 
-    Also supports TPV (Third Party Validation) for Razorpay/PayU.
+    Also supports TPV (Third Party Validation) for Razorpay.
     Meta allows ONE payment_setting per review_and_pay message."""
     explicit_config = order_details.get('payment_configuration', '')
     ref_id = order_details.get('reference_id', '')
@@ -337,55 +334,33 @@ def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
         return [{'type': 'upi_intent_link', 'upi_intent_link': {'link': upi_intent}}]
 
     # ── Mode 3: PG Deep Integration (default) ──
-    # Determine which gateway and config name to use
-    # CRITICAL: Never cross-WABA — each phone's configs only work on its own WABA
+    # Both WABAs expose the same two config names, so no cross-WABA correction is
+    # possible or needed. Razorpay is the only provider; PayU no longer exists on
+    # Meta. WECAREUPI is a UPI-VPA config whose VPA (…​.rzp@rxairtel) is
+    # Razorpay-issued, so it also reports as type 'razorpay'.
+    gw_type = 'razorpay'
     if explicit_config and explicit_config in VALID_PAYMENT_CONFIGS:
-        gw_type = 'payu' if 'PAYU' in explicit_config.upper() else 'razorpay'
         config_name = explicit_config
     else:
-        gw_type = 'razorpay'
-        # Use THIS phone's gateway map — never fall back to a different phone's configs
-        gateways = PHONE_PAYMENT_GATEWAYS.get(phone_number_id)
-        if not gateways:
-            # Unknown phone ID — try to infer from the ID string
-            if '1016149501586345' in str(phone_number_id):
-                gateways = PHONE_PAYMENT_GATEWAYS.get(PHONE_NUMBER_ID_1)
-            else:
-                gateways = PHONE_PAYMENT_GATEWAYS.get(PHONE_NUMBER_ID_2)
-        config_name = gateways.get('razorpay', DEFAULT_PAYMENT_CONFIG) if gateways else DEFAULT_PAYMENT_CONFIG
+        if explicit_config:
+            logger.warning(json.dumps({
+                'event': 'unknown_payment_config_ignored',
+                'requested': explicit_config,
+                'valid': sorted(VALID_PAYMENT_CONFIGS),
+                'fellBackTo': DEFAULT_PAYMENT_CONFIG,
+            }))
+        gateways = PHONE_PAYMENT_GATEWAYS.get(phone_number_id) or {}
+        config_name = gateways.get('razorpay', DEFAULT_PAYMENT_CONFIG)
 
     pg_obj = {
         'type': gw_type,
         'configuration_name': config_name,
     }
 
-    # Cross-WABA validation: ensure config belongs to the sending phone's WABA
-    # WABA 1 configs: WECARE-RAZOR-PAY, WECARE-PAYU, WECARE-RAZORPAY-UPIVPA, Payu-UPIVPA, etc.
-    # WABA 2 configs: Razorpay_ManishAgarwal, PayU_ManishAgarwal, Razorpay_UPI, PayU_UPI
-    # Cross-WABA guard: WABA1 configs contain "wecare.digital", WABA2 contain
-    # "ManishAgarwal". Razorpay_UPI / PayU_UPI exist on BOTH WABAs, so they are
-    # never treated as cross-WABA.
-    is_phone1 = '1016149501586345' in str(phone_number_id)
-    _cfg_l = config_name.lower()
-    is_waba1_config = 'wecare.digital' in _cfg_l
-    is_waba2_config = 'manishagarwal' in _cfg_l
-
-    if is_phone1 and is_waba2_config:
-        corrected = 'Razorpay_wecare.digital' if gw_type == 'razorpay' else 'PayU_wecare.digital'
-        logger.warning(json.dumps({
-            'event': 'cross_waba_config_corrected', 'phone': 'phone1',
-            'wrongConfig': config_name, 'correctedTo': corrected,
-        }))
-        config_name = corrected
-        pg_obj['configuration_name'] = config_name
-    elif not is_phone1 and is_waba1_config:
-        corrected = 'Razorpay_ManishAgarwal' if gw_type == 'razorpay' else 'PayU_ManishAgarwal'
-        logger.warning(json.dumps({
-            'event': 'cross_waba_config_corrected', 'phone': 'phone2',
-            'wrongConfig': config_name, 'correctedTo': corrected,
-        }))
-        config_name = corrected
-        pg_obj['configuration_name'] = config_name
+    # Cross-WABA correction removed 2026-08-23. It keyed off the substrings
+    # "wecare.digital" and "manishagarwal", neither of which occurs in the current
+    # config names (WECAREDIGITAL / WECAREUPI), so it could never fire. Both WABAs
+    # now share identical config names, making the whole concept obsolete.
 
     # Add PG-specific fields per Meta docs
     if gw_type == 'razorpay':
@@ -400,17 +375,9 @@ def _build_payment_settings(phone_number_id: str, order_details: dict) -> list:
         encrypted_tpv = order_details.get('encrypted_payment_gateway_data', '')
         if encrypted_tpv:
             pg_obj['razorpay']['encrypted_payment_gateway_data'] = encrypted_tpv
-    elif gw_type == 'payu':
-        pg_obj['payu'] = {
-            'udf1': ref_id,
-            'udf2': order_details.get('orderId', 'Offline'),
-            'udf3': order_details.get('gstin', '19AADFW7431N1ZK'),
-            'udf4': 'wecare_invoice_engine',
-        }
-        # TPV support for PayU (Gap 11) — encrypted beneficiary validation
-        encrypted_tpv = order_details.get('encrypted_payment_gateway_data', '')
-        if encrypted_tpv:
-            pg_obj['payu']['encrypted_payment_gateway_data'] = encrypted_tpv
+    # The PayU branch (udf1-udf4 + TPV) was removed 2026-08-23. gw_type is now
+    # unconditionally 'razorpay' and no PayU config exists on either WABA, so it
+    # was unreachable. It also carried a stale hardcoded GSTIN default.
 
     return [{'type': 'payment_gateway', 'payment_gateway': pg_obj}]
 METRICS_NAMESPACE = 'WECARE.DIGITAL'
@@ -1945,7 +1912,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                     'paymentGstAmount': Decimal(str(tax_val)),
                     'paymentShipping': Decimal(str(shipping_val)),
                     'paymentTotal': Decimal(str(int((payment_amount or 0) * 100))),
-                    'paymentGstin': order_details.get('gstin', '19AADFW7431N1ZK'),
+                    'paymentGstin': order_details.get('gstin', '19AAFFW7196L1Z8'),
                     'paymentSource': 'inbox_ui',
                     'paymentOrderId': order_details.get('orderId', 'Offline'),
                     'paymentCustomerName': c_name,
@@ -2743,7 +2710,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         order_data = order_details.get('order', {})
         
         # GSTIN
-        gstin = order_details.get('gstin', '19AADFW7431N1ZK')
+        gstin = order_details.get('gstin', '19AAFFW7196L1Z8')
         
         # Discount, Delivery (user input, mandatory - show even if 0)
         discount_paise = int(order_data.get('discount', {}).get('value', 0))
@@ -2801,9 +2768,12 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             # Use tax value from order_data as fallback
             gst_paise = int(order_data.get('tax', {}).get('value', 0))
         
-        # Convenience Fee: configurable rate (default 2%) + GST on that rate (default 18%)
+        # Convenience Fee: configurable rate (default 2.2%) + GST on that rate (default 18%)
         # Can be overridden per-order via convenienceFeeRate and convenienceFeeGstRate
-        conv_fee_rate = Decimal(str(order_details.get('convenienceFeeRate', '0.02')))
+        # This default is the authoritative charged rate for WhatsApp payments and
+        # must stay in sync with CONVENIENCE_FEE in src/config/constants.ts and with
+        # FEE_RATE in store/src/backend/ecom/additional-fees/convenience-fee.js.
+        conv_fee_rate = Decimal(str(order_details.get('convenienceFeeRate', '0.022')))
         conv_fee_gst_rate = Decimal(str(order_details.get('convenienceFeeGstRate', '0.18')))
         skip_conv_fee = order_details.get('skipConvenienceFee', False)
 

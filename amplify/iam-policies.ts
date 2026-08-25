@@ -365,7 +365,7 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
 
   // === Payments ===
   'wecare-razorpay-webhook': [ 'common', 'lambdaInvoke' ],
-  'wecare-payu-webhook': [ 'common' ],
+
   'wecare-payments-read': [ 'common' ],
   'wecare-invoice-engine': [ 'common', 'whatsapp', 'lambdaInvoke' ],
 

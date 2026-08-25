@@ -36,7 +36,7 @@ export interface BrandInfo {
 const FAQ_DATABASE: FAQ[] = [
   {
     id: "hours",
-    keywords: ["hours", "timing", "open", "close", "available", "when", "time"],
+    keywords: [ "hours", "timing", "open", "close", "available", "when", "time" ],
     category: "general",
     question: "What are your business hours?",
     answer: "We are available 24/7 for online orders and support. For urgent assistance, call us at +91 9330994400 or email one@wecare.digital.",
@@ -44,7 +44,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "contact",
-    keywords: ["contact", "reach", "call", "email", "phone", "support", "help"],
+    keywords: [ "contact", "reach", "call", "email", "phone", "support", "help" ],
     category: "general",
     question: "How can I contact you?",
     answer: "You can reach us via:\n\u2022 Phone/WhatsApp: +91 9330994400\n\u2022 Email: one@wecare.digital\n\u2022 Website: https://wecare.digital",
@@ -52,7 +52,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "order",
-    keywords: ["order", "buy", "purchase", "shop", "product", "cart"],
+    keywords: [ "order", "buy", "purchase", "shop", "product", "cart" ],
     category: "orders",
     question: "How do I place an order?",
     answer: "Visit our store at https://store.wecare.digital to browse products and place orders. You can also order via WhatsApp by sending us a message at +91 9330994400.",
@@ -60,15 +60,15 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "payment",
-    keywords: ["payment", "pay", "price", "cost", "fee", "charge", "upi", "card"],
+    keywords: [ "payment", "pay", "price", "cost", "fee", "charge", "upi", "card" ],
     category: "payments",
     question: "What payment methods do you accept?",
-    answer: "We accept:\n\u2022 UPI (Google Pay, PhonePe, Paytm)\n\u2022 Credit/Debit Cards\n\u2022 Net Banking\n\u2022 Razorpay Payment Gateway\n\nA 2% convenience fee + 18% GST applies to all payments.",
-    shortAnswer: "UPI, Cards, Net Banking (2% + GST fee applies)",
+    answer: "We accept:\n\u2022 UPI (Google Pay, PhonePe, Paytm)\n\u2022 Credit/Debit Cards\n\u2022 Net Banking\n\u2022 Razorpay Payment Gateway\n\nA 2.2% convenience fee + 18% GST applies to all payments.",
+    shortAnswer: "UPI, Cards, Net Banking (2.2% + GST fee applies)",
   },
   {
     id: "delivery",
-    keywords: ["delivery", "shipping", "ship", "courier", "dispatch", "send"],
+    keywords: [ "delivery", "shipping", "ship", "courier", "dispatch", "send" ],
     category: "orders",
     question: "What are your delivery options?",
     answer: "We offer standard shipping across India. Delivery time varies by location (typically 3-7 business days). Track your order status in the My Orders section.",
@@ -76,7 +76,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "return",
-    keywords: ["return", "refund", "cancel", "exchange", "money back"],
+    keywords: [ "return", "refund", "cancel", "exchange", "money back" ],
     category: "orders",
     question: "What is your return policy?",
     answer: "Returns are accepted within 7 days of delivery for eligible items. Contact us at one@wecare.digital with your order number to initiate a return. Refunds are processed within 5-7 business days.",
@@ -84,7 +84,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "track",
-    keywords: ["track", "status", "where", "order status", "tracking"],
+    keywords: [ "track", "status", "where", "order status", "tracking" ],
     category: "orders",
     question: "How do I track my order?",
     answer: "Log in to your account at https://store.wecare.digital and visit the My Orders page to track your order status in real-time.",
@@ -92,7 +92,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "whatsapp",
-    keywords: ["whatsapp", "message", "chat", "wa", "messenger"],
+    keywords: [ "whatsapp", "message", "chat", "wa", "messenger" ],
     category: "general",
     question: "Can I order via WhatsApp?",
     answer: "Yes! Send us a message on WhatsApp at +91 9330994400. Our AI assistant will help you browse products and place orders directly through chat.",
@@ -100,7 +100,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "invoice",
-    keywords: ["invoice", "bill", "receipt", "gst", "tax"],
+    keywords: [ "invoice", "bill", "receipt", "gst", "tax" ],
     category: "payments",
     question: "How do I get my invoice?",
     answer: "Your invoice is automatically generated after payment and sent to your registered email. You can also download it from the My Orders section or request it via email.",
@@ -108,7 +108,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "account",
-    keywords: ["account", "login", "register", "signup", "password", "profile"],
+    keywords: [ "account", "login", "register", "signup", "password", "profile" ],
     category: "general",
     question: "How do I create an account?",
     answer: "Visit https://store.wecare.digital and click on the account icon to register. You can also place orders as a guest without creating an account.",
@@ -116,15 +116,15 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "convenience-fee",
-    keywords: ["convenience fee", "extra charge", "additional fee", "why charge"],
+    keywords: [ "convenience fee", "extra charge", "additional fee", "why charge" ],
     category: "payments",
     question: "What is the convenience fee?",
-    answer: "A 2% convenience fee is charged on the cart total, plus 18% GST on that fee. This covers payment gateway and processing costs. Total fee = (Cart \u00d7 2%) \u00d7 1.18",
-    shortAnswer: "2% + 18% GST on payment processing",
+    answer: "A 2.2% convenience fee is charged on the cart total, plus 18% GST on that fee. This covers payment gateway and processing costs. Total fee = (Cart \u00d7 2.2%) \u00d7 1.18",
+    shortAnswer: "2.2% + 18% GST on payment processing",
   },
   {
     id: "bulk-order",
-    keywords: ["bulk", "wholesale", "large order", "quantity", "discount"],
+    keywords: [ "bulk", "wholesale", "large order", "quantity", "discount" ],
     category: "orders",
     question: "Do you offer bulk order discounts?",
     answer: "Yes! For bulk orders, please contact us at one@wecare.digital or call +91 9330994400. We offer special pricing for large quantities.",
@@ -132,7 +132,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "submit-request",
-    keywords: ["submit", "request", "service", "help", "issue", "problem", "complaint"],
+    keywords: [ "submit", "request", "service", "help", "issue", "problem", "complaint" ],
     category: "general",
     question: "How do I submit a request?",
     answer: "You can submit a service request in two ways:\n\u2022 Via WhatsApp: Send a message to +91 9330994400 and select 'Submit Request' from the menu.\n\u2022 Via Web: Go to Service \u2192 Submit Request in the Bharat Stack dashboard.\n\nYou will need to select your order first, then describe your issue. Requests are tracked by Order ID.",
@@ -140,7 +140,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "track-request",
-    keywords: ["track", "request", "status", "check", "progress", "update", "follow"],
+    keywords: [ "track", "request", "status", "check", "progress", "update", "follow" ],
     category: "general",
     question: "How can I track my request?",
     answer: "Track your request by Order ID:\n\u2022 Via WhatsApp: Select 'Track Request' from the menu and enter your Order ID.\n\u2022 Via Web: Go to Service \u2192 Track Request in the dashboard.\n\nYou will see all service requests, status timeline, payment info, and linked documents for that order.",
@@ -148,7 +148,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "amend-request",
-    keywords: ["amend", "change", "modify", "update", "edit", "correct", "amendment"],
+    keywords: [ "amend", "change", "modify", "update", "edit", "correct", "amendment" ],
     category: "general",
     question: "How do I request an amendment?",
     answer: "To amend an existing request:\n\u2022 Via WhatsApp: Select 'Amend Request' from the menu.\n\u2022 Via Web: Go to Service \u2192 Amend Request.\n\nSelect your order, choose the request to amend, describe the changes needed, and submit. Amendment history is tracked and visible to both you and the admin team.",
@@ -156,7 +156,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "rx-slot",
-    keywords: ["rx", "slot", "prescription", "pharmacy", "medicine", "medical", "schedule"],
+    keywords: [ "rx", "slot", "prescription", "pharmacy", "medicine", "medical", "schedule" ],
     category: "general",
     question: "How do I book or reschedule an RX slot?",
     answer: "Book an RX slot for prescriptions or medical consultations:\n\u2022 Via WhatsApp: Select 'RX Slot' from the self-service menu.\n\u2022 Via Web: Go to Booking \u2192 RX Slots.\n\nChoose your preferred date, time, and provider. You can reschedule or cancel from the same page.",
@@ -164,7 +164,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "drop-docs",
-    keywords: ["document", "upload", "docs", "drop", "file", "prescription", "id", "proof"],
+    keywords: [ "document", "upload", "docs", "drop", "file", "prescription", "id", "proof" ],
     category: "general",
     question: "How do I upload supporting documents?",
     answer: "Upload documents in two ways:\n\u2022 Via WhatsApp: Simply send the document (photo, PDF, etc.) to +91 9330994400. It will automatically appear in our system.\n\u2022 Via Web: Go to Drop Docs in the dashboard.\n\nDocuments are reviewed by our team. You can check the status (uploaded, under review, approved, rejected) anytime.",
@@ -172,7 +172,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "enterprise-support",
-    keywords: ["enterprise", "business", "corporate", "b2b", "company", "technical"],
+    keywords: [ "enterprise", "business", "corporate", "b2b", "company", "technical" ],
     category: "general",
     question: "How do I get enterprise support?",
     answer: "For enterprise and business support:\n\u2022 Via WhatsApp: Select 'Enterprise Assist' from the menu.\n\u2022 Via Web: Go to Enterprise in the dashboard.\n\nProvide your company details, describe the issue, and set priority. Cases are assigned to dedicated support agents and tracked through resolution.",
@@ -180,7 +180,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "appointment",
-    keywords: ["appointment", "book", "schedule", "consultation", "visit", "meeting"],
+    keywords: [ "appointment", "book", "schedule", "consultation", "visit", "meeting" ],
     category: "general",
     question: "How do I book an appointment?",
     answer: "Book an appointment for consultations or service visits:\n\u2022 Via WhatsApp: Select 'Schedule Appointment' from the self-service menu.\n\u2022 Via Web: Go to Booking \u2192 Appointments.\n\nChoose appointment type, preferred date/time, and location. You will receive a confirmation and reminders via WhatsApp.",
@@ -188,7 +188,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "leave-review",
-    keywords: ["review", "feedback", "rating", "rate", "experience", "opinion", "star"],
+    keywords: [ "review", "feedback", "rating", "rate", "experience", "opinion", "star" ],
     category: "general",
     question: "How do I leave a review?",
     answer: "Share your feedback:\n\u2022 Via WhatsApp: Select 'Leave Review' from the menu. Rate 1-5 stars and add comments.\n\u2022 Via Web: Go to Reviews in the dashboard.\n\nYour review helps us improve. Reviews are moderated and published after approval.",
@@ -196,7 +196,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "mobile-app",
-    keywords: ["app", "mobile", "android", "ios", "iphone", "download", "install"],
+    keywords: [ "app", "mobile", "android", "ios", "iphone", "download", "install" ],
     category: "general",
     question: "Is there a mobile app?",
     answer: "Yes! The Bharat Stack platform is available as a Progressive Web App (PWA). Visit stack.wecare.digital on your mobile browser and tap 'Add to Home Screen' for an app-like experience. Native iOS and Android apps are coming soon.",
@@ -204,7 +204,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "what-is-wecare",
-    keywords: ["wecare", "about", "company", "who", "what", "platform", "service"],
+    keywords: [ "wecare", "about", "company", "who", "what", "platform", "service" ],
     category: "general",
     question: "What is WECARE.DIGITAL?",
     answer: "WECARE.DIGITAL is a microservice company that provides end-to-end customer engagement solutions. Our Bharat Stack platform offers WhatsApp Business API, multi-channel messaging (SMS, Email, Voice), AI-powered support, payment processing, and a complete order management system. We help businesses connect with customers across India.",
@@ -212,7 +212,7 @@ const FAQ_DATABASE: FAQ[] = [
   },
   {
     id: "gift-card",
-    keywords: ["gift", "card", "voucher", "present", "gifting"],
+    keywords: [ "gift", "card", "voucher", "present", "gifting" ],
     category: "payments",
     question: "Can I buy a gift card?",
     answer: "Yes! Visit https://www.wecare.digital/gift-card to purchase a gift card for any amount. You can include a personal message. Gift cards are delivered digitally and can be redeemed at our store.",
@@ -282,66 +282,72 @@ const SYNONYMS: Record<string, string> = {
   "closed": "close",
 };
 
-const GREETINGS = ["hi", "hello", "hey", "namaste", "good morning", "good evening"];
+const GREETINGS = [ "hi", "hello", "hey", "namaste", "good morning", "good evening" ];
 const DEFAULT_RESPONSE = "I don't have specific information about that. Please contact us at +91 9330994400 or one@wecare.digital for assistance.";
 
-function normalizeQuery(query: string): string {
-  return query.toLowerCase().split(/\s+/).map(w => SYNONYMS[w] || w).join(' ');
+function normalizeQuery ( query: string ): string {
+  return query.toLowerCase().split( /\s+/ ).map( w => SYNONYMS[ w ] || w ).join( ' ' );
 }
 
 /**
  * Search FAQs using keyword matching with synonym expansion
  */
-export function searchFAQs(
+export function searchFAQs (
   query: string,
   options: { maxResults?: number; shortAnswer?: boolean; category?: string } = {}
 ): FAQSearchResult[] {
   const { maxResults = 3, shortAnswer = false, category } = options;
-  const queryNorm = normalizeQuery(query.trim());
+  const queryNorm = normalizeQuery( query.trim() );
 
-  if (!queryNorm) return [];
+  if ( !queryNorm ) return [];
 
   // Check for greetings
-  if (GREETINGS.some(g => queryNorm.includes(g))) {
-    return [{
+  if ( GREETINGS.some( g => queryNorm.includes( g ) ) )
+  {
+    return [ {
       id: 'greeting', question: 'Greeting',
       answer: "Hi! \ud83d\udc4b Welcome to WECARE.DIGITAL. How can I help you today?",
-      score: 100, category: 'general', matchedKeywords: ['greeting']
-    }];
+      score: 100, category: 'general', matchedKeywords: [ 'greeting' ]
+    } ];
   }
 
   const matches: FAQSearchResult[] = [];
 
-  for (const faq of FAQ_DATABASE) {
-    if (category && faq.category !== category) continue;
+  for ( const faq of FAQ_DATABASE )
+  {
+    if ( category && faq.category !== category ) continue;
     let score = 0;
     const matchedKeywords: string[] = [];
-    for (const keyword of faq.keywords) {
-      if (queryNorm.includes(keyword.toLowerCase())) {
+    for ( const keyword of faq.keywords )
+    {
+      if ( queryNorm.includes( keyword.toLowerCase() ) )
+      {
         score++;
-        matchedKeywords.push(keyword);
+        matchedKeywords.push( keyword );
       }
     }
-    if (score > 0) {
-      matches.push({
+    if ( score > 0 )
+    {
+      matches.push( {
         id: faq.id, question: faq.question,
         answer: shortAnswer ? faq.shortAnswer : faq.answer,
         score, category: faq.category, matchedKeywords
-      });
+      } );
     }
   }
 
-  return matches.sort((a, b) => b.score - a.score).slice(0, maxResults);
+  return matches.sort( ( a, b ) => b.score - a.score ).slice( 0, maxResults );
 }
 
 /**
  * Get all FAQs grouped by category
  */
-export function getAllFAQs(shortAnswer: boolean = false): Record<string, FAQ[]> {
+export function getAllFAQs ( shortAnswer: boolean = false ): Record<string, FAQ[]> {
   const grouped: Record<string, FAQ[]> = { general: [], orders: [], payments: [] };
-  for (const faq of FAQ_DATABASE) {
-    if (!grouped[faq.category]) grouped[faq.category] = [];
-    grouped[faq.category].push(faq);
+  for ( const faq of FAQ_DATABASE )
+  {
+    if ( !grouped[ faq.category ] ) grouped[ faq.category ] = [];
+    grouped[ faq.category ].push( faq );
   }
   return grouped;
 }
@@ -349,30 +355,30 @@ export function getAllFAQs(shortAnswer: boolean = false): Record<string, FAQ[]> 
 /**
  * Get FAQ by ID
  */
-export function getFAQById(id: string): FAQ | undefined {
-  return FAQ_DATABASE.find(faq => faq.id === id);
+export function getFAQById ( id: string ): FAQ | undefined {
+  return FAQ_DATABASE.find( faq => faq.id === id );
 }
 
 /**
  * Get brand information
  */
-export function getBrandInfo(): BrandInfo {
+export function getBrandInfo (): BrandInfo {
   return BRAND_INFO;
 }
 
 /**
  * Get formatted response text from search results
  */
-export function formatSearchResponse(results: FAQSearchResult[]): string {
-  if (results.length === 0) return DEFAULT_RESPONSE;
-  if (results.length === 1) return results[0].answer;
-  return results.map(r => `Q: ${r.question}\nA: ${r.answer}`).join('\n\n');
+export function formatSearchResponse ( results: FAQSearchResult[] ): string {
+  if ( results.length === 0 ) return DEFAULT_RESPONSE;
+  if ( results.length === 1 ) return results[ 0 ].answer;
+  return results.map( r => `Q: ${r.question}\nA: ${r.answer}` ).join( '\n\n' );
 }
 
 /**
  * Get category display name
  */
-export function getCategoryName(category: string): string {
-  const names: Record<string, string> = {"general": "General Information", "orders": "Orders & Delivery", "payments": "Payments & Billing"};
-  return names[category] || category;
+export function getCategoryName ( category: string ): string {
+  const names: Record<string, string> = { "general": "General Information", "orders": "Orders & Delivery", "payments": "Payments & Billing" };
+  return names[ category ] || category;
 }
