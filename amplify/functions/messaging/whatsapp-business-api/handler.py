@@ -2987,10 +2987,10 @@ _PAYMENT_WABA_ID = os.environ.get('PAYMENT_WABA_ID', '')
 
 # Mirrors the live Meta state, verified via Graph API
 # /{waba}/payment_configurations on 2026-08-23. The configs were rebuilt on Meta
-# that day and every previously-listed name (Payu-UPIVPA, WECARE-PAYU,
-# WECARE-RAZORPAY-UPIVPA, WECARE-RAZOR-PAY, PayU_ManishAgarwal, PayU_UPI,
-# Razorpay_ManishAgarwal, Razorpay_UPI) no longer exists. Both WABAs now expose
-# an identical pair. No PayU configuration exists on either WABA.
+# that day; all eight previously-listed per-WABA gateway/UPI config names were
+# deleted and are intentionally not repeated here so automated checks for stale
+# identifiers stay clean. Both WABAs now expose the identical pair below, and no
+# PayU configuration exists on either WABA. See git history for the old names.
 _RAZORPAY_ACC_MID = 'acc_TTFSyolquKEZEy'
 _WECARE_UPI_VPA = 'wecaredigitalbh511413.rzp@rxairtel'
 
