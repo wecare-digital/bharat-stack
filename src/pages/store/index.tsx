@@ -660,7 +660,7 @@ const StorePage: React.FC<PageProps> = ( { signOut, user } ) => {
               <div style={ { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 } }>
                 <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 } }>
                   <h3 style={ { margin: 0, fontSize: 16, fontWeight: 600 } }>Wix Site</h3>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer"
+                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5" target="_blank" rel="noopener noreferrer"
                     style={ { fontSize: 12, color: '#1a3a2a', textDecoration: 'none', padding: '4px 12px', border: '1px solid #f3f4f6', borderRadius: 8 } }>
                     Open Wix Dashboard →
                   </a>
@@ -679,7 +679,7 @@ const StorePage: React.FC<PageProps> = ( { signOut, user } ) => {
               <div style={ { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 } }>
                 <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 } }>
                   <h3 style={ { margin: 0, fontSize: 16, fontWeight: 600 } }>Velo Code Files</h3>
-                  <a href="https://editor.wix.com/html/editor/web/renderer/edit/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer"
+                  <a href="https://editor.wix.com/html/editor/web/renderer/edit/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5" target="_blank" rel="noopener noreferrer"
                     style={ { fontSize: 12, color: '#1a3a2a', textDecoration: 'none', padding: '4px 12px', border: '1px solid #f3f4f6', borderRadius: 8 } }>
                     Open in Wix Editor →
                   </a>
@@ -758,27 +758,27 @@ const StorePage: React.FC<PageProps> = ( { signOut, user } ) => {
               <div style={ { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 } }>
                 <h3 style={ { margin: '0 0 12px', fontSize: 16, fontWeight: 600 } }>Quick Actions</h3>
                 <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 } }>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
+                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/products" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
                     <div><div style={ { fontWeight: 500, fontSize: 13 } }>Manage Products</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
+                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/orders" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
                     <div><div style={ { fontWeight: 500, fontSize: 13 } }>Manage Orders</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/inventory" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
+                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/inventory" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
                     <div><div style={ { fontWeight: 500, fontSize: 13 } }>Inventory</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/coupons" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
+                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/coupons" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
                     <div><div style={ { fontWeight: 500, fontSize: 13 } }>Coupons</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/analytics" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
+                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/analytics" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10" /><polyline points="18 20 12 10 6 20" /><polyline points="4 14 12 6 20 14" /></svg>
                     <div><div style={ { fontWeight: 500, fontSize: 13 } }>Analytics</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
                   </a>
-                  <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/developer-tools/secrets-manager" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
+                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/developer-tools/secrets-manager" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg>
                     <div><div style={ { fontWeight: 500, fontSize: 13 } }>Secrets Manager</div><div style={ { fontSize: 11, color: '#6b7280' } }>API Keys & Secrets</div></div>
                   </a>

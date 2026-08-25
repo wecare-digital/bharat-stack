@@ -217,7 +217,13 @@ def _graph_api(endpoint: str, method: str = 'GET', payload: Dict = None, params:
     if method == 'GET':
         req = urllib.request.Request(url, headers=headers, method='GET')
     elif method == 'DELETE':
-        req = urllib.request.Request(url, headers=headers, method='DELETE')
+        # Several Meta DELETE edges require a JSON body: /{phone-number-id}/block_users
+        # (unblock), /{waba-id}/assigned_users (unassign) and /{group-id}/join_requests
+        # (reject). This branch previously never sent one, so those payloads were
+        # silently dropped and the calls could not do what they claimed.
+        # `data` is None when no payload was supplied, so payload-less DELETE callers
+        # are unaffected.
+        req = urllib.request.Request(url, data=data, headers=headers, method='DELETE')
     else:
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
@@ -2870,38 +2876,100 @@ def _get_waba_instagram_link(waba_id: str) -> Dict:
 
 # ============================================================================
 # BLOCK USERS API
-# Per Meta BSUID docs: block/unblock users by phone or user_id (BSUID)
+#
+# The Block API hangs off the PHONE NUMBER node, not the WABA node:
+#   GET    /{phone-number-id}/block_users   list blocked users
+#   POST   /{phone-number-id}/block_users   block
+#   DELETE /{phone-number-id}/block_users   unblock
+#
+# Verified live against both WABAs on 2026-08-25 (v25.0/v26.0/v27.0 all agree):
+#   GET /{phone-number-id}/block_users -> 200 {"data":[]}
+#   GET /{waba-id}/block_users         -> 400 "nonexisting field (block_users)"
+#   GET /{waba-id}/unblock_users       -> 400 "Unknown path components"
+# These functions previously used the WABA node and a POST /unblock_users edge
+# that does not exist, so /block-users and /unblock-users always failed.
+#
+# Meta only permits blocking a user who messaged the business in the last 24h.
 # ============================================================================
 
+# Each WABA's primary phone number, used to resolve the Block API node.
+_WABA_TO_PHONE = {
+    WABA1_ID: PHONE1_META_ID,
+    WABA2_ID: PHONE2_META_ID,
+}
+
+
+def _resolve_block_phone_id(waba_id: str, body: Dict = None, params: Dict = None) -> str:
+    """Resolve the phone-number ID that the Block API must be addressed on.
+
+    Accepts an explicit phoneNumberId/phoneId override, otherwise maps the WABA
+    to its primary phone number.
+    """
+    for src in (body or {}, params or {}):
+        for key in ('phoneNumberId', 'phoneId', 'phone_number_id'):
+            val = (src.get(key) or '').strip() if isinstance(src.get(key), str) else src.get(key)
+            if val:
+                return str(val)
+    return _WABA_TO_PHONE.get(waba_id, '')
+
+
+def _normalize_block_users(users) -> list:
+    """Coerce caller input into Meta's block_users schema.
+
+    Meta expects: {"block_users": [{"user": "<phone or BSUID>"}]}
+    Callers have historically sent {"phone": ...} or {"user_id": ...} instead,
+    so accept those shapes and plain strings too.
+    """
+    out = []
+    for u in users or []:
+        if isinstance(u, str):
+            ident = u.strip()
+        elif isinstance(u, dict):
+            ident = (u.get('user') or u.get('phone') or u.get('user_id') or '')
+            ident = ident.strip() if isinstance(ident, str) else ident
+        else:
+            continue
+        if ident:
+            out.append({'user': str(ident)})
+    return out
+
+
 def _block_users(waba_id: str, body: Dict) -> Dict:
-    """Block users on a WABA. Accepts phone numbers and/or BSUIDs."""
-    users = body.get('users', [])
+    """Block users on the WABA's phone number. Accepts phone numbers or BSUIDs."""
+    phone_id = _resolve_block_phone_id(waba_id, body)
+    if not phone_id:
+        return _resp(400, {'error': 'Could not resolve a phone number ID for this WABA'})
+    users = _normalize_block_users(body.get('users') or body.get('block_users'))
     if not users:
         return _resp(400, {'error': 'users array required'})
-    # Build payload per Meta API: POST /<WABA_ID>/block_users
-    # Each user can have 'phone' and/or 'user_id' (BSUID)
     payload = {'messaging_product': 'whatsapp', 'block_users': users}
-    result = _graph_api(f'{waba_id}/block_users', method='POST', payload=payload, waba_id=waba_id)
+    result = _graph_api(f'{phone_id}/block_users', method='POST', payload=payload, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
-    return _resp(200, {'success': True, 'result': result})
+    return _resp(200, {'success': True, 'phoneNumberId': phone_id, 'result': result})
 
 
 def _unblock_users(waba_id: str, body: Dict) -> Dict:
-    """Unblock users on a WABA. Accepts phone numbers and/or BSUIDs."""
-    users = body.get('users', [])
+    """Unblock users. Meta models unblock as DELETE on the same block_users edge."""
+    phone_id = _resolve_block_phone_id(waba_id, body)
+    if not phone_id:
+        return _resp(400, {'error': 'Could not resolve a phone number ID for this WABA'})
+    users = _normalize_block_users(body.get('users') or body.get('block_users'))
     if not users:
         return _resp(400, {'error': 'users array required'})
     payload = {'messaging_product': 'whatsapp', 'block_users': users}
-    result = _graph_api(f'{waba_id}/unblock_users', method='POST', payload=payload, waba_id=waba_id)
+    result = _graph_api(f'{phone_id}/block_users', method='DELETE', payload=payload, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
-    return _resp(200, {'success': True, 'result': result})
+    return _resp(200, {'success': True, 'phoneNumberId': phone_id, 'result': result})
 
 
-def _get_blocked_users(waba_id: str) -> Dict:
-    """Get list of blocked users for a WABA."""
-    result = _graph_api(f'{waba_id}/block_users', method='GET', waba_id=waba_id)
+def _get_blocked_users(waba_id: str, params: Dict = None) -> Dict:
+    """List blocked users for the WABA's phone number."""
+    phone_id = _resolve_block_phone_id(waba_id, None, params)
+    if not phone_id:
+        return _resp(400, {'error': 'Could not resolve a phone number ID for this WABA'})
+    result = _graph_api(f'{phone_id}/block_users', method='GET', phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
     return _resp(200, result)
@@ -5920,7 +5988,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not waba_id:
                 return _resp(400, {'error': 'wabaId required'})
             if method == 'GET':
-                return _get_blocked_users(waba_id)
+                return _get_blocked_users(waba_id, params)
             elif method == 'POST':
                 return _block_users(waba_id, body)
 

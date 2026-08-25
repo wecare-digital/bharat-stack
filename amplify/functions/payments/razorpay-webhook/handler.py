@@ -288,8 +288,7 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
         _entity = event_data.get('payment', {}).get('entity', {})
         item = {
             'id': str(uuid.uuid4()),
-            'eventType': event_type,
-            'paymentId': _entity.get('id', ''),
+            'eventType': event_type or 'unknown',
             'orderId': _entity.get('order_id', ''),
             'amount': int(_entity.get('amount', 0)),
             'status': _entity.get('status', event_type.split('.')[-1] if '.' in event_type else ''),
@@ -298,6 +297,14 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
             'createdAt': now,
             'expiresAt': now + 180 * 24 * 60 * 60,  # TTL: 180 days
         }
+        # paymentId is the HASH key of paymentId-index. DynamoDB rejects an empty
+        # string for an index key attribute, which previously made PutItem fail for
+        # every event without a payment entity (e.g. payment.downtime) and silently
+        # dropped those rows from the audit trail. Omit the attribute instead so the
+        # row still persists and is simply absent from that sparse index.
+        _payment_id = _entity.get('id') or ''
+        if _payment_id:
+            item['paymentId'] = _payment_id
         if razorpay_event_id:
             item['razorpayEventId'] = razorpay_event_id
         table.put_item(Item=item)

@@ -19,7 +19,7 @@ import {
   ContactsIcon, BulkIcon, SmsIcon, EmailIcon, RefreshIcon,
   DocumentIcon, HealthIcon, AdvisorIcon
 } from '../../lib/icons';
-import { AWS_ACCOUNT_ID, AWS_REGION, PAYMENT_CONFIG, API_BASE } from '../../config/constants';
+import { AWS_ACCOUNT_ID, AWS_REGION, PAYMENT_CONFIG, PAYMENT_DETAILS, API_BASE } from '../../config/constants';
 import { InternalAIConfig, WebhookConfig, DEFAULT_AI_CONFIG, TabType, PageProps } from '../../types/dashboard';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useToastContext } from '../../contexts/ToastContext';
@@ -2421,21 +2421,21 @@ Content-Type: application/json`}</pre>
                     <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' } }>
                       <div style={ { background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
                         <div style={ { fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' } }>+91 9330994400</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Config: <code style={ { color: '#1a3a2a' } }>WECARE-PAYU</code></div>
+                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Config: <code style={ { color: '#1a3a2a' } }>WECAREDIGITAL</code> + <code style={ { color: '#1a3a2a' } }>WECAREUPI</code></div>
                         <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>WABA: <code>2094615664435155</code> (Active, Direct API)</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>MID: <code>••••••</code></div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>MCC: <code>4722</code> (Travel agencies)</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Purpose: <code>03</code> (Travel)</div>
-                        <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' } }>Test Successful</span>
+                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Provider: <code>Razorpay</code></div>
+                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>MCC: <code>{ PAYMENT_DETAILS.mcc }</code> (Management, consulting and PR services)</div>
+                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Purpose: <code>{ PAYMENT_DETAILS.purposeCode }</code></div>
+                        <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' } }>Verified via Graph API 2026-08-25</span>
                       </div>
                       <div style={ { background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
                         <div style={ { fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' } }>+91 9903300044</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Config: <code style={ { color: '#1a3a2a' } }>Razorpay_ManishAgarwal</code></div>
+                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Config: <code style={ { color: '#1a3a2a' } }>WECAREDIGITAL</code> + <code style={ { color: '#1a3a2a' } }>WECAREUPI</code></div>
                         <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>WABA: <code>2513394156072604</code></div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>MID: <code>••••••</code></div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>MCC: <code>4722</code> (Travel agencies)</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Purpose: <code>03</code> (Travel)</div>
-                        <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' } }>Test Successful</span>
+                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Provider: <code>Razorpay</code></div>
+                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>MCC: <code>{ PAYMENT_DETAILS.mcc }</code> (Management, consulting and PR services)</div>
+                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Purpose: <code>{ PAYMENT_DETAILS.purposeCode }</code></div>
+                        <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' } }>Verified via Graph API 2026-08-25</span>
                       </div>
                     </div>
                   </div>
@@ -2494,7 +2494,12 @@ Content-Type: application/json`}</pre>
 
                 {/* Note: Default Gateway */ }
                 <div style={ { background: '#FFF9C4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #FFF176', fontSize: '0.8rem', color: '#F57F17', marginBottom: '1.5rem' } }>
-                  Note: Razorpay (WECARE-RAZOR-PAY) remains the default payment gateway. PayU (WECARE-PAYU) is available as a secondary gateway on both WABA numbers. Both gateways share the same MCC (4722) and purpose code (03).
+                  Note: Razorpay is the only payment gateway. Both WABA numbers expose exactly two
+                  active Meta payment configurations &mdash; <code>WECAREDIGITAL</code> (Razorpay provider)
+                  and <code>WECAREUPI</code> (UPI VPA) &mdash; on MCC { PAYMENT_DETAILS.mcc } and purpose
+                  code { PAYMENT_DETAILS.purposeCode }. PayU was retired: no PayU payment configuration
+                  exists on either WABA, and the PayU webhook route plus its public function URL were
+                  removed from the production API on 2026-08-25.
                 </div>
 
                 {/* Airtel Voice Webhook Section */ }
@@ -3134,16 +3139,16 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <a href="https://www.wecare.digital/store" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#d1f470', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 } }>
                       Live Store
                     </a>
-                    <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/products" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
+                    <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/products" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
                       Wix Products
                     </a>
-                    <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/store/orders" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
+                    <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/orders" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
                       Wix Orders
                     </a>
-                    <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78/media-manager" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
+                    <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/media-manager" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
                       Media Manager
                     </a>
-                    <a href="https://manage.wix.com/dashboard/461dece3-613a-42b3-a30c-ed9256898e78" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
+                    <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
                       Wix Dashboard
                     </a>
                   </div>
@@ -3185,7 +3190,7 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' } }>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Wix Site ID</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>461dece3-613a-42b3-a30c-ed9256898e78</code>
+                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5</code>
                       </div>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Wix Account ID</label>
@@ -3215,12 +3220,12 @@ metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
                     <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' } }>
                       <div style={ { background: '#fff', padding: '0.5rem', borderRadius: '4px' } }>
                         <div style={ { fontWeight: 600, color: '#0f2a1d', marginBottom: '2px' } }>Stack CRM Repo</div>
-                        <a href="https://github.com/wecaredigital/stack.wecare.digital" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a', fontSize: '0.75rem', wordBreak: 'break-all' } }>wecaredigital/stack.wecare.digital</a>
+                        <a href="https://github.com/wecare-digital/bharat-stack" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a', fontSize: '0.75rem', wordBreak: 'break-all' } }>wecare-digital/bharat-stack</a>
                         <div style={ { fontSize: '0.7rem', color: '#666', marginTop: '2px' } }>Branch: <code>stack</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
                       </div>
                       <div style={ { background: '#fff', padding: '0.5rem', borderRadius: '4px' } }>
                         <div style={ { fontWeight: 600, color: '#0f2a1d', marginBottom: '2px' } }>Wix Velo Repo (LIVE)</div>
-                        <a href="https://github.com/wecaredigital/store.wecare.digital" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a', fontSize: '0.75rem', wordBreak: 'break-all' } }>wecaredigital/store.wecare.digital</a>
+                        <a href="https://github.com/wecare-digital/store" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a', fontSize: '0.75rem', wordBreak: 'break-all' } }>wecare-digital/store</a>
                         <div style={ { fontSize: '0.7rem', color: '#666', marginTop: '2px' } }>Branch: <code>main</code> | Connected to Wix Editor via Git Integration — auto-syncs on push</div>
                       </div>
                     </div>
