@@ -667,7 +667,7 @@ const StorePage: React.FC<PageProps> = ( { signOut, user } ) => {
                 </div>
                 <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 } }>
                   <div style={ adminCard }><span style={ adminLabel }>Site Name</span><span style={ adminVal }>WECARE.DIGITAL</span></div>
-                  <div style={ adminCard }><span style={ adminLabel }>Site ID</span><span style={ { ...adminVal, fontSize: 11, fontFamily: 'monospace' } }>461dece3-613a</span></div>
+                  <div style={ adminCard }><span style={ adminLabel }>Site ID</span><span style={ { ...adminVal, fontSize: 11, fontFamily: 'monospace' } }>c17b0e20-d96d</span></div>
                   <div style={ adminCard }><span style={ adminLabel }>URL</span><a href="https://www.wecare.digital" target="_blank" rel="noopener noreferrer" style={ { ...adminVal, color: '#1a3a2a', textDecoration: 'none' } }>wecare.digital</a></div>
                   <div style={ adminCard }><span style={ adminLabel }>Status</span><span style={ { ...adminVal, color: '#1a3a2a' } }>Published</span></div>
                   <div style={ adminCard }><span style={ adminLabel }>Currency</span><span style={ adminVal }>INR (₹)</span></div>

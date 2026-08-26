@@ -19,7 +19,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 const WIX_API = 'https://www.wixapis.com';
 const WIX_API_KEY = process.env.WIX_API_KEY || '';
-const WIX_SITE_ID = process.env.WIX_SITE_ID || 'd3ed75eb-e0b7-45c2-a743-f83cfa19379a';
+const WIX_SITE_ID = process.env.WIX_SITE_ID || 'c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5';
 const WEBHOOK_SECRET = process.env.BLOG_WEBHOOK_SECRET || '';
 const BRAND = 'WECARE.DIGITAL';
 const BASE = 'https://www.wecare.digital';

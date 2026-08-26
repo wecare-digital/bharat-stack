@@ -39,7 +39,7 @@ ROLE_ARN = f"arn:aws:iam::{ACCOUNT}:role/{ROLE_NAME}"
 API_ID = "zllr9lrg7j"
 
 # Live Wix site (verified: API key is scoped to this site; 461dece3 returns 404).
-WIX_SITE_ID = "d3ed75eb-e0b7-45c2-a743-f83cfa19379a"
+WIX_SITE_ID = "c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5"
 
 ENV_VARS = {
     "LOG_LEVEL": "INFO",

@@ -19,6 +19,7 @@ import '../styles/inner-ux.css';
 import '../styles/flex-layout.css';
 import '../styles/button.css';
 import FloatingAgent from '../components/FloatingAgent';
+import LanguageBar from '../components/LanguageBar';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -483,6 +484,13 @@ export default function App ( { Component, pageProps }: AppProps ) {
         <Header />
         <Component { ...pageProps } />
         <Footer />
+        {/*
+          Translation + read-aloud, public pages only, and deliberately not on
+          the authenticated dashboard: those screens render customer names,
+          phone numbers and message bodies, and machine-translating live
+          operational data would corrupt what an operator is reading.
+        */}
+        <LanguageBar />
       </ErrorBoundary>
     );
   }

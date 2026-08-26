@@ -42,7 +42,7 @@ export function addSeoResources ( stack: Stack ) {
             WIX_API_KEY_SECRET: 'wecare/wix-api-key',
             // Live WECARE.DIGITAL site. The API key in `wecare/wix-api-key` is
             // scoped to the account that owns this site; 461dece3 returns 404.
-            WIX_SITE_ID: 'd3ed75eb-e0b7-45c2-a743-f83cfa19379a',
+            WIX_SITE_ID: 'c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5',
             BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6',
         },
     } );

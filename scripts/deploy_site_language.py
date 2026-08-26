@@ -24,6 +24,11 @@ ROLE_ARN = f"arn:aws:iam::{ACCOUNT}:role/{ROLE_NAME}"
 TABLE_NAME = "stack-wecare-digital-SiteLanguageCache"
 HANDLER = Path("amplify/functions/core/site-language/handler.py")
 
+# API Gateway is pointed at this alias, never at $LATEST. Every other Lambda in
+# the account follows the same convention, and it is what makes a rollback
+# possible: repoint the alias at the previous version and traffic moves with it.
+ALIAS_NAME = "live"
+
 # Browser origins allowed to call the service. stack.wecare.digital is included
 # because the Cloud Run language relay refuses it with a 403, which is why this
 # AWS service exists.
@@ -166,6 +171,41 @@ def deploy_lambda(zip_bytes: bytes) -> str:
         return created["FunctionArn"]
 
 
+def ensure_alias() -> str:
+    """Publish the current code and move the live alias onto it.
+
+    A new version is only cut when $LATEST actually differs from what the alias
+    already serves, so repeated deploys of unchanged code do not pile up
+    versions.
+    """
+    lam = boto3.client("lambda", region_name=REGION)
+    latest_sha = lam.get_function_configuration(FunctionName=FUNCTION_NAME)["CodeSha256"]
+
+    current_version = None
+    try:
+        alias = lam.get_alias(FunctionName=FUNCTION_NAME, Name=ALIAS_NAME)
+        current_version = alias["FunctionVersion"]
+        served_sha = lam.get_function_configuration(
+            FunctionName=FUNCTION_NAME, Qualifier=current_version
+        )["CodeSha256"]
+        if served_sha == latest_sha:
+            print(f"[lambda] alias {ALIAS_NAME} already serves version {current_version} (code unchanged)")
+            return f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{FUNCTION_NAME}:{ALIAS_NAME}"
+    except lam.exceptions.ResourceNotFoundException:
+        pass
+
+    version = lam.publish_version(FunctionName=FUNCTION_NAME, CodeSha256=latest_sha)["Version"]
+    if current_version is None:
+        lam.create_alias(FunctionName=FUNCTION_NAME, Name=ALIAS_NAME, FunctionVersion=version)
+        print(f"[lambda] created alias {ALIAS_NAME} -> version {version}")
+    else:
+        lam.update_alias(FunctionName=FUNCTION_NAME, Name=ALIAS_NAME, FunctionVersion=version)
+        print(f"[lambda] alias {ALIAS_NAME}: version {current_version} -> {version}")
+        print(f"[lambda] rollback: aws lambda update-alias --function-name {FUNCTION_NAME} "
+              f"--name {ALIAS_NAME} --function-version {current_version}")
+    return f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{FUNCTION_NAME}:{ALIAS_NAME}"
+
+
 def ensure_api_routes(function_arn: str) -> None:
     api = boto3.client("apigatewayv2", region_name=REGION)
     lam = boto3.client("lambda", region_name=REGION)
@@ -174,7 +214,11 @@ def ensure_api_routes(function_arn: str) -> None:
     for item in api.get_integrations(ApiId=API_ID, MaxResults="500").get("Items", []):
         if FUNCTION_NAME in (item.get("IntegrationUri") or ""):
             integration_id = item["IntegrationId"]
+            current_uri = item.get("IntegrationUri") or ""
             break
+    else:
+        current_uri = ""
+
     if not integration_id:
         integration_id = api.create_integration(
             ApiId=API_ID,
@@ -184,9 +228,15 @@ def ensure_api_routes(function_arn: str) -> None:
             PayloadFormatVersion="2.0",
             TimeoutInMillis=29000,
         )["IntegrationId"]
-        print(f"[api] created integration {integration_id}")
+        print(f"[api] created integration {integration_id} -> {function_arn.split(':')[-1]}")
+    elif current_uri != function_arn:
+        # Repoint an integration that still targets the unqualified function.
+        api.update_integration(
+            ApiId=API_ID, IntegrationId=integration_id, IntegrationUri=function_arn
+        )
+        print(f"[api] repointed integration {integration_id} at :{ALIAS_NAME}")
     else:
-        print(f"[api] reusing integration {integration_id}")
+        print(f"[api] integration {integration_id} already targets :{ALIAS_NAME}")
 
     target = f"integrations/{integration_id}"
     existing = {
@@ -240,18 +290,22 @@ def ensure_api_routes(function_arn: str) -> None:
         f"burst {default_settings.get('ThrottlingBurstLimit')}"
     )
 
+    # An alias needs its own resource policy; a grant on the unqualified
+    # function does not cover invocations through :live.
     source_arn = f"arn:aws:execute-api:{REGION}:{ACCOUNT}:{API_ID}/*/*/site-language/*"
-    try:
-        lam.add_permission(
-            FunctionName=FUNCTION_NAME,
-            StatementId="apigw-site-language",
-            Action="lambda:InvokeFunction",
-            Principal="apigateway.amazonaws.com",
-            SourceArn=source_arn,
-        )
-        print("[lambda] added API Gateway invoke permission")
-    except lam.exceptions.ResourceConflictException:
-        print("[lambda] API Gateway invoke permission already exists")
+    for qualifier, sid in ((f"{FUNCTION_NAME}:{ALIAS_NAME}", "apigw-site-language-live"),
+                           (FUNCTION_NAME, "apigw-site-language")):
+        try:
+            lam.add_permission(
+                FunctionName=qualifier,
+                StatementId=sid,
+                Action="lambda:InvokeFunction",
+                Principal="apigateway.amazonaws.com",
+                SourceArn=source_arn,
+            )
+            print(f"[lambda] granted API Gateway invoke on {qualifier}")
+        except lam.exceptions.ResourceConflictException:
+            print(f"[lambda] invoke permission already present on {qualifier}")
 
 
 def main() -> None:
@@ -260,10 +314,12 @@ def main() -> None:
     ensure_role_policy()
     # IAM policy propagation can be briefly eventual after first creation/update.
     time.sleep(2)
-    arn = deploy_lambda(package())
-    ensure_api_routes(arn)
+    deploy_lambda(package())
+    alias_arn = ensure_alias()
+    ensure_api_routes(alias_arn)
     print("=== done ===")
     print("Endpoints: https://api.wecare.digital/site-language/*")
+    print(f"Serving via alias {FUNCTION_NAME}:{ALIAS_NAME}")
 
 
 if __name__ == "__main__":

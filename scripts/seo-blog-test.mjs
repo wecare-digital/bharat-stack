@@ -37,7 +37,7 @@ async function getWixKey() {
 const WIX_KEY = await getWixKey();
 if (!WIX_KEY) { console.error('❌ No WIX_API_KEY found'); process.exit(1); }
 console.log('✅ Wix API key loaded (length:', WIX_KEY.length, ')');
-const WIX_SITE = process.env.WIX_SITE_ID || 'd3ed75eb-e0b7-45c2-a743-f83cfa19379a';
+const WIX_SITE = process.env.WIX_SITE_ID || 'c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5';
 const TARGET_SLUG = 'stand';
 
 const HEADERS = {

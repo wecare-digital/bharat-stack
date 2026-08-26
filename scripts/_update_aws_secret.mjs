@@ -15,7 +15,7 @@ if (!keyMatch) { console.error('No WIX_API_KEY in .env.local'); process.exit(1);
 const key = keyMatch[1].trim();
 console.log(`Key length: ${key.length}, ends: ...${key.slice(-4)}`);
 
-const secretValue = JSON.stringify({ api_key: key, site_id: 'd3ed75eb-e0b7-45c2-a743-f83cfa19379a' });
+const secretValue = JSON.stringify({ api_key: key, site_id: 'c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5' });
 
 try {
   console.log('Updating AWS Secrets Manager...');
