@@ -141,7 +141,6 @@ $results += Deploy-Lambda "wecare-sla-engine" "amplify\functions\operations\sla-
 
 # === Payments ===
 $results += Deploy-Lambda "wecare-razorpay-webhook" "amplify\functions\payments\razorpay-webhook\handler.py" ""
-$results += Deploy-Lambda "wecare-payu-webhook" "amplify\functions\payments\payu-webhook\handler.py" ""
 $results += Deploy-Lambda "wecare-payments-read" "amplify\functions\payments\payments-read\handler.py" ""
 $results += Deploy-Lambda "wecare-invoice-engine" "amplify\functions\payments\invoice-engine\handler.py" ""
 
@@ -211,7 +210,6 @@ if ($fail -gt 0) {
         @("wecare-system-cleanup", "amplify\functions\operations\system-cleanup\handler.py", ""),
         @("wecare-sla-engine", "amplify\functions\operations\sla-engine\handler.py", ""),
         @("wecare-razorpay-webhook", "amplify\functions\payments\razorpay-webhook\handler.py", ""),
-        @("wecare-payu-webhook", "amplify\functions\payments\payu-webhook\handler.py", ""),
         @("wecare-payments-read", "amplify\functions\payments\payments-read\handler.py", ""),
         @("wecare-invoice-engine", "amplify\functions\payments\invoice-engine\handler.py", ""),
         @("wecare-wix-store", "amplify\functions\ecommerce\wix-store\handler.py", ""),

@@ -16,7 +16,7 @@ METRIC = "WebhookDedupErrors"
 SNS_ARN = "arn:aws:sns:us-east-1:775261844268:wecare-alarm-notifications"
 CONSUMERS = [
     "wecare-inbound-whatsapp", "wecare-razorpay-webhook",
-    "wecare-payu-webhook", "wecare-whatsapp-business-api",
+    "wecare-whatsapp-business-api",
 ]
 
 logs = boto3.client("logs", region_name=REGION)

@@ -22,7 +22,6 @@ function Deploy-Lambda {
     if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
 }
 
-Deploy-Lambda "wecare-payu-webhook" "amplify\functions\payments\payu-webhook\handler.py"
 Deploy-Lambda "wecare-whatsapp-business-api" "amplify\functions\messaging\whatsapp-business-api\handler.py"
 Deploy-Lambda "wecare-outbound-whatsapp" "amplify\functions\messaging\outbound-whatsapp\handler.py"
 Deploy-Lambda "wecare-voice-in-c2c" "amplify\functions\messaging\voice-in\c2c\handler.py"
@@ -31,4 +30,4 @@ Deploy-Lambda "wecare-billing" "amplify\functions\operations\billing\handler.py"
 Write-Host "`n=== All 5 Lambdas deployed ===" -ForegroundColor Green
 
 # SnapStart: publish fresh versions + move 'live' alias for the deployed functions.
-python scripts\_snapstart_publish.py wecare-payu-webhook wecare-whatsapp-business-api wecare-outbound-whatsapp wecare-voice-in-c2c wecare-billing
+python scripts\snapstart_publish.py wecare-whatsapp-business-api wecare-outbound-whatsapp wecare-voice-in-c2c wecare-billing

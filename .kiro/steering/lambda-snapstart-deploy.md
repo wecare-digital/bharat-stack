@@ -22,10 +22,10 @@ After changing a function's code you MUST:
 1. `aws lambda update-function-code ...` (updates `$LATEST`), then
 2. publish a new version, wait for `State=Active`, and move the `live` alias.
 
-Step 2 is automated by `scripts/_snapstart_publish.py`:
+Step 2 is automated by `scripts/snapstart_publish.py`:
 ```
-python scripts/_snapstart_publish.py                 # all SnapStart functions
-python scripts/_snapstart_publish.py wecare-contacts # specific ones
+python scripts/snapstart_publish.py                 # all SnapStart functions
+python scripts/snapstart_publish.py wecare-contacts # specific ones
 ```
 The deploy scripts (`_deploy_all.ps1`, `_deploy_changed.ps1`,
 `_deploy_meta_agent.ps1`) already call it at the end. If you deploy a function

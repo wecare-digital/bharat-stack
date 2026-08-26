@@ -41,7 +41,6 @@ $functions = @{
     "wecare-product-image-gen"      = "ecommerce\product-image-gen"
     "wecare-wix-store"              = "ecommerce\wix-store"
     "wecare-razorpay-webhook"       = "payments\razorpay-webhook"
-    "wecare-payu-webhook"           = "payments\payu-webhook"
     "wecare-invoice-engine"         = "payments\invoice-engine"
     "wecare-payments-read"          = "payments\payments-read"
     "wecare-billing"                = "operations\billing"
@@ -154,4 +153,4 @@ if ($failedNames.Count -gt 0) {
 # after updating $LATEST code we must publish a new version and move the alias.
 Write-Host ""
 Write-Host "Publishing SnapStart versions + moving 'live' alias..." -ForegroundColor Cyan
-python scripts\_snapstart_publish.py
+python scripts\snapstart_publish.py

@@ -1,4 +1,4 @@
-﻿[
+[
     "ANY /seo-tools/{proxy+}",
     "DELETE /scheduled/{scheduledId}",
     "DELETE /waba/{wabaId}/subscribe-sns",
@@ -33,7 +33,6 @@
     "GET /wa-business/flow-customer-journey",
     "GET /contacts",
     "GET /voice-aws/calls",
-    "POST /payu-webhook",
     "POST /wa-business/schedules",
     "DELETE /ai/clear-logs",
     "OPTIONS /voice-in/obd/audio-library",

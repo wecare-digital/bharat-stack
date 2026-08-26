@@ -31,4 +31,4 @@ if (Test-Path $zip) { Remove-Item -Force $zip }
 
 # SnapStart: publish a fresh version and move the 'live' alias so the new code
 # actually reaches the API (which invokes :live, not $LATEST).
-python scripts\_snapstart_publish.py $FN
+python scripts\snapstart_publish.py $FN

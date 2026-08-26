@@ -58,7 +58,6 @@ call :deploy wecare-system-cleanup amplify\functions\operations\system-cleanup\h
 
 REM === Payments ===
 call :deploy wecare-razorpay-webhook amplify\functions\payments\razorpay-webhook\handler.py ""
-call :deploy wecare-payu-webhook amplify\functions\payments\payu-webhook\handler.py ""
 call :deploy wecare-payments-read amplify\functions\payments\payments-read\handler.py ""
 call :deploy wecare-invoice-engine amplify\functions\payments\invoice-engine\handler.py ""
 
