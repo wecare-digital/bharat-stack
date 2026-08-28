@@ -35,7 +35,27 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 const API_BASE =
   ( process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital' ) + '/site-language';
 
+/**
+ * The Google relay is tried FIRST and preferred, because Cloud TTS voices all
+ * eleven offered languages while Amazon Polly voices only two (en and hi).
+ *
+ * It currently answers this origin with 403 and a JSON error body. That is the
+ * relay's own application-level origin check, not platform CORS - a request with
+ * no Origin header is served normally - so it cannot be worked around from the
+ * browser and no CORS setting in a console affects it. The relay's allow-list
+ * admits wecare.digital and www.wecare.digital only.
+ *
+ * Rather than hard-code that state, the provider is detected at runtime. The
+ * moment https://stack.wecare.digital is added to the relay's allow-list this
+ * component switches to Google on its own, gaining speech in nine more
+ * languages, with no redeploy.
+ */
+const RELAY = 'https://wecare-translation-relay-hrkl3sncxq-el.a.run.app';
+
+type Provider = 'google' | 'aws';
+
 const LS_LANG = 'wc:stack:lang';
+const SS_PROVIDER = 'wc:stack:langprovider';
 
 /** Handler caps: MAX_TEXTS 40, MAX_TOTAL_BYTES 30000. Kept under both. */
 const MAX_BATCH_ITEMS = 30;
@@ -64,6 +84,51 @@ const SKIP_TAGS = new Set( [
 ] );
 
 interface Lang { code: string; name: string; native?: string; canSpeak: boolean }
+
+/** Cloud TTS locale for a language code. Only consulted on the Google path. */
+const GOOGLE_VOICE: Record<string, string> = {
+  en: 'en-IN', hi: 'hi-IN', bn: 'bn-IN', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN',
+  gu: 'gu-IN', kn: 'kn-IN', ml: 'ml-IN', pa: 'pa-IN', ur: 'ur-IN',
+};
+
+/**
+ * Can this browser reach the Google relay from this origin?
+ *
+ * One translate call and one speech call, cached per tab. A 403 here means the
+ * relay is refusing the origin, so the AWS service is used instead.
+ */
+async function probeGoogle (): Promise<boolean> {
+  try
+  {
+    const cached = sessionStorage.getItem( SS_PROVIDER );
+    if ( cached === 'google' ) return true;
+    if ( cached === 'aws' ) return false;
+  } catch { /* storage may be blocked; probe live */ }
+
+  let works = false;
+  try
+  {
+    const [ tr, tts ] = await Promise.all( [
+      fetch( RELAY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify( { texts: [ 'ok' ], targetLanguage: 'hi' } ),
+      } ),
+      fetch( RELAY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify( { text: 'ok', languageCode: 'en-IN' } ),
+      } ),
+    ] );
+    works = tr.ok && tts.ok;
+  } catch
+  {
+    works = false;
+  }
+
+  try { sessionStorage.setItem( SS_PROVIDER, works ? 'google' : 'aws' ); } catch { /* ignore */ }
+  return works;
+}
 
 /** Text nodes worth translating, in document order. */
 function collectTextNodes ( root: HTMLElement ): Text[] {
@@ -160,43 +225,58 @@ const LanguageBar: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>( null );
   const abortRef = useRef<AbortController | null>( null );
   const rootRef = useRef<HTMLDivElement | null>( null );
+  const providerRef = useRef<Provider>( 'aws' );
 
-  // ---- discover what the service can actually do -------------------------
+  // ---- pick a provider, then discover what it can do ---------------------
   useEffect( () => {
     let cancelled = false;
 
     ( async () => {
       try
       {
-        const [ lr, vr ] = await Promise.all( [
-          fetch( `${API_BASE}/languages` ),
-          fetch( `${API_BASE}/voices` ),
-        ] );
-        if ( !lr.ok || !vr.ok ) return;
+        const useGoogle = await probeGoogle();
+        if ( cancelled ) return;
+        providerRef.current = useGoogle ? 'google' : 'aws';
 
+        // The language catalogue always comes from AWS: it is the only side
+        // that exposes one, and Amazon Translate's 76 languages are a superset
+        // of what is offered here either way.
+        const lr = await fetch( `${API_BASE}/languages` );
+        if ( !lr.ok ) return;
         const languages: Array<{ code: string; name: string }> = ( await lr.json() ).languages || [];
-        const voices: Array<{ languageCode: string; additionalLanguageCodes?: string[] }> =
-          ( await vr.json() ).voices || [];
+        const byCode = new Map( languages.map( ( l ) => [ l.code, l.name ] ) );
 
-        const speakable = new Set<string>();
-        for ( const v of voices )
+        // Speech coverage depends entirely on the provider. Cloud TTS voices
+        // every language offered here; Polly voices only a couple, so on the
+        // AWS path it has to be asked.
+        let speakable: Set<string>;
+        if ( useGoogle )
         {
-          for ( const code of [ v.languageCode, ...( v.additionalLanguageCodes || [] ) ] )
+          speakable = new Set( Object.keys( GOOGLE_VOICE ) );
+        } else
+        {
+          speakable = new Set<string>();
+          try
           {
-            if ( !code ) continue;
-            speakable.add( String( code ).toLowerCase().split( '-' )[ 0 ] );
-          }
+            const vr = await fetch( `${API_BASE}/voices` );
+            if ( vr.ok )
+            {
+              const voices: Array<{ languageCode: string; additionalLanguageCodes?: string[] }> =
+                ( await vr.json() ).voices || [];
+              for ( const v of voices )
+              {
+                for ( const code of [ v.languageCode, ...( v.additionalLanguageCodes || [] ) ] )
+                {
+                  if ( code ) speakable.add( String( code ).toLowerCase().split( '-' )[ 0 ] );
+                }
+              }
+            }
+          } catch { /* leave speech unavailable */ }
         }
 
-        const byCode = new Map( languages.map( ( l ) => [ l.code, l.name ] ) );
-        const ordered: Lang[] = [];
-
-        ordered.push( {
-          code: 'en',
-          name: 'English',
-          native: 'English',
-          canSpeak: speakable.has( 'en' ),
-        } );
+        const ordered: Lang[] = [ {
+          code: 'en', name: 'English', native: 'English', canSpeak: speakable.has( 'en' ),
+        } ];
         for ( const p of PREFERRED )
         {
           const name = byCode.get( p.code );
@@ -207,7 +287,7 @@ const LanguageBar: React.FC = () => {
         if ( !cancelled ) setLangs( ordered );
       } catch
       {
-        // Service unreachable: render nothing rather than a dead control.
+        // Nothing reachable: render nothing rather than a dead control.
       }
     } )();
 
@@ -298,9 +378,14 @@ const LanguageBar: React.FC = () => {
       const batches = buildBatches( nodes );
       let done = 0;
 
+      const google = providerRef.current === 'google';
+
       for ( const batch of batches )
       {
-        const res = await fetch( `${API_BASE}/translate`, {
+        // Both sides take the same request shape. They differ in the reply:
+        // the relay wraps it as data.translations, AWS returns translations
+        // at the top level.
+        const res = await fetch( google ? RELAY : `${API_BASE}/translate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify( {
@@ -320,7 +405,9 @@ const LanguageBar: React.FC = () => {
           }
           break;
         }
-        const rows: Array<{ translatedText?: string }> = ( await res.json() ).translations || [];
+        const payload = await res.json();
+        const rows: Array<{ translatedText?: string }> =
+          ( google ? payload?.data?.translations : payload?.translations ) || [];
         if ( rows.length !== batch.length ) break;
         for ( let i = 0; i < batch.length; i += 1 )
         {
@@ -353,17 +440,26 @@ const LanguageBar: React.FC = () => {
     setSpeaking( true );
     setStatus( 'Preparing audio.' );
 
+    const google = providerRef.current === 'google';
+
     try
     {
-      const res = await fetch( `${API_BASE}/tts`, {
+      // The two speech APIs disagree on both request and response. The relay
+      // wants languageCode and streams raw audio/mpeg; AWS wants language and
+      // returns base64 inside JSON.
+      const res = await fetch( google ? RELAY : `${API_BASE}/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify( { text, language: current } ),
+        body: JSON.stringify(
+          google
+            ? { text, languageCode: GOOGLE_VOICE[ current ] || 'en-IN' }
+            : { text, language: current }
+        ),
         signal: controller.signal,
       } );
       if ( !res.ok )
       {
-        // 422 means Polly has no voice for this language.
+        // 422 from AWS means Polly has no voice for this language.
         setStatus( res.status === 422
           ? 'Audio is not available in this language.'
           : 'Audio is unavailable right now.' );
@@ -371,14 +467,29 @@ const LanguageBar: React.FC = () => {
         return;
       }
 
-      const body = await res.json();
-      if ( !body.audioBase64 ) { setStatus( 'Audio is unavailable right now.' ); setSpeaking( false ); return; }
+      let src: string;
+      if ( google )
+      {
+        const blob = await res.blob();
+        if ( !blob.size ) { setStatus( 'Audio is unavailable right now.' ); setSpeaking( false ); return; }
+        src = URL.createObjectURL( blob );
+      } else
+      {
+        const body = await res.json();
+        if ( !body.audioBase64 ) { setStatus( 'Audio is unavailable right now.' ); setSpeaking( false ); return; }
+        src = `data:${body.mimeType || 'audio/mpeg'};base64,${body.audioBase64}`;
+      }
 
-      // The service returns base64 in JSON rather than a raw audio body.
-      const audio = new Audio( `data:${body.mimeType || 'audio/mpeg'};base64,${body.audioBase64}` );
+      const audio = new Audio( src );
       audioRef.current = audio;
-      audio.addEventListener( 'ended', () => { setSpeaking( false ); setStatus( 'Finished reading.' ); } );
-      audio.addEventListener( 'error', () => { setSpeaking( false ); setStatus( 'Playback failed.' ); } );
+      // Only the Google path allocates a blob URL, and it has to be released.
+      const release = () => { if ( google ) { try { URL.revokeObjectURL( src ); } catch { /* ignore */ } } };
+      audio.addEventListener( 'ended', () => {
+        release(); setSpeaking( false ); setStatus( 'Finished reading.' );
+      } );
+      audio.addEventListener( 'error', () => {
+        release(); setSpeaking( false ); setStatus( 'Playback failed.' );
+      } );
       await audio.play();
       setStatus( 'Reading this page.' );
     } catch ( err )
