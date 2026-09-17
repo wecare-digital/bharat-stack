@@ -278,8 +278,8 @@ response = requests.post(
           /* Hero Section */
           .hero{padding:140px 24px 80px;max-width:1300px;margin:0 auto}
           .hero-content{display:grid;grid-template-columns:1fr 1.4fr;gap:60px;align-items:center}
-          .hero-left h1{font-size:48px;font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px;color:#1a1a1a}
-          .hero-left p{font-size:21px;color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
+          .hero-left h1{font-size:clamp(34px,4vw,48px);font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px;color:#1a1a1a}
+          .hero-left p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
           .hero-stats{display:flex;gap:12px;flex-wrap:wrap}
           .stat{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:110px;transition:all .25s;cursor:default}
           .stat:hover{border-color:#1a3a2a;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
@@ -323,23 +323,23 @@ response = requests.post(
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
-          .section-header h2{font-size:42px;font-weight:700;line-height:1.15;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
-          .section-header p{font-size:21px;color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
+          .section-header h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
+          .section-header p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
           .touchpoint{padding:60px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
-          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:18px;font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
+          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
           .pill:hover{border-color:#1a3a2a;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
           
           /* API Section */
           .api{padding:60px 24px;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
-          .api-info h2{font-size:38px;font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
-          .api-desc{font-size:21px;color:#6b7280;line-height:1.7;margin:0}
+          .api-info h2{font-size:clamp(28px,3vw,38px);font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
+          .api-desc{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.65;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
-          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:17px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
+          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
           .tab:hover{color:#fff}
           .tab.active{background:#d1f470;color:#1a3a2a}
           .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
@@ -352,12 +352,12 @@ response = requests.post(
           .capability-card:hover{border-color:#1a3a2a;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
-          .capability-card h3{font-size:20px;font-weight:600;color:#1a1a1a;margin:0 0 8px}
-          .capability-card p{font-size:21px;color:#6b7280;margin:0;line-height:1.5}
+          .capability-card h3{font-size:var(--text-2xl);font-weight:600;color:#1a1a1a;margin:0 0 8px}
+          .capability-card p{font-size:var(--text-base);color:#6b7280;margin:0;line-height:1.6}
           
           /* CTA Section */
           .cta-section{padding:60px 24px;text-align:center;background:#fff}
-          .cta-section h2{font-size:42px;font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
+          .cta-section h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
 
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
@@ -549,6 +549,20 @@ response = requests.post(
             .code-box{max-width:200px}
             .chat-area{min-height:120px}
           }
+
+          /* ========== HOME TYPOGRAPHY CONTRACT ========== */
+          /* Keep one responsive type hierarchy after legacy breakpoint rules. */
+          .hero-left h1{font-size:clamp(34px,4vw,48px)}
+          .hero-left p{font-size:clamp(16px,1.5vw,18px);line-height:1.6}
+          .section-header h2{font-size:clamp(28px,3.2vw,42px)}
+          .section-header p{font-size:clamp(16px,1.5vw,18px);line-height:1.6}
+          .pill{font-size:var(--text-base)}
+          .api-info h2{font-size:clamp(28px,3vw,38px)}
+          .api-desc{font-size:clamp(16px,1.5vw,18px);line-height:1.65}
+          .tab{font-size:15px}
+          .capability-card h3{font-size:var(--text-2xl)}
+          .capability-card p{font-size:var(--text-base);line-height:1.6}
+          .cta-section h2{font-size:clamp(28px,3.2vw,42px)}
           
           /* ========== REDUCED MOTION ========== */
           @media(prefers-reduced-motion:reduce){

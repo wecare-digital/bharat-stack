@@ -481,7 +481,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
           `}
         </Script>
         <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="afterInteractive" id="facebook-jssdk-public" />
-        <Header />
+        <Header homeBrand={ router.pathname === '/' } />
         <Component { ...pageProps } />
         <Footer />
         {/*

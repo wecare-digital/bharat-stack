@@ -1,13 +1,18 @@
 import React from 'react';
+import BrandLockup from './BrandLockup';
 
 const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 
-const Header: React.FC = () => (
-  <header className="hdr">
+interface HeaderProps {
+  homeBrand?: boolean;
+}
+
+const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => (
+  <header className={ `hdr ${homeBrand ? 'hdr-home' : ''}`.trim() }>
     <div className="hdr-in">
       <div className="logo-nav">
-        <a href="/" className="logo">
-          <img src={LOGO_URL} alt="WECARE.DIGITAL" className="logo-img" />
+        <a href="/" className="logo" aria-label={ homeBrand ? 'Bharat Stack home' : 'WECARE.DIGITAL home' }>
+          { homeBrand ? <BrandLockup /> : <img src={ LOGO_URL } alt="WECARE.DIGITAL" className="logo-img" /> }
         </a>
         <div className="nav-dropdown">
           <button className="nav-trigger"><span className="nav-arrow">▼</span></button>
@@ -23,6 +28,7 @@ const Header: React.FC = () => (
     <style jsx>{`
       .hdr{position:fixed;top:0;left:0;right:0;z-index:1001;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
       .hdr-in{max-width:1300px;margin:0 auto;padding:16px 24px;display:flex;align-items:center}
+      .hdr-home .hdr-in{min-height:96px}
       .logo{display:flex;align-items:center;text-decoration:none}
       .logo-nav{display:flex;align-items:center;gap:4px}
       .logo-img{width:64px;height:64px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain}
