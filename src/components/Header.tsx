@@ -1,48 +1,70 @@
-import React from 'react';
+import React, { useState } from 'react';
 import BrandLockup from './BrandLockup';
-
-const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 
 interface HeaderProps {
   homeBrand?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => (
-  <header className={ `hdr ${homeBrand ? 'hdr-home' : ''}`.trim() }>
-    <div className="hdr-in">
-      <div className="logo-nav">
-        <a href="/" className="logo" aria-label={ homeBrand ? 'Bharat Stack home' : 'WECARE.DIGITAL home' }>
-          { homeBrand ? <BrandLockup /> : <img src={ LOGO_URL } alt="WECARE.DIGITAL" className="logo-img" /> }
-        </a>
-        <div className="nav-dropdown">
-          <button className="nav-trigger"><span className="nav-arrow">▼</span></button>
-          <div className="nav-menu">
-            <a href="/" className="nav-item">CRM</a>
-            <a href="/studio" className="nav-item">Studio</a>
-            <a href="/sustainability" className="nav-item">Sustainability</a>
-            <a href="/access" className="nav-item">Sign in</a>
+const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
+  const [ open, setOpen ] = useState( false );
+
+  return (
+    <header className={ `hdr ${homeBrand ? 'hdr-home' : ''}`.trim() }>
+      <div className="hdr-in">
+        <div className="logo-nav">
+          <a href="/" className="logo" aria-label="Bharat Stack home">
+            <BrandLockup />
+          </a>
+          <div className="nav-dropdown">
+            <button
+              type="button"
+              className="nav-trigger"
+              aria-label="Open navigation"
+              aria-expanded={ open }
+              onClick={ () => setOpen( value => !value ) }
+            >
+              <span className="nav-arrow" aria-hidden="true">▼</span>
+            </button>
+            <nav className={ `nav-menu ${open ? 'open' : ''}` } aria-label="Public navigation">
+              <a href="/" className="nav-item">Home</a>
+              <a href="/crm" className="nav-item">Grahak OS</a>
+              <a href="/access" className="nav-item">Sign in</a>
+              <a href="https://www.wecare.digital/contact" className="nav-item">Contact</a>
+            </nav>
           </div>
         </div>
       </div>
-    </div>
-    <style jsx>{`
-      .hdr{position:fixed;top:0;left:0;right:0;z-index:1001;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
-      .hdr-in{max-width:1300px;margin:0 auto;padding:16px 24px;display:flex;align-items:center}
-      .hdr-home .hdr-in{min-height:96px}
-      .logo{display:flex;align-items:center;text-decoration:none}
-      .logo-nav{display:flex;align-items:center;gap:4px}
-      .logo-img{width:64px;height:64px;border-radius:14px;flex-shrink:0;display:block;object-fit:contain}
-      .nav-dropdown{position:relative}
-      .nav-trigger{background:none;border:none;cursor:pointer;padding:4px;margin:0;font-family:inherit;transition:all .25s;display:flex;align-items:center;line-height:1}
-      .nav-trigger:hover .nav-arrow{color:#1a3a2a}
-      .nav-arrow{font-size:14px;transition:all .2s;color:#1a1a1a}
-      .nav-dropdown:hover .nav-arrow{transform:rotate(180deg);color:#1a3a2a}
-      .nav-menu{position:absolute;top:100%;left:0;background:#fff;border:2px solid #d1f470;border-radius:12px;padding:8px 0;min-width:180px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
-      .nav-dropdown:hover .nav-menu{opacity:1;visibility:visible;transform:translateY(0)}
-      .nav-item{display:block;padding:10px 20px;font-size:21px;font-weight:500;color:#1a3a2a;text-decoration:none;transition:all .25s}
-      .nav-item:hover{color:#1a3a2a;background:rgba(209,244,112,0.2)}
-    `}</style>
-  </header>
-);
+      <style jsx>{`
+        .hdr{position:fixed;top:0;left:0;right:0;z-index:1001;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+        .hdr-in{max-width:1300px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;min-height:96px;box-sizing:border-box}
+        .logo{display:flex;align-items:center;text-decoration:none}
+        .logo-nav{display:flex;align-items:center;gap:6px}
+        .nav-dropdown{position:relative}
+        .nav-trigger{min-width:44px;min-height:44px;background:none;border:0;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center}
+        .nav-trigger:hover,.nav-trigger:focus-visible{background:#f4f7f5;outline:none}
+        .nav-trigger:focus-visible{box-shadow:0 0 0 3px rgba(26,58,42,.2)}
+        .nav-arrow{font-size:14px;color:#1a1a1a;transition:transform .2s}
+        .nav-trigger[aria-expanded='true'] .nav-arrow{transform:rotate(180deg)}
+        .nav-menu{position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #d1f470;border-radius:12px;padding:8px 0;min-width:190px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+        .nav-dropdown:hover .nav-menu,.nav-dropdown:focus-within .nav-menu,.nav-menu.open{opacity:1;visibility:visible;transform:translateY(0)}
+        .nav-item{display:flex;align-items:center;min-height:44px;padding:0 20px;font-size:18px;font-weight:600;color:#1a3a2a;text-decoration:none}
+        .nav-item:hover,.nav-item:focus-visible{background:rgba(209,244,112,.22);outline:none}
+        @media(max-width:767px){.hdr-in{min-height:88px;padding:12px 16px}.nav-item{font-size:17px}}
+      `}</style>
+      <style jsx global>{`
+        .page .hero-left h1{font-size:clamp(38px,5.3vw,68px)!important;line-height:1.04!important;letter-spacing:-1.8px!important}
+        .page .hero-left p{font-size:clamp(18px,1.7vw,22px)!important;line-height:1.6!important}
+        .page .section-header h2{font-size:clamp(32px,4vw,52px)!important;line-height:1.1!important}
+        .page .section-header p{font-size:clamp(18px,1.5vw,21px)!important}
+        .page .api-info h2{font-size:clamp(32px,3.6vw,46px)!important}
+        .page .api-desc{font-size:clamp(18px,1.5vw,21px)!important}
+        .page .capability-card h3{font-size:clamp(20px,1.7vw,26px)!important}
+        .page .capability-card p{font-size:clamp(17px,1.3vw,20px)!important}
+        .page .cta-section h2{font-size:clamp(34px,4.5vw,56px)!important}
+        @media(max-width:480px){.page .hero-left h1{font-size:clamp(36px,10vw,44px)!important}.page .section-header h2,.page .api-info h2{font-size:clamp(30px,8.5vw,38px)!important}}
+      `}</style>
+    </header>
+  );
+};
 
 export default Header;
