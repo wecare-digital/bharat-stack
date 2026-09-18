@@ -31,6 +31,28 @@ The deploy scripts (`_deploy_all.ps1`, `_deploy_changed.ps1`,
 `_deploy_meta_agent.ps1`) already call it at the end. If you deploy a function
 by hand, run the publisher yourself or the API will keep serving old code.
 
+## Which deploy script to use
+
+The `.ps1` scripts are **Windows-only** — they use `\`-separated paths, so they
+cannot run on macOS or Linux. The portable deploy-all is:
+
+```
+python scripts/deploy_all_lambdas.py             # whole fleet, then publishes
+python scripts/deploy_all_lambdas.py --dry-run   # build + validate, upload nothing
+python scripts/deploy_all_lambdas.py --list      # the function map
+python scripts/deploy_all_lambdas.py wecare-contacts
+```
+
+It covers all 60 zip-packaged functions, calls `snapstart_publish.py` itself,
+and validates before uploading that every top-level import resolves either
+inside the package or in one of the function's attached layers. Two functions
+are deliberately outside it:
+
+- `wecare-seo-tools` — different in-zip layout; `scripts/deploy_seo_tools.py`
+  owns it along with its table and IAM policy.
+- `wecare-docs-scraper` — `PackageType=Image`, ships via
+  `.github/workflows/docs-scraper-deploy.yml`.
+
 ## Gotchas
 
 - **Randomness:** SnapStart snapshots the `random` module's PRNG state. Use

@@ -88,6 +88,11 @@ recordings/
 _*.txt
 _*.cmd
 tmp-*.py
+
+# ...but `_*.py` also matches `__init__.py`, which silently kept
+# amplify/functions/shared/lambda_utils/__init__.py out of the repo even though
+# every deployed Lambda package contains it. Keep package markers tracked.
+!**/__init__.py
 flow-*.txt
 flow-*.png
 sr-*.txt

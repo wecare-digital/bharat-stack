@@ -1,0 +1,532 @@
+#!/usr/bin/env python3
+r"""Deploy every zip-packaged Python Lambda in this account. Cross-platform.
+
+Why this exists
+---------------
+``scripts/_deploy_all.ps1`` and ``scripts/deploy_all.ps1`` are the historical
+deploy-all entrypoints, but they are PowerShell and use ``\``-separated paths,
+so they only run on Windows. On macOS/Linux there was no way to deploy the
+fleet. This script is the portable equivalent and is the one to reach for on a
+non-Windows machine.
+
+It also fixes two defects in the PowerShell versions:
+
+* ``Compress-Archive`` writes zip entry names with ``\`` separators (visible in
+  the live packages for ``wecare-contacts`` and ``wecare-whatsapp-business-api``
+  as ``lambda_utils\response.py``). Lambda happens to tolerate it, but
+  ``zipfile`` here writes proper ``/`` entries.
+* ``deploy_all.ps1`` copied ``flows\*.py`` only, dropping the ``flows/*.json``
+  flow definitions that ``wecare-whatsapp-business-api`` serves. Extra
+  directories are copied whole here.
+
+Packaging layout (unchanged from the PowerShell scripts)
+-------------------------------------------------------
+    handler.py                     <- the function's handler
+    lambda_utils/*.py              <- amplify/functions/shared/lambda_utils
+    static_knowledge_base.py       <- amplify/functions/shared
+    modules/                       <- if the function has one
+    <extra dirs>/                  <- e.g. flows/ for whatsapp-business-api
+    <extra files>                  <- e.g. service_api.py
+
+Zips are built deterministically (fixed mtimes, sorted entries) so redeploying
+unchanged code produces an identical ``CodeSha256``. That matters because the
+SnapStart publisher keys off "does the alias sha match $LATEST": stable shas
+mean unchanged functions do not accumulate pointless versions.
+
+SnapStart / alias
+-----------------
+``update_function_code`` only moves ``$LATEST``. The HTTP API invokes the
+``live`` alias, so nothing reaches production until a version is published and
+the alias moves. That is ``scripts/snapstart_publish.py``, which this script
+invokes at the end unless ``--no-publish`` is passed. See
+``.kiro/steering/lambda-snapstart-deploy.md``.
+
+Usage
+-----
+    python scripts/deploy_all_lambdas.py                    # whole fleet, then publish
+    python scripts/deploy_all_lambdas.py wecare-contacts    # named functions only
+    python scripts/deploy_all_lambdas.py --dry-run          # build + validate, upload nothing
+    python scripts/deploy_all_lambdas.py --no-publish       # update $LATEST, leave aliases
+    python scripts/deploy_all_lambdas.py --list             # show the function map
+
+Exit codes: 0 everything succeeded, 1 at least one function failed.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import io
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
+try:
+    import boto3
+    from botocore.exceptions import ClientError
+except ImportError:  # pragma: no cover
+    sys.exit("boto3 is required: pip install boto3  (or use .venv/bin/python)")
+
+REGION = "us-east-1"
+ROOT = Path(__file__).resolve().parents[1]
+FUNCTIONS = ROOT / "amplify" / "functions"
+SHARED = FUNCTIONS / "shared"
+LAMBDA_UTILS = SHARED / "lambda_utils"
+STATIC_KB = SHARED / "static_knowledge_base.py"
+
+# Fixed timestamp so identical content yields an identical CodeSha256.
+ZIP_DATE = (2026, 1, 1, 0, 0, 0)
+
+# Directories never worth shipping.
+EXCLUDE_DIRS = {"__pycache__", "tests", ".pytest_cache"}
+
+# Modules the python3.12 runtime provides without bundling.
+RUNTIME_PROVIDED = {"boto3", "botocore", "urllib3", "dateutil", "s3transfer", "jmespath", "six"}
+
+
+class Spec:
+    """How one Lambda is assembled."""
+
+    def __init__(
+        self,
+        name: str,
+        source: str,
+        *,
+        standalone: bool = False,
+        extra_dirs: Sequence[str] = (),
+        extra_files: Sequence[str] = (),
+    ) -> None:
+        self.name = name
+        self.source = FUNCTIONS / source
+        # standalone: handler.py only. Used where the handler imports nothing
+        # from lambda_utils, and where the live package is handler.py alone
+        # (url-shortener, site-language — see scripts/deploy_site_language.py).
+        self.standalone = standalone
+        self.extra_dirs = list(extra_dirs)
+        self.extra_files = list(extra_files)
+
+    @property
+    def handler_file(self) -> Path:
+        return self.source / "handler.py"
+
+
+# Every zip-packaged function in us-east-1, mapped to its source.
+#
+# Deliberately excluded:
+#   wecare-docs-scraper — PackageType=Image, ships via
+#                         .github/workflows/docs-scraper-deploy.yml.
+SPECS: List[Spec] = [
+    # --- core ---
+    Spec("wecare-auth-middleware", "core/auth-middleware"),
+    Spec("wecare-automation-rules", "core/automation-rules"),
+    Spec("wecare-contacts", "core/contacts"),
+    Spec("wecare-conversation-meta", "core/conversation-meta"),
+    Spec("wecare-faq-handler", "core/faq-handler"),
+    Spec("wecare-messages-delete", "core/messages-delete"),
+    Spec("wecare-messages-read", "core/messages-read"),
+    Spec("wecare-service-api", "core/service-api"),
+    Spec("wecare-site-language", "core/site-language", standalone=True),
+    # Both url-shortener functions build from the same source. The HTTP API's
+    # /l/* routes integrate `stack-wecare-url-shortener:live`, NOT
+    # `wecare-url-shortener`, so the `stack-`prefixed one is the live shortlink
+    # service and the other is a leftover. Keep both on the same code.
+    Spec("wecare-url-shortener", "core/url-shortener", standalone=True),
+    Spec("stack-wecare-url-shortener", "core/url-shortener", standalone=True),
+    # --- messaging / whatsapp ---
+    Spec("wecare-inbound-whatsapp", "messaging/inbound-whatsapp-handler"),
+    Spec("wecare-outbound-whatsapp", "messaging/outbound-whatsapp"),
+    Spec("wecare-whatsapp-voice", "messaging/whatsapp-voice"),
+    Spec("wecare-whatsapp-calling", "messaging/whatsapp-calling"),
+    Spec("wecare-whatsapp-templates", "messaging/whatsapp-templates"),
+    Spec("wecare-whatsapp-template-management", "messaging/whatsapp-template-management"),
+    Spec(
+        "wecare-whatsapp-business-api",
+        "messaging/whatsapp-business-api",
+        extra_dirs=["flows"],
+        extra_files=["service_api.py"],
+    ),
+    Spec("wecare-waba-management", "messaging/waba-management"),
+    Spec("wecare-media-cleanup", "messaging/media-cleanup"),
+    Spec("wecare-template-analytics", "messaging/template-analytics"),
+    Spec("wecare-partner-onboarding", "messaging/partner-onboarding"),
+    Spec("wecare-partner-token-refresh", "messaging/partner-token-refresh"),
+    # --- messaging / sms + email ---
+    Spec("wecare-outbound-sms", "messaging/outbound-sms"),
+    Spec("wecare-outbound-email", "messaging/outbound-email"),
+    Spec("wecare-sms-aws", "messaging/sms-aws"),
+    Spec("wecare-sms-in-airtel", "messaging/sms-in/airtel"),
+    Spec("wecare-sinch-dlr", "messaging/sms-in/sinch"),
+    # --- messaging / voice ---
+    Spec("wecare-voice-aws", "messaging/voice-aws"),
+    Spec("wecare-voice-in-c2c", "messaging/voice-in/c2c"),
+    Spec("wecare-voice-in-obd", "messaging/voice-in/obd"),
+    Spec("wecare-voice-in-cdr", "messaging/voice-in/cdr"),
+    Spec("wecare-voice-cdr-read", "messaging/voice-cdr-read"),
+    Spec("wecare-outbound-voice", "messaging/outbound-voice"),
+    Spec("wecare-plivo-answer", "messaging/plivo-answer"),
+    # --- messaging / rcs, push, scheduling ---
+    Spec("wecare-rcs-send", "messaging/rcs-send"),
+    Spec("wecare-rcs-dlr", "messaging/rcs-dlr"),
+    Spec("wecare-push-notifications", "messaging/push-notifications"),
+    Spec("wecare-scheduled-messages", "messaging/scheduled-messages"),
+    # --- messaging / ads + analytics ---
+    Spec("wecare-meta-analytics", "messaging/meta-analytics"),
+    Spec("wecare-ad-attribution", "messaging/ad-attribution"),
+    Spec("wecare-marketing-ads", "messaging/marketing-ads"),
+    Spec("wecare-meta-business-agent", "messaging/meta-business-agent"),
+    # --- ai ---
+    Spec("wecare-ai-query-kb", "ai/ai-query-kb"),
+    Spec("wecare-ai-generate-response", "ai/ai-generate-response"),
+    Spec("wecare-ai-config-management", "ai/ai-config-management"),
+    Spec("wecare-agent-action-group", "ai/agent-action-group"),
+    # --- operations ---
+    Spec("wecare-billing", "operations/billing"),
+    Spec("wecare-bulk-job-create", "operations/bulk-job-create"),
+    Spec("wecare-bulk-job-control", "operations/bulk-job-control"),
+    Spec("wecare-bulk-worker", "operations/bulk-worker"),
+    Spec("wecare-dlq-replay", "operations/dlq-replay"),
+    Spec("wecare-sla-engine", "operations/sla-engine"),
+    Spec("wecare-system-cleanup", "operations/system-cleanup"),
+    # --- payments ---
+    Spec("wecare-razorpay-webhook", "payments/razorpay-webhook"),
+    Spec("wecare-payments-read", "payments/payments-read"),
+    Spec("wecare-invoice-engine", "payments/invoice-engine"),
+    # --- ecommerce ---
+    Spec("wecare-wix-store", "ecommerce/wix-store"),
+    Spec("wecare-product-image-gen", "ecommerce/product-image-gen"),
+    Spec("wecare-catalog-management", "ecommerce/catalog-management"),
+]
+
+# wecare-seo-tools uses a different in-zip layout (a shim at the root importing
+# operations/seo-tools, with lambda_utils under shared/). scripts/deploy_seo_tools.py
+# owns it, along with its table and IAM policy, so it is delegated rather than
+# reimplemented here.
+DELEGATED = {"wecare-seo-tools": "scripts/deploy_seo_tools.py"}
+SKIPPED = {"wecare-docs-scraper": "PackageType=Image, deploys via GitHub Actions"}
+
+
+# --------------------------------------------------------------------------- #
+# packaging
+# --------------------------------------------------------------------------- #
+
+def _iter_dir(root: Path) -> Iterable[Path]:
+    """Every shippable file under root, excluding junk directories."""
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        if any(part in EXCLUDE_DIRS for part in path.relative_to(root).parts):
+            continue
+        if path.suffix in {".pyc", ".pyo"}:
+            continue
+        yield path
+
+
+def build_zip(spec: Spec) -> Tuple[bytes, Dict[str, bytes]]:
+    """Return (zip bytes, {arcname: content}). Deterministic."""
+    members: Dict[str, bytes] = {}
+
+    if not spec.handler_file.exists():
+        raise FileNotFoundError(f"missing handler: {spec.handler_file}")
+    members["handler.py"] = spec.handler_file.read_bytes()
+
+    if not spec.standalone:
+        if not LAMBDA_UTILS.is_dir():
+            raise FileNotFoundError(f"missing {LAMBDA_UTILS}")
+        for path in _iter_dir(LAMBDA_UTILS):
+            if path.suffix == ".py":
+                members[f"lambda_utils/{path.relative_to(LAMBDA_UTILS).as_posix()}"] = path.read_bytes()
+        if len(members) - 1 < 3:
+            raise RuntimeError(f"lambda_utils looks incomplete ({len(members) - 1} files)")
+        if STATIC_KB.exists():
+            members["static_knowledge_base.py"] = STATIC_KB.read_bytes()
+
+        modules = spec.source / "modules"
+        if modules.is_dir():
+            for path in _iter_dir(modules):
+                members[f"modules/{path.relative_to(modules).as_posix()}"] = path.read_bytes()
+
+        for rel in spec.extra_dirs:
+            extra = spec.source / rel
+            if not extra.is_dir():
+                raise FileNotFoundError(f"missing extra dir: {extra}")
+            for path in _iter_dir(extra):
+                members[f"{rel}/{path.relative_to(extra).as_posix()}"] = path.read_bytes()
+
+        for rel in spec.extra_files:
+            extra = spec.source / rel
+            if not extra.is_file():
+                raise FileNotFoundError(f"missing extra file: {extra}")
+            members[rel] = extra.read_bytes()
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+        for arcname in sorted(members):
+            info = zipfile.ZipInfo(arcname, date_time=ZIP_DATE)
+            info.external_attr = 0o644 << 16
+            info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(info, members[arcname])
+    return buf.getvalue(), members
+
+
+_LAYER_CACHE: Dict[str, frozenset] = {}
+
+
+def layer_modules(lam, arn: str) -> frozenset:
+    """Top-level module names a layer version contributes to sys.path.
+
+    Resolved by reading the layer zip rather than assuming, because several of
+    these functions rely entirely on layers for PIL / cryptography and a purely
+    package-local import check would flag them as broken.
+    """
+    if arn in _LAYER_CACHE:
+        return _LAYER_CACHE[arn]
+
+    import urllib.request
+
+    names: set = set()
+    try:
+        location = lam.get_layer_version_by_arn(Arn=arn)["Content"]["Location"]
+        with urllib.request.urlopen(location, timeout=120) as response:
+            blob = response.read()
+        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+            for entry in archive.namelist():
+                # Layer zips built on Windows carry `\` separators.
+                path = entry.replace("\\", "/")
+                for prefix in ("python/lib/python3.12/site-packages/", "python/"):
+                    if path.startswith(prefix):
+                        rest = path[len(prefix):]
+                        break
+                else:
+                    continue
+                top = rest.split("/")[0]
+                if not top or top.endswith((".dist-info", ".egg-info")):
+                    continue
+                names.add(top.removesuffix(".py").removesuffix(".so").split(".")[0])
+    except Exception as exc:  # noqa: BLE001
+        print(f"    warning: could not read layer {arn.split(':')[-2]}: {exc}")
+
+    _LAYER_CACHE[arn] = frozenset(names)
+    return _LAYER_CACHE[arn]
+
+
+def _guarded_import_lines(tree: ast.AST) -> set:
+    """Line numbers of imports wrapped in try/except, i.e. optional ones."""
+    guarded: set = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for child in ast.walk(node):
+            if isinstance(child, (ast.Import, ast.ImportFrom)):
+                guarded.add(child.lineno)
+    return guarded
+
+
+def validate(
+    spec: Spec, members: Dict[str, bytes], provided: frozenset
+) -> Tuple[List[str], List[str]]:
+    """Static import check. Returns (errors, warnings).
+
+    Catches the failure this fleet is prone to: a handler importing a shared
+    module the packaging step forgot to include. Being static, it cannot report
+    a false failure over missing env vars the way actually importing would.
+
+    An unresolved import inside try/except is a warning, not an error, because
+    the code has a documented fallback path for it.
+    """
+    errors: List[str] = []
+    warnings: List[str] = []
+
+    available = {name.split("/")[0].removesuffix(".py") for name in members}
+    known = available | provided | RUNTIME_PROVIDED | set(sys.stdlib_module_names)
+
+    for arcname in sorted(members):
+        if not arcname.endswith(".py"):
+            continue
+        try:
+            tree = ast.parse(members[arcname].decode("utf-8"), filename=arcname)
+        except SyntaxError as exc:
+            errors.append(f"{arcname}: syntax error: {exc}")
+            continue
+
+        guarded = _guarded_import_lines(tree)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                roots = [(a.name.split(".")[0], node.lineno) for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                if node.level:  # relative import, resolves within the package
+                    continue
+                roots = [((node.module or "").split(".")[0], node.lineno)]
+            else:
+                continue
+            for root, lineno in roots:
+                if not root or root in known:
+                    continue
+                message = f"{arcname}:{lineno} imports '{root}', not in package or layers"
+                if lineno in guarded:
+                    warnings.append(message + " (guarded by try/except)")
+                else:
+                    errors.append(message)
+
+    return sorted(set(errors)), sorted(set(warnings))
+
+
+# --------------------------------------------------------------------------- #
+# deploy
+# --------------------------------------------------------------------------- #
+
+def deploy(lam, spec: Spec, zip_bytes: bytes, current: dict) -> str:
+    """'updated', 'unchanged', or 'failed'."""
+    try:
+        result = lam.update_function_code(
+            FunctionName=spec.name, ZipFile=zip_bytes, Publish=False
+        )
+    except ClientError as exc:
+        print(f"    update_function_code failed: {exc}")
+        return "failed"
+
+    try:
+        lam.get_waiter("function_updated_v2").wait(FunctionName=spec.name)
+    except Exception as exc:  # noqa: BLE001
+        print(f"    function never settled after update: {exc}")
+        return "failed"
+
+    if result["CodeSha256"] == current.get("CodeSha256"):
+        print(f"    unchanged (sha {result['CodeSha256'][:12]}...)")
+        return "unchanged"
+    print(f"    $LATEST -> sha {result['CodeSha256'][:12]}... "
+          f"({result['CodeSize']} bytes)")
+    return "updated"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("functions", nargs="*", help="function names; default is all")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="build and validate packages, upload nothing")
+    ap.add_argument("--no-publish", action="store_true",
+                    help="skip snapstart_publish.py (leaves the `live` alias on old code)")
+    ap.add_argument("--list", action="store_true", help="print the function map and exit")
+    args = ap.parse_args()
+
+    if args.list:
+        for spec in SPECS:
+            flags = []
+            if spec.standalone:
+                flags.append("standalone")
+            if spec.extra_dirs:
+                flags.append(f"dirs={','.join(spec.extra_dirs)}")
+            if spec.extra_files:
+                flags.append(f"files={','.join(spec.extra_files)}")
+            print(f"{spec.name:40s} {spec.source.relative_to(FUNCTIONS)}"
+                  f"{'  [' + ' '.join(flags) + ']' if flags else ''}")
+        for name, why in {**DELEGATED, **SKIPPED}.items():
+            print(f"{name:40s} -> {why}")
+        return 0
+
+    selected = SPECS
+    if args.functions:
+        wanted = set(args.functions)
+        selected = [s for s in SPECS if s.name in wanted]
+        unknown = wanted - {s.name for s in selected}
+        for name in sorted(unknown):
+            if name in DELEGATED:
+                print(f"{name}: run {DELEGATED[name]} instead")
+            elif name in SKIPPED:
+                print(f"{name}: skipped — {SKIPPED[name]}")
+            else:
+                print(f"{name}: not in the function map")
+        if not selected:
+            return 1
+
+    lam = boto3.client("lambda", region_name=REGION)
+    print(f"region={REGION} targets={len(selected)} dry_run={args.dry_run}")
+    print()
+
+    tally = {"updated": 0, "unchanged": 0, "failed": 0}
+    failures: List[str] = []
+    deployed: List[str] = []
+    all_warnings: List[str] = []
+
+    for spec in selected:
+        print(f"  {spec.name}")
+        try:
+            zip_bytes, members = build_zip(spec)
+        except Exception as exc:  # noqa: BLE001
+            print(f"    package failed: {exc}")
+            tally["failed"] += 1
+            failures.append(spec.name)
+            continue
+
+        try:
+            current = lam.get_function_configuration(FunctionName=spec.name)
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] == "ResourceNotFoundException":
+                print(f"    not found in {REGION} — refusing to create it here")
+            else:
+                print(f"    get_function_configuration failed: {exc}")
+            tally["failed"] += 1
+            failures.append(spec.name)
+            continue
+
+        provided: frozenset = frozenset()
+        for layer in current.get("Layers") or []:
+            provided |= layer_modules(lam, layer["Arn"])
+
+        errors, warnings = validate(spec, members, provided)
+        for warning in warnings:
+            print(f"    warning: {warning}")
+            all_warnings.append(f"{spec.name}: {warning}")
+        if errors:
+            for error in errors:
+                print(f"    ERROR: {error}")
+            tally["failed"] += 1
+            failures.append(spec.name)
+            continue
+
+        print(f"    packaged {len(members)} files, {len(zip_bytes)} bytes")
+
+        if args.dry_run:
+            tally["unchanged"] += 1
+            continue
+
+        outcome = deploy(lam, spec, zip_bytes, current)
+        tally[outcome] += 1
+        if outcome == "failed":
+            failures.append(spec.name)
+        else:
+            deployed.append(spec.name)
+
+    print()
+    print(f"updated={tally['updated']} unchanged={tally['unchanged']} "
+          f"failed={tally['failed']}")
+    if failures:
+        print(f"failed: {', '.join(failures)}")
+    if all_warnings:
+        print(f"\n{len(all_warnings)} import warning(s):")
+        for warning in all_warnings:
+            print(f"  {warning}")
+
+    if args.dry_run:
+        print("\ndry run: nothing uploaded")
+        return 1 if failures else 0
+
+    publish_rc = 0
+    if args.no_publish:
+        print("\n--no-publish: `live` aliases still point at the previous code.")
+        print("Run `python scripts/snapstart_publish.py` to actually ship.")
+    elif deployed:
+        print("\nPublishing versions + moving the `live` alias "
+              "(the API invokes :live, not $LATEST)...\n")
+        publish_rc = subprocess.call(
+            [sys.executable, str(ROOT / "scripts" / "snapstart_publish.py"),
+             "--only-stale", *deployed]
+        )
+
+    return 1 if (failures or publish_rc) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
