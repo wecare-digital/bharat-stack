@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -27,11 +27,12 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'className="cta-actions"' );
   } );
 
-  it( 'uses the exact uploaded Meta icon asset and a flat split credential strip', () => {
-    const metaAsset = resolve( process.cwd(), 'public/meta-icon.png' );
-    expect( existsSync( metaAsset ) ).toBe( true );
-    expect( statSync( metaAsset ).size ).toBeGreaterThan( 5_000 );
-    expect( source ).toContain( '<img className="trust-mark meta-mark" src="/meta-icon.png" alt="Meta" />' );
+  it( 'uses the approved Meta icon from app.wecare.digital', () => {
+    expect( source ).toContain( '<img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" />' );
+    expect( source ).not.toContain( 'src="/meta-icon.png"' );
+  } );
+
+  it( 'keeps the flat split credential strip', () => {
     expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0' );
     expect( source ).toContain( '.meta-panel{background:#d9fbf2' );
     expect( source ).toContain( '.whatsapp-panel{background:#25d366' );
