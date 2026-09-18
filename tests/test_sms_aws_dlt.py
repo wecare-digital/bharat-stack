@@ -138,3 +138,94 @@ def test_regression_indian_number_is_not_silently_routed_international():
         "If this fails, destination-based routing is broken and Indian traffic "
         "will leave via us-east-1 without DLT parameters."
     )
+
+
+# --------------------------------------------------------------------------
+# E.164 formatting: regression cover for a MISDELIVERY bug
+#
+# The previous _format_e164 applied the +91 default to any 10-digit string,
+# including numbers that already carried a country code. +6581234567 (Singapore)
+# became +916581234567 - a different, real Indian subscriber - and was then
+# routed to ap-south-1 with a DLT template attached.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("supplied,expected", [
+    # Explicit country code must always be honoured, never re-prefixed.
+    ("+6581234567", "+6581234567"),      # Singapore, 10 digits - the bug case
+    ("+6591234567", "+6591234567"),      # Singapore
+    ("+85261234567", "+85261234567"),    # Hong Kong
+    ("+4512345678", "+4512345678"),      # Denmark, 10 digits
+    ("+351211234567", "+351211234567"),  # Portugal
+    ("+14255551234", "+14255551234"),    # USA
+    ("+447700900123", "+447700900123"),  # UK
+    ("+971501234567", "+971501234567"),  # UAE
+    ("+919903300044", "+919903300044"),  # India, already E.164
+    # Bare local numbers with no country code default to India.
+    ("9903300044", "+919903300044"),
+    ("8031830030", "+918031830030"),
+    # Formatting noise must be stripped, prefix preserved.
+    ("+65 8123 4567", "+6581234567"),
+    ("+91-99033-00044", "+919903300044"),
+    ("(425) 555-1234", "+914255551234"),  # bare 10 digits -> India, by design
+    ("", ""),
+    (None, ""),
+])
+def test_format_e164_honours_supplied_country_code(supplied, expected):
+    assert sms._format_e164(supplied) == expected
+
+
+@pytest.mark.parametrize("supplied,should_be_india", [
+    ("+6581234567", False),     # was True before the fix - MISDELIVERY
+    ("+6591234567", False),
+    ("+4512345678", False),
+    ("+14255551234", False),
+    ("+447700900123", False),
+    ("+919903300044", True),
+    ("9903300044", True),
+])
+def test_routing_decision_after_formatting(supplied, should_be_india):
+    """Formatting feeds the routing decision, so assert the end result."""
+    assert sms._is_indian_msisdn(sms._format_e164(supplied)) is should_be_india
+
+
+def test_ten_digit_international_no_longer_becomes_indian():
+    """Explicit regression guard on the exact reported defect."""
+    out = sms._format_e164("+6581234567")
+    assert out == "+6581234567"
+    assert not sms._is_indian_msisdn(out), (
+        "A Singapore number must never be rewritten to +91 - it would be "
+        "delivered to an unrelated Indian subscriber."
+    )
+
+
+# --------------------------------------------------------------------------
+# Origination identity must never be the simulator
+# --------------------------------------------------------------------------
+SIMULATOR_NUMBER = "+14255556333"
+TOLL_FREE_NUMBER = "+18444891209"
+
+
+def test_origination_identity_is_pinned():
+    """Unset means AWS chooses, and it may choose the simulator."""
+    assert sms.ORIGINATION_IDENTITY, "must not be empty"
+
+
+def test_origination_identity_is_not_the_simulator():
+    assert sms.ORIGINATION_IDENTITY != SIMULATOR_NUMBER, (
+        "SIMULATOR numbers return a MessageId without delivering anything"
+    )
+
+
+def test_origination_identity_defaults_to_registered_toll_free():
+    assert sms.ORIGINATION_IDENTITY == TOLL_FREE_NUMBER
+
+
+def test_non_india_send_passes_the_pinned_identity():
+    fake = MagicMock()
+    fake.send_text_message.return_value = {"MessageId": "mid"}
+    with patch.object(sms, "pinpoint_sms", fake):
+        sms._send_pinpoint_sms("+14255551234", "hi", "TRANSACTIONAL", "r1",
+                               use_india_region=False)
+    params = fake.send_text_message.call_args.kwargs
+    assert params["OriginationIdentity"] == TOLL_FREE_NUMBER
+    assert params["OriginationIdentity"] != SIMULATOR_NUMBER
+    assert "DestinationCountryParameters" not in params

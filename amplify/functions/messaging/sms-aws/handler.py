@@ -44,7 +44,19 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-Contacts
 SMS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTable')
 # Canonical unified table — reads/deletes now target this (channel=sms).
 UNIFIED_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
-ORIGINATION_IDENTITY = os.environ.get('ORIGINATION_IDENTITY', '')
+# Non-India origination identity. MUST be pinned to a real number.
+#
+# The account also owns +14255556333, which is NumberType SIMULATOR. Simulator
+# numbers accept a send and return a MessageId WITHOUT delivering anything - they
+# exist to exercise delivery-status handling. Both numbers sit in the same pool,
+# so pinning the pool would not exclude the simulator. With this unset, AWS picks
+# an identity from the account and international traffic can silently vanish
+# while the API reports success.
+#
+# +18444891209 is the registered toll-free number with
+# InternationalSendingEnabled=true (AWS enabled this for US toll-free in Aug
+# 2025). Rate limit is 3 SMS/sec.
+ORIGINATION_IDENTITY = os.environ.get('ORIGINATION_IDENTITY', '+18444891209')
 SENDER_ID = os.environ.get('SENDER_ID', 'WECARE')
 INDIA_SENDER_ID = os.environ.get('INDIA_SENDER_ID', 'WDBEEP')
 INDIA_PINPOINT_APP_ID = os.environ.get('INDIA_PINPOINT_APP_ID', '')
@@ -460,17 +472,33 @@ def _send_pinpoint_sms(phone: str, content: str, message_type: str,
 
 
 def _format_e164(phone: str) -> str:
-    """Format phone number to E.164."""
+    """Format a phone number to E.164.
+
+    An explicit leading '+' means the caller already supplied a country code, so
+    it is honoured as-is. Only a BARE 10-digit number is assumed to be an Indian
+    local number.
+
+    This distinction matters: the previous version applied the +91 default to any
+    10-digit string, including numbers that already carried a country code. A
+    Singapore number such as +6581234567 is exactly 10 digits, so it became
+    +916581234567 - a different, unrelated Indian subscriber - and was then
+    routed to ap-south-1 with a DLT template attached. That is a misdelivery,
+    not just a misroute. The same applied to Hong Kong, Denmark, Norway and
+    Portugal, all of which are 10 digits in full E.164 form.
+    """
     if not phone:
         return ''
-    digits = ''.join(c for c in str(phone) if c.isdigit())
-    if len(digits) == 10:
-        return f'+91{digits}'  # India default
-    if len(digits) >= 11 and not phone.startswith('+'):
+    raw = str(phone).strip()
+    digits = ''.join(c for c in raw if c.isdigit())
+    if not digits:
+        return ''
+    if raw.startswith('+'):
+        # Country code already present - never re-prefix.
         return f'+{digits}'
-    if phone.startswith('+'):
-        return phone
-    return f'+{digits}' if digits else ''
+    if len(digits) == 10:
+        # Bare local number with no country code: India.
+        return f'+91{digits}'
+    return f'+{digits}'
 
 
 def _get_contact(contact_id: str) -> Dict[str, Any]:
