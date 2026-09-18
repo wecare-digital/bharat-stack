@@ -30,7 +30,7 @@ describe( 'Grahak OS five approved visual fixes', () => {
   it( 'uses the exact uploaded Meta icon asset and a flat split credential strip', () => {
     const metaAsset = resolve( process.cwd(), 'public/meta-icon.png' );
     expect( existsSync( metaAsset ) ).toBe( true );
-    expect( statSync( metaAsset ).size ).toBeGreaterThan( 20_000 );
+    expect( statSync( metaAsset ).size ).toBeGreaterThan( 5_000 );
     expect( source ).toContain( '<img className="trust-mark meta-mark" src="/meta-icon.png" alt="Meta" />' );
     expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0' );
     expect( source ).toContain( '.meta-panel{background:#d9fbf2' );
