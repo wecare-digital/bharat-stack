@@ -23,7 +23,6 @@ import LanguageBar from '../components/LanguageBar';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import PublicWhatsAppButton from '../components/PublicWhatsAppButton';
 import { ToastProvider } from '../contexts/ToastContext';
 import { ConfirmProvider } from '../contexts/ConfirmContext';
 import { initCapacitor, isNative } from '../lib/capacitor';
@@ -493,7 +492,13 @@ export default function App ( { Component, pageProps }: AppProps ) {
           operational data would corrupt what an operator is reading.
         */}
         <LanguageBar />
-        { showPublicWhatsApp && <PublicWhatsAppButton /> }
+        { showPublicWhatsApp && (
+          <Script
+            id="wecare-wa-widget"
+            src="https://app.wecare.digital/stream/code/wecare-wa-widget.js"
+            strategy="lazyOnload"
+          />
+        ) }
       </ErrorBoundary>
     );
   }
