@@ -279,22 +279,28 @@ const LanguageBar: React.FC = () => {
   return (
     <div ref={ rootRef } data-wc-no-translate="true" className="wc-langbar">
       <style jsx>{`
-        .wc-langbar{position:fixed;left:16px;top:50%;transform:translateY(-50%);z-index:900;display:flex;flex-direction:column;align-items:flex-start;gap:8px;font-family:inherit}
-        .panel{display:none;width:min(320px,calc(100vw - 32px));background:#fff;border:1px solid #e5e7eb;border-radius:15px;padding:10px;box-shadow:0 12px 36px rgba(16,32,24,.18)}
+        .wc-langbar{position:fixed;right:16px;left:auto;top:50%;transform:translateY(-50%);z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:inherit}
+        .panel{display:none;width:min(320px,calc(100vw - 32px));background:#fff;border:1px solid #dfe8e2;border-radius:15px;padding:10px;box-shadow:0 12px 36px rgba(16,32,24,.18)}
         .panel.open{display:block}
         .search{width:100%;min-height:44px;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:600 15px/1.2 inherit;color:#1a3a2a;outline:none}
-        .search:focus{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(26,58,42,.12)}
+        .search:focus{border-color:#075e54;box-shadow:0 0 0 3px rgba(7,94,84,.12)}
         .results{max-height:310px;overflow:auto;margin-top:8px}
         .hint{padding:12px;color:#6b7280;font-size:14px}
         .opt{width:100%;min-height:44px;border:0;border-radius:9px;background:transparent;padding:9px 10px;display:flex;justify-content:space-between;gap:12px;align-items:center;text-align:left;color:#1a3a2a;cursor:pointer}
-        .opt:hover,.opt:focus-visible{background:#f4f7f5;outline:none}
+        .opt:hover,.opt:focus-visible{background:#f2fbf6;outline:none}
         .opt[aria-current='true']{background:#1a3a2a;color:#fff}
         .meta{opacity:.65;font-size:12px;white-space:nowrap}
-        .bar{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #e5e7eb;border-radius:13px;padding:6px;box-shadow:0 4px 16px rgba(16,32,24,.14)}
-        .btn{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:9px 12px;border:0;border-radius:9px;background:#f4f7f5;color:#1a3a2a;font-size:14px;font-weight:700;cursor:pointer}
-        .btn:hover:not(:disabled){background:#e6ece8}.btn:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}.btn:disabled{opacity:.5;cursor:not-allowed}.btn.on{background:#1a3a2a;color:#fff}
+        .panel-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #edf1ee}
+        .current-language{font-size:13px;font-weight:700;color:#66736b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .listen-btn{min-height:38px;padding:8px 12px;border:0;border-radius:9px;background:#f2fbf6;color:#075e54;font:700 13px/1 inherit;cursor:pointer}
+        .listen-btn:hover{background:#e4f6eb}.listen-btn.on{background:#075e54;color:#fff}
+        .language-trigger{width:48px;height:48px;border:1px solid #dfe8e2;border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(16,32,24,.14)}
+        .language-trigger:hover{border-color:#075e54;background:#f2fbf6;color:#075e54}
+        .language-trigger:focus-visible{outline:3px solid rgba(7,94,84,.25);outline-offset:2px}
+        .language-trigger:disabled{opacity:.55;cursor:not-allowed}
+        .language-trigger svg{width:24px;height:24px}
         .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-        @media(max-width:600px){.wc-langbar{left:10px;top:auto;bottom:calc(10px + env(safe-area-inset-bottom));transform:none}.panel{width:min(300px,calc(100vw - 20px))}}
+        @media(max-width:600px){.wc-langbar{right:12px;left:auto;top:auto;bottom:calc(82px + env(safe-area-inset-bottom));transform:none}.panel{width:min(300px,calc(100vw - 24px))}}
         @media print{.wc-langbar{display:none}}
       `}</style>
 
@@ -319,19 +325,22 @@ const LanguageBar: React.FC = () => {
             </button>
           ) ) }
         </div>
+        <div className="panel-actions">
+          <span className="current-language">{ selected ? ( selected.native || selected.name ) : current.toUpperCase() }</span>
+          { canSpeak && (
+            <button type="button" className={ `listen-btn ${speaking ? 'on' : ''}` } aria-pressed={ speaking } onClick={ () => { void speak(); } }>
+              { speaking ? 'Stop' : 'Listen' }
+            </button>
+          ) }
+        </div>
       </div>
 
-      <div className="bar">
-        <button type="button" className="btn" aria-expanded={ open } aria-label="Choose language" disabled={ busy } onClick={ () => setOpen( value => !value ) }>
-          <span aria-hidden="true">◎</span>
-          <span>{ busy ? 'Translating...' : ( selected?.native || selected?.name || 'English' ) }</span>
-        </button>
-        { canSpeak && (
-          <button type="button" className={ `btn ${speaking ? 'on' : ''}` } aria-pressed={ speaking } onClick={ () => { void speak(); } }>
-            { speaking ? 'Stop' : 'Listen' }
-          </button>
-        ) }
-      </div>
+      <button type="button" className="language-trigger" aria-expanded={ open } aria-label="Choose language" disabled={ busy } onClick={ () => setOpen( value => !value ) }>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M3.5 12h17M12 3c2.5 2.6 3.7 5.6 3.7 9S14.5 18.4 12 21M12 3C9.5 5.6 8.3 8.6 8.3 12s1.2 6.4 3.7 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </button>
       <div className="sr" role="status" aria-live="polite">{ status }</div>
     </div>
   );
