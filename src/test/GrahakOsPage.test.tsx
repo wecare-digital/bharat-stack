@@ -37,4 +37,14 @@ describe( 'Grahak OS public page', () => {
     expect( source ).toContain( '.capability-card:hover{border-color:#075e54' );
     expect( source ).toContain( '.mockup-wrapper:hover{border-color:#075e54' );
   } );
+
+  it( 'places platform credentials after the CTA so they sit directly above the footer', () => {
+    const source = readFileSync( pagePath, 'utf8' );
+    expect( source.indexOf( 'id="cta"' ) ).toBeLessThan( source.indexOf( 'id="trust-strip"' ) );
+  } );
+
+  it( 'does not load the retired external WhatsApp widget script', () => {
+    const source = readFileSync( pagePath, 'utf8' );
+    expect( source ).not.toContain( 'wecare-wa-widget.js' );
+  } );
 } );
