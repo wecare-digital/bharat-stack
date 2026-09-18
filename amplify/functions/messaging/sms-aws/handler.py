@@ -281,11 +281,16 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
     campaign_name = body.get('campaignName', '')
     target_region = body.get('region', '')  # Optional: 'ap-south-1' for India fallback
 
-    # Normalize phone input to consistent digits-only format
+    # Normalize to digits, but PRESERVE whether the caller supplied a country
+    # code. normalize_phone() strips the '+', so unconditionally re-adding it
+    # would turn a bare local number like 9903300044 into '+9903300044', where
+    # '990' is not a country code. _format_e164() then has no way to tell a
+    # supplied country code from an invented one.
     if phone_number:
+        had_country_code = str(phone_number).strip().startswith('+')
         normalized = normalize_phone(phone_number)
         if normalized:
-            phone_number = f'+{normalized}'
+            phone_number = f'+{normalized}' if had_country_code else normalized
 
     if not phone_number and contact_id:
         contact = _get_contact(contact_id)

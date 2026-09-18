@@ -229,3 +229,40 @@ def test_non_india_send_passes_the_pinned_identity():
     assert params["OriginationIdentity"] == TOLL_FREE_NUMBER
     assert params["OriginationIdentity"] != SIMULATOR_NUMBER
     assert "DestinationCountryParameters" not in params
+
+
+# --------------------------------------------------------------------------
+# _send_sms must preserve whether a country code was supplied.
+#
+# normalize_phone() strips the '+', so unconditionally re-adding it turned a
+# bare local number 9903300044 into '+9903300044' ('990' is not a country
+# code). The old _format_e164 masked this by re-prefixing any 10-digit string;
+# once that default was correctly narrowed, the bug surfaced as a hard
+# ValidationException on every bare Indian number.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("supplied,expected_e164,expect_india", [
+    ("9903300044", "+919903300044", True),        # bare Indian local
+    ("8031830030", "+918031830030", True),
+    ("+919903300044", "+919903300044", True),     # already E.164
+    ("+6581234567", "+6581234567", False),        # Singapore keeps its own CC
+    ("+14255551234", "+14255551234", False),
+    ("+91 99033 00044", "+919903300044", True),   # formatting noise
+])
+def test_send_sms_preserves_supplied_country_code(supplied, expected_e164, expect_india):
+    """End-to-end through the same path _send_sms uses."""
+    had_cc = str(supplied).strip().startswith('+')
+    from lambda_utils.validation import normalize_phone
+    normalized = normalize_phone(supplied)
+    staged = (f'+{normalized}' if had_cc else normalized) if normalized else supplied
+    out = sms._format_e164(staged)
+    assert out == expected_e164
+    assert sms._is_indian_msisdn(out) is expect_india
+
+
+def test_bare_indian_number_does_not_become_invalid_country_code():
+    """Regression guard: 9903300044 must not become +9903300044."""
+    from lambda_utils.validation import normalize_phone
+    normalized = normalize_phone("9903300044")
+    staged = normalized                      # no '+' supplied, so none added
+    assert not staged.startswith('+')
+    assert sms._format_e164(staged) == "+919903300044"
