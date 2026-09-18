@@ -39,4 +39,14 @@ describe( 'Header', () => {
     expect( screen.queryByText( 'Studio' ) ).toBeNull();
     expect( screen.queryByText( 'Sustainability' ) ).toBeNull();
   } );
+
+  it( 'uses the approved public header dimensions and brand navigation colors', () => {
+    const { container } = render( <Header /> );
+    const css = Array.from( container.querySelectorAll( 'style' ) ).map( node => node.textContent || '' ).join( '\n' );
+
+    expect( css ).toContain( 'box-sizing:border-box;height:108px' );
+    expect( css ).toContain( '@media(max-width:767px){.hdr-in{height:96px' );
+    expect( css ).toContain( '.nav-arrow{font-size:15px;color:#1a3a2a' );
+    expect( css ).toContain( ".nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}" );
+  } );
 } );
