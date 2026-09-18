@@ -25,7 +25,7 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://stack.wecare.digital/crm/</loc>
+    <loc>https://stack.wecare.digital/grahak-os/</loc>
     <lastmod>2026-04-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -356,18 +356,6 @@
   </url>
   <url>
     <loc>https://stack.wecare.digital/store/</loc>
-    <lastmod>2026-04-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://stack.wecare.digital/studio/</loc>
-    <lastmod>2026-04-18</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://stack.wecare.digital/sustainability/</loc>
     <lastmod>2026-04-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>

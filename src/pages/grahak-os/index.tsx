@@ -1,14 +1,13 @@
 /**
- * Home Page - WECARE.DIGITAL Landing
- * WhatsApp Business API Platform
- * Mobile & Tablet Optimized
+ * Grahak OS public product page
+ * Customer engagement platform by WECARE.DIGITAL
  */
 
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Script from 'next/script';
 
-const HomePage: React.FC = () => {
+const GrahakOsPage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
   const [activeCode, setActiveCode] = useState(0);
   
@@ -70,19 +69,19 @@ response = requests.post(
   return (
     <>
       <Head>
-        <title>Bharat Stack by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM</title>
-        <meta name="description" content="Enterprise WhatsApp Business API platform for India. Send bulk WhatsApp messages, SMS, Email & Voice. AI-powered CRM with Razorpay payments. Connect with 2B+ users. Free trial available." />
+        <title>Grahak OS by WECARE.DIGITAL - Customer Engagement Platform</title>
+        <meta name="description" content="Grahak OS is the customer engagement product in Bharat Stack by WECARE.DIGITAL, unifying WhatsApp, SMS, Email, Voice, automation and customer data in one experience." />
         <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications" />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://stack.wecare.digital/" />
-        <meta property="og:title" content="Bharat Stack - WhatsApp Business API Platform | WECARE.DIGITAL" />
+        <meta property="og:url" content="https://stack.wecare.digital/grahak-os/" />
+        <meta property="og:title" content="Grahak OS - Customer Engagement Platform | WECARE.DIGITAL" />
         <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
         <meta property="og:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
         <meta property="og:site_name" content="Bharat Stack by WECARE.DIGITAL" />
         <meta property="og:locale" content="en_IN" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content="https://stack.wecare.digital/" />
-        <meta name="twitter:title" content="Bharat Stack - WhatsApp Business API Platform" />
+        <meta name="twitter:url" content="https://stack.wecare.digital/grahak-os/" />
+        <meta name="twitter:title" content="Grahak OS - Customer Engagement Platform" />
         <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
         <meta name="twitter:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
@@ -93,13 +92,13 @@ response = requests.post(
         <meta name="language" content="English" />
         <meta name="geo.region" content="IN" />
         <meta name="geo.placename" content="India" />
-        <link rel="canonical" href="https://stack.wecare.digital/" />
+        <link rel="canonical" href="https://stack.wecare.digital/grahak-os/" />
         <meta name="theme-color" content="#000000" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Bharat Stack" />
-        <meta name="application-name" content="Bharat Stack" />
+        <meta name="apple-mobile-web-app-title" content="Grahak OS" />
+        <meta name="application-name" content="Grahak OS" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
@@ -132,13 +131,12 @@ response = requests.post(
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
-          "name": "Bharat Stack by WECARE.DIGITAL",
+          "name": "Grahak OS by WECARE.DIGITAL",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web Browser",
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
-          "description": "Enterprise multi-channel messaging CRM with WhatsApp Business API, SMS, Email, Voice, and AI automation.",
+          "description": "Customer engagement product in Bharat Stack with WhatsApp Business API, SMS, Email, Voice, customer data and AI automation.",
           "featureList": ["WhatsApp Business API", "Bulk Messaging", "SMS API", "Email Marketing", "Voice Calls", "Razorpay Payments", "AI Responses", "Analytics"],
-          "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.8", "ratingCount": "150", "bestRating": "5" }
         })}} />
         
         {/* Structured Data - FAQ */}
@@ -146,9 +144,9 @@ response = requests.post(
           "@context": "https://schema.org",
           "@type": "FAQPage",
           "mainEntity": [
-            { "@type": "Question", "name": "What is Bharat Stack?", "acceptedAnswer": { "@type": "Answer", "text": "Bharat Stack is an enterprise multi-channel messaging platform integrating WhatsApp Business API, SMS, Email, and Voice for customer engagement." }},
+            { "@type": "Question", "name": "What is Grahak OS?", "acceptedAnswer": { "@type": "Answer", "text": "Grahak OS is the customer engagement product in Bharat Stack, unifying customer data and multi-channel communication across WhatsApp, SMS, Email, and Voice." }},
             { "@type": "Question", "name": "How to send bulk WhatsApp messages?", "acceptedAnswer": { "@type": "Answer", "text": "Upload contacts, create templates, and send promotional or transactional messages to thousands of customers via WhatsApp Business API." }},
-            { "@type": "Question", "name": "Does it support WhatsApp payments?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, Bharat Stack integrates with Razorpay for WhatsApp payments with real-time tracking." }}
+            { "@type": "Question", "name": "Does it support WhatsApp payments?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, Grahak OS supports payment workflows through the existing Bharat Stack integrations." }}
           ]
         })}} />
         
@@ -156,8 +154,8 @@ response = requests.post(
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
-          "name": "Bharat Stack by WECARE.DIGITAL",
-          "url": "https://stack.wecare.digital",
+          "name": "Grahak OS by WECARE.DIGITAL",
+          "url": "https://stack.wecare.digital/grahak-os/",
           "potentialAction": { "@type": "SearchAction", "target": "https://stack.wecare.digital/contacts?q={search_term_string}", "query-input": "required name=search_term_string" }
         })}} />
       </Head>
@@ -264,7 +262,7 @@ response = requests.post(
         </section>
 
         <section className={`cta-section anim ${show('cta') ? 'show' : ''}`} id="cta">
-          <h2>Transform your customer<br/>experience with<br/>Bharat Stack</h2>
+          <h2>Transform your customer<br/>experience with<br/>Grahak OS</h2>
         </section>
 
         <style jsx>{`
@@ -576,4 +574,4 @@ response = requests.post(
   );
 };
 
-export default HomePage;
+export default GrahakOsPage;
