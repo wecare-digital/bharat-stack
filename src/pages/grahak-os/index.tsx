@@ -277,7 +277,7 @@ response = requests.post(
         <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Platform credentials">
           <div className="trust-grid">
             <div className="trust-panel meta-panel">
-              <img className="trust-mark meta-mark" src="/meta-icon.png" alt="Meta" />
+              <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" />
               <div className="trust-copy">
                 <strong>Meta Tech Provider</strong>
                 <span>Technology for WhatsApp business solutions</span>
