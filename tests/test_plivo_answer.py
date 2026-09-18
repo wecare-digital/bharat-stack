@@ -130,3 +130,111 @@ def test_xml_escaping_of_media_url(monkeypatch):
     body = pa.handler(_event(PLIVO_FORM), None)['body']
     assert '&amp;' in body
     ET.fromstring(body)
+
+
+# --------------------------------------------------------------------------
+# Post-call follow-up SMS
+# --------------------------------------------------------------------------
+HANGUP_FORM = (
+    'CallUUID=abc-123&From=919903300044&To=918031830030'
+    '&Direction=inbound&CallStatus=completed&Duration=25'
+)
+
+
+def test_ringing_returns_xml_and_sends_no_sms(monkeypatch):
+    """The answer pass must return XML and must NOT text anyone."""
+    calls = []
+    monkeypatch.setattr(pa, '_send_post_call_sms',
+                        lambda *a, **k: calls.append(a))
+    r = pa.handler(_event(PLIVO_FORM), None)
+    assert 'text/xml' in r['headers']['Content-Type']
+    assert '<Play>' in r['body']
+    assert calls == [], 'SMS must not be sent on the answer pass'
+
+
+def test_completed_sends_sms_and_returns_no_xml(monkeypatch):
+    """The hangup pass must text the caller exactly once."""
+    calls = []
+    monkeypatch.setattr(pa, '_send_post_call_sms',
+                        lambda *a, **k: calls.append(a))
+    r = pa.handler(_event(HANGUP_FORM), None)
+    assert r['statusCode'] == 200
+    assert '<Play>' not in r['body'], 'must not replay audio on hangup'
+    assert len(calls) == 1
+    assert calls[0][0] == '919903300044'
+
+
+def test_sms_body_matches_approved_dlt_template():
+    """Operator drops mismatched content, so this copy is load-bearing."""
+    body = pa.IVR_SMS_BODY
+    assert body.startswith('Thanks for contacting WECARE.DIGITAL!')
+    assert 'https://wecare.digital/selfservice' in body
+    assert 'https://r.wecare.digital/wa' in body
+    assert body.count('\n\n') == 2, 'DLT template has two blank-line breaks'
+    assert pa.DLT_TEMPLATE_KEY == 'ivr-default'
+
+
+def test_non_indian_caller_is_skipped(monkeypatch):
+    """No approved DLT template exists for non-India, so do not send."""
+    sent = []
+    monkeypatch.setattr(pa, 'POST_CALL_SMS_ENABLED', True)
+
+    class FakeLambda:
+        def invoke(self, **kw):
+            sent.append(kw)
+
+    import types
+    monkeypatch.setitem(__import__('sys').modules, 'boto3',
+                        types.SimpleNamespace(client=lambda *a, **k: FakeLambda()))
+    pa._send_post_call_sms('+14155552671', 'uuid-1', 'req-1')
+    assert sent == [], 'must not send to a non-Indian caller'
+
+
+def test_indian_caller_invokes_sms_lambda_async(monkeypatch):
+    sent = []
+    monkeypatch.setattr(pa, 'POST_CALL_SMS_ENABLED', True)
+
+    class FakeLambda:
+        def invoke(self, **kw):
+            sent.append(kw)
+
+    import types
+    monkeypatch.setitem(__import__('sys').modules, 'boto3',
+                        types.SimpleNamespace(client=lambda *a, **k: FakeLambda()))
+    pa._send_post_call_sms('919903300044', 'uuid-2', 'req-2')
+    assert len(sent) == 1
+    assert sent[0]['InvocationType'] == 'Event', 'must not block the call'
+    assert 'wecare-sms-aws' in sent[0]['FunctionName']
+    body = __import__('json').loads(
+        __import__('json').loads(sent[0]['Payload'].decode())['body'])
+    assert body['phoneNumber'] == '+919903300044'
+    assert body['dltTemplateKey'] == 'ivr-default'
+    assert body['messageType'] == 'TRANSACTIONAL'
+
+
+def test_sms_failure_never_breaks_the_call(monkeypatch):
+    monkeypatch.setattr(pa, 'POST_CALL_SMS_ENABLED', True)
+
+    class Boom:
+        def invoke(self, **kw):
+            raise RuntimeError('lambda unavailable')
+
+    import types
+    monkeypatch.setitem(__import__('sys').modules, 'boto3',
+                        types.SimpleNamespace(client=lambda *a, **k: Boom()))
+    pa._send_post_call_sms('919903300044', 'uuid-3', 'req-3')  # must not raise
+
+
+def test_disabled_flag_suppresses_sms(monkeypatch):
+    sent = []
+    monkeypatch.setattr(pa, 'POST_CALL_SMS_ENABLED', False)
+
+    class FakeLambda:
+        def invoke(self, **kw):
+            sent.append(kw)
+
+    import types
+    monkeypatch.setitem(__import__('sys').modules, 'boto3',
+                        types.SimpleNamespace(client=lambda *a, **k: FakeLambda()))
+    pa._send_post_call_sms('919903300044', 'uuid-4', 'req-4')
+    assert sent == []

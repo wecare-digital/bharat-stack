@@ -34,6 +34,23 @@ MEDIA_BASE = os.environ.get('IVR_MEDIA_BASE', 'https://app.wecare.digital')
 IVR_AUDIO_KEY = os.environ.get('IVR_AUDIO_KEY', 'stream/media/ivr/incoming_welcome.wav')
 IVR_AUDIO_URL = os.environ.get('IVR_AUDIO_URL', f'{MEDIA_BASE}/{IVR_AUDIO_KEY}')
 
+# --- post-call follow-up SMS -------------------------------------------------
+# After the greeting plays we text the caller the self-service links, matching
+# what the Airtel IQ path already did for IVR calls.
+#
+# The body MUST match approved DLT template ivr-default (1007277993798259629)
+# character for character. The operator silently drops mismatched content even
+# though the API call succeeds, so do not "improve" this copy.
+SMS_FUNCTION = os.environ.get('SMS_FUNCTION', 'wecare-sms-aws:live')
+POST_CALL_SMS_ENABLED = os.environ.get('POST_CALL_SMS_ENABLED', 'true').lower() == 'true'
+DLT_TEMPLATE_KEY = os.environ.get('DLT_TEMPLATE_KEY', 'ivr-default')
+IVR_SMS_BODY = os.environ.get('IVR_SMS_BODY', (
+    "Thanks for contacting WECARE.DIGITAL!\n\n"
+    "Submit your request here: https://wecare.digital/selfservice "
+    "or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\n"
+    "We'll review it and follow up if needed."
+))
+
 # Optional shared secret. Plivo does not sign answer_url requests the way it
 # signs callbacks, so if set we require ?token=<value> on the URL. Absent a
 # token the endpoint is still safe: it is read-only and returns static XML.
@@ -83,6 +100,63 @@ def _parse_body(event: dict) -> dict:
             for k, v in urllib.parse.parse_qs(raw, keep_blank_values=True).items()}
 
 
+def _send_post_call_sms(caller: str, call_uuid: str, request_id: str) -> None:
+    """Text the caller the self-service links after the greeting.
+
+    Fire-and-forget: an SMS failure must never affect call handling, so every
+    error is logged and swallowed. Invokes wecare-sms-aws, which owns the DLT
+    routing, rather than calling Pinpoint directly - one place decides how
+    Indian traffic is sent.
+    """
+    if not POST_CALL_SMS_ENABLED or not caller:
+        return
+
+    digits = ''.join(c for c in str(caller) if c.isdigit())
+    if not (digits.startswith('91') and len(digits) == 12):
+        # Non-Indian caller: no approved DLT template, so do not send.
+        print(json.dumps({
+            'event': 'plivo_post_call_sms_skipped',
+            'reason': 'non_indian_caller',
+            'callUuid': call_uuid,
+            'requestId': request_id,
+        }))
+        return
+
+    try:
+        import boto3
+        payload = {
+            'requestContext': {'http': {'method': 'POST', 'path': '/sms-aws/send'}},
+            'headers': {'origin': 'https://app.wecare.digital'},
+            'body': json.dumps({
+                'phoneNumber': f'+{digits}',
+                'content': IVR_SMS_BODY,
+                'messageType': 'TRANSACTIONAL',
+                'dltTemplateKey': DLT_TEMPLATE_KEY,
+                'campaignName': 'plivo-ivr-follow-up',
+            }),
+        }
+        boto3.client('lambda').invoke(
+            FunctionName=SMS_FUNCTION,
+            InvocationType='Event',          # async - do not block the call
+            Payload=json.dumps(payload).encode(),
+        )
+        print(json.dumps({
+            'event': 'plivo_post_call_sms_queued',
+            'callUuid': call_uuid,
+            'phone': digits[-4:],
+            'templateKey': DLT_TEMPLATE_KEY,
+            'via': SMS_FUNCTION,
+            'requestId': request_id,
+        }))
+    except Exception as e:                                   # noqa: BLE001
+        print(json.dumps({
+            'event': 'plivo_post_call_sms_failed',
+            'callUuid': call_uuid,
+            'error': f'{type(e).__name__}: {str(e)[:160]}',
+            'requestId': request_id,
+        }))
+
+
 def handler(event, context):
     """Answer a Plivo call with the fixed IVR."""
     request_id = getattr(context, 'aws_request_id', 'local') if context else 'local'
@@ -102,10 +176,14 @@ def handler(event, context):
         )
 
     # Plivo sends CallUUID, From, To, Direction, CallStatus and similar.
+    call_uuid = params.get('CallUUID', '')
+    caller = params.get('From', '')
+    status = str(params.get('CallStatus', '')).lower()
+
     print(json.dumps({
         'event': 'plivo_answer',
-        'callUuid': params.get('CallUUID', ''),
-        'from': str(params.get('From', ''))[-4:],
+        'callUuid': call_uuid,
+        'from': str(caller)[-4:],
         'to': str(params.get('To', ''))[-4:],
         'direction': params.get('Direction', ''),
         'callStatus': params.get('CallStatus', ''),
@@ -113,5 +191,16 @@ def handler(event, context):
         'audioUrl': IVR_AUDIO_URL,
         'requestId': request_id,
     }))
+
+    # This same URL is registered as both answer_url and hangup_url. Plivo hits
+    # it twice per call: once to fetch the XML (CallStatus ringing/in-progress)
+    # and once when the call ends (CallStatus completed). Send the follow-up SMS
+    # only on the hangup pass, so one call produces exactly one SMS.
+    if status == 'completed':
+        _send_post_call_sms(caller, call_uuid, request_id)
+        # Plivo ignores the body of a hangup callback; 200 is all it needs.
+        return {'statusCode': 200,
+                'headers': {'Content-Type': 'text/plain'},
+                'body': 'ok'}
 
     return _xml_response(_ivr_xml(IVR_AUDIO_URL))
