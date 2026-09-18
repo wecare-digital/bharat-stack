@@ -215,6 +215,30 @@ response = requests.post(
           </div>
         </section>
 
+        <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Platform credentials">
+          <div className="trust-grid">
+            <div className="trust-panel meta-panel">
+              <svg className="trust-mark meta-mark" viewBox="0 0 40 28" role="img" aria-label="Meta">
+                <path d="M3.5 22.5C7.2 8.8 11.1 4.2 15.3 11.3L20 19l4.7-7.7c4.2-7.1 8.1-2.5 11.8 11.2" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div className="trust-copy">
+                <strong>Meta Tech Provider</strong>
+                <span>Technology provider model for WhatsApp business solutions</span>
+              </div>
+            </div>
+            <div className="trust-panel whatsapp-panel">
+              <svg className="trust-mark whatsapp-mark" viewBox="0 0 32 32" role="img" aria-label="WhatsApp">
+                <path d="M16 4.2c-6.5 0-11.8 5-11.8 11.2 0 2 .6 3.9 1.6 5.5L4 27.8l7.1-1.8c1.5.8 3.2 1.2 4.9 1.2 6.5 0 11.8-5 11.8-11.2S22.5 4.2 16 4.2Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M11.3 10.8c.4-.8.7-.8 1.2-.8h.4c.3 0 .5.1.7.5l1.2 2.7c.1.3.1.6-.1.9l-.9 1.1c-.2.2-.2.5-.1.8.9 1.8 2.4 3.2 4.2 4.1.3.1.6.1.8-.1l1.1-.9c.3-.2.6-.2.9-.1l2.6 1.2c.4.2.5.4.5.7 0 1.1-.4 2-1.2 2.7-.7.6-1.7.8-2.7.6-2.5-.6-5-2-7.1-4.1-2.1-2.1-3.5-4.6-4.1-7.1-.2-1 .1-2 .7-2.7.6-.7 1.2-1 1.9-1.1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div className="trust-copy">
+                <strong>Built on WhatsApp Business Platform</strong>
+                <span>Cloud API-powered messaging, automation and onboarding</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className={`touchpoint anim ${show('touchpoint') ? 'show' : ''}`} id="touchpoint">
           <div className="section-header">
             <h2>Every touchpoint<br/>One seamless experience</h2>
@@ -284,6 +308,19 @@ response = requests.post(
           .stat span{display:block;font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px}
           .stat small{font-size:16px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
           
+          /* Platform trust strip */
+          .trust-strip{max-width:1300px;margin:-34px auto 18px;padding:0 24px}
+          .trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid #d8eadf;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(26,58,42,.08)}
+          .trust-panel{min-height:124px;padding:24px 30px;display:flex;align-items:center;justify-content:center;gap:18px}
+          .meta-panel{background:#f2fbf6;color:#1a3a2a}
+          .whatsapp-panel{background:#d1f470;color:#1a3a2a;border-left:1px solid rgba(26,58,42,.14)}
+          .trust-mark{width:52px;height:52px;flex:0 0 auto}
+          .meta-mark{color:#0866ff}
+          .whatsapp-mark{color:#075e54}
+          .trust-copy{display:flex;flex-direction:column;gap:5px;min-width:0}
+          .trust-copy strong{font-size:clamp(20px,2vw,28px);font-weight:800;line-height:1.12;letter-spacing:-.5px;color:inherit}
+          .trust-copy span{font-size:15px;line-height:1.45;color:#466052}
+
           /* Hero Right - Mockup */
           .hero-right{display:flex;justify-content:center}
           .mockup-wrapper{position:relative;width:100%;max-width:580px;aspect-ratio:1.1;background:#fff;border-radius:28px;padding:24px}
@@ -411,6 +448,14 @@ response = requests.post(
             .stat span{font-size:28px;font-weight:800;min-width:70px}
             .stat small{font-size:20px;line-height:1.3;margin:0}
             
+            .trust-strip{margin:-12px auto 12px;padding:0 20px}
+            .trust-grid{grid-template-columns:1fr}
+            .trust-panel{min-height:108px;padding:22px 20px;justify-content:flex-start;gap:16px}
+            .whatsapp-panel{border-left:0;border-top:1px solid rgba(26,58,42,.14)}
+            .trust-mark{width:46px;height:46px}
+            .trust-copy strong{font-size:22px}
+            .trust-copy span{font-size:15px}
+
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
             .mockup-wrapper:hover{border-color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
@@ -472,6 +517,12 @@ response = requests.post(
             .stat span{font-size:26px;min-width:65px}
             .stat small{font-size:18px}
             
+            .trust-strip{padding:0 16px}
+            .trust-panel{padding:20px 18px}
+            .trust-mark{width:42px;height:42px}
+            .trust-copy strong{font-size:20px}
+            .trust-copy span{font-size:14px}
+
             .mockup-wrapper{padding:14px;border-radius:14px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
             .phone-header{padding:12px 14px}
