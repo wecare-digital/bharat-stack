@@ -18,7 +18,7 @@ describe( 'Grahak OS public page', () => {
   it( 'shows a coded responsive Meta and WhatsApp trust strip', () => {
     const source = readFileSync( pagePath, 'utf8' );
     expect( source ).toContain( 'Meta Tech Provider' );
-    expect( source ).toContain( 'Built on WhatsApp Business Platform' );
+    expect( source ).toContain( 'Built on WhatsApp Business API' );
     expect( source ).toContain( 'trust-strip' );
     expect( source ).toContain( '.trust-grid{grid-template-columns:1fr}' );
     expect( source ).not.toContain( 'Meta Business Partners' );
