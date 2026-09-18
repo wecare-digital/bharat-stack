@@ -321,8 +321,8 @@ response = requests.post(
           .trust-strip{max-width:1180px;margin:0 auto 28px;padding:8px 24px 0}
           .trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;overflow:hidden}
           .trust-panel{padding:20px 28px;display:flex;align-items:center;justify-content:center;gap:16px;border:0;color:#1a3a2a}
-          .meta-panel{background:#d9fbf2}
-          .whatsapp-panel{background:#25d366}
+          .meta-panel{background:#d1f470}
+          .whatsapp-panel{background:#d1f470}
           .trust-mark{width:48px;height:48px;flex:0 0 auto;object-fit:contain}
           .meta-mark{color:#0866ff}
           .whatsapp-mark{color:#075e54}
@@ -336,11 +336,11 @@ response = requests.post(
           .phone{position:absolute;left:24px;top:20px;width:55%;max-width:300px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
           .phone-header{background:#1a3a2a;padding:12px 14px;display:flex;align-items:center;gap:10px}
           .back-arrow{color:#fff;font-size:20px}
-          .avatar{width:40px;height:40px;background:#2f6b52;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
+          .avatar{width:40px;height:40px;background:#1a3a2a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
           .contact-info{flex:1;display:flex;flex-direction:column}
           .contact-name{color:#fff;font-size:17px;font-weight:600}
           .contact-status{color:rgba(255,255,255,.7);font-size:13px}
-          .verified-badge{width:22px;height:22px;background:#075e54;border-radius:50%}
+          .verified-badge{width:22px;height:22px;background:#1a3a2a;border-radius:50%}
           .chat-area{background:#ece5dd;padding:14px 12px;min-height:280px;display:flex;flex-direction:column;gap:8px}
           .msg{max-width:80%;padding:10px 12px;border-radius:8px;font-size:16px;line-height:1.45;color:#000}
           .msg.received{background:#fff;align-self:flex-start;border-top-left-radius:3px}
