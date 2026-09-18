@@ -5,7 +5,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
-import Script from 'next/script';
 
 const GrahakOsPage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
@@ -160,8 +159,6 @@ response = requests.post(
         })}} />
       </Head>
       
-      {/* WhatsApp Chat Widget */}
-      <Script src="https://app.wecare.digital/stream/code/wecare-wa-widget.js" strategy="lazyOnload" />
       <div className="page">
 
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
@@ -210,30 +207,6 @@ response = requests.post(
   headers={"Authorization": api_key}
 )`}</pre>
                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Platform credentials">
-          <div className="trust-grid">
-            <div className="trust-panel meta-panel">
-              <svg className="trust-mark meta-mark" viewBox="0 0 40 28" role="img" aria-label="Meta">
-                <path d="M3.5 22.5C7.2 8.8 11.1 4.2 15.3 11.3L20 19l4.7-7.7c4.2-7.1 8.1-2.5 11.8 11.2" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <div className="trust-copy">
-                <strong>Meta Tech Provider</strong>
-                <span>Technology provider model for WhatsApp business solutions</span>
-              </div>
-            </div>
-            <div className="trust-panel whatsapp-panel">
-              <svg className="trust-mark whatsapp-mark" viewBox="0 0 32 32" role="img" aria-label="WhatsApp">
-                <path d="M16 4.2c-6.5 0-11.8 5-11.8 11.2 0 2 .6 3.9 1.6 5.5L4 27.8l7.1-1.8c1.5.8 3.2 1.2 4.9 1.2 6.5 0 11.8-5 11.8-11.2S22.5 4.2 16 4.2Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M11.3 10.8c.4-.8.7-.8 1.2-.8h.4c.3 0 .5.1.7.5l1.2 2.7c.1.3.1.6-.1.9l-.9 1.1c-.2.2-.2.5-.1.8.9 1.8 2.4 3.2 4.2 4.1.3.1.6.1.8-.1l1.1-.9c.3-.2.6-.2.9-.1l2.6 1.2c.4.2.5.4.5.7 0 1.1-.4 2-1.2 2.7-.7.6-1.7.8-2.7.6-2.5-.6-5-2-7.1-4.1-2.1-2.1-3.5-4.6-4.1-7.1-.2-1 .1-2 .7-2.7.6-.7 1.2-1 1.9-1.1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <div className="trust-copy">
-                <strong>Built on WhatsApp Business API</strong>
-                <span>Cloud API-powered messaging, automation and onboarding</span>
               </div>
             </div>
           </div>
@@ -289,6 +262,31 @@ response = requests.post(
           <h2>Transform your customer<br/>experience with<br/>Grahak OS</h2>
         </section>
 
+        <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Platform credentials">
+          <div className="trust-grid">
+            <div className="trust-panel meta-panel">
+              <svg className="trust-mark meta-mark" viewBox="0 0 40 28" role="img" aria-label="Meta">
+                <path d="M3.5 22.5C7.2 8.8 11.1 4.2 15.3 11.3L20 19l4.7-7.7c4.2-7.1 8.1-2.5 11.8 11.2" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div className="trust-copy">
+                <strong>Meta Tech Provider</strong>
+                <span>Technology provider model for WhatsApp business solutions</span>
+              </div>
+            </div>
+            <div className="trust-panel whatsapp-panel">
+              <svg className="trust-mark whatsapp-mark" viewBox="0 0 32 32" role="img" aria-label="WhatsApp">
+                <path d="M16 4.2c-6.5 0-11.8 5-11.8 11.2 0 2 .6 3.9 1.6 5.5L4 27.8l7.1-1.8c1.5.8 3.2 1.2 4.9 1.2 6.5 0 11.8-5 11.8-11.2S22.5 4.2 16 4.2Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M11.3 10.8c.4-.8.7-.8 1.2-.8h.4c.3 0 .5.1.7.5l1.2 2.7c.1.3.1.6-.1.9l-.9 1.1c-.2.2-.2.5-.1.8.9 1.8 2.4 3.2 4.2 4.1.3.1.6.1.8-.1l1.1-.9c.3-.2.6-.2.9-.1l2.6 1.2c.4.2.5.4.5.7 0 1.1-.4 2-1.2 2.7-.7.6-1.7.8-2.7.6-2.5-.6-5-2-7.1-4.1-2.1-2.1-3.5-4.6-4.1-7.1-.2-1 .1-2 .7-2.7.6-.7 1.2-1 1.9-1.1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div className="trust-copy">
+                <strong>Built on WhatsApp Business API</strong>
+                <span>Cloud API-powered messaging, automation and onboarding</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
         <style jsx>{`
           /* ========== BASE STYLES ========== */
           .page{min-height:100vh;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
@@ -310,17 +308,17 @@ response = requests.post(
           .stat:hover span{color:#075e54}
           
           /* Platform trust strip */
-          .trust-strip{max-width:1300px;margin:-34px auto 18px;padding:0 24px}
-          .trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid #d8eadf;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(26,58,42,.08)}
-          .trust-panel{min-height:124px;padding:24px 30px;display:flex;align-items:center;justify-content:center;gap:18px}
-          .meta-panel{background:#f2fbf6;color:#1a3a2a}
-          .whatsapp-panel{background:#d1f470;color:#1a3a2a;border-left:1px solid rgba(26,58,42,.14)}
-          .trust-mark{width:52px;height:52px;flex:0 0 auto}
-          .meta-mark{color:#0866ff}
+          .trust-strip{max-width:1180px;margin:0 auto 28px;padding:8px 24px 0}
+          .trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+          .trust-panel{min-height:112px;padding:22px 26px;display:flex;align-items:center;justify-content:flex-start;gap:16px;background:#fff;border:1px solid #dfe8e2;border-radius:16px;box-shadow:0 8px 24px rgba(26,58,42,.06);color:#1a3a2a}
+          .meta-panel{background:linear-gradient(180deg,#fff 0%,#fbfdfb 100%)}
+          .whatsapp-panel{background:linear-gradient(180deg,#fff 0%,#f8fcf9 100%)}
+          .trust-mark{width:48px;height:48px;flex:0 0 auto}
+          .meta-mark{color:#1a3a2a}
           .whatsapp-mark{color:#075e54}
-          .trust-copy{display:flex;flex-direction:column;gap:5px;min-width:0}
-          .trust-copy strong{font-size:clamp(20px,2vw,28px);font-weight:800;line-height:1.12;letter-spacing:-.5px;color:inherit}
-          .trust-copy span{font-size:15px;line-height:1.45;color:#466052}
+          .trust-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+          .trust-copy strong{font-size:clamp(19px,1.8vw,24px);font-weight:800;line-height:1.15;letter-spacing:-.35px;color:inherit}
+          .trust-copy span{font-size:15px;line-height:1.45;color:#66736b}
 
           /* Hero Right - Mockup */
           .hero-right{display:flex;justify-content:center}
@@ -450,11 +448,10 @@ response = requests.post(
             .stat span{font-size:28px;font-weight:800;min-width:70px}
             .stat small{font-size:20px;line-height:1.3;margin:0}
             
-            .trust-strip{margin:-12px auto 12px;padding:0 20px}
+            .trust-strip{margin:0 auto 20px;padding:8px 20px 0}
             .trust-grid{grid-template-columns:1fr}
-            .trust-panel{min-height:108px;padding:22px 20px;justify-content:flex-start;gap:16px}
-            .whatsapp-panel{border-left:0;border-top:1px solid rgba(26,58,42,.14)}
-            .trust-mark{width:46px;height:46px}
+            .trust-panel{min-height:104px;padding:20px;justify-content:flex-start;gap:15px}
+            .trust-mark{width:44px;height:44px}
             .trust-copy strong{font-size:22px}
             .trust-copy span{font-size:15px}
 
