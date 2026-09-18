@@ -272,25 +272,12 @@ response = requests.post(
 
         <section className={`cta-section anim ${show('cta') ? 'show' : ''}`} id="cta">
           <h2>Transform customer engagement with Grahak OS</h2>
-          <div className="cta-actions">
-            <a className="cta-primary" href="https://wa.me/919330994400?text=Hi%20WECARE.DIGITAL%2C%20I%27d%20like%20to%20get%20started%20with%20Grahak%20OS.">Start with WhatsApp</a>
-            <a className="cta-secondary" href="https://www.wecare.digital/contact">Talk to us</a>
-          </div>
         </section>
 
         <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Platform credentials">
           <div className="trust-grid">
             <div className="trust-panel meta-panel">
-              <svg className="trust-mark meta-mark" viewBox="0 0 120 80" role="img" aria-label="Meta">
-                <defs>
-                  <linearGradient id="metaBlue" x1="8" y1="68" x2="112" y2="18" gradientUnits="userSpaceOnUse">
-                    <stop offset="0" stopColor="#0064e0" />
-                    <stop offset=".52" stopColor="#0082fb" />
-                    <stop offset="1" stopColor="#00a8ff" />
-                  </linearGradient>
-                </defs>
-                <path d="M12 62C21 30 31 14 43 14c10 0 17 8 25 22l8 14c6 10 10 14 15 14 7 0 12-11 17-31 2-8 5-14 9-18 4-3 8-4 12-2 7 4 9 15 6 29-6 27-17 40-32 40-13 0-22-10-31-27l-8-15c-6-11-10-16-14-16-7 0-14 14-20 38-2 8-7 13-13 12-6-1-8-6-5-12Z" fill="url(#metaBlue)" />
-              </svg>
+              <img className="trust-mark meta-mark" src="/meta-icon.png" alt="Meta" />
               <div className="trust-copy">
                 <strong>Meta Tech Provider</strong>
                 <span>Technology for WhatsApp business solutions</span>
@@ -324,32 +311,32 @@ response = requests.post(
           .hero-left h1{font-size:clamp(34px,4vw,48px);font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px;color:#1a1a1a}
           .hero-left p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
           .hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-          .stat{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:0;transition:all .25s;cursor:default}
+          .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px;min-width:0;transition:all .25s;cursor:default}
           .stat:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .stat span{display:block;font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px}
-          .stat small{font-size:16px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
+          .stat span{display:block;font-size:22px;font-weight:800;color:#1a1a1a;letter-spacing:-.4px;white-space:nowrap}
+          .stat small{font-size:14px;color:#6b7280;margin-top:4px;display:block;font-weight:500;line-height:1.35}
           .stat:hover span{color:#1a3a2a}
           
           /* Platform trust strip */
           .trust-strip{max-width:1180px;margin:0 auto 28px;padding:8px 24px 0}
-          .trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-          .trust-panel{min-height:112px;padding:22px 26px;display:flex;align-items:center;justify-content:flex-start;gap:16px;background:#fff;border:1px solid #dfe8e2;border-radius:16px;box-shadow:0 8px 24px rgba(26,58,42,.06);color:#1a3a2a}
-          .meta-panel{background:linear-gradient(180deg,#fff 0%,#fbfdfb 100%)}
-          .whatsapp-panel{background:linear-gradient(180deg,#fff 0%,#f8fcf9 100%)}
-          .trust-mark{width:48px;height:48px;flex:0 0 auto}
+          .trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;overflow:hidden}
+          .trust-panel{padding:20px 28px;display:flex;align-items:center;justify-content:center;gap:16px;border:0;color:#1a3a2a}
+          .meta-panel{background:#d9fbf2}
+          .whatsapp-panel{background:#25d366}
+          .trust-mark{width:48px;height:48px;flex:0 0 auto;object-fit:contain}
           .meta-mark{color:#0866ff}
           .whatsapp-mark{color:#075e54}
           .trust-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
           .trust-copy strong{font-size:clamp(19px,1.8vw,24px);font-weight:800;line-height:1.15;letter-spacing:-.35px;color:inherit}
-          .trust-copy span{font-size:15px;line-height:1.45;color:#66736b}
+          .trust-copy span{font-size:15px;line-height:1.45;color:#1a3a2a;opacity:.78}
 
           /* Hero Right - Mockup */
           .hero-right{display:flex;justify-content:center}
           .mockup-wrapper{position:relative;width:100%;max-width:580px;aspect-ratio:1.1;background:#fff;border-radius:28px;padding:24px}
           .phone{position:absolute;left:24px;top:20px;width:55%;max-width:300px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
-          .phone-header{background:#075e54;padding:12px 14px;display:flex;align-items:center;gap:10px}
+          .phone-header{background:#1a3a2a;padding:12px 14px;display:flex;align-items:center;gap:10px}
           .back-arrow{color:#fff;font-size:20px}
-          .avatar{width:40px;height:40px;background:#128c7e;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
+          .avatar{width:40px;height:40px;background:#2f6b52;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
           .contact-info{flex:1;display:flex;flex-direction:column}
           .contact-name{color:#fff;font-size:17px;font-weight:600}
           .contact-status{color:rgba(255,255,255,.7);font-size:13px}
@@ -357,7 +344,7 @@ response = requests.post(
           .chat-area{background:#ece5dd;padding:14px 12px;min-height:280px;display:flex;flex-direction:column;gap:8px}
           .msg{max-width:80%;padding:10px 12px;border-radius:8px;font-size:16px;line-height:1.45;color:#000}
           .msg.received{background:#fff;align-self:flex-start;border-top-left-radius:3px}
-          .msg.sent{background:#dcf8c6;align-self:flex-end;border-top-right-radius:3px}
+          .msg.sent{background:#d1f470;align-self:flex-end;border-top-right-radius:3px}
           .msg.sent.left-msg{align-self:flex-start !important;border-top-left-radius:3px;border-top-right-radius:8px}
           .msg p{margin:0}
           .msg-time{font-size:12px;color:#667781;display:block;text-align:right;margin-top:3px}
@@ -416,12 +403,6 @@ response = requests.post(
           /* CTA Section */
           .cta-section{padding:60px 24px;text-align:center;background:#fff}
           .cta-section h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
-          .cta-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:24px}
-          .cta-primary,.cta-secondary{min-height:48px;padding:13px 22px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
-          .cta-primary{background:#d1f470;color:#1a3a2a;border:2px solid #d1f470}
-          .cta-secondary{background:#fff;color:#1a3a2a;border:2px solid #dfe8e2}
-          .cta-primary:hover,.cta-secondary:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(26,58,42,.12)}
-          .cta-primary:focus-visible,.cta-secondary:focus-visible{outline:3px solid rgba(209,244,112,.45);outline-offset:3px}
           .why-section{padding:60px 24px;background:#fbfdfb}
           .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
           .why-item{background:#fff;border:1px solid #dfe8e2;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
@@ -436,9 +417,9 @@ response = requests.post(
             .hero-left h1{font-size:38px;letter-spacing:-1px;max-width:600px;margin:0 0 20px}
             .hero-left p{font-size:17px;max-width:520px;margin:0 0 28px}
             .hero-stats{justify-content:flex-start;gap:12px}
-            .stat{padding:16px 20px;min-width:100px}
-            .stat span{font-size:22px}
-            .stat small{font-size:12px}
+            .stat{padding:14px 16px;min-width:0}
+            .stat span{font-size:21px}
+            .stat small{font-size:13px}
             
             .mockup-wrapper{max-width:480px;aspect-ratio:1.15;margin:0;padding:20px}
             .phone{left:16px;top:16px;width:52%}
@@ -480,13 +461,13 @@ response = requests.post(
             .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
             .hero-left p{font-size:20px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
             .hero-stats{grid-template-columns:1fr;gap:12px;width:100%}
-            .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:20px 24px;text-align:left;width:100%;display:flex;align-items:center;gap:12px;transition:all .25s;cursor:default}
-            .stat span{font-size:28px;font-weight:800;min-width:70px}
-            .stat small{font-size:20px;line-height:1.3;margin:0}
+            .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px;text-align:left;width:100%;display:flex;align-items:center;gap:10px;transition:all .25s;cursor:default}
+            .stat span{font-size:22px;font-weight:800;min-width:0;white-space:nowrap}
+            .stat small{font-size:16px;line-height:1.3;margin:0}
             
             .trust-strip{margin:0 auto 20px;padding:8px 20px 0}
             .trust-grid{grid-template-columns:1fr}
-            .trust-panel{min-height:104px;padding:20px;justify-content:flex-start;gap:15px}
+            .trust-panel{padding:18px 20px;justify-content:flex-start;gap:15px}
             .trust-mark{width:44px;height:44px}
             .trust-copy strong{font-size:22px}
             .trust-copy span{font-size:15px}
@@ -543,8 +524,6 @@ response = requests.post(
             .why-item span{font-size:18px}
             .cta-section{padding:44px 20px}
             .cta-section h2{font-size:38px;line-height:1.2;max-width:100%}
-            .cta-actions{flex-direction:column;align-items:stretch}
-            .cta-primary,.cta-secondary{width:100%;min-height:52px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
@@ -554,9 +533,9 @@ response = requests.post(
             .hero-left h1{font-size:38px;line-height:1.15}
             .hero-left p{font-size:22px}
             .hero-stats{gap:10px}
-            .stat{padding:18px 20px;border-radius:12px}
-            .stat span{font-size:26px;min-width:65px}
-            .stat small{font-size:18px}
+            .stat{padding:13px 14px;border-radius:12px}
+            .stat span{font-size:20px;min-width:0;white-space:nowrap}
+            .stat small{font-size:15px}
             
             .trust-strip{padding:0 16px}
             .trust-panel{padding:20px 18px}
@@ -607,9 +586,9 @@ response = requests.post(
             .hero-left h1{font-size:32px}
             .hero-left p{font-size:20px}
             .hero-stats{gap:8px}
-            .stat{padding:14px 16px;min-width:85px}
-            .stat span{font-size:22px}
-            .stat small{font-size:16px}
+            .stat{padding:12px 14px;min-width:0}
+            .stat span{font-size:19px}
+            .stat small{font-size:14px}
             
             .section-header h2{font-size:30px}
             .section-header p{font-size:19px}
