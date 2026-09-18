@@ -9,10 +9,17 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-sys.path.insert(0, os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'plivo-answer')))
+import importlib.util
 
-import handler as pa  # noqa: E402
+# Handlers all share the filename handler.py, so load by absolute path under a
+# unique module name to avoid colliding with other test modules.
+_HANDLER = os.path.abspath(os.path.join(
+    os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging',
+    'plivo-answer', 'handler.py'))
+
+_spec = importlib.util.spec_from_file_location('plivo_answer_handler_under_test', _HANDLER)
+pa = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(pa)
 
 
 def _event(body='', qs=None, b64=False):

@@ -13,10 +13,21 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging', 'sms-aws')))
+import importlib.util
 
-import handler as sms  # noqa: E402
+# Every Lambda handler in this repo is named handler.py, so a plain
+# `import handler` races with other test modules (conftest clears the cache
+# per test, but a module-level binding would already point at the wrong file).
+# Load it by absolute path under a unique module name instead.
+_HANDLER = os.path.abspath(os.path.join(
+    os.path.dirname(__file__), '..', 'amplify', 'functions', 'messaging',
+    'sms-aws', 'handler.py'))
+sys.path.insert(0, os.path.abspath(os.path.join(
+    os.path.dirname(__file__), '..', 'amplify', 'functions', 'shared')))
+
+_spec = importlib.util.spec_from_file_location('sms_aws_handler_under_test', _HANDLER)
+sms = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(sms)
 
 
 # --------------------------------------------------------------------------
