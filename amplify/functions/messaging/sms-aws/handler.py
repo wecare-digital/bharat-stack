@@ -313,10 +313,30 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
                 'destination': 'IN',
             })
 
+    # DryRun validates origination identity, DLT parameters and destination
+    # without delivering anything. Used for pre-cutover verification.
+    dry_run = bool(body.get('dryRun') or body.get('dry_run'))
+
     # Send via Pinpoint SMS v2
     result = _send_pinpoint_sms(phone_e164, content, message_type, request_id,
                                 use_india_region=use_india_region,
-                                dlt_template_id=dlt.get('templateId'))
+                                dlt_template_id=dlt.get('templateId'),
+                                dry_run=dry_run)
+
+    if dry_run:
+        # Nothing was delivered, so do not write a message record.
+        if not result.get('success'):
+            return _response(400, {'dryRun': True, 'valid': False,
+                                   'error': result.get('error', 'validation failed')})
+        return _response(200, {
+            'dryRun': True,
+            'valid': True,
+            'route': INDIA_REGION if use_india_region else REGION,
+            'originationIdentity': INDIA_SENDER_ID if use_india_region else ORIGINATION_IDENTITY,
+            'dltEntityId': INDIA_ENTITY_ID if use_india_region else None,
+            'dltTemplateId': dlt.get('templateId') if use_india_region else None,
+            'dltTemplateKey': dlt.get('templateKey') if use_india_region else None,
+        })
 
     now = int(time.time())
     _store_message({
