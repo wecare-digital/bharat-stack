@@ -445,7 +445,7 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/forms', label: 'Forms', backend: 'whatsapp-business-api', tables: 'FlowRegistry' },
   { path: '/forms/selfservice', label: 'Self-Service Hub', backend: 'whatsapp-business-api, inbound-whatsapp-handler', tables: 'FlowRegistry, FlowSubmission, FlowLog, SubmitRequest' },
   { path: '/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
-  { path: '/crm', label: 'CRM', backend: '(planned)', tables: '-' },
+  { path: '/grahak-os', label: 'Grahak OS', backend: '(public product page)', tables: '-' },
   { path: '/studio', label: 'Studio', backend: '(planned)', tables: '-' },
   { path: '/task', label: 'Task', backend: '(coming soon)', tables: '-' },
 ];
