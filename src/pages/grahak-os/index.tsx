@@ -57,12 +57,12 @@ response = requests.post(
   ];
 
   const capabilities = [
-    { title: 'Customer Data Platform', desc: 'Every signal, unified and current', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3e%3cg fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' data-name='roll brush'%3e%3cpath d='M22.51 4.36c0 .87-1.38 1.63-3.58 2.16a30.8 30.8 0 0 1-7 .72 31 31 0 0 1-7-.72C2.79 6 1.41 5.23 1.41 4.36c0-1.59 4.73-2.87 10.59-2.87s10.51 1.28 10.51 2.87Z'/%3e%3cpath d='M22.51 4.36V12c0 .86-1.38 1.63-3.58 2.15a30.2 30.2 0 0 1-7 .72 30.3 30.3 0 0 1-7-.72C2.79 13.67 1.41 12.9 1.41 12V4.36C1.41 5.23 2.79 6 5 6.52a31 31 0 0 0 7 .72 30.8 30.8 0 0 0 7-.72c2.13-.52 3.51-1.29 3.51-2.16Z'/%3e%3cpath d='M22.51 12v7.67c0 .86-1.38 1.63-3.58 2.16a30.8 30.8 0 0 1-7 .72 31 31 0 0 1-7-.72c-2.19-.53-3.57-1.3-3.57-2.16V12c0 .86 1.38 1.63 3.57 2.15a30.3 30.3 0 0 0 7 .72 30.2 30.2 0 0 0 7-.72c2.2-.48 3.58-1.25 3.58-2.15ZM11 11.08h1.92m1.91 0h1.92m-9.59 0h1.92M11 18.75h1.92m1.91 0h1.92m-9.59 0h1.92'/%3e%3c/g%3e%3c/svg%3e" },
-    { title: 'Custom Data Modeling', desc: 'Objects and segments for your business', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M14 20a2 2 0 1 1-4 0m4 0a2 2 0 0 0-2-2m2 2h7m-11 0a2 2 0 0 1 2-2m-2 2H3m9-2v-4m9-9c0 1.657-4.03 3-9 3S3 6.657 3 5m18 0c0-1.657-4.03-3-9-3S3 3.343 3 5m18 0v6c0 1.66-4 3-9 3M3 5v6c0 1.66 4 3 9 3'/%3e%3c/svg%3e" },
-    { title: 'Multichannel Orchestration', desc: 'Reach customers anywhere', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='M7.23 10.14H1.5v5.72m14.32-9.54L12 2.5 8.18 6.32M12 2.5v21'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='m1.5 10.14 5.56 5.56a3.82 3.82 0 0 1 1.12 2.7v5.1m8.59-13.36h5.73v5.72'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='m22.5 10.14-5.56 5.56a3.82 3.82 0 0 0-1.12 2.7v5.1'/%3e%3c/svg%3e" },
-    { title: 'Smart Personalization', desc: 'Marketing that runs itself', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='%23333333' viewBox='0 0 16 16'%3e%3cpath d='M9 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0m-9 8c0 1 1 1 1 1h10s1 0 1-1-1-4-6-4-6 3-6 4m13.5-8.09c1.387-1.425 4.855 1.07 0 4.277-4.854-3.207-1.387-5.702 0-4.276Z'/%3e%3c/svg%3e" },
-    { title: 'Enterprise Infrastructure', desc: 'APIs and security that scale', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M13 2 3 14h9l-1 8 10-12h-9l1-8Z'/%3e%3c/svg%3e" },
-    { title: 'Predictive Analytics', desc: 'See revenue before it happens', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' stroke-width='1.5' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' d='m21 19.452-9-6.61m0 0V3m0 9.843-9 6.609m17.438-2.742L21 19.452 18.188 20M9.75 5.194 12 3l2.25 2.194M5.813 20 3 19.452l.563-2.742'/%3e%3c/svg%3e" },
+    { title: 'Customer Data Platform', desc: 'One profile across every channel', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3e%3cg fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' data-name='roll brush'%3e%3cpath d='M22.51 4.36c0 .87-1.38 1.63-3.58 2.16a30.8 30.8 0 0 1-7 .72 31 31 0 0 1-7-.72C2.79 6 1.41 5.23 1.41 4.36c0-1.59 4.73-2.87 10.59-2.87s10.51 1.28 10.51 2.87Z'/%3e%3cpath d='M22.51 4.36V12c0 .86-1.38 1.63-3.58 2.15a30.2 30.2 0 0 1-7 .72 30.3 30.3 0 0 1-7-.72C2.79 13.67 1.41 12.9 1.41 12V4.36C1.41 5.23 2.79 6 5 6.52a31 31 0 0 0 7 .72 30.8 30.8 0 0 0 7-.72c2.13-.52 3.51-1.29 3.51-2.16Z'/%3e%3cpath d='M22.51 12v7.67c0 .86-1.38 1.63-3.58 2.16a30.8 30.8 0 0 1-7 .72 31 31 0 0 1-7-.72c-2.19-.53-3.57-1.3-3.57-2.16V12c0 .86 1.38 1.63 3.57 2.15a30.3 30.3 0 0 0 7 .72 30.2 30.2 0 0 0 7-.72c2.2-.48 3.58-1.25 3.58-2.15ZM11 11.08h1.92m1.91 0h1.92m-9.59 0h1.92M11 18.75h1.92m1.91 0h1.92m-9.59 0h1.92'/%3e%3c/g%3e%3c/svg%3e" },
+    { title: 'Custom Data Modeling', desc: 'Model customers, events and business objects', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M14 20a2 2 0 1 1-4 0m4 0a2 2 0 0 0-2-2m2 2h7m-11 0a2 2 0 0 1 2-2m-2 2H3m9-2v-4m9-9c0 1.657-4.03 3-9 3S3 6.657 3 5m18 0c0-1.657-4.03-3-9-3S3 3.343 3 5m18 0v6c0 1.66-4 3-9 3M3 5v6c0 1.66 4 3 9 3'/%3e%3c/svg%3e" },
+    { title: 'Multichannel Orchestration', desc: 'Coordinate WhatsApp, SMS, Email and Voice', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' data-name='Layer 1' viewBox='0 0 24 24'%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='M7.23 10.14H1.5v5.72m14.32-9.54L12 2.5 8.18 6.32M12 2.5v21'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='m1.5 10.14 5.56 5.56a3.82 3.82 0 0 1 1.12 2.7v5.1m8.59-13.36h5.73v5.72'/%3e%3cpath fill='none' stroke='%23333333' stroke-miterlimit='10' stroke-width='1.5' d='m22.5 10.14-5.56 5.56a3.82 3.82 0 0 0-1.12 2.7v5.1'/%3e%3c/svg%3e" },
+    { title: 'Smart Personalization', desc: 'Trigger messages from customer behavior', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='%23333333' viewBox='0 0 16 16'%3e%3cpath d='M9 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0m-9 8c0 1 1 1 1 1h10s1 0 1-1-1-4-6-4-6 3-6 4m13.5-8.09c1.387-1.425 4.855 1.07 0 4.277-4.854-3.207-1.387-5.702 0-4.276Z'/%3e%3c/svg%3e" },
+    { title: 'Enterprise Infrastructure', desc: 'Secure APIs built to scale', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M13 2 3 14h9l-1 8 10-12h-9l1-8Z'/%3e%3c/svg%3e" },
+    { title: 'Predictive Analytics', desc: 'Turn engagement signals into actionable insights', icon: "data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg' fill='none' stroke-width='1.5' viewBox='0 0 24 24'%3e%3cpath stroke='%23333333' stroke-linecap='round' stroke-linejoin='round' d='m21 19.452-9-6.61m0 0V3m0 9.843-9 6.609m17.438-2.742L21 19.452 18.188 20M9.75 5.194 12 3l2.25 2.194M5.813 20 3 19.452l.563-2.742'/%3e%3c/svg%3e" },
   ];
 
   return (
@@ -164,12 +164,12 @@ response = requests.post(
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="hero-content">
             <div className="hero-left">
-              <h1>Reach more customers wherever they are, whatever they're on</h1>
-              <p>Engage them on every channel, in every scenario - from our platform or your stack.</p>
+              <h1>Reach customers across WhatsApp, SMS, Email & Voice</h1>
+              <p>Grahak OS unifies customer data, messaging, automation and campaigns in one customer engagement platform.</p>
               <div className="hero-stats">
-                <div className="stat"><span>B+</span><small>Users reachable</small></div>
+                <div className="stat"><span>4 Channels</span><small>WhatsApp, SMS, Email, Voice</small></div>
                 <div className="stat"><span>Fast</span><small>Onboarding</small></div>
-                <div className="stat"><span>Secure</span><small>Trusted channel</small></div>
+                <div className="stat"><span>Secure</span><small>APIs & customer engagement</small></div>
               </div>
             </div>
             <div className="hero-right">
@@ -227,8 +227,8 @@ response = requests.post(
         <section className={`api anim ${show('api') ? 'show' : ''}`} id="api">
           <div className="api-grid">
             <div className="api-info">
-              <h2>Built for the AI era.</h2>
-              <p className="api-desc">The complete platform for enterprise brands to acquire, convert, and retain customers across every channel-powered by AI that understands your business and unifies customer data into a single view to drive personalized experiences, targeted campaigns, and intelligent automation.</p>
+              <h2>Built for your stack</h2>
+              <p className="api-desc">Use Grahak OS through its own customer engagement workspace or connect your stack through secure APIs for messaging, customer data, automation and campaigns.</p>
             </div>
             <div className="api-demo">
               <div className="code-tabs">
@@ -258,19 +258,42 @@ response = requests.post(
           </div>
         </section>
 
+        <section className={`why-section anim ${show('why') ? 'show' : ''}`} id="why">
+          <div className="section-header">
+            <h2>Why Grahak OS</h2>
+            <p>One operating layer for customer engagement, built around data, orchestration and every channel your customers use.</p>
+          </div>
+          <div className="why-grid">
+            <div className="why-item"><strong>Unified customer data</strong><span>Bring customer context together across conversations, events and channels.</span></div>
+            <div className="why-item"><strong>Intelligent orchestration</strong><span>Coordinate journeys, automation and campaigns from one engagement layer.</span></div>
+            <div className="why-item"><strong>Every channel in one platform</strong><span>Connect WhatsApp, SMS, Email and Voice without fragmenting the customer experience.</span></div>
+          </div>
+        </section>
+
         <section className={`cta-section anim ${show('cta') ? 'show' : ''}`} id="cta">
-          <h2>Transform your customer<br/>experience with<br/>Grahak OS</h2>
+          <h2>Transform customer engagement with Grahak OS</h2>
+          <div className="cta-actions">
+            <a className="cta-primary" href="https://wa.me/919330994400?text=Hi%20WECARE.DIGITAL%2C%20I%27d%20like%20to%20get%20started%20with%20Grahak%20OS.">Start with WhatsApp</a>
+            <a className="cta-secondary" href="https://www.wecare.digital/contact">Talk to us</a>
+          </div>
         </section>
 
         <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Platform credentials">
           <div className="trust-grid">
             <div className="trust-panel meta-panel">
-              <svg className="trust-mark meta-mark" viewBox="0 0 40 28" role="img" aria-label="Meta">
-                <path d="M3.5 22.5C7.2 8.8 11.1 4.2 15.3 11.3L20 19l4.7-7.7c4.2-7.1 8.1-2.5 11.8 11.2" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+              <svg className="trust-mark meta-mark" viewBox="0 0 120 80" role="img" aria-label="Meta">
+                <defs>
+                  <linearGradient id="metaBlue" x1="8" y1="68" x2="112" y2="18" gradientUnits="userSpaceOnUse">
+                    <stop offset="0" stopColor="#0064e0" />
+                    <stop offset=".52" stopColor="#0082fb" />
+                    <stop offset="1" stopColor="#00a8ff" />
+                  </linearGradient>
+                </defs>
+                <path d="M12 62C21 30 31 14 43 14c10 0 17 8 25 22l8 14c6 10 10 14 15 14 7 0 12-11 17-31 2-8 5-14 9-18 4-3 8-4 12-2 7 4 9 15 6 29-6 27-17 40-32 40-13 0-22-10-31-27l-8-15c-6-11-10-16-14-16-7 0-14 14-20 38-2 8-7 13-13 12-6-1-8-6-5-12Z" fill="url(#metaBlue)" />
               </svg>
               <div className="trust-copy">
                 <strong>Meta Tech Provider</strong>
-                <span>Technology provider model for WhatsApp business solutions</span>
+                <span>Technology for WhatsApp business solutions</span>
               </div>
             </div>
             <div className="trust-panel whatsapp-panel">
@@ -302,10 +325,10 @@ response = requests.post(
           .hero-left p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
           .hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
           .stat{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:0;transition:all .25s;cursor:default}
-          .stat:hover{border-color:#075e54;color:#075e54;background:#f2fbf6;transform:translateY(-2px);box-shadow:0 4px 12px rgba(7,94,84,.15)}
+          .stat:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           .stat span{display:block;font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px}
           .stat small{font-size:16px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
-          .stat:hover span{color:#075e54}
+          .stat:hover span{color:#1a3a2a}
           
           /* Platform trust strip */
           .trust-strip{max-width:1180px;margin:0 auto 28px;padding:8px 24px 0}
@@ -314,7 +337,7 @@ response = requests.post(
           .meta-panel{background:linear-gradient(180deg,#fff 0%,#fbfdfb 100%)}
           .whatsapp-panel{background:linear-gradient(180deg,#fff 0%,#f8fcf9 100%)}
           .trust-mark{width:48px;height:48px;flex:0 0 auto}
-          .meta-mark{color:#1a3a2a}
+          .meta-mark{color:#0866ff}
           .whatsapp-mark{color:#075e54}
           .trust-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
           .trust-copy strong{font-size:clamp(19px,1.8vw,24px);font-weight:800;line-height:1.15;letter-spacing:-.35px;color:inherit}
@@ -364,7 +387,7 @@ response = requests.post(
           .touchpoint{padding:60px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
           .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pill:hover{border-color:#075e54;color:#075e54;background:#f2fbf6;transform:translateY(-2px);box-shadow:0 4px 12px rgba(7,94,84,.15)}
+          .pill:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           
           /* API Section */
           .api{padding:60px 24px;background:#fff}
@@ -383,16 +406,27 @@ response = requests.post(
           .capabilities .section-header{margin-bottom:40px}
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
-          .capability-card:hover{border-color:#075e54;color:#075e54;background:#f2fbf6;transform:translateY(-2px);box-shadow:0 4px 12px rgba(7,94,84,.15)}
+          .capability-card:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:var(--text-2xl);font-weight:600;color:#1a1a1a;margin:0 0 8px}
-          .capability-card:hover h3{color:#075e54}
+          .capability-card:hover h3{color:#1a3a2a}
           .capability-card p{font-size:var(--text-base);color:#6b7280;margin:0;line-height:1.6}
           
           /* CTA Section */
           .cta-section{padding:60px 24px;text-align:center;background:#fff}
           .cta-section h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
+          .cta-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:24px}
+          .cta-primary,.cta-secondary{min-height:48px;padding:13px 22px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
+          .cta-primary{background:#d1f470;color:#1a3a2a;border:2px solid #d1f470}
+          .cta-secondary{background:#fff;color:#1a3a2a;border:2px solid #dfe8e2}
+          .cta-primary:hover,.cta-secondary:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(26,58,42,.12)}
+          .cta-primary:focus-visible,.cta-secondary:focus-visible{outline:3px solid rgba(209,244,112,.45);outline-offset:3px}
+          .why-section{padding:60px 24px;background:#fbfdfb}
+          .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
+          .why-item{background:#fff;border:1px solid #dfe8e2;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
+          .why-item strong{font-size:20px;color:#1a3a2a}
+          .why-item span{font-size:16px;line-height:1.55;color:#66736b}
 
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
@@ -430,6 +464,8 @@ response = requests.post(
             .capability-card h3{font-size:17px}
             .capability-card p{font-size:14px}
             
+            .why-section{padding:50px 20px}
+            .why-grid{grid-template-columns:1fr}
             .cta-section{padding:50px 20px}
             .cta-section h2{font-size:34px}
           }
@@ -442,7 +478,7 @@ response = requests.post(
             .hero-right{order:-1;width:100%;display:flex;justify-content:center}
             .hero-left{text-align:left;order:1}
             .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
-            .hero-left p{font-size:24px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
+            .hero-left p{font-size:20px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
             .hero-stats{grid-template-columns:1fr;gap:12px;width:100%}
             .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:20px 24px;text-align:left;width:100%;display:flex;align-items:center;gap:12px;transition:all .25s;cursor:default}
             .stat span{font-size:28px;font-weight:800;min-width:70px}
@@ -456,7 +492,7 @@ response = requests.post(
             .trust-copy span{font-size:15px}
 
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
-            .mockup-wrapper:hover{border-color:#075e54;transform:translateY(-2px);box-shadow:0 4px 12px rgba(7,94,84,.15)}
+            .mockup-wrapper:hover{border-color:#d1f470;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
             .phone-header{padding:14px 16px;gap:10px}
             .avatar{width:42px;height:42px;font-size:18px}
@@ -477,7 +513,7 @@ response = requests.post(
             
             .section-header{margin-bottom:28px;padding:0 20px;text-align:center}
             .section-header h2{font-size:38px;margin-bottom:12px;line-height:1.15;text-align:center}
-            .section-header p{font-size:24px;line-height:1.6;text-align:center}
+            .section-header p{font-size:20px;line-height:1.6;text-align:center}
             
             .touchpoint{padding:44px 20px}
             .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
@@ -487,7 +523,7 @@ response = requests.post(
             .api-grid{gap:36px;text-align:left}
             .api-info{text-align:left}
             .api-info h2{font-size:38px;margin-bottom:16px;text-align:left}
-            .api-desc{font-size:24px;line-height:1.65;max-width:100%;text-align:left}
+            .api-desc{font-size:20px;line-height:1.65;max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
             .tab{padding:14px 24px;font-size:18px}
@@ -499,10 +535,16 @@ response = requests.post(
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
             .cap-icon{width:50px;height:50px;margin-bottom:16px;border-radius:12px;padding:10px}
             .capability-card h3{font-size:24px;margin-bottom:8px;text-align:left}
-            .capability-card p{font-size:24px;text-align:left;line-height:1.5}
+            .capability-card p{font-size:18px;text-align:left;line-height:1.5}
             
+            .why-section{padding:44px 20px}
+            .why-item{padding:20px}
+            .why-item strong{font-size:20px}
+            .why-item span{font-size:18px}
             .cta-section{padding:44px 20px}
             .cta-section h2{font-size:38px;line-height:1.2;max-width:100%}
+            .cta-actions{flex-direction:column;align-items:stretch}
+            .cta-primary,.cta-secondary{width:100%;min-height:52px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
