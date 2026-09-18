@@ -14,11 +14,19 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'min-height:112px' );
   } );
 
-  it( 'uses the Bharat Stack lime and dark green consistently in the hero demo', () => {
+  it( 'uses the approved Bharat Stack lime and dark green color system', () => {
     expect( source ).toContain( '.phone-header{background:#1a3a2a' );
-    expect( source ).toContain( '.avatar{width:40px;height:40px;background:#2f6b52' );
+    expect( source ).toContain( '.avatar{width:40px;height:40px;background:#1a3a2a' );
+    expect( source ).toContain( '.verified-badge{width:22px;height:22px;background:#1a3a2a' );
+    expect( source ).toContain( '.meta-panel{background:#d1f470' );
+    expect( source ).toContain( '.whatsapp-panel{background:#d1f470' );
     expect( source ).toContain( '.msg.sent{background:#d1f470' );
     expect( source ).toContain( '.tab.active{background:#d1f470;color:#1a3a2a}' );
+    expect( source ).toContain( '.whatsapp-mark{color:#075e54}' );
+    expect( source ).not.toContain( '#2f6b52' );
+    expect( source ).not.toContain( '.verified-badge{width:22px;height:22px;background:#075e54' );
+    expect( source ).not.toContain( '.meta-panel{background:#d9fbf2' );
+    expect( source ).not.toContain( '.whatsapp-panel{background:#25d366' );
   } );
 
   it( 'removes both added CTA buttons', () => {
@@ -34,8 +42,8 @@ describe( 'Grahak OS five approved visual fixes', () => {
 
   it( 'keeps the flat split credential strip', () => {
     expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0' );
-    expect( source ).toContain( '.meta-panel{background:#d9fbf2' );
-    expect( source ).toContain( '.whatsapp-panel{background:#25d366' );
+    expect( source ).toContain( '.meta-panel{background:#d1f470' );
+    expect( source ).toContain( '.whatsapp-panel{background:#d1f470' );
     expect( source ).not.toContain( 'box-shadow:0 8px 24px' );
   } );
 
