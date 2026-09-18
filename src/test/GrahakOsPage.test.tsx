@@ -23,4 +23,18 @@ describe( 'Grahak OS public page', () => {
     expect( source ).toContain( '.trust-grid{grid-template-columns:1fr}' );
     expect( source ).not.toContain( 'Meta Business Partners' );
   } );
+
+  it( 'keeps hero stats in one desktop row and stacks them on mobile', () => {
+    const source = readFileSync( pagePath, 'utf8' );
+    expect( source ).toContain( '.hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}' );
+    expect( source ).toContain( '.hero-stats{grid-template-columns:1fr;gap:12px;width:100%}' );
+  } );
+
+  it( 'uses the WhatsApp green hover treatment across interactive surfaces', () => {
+    const source = readFileSync( pagePath, 'utf8' );
+    expect( source ).toContain( '.stat:hover{border-color:#075e54' );
+    expect( source ).toContain( '.pill:hover{border-color:#075e54' );
+    expect( source ).toContain( '.capability-card:hover{border-color:#075e54' );
+    expect( source ).toContain( '.mockup-wrapper:hover{border-color:#075e54' );
+  } );
 } );
