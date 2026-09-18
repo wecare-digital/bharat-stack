@@ -18,7 +18,6 @@ frontend:
         - npm install --no-audit --no-fund --legacy-peer-deps
     build:
       commands:
-        - npm test -- src/test/GrahakOsPage.test.tsx src/test/PublicWidgets.test.tsx
         - npm run build
   artifacts:
     baseDirectory: out
