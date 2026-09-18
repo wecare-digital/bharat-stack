@@ -50,6 +50,52 @@ INDIA_SENDER_ID = os.environ.get('INDIA_SENDER_ID', 'WDBEEP')
 INDIA_PINPOINT_APP_ID = os.environ.get('INDIA_PINPOINT_APP_ID', '')
 MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
+# --- India DLT (TRAI) -------------------------------------------------------
+# Indian A2P SMS must carry the registered entity (PE) id and an APPROVED DLT
+# template id, passed through SendTextMessage DestinationCountryParameters.
+# These are NOT Pinpoint templates - do not create legacy Pinpoint templates
+# to satisfy DLT.
+#
+# The message body must match the approved DLT template content exactly, or the
+# operator rejects it downstream even though the API call succeeds.
+INDIA_ENTITY_ID = os.environ.get('INDIA_DLT_ENTITY_ID', '1201161991108627443')
+
+# template key -> approved DLT template id (mirrors the Airtel IQ mapping
+# already used by sms-in/airtel, voice-in/c2c, voice-in/obd, whatsapp-calling)
+INDIA_DLT_TEMPLATES = {
+    'ivr-default': os.environ.get('IVR_SMS_DLT_TEMPLATE_ID', '1007277993798259629'),
+    'wa-alert': os.environ.get('WA_ALERT_SMS_DLT_TEMPLATE_ID', '1007284579074821763'),
+    'wd_order': os.environ.get('ORDER_SMS_DLT_TEMPLATE_ID', '1007723091207562020'),
+}
+# Callers that do not name a template fall back to this one.
+INDIA_DEFAULT_DLT_TEMPLATE = os.environ.get('DEFAULT_DLT_TEMPLATE_KEY', 'ivr-default')
+
+
+def _is_indian_msisdn(phone_e164: str) -> bool:
+    """True for +91XXXXXXXXXX (12 digits including the 91 country code)."""
+    digits = str(phone_e164 or '').lstrip('+')
+    return digits.startswith('91') and len(digits) == 12
+
+
+def _resolve_dlt_template(template_key: str) -> Dict[str, Any]:
+    """Map a template key to an approved DLT template id.
+
+    Returns {'templateId': str} on success, or {'error': str} when no approved
+    mapping exists. Callers MUST NOT send to an Indian number without one -
+    silently sending unregistered content risks operator blocking and DLT
+    penalties, so this is a hard failure by design.
+    """
+    key = (template_key or INDIA_DEFAULT_DLT_TEMPLATE).strip()
+    tid = INDIA_DLT_TEMPLATES.get(key)
+    if not tid:
+        return {'error': (
+            f"No approved DLT template mapping for '{key}'. "
+            f"Known keys: {', '.join(sorted(INDIA_DLT_TEMPLATES))}. "
+            "Register the template on DLT and add it to INDIA_DLT_TEMPLATES "
+            "before sending to Indian numbers."
+        )}
+    return {'templateId': tid, 'templateKey': key}
+
 
 # Module-level origin for CORS (set per-invocation in handler)
 origin = ''
@@ -244,18 +290,33 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
 
     message_id = str(uuid.uuid4())
 
-    # Auto-detect India numbers for ap-south-1 routing
-    use_india_region = target_region == 'ap-south-1'
-    if not use_india_region:
-        digits = phone_e164.lstrip('+')
-        if digits.startswith('91') and len(digits) == 12:
-            # Indian number — check if caller explicitly requested ap-south-1
-            # or if us-east-1 fails, the calling handler will retry with region=ap-south-1
-            pass
+    # Route by destination country, not by caller opt-in.
+    # Previously this block detected an Indian number and then did nothing
+    # (literally `pass`), so +91 traffic went out via us-east-1 with no DLT
+    # parameters. Indian A2P requires ap-south-1 + WDBEEP + entity/template ids.
+    use_india_region = _is_indian_msisdn(phone_e164) or target_region == 'ap-south-1'
+
+    dlt: Dict[str, Any] = {}
+    if use_india_region:
+        dlt = _resolve_dlt_template(body.get('dltTemplateKey') or body.get('templateKey'))
+        if dlt.get('error'):
+            # Fail loudly rather than send unregistered content to an Indian number.
+            logger.error(json.dumps({
+                'event': 'sms_missing_dlt_template',
+                'phone': phone_e164[-4:],
+                'requestedKey': body.get('dltTemplateKey') or body.get('templateKey') or '(none)',
+                'requestId': request_id,
+            }))
+            return _response(422, {
+                'error': 'MISSING_DLT_TEMPLATE',
+                'detail': dlt['error'],
+                'destination': 'IN',
+            })
 
     # Send via Pinpoint SMS v2
     result = _send_pinpoint_sms(phone_e164, content, message_type, request_id,
-                                use_india_region=use_india_region)
+                                use_india_region=use_india_region,
+                                dlt_template_id=dlt.get('templateId'))
 
     now = int(time.time())
     _store_message({
@@ -291,15 +352,17 @@ def _send_sms(body: Dict, request_id: str) -> Dict[str, Any]:
 
 
 def _send_pinpoint_sms(phone: str, content: str, message_type: str,
-                       request_id: str, use_india_region: bool = False) -> Dict[str, Any]:
+                       request_id: str, use_india_region: bool = False,
+                       dlt_template_id: str = None,
+                       dry_run: bool = False) -> Dict[str, Any]:
     """Send SMS via Pinpoint SMS Voice v2 API.
-    
-    Supports two regions:
-    - us-east-1 (default): International numbers, toll-free pool
-    - ap-south-1 (India fallback): Indian +91 numbers when Airtel IQ is down
-    
-    Note: ORIGINATION_IDENTITY is only set if an SMS-capable pool/number exists.
-    If not set, Pinpoint uses the default configuration for the account.
+
+    Routing is by destination country:
+    - ap-south-1 for +91: OriginationIdentity=WDBEEP (registered sender id) plus
+      DestinationCountryParameters IN_ENTITY_ID / IN_TEMPLATE_ID, which TRAI DLT
+      requires. Without these the operator rejects the message.
+    - us-east-1 for everything else: existing international/toll-free origination
+      identity, and NO Indian DLT fields (they are invalid outside India).
     """
     try:
         if use_india_region:
@@ -314,11 +377,27 @@ def _send_pinpoint_sms(phone: str, content: str, message_type: str,
             if INDIA_SENDER_ID:
                 params['OriginationIdentity'] = INDIA_SENDER_ID
 
+            # --- TRAI DLT: mandatory for Indian A2P traffic ---
+            country_params: Dict[str, str] = {}
+            if INDIA_ENTITY_ID:
+                country_params['IN_ENTITY_ID'] = INDIA_ENTITY_ID
+            if dlt_template_id:
+                country_params['IN_TEMPLATE_ID'] = dlt_template_id
+            if country_params:
+                params['DestinationCountryParameters'] = country_params
+
+            if dry_run:
+                params['DryRun'] = True
+
             response = india_sms_client.send_text_message(**params)
             logger.info(json.dumps({
                 'event': 'pinpoint_india_sms_sent',
                 'phone': phone[-4:],
                 'region': INDIA_REGION,
+                'senderId': INDIA_SENDER_ID,
+                'dltEntityId': INDIA_ENTITY_ID,
+                'dltTemplateId': dlt_template_id or '',
+                'dryRun': dry_run,
                 'messageId': response.get('MessageId', ''),
                 'requestId': request_id,
             }))
@@ -326,6 +405,7 @@ def _send_pinpoint_sms(phone: str, content: str, message_type: str,
                 'success': True,
                 'providerMessageId': response.get('MessageId', ''),
                 'region': INDIA_REGION,
+                'dltTemplateId': dlt_template_id or '',
             }
         else:
             params: Dict[str, Any] = {

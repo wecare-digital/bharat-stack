@@ -24,6 +24,23 @@ interface AirtelMessage { messageId: string; phone: string; content: string; sta
 interface DLTTemplate { templateId: string; name: string; content: string; messageType: string; senderId: string; entityId: string; variables: string[]; status: string; createdAt: number; }
 interface PinpointTemplate { templateName: string; body: string; templateDescription: string; defaultSubstitutions?: string; version?: string; creationDate?: string; lastModifiedDate?: string; tags?: Record<string, string>; }
 
+/**
+ * Approved TRAI DLT templates for Indian A2P SMS, header WDBEEP,
+ * entity (PE) id 1201161991108627443. Mirrors INDIA_DLT_TEMPLATES in
+ * amplify/functions/messaging/sms-aws/handler.py - keep the two in step.
+ */
+const DLT_TEMPLATE_OPTIONS: { key: string; id: string; label: string }[] = [
+  { key: 'ivr-default', id: '1007277993798259629', label: 'ivr-default — IVR / voice notifications' },
+  { key: 'wa-alert', id: '1007284579074821763', label: 'wa-alert — WhatsApp alerts' },
+  { key: 'wd_order', id: '1007723091207562020', label: 'wd_order — order notifications' },
+];
+
+/** +91XXXXXXXXXX (12 digits incl. country code) routes via ap-south-1 + DLT. */
+const isIndianDestination = ( phone: string ): boolean => {
+  const digits = ( phone || '' ).replace( /\D/g, '' );
+  return digits.startsWith( '91' ) && digits.length === 12;
+};
+
 const ITEMS_PER_PAGE = 25;
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
 
@@ -49,6 +66,7 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
   const [ sendPhone, setSendPhone ] = useState( '' );
   const [ sendContent, setSendContent ] = useState( '' );
   const [ sendMessageType, setSendMessageType ] = useState( 'PROMOTIONAL' );
+  const [ sendDltTemplateKey, setSendDltTemplateKey ] = useState( 'ivr-default' );
   const [ sending, setSending ] = useState( false );
   const [ showCampaignModal, setShowCampaignModal ] = useState( false );
   const [ campaignName, setCampaignName ] = useState( '' );
@@ -241,8 +259,20 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setSending( true );
     try
     {
-      const result = await api.sendSmsAws( { phoneNumber: sendPhone, content: sendContent, messageType: sendMessageType as 'TRANSACTIONAL' | 'PROMOTIONAL' } );
+      // Indian destinations route via ap-south-1 with TRAI DLT parameters and
+      // require an approved template id. The backend rejects an Indian send
+      // with an unmapped template key (422 MISSING_DLT_TEMPLATE) rather than
+      // sending unregistered content, so pass the key through explicitly.
+      const payload: Parameters<typeof api.sendSmsAws>[ 0 ] & { dltTemplateKey?: string } = {
+        phoneNumber: sendPhone,
+        content: sendContent,
+        messageType: sendMessageType as 'TRANSACTIONAL' | 'PROMOTIONAL',
+      };
+      if ( isIndianDestination( sendPhone ) ) payload.dltTemplateKey = sendDltTemplateKey;
+
+      const result = await api.sendSmsAws( payload );
       if ( result && ( result.messageId || result.status === 'sent' ) ) { toast.success( 'SMS sent!' ); setShowSendModal( false ); setSendPhone( '' ); setSendContent( '' ); await loadAwsData(); }
+      else if ( ( result as any )?.error === 'MISSING_DLT_TEMPLATE' ) toast.error( 'No approved DLT template for this message type' );
       else toast.error( 'Failed to send SMS' );
     } catch ( err ) { toast.error( 'Failed to send SMS' ); } finally { setSending( false ); }
   };
@@ -627,6 +657,22 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
               <div className="form-group"><label>Phone *</label><div className="input-row"><input type="tel" value={ sendPhone } onChange={ e => setSendPhone( e.target.value ) } placeholder="+1234567890" /><button type="button" className="pick-btn" onClick={ () => setShowContactPicker( 'single' ) }>Contacts</button></div></div>
               <div className="form-group"><label>Message *</label><textarea value={ sendContent } onChange={ e => setSendContent( e.target.value ) } placeholder="Enter message..." rows={ 3 } /></div>
               <div className="form-group"><label>Type</label><select value={ sendMessageType } onChange={ e => setSendMessageType( e.target.value ) }><option value="PROMOTIONAL">Promotional</option><option value="TRANSACTIONAL">Transactional</option></select></div>
+              { isIndianDestination( sendPhone ) ? (
+                <div className="form-group">
+                  <label>DLT Template * <span style={ { fontSize: '11px', color: '#9ca3af' } }>required for +91 · TRAI DLT</span></label>
+                  <select value={ sendDltTemplateKey } onChange={ e => setSendDltTemplateKey( e.target.value ) }>
+                    { DLT_TEMPLATE_OPTIONS.map( t => ( <option key={ t.key } value={ t.key }>{ t.label }</option> ) ) }
+                  </select>
+                  <div style={ { marginTop: '6px', fontSize: '11px', color: '#6b7280' } }>
+                    Routes via <code>ap-south-1</code> · Sender <code>WDBEEP</code> · Entity <code>1201161991108627443</code> · Template <code>{ DLT_TEMPLATE_OPTIONS.find( t => t.key === sendDltTemplateKey )?.id }</code>
+                    <br />Message body must match the approved DLT template content exactly.
+                  </div>
+                </div>
+              ) : sendPhone ? (
+                <div style={ { marginBottom: '12px', fontSize: '11px', color: '#6b7280' } }>
+                  Non-India destination · routes via <code>us-east-1</code> · no DLT fields applied
+                </div>
+              ) : null }
               <div className="modal-actions"><Button variant="secondary" onClick={ () => setShowSendModal( false ) }>Cancel</Button><Button variant="primary" onClick={ handleSendSms } loading={ sending } disabled={ !sendPhone || !sendContent }>Send</Button></div>
             </div></div> ) }
 
