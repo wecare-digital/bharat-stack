@@ -232,7 +232,7 @@ response = requests.post(
                 <path d="M11.3 10.8c.4-.8.7-.8 1.2-.8h.4c.3 0 .5.1.7.5l1.2 2.7c.1.3.1.6-.1.9l-.9 1.1c-.2.2-.2.5-.1.8.9 1.8 2.4 3.2 4.2 4.1.3.1.6.1.8-.1l1.1-.9c.3-.2.6-.2.9-.1l2.6 1.2c.4.2.5.4.5.7 0 1.1-.4 2-1.2 2.7-.7.6-1.7.8-2.7.6-2.5-.6-5-2-7.1-4.1-2.1-2.1-3.5-4.6-4.1-7.1-.2-1 .1-2 .7-2.7.6-.7 1.2-1 1.9-1.1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <div className="trust-copy">
-                <strong>Built on WhatsApp Business Platform</strong>
+                <strong>Built on WhatsApp Business API</strong>
                 <span>Cloud API-powered messaging, automation and onboarding</span>
               </div>
             </div>
@@ -302,11 +302,12 @@ response = requests.post(
           .hero-content{display:grid;grid-template-columns:1fr 1.4fr;gap:60px;align-items:center}
           .hero-left h1{font-size:clamp(34px,4vw,48px);font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px;color:#1a1a1a}
           .hero-left p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
-          .hero-stats{display:flex;gap:12px;flex-wrap:wrap}
-          .stat{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:110px;transition:all .25s;cursor:default}
-          .stat:hover{border-color:#1a3a2a;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
+          .hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+          .stat{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:18px 22px;min-width:0;transition:all .25s;cursor:default}
+          .stat:hover{border-color:#075e54;color:#075e54;background:#f2fbf6;transform:translateY(-2px);box-shadow:0 4px 12px rgba(7,94,84,.15)}
           .stat span{display:block;font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-0.5px}
           .stat small{font-size:16px;color:#6b7280;margin-top:4px;display:block;font-weight:500}
+          .stat:hover span{color:#075e54}
           
           /* Platform trust strip */
           .trust-strip{max-width:1300px;margin:-34px auto 18px;padding:0 24px}
@@ -365,7 +366,7 @@ response = requests.post(
           .touchpoint{padding:60px 24px;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
           .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pill:hover{border-color:#1a3a2a;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
+          .pill:hover{border-color:#075e54;color:#075e54;background:#f2fbf6;transform:translateY(-2px);box-shadow:0 4px 12px rgba(7,94,84,.15)}
           
           /* API Section */
           .api{padding:60px 24px;background:#fff}
@@ -384,10 +385,11 @@ response = requests.post(
           .capabilities .section-header{margin-bottom:40px}
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
-          .capability-card:hover{border-color:#1a3a2a;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
+          .capability-card:hover{border-color:#075e54;color:#075e54;background:#f2fbf6;transform:translateY(-2px);box-shadow:0 4px 12px rgba(7,94,84,.15)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:var(--text-2xl);font-weight:600;color:#1a1a1a;margin:0 0 8px}
+          .capability-card:hover h3{color:#075e54}
           .capability-card p{font-size:var(--text-base);color:#6b7280;margin:0;line-height:1.6}
           
           /* CTA Section */
@@ -443,7 +445,7 @@ response = requests.post(
             .hero-left{text-align:left;order:1}
             .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
             .hero-left p{font-size:24px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
-            .hero-stats{display:flex;flex-direction:column;gap:12px;width:100%}
+            .hero-stats{grid-template-columns:1fr;gap:12px;width:100%}
             .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:20px 24px;text-align:left;width:100%;display:flex;align-items:center;gap:12px;transition:all .25s;cursor:default}
             .stat span{font-size:28px;font-weight:800;min-width:70px}
             .stat small{font-size:20px;line-height:1.3;margin:0}
@@ -457,7 +459,7 @@ response = requests.post(
             .trust-copy span{font-size:15px}
 
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
-            .mockup-wrapper:hover{border-color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,0.15)}
+            .mockup-wrapper:hover{border-color:#075e54;transform:translateY(-2px);box-shadow:0 4px 12px rgba(7,94,84,.15)}
             .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%;margin:0;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
             .phone-header{padding:14px 16px;gap:10px}
             .avatar{width:42px;height:42px;font-size:18px}
