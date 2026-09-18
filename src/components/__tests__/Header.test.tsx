@@ -31,11 +31,11 @@ describe( 'Header', () => {
     expect( screen.getByRole( 'link', { name: 'Grahak OS' } ) ).toHaveAttribute( 'aria-current', 'page' );
   } );
 
-  it( 'keeps Sign in and Contact and excludes removed pages', () => {
+  it( 'keeps Sign in and removes Contact and retired pages', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
     expect( screen.getByRole( 'link', { name: 'Sign in' } ) ).toHaveAttribute( 'href', '/access' );
-    expect( screen.getByRole( 'link', { name: 'Contact' } ) ).toHaveAttribute( 'href', 'https://www.wecare.digital/contact' );
+    expect( screen.queryByRole( 'link', { name: 'Contact' } ) ).toBeNull();
     expect( screen.queryByText( 'Studio' ) ).toBeNull();
     expect( screen.queryByText( 'Sustainability' ) ).toBeNull();
   } );
