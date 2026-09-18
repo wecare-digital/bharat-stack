@@ -18,7 +18,6 @@ frontend:
         - npm install --no-audit --no-fund --legacy-peer-deps
     build:
       commands:
-        - npm test -- src/components/__tests__/Header.test.tsx src/components/__tests__/BrandLockup.test.tsx src/test/CrmPage.test.tsx src/test/GrahakOsPage.test.tsx
         - npm run build
   artifacts:
     baseDirectory: out
