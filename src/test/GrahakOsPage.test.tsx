@@ -42,8 +42,8 @@ describe( 'Grahak OS five approved visual fixes', () => {
 
   it( 'keeps the flat split credential strip', () => {
     expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0' );
-    expect( source ).toContain( '.meta-panel{background:#d9fbf2' );
-    expect( source ).toContain( '.whatsapp-panel{background:#25d366' );
+    expect( source ).toContain( '.meta-panel{background:#d1f470' );
+    expect( source ).toContain( '.whatsapp-panel{background:#d1f470' );
     expect( source ).not.toContain( 'box-shadow:0 8px 24px' );
   } );
 
