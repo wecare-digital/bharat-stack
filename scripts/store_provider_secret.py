@@ -98,53 +98,118 @@ class Field:
         self.note = note
 
 
+# Secret ids are the ones that ALREADY EXIST in this account wherever possible —
+# do not invent a parallel name, or consumers keep reading the old one. Verified
+# against ListSecrets on 2026-09-19 (28 secrets). NEW marks ids that do not exist
+# yet and will be created on first run.
 PROVIDERS: Dict[str, dict] = {
+    # ---- new ids -----------------------------------------------------------
     "truecaller": {
-        "secret_id": "wecare/truecaller",
+        "secret_id": "wecare/truecaller",                          # NEW
         "fields": [
             Field("app_key", note="partner/app key from developer.truecaller.com"),
             Field("app_name", secret=False),
             Field("app_domain", secret=False),
             Field("callback_url", secret=False),
         ],
-        "consumers": "POST /auth/truecaller/callback (not built yet)",
+        "consumers": "POST /auth/truecaller/callback - NOT BUILT YET, so nothing "
+                     "reads this until that Lambda and route exist",
     },
     "elevenlabs": {
-        "secret_id": "wecare/elevenlabs",
-        "fields": [Field("api_key", prefix=("sk_",))],
+        "secret_id": "wecare/elevenlabs",                          # NEW
+        "fields": [
+            Field("api_key", prefix=("sk_",)),
+            Field("phone_number_id", secret=False, note="e.g. phnum_..."),
+            Field("phone_number", secret=False),
+            Field("sip_server_tcp", secret=False),
+            Field("sip_server_tls", secret=False),
+        ],
         "consumers": "none yet - TTS today is Polly via /whatsapp-voice/tts, "
-                     "/voice-in/obd/tts, /site-language/tts",
+                     "/voice-in/obd/tts and /site-language/tts",
     },
     "plivo-answer": {
-        "secret_id": "wecare/plivo-answer",
+        "secret_id": "wecare/plivo-answer",                        # NEW
         "fields": [
             Field("token", generatable=True,
                   note="shared secret appended as ?token= to the three Plivo URLs"),
         ],
         "consumers": "wecare-plivo-answer (gates POST /plivo/answer)",
     },
-    "plivo-sip": {
-        "secret_id": "wecare/plivo/sip",
-        "fields": [
-            Field("sip_uri", secret=False),
-            Field("username", secret=False),
-            Field("password"),
-            Field("application_id", secret=False),
-            Field("alias", secret=False),
-        ],
-        "consumers": "Plivo voice application WECARE-WHATSAPP-IVR (SIP trunk)",
-    },
     "meta-whatsapp-sip": {
-        "secret_id": "wecare/meta/whatsapp-sip",
+        "secret_id": "wecare/meta/whatsapp-sip",                   # NEW
         "fields": [
             Field("hostname", secret=False),
             Field("port", secret=False),
             Field("sip_user_password",
-                  note="Meta calling settings SIP password. Recording it gives you "
-                       "a known-good value to roll back to after a repoint."),
+                  note="Meta calling-settings SIP password. Recording it gives you a "
+                       "known-good value to roll back to after a repoint."),
             Field("phone_number_id", secret=False),
         ],
         "consumers": "Meta WhatsApp Business Calling -> SIP media leg",
+    },
+    # ---- existing ids: fields are MERGED, siblings preserved ---------------
+    "plivo-api": {
+        "secret_id": "wecare/plivo/api",                           # EXISTS
+        "fields": [Field("auth_id"), Field("auth_token")],
+        "consumers": "Plivo REST API callers",
+    },
+    "plivo-trunks": {
+        "secret_id": "wecare/plivo",                               # EXISTS
+        "fields": [
+            Field("outbound_trunk_name", secret=False),
+            Field("outbound_trunk_credential",
+                  note="the outbound trunk password, not the account auth token"),
+            Field("outbound_trunk_id", secret=False),
+            Field("outbound_trunk_host", secret=False, note="e.g. <id>.zt.plivo.com"),
+            Field("inbound_trunk_ids", secret=False,
+                  note="comma-separate several; these are Zentrunk trunk ids"),
+            Field("voice_application_id", secret=False),
+            Field("sip_endpoint_uri", secret=False),
+            Field("sip_endpoint_username", secret=False),
+        ],
+        "consumers": "Plivo voice application WECARE-WHATSAPP-IVR + Zentrunk",
+    },
+    "sinch-sms": {
+        "secret_id": "wecare/sinch/sms",                           # EXISTS
+        # Field names MUST match what the Lambda reads, see
+        # messaging/outbound-sms/handler.py _load_sinch_sms_creds().
+        "fields": [
+            Field("app_id", secret=False),
+            Field("user_id", secret=False),
+            Field("password"),
+            Field("oauth_token", note="lifetime OAuth token, no IP allowlist"),
+            Field("oauth_host", secret=False, note="e.g. jumbo.aclgateway.com"),
+        ],
+        "consumers": "wecare-outbound-sms (_send_sinch_sms) and wecare-sinch-dlr",
+    },
+    "google-cloud": {
+        "secret_id": "wecare/google/cloud",                        # EXISTS
+        "fields": [
+            Field("api_key", prefix=("AIza",), note="unified Google API key"),
+            Field("project_id", secret=False),
+            Field("project_number", secret=False),
+            Field("project_name", secret=False),
+        ],
+        "consumers": "SEO tooling; see also wecare/google-api-key (PageSpeed) and "
+                     "wecare/google-maps (Places) which hold their own keys",
+    },
+    "google-oauth": {
+        "secret_id": "wecare/seo/google-oauth",                    # EXISTS
+        "fields": [
+            Field("client_id", secret=False),
+            Field("client_secret", prefix=("GOCSPX-",)),
+        ],
+        "consumers": "Google OAuth flows (Search Console / SEO). Reuse this client "
+                     "for People API contact sync rather than minting a second one.",
+    },
+    "google-ads": {
+        "secret_id": "wecare/google/ads",                          # EXISTS
+        "fields": [
+            Field("developer_token", note="from the Google Ads API Center"),
+            Field("customer_id", secret=False, note="e.g. 836-758-9699"),
+            Field("manager_customer_id", secret=False, note="the MCC, e.g. 427-041-2231"),
+        ],
+        "consumers": "Google Ads API callers (none built yet)",
     },
 }
 
