@@ -41,12 +41,40 @@ def _secret_from_sm(secret_id: str, key: str) -> str:
         import json as _json
         _sm = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         return _json.loads(_sm.get_secret_value(SecretId=secret_id)['SecretString']).get(key, '') or ''
-    except Exception:
+    except Exception as e:
+        logger.warning(json.dumps({'event': 'secret_fetch_failed', 'secretId': secret_id, 'error': str(e)}))
         return ''
 
 
-# env-first for back-compat + tests; Secrets Manager fallback once the env var is removed
-WEBHOOK_SECRET = os.environ.get('RAZORPAY_WEBHOOK_SECRET', '') or _secret_from_sm('wecare/razorpay-webhook', 'webhook_secret')
+RAZORPAY_WEBHOOK_SECRET_ID = os.environ.get('RAZORPAY_WEBHOOK_SECRET_ID', 'wecare/razorpay-webhook')
+_webhook_secret_cache = ''
+
+
+def _get_webhook_secret() -> str:
+    """Resolve the Razorpay webhook signing secret, Secrets Manager first.
+
+    Fetched on first request and cached for the life of the execution
+    environment — deliberately NOT at import time. These functions run with
+    SnapStart (SnapStart.ApplyOn=PublishedVersions), which snapshots module
+    init, so an import-time read freezes whatever value existed when the
+    version was published. Because _verify_signature fails closed, a rotation
+    in Secrets Manager would then silently 401 every live payment webhook until
+    someone republished the function. See .kiro/steering/lambda-snapstart-deploy.md.
+
+    Secrets Manager is the source of truth; RAZORPAY_WEBHOOK_SECRET remains a
+    fallback only, so rotating the secret takes effect without a redeploy even
+    if a stale env var is still attached to the function.
+    """
+    global _webhook_secret_cache
+    if _webhook_secret_cache:
+        return _webhook_secret_cache
+    _webhook_secret_cache = (
+        _secret_from_sm(RAZORPAY_WEBHOOK_SECRET_ID, 'webhook_secret')
+        or os.environ.get('RAZORPAY_WEBHOOK_SECRET', '')
+    )
+    return _webhook_secret_cache
+
+
 PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'stack-wecare-digital-PaymentsTable')
 INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
@@ -73,15 +101,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         signature = headers.get('x-razorpay-signature') or headers.get('X-Razorpay-Signature', '')
         
+        # Request shape only. This used to log bodyFirst100 and
+        # signatureFirst20 on every request at INFO: the first 100 bytes of a
+        # Razorpay webhook body is live order/payment/customer data, and the
+        # signature prefix is HMAC output over it. Neither belongs in CloudWatch.
         logger.info(json.dumps({
-            'event': 'webhook_debug',
+            'event': 'webhook_received_shape',
             'hasBody': bool(body),
             'bodyLen': len(body) if body else 0,
-            'bodyFirst100': (body or '')[:100],
             'hasSignature': bool(signature),
-            'signatureFirst20': (signature or '')[:20],
             'isBase64Encoded': event.get('isBase64Encoded', False),
-            'headerKeys': list(headers.keys()) if headers else [],
             'requestId': request_id,
         }))
 
@@ -246,8 +275,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════════
 
 def _verify_signature(body: str, signature: str) -> bool:
-    if not WEBHOOK_SECRET:
-        logger.error('RAZORPAY_WEBHOOK_SECRET not set — rejecting webhook (fail closed)')
+    secret = _get_webhook_secret()
+    if not secret:
+        logger.error(f'Razorpay webhook secret unavailable from {RAZORPAY_WEBHOOK_SECRET_ID} '
+                     'or RAZORPAY_WEBHOOK_SECRET — rejecting webhook (fail closed)')
         return False
     if not signature:
         logger.warning('No signature header received')
@@ -255,17 +286,19 @@ def _verify_signature(body: str, signature: str) -> bool:
     try:
         body_bytes = body.encode('utf-8') if isinstance(body, str) else body
         expected = hmac.new(
-            WEBHOOK_SECRET.encode('utf-8'),
+            secret.encode('utf-8'),
             body_bytes,
             hashlib.sha256
         ).hexdigest()
         match = hmac.compare_digest(expected, signature)
         if not match:
+            # Deliberately records only that a mismatch happened and how big the
+            # body was. The previous version logged the first 20 chars of both
+            # the expected and received HMAC plus len(secret); expected-digest
+            # material and the secret's length are attacker-useful and do not
+            # help debugging.
             logger.warning(json.dumps({
-                'event': 'signature_mismatch_debug',
-                'expectedFirst20': expected[:20],
-                'receivedFirst20': signature[:20],
-                'secretLen': len(WEBHOOK_SECRET),
+                'event': 'signature_mismatch',
                 'bodyLen': len(body_bytes),
             }))
         return match

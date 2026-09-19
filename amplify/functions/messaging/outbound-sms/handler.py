@@ -60,7 +60,24 @@ _sms_secrets_client = boto3.client('secretsmanager', region_name=os.environ.get(
 AIRTEL_IQ_SECRET = os.environ.get('AIRTEL_IQ_SECRET', 'wecare/airtel-iq')
 
 
+_airtel_iq_cache: tuple = ()
+
+
 def _load_airtel_iq_creds():
+    """Resolve Airtel IQ credentials, Secrets Manager first, env as fallback.
+
+    Called on first use and cached for the life of the execution environment —
+    deliberately NOT at import time. This function runs with SnapStart
+    (SnapStart.ApplyOn=PublishedVersions), which snapshots module init, so an
+    import-time read freezes these credentials into the published version and a
+    rotation in Secrets Manager would not take effect until someone
+    republished. A transient Secrets Manager failure during init would likewise
+    have baked the env fallback into the snapshot permanently.
+    See .kiro/steering/lambda-snapstart-deploy.md.
+    """
+    global _airtel_iq_cache
+    if _airtel_iq_cache:
+        return _airtel_iq_cache
     u = os.environ.get('AIRTEL_IQ_USERNAME', '')
     p = os.environ.get('AIRTEL_IQ_PASSWORD', '')
     c = os.environ.get('AIRTEL_IQ_CUSTOMER_ID', '')
@@ -72,10 +89,11 @@ def _load_airtel_iq_creds():
         c = (data.get('customerId') or data.get('customer_id') or c or '').strip()
     except Exception as e:
         logger.warning(f'Airtel IQ creds: Secrets Manager load failed, using env fallback: {e}')
-    return u, p, c
-
-
-AIRTEL_IQ_USERNAME, AIRTEL_IQ_PASSWORD, AIRTEL_IQ_CUSTOMER_ID = _load_airtel_iq_creds()
+        # Not cached: a transient failure must not pin the env fallback for the
+        # life of this execution environment. Retry on the next request.
+        return u, p, c
+    _airtel_iq_cache = (u, p, c)
+    return _airtel_iq_cache
 
 
 # Module-level origin for CORS (set per-invocation in handler)
@@ -433,10 +451,12 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
     - SERVICE_EXPLICIT: Service messages requiring explicit consent
     """
     try:
-        if not AIRTEL_IQ_USERNAME or not AIRTEL_IQ_PASSWORD:
+        airtel_username, airtel_password, airtel_customer_id = _load_airtel_iq_creds()
+
+        if not airtel_username or not airtel_password:
             return {'success': False, 'error': 'Airtel IQ credentials not configured'}
         
-        if not AIRTEL_IQ_CUSTOMER_ID:
+        if not airtel_customer_id:
             return {'success': False, 'error': 'Airtel IQ customer ID not configured'}
         
         # Clean phone number (10 or 12 digits)
@@ -445,7 +465,7 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
             return {'success': False, 'error': 'Invalid phone number format (must be 10 or 12 digits)'}
         
         # Build Basic Auth header
-        credentials = f"{AIRTEL_IQ_USERNAME}:{AIRTEL_IQ_PASSWORD}"
+        credentials = f"{airtel_username}:{airtel_password}"
         auth_header = base64.b64encode(credentials.encode()).decode()
         
         # Determine API endpoint
@@ -453,7 +473,7 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
             # Content Moderation API - include DLT fields for explicit matching
             url = f"https://{AIRTEL_IQ_HOST}/api/v5/send-sms-cm"
             payload = {
-                "customerId": AIRTEL_IQ_CUSTOMER_ID,
+                "customerId": airtel_customer_id,
                 "destinationAddress": [phone_clean],
                 "message": content,
                 "sourceAddress": source_address
@@ -469,7 +489,7 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
             # Enhanced API with full response
             url = f"https://{AIRTEL_IQ_HOST}/api/v6/send-sms"
             payload = {
-                "customerId": AIRTEL_IQ_CUSTOMER_ID,
+                "customerId": airtel_customer_id,
                 "destinationAddress": [phone_clean],
                 "message": content,
                 "sourceAddress": source_address,
@@ -485,7 +505,7 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
             # v4 - Standard DLT compliant API
             url = f"https://{AIRTEL_IQ_HOST}/api/v4/send-sms"
             payload = {
-                "customerId": AIRTEL_IQ_CUSTOMER_ID,
+                "customerId": airtel_customer_id,
                 "destinationAddress": [phone_clean],
                 "message": content,
                 "sourceAddress": source_address,
@@ -501,7 +521,7 @@ def _send_airtel_iq_sms(phone: str, content: str, message_type: str,
         headers = {
             'Content-Type': 'application/json',
             'Authorization': f'Basic {auth_header}',
-            'customerId': AIRTEL_IQ_CUSTOMER_ID
+            'customerId': airtel_customer_id
         }
         
         data = json.dumps(payload).encode('utf-8')

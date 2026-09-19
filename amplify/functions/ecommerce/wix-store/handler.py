@@ -45,21 +45,36 @@ secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_
 WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', 'wecare/wix-api-key')
 
 
+_wix_api_key_cache = ''
+
+
 def _load_wix_api_key() -> str:
+    """Resolve the Wix API key, Secrets Manager first, env as migration fallback.
+
+    Called on first use and cached for the life of the execution environment —
+    deliberately NOT at import time. This function runs with SnapStart
+    (SnapStart.ApplyOn=PublishedVersions), which snapshots module init, so an
+    import-time read freezes the value into the published version and a
+    rotation in Secrets Manager would not take effect until someone
+    republished. See .kiro/steering/lambda-snapstart-deploy.md.
+    """
+    global _wix_api_key_cache
+    if _wix_api_key_cache:
+        return _wix_api_key_cache
     try:
         raw = secrets_client.get_secret_value(SecretId=WIX_API_KEY_SECRET).get('SecretString', '') or ''
         try:
             data = json.loads(raw)
-            return (data.get('api_key') or data.get('apiKey') or data.get('WIX_API_KEY')
-                    or data.get('key') or data.get('value') or '').strip()
+            _wix_api_key_cache = (data.get('api_key') or data.get('apiKey') or data.get('WIX_API_KEY')
+                                  or data.get('key') or data.get('value') or '').strip()
         except (ValueError, TypeError):
-            return raw.strip()  # secret stored as a plain string
+            _wix_api_key_cache = raw.strip()  # secret stored as a plain string
     except Exception as e:
         logger.warning(f'Wix API key: Secrets Manager load failed, falling back to env: {e}')
-        return os.environ.get('WIX_API_KEY', '')
+        _wix_api_key_cache = os.environ.get('WIX_API_KEY', '')
+    return _wix_api_key_cache
 
 
-WIX_API_KEY = _load_wix_api_key()
 WIX_SITE_ID = os.environ.get('WIX_SITE_ID', '')
 WIX_ACCOUNT_ID = os.environ.get('WIX_ACCOUNT_ID', '')
 WIX_API_BASE = os.environ.get('WIX_API_BASE_URL', 'https://www.wixapis.com')
@@ -258,7 +273,7 @@ def _wix_request(endpoint: str, method: str = 'GET', body: dict = None,
     """
     url = f"{WIX_API_BASE}{endpoint}"
     headers = {
-        'Authorization': WIX_API_KEY,
+        'Authorization': _load_wix_api_key(),
         'Content-Type': 'application/json',
         'Accept': 'application/json',
     }
@@ -1047,7 +1062,7 @@ def _import_to_wix_media(url: str, display_name: str, folder: str = 'products') 
     # Use site-media API (different from stores API)
     api_url = f'{WIX_API_BASE}/site-media/v1/files/import'
     headers = {
-        'Authorization': WIX_API_KEY,
+        'Authorization': _load_wix_api_key(),
         'Content-Type': 'application/json',
         'wix-site-id': WIX_SITE_ID,
     }
@@ -1072,7 +1087,7 @@ def _add_product_media_api(product_id: str, wix_media_urls: list) -> Dict[str, A
     media_items = [{'url': u, 'mediaType': 'IMAGE'} for u in wix_media_urls]
     api_url = f'{WIX_API_BASE}/stores/v1/products/{product_id}/media'
     headers = {
-        'Authorization': WIX_API_KEY,
+        'Authorization': _load_wix_api_key(),
         'Content-Type': 'application/json',
         'wix-site-id': WIX_SITE_ID,
     }
