@@ -377,14 +377,12 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   'wecare-voice-aws': [ 'common', 'sms' ],
 
   // === Voice (Airtel IQ — voice-in) ===
-  'wecare-voice-in-c2c': [ 'common', 'secrets', 's3' ],
-  'wecare-voice-in-obd': [ 'common', 'secrets', 's3' ],
+  'wecare-voice-in-c2c': [ 'common', 's3' ],   // provider secret no longer read
+  'wecare-voice-in-obd': [ 'common', 's3' ],   // provider secret no longer read
   'wecare-voice-in-cdr': [ 'common', 's3' ],              // CDR webhook (alias route)
   'wecare-voice-cdr-webhook': [ 'common', 's3' ],          // CDR webhook (primary route)
   'wecare-voice-cdr-read': [ 'common' ],
   'wecare-voice-calls-read': [ 'common' ],                  // alias of voice-cdr-read
-  'wecare-outbound-voice': [ 'common', 'secrets' ],
-  'wecare-voice-calls': [ 'common', 'secrets' ],            // alias of outbound-voice
 
   // === Scheduled & Bulk ===
   'wecare-scheduled-messages': [ 'common', 'lambdaInvoke' ],

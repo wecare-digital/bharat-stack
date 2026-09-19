@@ -709,16 +709,11 @@ export async function listBlockedWhatsAppUsers ( request: { contactId?: string; 
   } );
 }
 
-/**
- * Click-to-call (historical: Airtel C2C bridge, retired 2026-09-19) (rings the agent number, then connects the
- * contact). This is the phone-bridge call — NOT the WhatsApp Calling API.
- */
-export async function initiateClickToCall ( fromNumber: string, toNumber: string, enableRecording = true ): Promise<{ callId?: string; error?: string } | null> {
-  return apiCall<{ callId?: string; error?: string }>( `${API_BASE}/voice-in/c2c`, {
-    method: 'POST',
-    body: JSON.stringify( { fromNumber, toNumber, enableRecording } ),
-  } );
-}
+// Click-to-call initiation was removed on 2026-09-19. It posted to an endpoint
+// that dialled a retired India voice provider and now answers 410. PSTN voice is
+// Plivo, and outbound calling arrives with the Plivo browser softphone behind
+// PSTN_BROWSER_ROUTING_ENABLED. No replacement client function is added here yet,
+// so nothing can call a dialler that does not exist.
 
 // Send a reaction to a WhatsApp message
 export async function sendWhatsAppReaction ( request: SendReactionRequest ): Promise<{ messageId: string; status: string; emoji: string } | null> {

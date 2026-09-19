@@ -167,7 +167,12 @@ SPECS: List[Spec] = [
     Spec("wecare-voice-in-obd", "messaging/voice-in/obd"),
     Spec("wecare-voice-in-cdr", "messaging/voice-in/cdr"),
     Spec("wecare-voice-cdr-read", "messaging/voice-cdr-read"),
-    Spec("wecare-outbound-voice", "messaging/outbound-voice"),
+    # Removed 2026-09-19: wecare-outbound-voice. It was a pure dialler for a
+    # retired India voice provider (click-to-call + outbound dialler) with no
+    # compliant surface to keep. PSTN voice is Plivo; outbound calling arrives
+    # with the Plivo browser softphone behind PSTN_BROWSER_ROUTING_ENABLED.
+    # The DEPLOYED function and its secret still exist and are removed under
+    # separate destructive approval.
     Spec("wecare-plivo-answer", "messaging/plivo-answer"),
     Spec("wecare-elevenlabs-webhook", "messaging/elevenlabs-webhook"),
     # --- messaging / rcs, push, scheduling ---

@@ -180,7 +180,7 @@ export function addBackendResources ( stack: Stack ) {
     'wecare-ai-generate-response', 'wecare-ai-config-management', 'wecare-agent-action-group',
     'wecare-razorpay-webhook', 'wecare-payments-read', 'wecare-invoice-engine',
     'wecare-dlq-replay', 'wecare-contacts', 'wecare-meta-analytics', 'wecare-catalog-management',
-    'wecare-ad-attribution', 'wecare-outbound-sms', 'wecare-outbound-email', 'wecare-outbound-voice',
+    'wecare-ad-attribution', 'wecare-outbound-sms', 'wecare-outbound-email',
     'wecare-sms-aws', 'wecare-voice-aws', 'wecare-voice-in-c2c',
     'wecare-voice-in-obd', 'wecare-voice-in-cdr', 'wecare-voice-cdr-read', 'wecare-billing',
     'wecare-system-cleanup', 'wecare-wix-store', 'wecare-product-image-gen', 'wecare-auth-middleware',

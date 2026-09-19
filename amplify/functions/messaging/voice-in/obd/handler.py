@@ -1,55 +1,36 @@
-"""
-Airtel OBD (Outbound Dialer) Campaign Lambda Function
+"""Legacy outbound-dialler campaign records, IVR prompt audio, and CDR ingestion.
 
-Purpose: Manage bulk voice campaigns via Airtel IQ Telephony API
-Features:
-- Upload audio prompts (16bits 8000Hz Mono WAV only)
-- Upload CSV contact lists with variables
-- Create OBD campaigns with default or custom audio (Info-Only)
-- Store recordings in S3
+    GET    /voice-in/obd                 list historical campaign records
+    DELETE /voice-in/obd                 delete / clear records (retention)
+    POST   /voice-in/obd                 CDR callback ingestion
+    POST   /voice-in/obd/tts             Polly text-to-speech -> 8kHz mono PCM WAV
+    GET    /voice-in/obd/audio-library   list IVR prompt audio in S3
+    POST   /voice-in/obd/audio-library   upload IVR prompt audio to S3
+    DELETE /voice-in/obd/audio-library   remove IVR prompt audio
 
-API Endpoints (Airtel):
-- Upload Audio: POST https://openapi.airtel.in/gateway/airtel-xchange/uploadPrompts?customerId={customerId}
-  Headers: requester-id: ironman, Authorization: Basic {upload_auth}
-  Body: multipart/form-data with files=@"/path/to/file.wav"
-  Response: { audioUrl: "..." } → inject into Create Campaign inputVariables audioURL
+RETIRED 2026-09-19, answering 410:
 
-- Upload CSV: POST https://openapi.airtel.in/gateway/airtel-xchange/campaign-manager-v3/file/s3/upload?customerId={customerId}&campaignType=OBD_CALL
-  Headers: app-id: IRONMAN, Authorization: Basic {upload_auth}
-  Body: multipart/form-data with file=@"contacts.csv"
-  Response: { fileName, headers, firstRow, totalCount } → use fileName in sheetFileNames,
-            headers to build inputCsvMappings
+    /create  /status  /upload-csv  /upload-audio
 
-- Create Campaign: POST https://iqtelephony.airtel.in/gateway/airtel-xchange/campaign-manager/v2/createCampaign
-  Headers: app-id: IRONMAN, Authorization: Basic {campaign_auth}
-  Body: JSON with callFlowConfigV2, inputCsvMappings from upload response
+Those created, populated and polled outbound dialler campaigns on a retired India
+voice provider. Campaign dialling is an outbound-calling capability, and the
+provider policy assigns PSTN voice to Plivo.
 
-Airtel OBD Requirements:
-- Call Flow: Voice (Info-Only)
-- Audio: 16bits 8000Hz Mono WAV only
-- Campaign Type: TRANSACTIONAL always
-- CSV Column: Number (mapped to participantAddress via inputCsvMappings)
-- inputCsvMappings: {"participantAddress": "Number"} (built from upload response headers)
+Deliberately retained, because neither is provider-specific and the voice
+operations UI depends on both:
 
-Literal Placeholder Rule (Do NOT Substitute):
-  The following MUST be treated as fixed literal strings in metaData and must NOT be
-  substituted, interpolated, or mapped from any source:
-  ${campaignId}, ${campaignName}, ${campaignEndTime}, ${dsrId}, ${participantAddress}
+  * Polly text-to-speech, which produces the narrowband WAV the IVR needs;
+  * the S3 prompt audio library.
 
-CDR Callback: https://api.wecare.digital/voice-in/obd
-  serviceId: We_careCDRDetailsService_obd
-  projectId: We_CareCDRDetails_obd
+Both previously also pushed a copy to the provider's prompt store on a
+best-effort basis, and reported the vendor URL as the canonical `audioUrl` even
+when that upload had quietly failed. S3 is now the only destination and `audioUrl`
+is the S3 URL, so the value returned is one that actually exists.
 
-Secrets: wecare/airtel/obd
-Expected secret keys:
-- customer_id: WECAREDIG_v6J1SyLLI2auy7Lw9JrW
-- upload_auth: Base64 token for CSV upload API (campaign-manager-v3/file/s3/upload)
-- audio_upload_auth: Base64 token for audio upload API (uploadPrompts)
-- campaign_auth: Base64 token for createCampaign API
-- app_id: IRONMAN
-- call_flow_id: dfbeda76-f641-420f-95e7-b78d562a941f
-- caller_id: 8040761117 (Fixed Line · Karnataka · Outbound/Inbound)
-- template_id: 69818654d9e8e260e60b16a7
+Historical campaign records remain listable and deletable. Retired vendor
+hostnames and credential identifiers are deliberately not repeated in this file,
+so the provider-policy scan stays high-precision over runtime code.
+See docs/provider-retirement-inventory.md.
 """
 
 import os
@@ -84,37 +65,40 @@ VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceC
 S3_BUCKET = os.environ.get('S3_BUCKET', 'app.wecare.digital')
 S3_RECORDING_PREFIX = 'stack/voice/'
 S3_OBD_AUDIO_PREFIX = 'stack/voice/obd-audio/'
-AIRTEL_OBD_SECRET_NAME = os.environ.get('AIRTEL_OBD_SECRET_NAME', 'wecare/airtel/obd')
 TTL_DAYS = 90
 
-# Airtel audio spec
-AIRTEL_SAMPLE_RATE = 8000
-AIRTEL_CHANNELS = 1
-AIRTEL_BITS_PER_SAMPLE = 16
-
-# API Hosts
-AIRTEL_OPENAPI_HOST = 'openapi.airtel.in'
-AIRTEL_IQTELEPHONY_HOST = 'iqtelephony.airtel.in'
-AIRTEL_DEFAULT_AUDIO_URL = 'https://openapi.airtel.in/gateway/airtel-xchange/assets/audios/global/Default_Airtel_Jingle.wav'
+# Audio spec for generated IVR prompts: 8 kHz, mono, 16-bit PCM WAV. These are
+# narrowband telephony constraints, not any one vendor's, and the WAV
+# conversion still needs them for the S3 audio library.
+PROMPT_SAMPLE_RATE = 8000
+PROMPT_CHANNELS = 1
+PROMPT_BITS_PER_SAMPLE = 16
 
 # Cached secrets
 _secrets_cache = None
 
 
-def _get_secrets() -> Dict[str, str]:
-    """Fetch Airtel OBD credentials from Secrets Manager (cached)."""
-    global _secrets_cache
-    if _secrets_cache is not None:
-        return _secrets_cache
-    
-    try:
-        response = secrets_client.get_secret_value(SecretId=AIRTEL_OBD_SECRET_NAME)
-        _secrets_cache = json.loads(response['SecretString'])
-        logger.info(f"Loaded secrets from {AIRTEL_OBD_SECRET_NAME}")
-        return _secrets_cache
-    except Exception as e:
-        logger.error(f"Failed to load secrets: {str(e)}")
-        return {}
+# _get_secrets() removed: the retired provider credential is no longer read
+# here. The secret still exists in Secrets Manager with no reader and is
+# deleted under separate destructive approval.
+
+
+def _retired_campaign_endpoint(path: str, request_id: str) -> Dict[str, Any]:
+    """410 for the outbound-dialler endpoints retired with the provider."""
+    logger.warning(json.dumps({
+        'event': 'obd_campaign_endpoint_removed',
+        'path': path,
+        'requestId': request_id,
+    }))
+    return _response(410, {
+        'error': 'Outbound dialler campaign management has been removed.',
+        'errorCode': 'ENDPOINT_REMOVED',
+        'detail': ('These endpoints created, populated and polled campaigns on a '
+                   'retired India voice provider. PSTN voice is now Plivo. '
+                   'Historical campaign records remain listable and deletable, '
+                   'and text-to-speech plus the S3 audio library are '
+                   'unaffected.'),
+    })
 
 
 # Module-level origin for CORS (set per-invocation in handler)
@@ -139,7 +123,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _response(200, {'message': 'OK'})
         
         # Detect Airtel CDR callback (Airtel sends OBD CDR callbacks to this endpoint)
-        if http_method == 'POST' and _is_airtel_cdr_callback(body):
+        if http_method == 'POST' and _is_cdr_callback(body):
             return _handle_cdr_callback(body, request_id)
 
         if '/tts' in path:
@@ -151,15 +135,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _upload_to_audio_library(body, request_id)
             elif http_method == 'DELETE':
                 return _delete_audio_library_file(body, query_params, request_id)
-        elif '/upload-audio' in path:
-            return _upload_audio(body, event, request_id)
-        elif '/upload-csv' in path:
-            return _upload_csv(body, request_id)
-        elif '/create' in path:
-            return _create_campaign(body, request_id)
-        elif '/status' in path:
-            campaign_id = event.get('pathParameters', {}).get('campaignId') or body.get('campaignId')
-            return _get_campaign_status(campaign_id, request_id)
+        # Campaign creation and provider uploads are gone. Answer explicitly
+        # rather than 404, so an operator sees why the capability disappeared.
+        elif ('/upload-audio' in path or '/upload-csv' in path
+              or '/create' in path or '/status' in path):
+            return _retired_campaign_endpoint(path, request_id)
         elif '/list' in path or http_method == 'GET':
             return _list_campaigns(query_params, request_id)
         elif '/clear-logs' in path:
@@ -175,7 +155,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 # Support clear-logs via POST body action
                 if body.get('clearAll') or body.get('_action') == 'clear-logs':
                     return _clear_logs(body, request_id)
-                return _create_campaign(body, request_id)
+                return _retired_campaign_endpoint(path, request_id)
             if http_method == 'DELETE':
                 campaign_id = query_params.get('campaignId')
                 return _delete_campaign(campaign_id, False, request_id)
@@ -231,7 +211,7 @@ def _parse_wav_header(data: bytes) -> Dict:
     }
 
 
-def _convert_wav_to_airtel_spec(audio_bytes: bytes, request_id: str) -> Dict:
+def _convert_wav_to_prompt_spec(audio_bytes: bytes, request_id: str) -> Dict:
     """
     Validate and convert WAV to Airtel spec: 16-bit 8kHz Mono PCM WAV.
     
@@ -252,9 +232,9 @@ def _convert_wav_to_airtel_spec(audio_bytes: bytes, request_id: str) -> Dict:
     
     already_compliant = (
         info['isPCM'] and
-        info['channels'] == AIRTEL_CHANNELS and
-        info['sampleRate'] == AIRTEL_SAMPLE_RATE and
-        info['bitsPerSample'] == AIRTEL_BITS_PER_SAMPLE
+        info['channels'] == PROMPT_CHANNELS and
+        info['sampleRate'] == PROMPT_SAMPLE_RATE and
+        info['bitsPerSample'] == PROMPT_BITS_PER_SAMPLE
     )
     
     ch_label = 'Mono' if info['channels'] == 1 else ('Stereo' if info['channels'] == 2 else str(info['channels']) + 'ch')
@@ -316,9 +296,9 @@ def _convert_wav_to_airtel_spec(audio_bytes: bytes, request_id: str) -> Dict:
             samples = mono_samples
         
         # Step 3: Resample to 8000Hz using linear interpolation
-        if src_rate != AIRTEL_SAMPLE_RATE:
+        if src_rate != PROMPT_SAMPLE_RATE:
             src_len = len(samples)
-            ratio = src_rate / AIRTEL_SAMPLE_RATE
+            ratio = src_rate / PROMPT_SAMPLE_RATE
             dst_len = int(src_len / ratio)
             resampled = []
             for i in range(dst_len):
@@ -337,16 +317,16 @@ def _convert_wav_to_airtel_spec(audio_bytes: bytes, request_id: str) -> Dict:
         
         # Step 5: Build compliant WAV
         pcm_out = struct.pack(f'<{len(samples)}h', *samples)
-        byte_rate = AIRTEL_SAMPLE_RATE * AIRTEL_CHANNELS * AIRTEL_BITS_PER_SAMPLE // 8
-        block_align = AIRTEL_CHANNELS * AIRTEL_BITS_PER_SAMPLE // 8
+        byte_rate = PROMPT_SAMPLE_RATE * PROMPT_CHANNELS * PROMPT_BITS_PER_SAMPLE // 8
+        block_align = PROMPT_CHANNELS * PROMPT_BITS_PER_SAMPLE // 8
         wav_header = struct.pack('<4sI4s4sIHHIIHH4sI',
             b'RIFF', 36 + len(pcm_out), b'WAVE',
-            b'fmt ', 16, 1, AIRTEL_CHANNELS, AIRTEL_SAMPLE_RATE, byte_rate, block_align, AIRTEL_BITS_PER_SAMPLE,
+            b'fmt ', 16, 1, PROMPT_CHANNELS, PROMPT_SAMPLE_RATE, byte_rate, block_align, PROMPT_BITS_PER_SAMPLE,
             b'data', len(pcm_out)
         )
         converted_wav = wav_header + pcm_out
         
-        target_desc = f"{AIRTEL_SAMPLE_RATE}Hz {AIRTEL_BITS_PER_SAMPLE}bit Mono PCM"
+        target_desc = f"{PROMPT_SAMPLE_RATE}Hz {PROMPT_BITS_PER_SAMPLE}bit Mono PCM"
         report = f"Converted: {orig_desc} → {target_desc} ({len(audio_bytes)} → {len(converted_wav)} bytes)"
         
         logger.info(json.dumps({
@@ -367,145 +347,17 @@ def _convert_wav_to_airtel_spec(audio_bytes: bytes, request_id: str) -> Dict:
         return {'converted': False, 'compliant': False, 'audioBytes': audio_bytes, 'originalInfo': info, 'error': f'Conversion failed: {str(e)}', 'report': f'Conversion error: {str(e)}'}
 
 
-def _upload_audio(body: Dict, event: Dict, request_id: str) -> Dict[str, Any]:
-    """
-    Upload audio prompt to Airtel for OBD campaigns.
-    
-    Airtel API: POST https://openapi.airtel.in/gateway/airtel-xchange/uploadPrompts?customerId={customerId}
-    Headers: requester-id: ironman, Authorization: Basic {upload_auth}
-    Body: multipart/form-data with files=@"/path/to/file.wav"
-    
-    Audio Requirements: 16bits 8000Hz Mono WAV only
-    
-    The audioUrl from the response MUST be injected into the Create Campaign API
-    inputVariables as the "audioURL" value.
-    
-    Request body options:
-    - audioData: base64-encoded WAV file content
-    - audioS3Key: S3 key to fetch audio from (bucket: app.wecare.digital)
-    - fileName: optional custom filename (default: obd_audio_{timestamp}.wav)
-    """
-    try:
-        secrets = _get_secrets()
-        customer_id = secrets.get('customer_id')
-        # Audio upload uses audio_upload_auth with requester-id header
-        auth_token = secrets.get('audio_upload_auth', secrets.get('upload_auth', ''))
-        
-        if not customer_id or not auth_token:
-            return _response(500, {'error': 'Airtel OBD credentials not configured'})
-        
-        audio_data = body.get('audioData')  # base64 encoded
-        audio_s3_key = body.get('audioS3Key')
-        file_name = body.get('fileName', f'obd_audio_{int(time.time())}.wav')
-        
-        if audio_data:
-            audio_bytes = base64.b64decode(audio_data)
-        elif audio_s3_key:
-            response = s3.get_object(Bucket=S3_BUCKET, Key=audio_s3_key)
-            audio_bytes = response['Body'].read()
-        else:
-            return _response(400, {'error': 'audioData (base64) or audioS3Key is required'})
-        
-        # Validate and auto-convert to Airtel spec (16-bit 8kHz Mono PCM WAV)
-        conv = _convert_wav_to_airtel_spec(audio_bytes, request_id)
-        if conv.get('error') and not conv.get('compliant'):
-            return _response(400, {'error': conv['error'], 'report': conv['report'], 'originalInfo': conv.get('originalInfo')})
-        audio_bytes = conv['audioBytes']
-        
-        # Store converted file in S3 for download
-        converted_s3_key = f'{S3_OBD_AUDIO_PREFIX}{file_name}'
-        s3.put_object(Bucket=S3_BUCKET, Key=converted_s3_key, Body=audio_bytes, ContentType='audio/wav')
-        download_url = f'https://{S3_BUCKET}/{converted_s3_key}'
-        
-        # Upload to Airtel uploadPrompts API
-        # Endpoint: POST https://openapi.airtel.in/gateway/airtel-xchange/uploadPrompts?customerId={customerId}
-        # Headers: requester-id: ironman, Authorization: Basic {audio_upload_auth}
-        url = f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/uploadPrompts?customerId={customer_id}"
-        boundary = f'----WebKitFormBoundary{uuid.uuid4().hex[:16]}'
-        
-        body_parts = [
-            f'--{boundary}'.encode(),
-            f'Content-Disposition: form-data; name="files"; filename="{file_name}"'.encode(),
-            b'Content-Type: audio/wav',
-            b'',
-            audio_bytes,
-            f'--{boundary}--'.encode()
-        ]
-        
-        headers = {
-            'Content-Type': f'multipart/form-data; boundary={boundary}',
-            'Authorization': f'Basic {auth_token}',
-            'requester-id': 'ironman'
-        }
-        
-        req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
-        
-        logger.info(json.dumps({
-            'event': 'obd_upload_audio',
-            'url': url,
-            'fileName': file_name,
-            'sizeBytes': len(audio_bytes),
-            'requestId': request_id
-        }))
-        
-        # Try upload with retry (Airtel uploadPrompts can be slow)
-        audio_url = ''
-        last_error = ''
-        for attempt in range(2):
-            try:
-                req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
-                with urllib.request.urlopen(req, timeout=60) as response:
-                    result = json.loads(response.read().decode('utf-8'))
-                    audio_url = _extract_audio_url(result)
-                    
-                    logger.info(json.dumps({
-                        'event': 'obd_audio_uploaded',
-                        'audioUrl': audio_url,
-                        'result': result,
-                        'attempt': attempt + 1,
-                        'requestId': request_id
-                    }))
-                    break
-            except Exception as upload_err:
-                last_error = str(upload_err)
-                logger.warning(f"Audio upload attempt {attempt + 1} failed: {last_error}")
-                if attempt == 0:
-                    time.sleep(2)
-        
-        if not audio_url and last_error:
-            logger.error(f"Audio upload failed after retries: {last_error}")
-            return _response(500, {
-                'error': f'Audio upload to Airtel failed: {last_error}',
-                'downloadUrl': download_url,
-                'sizeBytes': len(audio_bytes),
-                'converted': conv.get('converted', False),
-                'conversionReport': conv.get('report', ''),
-            })
-        
-        return _response(200, {
-            'success': True,
-            'fileName': file_name,
-            'audioUrl': audio_url,
-            'sizeBytes': len(audio_bytes),
-            'downloadUrl': download_url,
-            'converted': conv.get('converted', False),
-            'conversionReport': conv.get('report', ''),
-        })
-            
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode('utf-8') if e.fp else ''
-        logger.error(f"Audio upload error: {e.code} - {error_body}")
-        return _response(e.code, {'error': f'Airtel API error: {error_body[:200]}'})
-    except Exception as e:
-        logger.error(f"Audio upload error: {str(e)}")
-        return _response(500, {'error': str(e)})
+# _upload_audio() removed 2026-09-19: it uploaded IVR prompts to the retired
+# provider's prompt store. Polly text-to-speech (_text_to_audio) and the S3
+# audio library further down are NOT provider-specific and are retained - the
+# voice operations UI depends on both.
 
 
 def _text_to_audio(body: Dict, request_id: str) -> Dict[str, Any]:
     """Convert text to speech using AWS Polly, store WAV in S3.
 
     Generates 16-bit 8kHz Mono WAV (Airtel requirement) via Polly,
-    stores in S3, then uploads to Airtel uploadPrompts API.
+    stores the result in S3. S3 is the only destination.
 
     Request body:
     - text: The text to convert to speech (required, max 3000 chars)
@@ -567,35 +419,10 @@ def _text_to_audio(body: Dict, request_id: str) -> Dict[str, Any]:
             'requestId': request_id
         }))
 
-        # Upload to Airtel uploadPrompts
-        secrets = _get_secrets()
-        customer_id = secrets.get('customer_id')
-        # Audio upload uses audio_upload_auth with requester-id header
-        auth_token = secrets.get('audio_upload_auth', secrets.get('upload_auth', ''))
-
-        audio_url = ''
-        if customer_id and auth_token:
-            try:
-                url = f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/uploadPrompts?customerId={customer_id}"
-                boundary = f'----WebKitFormBoundary{uuid.uuid4().hex[:16]}'
-                body_parts = [
-                    f'--{boundary}'.encode(),
-                    f'Content-Disposition: form-data; name="files"; filename="{file_name}"'.encode(),
-                    b'Content-Type: audio/wav', b'',
-                    wav_bytes,
-                    f'--{boundary}--'.encode()
-                ]
-                headers = {
-                    'Content-Type': f'multipart/form-data; boundary={boundary}',
-                    'Authorization': f'Basic {auth_token}',
-                    'requester-id': 'ironman'
-                }
-                req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
-                with urllib.request.urlopen(req, timeout=60) as response:
-                    result = json.loads(response.read().decode('utf-8'))
-                    audio_url = _extract_audio_url(result)
-            except Exception as upload_err:
-                logger.warning(f"Airtel upload failed (will use S3): {str(upload_err)}")
+        # The provider prompt upload that used to run here is gone. S3 is the
+        # only destination now, so audioUrl is the S3 URL rather than a
+        # vendor-hosted one that may or may not have succeeded.
+        audio_url = f'https://{S3_BUCKET}/{s3_key}'
 
         return _response(200, {
             'success': True,
@@ -614,377 +441,15 @@ def _text_to_audio(body: Dict, request_id: str) -> Dict[str, Any]:
 
 
 
-def _upload_csv(body: Dict, request_id: str) -> Dict[str, Any]:
-    """Upload CSV contact list to Airtel with variable support.
-    
-    Airtel API: POST https://openapi.airtel.in/gateway/airtel-xchange/campaign-manager-v3/file/s3/upload
-    Query params: customerId={customerId}&campaignType=OBD_CALL
-    Headers: app-id: IRONMAN, Authorization: Basic {upload_auth}
-    Body: multipart/form-data with file=@"contacts.csv"
-    
-    CSV column must be 'Number' (not 'participantNumber').
-    The inputCsvMappings in createCampaign maps: {"participantAddress": "Number"}
-    
-    Response includes fileName, headers, firstRow, totalCount which should be used
-    when creating the campaign:
-    - fileName → sheetFileNames array
-    - headers → build inputCsvMappings (e.g. {"participantAddress": "Number"})
-    - firstRow → sample values for validation
-    - totalCount → validate > 0 before creating campaign
-    """
-    try:
-        secrets = _get_secrets()
-        customer_id = secrets.get('customer_id')
-        # CSV upload uses upload_auth with app-id header
-        auth_token = secrets.get('upload_auth', '')
-        app_id = secrets.get('app_id', 'IRONMAN')
-        
-        if not customer_id or not auth_token:
-            return _response(500, {'error': 'Airtel OBD credentials not configured'})
-        
-        contacts = body.get('contacts', [])
-        variables = body.get('variables', {})  # {phone: {var1: val1, var2: val2}}
-        csv_url = body.get('csvUrl')
-        csv_data = body.get('csvData')
-        
-        if contacts:
-            # Build CSV with 'Number' column (Airtel requirement per actual API)
-            var_names = []
-            if variables:
-                for phone, vars_dict in variables.items():
-                    var_names.extend(vars_dict.keys())
-                var_names = list(set(var_names))
-            
-            if var_names:
-                header = "Number," + ",".join(var_names)
-                rows = []
-                for contact in contacts:
-                    clean_phone = _clean_phone(contact)
-                    if not clean_phone:
-                        continue
-                    phone_vars = variables.get(contact, variables.get(clean_phone, {}))
-                    var_values = [str(phone_vars.get(v, '')) for v in var_names]
-                    rows.append(f"{clean_phone},{','.join(var_values)}")
-                csv_content = header + "\n" + "\n".join(rows)
-            else:
-                csv_content = "Number\n" + "\n".join([_clean_phone(c) for c in contacts if _clean_phone(c)])
-            csv_bytes = csv_content.encode('utf-8')
-        elif csv_url and csv_url.startswith('s3://'):
-            parts = csv_url.replace('s3://', '').split('/', 1)
-            response = s3.get_object(Bucket=parts[0], Key=parts[1] if len(parts) > 1 else '')
-            csv_bytes = response['Body'].read()
-        elif csv_data:
-            csv_bytes = base64.b64decode(csv_data)
-        else:
-            return _response(400, {'error': 'contacts, csvUrl, or csvData is required'})
-        
-        file_name = f'obd_contacts_{int(time.time())}.csv'
-        url = f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/campaign-manager-v3/file/s3/upload?customerId={customer_id}&campaignType=OBD_CALL"
-        
-        boundary = f'----WebKitFormBoundary{uuid.uuid4().hex[:16]}'
-        body_parts = [
-            f'--{boundary}'.encode(),
-            f'Content-Disposition: form-data; name="file"; filename="{file_name}"'.encode(),
-            b'Content-Type: text/csv', b'',
-            csv_bytes,
-            f'--{boundary}--'.encode()
-        ]
-        
-        headers = {
-            'Content-Type': f'multipart/form-data; boundary={boundary}',
-            'Authorization': f'Basic {auth_token}',
-            'app-id': app_id
-        }
-        
-        req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
-        
-        with urllib.request.urlopen(req, timeout=60) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            uploaded_name = result.get('fileName') or result.get('sheetFileName') or file_name
-            resp_headers = result.get('headers', [])
-            first_row = result.get('firstRow', {})
-            total_count = result.get('totalCount', len(contacts) if contacts else 0)
-            return _response(200, {
-                'success': True,
-                'fileName': uploaded_name,
-                'headers': resp_headers,
-                'firstRow': first_row,
-                'totalCount': total_count,
-                'contactCount': len(contacts) if contacts else None,
-                'variableColumns': var_names if var_names else None,
-                'result': result
-            })
-            
-    except Exception as e:
-        logger.error(f"CSV upload error: {str(e)}")
-        return _response(500, {'error': str(e)})
-
-
-
-def _create_campaign(body: Dict, request_id: str) -> Dict[str, Any]:
-    """Create OBD campaign via Airtel API.
-    
-    Airtel API: POST https://iqtelephony.airtel.in/gateway/airtel-xchange/campaign-manager/v2/createCampaign
-    Headers: app-id: IRONMAN, Authorization: Basic {campaign_auth}, Content-Type: application/json
-    
-    Airtel OBD Requirements:
-    - Call Flow: Voice (Info-Only) - plays audio and disconnects
-    - Audio: 16bits 8000Hz Mono WAV only
-    - Campaign Type: TRANSACTIONAL always
-    - CSV Column: Number (mapped to participantAddress via inputCsvMappings)
-    
-    Uses upload response data:
-    - response.fileName → sheetFileNames array
-    - response.headers → build inputCsvMappings (e.g. {"participantAddress": "Number"})
-    - Validate response.totalCount > 0 before creating
-    
-    Literal Placeholder Rule (Do NOT Substitute):
-    ${campaignId}, ${campaignName}, ${campaignEndTime}, ${dsrId}, ${participantAddress}
-    These are fixed literal strings resolved by Airtel at runtime.
-    """
-    try:
-        secrets = _get_secrets()
-        customer_id = secrets.get('customer_id')
-        # Create campaign uses campaign_auth with app-id header
-        campaign_auth = secrets.get('campaign_auth', '')
-        app_id = secrets.get('app_id', 'IRONMAN')
-        call_flow_id = secrets.get('call_flow_id', 'dfbeda76-f641-420f-95e7-b78d562a941f')
-        caller_id = secrets.get('caller_id', '8040761117')
-        template_id = secrets.get('template_id', '69818654d9e8e260e60b16a7')
-        
-        if not customer_id or not campaign_auth:
-            return _response(500, {'error': 'Airtel OBD credentials not configured'})
-        
-        campaign_name = body.get('campaignName', f'OBD_Campaign_{int(time.time())}')
-        contacts = body.get('contacts', [])
-        variables = body.get('variables', {})  # {phone: {var1: val1, var2: val2}}
-        sheet_file_names = body.get('sheetFileNames', [])
-        input_csv_mappings = body.get('inputCsvMappings', {})
-        caller_id = body.get('callerId', caller_id)
-        retry_count = body.get('retryCount', 3)
-        
-        # Use custom audio URL if provided, otherwise default Airtel jingle
-        audio_url = body.get('audioUrl', AIRTEL_DEFAULT_AUDIO_URL)
-        
-        # Start/end time (epoch ms UTC) — 5 min from now to allow Airtel scheduling, end in 24 hours
-        start_time = body.get('startTime', int(time.time() * 1000) + (5 * 60 * 1000))  # 5 min from now
-        end_time = body.get('endTime', start_time + (24 * 3600 * 1000))  # 24 hours
-        
-        # Upload CSV if contacts provided and no sheetFileNames already uploaded
-        if contacts and not sheet_file_names:
-            csv_result = _upload_csv_internal(contacts, variables, secrets, request_id)
-            if not csv_result.get('success'):
-                return _response(500, {'error': csv_result.get('error', 'Failed to upload contacts')})
-            sheet_file_names = [csv_result.get('fileName')]
-            # Build inputCsvMappings from upload response headers if not provided
-            if not input_csv_mappings:
-                upload_headers = csv_result.get('headers', [])
-                if 'Number' in upload_headers:
-                    input_csv_mappings = {"participantAddress": "Number"}
-                else:
-                    input_csv_mappings = {"participantAddress": "Number"}
-            # Validate totalCount > 0
-            total_count = csv_result.get('totalCount', 0)
-            if total_count == 0 and contacts:
-                logger.warning(f"Upload returned totalCount=0 but {len(contacts)} contacts were sent")
-        
-        # Store contact count from body if provided (when CSV was uploaded separately)
-        contact_count = body.get('contactCount', len(contacts) if contacts else 0)
-        
-        if not sheet_file_names:
-            return _response(400, {'error': 'contacts or sheetFileNames is required'})
-        
-        # Default inputCsvMappings if not set
-        if not input_csv_mappings:
-            input_csv_mappings = {"participantAddress": "Number"}
-        
-        campaign_id = str(uuid.uuid4())
-        
-        # Build input variables for call flow
-        # participantAddress: use first contact number as default — CSV mapping overrides at runtime
-        first_contact = body.get('firstContact', '')
-        if not first_contact and contacts:
-            first_contact = _clean_phone(contacts[0])
-        if not first_contact:
-            first_contact = caller_id  # fallback to caller_id
-        
-        input_variables = [
-            {"name": "participantAddress", "value": first_contact, "type": "phoneNumber"},
-            {"name": "callerId", "value": caller_id, "type": "phoneNumber"},
-            {"name": "audioURL", "value": audio_url, "type": "string"}
-        ]
-        
-        # IMPORTANT: metaData placeholders are LITERAL strings resolved by Airtel at runtime.
-        # Do NOT substitute, interpolate, or map these from any source.
-        payload = {
-            "customerId": customer_id,
-            "templateId": template_id,
-            "campaignName": campaign_name,
-            "startTime": start_time,
-            "endTime": end_time,
-            "sheetFileNames": sheet_file_names,
-            "campaignData": {
-                "customerId": customer_id,
-                "messageType": "TRANSACTIONAL",
-                "callBackQueueActive": True,
-                "callType": "OUTBOUND",
-                "additionalObjectsForRequestBody": {
-                    "metaData": {
-                        "Channel": "OBD",
-                        "campaignId": "${campaignId}",
-                        "campaignName": "${campaignName}",
-                        "campaignEndTime": "${campaignEndTime}",
-                        "dsrId": "${dsrId}",
-                        "isV2": True
-                    },
-                    "callFlowConfigV2": {
-                        "callFlowId": call_flow_id,
-                        "inputVariables": input_variables,
-                        "callBackURLs": [
-                            {"notifyURL": "queue", "eventType": "CALL"},
-                            {
-                                "eventType": "CDR",
-                                "notifyURL": "https://api.wecare.digital/voice-in/obd",
-                                "method": "POST",
-                                "serviceId": "We_careCDRDetailsService_obd",
-                                "projectId": "We_CareCDRDetails_obd",
-                                "headers": {"a": "b"}
-                            }
-                        ]
-                    }
-                }
-            },
-            "inputCsvMappings": input_csv_mappings,
-            "campaignType": "OBD_CALL",
-            "retryDetail": {
-                "maxRetryCount": retry_count,
-                "retryConfig": {"retryType": "FIXED_INTERVAL", "retryIntervalList": [300, 600, 900]},
-                "retryCountToEventMap": {"1": ["default"], "2": ["busy", "Noanswer"], "3": ["busy", "Noanswer"]}
-            }
-        }
-        
-        url = f"https://{AIRTEL_IQTELEPHONY_HOST}/gateway/airtel-xchange/campaign-manager/v2/createCampaign"
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Basic {campaign_auth}',
-            'app-id': app_id
-        }
-        
-        logger.info(json.dumps({
-            'event': 'obd_create_campaign',
-            'campaignName': campaign_name,
-            'contactCount': len(contacts),
-            'sheetFileNames': sheet_file_names,
-            'requestId': request_id
-        }))
-        
-        req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers, method='POST')
-        
-        with urllib.request.urlopen(req, timeout=60) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            airtel_campaign_id = result.get('campaignId') or result.get('id')
-            
-            _store_campaign(campaign_id, campaign_name, airtel_campaign_id, sheet_file_names, audio_url, contact_count)
-            
-            return _response(200, {
-                'success': True,
-                'campaignId': campaign_id,
-                'airtelCampaignId': airtel_campaign_id,
-                'campaignName': campaign_name,
-                'contactCount': contact_count,
-                'status': 'created'
-            })
-            
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode('utf-8') if e.fp else ''
-        logger.error(f"Campaign create error: {e.code} - {error_body}")
-        return _response(e.code, {'error': f'Airtel API error: {error_body[:200]}'})
-    except Exception as e:
-        logger.error(f"Campaign create error: {str(e)}")
-        return _response(500, {'error': str(e)})
-
-
-def _upload_csv_internal(contacts: List[str], variables: Dict, secrets: Dict, request_id: str) -> Dict[str, Any]:
-    """Internal CSV upload helper with variable support. CSV column: Number.
-    
-    Returns: {success, fileName, headers, firstRow, totalCount}
-    """
-    try:
-        customer_id = secrets.get('customer_id')
-        # CSV upload uses upload_auth with app-id header
-        auth_token = secrets.get('upload_auth', '')
-        app_id = secrets.get('app_id', 'IRONMAN')
-        
-        # Get variable names
-        var_names = []
-        if variables:
-            for phone_vars in variables.values():
-                var_names.extend(phone_vars.keys())
-            var_names = list(set(var_names))
-        
-        # Build CSV with 'Number' column (Airtel requirement per actual API)
-        if var_names:
-            header = "Number," + ",".join(var_names)
-            rows = []
-            for contact in contacts:
-                clean_phone = _clean_phone(contact)
-                if not clean_phone:
-                    continue
-                phone_vars = variables.get(contact, variables.get(clean_phone, {}))
-                var_values = [str(phone_vars.get(v, '')) for v in var_names]
-                rows.append(f"{clean_phone},{','.join(var_values)}")
-            csv_content = header + "\n" + "\n".join(rows)
-        else:
-            csv_content = "Number\n" + "\n".join([_clean_phone(c) for c in contacts if _clean_phone(c)])
-        
-        csv_bytes = csv_content.encode('utf-8')
-        file_name = f'obd_contacts_{int(time.time())}.csv'
-        
-        url = f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/campaign-manager-v3/file/s3/upload?customerId={customer_id}&campaignType=OBD_CALL"
-        boundary = f'----WebKitFormBoundary{uuid.uuid4().hex[:16]}'
-        
-        body_parts = [
-            f'--{boundary}'.encode(),
-            f'Content-Disposition: form-data; name="file"; filename="{file_name}"'.encode(),
-            b'Content-Type: text/csv', b'', csv_bytes, f'--{boundary}--'.encode()
-        ]
-        
-        headers = {
-            'Content-Type': f'multipart/form-data; boundary={boundary}',
-            'Authorization': f'Basic {auth_token}',
-            'app-id': app_id
-        }
-        
-        req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
-        
-        with urllib.request.urlopen(req, timeout=60) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            return {
-                'success': True,
-                'fileName': result.get('fileName') or result.get('sheetFileName') or file_name,
-                'headers': result.get('headers', []),
-                'firstRow': result.get('firstRow', {}),
-                'totalCount': result.get('totalCount', len(contacts))
-            }
-    except Exception as e:
-        return {'success': False, 'error': str(e)}
-
-
-def _get_campaign_status(campaign_id: str, request_id: str) -> Dict[str, Any]:
-    """Get campaign status."""
-    try:
-        if not campaign_id:
-            return _response(400, {'error': 'campaignId is required'})
-        
-        table = dynamodb.Table(OBD_CAMPAIGNS_TABLE)
-        result = table.get_item(Key={'id': campaign_id})
-        campaign = result.get('Item')
-        
-        if campaign:
-            return _response(200, {'campaign': _normalize_campaign(campaign)})
-        return _response(404, {'error': 'Campaign not found'})
-    except Exception as e:
-        return _response(500, {'error': str(e)})
+# Removed 2026-09-19, with the outbound dialler:
+#   _upload_csv()          pushed a contact sheet to the provider's file API
+#   _create_campaign()     created the campaign on the provider
+#   _upload_csv_internal() the same upload, called from campaign creation
+#   _get_campaign_status() polled the provider for campaign progress
+#
+# All four called a retired India voice provider. Campaign dialling is an
+# outbound-calling capability, which the provider policy assigns to Plivo.
+# Historical campaign records are still listed, read and deleted below.
 
 
 def _list_campaigns(params: Dict, request_id: str) -> Dict[str, Any]:
@@ -1138,7 +603,7 @@ def _list_audio_library(params: Dict, request_id: str) -> Dict[str, Any]:
                         sr = parsed['sampleRate']
                         ch = parsed['channels']
                         bits = parsed['bitsPerSample']
-                        compliant = (parsed['isPCM'] and sr == AIRTEL_SAMPLE_RATE and ch == AIRTEL_CHANNELS and bits == AIRTEL_BITS_PER_SAMPLE)
+                        compliant = (parsed['isPCM'] and sr == PROMPT_SAMPLE_RATE and ch == PROMPT_CHANNELS and bits == PROMPT_BITS_PER_SAMPLE)
                         format_info = {
                             'sampleRate': sr,
                             'channels': ch,
@@ -1171,7 +636,8 @@ def _upload_to_audio_library(body: Dict, request_id: str) -> Dict[str, Any]:
     """Upload audio file to S3 obd-audio library.
     
     Stores in s3://app.wecare.digital/stack/voice/obd-audio/{fileName}
-    Also optionally uploads to Airtel uploadPrompts API.
+    Stores in S3 only. The best-effort upload to a retired provider's prompt
+    store was removed on 2026-09-19.
     
     Request body:
     - audioData: base64-encoded WAV file content (required)
@@ -1189,7 +655,7 @@ def _upload_to_audio_library(body: Dict, request_id: str) -> Dict[str, Any]:
         file_name = file_name.replace('/', '_').replace('\\', '_')
         
         # Validate and auto-convert to Airtel spec (16-bit 8kHz Mono PCM WAV)
-        conv = _convert_wav_to_airtel_spec(audio_bytes, request_id)
+        conv = _convert_wav_to_prompt_spec(audio_bytes, request_id)
         conversion_report = conv.get('report', '')
         was_converted = conv.get('converted', False)
         if conv.get('error') and not conv.get('compliant'):
@@ -1209,43 +675,17 @@ def _upload_to_audio_library(body: Dict, request_id: str) -> Dict[str, Any]:
             'requestId': request_id
         }))
         
-        # Optionally upload to Airtel
-        airtel_audio_url = ''
-        upload_to_airtel = body.get('uploadToAirtel', True)
-        if upload_to_airtel:
-            secrets = _get_secrets()
-            customer_id = secrets.get('customer_id')
-            auth_token = secrets.get('audio_upload_auth', secrets.get('upload_auth', ''))
-            if customer_id and auth_token:
-                try:
-                    url = f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/uploadPrompts?customerId={customer_id}"
-                    boundary = f'----WebKitFormBoundary{uuid.uuid4().hex[:16]}'
-                    body_parts = [
-                        f'--{boundary}'.encode(),
-                        f'Content-Disposition: form-data; name="files"; filename="{file_name}"'.encode(),
-                        b'Content-Type: audio/wav', b'',
-                        audio_bytes,
-                        f'--{boundary}--'.encode()
-                    ]
-                    headers = {
-                        'Content-Type': f'multipart/form-data; boundary={boundary}',
-                        'Authorization': f'Basic {auth_token}',
-                        'requester-id': 'ironman'
-                    }
-                    req = urllib.request.Request(url, data=b'\r\n'.join(body_parts), headers=headers, method='POST')
-                    with urllib.request.urlopen(req, timeout=120) as resp:
-                        result = json.loads(resp.read().decode('utf-8'))
-                        airtel_audio_url = _extract_audio_url(result)
-                except Exception as upload_err:
-                    logger.warning(f"Airtel upload failed (S3 copy saved): {str(upload_err)}")
-        
+        # The provider prompt upload that used to run here is gone. The S3 copy
+        # above is now the only destination, and it is the one the audio library
+        # and the IVR actually read.
+
         return _response(200, {
             'success': True,
             'fileName': file_name,
             's3Key': s3_key,
             'publicUrl': f'https://{S3_BUCKET}/{s3_key}',
             'downloadUrl': f'https://{S3_BUCKET}/{s3_key}',
-            'airtelAudioUrl': airtel_audio_url,
+            'audioUrl': f'https://{S3_BUCKET}/{s3_key}',
             'sizeBytes': len(audio_bytes),
             'converted': was_converted,
             'conversionReport': conversion_report,
@@ -1286,7 +726,7 @@ def _store_recording_to_s3(recording_url: str, cdr_id: str, request_id: str) -> 
         return ''
 
 
-def _is_airtel_cdr_callback(body: Dict) -> bool:
+def _is_cdr_callback(body: Dict) -> bool:
     """
     Detect if a POST payload is an Airtel CDR callback (vs a user OBD API request).
 
@@ -1511,33 +951,8 @@ def _safe_ms(val) -> int:
     return 0
 
 
-def _extract_audio_url(result: Dict) -> str:
-    """Extract audio URL from Airtel uploadPrompts response.
-
-    Airtel returns: {"promptResponseList": [{"audioURL": "https://...", "fileName": "...", "fileDisplayName": "..."}]}
-    On duplicate: {"errorPromptResponseList": [{"fileName": "...", "message": "File with same name exists"}]}
-    Also handles flat response formats as fallback.
-    """
-    # Primary: promptResponseList[0].audioURL
-    prompt_list = result.get('promptResponseList', [])
-    if prompt_list and isinstance(prompt_list, list):
-        first = prompt_list[0] if prompt_list else {}
-        url = first.get('audioURL') or first.get('audioUrl') or first.get('url', '')
-        if url:
-            return url
-    # Handle "File with same name exists" — construct URL from known pattern
-    error_list = result.get('errorPromptResponseList', [])
-    if error_list and isinstance(error_list, list):
-        first = error_list[0] if error_list else {}
-        if 'same name exists' in first.get('message', '').lower():
-            file_name = first.get('fileName', '')
-            if file_name:
-                secrets = _get_secrets()
-                cid = secrets.get('customer_id', '')
-                return f"https://{AIRTEL_OPENAPI_HOST}/gateway/airtel-xchange/assets/audios/{cid}/{file_name}"
-    # Fallback: flat response
-    return result.get('audioUrl') or result.get('audioURL') or result.get('url') or result.get('promptUrl', '')
-
+# _extract_audio_url() removed 2026-09-19: it parsed the retired provider's
+# prompt-upload response, and nothing uploads there any more.
 
 
 def _clean_phone(phone: str) -> str:

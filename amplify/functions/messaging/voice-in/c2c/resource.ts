@@ -1,8 +1,16 @@
 /**
- * Airtel Click-to-Call (C2C) Lambda Function
- * Connects two users on a call via Airtel Kong API
- * Auth: HMAC-SHA256 via Kong gateway
- * Credentials from Secrets Manager: wecare/airtel/c2c
+ * Legacy click-to-call records and CDR ingestion.
+ *
+ * Outbound initiation was removed on 2026-09-19: it dialled a retired India voice
+ * provider, and PSTN voice is now Plivo. This function retains historical record
+ * reads, CDR callback ingestion and retention deletes.
+ *
+ * Removed with it: the vendor gateway host and the credential id it loaded. The
+ * secret still exists in Secrets Manager with no reader and is deleted under
+ * separate destructive approval.
+ *
+ * LEGACY_C2C_TABLE replaces a provider-named variable. The physical table name is
+ * unchanged, because it holds real historical records.
  */
 
 import { defineFunction } from '@aws-amplify/backend';
@@ -16,10 +24,8 @@ export const voiceC2c = defineFunction( {
   environment: {
     AWS_REGION: 'us-east-1',
     LOG_LEVEL: 'INFO',
-    AIRTEL_C2C_TABLE: 'stack-wecare-digital-AirtelC2CTable',
+    LEGACY_C2C_TABLE: 'stack-wecare-digital-AirtelC2CTable',
     VOICE_CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable',
-    AIRTEL_KONG_HOST: 'iqvoice.airtel.in',
-    AIRTEL_C2C_SECRET_NAME: 'wecare/airtel/c2c',
     SINCH_RCS_ENABLED: 'true',
   },
 } );

@@ -638,22 +638,19 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         finally { setBlocking( false ); }
     }, [ replyTarget, selectedWaba, toast ] );
 
+    // Click-to-call from the inbox is retired. It rang the agent through a retired
+    // India voice provider's bridge, and that endpoint now answers 410.
+    //
+    // This reports the change instead of prompting for a number and then failing:
+    // asking the operator to type their phone number before telling them the
+    // feature is gone is worse than telling them up front. The control that
+    // invokes this is disabled too; this is the backstop.
     const handleCall = useCallback( async () => {
-        const { phone } = replyTarget;
-        if ( !phone ) { toast.error( 'No phone number for this contact' ); return; }
-        const stored = ( typeof window !== 'undefined' && window.localStorage.getItem( 'wd_c2c_agent' ) ) || '';
-        const agent = typeof window !== 'undefined' ? window.prompt( 'Click-to-call: ring your phone first (with country code):', stored ) : '';
-        if ( !agent ) return;
-        const agentDigits = agent.replace( /[^\d]/g, '' );
-        if ( agentDigits.length < 10 ) { toast.error( 'Enter a valid agent phone number' ); return; }
-        if ( typeof window !== 'undefined' ) window.localStorage.setItem( 'wd_c2c_agent', agentDigits );
-        try
-        {
-            const r = await api.initiateClickToCall( agentDigits, phone );
-            if ( r?.callId ) toast.success( 'Calling — your phone rings first, then connects the contact' );
-            else toast.error( r?.error || 'Call failed' );
-        } catch { toast.error( 'Call failed' ); }
-    }, [ replyTarget, toast ] );
+        toast.error(
+            'Click-to-call is retired. PSTN voice is now Plivo, and outbound calling '
+            + 'arrives with the Plivo browser softphone.'
+        );
+    }, [ toast ] );
 
     const markUnread = useCallback( () => {
         if ( !selected ) return;
@@ -800,7 +797,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                     </span>
                                     <button className="ui-icon-btn" onClick={ () => loadData() } title="Refresh"><Icon name="refresh" size={ 16 } /></button>
                                     { replyTarget.phone && (
-                                        <button className="ui-icon-btn" onClick={ handleCall } title="Click-to-call (rings your phone, then the contact)"><Icon name="phone" size={ 16 } /></button>
+                                        <button className="ui-icon-btn" onClick={ handleCall } disabled title="Click-to-call is retired. PSTN voice is now Plivo; outbound calling arrives with the Plivo browser softphone."><Icon name="phone" size={ 16 } /></button>
                                     ) }
                                     <button className="ui-icon-btn" onClick={ markUnread } title="Mark unread"><Icon name="mail" size={ 16 } /></button>
                                     { replyChannel === 'whatsapp' && (

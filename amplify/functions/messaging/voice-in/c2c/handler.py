@@ -1,123 +1,25 @@
-"""
-Airtel Click-to-Call (C2C) Lambda Function
+"""Legacy click-to-call records and CDR ingestion.
 
-Purpose: Connect two users on a call via Airtel Kong API
-Features:
-- HMAC-SHA256 authentication (Kong gateway)
-- Call recording (stored in S3)
-- Real-time events and CDR callbacks
+    GET    /voice-in/c2c    list historical C2C call records
+    DELETE /voice-in/c2c    delete / clear records (retention)
+    POST   /voice-in/c2c    CDR callback ingestion only
 
-API Endpoints:
-- POST /voice-in/c2c - Initiate C2C call
-- GET /voice-in/c2c - List C2C calls
-- DELETE /voice-in/c2c - Delete call logs
+Outbound click-to-call INITIATION was removed on 2026-09-19. It dialled a retired
+India voice provider's API, which the provider policy prohibits, and PSTN voice is
+now Plivo. A POST that is not a recognised CDR callback is answered 410, naming
+the replacement, rather than failing obscurely.
 
-Airtel API: POST https://iqvoice.airtel.in/gateway/airtel-xchange/v2/click-to-call
-Auth: HMAC-SHA256 via Kong gateway
-Secrets: wecare/airtel/c2c
+What remains is deliberate:
 
-Recording Storage: s3://app.wecare.digital/stack/voice/
+  * historical records in the C2C table, describing calls that really were placed
+    and retained as audit evidence;
+  * CDR callback ingestion and its notification fan-out, which routes through AWS
+    End User Messaging via lambda_utils.comms;
+  * recording references already written to S3.
 
-Kong Credentials (from Secrets Manager):
-- app_id: (loaded from wecare/airtel/c2c secret)
-- api_key: (loaded from wecare/airtel/c2c secret)
-- caller_id: 8047311032 (Fixed Line · Karnataka · Outbound/Inbound)
-
-HMAC-SHA256 Auth Headers:
-- Authorization: hmac username="<app_id>", algorithm="hmac-sha256", headers="x-date digest", signature="<sig>"
-- X-Date: <UTC timestamp>
-- Digest: SHA-256=<base64(sha256(body))>
-
-HMAC Signing Process:
-1. SHA-256 hash the request body -> base64 encode -> Digest header
-2. Build signature string: "x-date: <X-Date>\ndigest: <Digest>"
-3. HMAC-SHA256 sign with api_key -> base64 encode -> signature param
-4. Authorization: hmac username="<app_id>", algorithm="hmac-sha256", headers="x-date digest", signature="<sig>"
-
-Airtel C2C Request Payload (Simplified Kong v2):
-{
-  "from": "8130078559",          // Party A (first to be called)
-  "to": "8852066369",            // Party B (connected after A answers)
-  "caller_id": "8047311032",     // CLI shown to Party A
-  "to_caller_id": "8047311032",  // CLI shown to Party B
-  "record": true,                // Enable call recording
-  "early_media": true,           // Play network announcements
-  "retry": {"count": 1},         // Retry count (max 3)
-  "callbacks": [{                // CDR webhook callback
-    "event_type": "CDR",
-    "notify_url": "https://api.wecare.digital/voice-in/c2c",
-    "method": "POST",
-    "headers": {"Content-Type": "application/json"},
-    "serviceId": "wecareCDRDetailsService_c2c",
-    "projectId": "We_CareCDRDetails_c2c"
-  }]
-}
-
-Airtel C2C Request Payload (Full Workflow — /v2/execute/workflow):
-{
-  "callFlowId": "<from Airtel>",
-  "customerId": "<customer_id>",
-  "callType": "OUTBOUND",
-  "callerId": "8047311032",
-  "callFlowConfiguration": {
-    "initiateCall_1": {
-      "callerId": "8047311032",
-      "mergingStrategy": "SEQUENTIAL",
-      "participants": [{"participantAddress": "Party_A", "callerId": "8047311032",
-        "participantName": "A", "maxRetries": 1, "maxTime": 0}],
-      "maxTime": 0,
-      "callBackURLs": [
-        {"eventType": "CDR", "notifyURL": "https://api.wecare.digital/voice-in/c2c", "method": "POST", "headers": {}},
-        {"eventType": "ALL", "notifyURL": "https://api.wecare.digital/voice-in/c2c", "method": "POST", "headers": {}}
-      ]
-    },
-    "addParticipant_1": {
-      "mergingStrategy": "SEQUENTIAL",
-      "maxTime": 0,
-      "participants": [{"participantAddress": "Party_B", "callerId": "8047311032",
-        "participantName": "B", "maxRetries": 1, "maxTime": 0, "enableEarlyMedia": true}]
-    },
-    "record": {"enabled": true}
-  }
-}
-
-C2C Call Flow:
-1. Airtel calls Party A (initiateCall_1) with configured callerId
-2. Party A answers → recording starts (record.enabled=true)
-3. Airtel calls Party B (addParticipant_1) with enableEarlyMedia
-4. Party B answers → both parties patched together
-5. Real-time events posted to callBackURLs (CALL, MEDIA, DTMF, RECORD)
-6. CDR posted after call ends (includes recordingURL)
-
-Callback Event Types: ALL, CALL, MEDIA, DTMF, RECORD, CDR, API, SUBMITTED, DELIVERED, ERROR
-Merging Strategies: SEQUENTIAL (default), ROUND_ROBIN, PARALLEL
-Max Retries: 3 per participant
-
-CDR Webhook: https://api.wecare.digital/voice-in/c2c
-CDR callbacks are sent by Airtel to the notify_url configured in the callbacks array.
-
-Airtel IP Whitelist (if 403 errors):
-- 125.19.17.212
-- 125.17.6.54
-- 122.187.47.153
-
-Airtel NAT Gateway IPs (current — do NOT remove):
-- Voice/Platform: 65.1.125.210, 3.108.104.147
-- WhatsApp: 3.109.177.16
-
-Airtel NAT Gateway IPs (new — whitelist by 20 Sep 2025):
-- firewall-vpc-NAT-1a: 13.126.42.108
-- firewall-vpc-NAT-1b: 3.108.90.203
-
-Our API Request Body:
-{
-  "fromNumber": "9876543210",       // Party A
-  "toNumber": "9123456789",         // Party B
-  "enableRecording": true,          // default: true
-  "contactId": "optional-id",       // Optional contact reference
-  "retryCount": 1,                  // Retry count (default: 1, max: 3)
-  "enableEarlyMedia": true          // default: true
-}
+Retired vendor hostnames and credential identifiers are deliberately not repeated
+in this file, so the provider-policy scan stays high-precision over runtime code.
+See docs/provider-retirement-inventory.md.
 """
 
 import os
@@ -149,11 +51,14 @@ secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 lambda_client = boto3.client('lambda', region_name=AWS_REGION)
 
 # Environment variables
-AIRTEL_C2C_TABLE = os.environ.get('AIRTEL_C2C_TABLE', 'stack-wecare-digital-AirtelC2CTable')
-VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
-AIRTEL_C2C_SECRET_NAME = os.environ.get('AIRTEL_C2C_SECRET_NAME', 'wecare/airtel/c2c')
-AIRTEL_KONG_HOST = os.environ.get('AIRTEL_KONG_HOST', 'iqvoice.airtel.in')
-AIRTEL_WORKFLOW_HOST = os.environ.get('AIRTEL_WORKFLOW_HOST', 'iqvoice.airtel.in')
+# The physical table name is UNCHANGED - it holds real historical records that
+# must stay readable. Only the code identifier stops naming a provider.
+#
+# No env fallback is needed for the old variable name: its deployed value is
+# identical to this default, so a function whose configuration has not been
+# updated resolves to the same table either way.
+LEGACY_C2C_TABLE = os.environ.get('LEGACY_C2C_TABLE',
+                                  'stack-wecare-digital-AirtelC2CTable')
 S3_BUCKET = 'app.wecare.digital'
 S3_RECORDING_PREFIX = 'stack/voice/'
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
@@ -162,31 +67,9 @@ CALL_TTL_SECONDS = 90 * 24 * 60 * 60
 _secrets_cache = None
 
 
-def _get_secrets() -> Dict[str, str]:
-    """
-    Fetch Airtel C2C credentials from Secrets Manager (cached).
-
-    Expected secret keys:
-    - app_id: HMAC username (from Secrets Manager)
-    - api_key: HMAC signing key (from Secrets Manager)
-    - caller_id: 8047311032 (Fixed Line · Karnataka · Outbound/Inbound)
-    """
-    global _secrets_cache
-    if _secrets_cache is not None:
-        return _secrets_cache
-
-    try:
-        response = secrets_client.get_secret_value(SecretId=AIRTEL_C2C_SECRET_NAME)
-        _secrets_cache = json.loads(response['SecretString'])
-        logger.info(f"Loaded secrets from {AIRTEL_C2C_SECRET_NAME}")
-        return _secrets_cache
-    except Exception as e:
-        logger.error(f"Failed to load secrets: {str(e)}")
-        return {}
-
-
-# Module-level origin for CORS (set per-invocation in handler)
-origin = ''
+# _get_secrets() removed: the retired provider credential is no longer read
+# here. The secret still exists in Secrets Manager with no reader and is
+# deleted under separate destructive approval.
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -231,42 +114,31 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return _response(400, {'error': 'callId, callIds, or clearAll is required'})
 
         # Detect Airtel CDR callback (Airtel may send C2C CDR callbacks to this endpoint)
-        if http_method == 'POST' and _is_airtel_cdr_callback(body):
+        if http_method == 'POST' and _is_cdr_callback(body):
             return _handle_cdr_callback(body, request_id)
 
-        # POST - Make C2C call (or clear logs via POST)
-        from_number = body.get('fromNumber')
-        to_number = body.get('toNumber')
-
+        # POST that is not a CDR callback. Clear-logs-via-POST is still
+        # honoured, because the dashboard uses it for retention.
         if body.get('clearAll') or body.get('_action') == 'clear-logs':
             return _clear_logs(request_id)
 
-        enable_recording = body.get('enableRecording', True)
-        contact_id = body.get('contactId', '')
-        retry_count = min(int(body.get('retryCount', 1)), 3)
-        enable_early_media = body.get('enableEarlyMedia', True)
-
-        if not from_number or not to_number:
-            return _response(400, {'error': 'fromNumber and toNumber are required'})
-
-        call_id = str(uuid.uuid4())
-        result = _make_c2c_call(from_number, to_number, enable_recording,
-                                retry_count, enable_early_media, request_id)
-
-        _store_call(call_id, contact_id, to_number, result.get('providerCallId'),
-                    result.get('status', 'failed'), from_number, request_id)
-
-        if not result.get('success'):
-            return _response(500, {
-                'error': result.get('error', 'Failed to initiate click-to-call'),
-                'callId': call_id
-            })
-
-        return _response(200, {
-            'callId': call_id,
-            'status': 'initiated',
-            'correlationId': result.get('providerCallId'),
-            'message': 'Click-to-call initiated. Party A will be called first, then connected to Party B.'
+        # Outbound initiation is gone. Answer explicitly: a caller still
+        # posting fromNumber/toNumber expecting a call to be placed must be
+        # told the capability moved, not left to infer it from a 400 about
+        # missing fields.
+        logger.warning(json.dumps({
+            'event': 'c2c_initiation_removed',
+            'requestId': request_id,
+        }))
+        return _response(410, {
+            'error': 'Click-to-call initiation has been removed.',
+            'errorCode': 'ENDPOINT_REMOVED',
+            'detail': ('This endpoint dialled a retired India voice provider. '
+                       'PSTN voice is now Plivo. Outbound calling is delivered '
+                       'by the Plivo browser softphone and is gated behind '
+                       'PSTN_BROWSER_ROUTING_ENABLED. This endpoint still '
+                       'serves GET for historical records and POST for CDR '
+                       'callbacks.'),
         })
 
     except json.JSONDecodeError:
@@ -276,231 +148,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _response(500, {'error': 'Internal server error'})
 
 
-def _make_c2c_call(from_number: str, to_number: str, enable_recording: bool,
-                   retry_count: int, enable_early_media: bool,
-                   request_id: str) -> Dict[str, Any]:
-    """
-    Make Click-to-Call via Airtel API.
-
-    If call_flow_id is configured: uses Workflow API (/v2/execute/workflow) with Basic auth.
-    Otherwise: uses Kong simplified API (/v2/click-to-call) with HMAC-SHA256 auth.
-    """
-    try:
-        secrets = _get_secrets()
-        app_id = secrets.get('app_id')
-        api_key = secrets.get('api_key')
-        caller_id = secrets.get('caller_id', '8047311032')
-        call_flow_id = secrets.get('call_flow_id', '')
-        customer_id = secrets.get('customer_id', '')
-        basic_auth = secrets.get('basic_auth', '')
-
-        if not app_id or not api_key:
-            return {'success': False, 'error': 'Airtel C2C credentials (app_id/api_key) not configured'}
-
-        if not basic_auth:
-            basic_auth = base64.b64encode(f"{app_id}:{api_key}".encode()).decode()
-
-        from_clean = _clean_phone_number(from_number)
-        to_clean = _clean_phone_number(to_number)
-
-        if not from_clean or not to_clean:
-            return {'success': False, 'error': 'Invalid phone number format'}
-
-        if from_clean == to_clean:
-            return {'success': False, 'error': 'From and To numbers cannot be the same'}
-
-        # Choose API based on whether call_flow_id is configured
-        if call_flow_id and customer_id:
-            # Workflow API (official spec)
-            payload = {
-                "callFlowId": call_flow_id,
-                "customerId": customer_id,
-                "callType": "OUTBOUND",
-                "callerId": caller_id,
-                "callFlowConfiguration": {
-                    "initiateCall_1": {
-                        "callerId": caller_id,
-                        "mergingStrategy": "SEQUENTIAL",
-                        "participants": [
-                            {
-                                "participantAddress": from_clean,
-                                "callerId": caller_id,
-                                "participantName": "A",
-                                "maxRetries": retry_count,
-                                "maxTime": 0
-                            }
-                        ],
-                        "maxTime": 0,
-                        "callBackURLs": [
-                            {"eventType": "CDR", "notifyURL": "https://api.wecare.digital/voice-in/c2c", "method": "POST", "headers": {}},
-                            {"eventType": "ALL", "notifyURL": "https://api.wecare.digital/voice-in/c2c", "method": "POST", "headers": {}}
-                        ]
-                    },
-                    "addParticipant_1": {
-                        "mergingStrategy": "SEQUENTIAL",
-                        "maxTime": 0,
-                        "participants": [
-                            {
-                                "participantAddress": to_clean,
-                                "callerId": caller_id,
-                                "participantName": "B",
-                                "maxRetries": retry_count,
-                                "maxTime": 0,
-                                "enableEarlyMedia": enable_early_media
-                            }
-                        ]
-                    },
-                    "record": {"enabled": enable_recording}
-                }
-            }
-            url = f"https://{AIRTEL_WORKFLOW_HOST}/gateway/airtel-xchange/v2/execute/workflow"
-            headers = {
-                'Content-Type': 'application/json',
-                'Authorization': f'Basic {basic_auth}'
-            }
-        else:
-            # Kong simplified API (fallback)
-            payload = {
-                "from": from_clean,
-                "to": to_clean,
-                "caller_id": caller_id,
-                "to_caller_id": caller_id,
-                "record": enable_recording,
-                "early_media": enable_early_media,
-                "retry": {"count": retry_count},
-                "callbacks": [
-                    {
-                        "event_type": "CDR",
-                        "notify_url": "https://api.wecare.digital/voice-in/c2c",
-                        "method": "POST",
-                        "headers": {"Content-Type": "application/json"},
-                        "serviceId": "wecareCDRDetailsService_c2c",
-                        "projectId": "We_CareCDRDetails_c2c"
-                    }
-                ]
-            }
-            body_str_for_hmac = json.dumps(payload)
-            auth_headers = _generate_hmac_headers(body_str_for_hmac, app_id, api_key)
-            url = f"https://{AIRTEL_KONG_HOST}/gateway/airtel-xchange/v2/click-to-call"
-            headers = {
-                'Content-Type': 'application/json',
-                'Authorization': auth_headers['authorization'],
-                'X-Date': auth_headers['x_date'],
-                'Digest': auth_headers['digest']
-            }
-
-        body_str = json.dumps(payload)
-        req = urllib.request.Request(url, data=body_str.encode('utf-8'), headers=headers, method='POST')
-
-        logger.info(json.dumps({
-            'event': 'c2c_request',
-            'url': url,
-            'api': 'workflow' if call_flow_id else 'kong',
-            'from': from_clean,
-            'to': to_clean,
-            'record': enable_recording,
-            'retryCount': retry_count,
-            'requestId': request_id
-        }))
-
-        with urllib.request.urlopen(req, timeout=30) as response:
-            result = json.loads(response.read().decode('utf-8'))
-
-            logger.info(json.dumps({
-                'event': 'c2c_response',
-                'statusCode': response.status,
-                'result': result,
-                'requestId': request_id
-            }))
-
-            # Success: {"status": "success", "correlationId": "Xchange123863"}
-            # Or Kong: {"message": "Call request accepted.", "callSessionId": "..."}
-            correlation_id = (result.get('correlationId')
-                              or result.get('callSessionId')
-                              or result.get('call_id')
-                              or result.get('id', ''))
-
-            if (result.get('status') == 'success'
-                    or result.get('correlationId')
-                    or result.get('callSessionId')
-                    or 'accepted' in str(result.get('message', '')).lower()):
-                return {
-                    'success': True,
-                    'status': 'initiated',
-                    'providerCallId': correlation_id
-                }
-
-            return {
-                'success': False,
-                'error': result.get('errorMessage') or result.get('message') or 'Unknown API error',
-                'errorCode': result.get('errorCode', '')
-            }
-
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode('utf-8') if e.fp else ''
-        logger.error(json.dumps({
-            'event': 'c2c_http_error',
-            'statusCode': e.code,
-            'errorBody': error_body[:500],
-            'requestId': request_id
-        }))
-
-        error_msg = f'HTTP {e.code}'
-        error_code = ''
-        try:
-            error_json = json.loads(error_body)
-            error_msg = error_json.get('errorMessage') or error_json.get('message') or error_msg
-            error_code = error_json.get('errorCode', '')
-        except (json.JSONDecodeError, AttributeError):
-            pass
-
-        return {
-            'success': False,
-            'error': f'{error_msg} (HTTP {e.code})',
-            'errorCode': error_code
-        }
-    except Exception as e:
-        logger.error(f"C2C error: {str(e)}")
-        return {'success': False, 'error': str(e)}
-
-
-def _generate_hmac_headers(body: str, app_id: str, api_key: str) -> Dict[str, str]:
-    """
-    Generate HMAC-SHA256 authentication headers for Airtel Kong API.
-
-    Process (matches Airtel Postman pre-request script):
-    1. SHA-256 hash the body -> base64 -> Digest: SHA-256=<hash>
-    2. Signature string: "x-date: <timestamp>\ndigest: <digest>"
-    3. HMAC-SHA256(api_key, signature_string) -> base64 -> signature
-    4. Authorization: hmac username="<app_id>", algorithm="hmac-sha256",
-       headers="x-date digest", signature="<signature>"
-    """
-    x_date = datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
-
-    body_hash = hashlib.sha256(body.encode('utf-8')).digest()
-    body_hash_b64 = base64.b64encode(body_hash).decode('utf-8')
-    digest = f'SHA-256={body_hash_b64}'
-
-    signature_raw = f'x-date: {x_date}\ndigest: {digest}'
-    signature = hmac.new(
-        api_key.encode('utf-8'),
-        signature_raw.encode('utf-8'),
-        hashlib.sha256
-    ).digest()
-    signature_b64 = base64.b64encode(signature).decode('utf-8')
-
-    authorization = (
-        f'hmac username="{app_id}", algorithm="hmac-sha256", '
-        f'headers="x-date digest", signature="{signature_b64}"'
-    )
-
-    return {'authorization': authorization, 'x_date': x_date, 'digest': digest}
+# _make_c2c_call() and _generate_hmac_headers() removed 2026-09-19 with the
+# initiation endpoint. They built and HMAC-signed requests to a prohibited
+# provider; keeping them would leave a working dialler one call site away.
 
 
 def _list_calls(params: Dict, request_id: str) -> Dict[str, Any]:
     """List C2C calls."""
     try:
-        table = dynamodb.Table(AIRTEL_C2C_TABLE)
+        table = dynamodb.Table(LEGACY_C2C_TABLE)
         from boto3.dynamodb.conditions import Attr
 
         scan_kwargs = {'Limit': int(params.get('limit', 100))}
@@ -534,35 +190,11 @@ def _list_calls(params: Dict, request_id: str) -> Dict[str, Any]:
         return _response(500, {'error': str(e)})
 
 
-def _store_call(call_id: str, contact_id: str, to_number: str, provider_call_id: str,
-                status: str, from_number: str, request_id: str) -> None:
-    """Store call record in AirtelC2C DynamoDB table."""
-    try:
-        now = int(time.time())
-        table = dynamodb.Table(AIRTEL_C2C_TABLE)
-
-        secrets = _get_secrets()
-        caller_id = secrets.get('caller_id', '8047311032')
-
-        item = {
-            'callId': call_id,
-            'contactId': contact_id or '',
-            'fromNumber': from_number,
-            'toNumber': to_number,
-            'callerId': caller_id,
-            'status': status.upper(),
-            'recordingEnabled': True,
-            'createdAt': Decimal(str(now)),
-            'updatedAt': Decimal(str(now)),
-            'expiresAt': Decimal(str(now + CALL_TTL_SECONDS)),
-        }
-
-        if provider_call_id:
-            item['correlationId'] = provider_call_id
-
-        table.put_item(Item=item)
-    except Exception as e:
-        logger.error(f"Store call error: {str(e)}")
+# _store_call() removed 2026-09-19. It wrote a row for a call this function had
+# just placed, so it existed only for the initiation path and had no callers
+# left once that path was removed. Historical rows are read by _list_calls and
+# normalised by _normalize_call below; CDR callbacks write through
+# _handle_cdr_callback.
 
 
 def _normalize_call(item: Dict) -> Dict:
@@ -585,7 +217,7 @@ def _normalize_call(item: Dict) -> Dict:
     }
 
 
-def _is_airtel_cdr_callback(body: Dict) -> bool:
+def _is_cdr_callback(body: Dict) -> bool:
     """
     Detect if a POST payload is an Airtel CDR callback (vs a user C2C API request).
 
@@ -758,7 +390,7 @@ def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
         # Update original C2C call record with CDR data
         if client_correlation_id:
             try:
-                c2c_table = dynamodb.Table(AIRTEL_C2C_TABLE)
+                c2c_table = dynamodb.Table(LEGACY_C2C_TABLE)
                 from boto3.dynamodb.conditions import Attr
                 scan_result = c2c_table.scan(
                     FilterExpression=Attr('correlationId').eq(client_correlation_id),
@@ -1187,7 +819,7 @@ def _clean_phone_number(phone: str) -> str:
 def _delete_call(call_id: str, hard_delete: bool, request_id: str) -> Dict[str, Any]:
     """Delete a single C2C call record (soft or hard delete)."""
     try:
-        table = dynamodb.Table(AIRTEL_C2C_TABLE)
+        table = dynamodb.Table(LEGACY_C2C_TABLE)
 
         if hard_delete:
             # Delete S3 recording if exists
@@ -1240,7 +872,7 @@ def _delete_calls(call_ids: list, hard_delete: bool, request_id: str) -> Dict[st
 def _clear_logs(request_id: str) -> Dict[str, Any]:
     """Clear all C2C call logs (handles pagination for large tables)."""
     try:
-        table = dynamodb.Table(AIRTEL_C2C_TABLE)
+        table = dynamodb.Table(LEGACY_C2C_TABLE)
         deleted_count = 0
 
         scan_kwargs = {'ProjectionExpression': 'callId,s3RecordingKey'}

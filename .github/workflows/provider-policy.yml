@@ -9,22 +9,32 @@ name: Provider policy
 #   WhatsApp                  -> Meta
 #   Airtel                    -> prohibited entirely
 #
-# MODE: --expect-fail, deliberately.
+# MODE: blocking gate. Any violation fails the job.
 #
-# At the migration baseline the repository legitimately still contains Airtel and
-# Sinch SMS, so gating for real would block every PR before the migration that
-# removes them can land. --expect-fail inverts the check: the job passes while
-# violations remain, and FAILS the moment the count reaches zero — which is the
-# signal to flip this workflow to gate mode.
+# This workflow ran with `--expect-fail` from the migration baseline until
+# 2026-09-19. In that mode the job passed WHILE violations remained and failed
+# once the count reached zero, which was the signal to flip it. The count reached
+# zero, so it is flipped.
 #
-# That is not a disabled check. It still fails on a genuinely new class of
-# problem, because the migration is what drives the count to zero and this job
-# tells us when that has happened. Leaving it in expect-fail mode after the
-# migration completes would be the mistake, which is why it fails loudly then.
+#   160 findings / 6 failing rules  ->  0 findings / 8 passing rules
 #
-# TO FLIP (after Stage 3 of docs/migration-plan.md):
-#   1. remove `--expect-fail` from the run step below
-#   2. the job then fails on ANY violation, which is the steady state
+# Do not reintroduce --expect-fail. It exists in the script only for a migration
+# that has now completed; using it again would mean a PR that reintroduces a
+# prohibited provider would PASS.
+#
+# If this job fails on your PR, you have added one of:
+#   * an SMS send through anything other than AWS End User Messaging
+#   * the Sinch transport outside the approved India RCS modules
+#   * Sinch voice or Sinch WhatsApp
+#   * Plivo SMS
+#   * SNS SMS or classic Pinpoint send_messages
+#   * a retired India provider host, credential id or client
+#
+# Historical data is not a violation: stored provider literals describing traffic
+# that really was sent that way are expected, and the scan is scoped to runtime
+# code (amplify/functions, src) for exactly that reason. If you are documenting a
+# retired provider, describe it without naming its hostnames or credential
+# identifiers - see docs/provider-retirement-inventory.md for the convention.
 
 on:
   push:
@@ -44,15 +54,14 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Check provider policy
-        run: ./scripts/check-provider-policy.sh --expect-fail --verbose
+        run: ./scripts/check-provider-policy.sh --verbose
 
-      - name: Record the violation baseline
+      - name: Summarise
         if: always()
         run: |
           echo "### Provider policy" >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Mode: `--expect-fail` (migration in flight).' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Flip to gate mode once Stage 3 of `docs/migration-plan.md` lands.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Mode: **blocking gate**. Any violation fails this job.' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           ./scripts/check-provider-policy.sh 2>&1 \

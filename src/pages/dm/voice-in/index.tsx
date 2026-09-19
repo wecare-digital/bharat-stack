@@ -68,6 +68,12 @@ interface CDRRecord {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+const RETIRED_ACTION_REASON =
+  'Outbound calling here has been retired. This page dialled a retired India voice '
+  + 'provider; PSTN voice is now Plivo, and outbound calling arrives with the Plivo '
+  + 'browser softphone. Historical records, call detail records, text-to-speech and '
+  + 'the audio library on this page are unaffected.';
+
 const ITEMS_PER_PAGE = 100;
 
 const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } ) => {
@@ -231,219 +237,20 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
     return `${mins}:${secs.toString().padStart( 2, '0' )}`;
   };
 
+  // Click-to-call initiation dialled a retired India voice provider and now
+  // answers 410 server-side.
   const handleC2CCall = async () => {
-    if ( !c2cFromNumber || !c2cToNumber ) { toast.error( 'Both phone numbers are required' ); return; }
-    setC2cCalling( true );
-    try
-    {
-      const response = await fetch( `${API_BASE}/voice-in/c2c`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify( { fromNumber: c2cFromNumber, toNumber: c2cToNumber, enableRecording: c2cRecording } )
-      } );
-      const result = await response.json();
-      if ( result.callId )
-      {
-        toast.success( 'Click-to-Call initiated!' );
-        setShowC2CModal( false );
-        setC2cFromNumber( '' );
-        setC2cToNumber( '' );
-        await loadData();
-      } else
-      {
-        toast.error( result.error || 'Failed to initiate call' );
-      }
-    } catch ( err ) { toast.error( 'Failed to initiate call' ); } finally { setC2cCalling( false ); }
+    toast.error( RETIRED_ACTION_REASON );
+    setShowC2CModal( false );
   };
 
   const handleOBDCreate = async () => {
-    if ( !obdNumbers || !obdCampaignName ) { toast.error( 'Campaign name and numbers are required' ); return; }
-
-    setObdCreating( true );
-    try
-    {
-      const numbers = obdNumbers.split( /[\n,]/ ).map( n => {
-        let d = n.trim().replace( /[^0-9]/g, '' );
-        if ( d.startsWith( '91' ) && d.length === 12 ) d = d.slice( 2 );
-        if ( d.startsWith( '0' ) && d.length === 11 ) d = d.slice( 1 );
-        return d;
-      } ).filter( n => n.length === 10 );
-      if ( numbers.length === 0 ) { toast.error( 'No valid phone numbers' ); setObdCreating( false ); return; }
-
-      // Step 1: Upload CSV to Airtel
-      toast.success( `Uploading ${numbers.length} contacts...` );
-      const csvResp = await fetch( `${API_BASE}/voice-in/obd/upload-csv`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify( {
-          contacts: numbers,
-          variables: Object.keys( obdVariables ).length > 0 ? obdVariables : undefined
-        } )
-      } );
-      const csvResult = await csvResp.json();
-      if ( !csvResult.success || !csvResult.fileName )
-      {
-        toast.error( csvResult.error || 'CSV upload failed' );
-        setObdCreating( false );
-        return;
-      }
-      toast.success( `CSV uploaded: ${csvResult.totalCount} contacts` );
-
-      // Build inputCsvMappings from upload response headers
-      const csvHeaders: string[] = csvResult.headers || [];
-      const inputCsvMappings: Record<string, string> = {};
-      if ( csvHeaders.includes( 'Number' ) )
-      {
-        inputCsvMappings[ 'participantAddress' ] = 'Number';
-      }
-      // Map any additional variable columns
-      for ( const h of csvHeaders )
-      {
-        if ( h !== 'Number' && !inputCsvMappings[ h ] )
-        {
-          inputCsvMappings[ h ] = h;
-        }
-      }
-
-      // Step 2: Handle audio (TTS, upload, library, or default)
-      let audioUrl: string | undefined;
-
-      if ( obdAudioSource === 'library' && obdSelectedLibraryFile )
-      {
-        // Upload from S3 library to Airtel
-        toast.success( `Using library audio: ${obdSelectedLibraryFile.name}` );
-        try
-        {
-          const uploadResp = await fetch( `${API_BASE}/voice-in/obd/upload-audio`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify( { audioS3Key: obdSelectedLibraryFile.key, fileName: obdSelectedLibraryFile.name } )
-          } );
-          const uploadResult = await uploadResp.json();
-          if ( uploadResult.audioUrl )
-          {
-            audioUrl = uploadResult.audioUrl;
-            toast.success( 'Library audio uploaded to Airtel' );
-          } else
-          {
-            toast.warning( 'Audio upload to Airtel failed — using default jingle' );
-          }
-        } catch
-        {
-          toast.warning( 'Audio upload timed out — using default jingle' );
-        }
-      }
-
-      if ( obdAudioSource === 'tts' && obdTtsText.trim() )
-      {
-        setObdTtsGenerating( true );
-        try
-        {
-          toast.success( 'Generating TTS audio...' );
-          const ttsResp = await fetch( `${API_BASE}/voice-in/obd/tts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify( { text: obdTtsText, voiceId: obdTtsVoice, languageCode: obdTtsLang } )
-          } );
-          const ttsResult = await ttsResp.json();
-          if ( ttsResult.success )
-          {
-            audioUrl = ttsResult.audioUrl || undefined;
-            if ( audioUrl )
-            {
-              toast.success( 'TTS audio uploaded to Airtel' );
-            } else
-            {
-              toast.success( `TTS saved to S3 (${ttsResult.sizeBytes} bytes). Using default jingle.` );
-            }
-          } else
-          {
-            toast.error( ttsResult.error || 'TTS generation failed' );
-            setObdCreating( false );
-            setObdTtsGenerating( false );
-            return;
-          }
-        } finally { setObdTtsGenerating( false ); }
-      }
-
-      if ( obdAudioSource === 'upload' && obdAudioFile )
-      {
-        toast.success( 'Uploading audio file...' );
-        const reader = new FileReader();
-        const audioData = await new Promise<string>( ( resolve ) => {
-          reader.onload = () => resolve( ( reader.result as string ).split( ',' )[ 1 ] );
-          reader.readAsDataURL( obdAudioFile );
-        } );
-
-        // Also save to library if checkbox is checked
-        const saveToLib = ( document.getElementById( 'saveToLib' ) as HTMLInputElement )?.checked;
-        if ( saveToLib )
-        {
-          await fetch( `${API_BASE}/voice-in/obd/audio-library`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify( { audioData, fileName: obdAudioFile.name, uploadToAirtel: false } )
-          } );
-        }
-
-        try
-        {
-          const uploadResp = await fetch( `${API_BASE}/voice-in/obd/upload-audio`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify( { audioData, fileName: obdAudioFile.name } )
-          } );
-          const uploadResult = await uploadResp.json();
-          if ( uploadResult.audioUrl )
-          {
-            audioUrl = uploadResult.audioUrl;
-            const convMsg = uploadResult.converted ? ` (auto-converted: ${uploadResult.conversionReport})` : '';
-            toast.success( `Audio uploaded to Airtel${convMsg}` );
-          } else
-          {
-            toast.warning( 'Audio upload to Airtel failed — using default jingle. Campaign will still be created.' );
-          }
-        } catch
-        {
-          toast.warning( 'Audio upload timed out — using default jingle. Campaign will still be created.' );
-        }
-      }
-
-      // Step 3: Create Campaign with uploaded CSV fileName and audio
-      toast.success( 'Creating campaign...' );
-      const response = await fetch( `${API_BASE}/voice-in/obd/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify( {
-          campaignName: obdCampaignName,
-          sheetFileNames: [ csvResult.fileName ],
-          inputCsvMappings: inputCsvMappings,
-          audioUrl: audioUrl,
-          contactCount: csvResult.totalCount || numbers.length,
-          firstContact: numbers[ 0 ] || ''
-        } )
-      } );
-      const result = await response.json();
-      if ( result.campaignId || result.success || result.airtelCampaignId )
-      {
-        toast.success( 'OBD Campaign created!' );
-        setShowOBDModal( false );
-        setObdNumbers( '' );
-        setObdCampaignName( '' );
-        setObdVariables( {} );
-        setObdVarNames( [] );
-        setObdAudioSource( 'default' );
-        setObdTtsText( '' );
-        setObdAudioFile( null );
-        setObdSelectedLibraryFile( null );
-        await loadData();
-      } else
-      {
-        toast.error( result.error || 'Failed to create campaign' );
-      }
-    } catch ( err ) { toast.error( 'Failed to create campaign' ); } finally { setObdCreating( false ); }
+    toast.error( RETIRED_ACTION_REASON );
+    setShowOBDModal( false );
   };
 
+  // Prompt-variable helpers. These belong to the OBD audio/TTS flow, which is
+  // retained - only campaign DIALLING was retired.
   const addOBDVariable = () => {
     setShowVarInput( true );
     setVarInputValue( '' );
@@ -527,8 +334,13 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
             <span className="badge">C2C + OBD + CDR</span>
           </div>
           <div className="header-actions">
-            <Button variant="primary" onClick={ () => setShowC2CModal( true ) }>C2C</Button>
-            <Button variant="secondary" onClick={ () => setShowOBDModal( true ) }>OBD</Button>
+            {/* C2C and OBD initiation are retired. The buttons stay visible but
+                disabled, with the reason in the title, because silently removing
+                them would leave an operator wondering where the feature went. */}
+            <Button variant="secondary" disabled
+              title={ RETIRED_ACTION_REASON }>C2C (retired)</Button>
+            <Button variant="secondary" disabled
+              title={ RETIRED_ACTION_REASON }>OBD (retired)</Button>
             <Button variant="secondary" onClick={ () => handleClearLogs( activeTab ) } disabled={ clearing } loading={ clearing }>Clear</Button>
             <Button variant="secondary" icon="refresh" onClick={ loadData } disabled={ loading } loading={ loading }>Refresh</Button>
           </div>
