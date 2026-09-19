@@ -131,6 +131,25 @@ class PlivoError(RuntimeError):
     pass
 
 
+def _same(a: Any, b: Any) -> bool:
+    """Compare two Plivo field values, treating unset forms as equivalent.
+
+    Plivo reports an unset field as `None` on one read and `''` on another - the
+    GET and the POST response do not agree. A naive `a == b` therefore reports
+    `ip_acl_uuid: '' -> None` as a protected-field change.
+
+    That is not hypothetical: it fired on the first real --apply. Every URL and
+    the critical invariant had already PASSED, and this single false positive
+    triggered a rollback of a correct, successful change. An over-strict
+    verifier that reverts good work is worse than a slightly loose one, because
+    the operator learns to bypass it.
+    """
+    empties = (None, "", [], {})
+    if a in empties and b in empties:
+        return True
+    return a == b
+
+
 def _strip_query(url: Optional[str]) -> str:
     """Compare URLs by path, ignoring the ?token= shared secret.
 
@@ -516,7 +535,7 @@ class PlivoControlPlaneService:
             if field in CRITICAL_INVARIANTS:
                 continue
             b, a = before.get(field), after.get(field)
-            ok = b == a
+            ok = _same(b, a)
             checks.append({"check": f"{field} unchanged", "expected": b,
                            "observed": a, "pass": ok})
             if not ok:
@@ -529,7 +548,7 @@ class PlivoControlPlaneService:
                 continue
             b = _strip_query(before.get(field)) if field.endswith("_url") else before.get(field)
             a = _strip_query(after.get(field)) if field.endswith("_url") else after.get(field)
-            if b != a:
+            if not _same(b, a):
                 failures.append(f"UNEXPECTED {field} changed: {b!r} -> {a!r}")
                 checks.append({"check": f"{field} unexpected change",
                                "expected": b, "observed": a, "pass": False})

@@ -408,3 +408,48 @@ def test_token_fingerprint_is_stable_and_does_not_reveal_the_token():
     assert a == b
     assert "supersecret" not in a
     assert pcp._token_fingerprint("https://x/y") == ""
+
+
+# --------------------------------------------------------------------------
+# Unset-value equivalence — the false positive that rolled back a good apply
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("a,b", [
+    (None, ""), ("", None), (None, None), ("", ""), ([], None), ({}, ""),
+])
+def test_unset_forms_compare_as_equal(a, b):
+    assert pcp._same(a, b) is True
+
+
+@pytest.mark.parametrize("a,b", [
+    ("x", None), (None, "x"), ("x", "y"), (True, False), (True, None),
+])
+def test_real_differences_still_compare_as_different(a, b):
+    assert pcp._same(a, b) is False
+
+
+def test_ip_acl_uuid_empty_to_none_is_not_a_protected_change(svc):
+    """The exact false positive seen on the first live --apply.
+
+    Plivo returns an unset field as '' on the GET and None on the POST response.
+    A naive == flagged ip_acl_uuid: '' -> None as a protected-field change, and
+    rolled back an apply whose URLs and critical invariant had all passed.
+    """
+    svc.app["ip_acl_uuid"] = ""
+
+    def to_none(app, payload):
+        app["ip_acl_uuid"] = None       # what Plivo actually does
+
+    svc.apply_post_effect = to_none
+    v = svc.apply_application_update(svc.plan_application_update())["verification"]
+    assert v["ok"] is True, v["failures"]
+
+
+def test_a_genuine_ip_acl_change_is_still_caught(svc):
+    """The loosening must not blind the check to a real assignment."""
+    def assign(app, payload):
+        app["ip_acl_uuid"] = "acl-abc-123"
+
+    svc.apply_post_effect = assign
+    v = svc.apply_application_update(svc.plan_application_update())["verification"]
+    assert v["ok"] is False
+    assert any("ip_acl_uuid" in f for f in v["failures"])

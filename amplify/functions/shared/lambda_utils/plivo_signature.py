@@ -159,6 +159,34 @@ def validate_signature(method: str, uri: str, nonce: str, auth_token: str,
 # --------------------------------------------------------------------------
 # API Gateway helpers
 # --------------------------------------------------------------------------
+def normalize_path(event: Dict[str, Any]) -> str:
+    """The path as the CALLER wrote it, with any API Gateway stage prefix removed.
+
+    Measured on this API: a request to https://api.wecare.digital/plivo/answer
+    arrives with rawPath = "/prod/plivo/answer". The custom domain mapping puts
+    the stage in the path.
+
+    That single character difference breaks two things at once:
+
+      * routing - "/prod/plivo/hangup" does not equal "/plivo/hangup", so a
+        hangup callback falls through to whatever the default route is. If that
+        default is the answer handler, a terminated call gets the IVR back.
+      * SIGNATURES - Plivo signed "https://api.wecare.digital/plivo/hangup".
+        Reconstructing ".../prod/plivo/hangup" yields a different digest, so
+        every genuine callback fails verification. Fail-closed then drops
+        everything.
+
+    Stripping is driven by requestContext.stage rather than a hardcoded "prod",
+    so a second stage does not reintroduce this.
+    """
+    rc = event.get("requestContext") or {}
+    path = (event.get("rawPath") or (rc.get("http") or {}).get("path") or "")
+    stage = str(rc.get("stage") or "")
+    if stage and stage != "$default" and path.startswith(f"/{stage}/"):
+        path = path[len(stage) + 1:]
+    return path or "/"
+
+
 def reconstruct_url(event: Dict[str, Any], *, force_host: str = "") -> str:
     """Rebuild the exact URL Plivo requested, from an HTTP API v2 event.
 
@@ -177,7 +205,7 @@ def reconstruct_url(event: Dict[str, Any], *, force_host: str = "") -> str:
     rc = event.get("requestContext") or {}
     host = (force_host or os.environ.get("PLIVO_CALLBACK_HOST")
             or rc.get("domainName") or "")
-    path = event.get("rawPath") or (rc.get("http") or {}).get("path") or ""
+    path = normalize_path(event)
     query = event.get("rawQueryString") or ""
     url = f"https://{host}{path}"
     return f"{url}?{query}" if query else url

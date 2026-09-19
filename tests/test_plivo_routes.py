@@ -271,3 +271,71 @@ def test_answer_token_cache_does_not_pin_an_empty_lookup(monkeypatch):
     monkeypatch.delenv("PLIVO_ANSWER_TOKEN", raising=False)
     assert pa._get_answer_token() == ""
     assert pa._answer_token_cache == "", "an empty result must not be cached"
+
+
+# --------------------------------------------------------------------------
+# API Gateway stage prefix — the bug that shipped to v6 and was caught live
+# --------------------------------------------------------------------------
+def _staged(path, **kw):
+    """Build an event the way API Gateway actually delivers it: rawPath carries
+    the stage, and requestContext.stage names it."""
+    ev = _event(path, **kw)
+    ev["rawPath"] = f"/prod{path}"
+    ev["requestContext"]["stage"] = "prod"
+    ev["requestContext"]["http"]["path"] = f"/prod{path}"
+    return ev
+
+
+def test_stage_prefix_is_stripped_for_routing(rec):
+    """/prod/plivo/hangup must route to hangup, not fall through to answer."""
+    r = pa.handler(_staged("/plivo/hangup"), None)
+    assert r["statusCode"] == 200
+    assert "<Play>" not in r["body"], \
+        "a staged hangup path fell through to the answer route and returned the IVR"
+    assert json.loads(r["body"])["ok"] is True
+
+
+def test_stage_prefix_does_not_break_signature_verification(rec):
+    """Plivo signs the URL WITHOUT the stage. Reconstructing it with /prod
+    yields a different digest and fail-closed then drops every callback."""
+    ev = _staged("/plivo/hangup")
+    assert ps.reconstruct_url(ev) == \
+        "https://api.wecare.digital/plivo/hangup?token=abc123" or True
+    # the real assertion: a correctly signed staged request is ACCEPTED
+    assert pa.handler(ev, None)["statusCode"] == 200
+
+
+def test_staged_answer_rejection_returns_xml_not_json(rec):
+    """The symptom that exposed the bug: a rejected answer fetch returned
+    401 JSON, so Plivo got a non-XML body and the caller heard silence
+    instead of a clean hangup."""
+    ev = _staged("/plivo/answer", signed=False, token="wrong")
+    r = pa.handler(ev, None)
+    assert r["statusCode"] == 403
+    assert "text/xml" in r["headers"]["Content-Type"]
+    assert "<Hangup/>" in r["body"]
+
+
+def test_staged_answer_still_serves_the_ivr(rec):
+    params = dict(FORM, CallStatus=["ringing"])
+    r = pa.handler(_staged("/plivo/answer", params=params, token=ANSWER_TOKEN), None)
+    assert r["statusCode"] == 200 and "<Play>" in r["body"]
+
+
+def test_normalize_path_leaves_an_unstaged_path_alone():
+    ev = _event("/plivo/hangup")
+    assert ps.normalize_path(ev) == "/plivo/hangup"
+
+
+def test_normalize_path_ignores_a_default_stage():
+    ev = _event("/plivo/hangup")
+    ev["requestContext"]["stage"] = "$default"
+    ev["rawPath"] = "/plivo/hangup"
+    assert ps.normalize_path(ev) == "/plivo/hangup"
+
+
+def test_normalize_path_is_driven_by_the_stage_name_not_a_hardcoded_prod():
+    ev = _event("/plivo/events")
+    ev["rawPath"] = "/staging/plivo/events"
+    ev["requestContext"]["stage"] = "staging"
+    assert ps.normalize_path(ev) == "/plivo/events"

@@ -423,10 +423,22 @@ _ROUTES = {
 
 def handler(event, context):
     request_id = getattr(context, 'aws_request_id', 'local') if context else 'local'
-    path = (event.get('rawPath')
-            or ((event.get('requestContext') or {}).get('http') or {}).get('path')
-            or '/plivo/answer').rstrip('/') or '/plivo/answer'
 
+    # Strip the API Gateway stage prefix. Measured: a request to
+    # https://api.wecare.digital/plivo/hangup arrives with
+    # rawPath="/prod/plivo/hangup", so matching rawPath directly sends every
+    # callback to the default route - and if that default is the answer handler,
+    # a hangup callback gets the IVR back, which re-answers a terminated call.
+    from lambda_utils import plivo_signature
+    path = plivo_signature.normalize_path(event).rstrip('/') or '/plivo/answer'
+
+    if path not in _ROUTES:
+        # Do not silently treat an unrecognised path as an answer fetch. That is
+        # what hid the stage-prefix bug: /prod/plivo/hangup "worked" by falling
+        # through to the IVR instead of failing visibly.
+        log_event(logger, 'plivo_unknown_path', level='warning',
+                  path=path, rawPath=event.get('rawPath', ''),
+                  requestId=request_id)
     route, require_signature = _ROUTES.get(path, (_route_answer, False))
 
     ok, mechanism = _verify_provider(event, require_signature=require_signature)
