@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""plivo-reconcile - inspect and converge Plivo configuration through its API.
+
+    ./scripts/plivo-reconcile                    # inspect (read-only, §25)
+    ./scripts/plivo-reconcile --dry-run          # plan the application update
+    ./scripts/plivo-reconcile --apply            # converge, then verify by read-back
+    ./scripts/plivo-reconcile --number-plan      # number routing plan (never mutates)
+    ./scripts/plivo-reconcile --trunks           # Zentrunk discovery
+    ./scripts/plivo-reconcile --json
+
+DRY RUN IS THE DEFAULT for anything that would write. `--apply` is the only path
+that mutates, and it still refuses if a protected invariant would move.
+
+Number routing is NOT part of --apply. §10 makes it a separate command with its
+own approval, because moving the live number off the Voice Application is a
+production routing cutover and must not ride along with a webhook URL change.
+
+Nothing here prints the auth token or a SIP password. Answer URLs are shown
+without their ?token= value; the token is represented by a SHA-256 prefix so two
+systems can be compared without disclosing it.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+_HERE = Path(__file__).resolve().parent
+_ROOT = _HERE.parent
+
+# This file has no .py suffix so the shebang resolves to the SYSTEM python3,
+# which has no boto3 and cannot read the Plivo credentials out of Secrets
+# Manager. Re-exec into the project venv once, if one exists and we are not
+# already in it. The guard variable prevents an exec loop if the venv itself
+# somehow lacks boto3.
+_VENV_PY = _ROOT / ".venv" / "bin" / "python"
+if (_VENV_PY.is_file() and not os.environ.get("_PLIVO_RECONCILE_REEXEC")
+        and Path(sys.executable).resolve() != _VENV_PY.resolve()):
+    os.environ["_PLIVO_RECONCILE_REEXEC"] = "1"
+    os.execv(str(_VENV_PY), [str(_VENV_PY), str(Path(__file__).resolve()), *sys.argv[1:]])
+
+sys.path.insert(0, str(_HERE))
+
+from plivo_control_plane import (  # noqa: E402
+    APP_ID, APP_NAME, APPLICATION_SIP_URI, CRITICAL_INVARIANTS, ENDPOINT_ALIAS,
+    ENDPOINT_SIP_URI, NUMBER, PlivoControlPlaneService, PlivoError,
+)
+
+OK, NO, WARN, INFO = "PASS", "FAIL", "WARN", "INFO"
+
+
+def line(status: str, label: str, detail: str = "") -> None:
+    print(f"  [{status:4s}] {label}" + (f"\n         {detail}" if detail else ""))
+
+
+def show_plan(rows: list) -> int:
+    """§7 table: CURRENT / TARGET / CHANGE? / PROTECTED?"""
+    changes = 0
+    print("\nAPPLICATION UPDATE PLAN")
+    for r in rows:
+        print(f"\n  {r['field']}")
+        print(f"    CURRENT: {r['current']}")
+        if r.get("current_token"):
+            print(f"             token {r['current_token']}")
+        print(f"    TARGET:  {r['target']}")
+        print(f"    CHANGE:  {'YES' if r['change'] else 'NO'}")
+        if r.get("protected"):
+            flag = "YES (CRITICAL)" if r.get("critical") else "YES"
+            print(f"    PROTECTED: {flag}")
+        if r["change"]:
+            changes += 1
+    return changes
+
+
+def inspect(svc: PlivoControlPlaneService, as_json: bool) -> int:
+    snap = svc.snapshot_current_state(write=not as_json, note="inspect")
+    app = snap["application"]
+    sip = snap["application_sip"]
+
+    if as_json:
+        print(json.dumps(snap, indent=2, sort_keys=True, default=str))
+        return 0
+
+    print(f"\nPLIVO APPLICATION\n  {app['app_id']}\n  {app['app_name']}\n")
+    for field, label in (("answer_url", "Answer"),
+                         ("fallback_answer_url", "Fallback"),
+                         ("hangup_url", "Hangup")):
+        method = {"answer_url": "answer_method",
+                  "fallback_answer_url": "fallback_method",
+                  "hangup_url": "hangup_method"}[field]
+        tok = app.get(f"{field}_token")
+        line(INFO, f"{label}: {app.get(field)}  [{app.get(method)}]",
+             f"token {tok}" if tok else "")
+
+    for field, required in CRITICAL_INVARIANTS.items():
+        observed = app.get(field)
+        line(OK if observed == required else NO,
+             f"{field}: {observed} — expected {required}",
+             "" if observed == required
+             else "CRITICAL INVARIANT BREACHED. A partial application update "
+                  "resets this to false; restore it before anything else.")
+
+    line(OK if app.get("enabled") else NO, f"enabled: {app.get('enabled')}")
+    line(INFO, f"sip_auth_type: {app.get('sip_auth_type')}  "
+               f"credential set: {bool(app.get('credential_uuid'))}  "
+               f"ip_acl set: {bool(app.get('ip_acl_uuid'))}")
+
+    num = snap["number"]
+    bound = (num.get("application") or "").rstrip("/").split("/")[-1]
+    line(OK if bound == APP_ID else WARN,
+         f"Number binding: +{num.get('number')} -> application {bound or 'NONE'}",
+         "unchanged, as §11 requires" if bound == APP_ID
+         else "§11 expects the live number on WECARE-WHATSAPP-IVR")
+
+    ep = snap["endpoint"]
+    if ep:
+        ep_app = (ep.get("application") or "").rstrip("/").split("/")[-1]
+        line(OK, f"SIP Endpoint: {ep.get('alias')} ({ep.get('username')}) "
+                 f"-> application {ep_app}")
+    else:
+        line(NO, f"SIP Endpoint {ENDPOINT_ALIAS} not found")
+
+    # §14: never conflate the two SIP objects.
+    line(OK if sip["matches_expected"] else WARN,
+         f"Application SIP: {sip['observed_sip_uri'] or '(none reported)'}",
+         f"expected {APPLICATION_SIP_URI}")
+    line(INFO, "Endpoint SIP is a DIFFERENT resource",
+         ENDPOINT_SIP_URI)
+
+    if snap.get("_snapshot_path"):
+        print(f"\n  snapshot: {snap['_snapshot_path']}")
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--dry-run", action="store_true", help="plan, write nothing")
+    ap.add_argument("--apply", action="store_true", help="converge + verify")
+    ap.add_argument("--number-plan", action="store_true", help="§10 routing plan only")
+    ap.add_argument("--trunks", action="store_true", help="§15 Zentrunk discovery")
+    ap.add_argument("--json", action="store_true")
+    args = ap.parse_args()
+
+    try:
+        svc = PlivoControlPlaneService()
+    except Exception as exc:  # noqa: BLE001
+        print(f"could not initialise Plivo control plane: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        if args.trunks:
+            trunks = svc.list_trunks()
+            print(json.dumps(trunks, indent=2, default=str) if args.json
+                  else _render_trunks(trunks))
+            return 0
+
+        if args.number_plan:
+            plan = svc.plan_number_routing_change()
+            if args.json:
+                print(json.dumps(plan, indent=2))
+            else:
+                print("\nNUMBER ROUTING PLAN (§10 — this command never mutates)")
+                line(OK if plan.get("compliant") else WARN,
+                     f"+{NUMBER} -> {plan.get('current_application')}",
+                     plan.get("reason", ""))
+            return 0 if plan.get("compliant", True) else 1
+
+        if not (args.dry_run or args.apply):
+            return inspect(svc, args.json)
+
+        app = svc.get_application()
+        rows = svc.plan_application_update(app)
+
+        if args.dry_run:
+            changes = show_plan(rows)
+            print(f"\n  {changes} field(s) would change. DRY RUN — nothing written.")
+            print("  Re-run with --apply once /plivo/fallback and /plivo/hangup "
+                  "are deployed and tested (§22 ordering).\n")
+            return 0
+
+        # --apply
+        snap = svc.snapshot_current_state(note="pre-apply")
+        print(f"\n  snapshot: {snap.get('_snapshot_path')}")
+        changes = show_plan(rows)
+        if not changes:
+            print("\n  already converged — nothing to apply.\n")
+            return 0
+
+        result = svc.apply_application_update(rows, app)
+        v = result["verification"]
+        print(f"\n  POST -> HTTP {result.get('http_status')}; "
+              "read-back verification (§8):")
+        for c in v["checks"]:
+            line(OK if c["pass"] else NO,
+                 f"{c['check']}: {c['observed']!r}",
+                 "" if c["pass"] else f"expected {c['expected']!r}")
+
+        if not v["ok"]:
+            print("\n  VERIFICATION FAILED — attempting rollback (§8)")
+            rb = svc.rollback_application_update(result["before"])
+            line(OK if rb.get("restored") else NO,
+                 f"rollback restored: {rb.get('restored')}")
+            for f in v["failures"]:
+                print(f"    {f}")
+            return 1
+
+        print("\n  converged and verified against the persisted Plivo object.\n")
+        return 0
+
+    except PlivoError as exc:
+        print(f"\nPLIVO ERROR: {exc}\n", file=sys.stderr)
+        return 1
+
+
+def _render_trunks(trunks: dict) -> str:
+    out = ["\nZENTRUNK DISCOVERY (§15 — read only)"]
+    for label, data in trunks.items():
+        status = data.get("status")
+        objs = data.get("objects")
+        if status == 200:
+            n = len(objs) if isinstance(objs, list) else "?"
+            out.append(f"  [PASS] {label}: {n} object(s)")
+            if isinstance(objs, list):
+                for o in objs:
+                    name = o.get("name") or o.get("username") or o.get("uuid") or "?"
+                    out.append(f"           {name}")
+        else:
+            out.append(f"  [INFO] {label}: HTTP {status} "
+                       f"{data.get('detail','')[:100]}")
+    return "\n".join(out) + "\n"
+
+
+if __name__ == "__main__":
+    sys.exit(main())
