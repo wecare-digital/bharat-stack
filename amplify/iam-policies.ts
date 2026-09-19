@@ -372,7 +372,6 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   'wecare-outbound-sms': [ 'common', 'sms', 'sqs' ],
   'wecare-outbound-email': [ 'common', 'email', 'sqs' ],
   'wecare-sms-aws': [ 'common', 'sms' ],
-  'wecare-sms-in-airtel': [ 'common', 'secrets' ],
 
   // === Voice (AWS Pinpoint) ===
   'wecare-voice-aws': [ 'common', 'sms' ],
@@ -431,5 +430,4 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   // === RCS ===
   'wecare-rcs-send': [ 'common', 'secrets' ],
   'wecare-rcs-dlr': [ 'common' ],
-  'wecare-sinch-dlr': [ 'common' ],
 };

@@ -446,7 +446,7 @@ export interface Message {
   detectedLanguage?: string;    // Detected language of voice note (e.g. "hi-IN")
   // Call breadcrumb fields (channel=voice, messageType=call)
   callId?: string;
-  callType?: string;            // aws | airtel | whatsapp
+  callType?: string;            // plivo | aws | whatsapp; legacy rows may read 'airtel'
   duration?: number;            // seconds
   recordingUrl?: string;
 }
@@ -710,7 +710,7 @@ export async function listBlockedWhatsAppUsers ( request: { contactId?: string; 
 }
 
 /**
- * Click-to-call via Airtel C2C bridge (rings the agent number, then connects the
+ * Click-to-call (historical: Airtel C2C bridge, retired 2026-09-19) (rings the agent number, then connects the
  * contact). This is the phone-bridge call — NOT the WhatsApp Calling API.
  */
 export async function initiateClickToCall ( fromNumber: string, toNumber: string, enableRecording = true ): Promise<{ callId?: string; error?: string } | null> {
@@ -1125,12 +1125,30 @@ export async function getSystemHealth (): Promise<SystemHealth> {
 // VOICE CALLS API
 // ============================================================================
 
+/**
+ * Providers that may appear when READING a voice record.
+ *
+ * The retired entry is present because calls really were placed that way before
+ * 2026-09-19 and the records are retained as audit evidence. Reading it must stay
+ * possible; selecting it must not.
+ */
+export type VoiceProviderRead = 'plivo' | 'aws' | 'airtel';
+
+/**
+ * Providers that may be SELECTED for a new call. PSTN voice is Plivo; 'aws' is
+ * the AWS End User Messaging voice (TTS/audio) path.
+ *
+ * Retired providers are absent by design, so a retired-provider call is not
+ * expressible in the type system rather than merely discouraged.
+ */
+export type VoiceProviderSelectable = 'plivo' | 'aws';
+
 export interface VoiceCall {
   id: string;
   callId: string;
   contactId: string;
   phoneNumber: string;
-  provider: 'aws' | 'airtel';
+  provider: VoiceProviderRead;
   callType: 'tts' | 'audio' | 'ivr' | 'click_to_call';
   status: string;
   direction: 'INBOUND' | 'OUTBOUND';
@@ -1143,7 +1161,7 @@ export interface VoiceCall {
 export interface MakeVoiceCallRequest {
   contactId?: string;
   phoneNumber: string;
-  provider: 'aws' | 'airtel';
+  provider: VoiceProviderSelectable;
   callType: 'tts' | 'audio' | 'ivr' | 'click_to_call';
   messageText?: string;
   voiceId?: string;
@@ -1246,24 +1264,16 @@ export async function sendSmsAws ( request: SendSmsAwsRequest ): Promise<{ messa
 
 
 // ============================================================================
-// SINCH SMS API (OAuth - jumbo.aclgateway.com/v12)
+// SMS SENDING
 // ============================================================================
-
-export interface SendSinchSmsRequest {
-  phoneNumber: string;
-  content: string;
-  provider?: 'sinch';
-  messageType?: 'SERVICE_IMPLICIT' | 'SERVICE_EXPLICIT' | 'TRANSACTIONAL' | 'PROMOTIONAL';
-  sourceAddress?: string;
-}
-
-export async function sendSinchSms ( request: SendSinchSmsRequest ): Promise<{ success: boolean; messageId?: string; providerMessageId?: string; error?: string } | null> {
-  return apiCall<{ success: boolean; messageId?: string; providerMessageId?: string; error?: string }>( `${API_BASE}/sms/send`, {
-    method: 'POST',
-    body: JSON.stringify( { ...request, provider: 'sinch', sourceAddress: request.sourceAddress || 'WDBEEP' } ),
-  } );
-}
-
+// There is no provider-specific SMS client function. SMS goes to POST /sms/send,
+// which sends exclusively through AWS End User Messaging and refuses a request
+// naming a prohibited provider with 422.
+//
+// Removed 2026-09-19: a provider-specific helper that forced a prohibited SMS
+// provider and a hardcoded sender header on every call. It had no callers.
+// Identifier omitted so the provider-policy scan stays precise.
+// See docs/provider-retirement-inventory.md.
 
 // ============================================================================
 // SINCH RCS API (Conversation API)

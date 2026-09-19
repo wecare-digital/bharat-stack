@@ -36,9 +36,6 @@ import { AppBuilderIcon } from '../../lib/icons';
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
 const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
 
-// Airtel integration reference moved to backend — no longer shipped in browser bundle.
-// See: docs/airtel-integration-reference.md (local only, gitignored)
-const AIRTEL_REFERENCE_NOTICE = 'Airtel integration details are no longer displayed in the dashboard for security. Check your local docs/airtel-integration-reference.md or AWS Secrets Manager.';
 
 // AWS Resource ARNs for billing display - uses centralized AWS_ACCOUNT_ID and AWS_REGION
 // Comprehensive list including used and available services for future updates
@@ -63,10 +60,9 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
       'wecare-dlq-replay',
       'wecare-sms-aws (Pinpoint SMS v2)',
       'wecare-voice-aws (Pinpoint Voice v2)',
-      'wecare-voice-in-c2c (Airtel C2C)',
-      'wecare-voice-in-obd (Airtel OBD)',
-      'wecare-voice-cdr (Airtel CDR)',
-      'wecare-sms-in-airtel (Airtel SMS)',
+      'wecare-voice-in-c2c (retired provider — historical reads)',
+      'wecare-voice-in-obd (retired provider — historical reads)',
+      'wecare-voice-cdr (voice CDR — also written by Plivo)',
       'wecare-billing',
       'wecare-scheduled-messages',
       'wecare-template-analytics',
@@ -110,12 +106,12 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
       'stack-wecare-digital-BulkRecipientsTable',
       'stack-wecare-digital-DLQMessagesTable',
       'stack-wecare-digital-SmsAwsTable (Pinpoint SMS)',
-      'stack-wecare-digital-AirtelSMSTable (Airtel SMS)',
-      'stack-wecare-digital-DLTTemplates (Airtel DLT)',
+      'stack-wecare-digital-AirtelSMSTable (legacy SMS history — read-only)',
+      'stack-wecare-digital-DLTTemplates (TRAI DLT registry — live)',
       'stack-wecare-digital-VoiceAwsTable (Pinpoint Voice)',
-      'stack-wecare-digital-AirtelC2CTable (Airtel C2C)',
-      'stack-wecare-digital-VoiceCDRTable (Airtel CDR)',
-      'stack-wecare-digital-OBDCampaigns (Airtel OBD)',
+      'stack-wecare-digital-AirtelC2CTable (legacy C2C history — read-only)',
+      'stack-wecare-digital-VoiceCDRTable (voice CDR — live, shared with Plivo)',
+      'stack-wecare-digital-OBDCampaigns (legacy OBD history — read-only)',
       'stack-wecare-digital-ScheduledMessagesTable',
       'stack-wecare-digital-TemplateAnalyticsTable',
       'stack-wecare-digital-InvoicesTable',
@@ -317,7 +313,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'AWS Secrets Manager': {
     arn: `arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`,
     accountId: AWS_ACCOUNT_ID,
-    details: [ 'wecare/airtel/c2c (Airtel C2C — Kong API)', 'wecare/airtel/obd (Airtel OBD — campaign + upload auth)', 'wecare/airtel/sms (Airtel SMS — Kong API)' ]
+    details: [ '31 secrets. 3 retired-provider credentials have no remaining reader and await destructive-approval deletion (see docs/provider-retirement-inventory.md). Paths are not listed here.' ]
   },
   'AWS KMS': {
     arn: `arn:aws:kms:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`,
@@ -669,13 +665,13 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
     { id: 'ai_interactions', label: 'AI Interactions Log', category: 'AI', type: 'dynamodb', table: 'AIInteractionsTable', count: -1 },
     { id: 'whatsapp_calling', label: 'WhatsApp Call Logs', category: 'Voice', type: 'dynamodb', table: 'WhatsAppCallingTable', count: -1 },
     { id: 'voice_cdr', label: 'Voice CDR Records', category: 'Voice', type: 'dynamodb', table: 'VoiceCDRTable', count: -1 },
-    { id: 'voice_calls', label: 'Voice Calls (Airtel)', category: 'Voice', type: 'dynamodb', table: 'VoiceCalls', count: -1 },
+    { id: 'voice_calls', label: 'Voice Calls (legacy)', category: 'Voice', type: 'dynamodb', table: 'VoiceCalls', count: -1 },
     { id: 'voice_aws', label: 'Voice AWS (Pinpoint)', category: 'Voice', type: 'dynamodb', table: 'VoiceAwsTable', count: -1 },
     { id: 'whatsapp_voice_log', label: 'WhatsApp Voice (TTS) Log', category: 'Voice', type: 'dynamodb', table: 'WhatsAppVoiceTable', count: -1 },
     { id: 'obd_campaigns', label: 'OBD Campaigns', category: 'Voice', type: 'dynamodb', table: 'OBDCampaigns', count: -1 },
-    { id: 'airtel_c2c', label: 'Airtel C2C Records', category: 'Voice', type: 'dynamodb', table: 'AirtelC2CTable', count: -1 },
+    { id: 'legacy_c2c', label: 'C2C Records (legacy)', category: 'Voice', type: 'dynamodb', table: 'AirtelC2CTable', count: -1 },
     { id: 'sms_aws', label: 'SMS AWS (Pinpoint)', category: 'SMS', type: 'dynamodb', table: 'SmsAwsTable', count: -1 },
-    { id: 'airtel_sms', label: 'Airtel SMS Messages', category: 'SMS', type: 'dynamodb', table: 'AirtelSMSTable', count: -1 },
+    { id: 'legacy_sms', label: 'SMS Messages (legacy providers)', category: 'SMS', type: 'dynamodb', table: 'AirtelSMSTable', count: -1 },
     { id: 'invoices', label: 'Invoices', category: 'Invoices & Payments', type: 'dynamodb', table: 'InvoicesTable', count: -1 },
     { id: 'invoice_items', label: 'Invoice Line Items', category: 'Invoices & Payments', type: 'dynamodb', table: 'InvoiceItemsTable', count: -1 },
     { id: 'invoice_assets', label: 'Invoice Assets (PDFs)', category: 'Invoices & Payments', type: 'dynamodb', table: 'InvoiceAssetsTable', count: -1 },
@@ -921,14 +917,16 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
         } else if ( id === 'obd_campaigns' )
         {
           deleted = await bulkClear( `${API_BASE}/voice-in/obd`, 'POST', { clearAll: true } );
-        } else if ( id === 'airtel_sms' )
+        } else if ( id === 'legacy_sms' )
         {
-          const bulk = await tryBulkClear( `${API_BASE}/sms-in/airtel/clear-logs` );
+          // Legacy history purge requires the table name as a typed confirmation
+          // server-side, because these rows are DLT audit evidence.
+          const bulk = await tryBulkClear( `${API_BASE}/sms-aws/legacy-history`, 'DELETE', { confirmTable: 'stack-wecare-digital-AirtelSMSTable' } );
           if ( bulk >= 0 ) { deleted = bulk; } else
           {
-            results.push( { id, label, deleted: 0, error: 'API route not deployed — redeploy sms-in/airtel Lambda' } ); continue;
+            results.push( { id, label, deleted: 0, error: 'Legacy history purge refused or route unavailable' } ); continue;
           }
-        } else if ( id === 'airtel_c2c' )
+        } else if ( id === 'legacy_c2c' )
         {
           const bulk = await tryBulkClear( `${API_BASE}/voice-in/c2c`, 'DELETE', { clearAll: true } );
           if ( bulk >= 0 ) { deleted = bulk; } else
@@ -2502,186 +2500,14 @@ Content-Type: application/json`}</pre>
                   removed from the production API on 2026-08-25.
                 </div>
 
-                {/* Airtel Voice Webhook Section */ }
-                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #E53935' } }>
-                  <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
-                    <div style={ { width: '40px', height: '40px', background: '#FFEBEE', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #FFCDD2' } }>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" stroke="#E53935" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>Airtel Cloud Communication Platform</h3>
-                      <span className="badge" style={ { background: '#FFEBEE', color: '#C62828', marginTop: '4px' } }>Voice CDR + C2C + OBD + SMS</span>
-                    </div>
-                  </div>
+                {/* Retired India voice provider — section removed 2026-09-19.
+                    It documented click-to-call, OBD and CDR webhook endpoints for
+                    a provider no longer in use. PSTN voice is Plivo; see
+                    scripts/plivo-reconcile for the live, read-only control-plane
+                    state. Historical CDR records are retained: VoiceCDRTable is
+                    still live and is now also written by the Plivo callbacks. */ }
 
-                  {/* Webhook URLs */ }
-                  <div style={ { background: '#FFEBEE', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFCDD2' } }>
-                    <h4 style={ { margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#C62828' } }>Webhook URLs for Airtel Configuration</h4>
-
-                    <div style={ { marginBottom: '0.75rem', background: '#FFF9C4', padding: '0.75rem', borderRadius: '4px', border: '1px solid #FFF176' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#F57F17', display: 'block', fontWeight: 600 } }>OLD URL (DEPRECATED - ask Airtel to replace)</label>
-                      <code style={ { fontSize: '0.8rem', color: '#E65100', textDecoration: 'line-through' } }>https://k4vqzmi07b.execute-api.us-east-1.amazonaws.com/prod/voice-cdr-webhook</code>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>CDR Webhook URL (Airtel → Us, for callBackURLs eventType: "CDR" and "ALL")</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>https://api.wecare.digital/voice-cdr-webhook</code>
-                      <div style={ { fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' } }>Accepts both Airtel CDR formats (camelCase and Display_Format)</div>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>C2C API (Click-to-Call) — CDR callbacks + our API</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>https://api.wecare.digital/voice-in/c2c</code>
-                      <div style={ { fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' } }>Airtel C2C endpoints: /v2/click-to-call (simple) · /v2/execute/workflow (full callFlowConfiguration)</div>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>OBD API (Outbound Dialer) — also accepts CDR callbacks</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>https://api.wecare.digital/voice-in/obd</code>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>SMS Inbound (Airtel SMS delivery reports + inbound)</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>https://api.wecare.digital/sms-in/airtel</code>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>CDR Read API (Internal dashboard — not for Airtel)</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>https://api.wecare.digital/voice-cdr-read</code>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>HTTP Method</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>POST</code>
-                    </div>
-
-                    <div>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Content-Type</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>application/json</code>
-                    </div>
-                  </div>
-
-                  {/* Contact Info */ }
-                  <div style={ { background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' } }>Contact Information</h4>
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' } }>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Inbound Number</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>+91 9319767034</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Contact Email</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>voice@wecare.digital</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Customer ID</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>WECAREDIG_v6J1SyLLI2auy7Lw9JrW</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>App ID (C2C)</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>WECAREDIG_fD4BKqUbC8k90jNrPR0n</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>DLT Sender ID</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>WDBEEP</code>
-                        <div style={ { fontSize: '0.65rem', color: '#6b7280' } }>ID: 1405170900886606599 · REGISTERED · bsnl.com · Permanent</div>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>DLT Entity ID</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>1201161991108627443</code>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Airtel Voice Phone Numbers */ }
-                  <div style={ { background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' } }>Airtel Voice Phone Numbers</h4>
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' } }>
-                      { [
-                        { number: '8047311032', type: 'Fixed Line', circle: 'Karnataka', usage: 'C2C Caller ID (Outbound/Inbound)' },
-                        { number: '8040761117', type: 'Fixed Line', circle: 'Karnataka', usage: 'OBD Caller ID (Outbound/Inbound)' },
-                        { number: '9319767034', type: 'Mobile', circle: 'Delhi', usage: 'Inbound Number (Outbound/Inbound)' },
-                      ].map( ( { number, type, circle, usage } ) => (
-                        <div key={ number } style={ { background: '#fff', padding: '0.5rem 0.75rem', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } }>
-                          <code style={ { fontSize: '0.85rem', color: '#111827', fontWeight: 600 } }>{ number }</code>
-                          <span style={ { fontSize: '0.75rem', color: '#6b7280' } }>{ type } · { circle } · { usage }</span>
-                        </div>
-                      ) ) }
-                    </div>
-                  </div>
-
-                  {/* Airtel NAT Gateway IPs */ }
-                  <div style={ { background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' } }>Airtel IP Whitelist</h4>
-                    <div style={ { fontSize: '0.85rem', color: '#C62828', fontWeight: 600, marginBottom: '0.5rem', background: '#FFEBEE', padding: '0.5rem 0.75rem', borderRadius: '4px', border: '1px solid #FFCDD2' } }>
-                      📌 Our Static IP (give to Airtel for whitelisting): <code style={ { fontSize: '0.95rem', fontWeight: 700 } }>52.3.44.165</code>
-                      <div style={ { fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' } }>Lightsail instance: wecare-voice-bot (us-east-1, Amazon Linux 2023) — SSH: <code>ssh -i lightsail_key.pem ec2-user@52.3.44.165</code></div>
-                      <div style={ { fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' } }>Used for: SMS API, C2C API, OBD API, WhatsApp Calling (Asterisk SIP PBX)</div>
-                      <div style={ { fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' } }>SIP Trunks: +91 93309 94400 (WABA1, default) · +91 99033 00044 (WABA-T)</div>
-                      <div style={ { fontSize: '0.7rem', fontWeight: 400, marginTop: '2px' } }>IVR: Asterisk AGI + Polly TTS (multi-language) · Both phones have SIP + IVR enabled</div>
-                      <div style={ { fontSize: '0.7rem', fontWeight: 400, marginTop: '2px', color: '#E65100' } }>⚠ Status: Airtel must whitelist this IP before SMS/Voice APIs work from this server</div>
-                    </div>
-                    <div style={ { fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' } }>Legacy IPs (do NOT remove): 125.19.17.212, 125.17.6.54, 122.187.47.153</div>
-                    <div style={ { fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' } }>NAT Gateway (current — do NOT remove): 65.1.125.210, 3.108.104.147 (Voice/Platform) · 3.109.177.16 (WhatsApp)</div>
-                    <div style={ { fontSize: '0.75rem', color: '#E65100', fontWeight: 600 } }>NAT Gateway (new — whitelist by 20 Sep 2025): 13.126.42.108 (1a) · 3.108.90.203 (1b)</div>
-                  </div>
-
-                  {/* Sample callBackURLs Config */ }
-                  <div style={ { background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' } }>Sample callBackURLs Configuration</h4>
-                    <pre style={ { fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 } }>{ `"callBackURLs": [
-  {
-    "eventType": "CDR",
-    "notifyURL": "https://api.wecare.digital/voice-cdr-webhook",
-    "method": "POST",
-    "headers": {}
-  },
-  {
-    "eventType": "ALL",
-    "notifyURL": "https://api.wecare.digital/voice-cdr-webhook",
-    "method": "POST",
-    "headers": {}
-  }
-]`}</pre>
-                  </div>
-
-                  {/* Supported Event Types */ }
-                  <div>
-                    <label style={ { fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' } }>Supported Event Types</label>
-                    <div style={ { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' } }>
-                      { [
-                        { event: 'CDR', desc: 'Call Detail Records', color: '#E53935' },
-                        { event: 'ALL', desc: 'All real-time events', color: '#E53935' },
-                        { event: 'CALL', desc: 'Call state changes', color: '#FB8C00' },
-                        { event: 'MEDIA', desc: 'Audio playback events', color: '#7B1FA2' },
-                        { event: 'DTMF', desc: 'Keypad input events', color: '#1a3a2a' },
-                        { event: 'RECORD', desc: 'Recording events', color: '#388E3C' },
-                      ].map( ( { event, desc, color } ) => (
-                        <div key={ event } style={ { background: '#FFEBEE', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #FFCDD2' } }>
-                          <div style={ { display: 'flex', alignItems: 'center', gap: '0.5rem' } }>
-                            <span style={ { width: '8px', height: '8px', borderRadius: '50%', background: color } } />
-                            <span style={ { fontFamily: 'monospace', color: '#111827', fontWeight: 500 } }>{ event }</span>
-                          </div>
-                          <div style={ { fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' } }>{ desc }</div>
-                        </div>
-                      ) ) }
-                    </div>
-                  </div>
-                </div>
-
-                {/* Airtel Integration Reference — credentials removed for security */ }
-                <div className="section" style={ { background: '#FFF3E0', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #FFB74D' } }>
-                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#E65100' } }>
-                    Airtel Integration Reference
-                  </h4>
-                  <p style={ { fontSize: '0.9rem', color: '#333', margin: 0 } }>
-                    { AIRTEL_REFERENCE_NOTICE }
-                  </p>
-                </div>
-
-                {/* Overall Call Status Matrix (per Airtel CDR spec Section 3) */ }
+                {/* Overall Call Status Matrix — legacy CDR status derivation, retained for historical records */ }
                 <div className="section" style={ { background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' } }>
                   <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' } }>
                     <DataIcon size={ 18 } />
@@ -2740,14 +2566,14 @@ Content-Type: application/json`}</pre>
                   <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' } }>
                     { [
                       { field: 'vmSessionId', desc: 'Unique session ID' },
-                      { field: 'clientCorrelationId', desc: 'Xchange ID (search key in Airtel UI)' },
+                      { field: 'clientCorrelationId', desc: 'Correlation / Xchange ID (legacy provider search key)' },
                       { field: 'customerId', desc: 'Customer identifier' },
                       { field: 'callType', desc: 'INBOUND or OUTBOUND' },
                       { field: 'overallCallStatus', desc: 'Answered / Missed / Busy' },
                       { field: 'callerId', desc: 'Fixed line CLI used for call' },
                       { field: 'callerNumber', desc: 'Party A (From) number' },
                       { field: 'destinationNumber', desc: 'Party B (To) number' },
-                      { field: 'calledNumber', desc: 'Airtel VN (inbound only)' },
+                      { field: 'calledNumber', desc: 'Virtual number dialled (inbound only)' },
                       { field: 'displayCliDestination', desc: 'CLI shown to destination' },
                       { field: 'durationSec', desc: 'Total duration (waitTime + network)' },
                       { field: 'fromWaitingTimeSec', desc: 'IVR/wait time before answer' },
@@ -2781,187 +2607,14 @@ Content-Type: application/json`}</pre>
                   </div>
                 </div>
 
-                {/* Airtel SMS Webhook Section */ }
-                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1a3a2a' } }>
-                  <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
-                    <div style={ { width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' } }>
-                      <SmsIcon size={ 24 } />
-                    </div>
-                    <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>Airtel IQ SMS</h3>
-                      <span className="badge" style={ { background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' } }>DLT Compliant</span>
-                    </div>
-                  </div>
-
-                  <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' } }>
-                    <h4 style={ { margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#1a3a2a' } }>SMS API Endpoints</h4>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Send SMS (via our API — supports v4/v5/v6)</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>POST https://api.wecare.digital/sms-in/airtel</code>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>List SMS Messages</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>GET https://api.wecare.digital/sms-in/airtel</code>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Delete SMS Message</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>DELETE https://api.wecare.digital/sms-in/airtel?messageId=xxx</code>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Clear All SMS Logs</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>DELETE https://api.wecare.digital/sms-in/airtel/clear-logs</code>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>DLT Templates (CRUD)</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.5rem', display: 'block', borderRadius: '4px', marginTop: '4px' } }>GET/POST/DELETE https://api.wecare.digital/sms-in/airtel/templates</code>
-                    </div>
-
-                    <h4 style={ { margin: '0.75rem 0 0.5rem 0', fontSize: '0.85rem', color: '#1a3a2a' } }>Airtel IQ Direct Endpoints (3 versions)</h4>
-                    { [
-                      { label: 'v4 — Single / Multiple SMS', url: 'POST https://iqmessaging.airtel.in/api/v4/send-sms' },
-                      { label: 'v5 — Content Moderation (no DLT fields needed)', url: 'POST https://iqmessaging.airtel.in/api/v5/send-sms-cm' },
-                      { label: 'v6 — Enhanced Response (echo-back fields)', url: 'POST https://iqmessaging.airtel.in/api/v6/send-sms' },
-                      { label: 'Bulk SMS (Conduit API — per-recipient payload)', url: 'POST https://iqmessaging.airtel.in/conduit/api/v1/send-sms-bulk' },
-                    ].map( ( { label, url } ) => (
-                      <div key={ label } style={ { marginBottom: '0.5rem' } }>
-                        <label style={ { fontSize: '0.7rem', color: '#6b7280', display: 'block' } }>{ label }</label>
-                        <code style={ { fontSize: '0.8rem', wordBreak: 'break-all', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' } }>{ url }</code>
-                      </div>
-                    ) ) }
-                    <div style={ { fontSize: '0.75rem', color: '#1a3a2a', marginTop: '0.5rem', fontStyle: 'italic' } }>
-                      v4/v5/v6: Basic auth + customerId header · Bulk/Conduit: Basic auth only (no customerId)
-                    </div>
-                  </div>
-
-                  <div style={ { background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' } }>DLT Configuration (TRAI TCCCPR 2019)</h4>
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' } }>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Sender ID (Header)</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>WDBEEP</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Sender ID — DLT Registration</label>
-                        <code style={ { fontSize: '0.75rem', color: '#111827' } }>ID: 1405170900886606599 · REGISTERED · bsnl.com · Permanent</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>PE ID (Entity ID)</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>1201161991108627443</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Default Template ID</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>1007277993798259629 (ivr-default)</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>API Host</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>iqmessaging.airtel.in</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>ivr-default Template</label>
-                        <code style={ { fontSize: '0.7rem', color: '#111827' } }>ID: 1007277993798259629 · WDBEEP / Service Implicit</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>wd_order Template</label>
-                        <code style={ { fontSize: '0.7rem', color: '#111827' } }>ID: 1007723091207562020 · WDBEEP / Service Implicit</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>wa-alert Template</label>
-                        <code style={ { fontSize: '0.7rem', color: '#111827' } }>ID: 1007284579074821763 · WDBEEP / Service Implicit</code>
-                      </div>
-                    </div>
-                    <div style={ { background: '#fff', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: '1.4', whiteSpace: 'pre-line' } }>
-                      ivr-default: Thanks for contacting WECARE.DIGITAL!{ '\n\n' }Submit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.{ '\n\n' }We&apos;ll review it and follow up if needed.
-                    </div>
-                    <div style={ { background: '#fff', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: '1.4', whiteSpace: 'pre-line' } }>
-                      wd_order: Thanks for placing your order with WECARE.DIGITAL!{ '\n\n' }Your order has been received. We&apos;ll review it and share updates shortly.{ '\n\n' }Need help? Submit a request here: https://wecare.digital/selfservice or message / voice note us on WhatsApp: https://r.wecare.digital/wa.
-                    </div>
-                    <div style={ { background: '#fff', padding: '0.5rem', borderRadius: '4px', marginTop: '0.5rem', fontSize: '0.7rem', color: '#6b7280', lineHeight: '1.4' } }>
-                      wa-alert: We&apos;ve sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL
-                    </div>
-                    <div style={ { fontSize: '0.75rem', color: '#E65100', marginTop: '0.75rem', lineHeight: '1.5' } }>
-                      Note: v5 (Content Moderation) does NOT require DLT fields — auto-handled by Airtel.<br />
-                      Note: Promotional messages — No DLR sent back (except NACK from DLT).<br />
-                      Note: MSISDN must be 10 or 12 digits (India format).
-                    </div>
-                  </div>
-
-                  <div style={ { background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' } }>Sample Send SMS Requests</h4>
-                    <pre style={ { fontSize: '0.75rem', color: '#111827', background: '#fff', padding: '0.75rem', borderRadius: '4px', overflow: 'auto', margin: 0 } }>{ `# Single SMS (v4)
-POST /sms-in/airtel
-{
-  "phoneNumber": "8130078559",
-  "content": "Thanks for contacting WECARE.DIGITAL!\\n\\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\\n\\nWe'll review it and follow up if needed.",
-  "messageType": "SERVICE_IMPLICIT",
-  "dltTemplateId": "1007277993798259629"
-}
-
-# WA-Alert Template
-POST /sms-in/airtel
-{
-  "phoneNumber": "8130078559",
-  "content": "We've sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL",
-  "messageType": "SERVICE_IMPLICIT",
-  "dltTemplateId": "1007284579074821763"
-}
-
-# wd_order Template (Order Confirmation)
-POST /sms-in/airtel
-{
-  "phoneNumber": "8130078559",
-  "content": "Thanks for placing your order with WECARE.DIGITAL!\\n\\nYour order has been received. We'll review it and share updates shortly.\\n\\nNeed help? Submit a request here: https://wecare.digital/selfservice or message / voice note us on WhatsApp: https://r.wecare.digital/wa.",
-  "messageType": "SERVICE_IMPLICIT",
-  "dltTemplateId": "1007723091207562020"
-}
-
-# Multiple Recipients (same v4 endpoint)
-POST /sms-in/airtel
-{
-  "phoneNumbers": ["8130078559", "7080003969"],
-  "content": "Thanks for contacting WECARE.DIGITAL!\\n\\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\\n\\nWe'll review it and follow up if needed.",
-  "messageType": "SERVICE_IMPLICIT",
-  "dltTemplateId": "1007277993798259629"
-}
-
-# Bulk via Conduit API (different format per recipient)
-POST /sms-in/airtel
-{
-  "bulk": true,
-  "phoneNumbers": ["8130078559", "7080003969"],
-  "content": "Thanks for contacting WECARE.DIGITAL!\\n\\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\\n\\nWe'll review it and follow up if needed.",
-  "messageType": "SERVICE_IMPLICIT",
-  "dltTemplateId": "1007277993798259629"
-}
-
-apiVersion: "v4" (default) | "v5" (content mod) | "v6" (enhanced)
-metaData: { "key": "value" } (optional, flows to IQ reporting)`}</pre>
-                  </div>
-
-                  <div>
-                    <label style={ { fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' } }>Supported Message Types</label>
-                    <div style={ { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' } }>
-                      { [
-                        { type: 'SERVICE_EXPLICIT', desc: 'Service messages (opt-in)', color: '#1a3a2a' },
-                        { type: 'SERVICE_IMPLICIT', desc: 'Service messages (implicit)', color: '#1a3a2a' },
-                        { type: 'TRANSACTIONAL', desc: 'OTP, alerts, etc.', color: '#388E3C' },
-                        { type: 'PROMOTIONAL', desc: 'Marketing messages', color: '#1a3a2a' },
-                      ].map( ( { type, desc, color } ) => (
-                        <div key={ type } style={ { background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #e5e7eb' } }>
-                          <div style={ { display: 'flex', alignItems: 'center', gap: '0.5rem' } }>
-                            <span style={ { width: '8px', height: '8px', borderRadius: '50%', background: color } } />
-                            <span style={ { fontFamily: 'monospace', color: '#111827', fontWeight: 500 } }>{ type }</span>
-                          </div>
-                          <div style={ { fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' } }>{ desc }</div>
-                        </div>
-                      ) ) }
-                    </div>
-                  </div>
-                </div>
+                {/* Retired India SMS provider — section removed 2026-09-19.
+                    It documented a retired provider's live send endpoints, DLT
+                    payloads and credential headers. Leaving it would tell an
+                    operator to call an API this platform no longer uses. The
+                    TRAI DLT registry itself is live and is administered at
+                    /dm/sms -> DLT Templates; historical messages are read-only
+                    under /dm/sms -> Legacy history.
+                    See docs/provider-retirement-inventory.md. */ }
 
                 {/* AWS Pinpoint SMS & Voice Section */ }
                 <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1a3a2a' } }>

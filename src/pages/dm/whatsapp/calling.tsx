@@ -192,8 +192,8 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
   // Auto 👍 reaction toggle (all messages, templates & call notifications)
   const [ autoThumb, setAutoThumb ] = useState( true );
   const [ smsTestPhone, setSmsTestPhone ] = useState( '+919903300044' );
-  const [ smsTestSending, setSmsTestSending ] = useState<'idle' | 'airtel' | 'pinpoint'>( 'idle' );
-  const [ smsTestResult, setSmsTestResult ] = useState<{ airtel?: string; pinpoint?: string } | null>( null );
+  const [ smsTestSending, setSmsTestSending ] = useState<'idle' | 'aws'>( 'idle' );
+  const [ smsTestResult, setSmsTestResult ] = useState<{ aws?: string } | null>( null );
   const [ activeCalls, setActiveCalls ] = useState<any[]>( [] );
   const [ callLogs, setCallLogs ] = useState<any[]>( [] );
   const [ loadingCalls, setLoadingCalls ] = useState( false );
@@ -616,24 +616,22 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
   };
 
   // Send test IVR SMS
-  const sendTestSms = async ( provider: 'airtel' | 'pinpoint' ) => {
+  // One provider, so no provider argument. The retired second branch posted a raw
+  // DLT template id and sender header to select a prohibited provider; both the
+  // provider choice and the raw regulatory ids are now resolved server-side from
+  // a template key.
+  const sendTestSms = async ( provider: 'aws' = 'aws' ) => {
     if ( !smsTestPhone ) { toast.error( 'Enter a phone number' ); return; }
     setSmsTestSending( provider );
     setSmsTestResult( prev => ( { ...prev, [ provider ]: undefined } ) );
     try
     {
-      const endpoint = provider === 'airtel' ? '/sms/send' : '/sms-aws/send';
-      const body = provider === 'airtel' ? {
-        phoneNumber: smsTestPhone,
-        content: "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.",
-        provider: 'airtel',
-        messageType: 'SERVICE_IMPLICIT',
-        dltTemplateId: '1007277993798259629',
-        sourceAddress: 'WDBEEP',
-      } : {
+      const endpoint = '/sms-aws/send';
+      const body = {
         phoneNumber: smsTestPhone,
         content: "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.",
         messageType: 'TRANSACTIONAL',
+        dltTemplateKey: 'ivr-default',
       };
       const res = await fetch( `${API_BASE}${endpoint}`, {
         method: 'POST',
@@ -644,11 +642,11 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
       if ( res.ok && ( data.success || data.messageId ) )
       {
         setSmsTestResult( prev => ( { ...prev, [ provider ]: `✓ Sent (${data.messageId || data.providerMessageId || 'ok'})` } ) );
-        toast.success( `${provider === 'airtel' ? 'Airtel' : 'Pinpoint'} SMS sent` );
+        toast.success( 'Test SMS sent via AWS End User Messaging' );
       } else
       {
         setSmsTestResult( prev => ( { ...prev, [ provider ]: `✗ ${data.error || 'Failed'}` } ) );
-        toast.error( `${provider === 'airtel' ? 'Airtel' : 'Pinpoint'} SMS failed: ${data.error || 'unknown'}` );
+        toast.error( `Test SMS failed: ${data.error || 'unknown'}` );
       }
     } catch ( e: any )
     {
@@ -1226,18 +1224,18 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
               <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' } }>
                 <div style={ { background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
                   <div style={ { fontWeight: 600, color: '#111827', marginBottom: '4px' } }>🇮🇳 Indian Numbers (+91)</div>
-                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Provider: Airtel IQ (ap-south-1)</div>
-                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Sender: WDBEEP</div>
-                  <div style={ { color: '#6b7280', fontSize: '11px' } }>DLT: 1007277993798259629 (ivr-default)</div>
-                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Lambda: wecare-sms-in-airtel</div>
-                  <span style={ { display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dcfce7', color: '#166534', borderRadius: '4px', fontSize: '10px' } }>REGISTERED</span>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>AWS End User Messaging, ap-south-1</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Sender: WDBEEP (DLT-registered)</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Template key: ivr-default</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Lambda: wecare-sms-aws</div>
+                  <span style={ { display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dcfce7', color: '#166534', borderRadius: '4px', fontSize: '10px' } }>TRAI DLT ENFORCED</span>
                 </div>
                 <div style={ { background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
                   <div style={ { fontWeight: 600, color: '#111827', marginBottom: '4px' } }>🌍 International Numbers</div>
-                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Provider: Pinpoint SMS v2 (us-east-1)</div>
-                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Origination: Account default</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>AWS End User Messaging, us-east-1</div>
+                  <div style={ { color: '#6b7280', fontSize: '11px' } }>Origination: pinned toll-free identity</div>
                   <div style={ { color: '#6b7280', fontSize: '11px' } }>Lambda: wecare-sms-aws</div>
-                  <span style={ { display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dbeafe', color: '#1e40af', borderRadius: '4px', fontSize: '10px' } }>PINPOINT SMS v2</span>
+                  <span style={ { display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dbeafe', color: '#1e40af', borderRadius: '4px', fontSize: '10px' } }>NO DLT FIELDS</span>
                 </div>
               </div>
               <div style={ { marginTop: '8px', padding: '8px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb', fontFamily: 'monospace', fontSize: '11px', color: '#374151', whiteSpace: 'pre-line' } }>
@@ -1249,19 +1247,14 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                 <div style={ { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }>
                   <input value={ smsTestPhone } onChange={ e => setSmsTestPhone( e.target.value ) } placeholder="+919903300044"
                     style={ { flex: 1, minWidth: '160px', padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '12px', fontFamily: 'monospace' } } />
-                  <button onClick={ () => sendTestSms( 'airtel' ) } disabled={ smsTestSending !== 'idle' }
-                    style={ { padding: '6px 12px', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '6px', fontSize: '11px', fontWeight: 600, color: '#166534', cursor: 'pointer' } }>
-                    { smsTestSending === 'airtel' ? '...' : '🇮🇳 Airtel' }
-                  </button>
-                  <button onClick={ () => sendTestSms( 'pinpoint' ) } disabled={ smsTestSending !== 'idle' }
+                  <button onClick={ () => sendTestSms() } disabled={ smsTestSending !== 'idle' }
                     style={ { padding: '6px 12px', background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: '6px', fontSize: '11px', fontWeight: 600, color: '#1e40af', cursor: 'pointer' } }>
-                    { smsTestSending === 'pinpoint' ? '...' : '🌍 Pinpoint' }
+                    { smsTestSending === 'aws' ? '...' : 'Send test SMS' }
                   </button>
                 </div>
-                { smsTestResult && (
+                { smsTestResult?.aws && (
                   <div style={ { marginTop: '6px', fontSize: '11px', fontFamily: 'monospace' } }>
-                    { smsTestResult.airtel && <div style={ { color: smsTestResult.airtel.startsWith( '✓' ) ? '#166534' : '#dc2626' } }>{ smsTestResult.airtel }</div> }
-                    { smsTestResult.pinpoint && <div style={ { color: smsTestResult.pinpoint.startsWith( '✓' ) ? '#1e40af' : '#dc2626' } }>{ smsTestResult.pinpoint }</div> }
+                    <div style={ { color: smsTestResult.aws.startsWith( '✓' ) ? '#1e40af' : '#dc2626' } }>{ smsTestResult.aws }</div>
                   </div>
                 ) }
               </div>

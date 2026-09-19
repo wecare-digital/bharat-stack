@@ -98,7 +98,7 @@ const DB_TABLES: TableDef[] = [
   { name: 'SmsAws', purpose: 'AWS Pinpoint SMS messages', keyFields: 'messageId', ttl: '90d', indexes: 'contactId, phoneNumber', usedBy: 'sms-aws', category: 'SMS' },
   { name: 'VoiceAws', purpose: 'AWS Pinpoint voice calls', keyFields: 'callId', ttl: '90d', indexes: 'contactId, phoneNumber', usedBy: 'voice-aws', category: 'Voice' },
   { name: 'AirtelSMS', purpose: 'Airtel SMS messages (Sender: WDBEEP)', keyFields: 'messageId', ttl: '90d', indexes: 'contactId, phoneNumber, status', usedBy: 'sms-in', category: 'SMS' },
-  { name: 'DLTTemplates', purpose: 'DLT template registry for Airtel SMS', keyFields: 'templateId', indexes: '-', usedBy: 'outbound-sms', category: 'SMS' },
+  { name: 'DLTTemplates', purpose: 'TRAI DLT template registry (live)', keyFields: 'templateId', indexes: '-', usedBy: 'sms-aws', category: 'SMS' },
   { name: 'AirtelC2C', purpose: 'Airtel Click-to-Call records', keyFields: 'callId', ttl: '90d', indexes: 'contactId, fromNumber, toNumber, status', usedBy: 'voice-in-c2c', category: 'Voice' },
   { name: 'VoiceCDR', purpose: 'Airtel voice CDR records', keyFields: 'id', ttl: '90d', indexes: 'vmSessionId, callerNumber, callType', usedBy: 'voice-cdr-read', category: 'Voice' },
   { name: 'OBDCampaign', purpose: 'Airtel OBD campaign records', keyFields: 'id', ttl: '90d', indexes: '-', usedBy: 'voice-in-obd', category: 'Voice' },
@@ -145,7 +145,7 @@ const LAMBDAS: LambdaDef[] = [
   { name: 'url-shortener', category: 'Core', trigger: 'API Gateway', tables: '-', description: 'Short link creation (r.wecare.digital)', apiRoute: '/link' },
   { name: 'inbound-whatsapp-handler', category: 'Messaging', trigger: 'API GW Webhook', tables: 'WhatsAppInbound, Contact, MediaFile, WebhookDedup', description: 'Process incoming WhatsApp messages', apiRoute: '/webhook/whatsapp' },
   { name: 'outbound-whatsapp', category: 'Messaging', trigger: 'API Gateway, SQS', tables: 'WhatsAppOutbound', description: 'Send WhatsApp messages via Cloud API', apiRoute: '/whatsapp/send' },
-  { name: 'outbound-sms', category: 'Messaging', trigger: 'API Gateway', tables: 'SmsAws, AirtelSMS', description: 'Send SMS via Pinpoint/Airtel', apiRoute: '/sms/send' },
+  { name: 'outbound-sms', category: 'Messaging', trigger: 'API Gateway', tables: 'Messages', description: 'Send SMS via AWS End User Messaging', apiRoute: '/sms/send' },
   { name: 'outbound-email', category: 'Messaging', trigger: 'API Gateway', tables: '-', description: 'Send email via Amazon SES', apiRoute: '/email/send' },
   { name: 'outbound-voice', category: 'Messaging', trigger: 'API Gateway', tables: 'VoiceCall', description: 'Initiate voice calls', apiRoute: '/voice/call' },
   { name: 'sms-aws', category: 'Messaging', trigger: 'API GW, SNS', tables: 'SmsAws', description: 'AWS Pinpoint SMS handler', apiRoute: '/sms-aws' },
@@ -386,9 +386,7 @@ const ENV_VARS: EnvVar[] = [
   // Secrets Manager entries (server-side, properly stored)
   { key: 'wecare/meta-system-user-token', value: '(Secrets Manager — 7 keys)', sensitive: true, category: 'Secrets Manager ✓' },
   { key: 'wecare/flow-private-key', value: '(Secrets Manager — 1 key)', sensitive: true, category: 'Secrets Manager ✓' },
-  { key: 'wecare/airtel/c2c', value: '(Secrets Manager — 2 keys)', sensitive: true, category: 'Secrets Manager ✓' },
-  { key: 'wecare/airtel/sms', value: '(Secrets Manager — 3 keys)', sensitive: true, category: 'Secrets Manager ✓' },
-  { key: 'wecare/airtel/obd', value: '(Secrets Manager — 1 key)', sensitive: true, category: 'Secrets Manager ✓' },
+  { key: '3 retired-provider credentials', value: '(Secrets Manager — no remaining reader; pending destructive-approval deletion)', sensitive: true, category: 'Secrets Manager ✓' },
 ];
 
 // ─── Data: Frontend Routes ───
@@ -420,7 +418,7 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/dm/whatsapp/logs', label: 'WA Logs', backend: 'messages-read', tables: 'WhatsAppInbound, WhatsAppOutbound' },
   { path: '/dm/whatsapp/settings', label: 'WA Settings', backend: 'waba-management', tables: 'SystemConfig' },
   // SMS
-  { path: '/dm/sms', label: 'SMS', backend: 'outbound-sms, sms-aws, sms-in', tables: 'SmsAws, AirtelSMS, DLTTemplates' },
+  { path: '/dm/sms', label: 'SMS', backend: 'outbound-sms, sms-aws', tables: 'SmsAws, DLTTemplates, AirtelSMS (read-only history)' },
   // Voice
   { path: '/dm/voice', label: 'Voice Out', backend: 'outbound-voice, voice-aws', tables: 'VoiceCall, VoiceAws' },
   { path: '/dm/voice-in', label: 'Voice In', backend: 'voice-in, voice-cdr-read', tables: 'AirtelC2C, VoiceCDR, OBDCampaign' },
@@ -491,7 +489,7 @@ const LAMBDA_DETAILED: LambdaDetailed[] = [
   { name: 'wecare-url-shortener', displayName: 'URL Shortener', category: 'Core', runtime: 'Python 3.12', timeout: 10, memory: 128, description: 'Short link creation and redirect', apiRoute: '/link', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-inbound-whatsapp', displayName: 'Inbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 512, description: 'Process incoming WhatsApp messages, media, reactions', apiRoute: '/webhook/whatsapp', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
   { name: 'wecare-outbound-whatsapp', displayName: 'Outbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Send WhatsApp messages via Cloud API', apiRoute: '/whatsapp/send', envVars: { OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway', 'SQS' ], status: 'active' },
-  { name: 'wecare-outbound-sms', displayName: 'Outbound SMS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send SMS via Pinpoint/Airtel', apiRoute: '/sms/send', envVars: { SMS_TABLE: 'stack-wecare-digital-SmsAwsTable' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-outbound-sms', displayName: 'Outbound SMS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send SMS via AWS End User Messaging', apiRoute: '/sms/send', envVars: { MESSAGES_TABLE: 'stack-wecare-digital-MessagesTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-outbound-email', displayName: 'Outbound Email', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send email via Amazon SES', apiRoute: '/email/send', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-outbound-voice', displayName: 'Outbound Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Initiate voice calls', apiRoute: '/voice/call', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceCallTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-whatsapp-calling', displayName: 'WhatsApp Calling', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'WhatsApp voice/video call handling', apiRoute: '/whatsapp-calling', envVars: { CALLING_TABLE: 'stack-wecare-digital-WhatsAppVoiceTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
@@ -577,9 +575,9 @@ const CODE_ASSETS: CodeAsset[] = [
   { id: 'l-wa-tmpl-mgmt', category: 'WhatsApp Lambdas', name: 'Template Management', description: 'Advanced template operations — clone, analytics, bulk.', path: 'amplify/functions/messaging/whatsapp-template-management/handler.py', type: 'Lambda' },
   { id: 'l-waba', category: 'WhatsApp Lambdas', name: 'WABA Management', description: 'WABA config, phone management, group operations.', path: 'amplify/functions/messaging/waba-management/handler.py', type: 'Lambda' },
   // Messaging Lambdas
-  { id: 'l-sms-out', category: 'Messaging Lambdas', name: 'Outbound SMS', description: 'Send SMS via Pinpoint and Airtel.', path: 'amplify/functions/messaging/outbound-sms/handler.py', type: 'Lambda' },
+  { id: 'l-sms-out', category: 'Messaging Lambdas', name: 'Outbound SMS', description: 'Send SMS via AWS End User Messaging.', path: 'amplify/functions/messaging/outbound-sms/handler.py', type: 'Lambda' },
   { id: 'l-email', category: 'Messaging Lambdas', name: 'Outbound Email', description: 'Send email via Amazon SES.', path: 'amplify/functions/messaging/outbound-email/handler.py', type: 'Lambda' },
-  { id: 'l-voice-out', category: 'Messaging Lambdas', name: 'Outbound Voice', description: 'Initiate voice calls via AWS/Airtel.', path: 'amplify/functions/messaging/outbound-voice/handler.py', type: 'Lambda' },
+  { id: 'l-voice-out', category: 'Messaging Lambdas', name: 'Outbound Voice', description: 'Initiate voice calls. Retired-provider backing; PSTN voice moves to Plivo.', path: 'amplify/functions/messaging/outbound-voice/handler.py', type: 'Lambda' },
   { id: 'l-sms-in', category: 'Messaging Lambdas', name: 'SMS In (Airtel)', description: 'Airtel inbound SMS webhook handler.', path: 'amplify/functions/messaging/sms-in/handler.py', type: 'Lambda' },
   { id: 'l-voice-in', category: 'Messaging Lambdas', name: 'Voice In (Airtel)', description: 'Airtel voice webhooks — C2C, OBD, CDR.', path: 'amplify/functions/messaging/voice-in/handler.py', type: 'Lambda' },
   { id: 'l-scheduled', category: 'Messaging Lambdas', name: 'Scheduled Messages', description: 'Schedule and send messages at specific times.', path: 'amplify/functions/messaging/scheduled-messages/handler.py', type: 'Lambda' },

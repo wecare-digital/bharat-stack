@@ -156,8 +156,11 @@ SPECS: List[Spec] = [
     Spec("wecare-outbound-sms", "messaging/outbound-sms"),
     Spec("wecare-outbound-email", "messaging/outbound-email"),
     Spec("wecare-sms-aws", "messaging/sms-aws"),
-    Spec("wecare-sms-in-airtel", "messaging/sms-in/airtel"),
-    Spec("wecare-sinch-dlr", "messaging/sms-in/sinch"),
+    # Removed 2026-09-19: the retired India A2P sender and the retired
+    # aggregator's DLR receiver. Their source is deleted, so they are no longer
+    # built or deployed. The DEPLOYED functions and their secrets still exist in
+    # the account and are removed under separate destructive approval - see
+    # docs/provider-retirement-inventory.md.
     # --- messaging / voice ---
     Spec("wecare-voice-aws", "messaging/voice-aws"),
     Spec("wecare-voice-in-c2c", "messaging/voice-in/c2c"),
