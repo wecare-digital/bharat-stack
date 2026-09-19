@@ -111,7 +111,10 @@ def _tool_product_lookup(body: dict):
     catalog_id = _CATALOG_BY_ENTITY.get(entity_id, "1607047307067517")
     token, secret = _creds()
     fields = "retailer_id,name,price,sale_price,availability,description,url"
-    url = f"https://graph.facebook.com/v22.0/{catalog_id}/products?fields={fields}&limit=100&access_token={token}"
+    # GRAPH (defined below) rather than a second hardcoded version, so the
+    # Graph version for this function lives in exactly one place. Resolved from
+    # module globals at call time, so the later definition is fine.
+    url = f"{GRAPH}/{catalog_id}/products?fields={fields}&limit=100&access_token={token}"
     if secret:
         url += "&appsecret_proof=" + _appsecret_proof(token, secret)
     try:
@@ -224,7 +227,12 @@ def _onboard(body: dict):
     return _resp(_pass_status(status, (200, 201)), {"onboarding": data, "entityId": entity_id, "channel": channel})
 
 
-GRAPH = os.environ.get("META_GRAPH_BASE", "https://graph.facebook.com/v22.0")
+# Aligned with the rest of the fleet (lambda_utils/meta_client.py and
+# whatsapp_types.py both default to v25.0). This was pinned to v22.0 while every
+# other handler moved on, which put the two oldest Graph calls in the account
+# here. Deliberately NOT v26.0: that release blocked a batch of commerce
+# endpoints, and _tool_product_lookup below reads /{catalog_id}/products.
+GRAPH = os.environ.get("META_GRAPH_BASE", "https://graph.facebook.com/v25.0")
 # WABA IDs (not phone-number IDs) — subscribed_apps is per WABA
 WABA_IDS = {"WABA1": "2094615664435155", "WABA-T": "2513394156072604", "WABA2": "2513394156072604"}
 
