@@ -3,6 +3,7 @@
  */
 import React, { ReactNode, useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import SearchModal from './SearchModal';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { navigationConfig, NavItem, NavSubItem, getAllNavItems } from '../config/navigation';
@@ -224,11 +225,11 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
                         <>
                           <div onClick={ () => setBrandDropdownOpen( false ) } style={ { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 } } />
                           <div style={ { position: 'absolute', top: 'calc(100% + 4px)', left: 0, background: '#fff', border: '2px solid #d1f470', borderRadius: 12, padding: '8px 0', minWidth: 170, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 9999, display: 'flex', flexDirection: 'column' } }>
-                            <a href="/" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Home</a>
-                            <a href="/dashboard" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>CRM</a>
+                            <Link href="/" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Home</Link>
+                            <Link href="/dashboard" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>CRM</Link>
                             <a href="/studio" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Studio</a>
                             <a href="/sustainability" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Sustainability</a>
-                            <a href="/access" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Sign in</a>
+                            <Link href="/access" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Sign in</Link>
                           </div>
                         </>
                       ) }

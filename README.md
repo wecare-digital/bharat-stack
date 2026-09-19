@@ -89,6 +89,22 @@ All Lambda functions use Python 3.12 runtime with prefix `wecare-*`:
 
 ## Admin Scripts
 
-- `scripts/deploy_all.ps1` - Deploy all Lambda functions
-- `scripts/deploy_all.cmd` - Deploy all Lambda functions (CMD)
+- `scripts/deploy_all_lambdas.py` - Deploy all 60 zip-packaged Lambda functions.
+  Cross-platform, validates every top-level import against the function's live
+  layers, checks the configured handler symbol exists, then publishes a version
+  and moves the `live` alias. That last step matters: 53 of 62 functions are
+  invoked through their `live` alias, so `update-function-code` alone does not
+  reach production. `--dry-run` builds and validates without uploading,
+  `--list` prints the function map.
+- `scripts/deploy_seo_tools.py` - Deploys `wecare-seo-tools` (different in-zip
+  layout; also owns its DynamoDB table and IAM policy).
+- `scripts/snapstart_publish.py` - Publish a version + move the `live` alias
+  on its own, e.g. after deploying a function by hand.
 - `scripts/sync_faq.py` - Sync FAQ config to Python + TypeScript
+
+`scripts/deploy_all.ps1` and `scripts/deploy_all.cmd` are **superseded — do not
+use them**. They are PowerShell/CMD with `\`-separated paths, so they cannot run
+on macOS or Linux; they write zip entries with `\` separators; and
+`deploy_all.ps1` copies `flows\*.py` only, dropping the `flows/*.json` flow
+definitions that `wecare-whatsapp-business-api` serves. Full detail in the
+docstring at the top of `scripts/deploy_all_lambdas.py`.
