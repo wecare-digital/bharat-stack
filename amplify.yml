@@ -38,5 +38,17 @@ customHeaders:
         value: nosniff
       - key: Referrer-Policy
         value: strict-origin-when-cross-origin
+      # microphone=(self) is required by the Plivo Browser SDK softphone, which
+      # calls getUserMedia from this origin. Camera and geolocation stay denied.
+      #
+      # This value, not the one in next.config.js, is what actually ships. The
+      # app is a static export (artifacts baseDirectory: out), so Next.js never
+      # runs as a server and its `headers()` entries are inert - they are served
+      # only by `next start`. next.config.js already said microphone=(self)
+      # while the deployed header said microphone=(), which would have denied the
+      # microphone with no visible cause in the code that appeared to configure it.
+      #
+      # Verify the DEPLOYED header, not the config, with:
+      #   python scripts/verify_deployed_headers.py
       - key: Permissions-Policy
-        value: "camera=(), microphone=(), geolocation=()"
+        value: "camera=(), microphone=(self), geolocation=()"
