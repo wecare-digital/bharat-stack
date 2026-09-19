@@ -467,11 +467,97 @@ def _route_events(params: dict, request_id: str) -> dict:
 
 
 # Callbacks are signed by Plivo; answer-style fetches are not.
+def _route_dial_events(params: dict, request_id: str) -> dict:
+    """The AUTHORITATIVE connected-call signal: <Dial callbackUrl>.
+
+    Signature required. This route decides whether a customer gets a message, so
+    an unsigned request must never reach the claim logic.
+
+    Returns a retryable 5xx when the claim store is unreachable. That is
+    deliberate: Plivo redelivers, so the cost of refusing to guess is latency,
+    whereas guessing means duplicate SMS to real people under our registered DLT
+    sender.
+    """
+    from lambda_utils.pstn import claims as pstn_claims
+    from lambda_utils.pstn import notifications as pstn_notifications
+
+    call_uuid = params.get('CallUUID', '')
+    try:
+        outcome = pstn_notifications.handle_connected(
+            params, request_id=request_id, dispatch=_dispatch_notification)
+    except pstn_claims.ClaimStoreUnavailable as exc:
+        # Fail closed. 503 so Plivo retries; nothing was sent.
+        log_event(logger, 'plivo_dial_claim_store_unavailable', level='error',
+                  callUuid=call_uuid,
+                  alert='PSTN_CLAIM_STORE_UNAVAILABLE',
+                  error=type(exc).__name__, requestId=request_id)
+        return _ack({'error': 'claim store unavailable, retry'}, status=503)
+
+    _persist_cdr(params, 'dial-events', request_id)
+    log_event(logger, 'plivo_dial_event', callUuid=call_uuid,
+              dialAction=params.get('DialAction', ''),
+              claimed=outcome.get('claimed'),
+              reason=outcome.get('reason'), requestId=request_id)
+    return _ack({'ok': True, 'callUuid': call_uuid,
+                 'claimed': outcome.get('claimed', False)})
+
+
+def _dispatch_notification(*, channel: str, delivery_id: str, destination: str,
+                           body: str, provider: str, dlt_template_key: str,
+                           a_leg_uuid: str, request_id: str) -> None:
+    """Send one channel for a claimed connected call.
+
+    Called once per eligible channel, AFTER that channel's claim succeeded, so an
+    exception here leaves the channel PENDING and retryable rather than duplicating
+    a completed one.
+
+    SMS goes through the shared dispatcher, which routes to AWS End User Messaging
+    and applies the DLT gate. RCS is not dispatched inline yet - see below.
+    """
+    from lambda_utils.pstn import claims as pstn_claims
+    from lambda_utils.pstn import notifications as pstn_notifications
+
+    if channel == 'sms':
+        from lambda_utils.comms.notify import send_notification_sms
+        outcome = send_notification_sms(
+            destination, body, dlt_template_key=dlt_template_key,
+            campaign='plivo-connected-notification', request_id=request_id,
+            wait=True)
+        if outcome.ok:
+            pstn_claims.record_attempt(
+                delivery_id, state='SENT', provider=provider,
+                provider_message_id=outcome.provider_message_id,
+                request_id=request_id)
+            return
+        category, permanent = pstn_notifications.classify_provider_error(
+            outcome.error or outcome.skipped_reason)
+        pstn_claims.record_attempt(
+            delivery_id, state='FAILED', provider=provider,
+            error_category=category, error_is_permanent=permanent,
+            request_id=request_id)
+        return
+
+    if channel == 'rcs':
+        # India RCS runs through the approved Sinch module. It is left PENDING here
+        # rather than sent inline because a second synchronous provider call inside
+        # a signed webhook would add its latency to Plivo's callback timeout, and a
+        # timeout mid-send is the one case where the claim cannot record what
+        # happened. A queued worker owns this; until it exists the row stays
+        # PENDING and visibly unsent rather than being reported as delivered.
+        log_event(logger, 'plivo_rcs_deferred', deliveryId=delivery_id,
+                  provider=provider, requestId=request_id)
+        return
+
+    raise ValueError(f'unknown notification channel {channel!r}')
+
+
 _ROUTES = {
     '/plivo/answer':   (_route_answer,   False),
     '/plivo/fallback': (_route_fallback, False),
     '/plivo/hangup':   (_route_hangup,   True),
     '/plivo/events':   (_route_events,   True),
+    # Signature REQUIRED: this route decides whether a customer is messaged.
+    '/plivo/dial-events': (_route_dial_events, True),
 }
 
 
