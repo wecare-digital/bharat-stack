@@ -212,6 +212,24 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     rc = event.get('requestContext', {})
     http_method = rc.get('http', {}).get('method', event.get('httpMethod', 'GET')).upper()
     path = rc.get('http', {}).get('path', '') or event.get('rawPath', '') or event.get('path', '')
+
+    # Strip the API Gateway stage prefix BEFORE routing.
+    #
+    # Measured in production: Meta posts to https://api.wecare.digital/whatsapp
+    # and the event arrives with path "/prod/whatsapp", because the custom domain
+    # mapping puts the stage in the path. "/prod/whatsapp" != "/whatsapp", so the
+    # public webhook branch below was skipped and execution fell through to
+    # require_auth(required_role='Admin'), which answered 401 to Meta.
+    #
+    # That rejected EVERY inbound WhatsApp message and call webhook: 532 x 401 in
+    # a 12-hour window, with wecare-inbound-whatsapp receiving zero invocations
+    # because nothing forwarded to it.
+    #
+    # Reusing the already-tested helper rather than re-deriving the logic here:
+    # this is the second place this exact bug appeared (plivo-answer was the
+    # first, fixed in ea570bcd), and a third copy is how it would return.
+    from lambda_utils.plivo_signature import normalize_path as _strip_stage_prefix
+    path = _strip_stage_prefix(event) or path
     normalized_path = path.rstrip('/') or '/'
     query_params = event.get('queryStringParameters') or {}
 
