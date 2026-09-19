@@ -151,6 +151,65 @@ values replaced with `<REDACTED:prefix…suffix:len>` fingerprints so the record
 **None of this matters once the four credentials are rotated.** Rotation is the
 fix; file cleanup is hygiene.
 
+---
+
+## DEFERRED — decision recorded 2026-09-19
+
+Rotation is deliberately deferred until the current project milestone completes.
+Recorded here so the deferral is a decision with a trigger, not an omission.
+
+**Trigger: rotate at project completion, Razorpay first.**
+
+### What makes the deferral defensible
+
+Exposure was measured as **local disk only**:
+
+- **Time Machine: no destination configured.** No backups exist, so no copy has
+  propagated off-machine.
+- **iCloud Drive is active**, but every affected path (`$HOME` root, `~/.kiro`,
+  `~/Library`) is outside the synced set. Desktop and Documents are empty.
+- **git history, shell history and the repo working tree are clean** — verified
+  across all objects and every ref, so nothing reached GitHub.
+
+The material risk is therefore: anyone with read access to this machine's disk,
+or any future process that ships these logs somewhere.
+
+### Compensating controls to apply while deferring
+
+These reduce risk without rotating anything:
+
+1. **Restart Kiro.** 111 of the 139 occurrences live in two logs owned by the
+   running IDE session. A restart rotates them and drops the footprint to ~28.
+2. **Install the hardened permissions file** (step 1 above). Worth doing
+   independently of rotation: it also removes the blanket `aws *`, `rm *`,
+   `dd *`, `chmod *`, `kill *`, `bash *`, `eval *` allow-patterns.
+3. **Restrict rather than rotate the Google key.** In GCP → Credentials, scope
+   it to the Places API and to server IPs/referrers. A restricted leaked key is
+   far less useful to anyone holding it, and restriction causes no downtime.
+4. **Delete `~/aws-new-keys-SAVE-THEN-DELETE.txt`** once saved to a password
+   manager. 5 occurrences, and it is a broader dump than its name implies.
+5. **Switch from prevention to detection for Razorpay.** This is the one
+   credential that can move money. Enable payment/settlement alerts and review
+   recent activity for links or orders you did not create. If anything
+   unexplained appears, rotate immediately and ignore this deferral.
+6. **Do not add a Time Machine destination or move these paths into iCloud**
+   until after rotation. Doing so would convert a local-only exposure into a
+   replicated one.
+
+### Still safe to revoke right now, at zero production risk
+
+`OpenAI` and `Plivo` are consumed by **no Lambda** (verified: no
+`OPENAI_API_KEY`, `openai.`, or `PLIVO_AUTH` reference under
+`amplify/functions/`). Revoking them cannot break the project, so they need not
+wait for the milestone. Only Razorpay and Google have production consumers.
+
+### Re-check before rotating
+
+```
+python scripts/audit_leak_footprint.py    # where the values still are
+python scripts/verify_secret_hook.py      # guard still active (18/18)
+```
+
 ## Preventing recurrence
 
 `.kiro/hooks/block-inline-secrets.json` now blocks inline credentials before the
