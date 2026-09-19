@@ -24,6 +24,7 @@ This design deliberately separates Plivo PSTN/browser calling from Meta WhatsApp
 | Sinch SMS | Prohibited |
 | Sinch Voice or WhatsApp | Prohibited |
 | Plivo SMS | Prohibited |
+| SNS SMS and legacy Amazon Pinpoint SMS | Prohibited; use AWS End User Messaging |
 
 Historical Airtel call and message records remain read-only until they are exported, checksummed, retained according to policy, and separately approved for deletion. Removing a provider from active use must not destroy audit history.
 
@@ -81,7 +82,7 @@ For each real connected call:
 
 1. Validate the Plivo V3 webhook signature against the exact public URL and unmodified request parameters/body.
 2. Normalize `CallUUID`, A-leg and B-leg identifiers and caller number.
-3. Atomically claim one idempotency key per notification channel. A representative form is `plivo-connected:{CallUUID}:{channel}:v1`.
+3. Atomically claim the connected event once using the canonical Dial A-leg UUID, for example `DialALegUUID:connected-notifications:v1`, then create one durable child delivery record per channel. Each channel record also has a unique conditional key so independent retries cannot duplicate a completed send.
 4. If the idempotency store is unavailable, fail closed and return a retryable `5xx`; never send first and record later.
 5. Send AWS SMS independently:
    - `+91`: `ap-south-1`, approved DLT entity/template/sender metadata required.
@@ -90,8 +91,9 @@ For each real connected call:
    - Eligible `+91`: Sinch RCS.
    - Eligible non-India: AWS End User Messaging RCS.
    - Record an explicit ineligible/unsupported status when RCS cannot be sent.
-7. Persist attempt count, provider request ID, delivery state, timestamps and sanitized error category for each channel.
-8. Return success only after durable claim and dispatch state are recorded. Retries resume unfinished channels without duplicating completed ones.
+7. Persist `PENDING`, `SENT`, `FAILED` or `SKIPPED`, attempt count, provider request ID, timestamps and sanitized error category for each channel.
+8. Dispatch channel jobs through SQS with bounded retry and a dead-letter queue. Retry transient faults only; DLT, destination and permission failures are permanent.
+9. Return success only after durable claim and job creation are recorded. Retries resume unfinished channels without duplicating completed ones.
 
 Hangup callbacks must never trigger the connected notification. SMS failure must not suppress RCS, and RCS failure must not duplicate or suppress SMS.
 
@@ -130,7 +132,7 @@ Existing `AirtelSMS`, `AirtelC2C` and provider-specific CDR data must be exposed
 
 Add `Messages > PSTN Voice` with these routes:
 
-- `/dm/pstn`: overview, Browser Softphone, incoming queue, agent availability, active/recent calls and connected-notification status.
+- `/dm/pstn`: overview, Browser Softphone, incoming queue, agent availability, active/recent calls, connected-notification status, Contact 360, call notes and disposition.
 - `/dm/pstn/calls`: All, Incoming, Outgoing, Active, Failed, CDR, Hangup Causes and Notification Status.
 - `/dm/pstn/flows`: call routing, IVR, input collection, audio output, recording, audio streaming, XML preview and version history.
 - `/dm/pstn/collaboration`: conferences, multi-party calls, participants, history and permitted controls.
@@ -146,7 +148,7 @@ Redirect `/dm/voice` to `/dm/pstn` and `/dm/voice-in` to `/dm/pstn/calls`. Build
 
 ## Plivo Feature Coverage
 
-The internal developer and operations pages must cover the requested Plivo information architecture: core concepts, callbacks/webhooks, US and India compliance, security, call features, analytics; Calls, Audio Streams, Multiparty Calls, Conferences, Endpoints, Recordings and Verified Caller IDs APIs; XML overview, routing, input, audio output, conference, multi-party, record and streaming; Browser SDK and mobile-deprecation guidance; failures and hangup causes; inbound/outbound, IVR, recording, conferencing, routing and Raspberry Pi tutorials; Twilio migration and both SDK-upgrade guides.
+The internal developer and operations pages must cover the requested Plivo information architecture: core concepts, callbacks/webhooks, US and India compliance, security, call features, analytics; Calls, Audio Streams, Multiparty Calls, Conferences, Endpoints, Recordings and Verified Caller IDs APIs; XML overview and the supported `<Speak>`, `<Play>`, `<GetDigits>`, `<GetInput>`, `<Dial>`, `<User>`, `<Number>`, `<Conference>`, `<MultiPartyCall>`, `<Record>`, `<Stream>`, `<Redirect>`, `<Wait>` and `<Hangup>` verbs; Browser SDK and mobile-deprecation guidance; failures and hangup causes; inbound/outbound, IVR, recording, conferencing, routing and Raspberry Pi tutorials; Twilio migration and both SDK-upgrade guides. US compliance must surface verified caller IDs, geo permissions, recording consent and STIR/SHAKEN fields where the provider exposes them.
 
 Tutorials, Raspberry Pi, AI-coding-agent guidance and migration material are reference content, not fake live capabilities. Audio streaming must use `wss://`, an allowlisted destination, validated status callback, conservative PCM defaults and explicit bidirectional constraints. Never accept an arbitrary stream URL that creates an SSRF path.
 
@@ -158,7 +160,7 @@ Cost views separate estimates from actual CDR charges and show both legs. Seed e
 
 Inventory every Airtel and prohibited Sinch SMS reference before deleting. Remove active Lambdas, API routes, UI tabs, API clients, registry entries, IAM grants, proxy port `8899`, deploy scripts, alarms, runtime environment variables and secrets only after dependency checks. Remove provider choices from current runtime UI while retaining clearly labeled legacy history.
 
-Consolidate SMS behind one AWS End User Messaging adapter with explicit region and DLT routing. Restrict the Sinch client and credentials to the India RCS module. Add compile-time/lint/policy tests that reject Airtel runtime identifiers, Sinch SMS/Voice/WhatsApp use and Plivo SMS use.
+Consolidate SMS behind one AWS End User Messaging adapter with explicit region and DLT routing. Restrict the Sinch client and credentials to the India RCS module. Remove SNS SMS and legacy Pinpoint SMS. Add compile-time/lint/policy tests that reject Airtel runtime identifiers, Sinch SMS/Voice/WhatsApp, Plivo SMS, SNS SMS and legacy Pinpoint SMS use.
 
 The current provider policy scan reports 160 findings and the CI workflow incorrectly expects failure. Reduce findings to zero, then change the workflow from `--expect-fail` to a real blocking gate. Add a general CI workflow for frontend tests/typecheck, Python tests, provider policy, dependency/security checks and infrastructure synthesis/validation.
 
@@ -177,6 +179,8 @@ The current provider policy scan reports 160 findings and the CI workflow incorr
 11. Present a redacted production cutover plan. Do not change the live number binding or enable browser routing without explicit approval.
 12. After monitored cutover, remove verified unused secrets/resources and complete documentation reconciliation.
 
+Frontend deployment is driven by a non-force push to the reviewed `stack` branch and the AWS Amplify build. Lambda code is deployed separately with the repository's named-function deployment tooling. Run the full local gates before pushing, monitor required GitHub Actions and the Amplify job to a terminal state, and verify the deployed site, assets and security headers. Deploy only Lambda functions whose source or shared package changed; use dry-run/package validation first, publish the expected version/alias through the supported script, read back code hashes/configuration, run scoped smoke tests and retain rollback commands. A documentation-only change never justifies a Lambda fleet deployment.
+
 External provider approvals or unavailable credentials are reported as `WAITING_FOR_PROVIDER` with an owner and exact unblock action; they are not reported as complete.
 
 ## Verification and Definition of Done
@@ -188,6 +192,7 @@ Acceptance requires:
 - Zero provider-policy findings and a blocking CI gate.
 - No active Airtel code/resource/secret/IAM/UI/proxy route, with legacy audit data retained.
 - No Sinch SMS, Sinch Voice/WhatsApp or Plivo SMS call sites or credentials.
+- No SNS SMS or legacy Pinpoint SMS runtime path.
 - Correct AWS SMS routing and mandatory India DLT validation.
 - Correct RCS provider selection and per-channel idempotency.
 - Valid Plivo V3 signature tests, replay tests and fail-closed store-failure tests.
