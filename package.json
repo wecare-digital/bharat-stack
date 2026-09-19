@@ -25,7 +25,6 @@
   "dependencies": {
     "@aws-amplify/backend": "^1.23.0",
     "@aws-amplify/ui-react": "^6.15.4",
-    "@aws-sdk/client-bedrock": "^3.1076.0",
     "@aws-sdk/client-bedrock-runtime": "^3.1076.0",
     "@capacitor/android": "^8.4.1",
     "@capacitor/app": "^8.1.0",
@@ -38,28 +37,15 @@
     "@capacitor/push-notifications": "^8.1.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
-    "@wix/blog": "^1.0.661",
-    "@wix/data": "^1.0.521",
-    "@wix/media": "^1.0.276",
-    "@wix/sdk": "^1.21.16",
-    "@wix/stores": "^1.0.916",
     "aws-amplify": "^6.18.0",
     "aws-cdk-lib": "2.270.0",
     "constructs": "10.8.1",
-    "flag-icons": "^7.5.0",
     "next": "^16.2.9",
-    "plivo": "^4.79.0",
-    "plivo-stream-sdk-node": "^1.0.0",
-    "razorpay": "^2.9.8",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1"
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@aws-amplify/backend-cli": "^1.8.3",
-    "@aws-amplify/backend-data": "^1.7.0",
-    "@aws-amplify/data-construct": "^1.17.3",
-    "@aws-amplify/graphql-schema-generator": "^0.11.14",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
@@ -80,7 +66,8 @@
   },
   "packageManager": "npm@11.6.2",
   "overrides": {
-    "lodash": "4.17.21",
-    "fast-xml-parser": "5.9.3"
+    "lodash": "4.18.1",
+    "fast-xml-parser": "5.11.1",
+    "immutable@3": "3.8.4"
   }
 }
