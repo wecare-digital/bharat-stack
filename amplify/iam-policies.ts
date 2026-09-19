@@ -90,17 +90,57 @@ export const IAM_POLICIES = {
     ],
   },
 
-  // SMS-specific permissions
+  // AWS End User Messaging (pinpoint-sms-voice-v2) — the ONLY normal SMS
+  // provider for every country. India -> ap-south-1, else us-east-1.
+  //
+  // Reconciled 2026-09-19 with the deployed inline policy
+  // `wecare-digital-lambda-permissions` statement `PinpointSMSVoice`, which this
+  // file had drifted away from in two ways that both mattered:
+  //
+  //  1. The resource was pinned to `${AWS_REGION}`, i.e. us-east-1. That reads as
+  //     "India sends are denied", and it was recorded as a likely blocker for the
+  //     India cutover. It was not real: the deployed statement uses `*`, and
+  //     simulate_principal_policy against the live role returns ALLOWED in both
+  //     regions and on sender-id/WDBEEP/IN. IaC was narrower than reality, which
+  //     is the more dangerous direction to drift — it hides a real grant and
+  //     invents a fake problem.
+  //  2. Only two actions were listed, so anyone reading this file would conclude
+  //     delivery receipts and the SMS dashboard were merely unbuilt. In fact the
+  //     role could not create an event destination or read spend limits at all,
+  //     so they were unbuildable. Twelve actions were added to the live policy by
+  //     scripts/iam_sync_comms_permissions.py.
+  //
+  // Resource stays `*` deliberately. The Describe* family are account-level list
+  // operations with no per-resource ARN to scope to, and narrowing the Send*
+  // actions to specific phone-number and sender-id ARNs is a change to a live
+  // send path that belongs in its own commit alongside its own test.
   sms: {
     Version: '2012-10-17',
     Statement: [
       {
+        Sid: 'PinpointSMSVoice',
         Effect: 'Allow',
         Action: [
+          // sending
           'sms-voice:SendTextMessage',
           'sms-voice:SendVoiceMessage',
+          'sms-voice:SendMediaMessage',
+          // inventory the SMS dashboard needs to report honestly
+          'sms-voice:DescribePhoneNumbers',
+          'sms-voice:DescribePools',
+          'sms-voice:DescribeSenderIds',
+          'sms-voice:DescribeSpendLimits',
+          'sms-voice:DescribeRegistrations',
+          'sms-voice:DescribeOptOutLists',
+          'sms-voice:DescribeOptedOutNumbers',
+          // delivery receipts — without these the consumer cannot be created
+          'sms-voice:CreateConfigurationSet',
+          'sms-voice:DescribeConfigurationSets',
+          'sms-voice:CreateEventDestination',
+          'sms-voice:UpdateEventDestination',
+          'sms-voice:DeleteEventDestination',
         ],
-        Resource: `arn:aws:sms-voice:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`,
+        Resource: '*',
       },
     ],
   },
