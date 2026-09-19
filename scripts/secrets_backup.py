@@ -57,7 +57,13 @@ SCRYPT_N, SCRYPT_R, SCRYPT_P = 1 << 17, 8, 1
 # Developer AWS auth is deliberately included ONLY as a note, not as the sole
 # bootstrap path: reading Secrets Manager requires AWS credentials, so relying on
 # this file to recover AWS access would be circular.
-SECRET_IDS = [
+# Secrets that MUST appear in every backup. The backup itself covers EVERY secret
+# in the account, discovered via ListSecrets — a disaster-recovery copy that holds
+# only a hand-maintained subset is not a disaster-recovery copy, and this list had
+# silently fallen to 10 of 30 secrets. The list is kept as an assertion: if one of
+# these disappears from the account, the run fails loudly rather than quietly
+# writing a thinner backup.
+REQUIRED_SECRET_IDS = [
     "wecare/razorpay/api",
     "wecare/razorpay-webhook",
     "wecare/google-api-key",
@@ -125,7 +131,20 @@ def gather() -> tuple[dict, list[str]]:
         "secrets": {},
     }
     summary: list[str] = []
-    for sid in SECRET_IDS:
+
+    discovered: set[str] = set()
+    for page in sm.get_paginator("list_secrets").paginate():
+        for entry in page.get("SecretList", []):
+            discovered.add(entry["Name"])
+    missing_required = sorted(set(REQUIRED_SECRET_IDS) - discovered)
+    secret_ids = sorted(discovered | set(REQUIRED_SECRET_IDS))
+    summary.append(f"  discovered {len(discovered)} secret(s) in {ACCOUNT}; "
+                   f"backing up {len(secret_ids)}")
+    if missing_required:
+        summary.append("  WARNING required secret(s) absent from the account: "
+                       + ", ".join(missing_required))
+
+    for sid in secret_ids:
         try:
             meta = sm.describe_secret(SecretId=sid)
             raw = sm.get_secret_value(SecretId=sid)["SecretString"]
