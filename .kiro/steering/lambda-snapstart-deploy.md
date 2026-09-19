@@ -18,13 +18,19 @@ alias** that makes it mandatory, not SnapStart.
 ## Key facts
 
 - Runtime: python3.12, x86_64, 62 of 62 functions.
-- **34 functions have a `live` alias; 28 do not.** The HTTP API integrations
-  invoke the alias where one exists (e.g.
-  `...:function:wecare-contacts:live`), so for those 34, `$LATEST` changes do
+- **53 of 62 functions have a `live` alias. Only these 9 do not:**
+  `wecare-ad-attribution`, `wecare-docs-scraper`, `wecare-marketing-ads`,
+  `wecare-partner-onboarding`, `wecare-partner-token-refresh`,
+  `wecare-push-notifications`, `wecare-seo-tools`, `wecare-sla-engine`,
+  `wecare-url-shortener` (the unused twin of `stack-wecare-url-shortener`).
+  The HTTP API integrations invoke the alias where one exists (e.g.
+  `...:function:wecare-contacts:live`), so for those 53, `$LATEST` changes do
   NOT reach production until a version is published and the alias is moved.
-  For the other 28 (including `wecare-razorpay-webhook`, `wecare-wix-store`,
-  `wecare-invoice-engine`, `wecare-payments-read`, `wecare-marketing-ads`,
-  `wecare-seo-tools`) `update-function-code` takes effect immediately.
+  For the 9 above, `update-function-code` takes effect immediately.
+  Counted sequentially with retries over `ListFunctions` + `ListAliases`,
+  0 errors. An earlier concurrent count reported 34/28 because failed calls
+  were silently treated as "no alias" — do not trust a count that does not
+  report its error total.
 - `scripts/snapstart_publish.py` already keys membership on the alias rather
   than on `SnapStart.ApplyOn`, so it behaves correctly with SnapStart off.
 - If SnapStart is ever enabled, everything in Gotchas below becomes live again;
