@@ -1,5 +1,62 @@
+---
+inclusion: always
+---
+
+# AWS account and authentication policy (project rules)
+
+These are this project's own rules. Per the AWS Agent Toolkit rules below, where
+the two conflict, **these take precedence**.
+
+## Use exactly one account
+
+**Account `775261844268` is the only account to use** — for production, for
+builds, and for everything else, unless explicitly told otherwise.
+
+    profile:  wecare-prod
+    identity: arn:aws:iam::775261844268:user/wecare-admin   (IAM user, not root)
+    region:   us-east-1
+
+`AWS_PROFILE=wecare-prod` is exported from `~/.zprofile`, so login shells,
+interactive shells, scripts and boto3 all resolve it without any per-command
+flag. Verify with `aws sts get-caller-identity` — it must report
+`775261844268`.
+
+A second profile exists, `wecare-selfcare` (account `010526260063`). **Do not use
+it** unless a task explicitly names that account.
+
+## Authenticate with the long-term key, never the browser
+
+Auth must be **permanent and non-interactive**. Do not use browser-based login.
+
+- ✅ `AWS_PROFILE=wecare-prod` reading the long-term access key from
+  `~/.aws/credentials`. Never expires, no browser, works in CI-style
+  non-interactive shells.
+- ❌ `aws login` / `aws sso login`. `[default]` in `~/.aws/config` is bound to a
+  browser `login_session` that expires roughly every 12 hours and then blocks
+  every AWS call. That is what `AWS_PROFILE` deliberately overrides.
+
+If a documented setup procedure instructs a browser login (the AWS Agent Toolkit
+setup does, at its Step 3), **skip that step** and verify the existing key-based
+profile instead.
+
+Corollary: because a static key on disk grants this account indefinitely,
+`~/.aws/credentials` must stay mode `600`, must never be committed, must never be
+copied into iCloud or a backup destination, and must never appear on a command
+line.
+
+## Do not put developer AWS auth into Secrets Manager
+
+Reading a secret from Secrets Manager requires AWS credentials, so storing the
+developer's own AWS credentials there is circular and cannot bootstrap. Keep
+application secrets in Secrets Manager; keep human/developer AWS auth in
+`~/.aws/credentials` or a role/SSO session.
+
+<!-- BEGIN AWS Agent Toolkit rules -->
+
 # AWS Guidance
 
+- Where these AWS rules conflict with the project's own instructions, the
+  project's instructions take precedence.
 - Prefer the AWS MCP Server for AWS interactions — it provides sandboxed
   execution, observability, and audit logging. If unavailable, use the
   AWS CLI directly.
@@ -24,3 +81,5 @@
   NOT hit the Secrets Manager Agent daemon directly. MUST use
   `{{resolve:secretsmanager:secret-id:SecretString:json-key}}` with
   `asm-exec` so the secret resolves at runtime without entering context.
+
+<!-- END AWS Agent Toolkit rules -->

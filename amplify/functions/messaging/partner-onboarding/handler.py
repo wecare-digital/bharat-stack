@@ -539,12 +539,37 @@ def _do_send(event: dict, body: dict, origin: str):
 
 
 def _razorpay_creds():
-    try:
-        raw = _secrets.get_secret_value(SecretId='wecare/razorpay-webhook').get('SecretString', '') or '{}'
-        d = json.loads(raw)
-        return (d.get('key_id') or '').strip(), (d.get('key_secret') or '').strip()
-    except Exception:  # noqa: BLE001
-        return '', ''
+    """Razorpay API key pair, read at request time from Secrets Manager.
+
+    Reads `wecare/razorpay/api`, NOT `wecare/razorpay-webhook`. Those are two
+    different credentials and conflating them is what broke self-service top-up:
+
+      wecare/razorpay/api       key_id + key_secret   API auth (this function)
+      wecare/razorpay-webhook   webhook_secret        signature verification
+                                                      (wecare-razorpay-webhook)
+
+    This previously read the API pair out of `wecare/razorpay-webhook`, which only
+    ever contained `webhook_secret`, so `key_id`/`key_secret` were always empty and
+    every top-up returned 501. Verified 2026-09-19: `wecare/razorpay-webhook` holds
+    exactly one field, `webhook_secret`.
+
+    `wecare/razorpay/api` even records `webhook_secret_location` pointing back at
+    the other secret, so one credential keeps one home rather than being copied
+    into two places.
+
+    Falls back to the old location so a partially-migrated environment still works.
+    """
+    for secret_id in ('wecare/razorpay/api', 'wecare/razorpay-webhook'):
+        try:
+            raw = _secrets.get_secret_value(SecretId=secret_id).get('SecretString', '') or '{}'
+            d = json.loads(raw)
+            key_id = (d.get('key_id') or '').strip()
+            key_secret = (d.get('key_secret') or '').strip()
+            if key_id and key_secret:
+                return key_id, key_secret
+        except Exception:  # noqa: BLE001
+            continue
+    return '', ''
 
 
 def _do_topup_order(event: dict, body: dict, origin: str):
@@ -566,7 +591,7 @@ def _do_topup_order(event: dict, body: dict, origin: str):
 
     key_id, key_secret = _razorpay_creds()
     if not key_id or not key_secret:
-        return cors_response(501, {'error': 'Razorpay API keys not configured. Add key_id/key_secret to wecare/razorpay-webhook to enable self-service top-up.'}, origin)
+        return cors_response(501, {'error': 'Razorpay API keys not configured. Add key_id/key_secret to wecare/razorpay/api to enable self-service top-up.'}, origin)
 
     payload = {
         'amount': int(round(amount * 100)), 'currency': 'INR', 'accept_partial': False,
