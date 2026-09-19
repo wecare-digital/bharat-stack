@@ -10,7 +10,11 @@ name: Deploy docs-scraper (container Lambda)
 on:
   workflow_dispatch: {}
   push:
-    branches: [ main ]
+    # `stack` is the only long-lived branch and is origin/HEAD; there is no
+    # `main` in this repository (see .kiro/steering/git-workflow.md). This
+    # trigger named `main`, so the path filter below could never fire and
+    # wecare-docs-scraper only ever deployed by manual dispatch.
+    branches: [ stack ]
     paths:
       - 'amplify/functions/operations/docs-scraper/**'
       - '.github/workflows/docs-scraper-deploy.yml'
