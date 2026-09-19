@@ -2528,15 +2528,59 @@ def _send_interactive_list(phone_id: str, body: Dict) -> Dict:
 # CALLING SETTINGS (Enable/Disable calling on a phone number)
 # ============================================================================
 def _get_calling_settings(phone_id: str) -> Dict:
-    """Get current calling settings for a phone number, including SIP config and credentials."""
-    # include_sip_credentials=true returns the Meta-generated SIP password
+    """Get current calling settings for a phone number. SIP password is REDACTED.
+
+    include_sip_credentials=true makes Meta return the SIP user password. This
+    endpoint used to pass that straight through to the caller, so every request
+    put a live SIP trunk credential into the response body — and from there into
+    browser devtools, any intermediate log, and (on 2026-09-19) a session
+    transcript. Nothing in the frontend reads the field; a repo-wide search for
+    sip_user_password / sipUserPassword found no consumer outside this function.
+
+    The password is replaced with a presence flag and a truncated SHA-256
+    fingerprint, which is enough to confirm two systems hold the same string
+    without disclosing it. If a human genuinely needs the value (to configure a
+    PBX or a SIP trunk), read it from WhatsApp Manager or call the Graph endpoint
+    directly with the WABA token — deliberately not through this API.
+    """
     result = _graph_api(f'{phone_id}/settings', params={
         'fields': 'calling',
         'include_sip_credentials': 'true',
     }, phone_id=phone_id)
     if 'error' in result:
         return _resp(400, result)
-    return _resp(200, {'settings': result})
+    return _resp(200, {'settings': _redact_sip_credentials(result)})
+
+
+def _redact_sip_credentials(payload: Any) -> Any:
+    """Replace every sip_user_password with a presence flag + fingerprint.
+
+    Walks the whole structure rather than indexing a fixed path, because Meta
+    returns the servers list nested under calling.sip.servers[] and has changed
+    that shape before. Returns a copy; the input is not mutated.
+    """
+    import copy as _copy
+    import hashlib as _hashlib
+
+    def walk(node: Any) -> Any:
+        if isinstance(node, dict):
+            out: Dict[str, Any] = {}
+            for key, value in node.items():
+                if key == 'sip_user_password':
+                    secret = str(value or '')
+                    out['sip_user_password_set'] = bool(secret)
+                    if secret:
+                        out['sip_user_password_fingerprint'] = (
+                            'sha256:' + _hashlib.sha256(secret.encode()).hexdigest()[:12]
+                        )
+                    continue
+                out[key] = walk(value)
+            return out
+        if isinstance(node, list):
+            return [walk(item) for item in node]
+        return node
+
+    return walk(_copy.deepcopy(payload))
 
 
 def _validate_call_hours(call_hours: Dict) -> Optional[str]:

@@ -58,10 +58,47 @@ IVR_SMS_BODY = os.environ.get('IVR_SMS_BODY', (
     "We'll review it and follow up if needed."
 ))
 
-# Optional shared secret. Plivo does not sign answer_url requests the way it
-# signs callbacks, so if set we require ?token=<value> on the URL. Absent a
-# token the endpoint is still safe: it is read-only and returns static XML.
-ANSWER_TOKEN = os.environ.get('PLIVO_ANSWER_TOKEN', '')
+# Shared secret. Plivo does not sign answer_url requests the way it signs
+# callbacks, so when a token is configured we require ?token=<value> on the URL.
+#
+# The old comment here said that without a token "the endpoint is still safe: it
+# is read-only and returns static XML". That stopped being true when the
+# post-call SMS was added below: an unauthenticated POST of
+# CallStatus=completed&From=91XXXXXXXXXX makes this function send a DLT-templated
+# SMS to an arbitrary Indian mobile through wecare-sms-aws. The route is
+# AuthorizationType=NONE with no authorizer, so the token is the only gate.
+#
+# Resolved lazily from Secrets Manager on first request and cached, with the env
+# var as a fallback — same pattern as the other functions in this fleet, so a
+# value change does not need a redeploy. While the secret does not exist and the
+# env var is unset the gate stays off, which is the pre-existing behaviour.
+PLIVO_ANSWER_SECRET_ID = os.environ.get('PLIVO_ANSWER_SECRET_ID', 'wecare/plivo-answer')
+_answer_token_cache: str = ''
+
+
+def _get_answer_token() -> str:
+    global _answer_token_cache
+    if _answer_token_cache:
+        return _answer_token_cache
+    try:
+        import boto3
+        _sm = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        raw = _sm.get_secret_value(SecretId=PLIVO_ANSWER_SECRET_ID).get('SecretString', '') or ''
+        try:
+            _answer_token_cache = (json.loads(raw).get('token') or '').strip()
+        except (ValueError, TypeError):
+            _answer_token_cache = raw.strip()
+    except Exception as e:
+        # Absent secret is the normal state until the token is provisioned, so
+        # this is a debug-level note, not a warning. Falls through to env.
+        logger.debug(json.dumps({
+            'event': 'plivo_answer_token_secret_unavailable',
+            'secretId': PLIVO_ANSWER_SECRET_ID,
+            'error': f'{type(e).__name__}',
+        }))
+    if not _answer_token_cache:
+        _answer_token_cache = os.environ.get('PLIVO_ANSWER_TOKEN', '')
+    return _answer_token_cache
 
 
 def _xml_response(body: str, status: int = 200) -> dict:
@@ -170,7 +207,8 @@ def handler(event, context):
     params = _parse_body(event)
     qs = event.get('queryStringParameters') or {}
 
-    if ANSWER_TOKEN and qs.get('token') != ANSWER_TOKEN:
+    answer_token = _get_answer_token()
+    if answer_token and qs.get('token') != answer_token:
         # Wrong/missing token: log and hang up without revealing anything.
         logger.warning(json.dumps({
             'event': 'plivo_answer_rejected',

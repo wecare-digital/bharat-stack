@@ -105,13 +105,16 @@ def test_empty_body_still_answers():
 # --------------------------------------------------------------------------
 # Token gate
 # --------------------------------------------------------------------------
+# The token is now resolved lazily from Secrets Manager and cached in
+# `_answer_token_cache`, instead of being read from the env at import. Seeding the
+# cache short-circuits `_get_answer_token()` so these stay hermetic — no AWS call.
 def test_no_token_configured_means_open(monkeypatch):
-    monkeypatch.setattr(pa, 'ANSWER_TOKEN', '')
+    monkeypatch.setattr(pa, '_get_answer_token', lambda: '')
     assert pa.handler(_event(PLIVO_FORM), None)['statusCode'] == 200
 
 
 def test_wrong_token_is_rejected_with_hangup(monkeypatch):
-    monkeypatch.setattr(pa, 'ANSWER_TOKEN', 'sekret')
+    monkeypatch.setattr(pa, '_answer_token_cache', 'sekret')
     r = pa.handler(_event(PLIVO_FORM, qs={'token': 'nope'}), None)
     assert r['statusCode'] == 403
     assert '<Hangup/>' in r['body']
@@ -119,10 +122,57 @@ def test_wrong_token_is_rejected_with_hangup(monkeypatch):
 
 
 def test_correct_token_is_accepted(monkeypatch):
-    monkeypatch.setattr(pa, 'ANSWER_TOKEN', 'sekret')
+    monkeypatch.setattr(pa, '_answer_token_cache', 'sekret')
     r = pa.handler(_event(PLIVO_FORM, qs={'token': 'sekret'}), None)
     assert r['statusCode'] == 200
     assert '<Play>' in r['body']
+
+
+def test_missing_token_is_rejected_when_one_is_configured(monkeypatch):
+    """The abuse vector: an unauthenticated POST must not reach the SMS path.
+
+    CallStatus=completed is what triggers the post-call SMS, so a caller with no
+    token must be refused before that runs.
+    """
+    monkeypatch.setattr(pa, '_answer_token_cache', 'sekret')
+    sent = []
+    monkeypatch.setattr(pa, '_send_post_call_sms',
+                        lambda *a, **k: sent.append(a))
+    r = pa.handler(_event('CallUUID=x&From=919999999999&CallStatus=completed'), None)
+    assert r['statusCode'] == 403
+    assert sent == [], 'no-token request must not trigger the follow-up SMS'
+
+
+def test_token_resolver_prefers_secrets_manager_and_caches(monkeypatch):
+    """Secrets Manager first, env only as fallback, and fetched at most once."""
+    monkeypatch.setattr(pa, '_answer_token_cache', '')
+    monkeypatch.setenv('PLIVO_ANSWER_TOKEN', 'from-env')
+    calls = []
+
+    class _FakeSM:
+        def get_secret_value(self, SecretId):            # noqa: N803
+            calls.append(SecretId)
+            return {'SecretString': '{"token": "from-secrets-manager"}'}
+
+    import boto3
+    monkeypatch.setattr(boto3, 'client', lambda *a, **k: _FakeSM())
+
+    assert pa._get_answer_token() == 'from-secrets-manager'
+    assert pa._get_answer_token() == 'from-secrets-manager'
+    assert len(calls) == 1, 'must cache, not re-fetch on every request'
+
+
+def test_token_resolver_falls_back_to_env_when_secret_absent(monkeypatch):
+    monkeypatch.setattr(pa, '_answer_token_cache', '')
+    monkeypatch.setenv('PLIVO_ANSWER_TOKEN', 'from-env')
+
+    import boto3
+
+    def _boom(*a, **k):
+        raise RuntimeError('ResourceNotFoundException')
+
+    monkeypatch.setattr(boto3, 'client', _boom)
+    assert pa._get_answer_token() == 'from-env'
 
 
 def test_xml_escaping_of_media_url(monkeypatch):
