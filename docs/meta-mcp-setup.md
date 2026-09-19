@@ -77,3 +77,58 @@ it is reported here, because none of it has run.
 `docs/meta-subscription-audit.md` compares the app's live webhook subscription
 against what this repository actually handles, using the Graph API directly. That
 is the substantive answer to "are we subscribed to everything, and do we use it".
+
+## Repo connected: skills installed
+
+`facebook/agentic-tools` @ `67dca94` cloned and its nine skills installed to
+`.kiro/skills/`. They follow the open Agent Skills standard (`SKILL.md`), which is
+why they port to Kiro at all — Kiro is **not** one of the three documented targets
+(Claude Code, Cursor, Codex), so this is an adaptation, not a supported install
+path. There is no marketplace step for Kiro.
+
+`debug-access-token` also ships `scripts/debug_token_probe.py`, installed with it.
+
+## Tool inventory — 10 tools, obtained without authenticating
+
+Derived from the `allowed-tools` frontmatter across all nine skills, so this is
+Meta's own declaration rather than a guess. In Claude the namespace is
+`mcp__devtools__devtools_*`; the bare tool name is what a Kiro MCP client sees.
+
+| Tool | Purpose | Class |
+|---|---|---|
+| `devtools_app_list` | enumerate the apps you can administer | READ |
+| `devtools_app` | app + product configuration, settings, security | READ |
+| `devtools_app_review` | review status, requirements, granted privileges, history | READ |
+| `devtools_compliance` | violations, required actions, remediation | READ |
+| `devtools_api_usage` | rate limits, call volume, deprecations | READ |
+| `devtools_discovery` | documentation / endpoint / reference search | READ |
+| `devtools_webhook_list` | inspect active subscriptions | READ |
+| `devtools_webhook_manage` | subscribe / unsubscribe fields, callback config | **WRITE** |
+| `devtools_webhook_test` | send a test payload to the callback | **WRITE-effect** |
+| `devtools_skill_invocation` | skill-invocation bookkeeping | internal |
+
+Class is inferred from tool names and skill descriptions. **Schemas, required and
+optional parameters, and permission requirements are NOT captured** — those need
+an authenticated session, and nothing here should be read as if they were.
+
+### Two of these are dangerous against this account, right now
+
+`devtools_webhook_manage` can change the app's callback URL or field
+subscriptions. The app currently has 32 WABA fields plus 2 catalog fields on
+`https://api.wecare.digital/whatsapp`, and that configuration is **correct** — the
+401s were our routing bug, not Meta's config. An unreviewed `webhook_manage` call
+could turn a one-line code fix into a subscription outage. Do not run it without
+a reviewed plan.
+
+`devtools_webhook_test` is the useful one after the stage-prefix fix deploys: it
+sends a real delivery to the live callback, which is exactly how to confirm Meta
+stops receiving 401s. It has a side effect, so it is still gated.
+
+## Still blocked
+
+Installing the skills does not connect the server. The skills call
+`devtools_*` tools that do not exist in this session, so invoking one now would
+stall at its first tool call. Both remaining blockers are unchanged:
+
+1. `.kiro/settings/mcp.json` is write-denied to the agent — paste the config above.
+2. Both servers need an interactive OAuth flow.
