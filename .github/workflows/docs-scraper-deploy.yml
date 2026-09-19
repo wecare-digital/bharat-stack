@@ -3,9 +3,29 @@ name: Deploy docs-scraper (container Lambda)
 # Builds the Playwright/Chromium container image and deploys wecare-docs-scraper.
 # Runs on a CI runner (has Docker) — solves the "no Docker locally" blocker.
 #
-# Required repo secrets:
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY   (an IAM user/role scoped to ECR + Lambda)
-# Or configure OIDC role-to-assume instead (recommended).
+# ⚠️ NOT CURRENTLY FUNCTIONAL — measured 2026-09-19. This workflow cannot
+# authenticate to AWS, so any run fails at "Configure AWS credentials" with
+# "Could not load credentials from any providers" (run 35424658259, 9s).
+#   * `gh secret list` returns nothing: neither AWS_ACCESS_KEY_ID nor
+#     AWS_SECRET_ACCESS_KEY is set on the repository.
+#   * `iam list-open-id-connect-providers` returns an empty list, so the
+#     `id-token: write` permission below has no GitHub OIDC provider to use
+#     either, despite being the recommended path.
+# Consequence: wecare-docs-scraper has not been rebuilt since 2026-07-04
+# (ECR tags `latest`/`2746f10`, 789.6 MB, pushed 2026-07-04T05:13Z; the live
+# function's LastModified matches). It is Active, just frozen at that image.
+# Until one of the two auth paths is configured, every triggered run will go red.
+#
+# To fix, pick one:
+#   a) create a GitHub OIDC provider + a deploy role scoped to ECR push and
+#      lambda:UpdateFunctionCode, then replace the credential step with
+#      `role-to-assume:` (recommended — no long-lived keys), or
+#   b) set the two repo secrets from an IAM user scoped to ECR + Lambda.
+# Both are account-level security changes and need explicit sign-off; neither
+# was done as part of the 2026-09-19 audit.
+#
+# The IAM role the create-function branch references,
+# arn:aws:iam::775261844268:role/wecare-digital-lambda-role, does exist.
 
 on:
   workflow_dispatch: {}
