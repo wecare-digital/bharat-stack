@@ -25,11 +25,25 @@ ROOT = Path(__file__).resolve().parents[1]
 HANDLER = ROOT / "amplify/functions/payments/razorpay-webhook/handler.py"
 
 
+# Names the handler mentions that Razorpay does NOT accept as event
+# subscriptions. Verified 2026-09-19 by a live PUT, which returned
+# BAD_REQUEST_ERROR "Invalid event name/names".
+NOT_REAL_EVENTS = {
+    # A dict-key lookup at handler.py:1386, not an event type. The real events
+    # fund_account.validation.completed / .failed are handled and subscribed.
+    "fund_account.validation",
+    # A live `elif event_type == 'payment.pending'` branch at handler.py:120, but
+    # Razorpay has no such event, so that branch is unreachable. See GAP.
+    "payment.pending",
+}
+
+
 def razorpay_events() -> list[str]:
+    """Event names the handler dispatches on AND Razorpay actually accepts."""
     src = HANDLER.read_text()
     pat = (r"'((?:payment|order|subscription|invoice|settlement|refund|payment_link"
            r"|virtual_account|fund_account|transfer|account|qr_code)\.[a-z_.]+)'")
-    return sorted(set(re.findall(pat, src)))
+    return sorted(set(re.findall(pat, src)) - NOT_REAL_EVENTS)
 
 
 def razorpay_live_webhooks() -> tuple[list[dict], str]:
