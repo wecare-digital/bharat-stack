@@ -27,11 +27,12 @@ These come from how the system actually fails, not from preference.
    parameters and destination **without delivering**. Use it, plus one real send
    to a controlled number, before deleting the incumbent.
 
-4. **The IAM region gap is closed before India cutover.**
-   `amplify/iam-policies.ts:94-105` scopes `sms-voice:SendTextMessage` to
-   `arn:aws:sms-voice:${AWS_REGION}:...` = `us-east-1`, while the handler builds
-   an `ap-south-1` client. If IaC matches the deployed role, every India send
-   through AWS fails with AccessDenied. Verify against the live role first.
+4. ~~The IAM region gap is closed before India cutover.~~ **Checked, not a
+   blocker.** `iam-policies.ts:94-105` reads as `us-east-1`-only, but
+   `simulate_principal_policy` against the live `wecare-digital-lambda-role`
+   returns `ALLOWED` in both regions and on
+   `sender-id/WDBEEP/IN`. IaC is narrower than the deployed policy. Reconciling
+   the drift is worth doing; it does not gate the cutover.
 
 5. **Delivery-receipt ingestion is built before the SMS dashboard claims a
    delivery rate.** Today `status` is written as `SENT` and never updated
@@ -167,9 +168,20 @@ iPhones may support RCS depending on iOS version, country, carrier, device
 settings and agent launch status. Resolve capability, do not infer it from
 platform.
 
-**Blocked on provider approval:** an AWS RCS agent must be registered and
-launched per country. Until then this stage is `WAITING_FOR_PROVIDER_APPROVAL`
-and no non-India RCS traffic flows.
+**Blocked on provider approval — confirmed by measurement, three independent
+blockers.** Read live 2026-09-19:
+
+1. `RCS_MESSAGE_MONTHLY_SPEND_LIMIT` is **$1**, and `max` is also **$1**, so it
+   cannot be raised without an AWS quota request.
+2. **No RCS-capable phone number exists** in `us-east-1` or `ap-south-1`.
+3. `US_RCS_LAUNCH_REGISTRATION` and `CA_RCS_LAUNCH_REGISTRATION` are `CREATED`,
+   not COMPLETE. Only `TEST_RCS_LAUNCH_REGISTRATION` is COMPLETE.
+
+Build the provider and renderer anyway — they are needed and testable against the
+internal template model without sending. But this stage cannot reach
+`IMPLEMENTED`, and §51 acceptance cannot be claimed, until all three clear.
+Writing code is not the bottleneck here; the AWS quota request and the launch
+registrations are.
 
 **Verify:** §18 matrix — Android RCS-capable, iPhone RCS-capable, non-RCS device;
 text, media, rich card, carousel, suggested reply, suggested action, delivery

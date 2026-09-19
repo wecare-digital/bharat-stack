@@ -63,12 +63,18 @@ Portugal were affected the same way. That was misdelivery, not just misrouting.
    ever updates it. There is no SNS event-destination subscriber, no
    CloudWatch-logs consumer, no `pinpoint-sms-voice-v2` event handler in the
    repo. So AWS SMS delivery state is currently unknowable after submission.
-2. **The IAM grant is region-pinned.** `amplify/iam-policies.ts:94-105` scopes
-   `sms-voice:SendTextMessage` to `arn:aws:sms-voice:${AWS_REGION}:${ACCOUNT}:*`,
-   i.e. `us-east-1` only, while `handler.py:407` builds an `ap-south-1` client.
-   As written in IaC the India path is not covered. *Unverified:* the deployed
-   policy may differ from IaC; this needs checking against the live role before
-   India traffic is cut over.
+2. ~~The IAM grant is region-pinned.~~ **Resolved — this was a false alarm.**
+   `amplify/iam-policies.ts:94-105` scopes `sms-voice:SendTextMessage` to
+   `arn:aws:sms-voice:${AWS_REGION}:${ACCOUNT}:*`, which reads as `us-east-1`
+   only, while `handler.py:407` builds an `ap-south-1` client. That looked like a
+   blocker for India cutover. It is not: `simulate_principal_policy` against the
+   **live** role `wecare-digital-lambda-role` returns `ALLOWED` for
+   `sms-voice:SendTextMessage` in `us-east-1`, in `ap-south-1`, and on
+   `arn:aws:sms-voice:ap-south-1:775261844268:sender-id/WDBEEP/IN`. The deployed
+   policy is broader than the IaC snippet implies — the same pattern as
+   `wecare-digital-lambda-permissions` granting `wecare/*` for secrets. IaC and
+   reality have drifted, which is worth reconciling, but India sending is not
+   blocked.
 
 ### 2.2 `wecare-sms-in-airtel` — the primary India sender today
 `amplify/functions/messaging/sms-in/airtel/handler.py`
@@ -387,4 +393,76 @@ alias.
 | Plivo application/number/endpoint/`sip_auth_type` | live Plivo REST API |
 | Route count, `SMS_PROXY_URL` unset, alias versions | live AWS CLI |
 | Secret ids | live `ListSecrets` (31 secrets) |
-| **Not verified** | deployed IAM policy vs `iam-policies.ts`; whether the `ap-south-1` `WDBEEP` sender id and India phone pool are actually registered; which SES DKIM selector is in use |
+| AWS End User Messaging account state, both regions | live `pinpoint-sms-voice-v2` reads, 2026-09-19 — see §14 |
+| Deployed IAM vs IaC | live `iam:SimulatePrincipalPolicy` — IaC is narrower than reality |
+| **Not verified** | which SES DKIM selector is actually in use |
+
+---
+
+## 14. AWS End User Messaging — measured account state
+
+Read live on 2026-09-19. This settles several things that were previously assumed.
+
+### ap-south-1 (India)
+
+```
+sender id      WDBEEP   IN   Promotional,Transactional   Registered=True
+registration   IN_SENDER_ID_REGISTRATION   COMPLETE
+phone numbers  none
+pools          none
+opt-out lists  Default
+account tier   PRODUCTION
+```
+
+No phone numbers or pools is **correct** — India sends by registered sender id,
+not by a number. So the India path is fully provisioned.
+
+### us-east-1 (international)
+
+```
++18444891209   TOLL_FREE   ACTIVE   US   TRANSACTIONAL   InternationalSendingEnabled=true
++14255556333   SIMULATOR   ACTIVE   US   TRANSACTIONAL   InternationalSendingEnabled=false
+pool           pool-27cc4ee23f1e4225aa71172cbaedbb58   ACTIVE   TRANSACTIONAL
+sender ids     none   (correct: the US does not use them)
+opt-out lists  Default
+protect config protect-b137924dfb934c32b1d10c28b737d08c   AccountDefault=True
+account tier   PRODUCTION
+```
+
+**The simulator hazard is real and confirmed.** `+14255556333` is
+`NumberType: SIMULATOR` and sits in the **same pool** as the real toll-free
+number. A simulator accepts a send and returns a `MessageId` without delivering
+anything. This is exactly why `ORIGINATION_IDENTITY` must stay pinned and why
+pinning the *pool* would not help.
+
+### Spend limits — a hard constraint in both regions
+
+```
+TEXT_MESSAGE_MONTHLY_SPEND_LIMIT    enforced 200   max 200
+MEDIA_MESSAGE_MONTHLY_SPEND_LIMIT   enforced 200   max 200
+RCS_MESSAGE_MONTHLY_SPEND_LIMIT     enforced   1   max   1
+VOICE_MESSAGE_MONTHLY_SPEND_LIMIT   enforced   1   max   1
+NOTIFY_MESSAGE_MONTHLY_SPEND_LIMIT  enforced   1   max   1
+```
+
+`max` equals `enforced` everywhere, so none of these can be raised without an AWS
+quota request. **SMS has a $200/month ceiling.** More importantly:
+
+### AWS RCS is not usable yet — three independent blockers
+
+1. `RCS_MESSAGE_MONTHLY_SPEND_LIMIT` is **$1**, with a max of **$1**.
+2. **No RCS-capable phone number exists** in either region.
+3. Launch registrations are incomplete:
+
+```
+us-east-1   US_RCS_LAUNCH_REGISTRATION     CREATED    (x2)
+us-east-1   CA_RCS_LAUNCH_REGISTRATION     CREATED
+us-east-1   TEST_RCS_LAUNCH_REGISTRATION   COMPLETE   (x2)
+ap-south-1  TEST_RCS_LAUNCH_REGISTRATION   COMPLETE
+us-east-1   NOTIFY_TIER_UPGRADE_REGISTRATION   REQUIRES_UPDATES
+```
+
+Only the **TEST** launch registrations are COMPLETE. The real US and CA ones are
+`CREATED`, meaning created but not carried through approval. So §14/§51
+(international RCS) is `WAITING_FOR_PROVIDER_APPROVAL` on evidence, not on
+assumption, and no non-India RCS traffic can flow until all three are cleared.
