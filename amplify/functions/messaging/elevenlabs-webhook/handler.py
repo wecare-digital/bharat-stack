@@ -84,20 +84,28 @@ def _signing_secret() -> str:
     Deliberately not at import time: a module-scope read is cached for the life
     of the execution environment, so rotating the secret would not take effect
     until every warm sandbox recycled. See .kiro/steering/lambda-snapstart-deploy.md.
+
+    Only a SUCCESSFUL lookup is cached. Caching the empty result would mean a
+    sandbox that started before the secret existed could never recover: it would
+    keep returning '' and rejecting every delivery until it was recycled, even
+    though the secret had since been provisioned. That is exactly what happened
+    while this endpoint was being set up.
     """
     global _signing_secret_cache
-    if _signing_secret_cache is not None:
+    if _signing_secret_cache:
         return _signing_secret_cache
     try:
         sm = boto3.client('secretsmanager', region_name=REGION)
         raw = sm.get_secret_value(SecretId=SECRET_ID).get('SecretString') or '{}'
         data = json.loads(raw)
-        _signing_secret_cache = (data.get(SIGNING_SECRET_FIELD) or '').strip()
+        value = (data.get(SIGNING_SECRET_FIELD) or '').strip()
     except Exception as exc:  # absent secret/field is the normal pre-provision state
         log_event(logger, 'elevenlabs_signing_secret_unavailable', level='warning',
                   secretId=SECRET_ID, field=SIGNING_SECRET_FIELD, error=str(exc))
-        _signing_secret_cache = ''
-    return _signing_secret_cache
+        return ''
+    if value:
+        _signing_secret_cache = value
+    return value
 
 
 def _parse_signature_header(header: str) -> Tuple[Optional[int], list]:
