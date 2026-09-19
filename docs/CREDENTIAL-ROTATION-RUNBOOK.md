@@ -124,9 +124,32 @@ was not leaked. Leave it alone.
    name suggests. Move to a password manager, then delete.
 4. The session transcript
    `~/.kiro/sessions/df7bb16a63efe7f7/sess_2100c42e-.../messages.jsonl` also
-   contains 10 occurrences. It is your conversation history, so it was left
+   contains occurrences. It is your conversation history, so it was left
    intact — delete that session if you want the footprint gone.
 5. Confirm the guard is active: `python scripts/verify_secret_hook.py` → 18/18.
+
+## Current footprint
+
+Re-measure any time with `python scripts/audit_leak_footprint.py` (prints paths
+and counts only, never values). As of 2026-09-19 after remediation:
+
+| Occurrences | Location | Disposition |
+|---|---|---|
+| 102 | `~/Library/Application Support/Kiro/logs/20260918T113948/.../Kiro Logs.log` | live IDE log — rotates on restart |
+| 12 | `~/.kiro/sessions/df7bb16a63efe7f7/sess_2100c42e-.../messages.jsonl` | your conversation history — left intact by choice |
+| 9 | `~/.kiro/workspace-roots/df7bb16a63efe7f7/permissions.yaml` | replace with the staged file (step 1) |
+| 9 | `~/.kiro/logs/20260918T060951815/kiro.log` | live IDE log — rotates on restart |
+| 5 | `~/aws-new-keys-SAVE-THEN-DELETE.txt` | delete after saving (step 3) |
+| 2 | `~/Library/Application Support/Kiro/User/globalStorage/state.vscdb` | Kiro's global storage SQLite DB; clears as the IDE ages out old state |
+| **139** | **total** | |
+
+Already clean and verified: git history (all objects, every ref), shell history,
+the repo working tree, and the maintenance snapshot backup (redacted in place —
+values replaced with `<REDACTED:prefix…suffix:len>` fingerprints so the record of
+*what* leaked survives without the values).
+
+**None of this matters once the four credentials are rotated.** Rotation is the
+fix; file cleanup is hygiene.
 
 ## Preventing recurrence
 
