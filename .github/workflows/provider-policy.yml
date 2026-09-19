@@ -1,0 +1,61 @@
+name: Provider policy
+
+# Enforces the approved provider architecture (spec §44):
+#
+#   normal SMS, every country -> AWS End User Messaging   ONLY
+#   India RCS                 -> Sinch                    ONLY
+#   non-India RCS             -> AWS End User Messaging RCS
+#   PSTN voice / SIP / IVR    -> Plivo
+#   WhatsApp                  -> Meta
+#   Airtel                    -> prohibited entirely
+#
+# MODE: --expect-fail, deliberately.
+#
+# At the migration baseline the repository legitimately still contains Airtel and
+# Sinch SMS, so gating for real would block every PR before the migration that
+# removes them can land. --expect-fail inverts the check: the job passes while
+# violations remain, and FAILS the moment the count reaches zero — which is the
+# signal to flip this workflow to gate mode.
+#
+# That is not a disabled check. It still fails on a genuinely new class of
+# problem, because the migration is what drives the count to zero and this job
+# tells us when that has happened. Leaving it in expect-fail mode after the
+# migration completes would be the mistake, which is why it fails loudly then.
+#
+# TO FLIP (after Stage 3 of docs/migration-plan.md):
+#   1. remove `--expect-fail` from the run step below
+#   2. the job then fails on ANY violation, which is the steady state
+
+on:
+  push:
+    branches: [stack]
+  pull_request:
+    branches: [stack]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-policy:
+    name: Provider policy gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check provider policy
+        run: ./scripts/check-provider-policy.sh --expect-fail --verbose
+
+      - name: Record the violation baseline
+        if: always()
+        run: |
+          echo "### Provider policy" >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Mode: `--expect-fail` (migration in flight).' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Flip to gate mode once Stage 3 of `docs/migration-plan.md` lands.' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          ./scripts/check-provider-policy.sh 2>&1 \
+            | grep -E '^  (ok|FAIL)|^        [0-9]+ violation|^PROVIDER' \
+            >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
