@@ -1665,7 +1665,7 @@ def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
         wa_message_id = ''
         rcs_sent = False
 
-        # ── 0. Send SMS via Airtel IQ (same as WhatsApp calling disconnect) ──
+        # ── 0. Send the follow-up SMS (AWS End User Messaging) ──
         session_id = cdr_record.get('vmSessionId', '') or cdr_record.get('clientCorrelationId', '')
         ivr_sms_content = (
             "Thanks for contacting WECARE.DIGITAL!\n\n"
@@ -1674,23 +1674,13 @@ def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
             "We'll review it and follow up if needed."
         )
         try:
-            is_indian = clean_dest.startswith('91') and len(clean_dest) == 12
-            _lambda = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-            sms_payload = {
-                'rawPath': '/sms-in/airtel' if is_indian else '/sms-aws/send',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'phoneNumber': '+' + clean_dest,
-                    'content': ivr_sms_content,
-                    'messageType': 'SERVICE_IMPLICIT' if is_indian else 'TRANSACTIONAL',
-                    **(({'dltTemplateId': '1007277993798259629', 'sourceAddress': 'WDBEEP', 'entityId': '1201161991108627443', 'apiVersion': 'v5'}) if is_indian else {}),
-                }),
-            }
-            _lambda.invoke(
-                FunctionName='wecare-sms-in-airtel' if is_indian else 'wecare-sms-aws',
-                InvocationType='Event',
-                Payload=json.dumps(sms_payload).encode(),
-            )
+            # One call, every country. comms.notify selects the AWS region and
+            # applies the TRAI DLT gate; this handler decides neither.
+            from lambda_utils.comms.notify import send_notification_sms
+            send_notification_sms(
+                '+' + clean_dest, ivr_sms_content,
+                dlt_template_key='ivr-default',
+                campaign='obd-cdr', request_id=request_id)
             sms_message_id = f"obd_sms_{session_id}_{now_ts}"
             _store_to_inbox(
                 message_id=sms_message_id,
@@ -1705,7 +1695,7 @@ def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
             logger.info(json.dumps({
                 'event': 'obd_cdr_sms_triggered',
                 'destination': clean_dest[-4:],
-                'provider': 'airtel' if is_indian else 'pinpoint',
+                'provider': 'aws-end-user-messaging',
                 'smsId': sms_message_id,
                 'requestId': request_id,
             }))

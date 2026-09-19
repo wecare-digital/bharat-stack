@@ -1567,29 +1567,26 @@ def _retry_order_notification(event: dict, request_id: str) -> Dict[str, Any]:
                 "Need help? Submit a request here: https://wecare.digital/selfservice "
                 "or message / voice note us on WhatsApp: https://r.wecare.digital/wa.",
             )
-            sms_body = {
-                'phoneNumber': phone,
-                'content': sms_content,
-                'messageType': 'SERVICE_IMPLICIT',
-                'dltTemplateId': os.environ.get('ORDER_SMS_DLT_TEMPLATE_ID', '1007723091207562020'),
-                'entityId': os.environ.get('ORDER_SMS_ENTITY_ID', '1201161991108627443'),
-                'sourceAddress': os.environ.get('ORDER_SMS_SOURCE_ADDRESS', 'WDBEEP'),
-                'apiVersion': 'v5',
-                'metaData': {
-                    'orderId': order_id,
-                    'wdOrderId': str(record.get('wdOrderId', '')),
-                },
-            }
-            payload = {
-                'requestContext': {'http': {'method': 'POST'}},
-                'rawPath': '/sms-in/airtel',
-                'body': json.dumps(sms_body),
-            }
-            sent = _invoke_json(
-                os.environ.get('ORDER_SMS_FUNCTION', 'wecare-sms-in-airtel'),
-                payload,
-            )
-            provider_id = sent.get('providerMessageId') or sent.get('messageId', '')
+            # AWS End User Messaging, via the shared dispatcher. The regulatory
+            # identity (entity id, sender id, approved template id) is resolved
+            # from the template KEY by lambda_utils.comms.dlt, so this handler
+            # no longer carries copies of it.
+            #
+            # wait=True because this is an operator-triggered retry whose result
+            # is persisted and shown: _persist_order_retry needs the provider
+            # message id, and a caller-visible failure must be reported rather
+            # than fired and forgotten.
+            from lambda_utils.comms.notify import send_notification_sms
+            outcome = send_notification_sms(
+                phone, sms_content,
+                dlt_template_key=os.environ.get('ORDER_SMS_DLT_TEMPLATE_KEY', 'wd_order'),
+                campaign='order-notification-retry',
+                request_id=str(record.get('wdOrderId', '')) or order_id,
+                wait=True)
+            if not outcome.ok:
+                raise RuntimeError(
+                    outcome.error or outcome.skipped_reason or 'SMS not accepted')
+            provider_id = outcome.provider_message_id
     except Exception as error:
         provider_error = str(error)[:500] or 'Provider send failed'
         logger.exception('Order notification retry failed before provider confirmation')

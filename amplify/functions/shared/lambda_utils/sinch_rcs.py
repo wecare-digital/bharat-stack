@@ -396,59 +396,11 @@ def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
     return result
 
 
-def send_rcs_order_notification(phone: str, order_id: str = '',
-                                 wd_order_id: str = '') -> dict:
-    """Send order confirmation RCS notification.
-
-    Uses the approved 'rcsorder' template (rich_card, MEDIUM height, Jio vendor).
-    """
-    result = send_rcs_template(
-        phone=phone,
-        template_id='rcsorder',
-    )
-
-    if not result.get('success'):
-        logger.info(f'rcsorder template failed, falling back to card_message')
-        desc = (
-            "Your order has been received. We'll review it and share updates shortly.\n\n"
-            "Need help? Submit a request here: https://wecare.digital/selfservice "
-            "or message / voice note us on WhatsApp: https://r.wecare.digital/wa.\n"
-            "WECARE.DIGITAL"
-        )
-        if wd_order_id:
-            desc = f"Order {wd_order_id} confirmed!\n\n" + desc
-
-        result = send_rcs_card(
-            phone=phone,
-            title='Thanks for placing your order with WECARE.DIGITAL!',
-            description=desc,
-            media_url='https://app.wecare.digital/stream/media/m/selfservice.mp4',
-            choices=[
-                {'title': 'Get Started', 'url': 'https://r.wecare.digital/getstarted'},
-            ],
-        )
-
-    return result
-
-
-def send_rcs_wa_alert(phone: str, request_id: str = '') -> dict:
-    """Send WA-Alert style RCS notification.
-
-    Uses the approved 'waalert' template (rich_card, MEDIUM height, Jio vendor).
-    """
-    result = send_rcs_template(
-        phone=phone,
-        template_id='waalert',
-    )
-
-    if not result.get('success'):
-        logger.info(f'waalert template failed, falling back to text')
-        result = send_rcs_text(
-            phone=phone,
-            text="We've sent an essential notification about your order/request to your registered WhatsApp number. Your prompt attention is appreciated. WECARE.DIGITAL",
-        )
-
-    return result
+# Removed 2026-09-19: send_rcs_order_notification() and send_rcs_wa_alert().
+# Both were approved-template senders (wd_order / waalert) with no caller
+# anywhere in the tree. They are recoverable from git history if an order or
+# alert RCS flow is built; re-adding dead surface now would only widen what the
+# Sinch credential can be used for.
 
 
 def _send_sinch_message(payload: dict) -> dict:

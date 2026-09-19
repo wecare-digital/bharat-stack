@@ -1,9 +1,8 @@
 """
 AWS SMS Lambda Function
 
-Purpose: Send SMS messages via Amazon Pinpoint SMS (us-east-1 + ap-south-1 India)
-Supports: Transactional SMS, Promotional SMS, Pinpoint SMS Template Management
-Table: stack-wecare-digital-SmsAwsTable (dedicated)
+Purpose: Send SMS via AWS End User Messaging (pinpoint-sms-voice-v2),
+us-east-1 and ap-south-1. This is the ONLY SMS sender in the account.
 
 Endpoints:
   GET  /sms-aws/messages          - List SMS messages
@@ -11,10 +10,17 @@ Endpoints:
   POST /sms-aws/send              - Send SMS
   DELETE /sms-aws/messages/{id}   - Delete message
   DELETE /sms-aws/clear-logs      - Clear all logs
-  GET  /sms-aws/templates         - List Pinpoint SMS templates (ap-south-1)
-  POST /sms-aws/templates         - Create Pinpoint SMS template
-  PUT  /sms-aws/templates         - Update Pinpoint SMS template
-  DELETE /sms-aws/templates       - Delete Pinpoint SMS template
+
+Removed 2026-09-19: the `/templates` CRUD routes and their classic-Pinpoint
+client. Those managed legacy Pinpoint SMS templates, which are a different thing
+from TRAI DLT content templates and cannot satisfy DLT - the handler already said
+so in a comment while the UI still offered the tab. India DLT templates are
+registered on the DLT portal and recorded in the DLTTemplates registry, which
+`lambda_utils.comms.dlt` reads.
+
+Regulatory identity (entity id, sender id, approved template ids) is NOT defined
+here. It lives in `lambda_utils.comms.dlt`, and the module-level names below are
+thin re-exports so there is one source of truth rather than a copy per Lambda.
 """
 
 import os
@@ -26,6 +32,8 @@ import boto3
 from typing import Dict, Any
 from decimal import Decimal
 
+from lambda_utils.comms import dlt as dlt_mod
+from lambda_utils.comms import numbers
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.validation import normalize_phone
@@ -37,8 +45,6 @@ REGION = 'us-east-1'
 INDIA_REGION = 'ap-south-1'
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 pinpoint_sms = boto3.client('pinpoint-sms-voice-v2', region_name=REGION)
-# Pinpoint (classic) in ap-south-1 for India sender ID / template management
-pinpoint_india = boto3.client('pinpoint', region_name=INDIA_REGION)
 
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SMS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTable')
@@ -58,55 +64,42 @@ UNIFIED_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-M
 # 2025). Rate limit is 3 SMS/sec.
 ORIGINATION_IDENTITY = os.environ.get('ORIGINATION_IDENTITY', '+18444891209')
 SENDER_ID = os.environ.get('SENDER_ID', 'WECARE')
-INDIA_SENDER_ID = os.environ.get('INDIA_SENDER_ID', 'WDBEEP')
-INDIA_PINPOINT_APP_ID = os.environ.get('INDIA_PINPOINT_APP_ID', '')
 MESSAGE_TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 # --- India DLT (TRAI) -------------------------------------------------------
-# Indian A2P SMS must carry the registered entity (PE) id and an APPROVED DLT
-# template id, passed through SendTextMessage DestinationCountryParameters.
-# These are NOT Pinpoint templates - do not create legacy Pinpoint templates
-# to satisfy DLT.
-#
-# The message body must match the approved DLT template content exactly, or the
-# operator rejects it downstream even though the API call succeeds.
-INDIA_ENTITY_ID = os.environ.get('INDIA_DLT_ENTITY_ID', '1201161991108627443')
-
-# template key -> approved DLT template id (mirrors the Airtel IQ mapping
-# already used by sms-in/airtel, voice-in/c2c, voice-in/obd, whatsapp-calling)
-INDIA_DLT_TEMPLATES = {
-    'ivr-default': os.environ.get('IVR_SMS_DLT_TEMPLATE_ID', '1007277993798259629'),
-    'wa-alert': os.environ.get('WA_ALERT_SMS_DLT_TEMPLATE_ID', '1007284579074821763'),
-    'wd_order': os.environ.get('ORDER_SMS_DLT_TEMPLATE_ID', '1007723091207562020'),
-}
-# Callers that do not name a template fall back to this one.
-INDIA_DEFAULT_DLT_TEMPLATE = os.environ.get('DEFAULT_DLT_TEMPLATE_KEY', 'ivr-default')
+# Re-exported from lambda_utils.comms.dlt, which is the single source of truth.
+# These names are kept because callers and tests already reference them, but the
+# VALUES are no longer defined here. The identical map previously lived in five
+# places - this module, outbound-sms, sms-in/airtel, whatsapp-calling and the
+# data model defaults - and five copies of a regulatory identifier is five
+# chances to send unregistered content under a registered sender.
+INDIA_ENTITY_ID = dlt_mod.ENTITY_ID
+INDIA_SENDER_ID = os.environ.get('INDIA_SENDER_ID', '') or dlt_mod.SENDER_ID
+INDIA_DLT_TEMPLATES = dlt_mod.TEMPLATES
+INDIA_DEFAULT_DLT_TEMPLATE = dlt_mod.DEFAULT_TEMPLATE_KEY
 
 
 def _is_indian_msisdn(phone_e164: str) -> bool:
     """True for +91XXXXXXXXXX (12 digits including the 91 country code)."""
-    digits = str(phone_e164 or '').lstrip('+')
-    return digits.startswith('91') and len(digits) == 12
+    return numbers.is_india(phone_e164)
 
 
 def _resolve_dlt_template(template_key: str) -> Dict[str, Any]:
     """Map a template key to an approved DLT template id.
 
-    Returns {'templateId': str} on success, or {'error': str} when no approved
-    mapping exists. Callers MUST NOT send to an Indian number without one -
-    silently sending unregistered content risks operator blocking and DLT
-    penalties, so this is a hard failure by design.
+    Returns {'templateId': ..., 'templateKey': ...} on success, or {'error': ...}
+    when no approved mapping exists. Callers MUST NOT send to an Indian number
+    without one - silently sending unregistered content risks operator blocking
+    and DLT penalties, so this is a hard failure by design.
+
+    Delegates to comms.dlt, which also consults the operator-managed DLTTemplates
+    registry for keys outside the built-in map.
     """
-    key = (template_key or INDIA_DEFAULT_DLT_TEMPLATE).strip()
-    tid = INDIA_DLT_TEMPLATES.get(key)
-    if not tid:
-        return {'error': (
-            f"No approved DLT template mapping for '{key}'. "
-            f"Known keys: {', '.join(sorted(INDIA_DLT_TEMPLATES))}. "
-            "Register the template on DLT and add it to INDIA_DLT_TEMPLATES "
-            "before sending to Indian numbers."
-        )}
-    return {'templateId': tid, 'templateKey': key}
+    resolution = dlt_mod.resolve(template_key)
+    if not resolution.ok:
+        return {'error': resolution.error}
+    return {'templateId': resolution.template_id,
+            'templateKey': resolution.template_key}
 
 
 # Module-level origin for CORS (set per-invocation in handler)
@@ -132,19 +125,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'}, origin)
 
-        # Pinpoint SMS Template management (ap-south-1 India)
+        # /sms-aws/templates is GONE. It managed classic Pinpoint SMS templates,
+        # which cannot satisfy TRAI DLT. Answer explicitly rather than falling
+        # through to the send or list handler, so a stale client gets a usable
+        # error instead of an unrelated 200.
         if '/templates' in path:
-            if http_method == 'GET':
-                return _list_pinpoint_templates(query_params, request_id)
-            elif http_method == 'POST':
-                body = json.loads(event.get('body', '{}'))
-                return _create_pinpoint_template(body, request_id)
-            elif http_method == 'PUT':
-                body = json.loads(event.get('body', '{}'))
-                return _update_pinpoint_template(body, request_id)
-            elif http_method == 'DELETE':
-                tpl_name = query_params.get('templateName') or path_params.get('templateName')
-                return _delete_pinpoint_template(tpl_name, request_id)
+            return _response(410, {
+                'error': 'Pinpoint SMS template management has been removed.',
+                'errorCode': 'ENDPOINT_REMOVED',
+                'detail': ('Classic Pinpoint templates are not TRAI DLT content '
+                           'templates and cannot be used for Indian A2P SMS. '
+                           'DLT templates are registered on the DLT portal and '
+                           'recorded in the DLTTemplates registry.'),
+                'approvedTemplateKeys': dlt_mod.known_keys(),
+            }, origin)
 
         # DELETE /sms-aws/clear-logs
         if http_method == 'DELETE' and 'clear-logs' in path:
@@ -428,7 +422,7 @@ def _send_pinpoint_sms(phone: str, content: str, message_type: str,
 
             response = india_sms_client.send_text_message(**params)
             logger.info(json.dumps({
-                'event': 'pinpoint_india_sms_sent',
+                'event': 'aws_sms_india_sent',
                 'phone': phone[-4:],
                 'region': INDIA_REGION,
                 'senderId': INDIA_SENDER_ID,
@@ -577,155 +571,3 @@ def _response(status_code: int, body: Dict, resp_origin: str = '') -> Dict[str, 
         'headers': cors_headers(resp_origin or origin),
         'body': json.dumps(body, default=str)
     }
-
-
-# ─── Pinpoint SMS Template Management (ap-south-1 India) ───
-
-def _list_pinpoint_templates(params: Dict, request_id: str) -> Dict[str, Any]:
-    """List SMS templates from Pinpoint (ap-south-1)."""
-    try:
-        # Use Pinpoint list-templates API
-        kwargs = {'TemplateType': 'SMS'}
-        if params.get('pageSize'):
-            kwargs['PageSize'] = params['pageSize']
-        response = pinpoint_india.list_templates(**kwargs)
-        templates_meta = response.get('TemplatesResponse', {}).get('Item', [])
-
-        templates = []
-        for meta in templates_meta:
-            if meta.get('TemplateType') != 'SMS':
-                continue
-            try:
-                detail = pinpoint_india.get_sms_template(TemplateName=meta['TemplateName'])
-                tpl = detail.get('SMSTemplateResponse', {})
-                templates.append({
-                    'templateName': tpl.get('TemplateName', ''),
-                    'body': tpl.get('Body', ''),
-                    'defaultSubstitutions': tpl.get('DefaultSubstitutions', ''),
-                    'recommenderId': tpl.get('RecommenderId', ''),
-                    'templateDescription': tpl.get('TemplateDescription', ''),
-                    'version': tpl.get('Version', ''),
-                    'creationDate': tpl.get('CreationDate', ''),
-                    'lastModifiedDate': tpl.get('LastModifiedDate', ''),
-                    'tags': tpl.get('tags', {}),
-                })
-            except Exception as e:
-                logger.warning(f"Failed to get template {meta.get('TemplateName')}: {e}")
-                templates.append({
-                    'templateName': meta.get('TemplateName', ''),
-                    'body': '',
-                    'templateDescription': meta.get('Description', ''),
-                    'version': meta.get('Version', ''),
-                    'creationDate': meta.get('CreationDate', ''),
-                    'lastModifiedDate': meta.get('LastModifiedDate', ''),
-                })
-
-        return _response(200, {
-            'templates': templates,
-            'count': len(templates),
-            'region': INDIA_REGION,
-        })
-    except Exception as e:
-        logger.error(f"List Pinpoint templates error: {str(e)}")
-        return _response(500, {'error': str(e)})
-
-
-def _create_pinpoint_template(body: Dict, request_id: str) -> Dict[str, Any]:
-    """Create an SMS template in Pinpoint (ap-south-1)."""
-    template_name = body.get('templateName', '')
-    template_body = body.get('body', '')
-    description = body.get('templateDescription', '')
-
-    if not template_name:
-        return _response(400, {'error': 'templateName is required'})
-    if not template_body:
-        return _response(400, {'error': 'body is required'})
-
-    try:
-        request_payload = {
-            'Body': template_body,
-        }
-        if description:
-            request_payload['TemplateDescription'] = description
-        if body.get('defaultSubstitutions'):
-            request_payload['DefaultSubstitutions'] = body['defaultSubstitutions']
-        if body.get('tags'):
-            request_payload['tags'] = body['tags']
-
-        response = pinpoint_india.create_sms_template(
-            TemplateName=template_name,
-            SMSTemplateRequest=request_payload
-        )
-        result = response.get('CreateTemplateMessageBody', {})
-
-        return _response(200, {
-            'success': True,
-            'templateName': template_name,
-            'arn': result.get('Arn', ''),
-            'requestId': result.get('RequestID', ''),
-            'message': result.get('Message', 'Template created'),
-        })
-    except pinpoint_india.exceptions.BadRequestException as e:
-        return _response(400, {'error': f'Bad request: {str(e)}'})
-    except Exception as e:
-        logger.error(f"Create Pinpoint template error: {str(e)}")
-        return _response(500, {'error': str(e)})
-
-
-def _update_pinpoint_template(body: Dict, request_id: str) -> Dict[str, Any]:
-    """Update an SMS template in Pinpoint (ap-south-1)."""
-    template_name = body.get('templateName', '')
-    template_body = body.get('body', '')
-
-    if not template_name:
-        return _response(400, {'error': 'templateName is required'})
-
-    try:
-        request_payload = {}
-        if template_body:
-            request_payload['Body'] = template_body
-        if body.get('templateDescription') is not None:
-            request_payload['TemplateDescription'] = body['templateDescription']
-        if body.get('defaultSubstitutions'):
-            request_payload['DefaultSubstitutions'] = body['defaultSubstitutions']
-        if body.get('tags'):
-            request_payload['tags'] = body['tags']
-
-        kwargs = {
-            'TemplateName': template_name,
-            'SMSTemplateRequest': request_payload,
-            'CreateNewVersion': True,
-        }
-        if body.get('version'):
-            kwargs['Version'] = body['version']
-
-        response = pinpoint_india.update_sms_template(**kwargs)
-        result = response.get('MessageBody', {})
-
-        return _response(200, {
-            'success': True,
-            'templateName': template_name,
-            'message': result.get('Message', 'Template updated'),
-            'requestId': result.get('RequestID', ''),
-        })
-    except Exception as e:
-        logger.error(f"Update Pinpoint template error: {str(e)}")
-        return _response(500, {'error': str(e)})
-
-
-def _delete_pinpoint_template(template_name: str, request_id: str) -> Dict[str, Any]:
-    """Delete an SMS template from Pinpoint (ap-south-1)."""
-    if not template_name:
-        return _response(400, {'error': 'templateName is required'})
-
-    try:
-        response = pinpoint_india.delete_sms_template(TemplateName=template_name)
-        result = response.get('MessageBody', {})
-        return _response(200, {
-            'success': True,
-            'deleted': template_name,
-            'message': result.get('Message', 'Template deleted'),
-        })
-    except Exception as e:
-        logger.error(f"Delete Pinpoint template error: {str(e)}")
-        return _response(500, {'error': str(e)})

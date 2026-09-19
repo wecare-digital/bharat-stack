@@ -996,22 +996,13 @@ def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
             "We'll review it and follow up if needed."
         )
         try:
-            is_indian = clean_caller.startswith('91') and len(clean_caller) == 12
-            sms_payload = {
-                'rawPath': '/sms-in/airtel' if is_indian else '/sms-aws/send',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'phoneNumber': '+' + clean_caller,
-                    'content': ivr_sms_content,
-                    'messageType': 'SERVICE_IMPLICIT' if is_indian else 'TRANSACTIONAL',
-                    **(({'dltTemplateId': '1007277993798259629', 'sourceAddress': 'WDBEEP', 'entityId': '1201161991108627443', 'apiVersion': 'v5'}) if is_indian else {}),
-                }),
-            }
-            lambda_client.invoke(
-                FunctionName='wecare-sms-in-airtel' if is_indian else 'wecare-sms-aws',
-                InvocationType='Event',
-                Payload=json.dumps(sms_payload).encode(),
-            )
+            # One call, every country. comms.notify selects the AWS region and
+            # applies the TRAI DLT gate; this handler decides neither.
+            from lambda_utils.comms.notify import send_notification_sms
+            send_notification_sms(
+                '+' + clean_caller, ivr_sms_content,
+                dlt_template_key='ivr-default',
+                campaign='c2c-cdr', request_id=request_id)
             sms_message_id = f"c2c_sms_{session_id}_{now_ts}"
             _store_to_inbox(
                 message_id=sms_message_id,
@@ -1026,7 +1017,7 @@ def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
             logger.info(json.dumps({
                 'event': 'c2c_cdr_sms_triggered',
                 'caller': clean_caller[-4:],
-                'provider': 'airtel' if is_indian else 'pinpoint',
+                'provider': 'aws-end-user-messaging',
                 'smsId': sms_message_id,
                 'requestId': request_id,
             }))

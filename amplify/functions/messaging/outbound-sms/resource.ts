@@ -1,5 +1,19 @@
 import { defineFunction } from '@aws-amplify/backend';
 
+// SMS is sent exclusively through AWS End User Messaging (pinpoint-sms-voice-v2).
+// Region selection, the India DLT entity/sender/template and E.164 normalisation
+// all live in lambda_utils/comms, so this function needs no provider configuration
+// of its own.
+//
+// Removed 2026-09-19, together with the prohibited senders in handler.py: the
+// legacy AWS SMS application id, the superseded origination-number and sender-id
+// pair, and six variables configuring a retired Indian operator's A2P API
+// (host, username, password, customer id, entity id and header). The two
+// regulatory values among them are now owned by lambda_utils/comms/dlt.py.
+//
+// Identifier names are deliberately not repeated here, so the provider-policy
+// scan stays high-precision over runtime configuration.
+// See docs/provider-retirement-inventory.md for the full removed surface.
 export const outboundSms = defineFunction({
   name: 'wecare-outbound-sms',
   entry: './handler.py',
@@ -11,16 +25,5 @@ export const outboundSms = defineFunction({
     LOG_LEVEL: 'INFO',
     CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
     MESSAGES_TABLE: 'stack-wecare-digital-MessagesTable',
-    PINPOINT_APP_ID: 'c40d842c24b14fd5931f50d6ce1bb06d',
-    ORIGINATION_NUMBER: '',
-    SENDER_ID: 'WDBEEP',
-    // Airtel IQ SMS Configuration
-    AIRTEL_IQ_HOST: 'iqmessaging.airtel.in',
-    AIRTEL_IQ_USERNAME: '',
-    AIRTEL_IQ_PASSWORD: '',
-    AIRTEL_IQ_CUSTOMER_ID: '',
-    // DLT Registration Details - WECARE.DIGITAL
-    AIRTEL_IQ_ENTITY_ID: '1201161991108627443',  // PE ID
-    AIRTEL_IQ_SOURCE_ADDRESS: 'WDBEEP',  // Header (DLT ID: 1405170900886606599)
   },
 });

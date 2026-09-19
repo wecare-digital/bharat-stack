@@ -171,3 +171,26 @@ def resolve(template_key: str = "", *, allow_registry: bool = True) -> DltResolu
 
 def known_keys() -> list:
     return sorted(TEMPLATES)
+
+
+def key_for_template_id(template_id: str) -> str:
+    """Reverse lookup: approved template id -> its key. '' when not approved.
+
+    Exists for one narrowly scoped reason. Callers that predate this module -
+    the SMS dashboard and `dm/whatsapp/calling.tsx` - post a raw `dltTemplateId`
+    rather than a key. Accepting it verbatim would let any caller assert any
+    template id under our registered entity, which is precisely what the single
+    source of truth is here to prevent.
+
+    So the raw id is treated as an assertion to be CHECKED, not configuration to
+    be used: if it maps back to an approved template the send proceeds under that
+    template's key, and if it does not, the caller is refused. That keeps the old
+    request shape working without widening what may be sent.
+    """
+    wanted = str(template_id or "").strip()
+    if not wanted:
+        return ""
+    for key, tid in TEMPLATES.items():
+        if tid == wanted:
+            return key
+    return ""

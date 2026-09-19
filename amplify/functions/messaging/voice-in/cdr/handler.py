@@ -1297,94 +1297,15 @@ def _send_ivr_notification_sms(cdr: Dict, request_id: str) -> None:
     except Exception as e:
         logger.warning(f'CDR notification error: {e}')
 
-
-# ── RCS via Sinch Conversation API (provision — activate later) ──
-# Config: set SINCH_RCS_ENABLED=true in env to activate
-# Requires: Sinch project_id, app_id, key_id, key_secret in Secrets Manager
-# Sinch IP whitelist: 52.3.44.165 must be whitelisted by Sinch first
-
-def _is_rcs_enabled() -> bool:
-    return os.environ.get('SINCH_RCS_ENABLED', 'false').lower() == 'true'
-
-
-def _send_rcs_notification(phone: str, request_id: str) -> bool:
-    """Send RCS rich card via Sinch Conversation API with SMS fallback disabled.
-    
-    Sinch Conversation API endpoint:
-    POST https://{region}.conversation.api.sinch.com/v1/projects/{project_id}/messages:send
-    
-    RCS card: video + "Get Started" button + selfservice link
-    SMS fallback: DISABLED (Airtel already sends SMS)
-    """
-    try:
-        # Load Sinch credentials from Secrets Manager
-        sinch_secret = secrets_client.get_secret_value(SecretId='wecare/sinch/rcs')
-        sinch = json.loads(sinch_secret['SecretString'])
-        project_id = sinch.get('project_id', '')
-        app_id = sinch.get('app_id', '')
-        oauth_token = sinch.get('oauth_token', '')
-        region = sinch.get('region', 'eu')
-
-        if not project_id or not app_id or not oauth_token:
-            logger.info('RCS: Sinch credentials not configured yet')
-            return False
-
-        e164_phone = '+' + phone if not phone.startswith('+') else phone
-
-        rcs_payload = json.dumps({
-            'app_id': app_id,
-            'recipient': {
-                'identified_by': {
-                    'channel_identities': [
-                        {'channel': 'RCS', 'identity': e164_phone}
-                    ]
-                }
-            },
-            'message': {
-                'card_message': {
-                    'title': 'WECARE.DIGITAL',
-                    'description': 'Thanks for contacting WECARE.DIGITAL! Submit your request or message us on WhatsApp.',
-                    'media_message': {
-                        'url': 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
-                    },
-                    'choices': [
-                        {
-                            'url_message': {
-                                'title': 'Submit Request',
-                                'url': 'https://wecare.digital/selfservice'
-                            }
-                        },
-                        {
-                            'url_message': {
-                                'title': 'WhatsApp Us',
-                                'url': 'https://r.wecare.digital/wa'
-                            }
-                        }
-                    ]
-                }
-            },
-            'channel_priority_order': ['RCS'],
-            'message_content_type': 'CONTENT_NOTIFICATION',
-            'correlation_id': f'cdr_{request_id}',
-        }).encode()
-
-        url = f'https://{region}.conversation.api.sinch.com/v1/projects/{project_id}/messages:send'
-        req = urllib.request.Request(url, data=rcs_payload, headers={
-            'Authorization': f'Bearer {oauth_token}',
-            'Content-Type': 'application/json',
-        }, method='POST')
-
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            result = json.loads(resp.read().decode())
-            msg_id = result.get('message_id', '')
-            logger.info(json.dumps({
-                'event': 'cdr_rcs_sent',
-                'caller': phone[-4:],
-                'messageId': msg_id,
-                'requestId': request_id,
-            }))
-            return True
-
-    except Exception as e:
-        logger.warning(f'RCS send failed (non-blocking): {e}')
-        return False
+# India RCS lives in lambda_utils.sinch_rcs, which this handler already calls
+# (see the `from lambda_utils.sinch_rcs import ...` above). A second, unreachable
+# implementation used to sit here: its own enable-flag reader, its own inline
+# credential fetch and its own hand-built vendor payload, with no caller anywhere
+# in the file.
+#
+# Removed 2026-09-19. It was the only place in Lambda code where the RCS vendor
+# transport sat outside the approved paths, and deleting it removes a route by
+# which that credential could be read from a voice handler. Nothing invoked it,
+# so behaviour is unchanged. Vendor hostnames and credential ids are deliberately
+# not named here, so the policy scan stays precise.
+# See docs/provider-retirement-inventory.md section 3.

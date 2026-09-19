@@ -699,8 +699,8 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             })
             logger.info(f"Auto-granted call permission for {from_number} after completed call {call_id} (duration={duration}s)")
 
-        # ── Send Airtel IVR SMS on every call disconnect (both phone 1 & phone 2) ──
-        # Uses ivr-default DLT template via Airtel IQ with dedup
+        # ── Send the IVR follow-up SMS on every call disconnect (phone 1 & 2) ──
+        # ivr-default DLT template, through AWS End User Messaging.
         if _is_sms_on_call_enabled() and from_number:
             _send_disconnect_sms(from_number, call_id, phone_number_id, reason, request_id)
         
@@ -987,7 +987,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
 
     # Step 4: Call permission request removed — not sending interactive permission_response after calls
 
-    # Step 5: Post-call SMS — send Airtel IVR SMS (ivr-default template) on disconnect
+    # Step 5: Post-call SMS — ivr-default template, via AWS End User Messaging
     if caller_phone and _is_sms_on_call_enabled():
         _send_disconnect_sms(caller_phone, f'sip_{caller_phone}', phone_number_id, 'sip_hangup', 'sip_post_call')
     
@@ -1278,20 +1278,21 @@ PHONE_NUMBER_ID_2 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_2', 'phone-number-i
 # All phones use Direct Meta API — full call control supported on all WABAs
 
 
-# ── SMS on Incoming Call (AWS Pinpoint) ──────────────────────────────
-# DLT Template: ivr-default
-# DLT Template ID: 1007277993798259629
-# Sender ID: WDBEEP
-# Category: Service Implicit
-# Registration: REGISTERED (airtel.com)
-# ── LOCKED SMS CONFIGURATION — DO NOT CHANGE WITHOUT TESTING ──
-# DLT Template: Registered on Airtel IQ, TRAI compliant
-# Sender: WDBEEP | Entity: 1201161991108627443
-# API: v5 Content Moderation (auto DLT)
-# Line breaks: \n\n between sections (matches DLT template)
-IVR_SMS_DLT_TEMPLATE_ID = '1007277993798259629'
-IVR_SMS_SENDER_ID = 'WDBEEP'
-IVR_SMS_ENTITY_ID = '1201161991108627443'
+# ── SMS on incoming call ─────────────────────────────────────────────
+# Sent through AWS End User Messaging via lambda_utils.comms.notify.
+#
+# The BODY below is load-bearing. It must match the approved TRAI DLT content
+# template character for character, including the \n\n between sections: the
+# operator silently drops mismatched content even though the API call succeeds.
+# Do not "improve" this copy.
+#
+# The template id, registered entity and sender id are NOT repeated here. They
+# live in lambda_utils.comms.dlt, keyed by IVR_SMS_DLT_TEMPLATE_KEY below.
+# Template KEYS, not ids. lambda_utils.comms.dlt maps a key to the approved
+# template id and attaches the registered entity and sender. Holding raw ids here
+# was one of five copies of the same regulatory facts.
+IVR_SMS_DLT_TEMPLATE_KEY = 'ivr-default'
+ORDER_SMS_DLT_TEMPLATE_KEY = 'wd_order'
 IVR_SMS_CONTENT = (
     "Thanks for contacting WECARE.DIGITAL!\n\n"
     "Submit your request here: https://wecare.digital/selfservice "
@@ -1300,8 +1301,8 @@ IVR_SMS_CONTENT = (
     "We'll review it and follow up if needed."
 )
 
-# Order SMS (DLT template: wd_order)
-ORDER_SMS_DLT_TEMPLATE_ID = '1007723091207562020'
+# Order SMS. Body must match approved DLT template wd_order character for
+# character; the key is ORDER_SMS_DLT_TEMPLATE_KEY above.
 ORDER_SMS_CONTENT = (
     "Thanks for placing your order with WECARE.DIGITAL!\n\n"
     "Your order has been received. We'll review it and share updates shortly.\n\n"
@@ -1316,18 +1317,17 @@ WA_TEMPLATE_VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.m
 WABA1_META_ID = '1016149501586345'   # +91 93309 94400
 WABA2_META_ID = '1055232054343117'   # +91 99033 00044
 
-# SMS Lambda routing:
-#   Indian +91 → wecare-outbound-sms (Airtel IQ, ap-south-1, DLT: WDBEEP)
-#   International → wecare-sms-aws (Pinpoint SMS v2, us-east-1, toll-free pool)
-# ── LOCKED SMS ROUTING — DO NOT CHANGE WITHOUT TESTING ──
-# Indian +91 → Airtel IQ v5 (primary) → Pinpoint ap-south-1 (fallback)
-# International → Pinpoint SMS v2 us-east-1
-SMS_LAMBDA_AIRTEL = 'wecare-sms-in-airtel'  # Airtel IQ via Lightsail proxy (whitelisted IP)
-SMS_LAMBDA_PINPOINT = 'wecare-sms-aws'      # Pinpoint SMS v2 us-east-1
-
-# SMS routing comments:
-#   Indian +91 → wecare-sms-in-airtel (Airtel IQ, Lightsail proxy 52.3.44.165)
-#   International → wecare-sms-aws (Pinpoint SMS v2, us-east-1, toll-free pool)
+# SMS routing: there is none to do here any more.
+#
+# Every destination, every country, goes to AWS End User Messaging through
+# lambda_utils.comms.notify. Region selection (ap-south-1 for +91, us-east-1
+# otherwise) and the TRAI DLT gate live in lambda_utils.comms, not in this file.
+#
+# Removed 2026-09-19: the previous "LOCKED SMS ROUTING" block, which sent +91
+# through an Indian operator's API via a static-IP proxy with a synchronous
+# two-attempt retry, then fell back to AWS. That retry ran inside a webhook
+# handler and could stall it for ~4 seconds before the fallback even started.
+# See docs/provider-retirement-inventory.md.
 
 
 def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id: str, request_id: str) -> None:
@@ -1344,48 +1344,21 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id:
             return
         clean_phone = caller_phone.lstrip('+')
 
-        is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
-        sms_sent = False
-        sms_provider = ''
-
-        if is_indian:
-            airtel_ok = _try_airtel_sms(caller_phone, call_id, request_id)
-            if airtel_ok:
-                sms_sent = True
-                sms_provider = 'airtel'
-            else:
-                logger.warning(json.dumps({
-                    'event': 'airtel_sms_failed_falling_back_to_pinpoint',
-                    'callId': call_id,
-                    'callerPhone': caller_phone[-4:],
-                    'requestId': request_id,
-                }))
-                _send_pinpoint_india_sms(caller_phone, call_id, request_id)
-                sms_sent = True
-                sms_provider = 'pinpoint-india'
-        else:
-            sms_payload = {
-                'rawPath': '/sms-aws/send',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'phoneNumber': caller_phone,
-                    'content': IVR_SMS_CONTENT,
-                    'messageType': 'TRANSACTIONAL',
-                }),
-            }
-            lambda_client.invoke(
-                FunctionName=SMS_LAMBDA_PINPOINT,
-                InvocationType='Event',
-                Payload=json.dumps(sms_payload).encode(),
-            )
-            sms_sent = True
-            sms_provider = 'pinpoint'
-            logger.info(json.dumps({
-                'event': 'incoming_call_sms_triggered',
+        # One call, every country. comms.notify picks the region and applies the
+        # DLT gate; this handler no longer decides either.
+        from lambda_utils.comms.notify import send_notification_sms
+        outcome = send_notification_sms(
+            caller_phone, IVR_SMS_CONTENT,
+            dlt_template_key=IVR_SMS_DLT_TEMPLATE_KEY,
+            campaign='whatsapp-incoming-call',
+            request_id=request_id)
+        sms_sent = outcome.queued
+        if not sms_sent:
+            logger.warning(json.dumps({
+                'event': 'incoming_call_sms_not_queued',
                 'callId': call_id,
                 'callerPhone': caller_phone[-4:],
-                'provider': 'pinpoint',
-                'region': 'us-east-1',
+                'reason': outcome.skipped_reason or outcome.error,
                 'requestId': request_id,
             }))
 
@@ -1412,100 +1385,9 @@ def _send_incoming_call_sms(caller_phone: str, call_id: str, receiving_phone_id:
         logger.warning(f"Incoming call SMS failed (non-blocking): {e}")
 
 
-def _try_airtel_sms(caller_phone: str, call_id: str, request_id: str) -> bool:
-    """Try sending SMS via Airtel IQ with retry on 503. Returns True if successful."""
-    max_retries = 2
-    for attempt in range(max_retries + 1):
-        try:
-            sms_payload = {
-                'rawPath': '/sms-in/airtel',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'phoneNumber': caller_phone,
-                    'content': IVR_SMS_CONTENT,
-                    'messageType': 'SERVICE_IMPLICIT',
-                    'dltTemplateId': IVR_SMS_DLT_TEMPLATE_ID,
-                    'sourceAddress': IVR_SMS_SENDER_ID,
-                    'entityId': IVR_SMS_ENTITY_ID,
-                    'apiVersion': 'v5',
-                }),
-            }
-            response = lambda_client.invoke(
-                FunctionName=SMS_LAMBDA_AIRTEL,
-                InvocationType='RequestResponse',
-                Payload=json.dumps(sms_payload).encode(),
-            )
-            result = json.loads(response['Payload'].read())
-            status_code = result.get('statusCode', 500)
-            if status_code == 200:
-                body = json.loads(result.get('body', '{}'))
-                if body.get('success'):
-                    logger.info(json.dumps({
-                        'event': 'incoming_call_sms_triggered',
-                        'callId': call_id,
-                        'callerPhone': caller_phone[-4:],
-                        'provider': 'airtel',
-                        'attempt': attempt + 1,
-                        'requestId': request_id,
-                    }))
-                    return True
-            # If 503, retry after 2s
-            if status_code in (500, 502, 503) and attempt < max_retries:
-                logger.info(f"Airtel SMS {status_code}, retrying in 2s (attempt {attempt + 1}/{max_retries + 1})")
-                time.sleep(2)
-                continue
-            logger.warning(json.dumps({
-                'event': 'airtel_sms_invoke_failed',
-                'callId': call_id,
-                'statusCode': status_code,
-                'attempt': attempt + 1,
-                'result': str(result)[:200],
-                'requestId': request_id,
-            }))
-            return False
-        except Exception as e:
-            if attempt < max_retries:
-                time.sleep(2)
-                continue
-            logger.warning(f"Airtel SMS invoke error (attempt {attempt + 1}): {e}")
-            return False
-    return False
-
-
-def _send_pinpoint_india_sms(caller_phone: str, call_id: str, request_id: str) -> None:
-    """Fallback: Send SMS via AWS Pinpoint SMS v2 in ap-south-1 for Indian numbers."""
-    try:
-        sms_payload = {
-            'rawPath': '/sms-aws/send',
-            'requestContext': {'http': {'method': 'POST'}},
-            'body': json.dumps({
-                'phoneNumber': caller_phone,
-                'content': IVR_SMS_CONTENT,
-                'messageType': 'TRANSACTIONAL',
-                'region': 'ap-south-1',
-            }),
-        }
-        lambda_client.invoke(
-            FunctionName=SMS_LAMBDA_PINPOINT,
-            InvocationType='Event',
-            Payload=json.dumps(sms_payload).encode(),
-        )
-        logger.info(json.dumps({
-            'event': 'incoming_call_sms_triggered',
-            'callId': call_id,
-            'callerPhone': caller_phone[-4:],
-            'provider': 'pinpoint',
-            'region': 'ap-south-1',
-            'fallback': True,
-            'requestId': request_id,
-        }))
-    except Exception as e:
-        logger.warning(f"Pinpoint India SMS fallback failed: {e}")
-
-
 def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
                          reason: str, request_id: str) -> None:
-    """Send Airtel IVR SMS on every call disconnect — no dedup.
+    """Send the IVR follow-up SMS on every call disconnect — no dedup.
     Stores to WhatsAppOutboundTable for inbox visibility.
     """
     try:
@@ -1513,59 +1395,24 @@ def _send_disconnect_sms(caller_phone: str, call_id: str, phone_number_id: str,
             return
         clean_phone = caller_phone.lstrip('+')
 
-        is_indian = clean_phone.startswith('91') and len(clean_phone) == 12
-        sms_sent = False
-
-        if is_indian:
-            # ── Indian: Try Airtel IQ first, fall back to Pinpoint ap-south-1 ──
-            airtel_ok = _try_airtel_sms(caller_phone, call_id, request_id)
-            if not airtel_ok:
-                logger.warning(json.dumps({
-                    'event': 'disconnect_airtel_failed_falling_back',
-                    'callId': call_id,
-                    'callerPhone': caller_phone[-4:],
-                    'reason': reason,
-                    'requestId': request_id,
-                }))
-                _send_pinpoint_india_sms(caller_phone, call_id, request_id)
-                sms_sent = True
-            else:
-                sms_sent = True
-                logger.info(json.dumps({
-                    'event': 'disconnect_sms_triggered',
-                    'callId': call_id,
-                    'callerPhone': caller_phone[-4:],
-                    'phoneNumberId': phone_number_id,
-                    'provider': 'airtel',
-                    'reason': reason,
-                    'requestId': request_id,
-                }))
-        else:
-            # ── International: Pinpoint SMS v2 (us-east-1) ──
-            sms_payload = {
-                'rawPath': '/sms-aws/send',
-                'requestContext': {'http': {'method': 'POST'}},
-                'body': json.dumps({
-                    'phoneNumber': caller_phone,
-                    'content': IVR_SMS_CONTENT,
-                    'messageType': 'TRANSACTIONAL',
-                }),
-            }
-            lambda_client.invoke(
-                FunctionName=SMS_LAMBDA_PINPOINT,
-                InvocationType='Event',
-                Payload=json.dumps(sms_payload).encode(),
-            )
-            sms_sent = True
-            logger.info(json.dumps({
-                'event': 'disconnect_sms_triggered',
-                'callId': call_id,
-                'callerPhone': caller_phone[-4:],
-                'phoneNumberId': phone_number_id,
-                'provider': 'pinpoint',
-                'reason': reason,
-                'requestId': request_id,
-            }))
+        from lambda_utils.comms.notify import send_notification_sms
+        outcome = send_notification_sms(
+            caller_phone, IVR_SMS_CONTENT,
+            dlt_template_key=IVR_SMS_DLT_TEMPLATE_KEY,
+            campaign='whatsapp-call-disconnect',
+            request_id=request_id)
+        sms_sent = outcome.queued
+        logger.info(json.dumps({
+            'event': 'disconnect_sms_triggered' if sms_sent
+                     else 'disconnect_sms_not_queued',
+            'callId': call_id,
+            'callerPhone': caller_phone[-4:],
+            'phoneNumberId': phone_number_id,
+            'provider': 'aws-end-user-messaging',
+            'reason': reason,
+            'notQueuedReason': (outcome.skipped_reason or outcome.error) or None,
+            'requestId': request_id,
+        }))
 
         # ── Store disconnect SMS in inbox ──
         if sms_sent:

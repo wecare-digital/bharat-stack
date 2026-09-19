@@ -14,6 +14,20 @@ SHARED = ROOT / 'amplify' / 'functions' / 'shared'
 if str(SHARED) not in sys.path:
     sys.path.insert(0, str(SHARED))
 
+from lambda_utils.comms import notify as notify_mod  # noqa: E402
+
+
+def _sms_outcome(*, ok, provider_message_id='', error=''):
+    """A comms.notify.NotificationResult, for patching the SMS seam.
+
+    The order-notification SMS path goes through
+    lambda_utils.comms.notify.send_notification_sms rather than a raw Lambda
+    invoke, so these tests patch that function on its own module. It is imported
+    inside the handler function body, so the patch resolves at call time.
+    """
+    return notify_mod.NotificationResult(
+        queued=ok, provider_message_id=provider_message_id, error=error)
+
 
 def load_handler(name, relative_path):
     spec = importlib.util.spec_from_file_location(name, ROOT / relative_path)
@@ -92,7 +106,8 @@ def test_order_retry_persists_provider_failure(wix_handler):
 
     with patch.object(wix_handler, '_velo_request', side_effect=velo), \
             patch.object(wix_handler, 'claim_admin_action', return_value=True), \
-            patch.object(wix_handler, '_invoke_json', side_effect=RuntimeError('provider unavailable')):
+            patch.object(notify_mod, 'send_notification_sms',
+                         return_value=_sms_outcome(ok=False, error='provider unavailable')):
         response = wix_handler._retry_order_notification(event, 'req-3')
     assert response['statusCode'] == 502
     status_updates = [body for endpoint, method, body in calls if endpoint == 'orderNotificationStatus']
@@ -101,28 +116,45 @@ def test_order_retry_persists_provider_failure(wix_handler):
 
 
 def test_sms_retry_uses_approved_dlt_contract(wix_handler):
+    """The order retry names an APPROVED DLT template key, and nothing more.
+
+    Rewritten 2026-09-19. This test previously asserted that the handler itself
+    built the DLT payload - a raw dltTemplateId, entityId and sourceAddress -
+    which is the duplication the shared DLT module removed. The contract is now
+    stronger, not weaker: the caller may name a template KEY, and must NOT be
+    able to assert a raw template id, entity or sender, because that would let it
+    send unregistered content under our registered entity.
+    """
+    from lambda_utils.comms import dlt as dlt_mod
+
     event = {
         'body': json.dumps({'orderId': 'order-1', 'channel': 'sms'}),
         '_auth': {'username': 'admin-user'},
     }
-    sent_payloads = []
+    captured = {}
 
-    def invoke(_function_name, payload):
-        sent_payloads.append(json.loads(payload['body']))
-        return {'messageId': 'message-1'}
+    def fake_send(phone, content, **kwargs):
+        captured['phone'] = phone
+        captured['content'] = content
+        captured.update(kwargs)
+        return _sms_outcome(ok=True, provider_message_id='message-1')
 
     with patch.object(wix_handler, '_velo_request', side_effect=[
         {'notifications': [{'orderId': 'order-1', 'wdOrderId': 'WD-1', 'phone': '919999999999'}]},
         {'ok': True},
     ]), patch.object(wix_handler, 'claim_admin_action', return_value=True), \
-            patch.object(wix_handler, '_invoke_json', side_effect=invoke):
+            patch.object(notify_mod, 'send_notification_sms', side_effect=fake_send):
         response = wix_handler._retry_order_notification(event, 'req-4')
+
     assert response['statusCode'] == 200
-    sms = sent_payloads[0]
-    assert sms['dltTemplateId']
-    assert sms['entityId']
-    assert sms['sourceAddress'] == 'WDBEEP'
-    assert sms['metaData'] == {'orderId': 'order-1', 'wdOrderId': 'WD-1'}
+    # a template KEY, and one that is actually approved
+    assert captured['dlt_template_key'] == 'wd_order'
+    assert captured['dlt_template_key'] in dlt_mod.known_keys()
+    # the regulatory identity is resolved centrally, never asserted by the caller
+    for forbidden in ('dlt_template_id', 'entity_id', 'source_address', 'api_version'):
+        assert forbidden not in captured
+    # the retry is synchronous, because the provider message id is persisted
+    assert captured['wait'] is True
 
 
 def test_push_registration_uses_live_id_key(push_handler):
@@ -176,9 +208,11 @@ def test_order_retry_reports_provider_success_when_status_persistence_fails(wix_
     with patch.object(wix_handler, '_velo_request', return_value={
         'notifications': [{'orderId': 'order-1', 'phone': '919999999999'}],
     }), patch.object(wix_handler, 'claim_admin_action', return_value=True), \
-            patch.object(wix_handler, '_invoke_json', return_value={
-                'messageId': 'provider-message-1',
-            }), patch.object(wix_handler, '_persist_order_retry', side_effect=RuntimeError('storage down')):
+            patch.object(notify_mod, 'send_notification_sms',
+                         return_value=_sms_outcome(
+                             ok=True, provider_message_id='provider-message-1')), \
+            patch.object(wix_handler, '_persist_order_retry',
+                         side_effect=RuntimeError('storage down')):
         response = wix_handler._retry_order_notification(event, 'req-5')
     body = json.loads(response['body'])
     assert response['statusCode'] == 502

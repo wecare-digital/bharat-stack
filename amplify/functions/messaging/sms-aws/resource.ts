@@ -11,13 +11,21 @@ export const smsAws = defineFunction({
     LOG_LEVEL: 'INFO',
     CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
     SMS_AWS_TABLE: 'stack-wecare-digital-SmsAwsTable',
-    // Amazon Pinpoint SMS Voice v2 (us-east-1)
-    // Toll-free +18444891209 PENDING registration — use account default until approved
-    // Once approved, set to '+18444891209' to use toll-free as origination
+    // AWS End User Messaging (pinpoint-sms-voice-v2), us-east-1.
+    //
+    // Left blank deliberately: the handler default is '+18444891209', the
+    // registered toll-free number with InternationalSendingEnabled=true. An
+    // empty value here means "use the handler default" rather than "let AWS
+    // choose", because the account also owns a SIMULATOR number in the SAME
+    // pool, and a simulator accepts a send and returns a MessageId without
+    // delivering anything.
     ORIGINATION_IDENTITY: '',
     SENDER_ID: 'WECARE',
-    // India Pinpoint (ap-south-1) — for SMS template management & India sender ID
-    INDIA_SENDER_ID: 'WDBEEP',
-    INDIA_PINPOINT_APP_ID: '',
+    // India sender id. Blank falls through to lambda_utils.comms.dlt.SENDER_ID,
+    // which is the single source of truth for DLT-registered identity.
+    INDIA_SENDER_ID: '',
+    // Removed 2026-09-19: the legacy AWS SMS application id that configured
+    // classic template management, which is not TRAI DLT-capable. It was already
+    // empty. Identifier name omitted so the provider-policy scan stays precise.
   },
 });
