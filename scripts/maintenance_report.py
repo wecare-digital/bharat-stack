@@ -95,18 +95,22 @@ COMPLETED = [
      "measured with df before/after each step"),
     ("Git optimisation", "gc consolidated 2 packs -> 1 (14.46 MiB), 0 garbage",
      "git count-objects -vH; maintenance run --auto only, no history rewrite"),
+    ("Permanent terminal AWS auth", "AWS_PROFILE=wecare-prod in ~/.zprofile; long-term access key, no browser",
+     "verified in fresh login AND interactive shells and via boto3: arn:aws:iam::775261844268:user/wecare-admin"),
+    ("Shell PATH fix", "tool PATHs moved to ~/.zprofile; .zshrc is interactive-only so scripts missed them",
+     "`zsh -lc` now resolves aws/brew and inherits AWS_PROFILE; single definition, no duplicates"),
+    ("Deploy wecare-meta-business-agent", "Graph v22.0 -> v25.0; published v19, live alias v18 -> v19",
+     "alias sha == $LATEST; code the ALIAS serves contains v25.0 and no v22.0; smoke test 200, no FunctionError"),
+    ("Amplify build verification", "job 665 SUCCEED for HEAD 3c05a904; six most recent jobs all SUCCEED",
+     "aws amplify list-jobs; live site HTTP 200 and the served chunk carries height:108px"),
+    ("Private S3 report bucket", "wecare-maintenance-reports-775261844268 created",
+     "all 4 public-access blocks ON, BucketOwnerEnforced, versioning Enabled, aws:kms default; "
+     "unauthenticated GET returns HTTP 403"),
+    ("S3 report sync", "TXT + JSON uploaded under maintenance-reports/bharat-stack/<timestamp>/",
+     "head-object confirms ServerSideEncryption=aws:kms and a VersionId"),
 ]
 
 PENDING = [
-    ("PENDING-001", "AWS authentication",
-     "Session expired mid-run", "User runs `aws login`", "NO", "YES",
-     "Run `aws login`; report sync + Lambda deploy resume automatically"),
-    ("PENDING-002", "Deploy wecare-meta-business-agent (Graph v25 fix)",
-     "Committed but not shipped; production still serves v22.0", "PENDING-001", "NO", "NO",
-     "python scripts/deploy_all_lambdas.py wecare-meta-business-agent"),
-    ("PENDING-003", "S3 report sync (SSE-KMS)",
-     "Requires AWS auth", "PENDING-001", "NO", "NO",
-     "python scripts/maintenance_report.py --s3"),
     ("PENDING-004", "Install hardened Kiro permissions",
      "Kiro hard-denies agent writes to ~/.kiro/workspace-roots/", "User action", "NO", "YES",
      "cp the staged file (see CONFIRMATIONS)"),
@@ -494,7 +498,7 @@ def render_txt(d: dict) -> str:
     add("Principal:        account ROOT (see IMPROVEMENT-008)")
     add("Secrets Manager:  7 secrets referenced by name; none read by this tooling")
     add("KMS:              not modified")
-    add("Backup S3:        PENDING (needs auth)")
+    add("Backup S3:        wecare-maintenance-reports-775261844268 (private, SSE-KMS, versioned)")
     add("SAM / CDK:        not installed - no project requirement")
     add("")
     add(bar); add("SECRETS STATUS"); add(bar); add("")
@@ -542,10 +546,10 @@ def render_txt(d: dict) -> str:
     add("  Change:     Graph API v22.0 -> v25.0")
     add(f"  Commit:     1ecff8d0")
     add("  Build/Test: module imports; 690 pytest pass")
-    add("  Deployment: NOT DEPLOYED - blocked on AWS auth")
-    add("  Version:    $LATEST and live alias still carry v22.0")
-    add("  Rollback:   available - previous version retained")
-    add("  Status:     PENDING-002")
+    add("  Deployment: DEPLOYED - v19 published, live alias v18 -> v19")
+    add("  Version:    live=v19, alias sha == $LATEST, verified to contain v25.0")
+    add("  Rollback:   aws lambda update-alias --function-name wecare-meta-business-agent --name live --function-version 18")
+    add("  Status:     COMPLETE")
     add("")
     add(bar); add("GIT STATUS"); add(bar); add("")
     add(f"Branch:          {d['branch']}")
@@ -605,12 +609,12 @@ def render_txt(d: dict) -> str:
         add(f"  {reply}")
         add("")
     add(bar); add("FINAL STATUS"); add(bar); add("")
-    add("Overall:            COMPLETE WITH IMPROVEMENTS")
+    add("Overall:            COMPLETE WITH IMPROVEMENTS (backlog only)")
     add("Safe to use:        YES - toolchain verified in a fresh login shell")
-    add("Safe to deploy:     NO - AWS auth expired (PENDING-001)")
+    add("Safe to deploy:     YES - permanent key auth active; last deploy verified")
     add("Security blockers:  GAP-001 credential rotation deferred by user")
     add("                    GAP-002 unsafe Kiro permissions pending manual install")
-    add("Deployment blockers: AWS authentication")
+    add("Deployment blockers: NONE")
     add("")
     add(bar); add("NEXT RECOMMENDED IMPROVEMENTS"); add(bar); add("")
     add("1. P0 - give OpenAI/Plivo a Secrets Manager home (root cause of the leak)")
