@@ -48,6 +48,23 @@ def _hermetic_token_lookup(monkeypatch):
     import boto3
     monkeypatch.setattr(boto3, 'client', lambda *a, **k: _NoSecretsManager())
 
+    # The handler now de-duplicates the post-call SMS through
+    # lambda_utils.webhook_dedup, which talks to a real DynamoDB table. Left
+    # unstubbed these tests reach AWS and, worse, contaminate each other: the
+    # first test to claim a CallUUID makes every later test using the same UUID
+    # look like a duplicate and skip its side effect. That is the identical
+    # isolation failure this fixture was added to fix for the token lookup.
+    # Always-fresh here; the dedup behaviour itself is covered in
+    # tests/test_plivo_routes.py against a stub.
+    monkeypatch.setattr(pa, '_claim_once', lambda call_uuid, suffix: True)
+
+    # Persisting the CDR is likewise a real table write.
+    class _NoTable:
+        def put_item(self, Item):  # noqa: N803
+            raise RuntimeError('tests must not write to DynamoDB')
+
+    monkeypatch.setattr(pa, '_table', lambda: _NoTable())
+
 
 def _event(body='', qs=None, b64=False):
     return {
