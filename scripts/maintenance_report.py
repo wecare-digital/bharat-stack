@@ -36,8 +36,12 @@ PROJECT = "bharat-stack"
 REPORTS = Path.home() / ".local/share/kiro-maintenance-reports" / PROJECT
 SNAPSHOT = Path.home() / ".local/share/kiro-maintenance-backup/20260919-063734"
 
-# S3 target. Bucket is created/verified by the caller; nothing here is public.
-S3_BUCKET = os.environ.get("MAINTENANCE_REPORT_BUCKET", "wecare-maintenance-reports")
+# S3 target. Nothing here is public. The bucket is account-suffixed because S3
+# bucket names are globally unique; the unsuffixed "wecare-maintenance-reports"
+# has never existed in this account, so every --s3 run failed with NoSuchBucket
+# while the report body simultaneously claimed the suffixed bucket was in use.
+S3_BUCKET = os.environ.get("MAINTENANCE_REPORT_BUCKET",
+                           "wecare-maintenance-reports-775261844268")
 S3_PREFIX = f"maintenance-reports/{PROJECT}"
 
 
