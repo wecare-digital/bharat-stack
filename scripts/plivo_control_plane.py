@@ -391,6 +391,161 @@ class PlivoControlPlaneService:
             snapshot["_snapshot_path"] = path
         return snapshot
 
+    # -- drift detection --------------------------------------------------
+    def check_drift(self) -> Dict[str, Any]:
+        """Compare live provider state against the declared desired state.
+
+        Read-only. Never mutates, never converges - a drift check that silently
+        fixed things would destroy the evidence of what moved and when, and would
+        make an unreviewed change to a production routing surface.
+
+        Drift is separated into two severities, because they demand different
+        responses:
+
+          CRITICAL  a protected invariant or the number->application binding moved.
+                    Someone changed live call routing outside this tool. Page.
+          WARN      a callback URL or method drifted from target. Recoverable with
+                    a reviewed `--apply`.
+
+        The URL comparison deliberately ignores `?token=`, comparing a SHA-256
+        fingerprint instead, so a token rotation is visible as a fingerprint change
+        without the value ever entering a report or a log.
+        """
+        app = self.get_application()
+        number = self.get_number()
+        endpoint = self.get_endpoint()
+
+        critical: List[Dict[str, Any]] = []
+        warnings: List[Dict[str, Any]] = []
+
+        # 1. Protected invariants with a known regression history.
+        for field, required in CRITICAL_INVARIANTS.items():
+            actual = app.get(field)
+            if actual != required:
+                critical.append({
+                    "kind": "critical_invariant",
+                    "field": field,
+                    "expected": required,
+                    "actual": actual,
+                })
+
+        # 2. Identity. If these moved, the tool is pointed at a different resource
+        #    than the one it believes it manages.
+        for field, expected in (("app_id", APP_ID), ("app_name", APP_NAME)):
+            actual = str(app.get(field) or "")
+            if actual != expected:
+                critical.append({
+                    "kind": "identity",
+                    "field": field,
+                    "expected": expected,
+                    "actual": actual,
+                })
+
+        # 3. The number -> application binding. This IS production call routing.
+        number_app = str(number.get("application") or "")
+        if APP_ID not in number_app:
+            critical.append({
+                "kind": "number_routing",
+                "field": "number.application",
+                "expected_contains": APP_ID,
+                "actual": number_app,
+                "detail": (f"number {NUMBER} is no longer routed to application "
+                           f"{APP_ID}. Inbound calls are not reaching this "
+                           "application."),
+            })
+
+        # 4. Plivo SMS must remain impossible on this number.
+        if number.get("sms_enabled"):
+            critical.append({
+                "kind": "prohibited_capability",
+                "field": "number.sms_enabled",
+                "expected": False,
+                "actual": True,
+                "detail": ("Plivo SMS is prohibited by the provider policy. SMS "
+                           "has been enabled on this number at the provider."),
+            })
+
+        # 5. The browser endpoint must still belong to this application.
+        if endpoint is None:
+            warnings.append({
+                "kind": "endpoint_missing",
+                "field": "endpoint",
+                "expected": ENDPOINT_USERNAME,
+                "actual": None,
+            })
+        else:
+            if str(endpoint.get("username") or "") != ENDPOINT_USERNAME:
+                critical.append({
+                    "kind": "identity",
+                    "field": "endpoint.username",
+                    "expected": ENDPOINT_USERNAME,
+                    "actual": endpoint.get("username"),
+                })
+            if APP_ID not in str(endpoint.get("application") or ""):
+                critical.append({
+                    "kind": "endpoint_routing",
+                    "field": "endpoint.application",
+                    "expected_contains": APP_ID,
+                    "actual": endpoint.get("application"),
+                })
+
+        # 6. Callback URLs and methods. Recoverable, so WARN.
+        for field, expected_url in TARGET_URLS.items():
+            observed = _strip_query(app.get(field))
+            if observed != expected_url:
+                warnings.append({
+                    "kind": "callback_url",
+                    "field": field,
+                    "expected": expected_url,
+                    "actual": observed,
+                    "token_fingerprint": _token_fingerprint(app.get(field)),
+                })
+
+        for field in ("answer_method", "fallback_method", "hangup_method"):
+            actual = str(app.get(field) or "").upper()
+            if actual != "POST":
+                warnings.append({
+                    "kind": "callback_method",
+                    "field": field,
+                    "expected": "POST",
+                    "actual": actual,
+                })
+
+        # 7. Application SIP URI.
+        sip = self.verify_application_sip(app)
+        if not sip.get("matches_expected"):
+            warnings.append({
+                "kind": "application_sip",
+                "field": "sip_uri",
+                "expected": APPLICATION_SIP_URI,
+                "actual": sip.get("observed_sip_uri"),
+            })
+
+        report = {
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "resource_type": "plivo",
+            "account_auth_id": self._auth_id,
+            "git_commit": _git_commit(),
+            "drifted": bool(critical or warnings),
+            "critical_count": len(critical),
+            "warning_count": len(warnings),
+            "critical": critical,
+            "warnings": warnings,
+            "checked": {
+                "app_id": APP_ID,
+                "app_name": APP_NAME,
+                "number": NUMBER,
+                "endpoint_username": ENDPOINT_USERNAME,
+                "protected_fields": list(PROTECTED_FIELDS),
+                "critical_invariants": dict(CRITICAL_INVARIANTS),
+            },
+            # Stated so a consumer cannot mistake this for a converge.
+            "read_only": True,
+        }
+        _assert_sanitized(report)
+        return report
+
+
     # -- §7 planning ------------------------------------------------------
     def plan_application_update(self, app: Optional[Dict[str, Any]] = None,
                                 targets: Optional[Dict[str, str]] = None

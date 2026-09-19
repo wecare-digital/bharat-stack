@@ -376,7 +376,20 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   // === Voice (AWS Pinpoint) ===
   'wecare-voice-aws': [ 'common', 'sms' ],
 
-  // === Voice (Airtel IQ — voice-in) ===
+  // === PSTN voice (Plivo) ===
+  // Reads two secrets at request time: the diagnostic answer-URL token and the
+  // account auth token used as the V3 signature key. It also writes VoiceCDRTable
+  // and invokes wecare-sms-aws for the post-call follow-up.
+  //
+  // Added 2026-09-19. This function was absent from this map while already doing
+  // all of the above in production, so its declared permissions did not describe
+  // what it actually needs. It runs on the shared wecare-digital-lambda-role
+  // (verified live), so it was working by virtue of that role being broad rather
+  // than by being granted anything - which is exactly the state this map exists
+  // to make visible.
+  'wecare-plivo-answer': [ 'common', 'secrets', 'lambdaInvoke' ],
+
+  // === Voice (legacy provider — voice-in) ===
   'wecare-voice-in-c2c': [ 'common', 's3' ],   // provider secret no longer read
   'wecare-voice-in-obd': [ 'common', 's3' ],   // provider secret no longer read
   'wecare-voice-in-cdr': [ 'common', 's3' ],              // CDR webhook (alias route)

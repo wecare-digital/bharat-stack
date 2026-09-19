@@ -3,6 +3,7 @@
 No network calls, no Plivo API use. Asserts XML shape, content type and the
 token gate, since a malformed response makes the caller hear silence.
 """
+import json
 import os
 import sys
 import xml.etree.ElementTree as ET
@@ -247,15 +248,70 @@ def test_ringing_returns_xml_and_sends_no_sms(monkeypatch):
 
 
 def test_completed_sends_sms_and_returns_no_xml(monkeypatch):
-    """The hangup pass must text the caller exactly once."""
+    """The hangup pass must text the caller exactly once - WHEN VERIFIED.
+
+    Updated 2026-09-19. This previously passed with no token configured, which is
+    what made the hole visible: sending the SMS did not require the request to be
+    proven to be Plivo. The assertion is unchanged except that the request is now
+    token-gated, which a genuine Plivo answer_url fetch is.
+    """
     calls = []
     monkeypatch.setattr(pa, '_send_post_call_sms',
                         lambda *a, **k: calls.append(a))
-    r = pa.handler(_event(HANGUP_FORM), None)
+    monkeypatch.setattr(pa, '_get_answer_token', lambda: 'tok')
+    event = _event(HANGUP_FORM)
+    event['queryStringParameters'] = {'token': 'tok'}
+    r = pa.handler(event, None)
     assert r['statusCode'] == 200
     assert '<Play>' not in r['body'], 'must not replay audio on hangup'
     assert len(calls) == 1
     assert calls[0][0] == '919903300044'
+
+
+def test_unverified_completed_pass_sends_no_sms(monkeypatch):
+    """An unverified caller must not be able to make us text an arbitrary number.
+
+    This is the SMS-pumping vector the trust split closes. POSTing
+    CallStatus=completed&From=91XXXXXXXXXX to /plivo/answer used to send a
+    DLT-templated message to that number, at our cost, under our registered
+    sender, whenever the answer token happened to be unreadable.
+
+    The request is still ACCEPTED - refusing it would drop real calls when a
+    secret read fails - but the side effect is suppressed.
+    """
+    calls = []
+    monkeypatch.setattr(pa, '_send_post_call_sms',
+                        lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(pa, '_get_answer_token', lambda: '')
+    monkeypatch.setattr(pa, '_get_plivo_auth_token', lambda: '')
+    r = pa.handler(_event(HANGUP_FORM), None)
+    assert calls == [], 'SMS must not be sent for an unverified request'
+    assert r['statusCode'] == 202, 'accepted, but side effects suppressed'
+    assert json.loads(r['body'])['sideEffectsSuppressed'] is True
+
+
+def test_unverified_answer_pass_still_returns_the_ivr(monkeypatch):
+    """Serving the call and performing a side effect are separate privileges.
+
+    Plivo does not sign answer_url fetches, so refusing an unsigned one would drop
+    every real inbound call. The IVR must still be served at TRUST_NONE.
+    """
+    monkeypatch.setattr(pa, '_get_answer_token', lambda: '')
+    monkeypatch.setattr(pa, '_get_plivo_auth_token', lambda: '')
+    r = pa.handler(_event(PLIVO_FORM), None)
+    assert r['statusCode'] == 200
+    assert '<Play>' in r['body']
+
+
+def test_wrong_token_is_rejected_outright(monkeypatch):
+    """A WRONG token is an attacker; a MISSING one may be our own outage."""
+    monkeypatch.setattr(pa, '_get_answer_token', lambda: 'tok')
+    monkeypatch.setattr(pa, '_get_plivo_auth_token', lambda: '')
+    event = _event(PLIVO_FORM)
+    event['queryStringParameters'] = {'token': 'not-the-token'}
+    r = pa.handler(event, None)
+    assert r['statusCode'] == 403
+    assert '<Hangup' in r['body']
 
 
 def test_sms_body_matches_approved_dlt_template():

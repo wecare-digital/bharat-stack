@@ -213,12 +213,43 @@ def _parse_body(event: dict) -> dict:
             for k, v in urllib.parse.parse_qs(raw, keep_blank_values=True).items()}
 
 
+# Authentication strength, weakest last. Serving IVR XML and performing a SIDE
+# EFFECT are different privileges, and conflating them was a real hole - see
+# _route_answer.
+TRUST_SIGNATURE = 'signature'    # V3 verified: cryptographically proven Plivo
+TRUST_TOKEN = 'token'            # ?token= matched: proves a shared secret
+TRUST_NONE = 'unverified'        # nothing proven
+
+
 def _verify_provider(event: dict, *, require_signature: bool) -> tuple:
-    """(ok, mechanism_or_reason).
+    """(ok, trust_level, mechanism_or_reason).
 
     require_signature=True for callbacks, which Plivo does sign. False for
     answer-style fetches, which it does not - there the token is the only gate
     available, and requiring a signature would drop every genuine call.
+
+    The third element is what callers must branch on before doing anything with a
+    side effect. `ok=True` means "respond normally"; it does NOT mean "this request
+    is proven to be Plivo".
+
+    Why this returns a trust level rather than just a boolean
+    --------------------------------------------------------
+    Plivo does not sign answer_url fetches, so /plivo/answer cannot require a
+    signature without dropping every real call. The previous version therefore
+    returned True when no token was configured, which is defensible for RETURNING
+    XML and indefensible for the rest of what that route does: it also handles the
+    CallStatus=completed pass, which sends a DLT-templated SMS.
+
+    That combination was an SMS-pumping vector. An unauthenticated
+    POST /plivo/answer carrying CallStatus=completed&From=91XXXXXXXXXX would send a
+    message to an arbitrary Indian number at our cost, under our registered sender.
+    It required the token lookup to return empty - so a transient Secrets Manager
+    failure, or the secret being removed, was enough to open it.
+
+    Failing closed on a missing token instead would trade that for an outage:
+    every inbound call would drop while the secret was unreadable. Neither is
+    acceptable, so the privilege is split instead. Answer still serves XML at
+    TRUST_NONE; side effects require TRUST_TOKEN or better.
     """
     from lambda_utils import plivo_signature
 
@@ -230,21 +261,29 @@ def _verify_provider(event: dict, *, require_signature: bool) -> tuple:
     if has_sig and auth_token:
         ok, reason = plivo_signature.verify_request(event, auth_token)
         if ok:
-            return True, f'signature_{reason}'
-        return False, reason
+            return True, TRUST_SIGNATURE, f'signature_{reason}'
+        return False, TRUST_NONE, reason
 
     if require_signature:
-        return False, ('signature_required_but_absent' if not has_sig
-                       else 'auth_token_not_configured')
+        return False, TRUST_NONE, ('signature_required_but_absent' if not has_sig
+                                   else 'auth_token_not_configured')
 
     # Answer-style fetch: fall back to the diagnostic token gate.
     token = _get_answer_token()
     if not token:
-        return True, 'unverified_no_token_configured'
+        # Serve the call, but say so loudly and carry no privilege. A real call
+        # must not drop because a secret read failed; a side effect must not run
+        # because one did.
+        log_event(logger, 'plivo_answer_token_unavailable', level='error',
+                  alert='PLIVO_ANSWER_TOKEN_UNAVAILABLE',
+                  detail=('answer-style request served unverified; side effects '
+                          'suppressed'))
+        return True, TRUST_NONE, 'unverified_no_token_configured'
+
     qs = event.get('queryStringParameters') or {}
     if qs.get('token') == token:
-        return True, 'token'
-    return False, 'bad_or_missing_token'
+        return True, TRUST_TOKEN, 'token'
+    return False, TRUST_NONE, 'bad_or_missing_token'
 
 
 # --------------------------------------------------------------------------
@@ -345,16 +384,31 @@ def _persist_cdr(params: dict, route: str, request_id: str) -> bool:
 # --------------------------------------------------------------------------
 # routes
 # --------------------------------------------------------------------------
-def _route_answer(params: dict, request_id: str) -> dict:
+def _route_answer(params: dict, request_id: str, trust: str = TRUST_NONE) -> dict:
     """§19 answer: return valid Plivo XML.
 
     During the transition this URL is still registered as the hangup URL too, so
     a CallStatus=completed pass may arrive here. Handle it, de-duplicated against
     /plivo/hangup so the customer gets exactly one SMS per call.
+
+    The completed pass is SIDE-EFFECTING - it sends a DLT-templated SMS - so it
+    requires TRUST_TOKEN or better. Returning the IVR XML does not, because Plivo
+    does not sign answer_url fetches and refusing an unsigned one would drop every
+    real call. See _verify_provider for why the two are separated.
     """
     status = str(params.get('CallStatus', '')).lower()
     call_uuid = params.get('CallUUID', '')
     if status == 'completed':
+        if trust == TRUST_NONE:
+            # Refuse the side effect, not the request. An unverified caller must
+            # not be able to make us text an arbitrary number.
+            log_event(logger, 'plivo_postcall_refused_unverified', level='error',
+                      callUuid=call_uuid, route='answer',
+                      alert='PLIVO_UNVERIFIED_POSTCALL_ATTEMPT',
+                      from_last4=str(params.get('From', ''))[-4:],
+                      requestId=request_id)
+            return _ack({'ok': True, 'callUuid': call_uuid,
+                         'sideEffectsSuppressed': True}, status=202)
         if _claim_once(call_uuid, 'postcall'):
             _persist_cdr(params, 'answer-hangup-pass', request_id)
             _send_post_call_sms(params.get('From', ''), call_uuid, request_id)
@@ -441,7 +495,8 @@ def handler(event, context):
                   requestId=request_id)
     route, require_signature = _ROUTES.get(path, (_route_answer, False))
 
-    ok, mechanism = _verify_provider(event, require_signature=require_signature)
+    ok, trust, mechanism = _verify_provider(event,
+                                            require_signature=require_signature)
     if not ok:
         # Do not tell the caller which check failed.
         log_event(logger, 'plivo_request_rejected', level='warning',
@@ -451,7 +506,7 @@ def handler(event, context):
         return _ack({'error': 'unauthorized'}, status=401)
 
     params = _parse_body(event)
-    log_event(logger, 'plivo_request', path=path, auth=mechanism,
+    log_event(logger, 'plivo_request', path=path, auth=mechanism, trust=trust,
               callUuid=params.get('CallUUID', ''),
               from_last4=str(params.get('From', ''))[-4:],
               to_last4=str(params.get('To', ''))[-4:],
@@ -461,4 +516,6 @@ def handler(event, context):
               sipHeaders=params.get('SIPHeaders', ''),
               requestId=request_id)
 
+    if route is _route_answer:
+        return route(params, request_id, trust)
     return route(params, request_id)

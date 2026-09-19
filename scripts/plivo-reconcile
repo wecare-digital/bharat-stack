@@ -141,6 +141,8 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true", help="converge + verify")
     ap.add_argument("--number-plan", action="store_true", help="§10 routing plan only")
     ap.add_argument("--trunks", action="store_true", help="§15 Zentrunk discovery")
+    ap.add_argument("--drift", action="store_true",
+                    help="read-only drift check; exit 1 on drift, 2 on CRITICAL")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
@@ -151,6 +153,39 @@ def main() -> int:
         return 2
 
     try:
+        if args.drift:
+            report = svc.check_drift()
+            if args.json:
+                print(json.dumps(report, indent=2, default=str))
+            else:
+                print("\nPLIVO DRIFT CHECK (read-only — never converges)")
+                if not report["drifted"]:
+                    line(OK, "no drift",
+                         f"app {report['checked']['app_id']} "
+                         f"({report['checked']['app_name']}), "
+                         f"number {report['checked']['number']}")
+                for item in report["critical"]:
+                    line(NO, f"CRITICAL {item['kind']}: {item['field']}",
+                         item.get("detail")
+                         or f"expected {item.get('expected', item.get('expected_contains'))!r}, "
+                            f"got {item.get('actual')!r}")
+                for item in report["warnings"]:
+                    line(WARN, f"{item['kind']}: {item['field']}",
+                         f"expected {item.get('expected')!r}, "
+                         f"got {item.get('actual')!r}")
+                if report["critical"]:
+                    print("\n  CRITICAL drift means live call routing or a "
+                          "protected invariant moved outside this tool.")
+                    print("  Do NOT --apply to 'fix' it until the change is "
+                          "understood; converging would erase the evidence.\n")
+                elif report["warnings"]:
+                    print("\n  Recoverable drift. Review with --dry-run, then "
+                          "--apply.\n")
+            # 2 for CRITICAL so a scheduled runner can alert differently.
+            if report["critical"]:
+                return 2
+            return 1 if report["warnings"] else 0
+
         if args.trunks:
             trunks = svc.list_trunks()
             print(json.dumps(trunks, indent=2, default=str) if args.json
