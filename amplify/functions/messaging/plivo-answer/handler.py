@@ -30,6 +30,13 @@ import os
 import urllib.parse
 from xml.sax.saxutils import escape
 
+from lambda_utils.logging import get_logger
+
+# Every other function in the fleet logs through lambda_utils.logging, which
+# honours the LOG_LEVEL env var. This one used bare print(), so its output could
+# not be turned down and did not carry a level. Same JSON payloads, same keys.
+logger = get_logger(__name__)
+
 MEDIA_BASE = os.environ.get('IVR_MEDIA_BASE', 'https://app.wecare.digital')
 IVR_AUDIO_KEY = os.environ.get('IVR_AUDIO_KEY', 'stream/media/ivr/incoming_welcome.wav')
 IVR_AUDIO_URL = os.environ.get('IVR_AUDIO_URL', f'{MEDIA_BASE}/{IVR_AUDIO_KEY}')
@@ -114,7 +121,7 @@ def _send_post_call_sms(caller: str, call_uuid: str, request_id: str) -> None:
     digits = ''.join(c for c in str(caller) if c.isdigit())
     if not (digits.startswith('91') and len(digits) == 12):
         # Non-Indian caller: no approved DLT template, so do not send.
-        print(json.dumps({
+        logger.info(json.dumps({
             'event': 'plivo_post_call_sms_skipped',
             'reason': 'non_indian_caller',
             'callUuid': call_uuid,
@@ -140,7 +147,7 @@ def _send_post_call_sms(caller: str, call_uuid: str, request_id: str) -> None:
             InvocationType='Event',          # async - do not block the call
             Payload=json.dumps(payload).encode(),
         )
-        print(json.dumps({
+        logger.info(json.dumps({
             'event': 'plivo_post_call_sms_queued',
             'callUuid': call_uuid,
             'phone': digits[-4:],
@@ -149,7 +156,7 @@ def _send_post_call_sms(caller: str, call_uuid: str, request_id: str) -> None:
             'requestId': request_id,
         }))
     except Exception as e:                                   # noqa: BLE001
-        print(json.dumps({
+        logger.warning(json.dumps({
             'event': 'plivo_post_call_sms_failed',
             'callUuid': call_uuid,
             'error': f'{type(e).__name__}: {str(e)[:160]}',
@@ -165,7 +172,7 @@ def handler(event, context):
 
     if ANSWER_TOKEN and qs.get('token') != ANSWER_TOKEN:
         # Wrong/missing token: log and hang up without revealing anything.
-        print(json.dumps({
+        logger.warning(json.dumps({
             'event': 'plivo_answer_rejected',
             'reason': 'bad_or_missing_token',
             'requestId': request_id,
@@ -180,7 +187,7 @@ def handler(event, context):
     caller = params.get('From', '')
     status = str(params.get('CallStatus', '')).lower()
 
-    print(json.dumps({
+    logger.info(json.dumps({
         'event': 'plivo_answer',
         'callUuid': call_uuid,
         'from': str(caller)[-4:],

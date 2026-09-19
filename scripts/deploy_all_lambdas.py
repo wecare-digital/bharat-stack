@@ -323,6 +323,49 @@ def _guarded_import_lines(tree: ast.AST) -> set:
     return guarded
 
 
+def validate_handler(members: Dict[str, bytes], handler_string: str) -> List[str]:
+    """Check the function's configured Handler resolves inside the package.
+
+    The import check below cannot catch this: a package can have every import
+    satisfied and still be unbootable because AWS is configured to call a
+    symbol that does not exist. Two functions in this fleet define
+    ``lambda_handler`` rather than ``handler`` (messaging/marketing-ads,
+    messaging/meta-business-agent) and neither has a ``resource.ts``, so the
+    only record of their entry point is the live configuration. Renaming a
+    handler function would deploy cleanly and then fail on the first
+    invocation with ``Runtime.HandlerNotFound``.
+
+    Returns a list of errors (empty when the handler resolves).
+    """
+    module_path, _, symbol = handler_string.rpartition(".")
+    if not module_path or not symbol:
+        return [f"unparseable Handler {handler_string!r}"]
+
+    arcname = module_path.replace(".", "/") + ".py"
+    if arcname not in members:
+        return [f"Handler {handler_string!r} needs {arcname}, which is not in the package"]
+
+    try:
+        tree = ast.parse(members[arcname].decode("utf-8"), filename=arcname)
+    except SyntaxError as exc:
+        return [f"{arcname}: syntax error: {exc}"]
+
+    defined = {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    } | {
+        target.id
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+    if symbol not in defined:
+        return [f"Handler {handler_string!r}: {arcname} defines no top-level {symbol!r}"]
+    return []
+
+
 def validate(
     spec: Spec, members: Dict[str, bytes], provided: frozenset
 ) -> Tuple[List[str], List[str]]:
@@ -476,6 +519,7 @@ def main() -> int:
             provided |= layer_modules(lam, layer["Arn"])
 
         errors, warnings = validate(spec, members, provided)
+        errors += validate_handler(members, current.get("Handler", ""))
         for warning in warnings:
             print(f"    warning: {warning}")
             all_warnings.append(f"{spec.name}: {warning}")

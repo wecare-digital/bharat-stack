@@ -2,19 +2,33 @@
 inclusion: always
 ---
 
-# Lambda SnapStart + deploy model
+# Lambda version/alias deploy model (SnapStart is currently OFF)
 
-All ~49 Python functions behind the main HTTP API (`zllr9lrg7j`) use **Lambda
-SnapStart** to cut cold-start latency. This changes how deploys must work.
+**Corrected 2026-09-19 against the live account.** This file previously stated
+that all ~49 Python functions behind the main HTTP API (`zllr9lrg7j`) run with
+`SnapStart.ApplyOn = PublishedVersions`. That is not true. Measured across all
+62 functions in `us-east-1` (account 775261844268) via
+`GetFunctionConfiguration`, at both `$LATEST` and every published version:
+
+    SnapStart.ApplyOn = None,  OptimizationStatus = Off      62 of 62
+
+The deploy rule below is unchanged and still mandatory — but it is the **`live`
+alias** that makes it mandatory, not SnapStart.
 
 ## Key facts
 
-- Runtime: python3.12, `SnapStart.ApplyOn = PublishedVersions`.
-- The API integrations invoke the **`live` alias** (e.g.
-  `...:function:wecare-contacts:live`), **not** `$LATEST`.
-- SnapStart only accelerates **published versions**, and the snapshot is taken
-  at publish time — so `$LATEST` changes do NOT reach the API until a new
-  version is published and the `live` alias is moved to it.
+- Runtime: python3.12, x86_64, 62 of 62 functions.
+- **34 functions have a `live` alias; 28 do not.** The HTTP API integrations
+  invoke the alias where one exists (e.g.
+  `...:function:wecare-contacts:live`), so for those 34, `$LATEST` changes do
+  NOT reach production until a version is published and the alias is moved.
+  For the other 28 (including `wecare-razorpay-webhook`, `wecare-wix-store`,
+  `wecare-invoice-engine`, `wecare-payments-read`, `wecare-marketing-ads`,
+  `wecare-seo-tools`) `update-function-code` takes effect immediately.
+- `scripts/snapstart_publish.py` already keys membership on the alias rather
+  than on `SnapStart.ApplyOn`, so it behaves correctly with SnapStart off.
+- If SnapStart is ever enabled, everything in Gotchas below becomes live again;
+  it is written to stay valid either way.
 
 ## Deploy rule (must follow)
 
@@ -55,11 +69,18 @@ are deliberately outside it:
 
 ## Gotchas
 
-- **Randomness:** SnapStart snapshots the `random` module's PRNG state. Use
-  `secrets` / `os.urandom` for anything that must be unique per call (e.g.
-  url-shortener short codes) — never `random` for uniqueness.
-- **Init-time secrets:** fetch secrets lazily (on first request), not at import,
-  or a rotated secret will be frozen in the snapshot until republished.
-- **Cost:** SnapStart for Python bills for snapshot cache + restore. It's modest
-  at this fleet size but not zero.
+- **Randomness:** never use `random` for anything that must be unique per call
+  (e.g. url-shortener short codes) — use `secrets` / `os.urandom`. With
+  SnapStart on, the snapshot freezes the `random` PRNG state and every restored
+  environment produces the same sequence. Verified: no function imports
+  `random`, and `core/url-shortener/handler.py` correctly uses `secrets`.
+- **Init-time secrets:** fetch secrets lazily (on first request), not at import.
+  This matters even with SnapStart off, because a module-scope read is cached
+  for the life of the execution environment, so a rotation does not take effect
+  until every warm sandbox recycles. With SnapStart on it is worse: the value is
+  frozen into the published version until someone republishes. Fixed on
+  2026-09-19 in `payments/razorpay-webhook`, `ecommerce/wix-store` and
+  `messaging/outbound-sms`; the rest of the fleet already loaded lazily.
+- **Cost:** not currently incurred, since SnapStart is off. If enabled, Python
+  SnapStart bills for snapshot cache + restore.
 - SnapStart is incompatible with provisioned concurrency.
