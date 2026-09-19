@@ -1538,6 +1538,299 @@ const schema = a.schema( {
     ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // PSTN voice (Plivo). Provider-NEUTRAL by design.
+  //
+  // These replace the provider-named voice models for NEW traffic. The legacy
+  // tables (AirtelC2C, OBDCampaign, and the shared VoiceCDR) are retained
+  // read-only for audit; nothing here relabels a historical record.
+  //
+  // `provider` is recorded on every row rather than assumed, so a future reader
+  // can tell Plivo traffic from anything else without inferring it from a date.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // PstnCall — one row per call, canonical across all legs.
+  PstnCall: a
+    .model( {
+      callId: a.id().required(),          // our canonical id, not the provider's
+      provider: a.string().default( 'plivo' ),
+      // Provider identifiers. A Dial creates a second leg, so the A-leg and
+      // B-leg UUIDs are distinct and BOTH are needed to correlate callbacks.
+      providerCallUuid: a.string(),       // CallUUID as first seen
+      aLegUuid: a.string(),               // DialALegUUID — the canonical leg
+      bLegUuid: a.string(),               // DialBLegUUID — the dialled party
+      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
+      fromNumber: a.string(),
+      toNumber: a.string(),
+      tenantId: a.string(),
+      agentUserId: a.string(),            // which internal agent handled it
+      agentSessionId: a.string(),         // which browser session
+      // Lifecycle. RINGING and REMOTE_RINGING are distinct: for an outbound
+      // browser call the local leg can be up while the callee is still ringing,
+      // and conflating them is what makes a dashboard claim a call was answered
+      // when it was not.
+      status: a.enum( [
+        'INITIATED', 'RINGING', 'REMOTE_RINGING', 'ANSWERED', 'CONNECTED',
+        'HELD', 'COMPLETED', 'BUSY', 'NO_ANSWER', 'FAILED', 'CANCELLED',
+      ] ),
+      startedAt: a.integer(),
+      ringingAt: a.integer(),
+      answeredAt: a.integer(),
+      endedAt: a.integer(),
+      // Durations are per leg because they are BILLED per leg.
+      aLegDurationSeconds: a.integer(),
+      bLegDurationSeconds: a.integer(),
+      aLegBillableSeconds: a.integer(),
+      bLegBillableSeconds: a.integer(),
+      // Cost. `costSource` is mandatory in practice: an estimate and an invoiced
+      // charge must never be presented as the same number.
+      costSource: a.enum( [ 'ESTIMATE', 'PROVIDER_CDR' ] ),
+      aLegCost: a.float(),
+      bLegCost: a.float(),
+      currency: a.string().default( 'INR' ),
+      ratePerMinute: a.float(),
+      pulseSeconds: a.integer().default( 30 ),
+      hangupCause: a.string(),
+      hangupSource: a.string(),
+      recordingRef: a.string(),           // S3 key, never a public URL
+      recordingConsent: a.boolean().default( false ),
+      qualitySummary: a.string(),         // JSON: mos, jitterMs, rttMs, packetLoss
+      retentionPolicy: a.string(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+      expiresAt: a.integer(),             // TTL
+    } )
+    .identifier( [ 'callId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'providerCallUuid' ),
+      index( 'aLegUuid' ),
+      index( 'tenantId' ),
+      index( 'agentUserId' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // PstnCallEvent — normalised lifecycle events. Append-only.
+  PstnCallEvent: a
+    .model( {
+      eventId: a.id().required(),
+      callId: a.string(),
+      provider: a.string().default( 'plivo' ),
+      providerEventId: a.string(),
+      eventType: a.string(),             // normalised, not the provider's wording
+      providerEventType: a.string(),     // kept so a mapping bug is diagnosable
+      legUuid: a.string(),
+      legRole: a.enum( [ 'A_LEG', 'B_LEG', 'UNKNOWN' ] ),
+      occurredAt: a.integer(),           // provider timestamp
+      receivedAt: a.integer(),           // ours; the two differ when reordered
+      // Dedup identity. NEVER a webhook body or a token - a dedup key ends up in
+      // logs and metrics.
+      dedupKey: a.string(),
+      rawEventRef: a.string(),           // S3 key of the sanitized payload
+      processingResult: a.enum( [ 'PROCESSED', 'DUPLICATE', 'REJECTED', 'DEFERRED' ] ),
+      processingError: a.string(),       // sanitized category, not a provider dump
+      createdAt: a.integer(),
+      expiresAt: a.integer(),
+    } )
+    .identifier( [ 'eventId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'callId' ),
+      index( 'dedupKey' ),
+      index( 'legUuid' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // PstnAgentPresence — who can receive a call right now.
+  //
+  // Presence EXPIRES. An agent whose browser was closed without signing out
+  // must not keep receiving calls, so availability is only true while a
+  // heartbeat is fresh; `expiresAt` is load-bearing, not just a TTL.
+  PstnAgentPresence: a
+    .model( {
+      presenceId: a.id().required(),     // tenant#user#session
+      tenantId: a.string(),
+      userId: a.string(),
+      // One row per concurrent browser session, so incoming routing is
+      // deterministic when the same person is signed in twice.
+      sessionId: a.string(),
+      endpointUsername: a.string(),      // the Plivo endpoint for this session
+      state: a.enum( [
+        'INITIALIZING', 'READY', 'UNAVAILABLE', 'ON_CALL', 'RECONNECTING',
+        'FAILED', 'SIGNED_OUT',
+      ] ),
+      available: a.boolean().default( false ),
+      activeCallId: a.string(),
+      lastHeartbeatAt: a.integer(),
+      heartbeatIntervalSeconds: a.integer().default( 30 ),
+      expiresAt: a.integer(),            // TTL AND the availability cutoff
+      userAgent: a.string(),
+      readiness: a.string(),             // JSON: mic, devices, bandwidth, jitter
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    } )
+    .identifier( [ 'presenceId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'tenantId' ),
+      index( 'userId' ),
+      index( 'state' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // PstnNotificationDelivery — one row per (call, channel, version).
+  //
+  // The identifier IS the idempotency key: `<aLegUuid>:<channel>:<version>`.
+  // A conditional put on it is what makes "at most one SMS and one RCS per
+  // connected call" true under concurrent duplicate callbacks, rather than
+  // hoping two workers do not overlap.
+  PstnNotificationDelivery: a
+    .model( {
+      deliveryId: a.id().required(),     // aLegUuid:channel:version
+      callId: a.string(),
+      aLegUuid: a.string(),
+      channel: a.enum( [ 'sms', 'rcs' ] ),
+      version: a.string().default( 'v1' ),
+      // Which provider actually carried it, decided by destination:
+      // +91 SMS -> AWS ap-south-1; +91 RCS -> Sinch; else AWS.
+      provider: a.string(),
+      destination: a.string(),
+      isoCountry: a.string(),
+      eligibility: a.enum( [ 'ELIGIBLE', 'INELIGIBLE', 'UNSUPPORTED' ] ),
+      eligibilityReason: a.string(),
+      // SKIPPED is distinct from FAILED: an ineligible RCS destination is not a
+      // failure, and merging them would make a health dashboard alarm on normal
+      // traffic.
+      state: a.enum( [ 'PENDING', 'SENT', 'FAILED', 'SKIPPED' ] ),
+      attemptCount: a.integer().default( 0 ),
+      maxAttempts: a.integer().default( 3 ),
+      providerRequestId: a.string(),
+      providerMessageId: a.string(),
+      dltTemplateKey: a.string(),
+      dltTemplateId: a.string(),
+      errorCategory: a.string(),        // sanitized class, not a provider dump
+      // Permanent vs transient decides whether a retry is even attempted. DLT,
+      // destination and permission errors never clear by retrying.
+      errorIsPermanent: a.boolean().default( false ),
+      statusTransitions: a.string(),    // JSON array of {state, at}
+      claimedAt: a.integer(),
+      firstAttemptAt: a.integer(),
+      lastAttemptAt: a.integer(),
+      completedAt: a.integer(),
+      deliveryReceiptAt: a.integer(),
+      createdAt: a.integer(),
+      expiresAt: a.integer(),
+    } )
+    .identifier( [ 'deliveryId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'callId' ),
+      index( 'aLegUuid' ),
+      index( 'state' ),
+      index( 'providerMessageId' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // PstnFlowVersion — immutable routing/IVR revisions.
+  //
+  // Rows are never edited. Activation writes a NEW row and moves a pointer, so
+  // "what was live at 14:00 last Tuesday" stays answerable after a rollback.
+  PstnFlowVersion: a
+    .model( {
+      flowVersionId: a.id().required(),
+      flowKey: a.string(),              // e.g. 'inbound-default'
+      version: a.integer(),
+      // DRAFT -> ACTIVE -> SUPERSEDED|ROLLED_BACK. No edit-in-place.
+      status: a.enum( [ 'DRAFT', 'ACTIVE', 'SUPERSEDED', 'ROLLED_BACK', 'REJECTED' ] ),
+      definition: a.string(),           // JSON flow definition
+      renderedXml: a.string(),          // exact escaped XML this version emits
+      validationResult: a.string(),     // JSON: ok, errors, warnings
+      validatedAt: a.integer(),
+      diffFromPrevious: a.string(),
+      authorUserId: a.string(),
+      activatedBy: a.string(),
+      activatedAt: a.integer(),
+      deactivatedAt: a.integer(),
+      rollbackOfVersionId: a.string(),
+      notes: a.string(),
+      createdAt: a.integer(),
+    } )
+    .identifier( [ 'flowVersionId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'flowKey' ),
+      index( 'status' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // PstnRecordingAudit — every access to a call recording.
+  //
+  // Append-only, and deliberately NOT TTL'd on the same clock as the recording:
+  // the record that somebody listened to a call must outlive the audio, or the
+  // audit trail expires before the question is asked.
+  PstnRecordingAudit: a
+    .model( {
+      auditId: a.id().required(),
+      callId: a.string(),
+      recordingRef: a.string(),
+      action: a.enum( [
+        'VIEW', 'PLAYBACK', 'EXPORT', 'SIGNED_URL_ISSUED',
+        'RETENTION_CHANGED', 'DELETED', 'ACCESS_DENIED',
+      ] ),
+      actorUserId: a.string(),
+      actorRole: a.string(),
+      tenantId: a.string(),
+      sourceIpHash: a.string(),         // hashed, not the address
+      justification: a.string(),
+      signedUrlExpiresAt: a.integer(),
+      previousRetention: a.string(),
+      newRetention: a.string(),
+      succeeded: a.boolean().default( true ),
+      denialReason: a.string(),
+      occurredAt: a.integer(),
+      createdAt: a.integer(),
+    } )
+    .identifier( [ 'auditId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'callId' ),
+      index( 'actorUserId' ),
+      index( 'action' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // ProviderDriftSnapshot — desired vs actual provider state, redacted.
+  //
+  // Written by the drift check so history is queryable: "when did this move?"
+  // needs more than the current comparison. Values are already redacted by the
+  // control plane (tokens appear as SHA-256 fingerprints).
+  ProviderDriftSnapshot: a
+    .model( {
+      snapshotId: a.id().required(),
+      provider: a.string().default( 'plivo' ),
+      resourceType: a.string(),         // application | number | endpoint | trunk
+      resourceId: a.string(),
+      drifted: a.boolean().default( false ),
+      // Severity is split because the responses differ: a moved callback URL is
+      // recoverable, a moved number binding means calls are not arriving.
+      criticalCount: a.integer().default( 0 ),
+      warningCount: a.integer().default( 0 ),
+      criticalFindings: a.string(),     // JSON array
+      warningFindings: a.string(),      // JSON array
+      desiredState: a.string(),         // JSON, redacted
+      actualState: a.string(),          // JSON, redacted
+      reconciliationStatus: a.enum( [
+        'DETECTED', 'ACKNOWLEDGED', 'RECONCILED', 'ACCEPTED_AS_IS', 'FAILED',
+      ] ),
+      reconciledBy: a.string(),
+      reconciledAt: a.integer(),
+      gitCommit: a.string(),
+      checkedAt: a.integer(),
+      createdAt: a.integer(),
+      expiresAt: a.integer(),
+    } )
+    .identifier( [ 'snapshotId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'resourceType' ),
+      index( 'reconciliationStatus' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
   // Table: FlowLog — Audit trail for every flow screen interaction
   FlowLog: a
     .model( {

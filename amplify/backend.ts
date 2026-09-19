@@ -65,6 +65,21 @@ const TTL_CONFIG: Record<string, string> = {
   WhatsAppCalling: 'ttl',
   RazorpayWebhookLog: 'expiresAt',
   PayUWebhookLog: 'expiresAt',
+  // PSTN voice (Plivo), provider-neutral.
+  PstnCall: 'expiresAt',
+  PstnCallEvent: 'expiresAt',
+  // Presence expiresAt is dual-purpose: it is the TTL AND the availability
+  // cutoff. An agent whose browser closed without signing out stops being
+  // routable when the heartbeat goes stale, not when DynamoDB happens to sweep.
+  PstnAgentPresence: 'expiresAt',
+  PstnNotificationDelivery: 'expiresAt',
+  ProviderDriftSnapshot: 'expiresAt',
+  // Deliberately NOT here:
+  //   PstnFlowVersion     — immutable routing history; a rollback needs to be
+  //                         able to reach an old revision indefinitely.
+  //   PstnRecordingAudit  — the record that somebody listened to a call must
+  //                         outlive the audio itself, or the audit trail expires
+  //                         before the question is asked.
 };
 
 try
