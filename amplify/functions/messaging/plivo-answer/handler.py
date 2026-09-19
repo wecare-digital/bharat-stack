@@ -78,6 +78,28 @@ IVR_SMS_BODY = os.environ.get('IVR_SMS_BODY', (
     "We'll review it and follow up if needed."
 ))
 
+# --- browser routing (Phase 7) -----------------------------------------------
+# OFF by default. Turning this on changes what a real caller hears, so it is a
+# production decision with its own approval - never a deployment side effect.
+#
+# false -> play the greeting and hang up   (the current, safe production default)
+# true  -> <Dial><User> the agent endpoint (browser softphone)
+PSTN_BROWSER_ROUTING_ENABLED = os.environ.get(
+    'PSTN_BROWSER_ROUTING_ENABLED', 'false').lower() == 'true'
+
+# The endpoint the inbound call is dialled to. A SIP URI is NOT accepted from a
+# request - only this server-side configuration - so no caller can redirect a call
+# to a destination of their choosing.
+PSTN_AGENT_ENDPOINT = os.environ.get('PSTN_AGENT_ENDPOINT', '')
+
+# Seconds to ring the agent before giving up and falling back to the greeting.
+PSTN_DIAL_TIMEOUT = int(os.environ.get('PSTN_DIAL_TIMEOUT', '25'))
+
+# Where Plivo reports the dial outcome. This is the AUTHORITATIVE connected
+# signal; see lambda_utils/pstn/notifications.py.
+PSTN_DIAL_CALLBACK_URL = os.environ.get(
+    'PSTN_DIAL_CALLBACK_URL', 'https://api.wecare.digital/plivo/dial-events')
+
 CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
 CDR_TTL_SECONDS = 90 * 24 * 60 * 60
 
@@ -164,6 +186,52 @@ def _ivr_xml(audio_url: str) -> str:
             f'    <Play>{escape(audio_url)}</Play>\n'
             '    <Hangup/>\n'
             '</Response>')
+
+
+def _dial_user_xml(endpoint_username: str) -> str:
+    """Ring a browser agent endpoint, then fall back to the greeting.
+
+    `<User>` dials a Plivo ENDPOINT, not an arbitrary SIP URI. The username comes
+    from server configuration and is escaped, so neither a caller nor an operator
+    request can point a live call at a destination of their choosing.
+
+    `callbackUrl` carries the authoritative connected event. `callbackMethod` is
+    POST to match every other callback on this application.
+
+    If the agent does not answer within the timeout, the verbs AFTER <Dial>
+    execute - so the caller hears the existing greeting rather than silence. That
+    is why the greeting stays in this response instead of being replaced by it.
+    """
+    escaped = escape(endpoint_username)
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<Response>\n'
+            f'    <Dial timeout="{PSTN_DIAL_TIMEOUT}" '
+            f'callbackUrl="{escape(PSTN_DIAL_CALLBACK_URL)}" '
+            'callbackMethod="POST" redirect="false">\n'
+            f'        <User>sip:{escaped}@phone.plivo.com</User>\n'
+            '    </Dial>\n'
+            f'    <Play>{escape(IVR_AUDIO_URL)}</Play>\n'
+            '    <Hangup/>\n'
+            '</Response>')
+
+
+def _answer_xml() -> str:
+    """The answer response, which depends on the browser-routing flag.
+
+    Falls back to the greeting whenever browser routing is off OR no agent
+    endpoint is configured. A flag turned on without an endpoint would otherwise
+    emit a <Dial> to an empty destination, which drops the call - so the missing
+    configuration is treated as "not enabled" and logged, rather than trusted.
+    """
+    if PSTN_BROWSER_ROUTING_ENABLED and PSTN_AGENT_ENDPOINT:
+        return _dial_user_xml(PSTN_AGENT_ENDPOINT)
+    if PSTN_BROWSER_ROUTING_ENABLED and not PSTN_AGENT_ENDPOINT:
+        log_event(logger, 'plivo_browser_routing_misconfigured', level='error',
+                  alert='PSTN_BROWSER_ROUTING_NO_ENDPOINT',
+                  detail=('PSTN_BROWSER_ROUTING_ENABLED is true but '
+                          'PSTN_AGENT_ENDPOINT is empty; serving the greeting '
+                          'rather than dialling an empty destination'))
+    return _ivr_xml(IVR_AUDIO_URL)
 
 
 def _fallback_xml() -> str:
@@ -417,7 +485,7 @@ def _route_answer(params: dict, request_id: str, trust: str = TRUST_NONE) -> dic
                       route='answer', requestId=request_id)
         return {'statusCode': 200,
                 'headers': {'Content-Type': 'text/plain'}, 'body': 'ok'}
-    return _xml(_ivr_xml(IVR_AUDIO_URL))
+    return _xml(_answer_xml())
 
 
 def _route_fallback(params: dict, request_id: str) -> dict:
