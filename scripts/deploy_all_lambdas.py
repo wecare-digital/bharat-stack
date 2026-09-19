@@ -166,6 +166,7 @@ SPECS: List[Spec] = [
     Spec("wecare-voice-cdr-read", "messaging/voice-cdr-read"),
     Spec("wecare-outbound-voice", "messaging/outbound-voice"),
     Spec("wecare-plivo-answer", "messaging/plivo-answer"),
+    Spec("wecare-elevenlabs-webhook", "messaging/elevenlabs-webhook"),
     # --- messaging / rcs, push, scheduling ---
     Spec("wecare-rcs-send", "messaging/rcs-send"),
     Spec("wecare-rcs-dlr", "messaging/rcs-dlr"),

@@ -22,6 +22,33 @@ pa = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pa)
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_token_lookup(monkeypatch):
+    """Stop `_get_answer_token()` reaching real Secrets Manager.
+
+    These tests used to pass only by accident: `wecare/plivo-answer` did not
+    exist, so the lazy lookup reached real AWS, found nothing, and left the gate
+    open, which is what the no-token cases silently relied on. The moment the
+    secret was provisioned the same lookup returned a live token and every test
+    that does not send one began failing with 403. The gate was correct; the
+    tests were simply not isolated from the account.
+
+    Default state here is "no token configured", so the response-contract tests
+    exercise the open path. The token-gate tests seed `_answer_token_cache`
+    themselves, and the resolver tests install their own fake client; both run
+    after this fixture, so their monkeypatching wins.
+    """
+    monkeypatch.setattr(pa, '_answer_token_cache', '')
+    monkeypatch.delenv('PLIVO_ANSWER_TOKEN', raising=False)
+
+    class _NoSecretsManager:
+        def get_secret_value(self, SecretId):  # noqa: N803
+            raise RuntimeError('tests must not call AWS')
+
+    import boto3
+    monkeypatch.setattr(boto3, 'client', lambda *a, **k: _NoSecretsManager())
+
+
 def _event(body='', qs=None, b64=False):
     return {
         'requestContext': {'http': {'method': 'POST', 'path': '/plivo/answer'}},

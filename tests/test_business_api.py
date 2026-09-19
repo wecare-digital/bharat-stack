@@ -592,7 +592,12 @@ class TestPaymentConfig:
         result = self.get_config('1016149501586345')
         body = json.loads(result['body'])
         assert body['paymentConfig'] is not None
-        assert body['paymentConfig']['mcc'] == '4722'
+        # 7392 = management, consulting and public relations services, which is
+        # what both WABAs actually carry (verified via Graph API, recorded in
+        # whatsapp-business-api/handler.py and src/config/constants.ts). The
+        # previous expectation of 4722 (travel agencies) appeared nowhere else in
+        # the tree, so it was a stale literal in this test rather than a code bug.
+        assert body['paymentConfig']['mcc'] == '7392'
 
     def test_get_payment_config_unknown_phone(self):
         with patch('handler._graph_api', return_value={'error': 'not found'}):
