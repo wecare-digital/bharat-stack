@@ -273,7 +273,6 @@ tests enforce that. Do not add TTS to it.
 | `wecare/seo/google-oauth` | Google OAuth | KEEP |
 | `wecare/google/ads` | Google Ads | KEEP — **missing `developer_token`** |
 | `wecare/truecaller` | Truecaller | KEEP — no consumer yet |
-| `wecare/elevenlabs` | ElevenLabs | KEEP — webhook live, no agent yet |
 
 Deleting a secret requires pointwise confirmation
 (`.kiro/steering/maintenance-reporting.md`). No secret is deleted during the code
