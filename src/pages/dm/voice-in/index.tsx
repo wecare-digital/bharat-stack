@@ -275,12 +275,22 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
     setClearing( true );
     try
     {
-      const endpoint = type === 'cdr' ? 'voice-cdr-webhook' : `voice-in/${type}`; // CDR clear goes to webhook handler which owns the data
-      const response = await fetch( `${API_BASE}/${endpoint}/clear-logs`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify( { clearAll: true, hardDelete: true } )
-      } );
+      // CDR clear now goes to the AUTHENTICATED read API, not the webhook.
+      // DELETE /voice-cdr-webhook/clear-logs was AuthorizationType=NONE with no
+      // require_auth in its handler, i.e. anyone on the internet could wipe every
+      // call detail record. That route is deleted; voice-cdr-read owns clearing
+      // and calls require_auth, so this must use authFetch.
+      const response = type === 'cdr'
+        ? await api.authFetch( `${API_BASE}/voice-cdr-read`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify( { clearAll: true, hardDelete: true } )
+        } )
+        : await fetch( `${API_BASE}/voice-in/${type}/clear-logs`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify( { clearAll: true, hardDelete: true } )
+        } );
       const result = await response.json();
       if ( result.success )
       {

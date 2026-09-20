@@ -883,11 +883,26 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     Sends wd_menu template from the WABA that received the call + WABA1 if different.
     """
     caller_phone = event.get('callerPhone', '')
-    phone_number_id = event.get('phoneNumberId', '1055232054343117')
+    # No default sender. This used to fall back to WABA2's phone, which meant a
+    # call received on WABA1 was followed up from a number the caller never
+    # dialled - cross-WABA, and outside the 24-hour window belonging to the
+    # conversation they actually opened. Refuse instead: a missing follow-up is a
+    # visible bug, a follow-up from the wrong business number is an incident.
+    phone_number_id = event.get('phoneNumberId', '')
 
     if not caller_phone:
         logger.warning("post_call_sip: no callerPhone")
         return {'statusCode': 200, 'body': 'no caller'}
+
+    if not phone_number_id:
+        logger.error(json.dumps({
+            'event': 'post_call_sip_no_phone_number_id',
+            'alert': 'WHATSAPP_SENDER_UNRESOLVED',
+            'note': 'refusing to pick a WABA; the caller would receive a message '
+                    'from a number they never contacted',
+            'requestId': request_id,
+        }))
+        return {'statusCode': 200, 'body': 'sender unresolved; nothing sent'}
 
     # Clean phone number
     if not caller_phone.startswith('+'):

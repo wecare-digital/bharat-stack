@@ -172,14 +172,8 @@ def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
     app_secret = _direct_api_cache['app_secret']
     meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '')
     
-    # Fallback: extract Meta phone ID from Direct API format phone-number-id-waba1-direct-{meta_id}
-    if not meta_phone_id and '-direct-' in phone_number_id:
-        meta_phone_id = phone_number_id.split('-direct-')[-1]
-    # Last resort: default to WABA-T phone (the working one)
-    if not meta_phone_id:
-        meta_phone_id = '1055232054343117'
-        logger.warning(f"No Meta phone ID mapping for {phone_number_id}, defaulting to {meta_phone_id}")
-    
+    meta_phone_id = _resolve_meta_phone_id(phone_number_id)
+
     url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/messages"
     if app_secret:
         proof = _hmac.new(app_secret.encode(), token.encode(), _hashlib.sha256).hexdigest()
@@ -216,13 +210,48 @@ def _send_message(phone_number_id: str, payload, as_bytes=False) -> Dict:
     msg = json.dumps(payload) if not isinstance(payload, str) else payload
     return _send_direct_api(phone_number_id, msg)
 
+class UnresolvedSenderPhone(ValueError):
+    """The sending phone could not be resolved, so nothing was sent.
+
+    Raised instead of falling back to a default sender. See
+    _resolve_meta_phone_id.
+    """
+
+
 def _resolve_meta_phone_id(phone_number_id: str) -> str:
-    """Resolve our phone id to the Meta phone-number id used in Graph URLs."""
+    """Resolve our phone id to the Meta phone-number id used in Graph URLs.
+
+    FAILS CLOSED. There used to be a last-resort default to WABA2's phone
+    ('1055232054343117', commented "the working one"). That is a cross-WABA
+    bypass with three consequences, none of them visible at the call site:
+
+      1. A customer who messaged Phone 1 was answered by Phone 2 - a number they
+         never contacted. From their side it is an unsolicited message from a
+         stranger.
+      2. It leaves the 24-hour customer service window. The window belongs to
+         the conversation the customer opened on THAT number; a free-form reply
+         from the other number has no open window and Meta rejects it, or bills
+         it as a new conversation.
+      3. It contradicts the "NEVER cross-WABA" rule asserted throughout this
+         codebase, including in the payment handlers, while silently doing the
+         opposite.
+
+    Refusing to send is the safe failure. A message that does not go out is a
+    visible bug someone fixes; a message that goes out from the wrong business
+    number is a support incident and a billing surprise.
+    """
     meta_phone_id = DIRECT_API_META_PHONE_MAP.get(phone_number_id, '')
+    # The Direct API id embeds the Meta phone id, so deriving it is exact rather
+    # than a guess - keep this, it is not a fallback.
     if not meta_phone_id and '-direct-' in phone_number_id:
-        meta_phone_id = phone_number_id.split('-direct-')[-1]
+        candidate = phone_number_id.split('-direct-')[-1]
+        if candidate.isdigit():
+            meta_phone_id = candidate
     if not meta_phone_id:
-        meta_phone_id = '1055232054343117'
+        raise UnresolvedSenderPhone(
+            f'cannot resolve a Meta sender phone for {phone_number_id!r}; '
+            'refusing to send rather than fall back to another WABA'
+        )
     return meta_phone_id
 
 def _block_users_api(phone_number_id: str, users: list, action: str) -> Dict:
