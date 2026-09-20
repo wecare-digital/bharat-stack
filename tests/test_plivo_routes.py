@@ -33,7 +33,10 @@ _spec = importlib.util.spec_from_file_location("plivo_routes_under_test", _HANDL
 pa = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pa)
 
-AUTH_TOKEN = "YWQ5NmY4ZmYtZWZlOC00ZGY2LTVmMTItYjU5MzUz"
+# Not live. The signature is computed and verified with the same constant, so the
+# value only has to be the right length - and a live token in a test file ends up
+# in git history, where removing it later does not remove it.
+AUTH_TOKEN = "PLIVO_TEST_AUTH_TOKEN_NOT_LIVE_000000000"
 ANSWER_TOKEN = "answer-gate-token"
 NONCE = "12345678901234567890"
 

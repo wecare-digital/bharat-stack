@@ -109,7 +109,7 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
           <div>Set this in <a href="https://developers.facebook.com/apps/2238810740192680/whatsapp-business/wa-settings/" target="_blank" rel="noopener noreferrer" style={{ color: '#166534', textDecoration: 'underline' }}>Meta App Dashboard → WhatsApp Settings</a>:</div>
           <div style={{ background: '#fff', border: '1px solid #d1fae5', borderRadius: 6, padding: '8px 12px', marginTop: 8, fontFamily: 'monospace', fontSize: 12 }}>
             <div>Callback URL: <span style={{ userSelect: 'all' }}>https://api.wecare.digital/whatsapp</span></div>
-            <div>Verify Token: <span style={{ userSelect: 'all' }}>wecare_calling_verify_2026</span></div>
+            <div>Verify Token: <span style={{ userSelect: 'all' }}>stored in Secrets Manager: wecare/meta-system-user-token:waba_t_verify_token</span></div>
           </div>
           <div style={{ marginTop: 6, fontSize: 12, color: '#4ade80' }}>This single endpoint handles both messages and calling. The handler routes messages to the inbound processor and calls to the calling processor.</div>
         </div>

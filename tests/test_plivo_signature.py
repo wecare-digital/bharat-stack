@@ -26,7 +26,9 @@ sdk = pytest.importorskip(
     "plivo.utils.signature_v3",
     reason="official Plivo SDK (dev-only) required for the cross-check")
 
-TOKEN = "YWQ5NmY4ZmYtZWZlOC00ZGY2LTVmMTItYjU5MzUz"   # shape-realistic, not live
+# Shape-realistic and genuinely not live. It used to say "not live" while holding
+# the account's real auth token, which is how it reached the public history.
+TOKEN = "PLIVO_TEST_AUTH_TOKEN_NOT_LIVE_000000000"
 NONCE = "12345678901234567890"
 
 ANSWER = "https://api.wecare.digital/plivo/answer"

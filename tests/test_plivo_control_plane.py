@@ -39,7 +39,7 @@ APP_BEFORE = {
     "public_uri": "",
     "sip_uri": pcp.APPLICATION_SIP_URI,
     "sip_auth_type": "credential",
-    "credential_uuid": "30ad5c63-a41b-4b8c-b0f0-14693b6f4346",
+    "credential_uuid": "00000000-0000-4000-8000-000000000000",
     "ip_acl_uuid": None,
     "sub_account": None,
     "log_incoming_messages": True,
