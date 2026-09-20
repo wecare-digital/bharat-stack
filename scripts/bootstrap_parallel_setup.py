@@ -138,15 +138,29 @@ def check(repo: Path) -> list[tuple[str, bool, str]]:
         results.append(("permissions policy", False,
                         f"no file at {pol} - every action will prompt"))
 
-    # KiroCrew symlink
-    link = Path.home() / ".local/bin/kirocrew"
-    if link.is_symlink():
+    # Launcher symlinks. Both Kiro and KiroCrew were first run from a disk image,
+    # so several recorded paths point into /Volumes/* that is long ejected. The
+    # KiroCrew one broke every kirocrew-* agent prompt; /usr/local/bin/kiro is
+    # masked by ~/bin/kiro but still breaks any absolute-path or bare-PATH caller.
+    for label, link in (
+        ("kirocrew launcher", Path.home() / ".local/bin/kirocrew"),
+        ("kiro launcher (/usr/local/bin)", Path("/usr/local/bin/kiro")),
+        ("kiro launcher (~/bin)", Path.home() / "bin/kiro"),
+    ):
+        if not link.is_symlink():
+            results.append((label, True, "not a symlink, skipped"))
+            continue
         tgt = os.readlink(link)
         ok = Path(tgt).exists()
-        results.append(("kirocrew symlink", ok,
-                        "resolves" if ok else f"DANGLING -> {tgt}"))
-    else:
-        results.append(("kirocrew symlink", True, "not a symlink, skipped"))
+        if ok:
+            detail = "resolves"
+        elif tgt.startswith("/Volumes/"):
+            detail = (f"DANGLING into an ejected image -> {tgt}"
+                      + ("  (needs sudo to repair)"
+                         if str(link).startswith("/usr/local/") else ""))
+        else:
+            detail = f"DANGLING -> {tgt}"
+        results.append((label, ok, detail))
 
     # Stale CLI locks
     cli = KIRO / "sessions/cli"
@@ -301,6 +315,23 @@ def heal(repo: Path, *, dry_run: bool = False) -> int:
         print(f"  {'repaired' if code == 0 else 'FAILED'}")
         fixed += code == 0
         unfixable += code != 0
+
+    print("\n=== root-owned launcher symlinks ===")
+    root_link = Path("/usr/local/bin/kiro")
+    if root_link.is_symlink() and not Path(os.readlink(root_link)).exists():
+        tgt = os.readlink(root_link)
+        app = "/Applications/Kiro.app/Contents/Resources/app/bin/code"
+        print(f"  DANGLING {root_link} -> {tgt}")
+        if Path(app).exists():
+            print(f"  NOT repaired here: /usr/local/bin is root-owned, so this needs")
+            print(f"  one deliberate sudo. Run it yourself when convenient:")
+            print(f"    sudo ln -sf {app} /usr/local/bin/kiro")
+            print(f"  Masked meanwhile by ~/bin/kiro, so nothing is broken today.")
+        else:
+            print(f"  cannot repair: {app} does not exist either")
+        unfixable += 1
+    else:
+        print("  nothing dangling")
 
     print("\n=== stale session locks ===")
     cli = KIRO / "sessions/cli"
