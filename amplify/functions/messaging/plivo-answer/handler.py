@@ -480,8 +480,7 @@ def _persist_cdr(params: dict, route: str, request_id: str) -> bool:
     them and nothing rewrites history; dropping them would strip fields off
     existing rows on any subsequent callback for the same call.
 
-    `source='plivo'` stays the discriminator - this table is shared by Plivo,
-    ElevenLabs and historical Airtel rows.
+    `source='plivo'` stays the discriminator - this table contains Plivo and historical retired-provider rows.
     """
     call_uuid = params.get('CallUUID') or ''
     if not call_uuid:
