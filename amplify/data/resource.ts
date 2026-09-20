@@ -4,7 +4,7 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
  * WECARE.DIGITAL DynamoDB Schema
  * 
  * 41 Tables with PAY_PER_REQUEST billing mode
- * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d), VoiceCDR (90d), AirtelSMS (90d), AirtelC2C (90d), OBDCampaign (90d), RazorpayWebhookLog (180d), PayUWebhookLog (180d)
+ * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d), VoiceCDR (90d), OBDCampaign (90d), RazorpayWebhookLog (180d)
  */
 const schema = a.schema( {
   // Table 1: Contacts - Contact records with opt-in preferences
@@ -1004,31 +1004,10 @@ const schema = a.schema( {
     ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-  // Table 36: PayUWebhookLog - Raw PayU webhook event log
-  PayUWebhookLog: a
-    .model( {
-      id: a.id().required(),
-      eventType: a.string(), // payment.success, payment.failed, etc.
-      paymentId: a.string(), // mihpayid
-      txnId: a.string(),
-      amount: a.float(),
-      status: a.string(),
-      mode: a.string(), // CC, DC, NB, UPI, WALLET
-      phone: a.string(),
-      email: a.string(),
-      bankRef: a.string(),
-      rawPayload: a.string(), // JSON string
-      processedAt: a.integer(),
-      createdAt: a.integer(),
-      expiresAt: a.integer(), // TTL: Unix epoch seconds (180 days)
-    } )
-    .identifier( [ 'id' ] )
-    .secondaryIndexes( ( index ) => [
-      index( 'paymentId' ),
-      index( 'txnId' ),
-      index( 'eventType' ),
-    ] )
-    .authorization( ( allow ) => [ allow.authenticated() ] ),
+  // (Table 36 PayUWebhookLog removed 2026-09-20 — PayU is retired. No PayU
+  //  payment configuration exists on either WABA, no PayU Lambda or route
+  //  remains, and stack-wecare-digital-PayUWebhookLogTable was deleted from the
+  //  account after verifying ItemCount==0. Razorpay is the only gateway.)
 
   // (Table 37 WhatsAppGroup removed — merged into Table 22 above)
 

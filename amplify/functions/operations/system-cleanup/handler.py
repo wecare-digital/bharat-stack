@@ -97,18 +97,9 @@ CLEANUP_RESOURCES = {
         'type': 'dynamodb',
         'table': 'stack-wecare-digital-SmsAwsTable',
     },
-    'airtel_sms': {
-        'label': 'Airtel SMS Messages',
-        'category': 'SMS',
-        'type': 'dynamodb',
-        'table': 'stack-wecare-digital-AirtelSMSTable',
-    },
-    'airtel_c2c': {
-        'label': 'Airtel C2C Records',
-        'category': 'Voice',
-        'type': 'dynamodb',
-        'table': 'stack-wecare-digital-AirtelC2CTable',
-    },
+    # airtel_sms / airtel_c2c removed 2026-09-20: both tables were deleted from
+    # the account with the Airtel retirement. A registry entry for a table that
+    # no longer exists makes every cleanup run raise ResourceNotFound.
     'invoices': {
         'label': 'Invoices',
         'category': 'Invoices & Payments',
@@ -266,18 +257,7 @@ CLEANUP_RESOURCES = {
         'type': 'dynamodb',
         'table': 'stack-wecare-digital-RateLimitTable',
     },
-    'sms_in_airtel': {
-        'label': 'Airtel Inbound SMS',
-        'category': 'SMS',
-        'type': 'dynamodb',
-        'table': 'stack-wecare-digital-SmsInAirtelTable',
-    },
-    'payu_webhook_log': {
-        'label': 'PayU Webhook Log',
-        'category': 'Invoices & Payments',
-        'type': 'dynamodb',
-        'table': 'stack-wecare-digital-PayUWebhookLogTable',
-    },
+    # sms_in_airtel / payu_webhook_log removed 2026-09-20 with their tables.
     's3_whatsapp_media_incoming': {
         'label': 'S3: WhatsApp Media (Incoming)',
         'category': 'S3 Storage',

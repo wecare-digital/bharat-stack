@@ -1,0 +1,12 @@
+[
+  {
+    "RouteKey": "DELETE /ai/clear-logs",
+    "RouteId": "1pgi6y7",
+    "Target": "integrations/wc82ldv"
+  },
+  {
+    "RouteKey": "POST /voice/call",
+    "RouteId": "xfdlnl0",
+    "Target": "integrations/dpr74ld"
+  }
+]

@@ -59,6 +59,7 @@ import ast
 import io
 import subprocess
 import sys
+import time
 import zipfile
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -428,12 +429,54 @@ def validate(
 # deploy
 # --------------------------------------------------------------------------- #
 
+#: Errors that mean "try again", not "this deploy is broken".
+#: ResourceConflictException is raised when an update is already in flight on the
+#: function - which happens routinely across a 58-function fleet deploy. On
+#: 2026-09-20 wecare-product-image-gen was reported failed for exactly this
+#: reason and succeeded unchanged on an immediate manual retry, so the run
+#: reported a false failure and a human had to go and disprove it.
+_RETRYABLE = (
+    "ResourceConflictException",
+    "TooManyRequestsException",
+    "ThrottlingException",
+    "ServiceException",
+    "RequestTimeout",
+)
+
+
+def _update_with_retry(lam, spec: Spec, zip_bytes: bytes, attempts: int = 5):
+    """update_function_code with exponential backoff on transient errors.
+
+    Returns the API result, or raises the last ClientError. A retry is only
+    attempted for the codes in _RETRYABLE; a genuine error (bad zip, missing
+    function, denied) still fails immediately, because retrying it would just
+    slow the run down and bury the message.
+    """
+    delay = 2.0
+    last: ClientError | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return lam.update_function_code(
+                FunctionName=spec.name, ZipFile=zip_bytes, Publish=False
+            )
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "")
+            if code not in _RETRYABLE or attempt == attempts:
+                raise
+            last = exc
+            print(f"    {code}, retrying in {delay:.0f}s "
+                  f"(attempt {attempt}/{attempts - 1})")
+            time.sleep(delay)
+            delay *= 2
+    if last:
+        raise last
+    raise RuntimeError("unreachable")
+
+
 def deploy(lam, spec: Spec, zip_bytes: bytes, current: dict) -> str:
     """'updated', 'unchanged', or 'failed'."""
     try:
-        result = lam.update_function_code(
-            FunctionName=spec.name, ZipFile=zip_bytes, Publish=False
-        )
+        result = _update_with_retry(lam, spec, zip_bytes)
     except ClientError as exc:
         print(f"    update_function_code failed: {exc}")
         return "failed"

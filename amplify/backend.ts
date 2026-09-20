@@ -64,7 +64,8 @@ const TTL_CONFIG: Record<string, string> = {
   AdClickAttribution: 'ttl',
   WhatsAppCalling: 'ttl',
   RazorpayWebhookLog: 'expiresAt',
-  PayUWebhookLog: 'expiresAt',
+  // PayUWebhookLog removed 2026-09-20 with the model; PayU is retired and its
+  // table was deleted from the account.
   // PSTN voice (Plivo), provider-neutral.
   PstnCall: 'expiresAt',
   PstnCallEvent: 'expiresAt',
