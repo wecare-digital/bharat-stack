@@ -307,9 +307,9 @@ response = requests.post(
           
           /* Hero Section */
           .hero{padding:140px 24px 80px;max-width:1300px;margin:0 auto}
-          .hero-content{display:grid;grid-template-columns:1fr 1.4fr;gap:60px;align-items:center}
+          .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
           .hero-left h1{font-size:clamp(34px,4vw,48px);font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px;color:#1a1a1a}
-          .hero-left p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:440px}
+          .hero-left p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:100%}
           .hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
           .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px;min-width:0;transition:all .25s;cursor:default}
           .stat:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
@@ -318,7 +318,7 @@ response = requests.post(
           .stat:hover span{color:#1a3a2a}
           
           /* Platform trust strip */
-          .trust-strip{max-width:1180px;margin:0 auto 28px;padding:8px 24px 0}
+          .trust-strip{max-width:1300px;margin:0 auto 28px;padding:8px 24px 0}
           .trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;overflow:hidden}
           .trust-panel{padding:20px 28px;display:flex;align-items:center;justify-content:center;gap:16px;border:0;color:#1a3a2a}
           .meta-panel{background:#d1f470}
@@ -349,9 +349,9 @@ response = requests.post(
           .msg p{margin:0}
           .msg-time{font-size:12px;color:#667781;display:block;text-align:right;margin-top:3px}
           .typing-indicator{background:#fff;padding:10px 14px;border-radius:8px;align-self:flex-start;display:flex;gap:4px}
-          .typing-indicator span{width:7px;height:7px;background:#90949c;border-radius:50%;animation:bounce 1.4s infinite}
-          .typing-indicator span:nth-child(2){animation-delay:.2s}
-          .typing-indicator span:nth-child(3){animation-delay:.4s}
+          .typing-indicator span{width:7px;height:7px;background:#1a3a2a;border-radius:50%;animation:bounce 1.4s infinite}
+          .typing-indicator span:nth-child(2){background:#86b817;animation-delay:.2s}
+          .typing-indicator span:nth-child(3){background:#c3e85a;animation-delay:.4s}
           @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-3px)}}
 
           /* Code Box */
@@ -366,18 +366,18 @@ response = requests.post(
           .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
           
           /* Section Header */
-          .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 16px;display:flex;flex-direction:column;align-items:center}
+          .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
           .section-header h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
           .section-header p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
-          .touchpoint{padding:60px 24px;background:#fff}
+          .touchpoint{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
           .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
           .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
           .pill:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           
           /* API Section */
-          .api{padding:60px 24px;background:#fff}
+          .api{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
           .api-info h2{font-size:clamp(28px,3vw,38px);font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
           .api-desc{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.65;margin:0}
@@ -389,7 +389,7 @@ response = requests.post(
           .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */
-          .capabilities{padding:60px 24px;background:#fff}
+          .capabilities{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
           .capabilities .section-header{margin-bottom:40px}
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
@@ -401,7 +401,7 @@ response = requests.post(
           .capability-card p{font-size:var(--text-base);color:#6b7280;margin:0;line-height:1.6}
           
           /* CTA Section */
-          .cta-section{padding:60px 24px;text-align:center;background:#fff}
+          .cta-section{padding:60px 24px;max-width:1300px;margin:0 auto;text-align:center;background:#fff}
           .cta-section h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
           .why-section{padding:60px 24px;background:#fbfdfb}
           .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
@@ -425,9 +425,12 @@ response = requests.post(
             .phone{left:16px;top:16px;width:52%}
             .code-box{right:auto;left:12px;bottom:16px;width:55%}
             
+            .section-header{padding:0 20px}
             .section-header h2{font-size:34px}
             .section-header p{font-size:16px}
             
+            .trust-strip{padding:8px 20px 0}
+
             .touchpoint{padding:50px 20px}
             .usecase-pills{gap:10px}
             .pill{padding:12px 22px;font-size:14px}
@@ -537,7 +540,8 @@ response = requests.post(
             .stat span{font-size:20px;min-width:0;white-space:nowrap}
             .stat small{font-size:15px}
             
-            .trust-strip{padding:0 16px}
+            .section-header{padding:0 16px}
+            .trust-strip{padding:8px 16px 0}
             .trust-panel{padding:20px 18px}
             .trust-mark{width:42px;height:42px}
             .trust-copy strong{font-size:20px}

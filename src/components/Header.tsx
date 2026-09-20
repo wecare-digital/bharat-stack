@@ -27,7 +27,7 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
               aria-expanded={ open }
               onClick={ () => setOpen( value => !value ) }
             >
-              <span className="nav-arrow" aria-hidden="true">▼</span>
+              <span className="nav-arrow" aria-hidden="true" />
             </button>
             <nav className={ `nav-menu ${open ? 'open' : ''}` } aria-label="Public navigation">
               <a href="/" className={ `nav-item ${isHome ? 'active' : ''}`.trim() } aria-current={ isHome ? 'page' : undefined }>Home</a>
@@ -47,8 +47,8 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
         .nav-trigger:hover,.nav-trigger:focus-visible{background:rgba(209,244,112,.22);outline:none}
         .nav-trigger:focus-visible{box-shadow:0 0 0 3px rgba(26,58,42,.2)}
         .nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}
-        .nav-arrow{font-size:15px;color:#1a3a2a;transition:transform .2s}
-        .nav-trigger[aria-expanded='true'] .nav-arrow{transform:rotate(180deg)}
+        .nav-arrow{width:7px;height:7px;box-sizing:border-box;margin:0;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
+        .nav-trigger[aria-expanded='true'] .nav-arrow{transform:translateY(2px) rotate(225deg)}
         .nav-menu{position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #d1f470;border-radius:12px;padding:8px 0;min-width:190px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
         .nav-dropdown:hover .nav-menu,.nav-dropdown:focus-within .nav-menu,.nav-menu.open{opacity:1;visibility:visible;transform:translateY(0)}
         .nav-item{display:flex;align-items:center;min-height:46px;padding:0 20px;font-size:20px;font-weight:600;color:#1a3a2a;text-decoration:none}

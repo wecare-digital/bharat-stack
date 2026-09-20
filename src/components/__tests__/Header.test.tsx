@@ -46,7 +46,29 @@ describe( 'Header', () => {
 
     expect( css ).toContain( 'box-sizing:border-box;height:108px' );
     expect( css ).toContain( '@media(max-width:767px){.hdr-in{height:96px' );
-    expect( css ).toContain( '.nav-arrow{font-size:15px;color:#1a3a2a' );
     expect( css ).toContain( ".nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}" );
+
+    // The dropdown control is a CSS-drawn chevron, not a text triangle. The old
+    // literal glyph rendered nothing but a font character, so its shape and
+    // weight varied by platform; two borders on a rotated box do not.
+    const trigger = container.querySelector( 'button' );
+    const arrow = container.querySelector( 'button span' );
+    expect( trigger?.textContent ).toBe( '' );
+    expect( container.textContent ).not.toContain( '▼' );
+    expect( arrow ).not.toBeNull();
+    expect( arrow?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
+
+    // Drawn with two 2px Bharat Stack dark-green borders on a 7px border-box,
+    // rotated 45deg. margin:0 defeats the global .nav-arrow{margin-left:auto}
+    // in Layout.css, which would otherwise push it off centre.
+    expect( css ).toContain( '.nav-arrow{width:7px;height:7px;box-sizing:border-box;margin:0' );
+    expect( css ).toContain( 'border-right:2px solid #1a3a2a' );
+    expect( css ).toContain( 'border-bottom:2px solid #1a3a2a' );
+    expect( css ).toContain( 'transform:translateY(-2px) rotate(45deg)' );
+
+    // Open state is an exact 180deg flip of the shape (45 -> 225), on the same
+    // restrained .2s transition, still keyed off aria-expanded.
+    expect( css ).toContain( ".nav-trigger[aria-expanded='true'] .nav-arrow{transform:translateY(2px) rotate(225deg)}" );
+    expect( css ).toContain( 'transition:transform .2s' );
   } );
 } );
