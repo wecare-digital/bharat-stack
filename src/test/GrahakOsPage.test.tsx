@@ -39,10 +39,13 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'src="/meta-icon.png"' );
   } );
 
-  it( 'renders the two-column Trusted by Meta section', () => {
-    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr' );
+  it( 'renders the Trusted by Meta section as two equal columns matching the page theme', () => {
+    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:1fr 1fr' );
     expect( source ).toContain( '.trust-card{border:2px solid #d1f470;background:#fbfff0' );
+    expect( source ).toContain( '.trust-content{border:2px solid #e5e7eb;background:#fff' );
+    expect( source ).toContain( '.trust-content:hover{border-color:#d1f470;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}' );
     expect( source ).toContain( '.trust-badge{display:inline-block;background:#d1f470' );
+    expect( source ).not.toContain( 'grid-template-columns:minmax(0,360px) 1fr' );
     expect( source ).not.toContain( '.trust-panel{' );
     expect( source ).not.toContain( '.meta-panel{background:#d1f470' );
     expect( source ).not.toContain( '.whatsapp-panel{background:#d1f470' );

@@ -321,15 +321,17 @@ response = requests.post(
           
           /* Trusted by Meta section */
           .trust-strip{max-width:1300px;margin:0 auto 28px;padding:20px 24px 0}
-          .trust-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:40px;align-items:center}
-          .trust-card{border:2px solid #d1f470;background:#fbfff0;border-radius:20px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;gap:20px}
+          .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}
+          .trust-card{border:2px solid #d1f470;background:#fbfff0;border-radius:16px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:all .25s;cursor:default}
+          .trust-card:hover{border-color:#d1f470;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           .trust-logo{display:flex;align-items:center;gap:14px}
           .trust-mark{width:48px;height:48px;flex:0 0 auto;object-fit:contain}
           .meta-mark{color:#0866ff}
           .trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}
           .trust-divider{width:100%;height:1px;background:#d1f470}
           .trust-caption{font-size:18px;font-weight:700;color:#1a3a2a;text-align:center}
-          .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
+          .trust-content{border:2px solid #e5e7eb;background:#fff;border-radius:16px;padding:32px 28px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:16px;min-width:0;transition:all .25s;cursor:default}
+          .trust-content:hover{border-color:#d1f470;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
           .trust-heading{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;color:#1a1a1a;margin:0}
           .trust-subtext{font-size:clamp(16px,1.5vw,18px);line-height:1.6;color:#6b7280;margin:0}
@@ -436,7 +438,7 @@ response = requests.post(
             
             .trust-strip{padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:28px}
-            .trust-content{align-items:flex-start}
+            .trust-content{align-items:flex-start;padding:28px 24px}
 
             .touchpoint{padding:50px 20px}
             .usecase-pills{gap:10px}
@@ -478,6 +480,7 @@ response = requests.post(
             .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:24px}
             .trust-card{padding:28px 22px;gap:16px}
+            .trust-content{padding:28px 22px}
             .trust-mark{width:44px;height:44px}
             .trust-wordmark{font-size:32px}
             .trust-caption{font-size:17px}
@@ -551,6 +554,7 @@ response = requests.post(
             .section-header{padding:0 16px}
             .trust-strip{padding:16px 16px 0}
             .trust-card{padding:24px 18px}
+            .trust-content{padding:24px 18px}
             .trust-mark{width:42px;height:42px}
             .trust-wordmark{font-size:30px}
             .trust-caption{font-size:16px}
