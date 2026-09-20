@@ -18,11 +18,10 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).toContain( '.phone-header{background:#1a3a2a' );
     expect( source ).toContain( '.avatar{width:40px;height:40px;background:#1a3a2a' );
     expect( source ).toContain( '.verified-badge{width:22px;height:22px;background:#1a3a2a' );
-    expect( source ).toContain( '.meta-panel{background:#d1f470' );
-    expect( source ).toContain( '.whatsapp-panel{background:#d1f470' );
+    expect( source ).toContain( '.trust-card{border:2px solid #d1f470;background:#fbfff0' );
     expect( source ).toContain( '.msg.sent{background:#d1f470' );
     expect( source ).toContain( '.tab.active{background:#d1f470;color:#1a3a2a}' );
-    expect( source ).toContain( '.whatsapp-mark{color:#075e54}' );
+    expect( source ).toContain( '.trust-badge{display:inline-block;background:#d1f470' );
     expect( source ).not.toContain( '#2f6b52' );
     expect( source ).not.toContain( '.verified-badge{width:22px;height:22px;background:#075e54' );
     expect( source ).not.toContain( '.meta-panel{background:#d9fbf2' );
@@ -40,17 +39,21 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'src="/meta-icon.png"' );
   } );
 
-  it( 'keeps the flat split credential strip', () => {
-    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0' );
-    expect( source ).toContain( '.meta-panel{background:#d1f470' );
-    expect( source ).toContain( '.whatsapp-panel{background:#d1f470' );
-    expect( source ).not.toContain( 'box-shadow:0 8px 24px' );
+  it( 'renders the two-column Trusted by Meta section', () => {
+    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr' );
+    expect( source ).toContain( '.trust-card{border:2px solid #d1f470;background:#fbfff0' );
+    expect( source ).toContain( '.trust-badge{display:inline-block;background:#d1f470' );
+    expect( source ).not.toContain( '.trust-panel{' );
+    expect( source ).not.toContain( '.meta-panel{background:#d1f470' );
+    expect( source ).not.toContain( '.whatsapp-panel{background:#d1f470' );
   } );
 
-  it( 'keeps the agreed credential wording', () => {
-    expect( source ).toContain( 'Meta Tech Provider' );
-    expect( source ).toContain( 'Technology for WhatsApp business solutions' );
-    expect( source ).toContain( 'Built on WhatsApp Business API' );
-    expect( source ).toContain( 'Cloud API-powered messaging, automation and onboarding' );
+  it( 'uses the agreed Trusted by Meta wording', () => {
+    expect( source ).toContain( 'OFFICIAL META TECH PARTNER' );
+    expect( source ).toContain( '<h2 className="trust-heading">Trusted by Meta</h2>' );
+    expect( source ).toContain( 'Meta Tech Partner' );
+    expect( source ).toContain( 'Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.' );
+    expect( source ).toContain( '<span className="pill">WhatsApp</span>' );
+    expect( source ).toContain( '<span className="pill">Voice</span>' );
   } );
 } );
