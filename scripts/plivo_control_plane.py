@@ -738,8 +738,7 @@ class PlivoControlPlaneService:
         §11 requires +918031830030 to stay on the WECARE-WHATSAPP-IVR Voice
         Application while the Plivo IVR works and Meta remains on Lightsail.
         So the default plan is 'no change', and anything else must be asked for
-        explicitly. (The third original reason, an ElevenLabs trial, no longer
-        applies: that provider was retired 2026-09-20.)
+        explicitly.
         """
         number = self.get_number()
         current_app = (number.get("application") or "").rstrip("/").split("/")[-1]
