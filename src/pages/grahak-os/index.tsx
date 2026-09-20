@@ -274,23 +274,25 @@ response = requests.post(
           <h2>Transform customer engagement with Grahak OS</h2>
         </section>
 
-        <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Platform credentials">
+        <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Trusted by Meta">
           <div className="trust-grid">
-            <div className="trust-panel meta-panel">
-              <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" />
-              <div className="trust-copy">
-                <strong>Meta Tech Provider</strong>
-                <span>Technology for WhatsApp business solutions</span>
+            <div className="trust-card">
+              <div className="trust-logo">
+                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" />
+                <span className="trust-wordmark">Meta</span>
               </div>
+              <div className="trust-divider" />
+              <span className="trust-caption">Meta Tech Partner</span>
             </div>
-            <div className="trust-panel whatsapp-panel">
-              <svg className="trust-mark whatsapp-mark" viewBox="0 0 32 32" role="img" aria-label="WhatsApp">
-                <path d="M16 4.2c-6.5 0-11.8 5-11.8 11.2 0 2 .6 3.9 1.6 5.5L4 27.8l7.1-1.8c1.5.8 3.2 1.2 4.9 1.2 6.5 0 11.8-5 11.8-11.2S22.5 4.2 16 4.2Z" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M11.3 10.8c.4-.8.7-.8 1.2-.8h.4c.3 0 .5.1.7.5l1.2 2.7c.1.3.1.6-.1.9l-.9 1.1c-.2.2-.2.5-.1.8.9 1.8 2.4 3.2 4.2 4.1.3.1.6.1.8-.1l1.1-.9c.3-.2.6-.2.9-.1l2.6 1.2c.4.2.5.4.5.7 0 1.1-.4 2-1.2 2.7-.7.6-1.7.8-2.7.6-2.5-.6-5-2-7.1-4.1-2.1-2.1-3.5-4.6-4.1-7.1-.2-1 .1-2 .7-2.7.6-.7 1.2-1 1.9-1.1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <div className="trust-copy">
-                <strong>Built on WhatsApp Business API</strong>
-                <span>Cloud API-powered messaging, automation and onboarding</span>
+            <div className="trust-content">
+              <span className="trust-badge">OFFICIAL META TECH PARTNER</span>
+              <h2 className="trust-heading">Trusted by Meta</h2>
+              <p className="trust-subtext">Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.</p>
+              <div className="trust-pills">
+                <span className="pill">WhatsApp</span>
+                <span className="pill">SMS</span>
+                <span className="pill">Email</span>
+                <span className="pill">Voice</span>
               </div>
             </div>
           </div>
@@ -317,18 +319,21 @@ response = requests.post(
           .stat small{font-size:14px;color:#6b7280;margin-top:4px;display:block;font-weight:500;line-height:1.35}
           .stat:hover span{color:#1a3a2a}
           
-          /* Platform trust strip */
-          .trust-strip{max-width:1300px;margin:0 auto 28px;padding:8px 24px 0}
-          .trust-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;overflow:hidden}
-          .trust-panel{padding:20px 28px;display:flex;align-items:center;justify-content:center;gap:16px;border:0;color:#1a3a2a}
-          .meta-panel{background:#d1f470}
-          .whatsapp-panel{background:#d1f470}
+          /* Trusted by Meta section */
+          .trust-strip{max-width:1300px;margin:0 auto 28px;padding:20px 24px 0}
+          .trust-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:40px;align-items:center}
+          .trust-card{border:2px solid #d1f470;background:#fbfff0;border-radius:20px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;gap:20px}
+          .trust-logo{display:flex;align-items:center;gap:14px}
           .trust-mark{width:48px;height:48px;flex:0 0 auto;object-fit:contain}
           .meta-mark{color:#0866ff}
-          .whatsapp-mark{color:#075e54}
-          .trust-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
-          .trust-copy strong{font-size:clamp(19px,1.8vw,24px);font-weight:800;line-height:1.15;letter-spacing:-.35px;color:inherit}
-          .trust-copy span{font-size:15px;line-height:1.45;color:#1a3a2a;opacity:.78}
+          .trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}
+          .trust-divider{width:100%;height:1px;background:#d1f470}
+          .trust-caption{font-size:18px;font-weight:700;color:#1a3a2a;text-align:center}
+          .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
+          .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
+          .trust-heading{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;color:#1a1a1a;margin:0}
+          .trust-subtext{font-size:clamp(16px,1.5vw,18px);line-height:1.6;color:#6b7280;margin:0}
+          .trust-pills{display:flex;flex-wrap:wrap;gap:12px}
 
           /* Hero Right - Mockup */
           .hero-right{display:flex;justify-content:center}
@@ -429,7 +434,9 @@ response = requests.post(
             .section-header h2{font-size:34px}
             .section-header p{font-size:16px}
             
-            .trust-strip{padding:8px 20px 0}
+            .trust-strip{padding:16px 20px 0}
+            .trust-grid{grid-template-columns:1fr;gap:28px}
+            .trust-content{align-items:flex-start}
 
             .touchpoint{padding:50px 20px}
             .usecase-pills{gap:10px}
@@ -468,12 +475,13 @@ response = requests.post(
             .stat span{font-size:22px;font-weight:800;min-width:0;white-space:nowrap}
             .stat small{font-size:16px;line-height:1.3;margin:0}
             
-            .trust-strip{margin:0 auto 20px;padding:8px 20px 0}
-            .trust-grid{grid-template-columns:1fr}
-            .trust-panel{padding:18px 20px;justify-content:flex-start;gap:15px}
+            .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
+            .trust-grid{grid-template-columns:1fr;gap:24px}
+            .trust-card{padding:28px 22px;gap:16px}
             .trust-mark{width:44px;height:44px}
-            .trust-copy strong{font-size:22px}
-            .trust-copy span{font-size:15px}
+            .trust-wordmark{font-size:32px}
+            .trust-caption{font-size:17px}
+            .trust-pills{gap:10px}
 
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
             .mockup-wrapper:hover{border-color:#d1f470;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
@@ -541,11 +549,11 @@ response = requests.post(
             .stat small{font-size:15px}
             
             .section-header{padding:0 16px}
-            .trust-strip{padding:8px 16px 0}
-            .trust-panel{padding:20px 18px}
+            .trust-strip{padding:16px 16px 0}
+            .trust-card{padding:24px 18px}
             .trust-mark{width:42px;height:42px}
-            .trust-copy strong{font-size:20px}
-            .trust-copy span{font-size:14px}
+            .trust-wordmark{font-size:30px}
+            .trust-caption{font-size:16px}
 
             .mockup-wrapper{padding:14px;border-radius:14px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
