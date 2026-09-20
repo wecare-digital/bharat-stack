@@ -114,7 +114,7 @@ def test_play_points_at_a_plivo_supported_format():
 
 
 def test_no_tts_or_record_elements():
-    """The IVR is pre-recorded only: no Speak, no Record, no ElevenLabs."""
+    """The IVR is pre-recorded only: no Speak, no Record."""
     body = pa.handler(_event(PLIVO_FORM), None)['body']
     for forbidden in ('<Speak', '<Record', '<GetDigits', '<Dial'):
         assert forbidden not in body
