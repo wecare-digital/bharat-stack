@@ -24,7 +24,6 @@ Usage
 -----
     python scripts/store_provider_secret.py --list
     python scripts/store_provider_secret.py truecaller
-    python scripts/store_provider_secret.py elevenlabs
     python scripts/store_provider_secret.py plivo-sip
     python scripts/store_provider_secret.py meta-whatsapp-sip
     python scripts/store_provider_secret.py plivo-answer --generate
