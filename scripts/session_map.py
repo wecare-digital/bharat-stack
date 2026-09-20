@@ -251,22 +251,38 @@ def git_snapshot(root: str) -> dict:
     if not (Path(root) / ".git").exists():
         return {}
 
-    def run(*args: str) -> str | None:
+    def run(*args: str, strip: bool = True) -> str | None:
         try:
             r = subprocess.run(("git", "-C", root) + args, capture_output=True,
                                text=True, timeout=15)
         except (OSError, subprocess.SubprocessError):
             return None
-        return r.stdout.strip() if r.returncode == 0 else None
+        if r.returncode != 0:
+            return None
+        return r.stdout.strip() if strip else r.stdout
 
-    porcelain = run("status", "--porcelain") or ""
+    # strip=False is load-bearing. `git status --porcelain` encodes staged state
+    # in column X and worktree state in column Y, so an unstaged modification is
+    # " M". Stripping the output eats that leading space on the first line only,
+    # which made exactly one unstaged file report as staged.
+    porcelain = run("status", "--porcelain", strip=False) or ""
     lines = [l for l in porcelain.splitlines() if l.strip()]
+
+    def x(l: str) -> str:
+        return l[0] if l else " "
+
+    def y(l: str) -> str:
+        return l[1] if len(l) > 1 else " "
+
     return {
         "branch": run("rev-parse", "--abbrev-ref", "HEAD"),
         "head": run("rev-parse", "--short", "HEAD"),
         "dirty_files": len(lines),
         "untracked_files": sum(1 for l in lines if l.startswith("??")),
-        "staged_files": sum(1 for l in lines if l[:1] not in (" ", "?")),
+        "staged_files": sum(1 for l in lines
+                            if x(l) not in (" ", "?", "!")),
+        "unstaged_files": sum(1 for l in lines
+                              if y(l) not in (" ", "?", "!")),
     }
 
 
@@ -408,6 +424,7 @@ def render(workspaces: list[Workspace], cli: list[CliSession], cap: dict,
             print(f"    git  branch={g.get('branch')}  head={g.get('head')}  "
                   f"dirty={g.get('dirty_files')} "
                   f"(staged={g.get('staged_files')}, "
+                  f"unstaged={g.get('unstaged_files')}, "
                   f"untracked={g.get('untracked_files')})")
         if not w.sessions:
             print("    no open sessions")
