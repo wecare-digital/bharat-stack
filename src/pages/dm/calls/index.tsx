@@ -82,10 +82,17 @@ const CallsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                 <div className="cv-toolbar">
                     <input className="cv-search" placeholder="Search by contact or number…" value={ search } onChange={ e => setSearch( e.target.value ) } />
                     <select className="cv-filter" value={ provFilter } onChange={ e => setProvFilter( e.target.value ) }>
-                        <option value="all">All providers</option>
-                        <option value="aws">AWS</option>
-                        <option value="airtel">Airtel</option>
+                        {/* Must stay in step with the PROVIDER map above and with
+                            the call_type values put_call_breadcrumb actually
+                            writes. This list offered Airtel (retired, no longer
+                            written) and omitted Plivo, so PSTN calls - the
+                            majority - could not be filtered at all. */}
+                        <option value="all">All channels</option>
+                        <option value="plivo">Phone (PSTN)</option>
                         <option value="whatsapp">WhatsApp</option>
+                        <option value="aws">SMS &amp; Voice</option>
+                        <option value="elevenlabs">Voice AI</option>
+                        <option value="airtel">Archived (historical)</option>
                     </select>
                     <select className="cv-filter" value={ dirFilter } onChange={ e => setDirFilter( e.target.value ) }>
                         <option value="all">All directions</option>

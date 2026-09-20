@@ -229,7 +229,10 @@ export default function OrderNotificationsPage ( { signOut, user }: PageProps ) 
               <div>Phone ID: 1016149501586345</div>
             </div>
             <div>
-              <div style={ { fontWeight: 600, marginBottom: 4 } }>SMS (Airtel IQ)</div>
+              { /* SMS moved off the retired India provider to AWS End User
+                   Messaging; the DLT header/template/entity below are unchanged
+                   because they are TRAI registrations, not provider config. */ }
+              <div style={ { fontWeight: 600, marginBottom: 4 } }>SMS</div>
               <div>Header: WDBEEP</div>
               <div>DLT: 1007723091207562020</div>
               <div>Entity: 1201161991108627443</div>

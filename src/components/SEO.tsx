@@ -78,10 +78,14 @@ export const PAGE_SEO = {
     description: 'Send and receive WhatsApp messages using official Business API. Create templates, send bulk messages, and automate responses.',
     keywords: 'WhatsApp messaging, WhatsApp Business API, WhatsApp templates, bulk WhatsApp, WhatsApp automation'
   },
+  // Public, indexed metadata. Deliberately vendor-neutral: naming the carrier
+  // advertises an implementation detail, dates the page whenever routing
+  // changes, and these entries had outlived two migrations - they still said
+  // "Airtel" (retired) and "Pinpoint" (replaced by AWS End User Messaging).
   sms: {
-    title: 'SMS Messaging - AWS Pinpoint & Airtel',
-    description: 'Send SMS messages via AWS Pinpoint or Airtel. Bulk SMS campaigns, OTP delivery, and transactional messages.',
-    keywords: 'SMS API, bulk SMS, AWS Pinpoint SMS, Airtel SMS, OTP SMS, transactional SMS'
+    title: 'SMS Messaging - Bulk, OTP & Transactional',
+    description: 'Send SMS at scale with DLT-compliant templates. Bulk campaigns, OTP delivery, and transactional messages across India and international routes.',
+    keywords: 'SMS API, bulk SMS, OTP SMS, transactional SMS, DLT SMS India'
   },
   email: {
     title: 'Email Marketing - Amazon SES',
@@ -89,9 +93,9 @@ export const PAGE_SEO = {
     keywords: 'email marketing, Amazon SES, bulk email, email campaigns, transactional email'
   },
   voice: {
-    title: 'Voice Calls - AWS & Airtel',
-    description: 'Make voice calls via AWS or Airtel. Automated voice campaigns, IVR, and voice notifications.',
-    keywords: 'voice calls API, AWS voice, Airtel voice, IVR, voice campaigns, voice notifications'
+    title: 'Voice Calls - IVR, Click-to-Call & Notifications',
+    description: 'Place and receive voice calls with IVR, click-to-call and automated voice notifications, plus full call detail records.',
+    keywords: 'voice calls API, IVR, click to call, voice campaigns, voice notifications, call detail records'
   },
   payments: {
     title: 'Payments - Razorpay Integration',
