@@ -13,7 +13,8 @@ latest versions, accepting breaking changes, with a safe verify/rollback path.
   `aws-cdk-lib` (2.x) are all already on their current major. So "latest" = minor/patch; breakage risk is low.
 - One real issue was **already fixed in `package.json`**: the `overrides` block was pinning
   `fast-xml-parser` to the vulnerable `5.3.4`. It is now `5.9.3` (patched). This takes effect on the next `npm install`.
-- Run `./upgrade-latest.ps1` (Windows) or `./upgrade-latest.sh` (CI/mac/linux) to execute the npm half.
+- Run `./upgrade-latest.sh` to execute the npm half. The PowerShell twin was
+  deleted on 2026-09-20; this repo is maintained on macOS.
 
 ## Current vs latest (verified 2026-06-30)
 
@@ -36,9 +37,9 @@ latest versions, accepting breaking changes, with a safe verify/rollback path.
 ## Phase 1 — Frontend npm upgrade (automated)
 ```bash
 # from stack.wecare.digital/
-./upgrade-latest.sh          # or:  pwsh ./upgrade-latest.ps1
+./upgrade-latest.sh
 # to also force-fix transitive vulns into new majors:
-FORCE=1 ./upgrade-latest.sh  # or:  pwsh ./upgrade-latest.ps1 -Force
+FORCE=1 ./upgrade-latest.sh
 ```
 The script: bumps every direct dep to `@latest`, runs `npm audit fix`, dedupes, reinstalls,
 then `npm run build` and `npm test`. It does **not** commit/push/deploy.

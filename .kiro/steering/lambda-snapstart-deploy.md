@@ -47,14 +47,22 @@ Step 2 is automated by `scripts/snapstart_publish.py`:
 python scripts/snapstart_publish.py                 # all SnapStart functions
 python scripts/snapstart_publish.py wecare-contacts # specific ones
 ```
-The deploy scripts (`_deploy_all.ps1`, `_deploy_changed.ps1`,
-`_deploy_meta_agent.ps1`) already call it at the end. If you deploy a function
-by hand, run the publisher yourself or the API will keep serving old code.
+`scripts/deploy_all_lambdas.py` calls it at the end. If you deploy a function by
+hand, run the publisher yourself or the API will keep serving old code.
+
+There is also a second reason to move the alias, found on 2026-09-20: a function
+caches its secrets on first use, so replacing a value in Secrets Manager does not
+change what a warm sandbox serves. A freshly published version has no warm
+environments. `scripts/refresh_secret_consumers.py <secret-id>` does exactly that
+for every consumer of a secret, and `scripts/check_secrets_live.py` then confirms
+the provider accepts the new value.
 
 ## Which deploy script to use
 
-The `.ps1` scripts are **Windows-only** — they use `\`-separated paths, so they
-cannot run on macOS or Linux. The portable deploy-all is:
+The PowerShell deploy scripts were deleted on 2026-09-20. They were Windows-only
+(`\`-separated paths), so they could never run on this machine, and one of them
+silently dropped the `flows/*.json` definitions from the package. There is one
+deploy-all entrypoint:
 
 ```
 python scripts/deploy_all_lambdas.py             # whole fleet, then publishes

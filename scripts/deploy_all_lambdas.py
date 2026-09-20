@@ -3,21 +3,21 @@ r"""Deploy every zip-packaged Python Lambda in this account. Cross-platform.
 
 Why this exists
 ---------------
-``scripts/_deploy_all.ps1`` and ``scripts/deploy_all.ps1`` are the historical
-deploy-all entrypoints, but they are PowerShell and use ``\``-separated paths,
-so they only run on Windows. On macOS/Linux there was no way to deploy the
-fleet. This script is the portable equivalent and is the one to reach for on a
-non-Windows machine.
+The historical deploy-all entrypoints were PowerShell (``_deploy_all.ps1``,
+``deploy_all.ps1``) and used ``\``-separated paths, so they only ran on Windows.
+On macOS/Linux there was no way to deploy the fleet. This script is the portable
+replacement and, since those scripts were deleted on 2026-09-20, the only one.
 
-It also fixes two defects in the PowerShell versions:
+It also fixed two defects they carried, recorded here because the packages they
+produced are still live:
 
 * ``Compress-Archive`` writes zip entry names with ``\`` separators (visible in
   the live packages for ``wecare-contacts`` and ``wecare-whatsapp-business-api``
   as ``lambda_utils\response.py``). Lambda happens to tolerate it, but
   ``zipfile`` here writes proper ``/`` entries.
-* ``deploy_all.ps1`` copied ``flows\*.py`` only, dropping the ``flows/*.json``
-  flow definitions that ``wecare-whatsapp-business-api`` serves. Extra
-  directories are copied whole here.
+* The PowerShell deploy-all copied ``flows\*.py`` only, dropping the
+  ``flows/*.json`` flow definitions that ``wecare-whatsapp-business-api``
+  serves. Extra directories are copied whole here.
 
 Packaging layout (unchanged from the PowerShell scripts)
 -------------------------------------------------------

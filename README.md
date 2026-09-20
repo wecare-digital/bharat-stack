@@ -102,9 +102,15 @@ All Lambda functions use Python 3.12 runtime with prefix `wecare-*`:
   on its own, e.g. after deploying a function by hand.
 - `scripts/sync_faq.py` - Sync FAQ config to Python + TypeScript
 
-`scripts/deploy_all.ps1` and `scripts/deploy_all.cmd` are **superseded — do not
-use them**. They are PowerShell/CMD with `\`-separated paths, so they cannot run
-on macOS or Linux; they write zip entries with `\` separators; and
-`deploy_all.ps1` copies `flows\*.py` only, dropping the `flows/*.json` flow
-definitions that `wecare-whatsapp-business-api` serves. Full detail in the
-docstring at the top of `scripts/deploy_all_lambdas.py`.
+The PowerShell and CMD deploy scripts were **deleted on 2026-09-20**. They could
+not run on this platform at all (`\`-separated paths), they wrote zip entries with
+`\` separators, and the deploy-all variant copied `flows\*.py` only, dropping the
+`flows/*.json` flow definitions that `wecare-whatsapp-business-api` serves. Keeping
+a broken deploy path in the tree is how someone runs it by mistake.
+`scripts/deploy_all_lambdas.py` is the only deploy-all entrypoint; its docstring
+records what those scripts got wrong. They remain in history if ever needed:
+
+```sh
+git log --diff-filter=D --format=%h -1 -- scripts/deploy_all.ps1   # the deleting commit
+git show <that-sha>~1:scripts/deploy_all.ps1
+```

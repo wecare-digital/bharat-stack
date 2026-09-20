@@ -9,12 +9,14 @@ The HTTP API integrations invoke the **`live` alias**
 ``$LATEST``. A new version must be published and the alias moved.
 
 ``.kiro/steering/lambda-snapstart-deploy.md`` documents this and states that
-this file automates step 2, and that ``_deploy_all.ps1``,
-``_deploy_changed.ps1``, ``_deploy_inbound.ps1`` and ``_deploy_meta_agent.ps1``
-call it at the end. The file was missing from the repository, so that step
-silently no-opped on every deploy: the callers invoke it as
-``python scripts\\_snapstart_publish.py ...`` and the resulting
+this file automates step 2. The PowerShell deploy scripts that used to call it
+were deleted on 2026-09-20; ``scripts/deploy_all_lambdas.py`` calls it now.
+
+Worth remembering why they went: this file had been missing from the repository
+entirely, so the publish step silently no-opped on every one of those deploys.
+They invoked it as ``python scripts\\_snapstart_publish.py ...`` and the
 "can't open file" error was swallowed by ``$ErrorActionPreference = "Continue"``.
+A deploy path that cannot fail loudly is worse than none.
 
 Consequence observed on 2026-08-25: every payment-path `live` alias was still
 pinned to a July version while ``$LATEST`` carried weeks of newer code.

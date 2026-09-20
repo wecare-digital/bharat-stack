@@ -129,7 +129,7 @@ to Sinch SMS.
 | IAM | `amplify/iam-policies.ts:336` |
 | Alarms + log retention | `amplify/backend-resources.ts:182-190` |
 | Data models `AirtelSMS`, TTL config | `amplify/data/resource.ts:317-343` · `amplify/backend.ts:53-57` |
-| Deploy map | `scripts/deploy_all_lambdas.py:159` · `scripts/deploy_all.ps1:112,191` |
+| Deploy map | `scripts/deploy_all_lambdas.py:159` |
 | Dashboard send tab | `src/pages/dm/sms/index.tsx:288-291,688-691` |
 | Steering doc | `.kiro/steering/AIRTEL-IQ-SMS-REPLY-EMAIL.md` |
 | **Plaintext credentials in a docstring** | `sms-in/airtel/handler.py:20-23,49-55` — **SCRUB** |
