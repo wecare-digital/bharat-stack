@@ -524,14 +524,19 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                 # Meta rebuilt the configs on 2026-08-23 and both WABAs now
                 # expose the IDENTICAL pair WECAREDIGITAL / WECAREUPI. The old
                 # 'WECARE-'/'UPIVPA' substring test therefore matched nothing and
-                # always landed on the default below - it only looked like a
-                # decision. Keep the same default, but say so honestly and loudly.
-                originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+                # always landed on Phone 2 - it only looked like a decision.
+                #
+                # The fall-through is now the PRIMARY identity. Phone 2 is
+                # marked `paymentProtected: true` and the UI gates it behind an
+                # admin authorization step before payments may be sent from it,
+                # so defaulting to it server-side bypassed that check.
+                originating_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
                 logger.warning(json.dumps({
-                    'event': 'razorpay_phone_unresolved_using_default',
+                    'event': 'razorpay_phone_unresolved_using_primary',
                     'referenceId': reference_id, 'phoneId': originating_phone_id,
                     'note': 'invoice/Outbound/Inbound lookups all failed; config name '
-                            'cannot identify a WABA',
+                            'cannot identify a WABA. Defaulting to the primary '
+                            'identity; never to the admin-gated secondary.',
                     'requestId': request_id}))
             logger.info(json.dumps({'event': 'razorpay_phone_resolved', 'referenceId': reference_id,
                                     'phoneId': originating_phone_id, 'fromOutbound': bool(resolved_phone),

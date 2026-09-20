@@ -1937,16 +1937,26 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
         # razorpay-webhook._resolve_originating_phone trusts first.
         phone_number_id = invoice.get('awsPhoneNumberId') or invoice.get('phoneNumberId') or ''
         if not phone_number_id:
-            # Nothing authoritative to go on. Keep the long-standing default
-            # rather than guess, but make the fall-through visible - it was
-            # silent before, which is why the dead branch went unnoticed.
-            phone_number_id = 'phone-number-id-waba-t-direct-1055232054343117'  # Phone 2 (default)
+            # Fall back to the PRIMARY identity, not the secondary.
+            #
+            # This default used to be Phone 2. That was wrong on two counts.
+            # Phone 1 (+919330994400, WABA 2094615664435155) is the documented
+            # primary business identity. More importantly Phone 2 is marked
+            # `paymentProtected: true` in src/config/constants.ts, and the UI
+            # gates it behind "Admin authorization required for this number"
+            # before an operator may send payments from it. Defaulting to it
+            # server-side meant any path that omitted a phone id bypassed that
+            # admin check entirely - an authorization inconsistency, not just an
+            # odd choice of sender.
+            phone_number_id = 'phone-number-id-waba1-direct-1016149501586345'  # Phone 1 (primary)
             logger.warning(json.dumps({
-                'event': 'invoice_phone_unresolved_using_default',
+                'event': 'invoice_phone_unresolved_using_primary',
                 'invoiceId': invoice.get('invoiceId', ''),
                 'paymentConfiguration': payment_configuration or invoice.get('paymentConfiguration', ''),
                 'phoneId': phone_number_id,
-                'note': 'config name cannot identify a WABA; both expose WECAREDIGITAL/WECAREUPI',
+                'note': 'config name cannot identify a WABA; both expose '
+                        'WECAREDIGITAL/WECAREUPI. Defaulting to the primary '
+                        'identity; never to the admin-gated secondary.',
             }))
 
     # Build payload for outbound-whatsapp Lambda

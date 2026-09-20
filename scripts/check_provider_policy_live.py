@@ -76,6 +76,16 @@ SINCH_APPROVED_RCS = ("rcs",)
 EXTERNALLY_DEPLOYED = {
     "wecare-seo-tools",      # scripts/deploy_seo_tools.py owns it
     "wecare-docs-scraper",   # PackageType=Image, GitHub Actions
+    # Source recovered from the deployed packages on 2026-09-20 and committed to
+    # amplify/functions/external/elevenlabs/. Deployed out of band; listed here
+    # because the orphan rule is about SOURCE being absent, and it no longer is.
+    # See that directory's README - postcall-sms is an enabled DynamoDB stream
+    # consumer on VoiceCDRTable, which is not discoverable from the write path.
+    "wecare-elevenlabs-call-hooks",
+    "wecare-elevenlabs-enable-mcp",
+    "wecare-elevenlabs-init",
+    "wecare-elevenlabs-mcp",
+    "wecare-elevenlabs-postcall-sms",
 }
 
 # Residue still present. This list only ever shrinks; anything NOT in it fails.
@@ -98,15 +108,15 @@ EXTERNALLY_DEPLOYED = {
 # invocations per 30d), so the fix is to restore their source, not delete them.
 # wecare-temp-code-inspector is a temporary function still in production at 2
 # invocations/30d and wants a decision rather than a default.
+# EMPTY, and it should stay that way. Reaching zero means any retired-provider
+# resource or any unpatchable function that appears from here on FAILS the gate
+# instead of being tolerated as a known exception.
+#
+# wecare-temp-code-inspector was deleted rather than tracked: it accepted an
+# arbitrary `url` from its event, fetched it, unzipped it and grepped the
+# contents - an SSRF primitive in production with no source and no owner.
 KNOWN_RESIDUE = {
-    "lambda": {
-        "wecare-temp-code-inspector",
-        "wecare-elevenlabs-call-hooks",
-        "wecare-elevenlabs-enable-mcp",
-        "wecare-elevenlabs-init",
-        "wecare-elevenlabs-mcp",
-        "wecare-elevenlabs-postcall-sms",
-    },
+    "lambda": set(),
     "route": set(),
     "table": set(),
     "secret": set(),

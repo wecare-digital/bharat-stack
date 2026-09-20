@@ -1,5 +1,6 @@
 /**
- * Voice-IN Page - Airtel IQ Voice Integration
+ * Voice-IN Page - voice call records, text-to-speech and audio library.
+ * Outbound dialling here is retired; PSTN voice is the Plivo softphone.
  * Tabs: Click-to-Call (C2C), OBD Campaigns, Call Detail Records (CDR)
  */
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,7 +19,8 @@ interface C2CCall { callId: string; fromNumber: string; toNumber: string; caller
 interface OBDCampaign { id: string; airtelCampaignId: string; campaignName: string; status: string; audioUrl: string; contactCount?: number; createdAt: number; }
 interface CDRRecord {
   id: string; vmSessionId: string; clientCorrelationId: string;
-  // Airtel CDR Spec Section 2 - Standard 16 fields
+  // The original 16-column CDR layout. Retained because historical rows still
+  // populate these fields; Plivo rows are normalised into the same shape.
   date: string; time: string; callId: string; callerId: string;
   callerNumber: string; destinationCli: string; destinationNumber: string;
   callerWaitingTime: string; conversationDuration: string;
@@ -161,7 +163,9 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
       if ( result.success )
       {
         const convMsg = result.converted ? ` (converted: ${result.conversionReport})` : '';
-        toast.success( `Audio "${file.name}" saved to library${result.airtelAudioUrl ? ' + Airtel' : ''}${convMsg}` );
+        { /* airtelAudioUrl is the handler's wire field name and is left as-is;
+             only the operator-visible wording is neutral. */ }
+        toast.success( `Audio "${file.name}" saved to library${result.airtelAudioUrl ? ' + prompt upload' : ''}${convMsg}` );
         await loadAudioLibrary();
       } else
       {
@@ -399,7 +403,7 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
                       <tr>
                         <th>Created</th>
                         <th>Campaign</th>
-                        <th>Airtel ID</th>
+                        <th>Session ID</th>
                         <th>Contacts</th>
                         <th>Status</th>
                       </tr>
@@ -545,9 +549,9 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
                     </tbody>
                   </table>
                   <div className="webhook-info">
-                    <strong>CDR Webhook (Airtel → Us):</strong>
+                    <strong>CDR Webhook (provider &rarr; us):</strong>
                     <code>{ API_BASE }/voice-cdr-webhook</code>
-                    <div style={ { marginTop: '4px', fontSize: '11px', color: '#6b7280' } }>Receives CDRs from Airtel for all call types: direct inbound, C2C, and OBD campaigns</div>
+                    <div style={ { marginTop: '4px', fontSize: '11px', color: '#6b7280' } }>Receives call detail records for all call types. Live PSTN records arrive from the voice network; C2C and OBD rows are historical.</div>
                     <strong style={ { marginTop: '8px', display: 'block' } }>CDR Read API (Dashboard):</strong>
                     <code>{ API_BASE }/voice-cdr-read</code>
                     <div style={ { marginTop: '4px', fontSize: '11px', color: '#6b7280' } }>Read CDRs with filters, stats, and dashboard aggregations (?dashboard=true)</div>
@@ -640,7 +644,7 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
                             { file.formatLabel && <> · { file.formatLabel }</> }
                             { file.airtelCompliant !== undefined && (
                               <span className={ `audio-compliance ${file.airtelCompliant ? 'ok' : 'warn'}` }>
-                                { file.airtelCompliant ? ' ✓ Airtel OK' : ' ⚠ Non-compliant' }
+                                { file.airtelCompliant ? ' ✓ Telephony-ready' : ' ⚠ Non-compliant' }
                               </span>
                             ) }
                           </span>
@@ -719,11 +723,11 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
               ) }
             </div>
             <div className="info-box">
-              <strong>Airtel OBD:</strong> Info-Only call flow | Audio: 16bit 8kHz Mono WAV (auto-converted) | TRANSACTIONAL<br />
+              <strong>Outbound campaigns (historical):</strong> Info-Only call flow | Audio: 16bit 8kHz Mono WAV (auto-converted) | TRANSACTIONAL<br />
               <strong>Config:</strong> Caller ID: 8040761117 | App: IRONMAN | Flow: dfbeda76<br />
               <strong>Flow:</strong> Upload CSV → Upload Audio (if TTS/custom) → Create Campaign<br />
-              <strong>Audio:</strong> Any WAV/PCM uploaded is auto-validated and converted to Airtel spec. Download link available.
-              { obdAudioSource === 'tts' && <><br /><strong>TTS:</strong> AWS Polly → WAV → Airtel uploadPrompts (auto)</> }
+              <strong>Audio:</strong> Any WAV/PCM uploaded is auto-validated and converted to 16bit 8kHz mono telephony spec. Download link available.
+              { obdAudioSource === 'tts' && <><br /><strong>TTS:</strong> Text-to-speech → WAV → prompt upload (auto)</> }
             </div>
             <div className="modal-actions"><Button variant="secondary" onClick={ () => setShowOBDModal( false ) }>Cancel</Button><Button variant="primary" onClick={ handleOBDCreate } loading={ obdCreating || obdTtsGenerating } disabled={ !obdNumbers || !obdCampaignName || ( obdAudioSource === 'tts' && !obdTtsText.trim() ) || ( obdAudioSource === 'upload' && !obdAudioFile ) || ( obdAudioSource === 'library' && !obdSelectedLibraryFile ) }>{ obdTtsGenerating ? 'Generating...' : 'Create' }</Button></div>
           </div>
@@ -886,7 +890,7 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
 
   return (
     <Layout user={ user } onSignOut={ signOut }>
-      <SEO title="Voice-IN | Airtel IQ" description="Voice calls via Airtel IQ" />
+      <SEO title="Voice-IN | Call Records" description="Call detail records, text-to-speech and audio library" />
       { pageContent }
     </Layout>
   );

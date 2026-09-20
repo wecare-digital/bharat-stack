@@ -239,8 +239,8 @@ export default function OrderNotificationsPage ( { signOut, user }: PageProps ) 
               <div>Type: SERVICE_IMPLICIT</div>
             </div>
             <div>
-              <div style={ { fontWeight: 600, marginBottom: 4 } }>RCS (Sinch)</div>
-              <div>Provider: Sinch Conversation API</div>
+              <div style={ { fontWeight: 600, marginBottom: 4 } }>RCS</div>
+              <div>Channel: RCS Business Messaging (India)</div>
               <div>Status: Wired — activate with SINCH_RCS_ENABLED=true</div>
               <div>Credential: Secrets Manager (India RCS)</div>
               <div>Channels: CDR calls, WA calls, Orders</div>

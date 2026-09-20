@@ -58,7 +58,7 @@ const RcsSendPage: React.FC<PageProps> = ( { embedded } ) => {
     return (
         <div style={ { padding: '16px', maxWidth: 600 } }>
             <div style={ { background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13 } }>
-                <strong>Sinch RCS</strong> — Project: c8114d03 | App: 01KQSB792X | Bot: WECARE.DIGITAL (Transactional)
+                <strong>RCS Channel</strong> — Project: c8114d03 | App: 01KQSB792X | Bot: WECARE.DIGITAL (Transactional)
             </div>
 
             <div style={ { marginBottom: 12 } }>
