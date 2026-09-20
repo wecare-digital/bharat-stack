@@ -65,6 +65,15 @@ from guard_shell_parse import (  # noqa: E402
     segments as shell_segments,
 )
 
+try:
+    from unattended_mode import audit as _audit, is_waived as _is_waived
+except ImportError:  # guard must never fail closed on a missing helper
+    def _is_waived(kind: str = "") -> bool:
+        return False
+
+    def _audit(*_a, **_k) -> None:
+        return None
+
 HOME = Path.home()
 
 # Derived, not hardcoded, so this guard works unchanged when copied into another
@@ -316,16 +325,26 @@ def decide(raw: str) -> tuple[int, str]:
         )
 
     if asks:
+        reasons = "; ".join(dict.fromkeys(asks))
+
+        # Unattended mode converts this tier from a prompt into a recorded
+        # auto-approval, so a long run does not stall. The hard-block tier above
+        # has already returned and is never waived. See scripts/unattended_mode.py.
+        if _is_waived("aws_destructive_delete"):
+            cmd = next(iter(find_commands(payload)), "")
+            _audit("auto_approved_destructive_aws", reasons, cmd)
+            return 0, ""
+
         return 0, json.dumps({
             "hookSpecificOutput": {
                 "permissionDecision": "ask",
                 "permissionDecisionReason": (
-                    "Destructive AWS operation: "
-                    + "; ".join(dict.fromkeys(asks))
+                    "Destructive AWS operation: " + reasons
                     + ". Project steering requires pointwise confirmation for "
                       "deleting a secret, bucket, Lambda, table, queue or topic, "
                       "and for IAM or KMS changes. Account 775261844268, "
-                      "us-east-1."
+                      "us-east-1. To run unattended instead, enable the recorded "
+                      "mode: python scripts/unattended_mode.py on --reason '...'"
                 ),
             }
         })
@@ -418,6 +437,14 @@ PASS_CASES = [
 
 
 def self_test() -> int:
+    # Isolate from the machine's real unattended flag. Without this the ask-tier
+    # cases fail whenever unattended mode happens to be on, which tests the
+    # operator's current state rather than this guard's logic.
+    global _is_waived, _audit
+    real_is_waived = _is_waived
+    _is_waived = lambda kind="": False          # noqa: E731
+    _audit = lambda *a, **k: None               # noqa: E731
+
     failures = 0
     for cmd in BLOCK_CASES:
         code, _ = decide(json.dumps({"command": cmd}))
@@ -429,6 +456,20 @@ def self_test() -> int:
         ok = code == 0 and "permissionDecision" in msg
         failures += not ok
         print(f"  {'ok  ' if ok else 'FAIL'}  ask    {cmd}")
+
+    # With the mode ON, the ask tier must auto-approve and the block tier must not.
+    _is_waived = lambda kind="": kind == "aws_destructive_delete"   # noqa: E731
+    for cmd in ASK_CASES:
+        code, msg = decide(json.dumps({"command": cmd}))
+        ok = code == 0 and not msg
+        failures += not ok
+        print(f"  {'ok  ' if ok else 'FAIL'}  unatt-allow  {cmd}")
+    for cmd in BLOCK_CASES[:6]:
+        code, _ = decide(json.dumps({"command": cmd}))
+        ok = code == 2
+        failures += not ok
+        print(f"  {'ok  ' if ok else 'FAIL'}  unatt-block  {cmd}")
+    _is_waived = real_is_waived
     for cmd in PASS_CASES:
         code, msg = decide(json.dumps({"command": cmd}))
         ok = code == 0 and not msg
@@ -440,8 +481,8 @@ def self_test() -> int:
         failures += not ok
         label = cmd.split("\n")[0][:64] + ("..." if "\n" in cmd else "")
         print(f"  {'ok  ' if ok else 'FAIL'}  regr   {label}")
-    total = (len(BLOCK_CASES) + len(ASK_CASES) + len(PASS_CASES)
-             + len(PASS_CASES_REGRESSION))
+    total = (len(BLOCK_CASES) + len(ASK_CASES) * 2 + len(PASS_CASES)
+             + len(PASS_CASES_REGRESSION) + 6)
     print(f"\n{total - failures}/{total} cases passed")
     return 1 if failures else 0
 

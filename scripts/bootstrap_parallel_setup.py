@@ -58,12 +58,25 @@ GUARD_SCRIPTS = [
     "session_map.py",
     "apply_unattended_permissions.py",
     "bootstrap_parallel_setup.py",
+    "unattended_mode.py",
 ]
 HOOK_FILES = [
     "block-inline-secrets.json",
     "block-broad-git-staging.json",
     "block-catastrophic.json",
+    "heal-parallel-setup.json",
 ]
+
+# MCP servers whose autoApprove must be populated, or a long run stops on the
+# first tool call. Empty arrays were the last remaining prompt source.
+MCP_EXPECTED_TOOLS = {
+    "aws-mcp": 8,
+    "google-cloud": 1,
+    # devtools_signout is deliberately withheld - an agent signing the session out
+    # mid-run is exactly the failure an unattended setup must not have. Two more
+    # are in disabledTools, so 9 of 12 is the correct full state.
+    "devtools": 9,
+}
 AGENT_FILES = ["fleet-lead.json", "fleet-worker.json"]
 STEERING_FILES = ["multi-session-parallel-agents.md"]
 
@@ -153,6 +166,44 @@ def check(repo: Path) -> list[tuple[str, bool, str]]:
                     pass
     results.append(("stale session locks", not stale,
                     "none" if not stale else f"{len(stale)} from dead pids"))
+
+    # MCP autoApprove - empty arrays prompt on every tool call.
+    for cfg_path in (KIRO / "settings/mcp.json", repo / ".kiro/settings/mcp.json"):
+        if not cfg_path.is_file():
+            continue
+        try:
+            servers = (json.loads(cfg_path.read_text()) or {}).get("mcpServers", {})
+        except (OSError, json.JSONDecodeError) as e:
+            results.append((f"mcp {cfg_path.parent.parent.name}", False, f"unreadable: {e}"))
+            continue
+        for name, scfg in servers.items():
+            if scfg.get("disabled"):
+                continue
+            n = len(scfg.get("autoApprove") or [])
+            want = MCP_EXPECTED_TOOLS.get(name)
+            if want is None:
+                results.append((f"mcp {name} autoApprove", n > 0,
+                                f"{n} tools" if n else
+                                "EMPTY - will prompt; tool names unknown, set by hand"))
+            else:
+                results.append((f"mcp {name} autoApprove", n >= want,
+                                f"{n}/{want} tools"))
+
+    # Unattended mode - reported, never auto-enabled. Enabling is a human decision.
+    sys.path.insert(0, str(repo / "scripts"))
+    try:
+        import unattended_mode
+        import importlib
+        importlib.reload(unattended_mode)
+        st = unattended_mode.read_state()
+        on = bool(st.get("enabled"))
+        detail = st.get("reason", "")
+        if on and st.get("expires_in_hours") is not None:
+            detail = f"active, expires in {st['expires_in_hours']}h"
+        results.append(("unattended mode", True,
+                        f"{'ON' if on else 'OFF'} - {detail}"))
+    except Exception as e:  # never fail the whole check on this
+        results.append(("unattended mode", True, f"not determinable: {str(e)[:60]}"))
 
     return results
 
