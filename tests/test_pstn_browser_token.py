@@ -24,7 +24,9 @@ if str(SHARED) not in sys.path:
 
 from lambda_utils.pstn import browser_token as bt  # noqa: E402
 
-AUTH_ID = "MAMMI3YZIWYTETOTVJOC"
+AUTH_ID = "MAEXAMPLEAUTHID00000"  # placeholder; the real auth id is an
+                                 # account identifier, not a secret, but a test
+                                 # has no need of the real one
 AUTH_TOKEN = "not-a-real-token"
 ENDPOINT = "wecarewaivr203331794466262"
 APP_ID = "12775976954213184"
