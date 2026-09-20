@@ -63,6 +63,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
 
+        # Authenticate anything that arrived through API Gateway. require_auth
+        # exempts internal Lambda-to-Lambda invokes by testing for an API Gateway
+        # request context (apiId / domainName / http.sourceIp - injected by the
+        # gateway, not settable by a caller), so the synthetic events built by
+        # lambda_utils.comms.notify keep working while the public route stops
+        # being anonymous. This endpoint had NO auth at either layer.
+        from lambda_utils.middleware import require_auth
+        _auth = require_auth(event)
+        if _auth is not None:
+            return _auth
+
         # DELETE /voice-aws/clear-logs
         if http_method == 'DELETE' and 'clear-logs' in path:
             return _clear_logs(request_id)

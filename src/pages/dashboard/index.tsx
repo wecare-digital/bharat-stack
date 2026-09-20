@@ -905,7 +905,7 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
             {
               const msgs = await api.listSmsAwsMessages();
               if ( msgs.length === 0 ) break;
-              for ( const m of msgs ) { try { await fetch( `${API_BASE}/sms-aws/messages/${m.messageId}`, { method: 'DELETE' } ); deleted++; } catch { /* skip */ } }
+              for ( const m of msgs ) { try { await api.authFetch( `${API_BASE}/sms-aws/messages/${m.messageId}`, { method: 'DELETE' } ); deleted++; } catch { /* skip */ } }
             }
           }
         } else if ( id === 'voice_aws' )

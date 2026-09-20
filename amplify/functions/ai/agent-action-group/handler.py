@@ -72,7 +72,20 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
-    
+
+    # Bedrock invokes this DIRECTLY as a Lambda, so its events carry actionGroup /
+    # function / parameters and no API Gateway request context. POST /ai/agent
+    # additionally exposed it over HTTP with NO authentication at either layer,
+    # which meant anyone could drive the action group - and its actions include
+    # sending WhatsApp. require_auth exempts the direct invoke (it tests for an
+    # API Gateway context: apiId / domainName / http.sourceIp, all injected by
+    # the gateway and not settable by a caller) while making the HTTP route
+    # require a signed-in user.
+    from lambda_utils.middleware import require_auth
+    _auth = require_auth(event)
+    if _auth is not None:
+        return _auth
+
     # Get function name or API path
     function_name = event.get('function', '')
     api_path = event.get('apiPath', '')

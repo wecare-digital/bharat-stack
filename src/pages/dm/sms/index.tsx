@@ -231,7 +231,7 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setClearing( true );
     try
     {
-      const res = await fetch( `${API_BASE}/sms-aws/clear-logs`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } } );
+      const res = await api.authFetch( `${API_BASE}/sms-aws/clear-logs`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } } );
       const result = await res.json();
       if ( result.success ) { toast.success( 'Cleared logs' ); await loadAwsData(); }
       else toast.error( result.error || 'Failed' );
@@ -243,7 +243,7 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setTemplatesLoading( true );
     try
     {
-      const res = await fetch( `${API_BASE}/sms-aws/dlt-templates` );
+      const res = await api.authFetch( `${API_BASE}/sms-aws/dlt-templates` );
       const data = await res.json();
       setDltTemplates( data.templates || [] );
     } catch ( err ) { console.error( 'Load templates error:', err ); } finally { setTemplatesLoading( false ); }
@@ -257,7 +257,7 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setTplSaving( true );
     try
     {
-      const res = await fetch( `${API_BASE}/sms-aws/dlt-templates`, {
+      const res = await api.authFetch( `${API_BASE}/sms-aws/dlt-templates`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify( { templateId: tplId, name: tplName, content: tplContent, messageType: tplMessageType } )
       } );
@@ -271,7 +271,7 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     if ( !( await confirm( `Delete template ${templateId}?` ) ) ) return;
     try
     {
-      const res = await fetch( `${API_BASE}/sms-aws/dlt-templates?templateId=${templateId}`, { method: 'DELETE' } );
+      const res = await api.authFetch( `${API_BASE}/sms-aws/dlt-templates?templateId=${templateId}`, { method: 'DELETE' } );
       const data = await res.json();
       if ( data.success ) { toast.success( 'Template deleted' ); await loadTemplates(); }
       else toast.error( data.error || 'Failed' );
@@ -291,7 +291,7 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setEditTplSaving( true );
     try
     {
-      const res = await fetch( `${API_BASE}/sms-aws/dlt-templates`, {
+      const res = await api.authFetch( `${API_BASE}/sms-aws/dlt-templates`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify( { templateId: editingTemplate.templateId, name: editTplName, content: editTplContent, messageType: editTplMessageType } )
       } );
@@ -305,7 +305,7 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setSeeding( true );
     try
     {
-      const res = await fetch( `${API_BASE}/sms-aws/dlt-templates?action=seed` );
+      const res = await api.authFetch( `${API_BASE}/sms-aws/dlt-templates?action=seed` );
       const data = await res.json();
       if ( data.success ) { toast.success( data.message || 'Templates seeded' ); await loadTemplates(); }
       else toast.error( data.error || 'Failed' );
@@ -319,7 +319,7 @@ const SmsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     try
     {
       const qs = legacyProvider ? `?provider=${encodeURIComponent( legacyProvider )}` : '';
-      const res = await fetch( `${API_BASE}/sms-aws/legacy-history${qs}` );
+      const res = await api.authFetch( `${API_BASE}/sms-aws/legacy-history${qs}` );
       if ( !res.ok ) throw new Error( `HTTP ${res.status}` );
       const data = await res.json();
       setLegacyMessages( data.messages || [] );
