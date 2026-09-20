@@ -284,7 +284,7 @@ the identical route and fails identically (`docs/WEBHOOK-INVENTORY.md:81-85`).
 matches for `X-Plivo-Signature`, `plivo_signature`, `validate_signature`. Plivo
 genuinely does not sign `answer_url` fetches, but it *does* sign its callbacks —
 and the hangup pass, which is the one that sends SMS, is a callback. HMAC
-verification is implemented for Meta, Razorpay and ElevenLabs, but not Plivo.
+verification is implemented for Meta and Razorpay, but not Plivo.
 
 ---
 
@@ -370,8 +370,7 @@ does not own them. Deployment is:
 
 Routes on HTTP API `zllr9lrg7j` (stage `prod`, AutoDeploy, custom domain
 `https://api.wecare.digital`) are created imperatively by boto3 scripts. The
-canonical pattern is `scripts/register_task12_routes.py` with full rollback, and
-`scripts/create_elevenlabs_webhook.py` is the best-documented example.
+canonical pattern is `scripts/register_task12_routes.py` with full rollback.
 
 **Route capacity:** `meta-business-agent/SETUP.md:31-33` records being blocked on
 a 300-route cap. Measured live on 2026-09-19: **342 routes exist**, so the cap
