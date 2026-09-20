@@ -296,7 +296,6 @@ this explicitly rather than by quietly allowlisting.
 - Token-bearing URLs compare by path and appear only as a fingerprint (3.20).
 - Meta WhatsApp Calling keeps routing to `sip.wecare.digital:5061` on Lightsail
   Asterisk (3.21), and the Lightsail instance keeps existing (3.22).
-- ElevenLabs phone number, agent, inbound enablement and SIP allowlist are used
   as found, with no recreation and no `0.0.0.0/0` (3.23).
 - Sinch India RCS keeps sending through the approved path (3.24).
 - Plivo keeps serving voice, SIP and IVR, and is never used for SMS (3.25).
@@ -1024,8 +1023,7 @@ Property 4: Preservation - Non-SMS channels and the Indian DLT gate
 _For any_ message where the bug condition does NOT hold (`isBugCondition_B`
 returns false), the fixed system SHALL produce the same result as the original,
 preserving Meta WhatsApp Calling to sip.wecare.digital:5061 on Lightsail
-Asterisk, the continued existence of the Lightsail instance, the ElevenLabs phone
-number, agent, inbound enablement and SIP allowlist as found, Sinch as the India
+Asterisk, the continued existence of the Lightsail instance, Sinch as the India
 RCS provider, Plivo for voice, SIP and IVR and never for SMS, the registered
 entity id and sender id on Indian AWS sends with refusal absent an approved DLT
 template, and the origination identity pinned to the registered number rather
