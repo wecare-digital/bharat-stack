@@ -15,10 +15,17 @@ import { colors } from '../../../lib/design-tokens';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
+// Keyed on the `callType` written by put_call_breadcrumb. `plivo` is the current
+// PSTN provider. `airtel` is retained ONLY so historical breadcrumbs keep their
+// label instead of falling through to the generic "Voice" - nothing writes it any
+// more. An unmapped value is not an error, it just renders unlabelled, which is
+// why adding a writer without adding an entry here goes unnoticed.
 const PROVIDER: Record<string, { label: string; fg: string; bg: string }> = {
     aws: { label: 'AWS', fg: '#1d4ed8', bg: '#eff6ff' },
-    airtel: { label: 'Airtel', fg: '#b91c1c', bg: '#fef2f2' },
+    plivo: { label: 'Plivo', fg: '#0e7490', bg: '#ecfeff' },
     whatsapp: { label: 'WhatsApp', fg: '#15803d', bg: '#f0fdf4' },
+    elevenlabs: { label: 'ElevenLabs', fg: '#7c3aed', bg: '#f5f3ff' },
+    airtel: { label: 'Airtel (historical)', fg: '#6b7280', bg: '#f9fafb' },
 };
 const provMeta = ( t?: string ) => PROVIDER[ ( t || '' ).toLowerCase() ] || { label: t || 'Voice', fg: colors.textMuted, bg: colors.bgSecondary };
 

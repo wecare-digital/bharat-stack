@@ -416,37 +416,158 @@ def _send_post_call_sms(caller: str, call_uuid: str, request_id: str) -> None:
                   requestId=request_id)
 
 
+# Plivo CallStatus -> the overallCallStatus vocabulary the CDR readers and the
+# dashboard aggregate on. Without this mapping a Plivo row has no
+# overallCallStatus at all, so it counts as neither answered nor missed and the
+# stats silently under-report.
+_PLIVO_STATUS_TO_OVERALL = {
+    'completed': 'Answered',      # refined below: 0-duration completed is Missed
+    'busy': 'Busy',
+    'no-answer': 'Missed',
+    'noanswer': 'Missed',
+    'failed': 'Missed',
+    'cancel': 'Missed',
+    'canceled': 'Missed',
+    'cancelled': 'Missed',
+    'timeout': 'Missed',
+    'ringing': 'Ringing',
+    'in-progress': 'In Progress',
+}
+
+
+def _plivo_seconds(params: dict) -> int:
+    """Call duration in whole seconds. Plivo sends these as strings."""
+    for key in ('Duration', 'BillDuration', 'ConferenceDuration'):
+        raw = params.get(key)
+        if raw in (None, ''):
+            continue
+        try:
+            return int(float(raw))
+        except (TypeError, ValueError):
+            continue
+    return 0
+
+
+def _plivo_overall_status(params: dict, seconds: int) -> str:
+    """Map Plivo's CallStatus onto the reader's status vocabulary.
+
+    A `completed` call with zero duration was never actually talked on - Plivo
+    reports completed for a normal teardown regardless of whether the callee
+    picked up - so reporting it as Answered would overstate the answer rate.
+    """
+    status = str(params.get('CallStatus') or '').strip().lower()
+    mapped = _PLIVO_STATUS_TO_OVERALL.get(status, '')
+    if mapped == 'Answered' and seconds <= 0:
+        return 'Missed'
+    return mapped or (status.title() if status else '')
+
+
 def _persist_cdr(params: dict, route: str, request_id: str) -> bool:
-    """Final call state into VoiceCDRTable. Never raises."""
+    """Final call state into VoiceCDRTable. Never raises.
+
+    Writes BOTH shapes on purpose.
+
+    The camelCase keys are what every reader and the dashboard actually use
+    (voice-cdr-read._format_record_for_ui, _calculate_stats, and the CDR tab in
+    src/pages/dm/voice-in). Before this, Plivo rows were written only in
+    snake_case, so they were present in the table and invisible in the product:
+    blank caller/destination/status cells, no date (there was no `createdAt`,
+    which is also the sort key, so every Plivo row sorted to 0 and fell off the
+    bottom of a limited page), and they inflated `total` while counting as
+    neither inbound/outbound nor answered/missed.
+
+    The snake_case keys are kept because rows written before this change carry
+    them and nothing rewrites history; dropping them would strip fields off
+    existing rows on any subsequent callback for the same call.
+
+    `source='plivo'` stays the discriminator - this table is shared by Plivo,
+    ElevenLabs and historical Airtel rows.
+    """
     call_uuid = params.get('CallUUID') or ''
     if not call_uuid:
         return False
     now = int(time.time())
+    seconds = _plivo_seconds(params)
+    direction = str(params.get('Direction') or '').strip().lower()
+    # Plivo says 'inbound'/'outbound', sometimes 'outbound-api'. The readers
+    # filter on exactly INBOUND/OUTBOUND.
+    call_type = 'INBOUND' if direction.startswith('in') else (
+        'OUTBOUND' if direction.startswith('out') else '')
+    from_number = params.get('From') or ''
+    to_number = params.get('To') or ''
+    hangup_cause = params.get('HangupCause') or params.get('HangupCauseName') or ''
+    overall = _plivo_overall_status(params, seconds)
+
     item = {
         'id': f'plivo#{call_uuid}',
         'source': 'plivo',
         'route': route,
+
+        # ---- snake_case, retained for rows written before the normalisation ----
         'call_uuid': call_uuid,
-        'from_number': params.get('From') or '',
-        'to_number': params.get('To') or '',
+        'from_number': from_number,
+        'to_number': to_number,
         'direction': params.get('Direction') or '',
         'call_status': params.get('CallStatus') or '',
-        'hangup_cause': params.get('HangupCause') or params.get('HangupCauseName') or '',
+        'hangup_cause': hangup_cause,
         'hangup_source': params.get('HangupSource') or '',
         'duration_seconds': params.get('Duration') or params.get('BillDuration') or '',
         'end_time': params.get('EndTime') or '',
         'received_at': now,
+
+        # ---- camelCase: what the readers, stats and UI bind to ----
+        # createdAt is load-bearing twice over: it is the sort key for both read
+        # paths AND the date fallback when there is no `timestamp` string.
+        'createdAt': Decimal(str(now)),
+        'timestamp': time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(now)),
+        'callerNumber': from_number,
+        'destinationNumber': to_number,
+        'callerId': to_number if call_type == 'INBOUND' else from_number,
+        'callType': call_type,
+        'overallCallStatus': overall,
+        'hangupCause': hangup_cause,
+        'hangupStatus': params.get('HangupSource') or '',
+        'durationSec': Decimal(str(seconds)),
+        'durationMs': Decimal(str(seconds * 1000)),
+        # Plivo bills the whole connected call; there is no separate IVR wait leg
+        # to subtract, so conversation and billable both track duration. Left
+        # explicit rather than derived so a reader does not have to guess.
+        'conversationDurationSec': Decimal(str(seconds)),
+        'conversationDurationMs': Decimal(str(seconds * 1000)),
+        'billableDurationSec': Decimal(str(seconds)),
+        'billableDurationMs': Decimal(str(seconds * 1000)),
+        'callUuid': call_uuid,
+
         'expiresAt': Decimal(str(now + CDR_TTL_SECONDS)),
     }
     try:
         _table().put_item(Item={k: v for k, v in item.items() if v not in ('', None)})
-        return True
     except Exception as exc:  # noqa: BLE001
         log_event(logger, 'plivo_cdr_persist_failed', level='error',
                   callUuid=call_uuid, table=CDR_TABLE,
                   error=f'{type(exc).__name__}: {str(exc)[:160]}',
                   requestId=request_id)
         return False
+
+    # Unified timeline breadcrumb, so a Plivo call also appears on the Calls
+    # page rather than only in the CDR tab. Best-effort: a breadcrumb failure
+    # must not lose the CDR we just stored.
+    try:
+        from lambda_utils.message_store import put_call_breadcrumb
+        put_call_breadcrumb(
+            call_id=f'plivo#{call_uuid}',
+            direction='inbound' if call_type == 'INBOUND' else 'outbound',
+            status=overall,
+            duration=seconds or None,
+            call_type='plivo',
+            phone=from_number if call_type == 'INBOUND' else to_number,
+            recording_url=None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log_event(logger, 'plivo_cdr_breadcrumb_skipped', level='warning',
+                  callUuid=call_uuid, error=type(exc).__name__,
+                  requestId=request_id)
+    return True
 
 
 # --------------------------------------------------------------------------
