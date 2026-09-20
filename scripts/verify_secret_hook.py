@@ -6,6 +6,7 @@ file itself contains no literal that would trip the very guard it tests
 (and no literal that could be recorded anywhere).
 """
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -44,6 +45,41 @@ CASES = [
     ("env var NAME not value", {"command": "RAZORPAY_WEBHOOK_SECRET=wecare/razorpay-webhook python3 app.py"}, 0),
     ("brew install",           {"command": "brew install ffmpeg"}, 0),
     ("empty",                  {}, 0),
+
+    # The MCP route, added 2026-09-20. `aws___run_script` is auto-approved in
+    # ~/.kiro/settings/mcp.json and runs arbitrary Python, so its `code` payload
+    # can carry a literal credential exactly as a shell command can. The guard
+    # script needed no change - extract_text() flattens the whole payload - but
+    # the hook MATCHER had to be widened, and that is the part that can silently
+    # regress. See also test_matcher_covers_mcp().
+    ("mcp run_script openai key in code",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": f"key = '{OAI}'"}, 2),
+    ("mcp run_script razorpay key in code",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": f"RZP_ID = '{RZP}'"}, 2),
+    ("mcp run_script google key in code",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": f"k = '{GK}'"}, 2),
+    ("mcp run_script by-NAME secret work",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='secretsmanager',"
+              " operation_name='DescribeSecret',"
+              " params={'SecretId': 'wecare/razorpay-webhook'})"}, 0),
+    ("mcp run_script ordinary read",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='lambda',"
+              " operation_name='ListFunctions')"}, 0),
+]
+
+# Tool names the guard must actually be wired to. A guard whose matcher does not
+# match is a silent no-op, which is worse than a known gap: the self-test above
+# would still pass, because it invokes the script directly and never consults the
+# matcher. Verified against the `toolName` field recorded in session transcripts.
+MUST_MATCH_TOOLS = [
+    "execute_bash",
+    "control_bash_process",
+    "mcp_aws_mcp_aws___run_script",
 ]
 
 
@@ -56,8 +92,22 @@ def run(payload: dict) -> int:
     return p.returncode
 
 
-def main() -> int:
+def test_matcher_covers_mcp() -> tuple[int, int]:
+    """The matcher is a regex tested against the tool name; prove it fires."""
+    matcher = HOOK["hooks"][0].get("matcher", "")
     ok = bad = 0
+    print(f"matcher under test:\n  {matcher!r}\n")
+    for tool in MUST_MATCH_TOOLS:
+        hit = bool(re.search(matcher, tool)) if matcher else False
+        verdict = "PASS" if hit else "FAIL"
+        ok, bad = (ok + 1, bad) if hit else (ok, bad + 1)
+        print(f"  {verdict}  matcher fires on  {tool}")
+    print()
+    return ok, bad
+
+
+def main() -> int:
+    ok, bad = test_matcher_covers_mcp()
     print(f"hook command under test:\n  {HOOK_CMD}\n")
     for label, payload, want in CASES:
         got = run(payload)

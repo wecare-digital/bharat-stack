@@ -32,7 +32,23 @@ always exists:
   ``aws-agent-rules`` steering forbids it outright, because it pulls the value
   into the transcript. Use
   ``{{resolve:secretsmanager:<name>:SecretString:<key>}}`` or read it inside the
-  Lambda at runtime.
+  Lambda at runtime. Both the aws-cli spelling and the boto3 spelling are
+  refused; see "Two routes" below.
+
+Two routes to the same API
+--------------------------
+Until 2026-09-20 this guard only watched shell commands, and its hook matcher
+only listed ``execute_bash|control_bash_process``. That left the AWS MCP server
+completely unguarded: ``~/.kiro/settings/mcp.json`` auto-approves
+``aws___run_script``, which runs arbitrary Python against live ``wecare-prod``
+credentials, and session transcripts showed 46 such calls already made. In that
+route the forbidden operation looks like
+``call_boto3(service_name="secretsmanager", operation_name="GetSecretValue")``
+or ``client.get_secret_value(...)`` - invisible to shell parsing. An inline
+``python3 -c`` had the same hole.
+
+``check_api_shaped`` closes both. Its tables are derived from the CLI tables so
+the two spellings cannot drift apart.
 * disk-level writes: ``diskutil eraseDisk``, ``dd of=/dev/disk*``, ``mkfs``
 * ``sudo rm -rf``
 
@@ -135,6 +151,55 @@ FORBIDDEN_AWS = {
 
 
 # --------------------------------------------------------------------------- #
+# SDK-shaped equivalents of the two tables above
+# --------------------------------------------------------------------------- #
+# The tables above are spelled the way the *CLI* spells them (`aws
+# secretsmanager get-secret-value`). That is only one of the routes an agent has
+# to these APIs, and until 2026-09-20 it was the only one this guard could see.
+#
+# The gap: `~/.kiro/settings/mcp.json` auto-approves `aws___run_script`, which
+# executes arbitrary Python against live `wecare-prod` boto3 credentials. This
+# hook's matcher listed only `execute_bash|control_bash_process`, so that tool
+# was never even evaluated - and had it been, the operation arrives as
+# `call_boto3(service_name="secretsmanager", operation_name="GetSecretValue")`
+# or `client.get_secret_value(...)`, which no amount of shell parsing will find.
+# Measured the same day from session transcripts: 46 `aws___run_script` calls
+# already made. An inline `python3 -c` in an ordinary shell command had the same
+# hole.
+#
+# Both spellings are DERIVED from the tables above rather than listed a second
+# time, so the CLI tier and the SDK tier cannot drift apart when someone edits
+# one of them.
+
+# `aws s3 rb` is a CLI-only convenience with no matching API operation, and its
+# underlying DeleteBucket is already covered by ("s3api", "delete-bucket").
+# Without this skip the derivation would invent a meaningless `Rb` / `rb` token
+# and `.rb(` would match Ruby-ish attribute access in unrelated code.
+_CLI_ONLY_VERBS = {("s3", "rb")}
+
+
+def _api_forms(cli_verb: str) -> tuple[str, str]:
+    """`get-secret-value` -> (`GetSecretValue`, `get_secret_value`)."""
+    parts = cli_verb.split("-")
+    return "".join(p.capitalize() for p in parts), "_".join(parts)
+
+
+def _build_api_table(cli_table: dict) -> list[tuple[str, str, str, str]]:
+    """[(label, PascalOperation, snake_operation, reason)] from a CLI table."""
+    out: list[tuple[str, str, str, str]] = []
+    for (service, verb), reason in cli_table.items():
+        if (service, verb) in _CLI_ONLY_VERBS:
+            continue
+        pascal, snake = _api_forms(verb)
+        out.append((f"{service}:{pascal}", pascal, snake, reason))
+    return out
+
+
+API_FORBIDDEN = _build_api_table(FORBIDDEN_AWS)
+API_DESTRUCTIVE = _build_api_table(DESTRUCTIVE_AWS)
+
+
+# --------------------------------------------------------------------------- #
 # path handling
 # --------------------------------------------------------------------------- #
 
@@ -190,9 +255,57 @@ def find_commands(payload: object) -> list[str]:
     return found or fallback
 
 
+def all_strings(payload: object) -> str:
+    """Every string anywhere in the payload, joined.
+
+    ``find_commands`` is deliberately selective: it prefers values under a
+    command-ish key and only falls back to everything. That is right for shell
+    parsing and wrong for the SDK check, because `aws___run_script` delivers its
+    Python under ``code`` - which is neither a command key nor reached by the
+    fallback whenever some other string happens to occupy one.
+    """
+    out: list[str] = []
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+        elif isinstance(node, str):
+            out.append(node)
+
+    walk(payload)
+    return "\n".join(out)
+
+
 # --------------------------------------------------------------------------- #
 # checks
 # --------------------------------------------------------------------------- #
+
+
+def check_api_shaped(text: str) -> list[tuple[str, str]]:
+    """Find boto3/SDK-shaped calls to the operations in the two AWS tables.
+
+    Narrow on purpose. Matching a bare operation name anywhere in a string would
+    fire on this file's own documentation and on any commit message describing
+    the guard, so a hit requires call-ish syntax - either a quoted operation
+    name, which is how ``call_boto3`` receives it, or an attribute call, which is
+    how a boto3 client receives it.
+    """
+    out: list[tuple[str, str]] = []
+    for table, severity in ((API_FORBIDDEN, "block"),
+                            (API_DESTRUCTIVE, "ask")):
+        for label, pascal, snake, reason in table:
+            quoted = re.search(rf"""['"]{re.escape(pascal)}['"]""", text)
+            called = re.search(rf"\.{re.escape(snake)}\s*\(", text)
+            if not (quoted or called):
+                continue
+            how = ("operation_name/quoted API name" if quoted
+                   else "boto3 client method call")
+            out.append((severity, f"`{label}` via {how} - {reason}"))
+    return out
 
 def check_segment(segment: str) -> list[tuple[str, str]]:
     """Return [(severity, reason)] for one shell segment.
@@ -313,6 +426,12 @@ def decide(raw: str) -> tuple[int, str]:
         for seg in shell_segments(command):
             for severity, reason in check_segment(seg):
                 (blocks if severity == "block" else asks).append(reason)
+
+    # The SDK route: MCP `aws___run_script`, or an inline `python3 -c`. Scanned
+    # over the whole payload rather than per shell segment, because the code
+    # arrives under `code` and no shell segment will ever contain it.
+    for severity, reason in check_api_shaped(all_strings(payload)):
+        (blocks if severity == "block" else asks).append(reason)
 
     if blocks:
         return 2, (
@@ -435,6 +554,111 @@ PASS_CASES = [
     "echo hello > /tmp/out.txt",
 ]
 
+# SDK-shaped cases. These arrive as a `code` payload from
+# `mcp_aws_mcp_aws___run_script` rather than as a shell command, so they exercise
+# check_api_shaped() and would all have passed silently before 2026-09-20.
+# Payloads are given whole, not as bare command strings, because the key the code
+# sits under is part of what is being tested.
+MCP_BLOCK_PAYLOADS = [
+    ("run_script: GetSecretValue via call_boto3",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "r = await call_boto3(service_name='secretsmanager', "
+              "operation_name='GetSecretValue', "
+              "params={'SecretId': 'wecare/razorpay-webhook'})"}),
+    ("run_script: boto3 client method",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "import boto3\n"
+              "v = boto3.client('secretsmanager')"
+              ".get_secret_value(SecretId='wecare/google-maps')"}),
+    ("run_script: batch form",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='secretsmanager', "
+              "operation_name='BatchGetSecretValue')"}),
+    ("shell python3 -c reaching the same API",
+     {"toolName": "execute_bash",
+      "command": "python3 -c \"import boto3;print(boto3.client("
+                 "'secretsmanager').get_secret_value(SecretId='x'))\""}),
+]
+
+MCP_ASK_PAYLOADS = [
+    ("run_script: DeleteSecret",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='secretsmanager', "
+              "operation_name='DeleteSecret', params={'SecretId': 'x'})"}),
+    ("run_script: delete_function",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "boto3.client('lambda')"
+              ".delete_function(FunctionName='wecare-contacts')"}),
+    ("run_script: DeleteTable",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='dynamodb', "
+              "operation_name='DeleteTable')"}),
+    ("run_script: ScheduleKeyDeletion",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='kms', "
+              "operation_name='ScheduleKeyDeletion', params={'KeyId': 'k'})"}),
+]
+
+# Read-only SDK work must stay silent, and the guard must not trip over prose
+# describing itself - the same class of false positive that made it block its own
+# commit message on 2026-09-20.
+MCP_PASS_PAYLOADS = [
+    ("run_script: ListFunctions",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='lambda', "
+              "operation_name='ListFunctions')"}),
+    ("run_script: GetFunctionConfiguration",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='lambda', "
+              "operation_name='GetFunctionConfiguration', "
+              "params={'FunctionName': 'wecare-contacts'})"}),
+    ("run_script: ListSecrets names only, no value read",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='secretsmanager', "
+              "operation_name='ListSecrets')"}),
+    ("run_script: DescribeSecret metadata is not the value",
+     {"toolName": "mcp_aws_mcp_aws___run_script",
+      "code": "await call_boto3(service_name='secretsmanager', "
+              "operation_name='DescribeSecret', params={'SecretId': 'x'})"}),
+    ("commit message describing this guard must not self-trigger",
+     {"toolName": "execute_bash",
+      "command": "git commit -q -F - <<'MSG'\n"
+                 "guard: cover the aws___run_script route\n\n"
+                 "block_catastrophic now refuses get-secret-value in boto3 form\n"
+                 "as well as the aws-cli spelling, because mcp.json\n"
+                 "auto-approves aws___run_script.\n"
+                 "MSG"}),
+]
+
+
+# Tool names this guard must actually be wired to, verified against the `toolName`
+# field in session transcripts rather than guessed. Checked because every case
+# below invokes decide() directly, so they would all keep passing even if the
+# hook's matcher stopped firing - and a silent no-op guard is worse than a known
+# gap, because nothing reports it.
+MUST_MATCH_TOOLS = [
+    "execute_bash",
+    "control_bash_process",
+    "mcp_aws_mcp_aws___run_script",
+]
+
+
+def check_matcher() -> int:
+    """Confirm the hook matcher fires on every tool this guard must cover."""
+    hook = Path(__file__).resolve().parents[1] / ".kiro/hooks/block-catastrophic.json"
+    failures = 0
+    try:
+        matcher = json.loads(hook.read_text())["hooks"][0].get("matcher", "")
+    except (OSError, json.JSONDecodeError, KeyError, IndexError) as e:
+        print(f"  FAIL  cannot read matcher from {hook}: {e}")
+        return 1
+    print(f"  matcher: {matcher!r}")
+    for tool in MUST_MATCH_TOOLS:
+        hit = bool(re.search(matcher, tool)) if matcher else False
+        failures += not hit
+        print(f"  {'ok  ' if hit else 'FAIL'}  matcher fires on {tool}")
+    return failures
+
 
 def self_test() -> int:
     # Isolate from the machine's real unattended flag. Without this the ask-tier
@@ -445,7 +669,7 @@ def self_test() -> int:
     _is_waived = lambda kind="": False          # noqa: E731
     _audit = lambda *a, **k: None               # noqa: E731
 
-    failures = 0
+    failures = check_matcher()
     for cmd in BLOCK_CASES:
         code, _ = decide(json.dumps({"command": cmd}))
         ok = code == 2
@@ -456,6 +680,18 @@ def self_test() -> int:
         ok = code == 0 and "permissionDecision" in msg
         failures += not ok
         print(f"  {'ok  ' if ok else 'FAIL'}  ask    {cmd}")
+
+    # The SDK route, still with the mode off.
+    for label, payload in MCP_BLOCK_PAYLOADS:
+        code, _ = decide(json.dumps(payload))
+        ok = code == 2
+        failures += not ok
+        print(f"  {'ok  ' if ok else 'FAIL'}  sdk-block  {label}")
+    for label, payload in MCP_ASK_PAYLOADS:
+        code, msg = decide(json.dumps(payload))
+        ok = code == 0 and "permissionDecision" in msg
+        failures += not ok
+        print(f"  {'ok  ' if ok else 'FAIL'}  sdk-ask    {label}")
 
     # With the mode ON, the ask tier must auto-approve and the block tier must not.
     _is_waived = lambda kind="": kind == "aws_destructive_delete"   # noqa: E731
@@ -469,6 +705,20 @@ def self_test() -> int:
         ok = code == 2
         failures += not ok
         print(f"  {'ok  ' if ok else 'FAIL'}  unatt-block  {cmd}")
+
+    # This is the behaviour that is live right now: unattended mode is ON, so an
+    # SDK-shaped destructive delete proceeds with an audit record, while an
+    # SDK-shaped secret read stays refused. The waiver must not leak across tiers.
+    for label, payload in MCP_ASK_PAYLOADS:
+        code, msg = decide(json.dumps(payload))
+        ok = code == 0 and not msg
+        failures += not ok
+        print(f"  {'ok  ' if ok else 'FAIL'}  unatt-sdk-allow  {label}")
+    for label, payload in MCP_BLOCK_PAYLOADS:
+        code, _ = decide(json.dumps(payload))
+        ok = code == 2
+        failures += not ok
+        print(f"  {'ok  ' if ok else 'FAIL'}  unatt-sdk-block  {label}")
     _is_waived = real_is_waived
     for cmd in PASS_CASES:
         code, msg = decide(json.dumps({"command": cmd}))
@@ -481,8 +731,22 @@ def self_test() -> int:
         failures += not ok
         label = cmd.split("\n")[0][:64] + ("..." if "\n" in cmd else "")
         print(f"  {'ok  ' if ok else 'FAIL'}  regr   {label}")
+
+    # Forced off for these. With the mode on, "code 0 and no message" is
+    # ambiguous - it cannot distinguish "correctly silent" from "asked, then
+    # auto-approved", so a false positive would pass unnoticed.
+    _is_waived = lambda kind="": False          # noqa: E731
+    for label, payload in MCP_PASS_PAYLOADS:
+        code, msg = decide(json.dumps(payload))
+        ok = code == 0 and not msg
+        failures += not ok
+        print(f"  {'ok  ' if ok else 'FAIL'}  sdk-pass   {label}")
+    _is_waived = real_is_waived
+
     total = (len(BLOCK_CASES) + len(ASK_CASES) * 2 + len(PASS_CASES)
-             + len(PASS_CASES_REGRESSION) + 6)
+             + len(PASS_CASES_REGRESSION) + 6
+             + len(MCP_BLOCK_PAYLOADS) * 2 + len(MCP_ASK_PAYLOADS) * 2
+             + len(MCP_PASS_PAYLOADS) + len(MUST_MATCH_TOOLS))
     print(f"\n{total - failures}/{total} cases passed")
     return 1 if failures else 0
 
