@@ -171,7 +171,7 @@ def test_nonnumeric_duration_does_not_raise(captured):
 # --------------------------------------------------------------------------
 
 def test_source_stays_plivo_because_the_table_is_shared(captured):
-    """VoiceCDRTable holds Plivo, ElevenLabs and historical Airtel rows.
+    """VoiceCDRTable holds Plivo and historical retired-provider rows.
     `source` is the only discriminator."""
     item = _persist(captured, CallUUID="u12", Direction="inbound",
                     CallStatus="completed", Duration="5")
