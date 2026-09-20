@@ -113,6 +113,17 @@ def publish_and_move(lam, name: str, dry_run: bool, only_stale: bool) -> str:
         print(f"  {name}: cannot read $LATEST, skipping")
         return "failed"
 
+    # A function with no `live` alias is not a failure - it is a documented
+    # deployment model. Nine functions invoke $LATEST directly (see
+    # .kiro/steering/lambda-snapstart-deploy.md), so update_function_code already
+    # reached production and there is no alias to move. Reporting these as failed
+    # meant every fleet deploy ended "failed=7" for reasons unrelated to the
+    # deploy, which trains everyone to ignore the number that matters.
+    if alias_version is None:
+        print(f"  {name}")
+        print(f"    no {ALIAS} alias; invokes $LATEST directly, nothing to move")
+        return "skipped"
+
     already_current = alias_sha is not None and alias_sha == latest_sha
     print(f"  {name}")
     print(f"    alias {ALIAS} -> v{alias_version}   current: {already_current}")
