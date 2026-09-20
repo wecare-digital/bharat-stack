@@ -22,6 +22,24 @@ name: Provider policy
 # that has now completed; using it again would mean a PR that reintroduces a
 # prohibited provider would PASS.
 #
+# SCOPE - read this before quoting "0 findings" as evidence.
+# This gate scans SOURCE ONLY. A clean tree is not a clean AWS account, and the
+# two were conflated once already: on 2026-09-20, with this gate reporting 0
+# findings across 8 rules, wecare-sms-in-airtel was still live in
+# 775261844268 with 528 invocations in 30 days, wired API routes and real
+# inbound Airtel delivery receipts. The retirement commits removed the code;
+# nothing removed the deployed function, its routes, its tables or its secrets.
+#
+# The estate-level assertion lives in scripts/check_provider_policy_live.py. It
+# needs AWS credentials, which this workflow deliberately does not have, so run
+# it locally or from a scheduled job with an OIDC role:
+#
+#     python scripts/check_provider_policy_live.py
+#
+# It also fails on ORPHANED functions - live Lambdas with no source in this repo
+# and absent from deploy_all_lambdas.py, which cannot be patched or audited.
+# There were 9 when it was written.
+#
 # If this job fails on your PR, you have added one of:
 #   * an SMS send through anything other than AWS End User Messaging
 #   * the Sinch transport outside the approved India RCS modules
