@@ -175,7 +175,6 @@ SPECS: List[Spec] = [
     # The DEPLOYED function and its secret still exist and are removed under
     # separate destructive approval.
     Spec("wecare-plivo-answer", "messaging/plivo-answer"),
-    Spec("wecare-elevenlabs-webhook", "messaging/elevenlabs-webhook"),
     # --- messaging / rcs, push, scheduling ---
     Spec("wecare-rcs-send", "messaging/rcs-send"),
     Spec("wecare-rcs-dlr", "messaging/rcs-dlr"),

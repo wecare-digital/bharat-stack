@@ -21,8 +21,6 @@
 #                       current release) hard-pins pydantic-core==2.46.5, so
 #                       `pip list --outdated` reporting 2.49.0 is a false
 #                       positive.
-#   elevenlabs        - TTS client. Not yet used by any handler; needs a layer
-#                       before it can run in Lambda.
 #   facebook_business - Meta's official SDK, targets Graph v26.0. Currently
 #                       unused: every Graph call in this repo is raw urllib in
 #                       lambda_utils/meta_client.py.
@@ -44,7 +42,6 @@ charset-normalizer==3.5.1
 cryptography==50.0.1
 curlify==3.0.0
 decorator==5.3.1
-elevenlabs==2.68.0
 facebook_business==26.0.1
 frozenlist==1.8.0
 google-ads==32.0.0

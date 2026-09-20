@@ -65,7 +65,7 @@ REGION = "us-east-1"
 HTTP_API_ID = "zllr9lrg7j"
 
 # Retired providers. Matched case-insensitively against resource names.
-RETIRED = ("payu", "airtel")
+RETIRED = ("payu", "airtel", "elevenlabs")
 # Sinch is retired for SMS but APPROVED for India RCS, so it needs a narrower
 # rule than a bare substring: flag 'sinch' only when it is not an RCS resource.
 SINCH_APPROVED_RCS = ("rcs",)
@@ -76,16 +76,6 @@ SINCH_APPROVED_RCS = ("rcs",)
 EXTERNALLY_DEPLOYED = {
     "wecare-seo-tools",      # scripts/deploy_seo_tools.py owns it
     "wecare-docs-scraper",   # PackageType=Image, GitHub Actions
-    # Source recovered from the deployed packages on 2026-09-20 and committed to
-    # amplify/functions/external/elevenlabs/. Deployed out of band; listed here
-    # because the orphan rule is about SOURCE being absent, and it no longer is.
-    # See that directory's README - postcall-sms is an enabled DynamoDB stream
-    # consumer on VoiceCDRTable, which is not discoverable from the write path.
-    "wecare-elevenlabs-call-hooks",
-    "wecare-elevenlabs-enable-mcp",
-    "wecare-elevenlabs-init",
-    "wecare-elevenlabs-mcp",
-    "wecare-elevenlabs-postcall-sms",
 }
 
 # Residue still present. This list only ever shrinks; anything NOT in it fails.
@@ -217,8 +207,9 @@ def main() -> int:
     args = ap.parse_args()
 
     print(f"account region : {REGION}")
-    print("rule set       : retired providers = PayU, Airtel, Sinch SMS "
-          "(Sinch RCS India is approved)")
+    print("rule set       : retired providers = "
+          + ", ".join(p.title() for p in RETIRED)
+          + ", Sinch SMS (Sinch RCS India is approved)")
     try:
         untracked, tracked = collect(args.report)
     except (ClientError, BotoCoreError) as exc:

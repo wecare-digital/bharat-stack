@@ -24,7 +24,10 @@ const PROVIDER: Record<string, { label: string; fg: string; bg: string }> = {
     aws: { label: 'AWS', fg: '#1d4ed8', bg: '#eff6ff' },
     plivo: { label: 'Plivo', fg: '#0e7490', bg: '#ecfeff' },
     whatsapp: { label: 'WhatsApp', fg: '#15803d', bg: '#f0fdf4' },
-    elevenlabs: { label: 'ElevenLabs', fg: '#7c3aed', bg: '#f5f3ff' },
+    // elevenlabs and airtel are retired. Their entries stay so HISTORICAL
+    // breadcrumbs keep a label instead of falling through to the generic
+    // "Voice"; nothing writes either value any more.
+    elevenlabs: { label: 'Voice AI (historical)', fg: '#6b7280', bg: '#f9fafb' },
     airtel: { label: 'Airtel (historical)', fg: '#6b7280', bg: '#f9fafb' },
 };
 const provMeta = ( t?: string ) => PROVIDER[ ( t || '' ).toLowerCase() ] || { label: t || 'Voice', fg: colors.textMuted, bg: colors.bgSecondary };
@@ -91,7 +94,7 @@ const CallsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                         <option value="plivo">Phone (PSTN)</option>
                         <option value="whatsapp">WhatsApp</option>
                         <option value="aws">SMS &amp; Voice</option>
-                        <option value="elevenlabs">Voice AI</option>
+                        <option value="elevenlabs">Voice AI (historical)</option>
                         <option value="airtel">Archived (historical)</option>
                     </select>
                     <select className="cv-filter" value={ dirFilter } onChange={ e => setDirFilter( e.target.value ) }>

@@ -736,9 +736,10 @@ class PlivoControlPlaneService:
         """§10: planning only. Never mutates.
 
         §11 requires +918031830030 to stay on the WECARE-WHATSAPP-IVR Voice
-        Application while the Plivo IVR works, Meta remains on Lightsail and
-        ElevenLabs is still being tested. So the default plan is 'no change', and
-        anything else must be asked for explicitly.
+        Application while the Plivo IVR works and Meta remains on Lightsail.
+        So the default plan is 'no change', and anything else must be asked for
+        explicitly. (The third original reason, an ElevenLabs trial, no longer
+        applies: that provider was retired 2026-09-20.)
         """
         number = self.get_number()
         current_app = (number.get("application") or "").rstrip("/").split("/")[-1]
@@ -758,7 +759,7 @@ class PlivoControlPlaneService:
             "target_trunk": target_trunk_id or None,
             "risk": "PRODUCTION ROUTING CUTOVER",
             "requires": "explicit production approval (§10)",
-            "warning": ("§17: an operational ElevenLabs webhook does NOT prove the "
+            "warning": ("§17: an operational provider webhook does NOT prove the "
                         "SIP route works. Verify India-resident SIP termination, "
                         "trunk hostname, signalling, media, TLS, SRTP, codecs, a "
                         "real test call, the post-call webhook and VoiceCDR "

@@ -115,18 +115,6 @@ PROVIDERS: Dict[str, dict] = {
         "consumers": "POST /auth/truecaller/callback - NOT BUILT YET, so nothing "
                      "reads this until that Lambda and route exist",
     },
-    "elevenlabs": {
-        "secret_id": "wecare/elevenlabs",                          # NEW
-        "fields": [
-            Field("api_key", prefix=("sk_",)),
-            Field("phone_number_id", secret=False, note="e.g. phnum_..."),
-            Field("phone_number", secret=False),
-            Field("sip_server_tcp", secret=False),
-            Field("sip_server_tls", secret=False),
-        ],
-        "consumers": "none yet - TTS today is Polly via /whatsapp-voice/tts, "
-                     "/voice-in/obd/tts and /site-language/tts",
-    },
     "plivo-answer": {
         "secret_id": "wecare/plivo-answer",                        # NEW
         "fields": [
