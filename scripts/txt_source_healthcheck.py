@@ -41,6 +41,50 @@ PROVIDERS = {
 }
 
 
+def _git_history_leaks(repo: Path, real: set[str]) -> int:
+    """Scan every blob ever committed for the authorized source's real values.
+
+    A clean working tree proves nothing on a public repo: a value removed in a
+    later commit is still fetchable from the object database forever. Found on
+    2026-09-20, when the Plivo auth id sat in history after the tree had been
+    fixed. Prints object and commit ids only, never a value.
+    """
+    print("\nGit object database (every blob ever committed):")
+    if not (repo / ".git").exists():
+        print("  not a git worktree - skipped")
+        return 0
+    try:
+        listing = subprocess.run(
+            ["git", "cat-file", "--batch-all-objects",
+             "--batch-check=%(objectname) %(objecttype)"],
+            cwd=repo, capture_output=True, text=True, check=True).stdout
+        blobs = [ln.split()[0] for ln in listing.splitlines() if ln.endswith(" blob")]
+        data = subprocess.run(["git", "cat-file", "--batch"], cwd=repo,
+                              input=("\n".join(blobs) + "\n").encode(),
+                              capture_output=True, check=True).stdout
+    except (subprocess.CalledProcessError, OSError) as exc:
+        print(f"  scan failed: {type(exc).__name__}")
+        return 0
+
+    found = 0
+    for v in sorted(real):
+        n = data.count(v.encode())
+        if not n:
+            continue
+        found += n
+        log = subprocess.run(["git", "log", "--all", "--format=%h", "-S", v, "--"],
+                             cwd=repo, capture_output=True, text=True).stdout
+        shas = log.split()[:6]
+        print(f"  LEAK  a real value appears in {n} blob(s); "
+              f"commits that added/removed it: {' '.join(shas) or 'unknown'}")
+    if not found:
+        print(f"  clean - {len(blobs)} blobs scanned, no real value present")
+    else:
+        print("  a history rewrite plus force push is the only way to purge these,")
+        print("  so treat the credential as exposed and rotate it instead.")
+    return found
+
+
 def main() -> int:
     print("=" * 70)
     print("PLAINTEXT CREDENTIAL SOURCE - HEALTH CHECK")
@@ -75,6 +119,12 @@ def main() -> int:
         print(f"In {label+':':16s} {'YES - PROBLEM' if str(TXT).startswith(str(root)) else 'NO  (correct)'}")
 
     # --- duplicate plaintext copies elsewhere ------------------------------
+    # A shape match is not a leak. The repo's own tests deliberately carry
+    # issuer-shaped placeholders (a Plivo auth id has a fixed MA-prefix shape, so
+    # a realistic fixture necessarily looks like one), and counting those as
+    # leaked credentials inflates the number and trains everyone to ignore it.
+    # So every hit is compared against the actual values in the authorized
+    # source and reported in two separate columns.
     print("\nUnexpected plaintext duplicates (same credential, other locations):")
     sm = boto3.client("secretsmanager", region_name=REGION)
     enc_ok = ENC.exists()
@@ -102,8 +152,11 @@ def main() -> int:
         (Path.home() / ".zsh_history", "shell history"),
     ]
     skip = {"node_modules", ".venv", ".next", "__pycache__", "out", ".git"}
-    dupes = 0
+    real_copies = 0
+    shape_only = 0
     pats = [p for p, _, _ in PROVIDERS.values()]
+    # The genuine values, taken from the authorized source itself.
+    real = {v for p in pats for v in re.findall(p, text)}
     for root, label in scan_roots:
         hits = []
         files = [root] if root.is_file() else []
@@ -120,19 +173,32 @@ def main() -> int:
                 t = f.read_text(errors="replace")
             except Exception:  # noqa: BLE001
                 continue
-            n = sum(len(re.findall(p, t)) for p in pats)
-            if n:
-                hits.append((f, n))
-                dupes += n
+            r = s = 0
+            for p in pats:
+                for v in re.findall(p, t):
+                    if v in real:
+                        r += 1
+                    else:
+                        s += 1
+            if r or s:
+                hits.append((f, r, s))
+                real_copies += r
+                shape_only += s
         if hits:
             print(f"  {label}:")
-            for f, n in sorted(hits, key=lambda h: -h[1]):
-                print(f"    {n:4d}  {f}")
+            for f, r, s in sorted(hits, key=lambda h: (-h[1], -h[2])):
+                note = f"real={r:<4d} placeholder={s}"
+                flag = "  <-- LEAK" if r else ""
+                print(f"    {note:26s}  {f}{flag}")
         else:
             print(f"  {label}: clean")
 
+    hist = _git_history_leaks(repo, real)
+
     print(f"\nAUTHORIZED RETAINED PLAINTEXT SOURCE : 1")
-    print(f"UNEXPECTED PLAINTEXT SECRET COPIES   : {dupes}")
+    print(f"UNEXPECTED PLAINTEXT SECRET COPIES   : {real_copies}")
+    print(f"SHAPE-ONLY PLACEHOLDER MATCHES       : {shape_only}  (not leaks)")
+    print(f"REAL VALUES IN GIT OBJECT DATABASE   : {hist}")
 
     # --- synchronization matrix -------------------------------------------
     print("\n" + "=" * 70)
