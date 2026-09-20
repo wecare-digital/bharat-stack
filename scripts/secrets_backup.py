@@ -78,9 +78,19 @@ REQUIRED_SECRET_IDS = [
 
 
 def fp(v: object) -> str:
+    """Identify a value without disclosing any part of it.
+
+    This used to print `v[:4]…v[-2:]`. Six characters of a live credential is
+    still six characters of a live credential, and this function's output goes
+    to a terminal, which goes to `~/.kiro/logs` and the session transcript - the
+    exact path that put four credentials on disk on 2026-09-19. A salted-free
+    sha256 prefix identifies a value across runs just as well, and discloses
+    nothing: it is one-way, and there is no shorter guess than the value itself.
+    """
     if not isinstance(v, str):
         return f"<{type(v).__name__}>"
-    return f"len={len(v)}" + (f" {v[:4]}…{v[-2:]}" if len(v) > 8 else " <short>")
+    digest = hashlib.sha256(v.encode("utf-8")).hexdigest()[:8]
+    return f"len={len(v)} sha256:{digest}"
 
 
 def derive(passphrase: str, salt: bytes) -> bytes:
