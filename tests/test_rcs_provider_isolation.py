@@ -86,12 +86,39 @@ def test_no_lambda_reads_the_sinch_secret_directly():
     assert offenders == []
 
 
-def test_voice_in_cdr_has_no_duplicate_rcs_implementation():
-    body = (FUNCTIONS / "messaging" / "voice-in" / "cdr" / "handler.py").read_text()
-    assert "def _is_rcs_enabled" not in body
-    assert "def _send_rcs_notification" not in body
-    # but it still uses the shared helper
-    assert "from lambda_utils.sinch_rcs import" in body
+def test_voice_in_cdr_ingester_is_gone():
+    """The Airtel CDR ingester carried a duplicate RCS implementation.
+
+    It was first reduced to using the shared helper, then deleted outright on
+    2026-09-20 once it was shown to be unreachable: no routes, no event source
+    mappings, no invocations after its routes were removed, and no Lambda
+    invoking it by name. Deletion is the strongest form of "no duplicate
+    implementation", so this now asserts absence rather than contents.
+    """
+    assert not (FUNCTIONS / "messaging" / "voice-in" / "cdr").exists(), (
+        "the Airtel CDR ingester is back; it was deleted as unreachable and "
+        "previously held a second copy of the RCS send path")
+
+
+def test_no_function_reimplements_the_rcs_helpers():
+    """The invariant the deleted test actually protected, applied fleet-wide.
+
+    Only lambda_utils/sinch_rcs.py may define these. A handler growing its own
+    copy is how the duplicate arose the first time.
+    """
+    offenders = []
+    for handler in FUNCTIONS.rglob("*.py"):
+        if "__pycache__" in str(handler):
+            continue
+        if handler.name == "sinch_rcs.py":
+            continue
+        body = handler.read_text(errors="replace")
+        for marker in ("def _is_rcs_enabled", "def _send_rcs_notification"):
+            if marker in body:
+                offenders.append(f"{handler.relative_to(FUNCTIONS)}: {marker}")
+    assert not offenders, (
+        "RCS helpers reimplemented outside lambda_utils/sinch_rcs.py: "
+        + ", ".join(offenders))
 
 
 # --------------------------------------------------------------------------
