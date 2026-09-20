@@ -8,7 +8,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styles from '../styles/RichTextEditor.module.css';
 import * as api from '../api/client';
 import { generateReferenceId } from '../lib/formatters';
-import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES } from '../config/constants';
+import { PAYMENT_CONFIG, DEFAULT_GSTIN, PAYMENT_PHONES, DEFAULT_PAYMENT_CONFIG } from '../config/constants';
 
 // Payment dialog state
 interface PaymentItem {
@@ -105,7 +105,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     promo: '0',
     express: '0',
     gstin: DEFAULT_GSTIN,
-    paymentMethod: 'WECARE-DIGITAL',
+    paymentMethod: DEFAULT_PAYMENT_CONFIG,
     phoneNumberId: PAYMENT_CONFIG.phoneNumberId,
     orderId: '',
   });
@@ -301,11 +301,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   // Send payment message - ALWAYS use interactive mode from inbox
-  // Config name per phone: WECARE-DIGITAL (9330) / ManishAgarwal_Pay (9903)
+  // Both WABAs expose the identical pair WECAREDIGITAL / WECAREUPI, so the phone
+  // does not change the config name. The old per-phone names (a hyphenated
+  // WECARE-DIGITAL and ManishAgarwal_Pay) were deleted on Meta 2026-08-23 and
+  // would now be rejected with error 136026.
   
   const getPayConfigForPhone = (phoneId: string) => {
     const phone = PAYMENT_PHONES.find(p => p.id === phoneId);
-    return phone?.paymentConfigName || 'WECARE-DIGITAL';
+    return phone?.paymentConfigName || DEFAULT_PAYMENT_CONFIG;
   };
 
   const isPayPhoneLocked = () => {
@@ -376,7 +379,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       if (result) {
         setTemplateMessage(`✓ Payment request sent! Ref: ${paymentForm.referenceId}`);
         setShowPaymentDialog(false);
-        setPaymentForm({ items: [{ name: '', amount: '', quantity: '1', gstRate: '0' }], referenceId: '', promo: '0', express: '0', gstin: DEFAULT_GSTIN, paymentMethod: 'WECARE-DIGITAL', phoneNumberId: PAYMENT_CONFIG.phoneNumberId, orderId: '' });
+        setPaymentForm({ items: [{ name: '', amount: '', quantity: '1', gstRate: '0' }], referenceId: '', promo: '0', express: '0', gstin: DEFAULT_GSTIN, paymentMethod: DEFAULT_PAYMENT_CONFIG, phoneNumberId: PAYMENT_CONFIG.phoneNumberId, orderId: '' });
       } else {
         const connStatus = api.getConnectionStatus();
         setTemplateMessage(`× Failed: ${connStatus.lastError || 'Unknown error'}`);

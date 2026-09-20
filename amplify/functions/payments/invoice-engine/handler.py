@@ -1924,12 +1924,30 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
     # If no phone_number_id was passed (e.g. dashboard send without phone selection),
     # we MUST still pick the right phone. Use the invoice's stored config to infer.
     if not phone_number_id:
-        stored_config = payment_configuration or invoice.get('paymentConfiguration', '')
-        # WABA 1 configs contain 'WECARE-' prefix, WABA 2 configs don't
-        if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
-            phone_number_id = 'phone-number-id-waba1-direct-1016149501586345'  # Phone 1
-        else:
+        # The payment configuration name CANNOT identify the WABA any more. Before
+        # 2026-08-23 WABA1 used hyphenated names (WECARE-DIGITAL, WECARE-UPIVPA)
+        # and WABA2 used its own, so a 'WECARE-'/'UPIVPA' substring test worked.
+        # Meta rebuilt the configs that day and both WABAs now expose the
+        # IDENTICAL pair WECAREDIGITAL / WECAREUPI - neither contains a hyphen and
+        # neither contains 'UPIVPA', so that test matched nothing and every
+        # unresolved invoice fell through to Phone 2 regardless of origin.
+        #
+        # Use the authoritative record instead: awsPhoneNumberId is written onto
+        # the invoice at send time (see the update below), which is the same field
+        # razorpay-webhook._resolve_originating_phone trusts first.
+        phone_number_id = invoice.get('awsPhoneNumberId') or invoice.get('phoneNumberId') or ''
+        if not phone_number_id:
+            # Nothing authoritative to go on. Keep the long-standing default
+            # rather than guess, but make the fall-through visible - it was
+            # silent before, which is why the dead branch went unnoticed.
             phone_number_id = 'phone-number-id-waba-t-direct-1055232054343117'  # Phone 2 (default)
+            logger.warning(json.dumps({
+                'event': 'invoice_phone_unresolved_using_default',
+                'invoiceId': invoice.get('invoiceId', ''),
+                'paymentConfiguration': payment_configuration or invoice.get('paymentConfiguration', ''),
+                'phoneId': phone_number_id,
+                'note': 'config name cannot identify a WABA; both expose WECAREDIGITAL/WECAREUPI',
+            }))
 
     # Build payload for outbound-whatsapp Lambda
     # Determine goods type: use stored value from invoice creation.

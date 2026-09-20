@@ -378,7 +378,7 @@ const ENV_VARS: EnvVar[] = [
   { key: 'PAYU_MERCHANT_SALT (hardcoded)', value: '(in payu-webhook resource.ts)', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU merchant salt committed to git' },
   { key: 'PAYU_MID (hardcoded)', value: '8629516 (in 5+ files)', sensitive: true, category: 'Payments — Hardcoded', risk: 'PayU Merchant ID duplicated across files' },
   { key: 'Razorpay MID (hardcoded)', value: 'acc_HDfub6wOfQybuH', sensitive: true, category: 'Payments — Hardcoded', risk: 'Razorpay account ID in whatsapp-business-api handler' },
-  { key: 'Razorpay UPI VPA (hardcoded)', value: 'wecaredigital83.rzp@icici', sensitive: true, category: 'Payments — Hardcoded', risk: 'UPI VPA in source code' },
+  { key: 'Razorpay UPI VPA (hardcoded)', value: '(retired @icici address; see git history)', sensitive: true, category: 'Payments — Hardcoded', risk: 'UPI VPA in source code' },
   { key: 'PayU UPI VPA (hardcoded)', value: '(in whatsapp-business-api handler)', sensitive: true, category: 'Payments — Hardcoded', risk: 'PayU UPI VPA in source code' },
   { key: 'Airtel API Key (in comment)', value: '(visible in c2c/handler.py comment)', sensitive: true, category: 'Voice — Hardcoded', risk: 'CRITICAL: Airtel HMAC key in code comment' },
   { key: 'Airtel App ID (hardcoded)', value: '(in c2c handler + data schema)', sensitive: true, category: 'Voice — Hardcoded', risk: 'Airtel App ID in multiple files' },

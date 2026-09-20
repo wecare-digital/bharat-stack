@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import Button from '../../../components/ui/Button';
+import { PAYMENT_DETAILS } from '../../../config/constants';
 
 interface PageProps {
   signOut?: () => void;
@@ -43,7 +44,10 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     try {
       // Build a UPI deep link as the primary payment method
       // Format: upi://pay?pa=<VPA>&pn=<Name>&am=<Amount>&cu=INR&tn=<Note>&tr=<RefId>
-      const upiVpa = 'wecaredigital@kotak'; // Razorpay VPA
+      // The payee comes from PAYMENT_DETAILS so it tracks the live WECAREUPI
+      // configuration. It used to be a hardcoded @kotak address that no longer
+      // matches Meta - a wrong payee here does not fail, it collects elsewhere.
+      const upiVpa = PAYMENT_DETAILS.upiVpa;
       const note = encodeURIComponent(description || `Payment ${referenceId}`);
       const payeeName = encodeURIComponent('WECARE.DIGITAL');
       const upiLink = `upi://pay?pa=${upiVpa}&pn=${payeeName}&am=${amount.toFixed(2)}&cu=INR&tn=${note}&tr=${referenceId}`;

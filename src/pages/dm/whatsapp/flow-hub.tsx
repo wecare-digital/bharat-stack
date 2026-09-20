@@ -243,7 +243,7 @@ export default function FlowHubPage ( { embedded }: FlowHubProps ) {
                 <div>
                   <label style={ { display: 'block', marginBottom: '0.25rem', fontWeight: 500 } }>Payment Config Name</label>
                   <input value={ ( regForm as any ).paymentConfigName || '' } onChange={ e => setRegForm( { ...regForm, paymentConfigName: e.target.value } as any ) }
-                    placeholder="WECARE-RAZOR-PAY" style={ { width: '100%', padding: '0.4rem', border: '1px solid #d1d5db', borderRadius: '0.25rem' } } />
+                    placeholder="WECAREDIGITAL" style={ { width: '100%', padding: '0.4rem', border: '1px solid #d1d5db', borderRadius: '0.25rem' } } />
                 </div>
                 <div>
                   <label style={ { display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem' } }>

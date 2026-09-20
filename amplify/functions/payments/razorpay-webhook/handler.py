@@ -518,15 +518,21 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
             if resolved_phone:
                 originating_phone_id = resolved_phone
             else:
-                stored_config = ''
-                try:
-                    stored_config = (_inv or {}).get('paymentConfiguration', '')
-                except Exception:
-                    stored_config = ''
-                if stored_config and ('WECARE-' in stored_config.upper() or 'UPIVPA' in stored_config.upper()):
-                    originating_phone_id = 'phone-number-id-waba1-direct-1016149501586345'
-                else:
-                    originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+                # All three authoritative lookups failed. There is no second
+                # signal to fall back on: the payment configuration name used to
+                # identify the WABA (WABA1 was hyphenated, WABA2 was not), but
+                # Meta rebuilt the configs on 2026-08-23 and both WABAs now
+                # expose the IDENTICAL pair WECAREDIGITAL / WECAREUPI. The old
+                # 'WECARE-'/'UPIVPA' substring test therefore matched nothing and
+                # always landed on the default below - it only looked like a
+                # decision. Keep the same default, but say so honestly and loudly.
+                originating_phone_id = 'phone-number-id-waba-t-direct-1055232054343117'
+                logger.warning(json.dumps({
+                    'event': 'razorpay_phone_unresolved_using_default',
+                    'referenceId': reference_id, 'phoneId': originating_phone_id,
+                    'note': 'invoice/Outbound/Inbound lookups all failed; config name '
+                            'cannot identify a WABA',
+                    'requestId': request_id}))
             logger.info(json.dumps({'event': 'razorpay_phone_resolved', 'referenceId': reference_id,
                                     'phoneId': originating_phone_id, 'fromOutbound': bool(resolved_phone),
                                     'requestId': request_id}))
