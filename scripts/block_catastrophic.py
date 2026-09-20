@@ -66,7 +66,10 @@ from guard_shell_parse import (  # noqa: E402
 )
 
 HOME = Path.home()
-REPO = Path("/Users/wecaredigital/wecare-store")
+
+# Derived, not hardcoded, so this guard works unchanged when copied into another
+# project. The script lives in <repo>/scripts/, so the repo is its grandparent.
+REPO = Path(__file__).resolve().parent.parent
 
 # Deleting any of these breaks the machine, the account, or the project.
 PROTECTED_DIRS = [
