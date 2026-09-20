@@ -392,7 +392,6 @@ export const FUNCTION_POLICIES: Record<string, string[]> = {
   // === Voice (legacy provider — voice-in) ===
   'wecare-voice-in-c2c': [ 'common', 's3' ],   // provider secret no longer read
   'wecare-voice-in-obd': [ 'common', 's3' ],   // provider secret no longer read
-  'wecare-voice-in-cdr': [ 'common', 's3' ],              // CDR webhook (alias route)
   'wecare-voice-cdr-webhook': [ 'common', 's3' ],          // CDR webhook (primary route)
   'wecare-voice-cdr-read': [ 'common' ],
   'wecare-voice-calls-read': [ 'common' ],                  // alias of voice-cdr-read

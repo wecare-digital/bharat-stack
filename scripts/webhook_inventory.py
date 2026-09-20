@@ -87,7 +87,6 @@ ENDPOINTS = [
     ("Sinch (RCS)", "/webhook/sinch-rcs", "POST", "provider callback", "wecare-rcs-dlr"),
     ("Airtel IQ (SMS inbound)", "/sms-in/airtel", "POST", "provider callback", "wecare-sms-in-airtel"),
     ("Airtel IQ (voice C2C)", "/voice-in/c2c", "POST", "provider callback", "wecare-voice-in-c2c"),
-    ("Airtel IQ (voice CDR)", "/voice-in/cdr", "POST", "provider callback", "wecare-voice-in-cdr"),
     ("Airtel IQ (voice OBD)", "/voice-in/obd", "POST", "provider callback", "wecare-voice-in-obd"),
     ("Voice CDR", "/voice-cdr-webhook", "POST", "provider callback", "wecare-voice-cdr-read"),
 ]

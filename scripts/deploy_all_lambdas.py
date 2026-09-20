@@ -166,7 +166,6 @@ SPECS: List[Spec] = [
     Spec("wecare-voice-aws", "messaging/voice-aws"),
     Spec("wecare-voice-in-c2c", "messaging/voice-in/c2c"),
     Spec("wecare-voice-in-obd", "messaging/voice-in/obd"),
-    Spec("wecare-voice-in-cdr", "messaging/voice-in/cdr"),
     Spec("wecare-voice-cdr-read", "messaging/voice-cdr-read"),
     # Removed 2026-09-19: wecare-outbound-voice. It was a pure dialler for a
     # retired India voice provider (click-to-call + outbound dialler) with no

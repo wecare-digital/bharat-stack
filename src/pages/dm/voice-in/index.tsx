@@ -467,8 +467,6 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
                         <th className="hide-mobile">Hangup</th>
                         <th className="hide-mobile">Caller St.</th>
                         <th className="hide-mobile">Dest St.</th>
-                        <th className="hide-mobile">Circle</th>
-                        <th className="hide-mobile">Pulse</th>
                         <th>Rec</th>
                       </tr>
                     </thead>
@@ -489,13 +487,11 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
                             <td className="hide-mobile">{ cdr.hangupCause || cdr.hangupStatus || '-' }</td>
                             <td className="hide-mobile"><span className={ `status-badge ${( cdr.callerStatus || '' ).toLowerCase()}` }>{ cdr.callerStatus || '-' }</span></td>
                             <td className="hide-mobile"><span className={ `status-badge ${( cdr.destinationStatus || '' ).toLowerCase()}` }>{ cdr.destinationStatus || '-' }</span></td>
-                            <td className="hide-mobile">{ cdr.callerCircleName || cdr.circleNameCaller || '-' }</td>
-                            <td className="hide-mobile">{ cdr.pulseCount || '-' }</td>
                             <td>{ ( cdr.recording || cdr.recordingURL || cdr.s3RecordingUrl ) ? <a href={ cdr.recording || cdr.recordingURL || cdr.s3RecordingUrl } target="_blank" rel="noopener noreferrer" className="recording-link">Rec</a> : '-' }</td>
                           </tr>
                           { expandedCdr === cdr.id && (
                             <tr className="cdr-detail-row">
-                              <td colSpan={ 16 } style={ { padding: '12px 16px', background: '#f9fafb', fontSize: '11px' } }>
+                              <td colSpan={ 14 } style={ { padding: '12px 16px', background: '#f9fafb', fontSize: '11px' } }>
                                 <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '8px 16px' } }>
                                   <div><span className="detail-label">Session ID:</span> { cdr.vmSessionId }</div>
                                   <div><span className="detail-label">Call ID:</span> { cdr.callId || cdr.clientCorrelationId }</div>
@@ -510,11 +506,6 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
                                   <div><span className="detail-label">Hangup Detail:</span> { cdr.hangupCauseDetail || '-' }</div>
                                   <div><span className="detail-label">Caller Status Detail:</span> { cdr.callerNumberStatusDetails || '-' }</div>
                                   <div><span className="detail-label">Dest Status Detail:</span> { cdr.destinationNumberStatusDetails || '-' }</div>
-                                  <div><span className="detail-label">Dest Circle:</span> { cdr.circleNameDestination || '-' }</div>
-                                  <div><span className="detail-label">Caller Operator:</span> { cdr.operatorNameCaller || '-' }</div>
-                                  <div><span className="detail-label">Dest Operator:</span> { cdr.operatorNameDestination || '-' }</div>
-                                  <div><span className="detail-label">Retry (Caller):</span> { cdr.retryCountCaller || 0 }</div>
-                                  <div><span className="detail-label">Retry (Dest):</span> { cdr.retryCountDestination || 0 }</div>
                                   <div><span className="detail-label">Setup Time:</span> { cdr.callSetupTimeCaller ? `${cdr.callSetupTimeCaller}ms` : '-' }</div>
                                   <div><span className="detail-label">Participants:</span> { cdr.participantsCount || '-' }</div>
                                   { cdr.campaignId && <div><span className="detail-label">Campaign:</span> { cdr.campaignName || cdr.campaignId }</div> }
@@ -555,7 +546,7 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
                           ) }
                         </React.Fragment>
                       ) ) }
-                      { paginatedData.length === 0 && <tr><td colSpan={ 16 } className="empty-state">{ cdrError ? `CDR Error: ${cdrError}` : 'No CDR records yet' }</td></tr> }
+                      { paginatedData.length === 0 && <tr><td colSpan={ 14 } className="empty-state">{ cdrError ? `CDR Error: ${cdrError}` : 'No CDR records yet' }</td></tr> }
                     </tbody>
                   </table>
                   <div className="webhook-info">
