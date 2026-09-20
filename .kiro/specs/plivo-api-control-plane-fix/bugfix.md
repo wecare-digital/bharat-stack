@@ -41,7 +41,7 @@ violates the `channel == SMS` implies `provider == AWS_END_USER_MESSAGING`
 invariant on every Indian send.
 
 Nothing in this document authorises a number routing cutover, a Zentrunk
-mutation, an ElevenLabs change, a Meta SIP change, or a Lightsail deletion.
+mutation, a Meta SIP change, or a Lightsail deletion.
 
 ### Confirmation of the findings above
 
@@ -291,7 +291,6 @@ Adjacent production paths that are explicitly out of scope.
 
 3.22 WHEN this fix is applied THEN Lightsail SHALL CONTINUE TO exist, because the Meta SIP path still requires it, notwithstanding removal of the Airtel SMS proxy usage.
 
-3.23 WHEN this fix is applied THEN the existing ElevenLabs phone number, agent, inbound enablement and SIP allowlist SHALL CONTINUE TO be used as found, with no recreation and no restoration of 0.0.0.0/0.
 
 3.24 WHEN Sinch is used for India RCS THEN the system SHALL CONTINUE TO send that traffic through the approved RCS path, which remains permitted.
 
