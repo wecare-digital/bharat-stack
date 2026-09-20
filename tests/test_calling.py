@@ -6,6 +6,7 @@ import hashlib
 import time
 from unittest.mock import patch, MagicMock
 from decimal import Decimal
+from pathlib import Path
 import sys
 import os
 
@@ -95,17 +96,36 @@ class TestWebhookVerification:
                 self.verify_webhook = _verify_webhook
 
     def test_valid_verification(self):
-        with patch('handler.VERIFY_TOKEN', 'test_verify'):
+        with patch('handler._get_verify_token', return_value='test_verify'):
             params = {'hub.mode': 'subscribe', 'hub.verify_token': 'test_verify', 'hub.challenge': '12345'}
             result = self.verify_webhook(params, 'req-1')
             assert result['statusCode'] == 200
             assert result['body'] == '12345'
 
     def test_invalid_token(self):
-        with patch('handler.VERIFY_TOKEN', 'test_verify'):
+        with patch('handler._get_verify_token', return_value='test_verify'):
             params = {'hub.mode': 'subscribe', 'hub.verify_token': 'wrong', 'hub.challenge': '12345'}
             result = self.verify_webhook(params, 'req-2')
             assert result['statusCode'] == 403
+
+    def test_no_configured_token_refuses_instead_of_echoing_the_challenge(self):
+        """The old form compared against a possibly-empty module constant, so a
+        request that simply omitted hub.verify_token matched and got the
+        challenge back. Absent configuration must fail closed."""
+        with patch('handler._get_verify_token', return_value=''):
+            params = {'hub.mode': 'subscribe', 'hub.challenge': '12345'}
+            result = self.verify_webhook(params, 'req-3')
+            assert result['statusCode'] == 403
+            assert '12345' not in str(result.get('body', ''))
+
+    def test_token_is_read_from_secrets_manager_not_the_environment(self):
+        """Guards the reason for the change: no VERIFY_TOKEN env var may be read,
+        because that puts the live value in the function configuration."""
+        import handler
+        src = Path(handler.__file__).read_text()
+        assert "os.environ.get('VERIFY_TOKEN'" not in src
+        assert 'os.environ.get("VERIFY_TOKEN"' not in src
+        assert not hasattr(handler, 'VERIFY_TOKEN')
 
 
 class TestCallEventHandling:

@@ -53,9 +53,6 @@ REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 secrets_client = boto3.client('secretsmanager', region_name=REGION)
 
-VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN', '')
-if not VERIFY_TOKEN:
-    logging.getLogger(__name__).warning('VERIFY_TOKEN not set — webhook verification will reject all requests')
 CALL_LOG_TABLE = os.environ.get('CALL_LOG_TABLE', 'stack-wecare-digital-WhatsAppCallingTable')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
@@ -126,6 +123,18 @@ def _get_app_secret(phone_number_id: str = None) -> str:
     return _token_cache.get('app_secret1', '')
 
 
+def _get_verify_token() -> str:
+    """The Meta webhook verify token, read from Secrets Manager on first use.
+
+    It used to come from a VERIFY_TOKEN environment variable, which put the live
+    value in the function configuration, in the console, in deploy logs and in
+    every `get-function-configuration` response. It lives in the same secret this
+    handler already loads, so reading it there costs no extra API call.
+    """
+    _load_meta_secrets()
+    return _token_cache.get('verify_token', '')
+
+
 def _load_meta_secrets():
     """Load tokens + app secrets from Secrets Manager (cached)."""
     if 'loaded' in _token_cache:
@@ -139,6 +148,7 @@ def _load_meta_secrets():
             _token_cache['token2'] = (data.get('access_token_waba2') or data.get('access_token') or '').strip()
             _token_cache['app_secret1'] = (data.get('app_secret') or '').strip()
             _token_cache['app_secret2'] = (data.get('app_secret_waba2') or '').strip()
+            _token_cache['verify_token'] = (data.get('waba_t_verify_token') or '').strip()
         except (json.JSONDecodeError, TypeError):
             _token_cache['token1'] = secret.strip()
             _token_cache['token2'] = secret.strip()
@@ -287,7 +297,16 @@ def _verify_webhook(params: Dict, request_id: str) -> Dict[str, Any]:
     token = params.get('hub.verify_token', '')
     challenge = params.get('hub.challenge', '')
 
-    if mode == 'subscribe' and token == VERIFY_TOKEN:
+    expected = _get_verify_token()
+    if not expected:
+        # Fail closed. The previous form compared against a possibly-empty
+        # constant, so a missing token made `token == VERIFY_TOKEN` true for a
+        # request that simply omitted hub.verify_token, and the challenge was
+        # echoed to anyone who asked.
+        logger.error('No verify token available from Secrets Manager; refusing')
+        return _response(403, {'error': 'Verification unavailable'})
+
+    if mode == 'subscribe' and hmac.compare_digest(token, expected):
         logger.info(f"Webhook verified. Challenge: {challenge}")
         return {
             'statusCode': 200,
