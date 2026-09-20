@@ -78,12 +78,28 @@ EXTERNALLY_DEPLOYED = {
     "wecare-docs-scraper",   # PackageType=Image, GitHub Actions
 }
 
-# Residue present when this gate was introduced (2026-09-20). TRACKED, not OK.
+# Residue still present. This list only ever shrinks; anything NOT in it fails.
+#
+# 2026-09-20 teardown removed all PayU, Airtel and Sinch SMS resources:
+#   11 API routes (9x /sms-in/airtel*, 2x /webhook/sinch-dlr)  -> deleted,
+#      recorded in docs/deleted-routes-20260920-0715.json
+#   wecare-sms-in-airtel, wecare-sinch-dlr, wecare-outbound-voice -> deleted
+#   4 tables (Airtel x3 + PayUWebhookLog) -> deleted, each re-checked
+#      ItemCount==0 immediately before the call
+#   5 secrets -> scheduled for deletion with a 30-day recovery window,
+#      NOT force-deleted, recoverable until 2026-10-20
+# Deployed code for every orphan was archived first
+# (~/.local/share/wecare-orphan-lambda-archive/), so those deletions are
+# reversible despite the source having been removed from this repo.
+#
+# What remains is NOT a retired provider. These are orphans: live Lambdas with
+# no source here, so they cannot be patched, reviewed or redeployed. Five of
+# them are actively serving traffic (postcall-sms 64, mcp 25, enable-mcp 5
+# invocations per 30d), so the fix is to restore their source, not delete them.
+# wecare-temp-code-inspector is a temporary function still in production at 2
+# invocations/30d and wants a decision rather than a default.
 KNOWN_RESIDUE = {
     "lambda": {
-        "wecare-sms-in-airtel",
-        "wecare-sinch-dlr",
-        "wecare-outbound-voice",
         "wecare-temp-code-inspector",
         "wecare-elevenlabs-call-hooks",
         "wecare-elevenlabs-enable-mcp",
@@ -91,23 +107,9 @@ KNOWN_RESIDUE = {
         "wecare-elevenlabs-mcp",
         "wecare-elevenlabs-postcall-sms",
     },
-    "route": {
-        "GET /sms-in/airtel", "POST /sms-in/airtel", "DELETE /sms-in/airtel",
-        "GET /sms-in/airtel/templates", "POST /sms-in/airtel/templates",
-        "PUT /sms-in/airtel/templates", "DELETE /sms-in/airtel/templates",
-        "OPTIONS /sms-in/airtel/templates", "DELETE /sms-in/airtel/clear-logs",
-        "GET /webhook/sinch-dlr", "POST /webhook/sinch-dlr",
-    },
-    "table": {
-        "stack-wecare-digital-AirtelC2CTable",
-        "stack-wecare-digital-AirtelSMSTable",
-        "stack-wecare-digital-SmsInAirtelTable",
-        "stack-wecare-digital-PayUWebhookLogTable",
-    },
-    "secret": {
-        "wecare/airtel-iq", "wecare/airtel/obd", "wecare/airtel/c2c",
-        "wecare/airtel/sms", "wecare/sinch/sms",
-    },
+    "route": set(),
+    "table": set(),
+    "secret": set(),
 }
 
 
