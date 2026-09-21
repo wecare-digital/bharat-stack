@@ -411,8 +411,8 @@ response = requests.post(
              colour rgba(0,0,0,.898). The previous rule used line-height 1.6 and no
              tracking, which is why it still read differently from theirs even once
              the colour matched. */
-          .hero-left p{font-size:clamp(17px,1.45vw,20px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0 0 16px;max-width:48ch}
-          .hero-left p.hero-sub{font-size:clamp(17px,1.45vw,20px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;max-width:48ch}
+          .hero-left p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0 0 16px;max-width:52ch}
+          .hero-left p.hero-sub{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;max-width:52ch}
 
           /* Rotating channel pill in the hero headline (Notion-style). The lime
              tint is a pseudo-element so it can wipe in from the left without
@@ -499,7 +499,7 @@ response = requests.post(
           }
           .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
           .trust-heading{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;color:#1a1a1a;margin:0}
-          .trust-subtext{font-size:clamp(16px,1.5vw,18px);line-height:1.6;color:#6b7280;margin:0}
+          .trust-subtext{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           .trust-pills{display:flex;flex-wrap:wrap;gap:12px}
 
           /* Hero Right - Mockup */
@@ -546,7 +546,7 @@ response = requests.post(
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
           .section-header h2{font-size:clamp(32px,4vw,52px);font-weight:700;line-height:1.1;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
-          .section-header p{font-size:clamp(18px,1.5vw,21px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;margin:0;text-align:center;width:100%}
+          .section-header p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
           .touchpoint{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
@@ -558,7 +558,7 @@ response = requests.post(
           .api{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
           .api-info h2{font-size:clamp(32px,3.6vw,46px);font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
-          .api-desc{font-size:clamp(18px,1.5vw,21px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;margin:0}
+          .api-desc{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
@@ -576,7 +576,7 @@ response = requests.post(
           .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:clamp(20px,1.7vw,26px);font-weight:600;color:#1a1a1a;margin:0 0 8px}
           .capability-card:hover h3{color:#1a3a2a}
-          .capability-card p{font-size:clamp(17px,1.3vw,20px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;margin:0}
+          .capability-card p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           
           /* Why sits on plain white between the two grey canvases; borders and
              body text use the shared hairline/muted pair, not near-miss greens. */
@@ -584,7 +584,7 @@ response = requests.post(
           .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
           .why-item{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
           .why-item strong{font-size:20px;color:#1a3a2a}
-          .why-item span{font-size:16px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px}
+          .why-item span{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400}
 
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
@@ -600,7 +600,6 @@ response = requests.post(
             
             .section-header{padding:0 20px}
             .section-header h2{font-size:34px}
-            .section-header p{font-size:16px}
             
             .trust-strip{padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:28px}
@@ -613,7 +612,7 @@ response = requests.post(
             .api{padding:50px 20px}
             .api-grid{grid-template-columns:1fr;gap:36px;text-align:left}
             .api-info h2{font-size:32px;text-align:left}
-            .api-desc{font-size:16px;max-width:100%;text-align:left}
+            .api-desc{max-width:100%;text-align:left}
             .api-demo{max-width:500px;margin:0}
             
             .capabilities{padding:50px 20px}
@@ -621,7 +620,6 @@ response = requests.post(
             .capability-card{padding:24px 20px}
             .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:16px}
             .capability-card h3{font-size:17px}
-            .capability-card p{font-size:14px}
             
             .why-section{padding:50px 20px}
             .why-grid{grid-template-columns:1fr}
@@ -635,7 +633,7 @@ response = requests.post(
             .hero-right{order:-1;width:100%;display:flex;justify-content:center}
             .hero-left{text-align:left;order:1}
             .hero-left h1{letter-spacing:-1.2px;margin:0 0 20px;line-height:1.1;max-width:100%;text-align:left}
-            .hero-left p{line-height:1.6;margin:0 0 16px;max-width:100%;text-align:left}
+            .hero-left p{margin:0 0 16px;max-width:100%;text-align:left}
             
             .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:24px}
@@ -667,7 +665,7 @@ response = requests.post(
             
             .section-header{margin-bottom:28px;padding:0 20px;text-align:center}
             .section-header h2{font-size:38px;margin-bottom:12px;line-height:1.15;text-align:center}
-            .section-header p{font-size:20px;line-height:1.6;text-align:center}
+            .section-header p{text-align:center}
             
             .touchpoint{padding:44px 20px}
             .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
@@ -677,7 +675,7 @@ response = requests.post(
             .api-grid{gap:36px;text-align:left}
             .api-info{text-align:left}
             .api-info h2{font-size:38px;margin-bottom:16px;text-align:left}
-            .api-desc{font-size:20px;line-height:1.65;max-width:100%;text-align:left}
+            .api-desc{max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
             .tab{padding:14px 24px;font-size:18px}
@@ -689,12 +687,11 @@ response = requests.post(
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
             .cap-icon{width:50px;height:50px;margin-bottom:16px;border-radius:12px;padding:10px}
             .capability-card h3{font-size:24px;margin-bottom:8px;text-align:left}
-            .capability-card p{font-size:18px;text-align:left;line-height:1.5}
+            .capability-card p{text-align:left}
             
             .why-section{padding:44px 20px}
             .why-item{padding:20px}
             .why-item strong{font-size:20px}
-            .why-item span{font-size:18px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
@@ -724,7 +721,6 @@ response = requests.post(
             .code-body{font-size:14px;padding:14px}
             
             .section-header h2{font-size:36px}
-            .section-header p{font-size:22px}
             
             .touchpoint{padding:36px 16px}
             .usecase-pills{gap:10px}
@@ -732,7 +728,7 @@ response = requests.post(
             
             .api{padding:36px 16px}
             .api-info h2{font-size:36px;text-align:left}
-            .api-desc{font-size:22px;text-align:left}
+            .api-desc{text-align:left}
             .code-tabs{gap:8px;padding:14px}
             .tab{padding:12px 20px;font-size:17px}
             .code-block{font-size:14px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
@@ -742,7 +738,7 @@ response = requests.post(
             .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
             .cap-icon{width:48px;height:48px;margin-bottom:14px;padding:9px}
             .capability-card h3{font-size:22px;text-align:left}
-            .capability-card p{font-size:22px;text-align:left}
+            .capability-card p{text-align:left}
             
           }
           
@@ -753,15 +749,12 @@ response = requests.post(
             .hero-left h1{letter-spacing:-.8px}
             
             .section-header h2{font-size:30px}
-            .section-header p{font-size:19px}
             
             .pill{padding:12px 18px;font-size:17px}
             
             .api-info h2{font-size:30px}
-            .api-desc{font-size:19px}
             
             .capability-card h3{font-size:18px}
-            .capability-card p{font-size:18px}
           }
           
           /* ========== LANDSCAPE ORIENTATION FIX ========== */
@@ -783,13 +776,13 @@ response = requests.post(
              rules so a single clamp() governs each size at every width. The hero
              h1 and p are intentionally absent: their base rule is the contract. */
           .section-header h2{font-size:clamp(32px,4vw,52px);line-height:1.1}
-          .section-header p{font-size:clamp(18px,1.5vw,21px);line-height:1.4;letter-spacing:-.125px}
+          .section-header p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .pill{font-size:var(--text-base)}
           .api-info h2{font-size:clamp(32px,3.6vw,46px)}
-          .api-desc{font-size:clamp(18px,1.5vw,21px);line-height:1.4;letter-spacing:-.125px}
+          .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .tab{font-size:15px}
           .capability-card h3{font-size:clamp(20px,1.7vw,26px)}
-          .capability-card p{font-size:clamp(17px,1.3vw,20px);line-height:1.4;letter-spacing:-.125px}
+          .capability-card p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           
           /* ========== REDUCED MOTION ========== */
           @media(prefers-reduced-motion:reduce){
