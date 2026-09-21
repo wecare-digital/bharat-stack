@@ -53,17 +53,28 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).toContain( '.trust-card{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:20px;padding:34px 30px' );
   } );
 
-  it( 'states the Meta partnership once and carries substance, not padding', () => {
+  it( 'keeps the Meta card to the logo and the designation only', () => {
     // One logo lockup, one colour. The wordmark was dark green while the hosted
     // meta-icon.svg renders black, which is what made the lockup look broken.
     expect( source ).toContain( '.trust-wordmark{font-size:32px;font-weight:700;letter-spacing:-1px;color:#000}' );
     expect( source ).not.toContain( '.trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}' );
-    // The card earns its space with what the partnership gives the customer.
-    expect( source ).toContain( '<li>Official Cloud API access</li>' );
-    expect( source ).toContain( '<li>Verified WABA provisioning</li>' );
-    expect( source ).toContain( '<li>Green tick verification support</li>' );
-    // The divider separates identity from substance; it used to split the lockup.
     expect( source ).toContain( '.trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}' );
+    // The card carries the mark and the designation and nothing else. A capability
+    // list was tried here and removed: the claims were unverified, and the card is
+    // a credential rather than a feature panel.
+    expect( source ).not.toContain( 'trust-facts' );
+    expect( source ).not.toContain( 'Official Cloud API access' );
+    expect( source ).not.toContain( 'Verified WABA provisioning' );
+    expect( source ).not.toContain( 'Green tick verification support' );
+  } );
+
+  it( 'makes both halves of the Meta section the same height', () => {
+    // With only a logo and a designation the card is far shorter than the heading,
+    // copy and pills beside it, so centring left it floating as a small box against
+    // a tall column. stretch equalises them; the card centres its own content.
+    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}' );
+    expect( source ).not.toContain( 'grid-template-columns:1fr 1fr;gap:40px;align-items:center' );
+    expect( source ).toContain( 'flex-direction:column;align-items:center;justify-content:center;gap:22px' );
   } );
 
   it( 'renders the Trusted by Meta section as two equal columns with an unboxed right half', () => {

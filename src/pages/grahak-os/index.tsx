@@ -379,16 +379,8 @@ response = requests.post(
                 <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" loading="lazy" />
                 <span className="trust-wordmark">Meta</span>
               </div>
-              <span className="trust-caption">Meta Tech Partner</span>
-              {/* The divider now separates identity from substance, which is a real
-                  boundary. Previously it sat between the wordmark and the caption,
-                  splitting one lockup in half for decoration. */}
               <div className="trust-divider" />
-              <ul className="trust-facts">
-                <li>Official Cloud API access</li>
-                <li>Verified WABA provisioning</li>
-                <li>Green tick verification support</li>
-              </ul>
+              <span className="trust-caption">Meta Tech Partner</span>
             </div>
             <div className="trust-content">
               {/* A self-declared official-partner pill used to sit here. Removed: it
@@ -528,8 +520,12 @@ response = requests.post(
           
           /* Trusted by Meta section */
           .trust-strip{max-width:1300px;margin:0 auto 28px;padding:20px 24px 0}
-          .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
-          .trust-card{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;gap:18px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
+          /* stretch, not center: the card holds only a logo and a designation, so on
+             its own it is much shorter than the heading + copy + pills beside it and
+             floated as a small box against a tall column. Stretching makes both
+             halves the same height and the card centres its own content inside. */
+          .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}
+          .trust-card{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
           .trust-logo{display:flex;align-items:center;gap:12px}
           .trust-mark{width:46px;height:46px;flex:0 0 auto;object-fit:contain}
           /* Black, matching the mark. It was dark green while meta-icon.svg renders
@@ -538,12 +534,6 @@ response = requests.post(
              wordmark sits with the mark instead of shouting over the caption. */
           .trust-wordmark{font-size:32px;font-weight:700;letter-spacing:-1px;color:#000}
           .trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}
-          /* What the partnership actually buys the customer. The card was 48px of
-             padding around two lines of text, so the space was there; it just was
-             not saying anything. */
-          .trust-facts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;width:100%}
-          .trust-facts li{position:relative;padding-left:24px;font-size:16px;line-height:1.45;color:rgba(0,0,0,.72)}
-          .trust-facts li::before{content:'';position:absolute;left:2px;top:.52em;width:8px;height:8px;border-radius:50%;background:#1a3a2a}
           .trust-caption{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
 
