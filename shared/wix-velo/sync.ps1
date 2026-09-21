@@ -74,7 +74,8 @@ $WixTarget = Join-Path $WixRepo 'src\backend'
 $SyncFiles = @(
     'orderId.web.js',
     'orderId-helpers.js',
-    'events.js'
+    'events.js',
+    'google-services.web.js'
 )
 
 function Get-Sha([string]$path) {
