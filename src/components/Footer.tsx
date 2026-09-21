@@ -32,17 +32,11 @@ const Footer: React.FC = () => (
           <p className="ft-tagline">Trusted everyday services for Bharat</p>
         </div>
 
-        <nav className="ft-col" aria-label="Product">
+        <nav className="ft-nav" aria-label="Footer">
           <a className="ft-link" href="/grahak-os/">Grahak OS</a>
           <a className="ft-link" href="/faq">FAQ</a>
-        </nav>
-
-        <nav className="ft-col" aria-label="Company">
           <a className="ft-link" href="/partners">Partners</a>
           <a className="ft-link" href="https://www.wecare.digital/contact">Contact us</a>
-        </nav>
-
-        <nav className="ft-col" aria-label="Account">
           <a className="ft-link" href="/access">Sign in</a>
         </nav>
 
@@ -51,7 +45,7 @@ const Footer: React.FC = () => (
       <div className="ft-bottom">
         <span className="ft-mark">
           <i className="ft-dot" aria-hidden="true" />
-          Bharat Stack
+          WECARE.DIGITAL
         </span>
       </div>
     </div>
@@ -62,7 +56,10 @@ const Footer: React.FC = () => (
       .ft-footer{border-top:1px solid #e5e7eb;background:#fff;padding:64px 0 40px;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
       .ft-in{max-width:1300px;margin:0 auto;padding:0 24px}
 
-      .ft-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px}
+      /* Brand on the left, all links on one row to its right. With the column
+         headings gone the old 4-column split had no labels to justify it. */
+      .ft-grid{display:grid;grid-template-columns:1fr auto;gap:48px;align-items:start}
+      .ft-nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px 32px}
 
       .ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
       .ft-tagline{font-size:15px;line-height:1.6;color:#9ca3af;margin:0;max-width:280px}
@@ -80,12 +77,13 @@ const Footer: React.FC = () => (
       /* Account wraps onto the next row before the columns get too narrow. */
       @media(max-width:1024px){
         .ft-footer{padding-top:56px}
-        .ft-grid{grid-template-columns:2fr 1fr 1fr;gap:40px}
+        .ft-grid{grid-template-columns:1fr;gap:32px}
       }
       @media(max-width:767px){
         .ft-footer{padding-top:48px}
         .ft-in{padding:0 20px}
-        .ft-grid{grid-template-columns:1fr;gap:32px}
+        .ft-grid{gap:28px}
+        .ft-nav{gap:4px 24px}
         .ft-bottom{flex-direction:column;align-items:flex-start;gap:12px}
       }
       @media(prefers-reduced-motion:reduce){

@@ -13,7 +13,15 @@ const GrahakOsPage: React.FC = () => {
   // Hero headline cycles the channel in the lime pill, the way notion.com
   // rotates the highlighted verb. Width is measured so the pill resizes
   // smoothly instead of snapping between "WhatsApp" and "SMS".
-  const cycleWords = ['WhatsApp', 'SMS', 'Email', 'Voice'];
+  // Each channel carries its own pill tint, the way notion.com gives every
+  // rotating verb a different highlight colour (measured: peach -> amber ->
+  // lavender -> teal -> blue -> green). The tint transitions with the word.
+  const cycleWords = [
+    { word: 'WhatsApp', tint: '#e0f7c8' },
+    { word: 'SMS', tint: '#dbeafe' },
+    { word: 'Email', tint: '#fef3c7' },
+    { word: 'Voice', tint: '#ede9fe' },
+  ];
   const [cycleIndex, setCycleIndex] = useState(0);
   const [heroWidth, setHeroWidth] = useState<number | null>(null);
   const heroRefs = useRef<(HTMLSpanElement | null)[]>([]);
@@ -25,7 +33,8 @@ const GrahakOsPage: React.FC = () => {
       2400
     );
     return () => window.clearInterval(id);
-  }, [cycleWords.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const el = heroRefs.current[cycleIndex];
@@ -192,21 +201,24 @@ response = requests.post(
           <div className="hero-content">
             <div className="hero-left">
               <h1>
-                Reach customers across{ ' ' }
-                <span className="hero-mark">
+                Reach customers<br />across{ ' ' }
+                <span
+                  className="hero-mark"
+                  style={ { background: cycleWords[cycleIndex].tint } }
+                >
                   <i className="hero-mark-dot" aria-hidden="true" />
                   <span
                     className="hero-cycle"
                     style={ heroWidth ? { width: `${heroWidth}px` } : undefined }
                   >
-                    <span className="sr-only">{ cycleWords.join(', ') }</span>
-                    { cycleWords.map((word, i) => (
+                    <span className="sr-only">{ cycleWords.map(c => c.word).join(', ') }</span>
+                    { cycleWords.map((c, i) => (
                       <span
-                        key={ word }
+                        key={ c.word }
                         ref={ el => { heroRefs.current[i] = el; } }
                         className={ `hero-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
                         aria-hidden="true"
-                      >{ word }</span>
+                      >{ c.word }</span>
                     )) }
                   </span>
                 </span>
@@ -366,23 +378,39 @@ response = requests.post(
           
           /* Hero Section */
           .hero{padding:140px 24px 80px;max-width:1300px;margin:0 auto}
-          .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-          .hero-left h1{font-size:clamp(40px,5.6vw,76px);font-weight:600;line-height:1.06;margin:0 0 24px;letter-spacing:-2.6px;color:rgba(0,0,0,.95)}
+          /* Left column gets the extra room: the display type is large and the
+             headline must hold to two lines ("Reach customers" / "across <pill>")
+             so the rotating pill always lands on the last line without reflowing
+             the line above it. */
+          .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+          /* 60px cap is deliberate: at 64px "across <WhatsApp pill>" needs ~562px
+             of the 564px column, so the pill wrapped to a third line. 60px leaves
+             ~35px of slack so the headline holds two lines on every channel. */
+          .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.08;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
           .hero-left p{font-size:clamp(18px,1.7vw,22px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:100%}
 
           /* Rotating channel pill in the hero headline (Notion-style). The lime
              tint is a pseudo-element so it can wipe in from the left without
              reflowing the sentence, and each word is absolutely stacked so
              swapping causes no reflow - the measured width animates instead. */
-          .hero-mark{position:relative;display:inline-block;white-space:nowrap;padding:0 .2em 0 .14em}
+          /* Fully-rounded pill whose tint transitions with the word, matching the
+             notion.com treatment (radius 9999px, transition on the colour). The
+             tint itself is set inline per word; the reveal wipe lives on ::before. */
+          .hero-mark{
+            position:relative;display:inline-block;white-space:nowrap;
+            padding:.02em .34em .02em .26em;
+            border-radius:9999px;
+            background:#e0f7c8;
+            transition:background-color .52s cubic-bezier(.16,1,.3,1);
+          }
           .hero-mark::before{
             content:'';position:absolute;inset:0;
-            background:#eaf9c0;border-radius:14px;
-            transform:scaleX(0);transform-origin:left center;
+            background:#fff;border-radius:9999px;
+            transform:scaleX(1);transform-origin:right center;
             transition:transform .78s cubic-bezier(.16,1,.3,1) .18s;
             z-index:0;
           }
-          .hero.show .hero-mark::before{transform:scaleX(1)}
+          .hero.show .hero-mark::before{transform:scaleX(0)}
           .hero-mark-dot{
             position:relative;z-index:1;
             display:inline-block;width:.26em;height:.26em;
