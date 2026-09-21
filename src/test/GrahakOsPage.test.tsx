@@ -8,7 +8,8 @@ describe( 'Grahak OS five approved visual fixes', () => {
 
   it( 'keeps hero stats compact and keeps 4 Channels together', () => {
     expect( source ).toContain( '<span>4 Channels</span>' );
-    expect( source ).toContain( '.stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px' );
+    // Hairline restraint: 1px border, 8px radius (was 2px / 14px).
+    expect( source ).toContain( '.stat{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px' );
     expect( source ).toContain( '.stat span{display:block;font-size:22px' );
     expect( source ).toContain( 'white-space:nowrap' );
     expect( source ).not.toContain( 'min-height:112px' );

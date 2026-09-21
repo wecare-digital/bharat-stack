@@ -10,13 +10,13 @@ const GrahakOsPage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
   const [activeCode, setActiveCode] = useState(0);
 
-  // Closing headline cycles the channel in the lime pill, the way notion.com
+  // Hero headline cycles the channel in the lime pill, the way notion.com
   // rotates the highlighted verb. Width is measured so the pill resizes
   // smoothly instead of snapping between "WhatsApp" and "SMS".
   const cycleWords = ['WhatsApp', 'SMS', 'Email', 'Voice'];
   const [cycleIndex, setCycleIndex] = useState(0);
-  const [cycleWidth, setCycleWidth] = useState<number | null>(null);
-  const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const [heroWidth, setHeroWidth] = useState<number | null>(null);
+  const heroRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -28,17 +28,8 @@ const GrahakOsPage: React.FC = () => {
   }, [cycleWords.length]);
 
   useEffect(() => {
-    const el = wordRefs.current[cycleIndex];
-    if (el) setCycleWidth(el.offsetWidth);
-  }, [cycleIndex]);
-
-  // TEMP: separate measurement for the hero-option preview block, which renders
-  // the pill at a different font-size than the closer.
-  const [previewWidth, setPreviewWidth] = useState<number | null>(null);
-  const previewRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  useEffect(() => {
-    const el = previewRefs.current[cycleIndex];
-    if (el) setPreviewWidth(el.offsetWidth);
+    const el = heroRefs.current[cycleIndex];
+    if (el) setHeroWidth(el.offsetWidth);
   }, [cycleIndex]);
 
   // NOTE: the rotating pill markup must be written INLINE in the returned JSX.
@@ -197,55 +188,29 @@ response = requests.post(
       
       <div className="page">
 
-        {/* TEMP OPTION REVIEW — pick one, then this whole block gets deleted. */}
-        <section className="gv-review" id="gv-review">
-          <p className="gv-intro">
-            Hero headline options. All three use the new Notion-style type
-            (weight 600, tight tracking). Pick one — then this block is removed.
-          </p>
-
-          <div className="gv-opt">
-            <div className="gv-tag">OPTION A — cycling pill moves UP to the hero</div>
-            <h2 className="gv-head">
-              Reach customers across{ ' ' }
-              <span className="gv-mark">
-                <i className="gv-dot" aria-hidden="true" />
-                <span
-                  className="gv-cycle"
-                  style={ previewWidth ? { width: `${previewWidth}px` } : undefined }
-                >
-                  <span className="sr-only">{ cycleWords.join(', ') }</span>
-                  { cycleWords.map((word, i) => (
-                    <span
-                      key={ word }
-                      ref={ el => { previewRefs.current[i] = el; } }
-                      className={ `gv-cw ${i === cycleIndex ? 'on' : ''}`.trim() }
-                      aria-hidden="true"
-                    >{ word }</span>
-                  )) }
-                </span>
-              </span>
-            </h2>
-            <p className="gv-note">Closer at the bottom would change to: &ldquo;Transform customer engagement with Grahak OS.&rdquo;</p>
-          </div>
-
-          <div className="gv-opt">
-            <div className="gv-tag">OPTION B — hero rewritten, cycling stays at the bottom</div>
-            <h2 className="gv-head">One platform for every<br />customer conversation</h2>
-            <p className="gv-note">Closer keeps the cycling pill exactly as it is now.</p>
-          </div>
-
-          <div className="gv-opt">
-            <div className="gv-tag">OPTION C — keep both the same (current state)</div>
-            <h2 className="gv-head">Reach customers across WhatsApp, SMS, Email &amp; Voice</h2>
-            <p className="gv-note">Same sentence appears twice on the page. Not recommended.</p>
-          </div>
-        </section>
-
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="hero-content">
             <div className="hero-left">
-              <h1>Reach customers across WhatsApp, SMS, Email & Voice</h1>
+              <h1>
+                Reach customers across{ ' ' }
+                <span className="hero-mark">
+                  <i className="hero-mark-dot" aria-hidden="true" />
+                  <span
+                    className="hero-cycle"
+                    style={ heroWidth ? { width: `${heroWidth}px` } : undefined }
+                  >
+                    <span className="sr-only">{ cycleWords.join(', ') }</span>
+                    { cycleWords.map((word, i) => (
+                      <span
+                        key={ word }
+                        ref={ el => { heroRefs.current[i] = el; } }
+                        className={ `hero-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
+                        aria-hidden="true"
+                      >{ word }</span>
+                    )) }
+                  </span>
+                </span>
+              </h1>
               <p>Grahak OS unifies customer data, messaging, automation and campaigns in one customer engagement platform.</p>
               <div className="hero-stats">
                 <div className="stat"><span>4 Channels</span><small>WhatsApp, SMS, Email, Voice</small></div>
@@ -351,10 +316,6 @@ response = requests.post(
           </div>
         </section>
 
-        <section className={`cta-section anim ${show('cta') ? 'show' : ''}`} id="cta">
-          <h2>Transform customer engagement with Grahak OS</h2>
-        </section>
-
         <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Trusted by Meta">
           <div className="trust-grid">
             <div className="trust-card">
@@ -380,26 +341,7 @@ response = requests.post(
         </section>
 
         <section className={`gos-closer anim ${show('gos-closer') ? 'show' : ''}`} id="gos-closer">
-          <h2 className="gos-closer-head">
-            Reach customers<br />across{ ' ' }
-            <span className="gos-mark">
-              <i className="gos-mark-dot" aria-hidden="true" />
-              <span
-                className="gos-cycle"
-                style={ cycleWidth ? { width: `${cycleWidth}px` } : undefined }
-              >
-                <span className="sr-only">{ cycleWords.join(', ') }</span>
-                { cycleWords.map((word, i) => (
-                  <span
-                    key={ word }
-                    ref={ el => { wordRefs.current[i] = el; } }
-                    className={ `gos-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
-                    aria-hidden="true"
-                  >{ word }</span>
-                )) }
-              </span>
-            </span>
-          </h2>
+          <h2 className="gos-closer-head">Transform customer engagement with Grahak OS</h2>
         </section>
 
 
@@ -414,14 +356,65 @@ response = requests.post(
           /* Hero Section */
           .hero{padding:140px 24px 80px;max-width:1300px;margin:0 auto}
           .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-          .hero-left h1{font-size:clamp(34px,4vw,48px);font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px;color:#1a1a1a}
-          .hero-left p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:100%}
+          .hero-left h1{font-size:clamp(40px,5.6vw,76px);font-weight:600;line-height:1.06;margin:0 0 24px;letter-spacing:-2.6px;color:rgba(0,0,0,.95)}
+          .hero-left p{font-size:clamp(18px,1.7vw,22px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:100%}
           .hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-          .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px;min-width:0;transition:all .25s;cursor:default}
+          .stat{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;min-width:0;transition:all .25s;cursor:default}
           .stat:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .stat span{display:block;font-size:22px;font-weight:800;color:#1a1a1a;letter-spacing:-.4px;white-space:nowrap}
-          .stat small{font-size:14px;color:#6b7280;margin-top:4px;display:block;font-weight:500;line-height:1.35}
+          .stat span{display:block;font-size:22px;font-weight:600;color:#1a1a1a;letter-spacing:-.4px;white-space:nowrap}
+          .stat small{font-size:14px;color:#9ca3af;margin-top:4px;display:block;font-weight:500;line-height:1.35}
           .stat:hover span{color:#1a3a2a}
+
+          /* Rotating channel pill in the hero headline (Notion-style). The lime
+             tint is a pseudo-element so it can wipe in from the left without
+             reflowing the sentence, and each word is absolutely stacked so
+             swapping causes no reflow - the measured width animates instead. */
+          .hero-mark{position:relative;display:inline-block;white-space:nowrap;padding:0 .2em 0 .14em}
+          .hero-mark::before{
+            content:'';position:absolute;inset:0;
+            background:#eaf9c0;border-radius:14px;
+            transform:scaleX(0);transform-origin:left center;
+            transition:transform .78s cubic-bezier(.16,1,.3,1) .18s;
+            z-index:0;
+          }
+          .hero.show .hero-mark::before{transform:scaleX(1)}
+          .hero-mark-dot{
+            position:relative;z-index:1;
+            display:inline-block;width:.26em;height:.26em;
+            background:#d1f470;border-radius:50%;
+            margin-right:.2em;vertical-align:.18em;
+            transform:scale(0);
+            transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
+          }
+          .hero.show .hero-mark-dot{transform:scale(1)}
+          .hero-cycle{
+            position:relative;z-index:1;
+            display:inline-block;
+            height:1.06em;line-height:1.06em;
+            vertical-align:baseline;
+            overflow:hidden;
+            transition:width .52s cubic-bezier(.16,1,.3,1);
+            will-change:width;
+          }
+          .hero-cyc-word{
+            position:absolute;left:0;top:0;
+            white-space:nowrap;
+            opacity:0;
+            transform:translateY(.42em);
+            transition:opacity .42s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1);
+          }
+          .hero-cyc-word.on{opacity:1;transform:translateY(0)}
+          .sr-only{
+            position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+            overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+          }
+          @media(prefers-reduced-motion:reduce){
+            .hero-mark::before,.hero-mark-dot{transition:none}
+            .hero-mark::before{transform:scaleX(1)}
+            .hero-mark-dot{transform:scale(1)}
+            .hero-cycle{transition:none}
+            .hero-cyc-word{transition:none}
+          }
           
           /* Trusted by Meta section */
           .trust-strip{max-width:1300px;margin:0 auto 28px;padding:20px 24px 0}
@@ -434,44 +427,6 @@ response = requests.post(
           .trust-caption{font-size:18px;font-weight:700;color:#1a3a2a;text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
 
-          /* ===== TEMP option-review block (delete after choosing) ===== */
-          .gv-review{max-width:1100px;margin:0 auto;padding:150px 24px 40px}
-          .gv-intro{font-size:16px;line-height:1.6;color:#6b7280;margin:0 0 44px;max-width:620px}
-          .gv-opt{padding:0 0 44px;margin-bottom:44px;border-bottom:1px solid #e5e7eb}
-          .gv-opt:last-child{border-bottom:0}
-          .gv-tag{
-            display:inline-block;font-size:12px;font-weight:800;letter-spacing:1px;
-            text-transform:uppercase;color:#1a3a2a;background:#f3fbdc;
-            border-radius:6px;padding:8px 14px;margin:0 0 22px;
-          }
-          .gv-head{
-            font-size:clamp(40px,5.6vw,76px);
-            font-weight:600;letter-spacing:-2.6px;line-height:1.06;
-            color:rgba(0,0,0,.95);margin:0 0 18px;
-          }
-          .gv-note{font-size:15px;line-height:1.6;color:#9ca3af;margin:0}
-          .gv-mark{position:relative;display:inline-block;white-space:nowrap;padding:0 .2em 0 .14em}
-          .gv-mark::before{
-            content:'';position:absolute;inset:0;
-            background:#eaf9c0;border-radius:14px;z-index:0;
-          }
-          .gv-dot{
-            position:relative;z-index:1;display:inline-block;
-            width:.26em;height:.26em;background:#d1f470;border-radius:50%;
-            margin-right:.2em;vertical-align:.18em;
-          }
-          .gv-cycle{
-            position:relative;z-index:1;display:inline-block;
-            height:1.06em;line-height:1.06em;vertical-align:baseline;overflow:hidden;
-            transition:width .52s cubic-bezier(.16,1,.3,1);
-          }
-          .gv-cw{
-            position:absolute;left:0;top:0;white-space:nowrap;opacity:0;
-            transform:translateY(.42em);
-            transition:opacity .42s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1);
-          }
-          .gv-cw.on{opacity:1;transform:translateY(0)}
-
           /* ===== Closing statement (Notion-style display type + motion) ===== */
           .gos-closer{max-width:1100px;margin:0 auto;padding:96px 24px 112px;display:flex;justify-content:center}
           .gos-closer-head{
@@ -483,56 +438,6 @@ response = requests.post(
             text-align:center;
             margin:0;
             max-width:960px;
-          }
-          /* Lime highlight behind one word. The tint is a pseudo-element so it can
-             wipe in from the left without reflowing the text. */
-          .gos-mark{position:relative;display:inline-block;white-space:nowrap;padding:0 .2em 0 .14em}
-          .gos-mark::before{
-            content:'';position:absolute;inset:0;
-            background:#eaf9c0;border-radius:14px;
-            transform:scaleX(0);transform-origin:left center;
-            transition:transform .78s cubic-bezier(.16,1,.3,1) .18s;
-            z-index:0;
-          }
-          .gos-closer.show .gos-mark::before{transform:scaleX(1)}
-          .gos-mark-dot{
-            position:relative;z-index:1;
-            display:inline-block;width:.26em;height:.26em;
-            background:#d1f470;border-radius:50%;
-            margin-right:.2em;vertical-align:.18em;
-            transform:scale(0);
-            transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
-          }
-          .gos-closer.show .gos-mark-dot{transform:scale(1)}
-          /* Rotating channel word. Each word is absolutely stacked so swapping
-             causes no reflow; the wrapper's measured width animates instead. */
-          .gos-cycle{
-            position:relative;z-index:1;
-            display:inline-block;
-            height:1.06em;line-height:1.06em;
-            vertical-align:baseline;
-            overflow:hidden;
-            transition:width .52s cubic-bezier(.16,1,.3,1);
-            will-change:width;
-          }
-          .gos-cyc-word{
-            position:absolute;left:0;top:0;
-            white-space:nowrap;
-            opacity:0;
-            transform:translateY(.42em);
-            transition:opacity .42s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1);
-          }
-          .gos-cyc-word.on{opacity:1;transform:translateY(0)}
-          .sr-only{
-            position:absolute;width:1px;height:1px;padding:0;margin:-1px;
-            overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
-          }
-          @media(prefers-reduced-motion:reduce){
-            .gos-mark::before,.gos-mark-dot{transition:none}
-            .gos-mark::before{transform:scaleX(1)}
-            .gos-mark-dot{transform:scale(1)}
-            .gos-cycle{transition:none}
-            .gos-cyc-word{transition:none}
           }
           .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
           .trust-heading{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;color:#1a1a1a;margin:0}
@@ -576,8 +481,8 @@ response = requests.post(
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
-          .section-header h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
-          .section-header p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
+          .section-header h2{font-size:clamp(32px,4vw,52px);font-weight:700;line-height:1.1;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
+          .section-header p{font-size:clamp(18px,1.5vw,21px);color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
           .touchpoint{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
@@ -588,8 +493,8 @@ response = requests.post(
           /* API Section */
           .api{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
-          .api-info h2{font-size:clamp(28px,3vw,38px);font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
-          .api-desc{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.65;margin:0}
+          .api-info h2{font-size:clamp(32px,3.6vw,46px);font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
+          .api-desc{font-size:clamp(18px,1.5vw,21px);color:#6b7280;line-height:1.65;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
@@ -605,13 +510,10 @@ response = requests.post(
           .capability-card:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
-          .capability-card h3{font-size:var(--text-2xl);font-weight:600;color:#1a1a1a;margin:0 0 8px}
+          .capability-card h3{font-size:clamp(20px,1.7vw,26px);font-weight:600;color:#1a1a1a;margin:0 0 8px}
           .capability-card:hover h3{color:#1a3a2a}
-          .capability-card p{font-size:var(--text-base);color:#6b7280;margin:0;line-height:1.6}
+          .capability-card p{font-size:clamp(17px,1.3vw,20px);color:#6b7280;margin:0;line-height:1.6}
           
-          /* CTA Section */
-          .cta-section{padding:60px 24px;max-width:1300px;margin:0 auto;text-align:center;background:#fff}
-          .cta-section h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
           .why-section{padding:60px 24px;background:#fbfdfb}
           .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
           .why-item{background:#fff;border:1px solid #dfe8e2;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
@@ -623,8 +525,8 @@ response = requests.post(
             
             .hero{padding:110px 20px 60px}
             .hero-content{grid-template-columns:1fr;gap:40px;text-align:left}
-            .hero-left h1{font-size:38px;letter-spacing:-1px;max-width:600px;margin:0 0 20px}
-            .hero-left p{font-size:17px;max-width:520px;margin:0 0 28px}
+            .hero-left h1{letter-spacing:-1.8px;max-width:760px;margin:0 0 20px}
+            .hero-left p{max-width:520px;margin:0 0 28px}
             .hero-stats{justify-content:flex-start;gap:12px}
             .stat{padding:14px 16px;min-width:0}
             .stat span{font-size:21px}
@@ -661,8 +563,6 @@ response = requests.post(
             
             .why-section{padding:50px 20px}
             .why-grid{grid-template-columns:1fr}
-            .cta-section{padding:50px 20px}
-            .cta-section h2{font-size:34px}
           }
 
           /* ========== MOBILE (up to 767px) ========== */
@@ -672,11 +572,11 @@ response = requests.post(
             .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
             .hero-right{order:-1;width:100%;display:flex;justify-content:center}
             .hero-left{text-align:left;order:1}
-            .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
-            .hero-left p{font-size:20px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
+            .hero-left h1{letter-spacing:-1.2px;margin:0 0 20px;line-height:1.1;max-width:100%;text-align:left}
+            .hero-left p{line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
             .hero-stats{grid-template-columns:1fr;gap:12px;width:100%}
-            .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px;text-align:left;width:100%;display:flex;align-items:center;gap:10px;transition:all .25s;cursor:default}
-            .stat span{font-size:22px;font-weight:800;min-width:0;white-space:nowrap}
+            .stat{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;text-align:left;width:100%;display:flex;align-items:center;gap:10px;transition:all .25s;cursor:default}
+            .stat span{font-size:22px;font-weight:600;min-width:0;white-space:nowrap}
             .stat small{font-size:16px;line-height:1.3;margin:0}
             
             .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
@@ -737,18 +637,15 @@ response = requests.post(
             .why-item{padding:20px}
             .why-item strong{font-size:20px}
             .why-item span{font-size:18px}
-            .cta-section{padding:44px 20px}
-            .cta-section h2{font-size:38px;line-height:1.2;max-width:100%}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
           @media(max-width:480px){
             
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
-            .hero-left h1{font-size:38px;line-height:1.15}
-            .hero-left p{font-size:22px}
+            .hero-left h1{letter-spacing:-1px;line-height:1.12}
             .hero-stats{gap:10px}
-            .stat{padding:13px 14px;border-radius:12px}
+            .stat{padding:13px 14px;border-radius:8px}
             .stat span{font-size:20px;min-width:0;white-space:nowrap}
             .stat small{font-size:15px}
             
@@ -793,16 +690,13 @@ response = requests.post(
             .capability-card h3{font-size:22px;text-align:left}
             .capability-card p{font-size:22px;text-align:left}
             
-            .cta-section{padding:36px 16px}
-            .cta-section h2{font-size:36px;line-height:1.2;max-width:100%}
           }
           
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
           @media(max-width:360px){
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
-            .hero-left h1{font-size:32px}
-            .hero-left p{font-size:20px}
+            .hero-left h1{letter-spacing:-.8px}
             .hero-stats{gap:8px}
             .stat{padding:12px 14px;min-width:0}
             .stat span{font-size:19px}
@@ -818,8 +712,6 @@ response = requests.post(
             
             .capability-card h3{font-size:18px}
             .capability-card p{font-size:18px}
-            
-            .cta-section h2{font-size:30px}
           }
           
           /* ========== LANDSCAPE ORIENTATION FIX ========== */
@@ -837,19 +729,18 @@ response = requests.post(
             .chat-area{min-height:120px}
           }
 
-          /* ========== HOME TYPOGRAPHY CONTRACT ========== */
-          /* Keep one responsive type hierarchy after legacy breakpoint rules. */
-          .hero-left h1{font-size:clamp(34px,4vw,48px)}
-          .hero-left p{font-size:clamp(16px,1.5vw,18px);line-height:1.6}
-          .section-header h2{font-size:clamp(28px,3.2vw,42px)}
-          .section-header p{font-size:clamp(16px,1.5vw,18px);line-height:1.6}
+          /* ========== TYPOGRAPHY CONTRACT ========== */
+          /* One responsive type hierarchy, declared after the legacy breakpoint
+             rules so a single clamp() governs each size at every width. The hero
+             h1 and p are intentionally absent: their base rule is the contract. */
+          .section-header h2{font-size:clamp(32px,4vw,52px);line-height:1.1}
+          .section-header p{font-size:clamp(18px,1.5vw,21px);line-height:1.6}
           .pill{font-size:var(--text-base)}
-          .api-info h2{font-size:clamp(28px,3vw,38px)}
-          .api-desc{font-size:clamp(16px,1.5vw,18px);line-height:1.65}
+          .api-info h2{font-size:clamp(32px,3.6vw,46px)}
+          .api-desc{font-size:clamp(18px,1.5vw,21px);line-height:1.65}
           .tab{font-size:15px}
-          .capability-card h3{font-size:var(--text-2xl)}
-          .capability-card p{font-size:var(--text-base);line-height:1.6}
-          .cta-section h2{font-size:clamp(28px,3.2vw,42px)}
+          .capability-card h3{font-size:clamp(20px,1.7vw,26px)}
+          .capability-card p{font-size:clamp(17px,1.3vw,20px);line-height:1.6}
           
           /* ========== REDUCED MOTION ========== */
           @media(prefers-reduced-motion:reduce){
