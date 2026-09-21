@@ -854,7 +854,12 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                                             const failed = st === 'failed' || st === 'undelivered';
                                                             if ( !failed )
                                                             {
-                                                                const cls = st === 'read' ? 'read' : st === 'delivered' ? 'delivered' : 'sent';
+                                                                // `accepted` is the status a row carries between Meta acknowledging the
+                                                            // send and the first `sent` webhook. Before 2026-09-21 the backend
+                                                            // wrote `sent` immediately, so this state did not exist; without its
+                                                            // own class it falls through to the `sent` tick and claims a delivery
+                                                            // signal Meta has not given yet.
+                                                            const cls = st === 'read' ? 'read' : st === 'delivered' ? 'delivered' : st === 'accepted' ? 'accepted' : 'sent';
                                                                 return <span className={ `ui-st ui-st-${cls}` }>{ st || 'sent' }</span>;
                                                             }
                                                             let rawErr = '';
@@ -1248,6 +1253,9 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .ui-msg-meta { font-size: 10px; color: ${colors.textMuted}; display: flex; align-items: center; gap: 8px; }
         .ui-st { font-weight: 600; }
         .ui-st-sent { color: ${colors.textMuted}; }
+        /* Meta has acknowledged the send but has not yet reported it as sent.
+           Dimmer than the sent tick on purpose: a weaker claim, not a failure. */
+        .ui-st-accepted { color: ${colors.textMuted}; opacity: 0.65; }
         .ui-st-delivered { color: #2563eb; }
         .ui-st-read { color: #15803d; }
         .ui-st-failed { color: #b91c1c; cursor: help; }
