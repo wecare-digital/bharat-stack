@@ -363,16 +363,41 @@ response = requests.post(
 
         <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Trusted by Meta">
           <div className="trust-grid">
+            {/* Neutral card, not lime. Framing another company's logo in our own
+                brand colour made a credential look like a sticker we printed
+                ourselves; a borrowed mark should look borrowed.
+                NOTE ON THE DESIGNATION: "Meta Tech Partner" is carried over
+                unchanged and still needs verifying against the actual entry in
+                Meta's partner portal. The badge Meta grants is "Meta Business
+                Partner" (technology providers are a category within it), it is
+                awarded after review, and it cannot be self-declared. Meta's brand
+                guidance is also to use the logo files they publish rather than a
+                re-typed wordmark - so the <span> below is a stand-in for a proper
+                lockup asset. Do not invent a stronger claim here. */}
             <div className="trust-card">
               <div className="trust-logo">
                 <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" loading="lazy" />
                 <span className="trust-wordmark">Meta</span>
               </div>
-              <div className="trust-divider" />
               <span className="trust-caption">Meta Tech Partner</span>
+              {/* The divider now separates identity from substance, which is a real
+                  boundary. Previously it sat between the wordmark and the caption,
+                  splitting one lockup in half for decoration. */}
+              <div className="trust-divider" />
+              <ul className="trust-facts">
+                <li>Official Cloud API access</li>
+                <li>Verified WABA provisioning</li>
+                <li>Green tick verification support</li>
+              </ul>
             </div>
             <div className="trust-content">
-              <span className="trust-badge">OFFICIAL META TECH PARTNER</span>
+              {/* A self-declared official-partner pill used to sit here. Removed: it
+                  restated the card's own claim a third time in one section, and a
+                  badge asserting official status is the most legally exposed string
+                  on the page. The card states the partnership once; this heading
+                  makes the section's claim. (The exact former wording is not
+                  repeated here on purpose - a test asserts it is gone from the
+                  source, and a comment quoting it would defeat that.) */}
               <h2 className="trust-heading">Trusted by Meta</h2>
               <p className="trust-subtext">Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.</p>
               <div className="trust-pills">
@@ -504,11 +529,21 @@ response = requests.post(
           /* Trusted by Meta section */
           .trust-strip{max-width:1300px;margin:0 auto 28px;padding:20px 24px 0}
           .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
-          .trust-card{border:2px solid #d1f470;background:#fbfff0;border-radius:20px;padding:48px 36px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
-          .trust-logo{display:flex;align-items:center;gap:14px}
-          .trust-mark{width:52px;height:52px;flex:0 0 auto;object-fit:contain}
-          .trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}
-          .trust-divider{width:100%;height:1px;background:#d1f470}
+          .trust-card{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;gap:18px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
+          .trust-logo{display:flex;align-items:center;gap:12px}
+          .trust-mark{width:46px;height:46px;flex:0 0 auto;object-fit:contain}
+          /* Black, matching the mark. It was dark green while meta-icon.svg renders
+             black, so one logo lockup carried two different colours - the thing that
+             made this read as slightly broken. 32px/700 rather than 36px/800 so the
+             wordmark sits with the mark instead of shouting over the caption. */
+          .trust-wordmark{font-size:32px;font-weight:700;letter-spacing:-1px;color:#000}
+          .trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}
+          /* What the partnership actually buys the customer. The card was 48px of
+             padding around two lines of text, so the space was there; it just was
+             not saying anything. */
+          .trust-facts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;width:100%}
+          .trust-facts li{position:relative;padding-left:24px;font-size:16px;line-height:1.45;color:rgba(0,0,0,.72)}
+          .trust-facts li::before{content:'';position:absolute;left:2px;top:.52em;width:8px;height:8px;border-radius:50%;background:#1a3a2a}
           .trust-caption{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
 
@@ -524,7 +559,7 @@ response = requests.post(
             margin:0;
             max-width:960px;
           }
-          .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
+
           .trust-heading{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0}
           .trust-subtext{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           .trust-pills{display:flex;flex-wrap:wrap;gap:12px}
