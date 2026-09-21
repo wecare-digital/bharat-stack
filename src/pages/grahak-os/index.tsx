@@ -228,8 +228,7 @@ response = requests.post(
                   </span>
                 </span>
               </h1>
-              <p>One platform for customer data, messaging, automation, and campaigns.</p>
-              <p className="hero-sub">Every conversation stays connected on WhatsApp, SMS, Email, and Voice.</p>
+              <p>One platform for customer data, messaging, automation, and campaigns&mdash;keeping every customer conversation connected through WhatsApp, SMS, Email, and Voice.</p>
               <p className="hero-sub">Turn your WhatsApp number into your #1 revenue channel with Grahak OS.</p>
             </div>
             <div className="hero-right">
@@ -407,13 +406,13 @@ response = requests.post(
              ramp: their hero subtext is rgba(0,0,0,.898) at 20px and their
              secondary copy rgba(0,0,0,.54). The previous #9ca3af sat far lighter
              than anything they use for body text, which is why it read washed out. */
-          /* All three lines share one size and one colour. Mixing 23px/.898 with
-             16px/.54 made the supporting lines read as a different, weaker
-             typeface next to the lede. notion.com runs a single hero subtext
-             level - rgba(0,0,0,.898) at 20px - so this matches that. */
-          .hero-left p{font-size:clamp(17px,1.35vw,20px);color:rgba(0,0,0,.898);line-height:1.6;margin:0 0 14px;max-width:44ch;font-weight:400;letter-spacing:normal}
-          .hero-left p.hero-sub{font-size:clamp(17px,1.35vw,20px);color:rgba(0,0,0,.898);line-height:1.6;margin:0 0 14px;max-width:44ch;font-weight:400}
-          .hero-left p:last-of-type{margin-bottom:0}
+          /* Body copy matches notion.com exactly. Measured from their hero subtext:
+             Inter 400 at 20px, line-height 28px (1.4), letter-spacing -0.125px,
+             colour rgba(0,0,0,.898). The previous rule used line-height 1.6 and no
+             tracking, which is why it still read differently from theirs even once
+             the colour matched. */
+          .hero-left p{font-size:clamp(17px,1.45vw,20px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0 0 16px;max-width:48ch}
+          .hero-left p.hero-sub{font-size:clamp(17px,1.45vw,20px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;max-width:48ch}
 
           /* Rotating channel pill in the hero headline (Notion-style). The lime
              tint is a pseudo-element so it can wipe in from the left without
@@ -547,7 +546,7 @@ response = requests.post(
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
           .section-header h2{font-size:clamp(32px,4vw,52px);font-weight:700;line-height:1.1;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
-          .section-header p{font-size:clamp(18px,1.5vw,21px);color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
+          .section-header p{font-size:clamp(18px,1.5vw,21px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
           .touchpoint{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
@@ -559,7 +558,7 @@ response = requests.post(
           .api{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
           .api-info h2{font-size:clamp(32px,3.6vw,46px);font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
-          .api-desc{font-size:clamp(18px,1.5vw,21px);color:#6b7280;line-height:1.65;margin:0}
+          .api-desc{font-size:clamp(18px,1.5vw,21px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
@@ -577,7 +576,7 @@ response = requests.post(
           .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:clamp(20px,1.7vw,26px);font-weight:600;color:#1a1a1a;margin:0 0 8px}
           .capability-card:hover h3{color:#1a3a2a}
-          .capability-card p{font-size:clamp(17px,1.3vw,20px);color:#6b7280;margin:0;line-height:1.6}
+          .capability-card p{font-size:clamp(17px,1.3vw,20px);color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;margin:0}
           
           /* Why sits on plain white between the two grey canvases; borders and
              body text use the shared hairline/muted pair, not near-miss greens. */
@@ -585,7 +584,7 @@ response = requests.post(
           .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
           .why-item{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
           .why-item strong{font-size:20px;color:#1a3a2a}
-          .why-item span{font-size:16px;line-height:1.55;color:#6b7280}
+          .why-item span{font-size:16px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px}
 
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
@@ -784,13 +783,13 @@ response = requests.post(
              rules so a single clamp() governs each size at every width. The hero
              h1 and p are intentionally absent: their base rule is the contract. */
           .section-header h2{font-size:clamp(32px,4vw,52px);line-height:1.1}
-          .section-header p{font-size:clamp(18px,1.5vw,21px);line-height:1.6}
+          .section-header p{font-size:clamp(18px,1.5vw,21px);line-height:1.4;letter-spacing:-.125px}
           .pill{font-size:var(--text-base)}
           .api-info h2{font-size:clamp(32px,3.6vw,46px)}
-          .api-desc{font-size:clamp(18px,1.5vw,21px);line-height:1.65}
+          .api-desc{font-size:clamp(18px,1.5vw,21px);line-height:1.4;letter-spacing:-.125px}
           .tab{font-size:15px}
           .capability-card h3{font-size:clamp(20px,1.7vw,26px)}
-          .capability-card p{font-size:clamp(17px,1.3vw,20px);line-height:1.6}
+          .capability-card p{font-size:clamp(17px,1.3vw,20px);line-height:1.4;letter-spacing:-.125px}
           
           /* ========== REDUCED MOTION ========== */
           @media(prefers-reduced-motion:reduce){
