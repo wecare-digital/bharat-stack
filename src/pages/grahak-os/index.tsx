@@ -411,8 +411,13 @@ response = requests.post(
              colour rgba(0,0,0,.898). The previous rule used line-height 1.6 and no
              tracking, which is why it still read differently from theirs even once
              the colour matched. */
-          .hero-left p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0 0 16px;max-width:52ch}
-          .hero-left p.hero-sub{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;max-width:52ch}
+          /* Measure set in px, not ch: Inter's "0" is ~12.6px at 20px, so 38ch
+             resolved to 479px - nearly the full column - which is why the copy
+             still looked like it ran edge to edge. 400px holds a comfortable
+             ~60-70 characters per line and wraps to more lines, which also closes
+             part of the height difference against the mockup column. */
+          .hero-left p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0 0 18px;max-width:400px}
+          .hero-left p.hero-sub{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;max-width:400px}
 
           /* Rotating channel pill in the hero headline (Notion-style). The lime
              tint is a pseudo-element so it can wipe in from the left without
@@ -423,7 +428,7 @@ response = requests.post(
              tint itself is set inline per word; the reveal wipe lives on ::before. */
           .hero-mark{
             position:relative;display:inline-block;white-space:nowrap;
-            padding:.02em .34em .02em .26em;
+            padding:.02em .3em .02em .22em;
             border-radius:9999px;
             background:#e0f7c8;
             transition:background-color .52s cubic-bezier(.16,1,.3,1);
@@ -438,9 +443,11 @@ response = requests.post(
           .hero.show .hero-mark::before{transform:scaleX(0)}
           .hero-mark-dot{
             position:relative;z-index:1;
-            display:inline-block;width:.26em;height:.26em;
+            /* 0.33em matches notion.com's ratio (32px dot against a 96px h1).
+               Tight 0.1em gap - at 0.2em the dot read as detached from the word. */
+            display:inline-block;width:.33em;height:.33em;
             background:#d1f470;border-radius:50%;
-            margin-right:.2em;vertical-align:.18em;
+            margin-right:.1em;vertical-align:.14em;
             transform:scale(0);
             transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
           }
@@ -506,7 +513,7 @@ response = requests.post(
           .hero-right{display:flex;justify-content:center}
           /* The phone's content is ~458px tall, so the wrapper is sized from that
              rather than a ratio that would crop it. */
-          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:520px;background:#fff;border-radius:28px;padding:8px 24px 24px}
+          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:470px;background:#fff;border-radius:28px;padding:8px 24px 24px}
           /* Phone and code box are narrowed so the code panel laps only the
              phone's lower-right corner. At 55%/58% they summed to 113% of the
              wrapper and the panel sat across the message column, hiding message
@@ -519,7 +526,7 @@ response = requests.post(
           .contact-name{color:#fff;font-size:17px;font-weight:600}
           .contact-status{color:rgba(255,255,255,.7);font-size:13px}
           .verified-badge{width:22px;height:22px;background:#1a3a2a;border-radius:50%}
-          .chat-area{background:#ece5dd;padding:14px 12px;min-height:280px;display:flex;flex-direction:column;gap:8px}
+          .chat-area{background:#ece5dd;padding:14px 12px;min-height:230px;display:flex;flex-direction:column;gap:8px}
           .msg{max-width:80%;padding:10px 12px;border-radius:8px;font-size:16px;line-height:1.45;color:#000}
           .msg.received{background:#fff;align-self:flex-start;border-top-left-radius:3px}
           .msg.sent{background:#d1f470;align-self:flex-end;border-top-right-radius:3px}
