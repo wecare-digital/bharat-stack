@@ -1,12 +1,3 @@
-/* eslint-disable @next/next/no-html-link-for-pages --
- * Plain anchors, matching Header.tsx, which navigates the same public routes the
- * same way. next/link is not usable here for two measured reasons:
- *   - styled-jsx does not attach its scoping class to a composite component, so
- *     <Link className="ft-link"> renders an anchor with no ft-link rule applied
- *     (computed colour fell back to rgb(26,26,26) / 17px / transition:all 0s);
- *   - next.config.js sets trailingSlash:true, so Link rewrites href="/faq" to
- *     "/faq/", which stops matching the hrefs this footer is specified to emit.
- */
 import React from 'react';
 import BrandLockup from './BrandLockup';
 
@@ -26,23 +17,11 @@ const Footer: React.FC = () => (
   <footer className="ft-footer">
     <div className="ft-in">
       <div className="ft-grid">
-
         <div className="ft-brand">
           <BrandLockup />
           <p className="ft-tagline">Trusted everyday services for Bharat</p>
         </div>
 
-        <nav className="ft-nav" aria-label="Footer">
-          <a className="ft-link" href="/grahak-os/">Grahak OS</a>
-          <a className="ft-link" href="/faq">FAQ</a>
-          <a className="ft-link" href="/partners">Partners</a>
-          <a className="ft-link" href="https://www.wecare.digital/contact">Contact us</a>
-          <a className="ft-link" href="/access">Sign in</a>
-        </nav>
-
-      </div>
-
-      <div className="ft-bottom">
         <span className="ft-mark">
           <i className="ft-dot" aria-hidden="true" />
           WECARE.DIGITAL
@@ -51,43 +30,29 @@ const Footer: React.FC = () => (
     </div>
 
     <style jsx>{`
-      /* Hairline lid, white canvas. The bottom padding keeps the safe-area
-         inset the Capacitor iOS/Android shells depend on. */
-      .ft-footer{border-top:1px solid #e5e7eb;background:#fff;padding:64px 0 40px;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+      /* No divider rules anywhere: navigation lives in the header dropdown and
+         contact is handled by the floating widget, so the footer is reduced to a
+         brand signature. The bottom padding keeps the safe-area inset the
+         Capacitor iOS/Android shells depend on. */
+      .ft-footer{background:#fff;padding:64px 0 40px;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
       .ft-in{max-width:1300px;margin:0 auto;padding:0 24px}
 
-      /* Brand on the left, all links on one row to its right. With the column
-         headings gone the old 4-column split had no labels to justify it. */
-      .ft-grid{display:grid;grid-template-columns:1fr auto;gap:48px;align-items:start}
-      .ft-nav{display:flex;flex-wrap:wrap;align-items:center;gap:8px 32px}
+      .ft-grid{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}
 
       .ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
-      .ft-tagline{font-size:15px;line-height:1.6;color:#9ca3af;margin:0;max-width:280px}
+      .ft-tagline{font-size:15px;line-height:1.6;color:#9ca3af;margin:0;max-width:320px}
 
-      .ft-col{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
-      /* flex + centring so the global a{min-height} touch-target floor (32px,
-         44px on mobile) grows the row around the label instead of top-aligning it */
-      .ft-link{display:flex;align-items:center;font-size:15px;line-height:1.5;color:#6b7280;text-decoration:none;padding:5px 0;transition:color .2s}
-      .ft-link:hover{color:#1a3a2a}
-
-      .ft-bottom{display:flex;align-items:center;justify-content:flex-start;gap:16px;margin-top:32px;padding-top:24px;border-top:1px solid #e5e7eb}
       .ft-mark{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#6b7280}
       .ft-dot{width:6px;height:6px;border-radius:50%;background:#d1f470;flex:0 0 auto}
 
       /* Account wraps onto the next row before the columns get too narrow. */
       @media(max-width:1024px){
         .ft-footer{padding-top:56px}
-        .ft-grid{grid-template-columns:1fr;gap:32px}
       }
       @media(max-width:767px){
         .ft-footer{padding-top:48px}
         .ft-in{padding:0 20px}
-        .ft-grid{gap:28px}
-        .ft-nav{gap:4px 24px}
-        .ft-bottom{flex-direction:column;align-items:flex-start;gap:12px}
-      }
-      @media(prefers-reduced-motion:reduce){
-        .ft-link{transition:none}
+        .ft-grid{flex-direction:column;align-items:flex-start;gap:24px}
       }
     `}</style>
   </footer>

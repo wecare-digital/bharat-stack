@@ -223,7 +223,8 @@ response = requests.post(
                   </span>
                 </span>
               </h1>
-              <p>Grahak OS unifies customer data, messaging, automation and campaigns in one customer engagement platform.</p>
+              <p>One platform for customer data, messaging, automation and campaigns.</p>
+              <p className="hero-sub">Every conversation carries full customer context — on WhatsApp, SMS, Email or Voice, without switching between tools.</p>
             </div>
             <div className="hero-right">
               <div className="mockup-wrapper">
@@ -382,12 +383,22 @@ response = requests.post(
              headline must hold to two lines ("Reach customers" / "across <pill>")
              so the rotating pill always lands on the last line without reflowing
              the line above it. */
-          .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+          /* align-items:start, not center. The mockup column is taller than the
+             copy column, and centring lifted its top edge ~70px above the copy -
+             far enough to slide under the 108px fixed header, which clipped the
+             phone's title bar. Starting both columns at the hero's top padding
+             keeps the mockup clear of the header at every width. */
+          .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
           /* 60px cap is deliberate: at 64px "across <WhatsApp pill>" needs ~562px
              of the 564px column, so the pill wrapped to a third line. 60px leaves
              ~35px of slack so the headline holds two lines on every channel. */
           .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.08;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
-          .hero-left p{font-size:clamp(18px,1.7vw,22px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:100%}
+          /* Lede plus a muted supporting line. Two paragraphs rather than one long
+             run-on: it reads better and gives the left column enough vertical mass
+             to sit against the mockup opposite (which was 221px taller). Measures
+             are capped so each wraps to a comfortable 2-3 lines. */
+          .hero-left p{font-size:clamp(19px,1.55vw,23px);color:#4b5563;line-height:1.55;margin:0 0 18px;max-width:30ch}
+          .hero-left p.hero-sub{font-size:clamp(16px,1.25vw,18px);color:#9ca3af;line-height:1.65;margin:0;max-width:46ch}
 
           /* Rotating channel pill in the hero headline (Notion-style). The lime
              tint is a pseudo-element so it can wipe in from the left without
@@ -479,8 +490,14 @@ response = requests.post(
 
           /* Hero Right - Mockup */
           .hero-right{display:flex;justify-content:center}
-          .mockup-wrapper{position:relative;width:100%;max-width:580px;aspect-ratio:1.1;background:#fff;border-radius:28px;padding:24px}
-          .phone{position:absolute;left:24px;top:20px;width:55%;max-width:300px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+          /* The phone's content is ~458px tall, so the wrapper is sized from that
+             rather than a ratio that would crop it. */
+          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:520px;background:#fff;border-radius:28px;padding:8px 24px 24px}
+          /* Phone and code box are narrowed so the code panel laps only the
+             phone's lower-right corner. At 55%/58% they summed to 113% of the
+             wrapper and the panel sat across the message column, hiding message
+             text and timestamps. */
+          .phone{position:absolute;left:0;top:8px;width:52%;max-width:286px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
           .phone-header{background:#1a3a2a;padding:12px 14px;display:flex;align-items:center;gap:10px}
           .back-arrow{color:#fff;font-size:20px}
           .avatar{width:40px;height:40px;background:#1a3a2a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
@@ -502,7 +519,7 @@ response = requests.post(
           @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-3px)}}
 
           /* Code Box */
-          .code-box{position:absolute;right:16px;bottom:20px;width:58%;max-width:340px;background:#1e293b;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+          .code-box{position:absolute;right:0;bottom:0;width:50%;max-width:296px;background:#1e293b;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.2)}
           .code-header{display:flex;align-items:center;padding:10px 14px;background:#000}
           .dots{display:flex;gap:5px}
           .dot-red,.dot-yellow,.dot-green{width:10px;height:10px;border-radius:50%}
