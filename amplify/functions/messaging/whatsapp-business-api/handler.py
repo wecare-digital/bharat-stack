@@ -66,6 +66,7 @@ from lambda_utils.meta_client import MetaGraphClient  # shared Meta Graph client
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.middleware import require_auth
+from lambda_utils import meta_signature  # X-Hub-Signature-256, fails closed
 
 logger = get_logger(__name__)
 
@@ -5521,47 +5522,36 @@ origin = ''
 
 
 def _verify_webhook_signature(event: Dict[str, Any], request_id: str) -> bool:
+    """Verify Meta's `X-Hub-Signature-256` against either WABA app secret.
+
+    Delegates to `lambda_utils.meta_signature`, the same implementation the
+    `/whatsapp` ingress and `POST /whatsapp/inbound` use.
+
+    Replaced a local copy that returned **True** when no app secret was
+    configured, commented "fail open only if secret not configured (dev/test)".
+    Nothing in this function ever called it, which is the only reason that was not
+    a live hole - but a fail-open verifier sitting in the file is a trap for
+    whoever wires it up next, and it was already cited in
+    `docs/SECURITY_AND_SECRETS.md` as evidence that webhooks are verified.
+
+    Retained rather than deleted because `_verify_webhook_signature` is named in
+    the security checklist and is the correct guard for any Meta callback added to
+    this function later. It now fails closed: no secret means no trust.
     """
-    Verify X-Hub-Signature-256 header on incoming Meta webhooks.
-    Meta signs every webhook POST with HMAC-SHA256 using the app secret.
-    Returns True if valid, False if invalid.
-    Fails open (returns True) only if app_secret is not configured.
-    """
-    headers = event.get('headers', {})
-    signature_header = (
-        headers.get('x-hub-signature-256')
-        or headers.get('X-Hub-Signature-256')
-        or ''
-    )
-    if not signature_header:
-        logger.warning(json.dumps({'event': 'webhook_no_signature', 'requestId': request_id}))
-        return False
-
-    app_secret = _get_app_secret()
-    if not app_secret:
-        logger.error(json.dumps({'event': 'webhook_no_app_secret', 'requestId': request_id}))
-        return True  # Fail open only if secret not configured (dev/test)
-
-    raw_body = event.get('body', '')
-    if event.get('isBase64Encoded') and raw_body:
-        import base64
-        raw_body = base64.b64decode(raw_body).decode('utf-8')
-
-    expected_sig = 'sha256=' + hmac.new(
-        app_secret.encode('utf-8'),
-        (raw_body or '').encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
-
-    is_valid = hmac.compare_digest(expected_sig, signature_header)
-    if not is_valid:
+    # Both app secrets are offered, because a callback may be signed by either
+    # WABA's app. Note `WABA2_IDS` is an empty set in this function, so
+    # `_get_app_secret(waba_id=...)` can never select the WABA2 key - reading the
+    # cache directly is the only way to actually try it.
+    primary = _get_app_secret()  # also forces the secret to load into _token_cache
+    secondary = _token_cache.get('app_secret_waba2', '')
+    ok, reason = meta_signature.verify(event, [primary, secondary])
+    if not ok:
         logger.warning(json.dumps({
-            'event': 'webhook_signature_mismatch',
-            'expectedPrefix': expected_sig[:20],
-            'receivedPrefix': signature_header[:20],
+            'event': 'webhook_signature_rejected',
+            'reason': reason,
             'requestId': request_id,
         }))
-    return is_valid
+    return ok
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -5634,10 +5624,25 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if method == 'OPTIONS':
         return _resp(200, {})
 
-    # Enforce auth for admin routes. Public Meta endpoints — the webhook
-    # (/wa-business/webhooks) and Flows data-exchange (/wa-business/flow-data) —
-    # are exempted via the AUTH_SKIP_PATHS env var (they authenticate via verify
-    # token / E2E encryption). Internal Lambda invokes are auto-exempt.
+    # Enforce auth for every route except the one genuinely self-authenticating
+    # endpoint: `/wa-business/flow-data`, the Meta Flows data-exchange callback,
+    # which proves authenticity by RSA+AES-GCM decryption (only the holder of our
+    # private key can produce a payload we can decrypt). That single path is the
+    # entire contents of AUTH_SKIP_PATHS. Internal Lambda invokes are auto-exempt.
+    #
+    # `/wa-business/webhooks` used to be exempt too, on the stated grounds that it
+    # "authenticates via verify token". It does not. It is not a Meta callback at
+    # all - it is the management surface for Meta's `subscribed_apps` API, and
+    # nothing authenticated it:
+    #
+    #   DELETE  unsubscribes the WABA from every webhook field, which silently
+    #           stops all inbound WhatsApp message delivery
+    #   POST    forwards `override_callback_uri` straight to Meta, which would
+    #           repoint production inbound webhooks at a caller-chosen URL
+    #
+    # Measured unauthenticated against production on 2026-09-21:
+    # `GET /wa-business/webhooks` returned 400 "wabaId required" - past auth and
+    # inside the handler - while `GET /wa-business/profile` returned 401.
     auth_result = require_auth(event)
     if auth_result is not None:
         return auth_result

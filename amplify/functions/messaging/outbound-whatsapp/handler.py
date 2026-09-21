@@ -27,6 +27,7 @@ from lambda_utils.privacy import mask_phone, redact_pii
 from lambda_utils.middleware import require_auth
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils import graph_errors  # Meta error subcode + transient classification
+from lambda_utils import live_smoke  # WA_LIVE_SMOKE_TEST recipient lockdown
 
 logger = get_logger(__name__)
 
@@ -160,9 +161,50 @@ def _post_reaction_direct(meta_phone_id: str, token: str, app_secret: str,
                                    'wamid': message_id, 'error': str(e)[:200]}))
 
 
+class SmokeTestRecipientBlocked(RuntimeError):
+    """WA_LIVE_SMOKE_TEST is on and the recipient is not WA_QA_RECIPIENT.
+
+    Raised at the wire, immediately before the Graph call, so that no branch -
+    including one added later - can reach a customer while smoke mode is on. The
+    handler checks the same rule earlier and returns a clean 403; this is the
+    backstop that makes the earlier check an optimisation rather than the
+    guarantee.
+    """
+
+
+def _assert_smoke_recipient_allowed(to: Optional[str], where: str) -> None:
+    """Refuse a Graph send to anyone but the QA recipient while in smoke mode.
+
+    `to` absent means the payload carries no recipient phone (a BSUID-only send,
+    or an endpoint like block_users/typing that addresses something else). Those
+    are still refused in smoke mode, because "we could not tell who this reaches"
+    is not a reason to let a live test through.
+    """
+    allowed, reason = live_smoke.check_recipient(to)
+    if allowed:
+        return
+    logger.error(json.dumps({
+        'event': 'smoke_mode_send_blocked',
+        'where': where,
+        'reason': reason,
+        'to': mask_phone(to or ''),
+        **live_smoke.describe(),
+    }))
+    raise SmokeTestRecipientBlocked(reason)
+
+
 def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
     """Send message via Meta Graph API for Direct API phones."""
     import hmac as _hmac, hashlib as _hashlib
+    if live_smoke.is_smoke_mode():
+        try:
+            _payload = json.loads(message_json) if isinstance(message_json, str) else (message_json or {})
+        except (TypeError, ValueError):
+            _payload = {}
+        _assert_smoke_recipient_allowed(
+            (_payload.get('to') if isinstance(_payload, dict) else None),
+            'send_direct_api',
+        )
     if 'token' not in _direct_api_cache:
         resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
         data = json.loads(resp['SecretString'])
@@ -591,6 +633,29 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not recipient_bsuid and contact.get('bsuid'):
                 recipient_bsuid = contact.get('bsuid', '')
         
+        # ── Live-send smoke-test lockdown ────────────────────────────────────
+        # Placed here, before the typing indicator, the block_users branch and
+        # every send branch, so that in smoke mode nothing at all reaches a
+        # handset other than WA_QA_RECIPIENT - not a message, not blue ticks, not
+        # a "typing…" bubble. _send_direct_api repeats the check at the wire as
+        # the actual guarantee; this one exists so a blocked test returns a clear
+        # 403 instead of surfacing as a 500.
+        _smoke_allowed, _smoke_reason = live_smoke.check_recipient(recipient_phone)
+        if not _smoke_allowed:
+            logger.warning(json.dumps({
+                'event': 'smoke_mode_request_blocked',
+                'reason': _smoke_reason,
+                'recipientPhone': mask_phone(recipient_phone or ''),
+                'contactId': contact_id,
+                'requestId': request_id,
+                **live_smoke.describe(),
+            }))
+            return _error_response(
+                403,
+                'Live smoke-test mode is active — only the configured QA recipient can be messaged',
+                _smoke_reason,
+            )
+        
         # Validate reaction request
         if is_reaction and not reaction_message_id:
             return _error_response(400, 'reactionMessageId is required for reactions')
@@ -627,6 +692,22 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     users = [recipient_phone]
                 if not users:
                     return _error_response(400, 'No user phone provided to block/unblock')
+                # blockUsers is an arbitrary list, not the resolved recipient, so
+                # the check above does not cover it. Blocking a real customer is a
+                # customer-visible side effect and has no place in a smoke test.
+                for _u in users:
+                    _ok, _why = live_smoke.check_recipient(_u)
+                    if not _ok:
+                        logger.warning(json.dumps({
+                            'event': 'smoke_mode_block_action_refused',
+                            'reason': _why, 'action': block_action,
+                            'user': mask_phone(str(_u)), 'requestId': request_id,
+                        }))
+                        return _error_response(
+                            403,
+                            'Live smoke-test mode is active — block/unblock is limited to the QA recipient',
+                            _why,
+                        )
                 result = _block_users_api(phone_number_id, users, block_action)
                 return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'success': True, 'action': block_action, 'users': users, 'result': result})}
             except Exception as e:

@@ -70,7 +70,38 @@ PROBES = [
     ("ai generate, no token", "POST", "/ai/generate", {"messageContent": "probe"},
      401, "spent model tokens anonymously on both HTTP APIs"),
 
+    # --- AUTH_SKIP_PATHS narrowed on 2026-09-21 (SEC-ROUTE-009) ---
+    # `/wa-business/webhooks` was exempt from auth on the stated grounds that it
+    # "authenticates via verify token". It is not a Meta callback: it is the
+    # management surface for Meta's subscribed_apps API. Measured before the fix,
+    # GET returned 400 "wabaId required" - past auth, inside the handler.
+    #
+    # The POST and DELETE probes carry NO wabaId, so the handler's own 400 check
+    # would stop them before any Graph call even if the guard were broken. Without
+    # that, DELETE would unsubscribe the production WABA from every webhook field
+    # and stop all inbound WhatsApp delivery.
+    ("wa-business webhooks read, no token", "GET", "/wa-business/webhooks", None,
+     401, "listed the WABA's webhook subscriptions anonymously"),
+    ("wa-business webhooks subscribe, no token", "POST", "/wa-business/webhooks",
+     {}, 401, "POST forwards override_callback_uri to Meta: inbound redirection"),
+    ("wa-business webhooks unsubscribe, no token", "DELETE",
+     "/wa-business/webhooks", {}, 401,
+     "DELETE stops all inbound WhatsApp delivery for the WABA"),
+    ("wa-business substring near-miss, no token", "GET",
+     "/wa-business/webhooks-anything", None, 401,
+     "the old skip was a substring test, and ANY /wa-business/{proxy+} exists"),
+
     # --- and the anonymous paths that must KEEP working ---
+    # The Flows data-exchange endpoint is the ONE legitimate exemption on that
+    # function: the payload is RSA+AES-GCM encrypted, so only a caller holding our
+    # public key can produce something we can decrypt. 421 is Meta's specified
+    # response to a decryption failure and tells Meta to refresh the key, so this
+    # junk payload is inert. A 401 here would mean the exemption was lost along
+    # with the webhooks one.
+    ("flows data-exchange stays public", "POST", "/wa-business/flow-data",
+     {"encrypted_flow_data": "bm90LXJlYWw=", "encrypted_aes_key": "bm90LXJlYWw=",
+      "initial_vector": "bm90LXJlYWw="}, 421,
+     "authenticates by RSA decryption, not by token"),
     ("short-link redirect stays public", "GET", "/r/verify-probe-no-such-code",
      None, 302, "a customer following a short link has no Cognito token"),
     ("catch-all redirect stays public", "GET", "/verify-probe-no-such-code",
