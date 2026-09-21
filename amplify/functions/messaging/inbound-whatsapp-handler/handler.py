@@ -30,6 +30,7 @@ from lambda_utils.privacy import mask_phone, redact_pii
 from lambda_utils.validation import normalize_phone
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
+from lambda_utils import meta_signature  # raw-body X-Hub-Signature-256 on the public route
 try:
     from lambda_utils import partner_billing  # per-tenant prepaid metering (optional)
 except Exception:  # noqa: BLE001
@@ -268,13 +269,28 @@ def _load_direct_api_token() -> str:
             data = json.loads(secret)
             _direct_api_token_cache['token'] = (data.get('access_token') or '').strip()
             _direct_api_token_cache['app_secret'] = (data.get('app_secret') or '').strip()
+            # WABA2's app has its own secret; a webhook may be signed by either.
+            _direct_api_token_cache['app_secret_waba2'] = (
+                data.get('app_secret_waba2') or ''
+            ).strip()
         except (json.JSONDecodeError, TypeError):
             _direct_api_token_cache['token'] = secret.strip()
             _direct_api_token_cache['app_secret'] = ''
+            _direct_api_token_cache['app_secret_waba2'] = ''
         return _direct_api_token_cache.get('token', '')
     except Exception as e:
         logger.error(f"Failed to load Direct API token: {e}")
         return ''
+
+
+def _meta_app_secrets() -> list:
+    """Candidate Meta app secrets for webhook signature verification."""
+    if 'app_secret' not in _direct_api_token_cache:
+        _load_direct_api_token()
+    return [
+        _direct_api_token_cache.get('app_secret', ''),
+        _direct_api_token_cache.get('app_secret_waba2', ''),
+    ]
 
 
 def _get_meta_phone_id_for_direct_api(aws_phone_id: str) -> str:
@@ -558,8 +574,46 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     _lambda_deadline_ms = (context.get_remaining_time_in_millis() if context else 120000)
     _start_time = time.time()
 
+    # ── Authenticate anything arriving over HTTP, before any side effect ──
+    # The production path is an internal `lambda_client.invoke` from
+    # wecare-whatsapp-calling, which has already verified Meta's
+    # X-Hub-Signature-256 on the canonical /whatsapp ingress. But this function
+    # also sits behind a public `POST /whatsapp/inbound` route with
+    # AuthorizationType=NONE, and until 2026-09-21 that door required no
+    # signature, no token and no Cognito identity - so an anonymous caller could
+    # inject forged messages into the inbox and reach create_invoice.
+    #
+    # An internally invoked event carries no API Gateway envelope, so this guard
+    # applies only to the public door and leaves the verified path untouched.
+    _via_http = meta_signature.is_http_request(event)
+    if _via_http:
+        _ok, _reason = meta_signature.verify(event, _meta_app_secrets())
+        if not _ok:
+            logger.warning(json.dumps({
+                'event': 'inbound_http_signature_rejected',
+                'reason': _reason,
+                'requestId': request_id,
+            }))
+            return {
+                'statusCode': 401,
+                'body': json.dumps({'success': False, 'error': 'invalid_signature'}),
+            }
+
     # ── Direct invoke: create_invoice from dashboard ──
+    # Internal callers only (core/messages-delete invokes this). A signed Meta
+    # webhook never carries `action`, so honouring it over HTTP would only ever
+    # serve a forged request.
     if event.get('action') == 'create_invoice':
+        if _via_http:
+            logger.warning(json.dumps({
+                'event': 'inbound_http_action_rejected',
+                'action': 'create_invoice',
+                'requestId': request_id,
+            }))
+            return {
+                'statusCode': 401,
+                'body': json.dumps({'success': False, 'error': 'internal_invocation_only'}),
+            }
         return _handle_dashboard_invoice(event, request_id)
     
     logger.info(json.dumps({

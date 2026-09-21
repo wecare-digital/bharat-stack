@@ -28,11 +28,50 @@ from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
 from lambda_utils.message_store import put_message  # canonical MessagesTable writer
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
+from lambda_utils import sinch_signature  # raw-body HMAC on the public callback
 
 logger = get_logger(__name__)
 
+# Webhook signing secret, cached for the life of the execution environment.
+# Loaded lazily on first request, never at import: a module-scope read is frozen
+# into every warm sandbox, so a rotation would not take effect until each one
+# recycles.
+_webhook_secret_cache: Dict[str, Any] = {'loaded': False, 'value': ''}
+
+
+def _load_webhook_secret() -> str:
+    """Read the Sinch webhook signing secret from Secrets Manager.
+
+    Returns '' when no secret is configured, which the caller must treat as
+    "cannot verify" rather than "no verification needed".
+    """
+    if _webhook_secret_cache['loaded']:
+        return _webhook_secret_cache['value']
+
+    value = ''
+    try:
+        client = boto3.client(
+            'secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1')
+        )
+        resp = client.get_secret_value(SecretId=SINCH_RCS_SECRET_ID)
+        data = json.loads(resp.get('SecretString') or '{}')
+        value = data.get('webhook_secret') or ''
+    except Exception as e:  # noqa: BLE001 - never leak the secret or crash on absence
+        logger.error(json.dumps({
+            'event': 'rcs_dlr_secret_load_failed',
+            'error': type(e).__name__,
+        }))
+        # Do not cache a failed load: a transient Secrets Manager error must not
+        # pin this sandbox into permanent 503s.
+        return ''
+
+    _webhook_secret_cache['value'] = value
+    _webhook_secret_cache['loaded'] = True
+    return value
+
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+SINCH_RCS_SECRET_ID = os.environ.get('SINCH_RCS_SECRET_ID', 'wecare/sinch/rcs')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 
@@ -58,6 +97,40 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'headers': cors_headers(origin),
             'body': json.dumps({'status': 'ok', 'service': 'sinch-rcs-webhook'}),
         }
+
+    # ── Authenticate the caller BEFORE any parsing or side effect ──
+    # This route is public at the gateway (AuthorizationType=NONE) because a
+    # provider callback cannot present a Cognito token. Trust therefore has to
+    # come from the Sinch HMAC signature, verified over the raw body.
+    if sinch_signature.is_http_request(event):
+        secret = _load_webhook_secret()
+        if not secret:
+            # Unverifiable, not trusted. 5xx so Sinch retries with backoff and
+            # the receipts survive until the secret is configured, rather than
+            # being silently accepted or silently dropped.
+            logger.error(json.dumps({
+                'event': 'rcs_dlr_secret_missing',
+                'detail': 'no webhook_secret in wecare/sinch/rcs; refusing unverified callback',
+                'requestId': request_id,
+            }))
+            return {
+                'statusCode': 503,
+                'headers': cors_headers(origin),
+                'body': json.dumps({'success': False, 'error': 'verification_unavailable'}),
+            }
+
+        ok, reason = sinch_signature.verify(event, secret)
+        if not ok:
+            logger.warning(json.dumps({
+                'event': 'rcs_dlr_signature_rejected',
+                'reason': reason,
+                'requestId': request_id,
+            }))
+            return {
+                'statusCode': 401,
+                'headers': cors_headers(origin),
+                'body': json.dumps({'success': False, 'error': 'invalid_signature'}),
+            }
 
     try:
         body = event.get('body', '{}')
