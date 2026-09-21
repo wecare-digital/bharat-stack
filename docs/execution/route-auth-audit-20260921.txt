@@ -1,15 +1,6 @@
-HTTP APIs scanned : 2  (79g3bbufdh, zllr9lrg7j)
+HTTP APIs scanned : 1  (zllr9lrg7j)
 handler dirs      : 354
 live functions    : 58
-
---- 79g3bbufdh  wecare-api
-    routes 1 across 1 page(s), integrations 1
-    gateway-authorized                  : 0
-    gateway NONE, handler authenticates : 1
-    expected public (allowlisted)       : 0
-    DANGLING (target function absent)   : 0
-    UNRESOLVED (source not found)       : 0
-    OPEN (no auth at either layer)      : 0
 
 --- zllr9lrg7j  wecare-digital-api
     routes 326 across 4 page(s), integrations 101
