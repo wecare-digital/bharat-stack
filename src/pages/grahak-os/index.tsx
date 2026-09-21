@@ -275,7 +275,7 @@ response = requests.post(
         </section>
 
         {/* TEMP DESIGN REVIEW: four trust-section variants. Keep one, delete the other three. */}
-        <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Trusted by Meta">
+        <section className="trust-strip" id="trust-strip" aria-label="Trusted by Meta">
 
           <div className="tv-label">VARIANT A-i &nbsp;—&nbsp; Meta wordmark (no image) + narrower left</div>
           <div className="trust-grid tv-narrow">
