@@ -1,0 +1,67 @@
+HTTP APIs scanned : 2  (79g3bbufdh, zllr9lrg7j)
+handler dirs      : 354
+live functions    : 58
+
+--- 79g3bbufdh  wecare-api
+    routes 3 across 1 page(s), integrations 2
+    gateway-authorized                  : 0
+    gateway NONE, handler authenticates : 1
+    DANGLING (target function absent)   : 2
+    UNRESOLVED (source not found)       : 0
+    OPEN (no auth at either layer)      : 0
+    strict: handler-authenticates 0, open 1
+
+--- zllr9lrg7j  wecare-digital-api
+    routes 329 across 4 page(s), integrations 102
+    gateway-authorized                  : 0
+    gateway NONE, handler authenticates : 303
+    DANGLING (target function absent)   : 3
+    UNRESOLVED (source not found)       : 0
+    OPEN (no auth at either layer)      : 2
+    strict: handler-authenticates 273, open 32
+
+OPEN ROUTES - reachable by anyone:
+  [zllr9lrg7j] GET /webhook/sinch-rcs                   -> wecare-rcs-dlr
+  [zllr9lrg7j] POST /webhook/sinch-rcs                  -> wecare-rcs-dlr
+
+DANGLING ROUTES - target Lambda no longer exists:
+  [79g3bbufdh] GET /webhook/sinch-dlr                   -> wecare-sinch-dlr
+  [79g3bbufdh] POST /webhook/sinch-dlr                  -> wecare-sinch-dlr
+  [zllr9lrg7j] DELETE /voice-in/cdr                     -> wecare-voice-in-cdr
+  [zllr9lrg7j] GET /voice-in/cdr                        -> wecare-voice-in-cdr
+  [zllr9lrg7j] POST /voice-in/cdr                       -> wecare-voice-in-cdr
+
+OPEN ONLY UNDER --strict - relies on a weak marker (Authorization / api_key / verify_token):
+  POST /ai/generate -> wecare-ai-generate-response
+  DELETE /links/{code} -> stack-wecare-url-shortener
+  DELETE /voice-in/c2c -> wecare-voice-in-c2c
+  DELETE /voice-in/c2c/clear-logs -> wecare-voice-in-c2c
+  DELETE /voice-in/obd -> wecare-voice-in-obd
+  DELETE /voice-in/obd/audio-library -> wecare-voice-in-obd
+  DELETE /voice-in/obd/clear-logs -> wecare-voice-in-obd
+  GET /bulk/worker -> wecare-bulk-worker
+  GET /links -> stack-wecare-url-shortener
+  GET /links/{code} -> stack-wecare-url-shortener
+  GET /r/{code} -> stack-wecare-url-shortener
+  GET /store/preview-product-image -> wecare-product-image-gen
+  GET /voice-in/c2c -> wecare-voice-in-c2c
+  GET /voice-in/obd -> wecare-voice-in-obd
+  GET /voice-in/obd/audio-library -> wecare-voice-in-obd
+  GET /{code} -> stack-wecare-url-shortener
+  POST /ai/generate -> wecare-ai-generate-response
+  POST /auth/validate -> wecare-auth-middleware
+  POST /links -> stack-wecare-url-shortener
+  POST /media/cleanup -> wecare-media-cleanup
+  POST /store/convert-flag -> wecare-product-image-gen
+  POST /store/generate-product-image -> wecare-product-image-gen
+  POST /voice-in/c2c -> wecare-voice-in-c2c
+  POST /voice-in/obd -> wecare-voice-in-obd
+  POST /voice-in/obd/audio-library -> wecare-voice-in-obd
+  POST /voice-in/obd/create -> wecare-voice-in-obd
+  POST /voice-in/obd/tts -> wecare-voice-in-obd
+  POST /voice-in/obd/upload-audio -> wecare-voice-in-obd
+  POST /voice-in/obd/upload-csv -> wecare-voice-in-obd
+  POST /whatsapp/inbound -> wecare-inbound-whatsapp
+  PUT /links/{code} -> stack-wecare-url-shortener
+
+EXIT=0

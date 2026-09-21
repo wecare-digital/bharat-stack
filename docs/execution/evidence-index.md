@@ -1,0 +1,27 @@
+# Evidence index
+
+Immutable evidence for requirement states. No credential values, no customer
+identifiers, no secret contents.
+
+| ID | Requirement IDs | Evidence | Timestamp | Environment |
+|---|---|---|---|---|
+| `EV-0001` | `SEC-BASE-001`, `SEC-HOOK-001` | Git: HEAD `4baf4236dbf78a784ec84f238e091b699f7f8cd4`, branch `stack`, `origin/stack` identical, `git rev-list --count 827cd614..HEAD` = **28**. Working tree: 2 deleted spec files + 2 untracked, none authored by this session. `.kiro/hooks/` holds `block-broad-git-staging`, `block-catastrophic`, `block-inline-secrets`, `heal-parallel-setup` | 2026-09-21 | local |
+| `EV-0002` | `WA-INGRESS-001`, `WA-OUTBOUND-001`, `WAC-001`, `SMS-001`, `RCS-001`, `PAY-001`, `DEPLOY-001` | `lambda:ListFunctions` + `ListAliases` ×58, errorTotal **0**. 58 functions (57 Zip, 1 Image), all `python3.12`, `SnapStart.ApplyOn=None` on 58/58. 49 carry `live`. Measured live versions: `whatsapp-calling=12`, `inbound-whatsapp=37`, `outbound-whatsapp=17`, `plivo-answer=9`, `sms-aws=12`, `outbound-sms=9`, `rcs-send=7`, `rcs-dlr=6`, `razorpay-webhook=25`, `invoice-engine=17`, `whatsapp-business-api=31`, `meta-business-agent=20`. 9 with no alias: `ad-attribution`, `docs-scraper`, `marketing-ads`, `partner-onboarding`, `partner-token-refresh`, `push-notifications`, `seo-tools`, `sla-engine`, `url-shortener` | 2026-09-21 | AWS `775261844268` / `us-east-1` |
+| `EV-0003` | `NOTIF-STORE-001`, `NOTIF-STORE-002`, `NOTIF-LEGACY-001` | `dynamodb:ListTables` = **66** tables. `CallNotificationsTable` **present**. `PstnNotificationDelivery` **absent**. `RcsMessagesTable` **absent** | 2026-09-21 | AWS |
+| `EV-0004` | `SEC-CRED-001`, `PROV-PAYU-001`, `PROV-AIRTEL-001`, `PROV-SINCHSMS-001`, `RCS-001` | `secretsmanager:ListSecrets` (metadata only, **no `GetSecretValue`**) = 31 entries. 25 active including `wecare/sinch/rcs`, `wecare/razorpay/api`, `wecare/razorpay-webhook`, `wecare/plivo*`, `wecare/meta-system-user-token`. 6 scheduled: `airtel-iq`, `airtel/c2c`, `airtel/obd`, `airtel/sms`, `sinch/sms` (2026-09-20), `payu` (2026-08-26) | 2026-09-21 | AWS |
+| `EV-0005` | `SEC-MFA-001`, `SEC-WAF-001`, `SEC-GD-001` | Cognito pool `us-east-1_cSx0RHCIR` / `WECARE.DIGITAL`; `GetUserPoolMfaConfig` → `MfaConfiguration=OFF`, SMS MFA config present, TOTP not reported enabled; clients `stack-wecare-digital-web`, `WECARE.DIGITAL`. `wafv2:ListWebACLs` REGIONAL = **0**, CLOUDFRONT = **0**. `guardduty:ListDetectors` = **0**. `amplify:ListApps` = 1 (`d22dm4b0jn71jw`) | 2026-09-21 | AWS |
+| `EV-0006` | `PROV-PAYU-001` | No PayU Lambda, route, integration or table in the measured inventory. `wecare/payu` remains recoverable inside its window | 2026-09-21 | AWS |
+| `EV-0007` | `SEC-ROUTE-001`, `SEC-ROUTE-003`, `SEC-ROUTE-004`, `PROV-AIRTEL-001`, `PROV-GATE-001`, `PSTN-TOKEN-001`, `PSTN-DIAL-001` | `docs/execution/route-auth-audit-20260921.txt`: 329 routes, 102 integrations, 171 handler dirs; gateway-authorized **0**; gateway NONE + handler authenticates **302**; handler source unresolvable **4**; **OPEN 2** = `GET /webhook/sinch-rcs`, `POST /webhook/sinch-rcs` → `wecare-rcs-dlr`. Unresolved: `DELETE/GET/POST /voice-in/cdr`, `POST /whatsapp/inbound`. The script scans only `zllr9lrg7j` | 2026-09-21 | AWS + repo |
+| `EV-0008` | `SEC-ROUTE-002`, `WA-INGRESS-001` | `amplify/functions/messaging/inbound-whatsapp-handler/handler.py:539` `def handler(...)` consumes `event['Records'][*]['Sns']['Message']`; grep for `require_auth` returns **no hits**; grep for `X-Hub-Signature` returns **no hits** in this file (verification lives in `whatsapp-calling/handler.py:324` and `whatsapp-business-api/handler.py:5525`). Direct-invoke branch `event['action'] == 'create_invoice'` executes before any authorization | 2026-09-21 | repo |
+| `EV-0009` | `PROV-SINCHSMS-001`, `PROV-AIRTEL-001`, `DEPLOY-002` | API `79g3bbufdh` (`wecare-api`), 3 routes, 0 authorizers, stage `prod` autoDeploy: `GET /webhook/sinch-dlr` → `wecare-sinch-dlr` (**function absent**), `POST /webhook/sinch-dlr` → same, `POST /ai/generate` → `wecare-ai-generate-response` (**unqualified `$LATEST`**). API `zllr9lrg7j`: `POST/GET/DELETE /voice-in/cdr` → `wecare-voice-in-cdr` (**function absent**) | 2026-09-21 | AWS |
+| `EV-0010` | `NOTIF-OWN-001`, `NOTIF-LEGACY-001` | `wecare-elevenlabs-postcall-sms` **absent from the live fleet**. DLT key `ivr-default` referenced in 8 source files: `comms/__init__.py`, `comms/notify.py`, `comms/dlt.py`, `pstn/notifications.py`, `voice-in/obd/handler.py`, `voice-in/c2c/handler.py`, `whatsapp-calling/handler.py`, `plivo-answer/handler.py`. `CallNotificationsTable` referenced only by `whatsapp-calling/handler.py`. `rcs-dlr/handler.py:291` invokes `wecare-rcs-send` from `evaluate_rules` | 2026-09-21 | repo + AWS |
+| `EV-0011` | `PSTN-FLAG-001` | `plivo-answer/handler.py:87` `PSTN_BROWSER_ROUTING_ENABLED` default `false`; `:228` raises when true without `PSTN_AGENT_ENDPOINT`. `pstn/notifications.py:81` `PSTN_CONNECTED_NOTIFICATIONS_ENABLED` default `false`. Deployed environment values **not yet measured** | 2026-09-21 | repo |
+
+## Not evidence
+
+- Every Meta, Plivo, Razorpay, Google, Bing and Wix identifier in
+  `docs/protected-resource-register.md` is **carried forward** from `bw-crm.md`.
+  No provider API was called during Phase 0.
+- No live HTTP request was sent to any production route. The two unauthenticated
+  ingresses are proven from **configuration plus source**, not from exploitation.
+- No test suite, lint, typecheck or build was run this phase.

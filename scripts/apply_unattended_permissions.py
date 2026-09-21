@@ -140,6 +140,128 @@ rules:
       - '*/*'
 """
 
+USER_HEADER = """\
+# Kiro USER-LEVEL permissions - MANAGED FILE
+#
+# Written by scripts/apply_unattended_permissions.py --user.
+#
+# Why this file needs rules at all
+# --------------------------------
+# The per-workspace file grants fs_read/fs_write for the workspace root. Any path
+# OUTSIDE a registered root falls through to here. On 2026-09-21 an unattended run
+# was interrupted repeatedly because the agent used /tmp for scratch output and
+# read ~/.kiro config: 18 literal path entries had accumulated in this file, one
+# per approval click, and each new scratch filename prompted again.
+#
+# Literal entries are the wrong answer for the same reason they were in the
+# workspace file: they never stop growing, and "Always allow" records the whole
+# string it was shown. Directory scopes replace them.
+#
+# Deliberately NOT granted
+# ------------------------
+# $HOME is not wildcarded. block-catastrophic.json guards ~/.aws, ~/.ssh and the
+# retained plaintext credential source against shell and MCP routes, but its
+# matcher does not cover the file-write tools - so a blanket $HOME write rule here
+# would open an unguarded path to exactly the files that policy protects. Scratch
+# space and Kiro's own config are enough.
+#
+# Regenerate:  python scripts/apply_unattended_permissions.py --user
+# Roll back:   python scripts/apply_unattended_permissions.py --user --restore
+"""
+
+# Scratch and config scopes outside any workspace root. macOS resolves /tmp to
+# /private/tmp, and Kiro records the resolved form, so both are listed.
+USER_POLICY = """\
+rules:
+  - capability: shell
+    effect: allow
+    match:
+      - '*'
+
+  - capability: fs_read
+    effect: allow
+    match:
+      - '/tmp/**'
+      - '/private/tmp/**'
+      - '/var/folders/**'
+      - '{home}/.kiro/**'
+      - '{home}/wecare-store/**'
+
+  - capability: fs_write
+    effect: allow
+    match:
+      - '/tmp/**'
+      - '/private/tmp/**'
+      - '/var/folders/**'
+      - '{home}/.kiro/**'
+      - '{home}/wecare-store/**'
+
+  - capability: web_search
+    effect: allow
+  - capability: web_fetch
+    effect: allow
+
+  - capability: mcp
+    effect: allow
+    match:
+      - '*'
+      - '*/*'
+"""
+
+
+def user_settings_file() -> Path:
+    return Path.home() / ".kiro" / "settings" / "permissions.yaml"
+
+
+def write_user_policy(*, dry_run: bool) -> bool:
+    """Replace accumulated literal path entries with directory scopes."""
+    target = user_settings_file()
+    print(f"\n=== user-level settings")
+    print(f"    file   {target}")
+
+    before = summarize(target)
+    if before["exists"]:
+        print(f"    before {before['lines']} lines, {before['bytes']} bytes, "
+              f"{before['rule_entries']} match entries, "
+              f"capabilities={before['capabilities']}")
+    else:
+        print("    before (no user permissions file yet)")
+
+    if dry_run:
+        print("    dry-run: would write 6 capabilities scoped to scratch + .kiro")
+        return False
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.is_file():
+        backup = target.with_name(
+            f"permissions.yaml.bak-{time.strftime('%Y%m%d-%H%M%S')}")
+        shutil.copy2(target, backup)
+        print(f"    backup {backup.name}")
+
+    body = USER_POLICY.replace("{home}", str(Path.home()))
+    tmp = target.with_suffix(".yaml.tmp")
+    tmp.write_text(USER_HEADER + "\n" + body)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, target)
+
+    after = summarize(target)
+    print(f"    after  {after['lines']} lines, {after['bytes']} bytes, "
+          f"{after['rule_entries']} match entries, "
+          f"capabilities={after['capabilities']}")
+    return True
+
+
+def restore_user() -> bool:
+    target = user_settings_file()
+    backups = sorted(target.parent.glob("permissions.yaml.bak-*"))
+    if not backups:
+        print(f"    no backup found in {target.parent}")
+        return False
+    newest = backups[-1]
+    shutil.copy2(newest, target)
+    print(f"=== user-level settings\n    restored from {newest.name}")
+    return True
+
 
 def workspace_key(path: str | Path) -> str:
     return hashlib.sha256(str(Path(path).resolve()).encode()).hexdigest()[:16]
@@ -172,11 +294,19 @@ def summarize(path: Path) -> dict:
     text = path.read_text(errors="replace")
     lines = text.splitlines()
     matches = [l.strip()[2:].strip() for l in lines if l.strip().startswith("- ")]
+    # A match entry with no glob character is a literal path - the shape that
+    # "Always allow" records one click at a time and that never stops growing.
+    # Counting those, rather than counting all entries, is what makes the
+    # accumulation warning meaningful: a policy of directory scopes has many
+    # entries and zero literals.
+    literals = [m for m in matches
+                if m and "capability:" not in m and "*" not in m]
     return {
         "exists": True,
         "bytes": len(text),
         "lines": len(lines),
         "rule_entries": len(matches),
+        "literal_entries": len(literals),
         "capabilities": [l.split("capability:", 1)[1].strip()
                          for l in lines if "capability:" in l],
     }
@@ -267,6 +397,10 @@ def main() -> int:
                     help="apply even when the deny hooks are absent")
     ap.add_argument("--restore", action="store_true",
                     help="put the most recent backup back")
+    ap.add_argument("--user", action="store_true",
+                    help="also write ~/.kiro/settings/permissions.yaml, which "
+                         "governs paths outside any workspace root (scratch "
+                         "files, Kiro's own config)")
     args = ap.parse_args()
 
     if args.list:
@@ -282,6 +416,19 @@ def main() -> int:
                 print(f"  {'':16}  hooks present={len(present)}/"
                       f"{len(REQUIRED_HOOKS)}"
                       + (f", missing={missing}" if missing else ""))
+        u = summarize(user_settings_file())
+        print(f"\nUser-level fallback for paths outside every root:")
+        print(f"  {user_settings_file()}")
+        if u["exists"]:
+            print(f"  {u['lines']} lines, {u['rule_entries']} match entries "
+                  f"({u['literal_entries']} literal), {u['capabilities']}")
+            if u["literal_entries"]:
+                print(f"  NOTE: {u['literal_entries']} literal path entr"
+                      f"{'y' if u['literal_entries'] == 1 else 'ies'} - these "
+                      "accumulate one approval click at a time. Re-run with "
+                      "--user to replace them with directory scopes.")
+        else:
+            print("  no policy file - every path outside a root will prompt")
         return 0
 
     targets: list[tuple[str, str | None]] = []
@@ -295,13 +442,18 @@ def main() -> int:
 
     if args.restore:
         ok = sum(restore(k, r) for k, r in targets)
-        print(f"\nrestored {ok}/{len(targets)}")
+        if args.user:
+            ok += restore_user()
+        print(f"\nrestored {ok} target(s)")
         return 0 if ok else 1
 
     written = 0
     for key, root in targets:
         if write_policy(key, root, dry_run=args.dry_run, force=args.force):
             written += 1
+
+    if args.user:
+        write_user_policy(dry_run=args.dry_run)
 
     print(f"\n{written}/{len(targets)} workspace(s) written"
           + (" (dry run)" if args.dry_run else ""))

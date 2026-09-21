@@ -110,3 +110,9 @@ next-env.d.ts
 
 # Local MCP config — contains secrets (Wix API key). Do not commit.
 .kiro/settings/mcp.json
+
+# Agent scratch output. Kept inside the workspace on purpose: the per-workspace
+# Kiro permissions file grants fs_read/fs_write for the root, while anything in
+# /tmp falls through to the user-level file and prompts for approval once per new
+# filename. Never tracked.
+.scratch/
