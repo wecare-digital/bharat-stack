@@ -40,6 +40,7 @@ from decimal import Decimal
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -91,6 +92,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'}, origin)
+
+        # ── Authenticate API Gateway callers ──
+        # These routes were public (AuthorizationType=NONE) with no handler check
+        # either, which left DELETE /voice-in/c2c and DELETE /voice-in/c2c/clear-logs
+        # able to wipe call history anonymously. The provider webhook this once
+        # served is retired; the live callers are dashboard reads and clears, which
+        # already send a Cognito bearer token. require_auth skips OPTIONS and
+        # internal Lambda invokes, so nothing internal changes.
+        auth_failure = require_auth(event)
+        if auth_failure is not None:
+            return auth_failure
 
         body = json.loads(event.get('body', '{}')) if event.get('body') else {}
 

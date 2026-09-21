@@ -20,6 +20,8 @@ import string
 import boto3
 from datetime import datetime, timezone
 
+from lambda_utils.middleware import require_auth
+
 dynamodb = boto3.resource("dynamodb")
 SHORT_LINKS_TABLE = os.environ.get("SHORT_LINKS_TABLE", "stack-wecare-digital-ShortLinksTable")
 LINK_CLICKS_TABLE = os.environ.get("LINK_CLICKS_TABLE", "stack-wecare-digital-LinkClicksTable")
@@ -91,6 +93,23 @@ def handler(event, context):
             return redirect(code, event)
 
         # CRUD: /links
+        #
+        # Authentication is applied here rather than at the top of the handler
+        # because this function serves two different audiences on one Lambda:
+        # the short-link redirects below are anonymous by definition - a customer
+        # following r.wecare.digital/abc123 has no Cognito token - while link
+        # management is dashboard-only.
+        #
+        # Until 2026-09-21 none of it was authenticated. Anyone could enumerate
+        # every short link, repoint an existing one, or mint new ones on a
+        # wecare.digital domain, which is a ready-made phishing primitive.
+        # require_auth skips internal Lambda invokes and OPTIONS, so callers that
+        # are not API Gateway requests are unaffected.
+        if "links" in path and method in ("POST", "GET", "DELETE", "PUT"):
+            auth_failure = require_auth(event)
+            if auth_failure is not None:
+                return auth_failure
+
         if method == "POST" and "links" in path:
             return create_link(body)
         if method == "GET" and "links" in path:

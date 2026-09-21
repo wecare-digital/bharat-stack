@@ -23,6 +23,7 @@ from typing import Dict, Any
 from decimal import Decimal
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.middleware import require_auth
 from lambda_utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -71,6 +72,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Delete expired WhatsApp media from Meta servers."""
     request_id = context.aws_request_id if context else 'local'
     origin = extract_origin(event)
+
+    # ── Authenticate API Gateway callers ──
+    # POST /media/cleanup was public with no handler check, and this function
+    # DELETES media from Meta. Anonymous, destructive, and irreversible.
+    # The legitimate callers are the schedule and the dashboard: a scheduled or
+    # internal invoke carries no API Gateway context, so require_auth passes it
+    # through untouched and only the public route is gated.
+    auth_failure = require_auth(event)
+    if auth_failure is not None:
+        return auth_failure
+
     deleted = 0
     failed = 0
     skipped = 0
