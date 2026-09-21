@@ -244,10 +244,10 @@ response = requests.post(
                     <div className="verified-badge"></div>
                   </div>
                   <div className="chat-area">
-                    <div className="msg sent"><p>Hi! Your order #WD-ORD-87A6G has been shipped </p><span className="msg-time">10:30</span></div>
+                    <div className="msg sent"><p>Hi! Your order #WD-ORD-87A6G has been shipped</p><span className="msg-time">10:30</span></div>
                     <div className="msg received"><p>When will it arrive?</p><span className="msg-time">10:31</span></div>
-                    <div className="msg sent left-msg"><p>Tomorrow by 6 PM</p><span className="msg-time">10:31</span></div>
-                    <div className="msg sent left-msg"><p>Track here: wecare.digital/track</p><span className="msg-time">10:32</span></div>
+                    <div className="msg sent"><p>Tomorrow by 6 PM</p><span className="msg-time">10:31</span></div>
+                    <div className="msg sent"><p>Track here: wecare.digital/track</p><span className="msg-time">10:32</span></div>
                     <div className="typing-indicator"><span></span><span></span><span></span></div>
                   </div>
                 </div>
@@ -256,14 +256,16 @@ response = requests.post(
                     <div className="dots"><span className="dot-red"></span><span className="dot-yellow"></span><span className="dot-green"></span></div>
                     <span className="file-name">send_message.py</span>
                   </div>
-                  <pre className="code-body">{`response = requests.post(
-  "api.wecare.digital/v1/send",
+                  {/* Kept short on purpose: the panel is ~248px wide and wraps,
+                      so long lines break at awkward points. */}
+                  <pre className="code-body">{`requests.post(
+  "api.wecare.digital/send",
   json={
     "to": "+919330994400",
     "type": "text",
-    "message": "Your OTP: 847291"
+    "text": "OTP: 847291"
   },
-  headers={"Authorization": api_key}
+  headers=auth
 )`}</pre>
                 </div>
               </div>
@@ -397,6 +399,10 @@ response = requests.post(
           /* 60px cap is deliberate: at 64px "across <WhatsApp pill>" needs ~562px
              of the 564px column, so the pill wrapped to a third line. 60px leaves
              ~35px of slack so the headline holds two lines on every channel. */
+          /* The row is start-aligned so the taller mockup clears the fixed header,
+             but that left ~100px of empty column under the shorter copy. Centring
+             just the copy fixes the imbalance without moving the mockup. */
+          .hero-left{align-self:center}
           .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.08;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
           /* Lede plus a muted supporting line. Two paragraphs rather than one long
              run-on: it reads better and gives the left column enough vertical mass
@@ -447,7 +453,7 @@ response = requests.post(
                Tight 0.1em gap - at 0.2em the dot read as detached from the word. */
             display:inline-block;width:.33em;height:.33em;
             background:#d1f470;border-radius:50%;
-            margin-right:.1em;vertical-align:.14em;
+            margin-right:.18em;vertical-align:.14em;
             transform:scale(0);
             transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
           }
@@ -518,7 +524,10 @@ response = requests.post(
              phone's lower-right corner. At 55%/58% they summed to 113% of the
              wrapper and the panel sat across the message column, hiding message
              text and timestamps. */
-          .phone{position:absolute;left:0;top:8px;width:52%;max-width:286px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+          /* 50% + 44% leaves a real gap between the two panels. At 52%/50% they
+             sat 4px apart - technically not overlapping, but flush enough that the
+             right-aligned sent bubbles looked like they ran under the code panel. */
+          .phone{position:absolute;left:0;top:8px;width:50%;max-width:276px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
           .phone-header{background:#1a3a2a;padding:12px 14px;display:flex;align-items:center;gap:10px}
           .back-arrow{color:#fff;font-size:20px}
           .avatar{width:40px;height:40px;background:#1a3a2a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
@@ -530,7 +539,9 @@ response = requests.post(
           .msg{max-width:80%;padding:10px 12px;border-radius:8px;font-size:16px;line-height:1.45;color:#000}
           .msg.received{background:#fff;align-self:flex-start;border-top-left-radius:3px}
           .msg.sent{background:#d1f470;align-self:flex-end;border-top-right-radius:3px}
-          .msg.sent.left-msg{align-self:flex-start !important;border-top-left-radius:3px;border-top-right-radius:8px}
+          /* Every sent bubble sits on the right. Two of them previously carried a
+             left-msg override that forced them to flex-start, so outgoing messages
+             appeared on both sides of the same thread. */
           .msg p{margin:0}
           .msg-time{font-size:12px;color:#667781;display:block;text-align:right;margin-top:3px}
           .typing-indicator{background:#fff;padding:10px 14px;border-radius:8px;align-self:flex-start;display:flex;gap:4px}
@@ -540,7 +551,7 @@ response = requests.post(
           @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-3px)}}
 
           /* Code Box */
-          .code-box{position:absolute;right:0;bottom:0;width:50%;max-width:296px;background:#1e293b;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+          .code-box{position:absolute;right:0;bottom:0;width:44%;max-width:248px;background:#1e293b;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.2)}
           .code-header{display:flex;align-items:center;padding:10px 14px;background:#000}
           .dots{display:flex;gap:5px}
           .dot-red,.dot-yellow,.dot-green{width:10px;height:10px;border-radius:50%}
@@ -548,7 +559,11 @@ response = requests.post(
           .dot-yellow{background:#febc2e}
           .dot-green{background:#28c840}
           .file-name{margin-left:auto;font-size:15px;color:#fff}
-          .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
+          /* pre-wrap rather than pre: at narrower viewports the panel shrinks and
+             the longest lines were cut off mid-token behind overflow:auto, with no
+             visible scrollbar to reveal them. NOTE: no backticks in comments here -
+             this whole block is a template literal and a backtick ends it. */
+          .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.55;color:#e2e8f0;white-space:pre-wrap;overflow-wrap:break-word}
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
