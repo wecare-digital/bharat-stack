@@ -1,6 +1,6 @@
 # Runtime inventory
 
-Generated 2026-09-21T07:28:20+00:00 · `us-east-1` · regenerate with `python scripts/generate_runtime_inventory.py`
+Generated 2026-09-21T09:10:38+00:00 · `us-east-1` · regenerate with `python scripts/generate_runtime_inventory.py`
 
 Machine-readable companion: `runtime-inventory.json`. Environment variable
 **names** are recorded, values never are.
