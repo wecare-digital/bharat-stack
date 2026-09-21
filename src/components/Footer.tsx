@@ -22,10 +22,7 @@ const Footer: React.FC = () => (
           <p className="ft-tagline">Trusted everyday services for Bharat</p>
         </div>
 
-        <span className="ft-mark">
-          <i className="ft-dot" aria-hidden="true" />
-          WECARE.DIGITAL
-        </span>
+        <span className="ft-mark">WECARE.DIGITAL</span>
       </div>
     </div>
 
@@ -42,8 +39,7 @@ const Footer: React.FC = () => (
       .ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
       .ft-tagline{font-size:15px;line-height:1.6;color:#9ca3af;margin:0;max-width:320px}
 
-      .ft-mark{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#6b7280}
-      .ft-dot{width:6px;height:6px;border-radius:50%;background:#d1f470;flex:0 0 auto}
+      .ft-mark{font-size:14px;color:#6b7280}
 
       /* Account wraps onto the next row before the columns get too narrow. */
       @media(max-width:1024px){

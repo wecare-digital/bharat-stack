@@ -13,14 +13,15 @@ const GrahakOsPage: React.FC = () => {
   // Hero headline cycles the channel in the lime pill, the way notion.com
   // rotates the highlighted verb. Width is measured so the pill resizes
   // smoothly instead of snapping between "WhatsApp" and "SMS".
-  // Each channel carries its own pill tint, the way notion.com gives every
-  // rotating verb a different highlight colour (measured: peach -> amber ->
-  // lavender -> teal -> blue -> green). The tint transitions with the word.
+  // Each channel carries its own pill tint AND a matching dot, mirroring the
+  // notion.com treatment measured from their hero: the pill is a pale tint and
+  // the leading dot is a saturated version of the same hue, both swapping with
+  // the word (e.g. pill rgb(230,243,254) with dot rgb(9,127,232)).
   const cycleWords = [
-    { word: 'WhatsApp', tint: '#e0f7c8' },
-    { word: 'SMS', tint: '#dbeafe' },
-    { word: 'Email', tint: '#fef3c7' },
-    { word: 'Voice', tint: '#ede9fe' },
+    { word: 'WhatsApp', tint: '#e0f7c8', dot: '#3da35a' },
+    { word: 'SMS', tint: '#dbeafe', dot: '#097fe8' },
+    { word: 'Email', tint: '#fef3c7', dot: '#f0a818' },
+    { word: 'Voice', tint: '#ede9fe', dot: '#9849e8' },
   ];
   const [cycleIndex, setCycleIndex] = useState(0);
   const [heroWidth, setHeroWidth] = useState<number | null>(null);
@@ -206,7 +207,11 @@ response = requests.post(
                   className="hero-mark"
                   style={ { background: cycleWords[cycleIndex].tint } }
                 >
-                  <i className="hero-mark-dot" aria-hidden="true" />
+                  <i
+                    className="hero-mark-dot"
+                    style={ { background: cycleWords[cycleIndex].dot } }
+                    aria-hidden="true"
+                  />
                   <span
                     className="hero-cycle"
                     style={ heroWidth ? { width: `${heroWidth}px` } : undefined }
@@ -223,8 +228,9 @@ response = requests.post(
                   </span>
                 </span>
               </h1>
-              <p>One platform for customer data, messaging, automation and campaigns.</p>
-              <p className="hero-sub">Every conversation carries full customer context — on WhatsApp, SMS, Email or Voice, without switching between tools.</p>
+              <p>One platform for customer data, messaging, automation, and campaigns.</p>
+              <p className="hero-sub">Every conversation stays connected on WhatsApp, SMS, Email, and Voice.</p>
+              <p className="hero-sub">Turn your WhatsApp number into your #1 revenue channel with Grahak OS.</p>
             </div>
             <div className="hero-right">
               <div className="mockup-wrapper">
@@ -397,8 +403,13 @@ response = requests.post(
              run-on: it reads better and gives the left column enough vertical mass
              to sit against the mockup opposite (which was 221px taller). Measures
              are capped so each wraps to a comfortable 2-3 lines. */
-          .hero-left p{font-size:clamp(19px,1.55vw,23px);color:#4b5563;line-height:1.55;margin:0 0 18px;max-width:30ch}
-          .hero-left p.hero-sub{font-size:clamp(16px,1.25vw,18px);color:#9ca3af;line-height:1.65;margin:0;max-width:46ch}
+          /* Text colours measured from notion.com rather than picked off a grey
+             ramp: their hero subtext is rgba(0,0,0,.898) at 20px and their
+             secondary copy rgba(0,0,0,.54). The previous #9ca3af sat far lighter
+             than anything they use for body text, which is why it read washed out. */
+          .hero-left p{font-size:clamp(19px,1.55vw,23px);color:rgba(0,0,0,.898);line-height:1.55;margin:0 0 16px;max-width:32ch}
+          .hero-left p.hero-sub{font-size:clamp(16px,1.25vw,18px);color:rgba(0,0,0,.54);line-height:1.6;margin:0 0 10px;max-width:46ch}
+          .hero-left p.hero-sub:last-child{margin-bottom:0}
 
           /* Rotating channel pill in the hero headline (Notion-style). The lime
              tint is a pseudo-element so it can wipe in from the left without
@@ -621,7 +632,7 @@ response = requests.post(
             .hero-right{order:-1;width:100%;display:flex;justify-content:center}
             .hero-left{text-align:left;order:1}
             .hero-left h1{letter-spacing:-1.2px;margin:0 0 20px;line-height:1.1;max-width:100%;text-align:left}
-            .hero-left p{line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
+            .hero-left p{line-height:1.6;margin:0 0 16px;max-width:100%;text-align:left}
             
             .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:24px}
