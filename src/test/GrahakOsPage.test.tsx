@@ -6,13 +6,16 @@ describe( 'Grahak OS five approved visual fixes', () => {
   const pagePath = resolve( process.cwd(), 'src/pages/grahak-os/index.tsx' );
   const source = readFileSync( pagePath, 'utf8' );
 
-  it( 'keeps hero stats compact and keeps 4 Channels together', () => {
-    expect( source ).toContain( '<span>4 Channels</span>' );
-    // Hairline restraint: 1px border, 8px radius (was 2px / 14px).
-    expect( source ).toContain( '.stat{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px' );
-    expect( source ).toContain( '.stat span{display:block;font-size:22px' );
-    expect( source ).toContain( 'white-space:nowrap' );
-    expect( source ).not.toContain( 'min-height:112px' );
+  it( 'drops the three hero stat cards and their dead CSS', () => {
+    // Removed by design decision: the hero leads on the rotating channel pill,
+    // so the stat row was redundant. Markup and styles both go.
+    expect( source ).not.toContain( '<span>4 Channels</span>' );
+    expect( source ).not.toContain( 'hero-stats' );
+    expect( source ).not.toContain( '.stat{' );
+    expect( source ).not.toContain( '.stat span{' );
+    expect( source ).not.toContain( '.stat small{' );
+    // the hero still leads with the cycling pill
+    expect( source ).toContain( 'className="hero-cycle"' );
   } );
 
   it( 'uses the approved Bharat Stack lime and dark green color system', () => {

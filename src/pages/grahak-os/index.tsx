@@ -212,11 +212,6 @@ response = requests.post(
                 </span>
               </h1>
               <p>Grahak OS unifies customer data, messaging, automation and campaigns in one customer engagement platform.</p>
-              <div className="hero-stats">
-                <div className="stat"><span>4 Channels</span><small>WhatsApp, SMS, Email, Voice</small></div>
-                <div className="stat"><span>Fast</span><small>Onboarding</small></div>
-                <div className="stat"><span>Secure</span><small>APIs & customer engagement</small></div>
-              </div>
             </div>
             <div className="hero-right">
               <div className="mockup-wrapper">
@@ -374,12 +369,6 @@ response = requests.post(
           .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
           .hero-left h1{font-size:clamp(40px,5.6vw,76px);font-weight:600;line-height:1.06;margin:0 0 24px;letter-spacing:-2.6px;color:rgba(0,0,0,.95)}
           .hero-left p{font-size:clamp(18px,1.7vw,22px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:100%}
-          .hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-          .stat{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;min-width:0;transition:all .25s;cursor:default}
-          .stat:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .stat span{display:block;font-size:22px;font-weight:600;color:#1a1a1a;letter-spacing:-.4px;white-space:nowrap}
-          .stat small{font-size:14px;color:#9ca3af;margin-top:4px;display:block;font-weight:500;line-height:1.35}
-          .stat:hover span{color:#1a3a2a}
 
           /* Rotating channel pill in the hero headline (Notion-style). The lime
              tint is a pseudo-element so it can wipe in from the left without
@@ -545,10 +534,6 @@ response = requests.post(
             .hero-content{grid-template-columns:1fr;gap:40px;text-align:left}
             .hero-left h1{letter-spacing:-1.8px;max-width:760px;margin:0 0 20px}
             .hero-left p{max-width:520px;margin:0 0 28px}
-            .hero-stats{justify-content:flex-start;gap:12px}
-            .stat{padding:14px 16px;min-width:0}
-            .stat span{font-size:21px}
-            .stat small{font-size:13px}
             
             .mockup-wrapper{max-width:480px;aspect-ratio:1.15;margin:0;padding:20px}
             .phone{left:16px;top:16px;width:52%}
@@ -592,10 +577,6 @@ response = requests.post(
             .hero-left{text-align:left;order:1}
             .hero-left h1{letter-spacing:-1.2px;margin:0 0 20px;line-height:1.1;max-width:100%;text-align:left}
             .hero-left p{line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
-            .hero-stats{grid-template-columns:1fr;gap:12px;width:100%}
-            .stat{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;text-align:left;width:100%;display:flex;align-items:center;gap:10px;transition:all .25s;cursor:default}
-            .stat span{font-size:22px;font-weight:600;min-width:0;white-space:nowrap}
-            .stat small{font-size:16px;line-height:1.3;margin:0}
             
             .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:24px}
@@ -662,10 +643,6 @@ response = requests.post(
             
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
             .hero-left h1{letter-spacing:-1px;line-height:1.12}
-            .hero-stats{gap:10px}
-            .stat{padding:13px 14px;border-radius:8px}
-            .stat span{font-size:20px;min-width:0;white-space:nowrap}
-            .stat small{font-size:15px}
             
             .section-header{padding:0 16px}
             .trust-strip{padding:16px 16px 0}
@@ -715,10 +692,6 @@ response = requests.post(
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
             .hero-left h1{letter-spacing:-.8px}
-            .hero-stats{gap:8px}
-            .stat{padding:12px 14px;min-width:0}
-            .stat span{font-size:19px}
-            .stat small{font-size:14px}
             
             .section-header h2{font-size:30px}
             .section-header p{font-size:19px}
@@ -740,7 +713,6 @@ response = requests.post(
             .hero-left{order:0;flex:1;text-align:left}
             .hero-left h1{margin:0 0 16px}
             .hero-left p{margin:0 0 20px}
-            .hero-stats{justify-content:flex-start}
             .mockup-wrapper{max-height:260px;aspect-ratio:auto;max-width:100%}
             .phone{max-width:180px}
             .code-box{max-width:200px}
