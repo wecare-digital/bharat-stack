@@ -244,10 +244,21 @@ response = requests.post(
                     <div className="verified-badge"></div>
                   </div>
                   <div className="chat-area">
+                    {/* Order is load-bearing, not arbitrary. The code panel laps the
+                        phone's lower-right corner, so anything RIGHT-aligned low in
+                        the thread disappears behind it. Both sent bubbles therefore
+                        sit at the top, and the lapped band below holds only the
+                        received bubble and the typing dots, which are left-aligned
+                        and clear the panel.
+                        The reference design solved this by left-aligning the lower
+                        sent bubbles instead - which put two business replies on the
+                        customer's side of the thread. This keeps the composition and
+                        the WhatsApp semantics. Verified by measuring bubble rects
+                        against the panel rect, not by eye. */}
                     <div className="msg sent"><p>Hi! Your order #WD-ORD-87A6G has been shipped</p><span className="msg-time">10:30</span></div>
+                    <div className="msg sent"><p>Track here: wecare.digital/track</p><span className="msg-time">10:30</span></div>
                     <div className="msg received"><p>When will it arrive?</p><span className="msg-time">10:31</span></div>
-                    <div className="msg sent"><p>Tomorrow by 6 PM</p><span className="msg-time">10:31</span></div>
-                    <div className="msg sent"><p>Track here: wecare.digital/track</p><span className="msg-time">10:32</span></div>
+                    <div className="msg received"><p>Can I change the delivery address?</p><span className="msg-time">10:32</span></div>
                     <div className="typing-indicator"><span></span><span></span><span></span></div>
                   </div>
                 </div>
@@ -256,16 +267,19 @@ response = requests.post(
                     <div className="dots"><span className="dot-red"></span><span className="dot-yellow"></span><span className="dot-green"></span></div>
                     <span className="file-name">send_message.py</span>
                   </div>
-                  {/* Kept short on purpose: the panel is ~248px wide and wraps,
-                      so long lines break at awkward points. */}
-                  <pre className="code-body">{`requests.post(
-  "api.wecare.digital/send",
+                  {/* The full, real call - not an abbreviation. An earlier pass cut
+                      this down to fit a 248px panel, which lost the assignment, the
+                      API version and the auth header, so it stopped looking like
+                      code someone would actually ship. The panel is now ~340px and
+                      the longest line here (36 chars) fits without wrapping. */}
+                  <pre className="code-body">{`response = requests.post(
+  "api.wecare.digital/v1/send",
   json={
     "to": "+919330994400",
     "type": "text",
-    "text": "OTP: 847291"
+    "message": "Your OTP: 847291"
   },
-  headers=auth
+  headers={"Authorization": api_key}
 )`}</pre>
                 </div>
               </div>
@@ -519,18 +533,29 @@ response = requests.post(
           .hero-right{display:flex;justify-content:center}
           /* The phone's content is ~458px tall, so the wrapper is sized from that
              rather than a ratio that would crop it. */
-          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:500px;background:#fff;border-radius:28px;padding:28px 24px 24px}
-          /* Phone and code box are narrowed so the code panel laps only the
-             phone's lower-right corner. At 55%/58% they summed to 113% of the
-             wrapper and the panel sat across the message column, hiding message
-             text and timestamps. */
-          /* 50% + 44% leaves a real gap between the two panels. At 52%/50% they
-             sat 4px apart - technically not overlapping, but flush enough that the
-             right-aligned sent bubbles looked like they ran under the code panel. */
-          /* top:28px, not 8px. At 8px the phone sat flush with the wrapper's top
-             edge, so its dark title bar ran straight under the fixed header and
-             read as clipped. */
-          .phone{position:absolute;left:0;top:28px;width:50%;max-width:276px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+          /* These three heights are solved together, not tuned by eye. The panel is
+             anchored bottom:0, so panelTop = wrapperHeight - panelHeight(277).
+             Constraints:
+               1. panelTop must clear the bottom of the lowest RIGHT-aligned bubble
+                  (~300px) or the panel eats its text  -> wrapperHeight >= 577
+               2. the panel should overhang the phone by only ~20px, as in the
+                  reference -> phoneBottom ~= wrapperHeight - 20 -> phone ~= 542
+                  -> chat-area min-height 480 (phone = 62 header + 480)
+             Hence 590 / 480. Shrinking the wrapper to 540 in an earlier pass moved
+             the panel UP and swallowed a whole bubble - the opposite of the fix. */
+          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:590px;background:#fff;border-radius:28px;padding:28px 24px 24px}
+          /* The two panels OVERLAP on purpose - the code panel laps the phone's
+             lower-right corner, which is the whole composition. 56% + 60% = 116%
+             of the wrapper, so the lap is ~16%.
+             History worth keeping: an earlier pass set these to 50%/44%, which
+             left a visible gap and read as two unrelated cards sitting side by
+             side. Before that, 55%/58% lapped so far that the panel covered the
+             message column and hid bubble text. 16% is the band that laps the
+             corner without eating a message.
+             top:28px, not 8px. At 8px the phone sat flush with the wrapper's top
+             edge, so its dark title bar ran under the fixed header and read as
+             clipped. */
+          .phone{position:absolute;left:0;top:28px;width:56%;max-width:320px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
           .phone-header{background:#1a3a2a;padding:12px 14px;display:flex;align-items:center;gap:10px}
           .back-arrow{color:#fff;font-size:20px}
           .avatar{width:40px;height:40px;background:#1a3a2a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
@@ -538,9 +563,14 @@ response = requests.post(
           .contact-name{color:#fff;font-size:17px;font-weight:600}
           .contact-status{color:rgba(255,255,255,.7);font-size:13px}
           .verified-badge{width:22px;height:22px;background:#1a3a2a;border-radius:50%}
-          .chat-area{background:#ece5dd;padding:14px 12px;min-height:230px;display:flex;flex-direction:column;gap:8px}
-          .msg{max-width:80%;padding:10px 12px;border-radius:8px;font-size:16px;line-height:1.45;color:#000}
-          .msg.received{background:#fff;align-self:flex-start;border-top-left-radius:3px}
+          .chat-area{background:#ece5dd;padding:16px 14px;min-height:480px;display:flex;flex-direction:column;gap:9px}
+          .msg{max-width:82%;padding:10px 13px;border-radius:8px;font-size:17px;line-height:1.42;color:#000}
+          /* Received bubbles are capped narrower than sent ones. They sit low in the
+             thread, inside the band the code panel laps, and at 82% they grew past
+             the panel's left edge and got clipped on their RIGHT - which looks like
+             a rendering fault rather than a deliberate overlap. 66% keeps them clear
+             of it. */
+          .msg.received{background:#fff;align-self:flex-start;max-width:66%;border-top-left-radius:3px}
           .msg.sent{background:#d1f470;align-self:flex-end;border-top-right-radius:3px}
           /* Every sent bubble sits on the right. Two of them previously carried a
              left-msg override that forced them to flex-start, so outgoing messages
@@ -554,7 +584,9 @@ response = requests.post(
           @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-3px)}}
 
           /* Code Box */
-          .code-box{position:absolute;right:0;bottom:0;width:44%;max-width:248px;background:#1e293b;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+          /* Pure black, not slate. The panel reads as a terminal against the warm
+             chat beige, and the slate #1e293b muddied that contrast. */
+          .code-box{position:absolute;right:0;bottom:0;width:60%;max-width:340px;background:#000;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.2)}
           .code-header{display:flex;align-items:center;padding:10px 14px;background:#000}
           .dots{display:flex;gap:5px}
           .dot-red,.dot-yellow,.dot-green{width:10px;height:10px;border-radius:50%}
@@ -566,7 +598,11 @@ response = requests.post(
              the longest lines were cut off mid-token behind overflow:auto, with no
              visible scrollbar to reveal them. NOTE: no backticks in comments here -
              this whole block is a template literal and a backtick ends it. */
-          .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.55;color:#e2e8f0;white-space:pre-wrap;overflow-wrap:break-word}
+          /* The hairline outline is the detail that makes this read as an editor
+             pane rather than a flat dark rectangle. Both this and .code-box are
+             #000, so the rounded corners of the two simply coincide and only the
+             stroke shows. */
+          .code-body{margin:0;padding:15px 16px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;background:#000;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.6;color:#fff;white-space:pre-wrap;overflow-wrap:break-word}
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
