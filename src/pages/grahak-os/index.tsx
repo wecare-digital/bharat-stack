@@ -278,10 +278,7 @@ response = requests.post(
           <div className="trust-grid">
             <div className="trust-card">
               <div className="trust-logo">
-                <svg className="trust-mark meta-mark" viewBox="0 0 44 24" role="img" aria-label="Meta">
-                  <circle cx="13" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="4" />
-                  <circle cx="31" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="4" />
-                </svg>
+                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" loading="lazy" />
                 <span className="trust-wordmark">Meta</span>
               </div>
               <div className="trust-divider" />
@@ -325,10 +322,9 @@ response = requests.post(
           /* Trusted by Meta section */
           .trust-strip{max-width:1300px;margin:0 auto 28px;padding:20px 24px 0}
           .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
-          .trust-card{border:2px solid #d1f470;background:#fbfff0;border-radius:20px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;gap:20px}
+          .trust-card{border:2px solid #d1f470;background:#fbfff0;border-radius:20px;padding:48px 36px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
           .trust-logo{display:flex;align-items:center;gap:14px}
-          .trust-mark{width:60px;height:33px;flex:0 0 auto;display:block}
-          .meta-mark{color:#1a3a2a}
+          .trust-mark{width:52px;height:52px;flex:0 0 auto;object-fit:contain}
           .trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}
           .trust-divider{width:100%;height:1px;background:#d1f470}
           .trust-caption{font-size:18px;font-weight:700;color:#1a3a2a;text-align:center}
@@ -480,8 +476,8 @@ response = requests.post(
             
             .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:24px}
-            .trust-card{padding:28px 22px;gap:16px}
-            .trust-mark{width:54px;height:30px}
+            .trust-card{padding:36px 24px;gap:20px;max-width:100%}
+            .trust-mark{width:46px;height:46px}
             .trust-wordmark{font-size:32px}
             .trust-caption{font-size:17px}
             .trust-pills{gap:10px}
@@ -553,8 +549,8 @@ response = requests.post(
             
             .section-header{padding:0 16px}
             .trust-strip{padding:16px 16px 0}
-            .trust-card{padding:24px 18px}
-            .trust-mark{width:50px;height:28px}
+            .trust-card{padding:30px 20px}
+            .trust-mark{width:42px;height:42px}
             .trust-wordmark{font-size:30px}
             .trust-caption{font-size:16px}
 

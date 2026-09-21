@@ -34,10 +34,15 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'className="cta-actions"' );
   } );
 
-  it( 'renders the Meta mark as inline SVG with no network image', () => {
-    expect( source ).toContain( '<svg className="trust-mark meta-mark" viewBox="0 0 44 24" role="img" aria-label="Meta">' );
-    expect( source ).not.toContain( 'meta-icon.svg' );
+  it( 'uses the hosted Meta icon from app.wecare.digital', () => {
+    expect( source ).toContain( 'src="https://app.wecare.digital/stream/media/m/meta-icon.svg"' );
+    expect( source ).toContain( 'className="trust-mark meta-mark"' );
     expect( source ).not.toContain( 'src="/meta-icon.png"' );
+  } );
+
+  it( 'keeps the Meta card from stretching into a wide flat rectangle', () => {
+    expect( source ).toContain( 'max-width:430px' );
+    expect( source ).toContain( '.trust-card{border:2px solid #d1f470;background:#fbfff0;border-radius:20px;padding:48px 36px' );
   } );
 
   it( 'renders the Trusted by Meta section as two equal columns with an unboxed right half', () => {
