@@ -265,14 +265,80 @@ class TestRcsDlrIngress:
         assert resp["statusCode"] == 200
         proc.assert_called_once()
 
-    def test_missing_secret_returns_retryable_503_and_does_nothing(self, rcs_handler):
-        """No secret means unverifiable. 5xx so Sinch retries and receipts survive."""
-        rcs_handler._webhook_secret_cache.update({"loaded": True, "value": ""})
-        body = json.dumps({"message_delivery_report": {"message_id": "m1"}})
-        with patch.object(rcs_handler, "_process_delivery") as proc:
+    def test_valid_signature_allows_inbound_processing(self, rcs_handler):
+        body = json.dumps({
+            "message": {
+                "contact_message": {"text_message": {"text": "hello"}},
+                "channel_identity": {"channel": "RCS", "identity": "+919000000000"},
+            }
+        })
+        with patch.object(rcs_handler, "_process_inbound") as proc:
             resp = rcs_handler.handler(_sinch_event(body), _Ctx())
+        assert resp["statusCode"] == 200
+        proc.assert_called_once()
+
+
+class TestRcsDlrInterimPostureWithoutSecret:
+    """No webhook secret configured at Sinch yet.
+
+    Measured over the 7 days to 2026-09-21: 313 of 313 callbacks were
+    MESSAGE_DELIVERY, zero MESSAGE_INBOUND, zero opt events. Refusing everything
+    would trade the exploit for an outage of the only feature in use; refusing
+    only the unused high-risk types closes the exploit at no real cost.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _no_secret(self, rcs_handler):
+        rcs_handler._webhook_secret_cache.update({"loaded": True, "value": ""})
+        self.h = rcs_handler
+
+    def test_delivery_receipts_still_flow(self):
+        body = json.dumps({"message_delivery_report": {"message_id": "m1",
+                                                       "status": "DELIVERED"}})
+        with patch.object(self.h, "_process_delivery") as proc:
+            resp = self.h.handler(_sinch_event(body, sign=False), _Ctx())
+        assert resp["statusCode"] == 200
+        proc.assert_called_once()
+
+    def test_forged_inbound_is_refused_retryably(self):
+        """The exploit path: MessagesTable write plus an outbound rcs-send."""
+        body = json.dumps({
+            "message": {
+                "contact_message": {"text_message": {"text": "forged"}},
+                "channel_identity": {"channel": "RCS", "identity": "+919000000000"},
+            }
+        })
+        with patch.object(self.h, "_process_inbound") as proc:
+            resp = self.h.handler(_sinch_event(body, sign=False), _Ctx())
         assert resp["statusCode"] == 503
         proc.assert_not_called()
+
+    def test_forged_opt_events_are_refused(self):
+        for etype in ("opt_in_notification", "opt_out_notification"):
+            body = json.dumps({etype: {"identity": "+919000000000"}})
+            with patch.object(self.h, "_process_opt") as proc:
+                resp = self.h.handler(_sinch_event(body, sign=False), _Ctx())
+            assert resp["statusCode"] == 503, etype
+            proc.assert_not_called()
+
+    def test_allowlist_excludes_every_side_effecting_type(self):
+        assert self.h._UNVERIFIED_ALLOWED_EVENTS == frozenset({"MESSAGE_DELIVERY"})
+
+    def test_posture_self_heals_once_the_secret_exists(self):
+        """No flag to forget: configuring the secret restores strict verification."""
+        self.h._webhook_secret_cache.update({"loaded": True, "value": SINCH_SECRET})
+        body = json.dumps({
+            "message": {
+                "contact_message": {"text_message": {"text": "real"}},
+                "channel_identity": {"channel": "RCS", "identity": "+919000000000"},
+            }
+        })
+        with patch.object(self.h, "_process_inbound") as proc:
+            ok = self.h.handler(_sinch_event(body), _Ctx())
+            bad = self.h.handler(_sinch_event(body, sign=False), _Ctx())
+        assert ok["statusCode"] == 200
+        assert bad["statusCode"] == 401
+        assert proc.call_count == 1
 
     def test_health_get_still_answers(self, rcs_handler):
         resp = rcs_handler.handler(_sinch_event("", sign=False, method="GET"), _Ctx())

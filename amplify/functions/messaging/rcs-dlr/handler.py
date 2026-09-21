@@ -72,6 +72,13 @@ def _load_webhook_secret() -> str:
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
 SINCH_RCS_SECRET_ID = os.environ.get('SINCH_RCS_SECRET_ID', 'wecare/sinch/rcs')
+
+# Event types still processed when the callback could not be authenticated,
+# because no webhook secret is configured at Sinch yet. Deliberately the one type
+# that real traffic consists of, and deliberately NOT the ones that write into the
+# canonical message store or trigger an outbound send. See the rationale at the
+# point of use in handler().
+_UNVERIFIED_ALLOWED_EVENTS = frozenset({'MESSAGE_DELIVERY'})
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 
@@ -102,35 +109,36 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # This route is public at the gateway (AuthorizationType=NONE) because a
     # provider callback cannot present a Cognito token. Trust therefore has to
     # come from the Sinch HMAC signature, verified over the raw body.
-    if sinch_signature.is_http_request(event):
-        secret = _load_webhook_secret()
-        if not secret:
-            # Unverifiable, not trusted. 5xx so Sinch retries with backoff and
-            # the receipts survive until the secret is configured, rather than
-            # being silently accepted or silently dropped.
-            logger.error(json.dumps({
-                'event': 'rcs_dlr_secret_missing',
-                'detail': 'no webhook_secret in wecare/sinch/rcs; refusing unverified callback',
-                'requestId': request_id,
-            }))
-            return {
-                'statusCode': 503,
-                'headers': cors_headers(origin),
-                'body': json.dumps({'success': False, 'error': 'verification_unavailable'}),
-            }
+    via_http = sinch_signature.is_http_request(event)
+    verified = not via_http  # an internal invoke is already past the boundary
 
-        ok, reason = sinch_signature.verify(event, secret)
-        if not ok:
-            logger.warning(json.dumps({
-                'event': 'rcs_dlr_signature_rejected',
-                'reason': reason,
+    if via_http:
+        secret = _load_webhook_secret()
+        if secret:
+            ok, reason = sinch_signature.verify(event, secret)
+            if not ok:
+                logger.warning(json.dumps({
+                    'event': 'rcs_dlr_signature_rejected',
+                    'reason': reason,
+                    'requestId': request_id,
+                }))
+                # 401: a permanent rejection, which Sinch does not retry. Correct
+                # for a forged request.
+                return {
+                    'statusCode': 401,
+                    'headers': cors_headers(origin),
+                    'body': json.dumps({'success': False, 'error': 'invalid_signature'}),
+                }
+            verified = True
+        else:
+            # No secret is configured on the Sinch webhook yet, so nothing that
+            # arrives here can be authenticated. See _UNVERIFIED_ALLOWED_EVENTS
+            # for what is still processed in that state and why.
+            logger.error(json.dumps({
+                'event': 'rcs_dlr_unverified_callback',
+                'detail': 'no webhook_secret in wecare/sinch/rcs',
                 'requestId': request_id,
             }))
-            return {
-                'statusCode': 401,
-                'headers': cors_headers(origin),
-                'body': json.dumps({'success': False, 'error': 'invalid_signature'}),
-            }
 
     try:
         body = event.get('body', '{}')
@@ -150,8 +158,38 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     logger.info(json.dumps({
         'event': 'rcs_dlr_received',
         'type': event_type,
+        'verified': verified,
         'requestId': request_id,
     }))
+
+    # ── Interim posture while no webhook secret exists ──
+    # Measured over the 7 days to 2026-09-21: 313 of 313 callbacks on this route
+    # were MESSAGE_DELIVERY. Zero MESSAGE_INBOUND, zero OPT_IN/OPT_OUT. So the
+    # dangerous paths - _process_inbound writing forged messages into the
+    # canonical MessagesTable, and evaluate_rules invoking wecare-rcs-send with a
+    # phone number from the request body - have never carried legitimate traffic,
+    # while delivery receipts demonstrably have.
+    #
+    # Refusing everything unverified would therefore trade a live exploit for a
+    # live outage of the only feature actually in use. Refusing only the unused
+    # high-risk event types closes the exploit and costs nothing real.
+    #
+    # 503 rather than 401: Sinch retries 5xx with exponential backoff, so if those
+    # event types ever do start arriving they queue rather than vanish, and the
+    # error is visible in the logs. No flag to forget either - the moment a
+    # webhook_secret is configured, `verified` is true and this branch is dead.
+    if not verified and event_type not in _UNVERIFIED_ALLOWED_EVENTS:
+        logger.error(json.dumps({
+            'event': 'rcs_dlr_unverified_event_refused',
+            'type': event_type,
+            'detail': 'configure webhook_secret in wecare/sinch/rcs to enable',
+            'requestId': request_id,
+        }))
+        return {
+            'statusCode': 503,
+            'headers': cors_headers(origin),
+            'body': json.dumps({'success': False, 'error': 'verification_unavailable'}),
+        }
 
     if event_type == 'MESSAGE_DELIVERY':
         _process_delivery(data, request_id)
