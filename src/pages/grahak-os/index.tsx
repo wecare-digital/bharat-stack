@@ -31,6 +31,20 @@ const GrahakOsPage: React.FC = () => {
     const el = wordRefs.current[cycleIndex];
     if (el) setCycleWidth(el.offsetWidth);
   }, [cycleIndex]);
+
+  // TEMP: separate measurement for the hero-option preview block, which renders
+  // the pill at a different font-size than the closer.
+  const [previewWidth, setPreviewWidth] = useState<number | null>(null);
+  const previewRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  useEffect(() => {
+    const el = previewRefs.current[cycleIndex];
+    if (el) setPreviewWidth(el.offsetWidth);
+  }, [cycleIndex]);
+
+  // NOTE: the rotating pill markup must be written INLINE in the returned JSX.
+  // styled-jsx only attaches its scoping class to elements it can statically see
+  // in the return tree - extracting this into a variable silently drops every
+  // style, which renders the words stacked inline with no pill.
   
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -182,6 +196,51 @@ response = requests.post(
       </Head>
       
       <div className="page">
+
+        {/* TEMP OPTION REVIEW — pick one, then this whole block gets deleted. */}
+        <section className="gv-review" id="gv-review">
+          <p className="gv-intro">
+            Hero headline options. All three use the new Notion-style type
+            (weight 600, tight tracking). Pick one — then this block is removed.
+          </p>
+
+          <div className="gv-opt">
+            <div className="gv-tag">OPTION A — cycling pill moves UP to the hero</div>
+            <h2 className="gv-head">
+              Reach customers across{ ' ' }
+              <span className="gv-mark">
+                <i className="gv-dot" aria-hidden="true" />
+                <span
+                  className="gv-cycle"
+                  style={ previewWidth ? { width: `${previewWidth}px` } : undefined }
+                >
+                  <span className="sr-only">{ cycleWords.join(', ') }</span>
+                  { cycleWords.map((word, i) => (
+                    <span
+                      key={ word }
+                      ref={ el => { previewRefs.current[i] = el; } }
+                      className={ `gv-cw ${i === cycleIndex ? 'on' : ''}`.trim() }
+                      aria-hidden="true"
+                    >{ word }</span>
+                  )) }
+                </span>
+              </span>
+            </h2>
+            <p className="gv-note">Closer at the bottom would change to: &ldquo;Transform customer engagement with Grahak OS.&rdquo;</p>
+          </div>
+
+          <div className="gv-opt">
+            <div className="gv-tag">OPTION B — hero rewritten, cycling stays at the bottom</div>
+            <h2 className="gv-head">One platform for every<br />customer conversation</h2>
+            <p className="gv-note">Closer keeps the cycling pill exactly as it is now.</p>
+          </div>
+
+          <div className="gv-opt">
+            <div className="gv-tag">OPTION C — keep both the same (current state)</div>
+            <h2 className="gv-head">Reach customers across WhatsApp, SMS, Email &amp; Voice</h2>
+            <p className="gv-note">Same sentence appears twice on the page. Not recommended.</p>
+          </div>
+        </section>
 
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="hero-content">
@@ -374,6 +433,44 @@ response = requests.post(
           .trust-divider{width:100%;height:1px;background:#d1f470}
           .trust-caption{font-size:18px;font-weight:700;color:#1a3a2a;text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
+
+          /* ===== TEMP option-review block (delete after choosing) ===== */
+          .gv-review{max-width:1100px;margin:0 auto;padding:150px 24px 40px}
+          .gv-intro{font-size:16px;line-height:1.6;color:#6b7280;margin:0 0 44px;max-width:620px}
+          .gv-opt{padding:0 0 44px;margin-bottom:44px;border-bottom:1px solid #e5e7eb}
+          .gv-opt:last-child{border-bottom:0}
+          .gv-tag{
+            display:inline-block;font-size:12px;font-weight:800;letter-spacing:1px;
+            text-transform:uppercase;color:#1a3a2a;background:#f3fbdc;
+            border-radius:6px;padding:8px 14px;margin:0 0 22px;
+          }
+          .gv-head{
+            font-size:clamp(40px,5.6vw,76px);
+            font-weight:600;letter-spacing:-2.6px;line-height:1.06;
+            color:rgba(0,0,0,.95);margin:0 0 18px;
+          }
+          .gv-note{font-size:15px;line-height:1.6;color:#9ca3af;margin:0}
+          .gv-mark{position:relative;display:inline-block;white-space:nowrap;padding:0 .2em 0 .14em}
+          .gv-mark::before{
+            content:'';position:absolute;inset:0;
+            background:#eaf9c0;border-radius:14px;z-index:0;
+          }
+          .gv-dot{
+            position:relative;z-index:1;display:inline-block;
+            width:.26em;height:.26em;background:#d1f470;border-radius:50%;
+            margin-right:.2em;vertical-align:.18em;
+          }
+          .gv-cycle{
+            position:relative;z-index:1;display:inline-block;
+            height:1.06em;line-height:1.06em;vertical-align:baseline;overflow:hidden;
+            transition:width .52s cubic-bezier(.16,1,.3,1);
+          }
+          .gv-cw{
+            position:absolute;left:0;top:0;white-space:nowrap;opacity:0;
+            transform:translateY(.42em);
+            transition:opacity .42s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1);
+          }
+          .gv-cw.on{opacity:1;transform:translateY(0)}
 
           /* ===== Closing statement (Notion-style display type + motion) ===== */
           .gos-closer{max-width:1100px;margin:0 auto;padding:96px 24px 112px;display:flex;justify-content:center}
