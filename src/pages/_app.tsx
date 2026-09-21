@@ -379,7 +379,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
   const router = useRouter();
   const [ mounted, setMounted ] = useState( false );
 
-  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/grahak-os/mock-notion' || router.pathname === '/grahak-os/mock-whatsapp' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners';
+  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners';
   const showPublicWhatsApp = router.pathname === '/' || router.pathname === '/grahak-os';
 
   useEffect( () => {

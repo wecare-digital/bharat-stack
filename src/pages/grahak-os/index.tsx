@@ -298,6 +298,16 @@ response = requests.post(
           </div>
         </section>
 
+        <section className={`gos-closer anim ${show('gos-closer') ? 'show' : ''}`} id="gos-closer">
+          <h2 className="gos-closer-head">
+            Reach customers across{ ' ' }
+            <span className="gos-mark">
+              <i className="gos-mark-dot" aria-hidden="true" />
+              <span className="gos-mark-word">WhatsApp</span>
+            </span>, SMS,<br />Email &amp; Voice
+          </h2>
+        </section>
+
 
         <style jsx>{`
           /* ========== BASE STYLES ========== */
@@ -329,6 +339,45 @@ response = requests.post(
           .trust-divider{width:100%;height:1px;background:#d1f470}
           .trust-caption{font-size:18px;font-weight:700;color:#1a3a2a;text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
+
+          /* ===== Closing statement (Notion-style display type + motion) ===== */
+          .gos-closer{max-width:1100px;margin:0 auto;padding:96px 24px 112px;display:flex;justify-content:center}
+          .gos-closer-head{
+            font-size:clamp(38px,6vw,84px);
+            font-weight:600;
+            letter-spacing:-3px;
+            line-height:1.06;
+            color:rgba(0,0,0,.95);
+            text-align:center;
+            margin:0;
+            max-width:960px;
+          }
+          /* Lime highlight behind one word. The tint is a pseudo-element so it can
+             wipe in from the left without reflowing the text. */
+          .gos-mark{position:relative;display:inline-block;white-space:nowrap;padding:0 .2em 0 .14em}
+          .gos-mark::before{
+            content:'';position:absolute;inset:0;
+            background:#eaf9c0;border-radius:14px;
+            transform:scaleX(0);transform-origin:left center;
+            transition:transform .78s cubic-bezier(.16,1,.3,1) .18s;
+            z-index:0;
+          }
+          .gos-closer.show .gos-mark::before{transform:scaleX(1)}
+          .gos-mark-dot{
+            position:relative;z-index:1;
+            display:inline-block;width:.26em;height:.26em;
+            background:#d1f470;border-radius:50%;
+            margin-right:.2em;vertical-align:.18em;
+            transform:scale(0);
+            transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
+          }
+          .gos-closer.show .gos-mark-dot{transform:scale(1)}
+          .gos-mark-word{position:relative;z-index:1}
+          @media(prefers-reduced-motion:reduce){
+            .gos-mark::before,.gos-mark-dot{transition:none}
+            .gos-mark::before{transform:scaleX(1)}
+            .gos-mark-dot{transform:scale(1)}
+          }
           .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
           .trust-heading{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;color:#1a1a1a;margin:0}
           .trust-subtext{font-size:clamp(16px,1.5vw,18px);line-height:1.6;color:#6b7280;margin:0}
@@ -551,6 +600,8 @@ response = requests.post(
             .trust-strip{padding:16px 16px 0}
             .trust-card{padding:30px 20px}
             .trust-mark{width:42px;height:42px}
+            .gos-closer{padding:64px 20px 76px}
+            .gos-closer-head{letter-spacing:-1.4px;line-height:1.1}
             .trust-wordmark{font-size:30px}
             .trust-caption{font-size:16px}
 
