@@ -42,6 +42,7 @@ TIMEOUT = 20
 
 # (label, method, path, body, expected status, why)
 PROBES = [
+    # --- signed provider ingresses ---
     ("whatsapp inbound, unsigned", "POST", "/whatsapp/inbound", {}, 401,
      "no X-Hub-Signature-256; must not reach the SNS-envelope parser"),
     ("whatsapp inbound, unsigned create_invoice", "POST", "/whatsapp/inbound",
@@ -53,14 +54,50 @@ PROBES = [
      503, "forged inbound must be refused before MessagesTable or rcs-send"),
     ("sinch rcs health", "GET", "/webhook/sinch-rcs", None, 200,
      "the health path stays reachable"),
+
+    # --- routes moved behind require_auth on 2026-09-21 ---
+    # All reads, so each is inert whether or not the guard holds.
+    ("short-link management, no token", "GET", "/links", None, 401,
+     "link enumeration was anonymous; a listing leaks every destination"),
+    ("obd campaigns, no token", "GET", "/voice-in/obd", None, 401,
+     "campaign read was anonymous"),
+    ("c2c calls, no token", "GET", "/voice-in/c2c", None, 401,
+     "call history read was anonymous"),
+    ("bulk worker status, no token", "GET", "/bulk/worker", None, 401,
+     "leaked SEND_MODE anonymously"),
+    ("product image preview, no token", "GET", "/store/preview-product-image",
+     None, 401, "image generation costs money per call"),
+    ("ai generate, no token", "POST", "/ai/generate", {"messageContent": "probe"},
+     401, "spent model tokens anonymously on both HTTP APIs"),
+
+    # --- and the anonymous paths that must KEEP working ---
+    ("short-link redirect stays public", "GET", "/r/verify-probe-no-such-code",
+     None, 302, "a customer following a short link has no Cognito token"),
+    ("catch-all redirect stays public", "GET", "/verify-probe-no-such-code",
+     None, 302, "same, for the bare /{code} form"),
 ]
+
+# Deliberately not probed live: POST /media/cleanup. It is the only guarded route
+# with no read method, and if the guard were broken the probe itself would delete
+# media from Meta. Its guard is identical to the others verified here and is
+# covered by tests/test_route_auth_enforcement.py.
 
 
 # Build one opener with proxies explicitly disabled. urllib otherwise consults
 # the system proxy configuration, and on this machine an unset-but-present macOS
 # proxy lookup made the first request hang past a 180s budget while the identical
 # curl call returned in under a second.
-_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+#
+# Redirects are NOT followed. urllib follows them by default, which turned the
+# short-link probes into a 200 from the Wix fallback page and hid the 302 that is
+# the actual thing under test.
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(
+    urllib.request.ProxyHandler({}), _NoRedirect())
 
 
 def probe(method: str, path: str, body) -> tuple[int, str]:

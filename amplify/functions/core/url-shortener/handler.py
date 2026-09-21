@@ -20,8 +20,6 @@ import string
 import boto3
 from datetime import datetime, timezone
 
-from lambda_utils.middleware import require_auth
-
 dynamodb = boto3.resource("dynamodb")
 SHORT_LINKS_TABLE = os.environ.get("SHORT_LINKS_TABLE", "stack-wecare-digital-ShortLinksTable")
 LINK_CLICKS_TABLE = os.environ.get("LINK_CLICKS_TABLE", "stack-wecare-digital-LinkClicksTable")
@@ -106,6 +104,12 @@ def handler(event, context):
         # require_auth skips internal Lambda invokes and OPTIONS, so callers that
         # are not API Gateway requests are unaffected.
         if "links" in path and method in ("POST", "GET", "DELETE", "PUT"):
+            # Imported here, not at module scope, so the redirect paths above
+            # never pay to load the middleware or construct its Cognito client.
+            # A short-link redirect is latency-sensitive and anonymous; link
+            # management is neither.
+            from lambda_utils.middleware import require_auth
+
             auth_failure = require_auth(event)
             if auth_failure is not None:
                 return auth_failure

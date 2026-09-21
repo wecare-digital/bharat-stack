@@ -59,6 +59,9 @@ def _src(rel: str) -> str:
 @pytest.mark.parametrize("rel", sorted(GUARDED))
 class TestGuardPresent:
     def test_imports_require_auth(self, rel):
+        # url-shortener imports it lazily inside the management branch so the
+        # anonymous redirect path does not load the middleware; the import is
+        # indented rather than at module scope.
         assert "from lambda_utils.middleware import require_auth" in _src(rel), rel
 
     def test_calls_require_auth(self, rel):
@@ -109,9 +112,14 @@ class TestUrlShortenerKeepsRedirectsPublic:
             "headers": {},
         }
 
+    # The handler imports require_auth lazily inside the management branch, so the
+    # patch target is the middleware module rather than a handler attribute. That
+    # is also what proves the redirect path never reaches the import at all.
+    TARGET = "lambda_utils.middleware.require_auth"
+
     def test_redirect_does_not_require_auth(self, mod):
         with patch.object(mod, "redirect", return_value={"statusCode": 302}) as r, \
-             patch.object(mod, "require_auth") as auth:
+             patch(self.TARGET) as auth:
             resp = mod.handler(self._event("GET", "/r/abc123"), None)
         assert resp["statusCode"] == 302
         r.assert_called_once()
@@ -119,14 +127,14 @@ class TestUrlShortenerKeepsRedirectsPublic:
 
     def test_catch_all_redirect_does_not_require_auth(self, mod):
         with patch.object(mod, "redirect", return_value={"statusCode": 302}), \
-             patch.object(mod, "require_auth") as auth:
+             patch(self.TARGET) as auth:
             mod.handler(self._event("GET", "/abc123"), None)
         auth.assert_not_called()
 
     def test_link_creation_requires_auth(self, mod):
         denied = {"statusCode": 401, "body": "{}"}
         with patch.object(mod, "create_link") as create, \
-             patch.object(mod, "require_auth", return_value=denied) as auth:
+             patch(self.TARGET, return_value=denied) as auth:
             resp = mod.handler(self._event("POST", "/links"), None)
         assert resp["statusCode"] == 401
         auth.assert_called_once()
@@ -135,14 +143,14 @@ class TestUrlShortenerKeepsRedirectsPublic:
     def test_link_deletion_requires_auth(self, mod):
         denied = {"statusCode": 401, "body": "{}"}
         with patch.object(mod, "delete_link") as delete, \
-             patch.object(mod, "require_auth", return_value=denied):
+             patch(self.TARGET, return_value=denied):
             resp = mod.handler(self._event("DELETE", "/links/abc123"), None)
         assert resp["statusCode"] == 401
         delete.assert_not_called()
 
     def test_link_listing_proceeds_once_authenticated(self, mod):
         with patch.object(mod, "list_links", return_value={"statusCode": 200}) as ls, \
-             patch.object(mod, "require_auth", return_value=None):
+             patch(self.TARGET, return_value=None):
             resp = mod.handler(self._event("GET", "/links"), None)
         assert resp["statusCode"] == 200
         ls.assert_called_once()

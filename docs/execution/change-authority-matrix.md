@@ -41,6 +41,15 @@ checks to make a test pass.
 | 19 | 2026-09-21 | Live probe of both ingresses, unauthenticated, post-fix | production HTTP | `A3_PRODUCTION` | n/a, inert | owner blanket | 4/4 as expected: 401, 401, 503, 200 |
 | 20 | 2026-09-21 | Delete 5 dangling routes + 2 integrations | API Gateway | `A4_DESTRUCTIVE` | yes, via manifest | owner blanket, manifest exported first | 332 → 327 routes; 0 dangling. See `docs/prohibited-provider-retirement.md` |
 
+| 21 | 2026-09-21 | Triage 32 weak-marker routes by reading every handler's actual auth path | repo | `A0_READ` | n/a | standing grant | All 7 handlers had zero `require_auth`; 30 routes genuinely open |
+| 22 | 2026-09-21 | Apply `require_auth` to 7 handlers; per-route in url-shortener; 38 tests | local | `A1_LOCAL` | yes | standing grant | Gate proven: guard removal fails 3 tests; seeded route flagged OPEN |
+| 23 | 2026-09-21 | Retire weak markers from the audit default; add `EXPECTED_PUBLIC_ROUTES` with reasons; add shared-verifier strong markers | local | `A1_LOCAL` | yes | standing grant | Default run now equals the old `--strict`; `--lenient` reproduces the old baseline |
+| 24 | 2026-09-21 | Add `.github/workflows/route-auth.yml` (blocking source gate + scheduled live gate) | repo | `A1_LOCAL` | yes | standing grant | Also puts the full 1245-test suite in CI for the first time |
+| 25 | 2026-09-21 | Drop `standalone=True` for both url-shortener specs in `deploy_all_lambdas.py` | local | `A1_LOCAL` | yes | standing grant | Required because the handler now imports `lambda_utils`; import kept lazy so redirects pay nothing |
+| 26 | 2026-09-21 | Commit `bbd8c7a1` | local | `A1_LOCAL` | revert | standing grant | 1245 tests, policy 8/8 |
+| 27 | 2026-09-21 | Deploy 8 functions: code, publish version, move `live` | Lambda | `A3_PRODUCTION` | yes | standing grant | media-cleanup v8, voice-in-c2c v8, voice-in-obd v8, ai-generate-response v8, bulk-worker v8, product-image-gen v9, stack-wecare-url-shortener v4, wecare-url-shortener `$LATEST`. All `Active`, sha == `$LATEST` |
+| 28 | 2026-09-21 | Live probe of 12 routes, unauthenticated | production HTTP | `A3_PRODUCTION` | n/a, reads only | standing grant | 12/12 as expected. `POST /media/cleanup` deliberately not probed: no read method, and a broken guard would have deleted media |
+
 ## Not exercised
 
 - No credential was read, written, rotated or revoked.
