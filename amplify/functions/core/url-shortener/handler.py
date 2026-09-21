@@ -66,13 +66,17 @@ def handler(event, context):
     method = event.get("httpMethod", event.get("requestContext", {}).get("http", {}).get("method", "GET"))
     raw_path = event.get("path", event.get("rawPath", ""))
     
-    # Strip stage prefix (e.g., /prod/wa -> /wa) for custom domain requests
+    # Strip stage prefix (e.g., /prod/wa -> /wa) for custom domain requests.
+    #
+    # This used to be a hand-rolled fourth copy of the rule. It was the most
+    # complete one - it alone handled a path of exactly "/{stage}", which for a
+    # short-link service is the difference between the root and a lookup for a
+    # code named after the stage - so that case was folded into the shared helper
+    # rather than lost. See lambda_utils/http_path.py for the two incidents this
+    # rule exists to prevent.
+    from lambda_utils.http_path import normalize_path
+    path = normalize_path(event)
     stage = event.get("requestContext", {}).get("stage", "")
-    path = raw_path
-    if stage and stage != "$default" and path.startswith(f"/{stage}/"):
-        path = path[len(f"/{stage}"):]
-    elif stage and stage != "$default" and path.startswith(f"/{stage}"):
-        path = path[len(f"/{stage}"):] or "/"
     
     logger.info(f"URL Shortener: method={method} raw_path={raw_path} path={path} stage={stage}")
     try:

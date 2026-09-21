@@ -32,6 +32,7 @@ from lambda_utils.message_store import put_message  # unified MessagesTable dual
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
 from lambda_utils import meta_signature  # raw-body X-Hub-Signature-256 on the public route
 from lambda_utils import wa_status  # monotonic status ordering (no backward transitions)
+from lambda_utils import wa_internal_event  # typed ingress -> worker contract
 from botocore.exceptions import ClientError
 try:
     from lambda_utils import partner_billing  # per-tenant prepaid metering (optional)
@@ -618,27 +619,34 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }
         return _handle_dashboard_invoice(event, request_id)
     
+    # Accept the typed contract from the ingress AND the legacy synthetic SNS
+    # envelope. Both arms are load-bearing: the ingress and this worker deploy
+    # separately and the invoke is asynchronous, so in-flight events can carry the
+    # old shape, and dlq-replay may hold stored payloads in it for its retention
+    # period. `shape` is logged so the legacy arm's retirement can be measured
+    # rather than guessed. See lambda_utils/wa_internal_event.
+    _work_items = wa_internal_event.parse(event)
+
     logger.info(json.dumps({
         'event': 'inbound_processing_start',
-        'recordCount': len(event.get('Records', [])),
+        'itemCount': len(_work_items),
+        'shapes': sorted({i['shape'] for i in _work_items}),
         'requestId': request_id
     }))
-    
-    for record in event.get('Records', []):
+
+    if not _work_items:
+        logger.warning(json.dumps({
+            'event': 'inbound_unrecognised_event',
+            'topLevelKeys': sorted(k for k in event.keys())[:12],
+            'requestId': request_id,
+        }))
+
+    for _item in _work_items:
         try:
-            # Parse SNS message
-            sns_message = json.loads(record.get('Sns', {}).get('Message', '{}'))
-            
-            # Extract WABA context - which WABA received this message
-            context_data = sns_message.get('context', {})
-            meta_waba_ids = context_data.get('MetaWabaIds', [])
-            meta_phone_number_ids = context_data.get('MetaPhoneNumberIds', [])
-            
-            webhook_entry_str = sns_message.get('whatsAppWebhookEntry', '{}')
-            aws_message_id = sns_message.get('messageId', str(uuid.uuid4()))
-            
-            # Decode whatsAppWebhookEntry JSON string
-            webhook_entry = json.loads(webhook_entry_str)
+            meta_waba_ids = _item['waba_ids']
+            meta_phone_number_ids = _item['phone_number_ids']
+            aws_message_id = _item['message_id'] or str(uuid.uuid4())
+            webhook_entry = _item['entry']
             
             # Process each change in the webhook entry
             for change in webhook_entry.get('changes', []):
@@ -947,9 +955,23 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             logger.error(json.dumps({
                 'event': 'record_processing_error',
                 'error': str(e),
+                'shape': _item.get('shape'),
                 'requestId': request_id
             }))
-            _send_to_dlq(record, str(e), request_id)
+            # DLQ the normalized work item, not the raw envelope. dlq-replay
+            # invokes the stored payload directly, and wa_internal_event.parse
+            # accepts this shape, so a replay now actually reproduces the work -
+            # which it could not do when the stored record was half of an SNS
+            # envelope the worker no longer looked at.
+            _send_to_dlq(
+                wa_internal_event.build(
+                    entry=_item.get('entry') or {},
+                    waba_id=_item.get('waba_id') or '',
+                    meta_phone_number_ids=_item.get('phone_number_ids') or [],
+                    request_id=request_id,
+                ),
+                str(e), request_id,
+            )
             error_count += 1
     
     logger.info(json.dumps({

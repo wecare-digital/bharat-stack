@@ -46,6 +46,7 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 from lambda_utils.privacy import mask_phone, redact_pii
 from lambda_utils.message_store import put_call_breadcrumb
 from lambda_utils.middleware import require_auth  # unified timeline breadcrumb
+from lambda_utils import wa_internal_event  # typed ingress -> worker contract
 
 logger = get_logger(__name__)
 
@@ -238,7 +239,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # Reusing the already-tested helper rather than re-deriving the logic here:
     # this is the second place this exact bug appeared (plivo-answer was the
     # first, fixed in ea570bcd), and a third copy is how it would return.
-    from lambda_utils.plivo_signature import normalize_path as _strip_stage_prefix
+    from lambda_utils.http_path import normalize_path as _strip_stage_prefix
     path = _strip_stage_prefix(event) or path
     normalized_path = path.rstrip('/') or '/'
     query_params = event.get('queryStringParameters') or {}
@@ -519,25 +520,21 @@ def _forward_to_inbound_handler(entry: Dict, waba_id: str, request_id: str) -> N
             if pid and pid not in meta_phone_ids:
                 meta_phone_ids.append(pid)
 
-        # Build the expected format the inbound handler expects
-        sns_message = {
-            'context': {
-                'MetaWabaIds': [waba_id],
-                'MetaPhoneNumberIds': meta_phone_ids,
-            },
-            'whatsAppWebhookEntry': json.dumps(entry),
-            'messageId': request_id,
-        }
-
-        # Wrap in SNS Records format
-        inbound_event = {
-            'Records': [{
-                'Sns': {
-                    'Message': json.dumps(sns_message),
-                    'MessageId': request_id,
-                }
-            }]
-        }
+        # A flat, typed, self-describing event — see lambda_utils/wa_internal_event.
+        #
+        # This used to be a synthetic SNS envelope,
+        # {"Records":[{"Sns":{"Message": "<json string containing another json
+        # string>"}}]}, left over from an architecture where Meta delivered through
+        # AWS End User Messaging Social into a topic. No such subscription exists
+        # anywhere in IaC or in the live event-source mappings, and the AWS account
+        # has no linked WABA, so the shape described nothing while costing a double
+        # JSON encode and sending every reader looking for a topic.
+        inbound_event = wa_internal_event.build(
+            entry=entry,
+            waba_id=waba_id,
+            meta_phone_number_ids=meta_phone_ids,
+            request_id=request_id,
+        )
 
         result = lambda_client.invoke(
             FunctionName=INBOUND_HANDLER_FUNCTION,
@@ -549,6 +546,7 @@ def _forward_to_inbound_handler(entry: Dict, waba_id: str, request_id: str) -> N
             'event': 'forwarded_to_inbound_handler',
             'wabaId': waba_id,
             'phoneNumberIds': meta_phone_ids,
+            'contractVersion': wa_internal_event.CONTRACT_VERSION,
             'statusCode': result.get('StatusCode'),
             'requestId': request_id,
         }))

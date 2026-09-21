@@ -2,8 +2,10 @@
 
 | Control | Status | Notes |
 |---------|--------|-------|
-| Webhook GET verify | ✅ AWS-managed | AWS End User Messaging validates `hub.verify_token` before SNS publish |
-| Webhook X-Hub signature | ✅ AWS-managed | Inbound arrives via SNS from the managed integration, not a public POST |
+| Webhook GET verify | ✅ ours, fails closed | `whatsapp-calling/_verify_webhook` compares `hub.verify_token` with `hmac.compare_digest` and returns 403 when no token is available. **Not AWS-managed** — this row claimed it was until 2026-09-21; there is no linked WABA and no SNS ingress |
+| Webhook X-Hub signature | ✅ ours, fails closed | `whatsapp-calling/_verify_webhook_signature` checks raw-body HMAC-SHA256 against both WABA app secrets and returns 401 on mismatch. `POST /whatsapp/inbound` enforces the same since 2026-09-21; before that it accepted unsigned webhooks, partly because this checklist said signature checking was somebody else's job |
+| Status webhook ordering | ✅ | `lambda_utils/wa_status` ranks the lifecycle and the DynamoDB write is guarded by a ConditionExpression, so a late `sent` cannot overwrite `read` |
+| Webhook replay window | ✅ | Entries older than 300s rejected; note the timestamp parser fails **open** on a malformed timestamp |
 | `appsecret_proof` on Graph calls | ✅ | Computed HMAC-SHA256(token, app_secret) in outbound/inbound handlers |
 | Secrets in Secrets Manager (not code) | ✅ | `wecare/meta-system-user-token`, `wecare/meta-app-secret`, `wecare/flow-private-key` |
 | Secret values never logged | ✅ | Handlers log message ids/types, not tokens |
