@@ -259,31 +259,18 @@ response = requests.post(
         </section>
 
         {/*
-          Side-by-side design comparison: each of touchpoint / api / capabilities /
-          why is followed by a PROPOSED twin so the two can be read as a pair while
-          scrolling. The twins deliberately drop the `anim` class - the scroll-reveal
-          starts at opacity:0 and would hide them - and every class they introduce is
-          prefixed pp- so it cannot collide with the unscoped global rules in
-          src/styles/*.css. All of this markup is written inline for the same reason
-          the hero pill is: styled-jsx only scopes what it statically sees in return.
+          Full-bleed tint pattern: touchpoint and capabilities sit on a #fafafa
+          canvas that has to reach both window edges, so the 1300px measure moves
+          off the section and onto .pp-inner while the section itself goes 100vw
+          with a centring negative margin. Every class this pattern introduces is
+          pp- prefixed on purpose: src/styles/*.css (loaded globally by _app.tsx)
+          declares unscoped rules for generic names like .pill / .stat / .phone,
+          and styled-jsx does not shield the page from those. As with the hero
+          pill, the markup stays inline in the return - styled-jsx only scopes
+          what it can statically see there.
         */}
-        <div className="pp-tag-row"><div className="pp-tag pp-tag-now">CURRENT — Touchpoint</div></div>
 
         <section className={`touchpoint anim ${show('touchpoint') ? 'show' : ''}`} id="touchpoint">
-          <div className="section-header">
-            <h2>Every touchpoint<br/>One seamless experience</h2>
-            <p>Engage, support, and convert customers across their entire journey - from first contact to lasting loyalty</p>
-          </div>
-          <div className="usecase-pills">
-            {useCases.map((title, i) => (
-              <button key={i} className="pill">{title}</button>
-            ))}
-          </div>
-        </section>
-
-        <div className="pp-tag-row"><div className="pp-tag pp-tag-new">PROPOSED — Touchpoint</div></div>
-
-        <section className="touchpoint" id="touchpoint-new">
           <div className="pp-inner">
             <div className="section-header">
               <h2>Every touchpoint<br/>One seamless experience</h2>
@@ -296,8 +283,6 @@ response = requests.post(
             </div>
           </div>
         </section>
-
-        <div className="pp-tag-row"><div className="pp-tag pp-tag-now">CURRENT — API</div></div>
 
         <section className={`api anim ${show('api') ? 'show' : ''}`} id="api">
           <div className="api-grid">
@@ -316,47 +301,7 @@ response = requests.post(
           </div>
         </section>
 
-        <div className="pp-tag-row"><div className="pp-tag pp-tag-new">PROPOSED — API</div></div>
-
-        <section className="api" id="api-new">
-          <div className="api-grid">
-            <div className="api-info">
-              <h2>Built for your stack</h2>
-              <p className="api-desc">Use Grahak OS through its own customer engagement workspace or connect your stack through secure APIs for messaging, customer data, automation and campaigns.</p>
-            </div>
-            <div className="api-demo">
-              <div className="code-tabs">
-                {codeExamples.map((c, i) => (
-                  <button key={i} className={`tab ${activeCode === i ? 'active' : ''}`} onClick={() => setActiveCode(i)}>{c.lang}</button>
-                ))}
-              </div>
-              <pre className="code-block">{codeExamples[activeCode].code}</pre>
-            </div>
-          </div>
-        </section>
-
-        <div className="pp-tag-row"><div className="pp-tag pp-tag-now">CURRENT — Capabilities</div></div>
-
         <section className={`capabilities anim ${show('capabilities') ? 'show' : ''}`} id="capabilities">
-          <div className="section-header">
-            <h2>Everything you need<br/>to grow customer relationships</h2>
-            <p>AI-powered lifecycle management that delivers results</p>
-            <div className="section-divider"><span /></div>
-          </div>
-          <div className="capabilities-grid">
-            {capabilities.map((cap, i) => (
-              <div key={i} className="capability-card">
-                <div className="cap-icon"><img src={cap.icon} alt={cap.title} loading="lazy" /></div>
-                <h3>{cap.title}</h3>
-                <p>{cap.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="pp-tag-row"><div className="pp-tag pp-tag-new">PROPOSED — Capabilities</div></div>
-
-        <section className="capabilities" id="capabilities-new">
           <div className="pp-inner">
             <div className="section-header">
               <h2>Everything you need<br/>to grow customer relationships</h2>
@@ -375,23 +320,7 @@ response = requests.post(
           </div>
         </section>
 
-        <div className="pp-tag-row"><div className="pp-tag pp-tag-now">CURRENT — Why</div></div>
-
         <section className={`why-section anim ${show('why') ? 'show' : ''}`} id="why">
-          <div className="section-header">
-            <h2>Why Grahak OS</h2>
-            <p>One operating layer for customer engagement, built around data, orchestration and every channel your customers use.</p>
-          </div>
-          <div className="why-grid">
-            <div className="why-item"><strong>Unified customer data</strong><span>Bring customer context together across conversations, events and channels.</span></div>
-            <div className="why-item"><strong>Intelligent orchestration</strong><span>Coordinate journeys, automation and campaigns from one engagement layer.</span></div>
-            <div className="why-item"><strong>Every channel in one platform</strong><span>Connect WhatsApp, SMS, Email and Voice without fragmenting the customer experience.</span></div>
-          </div>
-        </section>
-
-        <div className="pp-tag-row"><div className="pp-tag pp-tag-new">PROPOSED — Why</div></div>
-
-        <section className="why-section" id="why-new">
           <div className="section-header">
             <h2>Why Grahak OS</h2>
             <p>One operating layer for customer engagement, built around data, orchestration and every channel your customers use.</p>
@@ -601,11 +530,13 @@ response = requests.post(
           .capability-card:hover h3{color:#1a3a2a}
           .capability-card p{font-size:clamp(17px,1.3vw,20px);color:#6b7280;margin:0;line-height:1.6}
           
-          .why-section{padding:60px 24px;background:#fbfdfb}
+          /* Why sits on plain white between the two grey canvases; borders and
+             body text use the shared hairline/muted pair, not near-miss greens. */
+          .why-section{padding:60px 24px;background:#fff}
           .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
-          .why-item{background:#fff;border:1px solid #dfe8e2;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
+          .why-item{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
           .why-item strong{font-size:20px;color:#1a3a2a}
-          .why-item span{font-size:16px;line-height:1.55;color:#66736b}
+          .why-item span{font-size:16px;line-height:1.55;color:#6b7280}
 
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
@@ -836,51 +767,32 @@ response = requests.post(
             .pill{transition:none}
           }
 
-          /* ========== PROPOSED PAIRS (pp-*) ==========
-             Everything for the current-vs-proposed comparison lives in this one
-             block so it can be lifted out in a single cut. Two rules of the house
-             apply: every new class is pp- prefixed (the global stylesheets define
-             unscoped .pill / .stat / .phone / .chat-area rules that styled-jsx
-             cannot shield), and the proposed-only overrides are hung off the
-             #*-new ids so they beat the shared section classes regardless of
-             source order. */
-
-          /* Pair labels, centred on the same 1300px measure as the sections */
-          .pp-tag-row{max-width:1300px;margin:0 auto;padding:28px 24px 0;text-align:center}
-          .pp-tag{display:inline-block;font-size:13px;font-weight:700;line-height:1.2;text-transform:uppercase;letter-spacing:1px;border-radius:6px;padding:8px 14px}
-          .pp-tag-now{background:#f3f4f6;color:#6b7280}
-          .pp-tag-new{background:#f3fbdc;color:#1a3a2a}
-
-          /* 1. Section rhythm. The tinted canvases have to be full-bleed, so the
-             1300px measure moves off the section and onto .pp-inner. A plain
-             background would stop 12px short of each edge because the global
-             .page rule adds padding the page never redeclares - 100vw plus a
-             centring margin makes the tint exactly window.innerWidth wide.
-             .page already clips overflow-x, so this adds no horizontal scroll. */
-          #touchpoint-new,#capabilities-new{max-width:none;width:100vw;margin-left:calc(50% - 50vw);background:#fafafa}
-          #why-new{background:#fff}
+          /* ========== FULL-BLEED SECTIONS (pp-*) ==========
+             The grey canvases have to reach both window edges, so the 1300px
+             measure moves off the section and onto .pp-inner: 100vw plus a
+             centring negative margin makes the tint exactly window.innerWidth
+             wide, where a plain background would stop short of each edge.
+             .page already clips overflow-x, so this adds no horizontal scroll.
+             Everything here is pp- prefixed because the globally imported
+             src/styles/*.css declares unscoped rules for generic names like
+             .pill / .stat / .phone / .chat-area that styled-jsx cannot shield
+             the page from; the id selectors beat the shared section classes
+             regardless of source order. */
+          #touchpoint,#capabilities{max-width:none;width:100vw;margin-left:calc(50% - 50vw);background:#fafafa}
           .pp-inner{max-width:1300px;margin:0 auto}
 
-          /* 2. Use-case pills as spans, since they carry no handler. Same paint as
+          /* Use-case pills as spans, since they carry no handler. Same paint as
              .pill; inline-flex restores the centring a button gets for free. */
           .pp-pill{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
           .pp-pill:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
 
-          /* 5. Stray colours retired: #66736b -> muted #6b7280, #dfe8e2 -> border #e5e7eb */
-          #why-new .why-item{border-color:#e5e7eb}
-          #why-new .why-item span{color:#6b7280}
-
           @media(max-width:1024px){
-            .pp-tag-row{padding:24px 20px 0}
             .pp-pill{padding:12px 22px}
           }
           @media(max-width:767px){
-            .pp-tag-row{padding:20px 20px 0}
             .pp-pill{padding:14px 26px}
           }
           @media(max-width:480px){
-            .pp-tag-row{padding:18px 16px 0}
-            .pp-tag{font-size:12px;padding:8px 12px}
             .pp-pill{padding:12px 20px}
           }
           @media(max-width:360px){
