@@ -403,7 +403,7 @@ response = requests.post(
              but that left ~100px of empty column under the shorter copy. Centring
              just the copy fixes the imbalance without moving the mockup. */
           .hero-left{align-self:center}
-          .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.08;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
+          .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
           /* Lede plus a muted supporting line. Two paragraphs rather than one long
              run-on: it reads better and gives the left column enough vertical mass
              to sit against the mockup opposite (which was 221px taller). Measures
@@ -495,7 +495,7 @@ response = requests.post(
           .trust-mark{width:52px;height:52px;flex:0 0 auto;object-fit:contain}
           .trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}
           .trust-divider{width:100%;height:1px;background:#d1f470}
-          .trust-caption{font-size:18px;font-weight:700;color:#1a3a2a;text-align:center}
+          .trust-caption{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
 
           /* ===== Closing statement (Notion-style display type + motion) ===== */
@@ -511,7 +511,7 @@ response = requests.post(
             max-width:960px;
           }
           .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
-          .trust-heading{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;color:#1a1a1a;margin:0}
+          .trust-heading{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0}
           .trust-subtext{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           .trust-pills{display:flex;flex-wrap:wrap;gap:12px}
 
@@ -567,7 +567,7 @@ response = requests.post(
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
-          .section-header h2{font-size:clamp(32px,4vw,52px);font-weight:700;line-height:1.1;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
+          .section-header h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 14px;text-align:center;width:100%;white-space:pre-line}
           .section-header p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
@@ -579,7 +579,7 @@ response = requests.post(
           /* API Section */
           .api{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
-          .api-info h2{font-size:clamp(32px,3.6vw,46px);font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
+          .api-info h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 20px}
           .api-desc{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
@@ -596,7 +596,7 @@ response = requests.post(
           .capability-card:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
-          .capability-card h3{font-size:clamp(20px,1.7vw,26px);font-weight:600;color:#1a1a1a;margin:0 0 8px}
+          .capability-card h3{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;margin:0 0 10px}
           .capability-card:hover h3{color:#1a3a2a}
           .capability-card p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           
@@ -605,7 +605,7 @@ response = requests.post(
           .why-section{padding:60px 24px;background:#fff}
           .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
           .why-item{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
-          .why-item strong{font-size:20px;color:#1a3a2a}
+          .why-item strong{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
           .why-item span{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400}
 
           /* ========== TABLET (768px - 1024px) ========== */
@@ -621,7 +621,6 @@ response = requests.post(
             .code-box{right:auto;left:12px;bottom:16px;width:55%}
             
             .section-header{padding:0 20px}
-            .section-header h2{font-size:34px}
             
             .trust-strip{padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:28px}
@@ -633,7 +632,7 @@ response = requests.post(
             
             .api{padding:50px 20px}
             .api-grid{grid-template-columns:1fr;gap:36px;text-align:left}
-            .api-info h2{font-size:32px;text-align:left}
+            .api-info h2{text-align:left}
             .api-desc{max-width:100%;text-align:left}
             .api-demo{max-width:500px;margin:0}
             
@@ -641,7 +640,6 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:16px}
             .capability-card{padding:24px 20px}
             .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:16px}
-            .capability-card h3{font-size:17px}
             
             .why-section{padding:50px 20px}
             .why-grid{grid-template-columns:1fr}
@@ -662,7 +660,6 @@ response = requests.post(
             .trust-card{padding:36px 24px;gap:20px;max-width:100%}
             .trust-mark{width:46px;height:46px}
             .trust-wordmark{font-size:32px}
-            .trust-caption{font-size:17px}
             .trust-pills{gap:10px}
 
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
@@ -686,7 +683,7 @@ response = requests.post(
             .code-body{font-size:15px;padding:16px;line-height:1.6;text-align:left}
             
             .section-header{margin-bottom:28px;padding:0 20px;text-align:center}
-            .section-header h2{font-size:38px;margin-bottom:12px;line-height:1.15;text-align:center}
+            .section-header h2{margin-bottom:12px;line-height:1.15;text-align:center}
             .section-header p{text-align:center}
             
             .touchpoint{padding:44px 20px}
@@ -696,7 +693,7 @@ response = requests.post(
             .api{padding:44px 20px}
             .api-grid{gap:36px;text-align:left}
             .api-info{text-align:left}
-            .api-info h2{font-size:38px;margin-bottom:16px;text-align:left}
+            .api-info h2{margin-bottom:16px;text-align:left}
             .api-desc{max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
@@ -708,12 +705,11 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
             .cap-icon{width:50px;height:50px;margin-bottom:16px;border-radius:12px;padding:10px}
-            .capability-card h3{font-size:24px;margin-bottom:8px;text-align:left}
+            .capability-card h3{margin-bottom:8px;text-align:left}
             .capability-card p{text-align:left}
             
             .why-section{padding:44px 20px}
             .why-item{padding:20px}
-            .why-item strong{font-size:20px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
@@ -729,7 +725,6 @@ response = requests.post(
             .gos-closer{padding:64px 20px 76px}
             .gos-closer-head{letter-spacing:-1.4px;line-height:1.1}
             .trust-wordmark{font-size:30px}
-            .trust-caption{font-size:16px}
 
             .mockup-wrapper{padding:14px;border-radius:14px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
@@ -742,14 +737,12 @@ response = requests.post(
             .code-box{border-radius:12px}
             .code-body{font-size:14px;padding:14px}
             
-            .section-header h2{font-size:36px}
-            
             .touchpoint{padding:36px 16px}
             .usecase-pills{gap:10px}
             .pill{padding:12px 20px;font-size:18px}
             
             .api{padding:36px 16px}
-            .api-info h2{font-size:36px;text-align:left}
+            .api-info h2{text-align:left}
             .api-desc{text-align:left}
             .code-tabs{gap:8px;padding:14px}
             .tab{padding:12px 20px;font-size:17px}
@@ -759,7 +752,7 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
             .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
             .cap-icon{width:48px;height:48px;margin-bottom:14px;padding:9px}
-            .capability-card h3{font-size:22px;text-align:left}
+            .capability-card h3{text-align:left}
             .capability-card p{text-align:left}
             
           }
@@ -770,13 +763,7 @@ response = requests.post(
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
             .hero-left h1{letter-spacing:-.8px}
             
-            .section-header h2{font-size:30px}
-            
             .pill{padding:12px 18px;font-size:17px}
-            
-            .api-info h2{font-size:30px}
-            
-            .capability-card h3{font-size:18px}
           }
           
           /* ========== LANDSCAPE ORIENTATION FIX ========== */
@@ -797,13 +784,13 @@ response = requests.post(
           /* One responsive type hierarchy, declared after the legacy breakpoint
              rules so a single clamp() governs each size at every width. The hero
              h1 and p are intentionally absent: their base rule is the contract. */
-          .section-header h2{font-size:clamp(32px,4vw,52px);line-height:1.1}
+          .section-header h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
           .section-header p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .pill{font-size:var(--text-base)}
-          .api-info h2{font-size:clamp(32px,3.6vw,46px)}
+          .api-info h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
           .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .tab{font-size:15px}
-          .capability-card h3{font-size:clamp(20px,1.7vw,26px)}
+          .capability-card h3{font-size:22px;line-height:1.27;letter-spacing:-.25px}
           .capability-card p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           
           /* ========== REDUCED MOTION ========== */
