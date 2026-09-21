@@ -3,12 +3,34 @@
  * Customer engagement platform by WECARE.DIGITAL
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 
 const GrahakOsPage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
   const [activeCode, setActiveCode] = useState(0);
+
+  // Closing headline cycles the channel in the lime pill, the way notion.com
+  // rotates the highlighted verb. Width is measured so the pill resizes
+  // smoothly instead of snapping between "WhatsApp" and "SMS".
+  const cycleWords = ['WhatsApp', 'SMS', 'Email', 'Voice'];
+  const [cycleIndex, setCycleIndex] = useState(0);
+  const [cycleWidth, setCycleWidth] = useState<number | null>(null);
+  const wordRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const id = window.setInterval(
+      () => setCycleIndex(i => (i + 1) % cycleWords.length),
+      2400
+    );
+    return () => window.clearInterval(id);
+  }, [cycleWords.length]);
+
+  useEffect(() => {
+    const el = wordRefs.current[cycleIndex];
+    if (el) setCycleWidth(el.offsetWidth);
+  }, [cycleIndex]);
   
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -300,11 +322,24 @@ response = requests.post(
 
         <section className={`gos-closer anim ${show('gos-closer') ? 'show' : ''}`} id="gos-closer">
           <h2 className="gos-closer-head">
-            Reach customers across{ ' ' }
+            Reach customers<br />across{ ' ' }
             <span className="gos-mark">
               <i className="gos-mark-dot" aria-hidden="true" />
-              <span className="gos-mark-word">WhatsApp</span>
-            </span>, SMS,<br />Email &amp; Voice
+              <span
+                className="gos-cycle"
+                style={ cycleWidth ? { width: `${cycleWidth}px` } : undefined }
+              >
+                <span className="sr-only">{ cycleWords.join(', ') }</span>
+                { cycleWords.map((word, i) => (
+                  <span
+                    key={ word }
+                    ref={ el => { wordRefs.current[i] = el; } }
+                    className={ `gos-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
+                    aria-hidden="true"
+                  >{ word }</span>
+                )) }
+              </span>
+            </span>
           </h2>
         </section>
 
@@ -372,11 +407,35 @@ response = requests.post(
             transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
           }
           .gos-closer.show .gos-mark-dot{transform:scale(1)}
-          .gos-mark-word{position:relative;z-index:1}
+          /* Rotating channel word. Each word is absolutely stacked so swapping
+             causes no reflow; the wrapper's measured width animates instead. */
+          .gos-cycle{
+            position:relative;z-index:1;
+            display:inline-block;
+            height:1.06em;line-height:1.06em;
+            vertical-align:baseline;
+            overflow:hidden;
+            transition:width .52s cubic-bezier(.16,1,.3,1);
+            will-change:width;
+          }
+          .gos-cyc-word{
+            position:absolute;left:0;top:0;
+            white-space:nowrap;
+            opacity:0;
+            transform:translateY(.42em);
+            transition:opacity .42s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1);
+          }
+          .gos-cyc-word.on{opacity:1;transform:translateY(0)}
+          .sr-only{
+            position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+            overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+          }
           @media(prefers-reduced-motion:reduce){
             .gos-mark::before,.gos-mark-dot{transition:none}
             .gos-mark::before{transform:scaleX(1)}
             .gos-mark-dot{transform:scale(1)}
+            .gos-cycle{transition:none}
+            .gos-cyc-word{transition:none}
           }
           .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
           .trust-heading{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;color:#1a1a1a;margin:0}
