@@ -19,7 +19,7 @@ const GrahakOsPage: React.FC = () => {
   // the word (e.g. pill rgb(230,243,254) with dot rgb(9,127,232)).
   const cycleWords = [
     { word: 'WhatsApp', tint: '#e0f7c8', dot: '#3da35a' },
-    { word: 'SMS', tint: '#dbeafe', dot: '#097fe8' },
+    { word: 'SMS', tint: '#dbeafe', dot: '#2563eb' },
     { word: 'Email', tint: '#fef3c7', dot: '#f0a818' },
     { word: 'Voice', tint: '#ede9fe', dot: '#9849e8' },
   ];
@@ -407,9 +407,13 @@ response = requests.post(
              ramp: their hero subtext is rgba(0,0,0,.898) at 20px and their
              secondary copy rgba(0,0,0,.54). The previous #9ca3af sat far lighter
              than anything they use for body text, which is why it read washed out. */
-          .hero-left p{font-size:clamp(19px,1.55vw,23px);color:rgba(0,0,0,.898);line-height:1.55;margin:0 0 16px;max-width:32ch}
-          .hero-left p.hero-sub{font-size:clamp(16px,1.25vw,18px);color:rgba(0,0,0,.54);line-height:1.6;margin:0 0 10px;max-width:46ch}
-          .hero-left p.hero-sub:last-child{margin-bottom:0}
+          /* All three lines share one size and one colour. Mixing 23px/.898 with
+             16px/.54 made the supporting lines read as a different, weaker
+             typeface next to the lede. notion.com runs a single hero subtext
+             level - rgba(0,0,0,.898) at 20px - so this matches that. */
+          .hero-left p{font-size:clamp(17px,1.35vw,20px);color:rgba(0,0,0,.898);line-height:1.6;margin:0 0 14px;max-width:44ch;font-weight:400;letter-spacing:normal}
+          .hero-left p.hero-sub{font-size:clamp(17px,1.35vw,20px);color:rgba(0,0,0,.898);line-height:1.6;margin:0 0 14px;max-width:44ch;font-weight:400}
+          .hero-left p:last-of-type{margin-bottom:0}
 
           /* Rotating channel pill in the hero headline (Notion-style). The lime
              tint is a pseudo-element so it can wipe in from the left without
