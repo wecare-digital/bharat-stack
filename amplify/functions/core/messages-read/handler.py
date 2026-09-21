@@ -33,7 +33,8 @@ OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsApp
 # Other-channel message stores for the Unified Inbox (read-time aggregation).
 SMS_AWS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTable')
 VOICE_AWS_TABLE = os.environ.get('VOICE_AWS_TABLE', 'stack-wecare-digital-VoiceAwsTable')
-RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+# RCS_TABLE removed 2026-09-21: unused constant naming a table that does not
+# exist. RCS reads come from the canonical MessagesTable.
 EMAIL_MESSAGES_TABLE = os.environ.get('EMAIL_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 # Canonical unified message table (all channels). The single source the inbox reads.
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')

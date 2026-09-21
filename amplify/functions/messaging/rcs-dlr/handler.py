@@ -70,7 +70,12 @@ def _load_webhook_secret() -> str:
     return value
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+# RCS_TABLE removed 2026-09-21. It defaulted to
+# stack-wecare-digital-RcsMessagesTable, which does not exist in the account, and
+# the constant was never read: the Phase 4 migration stopped every write to the
+# legacy RCS store and made the canonical MessagesTable the sole store. Kept out of
+# the code rather than pointed at a real table, so nobody reintroduces a
+# second store by wiring the constant back up.
 SINCH_RCS_SECRET_ID = os.environ.get('SINCH_RCS_SECRET_ID', 'wecare/sinch/rcs')
 
 # Event types still processed when the callback could not be authenticated,

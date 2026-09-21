@@ -59,7 +59,9 @@ RCS_API_BASE = "https://convapi.aclwhatsapp.com/v1/projects"
 RCS_PROJECT_ID = os.environ.get('RCS_PROJECT_ID', 'c8114d03-eeb2-401d-a8f1-abb93594cb33')
 RCS_APP_ID = os.environ.get('RCS_APP_ID', '01KQSB792X3R148D8ZGHQYW3SP')
 RCS_SECRET_NAME = os.environ.get('RCS_SECRET_NAME', 'wecare/sinch/rcs')
-RCS_TABLE = os.environ.get('RCS_TABLE', 'stack-wecare-digital-RcsMessagesTable')
+# RCS_TABLE removed 2026-09-21: unused constant naming a table that does not
+# exist. The Phase 4 migration stopped the legacy dual-write and the canonical
+# MessagesTable is the sole store.
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 # Canonical unified table — inbox list now reads this (channel=rcs).
