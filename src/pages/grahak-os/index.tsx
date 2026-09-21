@@ -274,11 +274,17 @@ response = requests.post(
           <h2>Transform customer engagement with Grahak OS</h2>
         </section>
 
+        {/* TEMP DESIGN REVIEW: four trust-section variants. Keep one, delete the other three. */}
         <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Trusted by Meta">
-          <div className="trust-grid">
+
+          <div className="tv-label">VARIANT A-i &nbsp;—&nbsp; Meta wordmark (no image) + narrower left</div>
+          <div className="trust-grid tv-narrow">
             <div className="trust-card">
               <div className="trust-logo">
-                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" />
+                <svg className="trust-mark meta-mark" viewBox="0 0 44 24" role="img" aria-label="Meta">
+                  <circle cx="13" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="4" />
+                  <circle cx="31" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="4" />
+                </svg>
                 <span className="trust-wordmark">Meta</span>
               </div>
               <div className="trust-divider" />
@@ -296,6 +302,80 @@ response = requests.post(
               </div>
             </div>
           </div>
+          <div className="tv-rule" />
+
+          <div className="tv-label">VARIANT A-ii &nbsp;—&nbsp; Meta wordmark (no image) + two equal halves</div>
+          <div className="trust-grid tv-equal">
+            <div className="trust-card">
+              <div className="trust-logo">
+                <svg className="trust-mark meta-mark" viewBox="0 0 44 24" role="img" aria-label="Meta">
+                  <circle cx="13" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="4" />
+                  <circle cx="31" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="4" />
+                </svg>
+                <span className="trust-wordmark">Meta</span>
+              </div>
+              <div className="trust-divider" />
+              <span className="trust-caption">Meta Tech Partner</span>
+            </div>
+            <div className="trust-content">
+              <span className="trust-badge">OFFICIAL META TECH PARTNER</span>
+              <h2 className="trust-heading">Trusted by Meta</h2>
+              <p className="trust-subtext">Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.</p>
+              <div className="trust-pills">
+                <span className="pill">WhatsApp</span>
+                <span className="pill">SMS</span>
+                <span className="pill">Email</span>
+                <span className="pill">Voice</span>
+              </div>
+            </div>
+          </div>
+          <div className="tv-rule" />
+
+          <div className="tv-label">VARIANT B-i &nbsp;—&nbsp; dark code panel + narrower left</div>
+          <div className="trust-grid tv-narrow">
+            <div className="tv-code">
+              <div className="tv-bar">
+                <span className="tv-dot tv-r" /><span className="tv-dot tv-y" /><span className="tv-dot tv-g" />
+                <span className="tv-file">meta_partner.json</span>
+              </div>
+              <pre className="tv-pre">{'{\n  '}<span className="tv-k">&quot;partner&quot;</span>{': '}<span className="tv-s">&quot;Meta Tech Provider&quot;</span>{',\n  '}<span className="tv-k">&quot;status&quot;</span>{': '}<span className="tv-s">&quot;verified&quot;</span>{',\n  '}<span className="tv-k">&quot;channels&quot;</span>{': ['}<span className="tv-s">&quot;whatsapp&quot;</span>{', '}<span className="tv-s">&quot;sms&quot;</span>{',\n                '}<span className="tv-s">&quot;email&quot;</span>{', '}<span className="tv-s">&quot;voice&quot;</span>{']\n}'}</pre>
+            </div>
+            <div className="trust-content">
+              <span className="trust-badge">OFFICIAL META TECH PARTNER</span>
+              <h2 className="trust-heading">Trusted by Meta</h2>
+              <p className="trust-subtext">Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.</p>
+              <div className="trust-pills">
+                <span className="pill">WhatsApp</span>
+                <span className="pill">SMS</span>
+                <span className="pill">Email</span>
+                <span className="pill">Voice</span>
+              </div>
+            </div>
+          </div>
+          <div className="tv-rule" />
+
+          <div className="tv-label">VARIANT B-ii &nbsp;—&nbsp; dark code panel + two equal halves</div>
+          <div className="trust-grid tv-equal">
+            <div className="tv-code">
+              <div className="tv-bar">
+                <span className="tv-dot tv-r" /><span className="tv-dot tv-y" /><span className="tv-dot tv-g" />
+                <span className="tv-file">meta_partner.json</span>
+              </div>
+              <pre className="tv-pre">{'{\n  '}<span className="tv-k">&quot;partner&quot;</span>{': '}<span className="tv-s">&quot;Meta Tech Provider&quot;</span>{',\n  '}<span className="tv-k">&quot;status&quot;</span>{': '}<span className="tv-s">&quot;verified&quot;</span>{',\n  '}<span className="tv-k">&quot;channels&quot;</span>{': ['}<span className="tv-s">&quot;whatsapp&quot;</span>{', '}<span className="tv-s">&quot;sms&quot;</span>{',\n                '}<span className="tv-s">&quot;email&quot;</span>{', '}<span className="tv-s">&quot;voice&quot;</span>{']\n}'}</pre>
+            </div>
+            <div className="trust-content">
+              <span className="trust-badge">OFFICIAL META TECH PARTNER</span>
+              <h2 className="trust-heading">Trusted by Meta</h2>
+              <p className="trust-subtext">Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.</p>
+              <div className="trust-pills">
+                <span className="pill">WhatsApp</span>
+                <span className="pill">SMS</span>
+                <span className="pill">Email</span>
+                <span className="pill">Voice</span>
+              </div>
+            </div>
+          </div>
+
         </section>
 
 
@@ -324,12 +404,27 @@ response = requests.post(
           .trust-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:40px;align-items:center}
           .trust-card{border:2px solid #d1f470;background:#fbfff0;border-radius:20px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;gap:20px}
           .trust-logo{display:flex;align-items:center;gap:14px}
-          .trust-mark{width:48px;height:48px;flex:0 0 auto;object-fit:contain}
-          .meta-mark{color:#0866ff}
+          .trust-mark{width:60px;height:33px;flex:0 0 auto;display:block}
+          .meta-mark{color:#1a3a2a}
           .trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}
           .trust-divider{width:100%;height:1px;background:#d1f470}
           .trust-caption{font-size:18px;font-weight:700;color:#1a3a2a;text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
+          /* TEMP design-review helpers - remove with the losing variants */
+          .tv-label{display:inline-block;font-size:13px;font-weight:800;letter-spacing:1px;color:#1a3a2a;background:#f3fbdc;border-radius:6px;padding:8px 14px;text-transform:uppercase;margin:0 0 20px}
+          .tv-narrow{grid-template-columns:minmax(0,360px) 1fr}
+          .tv-equal{grid-template-columns:1fr 1fr}
+          .tv-rule{height:1px;background:#e5e7eb;margin:56px 0}
+          .tv-code{background:#1e293b;border-radius:16px;overflow:hidden;box-sizing:border-box}
+          .tv-bar{display:flex;align-items:center;gap:6px;padding:12px 14px;background:#000}
+          .tv-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+          .tv-r{background:#ff5f57}
+          .tv-y{background:#febc2e}
+          .tv-g{background:#28c840}
+          .tv-file{margin-left:auto;font-size:14px;color:#fff}
+          .tv-pre{margin:0;padding:20px 18px;font-family:'SF Mono',Monaco,Consolas,'Courier New',monospace;font-size:14px;line-height:1.7;color:#e2e8f0;overflow-x:auto;white-space:pre}
+          .tv-k{color:#d1f470}
+          .tv-s{color:#93c5fd}
           .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
           .trust-heading{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;color:#1a1a1a;margin:0}
           .trust-subtext{font-size:clamp(16px,1.5vw,18px);line-height:1.6;color:#6b7280;margin:0}
@@ -436,6 +531,7 @@ response = requests.post(
             
             .trust-strip{padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:28px}
+            .tv-narrow,.tv-equal{grid-template-columns:1fr}
             .trust-content{align-items:flex-start}
 
             .touchpoint{padding:50px 20px}
@@ -477,8 +573,10 @@ response = requests.post(
             
             .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:24px}
+            .tv-narrow,.tv-equal{grid-template-columns:1fr}
+            .tv-pre{font-size:13px}
             .trust-card{padding:28px 22px;gap:16px}
-            .trust-mark{width:44px;height:44px}
+            .trust-mark{width:54px;height:30px}
             .trust-wordmark{font-size:32px}
             .trust-caption{font-size:17px}
             .trust-pills{gap:10px}
@@ -551,7 +649,7 @@ response = requests.post(
             .section-header{padding:0 16px}
             .trust-strip{padding:16px 16px 0}
             .trust-card{padding:24px 18px}
-            .trust-mark{width:42px;height:42px}
+            .trust-mark{width:50px;height:28px}
             .trust-wordmark{font-size:30px}
             .trust-caption{font-size:16px}
 

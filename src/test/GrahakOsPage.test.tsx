@@ -34,8 +34,9 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'className="cta-actions"' );
   } );
 
-  it( 'uses the approved Meta icon from app.wecare.digital', () => {
-    expect( source ).toContain( '<img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" />' );
+  it( 'renders the Meta mark as inline SVG with no network image', () => {
+    expect( source ).toContain( '<svg className="trust-mark meta-mark" viewBox="0 0 44 24" role="img" aria-label="Meta">' );
+    expect( source ).not.toContain( 'meta-icon.svg' );
     expect( source ).not.toContain( 'src="/meta-icon.png"' );
   } );
 
