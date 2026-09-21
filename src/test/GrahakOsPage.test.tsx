@@ -40,13 +40,26 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'src="/meta-icon.png"' );
   } );
 
-  it( 'renders the two-column Trusted by Meta section', () => {
-    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr' );
+  it( 'renders the Trusted by Meta section as two equal columns with an unboxed right half', () => {
+    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:1fr 1fr' );
     expect( source ).toContain( '.trust-card{border:2px solid #d1f470;background:#fbfff0' );
     expect( source ).toContain( '.trust-badge{display:inline-block;background:#d1f470' );
+    // right half stays plain: no border, no background panel
+    expect( source ).toContain( '.trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}' );
+    expect( source ).not.toContain( 'grid-template-columns:minmax(0,360px) 1fr' );
+    expect( source ).not.toContain( '.trust-content{border:' );
     expect( source ).not.toContain( '.trust-panel{' );
     expect( source ).not.toContain( '.meta-panel{background:#d1f470' );
     expect( source ).not.toContain( '.whatsapp-panel{background:#d1f470' );
+  } );
+
+  it( 'leaves no temporary design-review markup behind', () => {
+    expect( source ).not.toContain( 'VARIANT' );
+    expect( source ).not.toContain( 'tv-label' );
+    expect( source ).not.toContain( 'tv-code' );
+    expect( source ).not.toContain( 'TEMP DESIGN REVIEW' );
+    // scroll-reveal animation restored on the section
+    expect( source ).toContain( "className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`}" );
   } );
 
   it( 'uses the agreed Trusted by Meta wording', () => {
