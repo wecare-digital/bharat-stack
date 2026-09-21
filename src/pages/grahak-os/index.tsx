@@ -519,7 +519,7 @@ response = requests.post(
           .hero-right{display:flex;justify-content:center}
           /* The phone's content is ~458px tall, so the wrapper is sized from that
              rather than a ratio that would crop it. */
-          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:470px;background:#fff;border-radius:28px;padding:8px 24px 24px}
+          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:500px;background:#fff;border-radius:28px;padding:28px 24px 24px}
           /* Phone and code box are narrowed so the code panel laps only the
              phone's lower-right corner. At 55%/58% they summed to 113% of the
              wrapper and the panel sat across the message column, hiding message
@@ -527,7 +527,10 @@ response = requests.post(
           /* 50% + 44% leaves a real gap between the two panels. At 52%/50% they
              sat 4px apart - technically not overlapping, but flush enough that the
              right-aligned sent bubbles looked like they ran under the code panel. */
-          .phone{position:absolute;left:0;top:8px;width:50%;max-width:276px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+          /* top:28px, not 8px. At 8px the phone sat flush with the wrapper's top
+             edge, so its dark title bar ran straight under the fixed header and
+             read as clipped. */
+          .phone{position:absolute;left:0;top:28px;width:50%;max-width:276px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
           .phone-header{background:#1a3a2a;padding:12px 14px;display:flex;align-items:center;gap:10px}
           .back-arrow{color:#fff;font-size:20px}
           .avatar{width:40px;height:40px;background:#1a3a2a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
