@@ -1,0 +1,93 @@
+# Permanent requirement registry
+
+Authoritative source of requirement state. `docs/master-requirement-coverage.md`
+is generated from this file; never maintain a second conflicting truth.
+
+IDs are permanent. Never renumber, never silently delete. A superseded row keeps
+its ID and names its replacement.
+
+**States:** `DISCOVERED` `CODE_COMPLETE` `TESTED` `PUSHED` `DEPLOYED`
+`LIVE_VERIFIED` `WAITING_FOR_OWNER` `WAITING_FOR_PROVIDER` `BLOCKED`
+`NOT_APPLICABLE` `SUPERSEDED`. Waiting/blocked rows also carry `proven_through`.
+
+Seeded 2026-09-21 at HEAD `4baf4236`. Weights below are the program weights from
+`bw-crm.md` §00, redistributed across rows as each domain is decomposed in Phase 1.
+
+| Domain | Weight |
+|---|---:|
+| Security, identity, protected assets, provider retirement (`SEC`, `PROV`) | 15 |
+| WhatsApp messaging and Calling (`WA`, `WAC`) | 14 |
+| Canonical notifications, AWS SMS, RCS (`NOTIF`, `SMS`, `RCS`) | 14 |
+| PSTN Voice API, Browser SDK, calling ops (`PSTN`) | 14 |
+| Payments, contacts, CRM (`PAY`, `CRM`) | 10 |
+| Governed MCP / dashboard AI (`MCP`) | 8 |
+| Growth APIs and Wix commerce (`GROW`, `WIX`) | 7 |
+| Frontend IA / design / tutorials (`UI`) | 8 |
+| Android/iOS and device optimization (`NATIVE`) | 4 |
+| Tests, observability, deployment, DR (`TEST`, `OPS`, `DEPLOY`, `CLEAN`) | 6 |
+
+## Owner-override adjustments applied
+
+Per `.kiro/steering/00-current-owner-overrides.md`, which outranks `bw-crm.md`:
+
+- `SEC-WAF-001` and `SEC-MFA-001` are **required targets** but are **not blocking
+  gates**. They cannot hold project closure hostage; they must still be built.
+- Security Hub is `NOT_APPLICABLE` by owner decision (`SEC-SHUB-001`).
+- GuardDuty is optional and non-blocking (`SEC-GD-001`).
+- All `NATIVE-*` rows are **POST-PROJECT**. The web app must only stay
+  WebView/WKWebView-ready. They do not block closure.
+
+## Registry
+
+| ID | Requirement | Source | Current (measured 2026-09-21) | Target | State | proven_through | Evidence | Blocker | Next action |
+|---|---|---|---|---|---|---|---|---|---|
+| `SEC-BASE-001` | Rediscover git/AWS/provider state before each phase; never reset to a historical SHA | overrides | HEAD `4baf4236`, 28 commits past the brief's snapshot | Re-measured at every phase entry | `LIVE_VERIFIED` | — | `EV-0001` | — | Repeat at Phase 1 entry |
+| `SEC-SNAP-001` | Protected-resource snapshot before any mutation | Phase 0 | Published | Refreshed per phase | `LIVE_VERIFIED` | — | `EV-0002`..`EV-0006` | — | Re-read Meta/Plivo rows before any provider write |
+| `SEC-CRED-001` | Exposed Razorpay / Google Ads / Google OAuth / Google API key / Bing credential families | brief Part E | Inventoried by secret reference only; no value read | Owner replaces manually | `WAITING_FOR_OWNER` | `DISCOVERED` | `EV-0004` | Owner action, outside this plan | Keep dependent live checks pending |
+| `SEC-ROUTE-001` | `/webhook/sinch-rcs` GET+POST was unauthenticated at gateway **and** handler; could forge messages and trigger outbound RCS sends | Phase 0 finding | Sinch raw-body HMAC enforced in `rcs-dlr` live v7; unsigned forged inbound refused | Strict verification once a webhook secret exists at Sinch | `LIVE_VERIFIED` | — | `EV-0012`, `EV-0014`, `EV-0015` | Interim: delivery receipts still processed unverified (see `SEC-ROUTE-006`) | Owner configures a webhook secret at Sinch |
+| `SEC-ROUTE-002` | `POST /whatsapp/inbound` was unauthenticated; consumed legacy SNS envelope; `action=create_invoice` ran before any auth | Phase 0 finding | Meta `X-Hub-Signature-256` enforced for HTTP events in `inbound-whatsapp` live v38; `create_invoice` internal-only | Same | `LIVE_VERIFIED` | — | `EV-0013`, `EV-0014`, `EV-0015` | — | Consider deleting the redundant public route in Phase 9 |
+| `SEC-ROUTE-003` | `scripts/audit_route_auth.py` scanned only one API and missed the `inbound-whatsapp-handler` directory mapping | Phase 0 finding | Discovers all HTTP APIs; UNRESOLVED 4 → 0; DANGLING is its own class; `--strict`/`--json` added | CI gate once the weak-marker backlog is triaged | `PUSHED` | `TESTED` | `EV-0012` | — | Enable `--gate` after `SEC-ROUTE-005` |
+| `SEC-ROUTE-004` | Explicit authentication strategy for every user API route | overrides | 327 routes, 0 authorizers, **0 OPEN**, 0 dangling, 0 unresolved across both APIs | Documented per-route decision + negative tests | `DEPLOYED` | `DEPLOYED` | `EV-0016` | — | Fold the strict-mode backlog in |
+| `SEC-ROUTE-005` | 31 routes are classified as authenticated only via a **weak** marker (`Authorization`, `api_key`, `verify_token`) that can match an outbound header | Phase 0 finding | `--strict` lists them: url-shortener, `voice-in/c2c`, `voice-in/obd`, `product-image-gen`, `media-cleanup`, `bulk-worker`, `auth/validate`, `ai/generate` | Each either proven authenticated, documented as intentionally public, or fixed | `DISCOVERED` | — | `EV-0016` | — | Triage per route; several (short-link redirects, `auth/validate`) are legitimately public |
+| `SEC-ROUTE-006` | While no Sinch webhook secret exists, unverified `MESSAGE_DELIVERY` callbacks are still processed, so forged receipts could alter message status | interim posture | Justified by measurement: 313/313 callbacks in 7 days were `MESSAGE_DELIVERY`; zero inbound, zero opt events | Strict verification of all event types | `DEPLOYED` | `DEPLOYED` | `EV-0012`, `EV-0017` | Owner must set a webhook secret at Sinch and store it as `webhook_secret` in `wecare/sinch/rcs` | Self-heals with no code change once the secret exists |
+| `SEC-MFA-001` | Administrator MFA implemented and verified | overrides | Cognito `MfaConfiguration=OFF` | TOTP enforced for admin role | `DISCOVERED` | — | `EV-0005` | — | Design without locking out existing admins |
+| `SEC-WAF-001` | WAF implemented and live-verified | overrides | 0 regional, 0 CloudFront WebACLs | WebACL on the API and the Amplify distribution | `DISCOVERED` | — | `EV-0005` | — | Scope rules so provider webhooks keep working |
+| `SEC-SHUB-001` | Security Hub excluded | overrides | Not subscribed; not queried | Stays excluded | `NOT_APPLICABLE` | — | overrides | Owner decision | None |
+| `SEC-GD-001` | GuardDuty optional, non-blocking | overrides | 0 detectors | May evaluate | `NOT_APPLICABLE` | — | `EV-0005` | Owner decision | None |
+| `SEC-HOOK-001` | Deny guards cover every tool route including AWS MCP | commit `4baf4236` | 4 hooks present | Kept | `PUSHED` | `TESTED` | `EV-0001` | — | Do not disable to bypass a block |
+| `PROV-PAYU-001` | Zero PayU executable/declarative surface | brief | No PayU Lambda/route/table; `wecare/payu` scheduled 2026-08-26 | Permanent absence after recovery window | `DEPLOYED` | `DEPLOYED` | `EV-0004`, `EV-0006` | AWS recovery window | Verify permanent absence; rescan scripts/UI/docs |
+| `PROV-AIRTEL-001` | Zero Airtel messaging/voice executable surface; `rxairtel` VPA preserved | brief | 3 dangling `/voice-in/cdr` routes + integration `cf9a7lp` **deleted**; no Airtel Lambda; 4 secrets scheduled | Permanent absence after recovery windows | `LIVE_VERIFIED` | — | `EV-0016`, `EV-0018` | Secret recovery windows run to term | Monitor permanent absence; rescan scripts/UI/docs |
+| `PROV-SINCHSMS-001` | Zero Sinch SMS surface; Sinch **RCS** preserved | brief | 2 dangling `/webhook/sinch-dlr` routes + integration `qvupugf` **deleted**; `wecare/sinch/sms` scheduled; `wecare/sinch/rcs` untouched and active | Permanent absence after recovery window | `LIVE_VERIFIED` | — | `EV-0016`, `EV-0018` | Secret recovery window | Monitor; never touch `wecare/sinch/rcs` |
+| `PROV-GATE-001` | Provider-policy gate covers scripts, IaC, UI, manifests, and live drift | brief | Source gate passes 8/8; scope excludes the second API | Expanded gate + seeded negative fixtures | `DISCOVERED` | — | `EV-0007` | — | Extend scan scope, add drift job |
+| `WA-INGRESS-001` | One signed direct-Meta ingress with stage-prefix normalization | brief | `whatsapp-calling:live=12` verifies `X-Hub-Signature-256`; second unsigned ingress exists (`SEC-ROUTE-002`) | Single verified ingress | `DEPLOYED` | `DEPLOYED` | `EV-0002`, `EV-0008` | Live QA not yet authorized | Handset → webhook → inbox → reply → final `wamid` |
+| `WA-OUTBOUND-001` | Meta Direct sends only; cross-WABA fallback fails closed; `wamid` reconciliation | brief | `outbound-whatsapp:live=17` (brief said 16) | Verified deployed fix | `DEPLOYED` | `DEPLOYED` | `EV-0002` | — | Confirm the fail-closed change is in v17 |
+| `WAC-001` | Meta → `sip.wecare.digital:5061` → Asterisk; connected event normalized | brief | `whatsapp-calling:live=12` | Verified connected-state contract | `DISCOVERED` | — | `EV-0002` | Provider schema readback | Confirm which Meta event is remote-connected |
+| `NOTIF-OWN-001` | Exactly one connected-call dispatch owner | brief | ElevenLabs producer **gone from the fleet**; `ivr-default` still in 8 source files | One canonical owner | `DISCOVERED` | — | `EV-0010` | — | Prove actual runtime ownership before building |
+| `NOTIF-STORE-001` | `PstnNotificationDelivery` declared in IaC but **no physical table exists** | Phase 0 finding | Declared in `backend.ts`, `data/resource.ts`, `pstn/claims.py`, `pstn/keys.py`; absent from 66 live tables | Deployed store or removed declaration | `DISCOVERED` | — | `EV-0003`, `EV-0010` | — | Decide deploy vs delete in Phase 3 design |
+| `NOTIF-STORE-002` | `rcs-dlr` defaults `RCS_TABLE` to `stack-wecare-digital-RcsMessagesTable`, which does not exist | Phase 0 finding | Absent from 66 live tables | Correct env or create store | `DISCOVERED` | — | `EV-0003` | — | Read deployed env var in Phase 1 |
+| `NOTIF-LEGACY-001` | Retire `CallNotificationsTable` and direct senders after migration | brief | Table live; referenced only by `whatsapp-calling` | Archived then removed | `DISCOVERED` | — | `EV-0003`, `EV-0010` | A4 approval | Manifest first |
+| `SMS-001` | AWS End User Messaging is the only SMS sender | brief | `sms-aws:live=12`, `outbound-sms:live=9` | Proven sole sender | `DEPLOYED` | `DEPLOYED` | `EV-0002` | — | Remove obsolete Airtel-named env keys |
+| `RCS-001` | India RCS via Sinch only; non-India AWS EUM only when provisioned | brief | `rcs-send:live=7`, `rcs-dlr:live=6`, `wecare/sinch/rcs` active | Preserved, with auth fixed | `DEPLOYED` | `DEPLOYED` | `EV-0002`, `EV-0004` | — | Fix `SEC-ROUTE-001` first |
+| `PSTN-TOKEN-001` | Cognito-protected browser-token route | brief | No such route among 332 | Built behind disabled flag | `DISCOVERED` | — | `EV-0007` | — | Phase 5 |
+| `PSTN-FLAG-001` | `PSTN_BROWSER_ROUTING_ENABLED` stays false until cutover | brief | Default false in `plivo-answer` | Unchanged until approval | `DEPLOYED` | `DEPLOYED` | `EV-0011` | — | Keep false |
+| `PSTN-DIAL-001` | `/plivo/dial-events` reachable with signed contract | commit `6822c413` | `plivo-answer:live` holds 5 routes | Verified contract | `DEPLOYED` | `DEPLOYED` | `EV-0007` | — | Read back the exact route key set |
+| `PAY-001` | Razorpay only; independent Meta and Razorpay verifiers | brief | `razorpay-webhook:live=25`, `invoice-engine:live=17` | Reconciled, no live charges in tests | `DEPLOYED` | `DEPLOYED` | `EV-0002` | `SEC-CRED-001` | Fixture tests only |
+| `CRM-KEY-001` | `Contact` key contract: `contactId` vs runtime `id` | brief | Not yet re-measured | One canonical key, all callers migrated | `DISCOVERED` | — | — | — | Phase 4, failing test first |
+| `MCP-META-001` | Both Meta MCPs authenticate via pre-registered client; write tools disabled | brief | Neither server connected | Read-only discovery | `WAITING_FOR_OWNER` | `DISCOVERED` | brief | Owner must add exact OAuth redirect URIs | Keep disabled |
+| `MCP-RZP-001` | Razorpay MCP stays disabled (advertises `client_secret_post`) | brief | Disabled | Stays disabled | `BLOCKED` | `DISCOVERED` | brief | Provider lacks a public-client flow | No token exchange |
+| `MCP-AWS-001` | AWS MCP used for sandboxed read-only inventory | Phase 0 | Working; all guards apply | Kept | `LIVE_VERIFIED` | — | `EV-0002`..`EV-0009` | — | Never a production dependency |
+| `UI-IA-001` | Eight module homes; exactly three communication entries | brief | Not started | Implemented | `DISCOVERED` | — | — | — | Phase 8 |
+| `NATIVE-001` | Android/iOS packaging, signing, store work | overrides | Thin Capacitor shell | **POST-PROJECT** | `NOT_APPLICABLE` | — | overrides | Owner decision | Keep web WebView/WKWebView-ready only |
+| `TEST-001` | Focused and full gates green at each handoff | brief | Not re-run this phase | Green on the exact commit | `DISCOVERED` | — | — | — | Run at Phase 1 exit |
+| `DEPLOY-001` | Publish version + move `live` alias after every code change | steering | 49 of 58 have `live` | Enforced | `DEPLOYED` | `DEPLOYED` | `EV-0002` | — | Use `scripts/snapstart_publish.py` |
+| `DEPLOY-002` | `POST /ai/generate` targets `$LATEST`, bypassing the alias model | Phase 0 finding | Integration has no `:live` qualifier | Alias-qualified or route removed | `DISCOVERED` | — | `EV-0009` | — | Decide in Phase 1 |
+
+## Weighted progress — 2026-09-21
+
+Reporting credit: `DISCOVERED` 0%, `CODE_COMPLETE` 30%, `TESTED` 50%,
+`PUSHED` 55%, `DEPLOYED` 75%, `LIVE_VERIFIED` 100%.
+
+Phase 1 must decompose each domain weight across its rows before any percentage
+is published. **No completion percentage is claimed at Phase 0** — the registry
+is seeded, not distributed, and publishing a number now would be an estimate
+dressed as evidence.
