@@ -57,9 +57,23 @@ to be merged, which happened long ago.
   including **116 `react-hooks/set-state-in-effect` errors**. Only the
   `LanguageBar` one was fixed. 242/64 two sessions ago, 237/63 before this one — the
   latest drop is just the deleted FAQ/Partners files taking one error with them.
-- **Home page (`src/pages/index.tsx`) is still a scaffold — DEFERRED by the owner
-  (2026-09-22). Do not start it unprompted.** It is listed here so nobody mistakes it
-  for an oversight, not as a task to pick up.
+- ~~Home page is a scaffold, DEFERRED.~~ **Home now has a hero.** Owner asked for the
+  rotating headline from Grahak OS and VayuLok, so `src/pages/index.tsx` carries the
+  same pill on the same constants — 2400ms, `cubic-bezier(.16,1,.3,1)` for the wipe
+  and width glide, `(.34,1.56,.64,1)` for the dot pop. **The three pages are one
+  animation family: retune one and you must retune all three**, and
+  `HomePage.test.tsx` fails if Home drifts.
+  - Copy is **provisional** and carries owner positioning (lower cost, less
+    complexity, utility over scale). The rotation itself is the "across every domain"
+    claim, enacted rather than asserted. Reword via `CYCLE_WORDS` and `.home-sub`.
+  - **Rotating word length is a layout constraint.** The pill animates to each word's
+    *measured* width, so the set is held within ~2 characters (196–290px at the 60px
+    cap). The real failure mode is the h1 reflowing on the longest word only, which
+    would shift the page every 2400ms — `animcheck.js` measures h1 height across a
+    full rotation at 1440/1024/768/390 and it is constant.
+  - Below the hero the page is still empty. There is no section rhythm yet, which is
+    why `.home-layout` keeps `gap:96px` for one child and the eyebrow owns its own
+    20px instead.
 - ~~`/faq` and `/partners` are now in the nav but are visually off-system.~~
   **Both pages are deleted.** The nav entries are absolute, same-tab links to
   `www.wecare.digital/selfservice` (relabelled **Selfservice**) and
@@ -122,6 +136,17 @@ to be merged, which happened long ago.
   trigger — so no `<button>` may precede it.
 - **Node 24 is required** (`engines: >=24.0.0`). In the sandbox:
   `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 24`.
+- **jsdom does not implement `window.matchMedia`**, and calling it *throws* rather
+  than returning undefined. Any component gating animation on
+  `prefers-reduced-motion` therefore crashes on mount under vitest — it surfaced as
+  all 8 Home tests failing at once with a green build and clean lint. `src/test/setup.ts`
+  now stubs it, defaulting to `matches:false` so tests exercise the animated path.
+  VayuLok has gated its rotation this way from the start and never hit this only
+  because **it has no test of its own**.
+- **`/tmp` does not persist between tool calls in this sandbox.** Writing a log there
+  and reading it in the next command gets "No such file or directory", which looks
+  like the command failed when it did not. Keep the write and the read in one call,
+  or put the file under `/projects`.
 
 ## Verification gate
 
