@@ -56,14 +56,24 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            control elsewhere. 17px on a 54px row also clears the 44px minimum touch
            target with room to spare. min-width went with it so "Grahak OS" cannot
            end up near the padding at the larger size. */
-        .nav-item{display:flex;align-items:center;min-height:54px;padding:0 22px;font-size:17px;font-weight:600;color:#1a3a2a;text-decoration:none}
+        /* Sized in two passes, and the first one was wrong in a way worth recording:
+           the row went to 54px while the type only went to 17px, so the box grew
+           proportionally more than the glyphs and the text read SMALLER than before
+           rather than larger. 19px puts the type-to-row ratio at ~2.8, near the
+           2.5-ish a notion-style menu sits at, and keeps a deliberate step down from
+           the 24px brand lockup instead of near-matching it.
+           Nothing global was fighting this: the styled-jsx rule carries a jsx class,
+           so it beats Layout.css's plain .nav-item on specificity, and
+           inner-pages.css's .layout .nav-item block is empty and out of scope for the
+           public header anyway. */
+        .nav-item{display:flex;align-items:center;min-height:54px;padding:0 22px;font-size:19px;font-weight:600;color:#1a3a2a;text-decoration:none}
         .nav-item:hover,.nav-item:focus-visible,.nav-item.active{background:rgba(209,244,112,.22);outline:none}
         .nav-item.active{font-weight:800}
         /* The .nav-item override here is NOT redundant with the base rule: Layout.css
            declares .nav-item inside its own mobile media queries at 16px and 17px, and
            it is imported globally by _app.tsx. This keeps the public header's size its
            own decision at the breakpoint where those rules switch on. */
-        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.nav-item{font-size:17px;min-height:56px}}
+        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.nav-item{font-size:19px;min-height:56px}}
       `}</style>
     </header>
   );
