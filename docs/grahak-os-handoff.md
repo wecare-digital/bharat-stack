@@ -14,10 +14,10 @@ when you open files under `src/pages/grahak-os/`, `src/components/` or
 
 | Field | Value |
 |---|---|
-| Branch | `feat/grahak-os-trust-a-i` |
-| HEAD | `b58ef424` — **the Mac session is now committing to this branch too**, so pull before starting |
-| vs `origin/stack` | `origin/stack` merged in — **0 behind**, no conflicts |
-| PR | **[#3](https://github.com/wecare-digital/bharat-stack/pull/3) open into `stack`, `mergeable: true`, all checks green** |
+| Branch | `feat/grahak-os-trust-a-i` — **the single working branch. Do not create per-change branches; update this one.** More than one session commits to it, so pull before starting |
+| vs `origin/stack` | `origin/stack` merged in — **0 behind**. Only content difference is this file |
+| PR | **[#3](https://github.com/wecare-digital/bharat-stack/pull/3) merged** (squash → `c9362ee6`). **[#4](https://github.com/wecare-digital/bharat-stack/pull/4) merged** (squash → `a4963b02`, the service-worker fix) |
+| Merging | Manual and human-gated. `allow_auto_merge` is `false` and both merges were done by `wecare-digital`, so nothing lands on its own. `delete_branch_on_merge` is `true` |
 | Frontend gate | 33 vitest pass (7 files), `tsc` clean, `npm run build` clean, `/grahak-os` exported |
 | Python gate | **1598 passed, 1 skipped** |
 | Provider policy | all 8 rules `ok` |
@@ -32,6 +32,7 @@ when you open files under `src/pages/grahak-os/`, `src/components/` or
 | `b18d4b98` | Language widget UI — moved clear of the mockup and the WhatsApp button, lists languages without typing |
 | `6a230ef0` | Meta card made neutral, logo lockup colour fixed, duplicate self-declared badge removed |
 | `131f885c` | Meta card stripped to mark + designation, both halves equalised at 201px |
+| `a4963b02` | **Service worker no longer serves a stale bundle in dev.** `sw.js` cache-firsts anything matching `\.(js\|css)$` with no revalidation, and Next serves dev chunks from `/_next/static/*.js` — so every plain refresh replayed an old chunk, and since styled-jsx ships CSS inside those chunks, edits looked like they had not applied. Registration is now production-only, dev unregisters any installed worker and clears its caches, `sw.js` bypasses `localhost`, and cache names moved v2 → v3. **`F5` is now enough; the old Ctrl+Shift+R rule is obsolete** |
 
 Earlier in the branch: hero cycling channel pill with per-channel tint and dot,
 notion type ladder and single body level page-wide, black brand lockup, footer
@@ -166,13 +167,27 @@ Not started. Should follow the same contract in
 
 Windows PowerShell 5.1 has no `&&`; chain with `;`. Single line, self-checking:
 
+Check **content, not a commit hash**. The previous version of this block pinned
+`131f885c`, which went stale the moment the branch moved and then aborted every
+run with `WRONG COMMIT` — a guard that fails for the wrong reason is worse than no
+guard, because it looks like the code is missing.
+
 ```powershell
-cd C:\Users\wecar\bharat-stack; taskkill /IM node.exe /F 2>$null; git pull origin feat/grahak-os-trust-a-i; $h = git log --oneline -1; Write-Host "HEAD: $h" -ForegroundColor Cyan; if ($h -notlike "131f885c*") { Write-Host "WRONG COMMIT - stopping" -ForegroundColor Red } else { Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue; npm run dev }
+cd C:\Users\wecar\bharat-stack; taskkill /IM node.exe /F 2>$null; git checkout feat/grahak-os-trust-a-i; git pull origin feat/grahak-os-trust-a-i; Write-Host "PATH: $(Get-Location)"; Write-Host "HEAD: $(git log --oneline -1)"; $sw = Select-String -Path src\pages\_app.tsx -Pattern 'getRegistrations' -Quiet; Write-Host "sw fix present: $sw"; if ($sw) { Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue; npm run dev } else { Write-Host "STALE CHECKOUT - wrong clone?" -ForegroundColor Red }
 ```
 
+It prints the working directory, so the duplicate-clone trap below is visible
+rather than guessed at.
+
 Then `http://localhost:3000/grahak-os/` — **trailing slash required**
-(`trailingSlash: true`), and **Ctrl+Shift+R** not F5, because styled-jsx CSS is
-cached in `.next` and a plain refresh makes real changes look invisible.
+(`trailingSlash: true`). A plain **`F5` is now sufficient**: the stale-CSS symptom
+was the service worker (see `a4963b02`), not `.next`. One hard refresh is needed
+**once** on the first load after pulling that fix, so the new `_app.tsx` can run
+and unregister the worker your browser already installed. After that, `F5`.
+
+If a change still looks like it did not apply, check in this order: wrong clone
+(the `PATH:` line), then DevTools → Application → Service Workers showing none on
+`localhost:3000`, then `.next` removed.
 
 `nvm` is not installed on that machine and is not needed — Node 24.19.0 is the
 system Node.

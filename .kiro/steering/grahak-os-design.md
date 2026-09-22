@@ -129,9 +129,18 @@ at `right:96px; bottom:16px` with its width capped against `calc(100vw - 108px)`
 A dev server exiting without error proves nothing. Render it and measure:
 
 ```bash
-rm -rf .next && npx next dev -p 3000    # styled-jsx CSS is cached in .next
-# browser: hard refresh (Ctrl+Shift+R) — a plain F5 serves the cached CSS
+rm -rf .next && npx next dev -p 3000
+# browser: a plain F5 is enough
 ```
+
+**The "always hard refresh" rule is retired.** That symptom was `public/sw.js`
+serving `/_next/static/*.js` cache-first with no revalidation — styled-jsx ships
+its CSS inside those chunks, so a cached chunk meant stale design, and
+`Ctrl+Shift+R` only appeared to fix it because a hard reload is what bypasses a
+service worker. Registration is production-only now (`a4963b02`). A worker already
+installed in your browser needs **one** hard refresh to be torn down; after that
+`F5` reflects edits. If styles still look stale, confirm DevTools → Application →
+Service Workers lists none on `localhost:3000` before suspecting the CSS.
 
 Gate before committing: `npx tsc --noEmit`, `npx vitest --run`, `npm run build`.
 
