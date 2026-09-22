@@ -64,8 +64,20 @@ jobs:
           python-version: '3.12'
 
       - name: Install test dependencies
+        # cryptography is in this list because tests/test_flow_crypto_and_ssrf.py
+        # imports it at module scope. Without it pytest fails at COLLECTION, which
+        # exits non-zero and failed the "Full python suite" step below on every
+        # run - so this blocking gate was permanently red and told you nothing.
+        # The suite is 1546 passing tests once the import resolves; nothing else
+        # was hiding behind the collection error.
+        #
+        # If you add a test that imports a new third-party package, add it to this
+        # pattern as well as to requirements-dev.txt. The grep is deliberately an
+        # allowlist rather than installing the whole file, because
+        # requirements-dev.txt also pins packages that come from Lambda layers at
+        # runtime and are slow or unnecessary to build here.
         run: |
-          grep -E '^(pytest|boto3|botocore|requests|PyYAML)==' requirements-dev.txt \
+          grep -E '^(pytest|boto3|botocore|requests|PyYAML|cryptography)==' requirements-dev.txt \
             > ci-test-requirements.txt
           python -m pip install -r ci-test-requirements.txt
 
@@ -76,7 +88,7 @@ jobs:
             tests/test_public_webhook_auth.py
 
       - name: Full python suite
-        # 1245 tests that previously ran only on a developer's machine. A guard
+        # 1598 tests that previously ran only on a developer's machine. A guard
         # nobody runs is not a guard.
         run: python -m pytest -q
 

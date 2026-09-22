@@ -3,12 +3,49 @@
  * Customer engagement platform by WECARE.DIGITAL
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 
 const GrahakOsPage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
   const [activeCode, setActiveCode] = useState(0);
+
+  // Hero headline cycles the channel in the lime pill, the way notion.com
+  // rotates the highlighted verb. Width is measured so the pill resizes
+  // smoothly instead of snapping between "WhatsApp" and "SMS".
+  // Each channel carries its own pill tint AND a matching dot, mirroring the
+  // notion.com treatment measured from their hero: the pill is a pale tint and
+  // the leading dot is a saturated version of the same hue, both swapping with
+  // the word (e.g. pill rgb(230,243,254) with dot rgb(9,127,232)).
+  const cycleWords = [
+    { word: 'WhatsApp', tint: '#e0f7c8', dot: '#3da35a' },
+    { word: 'SMS', tint: '#dbeafe', dot: '#2563eb' },
+    { word: 'Email', tint: '#fef3c7', dot: '#f0a818' },
+    { word: 'Voice', tint: '#ede9fe', dot: '#9849e8' },
+  ];
+  const [cycleIndex, setCycleIndex] = useState(0);
+  const [heroWidth, setHeroWidth] = useState<number | null>(null);
+  const heroRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const id = window.setInterval(
+      () => setCycleIndex(i => (i + 1) % cycleWords.length),
+      2400
+    );
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const el = heroRefs.current[cycleIndex];
+    if (el) setHeroWidth(el.offsetWidth);
+  }, [cycleIndex]);
+
+  // NOTE: the rotating pill markup must be written INLINE in the returned JSX.
+  // styled-jsx only attaches its scoping class to elements it can statically see
+  // in the return tree - extracting this into a variable silently drops every
+  // style, which renders the words stacked inline with no pill.
   
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -164,13 +201,35 @@ response = requests.post(
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="hero-content">
             <div className="hero-left">
-              <h1>Reach customers across WhatsApp, SMS, Email & Voice</h1>
-              <p>Grahak OS unifies customer data, messaging, automation and campaigns in one customer engagement platform.</p>
-              <div className="hero-stats">
-                <div className="stat"><span>4 Channels</span><small>WhatsApp, SMS, Email, Voice</small></div>
-                <div className="stat"><span>Fast</span><small>Onboarding</small></div>
-                <div className="stat"><span>Secure</span><small>APIs & customer engagement</small></div>
-              </div>
+              <h1>
+                Reach customers<br />across{ ' ' }
+                <span
+                  className="hero-mark"
+                  style={ { background: cycleWords[cycleIndex].tint } }
+                >
+                  <i
+                    className="hero-mark-dot"
+                    style={ { background: cycleWords[cycleIndex].dot } }
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="hero-cycle"
+                    style={ heroWidth ? { width: `${heroWidth}px` } : undefined }
+                  >
+                    <span className="sr-only">{ cycleWords.map(c => c.word).join(', ') }</span>
+                    { cycleWords.map((c, i) => (
+                      <span
+                        key={ c.word }
+                        ref={ el => { heroRefs.current[i] = el; } }
+                        className={ `hero-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
+                        aria-hidden="true"
+                      >{ c.word }</span>
+                    )) }
+                  </span>
+                </span>
+              </h1>
+              <p>One platform for customer data, messaging, automation, and campaigns&mdash;keeping every customer conversation connected through WhatsApp, SMS, Email, and Voice.</p>
+              <p className="hero-sub">Turn your WhatsApp number into your #1 revenue channel with Grahak OS.</p>
             </div>
             <div className="hero-right">
               <div className="mockup-wrapper">
@@ -185,10 +244,21 @@ response = requests.post(
                     <div className="verified-badge"></div>
                   </div>
                   <div className="chat-area">
-                    <div className="msg sent"><p>Hi! Your order #WD-ORD-87A6G has been shipped </p><span className="msg-time">10:30</span></div>
+                    {/* Order is load-bearing, not arbitrary. The code panel laps the
+                        phone's lower-right corner, so anything RIGHT-aligned low in
+                        the thread disappears behind it. Both sent bubbles therefore
+                        sit at the top, and the lapped band below holds only the
+                        received bubble and the typing dots, which are left-aligned
+                        and clear the panel.
+                        The reference design solved this by left-aligning the lower
+                        sent bubbles instead - which put two business replies on the
+                        customer's side of the thread. This keeps the composition and
+                        the WhatsApp semantics. Verified by measuring bubble rects
+                        against the panel rect, not by eye. */}
+                    <div className="msg sent"><p>Hi! Your order #WD-ORD-87A6G has been shipped</p><span className="msg-time">10:30</span></div>
+                    <div className="msg sent"><p>Track here: wecare.digital/track</p><span className="msg-time">10:30</span></div>
                     <div className="msg received"><p>When will it arrive?</p><span className="msg-time">10:31</span></div>
-                    <div className="msg sent left-msg"><p>Tomorrow by 6 PM</p><span className="msg-time">10:31</span></div>
-                    <div className="msg sent left-msg"><p>Track here: wecare.digital/track</p><span className="msg-time">10:32</span></div>
+                    <div className="msg received"><p>Can I change the delivery address?</p><span className="msg-time">10:32</span></div>
                     <div className="typing-indicator"><span></span><span></span><span></span></div>
                   </div>
                 </div>
@@ -197,6 +267,11 @@ response = requests.post(
                     <div className="dots"><span className="dot-red"></span><span className="dot-yellow"></span><span className="dot-green"></span></div>
                     <span className="file-name">send_message.py</span>
                   </div>
+                  {/* The full, real call - not an abbreviation. An earlier pass cut
+                      this down to fit a 248px panel, which lost the assignment, the
+                      API version and the auth header, so it stopped looking like
+                      code someone would actually ship. The panel is now ~340px and
+                      the longest line here (36 chars) fits without wrapping. */}
                   <pre className="code-body">{`response = requests.post(
   "api.wecare.digital/v1/send",
   json={
@@ -212,15 +287,29 @@ response = requests.post(
           </div>
         </section>
 
+        {/*
+          Full-bleed tint pattern: touchpoint and capabilities sit on a #fafafa
+          canvas that has to reach both window edges, so the 1300px measure moves
+          off the section and onto .pp-inner while the section itself goes 100vw
+          with a centring negative margin. Every class this pattern introduces is
+          pp- prefixed on purpose: src/styles/*.css (loaded globally by _app.tsx)
+          declares unscoped rules for generic names like .pill / .stat / .phone,
+          and styled-jsx does not shield the page from those. As with the hero
+          pill, the markup stays inline in the return - styled-jsx only scopes
+          what it can statically see there.
+        */}
+
         <section className={`touchpoint anim ${show('touchpoint') ? 'show' : ''}`} id="touchpoint">
-          <div className="section-header">
-            <h2>Every touchpoint<br/>One seamless experience</h2>
-            <p>Engage, support, and convert customers across their entire journey - from first contact to lasting loyalty</p>
-          </div>
-          <div className="usecase-pills">
-            {useCases.map((title, i) => (
-              <button key={i} className="pill">{title}</button>
-            ))}
+          <div className="pp-inner">
+            <div className="section-header">
+              <h2>Every touchpoint<br/>One seamless experience</h2>
+              <p>Engage, support, and convert customers across their entire journey - from first contact to lasting loyalty</p>
+            </div>
+            <div className="usecase-pills">
+              {useCases.map((title, i) => (
+                <span key={i} className="pp-pill">{title}</span>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -242,19 +331,21 @@ response = requests.post(
         </section>
 
         <section className={`capabilities anim ${show('capabilities') ? 'show' : ''}`} id="capabilities">
-          <div className="section-header">
-            <h2>Everything you need<br/>to grow customer relationships</h2>
-            <p>AI-powered lifecycle management that delivers results</p>
-            <div className="section-divider"><span /></div>
-          </div>
-          <div className="capabilities-grid">
-            {capabilities.map((cap, i) => (
-              <div key={i} className="capability-card">
-                <div className="cap-icon"><img src={cap.icon} alt={cap.title} loading="lazy" /></div>
-                <h3>{cap.title}</h3>
-                <p>{cap.desc}</p>
-              </div>
-            ))}
+          <div className="pp-inner">
+            <div className="section-header">
+              <h2>Everything you need<br/>to grow customer relationships</h2>
+              <p>AI-powered lifecycle management that delivers results</p>
+            </div>
+            <div className="capabilities-grid">
+              {capabilities.map((cap, i) => (
+                <div key={i} className="capability-card">
+                  {/* same six icons, recoloured to the dark green in the palette */}
+                  <div className="cap-icon"><img src={cap.icon.replace(/%23333333/g, '%231a3a2a')} alt={cap.title} loading="lazy" /></div>
+                  <h3>{cap.title}</h3>
+                  <p>{cap.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -270,22 +361,35 @@ response = requests.post(
           </div>
         </section>
 
-        <section className={`cta-section anim ${show('cta') ? 'show' : ''}`} id="cta">
-          <h2>Transform customer engagement with Grahak OS</h2>
-        </section>
-
         <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Trusted by Meta">
           <div className="trust-grid">
+            {/* Neutral card, not lime. Framing another company's logo in our own
+                brand colour made a credential look like a sticker we printed
+                ourselves; a borrowed mark should look borrowed.
+                NOTE ON THE DESIGNATION: "Meta Tech Partner" is carried over
+                unchanged and still needs verifying against the actual entry in
+                Meta's partner portal. The badge Meta grants is "Meta Business
+                Partner" (technology providers are a category within it), it is
+                awarded after review, and it cannot be self-declared. Meta's brand
+                guidance is also to use the logo files they publish rather than a
+                re-typed wordmark - so the <span> below is a stand-in for a proper
+                lockup asset. Do not invent a stronger claim here. */}
             <div className="trust-card">
               <div className="trust-logo">
-                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" />
+                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" loading="lazy" />
                 <span className="trust-wordmark">Meta</span>
               </div>
               <div className="trust-divider" />
               <span className="trust-caption">Meta Tech Partner</span>
             </div>
             <div className="trust-content">
-              <span className="trust-badge">OFFICIAL META TECH PARTNER</span>
+              {/* A self-declared official-partner pill used to sit here. Removed: it
+                  restated the card's own claim a third time in one section, and a
+                  badge asserting official status is the most legally exposed string
+                  on the page. The card states the partnership once; this heading
+                  makes the section's claim. (The exact former wording is not
+                  repeated here on purpose - a test asserts it is gone from the
+                  source, and a comment quoting it would defeat that.) */}
               <h2 className="trust-heading">Trusted by Meta</h2>
               <p className="trust-subtext">Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.</p>
               <div className="trust-pills">
@@ -296,6 +400,10 @@ response = requests.post(
               </div>
             </div>
           </div>
+        </section>
+
+        <section className={`gos-closer anim ${show('gos-closer') ? 'show' : ''}`} id="gos-closer">
+          <h2 className="gos-closer-head">Transform customer engagement with Grahak OS</h2>
         </section>
 
 
@@ -309,36 +417,170 @@ response = requests.post(
           
           /* Hero Section */
           .hero{padding:140px 24px 80px;max-width:1300px;margin:0 auto}
-          .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-          .hero-left h1{font-size:clamp(34px,4vw,48px);font-weight:700;line-height:1.08;margin:0 0 24px;letter-spacing:-1.5px;color:#1a1a1a}
-          .hero-left p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0 0 32px;max-width:100%}
-          .hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-          .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px;min-width:0;transition:all .25s;cursor:default}
-          .stat:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .stat span{display:block;font-size:22px;font-weight:800;color:#1a1a1a;letter-spacing:-.4px;white-space:nowrap}
-          .stat small{font-size:14px;color:#6b7280;margin-top:4px;display:block;font-weight:500;line-height:1.35}
-          .stat:hover span{color:#1a3a2a}
+          /* Left column gets the extra room: the display type is large and the
+             headline must hold to two lines ("Reach customers" / "across <pill>")
+             so the rotating pill always lands on the last line without reflowing
+             the line above it. */
+          /* align-items:start, not center. The mockup column is taller than the
+             copy column, and centring lifted its top edge ~70px above the copy -
+             far enough to slide under the 108px fixed header, which clipped the
+             phone's title bar. Starting both columns at the hero's top padding
+             keeps the mockup clear of the header at every width. */
+          .hero-content{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
+          /* 60px cap is deliberate: at 64px "across <WhatsApp pill>" needs ~562px
+             of the 564px column, so the pill wrapped to a third line. 60px leaves
+             ~35px of slack so the headline holds two lines on every channel. */
+          /* The row is start-aligned so the taller mockup clears the fixed header,
+             but that left ~100px of empty column under the shorter copy. Centring
+             just the copy fixes the imbalance without moving the mockup. */
+          .hero-left{align-self:center}
+          .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
+          /* Lede plus a muted supporting line. Two paragraphs rather than one long
+             run-on: it reads better and gives the left column enough vertical mass
+             to sit against the mockup opposite (which was 221px taller). Measures
+             are capped so each wraps to a comfortable 2-3 lines. */
+          /* Text colours measured from notion.com rather than picked off a grey
+             ramp: their hero subtext is rgba(0,0,0,.898) at 20px and their
+             secondary copy rgba(0,0,0,.54). The previous #9ca3af sat far lighter
+             than anything they use for body text, which is why it read washed out. */
+          /* Body copy matches notion.com exactly. Measured from their hero subtext:
+             Inter 400 at 20px, line-height 28px (1.4), letter-spacing -0.125px,
+             colour rgba(0,0,0,.898). The previous rule used line-height 1.6 and no
+             tracking, which is why it still read differently from theirs even once
+             the colour matched. */
+          /* Measure set in px, not ch: Inter's "0" is ~12.6px at 20px, so 38ch
+             resolved to 479px - nearly the full column - which is why the copy
+             still looked like it ran edge to edge. 400px holds a comfortable
+             ~60-70 characters per line and wraps to more lines, which also closes
+             part of the height difference against the mockup column. */
+          .hero-left p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0 0 18px;max-width:400px}
+          .hero-left p.hero-sub{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;max-width:400px}
+
+          /* Rotating channel pill in the hero headline (Notion-style). The lime
+             tint is a pseudo-element so it can wipe in from the left without
+             reflowing the sentence, and each word is absolutely stacked so
+             swapping causes no reflow - the measured width animates instead. */
+          /* Fully-rounded pill whose tint transitions with the word, matching the
+             notion.com treatment (radius 9999px, transition on the colour). The
+             tint itself is set inline per word; the reveal wipe lives on ::before. */
+          .hero-mark{
+            position:relative;display:inline-block;white-space:nowrap;
+            padding:.02em .3em .02em .22em;
+            border-radius:9999px;
+            background:#e0f7c8;
+            transition:background-color .52s cubic-bezier(.16,1,.3,1);
+          }
+          .hero-mark::before{
+            content:'';position:absolute;inset:0;
+            background:#fff;border-radius:9999px;
+            transform:scaleX(1);transform-origin:right center;
+            transition:transform .78s cubic-bezier(.16,1,.3,1) .18s;
+            z-index:0;
+          }
+          .hero.show .hero-mark::before{transform:scaleX(0)}
+          .hero-mark-dot{
+            position:relative;z-index:1;
+            /* 0.33em matches notion.com's ratio (32px dot against a 96px h1).
+               Tight 0.1em gap - at 0.2em the dot read as detached from the word. */
+            display:inline-block;width:.33em;height:.33em;
+            background:#d1f470;border-radius:50%;
+            margin-right:.18em;vertical-align:.14em;
+            transform:scale(0);
+            transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
+          }
+          .hero.show .hero-mark-dot{transform:scale(1)}
+          .hero-cycle{
+            position:relative;z-index:1;
+            display:inline-block;
+            height:1.06em;line-height:1.06em;
+            vertical-align:baseline;
+            overflow:hidden;
+            transition:width .52s cubic-bezier(.16,1,.3,1);
+            will-change:width;
+          }
+          .hero-cyc-word{
+            position:absolute;left:0;top:0;
+            white-space:nowrap;
+            opacity:0;
+            transform:translateY(.42em);
+            transition:opacity .42s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1);
+          }
+          .hero-cyc-word.on{opacity:1;transform:translateY(0)}
+          .sr-only{
+            position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+            overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+          }
+          @media(prefers-reduced-motion:reduce){
+            .hero-mark::before,.hero-mark-dot{transition:none}
+            .hero-mark::before{transform:scaleX(1)}
+            .hero-mark-dot{transform:scale(1)}
+            .hero-cycle{transition:none}
+            .hero-cyc-word{transition:none}
+          }
           
           /* Trusted by Meta section */
           .trust-strip{max-width:1300px;margin:0 auto 28px;padding:20px 24px 0}
-          .trust-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:40px;align-items:center}
-          .trust-card{border:2px solid #d1f470;background:#fbfff0;border-radius:20px;padding:32px 28px;display:flex;flex-direction:column;align-items:center;gap:20px}
-          .trust-logo{display:flex;align-items:center;gap:14px}
-          .trust-mark{width:48px;height:48px;flex:0 0 auto;object-fit:contain}
-          .meta-mark{color:#0866ff}
-          .trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}
-          .trust-divider{width:100%;height:1px;background:#d1f470}
-          .trust-caption{font-size:18px;font-weight:700;color:#1a3a2a;text-align:center}
+          /* stretch, not center: the card holds only a logo and a designation, so on
+             its own it is much shorter than the heading + copy + pills beside it and
+             floated as a small box against a tall column. Stretching makes both
+             halves the same height and the card centres its own content inside. */
+          .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}
+          .trust-card{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
+          .trust-logo{display:flex;align-items:center;gap:12px}
+          .trust-mark{width:46px;height:46px;flex:0 0 auto;object-fit:contain}
+          /* Black, matching the mark. It was dark green while meta-icon.svg renders
+             black, so one logo lockup carried two different colours - the thing that
+             made this read as slightly broken. 32px/700 rather than 36px/800 so the
+             wordmark sits with the mark instead of shouting over the caption. */
+          .trust-wordmark{font-size:32px;font-weight:700;letter-spacing:-1px;color:#000}
+          .trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}
+          .trust-caption{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
-          .trust-badge{display:inline-block;background:#d1f470;color:#1a3a2a;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:7px 16px;border-radius:50px}
-          .trust-heading{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;letter-spacing:-1px;color:#1a1a1a;margin:0}
-          .trust-subtext{font-size:clamp(16px,1.5vw,18px);line-height:1.6;color:#6b7280;margin:0}
+
+          /* ===== Closing statement (Notion-style display type + motion) ===== */
+          .gos-closer{max-width:1100px;margin:0 auto;padding:96px 24px 112px;display:flex;justify-content:center}
+          .gos-closer-head{
+            font-size:clamp(38px,6vw,84px);
+            font-weight:600;
+            letter-spacing:-3px;
+            line-height:1.06;
+            color:rgba(0,0,0,.95);
+            text-align:center;
+            margin:0;
+            max-width:960px;
+          }
+
+          .trust-heading{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0}
+          .trust-subtext{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           .trust-pills{display:flex;flex-wrap:wrap;gap:12px}
 
           /* Hero Right - Mockup */
           .hero-right{display:flex;justify-content:center}
-          .mockup-wrapper{position:relative;width:100%;max-width:580px;aspect-ratio:1.1;background:#fff;border-radius:28px;padding:24px}
-          .phone{position:absolute;left:24px;top:20px;width:55%;max-width:300px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+          /* The phone's content is ~458px tall, so the wrapper is sized from that
+             rather than a ratio that would crop it. */
+          /* These three heights are solved together, not tuned by eye. The panel is
+             anchored bottom:0, so panelTop = wrapperHeight - panelHeight(277).
+             Constraints:
+               1. panelTop must clear the bottom of the lowest RIGHT-aligned bubble
+                  (~300px) or the panel eats its text  -> wrapperHeight >= 577
+               2. the panel should overhang the phone by only ~20px, as in the
+                  reference -> phoneBottom ~= wrapperHeight - 20 -> phone ~= 542
+                  -> chat-area min-height 480 (phone = 62 header + 480)
+             Hence 590 / 480. Shrinking the wrapper to 540 in an earlier pass moved
+             the panel UP and swallowed a whole bubble - the opposite of the fix. */
+          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:590px;background:#fff;border-radius:28px;padding:28px 24px 24px}
+          /* The two panels OVERLAP on purpose - the code panel laps the phone's
+             lower-right corner, which is the whole composition. 56% + 60% = 116%
+             of the wrapper, so the lap is ~16%.
+             History worth keeping: an earlier pass set these to 50%/44%, which
+             left a visible gap and read as two unrelated cards sitting side by
+             side. Before that, 55%/58% lapped so far that the panel covered the
+             message column and hid bubble text. 16% is the band that laps the
+             corner without eating a message.
+             top:28px, not 8px. At 8px the phone sat flush with the wrapper's top
+             edge, so its dark title bar ran under the fixed header and read as
+             clipped. */
+          .phone{position:absolute;left:0;top:28px;width:56%;max-width:320px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
           .phone-header{background:#1a3a2a;padding:12px 14px;display:flex;align-items:center;gap:10px}
           .back-arrow{color:#fff;font-size:20px}
           .avatar{width:40px;height:40px;background:#1a3a2a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
@@ -346,11 +588,18 @@ response = requests.post(
           .contact-name{color:#fff;font-size:17px;font-weight:600}
           .contact-status{color:rgba(255,255,255,.7);font-size:13px}
           .verified-badge{width:22px;height:22px;background:#1a3a2a;border-radius:50%}
-          .chat-area{background:#ece5dd;padding:14px 12px;min-height:280px;display:flex;flex-direction:column;gap:8px}
-          .msg{max-width:80%;padding:10px 12px;border-radius:8px;font-size:16px;line-height:1.45;color:#000}
-          .msg.received{background:#fff;align-self:flex-start;border-top-left-radius:3px}
+          .chat-area{background:#ece5dd;padding:16px 14px;min-height:480px;display:flex;flex-direction:column;gap:9px}
+          .msg{max-width:82%;padding:10px 13px;border-radius:8px;font-size:17px;line-height:1.42;color:#000}
+          /* Received bubbles are capped narrower than sent ones. They sit low in the
+             thread, inside the band the code panel laps, and at 82% they grew past
+             the panel's left edge and got clipped on their RIGHT - which looks like
+             a rendering fault rather than a deliberate overlap. 66% keeps them clear
+             of it. */
+          .msg.received{background:#fff;align-self:flex-start;max-width:66%;border-top-left-radius:3px}
           .msg.sent{background:#d1f470;align-self:flex-end;border-top-right-radius:3px}
-          .msg.sent.left-msg{align-self:flex-start !important;border-top-left-radius:3px;border-top-right-radius:8px}
+          /* Every sent bubble sits on the right. Two of them previously carried a
+             left-msg override that forced them to flex-start, so outgoing messages
+             appeared on both sides of the same thread. */
           .msg p{margin:0}
           .msg-time{font-size:12px;color:#667781;display:block;text-align:right;margin-top:3px}
           .typing-indicator{background:#fff;padding:10px 14px;border-radius:8px;align-self:flex-start;display:flex;gap:4px}
@@ -360,7 +609,9 @@ response = requests.post(
           @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-3px)}}
 
           /* Code Box */
-          .code-box{position:absolute;right:16px;bottom:20px;width:58%;max-width:340px;background:#1e293b;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+          /* Pure black, not slate. The panel reads as a terminal against the warm
+             chat beige, and the slate #1e293b muddied that contrast. */
+          .code-box{position:absolute;right:0;bottom:0;width:60%;max-width:340px;background:#000;border-radius:14px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.2)}
           .code-header{display:flex;align-items:center;padding:10px 14px;background:#000}
           .dots{display:flex;gap:5px}
           .dot-red,.dot-yellow,.dot-green{width:10px;height:10px;border-radius:50%}
@@ -368,12 +619,20 @@ response = requests.post(
           .dot-yellow{background:#febc2e}
           .dot-green{background:#28c840}
           .file-name{margin-left:auto;font-size:15px;color:#fff}
-          .code-body{margin:0;padding:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.55;color:#e2e8f0;overflow-x:auto}
+          /* pre-wrap rather than pre: at narrower viewports the panel shrinks and
+             the longest lines were cut off mid-token behind overflow:auto, with no
+             visible scrollbar to reveal them. NOTE: no backticks in comments here -
+             this whole block is a template literal and a backtick ends it. */
+          /* The hairline outline is the detail that makes this read as an editor
+             pane rather than a flat dark rectangle. Both this and .code-box are
+             #000, so the rounded corners of the two simply coincide and only the
+             stroke shows. */
+          .code-body{margin:0;padding:15px 16px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;background:#000;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.6;color:#fff;white-space:pre-wrap;overflow-wrap:break-word}
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
-          .section-header h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;line-height:1.15;margin:0 0 12px;color:#1a1a1a;letter-spacing:-1px;text-align:center;width:100%;white-space:pre-line}
-          .section-header p{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.6;margin:0;text-align:center;width:100%}
+          .section-header h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 14px;text-align:center;width:100%;white-space:pre-line}
+          .section-header p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
           .touchpoint{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
@@ -384,8 +643,8 @@ response = requests.post(
           /* API Section */
           .api{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
-          .api-info h2{font-size:clamp(28px,3vw,38px);font-weight:700;color:#1a1a1a;margin:0 0 20px;line-height:1.15;letter-spacing:-1px}
-          .api-desc{font-size:clamp(16px,1.5vw,18px);color:#6b7280;line-height:1.65;margin:0}
+          .api-info h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 20px}
+          .api-desc{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
@@ -401,38 +660,31 @@ response = requests.post(
           .capability-card:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
-          .capability-card h3{font-size:var(--text-2xl);font-weight:600;color:#1a1a1a;margin:0 0 8px}
+          .capability-card h3{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;margin:0 0 10px}
           .capability-card:hover h3{color:#1a3a2a}
-          .capability-card p{font-size:var(--text-base);color:#6b7280;margin:0;line-height:1.6}
+          .capability-card p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           
-          /* CTA Section */
-          .cta-section{padding:60px 24px;max-width:1300px;margin:0 auto;text-align:center;background:#fff}
-          .cta-section h2{font-size:clamp(28px,3.2vw,42px);font-weight:700;color:#1a1a1a;line-height:1.15;max-width:550px;margin:0 auto;letter-spacing:-1px}
-          .why-section{padding:60px 24px;background:#fbfdfb}
+          /* Why sits on plain white between the two grey canvases; borders and
+             body text use the shared hairline/muted pair, not near-miss greens. */
+          .why-section{padding:60px 24px;background:#fff}
           .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
-          .why-item{background:#fff;border:1px solid #dfe8e2;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
-          .why-item strong{font-size:20px;color:#1a3a2a}
-          .why-item span{font-size:16px;line-height:1.55;color:#66736b}
+          .why-item{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
+          .why-item strong{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
+          .why-item span{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400}
 
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
             
             .hero{padding:110px 20px 60px}
             .hero-content{grid-template-columns:1fr;gap:40px;text-align:left}
-            .hero-left h1{font-size:38px;letter-spacing:-1px;max-width:600px;margin:0 0 20px}
-            .hero-left p{font-size:17px;max-width:520px;margin:0 0 28px}
-            .hero-stats{justify-content:flex-start;gap:12px}
-            .stat{padding:14px 16px;min-width:0}
-            .stat span{font-size:21px}
-            .stat small{font-size:13px}
+            .hero-left h1{letter-spacing:-1.8px;max-width:760px;margin:0 0 20px}
+            .hero-left p{max-width:520px;margin:0 0 28px}
             
             .mockup-wrapper{max-width:480px;aspect-ratio:1.15;margin:0;padding:20px}
             .phone{left:16px;top:16px;width:52%}
             .code-box{right:auto;left:12px;bottom:16px;width:55%}
             
             .section-header{padding:0 20px}
-            .section-header h2{font-size:34px}
-            .section-header p{font-size:16px}
             
             .trust-strip{padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:28px}
@@ -444,21 +696,17 @@ response = requests.post(
             
             .api{padding:50px 20px}
             .api-grid{grid-template-columns:1fr;gap:36px;text-align:left}
-            .api-info h2{font-size:32px;text-align:left}
-            .api-desc{font-size:16px;max-width:100%;text-align:left}
+            .api-info h2{text-align:left}
+            .api-desc{max-width:100%;text-align:left}
             .api-demo{max-width:500px;margin:0}
             
             .capabilities{padding:50px 20px}
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:16px}
             .capability-card{padding:24px 20px}
             .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:16px}
-            .capability-card h3{font-size:17px}
-            .capability-card p{font-size:14px}
             
             .why-section{padding:50px 20px}
             .why-grid{grid-template-columns:1fr}
-            .cta-section{padding:50px 20px}
-            .cta-section h2{font-size:34px}
           }
 
           /* ========== MOBILE (up to 767px) ========== */
@@ -468,19 +716,14 @@ response = requests.post(
             .hero-content{display:flex;flex-direction:column;gap:32px;text-align:left;align-items:flex-start}
             .hero-right{order:-1;width:100%;display:flex;justify-content:center}
             .hero-left{text-align:left;order:1}
-            .hero-left h1{font-size:42px;letter-spacing:-0.5px;margin:0 0 20px;line-height:1.12;max-width:100%;text-align:left}
-            .hero-left p{font-size:20px;line-height:1.6;margin:0 0 28px;max-width:100%;color:#6b7280;text-align:left}
-            .hero-stats{grid-template-columns:1fr;gap:12px;width:100%}
-            .stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px;text-align:left;width:100%;display:flex;align-items:center;gap:10px;transition:all .25s;cursor:default}
-            .stat span{font-size:22px;font-weight:800;min-width:0;white-space:nowrap}
-            .stat small{font-size:16px;line-height:1.3;margin:0}
+            .hero-left h1{letter-spacing:-1.2px;margin:0 0 20px;line-height:1.1;max-width:100%;text-align:left}
+            .hero-left p{margin:0 0 16px;max-width:100%;text-align:left}
             
             .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
             .trust-grid{grid-template-columns:1fr;gap:24px}
-            .trust-card{padding:28px 22px;gap:16px}
-            .trust-mark{width:44px;height:44px}
+            .trust-card{padding:36px 24px;gap:20px;max-width:100%}
+            .trust-mark{width:46px;height:46px}
             .trust-wordmark{font-size:32px}
-            .trust-caption{font-size:17px}
             .trust-pills{gap:10px}
 
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
@@ -504,8 +747,8 @@ response = requests.post(
             .code-body{font-size:15px;padding:16px;line-height:1.6;text-align:left}
             
             .section-header{margin-bottom:28px;padding:0 20px;text-align:center}
-            .section-header h2{font-size:38px;margin-bottom:12px;line-height:1.15;text-align:center}
-            .section-header p{font-size:20px;line-height:1.6;text-align:center}
+            .section-header h2{margin-bottom:12px;line-height:1.15;text-align:center}
+            .section-header p{text-align:center}
             
             .touchpoint{padding:44px 20px}
             .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
@@ -514,8 +757,8 @@ response = requests.post(
             .api{padding:44px 20px}
             .api-grid{gap:36px;text-align:left}
             .api-info{text-align:left}
-            .api-info h2{font-size:38px;margin-bottom:16px;text-align:left}
-            .api-desc{font-size:20px;line-height:1.65;max-width:100%;text-align:left}
+            .api-info h2{margin-bottom:16px;text-align:left}
+            .api-desc{max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
             .tab{padding:14px 24px;font-size:18px}
@@ -526,34 +769,26 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
             .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
             .cap-icon{width:50px;height:50px;margin-bottom:16px;border-radius:12px;padding:10px}
-            .capability-card h3{font-size:24px;margin-bottom:8px;text-align:left}
-            .capability-card p{font-size:18px;text-align:left;line-height:1.5}
+            .capability-card h3{margin-bottom:8px;text-align:left}
+            .capability-card p{text-align:left}
             
             .why-section{padding:44px 20px}
             .why-item{padding:20px}
-            .why-item strong{font-size:20px}
-            .why-item span{font-size:18px}
-            .cta-section{padding:44px 20px}
-            .cta-section h2{font-size:38px;line-height:1.2;max-width:100%}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
           @media(max-width:480px){
             
             .hero{padding:calc(85px + env(safe-area-inset-top)) 16px 44px}
-            .hero-left h1{font-size:38px;line-height:1.15}
-            .hero-left p{font-size:22px}
-            .hero-stats{gap:10px}
-            .stat{padding:13px 14px;border-radius:12px}
-            .stat span{font-size:20px;min-width:0;white-space:nowrap}
-            .stat small{font-size:15px}
+            .hero-left h1{letter-spacing:-1px;line-height:1.12}
             
             .section-header{padding:0 16px}
             .trust-strip{padding:16px 16px 0}
-            .trust-card{padding:24px 18px}
+            .trust-card{padding:30px 20px}
             .trust-mark{width:42px;height:42px}
+            .gos-closer{padding:64px 20px 76px}
+            .gos-closer-head{letter-spacing:-1.4px;line-height:1.1}
             .trust-wordmark{font-size:30px}
-            .trust-caption{font-size:16px}
 
             .mockup-wrapper{padding:14px;border-radius:14px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
@@ -566,16 +801,13 @@ response = requests.post(
             .code-box{border-radius:12px}
             .code-body{font-size:14px;padding:14px}
             
-            .section-header h2{font-size:36px}
-            .section-header p{font-size:22px}
-            
             .touchpoint{padding:36px 16px}
             .usecase-pills{gap:10px}
             .pill{padding:12px 20px;font-size:18px}
             
             .api{padding:36px 16px}
-            .api-info h2{font-size:36px;text-align:left}
-            .api-desc{font-size:22px;text-align:left}
+            .api-info h2{text-align:left}
+            .api-desc{text-align:left}
             .code-tabs{gap:8px;padding:14px}
             .tab{padding:12px 20px;font-size:17px}
             .code-block{font-size:14px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
@@ -584,36 +816,18 @@ response = requests.post(
             .capabilities-grid{grid-template-columns:1fr;gap:12px}
             .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
             .cap-icon{width:48px;height:48px;margin-bottom:14px;padding:9px}
-            .capability-card h3{font-size:22px;text-align:left}
-            .capability-card p{font-size:22px;text-align:left}
+            .capability-card h3{text-align:left}
+            .capability-card p{text-align:left}
             
-            .cta-section{padding:36px 16px}
-            .cta-section h2{font-size:36px;line-height:1.2;max-width:100%}
           }
           
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
           @media(max-width:360px){
             
             .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
-            .hero-left h1{font-size:32px}
-            .hero-left p{font-size:20px}
-            .hero-stats{gap:8px}
-            .stat{padding:12px 14px;min-width:0}
-            .stat span{font-size:19px}
-            .stat small{font-size:14px}
-            
-            .section-header h2{font-size:30px}
-            .section-header p{font-size:19px}
+            .hero-left h1{letter-spacing:-.8px}
             
             .pill{padding:12px 18px;font-size:17px}
-            
-            .api-info h2{font-size:30px}
-            .api-desc{font-size:19px}
-            
-            .capability-card h3{font-size:18px}
-            .capability-card p{font-size:18px}
-            
-            .cta-section h2{font-size:30px}
           }
           
           /* ========== LANDSCAPE ORIENTATION FIX ========== */
@@ -624,32 +838,65 @@ response = requests.post(
             .hero-left{order:0;flex:1;text-align:left}
             .hero-left h1{margin:0 0 16px}
             .hero-left p{margin:0 0 20px}
-            .hero-stats{justify-content:flex-start}
             .mockup-wrapper{max-height:260px;aspect-ratio:auto;max-width:100%}
             .phone{max-width:180px}
             .code-box{max-width:200px}
             .chat-area{min-height:120px}
           }
 
-          /* ========== HOME TYPOGRAPHY CONTRACT ========== */
-          /* Keep one responsive type hierarchy after legacy breakpoint rules. */
-          .hero-left h1{font-size:clamp(34px,4vw,48px)}
-          .hero-left p{font-size:clamp(16px,1.5vw,18px);line-height:1.6}
-          .section-header h2{font-size:clamp(28px,3.2vw,42px)}
-          .section-header p{font-size:clamp(16px,1.5vw,18px);line-height:1.6}
+          /* ========== TYPOGRAPHY CONTRACT ========== */
+          /* One responsive type hierarchy, declared after the legacy breakpoint
+             rules so a single clamp() governs each size at every width. The hero
+             h1 and p are intentionally absent: their base rule is the contract. */
+          .section-header h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
+          .section-header p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .pill{font-size:var(--text-base)}
-          .api-info h2{font-size:clamp(28px,3vw,38px)}
-          .api-desc{font-size:clamp(16px,1.5vw,18px);line-height:1.65}
+          .api-info h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
+          .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .tab{font-size:15px}
-          .capability-card h3{font-size:var(--text-2xl)}
-          .capability-card p{font-size:var(--text-base);line-height:1.6}
-          .cta-section h2{font-size:clamp(28px,3.2vw,42px)}
+          .capability-card h3{font-size:22px;line-height:1.27;letter-spacing:-.25px}
+          .capability-card p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           
           /* ========== REDUCED MOTION ========== */
           @media(prefers-reduced-motion:reduce){
             .anim{transition:none}
             .typing-indicator span{animation:none}
             .pill{transition:none}
+          }
+
+          /* ========== FULL-BLEED SECTIONS (pp-*) ==========
+             The grey canvases have to reach both window edges, so the 1300px
+             measure moves off the section and onto .pp-inner: 100vw plus a
+             centring negative margin makes the tint exactly window.innerWidth
+             wide, where a plain background would stop short of each edge.
+             .page already clips overflow-x, so this adds no horizontal scroll.
+             Everything here is pp- prefixed because the globally imported
+             src/styles/*.css declares unscoped rules for generic names like
+             .pill / .stat / .phone / .chat-area that styled-jsx cannot shield
+             the page from; the id selectors beat the shared section classes
+             regardless of source order. */
+          #touchpoint,#capabilities{max-width:none;width:100vw;margin-left:calc(50% - 50vw);background:#fafafa}
+          .pp-inner{max-width:1300px;margin:0 auto}
+
+          /* Use-case pills as spans, since they carry no handler. Same paint as
+             .pill; inline-flex restores the centring a button gets for free. */
+          .pp-pill{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
+          .pp-pill:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+
+          @media(max-width:1024px){
+            .pp-pill{padding:12px 22px}
+          }
+          @media(max-width:767px){
+            .pp-pill{padding:14px 26px}
+          }
+          @media(max-width:480px){
+            .pp-pill{padding:12px 20px}
+          }
+          @media(max-width:360px){
+            .pp-pill{padding:12px 18px}
+          }
+          @media(prefers-reduced-motion:reduce){
+            .pp-pill{transition:none}
           }
         `}</style>
       </div>

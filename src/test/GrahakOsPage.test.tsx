@@ -6,22 +6,30 @@ describe( 'Grahak OS five approved visual fixes', () => {
   const pagePath = resolve( process.cwd(), 'src/pages/grahak-os/index.tsx' );
   const source = readFileSync( pagePath, 'utf8' );
 
-  it( 'keeps hero stats compact and keeps 4 Channels together', () => {
-    expect( source ).toContain( '<span>4 Channels</span>' );
-    expect( source ).toContain( '.stat{background:#fff;border:2px solid #e5e7eb;border-radius:14px;padding:14px 16px' );
-    expect( source ).toContain( '.stat span{display:block;font-size:22px' );
-    expect( source ).toContain( 'white-space:nowrap' );
-    expect( source ).not.toContain( 'min-height:112px' );
+  it( 'drops the three hero stat cards and their dead CSS', () => {
+    // Removed by design decision: the hero leads on the rotating channel pill,
+    // so the stat row was redundant. Markup and styles both go.
+    expect( source ).not.toContain( '<span>4 Channels</span>' );
+    expect( source ).not.toContain( 'hero-stats' );
+    expect( source ).not.toContain( '.stat{' );
+    expect( source ).not.toContain( '.stat span{' );
+    expect( source ).not.toContain( '.stat small{' );
+    // the hero still leads with the cycling pill
+    expect( source ).toContain( 'className="hero-cycle"' );
   } );
 
   it( 'uses the approved Bharat Stack lime and dark green color system', () => {
     expect( source ).toContain( '.phone-header{background:#1a3a2a' );
     expect( source ).toContain( '.avatar{width:40px;height:40px;background:#1a3a2a' );
     expect( source ).toContain( '.verified-badge{width:22px;height:22px;background:#1a3a2a' );
-    expect( source ).toContain( '.trust-card{border:2px solid #d1f470;background:#fbfff0' );
     expect( source ).toContain( '.msg.sent{background:#d1f470' );
     expect( source ).toContain( '.tab.active{background:#d1f470;color:#1a3a2a}' );
-    expect( source ).toContain( '.trust-badge{display:inline-block;background:#d1f470' );
+    // The Meta card is deliberately OUTSIDE the lime system. Framing another
+    // company's logo in our own brand colour made a credential look like a sticker
+    // we printed ourselves, so the card is neutral and the lime stays on our own
+    // surfaces. Do not "restore" the tint.
+    expect( source ).toContain( '.trust-card{border:1px solid rgba(0,0,0,.1);background:#fff' );
+    expect( source ).not.toContain( '.trust-card{border:2px solid #d1f470' );
     expect( source ).not.toContain( '#2f6b52' );
     expect( source ).not.toContain( '.verified-badge{width:22px;height:22px;background:#075e54' );
     expect( source ).not.toContain( '.meta-panel{background:#d9fbf2' );
@@ -34,22 +42,70 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'className="cta-actions"' );
   } );
 
-  it( 'uses the approved Meta icon from app.wecare.digital', () => {
-    expect( source ).toContain( '<img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" />' );
+  it( 'uses the hosted Meta icon from app.wecare.digital', () => {
+    expect( source ).toContain( 'src="https://app.wecare.digital/stream/media/m/meta-icon.svg"' );
+    expect( source ).toContain( 'className="trust-mark meta-mark"' );
     expect( source ).not.toContain( 'src="/meta-icon.png"' );
   } );
 
-  it( 'renders the two-column Trusted by Meta section', () => {
-    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr' );
-    expect( source ).toContain( '.trust-card{border:2px solid #d1f470;background:#fbfff0' );
-    expect( source ).toContain( '.trust-badge{display:inline-block;background:#d1f470' );
+  it( 'keeps the Meta card from stretching into a wide flat rectangle', () => {
+    expect( source ).toContain( 'max-width:430px' );
+    expect( source ).toContain( '.trust-card{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:20px;padding:34px 30px' );
+  } );
+
+  it( 'keeps the Meta card to the logo and the designation only', () => {
+    // One logo lockup, one colour. The wordmark was dark green while the hosted
+    // meta-icon.svg renders black, which is what made the lockup look broken.
+    expect( source ).toContain( '.trust-wordmark{font-size:32px;font-weight:700;letter-spacing:-1px;color:#000}' );
+    expect( source ).not.toContain( '.trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}' );
+    expect( source ).toContain( '.trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}' );
+    // The card carries the mark and the designation and nothing else. A capability
+    // list was tried here and removed: the claims were unverified, and the card is
+    // a credential rather than a feature panel.
+    expect( source ).not.toContain( 'trust-facts' );
+    expect( source ).not.toContain( 'Official Cloud API access' );
+    expect( source ).not.toContain( 'Verified WABA provisioning' );
+    expect( source ).not.toContain( 'Green tick verification support' );
+  } );
+
+  it( 'makes both halves of the Meta section the same height', () => {
+    // With only a logo and a designation the card is far shorter than the heading,
+    // copy and pills beside it, so centring left it floating as a small box against
+    // a tall column. stretch equalises them; the card centres its own content.
+    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}' );
+    expect( source ).not.toContain( 'grid-template-columns:1fr 1fr;gap:40px;align-items:center' );
+    expect( source ).toContain( 'flex-direction:column;align-items:center;justify-content:center;gap:22px' );
+  } );
+
+  it( 'renders the Trusted by Meta section as two equal columns with an unboxed right half', () => {
+    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:1fr 1fr' );
+    expect( source ).toContain( '.trust-card{border:1px solid rgba(0,0,0,.1);background:#fff' );
+    // right half stays plain: no border, no background panel
+    expect( source ).toContain( '.trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}' );
+    expect( source ).not.toContain( 'grid-template-columns:minmax(0,360px) 1fr' );
+    expect( source ).not.toContain( '.trust-content{border:' );
     expect( source ).not.toContain( '.trust-panel{' );
     expect( source ).not.toContain( '.meta-panel{background:#d1f470' );
     expect( source ).not.toContain( '.whatsapp-panel{background:#d1f470' );
   } );
 
+  it( 'leaves no temporary design-review markup behind', () => {
+    expect( source ).not.toContain( 'VARIANT' );
+    expect( source ).not.toContain( 'tv-label' );
+    expect( source ).not.toContain( 'tv-code' );
+    expect( source ).not.toContain( 'TEMP DESIGN REVIEW' );
+    // scroll-reveal animation restored on the section
+    expect( source ).toContain( "className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`}" );
+  } );
+
   it( 'uses the agreed Trusted by Meta wording', () => {
-    expect( source ).toContain( 'OFFICIAL META TECH PARTNER' );
+    // The self-declared OFFICIAL META TECH PARTNER pill is gone. It restated the
+    // card's own claim a third time in a single section, and a badge asserting
+    // official status is the most legally exposed string on the page: Meta awards
+    // that designation after review and it cannot be self-declared. The card states
+    // the partnership once; the h2 makes the section's claim.
+    expect( source ).not.toContain( 'OFFICIAL META TECH PARTNER' );
+    expect( source ).not.toContain( 'trust-badge' );
     expect( source ).toContain( '<h2 className="trust-heading">Trusted by Meta</h2>' );
     expect( source ).toContain( 'Meta Tech Partner' );
     expect( source ).toContain( 'Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.' );

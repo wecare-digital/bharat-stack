@@ -1,14 +1,26 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+// One endpoint, one response shape. There is deliberately no provider probing
+// and no second URL here.
+//
+// This used to call a Cloud Run relay directly for translation and TTS, choosing
+// between it and AWS at runtime. That relay held the Google API key server-side -
+// which was the right instinct, since a browser widget can never hold a key - but
+// it billed a Google project with no request cap, and it was reachable by anything
+// that could set an Origin header. Provider selection now happens inside
+// wecare-site-language, behind the API Gateway throttle and the DynamoDB cache,
+// where the key lives in Secrets Manager. See
+// amplify/functions/core/site-language/handler.py.
+//
+// Practical consequence: do NOT reintroduce a provider flag on the client. If
+// Google fails, the Lambda degrades to Amazon Translate and reports which one it
+// used in `provider` on the response. The widget does not need to care.
 const API_BASE = ( process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital' ) + '/site-language';
-const RELAY = 'https://wecare-translation-relay-hrkl3sncxq-el.a.run.app';
 const LS_LANG = 'wc:stack:lang';
-const SS_PROVIDER = 'wc:stack:langprovider';
 const MAX_BATCH_ITEMS = 30;
 const MAX_BATCH_BYTES = 20000;
 const MAX_SPEAK_CHARS = 2600;
 
-type Provider = 'google' | 'aws';
 interface Lang { code: string; name: string; native?: string; canSpeak: boolean }
 
 const NATIVE: Record<string, string> = {
@@ -16,36 +28,16 @@ const NATIVE: Record<string, string> = {
   gu: 'ગુજરાતી', kn: 'ಕನ್ನಡ', ml: 'മലയാളം', pa: 'ਪੰਜਾਬੀ', ur: 'اردو',
 };
 
-const GOOGLE_VOICE: Record<string, string> = {
-  en: 'en-IN', hi: 'hi-IN', bn: 'bn-IN', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN',
-  gu: 'gu-IN', kn: 'kn-IN', ml: 'ml-IN', pa: 'pa-IN', ur: 'ur-IN',
-};
+// Shown immediately when the panel opens, in rough order of speakers. The
+// service returns ~75 languages from Amazon Translate, but this is a product for
+// Bharat: surfacing the Indic set first means the common case is one tap and no
+// typing. Search still reaches the full catalogue.
+const PRIMARY = [ 'en', 'hi', 'bn', 'mr', 'te', 'ta', 'gu', 'kn', 'ml', 'pa', 'ur' ];
 
 const SKIP_TAGS = new Set( [
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'SVG', 'CANVAS', 'VIDEO', 'AUDIO',
   'INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'CODE', 'PRE', 'HEAD', 'META', 'LINK',
 ] );
-
-async function probeGoogle (): Promise<boolean> {
-  try {
-    const saved = sessionStorage.getItem( SS_PROVIDER );
-    if ( saved === 'google' ) return true;
-    if ( saved === 'aws' ) return false;
-  } catch { /* storage may be unavailable */ }
-
-  let works = false;
-  try {
-    const response = await fetch( RELAY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify( { texts: [ 'ok' ], targetLanguage: 'hi', sourceLanguage: 'en' } ),
-    } );
-    works = response.ok;
-  } catch { works = false; }
-
-  try { sessionStorage.setItem( SS_PROVIDER, works ? 'google' : 'aws' ); } catch { /* ignore */ }
-  return works;
-}
 
 function collectTextNodes ( root: HTMLElement ): Text[] {
   const nodes: Text[] = [];
@@ -108,7 +100,6 @@ const LanguageBar: React.FC = () => {
   const originals = useRef<Map<Text, string> | null>( null );
   const rootRef = useRef<HTMLDivElement | null>( null );
   const audioRef = useRef<HTMLAudioElement | null>( null );
-  const providerRef = useRef<Provider>( 'aws' );
 
   const contentRoot = useCallback( (): HTMLElement => (
     document.querySelector( '.page' ) as HTMLElement
@@ -121,27 +112,26 @@ const LanguageBar: React.FC = () => {
     let cancelled = false;
     ( async () => {
       try {
-        const google = await probeGoogle();
-        providerRef.current = google ? 'google' : 'aws';
         const languageResponse = await fetch( `${API_BASE}/languages` );
         if ( !languageResponse.ok ) return;
         const rows: Array<{ code: string; name: string }> = ( await languageResponse.json() ).languages || [];
-        let speakable = new Set<string>();
-        if ( google ) {
-          speakable = new Set( Object.keys( GOOGLE_VOICE ) );
-        } else {
-          try {
-            const voiceResponse = await fetch( `${API_BASE}/voices` );
-            if ( voiceResponse.ok ) {
-              const voices: Array<{ languageCode: string; additionalLanguageCodes?: string[] }> = ( await voiceResponse.json() ).voices || [];
-              for ( const voice of voices ) {
-                for ( const code of [ voice.languageCode, ...( voice.additionalLanguageCodes || [] ) ] ) {
-                  if ( code ) speakable.add( code.toLowerCase().split( '-' )[ 0 ] );
-                }
+        // Speech is Amazon Polly in every case. Google Cloud Text-to-Speech is a
+        // separate API with its own enablement and key scope, and Polly is both
+        // cheaper and already wired, so translation moved to Google and audio did
+        // not. /voices is therefore the single source of truth for "can this
+        // language be read aloud".
+        const speakable = new Set<string>();
+        try {
+          const voiceResponse = await fetch( `${API_BASE}/voices` );
+          if ( voiceResponse.ok ) {
+            const voices: Array<{ languageCode: string; additionalLanguageCodes?: string[] }> = ( await voiceResponse.json() ).voices || [];
+            for ( const voice of voices ) {
+              for ( const code of [ voice.languageCode, ...( voice.additionalLanguageCodes || [] ) ] ) {
+                if ( code ) speakable.add( code.toLowerCase().split( '-' )[ 0 ] );
               }
             }
-          } catch { /* text translation remains available */ }
-        }
+          }
+        } catch { /* text translation remains available */ }
         const normalized = rows.map( row => {
           const base = row.code.toLowerCase().split( '-' )[ 0 ];
           return { code: row.code, name: row.name, native: NATIVE[ base ], canSpeak: speakable.has( base ) };
@@ -200,16 +190,15 @@ const LanguageBar: React.FC = () => {
     setStatus( `Translating to ${label}.` );
 
     try {
-      const google = providerRef.current === 'google';
       for ( const batch of buildBatches( nodes ) ) {
-        const response = await fetch( google ? RELAY : `${API_BASE}/translate`, {
+        const response = await fetch( `${API_BASE}/translate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify( { texts: batch.map( item => item.text ), targetLanguage: code, sourceLanguage: 'en' } ),
         } );
         if ( !response.ok ) throw new Error( 'translate failed' );
         const payload = await response.json();
-        const translated: Array<{ translatedText?: string }> = ( google ? payload?.data?.translations : payload?.translations ) || [];
+        const translated: Array<{ translatedText?: string }> = payload?.translations || [];
         if ( translated.length !== batch.length ) throw new Error( 'translation shape mismatch' );
         translated.forEach( ( row, index ) => { if ( row.translatedText && batch[ index ].node.parentNode ) batch[ index ].node.nodeValue = row.translatedText; } );
       }
@@ -236,27 +225,18 @@ const LanguageBar: React.FC = () => {
     setSpeaking( true );
     setStatus( 'Preparing audio.' );
     try {
-      const google = providerRef.current === 'google';
-      const base = current.toLowerCase().split( '-' )[ 0 ];
-      const response = await fetch( google ? RELAY : `${API_BASE}/tts`, {
+      const response = await fetch( `${API_BASE}/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify( google ? { text, languageCode: GOOGLE_VOICE[ base ] || 'en-IN' } : { text, language: current } ),
+        body: JSON.stringify( { text, language: current } ),
       } );
       if ( !response.ok ) throw new Error( 'tts failed' );
-      let src = '';
-      let revoke = false;
-      if ( google ) {
-        src = URL.createObjectURL( await response.blob() );
-        revoke = true;
-      } else {
-        const body = await response.json();
-        if ( !body.audioBase64 ) throw new Error( 'missing audio' );
-        src = `data:${body.mimeType || 'audio/mpeg'};base64,${body.audioBase64}`;
-      }
+      const body = await response.json();
+      if ( !body.audioBase64 ) throw new Error( 'missing audio' );
+      const src = `data:${body.mimeType || 'audio/mpeg'};base64,${body.audioBase64}`;
       const audio = new Audio( src );
       audioRef.current = audio;
-      const finish = () => { if ( revoke ) URL.revokeObjectURL( src ); setSpeaking( false ); };
+      const finish = () => { setSpeaking( false ); };
       audio.addEventListener( 'ended', () => { finish(); setStatus( 'Finished reading.' ); } );
       audio.addEventListener( 'error', () => { finish(); setStatus( 'Playback failed.' ); } );
       await audio.play();
@@ -264,11 +244,23 @@ const LanguageBar: React.FC = () => {
     } catch { setSpeaking( false ); setStatus( 'Audio is unavailable right now.' ); }
   }, [ contentRoot, current, speaking, stopSpeaking ] );
 
+  // An empty query used to return an empty array, so opening the panel showed
+  // nothing but "Type a language name or code." - the visitor had to guess that
+  // their language was in there before seeing any evidence of it. Now the Indic
+  // set is the resting state and typing widens the search to everything.
   const filtered = useMemo( () => {
     const term = query.trim().toLocaleLowerCase();
-    if ( !term ) return [];
-    return langs.filter( lang => [ lang.code, lang.name, lang.native || '' ].some( value => value.toLocaleLowerCase().includes( term ) ) ).slice( 0, 12 );
+    if ( !term ) {
+      return PRIMARY
+        .map( code => langs.find( lang => lang.code === code ) )
+        .filter( ( lang ): lang is Lang => Boolean( lang ) );
+    }
+    return langs
+      .filter( lang => [ lang.code, lang.name, lang.native || '' ].some( value => value.toLocaleLowerCase().includes( term ) ) )
+      .slice( 0, 14 );
   }, [ langs, query ] );
+
+  const searching = query.trim().length > 0;
 
   const selected = langs.find( lang => lang.code === current );
   const canSpeak = selected?.canSpeak === true;
@@ -279,28 +271,53 @@ const LanguageBar: React.FC = () => {
   return (
     <div ref={ rootRef } data-wc-no-translate="true" className="wc-langbar">
       <style jsx>{`
-        .wc-langbar{position:fixed;right:16px;left:auto;top:50%;transform:translateY(-50%);z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:inherit}
-        .panel{display:none;width:min(320px,calc(100vw - 32px));background:#fff;border:1px solid #dfe8e2;border-radius:15px;padding:10px;box-shadow:0 12px 36px rgba(16,32,24,.18)}
+        /* Bottom corner, offset LEFT of the WhatsApp button. Two constraints drove
+           this, both measured rather than guessed:
+           1. At top:50% the trigger and its open panel sat directly on the hero
+              mockup on /grahak-os, hiding the phone and the code panel.
+           2. #wecarewa-widget (injected by the external wecare-wa-widget.js) is a
+              64x64 button at right:16px bottom:120px with
+              z-index: 2147483647 - the maximum 32-bit integer. Nothing can be
+              stacked above it, so the panel cannot merely out-z-index it: any
+              overlap means a green WhatsApp circle punches through the language
+              list. Stacking this ABOVE the button instead pushed the panel off
+              the top of a short viewport.
+           So the whole cluster clears the button horizontally: right:96px leaves a
+           16px gap beside its right:16px..80px column, and the panel width is
+           capped against the same 108px so it can never grow back into it. */
+        .wc-langbar{position:fixed;right:96px;left:auto;bottom:16px;top:auto;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-family:inherit}
+        .panel{display:none;width:min(324px,calc(100vw - 108px));background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16),0 2px 8px rgba(16,32,24,.06)}
         .panel.open{display:block}
-        .search{width:100%;min-height:44px;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font:600 15px/1.2 inherit;color:#1a3a2a;outline:none}
-        .search:focus{border-color:#075e54;box-shadow:0 0 0 3px rgba(7,94,84,.12)}
-        .results{max-height:310px;overflow:auto;margin-top:8px}
-        .hint{padding:12px;color:#6b7280;font-size:14px}
-        .opt{width:100%;min-height:44px;border:0;border-radius:9px;background:transparent;padding:9px 10px;display:flex;justify-content:space-between;gap:12px;align-items:center;text-align:left;color:#1a3a2a;cursor:pointer}
-        .opt:hover,.opt:focus-visible{background:#f2fbf6;outline:none}
+        .search{width:100%;min-height:42px;box-sizing:border-box;border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:10px 12px;font-size:15px;font-weight:400;line-height:1.3;color:rgba(0,0,0,.898);outline:none}
+        .search::placeholder{color:rgba(0,0,0,.42)}
+        .search:focus{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(26,58,42,.1)}
+        .group{padding:10px 10px 4px;font-size:12px;font-weight:500;color:rgba(0,0,0,.42)}
+        .results{max-height:296px;overflow:auto;margin-top:2px}
+        .hint{padding:12px 10px;color:rgba(0,0,0,.5);font-size:14px}
+        .opt{width:100%;min-height:42px;border:0;border-radius:9px;background:transparent;padding:8px 10px;display:flex;align-items:baseline;gap:8px;text-align:left;color:rgba(0,0,0,.898);cursor:pointer}
+        .opt:hover,.opt:focus-visible{background:#f4f7f5;outline:none}
         .opt[aria-current='true']{background:#1a3a2a;color:#fff}
-        .meta{opacity:.65;font-size:12px;white-space:nowrap}
-        .panel-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #edf1ee}
-        .current-language{font-size:13px;font-weight:700;color:#66736b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .listen-btn{min-height:38px;padding:8px 12px;border:0;border-radius:9px;background:#f2fbf6;color:#075e54;font:700 13px/1 inherit;cursor:pointer}
-        .listen-btn:hover{background:#e4f6eb}.listen-btn.on{background:#075e54;color:#fff}
-        .language-trigger{width:48px;height:48px;border:1px solid #dfe8e2;border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 18px rgba(16,32,24,.14)}
-        .language-trigger:hover{border-color:#075e54;background:#f2fbf6;color:#075e54}
-        .language-trigger:focus-visible{outline:3px solid rgba(7,94,84,.25);outline-offset:2px}
+        .nat{font-size:15px;font-weight:500}
+        .eng{font-size:13px;color:rgba(0,0,0,.5)}
+        .opt[aria-current='true'] .eng{color:rgba(255,255,255,.7)}
+        .meta{margin-left:auto;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:rgba(0,0,0,.35);white-space:nowrap}
+        .opt[aria-current='true'] .meta{color:rgba(255,255,255,.6)}
+        .panel-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:8px 4px 2px;border-top:1px solid rgba(0,0,0,.07)}
+        .current-language{font-size:13px;font-weight:500;color:rgba(0,0,0,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .listen-btn{min-height:34px;padding:7px 13px;border:0;border-radius:8px;background:#f0f4f1;color:#1a3a2a;font-size:13px;font-weight:500;line-height:1;cursor:pointer}
+        .listen-btn:hover{background:#e6ece8}
+        .listen-btn.on{background:#1a3a2a;color:#fff}
+        .language-trigger{width:48px;height:48px;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 20px rgba(16,32,24,.14)}
+        .language-trigger:hover{border-color:#1a3a2a;background:#f4f7f5}
+        .language-trigger:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+        .language-trigger[aria-expanded='true']{background:#1a3a2a;border-color:#1a3a2a;color:#fff}
         .language-trigger:disabled{opacity:.55;cursor:not-allowed}
         .language-trigger svg{width:24px;height:24px}
         .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-        @media(max-width:600px){.wc-langbar{right:12px;left:auto;top:auto;bottom:calc(82px + env(safe-area-inset-bottom));transform:none}.panel{width:min(300px,calc(100vw - 24px))}}
+        /* Same horizontal clearance on mobile, plus the safe-area inset for the iOS
+           home indicator. The panel is capped against 104px for the same reason as
+           the desktop rule. */
+        @media(max-width:600px){.wc-langbar{right:92px;left:auto;top:auto;bottom:calc(16px + env(safe-area-inset-bottom))}.panel{width:min(300px,calc(100vw - 104px))}}
         @media print{.wc-langbar{display:none}}
       `}</style>
 
@@ -309,18 +326,22 @@ const LanguageBar: React.FC = () => {
           className="search"
           type="search"
           value={ query }
-          placeholder="Search language..."
+          placeholder="Search all languages"
           aria-label="Search languages"
           autoFocus={ open }
           onChange={ event => setQuery( event.target.value ) }
           onKeyDown={ event => { if ( event.key === 'Escape' ) setOpen( false ); } }
         />
+        <div className="group">{ searching ? 'Results' : 'Indian languages' }</div>
         <div className="results" role="listbox" aria-label="Language results">
-          { !query.trim() && <div className="hint">Type a language name or code.</div> }
-          { query.trim() && !filtered.length && <div className="hint">No matching language.</div> }
+          { searching && !filtered.length && <div className="hint">No matching language.</div> }
           { filtered.map( lang => (
             <button key={ lang.code } type="button" className="opt" role="option" aria-selected={ lang.code === current } aria-current={ lang.code === current ? 'true' : 'false' } onClick={ () => { void applyLanguage( lang.code ); } }>
-              <span>{ lang.native ? `${lang.native} · ${lang.name}` : lang.name }</span>
+              {/* Native name leads. Someone looking for Malayalam scans for
+                  മലയാളം, not for the word "Malayalam" - and no flags, because a
+                  flag is a country and these are languages. */}
+              <span className="nat">{ lang.native || lang.name }</span>
+              { lang.native && lang.native !== lang.name && <span className="eng">{ lang.name }</span> }
               <span className="meta">{ lang.code }</span>
             </button>
           ) ) }

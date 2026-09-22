@@ -19,7 +19,7 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
       .brand-lockup{display:inline-flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0}
       .brand-lockup img{height:60px;width:auto;border-radius:12px;flex-shrink:0;display:block;object-fit:contain}
       .brand-copy{display:flex;flex-direction:column;justify-content:center;line-height:1.08}
-      .brand-copy>span{font-size:24px;font-weight:800;color:#1a3a2a;letter-spacing:-.4px}
+      .brand-copy>span{font-size:24px;font-weight:800;color:#1a1a1a;letter-spacing:-.4px}
       .brand-stack{display:flex;align-items:center;gap:2px}
       @media(max-width:767px){
         .brand-lockup{gap:8px}

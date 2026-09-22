@@ -42,6 +42,17 @@ ALLOWED_ORIGINS = [
 SITE_LANGUAGE_RATE_LIMIT = 15.0
 SITE_LANGUAGE_BURST_LIMIT = 30
 
+# Translation provider. "auto" prefers Google Cloud Translation when the key below
+# resolves and falls back to Amazon Translate when it does not, so this deploys
+# safely whether or not the key has been provisioned or the API enabled.
+TRANSLATE_PROVIDER = "auto"
+
+# The id that ALREADY holds the unified Google API key in this account - see the
+# google-cloud entry in scripts/store_provider_secret.py. Deliberately not a new
+# wecare/google-translate id: a parallel copy means rotation updates one and
+# consumers keep reading the other.
+GOOGLE_SECRET_NAME = "wecare/google/cloud"
+
 
 def ensure_table() -> None:
     ddb = boto3.client("dynamodb", region_name=REGION)
@@ -97,6 +108,16 @@ def ensure_role_policy() -> None:
                 "Resource": f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/{TABLE_NAME}",
             },
             {
+                # Google Cloud Translation key, read at request time and cached in
+                # the container. Scoped to this one secret by ARN: the role is
+                # shared with every other Lambda in the account, so a wildcard here
+                # would hand all 28 secrets to all of them. The -* suffix matches
+                # the six random characters Secrets Manager appends to every ARN.
+                "Effect": "Allow",
+                "Action": ["secretsmanager:GetSecretValue"],
+                "Resource": f"arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:{GOOGLE_SECRET_NAME}-*",
+            },
+            {
                 "Effect": "Allow",
                 "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
                 "Resource": f"arn:aws:logs:{REGION}:{ACCOUNT}:log-group:/aws/lambda/{FUNCTION_NAME}:*",
@@ -133,6 +154,11 @@ def deploy_lambda(zip_bytes: bytes) -> str:
         "SITE_LANGUAGE_MAX_TEXT_BYTES": "9000",
         "SITE_LANGUAGE_MAX_TOTAL_BYTES": "30000",
         "SITE_LANGUAGE_MAX_TTS_CHARS": "2800",
+        # A secret NAME, not a value. The key itself is never an env var - it is
+        # fetched through the role above at request time. See
+        # .kiro/steering/secret-handling.md.
+        "SITE_LANGUAGE_GOOGLE_SECRET": GOOGLE_SECRET_NAME,
+        "SITE_LANGUAGE_TRANSLATE_PROVIDER": TRANSLATE_PROVIDER,
     }
 
     try:

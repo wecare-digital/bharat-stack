@@ -60,6 +60,33 @@ echo "$SECRET"                          # lands in logs
 aws secretsmanager get-secret-value ... # pulls the value into context
 ```
 
+## Corollary: a secret must not appear in a logging expression at all
+
+Not "must not be logged" — must not **appear in the expression**. CodeQL
+(`py/clear-text-logging-sensitive-data`) failed the build twice on
+`amplify/functions/core/site-language/handler.py` over a line that could not leak
+anything:
+
+```python
+logger.info(json.dumps({"provider": "google" if key else "aws"}))   # blocked
+```
+
+A ternary on the secret's truthiness, yielding a string literal. The key can
+never reach the output. CodeQL flags it anyway, and it is right to: the analysis
+cannot prove the value is discarded, and neither can a reviewer at a glance.
+
+**CodeQL tracks taint across function boundaries.** The second attempt moved the
+log to a different function and reduced the value to a bool, and still failed,
+because `provider <- _google_enabled() <- _google_key() <- the secret` is one
+call chain. Reducing a secret to a boolean does not launder it.
+
+Do not suppress the alert. Remove the log, or derive the logged value from
+something that never touched the secret. In that case the information was already
+available on the API response and in the failure log, so the line simply went.
+
+Exception messages count too. Log `type(exc).__name__`, and log an exception's
+text only when your own code constructed that message from known-safe parts.
+
 ## Enforcement
 
 `.kiro/hooks/block-inline-secrets.json` runs `scripts/block_inline_secrets.py`
