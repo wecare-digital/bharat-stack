@@ -99,8 +99,24 @@ ALL_STATES = frozenset(STATE_RANK)
 #: Nothing follows these. ``DELIVERED`` is absent deliberately - ``READ`` follows it.
 TERMINAL_STATES = frozenset({READ, FAILED, SKIPPED})
 
-#: States from which a worker may still be required to act.
+#: States from which *someone* may still be required to act - a sender or a reconciler.
 ACTIONABLE_STATES = frozenset({PENDING, READY, LEASED, RECONCILIATION_REQUIRED})
+
+#: States from which a SEND may still happen. Narrower than `ACTIONABLE_STATES`, and
+#: narrower than "not terminal", which is the distinction that matters.
+#:
+#: Two states are deliberately excluded:
+#:
+#: ``ACCEPTED`` is not terminal - ``DELIVERED`` and ``READ`` follow it - so a
+#: "not terminal, not out of attempts" test treats it as work to do and sends the
+#: message a second time. A duplicate queue delivery is the normal case with SQS, not an
+#: edge case, so that test is wrong exactly when it matters most. Found by a failing
+#: test, not by review.
+#:
+#: ``RECONCILIATION_REQUIRED`` is actionable, but by a *reconciler*, not by the sender.
+#: Letting the sender act on it would defeat its entire purpose: the state exists
+#: precisely because the provider may already have sent the message.
+SENDABLE_STATES = frozenset({PENDING, READY, LEASED})
 
 #: The attribute the rank is persisted under, so the ordering guard can be a
 #: ConditionExpression rather than a read-then-write.
@@ -185,6 +201,14 @@ def is_terminal(state: Optional[str]) -> bool:
 def is_actionable(state: Optional[str]) -> bool:
     """Whether a worker or reconciler may still need to do something."""
     return normalize(state) in ACTIONABLE_STATES
+
+
+def is_sendable(state: Optional[str]) -> bool:
+    """Whether a SEND may still be attempted. See `SENDABLE_STATES`.
+
+    This is the check a worker wants, not `not is_terminal(...)`.
+    """
+    return normalize(state) in SENDABLE_STATES
 
 
 def is_rewind(current: Optional[str], incoming: Optional[str]) -> bool:

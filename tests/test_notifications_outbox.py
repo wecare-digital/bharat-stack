@@ -89,6 +89,39 @@ class FakeTable:
         row = self._rows().get(Key[self.key_attr])
         return {"Item": dict(row)} if row else {}
 
+    def query(self, IndexName=None, KeyConditionExpression=None, Limit=None, **_):
+        """Only the one index the sweep uses: status + availableAt.
+
+        Implemented against the condition's own values rather than accepting any query,
+        so a sweep that queried the wrong index or dropped its time bound would fail here
+        instead of silently returning everything.
+        """
+        self.store.record(self.name, "query")
+        if self.store.fail_with:
+            raise self.store.fail_with
+        if IndexName != "status-availableAt-index":
+            raise AssertionError(f"unexpected index {IndexName!r}")
+
+        expr = KeyConditionExpression
+        values = getattr(expr, "_values", ()) or ()
+        wanted_status, cutoff = None, None
+        for part in values:
+            for attr in (getattr(part, "_values", ()) or ()):
+                if isinstance(attr, str):
+                    wanted_status = attr
+                elif isinstance(attr, int):
+                    cutoff = attr
+        if wanted_status is None or cutoff is None:
+            raise AssertionError("sweep query must bound both status and availableAt")
+
+        items = [dict(r) for r in self._rows().values()
+                 if r.get("status") == wanted_status
+                 and int(r.get("availableAt") or 0) <= cutoff]
+        items.sort(key=lambda r: int(r.get("availableAt") or 0))
+        if Limit:
+            items = items[:Limit]
+        return {"Items": items, "Count": len(items)}
+
     def update_item(self, Key=None, UpdateExpression="", ConditionExpression=None,
                     ExpressionAttributeValues=None, ExpressionAttributeNames=None,
                     ReturnValues=None, **_):
