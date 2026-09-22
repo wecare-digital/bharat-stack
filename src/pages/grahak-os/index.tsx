@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
+import BrandBadge from '../../components/BrandBadge';
 
 const GrahakOsPage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
@@ -201,18 +202,15 @@ response = requests.post(
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="hero-content">
             <div className="hero-left">
-              {/* Product-and-maker eyebrow. pp- prefixed like the rest of this
-                  page's own classes because .badge is declared unscoped in four
-                  globally imported stylesheets (Dashboard, Pages, inner-pages,
-                  flex-layout) and styled-jsx would not shield us from those.
-                  Deliberately NOT the pale green fill of the reference mock: that
-                  is the near-miss-green family the palette retired (#f2fbf6,
-                  #fbfff0). White with the shared hairline and dark-green type
-                  carries the same idea using colours the contract owns. */}
-              <span className="pp-badge">
-                <i className="pp-badge-dot" aria-hidden="true" />
-                Grahak OS · by Bharat Stack
-              </span>
+              {/* Shared with the home page, so it lives in BrandBadge rather than
+                  twice in two stylesheets. It self-styles: styled-jsx would not
+                  reach a composite component's class names from here, which is the
+                  same reason BrandLockup owns its block. The wrapper exists purely
+                  to carry the spacing, since that is the one thing the page rather
+                  than the component should decide. */}
+              <div className="hero-eyebrow">
+                <BrandBadge label="Grahak OS · by Bharat Stack" />
+              </div>
               <h1>
                 Reach customers<br />across{ ' ' }
                 <span
@@ -465,14 +463,10 @@ response = requests.post(
              but that left ~100px of empty column under the shorter copy. Centring
              just the copy fixes the imbalance without moving the mockup. */
           .hero-left{align-self:center}
-          /* Eyebrow above the headline. Static, so 1px per the hairline rule, and
-             9999px to match .hero-mark's radius. Type is 14px like the contract's
-             label level, but at 600 in #1a3a2a rather than 400 in rgba(0,0,0,.54):
-             it is a brand credential, not a section eyebrow, and it has to hold its
-             own directly above a 60px headline. No uppercase, no letter-spacing -
-             that rule stands. */
-          .pp-badge{display:inline-flex;align-items:center;gap:10px;margin:0 0 20px;padding:9px 16px;border:1px solid #e5e7eb;border-radius:9999px;background:#fff;font-size:14px;font-weight:600;letter-spacing:-.125px;line-height:1;color:#1a3a2a}
-          .pp-badge-dot{width:10px;height:10px;border-radius:50%;background:#1a3a2a;flex:0 0 auto}
+          /* Spacing only. The badge's own paint lives in BrandBadge; styled-jsx
+             cannot style a composite component from here, so anything visual added
+             to this rule would silently do nothing. */
+          .hero-eyebrow{margin:0 0 20px}
           .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
           /* Lede plus a muted supporting line. Two paragraphs rather than one long
              run-on: it reads better and gives the left column enough vertical mass

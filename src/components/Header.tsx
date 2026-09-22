@@ -49,12 +49,21 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
         .nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}
         .nav-arrow{width:7px;height:7px;box-sizing:border-box;margin:0;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
         .nav-trigger[aria-expanded='true'] .nav-arrow{transform:translateY(2px) rotate(225deg)}
-        .nav-menu{position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #d1f470;border-radius:8px;padding:8px 0;min-width:190px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+        .nav-menu{position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #d1f470;border-radius:10px;padding:10px 0;min-width:216px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
         .nav-dropdown:hover .nav-menu,.nav-dropdown:focus-within .nav-menu,.nav-menu.open{opacity:1;visibility:visible;transform:translateY(0)}
-        .nav-item{display:flex;align-items:center;min-height:46px;padding:0 20px;font-size:15px;font-weight:600;color:#1a3a2a;text-decoration:none}
+        /* 15px/46px was undersized against a 108px header and a 24px brand lockup,
+           and it sat below the 16-17px the global .nav-item rules use for the same
+           control elsewhere. 17px on a 54px row also clears the 44px minimum touch
+           target with room to spare. min-width went with it so "Grahak OS" cannot
+           end up near the padding at the larger size. */
+        .nav-item{display:flex;align-items:center;min-height:54px;padding:0 22px;font-size:17px;font-weight:600;color:#1a3a2a;text-decoration:none}
         .nav-item:hover,.nav-item:focus-visible,.nav-item.active{background:rgba(209,244,112,.22);outline:none}
         .nav-item.active{font-weight:800}
-        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.nav-item{font-size:15px}}
+        /* The .nav-item override here is NOT redundant with the base rule: Layout.css
+           declares .nav-item inside its own mobile media queries at 16px and 17px, and
+           it is imported globally by _app.tsx. This keeps the public header's size its
+           own decision at the breakpoint where those rules switch on. */
+        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.nav-item{font-size:17px;min-height:56px}}
       `}</style>
     </header>
   );
