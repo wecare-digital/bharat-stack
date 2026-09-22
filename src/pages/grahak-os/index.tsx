@@ -483,7 +483,21 @@ response = requests.post(
              scroll container, so the tint reaches the edge. Expect every section to shift by
              roughly 7.5px when this lands; that is the scrollbar no longer being
              double-counted, not a regression. */
-          .page{min-height:100vh;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:clip}
+          /* overflow-x:hidden is the BASE, and the clip upgrade lives in a @supports block
+             below. Do not merge them back into two declarations on one rule.
+             overflow-x:clip ships from Chrome 90, Firefox 81 and Safari 16, so anything
+             older needs hidden or the full-bleed bands - width:100vw plus a centring
+             negative margin - make the whole page horizontally scrollable, because 100vw
+             counts the scrollbar.
+             The usual two-declaration fallback does NOT work here: written as
+             overflow-x:hidden then overflow-x:clip on the same rule, the CSS minifier sees
+             one property declared twice, drops the first as redundant, and the fallback
+             disappears from the shipped bundle. Verified in out/ - only clip survived.
+             A @supports block cannot be collapsed that way. */
+          .page{min-height:100vh;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
+          @supports (overflow-x:clip){
+            .page{overflow-x:clip}
+          }
           
           /* Animations */
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
