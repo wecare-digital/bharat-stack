@@ -4,8 +4,12 @@
  * cache-first for static assets.
  */
 
-const CACHE_NAME = 'stack-crm-v2';
-const STATIC_CACHE = 'stack-static-v2';
+// Bumped v2 -> v3 deliberately. The `activate` handler below deletes every cache
+// key it does not recognise, so renaming these is what evicts the stale v2
+// entries — including the cache-first .js/.css copies that were pinning browsers
+// to an old bundle until a hard reload.
+const CACHE_NAME = 'stack-crm-v3';
+const STATIC_CACHE = 'stack-static-v3';
 
 // Static assets to pre-cache on install
 const PRECACHE_URLS = [
@@ -52,6 +56,13 @@ self.addEventListener( 'fetch', ( event ) =>
 
   // Skip chrome-extension, etc.
   if ( !url.protocol.startsWith( 'http' ) ) return;
+
+  // Stay out of the way on a dev server. Falling through without calling
+  // respondWith lets the request go straight to the network, so an already
+  // installed worker cannot keep serving a stale /_next/static chunk. _app.tsx
+  // no longer registers outside production, but this makes the worker safe even
+  // where one is still installed.
+  if ( url.hostname === 'localhost' || url.hostname === '127.0.0.1' ) return;
 
   // API calls: network-first with cache fallback
   if ( url.pathname.startsWith( '/api/' ) || url.hostname.includes( 'execute-api' ) )
