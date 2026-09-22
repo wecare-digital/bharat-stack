@@ -184,6 +184,7 @@ SPECS: List[Spec] = [
     # with the Plivo browser softphone behind PSTN_BROWSER_ROUTING_ENABLED.
     # The DEPLOYED function and its secret still exist and are removed under
     # separate destructive approval.
+    Spec("wecare-notification-worker", "messaging/notification-worker"),
     Spec("wecare-plivo-answer", "messaging/plivo-answer"),
     # --- messaging / rcs, push, scheduling ---
     Spec("wecare-rcs-send", "messaging/rcs-send"),

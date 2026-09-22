@@ -299,6 +299,8 @@ def verify() -> int:
     except Exception as exc:  # noqa: BLE001
         print(f"\n  warn could not cross-check the lease: {type(exc).__name__}")
 
+    problems.extend(verify_worker())
+
     print()
     if problems:
         print(f"{len(problems)} problem(s): {', '.join(problems)}")
@@ -330,12 +332,228 @@ def main(argv=None) -> int:
     for name, status in create_queues(args.dry_run).items():
         print(f"  {name}\n    {status}")
 
+    print()
+    print(f"  {WORKER_FUNCTION}")
+    print(f"    {create_worker_function(args.dry_run)}")
+    print(f"    {ensure_worker_alias(args.dry_run)}")
+    print(f"    {ensure_event_source(args.dry_run)}")
+
     if args.dry_run:
         print("\ndry run: nothing created")
         return 0
 
     print("\nre-reading the deployed shape ...\n")
     return verify()
+
+
+
+
+# ── the worker function ───────────────────────────────────────────────────────
+#
+# Appended after the tables and queues because it depends on both: the event source
+# mapping needs the queue ARN, and the function is useless without the tables.
+#
+# `scripts/deploy_all_lambdas.py` updates existing functions; it does not create them.
+# So the first existence of `wecare-notification-worker` has to come from here, and
+# from then on the normal deploy path owns its code.
+
+WORKER_FUNCTION = "wecare-notification-worker"
+WORKER_SOURCE = "amplify/functions/messaging/notification-worker"
+WORKER_ROLE = "arn:aws:iam::775261844268:role/wecare-digital-lambda-role"
+
+#: Must not exceed the queue's VisibilityTimeout, and must be under the lease. A worker
+#: still running when its lease expires would have its job taken by a second worker, and
+#: the channel would be sent twice.
+WORKER_TIMEOUT = 120
+WORKER_MEMORY = 512
+
+#: How often the recovery sweep runs. Not a substitute for the queue - it exists for the
+#: crash-before-enqueue window, which is rare, so a slow cadence is correct.
+SWEEP_SCHEDULE = "rate(5 minutes)"
+
+
+def _lambda():
+    return boto3.client("lambda", region_name=REGION)
+
+
+def function_exists(name: str) -> bool:
+    try:
+        _lambda().get_function(FunctionName=name)
+        return True
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") == "ResourceNotFoundException":
+            return False
+        raise
+
+
+def create_worker_function(dry_run: bool) -> str:
+    """Create the function with a minimal placeholder, then let the normal deploy path
+    put real code on it.
+
+    Deliberately does NOT try to build the production zip here. That logic lives in
+    `deploy_all_lambdas.py`, which resolves shared `lambda_utils`, validates that every
+    top-level import exists in the package or a layer, and produces a reproducible
+    CodeSha256. Duplicating any of that would give two answers to "what is in the
+    package", which is the class of problem this whole phase is fixing.
+    """
+    if function_exists(WORKER_FUNCTION):
+        return "exists"
+    if dry_run:
+        return "would create (placeholder, then deploy_all_lambdas.py ships the code)"
+
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        # Fails loudly if invoked before the real deploy, rather than silently
+        # returning success and acknowledging SQS messages it never processed.
+        zf.writestr(
+            "handler.py",
+            "def handler(event, context):\n"
+            "    raise RuntimeError(\n"
+            "        'placeholder: run scripts/deploy_all_lambdas.py "
+            "wecare-notification-worker'\n"
+            "    )\n")
+
+    _lambda().create_function(
+        FunctionName=WORKER_FUNCTION,
+        Runtime="python3.12",
+        Role=WORKER_ROLE,
+        Handler="handler.handler",
+        Code={"ZipFile": buf.getvalue()},
+        Timeout=WORKER_TIMEOUT,
+        MemorySize=WORKER_MEMORY,
+        Architectures=["x86_64"],
+        Description="Drains the notification outbox: one channel send per job.",
+        Environment={"Variables": {
+            "NOTIF_SWEEP_LIMIT": "25",
+            # The flag is NOT set here. Absent means off, and the worker has nothing to
+            # do until the domain is enabled deliberately.
+        }},
+        Tags={"domain": "notifications", "phase": "3"},
+    )
+    _lambda().get_waiter("function_active_v2").wait(FunctionName=WORKER_FUNCTION)
+    return "created (placeholder)"
+
+
+def ensure_worker_alias(dry_run: bool) -> str:
+    """The `live` alias. Every HTTP integration and event source in this account targets
+    an alias, never `$LATEST` - see `.kiro/steering/lambda-snapstart-deploy.md`."""
+    if dry_run and not function_exists(WORKER_FUNCTION):
+        return "would create alias live"
+    try:
+        alias = _lambda().get_alias(FunctionName=WORKER_FUNCTION, Name="live")
+        return f"alias live -> v{alias['FunctionVersion']}"
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "ResourceNotFoundException":
+            raise
+    if dry_run:
+        return "would create alias live"
+    version = _lambda().publish_version(FunctionName=WORKER_FUNCTION)["Version"]
+    _lambda().create_alias(FunctionName=WORKER_FUNCTION, Name="live",
+                           FunctionVersion=version)
+    return f"alias live created -> v{version}"
+
+
+def ensure_event_source(dry_run: bool) -> str:
+    """Wire the queue to the worker alias.
+
+    Created **disabled**. The domain is off, so the queue is empty and an enabled mapping
+    would be equally inert - but a disabled mapping makes the cutover an explicit,
+    reversible step with its own record, rather than something that was already true and
+    nobody noticed.
+    """
+    url = queue_url(QUEUE)
+    if not url:
+        return "queue missing; skipped"
+    arn = _sqs().get_queue_attributes(
+        QueueUrl=url, AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+
+    if not function_exists(WORKER_FUNCTION):
+        return "function missing; skipped"
+
+    existing = _lambda().list_event_source_mappings(
+        FunctionName=f"{WORKER_FUNCTION}:live", EventSourceArn=arn)
+    if existing.get("EventSourceMappings"):
+        mapping = existing["EventSourceMappings"][0]
+        return (f"exists uuid={mapping['UUID'][:8]} state={mapping.get('State')} "
+                f"batch={mapping.get('BatchSize')}")
+    if dry_run:
+        return "would create event source mapping (disabled)"
+
+    mapping = _lambda().create_event_source_mapping(
+        EventSourceArn=arn,
+        FunctionName=f"{WORKER_FUNCTION}:live",
+        Enabled=False,
+        BatchSize=10,
+        # Partial batch failure, so one poison message does not redrive the whole batch
+        # and re-examine channels that already succeeded.
+        FunctionResponseTypes=["ReportBatchItemFailures"],
+    )
+    return f"created uuid={mapping['UUID'][:8]} state={mapping.get('State')} (disabled)"
+
+
+def verify_worker() -> list:
+    """Read back the worker, its alias and its event source. Returns a problem list."""
+    problems = []
+    print()
+    if not function_exists(WORKER_FUNCTION):
+        print(f"  FAIL {WORKER_FUNCTION}  does not exist")
+        return [f"{WORKER_FUNCTION}: MISSING"]
+
+    cfg = _lambda().get_function_configuration(FunctionName=WORKER_FUNCTION)
+    print(f"  ok   {WORKER_FUNCTION}")
+    print(f"       state {cfg.get('State')}  runtime {cfg.get('Runtime')}  "
+          f"timeout {cfg.get('Timeout')}s  memory {cfg.get('MemorySize')}MB")
+
+    env = (cfg.get("Environment") or {}).get("Variables") or {}
+    flag = env.get("PSTN_CONNECTED_NOTIFICATIONS_ENABLED", "(absent)")
+    print(f"       PSTN_CONNECTED_NOTIFICATIONS_ENABLED {flag}")
+    if flag not in ("(absent)", "false"):
+        problems.append("worker has the domain flag enabled")
+
+    try:
+        alias = _lambda().get_alias(FunctionName=WORKER_FUNCTION, Name="live")
+        print(f"       alias live -> v{alias['FunctionVersion']}")
+    except ClientError:
+        problems.append(f"{WORKER_FUNCTION}: no live alias")
+        print("       FAIL no live alias")
+
+    url = queue_url(QUEUE)
+    if url:
+        arn = _sqs().get_queue_attributes(
+            QueueUrl=url, AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+        mappings = _lambda().list_event_source_mappings(
+            FunctionName=f"{WORKER_FUNCTION}:live", EventSourceArn=arn)
+        for mapping in mappings.get("EventSourceMappings", []):
+            state = mapping.get("State")
+            print(f"       event source {mapping['UUID'][:8]} state {state} "
+                  f"batch {mapping.get('BatchSize')} "
+                  f"responseTypes {mapping.get('FunctionResponseTypes')}")
+            if state not in ("Disabled", "Disabling"):
+                problems.append(f"event source mapping is {state}, expected Disabled "
+                                "while the domain is off")
+        if not mappings.get("EventSourceMappings"):
+            problems.append("no event source mapping")
+            print("       FAIL no event source mapping")
+
+    # The timeout must stay under the lease, or a still-running worker has its job taken.
+    try:
+        sys.path.insert(0, "amplify/functions/shared")
+        from lambda_utils.notifications import store as store_mod
+        if int(cfg.get("Timeout") or 0) >= store_mod.LEASE_SECONDS:
+            problems.append("worker timeout >= lease; a running worker could be "
+                            "superseded and the channel sent twice")
+            print(f"       FAIL timeout {cfg.get('Timeout')}s >= lease "
+                  f"{store_mod.LEASE_SECONDS}s")
+        else:
+            print(f"       ok   timeout {cfg.get('Timeout')}s < lease "
+                  f"{store_mod.LEASE_SECONDS}s")
+    except Exception as exc:  # noqa: BLE001
+        print(f"       warn could not cross-check the lease: {type(exc).__name__}")
+
+    return problems
 
 
 if __name__ == "__main__":
