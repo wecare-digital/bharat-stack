@@ -15,10 +15,11 @@ when you open files under `src/pages/grahak-os/`, `src/components/` or
 | Field | Value |
 |---|---|
 | Branch | `feat/grahak-os-trust-a-i` |
-| HEAD | `131f885c` pushed, working tree clean |
-| vs `origin/stack` | **29 ahead, 14 behind** |
-| Merge risk | **None.** The 14 `stack` commits touch zero files this branch touches |
-| Gate | 33 tests pass (7 files), `tsc` clean, `npm run build` clean, `/grahak-os` prerendered |
+| HEAD | `f1ffe452` pushed, working tree clean |
+| vs `origin/stack` | `origin/stack` merged in — **0 behind**, no conflicts |
+| PR | **[#3](https://github.com/wecare-digital/bharat-stack/pull/3) open into `stack`, `mergeable: true`** |
+| Gate | 33 tests pass (7 files), `tsc` clean, `npm run build` clean, `/grahak-os` exported |
+| CodeQL | `CodeQL: success`, all four `Analyze` jobs green, zero failure annotations |
 
 ## Complete
 
@@ -39,14 +40,28 @@ trust section as equal columns with the S3 Meta mark.
 
 Ordered by what unblocks the most.
 
-### 1. Merge `feat/grahak-os-trust-a-i` into `stack` — needs a decision
+### 1. Merge PR #3 — one click, and it is what makes any of this visible
 
-29 ahead / 14 behind and widening, because the Mac IDE commits to `stack`
-directly. One divergence already had to be reconciled mid-session. The 14
-incoming commits are real security work (route authentication across seven
-handlers, WhatsApp status lifecycle, a new Wix backend relay) and **touch none of
-the files this branch touches**, so the merge is clean today. It gets worse, not
-better, by waiting.
+`origin/stack` has already been merged into the branch (no conflicts) and the gate
+re-run on the merged tree. **PR #3 is open into `stack` and `mergeable: true`.**
+
+**Amplify builds `stack`** (`amplify.yml`, artifacts from `out/`) and every
+workflow is `branches: [ stack ]`. That is why none of this work was visible on
+`https://stack.wecare.digital/grahak-os/` while it sat on a branch — pushing a
+branch deploys nothing. Merging the PR triggers the Amplify build; allow a few
+minutes, then hard-refresh past CloudFront. If the build fails it will be in the
+`preBuild` npm install, which uses `--legacy-peer-deps`.
+
+Three checks on the PR are red. **None is from this work:**
+
+| Check | Status |
+|---|---|
+| `Provider policy gate` | Fails identically on `stack` HEAD `e27b9475` |
+| `Handler auth enforcement (source)` | Fails identically on `stack` HEAD `e27b9475` |
+| `github-advanced-security` | Cause not determined — the sandbox token lacks scope to read security alerts (HTTP 403 on the Dependabot API). It is **not** a code-scanning finding on this PR: `CodeQL` itself is green with zero failure annotations. The repo carries 48 open Dependabot advisories on the default branch, which is the likeliest source |
+
+Those first two failing on the default branch is worth fixing on its own, but it
+is backend scope, not this branch's.
 
 ### 2. Deploy the translation change — needs the Mac
 
