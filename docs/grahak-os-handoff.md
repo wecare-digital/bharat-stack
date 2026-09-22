@@ -113,7 +113,32 @@ Cost note: Google is ~$20/M characters after 500k free per month; Amazon Transla
 is ~$15/M. Google is chosen for Indic quality, not price. The real cost control is
 the existing DynamoDB cache (90-day TTL) plus request dedupe.
 
-### 4. ~~Verify the Meta designation string~~ — settled
+### 4. ~~Verify the Meta designation string~~ — SETTLED, and the status is real
+
+**Meta's App Dashboard confirms WhatsApp Tech Provider status**, in Meta's own words:
+*"Congratulations! You are now a Tech Provider"*, 2 of 2 steps complete, alongside a
+Tech Provider onboarding section, an Embedded Signup Builder and a Tech Provider
+Content Hub. Meta's own copy uses the phrase *"onboarding as a WhatsApp Tech
+Provider"*.
+
+Consequences:
+
+- **`Trusted by Meta` stays.** It is backed by a Meta-issued designation, not asserted.
+- The card caption stays **"Built on WhatsApp Business Platform"** by owner choice —
+  true, defensible without a screenshot, and it sidesteps Meta's brand-usage review
+  entirely. **"WhatsApp Tech Provider"** is now also accurate and is Meta's exact
+  phrase, if a stronger line is ever wanted.
+- The retired caption remains wrong regardless: it blended *Meta Business Partner*
+  (an ads certification) with the WhatsApp Platform roles, and was never a Meta term.
+- This also reconciles the earlier code reading. `partner-onboarding/handler.py:143`
+  shares a solution-partner line of credit, which looked like Solution Partner
+  operation — but Tech Providers **do not** hold their own credit line, and
+  `EXTENDED_CREDIT_ID` is optional in that code (it logs *"skipped (no line of credit
+  configured)"*). A Tech Provider working alongside a Solution Partner's line fits
+  both facts.
+
+Below is the earlier investigation, kept because it documents what cannot be checked
+from code and prevents the question being reopened from the wrong end.
 
 The card now reads **"Built on WhatsApp Business Platform"**. The previous caption
 claimed a partner title that **Meta does not issue**. The real terms are **Meta

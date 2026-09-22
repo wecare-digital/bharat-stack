@@ -430,13 +430,22 @@ response = requests.post(
             {/* Neutral card, not lime. Framing another company's logo in our own
                 brand colour made a credential look like a sticker we printed
                 ourselves; a borrowed mark should look borrowed.
-                THE DESIGNATION IS NOW A STATEMENT OF FACT, NOT A CLAIMED TITLE.
-                The previous caption claimed a partner title - deliberately not quoted
-                here, because a test asserts that exact string is absent from this file
-                and a comment repeating it would defeat the guard. The comment on the
-                right-hand column already learned this lesson once.
-                That title is not a designation Meta issues: the real terms are
-                "Meta Business Partner"
+                DESIGNATION: SETTLED, WITH EVIDENCE.
+                Meta's App Dashboard confirms this app has been granted WhatsApp
+                TECH PROVIDER status - its own words, "You are now a Tech Provider",
+                with a Tech Provider onboarding section, an Embedded Signup Builder and
+                a Tech Provider Content Hub. That is a real, Meta-issued designation, so
+                "Trusted by Meta" in the heading beside this card is backed rather than
+                asserted.
+                The caption stays "Built on WhatsApp Business Platform" by owner choice:
+                it is true, it needs no portal screenshot to defend, and it avoids the
+                brand-usage question entirely. "WhatsApp Tech Provider" would now also be
+                accurate and is Meta's exact phrase if a stronger line is ever wanted.
+                The previous caption claimed a partner title that Meta does NOT issue -
+                deliberately not quoted here, because a test asserts that exact string is
+                absent from this file and a comment repeating it would defeat the guard.
+                The comment on the right-hand column already learned this lesson once.
+                For reference, the genuine terms are "Meta Business Partner"
                 (an ads/marketing certification, badged and directory-listed, awarded
                 after review on ad spend and Blueprint criteria) and, on the WhatsApp
                 Business Platform, "Solution Partner" and "Tech Provider". "Meta Tech
