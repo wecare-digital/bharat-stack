@@ -254,7 +254,13 @@ response = requests.post(
                   </span>
                 </span>
               </h1>
-              <p>One platform for customer data, messaging, automation, and campaigns&mdash;keeping every customer conversation connected through WhatsApp, SMS, Email, and Voice.</p>
+              {/* The channel list came out. The headline directly above this cycles
+                  WhatsApp, SMS, Email and Voice one at a time, so naming all four again in
+                  the next breath repeated the element immediately above it - and the same
+                  list appears again in the strip and once more under Trusted by Meta. The
+                  four pillars stay, because this is the one place on the page that should
+                  state them; api-desc used to restate them and no longer does. */}
+              <p>One platform for customer data, messaging, automation and campaigns, so every conversation stays connected whichever channel it starts on.</p>
               <p className="hero-sub">Turn your WhatsApp number into your #1 revenue channel with Grahak OS.</p>
             </div>
             <div className="hero-right">
@@ -470,7 +476,14 @@ response = requests.post(
 
         <style jsx>{`
           /* ========== BASE STYLES ========== */
-          .page{min-height:100vh;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
+          /* overflow-x:clip, not hidden. The full-bleed tint bands are width:100vw, and
+             100vw includes the scrollbar, so under the old hidden value - which makes this
+             element a scroll container - the bands were being clipped about 25px short of
+             the true viewport edge. The clip value suppresses overflow without creating a
+             scroll container, so the tint reaches the edge. Expect every section to shift by
+             roughly 7.5px when this lands; that is the scrollbar no longer being
+             double-counted, not a regression. */
+          .page{min-height:100vh;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:clip}
           
           /* Animations */
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
@@ -596,12 +609,11 @@ response = requests.post(
              its own it is much shorter than the heading + copy + pills beside it and
              floated as a small box against a tall column. Stretching makes both
              halves the same height and the card centres its own content inside. */
-          /* max-width:1100px, matching .api-grid and .pp-strip-grid. Without it this
-             grid filled the section's full 1252px of content box while its neighbours
-             sat at 1100px centred, so the trust content started roughly 76px further
-             left than the strip items above it and the API grid below. Section content
-             edges now line up down the page instead of stepping in and out. */
-          .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch;max-width:1100px;margin:0 auto}
+          /* Uncapped, like .hero-content and now .api-grid. The previous pass capped this
+             at 1100px to agree with api and strip; the reference turned out to be wrong.
+             All four grids now share the hero's content box, so every section's left edge
+             sits on the same vertical line down the page. */
+          .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}
           /* HAIRLINE RULE — 2px means hoverable, 1px means static, and the colour
              is always #e5e7eb.
              That split is deliberate, not drift: .pill, .pp-pill and .mockup-wrapper
@@ -630,19 +642,29 @@ response = requests.post(
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
 
           /* ===== Closing statement (Notion-style display type + motion) ===== */
-          .gos-closer{max-width:1100px;margin:0 auto;padding:96px 24px 112px;display:flex;justify-content:center}
+          /* 1100 -> 1300 measure and 96/112 -> 60/80 padding, so this section is measured
+             and spaced like every other one. The extra 36px of top padding was the only
+             thing making the closer a special case in the rhythm, and 80px at the bottom
+             still gives the page a softer landing into the footer than a flat 60 would. */
+          .gos-closer{max-width:1300px;margin:0 auto;padding:60px 24px 80px;display:flex;justify-content:center}
+          /* Hero h1 level, exactly: clamp(36px,4.3vw,60px) / 600 / -2.2px.
+             It was clamp(38px,6vw,84px), which at any viewport above ~630px rendered
+             LARGER than the hero headline and inverted the page's hierarchy - the closing
+             line shouting over the opening one. This is a page-level statement rather than
+             a section heading, which is why it takes the h1 rung and its 600 weight
+             instead of the heavier 700 section level. */
           .gos-closer-head{
-            font-size:clamp(38px,6vw,84px);
+            font-size:clamp(36px,4.3vw,60px);
             font-weight:600;
-            letter-spacing:-3px;
-            line-height:1.06;
+            letter-spacing:-2.2px;
+            line-height:1.04;
             color:rgba(0,0,0,.95);
             text-align:center;
             margin:0;
             max-width:960px;
           }
 
-          .trust-heading{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0}
+          .trust-heading{margin:0}
           .trust-subtext{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           .trust-pills{display:flex;flex-wrap:wrap;gap:12px}
 
@@ -748,7 +770,13 @@ response = requests.post(
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
-          .section-header h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 14px;text-align:center;width:100%;white-space:pre-line}
+          /* ONE section-heading rule for all three places that use the level. The value
+             was declared identically three times - here, on .api-info h2 and on
+             .trust-heading - which is three chances for the page to drift out of step
+             with itself. Only the per-place differences stay separate below: margins,
+             alignment and .section-header's pre-line. */
+          .section-header h2,.api-info h2,.trust-heading{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95)}
+          .section-header h2{margin:0 0 14px;text-align:center;width:100%;white-space:pre-line}
           .section-header p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
@@ -786,9 +814,22 @@ response = requests.post(
              panel, so centring dropped the heading roughly 80px below the panel's top
              edge and the text read as floating rather than as the other half of a pair.
              This was the only section using center. */
-          .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:start}
-          .api-info h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 20px}
-          .api-desc{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
+          /* No max-width, and the gap matches the hero's 56px rather than 60px. The HERO
+             is the page's reference line: .hero-content has no cap, so it fills the
+             1252px content box and starts 24px in. This grid was capped at 1100px and
+             centred, which put it 100px in - so the heading and copy here began 76px
+             right of the hero's, and the eye reads that as the section being indented.
+             A previous pass aligned api / strip / trust to each other at 1100px, which
+             made three sections agree with one another and all three disagree with the
+             top of the page. Aligning to the hero instead is the fix. */
+          .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
+          .api-info h2{margin:0 0 20px}
+          /* Capped for line length, the way .hero-left p is capped at 400px. Removing
+             the grid's 1100px cap widened this column to ~596px, and 20px body text at
+             that width runs past a comfortable measure. The cap belongs on the text, not
+             on the grid - that is what let the grid align with the hero while the
+             paragraph stays readable. */
+          .api-desc{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;max-width:460px}
           /* Pure black, matching the hero .code-box. This panel was the last slate
              holdout: #1e293b is on the contract's retired list specifically "as the
              code panel body", yet it survived here after the hero panel was moved to
@@ -1077,7 +1118,15 @@ response = requests.post(
              not. Per the hairline rule 2px means hoverable, so a non-interactive strip
              should carry no border and no hover at all. */
           .pp-strip{padding:60px 24px}
-          .pp-strip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 24px;max-width:1100px;margin:0 auto}
+          /* Left, not centred - and scoped to .pp-strip because .section-header is shared
+             with #touchpoint, whose pills ARE centred and whose heading should stay centred
+             over them. Here the items are a left-aligned grid, so a centred heading in a
+             700px measure sat over content starting at the far left and the two did not
+             agree. The 700px cap also goes: it is a reading measure for a paragraph, and
+             this heading no longer has one under it. */
+          .pp-strip .section-header{max-width:none;margin:0 0 36px;padding:0;align-items:flex-start;text-align:left}
+          .pp-strip .section-header h2{text-align:left;width:auto;max-width:720px}
+          .pp-strip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 24px}
           .pp-strip-item{display:flex;align-items:flex-start;gap:14px;min-width:0}
           .pp-strip-icon{width:44px;height:44px;flex:0 0 auto;box-sizing:border-box;padding:10px;border-radius:50%;background:rgba(209,244,112,.22);display:flex;align-items:center;justify-content:center}
           .pp-strip-icon img{width:100%;height:100%;object-fit:contain;display:block}
