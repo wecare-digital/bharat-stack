@@ -390,6 +390,42 @@ response = requests.post(
           </div>
         </section>
 
+        {/* ===================== TEMPORARY REVIEW BLOCK =====================
+            Side-by-side preview, following the precedent set by b4269923 which
+            paired each section with a PROPOSED alternative for review.
+
+            This is the strip treatment proposed for Capabilities. It renders from
+            the SAME capabilities array as the card grid above - deliberately, so
+            the comparison is format against format with the content held constant.
+            Nothing here is new copy.
+
+            WHEN APPROVED: delete .why-section, delete the .capability-card grid,
+            move this markup up into #capabilities, and delete both this comment and
+            the .pp-strip-flag label below. WHEN REJECTED: delete this whole section
+            and its .pp-strip* rules. Either way it does not stay.
+            ================================================================= */}
+        <section className={`pp-strip anim ${show('capstrip') ? 'show' : ''}`} id="capstrip">
+          <div className="pp-inner">
+            <p className="pp-strip-flag">Proposed — replaces the Capabilities cards and the Why section</p>
+            <div className="section-header">
+              <h2>Everything you need<br/>to grow customer relationships</h2>
+            </div>
+            <div className="pp-strip-grid">
+              { capabilities.map( ( cap, i ) => (
+                <div key={ i } className="pp-strip-item">
+                  <div className="pp-strip-icon">
+                    <img src={ cap.icon.replace( /%23333333/g, '%231a3a2a' ) } alt="" aria-hidden="true" loading="lazy" />
+                  </div>
+                  <div className="pp-strip-text">
+                    <span className="pp-strip-title">{ cap.title }</span>
+                    <span className="pp-strip-sub">{ cap.desc }</span>
+                  </div>
+                </div>
+              ) ) }
+            </div>
+          </div>
+        </section>
+
         <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Trusted by Meta">
           <div className="trust-grid">
             {/* Neutral card, not lime. Framing another company's logo in our own
@@ -432,7 +468,10 @@ response = requests.post(
         </section>
 
         <section className={`gos-closer anim ${show('gos-closer') ? 'show' : ''}`} id="gos-closer">
-          <h2 className="gos-closer-head">Transform customer engagement with Grahak OS</h2>
+          {/* Explicit break so the product name lands alone on the last line. Needs a
+              br rather than the pre-line trick .section-header h2 uses, because
+              .gos-closer-head does not set white-space. */}
+          <h2 className="gos-closer-head">Transform customer engagement with<br/>Grahak OS</h2>
         </section>
 
 
@@ -729,7 +768,11 @@ response = requests.post(
           
           /* API Section */
           .api{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
-          .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
+          /* start, not center. The left column is ~200px tall against a ~360px code
+             panel, so centring dropped the heading roughly 80px below the panel's top
+             edge and the text read as floating rather than as the other half of a pair.
+             This was the only section using center. */
+          .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:start}
           .api-info h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 20px}
           .api-desc{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           /* Pure black, matching the hero .code-box. This panel was the last slate
@@ -1042,8 +1085,44 @@ response = requests.post(
              .pill / .stat / .phone / .chat-area that styled-jsx cannot shield
              the page from; the id selectors beat the shared section classes
              regardless of source order. */
-          #touchpoint,#capabilities{max-width:none;width:100vw;margin-left:calc(50% - 50vw);background:#fafafa}
+          #touchpoint,#capabilities,#capstrip{max-width:none;width:100vw;margin-left:calc(50% - 50vw);background:#fafafa}
           .pp-inner{max-width:1300px;margin:0 auto}
+
+          /* ===== TEMPORARY: proposed Capabilities strip, for side-by-side review =====
+             Placed after .why-section so it lands on white and its own grey band reads
+             as a separate block - two adjacent tints would have merged into one long
+             band and made the comparison harder than it needs to be.
+             NO NEW TOKENS. Every value below already exists in the language:
+               icon fill   rgba(209,244,112,.22)  the nav hover / active tint
+               icon glyph  #1a3a2a                palette dark green
+               title       22px/700/-.25px/#000   the card-heading level, unchanged
+               subtitle    14px/400 rgba(0,0,0,.54) the label level
+             22 over 14 is what produces the compact feel, using two rungs of the
+             existing ladder rather than inventing a smaller heading.
+             Borderless on purpose: the cards it replaces carry a 2px hairline and a
+             lime hover while also being cursor:default, so they look clickable and are
+             not. Per the hairline rule 2px means hoverable, so a non-interactive strip
+             should carry no border and no hover at all. */
+          .pp-strip{padding:60px 24px}
+          .pp-strip-flag{max-width:1100px;margin:0 auto 28px;padding:10px 14px;border:1px dashed rgba(0,0,0,.2);border-radius:10px;font-size:14px;font-weight:400;line-height:1.4;color:rgba(0,0,0,.54);background:#fff}
+          .pp-strip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 24px;max-width:1100px;margin:0 auto}
+          .pp-strip-item{display:flex;align-items:flex-start;gap:14px;min-width:0}
+          .pp-strip-icon{width:44px;height:44px;flex:0 0 auto;box-sizing:border-box;padding:10px;border-radius:50%;background:rgba(209,244,112,.22);display:flex;align-items:center;justify-content:center}
+          .pp-strip-icon img{width:100%;height:100%;object-fit:contain;display:block}
+          .pp-strip-text{display:flex;flex-direction:column;gap:5px;min-width:0}
+          .pp-strip-title{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
+          .pp-strip-sub{font-size:14px;font-weight:400;line-height:1.4;color:rgba(0,0,0,.54)}
+          @media(max-width:1024px){
+            .pp-strip-grid{grid-template-columns:repeat(2,1fr);gap:26px 20px}
+            .pp-strip{padding:50px 20px}
+          }
+          @media(max-width:767px){
+            .pp-strip-grid{grid-template-columns:1fr;gap:22px}
+            .pp-strip{padding:44px 20px}
+          }
+          @media(max-width:480px){
+            .pp-strip{padding:36px 16px}
+          }
 
           /* Use-case pills as spans, since they carry no handler. Same paint as
              .pill; inline-flex restores the centring a button gets for free. */
