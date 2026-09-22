@@ -84,7 +84,10 @@ describe( 'Grahak OS five approved visual fixes', () => {
     // With only a logo and a designation the card is far shorter than the heading,
     // copy and pills beside it, so centring left it floating as a small box against
     // a tall column. stretch equalises them; the card centres its own content.
-    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}' );
+    // Prefix match, not the whole rule: the grid gained max-width:1100px so its content
+    // edge lines up with .api-grid and .pp-strip-grid instead of running ~76px wider.
+    // What this test guards is stretch-not-center, which the next two lines still pin.
+    expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch' );
     expect( source ).not.toContain( 'grid-template-columns:1fr 1fr;gap:40px;align-items:center' );
     expect( source ).toContain( 'flex-direction:column;align-items:center;justify-content:center;gap:22px' );
   } );

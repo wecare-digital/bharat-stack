@@ -584,12 +584,24 @@ response = requests.post(
           }
           
           /* Trusted by Meta section */
-          .trust-strip{max-width:1300px;margin:0 auto 28px;padding:20px 24px 0}
+          /* 60/60, same as touchpoint / api / the strip. It was 20px top and 0 bottom
+             with a 28px margin doing the bottom's job, which made this the only section
+             off the page's rhythm: the strip's 60px bottom plus 20px here gave an 80px
+             gap where every other boundary is 120px, and the grey band ends exactly at
+             the strip's edge so the eye reads the tint boundary and then content 20px
+             later. Padding rather than margin, so the section is measured the same way
+             as its neighbours. */
+          .trust-strip{max-width:1300px;margin:0 auto;padding:60px 24px}
           /* stretch, not center: the card holds only a logo and a designation, so on
              its own it is much shorter than the heading + copy + pills beside it and
              floated as a small box against a tall column. Stretching makes both
              halves the same height and the card centres its own content inside. */
-          .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}
+          /* max-width:1100px, matching .api-grid and .pp-strip-grid. Without it this
+             grid filled the section's full 1252px of content box while its neighbours
+             sat at 1100px centred, so the trust content started roughly 76px further
+             left than the strip items above it and the API grid below. Section content
+             edges now line up down the page instead of stepping in and out. */
+          .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch;max-width:1100px;margin:0 auto}
           /* HAIRLINE RULE — 2px means hoverable, 1px means static, and the colour
              is always #e5e7eb.
              That split is deliberate, not drift: .pill, .pp-pill and .mockup-wrapper
@@ -740,7 +752,7 @@ response = requests.post(
           .section-header p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
-          .touchpoint{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
+          .touchpoint{padding:60px 24px;background:#fff}
           /* Grid, not wrapped flex, so the six use cases land 3 + 3 deterministically.
              Under flex with a 700px cap they broke 4 + 2 — the first row fitted four
              pills at ~607px and the fifth pushed past the cap — which reads as a wrap
@@ -872,7 +884,7 @@ response = requests.post(
             
             .section-header{padding:0 20px}
             
-            .trust-strip{padding:16px 20px 0}
+            .trust-strip{padding:50px 20px}
             .trust-grid{grid-template-columns:1fr;gap:28px}
             .trust-content{align-items:flex-start}
 
@@ -899,7 +911,7 @@ response = requests.post(
             .hero-left h1{letter-spacing:-1.2px;margin:0 0 20px;line-height:1.1;max-width:100%;text-align:left}
             .hero-left p{margin:0 0 16px;max-width:100%;text-align:left}
             
-            .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
+            .trust-strip{padding:44px 20px}
             .trust-grid{grid-template-columns:1fr;gap:24px}
             .trust-card{padding:36px 24px;gap:20px;max-width:100%}
             .trust-mark{width:46px;height:46px}
@@ -959,7 +971,7 @@ response = requests.post(
             .hero-left h1{letter-spacing:-1px;line-height:1.12}
             
             .section-header{padding:0 16px}
-            .trust-strip{padding:16px 16px 0}
+            .trust-strip{padding:36px 16px}
             .trust-card{padding:30px 20px}
             .trust-mark{width:42px;height:42px}
             .gos-closer{padding:64px 20px 76px}
