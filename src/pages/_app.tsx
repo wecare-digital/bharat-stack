@@ -384,10 +384,35 @@ export default function App ( { Component, pageProps }: AppProps ) {
 
   useEffect( () => {
     setMounted( true );
-    // Register service worker for PWA + offline
+    // Register service worker for PWA + offline — production only.
+    //
+    // In dev the worker is actively harmful: sw.js serves anything matching
+    // \.(js|css)$ cache-first with no revalidation, and Next's dev chunks live
+    // under /_next/static/*.js. Once cached, every normal refresh replayed a
+    // stale bundle — and because styled-jsx ships its CSS inside those chunks,
+    // edits to the page looked like they had not applied. Only Ctrl+Shift+R
+    // escaped it, because a hard reload is what bypasses a service worker.
     if ( 'serviceWorker' in navigator )
     {
-      navigator.serviceWorker.register( '/sw.js' ).catch( () => { } );
+      if ( process.env.NODE_ENV === 'production' )
+      {
+        navigator.serviceWorker.register( '/sw.js' ).catch( () => { } );
+      }
+      else
+      {
+        // Not merely "don't register": a worker already installed on this
+        // origin keeps controlling the page until it is explicitly removed, so
+        // skipping registration alone would leave existing dev machines broken.
+        navigator.serviceWorker.getRegistrations()
+          .then( ( regs ) => Promise.all( regs.map( ( r ) => r.unregister() ) ) )
+          .catch( () => { } );
+        if ( window.caches )
+        {
+          caches.keys()
+            .then( ( keys ) => Promise.all( keys.map( ( k ) => caches.delete( k ) ) ) )
+            .catch( () => { } );
+        }
+      }
     }
     // Init Capacitor native plugins
     initCapacitor( { push: ( p ) => router.push( p ), back: () => router.back() } );
