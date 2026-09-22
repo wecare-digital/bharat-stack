@@ -11,6 +11,7 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
   const router = useRouter();
   const isHome = router.pathname === '/';
   const isGrahakOs = router.pathname === '/grahak-os';
+  const isVayuLok = router.pathname === '/vayulok';
 
   return (
     <header className={ `hdr ${homeBrand ? 'hdr-home' : ''}`.trim() }>
@@ -32,6 +33,9 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
             <nav className={ `nav-menu ${open ? 'open' : ''}` } aria-label="Public navigation">
               <a href="/" className={ `nav-item ${isHome ? 'active' : ''}`.trim() } aria-current={ isHome ? 'page' : undefined }>Home</a>
               <a href="/grahak-os/" className={ `nav-item ${isGrahakOs ? 'active' : ''}`.trim() } aria-current={ isGrahakOs ? 'page' : undefined }>Grahak OS</a>
+              {/* Trailing slash is required: next.config.js sets trailingSlash, so
+                  /vayulok would redirect before resolving. */}
+              <a href="/vayulok/" className={ `nav-item ${isVayuLok ? 'active' : ''}`.trim() } aria-current={ isVayuLok ? 'page' : undefined }>VayuLok</a>
               <a href="/access" className="nav-item">Sign in</a>
             </nav>
           </div>

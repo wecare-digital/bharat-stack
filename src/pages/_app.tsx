@@ -379,7 +379,10 @@ export default function App ( { Component, pageProps }: AppProps ) {
   const router = useRouter();
   const [ mounted, setMounted ] = useState( false );
 
-  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners';
+  // EXACT-MATCH allowlist. A public page missing from this list renders an empty
+  // body with HTTP 200 — a 404 that does not look like one — so every new public
+  // route has to be added here as well as created under src/pages.
+  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners';
   const showPublicWhatsApp = router.pathname === '/' || router.pathname === '/grahak-os';
 
   useEffect( () => {
