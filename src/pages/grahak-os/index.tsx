@@ -1063,8 +1063,14 @@ response = requests.post(
             .trust-strip{padding:44px 20px}
             .trust-grid{grid-template-columns:1fr;gap:24px}
             .trust-card{padding:36px 24px;gap:20px;max-width:100%}
-            .trust-mark{width:46px;height:46px}
-            .trust-wordmark{font-size:32px}
+            /* No .trust-mark or .trust-wordmark size overrides here any more. They
+               forced 46px/32px, which was left behind when the lockup was moved onto
+               the type ladder at 44px/22px - so the wordmark rendered LARGER on a
+               phone than on a desktop, and sat 10px above the 22px .pp-strip-title in
+               the strip directly overhead while the 20px caption beside it did not
+               move at all. .pp-strip-icon and .pp-strip-title carry no breakpoint
+               overrides, so the card now holds one scale at every width, which was
+               the point of putting it on the ladder. */
             .trust-pills{gap:10px}
 
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
@@ -1122,10 +1128,11 @@ response = requests.post(
             .section-header{padding:0 16px}
             .trust-strip{padding:36px 16px}
             .trust-card{padding:30px 20px}
-            .trust-mark{width:42px;height:42px}
             .gos-closer{padding:64px 20px 76px}
             .gos-closer-head{letter-spacing:-1.4px;line-height:1.1}
-            .trust-wordmark{font-size:30px}
+            /* .trust-mark 42px and .trust-wordmark 30px removed alongside the 1024px
+               pair above - the same stale pre-ladder sizes. Padding still tightens
+               here; only the type and the mark stop moving. */
 
             .mockup-wrapper{padding:14px;border-radius:14px;gap:12px;max-width:100%}
             .phone{border-radius:14px}

@@ -43,8 +43,15 @@ const Footer: React.FC = () => (
       .ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
       .ft-tagline{font-size:15px;line-height:1.6;color:#9ca3af;margin:0;max-width:320px}
 
+      /* No underline in either state, by request - it previously appeared on hover.
+         That leaves colour as the only hover signal, which is fine for a standalone
+         mark, but colour alone is NOT an adequate keyboard focus indicator. So
+         :focus-visible is split out of the hover rule and gets a real ring rather
+         than inheriting a style that no longer draws anything. The ring reuses the
+         outline the language widget already uses instead of inventing a second one. */
       .ft-mark{font-size:14px;color:#6b7280;text-decoration:none;transition:color .2s}
-      .ft-mark:hover,.ft-mark:focus-visible{color:#1a3a2a;text-decoration:underline}
+      .ft-mark:hover{color:#1a3a2a}
+      .ft-mark:focus-visible{color:#1a3a2a;outline:3px solid rgba(26,58,42,.22);outline-offset:2px;border-radius:4px}
 
       /* Account wraps onto the next row before the columns get too narrow. */
       @media(max-width:1024px){
