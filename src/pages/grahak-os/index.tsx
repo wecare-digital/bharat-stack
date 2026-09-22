@@ -201,6 +201,18 @@ response = requests.post(
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="hero-content">
             <div className="hero-left">
+              {/* Product-and-maker eyebrow. pp- prefixed like the rest of this
+                  page's own classes because .badge is declared unscoped in four
+                  globally imported stylesheets (Dashboard, Pages, inner-pages,
+                  flex-layout) and styled-jsx would not shield us from those.
+                  Deliberately NOT the pale green fill of the reference mock: that
+                  is the near-miss-green family the palette retired (#f2fbf6,
+                  #fbfff0). White with the shared hairline and dark-green type
+                  carries the same idea using colours the contract owns. */}
+              <span className="pp-badge">
+                <i className="pp-badge-dot" aria-hidden="true" />
+                Grahak OS · by Bharat Stack
+              </span>
               <h1>
                 Reach customers<br />across{ ' ' }
                 <span
@@ -255,7 +267,14 @@ response = requests.post(
                         customer's side of the thread. This keeps the composition and
                         the WhatsApp semantics. Verified by measuring bubble rects
                         against the panel rect, not by eye. */}
-                    <div className="msg sent"><p>Hi! Your order #WD-ORD-87A6G has been shipped</p><span className="msg-time">10:30</span></div>
+                    {/* This bubble is the code panel's output, character for character.
+                        It previously read "Hi! Your order #WD-ORD-87A6G has been
+                        shipped" while the panel beside it sent "Your OTP: 847291" on
+                        a different order id — the two halves of the same demo
+                        contradicting each other. Keep this string and the panel's
+                        "message" value identical; that is the whole point of showing
+                        them side by side. */}
+                    <div className="msg sent"><p>Your order #WD-87A6G has been shipped</p><span className="msg-time">10:30</span></div>
                     <div className="msg sent"><p>Track here: wecare.digital/track</p><span className="msg-time">10:30</span></div>
                     <div className="msg received"><p>When will it arrive?</p><span className="msg-time">10:31</span></div>
                     <div className="msg received"><p>Can I change the delivery address?</p><span className="msg-time">10:32</span></div>
@@ -270,14 +289,26 @@ response = requests.post(
                   {/* The full, real call - not an abbreviation. An earlier pass cut
                       this down to fit a 248px panel, which lost the assignment, the
                       API version and the auth header, so it stopped looking like
-                      code someone would actually ship. The panel is now ~340px and
-                      the longest line here (36 chars) fits without wrapping. */}
+                      code someone would actually ship.
+                      "message" must stay identical to the first .msg.sent bubble.
+                      It used to send an OTP while the phone showed a shipping
+                      notification, so the panel and the thread told two different
+                      stories. "type": "text" became "channel": "whatsapp" because
+                      the channel is the thing this demo is actually about.
+                      LINE LENGTH IS GEOMETRY HERE. The panel is ~340px, which fits
+                      36 monospace characters at 14px; the "message" line is 54 and
+                      therefore wraps to two. That one extra line makes the panel
+                      ~22px taller, and because .code-box is anchored bottom:0 a
+                      taller panel pushes its TOP edge up into the sent bubbles. The
+                      +24px on .mockup-wrapper and .chat-area min-height exists to
+                      absorb exactly that. Lengthen any line here and you move the
+                      panel over the thread - re-measure, do not eyeball. */}
                   <pre className="code-body">{`response = requests.post(
   "api.wecare.digital/v1/send",
   json={
     "to": "+919330994400",
-    "type": "text",
-    "message": "Your OTP: 847291"
+    "channel": "whatsapp",
+    "message": "Your order #WD-87A6G has been shipped"
   },
   headers={"Authorization": api_key}
 )`}</pre>
@@ -434,6 +465,14 @@ response = requests.post(
              but that left ~100px of empty column under the shorter copy. Centring
              just the copy fixes the imbalance without moving the mockup. */
           .hero-left{align-self:center}
+          /* Eyebrow above the headline. Static, so 1px per the hairline rule, and
+             9999px to match .hero-mark's radius. Type is 14px like the contract's
+             label level, but at 600 in #1a3a2a rather than 400 in rgba(0,0,0,.54):
+             it is a brand credential, not a section eyebrow, and it has to hold its
+             own directly above a 60px headline. No uppercase, no letter-spacing -
+             that rule stands. */
+          .pp-badge{display:inline-flex;align-items:center;gap:10px;margin:0 0 20px;padding:9px 16px;border:1px solid #e5e7eb;border-radius:9999px;background:#fff;font-size:14px;font-weight:600;letter-spacing:-.125px;line-height:1;color:#1a3a2a}
+          .pp-badge-dot{width:10px;height:10px;border-radius:50%;background:#1a3a2a;flex:0 0 auto}
           .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
           /* Lede plus a muted supporting line. Two paragraphs rather than one long
              run-on: it reads better and gives the left column enough vertical mass
@@ -581,7 +620,16 @@ response = requests.post(
                   -> chat-area min-height 480 (phone = 62 header + 480)
              Hence 590 / 480. Shrinking the wrapper to 540 in an earlier pass moved
              the panel UP and swallowed a whole bubble - the opposite of the fix. */
-          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:590px;background:#fff;border-radius:28px;padding:28px 24px 24px}
+          /* 590 -> 614, paired with the same +24 on .chat-area below. The code
+             panel's "message" line now wraps to two lines, making the panel ~22px
+             taller, and since .code-box is anchored bottom:0 its top edge would
+             otherwise rise by that much into the sent bubbles.
+             Both constraints are differential, which is why the two values move
+             together: panelTop = wrapperHeight - panelHeight stays put when the
+             wrapper grows by what the panel grew, and the ~20px panel-over-phone
+             overhang stays put when the phone grows by the same amount as the
+             wrapper. Change one without the other and the composition breaks. */
+          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:614px;background:#fff;border-radius:28px;padding:28px 24px 24px}
           /* The two panels OVERLAP on purpose - the code panel laps the phone's
              lower-right corner, which is the whole composition. 56% + 60% = 116%
              of the wrapper, so the lap is ~16%.
@@ -601,7 +649,12 @@ response = requests.post(
           .contact-name{color:#fff;font-size:17px;font-weight:600}
           .contact-status{color:rgba(255,255,255,.7);font-size:13px}
           .verified-badge{width:22px;height:22px;background:#1a3a2a;border-radius:50%}
-          .chat-area{background:#ece5dd;padding:16px 14px;min-height:480px;display:flex;flex-direction:column;gap:9px}
+          /* 480 -> 504, the paired half of the +24 on .mockup-wrapper. Growing the
+             wrapper alone would have left the panel overhanging the phone by 44px
+             instead of ~20px; growing the phone by the same amount keeps that. The
+             extra height lands as empty beige below the typing dots, which is what
+             a real thread looks like anyway. */
+          .chat-area{background:#ece5dd;padding:16px 14px;min-height:504px;display:flex;flex-direction:column;gap:9px}
           .msg{max-width:82%;padding:10px 13px;border-radius:8px;font-size:17px;line-height:1.42;color:#000}
           /* Received bubbles are capped narrower than sent ones. They sit low in the
              thread, inside the band the code panel laps, and at 82% they grew past

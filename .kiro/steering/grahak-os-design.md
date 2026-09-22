@@ -78,8 +78,8 @@ height**: `panelTop = wrapperHeight - panelHeight`. Change one value and you mov
 the panel over the message bubbles.
 
 ```
-.mockup-wrapper  min-height:590px      <- sets where the panel's top edge lands
-.chat-area       min-height:480px      <- sets phone height (phone = 62 header + chat)
+.mockup-wrapper  min-height:614px      <- sets where the panel's top edge lands
+.chat-area       min-height:504px      <- sets phone height (phone = 62 header + chat)
 .phone           width:56% max 320px, top:28px
 .code-box        width:60% max 340px   <- 56+60 = 116%, so a ~90px lap
 ```
@@ -89,6 +89,19 @@ Constraints that produced those numbers:
 1. `panelTop` must clear the bottom of the **lowest right-aligned bubble** (~300px)
    → `wrapperHeight >= 577`
 2. The panel should overhang the phone by only ~20px → `phoneBottom ≈ wrapperHeight - 20`
+
+**The two min-heights move together, always.** They were 590/480 until the code
+panel's `"message"` line grew past the panel's 36-character measure and wrapped to
+two lines, adding ~22px of panel height. Both constraints above are differential, so
+the pair went to 614/504: `panelTop` holds because the wrapper grew by what the panel
+grew, and the ~20px overhang holds because the phone grew by what the wrapper grew.
+Move one alone and you either drop the panel onto the sent bubbles or leave it
+hanging 44px past the phone.
+
+**Corollary: line length in `.code-body` is layout, not content.** 340px fits 36
+monospace characters at 14px. Every extra wrapped line is ~22px of panel height
+pushing the top edge up into the thread, so a copy edit in that code sample is a
+geometry change — re-measure with the rect-intersection snippet below.
 
 **The thread order is load-bearing.** Both `.msg.sent` bubbles sit at the top,
 above the panel's edge; the lapped band below holds only `.msg.received` and the
