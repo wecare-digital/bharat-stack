@@ -73,7 +73,12 @@ const TTL_CONFIG: Record<string, string> = {
   // cutoff. An agent whose browser closed without signing out stops being
   // routable when the heartbeat goes stale, not when DynamoDB happens to sweep.
   PstnAgentPresence: 'expiresAt',
-  PstnNotificationDelivery: 'expiresAt',
+  // PstnNotificationDelivery was declared here and in data/resource.ts and
+  // existed in none of the 66 live tables, so every claim against it raised
+  // ClaimStoreUnavailable and the dial-events route answered 503 without
+  // sending. Removed 2026-09-21 rather than materialised (NOTIF-STORE-001);
+  // the replacement tables are provisioned and read back by
+  // scripts/provision_notification_domain.py, which sets their own TTL.
   ProviderDriftSnapshot: 'expiresAt',
   // Deliberately NOT here:
   //   PstnFlowVersion     — immutable routing history; a rollback needs to be

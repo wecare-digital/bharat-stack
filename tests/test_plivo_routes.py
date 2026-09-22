@@ -42,7 +42,7 @@ NONCE = "12345678901234567890"
 
 FORM = {
     "CallUUID": ["call-abc"],
-    "From": ["919903300044"],
+    "From": ["919876543210"],
     "To": ["918031830030"],
     "Direction": ["inbound"],
     "CallStatus": ["completed"],
@@ -185,7 +185,7 @@ def test_hangup_persists_the_cdr(rec):
 
 def test_hangup_sends_the_post_call_sms_once(rec):
     pa.handler(_event("/plivo/hangup"), None)
-    assert rec.sms == [("919903300044", "call-abc")]
+    assert rec.sms == [("919876543210", "call-abc")]
 
 
 def test_hangup_is_deduplicated_by_call_uuid(rec):
@@ -342,3 +342,35 @@ def test_normalize_path_is_driven_by_the_stage_name_not_a_hardcoded_prod():
     ev["rawPath"] = "/staging/plivo/events"
     ev["requestContext"]["stage"] = "staging"
     assert ps.normalize_path(ev) == "/plivo/events"
+
+
+# --------------------------------------------------------------------------
+# recipient selection on the legacy post-call SMS
+# --------------------------------------------------------------------------
+def test_outbound_notifies_the_callee_not_our_own_cli(rec):
+    """The live recipient defect. `_send_post_call_sms` used to be handed
+    `params.get('From')` regardless of direction, and on an outbound call Plivo's
+    `From` is our own CLI - so the business number would have been texted, billed to
+    us, under our own registered DLT sender."""
+    form = {**FORM, "Direction": ["outbound"],
+            "From": ["918031830030"], "To": ["919876543210"]}
+    pa.handler(_event("/plivo/hangup", params=form), None)
+    assert rec.sms == [("919876543210", "call-abc")]
+
+
+def test_a_business_number_is_never_the_recipient(rec):
+    """The backstop, reached when `Direction` disagrees with reality. Until 2026-09-21
+    the fixtures in this file used `919903300044` - our own WABA2 number - as the
+    caller, and the assertion was that we texted it."""
+    form = {**FORM, "Direction": ["inbound"], "From": ["919903300044"]}
+    pa.handler(_event("/plivo/hangup", params=form), None)
+    assert rec.sms == []
+
+
+def test_ambiguous_direction_sends_nothing(rec):
+    """No safe default: guessing inbound texts our own number on every outbound call,
+    guessing outbound texts the agent endpoint on every inbound one."""
+    form = {**FORM}
+    form.pop("Direction", None)
+    pa.handler(_event("/plivo/hangup", params=form), None)
+    assert rec.sms == []

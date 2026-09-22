@@ -1,40 +1,39 @@
 """Provider-neutral PSTN calling.
 
-The seam between call handling and Plivo. Business code and the operations UI
-depend on these shapes, not on provider field names, so a provider field being
-renamed is a one-module change rather than a fleet-wide one.
+The seam between call handling and Plivo. Business code and the operations UI depend
+on these shapes, not on provider field names, so a provider field being renamed is a
+one-module change rather than a fleet-wide one.
 
-    keys       idempotency key derivation - the exact claim-key format
-    claims     fail-CLOSED atomic claims for side effects that must run once
-    calls      PstnCall records, A/B leg correlation, cost attribution
-    events     PstnCallEvent normalisation from provider callbacks
-    presence   PstnAgentPresence with expiring availability
+    browser_token   Cognito-protected Browser SDK token minting
 
-Why not reuse webhook_dedup
----------------------------
-`lambda_utils.webhook_dedup.claim_event` fails OPEN: on any DynamoDB error it
-returns True so a real webhook is never dropped. That is the right trade for an
-inbound event you merely want to process once.
+Notifications moved out, 2026-09-21
+-----------------------------------
+This package used to own connected-call notifications through three modules:
 
-It is the WRONG trade for deciding whether to send a customer a message. Failing
-open there means a store outage produces duplicate SMS to real people, billed to
-us, under a registered DLT sender. `claims` therefore fails CLOSED and raises, so
-the caller returns a retryable 5xx and the provider redelivers.
+    keys            v1 claim-key derivation
+    claims          fail-closed atomic claims
+    notifications   the connected-event gate, eligibility and dispatch
 
-Both behaviours are correct for their own job, which is why this is a separate
-module rather than a flag on the existing one - a flag would eventually be passed
-wrongly.
+All three are deleted. They now live in `lambda_utils.notifications`, which is
+provider-neutral rather than PSTN-specific - the same domain serves WhatsApp Calling -
+and which fixes three defects the originals carried:
+
+* **Recipient.** `notifications.handle_connected` parsed `Direction` and then chose
+  `event.caller` unconditionally, so a connected *outbound* call would have texted our
+  own business CLI.
+* **Durability.** The claim was written, then dispatch was attempted. A crash between
+  the two left a claim nothing owned, and the provider's redelivery then found it
+  taken and did nothing - a notification lost silently. The replacement writes the
+  claim and the job in one transaction.
+* **Existence.** `claims` defaulted to `stack-wecare-digital-PstnNotificationDelivery`,
+  which was declared in four places and existed in none of the 66 live tables, so
+  every claim raised `ClaimStoreUnavailable` and the route answered 503.
+  `plivo_dial_event` fired 0 times in 14 days as a result.
+
+The fail-closed reasoning those modules established was kept, and is restated in
+`lambda_utils.notifications.store`: `webhook_dedup.claim_event` fails OPEN because
+dropping a real inbound webhook is worse than processing it twice, and that trade
+inverts when the side effect is sending a customer a message.
 """
-from .keys import (  # noqa: F401
-    CONNECTED_NOTIFICATIONS_VERSION,
-    channel_delivery_id,
-    connected_claim_key,
-    parse_channel_delivery_id,
-)
 
-__all__ = [
-    "CONNECTED_NOTIFICATIONS_VERSION",
-    "channel_delivery_id",
-    "connected_claim_key",
-    "parse_channel_delivery_id",
-]
+__all__ = []
