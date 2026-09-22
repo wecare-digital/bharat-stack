@@ -98,6 +98,10 @@ const LanguageBar: React.FC = () => {
   const originals = useRef<Map<Text, string> | null>( null );
   const rootRef = useRef<HTMLDivElement | null>( null );
   const audioRef = useRef<HTMLAudioElement | null>( null );
+  // Latest-ref for applyLanguage, assigned by an effect further down. The saved
+  // language restore has to call whatever applyLanguage currently is WITHOUT
+  // subscribing to its identity - see the restore block in the catalogue effect.
+  const applyLanguageRef = useRef<( ( code: string, label?: string ) => Promise<void> ) | null>( null );
 
   const contentRoot = useCallback( (): HTMLElement => (
     document.querySelector( '.page' ) as HTMLElement
@@ -138,7 +142,33 @@ const LanguageBar: React.FC = () => {
           if ( b.code === 'en' ) return 1;
           return a.name.localeCompare( b.name );
         } );
-        if ( !cancelled ) setLangs( normalized );
+        if ( cancelled ) return;
+        setLangs( normalized );
+
+        // The saved-language restore lives here, in the flow that just produced
+        // the catalogue, instead of in a second effect watching `langs`.
+        //
+        // That second effect was the react-hooks/set-state-in-effect error. It
+        // called applyLanguage synchronously in an effect body, which cascades a
+        // render, and it could not declare applyLanguage as a dependency because
+        // applyLanguage's identity changes the moment `busy` flips - so listing it
+        // honestly would have re-fired the restore in the middle of its own
+        // translation. One flow split in two produced both the error and the
+        // missing-dependency warning.
+        //
+        // Everything below runs after the awaits above, which is exactly where
+        // React expects an effect to push state, and `normalized` is in scope, so
+        // the saved code is validated against the list that was just fetched
+        // rather than against a later render's copy of it.
+        let saved = '';
+        try { saved = localStorage.getItem( LS_LANG ) || ''; } catch { /* ignore */ }
+        if ( !saved || saved === 'en' ) return;
+        const savedLang = normalized.find( lang => lang.code === saved );
+        if ( !savedLang ) return;
+        // The label is passed in because this ref was captured on mount, when
+        // `langs` was still empty - applyLanguage's own lookup would miss and the
+        // status line would read the raw code instead of the language name.
+        await applyLanguageRef.current?.( saved, savedLang.name );
       } catch { /* stay hidden if language services are unavailable */ }
     } )();
     return () => { cancelled = true; };
@@ -164,7 +194,10 @@ const LanguageBar: React.FC = () => {
     setSpeaking( false );
   }, [] );
 
-  const applyLanguage = useCallback( async ( code: string ) => {
+  // `labelOverride` exists for the restore path only, which knows the language
+  // name from the response it just parsed. Panel clicks omit it and fall through
+  // to the lookup below.
+  const applyLanguage = useCallback( async ( code: string, labelOverride?: string ) => {
     if ( busy ) return;
     setOpen( false );
     setQuery( '' );
@@ -184,7 +217,7 @@ const LanguageBar: React.FC = () => {
     if ( !originals.current ) originals.current = new Map( nodes.map( node => [ node, node.nodeValue || '' ] ) );
     restore();
     setBusy( true );
-    const label = langs.find( lang => lang.code === code )?.name || code;
+    const label = labelOverride || langs.find( lang => lang.code === code )?.name || code;
     setStatus( `Translating to ${label}.` );
 
     try {
@@ -209,12 +242,11 @@ const LanguageBar: React.FC = () => {
     } finally { setBusy( false ); }
   }, [ busy, contentRoot, langs, restore, stopSpeaking ] );
 
-  useEffect( () => {
-    if ( !langs.length ) return;
-    let saved = '';
-    try { saved = localStorage.getItem( LS_LANG ) || ''; } catch { /* ignore */ }
-    if ( saved && saved !== 'en' && langs.some( lang => lang.code === saved ) ) void applyLanguage( saved );
-  }, [ langs ] );
+  // Keeps the restore above pointed at the current applyLanguage. Assigning in an
+  // effect rather than during render is deliberate: a ref written mid-render is
+  // its own hooks violation, and this only has to be current by the time the
+  // catalogue fetch resolves - a network round trip after the first commit.
+  useEffect( () => { applyLanguageRef.current = applyLanguage; }, [ applyLanguage ] );
 
   const speak = useCallback( async () => {
     if ( speaking ) { stopSpeaking(); setStatus( 'Stopped reading.' ); return; }
