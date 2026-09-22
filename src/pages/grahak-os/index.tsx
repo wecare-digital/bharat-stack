@@ -715,7 +715,16 @@ response = requests.post(
              the retired list, and a near-miss green is exactly what the why-section
              comment warns against. Lime border plus dark green text is affordance
              enough, and it keeps the borrowed-vs-ours colour rule intact. */
-          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:15px;font-weight:600;cursor:default;transition:all .25s;color:rgba(0,0,0,.54)}
+          /* Two changes, same reasoning as the nav dropdown: the label was both too
+             faint and too small for the pill around it.
+             rgba(0,0,0,.54) is the contract's LABEL value and measured ~4.5:1 on the
+             #fafafa band - passing AA, but only just, and it read washed out next to
+             the near-black heading above. Body colour rgba(0,0,0,.898) is ~14:1 and
+             makes the pills look deliberate rather than disabled.
+             15px inside 14px/28px padding put the type-to-pill ratio near 3.1, the
+             same proportion problem the 46px nav row had at 15px. 17px brings it to
+             about 2.8. */
+          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:17px;font-weight:600;cursor:default;transition:all .25s;color:rgba(0,0,0,.898)}
           .pill:hover{border-color:#d1f470;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           
           /* API Section */
@@ -989,7 +998,7 @@ response = requests.post(
              order. Importing tokens.css would silently have resized every pill.
              .pp-pill is listed here too; it was missing from this contract block
              despite being the class the touchpoint section actually renders. */
-          .pill,.pp-pill{font-size:15px}
+          .pill,.pp-pill{font-size:17px}
           .api-info h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
           .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .tab{font-size:15px}
@@ -1023,7 +1032,7 @@ response = requests.post(
              tint. min-height is dropped: at 15px with 14px of vertical padding the
              pill computes to ~48px, so a 32px floor never applied and only implied
              a constraint that was not doing anything. */
-          .pp-pill{display:inline-flex;align-items:center;justify-content:center;padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:15px;font-weight:600;cursor:default;transition:all .25s;color:rgba(0,0,0,.54)}
+          .pp-pill{display:inline-flex;align-items:center;justify-content:center;padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:17px;font-weight:600;cursor:default;transition:all .25s;color:rgba(0,0,0,.898)}
           .pp-pill:hover{border-color:#d1f470;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
 
           @media(max-width:1024px){
