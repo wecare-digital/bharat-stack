@@ -15,11 +15,13 @@ when you open files under `src/pages/grahak-os/`, `src/components/` or
 | Field | Value |
 |---|---|
 | Branch | `feat/grahak-os-trust-a-i` |
-| HEAD | `f1ffe452` pushed, working tree clean |
+| HEAD | `b58ef424` — **the Mac session is now committing to this branch too**, so pull before starting |
 | vs `origin/stack` | `origin/stack` merged in — **0 behind**, no conflicts |
-| PR | **[#3](https://github.com/wecare-digital/bharat-stack/pull/3) open into `stack`, `mergeable: true`** |
-| Gate | 33 tests pass (7 files), `tsc` clean, `npm run build` clean, `/grahak-os` exported |
-| CodeQL | `CodeQL: success`, all four `Analyze` jobs green, zero failure annotations |
+| PR | **[#3](https://github.com/wecare-digital/bharat-stack/pull/3) open into `stack`, `mergeable: true`, all checks green** |
+| Frontend gate | 33 vitest pass (7 files), `tsc` clean, `npm run build` clean, `/grahak-os` exported |
+| Python gate | **1598 passed, 1 skipped** |
+| Provider policy | all 8 rules `ok` |
+| CodeQL | green — *"No new alerts in code changed by this pull request"* |
 
 ## Complete
 
@@ -53,22 +55,30 @@ minutes, then hard-refresh past CloudFront. If the build fails it will be in the
 `preBuild` npm install, which uses `--legacy-peer-deps`.
 
 `stack` has **no required status checks configured**, so nothing blocks the merge.
-Two checks are red and neither is from this work — both diagnosed to root cause,
-not merely observed to also fail on `stack`:
+**All checks are green now.** Two gates were red; both are fixed, and neither was
+caused by this branch's work.
 
-| Check | Root cause |
-|---|---|
-| `Provider policy gate` | `amplify/functions/messaging/plivo-answer/handler.py:724` passes `provider='plivo'` on a path the scanner classifies as SMS. Policy is Plivo-is-voice-only. **Not fixed — needs someone who knows whether that call is SMS or voice.** Either a real violation or a scanner false positive; the file is untouched by this branch |
-| `github-advanced-security` | **Not attributed.** The sandbox token gets HTTP 403 on both the Dependabot and code-scanning alert APIs. It is not a finding on this PR's code: `CodeQL` and all four `Analyze` jobs are green with zero failure annotations. The repo carries 48 open Dependabot advisories on the default branch, the likeliest source |
+**`Handler auth enforcement (source)`** — fixed in `3f60088d`, and it had nothing
+to do with route auth. Its dependency step greps `requirements-dev.txt` for an
+allowlist that omitted `cryptography`, which `tests/test_flow_crypto_and_ssrf.py`
+imports at module scope, so pytest failed at *collection* on every run, including
+on `stack`. A blocking gate that fails unconditionally teaches people to merge
+through red, which is worse than no gate because it looks like coverage.
 
-`Handler auth enforcement (source)` **was** red and is now green — fixed in
-`3f60088d`. It had nothing to do with route auth: its dependency step greps
-`requirements-dev.txt` for an allowlist that omitted `cryptography`, which
-`tests/test_flow_crypto_and_ssrf.py` imports at module scope, so pytest failed at
-*collection* on every run. With the import resolved the suite is **1546 passed, 1
-skipped, 0 failed** — nothing was hiding behind it. A blocking gate that fails
-unconditionally teaches people to merge through red, so this was worth fixing even
-though it was not ours.
+**`Provider policy gate`** — a scanner false positive, fixed in `9c43e67b` by the
+Mac session. `plivo-answer` passed a bare `provider='plivo'` into
+`notifications.handle_connected_call`, where that argument only selects which
+voice-callback parser to run (`PROVIDER_PLIVO` → `from_plivo_dial_callback`,
+`PROVIDER_META` → `from_meta_call_event`). It is a call-event discriminator, not an
+SMS transport. The fix passes `notif_keys.PROVIDER_PLIVO` instead, and
+`check-provider-policy.sh` now documents the convention.
+
+Read that comment before touching this rule again: it explicitly rejects adding a
+path exclusion to silence the gate, because that would blind it to a real Plivo SMS
+assignment in the same file. Pass the named constant instead.
+
+**`github-advanced-security`** cleared once CodeQL re-ran. Final state is explicit:
+*"No new alerts in code changed by this pull request."*
 
 ### 2. Deploy the translation change — needs the Mac
 
