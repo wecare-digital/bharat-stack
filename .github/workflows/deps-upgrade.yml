@@ -62,18 +62,39 @@ jobs:
           rm -rf node_modules package-lock.json
           npm install --legacy-peer-deps --no-audit --no-fund
 
-      - name: Gate - build (the real gate; this repo uses `npm install`, not `npm ci`)
+      - name: Gate - build
         run: npm run build
 
-      # NOTE: `npm ci` is intentionally NOT used. aws-cdk / @aws-amplify backend
-      # packages ship bundledDependencies, which npm omits from the lockfile in a
-      # way that strict `npm ci` rejects (even right after a clean `npm install`).
-      # amplify.yml uses `npm install` for the same reason. Informational only:
-      - name: Info - npm ci status (non-blocking)
+      # `npm ci` IS supported, and it is a blocking gate.
+      #
+      # This step used to be non-blocking, on the stated grounds that aws-cdk and
+      # @aws-amplify backend packages ship bundledDependencies which strict
+      # `npm ci` rejects. That is no longer true, and treating it as true is what
+      # let the lockfile rot: because nothing failed when `npm ci` failed, the
+      # committed lockfile drifted until it was missing five entries the tree
+      # needs (@aws-cdk/cli-plugin-contract, webpack, @webassemblyjs/ast,
+      # @webassemblyjs/wasm-edit, json-schema-traverse) and `npm ci` could not
+      # install the repo at all.
+      #
+      # Verified on Node 24.19.0 / npm 11.4.2 against a resynced lockfile: both
+      # `npm ci` and `npm ci --legacy-peer-deps` complete with exit 0 from an
+      # empty node_modules, and the lockfile is unchanged afterwards. So this is
+      # now the step that catches drift instead of hiding it - if it fails, the
+      # lockfile below is not fit to commit and the job must stop here.
+      # Note the hash comparison rather than `git diff`: at this point in the job
+      # the lockfile has deliberately just been regenerated and is expected to
+      # differ from HEAD, so diffing against git would always fail here. What
+      # matters is that `npm ci` itself does not rewrite it.
+      - name: Gate - npm ci from clean (catches lockfile drift)
         run: |
+          before=$(sha256sum package-lock.json | cut -d' ' -f1)
           rm -rf node_modules
-          npm ci --legacy-peer-deps || echo "::notice::npm ci not supported here (bundled aws-cdk deps) - use npm install"
-          npm install --legacy-peer-deps --no-audit --no-fund
+          npm ci --legacy-peer-deps
+          after=$(sha256sum package-lock.json | cut -d' ' -f1)
+          if [ "$before" != "$after" ]; then
+            echo "::error::npm ci rewrote package-lock.json - the regenerated lockfile is not self-consistent"
+            exit 1
+          fi
 
       - name: Commit consistent lockfile + manifest and push (triggers Amplify deploy)
         run: |

@@ -28,11 +28,9 @@ const NATIVE: Record<string, string> = {
   gu: 'ગુજરાતી', kn: 'ಕನ್ನಡ', ml: 'മലയാളം', pa: 'ਪੰਜਾਬੀ', ur: 'اردو',
 };
 
-// Shown immediately when the panel opens, in rough order of speakers. The
-// service returns ~75 languages from Amazon Translate, but this is a product for
-// Bharat: surfacing the Indic set first means the common case is one tap and no
-// typing. Search still reaches the full catalogue.
-const PRIMARY = [ 'en', 'hi', 'bn', 'mr', 'te', 'ta', 'gu', 'kn', 'ml', 'pa', 'ur' ];
+// PRIMARY, the resting Indic list, is deliberately gone rather than left unused:
+// the panel is search-only now. NATIVE below stays, because search results still
+// lead with the native name.
 
 const SKIP_TAGS = new Set( [
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'SVG', 'CANVAS', 'VIDEO', 'AUDIO',
@@ -100,6 +98,10 @@ const LanguageBar: React.FC = () => {
   const originals = useRef<Map<Text, string> | null>( null );
   const rootRef = useRef<HTMLDivElement | null>( null );
   const audioRef = useRef<HTMLAudioElement | null>( null );
+  // Latest-ref for applyLanguage, assigned by an effect further down. The saved
+  // language restore has to call whatever applyLanguage currently is WITHOUT
+  // subscribing to its identity - see the restore block in the catalogue effect.
+  const applyLanguageRef = useRef<( ( code: string, label?: string ) => Promise<void> ) | null>( null );
 
   const contentRoot = useCallback( (): HTMLElement => (
     document.querySelector( '.page' ) as HTMLElement
@@ -140,7 +142,33 @@ const LanguageBar: React.FC = () => {
           if ( b.code === 'en' ) return 1;
           return a.name.localeCompare( b.name );
         } );
-        if ( !cancelled ) setLangs( normalized );
+        if ( cancelled ) return;
+        setLangs( normalized );
+
+        // The saved-language restore lives here, in the flow that just produced
+        // the catalogue, instead of in a second effect watching `langs`.
+        //
+        // That second effect was the react-hooks/set-state-in-effect error. It
+        // called applyLanguage synchronously in an effect body, which cascades a
+        // render, and it could not declare applyLanguage as a dependency because
+        // applyLanguage's identity changes the moment `busy` flips - so listing it
+        // honestly would have re-fired the restore in the middle of its own
+        // translation. One flow split in two produced both the error and the
+        // missing-dependency warning.
+        //
+        // Everything below runs after the awaits above, which is exactly where
+        // React expects an effect to push state, and `normalized` is in scope, so
+        // the saved code is validated against the list that was just fetched
+        // rather than against a later render's copy of it.
+        let saved = '';
+        try { saved = localStorage.getItem( LS_LANG ) || ''; } catch { /* ignore */ }
+        if ( !saved || saved === 'en' ) return;
+        const savedLang = normalized.find( lang => lang.code === saved );
+        if ( !savedLang ) return;
+        // The label is passed in because this ref was captured on mount, when
+        // `langs` was still empty - applyLanguage's own lookup would miss and the
+        // status line would read the raw code instead of the language name.
+        await applyLanguageRef.current?.( saved, savedLang.name );
       } catch { /* stay hidden if language services are unavailable */ }
     } )();
     return () => { cancelled = true; };
@@ -166,7 +194,10 @@ const LanguageBar: React.FC = () => {
     setSpeaking( false );
   }, [] );
 
-  const applyLanguage = useCallback( async ( code: string ) => {
+  // `labelOverride` exists for the restore path only, which knows the language
+  // name from the response it just parsed. Panel clicks omit it and fall through
+  // to the lookup below.
+  const applyLanguage = useCallback( async ( code: string, labelOverride?: string ) => {
     if ( busy ) return;
     setOpen( false );
     setQuery( '' );
@@ -186,7 +217,7 @@ const LanguageBar: React.FC = () => {
     if ( !originals.current ) originals.current = new Map( nodes.map( node => [ node, node.nodeValue || '' ] ) );
     restore();
     setBusy( true );
-    const label = langs.find( lang => lang.code === code )?.name || code;
+    const label = labelOverride || langs.find( lang => lang.code === code )?.name || code;
     setStatus( `Translating to ${label}.` );
 
     try {
@@ -211,12 +242,11 @@ const LanguageBar: React.FC = () => {
     } finally { setBusy( false ); }
   }, [ busy, contentRoot, langs, restore, stopSpeaking ] );
 
-  useEffect( () => {
-    if ( !langs.length ) return;
-    let saved = '';
-    try { saved = localStorage.getItem( LS_LANG ) || ''; } catch { /* ignore */ }
-    if ( saved && saved !== 'en' && langs.some( lang => lang.code === saved ) ) void applyLanguage( saved );
-  }, [ langs ] );
+  // Keeps the restore above pointed at the current applyLanguage. Assigning in an
+  // effect rather than during render is deliberate: a ref written mid-render is
+  // its own hooks violation, and this only has to be current by the time the
+  // catalogue fetch resolves - a network round trip after the first commit.
+  useEffect( () => { applyLanguageRef.current = applyLanguage; }, [ applyLanguage ] );
 
   const speak = useCallback( async () => {
     if ( speaking ) { stopSpeaking(); setStatus( 'Stopped reading.' ); return; }
@@ -244,17 +274,23 @@ const LanguageBar: React.FC = () => {
     } catch { setSpeaking( false ); setStatus( 'Audio is unavailable right now.' ); }
   }, [ contentRoot, current, speaking, stopSpeaking ] );
 
-  // An empty query used to return an empty array, so opening the panel showed
-  // nothing but "Type a language name or code." - the visitor had to guess that
-  // their language was in there before seeing any evidence of it. Now the Indic
-  // set is the resting state and typing widens the search to everything.
+  // Search-only: an empty query returns nothing and the panel lists no languages
+  // until the visitor types. Owner's decision.
+  //
+  // THIS IS A ROUND TRIP, and the reason it was changed away from is still valid, so
+  // it is recorded rather than deleted. The panel behaved exactly this way once. It
+  // was changed to show the Indic set at rest because search-only means the visitor
+  // has to guess their language is in here before seeing any evidence that it is -
+  // and the Hindi or Tamil speaker this product is built for has to type in the Latin
+  // alphabet to find their own script. Reverting to search-only reinstates that cost.
+  //
+  // The mitigation is the empty state below: it says what to do instead of showing a
+  // blank box, and the input is autofocused when the panel opens, so typing is the
+  // only action required. If the cost shows up in behaviour, the previous resting
+  // list is one commit back in history.
   const filtered = useMemo( () => {
     const term = query.trim().toLocaleLowerCase();
-    if ( !term ) {
-      return PRIMARY
-        .map( code => langs.find( lang => lang.code === code ) )
-        .filter( ( lang ): lang is Lang => Boolean( lang ) );
-    }
+    if ( !term ) return [];
     return langs
       .filter( lang => [ lang.code, lang.name, lang.native || '' ].some( value => value.toLocaleLowerCase().includes( term ) ) )
       .slice( 0, 14 );
@@ -332,8 +368,13 @@ const LanguageBar: React.FC = () => {
           onChange={ event => setQuery( event.target.value ) }
           onKeyDown={ event => { if ( event.key === 'Escape' ) setOpen( false ); } }
         />
-        <div className="group">{ searching ? 'Results' : 'Indian languages' }</div>
+        {/* Heading only while there is something to head. At rest the panel is the
+            field and the prompt, with no empty section label above them. */}
+        { searching && <div className="group">Results</div> }
         <div className="results" role="listbox" aria-label="Language results">
+          {/* Not decoration. With no resting list this is the only thing telling the
+              visitor the catalogue exists at all, so the panel never opens blank. */}
+          { !searching && <div className="hint">Type a language name to translate this page.</div> }
           { searching && !filtered.length && <div className="hint">No matching language.</div> }
           { filtered.map( lang => (
             <button key={ lang.code } type="button" className="opt" role="option" aria-selected={ lang.code === current } aria-current={ lang.code === current ? 'true' : 'false' } onClick={ () => { void applyLanguage( lang.code ); } }>

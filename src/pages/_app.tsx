@@ -10,6 +10,9 @@ import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { Amplify } from 'aws-amplify';
 import { Authenticator, ThemeProvider, Theme, useAuthenticator } from '@aws-amplify/ui-react';
+// Brand line above the sign-in form. Lives in its own file and styles itself,
+// because styled-jsx cannot scope a composite component from here.
+import AuthBrandHeader from '../components/AuthBrand';
 import '@aws-amplify/ui-react/styles.css';
 import '../styles/Pages.css';
 import '../styles/Layout.css';
@@ -365,25 +368,41 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ( { children } ) => {
   return (
     <>
       <Header />
-      <div style={ { display: 'flex', flexDirection: 'column', minHeight: '100vh', paddingTop: 96 } }>
-        <div style={ { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' } }>
+      <div className="ag-shell">
+        <div className="ag-centre">
           { children }
         </div>
         <Footer />
       </div>
+      <style jsx>{`
+        /* 108px, not the flat 96px this used to inline.
+           The public header is position:fixed and 108px tall, dropping to 96px only
+           below 768px - so a single 96px value pulled the whole centred block 12px
+           up UNDER the header on every desktop, which is exactly where the new brand
+           badge above the form sits. Matched to both of the header's heights rather
+           than to one of them.
+           Moved out of inline styles for that reason: a style attribute cannot carry
+           a media query, so the two-height fix is not expressible inline. */
+        .ag-shell{display:flex;flex-direction:column;min-height:100vh;padding-top:108px}
+        .ag-centre{flex:1;display:flex;align-items:center;justify-content:center}
+        @media(max-width:767px){.ag-shell{padding-top:96px}}
+      `}</style>
     </>
   );
 };
 
 export default function App ( { Component, pageProps }: AppProps ) {
   const router = useRouter();
-  const [ mounted, setMounted ] = useState( false );
 
-  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners';
+
+  // EXACT-MATCH allowlist. A public page missing from this list renders an empty
+  // body with HTTP 200 — a 404 that does not look like one — so every new public
+  // route has to be added here as well as created under src/pages.
+  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners';
   const showPublicWhatsApp = router.pathname === '/' || router.pathname === '/grahak-os';
 
   useEffect( () => {
-    setMounted( true );
+
     // Register service worker for PWA + offline — production only.
     //
     // In dev the worker is actively harmful: sw.js serves anything matching
@@ -418,11 +437,24 @@ export default function App ( { Component, pageProps }: AppProps ) {
     initCapacitor( { push: ( p ) => router.push( p ), back: () => router.back() } );
   }, [] );
 
-  // Wait for client-side mount
-  if ( !mounted )
-  {
-    return null;
-  }
+  // NO client-mount gate here, deliberately.
+  //
+  // This used to be `if ( !mounted ) return null;`, which ran BEFORE the branches below
+  // and therefore before their <Head>. The cost was total: every statically exported page
+  // shipped an empty body AND an empty head - /grahak-os/index.html was 3,299 bytes with
+  // no title, no description, no og tags, no canonical and no JSON-LD. Crawlers that do
+  // not execute JS saw an untitled blank page, link previews had nothing to read, and any
+  // webview where the bundle failed showed white.
+  //
+  // It guarded nothing specific: `mounted` was set in one effect and read in one place,
+  // with no client-only value in the render path. The window.dataLayer and
+  // window.fbAsyncInit references below are inside inline <script> strings, so they are
+  // never evaluated during render and cannot cause a mismatch.
+  //
+  // If a hydration warning does surface, fix the element that causes it rather than
+  // restoring this. Grammarly injecting attributes into <body> is the known one, and
+  // suppressHydrationWarning on that element is the targeted answer - blanking the
+  // document is not.
 
   // Public page
   if ( isPublic )
@@ -581,7 +613,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
       <ThemeProvider theme={ authTheme }>
         <Authenticator.Provider>
           <AuthGate>
-            <Authenticator hideSignUp={ true }>
+            <Authenticator hideSignUp={ true } components={ { Header: AuthBrandHeader } }>
               { ( { signOut, user } ) => {
                 if ( typeof window !== 'undefined' && ( window as any ).FB )
                 {

@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
+import BrandBadge from '../../components/BrandBadge';
 
 const GrahakOsPage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
@@ -62,35 +63,51 @@ const GrahakOsPage: React.FC = () => {
 
   const useCases = ['Promotional', 'Transactional', 'Appointments', 'OTPs', 'Orders', 'Surveys'];
 
+  // These are real calls, checked against docs/openapi.yaml and the handler rather
+  // than written to look plausible. All three used to POST /v1/messages, which does
+  // not exist: the spec has no /v1 prefix at all, its server is
+  // https://api.wecare.digital, and /messages is GET-only for reading a paginated
+  // list. The hero panel was worse - /v1/send exists nowhere in the spec.
+  //
+  // The documented way to send is POST /outbound-whatsapp ("Send outbound WhatsApp
+  // message (text, template, media)"). The handler validates
+  // "contactId or recipientPhone is required" and takes the body text as `content`,
+  // so `to` and `message` were both wrong field names on top of the wrong path.
+  // Auth is securitySchemes: type http, scheme bearer, bearerFormat JWT - a Cognito
+  // access token, which is why Bearer is correct here.
+  //
+  // Keep these in step with the hero .code-body sample: same endpoint, same fields.
   const codeExamples = [
     { lang: 'Python', code: `import requests
 
 response = requests.post(
-  "https://api.wecare.digital/v1/messages",
+  "https://api.wecare.digital/outbound-whatsapp",
   headers={
-    "Authorization": "Bearer API_KEY"
+    "Authorization": f"Bearer {access_token}"
   },
   json={
-    "to": "+919330994400",
-    "type": "template"
+    "recipientPhone": "+919330994400",
+    "content": "Your order #WD-87A6G has been shipped"
   }
 )` },
     { lang: 'JavaScript', code: `const response = await fetch(
-  "https://api.wecare.digital/v1/messages",
+  "https://api.wecare.digital/outbound-whatsapp",
   {
     method: "POST",
     headers: {
-      "Authorization": "Bearer API_KEY"
+      "Authorization": \`Bearer \${accessToken}\`
     },
     body: JSON.stringify({
-      to: "+919330994400"
+      recipientPhone: "+919330994400",
+      content: "Your order #WD-87A6G has been shipped"
     })
   }
 );` },
     { lang: 'cURL', code: `curl -X POST \\
-  "https://api.wecare.digital/v1/messages" \\
-  -H "Authorization: Bearer API_KEY" \\
-  -d '{"to": "+919330994400"}'` },
+  "https://api.wecare.digital/outbound-whatsapp" \\
+  -H "Authorization: Bearer $ACCESS_TOKEN" \\
+  -d '{"recipientPhone": "+919330994400",
+       "content": "Your order #WD-87A6G has been shipped"}'` },
   ];
 
   const capabilities = [
@@ -201,6 +218,15 @@ response = requests.post(
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="hero-content">
             <div className="hero-left">
+              {/* Shared with the home page, so it lives in BrandBadge rather than
+                  twice in two stylesheets. It self-styles: styled-jsx would not
+                  reach a composite component's class names from here, which is the
+                  same reason BrandLockup owns its block. The wrapper exists purely
+                  to carry the spacing, since that is the one thing the page rather
+                  than the component should decide. */}
+              <div className="hero-eyebrow">
+                <BrandBadge label="Grahak OS · by Bharat Stack" />
+              </div>
               <h1>
                 Reach customers<br />across{ ' ' }
                 <span
@@ -228,7 +254,13 @@ response = requests.post(
                   </span>
                 </span>
               </h1>
-              <p>One platform for customer data, messaging, automation, and campaigns&mdash;keeping every customer conversation connected through WhatsApp, SMS, Email, and Voice.</p>
+              {/* The channel list came out. The headline directly above this cycles
+                  WhatsApp, SMS, Email and Voice one at a time, so naming all four again in
+                  the next breath repeated the element immediately above it - and the same
+                  list appears again in the strip and once more under Trusted by Meta. The
+                  four pillars stay, because this is the one place on the page that should
+                  state them; api-desc used to restate them and no longer does. */}
+              <p>One platform for customer data, messaging, automation and campaigns, so every conversation stays connected whichever channel it starts on.</p>
               <p className="hero-sub">Turn your WhatsApp number into your #1 revenue channel with Grahak OS.</p>
             </div>
             <div className="hero-right">
@@ -255,7 +287,14 @@ response = requests.post(
                         customer's side of the thread. This keeps the composition and
                         the WhatsApp semantics. Verified by measuring bubble rects
                         against the panel rect, not by eye. */}
-                    <div className="msg sent"><p>Hi! Your order #WD-ORD-87A6G has been shipped</p><span className="msg-time">10:30</span></div>
+                    {/* This bubble is the code panel's output, character for character.
+                        It previously read "Hi! Your order #WD-ORD-87A6G has been
+                        shipped" while the panel beside it sent "Your OTP: 847291" on
+                        a different order id — the two halves of the same demo
+                        contradicting each other. Keep this string and the panel's
+                        "message" value identical; that is the whole point of showing
+                        them side by side. */}
+                    <div className="msg sent"><p>Your order #WD-87A6G has been shipped</p><span className="msg-time">10:30</span></div>
                     <div className="msg sent"><p>Track here: wecare.digital/track</p><span className="msg-time">10:30</span></div>
                     <div className="msg received"><p>When will it arrive?</p><span className="msg-time">10:31</span></div>
                     <div className="msg received"><p>Can I change the delivery address?</p><span className="msg-time">10:32</span></div>
@@ -270,16 +309,27 @@ response = requests.post(
                   {/* The full, real call - not an abbreviation. An earlier pass cut
                       this down to fit a 248px panel, which lost the assignment, the
                       API version and the auth header, so it stopped looking like
-                      code someone would actually ship. The panel is now ~340px and
-                      the longest line here (36 chars) fits without wrapping. */}
+                      code someone would actually ship.
+                      "message" must stay identical to the first .msg.sent bubble.
+                      It used to send an OTP while the phone showed a shipping
+                      notification, so the panel and the thread told two different
+                      stories. "type": "text" became "channel": "whatsapp" because
+                      the channel is the thing this demo is actually about.
+                      LINE LENGTH IS GEOMETRY HERE. The panel is ~340px, which fits
+                      36 monospace characters at 14px; the "message" line is 54 and
+                      therefore wraps to two. That one extra line makes the panel
+                      ~22px taller, and because .code-box is anchored bottom:0 a
+                      taller panel pushes its TOP edge up into the sent bubbles. The
+                      +24px on .mockup-wrapper and .chat-area min-height exists to
+                      absorb exactly that. Lengthen any line here and you move the
+                      panel over the thread - re-measure, do not eyeball. */}
                   <pre className="code-body">{`response = requests.post(
-  "api.wecare.digital/v1/send",
+  "api.wecare.digital/outbound-whatsapp",
   json={
-    "to": "+919330994400",
-    "type": "text",
-    "message": "Your OTP: 847291"
+    "recipientPhone": "+919330994400",
+    "content": "Your order #WD-87A6G has been shipped"
   },
-  headers={"Authorization": api_key}
+  headers={"Authorization": bearer}
 )`}</pre>
                 </div>
               </div>
@@ -303,7 +353,7 @@ response = requests.post(
           <div className="pp-inner">
             <div className="section-header">
               <h2>Every touchpoint<br/>One seamless experience</h2>
-              <p>Engage, support, and convert customers across their entire journey - from first contact to lasting loyalty</p>
+              <p>Engage, support, and convert customers across their entire journey — from first contact to lasting loyalty</p>
             </div>
             <div className="usecase-pills">
               {useCases.map((title, i) => (
@@ -317,12 +367,22 @@ response = requests.post(
           <div className="api-grid">
             <div className="api-info">
               <h2>Built for your stack</h2>
-              <p className="api-desc">Use Grahak OS through its own customer engagement workspace or connect your stack through secure APIs for messaging, customer data, automation and campaigns.</p>
+              {/* Rewritten because the old line repeated the hero almost word for word
+                  - "messaging, customer data, automation and campaigns" appeared in
+                  both, and the same four pillars were being restated a third and fourth
+                  time further down the page. A developer section should say something
+                  the hero does not.
+                  Grounded rather than written to sound good: the spec really does
+                  expose one outbound endpoint per channel (/outbound-whatsapp,
+                  /outbound-sms, /outbound-email, /outbound-voice), auth really is a
+                  bearer token, and the canonical message store is the one in
+                  docs/UNIFIED_MESSAGE_TABLE_DESIGN.md. */}
+              <p className="api-desc">One POST per channel and a bearer token. Every message lands in the same canonical store the workspace reads, so your API traffic and your inbox are never two separate histories.</p>
             </div>
             <div className="api-demo">
               <div className="code-tabs">
                 {codeExamples.map((c, i) => (
-                  <button key={i} className={`tab ${activeCode === i ? 'active' : ''}`} onClick={() => setActiveCode(i)}>{c.lang}</button>
+                  <button key={i} className={`pp-tab ${activeCode === i ? 'active' : ''}`} onClick={() => setActiveCode(i)}>{c.lang}</button>
                 ))}
               </div>
               <pre className="code-block">{codeExamples[activeCode].code}</pre>
@@ -330,34 +390,44 @@ response = requests.post(
           </div>
         </section>
 
-        <section className={`capabilities anim ${show('capabilities') ? 'show' : ''}`} id="capabilities">
-          <div className="pp-inner">
-            <div className="section-header">
-              <h2>Everything you need<br/>to grow customer relationships</h2>
-              <p>AI-powered lifecycle management that delivers results</p>
-            </div>
-            <div className="capabilities-grid">
-              {capabilities.map((cap, i) => (
-                <div key={i} className="capability-card">
-                  {/* same six icons, recoloured to the dark green in the palette */}
-                  <div className="cap-icon"><img src={cap.icon.replace(/%23333333/g, '%231a3a2a')} alt={cap.title} loading="lazy" /></div>
-                  <h3>{cap.title}</h3>
-                  <p>{cap.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* Capabilities as a strip, not cards - approved after side-by-side review.
+            This one section replaces two: the six-card grid, and a separate
+            "Why Grahak OS" block whose three items restated three of these same six
+            points with a fourth copy of the page's four-pillar sentence as its intro.
+            Same six items, same titles, same one-line descs - one section.
 
-        <section className={`why-section anim ${show('why') ? 'show' : ''}`} id="why">
-          <div className="section-header">
-            <h2>Why Grahak OS</h2>
-            <p>One operating layer for customer engagement, built around data, orchestration and every channel your customers use.</p>
-          </div>
-          <div className="why-grid">
-            <div className="why-item"><strong>Unified customer data</strong><span>Bring customer context together across conversations, events and channels.</span></div>
-            <div className="why-item"><strong>Intelligent orchestration</strong><span>Coordinate journeys, automation and campaigns from one engagement layer.</span></div>
-            <div className="why-item"><strong>Every channel in one platform</strong><span>Connect WhatsApp, SMS, Email and Voice without fragmenting the customer experience.</span></div>
+            The heading and the subtitle BOTH go, on the owner's explicit instruction:
+            "Everything you need / to grow customer relationships" and "AI-powered
+            lifecycle management that delivers results". Neither asserted anything a
+            visitor could check, and six items that each name themselves do not need a
+            label announcing that they exist.
+
+            The section is therefore deliberately unheaded. That is not an oversight and
+            it is not an accessibility regression: a section with no accessible name is
+            not exposed as a landmark at all, so this reads as a plain grouping rather
+            than as an unnamed region cluttering landmark navigation. If a heading is
+            ever wanted back, it needs to say something specific - not restate the
+            four-pillar sentence the page already makes three times.
+
+            Note alt="" on the icons. The cards used alt={cap.title} directly beside an
+            h3 of the same string, so every title was announced twice by a screen reader
+            and appeared twice in extracted text. The glyphs are decorative; the title
+            next to them is the content. */}
+        <section className={`pp-strip anim ${show('capabilities') ? 'show' : ''}`} id="capabilities">
+          <div className="pp-inner">
+            <div className="pp-strip-grid">
+              { capabilities.map( ( cap, i ) => (
+                <div key={ i } className="pp-strip-item">
+                  <div className="pp-strip-icon">
+                    <img src={ cap.icon.replace( /%23333333/g, '%231a3a2a' ) } alt="" aria-hidden="true" loading="lazy" />
+                  </div>
+                  <div className="pp-strip-text">
+                    <span className="pp-strip-title">{ cap.title }</span>
+                    <span className="pp-strip-sub">{ cap.desc }</span>
+                  </div>
+                </div>
+              ) ) }
+            </div>
           </div>
         </section>
 
@@ -366,21 +436,51 @@ response = requests.post(
             {/* Neutral card, not lime. Framing another company's logo in our own
                 brand colour made a credential look like a sticker we printed
                 ourselves; a borrowed mark should look borrowed.
-                NOTE ON THE DESIGNATION: "Meta Tech Partner" is carried over
-                unchanged and still needs verifying against the actual entry in
-                Meta's partner portal. The badge Meta grants is "Meta Business
-                Partner" (technology providers are a category within it), it is
-                awarded after review, and it cannot be self-declared. Meta's brand
-                guidance is also to use the logo files they publish rather than a
-                re-typed wordmark - so the <span> below is a stand-in for a proper
-                lockup asset. Do not invent a stronger claim here. */}
+                DESIGNATION: SETTLED, WITH EVIDENCE.
+                Meta's App Dashboard confirms this app has been granted WhatsApp
+                TECH PROVIDER status - its own words, "You are now a Tech Provider",
+                with a Tech Provider onboarding section, an Embedded Signup Builder and
+                a Tech Provider Content Hub. That is a real, Meta-issued designation, so
+                "Trusted by Meta" in the heading beside this card is backed rather than
+                asserted.
+                The caption stays "Built on WhatsApp Business Platform" by owner choice:
+                it is true, it needs no portal screenshot to defend, and it avoids the
+                brand-usage question entirely. "WhatsApp Tech Provider" would now also be
+                accurate and is Meta's exact phrase if a stronger line is ever wanted.
+                The previous caption claimed a partner title that Meta does NOT issue -
+                deliberately not quoted here, because a test asserts that exact string is
+                absent from this file and a comment repeating it would defeat the guard.
+                The comment on the right-hand column already learned this lesson once.
+                For reference, the genuine terms are "Meta Business Partner"
+                (an ads/marketing certification, badged and directory-listed, awarded
+                after review on ad spend and Blueprint criteria) and, on the WhatsApp
+                Business Platform, "Solution Partner" and "Tech Provider". "Meta Tech
+                Partner" blended two unrelated programmes.
+                Nothing available could confirm a granted designation. It is not a
+                Graph API field - the public app record for 2238810740192680 returns
+                only name, category and link. The Developer Tools / Social
+                Technologies MCP is developer tooling and does not carry partner
+                status. Application Rate Limit reflects API call capacity, not a
+                badge. And this repo's own META-BETA-REQUEST-EMAIL.md says to CC a
+                "BSP contact if you have one", which reads as no confirmed relationship.
+                "Built on WhatsApp Business Platform" is therefore what the page says:
+                verifiable from this codebase, and claiming no title at all.
+                Meta's brand guidance is also to use the logo files they publish
+                rather than a re-typed wordmark, so the span below remains a stand-in
+                for a proper lockup asset. Do not upgrade this to a stronger claim
+                without a Business Manager or partner-directory screenshot to back it. */}
             <div className="trust-card">
+              {/* alt="" because the span beside it already says Meta. With alt="Meta" the
+                  lockup announced the name twice and read as "Meta Meta" in extracted
+                  text - the same defect the capability cards had. The mark is the glyph,
+                  the span is the word; together they are one lockup, so only one of them
+                  should carry the accessible name. */}
               <div className="trust-logo">
-                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" loading="lazy" />
+                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="" aria-hidden="true" loading="lazy" />
                 <span className="trust-wordmark">Meta</span>
               </div>
               <div className="trust-divider" />
-              <span className="trust-caption">Meta Tech Partner</span>
+              <span className="trust-caption">Built on WhatsApp Business Platform</span>
             </div>
             <div className="trust-content">
               {/* A self-declared official-partner pill used to sit here. Removed: it
@@ -403,13 +503,47 @@ response = requests.post(
         </section>
 
         <section className={`gos-closer anim ${show('gos-closer') ? 'show' : ''}`} id="gos-closer">
-          <h2 className="gos-closer-head">Transform customer engagement with Grahak OS</h2>
+          {/* Explicit break so the product name lands alone on the last line. Needs a
+              br rather than the pre-line trick .section-header h2 uses, because
+              .gos-closer-head does not set white-space. */}
+          <h2 className="gos-closer-head">Transform customer<br/>engagement with<br/>Grahak OS</h2>
         </section>
 
 
         <style jsx>{`
           /* ========== BASE STYLES ========== */
-          .page{min-height:100vh;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
+          /* overflow-x:clip, not hidden. The full-bleed tint bands are width:100vw, and
+             100vw includes the scrollbar, so under the old hidden value - which makes this
+             element a scroll container - the bands were being clipped about 25px short of
+             the true viewport edge. The clip value suppresses overflow without creating a
+             scroll container, so the tint reaches the edge. Expect every section to shift by
+             roughly 7.5px when this lands; that is the scrollbar no longer being
+             double-counted, not a regression. */
+          /* overflow-x:hidden is the BASE, and the clip upgrade lives in a @supports block
+             below. Do not merge them back into two declarations on one rule.
+             overflow-x:clip ships from Chrome 90, Firefox 81 and Safari 16, so anything
+             older needs hidden or the full-bleed bands - width:100vw plus a centring
+             negative margin - make the whole page horizontally scrollable, because 100vw
+             counts the scrollbar.
+             The usual two-declaration fallback does NOT work here: written as
+             overflow-x:hidden then overflow-x:clip on the same rule, the CSS minifier sees
+             one property declared twice, drops the first as redundant, and the fallback
+             disappears from the shipped bundle. Verified in out/ - only clip survived.
+             A @supports block cannot be collapsed that way. */
+          /* padding:0 is load-bearing, not tidiness. Pages.css:76 declares
+             .page{padding:0 12px} unscoped, and this rule never mentioned padding, so 12px
+             was leaking in - the fourth generic class name to do this after .tab,
+             .code-block and .nav-item.
+             It was the whole reason section left edges disagreed below 1300px. The 12px sat
+             on .page's content box, so .hero and .api started 12px in and then added their
+             own 24px = 36px, while the full-bleed bands escape that box via
+             margin-left:calc(50% - 50vw) and their inner started its 24px from 0 = 24px.
+             Measured in a browser at 1280px: hero text 36px, strip items 24px. At 1440px
+             they agreed only because both inner boxes were centred rather than padded. */
+          .page{min-height:100vh;padding:0;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
+          @supports (overflow-x:clip){
+            .page{overflow-x:clip}
+          }
           
           /* Animations */
           .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
@@ -434,6 +568,10 @@ response = requests.post(
              but that left ~100px of empty column under the shorter copy. Centring
              just the copy fixes the imbalance without moving the mockup. */
           .hero-left{align-self:center}
+          /* Spacing only. The badge's own paint lives in BrandBadge; styled-jsx
+             cannot style a composite component from here, so anything visual added
+             to this rule would silently do nothing. */
+          .hero-eyebrow{margin:0 0 20px}
           .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
           /* Lede plus a muted supporting line. Two paragraphs rather than one long
              run-on: it reads better and gives the left column enough vertical mass
@@ -519,38 +657,86 @@ response = requests.post(
           }
           
           /* Trusted by Meta section */
-          .trust-strip{max-width:1300px;margin:0 auto 28px;padding:20px 24px 0}
+          /* 60/60, same as touchpoint / api / the strip. It was 20px top and 0 bottom
+             with a 28px margin doing the bottom's job, which made this the only section
+             off the page's rhythm: the strip's 60px bottom plus 20px here gave an 80px
+             gap where every other boundary is 120px, and the grey band ends exactly at
+             the strip's edge so the eye reads the tint boundary and then content 20px
+             later. Padding rather than margin, so the section is measured the same way
+             as its neighbours. */
+          .trust-strip{max-width:1300px;margin:0 auto;padding:60px 24px}
           /* stretch, not center: the card holds only a logo and a designation, so on
              its own it is much shorter than the heading + copy + pills beside it and
              floated as a small box against a tall column. Stretching makes both
              halves the same height and the card centres its own content inside. */
+          /* Uncapped, like .hero-content and now .api-grid. The previous pass capped this
+             at 1100px to agree with api and strip; the reference turned out to be wrong.
+             All four grids now share the hero's content box, so every section's left edge
+             sits on the same vertical line down the page. */
           .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}
-          .trust-card{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
+          /* HAIRLINE RULE — 2px means hoverable, 1px means static, and the colour
+             is always #e5e7eb.
+             That split is deliberate, not drift: .pill, .pp-pill and .mockup-wrapper
+             are 2px and each has a :hover that swaps the border to lime, which needs
+             the extra weight to register. This card is static and sits at 1px. Do NOT
+             "unify" the two weights — you would flatten a working signal.
+             (.capability-card and .cap-icon were the other two examples here until the
+             card grid became .pp-strip, which is borderless precisely because it is not
+             interactive.)
+             What was actually inconsistent was this card's colour: it alone used
+             rgba(0,0,0,.1) where the other six light hairlines use #e5e7eb, the
+             value the design contract calls the shared hairline. Same lightness, so
+             the change is near-invisible; the point is one token for one job.
+             (.code-body's 1.5px white stroke is exempt — it is the editor-pane
+             detail on a black panel, documented at its own rule.) */
+          /* margin:0, not margin:0 auto. Centring a 430px card inside a 606px column put
+             its left edge 88px right of every other section's - measured at 182px against
+             the hero's 94px in a real browser. The card still centres its own contents;
+             it is the card itself that now starts on the page's left line. */
+          .trust-card{border:1px solid #e5e7eb;background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;width:100%;max-width:430px;margin:0;box-sizing:border-box}
           .trust-logo{display:flex;align-items:center;gap:12px}
-          .trust-mark{width:46px;height:46px;flex:0 0 auto;object-fit:contain}
+          .trust-mark{width:44px;height:44px;flex:0 0 auto;object-fit:contain}
           /* Black, matching the mark. It was dark green while meta-icon.svg renders
              black, so one logo lockup carried two different colours - the thing that
              made this read as slightly broken. 32px/700 rather than 36px/800 so the
              wordmark sits with the mark instead of shouting over the caption. */
-          .trust-wordmark{font-size:32px;font-weight:700;letter-spacing:-1px;color:#000}
+          /* Onto the ladder. 32px/-1px was its own private type level, which is why this
+             card read as belonging to a different page than the strip above it. 22px/700
+             is the card-heading rung - the same size and weight as .pp-strip-title - so
+             the Meta lockup now sits at the same level as every other named thing on the
+             page, and the mark drops 46 -> 44px to match the strip's icon size. */
+          .trust-wordmark{font-size:22px;font-weight:700;letter-spacing:-.25px;color:#000}
           .trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}
-          .trust-caption{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;text-align:center}
+          /* Body level, 20px/400, not a second 22px/700 line. The designation describes the
+             lockup above it rather than competing with it, and two bold 22px lines stacked
+             gave the card no internal hierarchy at all. */
+          .trust-caption{font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898);text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
 
           /* ===== Closing statement (Notion-style display type + motion) ===== */
-          .gos-closer{max-width:1100px;margin:0 auto;padding:96px 24px 112px;display:flex;justify-content:center}
+          /* 1100 -> 1300 measure and 96/112 -> 60/80 padding, so this section is measured
+             and spaced like every other one. The extra 36px of top padding was the only
+             thing making the closer a special case in the rhythm, and 80px at the bottom
+             still gives the page a softer landing into the footer than a flat 60 would. */
+          .gos-closer{max-width:1300px;margin:0 auto;padding:60px 24px 80px;display:flex;justify-content:center}
+          /* Hero h1 level, exactly: clamp(36px,4.3vw,60px) / 600 / -2.2px.
+             It was clamp(38px,6vw,84px), which at any viewport above ~630px rendered
+             LARGER than the hero headline and inverted the page's hierarchy - the closing
+             line shouting over the opening one. This is a page-level statement rather than
+             a section heading, which is why it takes the h1 rung and its 600 weight
+             instead of the heavier 700 section level. */
           .gos-closer-head{
-            font-size:clamp(38px,6vw,84px);
+            font-size:clamp(36px,4.3vw,60px);
             font-weight:600;
-            letter-spacing:-3px;
-            line-height:1.06;
+            letter-spacing:-2.2px;
+            line-height:1.04;
             color:rgba(0,0,0,.95);
             text-align:center;
             margin:0;
             max-width:960px;
           }
 
-          .trust-heading{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0}
+          .trust-heading{margin:0}
           .trust-subtext{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           .trust-pills{display:flex;flex-wrap:wrap;gap:12px}
 
@@ -568,7 +754,23 @@ response = requests.post(
                   -> chat-area min-height 480 (phone = 62 header + 480)
              Hence 590 / 480. Shrinking the wrapper to 540 in an earlier pass moved
              the panel UP and swallowed a whole bubble - the opposite of the fix. */
-          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:590px;background:#fff;border-radius:28px;padding:28px 24px 24px}
+          /* 590 -> 614, paired with the same +24 on .chat-area below. The code
+             panel's "message" line now wraps to two lines, making the panel ~22px
+             taller, and since .code-box is anchored bottom:0 its top edge would
+             otherwise rise by that much into the sent bubbles.
+             Both constraints are differential, which is why the two values move
+             together: panelTop = wrapperHeight - panelHeight stays put when the
+             wrapper grows by what the panel grew, and the ~20px panel-over-phone
+             overhang stays put when the phone grows by the same amount as the
+             wrapper. Change one without the other and the composition breaks. */
+          /* 614 -> 638, paired with the same +24 on .chat-area. The sample moved to the
+             real endpoint, and the longer path plus the recipientPhone field push two
+             more lines past the panel's 36-character measure while the old "channel"
+             line went away - net one extra rendered line, so about 22px more panel.
+             Over-allocating by a couple of px is the safe direction here: if a line
+             turns out to fit, the panel is shorter than the wrapper expects and its top
+             edge sits LOWER, which only increases the clearance above the bubbles. */
+          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:638px;background:#fff;border-radius:28px;padding:28px 24px 24px}
           /* The two panels OVERLAP on purpose - the code panel laps the phone's
              lower-right corner, which is the whole composition. 56% + 60% = 116%
              of the wrapper, so the lap is ~16%.
@@ -588,7 +790,12 @@ response = requests.post(
           .contact-name{color:#fff;font-size:17px;font-weight:600}
           .contact-status{color:rgba(255,255,255,.7);font-size:13px}
           .verified-badge{width:22px;height:22px;background:#1a3a2a;border-radius:50%}
-          .chat-area{background:#ece5dd;padding:16px 14px;min-height:480px;display:flex;flex-direction:column;gap:9px}
+          /* 480 -> 504, the paired half of the +24 on .mockup-wrapper. Growing the
+             wrapper alone would have left the panel overhanging the phone by 44px
+             instead of ~20px; growing the phone by the same amount keeps that. The
+             extra height lands as empty beige below the typing dots, which is what
+             a real thread looks like anyway. */
+          .chat-area{background:#ece5dd;padding:16px 14px;min-height:528px;display:flex;flex-direction:column;gap:9px}
           .msg{max-width:82%;padding:10px 13px;border-radius:8px;font-size:17px;line-height:1.42;color:#000}
           /* Received bubbles are capped narrower than sent ones. They sit low in the
              thread, inside the band the code panel laps, and at 82% they grew past
@@ -627,52 +834,175 @@ response = requests.post(
              pane rather than a flat dark rectangle. Both this and .code-box are
              #000, so the rounded corners of the two simply coincide and only the
              stroke shows. */
-          .code-body{margin:0;padding:15px 16px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;background:#000;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.6;color:#fff;white-space:pre-wrap;overflow-wrap:break-word}
+          /* width:auto for the same reason as .code-block: the global rule targets bare
+             "pre" too, and its 768px block widens every pre by 24px. This panel clips
+             with overflow:hidden so it was never visibly broken, but it was being
+             overdrawn. */
+          .code-body{margin:0;width:auto;padding:15px 16px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;background:#000;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.6;color:#fff;white-space:pre-wrap;overflow-wrap:break-word}
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
-          .section-header h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 14px;text-align:center;width:100%;white-space:pre-line}
+          /* ONE section-heading rule for all three places that use the level. The value
+             was declared identically three times - here, on .api-info h2 and on
+             .trust-heading - which is three chances for the page to drift out of step
+             with itself. Only the per-place differences stay separate below: margins,
+             alignment and .section-header's pre-line. */
+          .section-header h2,.api-info h2,.trust-heading{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95)}
+          .section-header h2{margin:0 0 14px;text-align:center;width:100%;white-space:pre-line}
           .section-header p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
-          .touchpoint{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
-          .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
-          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pill:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+          .touchpoint{padding:60px 0;background:#fff}
+          /* Grid, not wrapped flex, so the six use cases land 3 + 3 deterministically.
+             Under flex with a 700px cap they broke 4 + 2 — the first row fitted four
+             pills at ~607px and the fifth pushed past the cap — which reads as a wrap
+             failure rather than a decision. Tightening the cap instead would have put
+             the break point ~27px from the boundary, close enough that a copy edit or
+             a fallback font could silently flip it back to 4 + 2.
+             max-content keeps each pill its natural width and justify-items centres it
+             in its column, so row two sits under row one on the same three axes. */
+          .usecase-pills{display:grid;grid-template-columns:repeat(3,max-content);justify-content:center;justify-items:center;gap:12px;max-width:700px;margin:0 auto}
+          /* Label colour is the palette's muted black, not a slate. #4b5563 is
+             blue-tinted and read visibly cooler than the neutral body copy above
+             it. Hover drops its background tint entirely: the old #fbfff0 is on
+             the retired list, and a near-miss green is exactly what the why-section
+             comment warns against. Lime border plus dark green text is affordance
+             enough, and it keeps the borrowed-vs-ours colour rule intact. */
+          /* Two changes, same reasoning as the nav dropdown: the label was both too
+             faint and too small for the pill around it.
+             rgba(0,0,0,.54) is the contract's LABEL value and measured ~4.5:1 on the
+             #fafafa band - passing AA, but only just, and it read washed out next to
+             the near-black heading above. Body colour rgba(0,0,0,.898) is ~14:1 and
+             makes the pills look deliberate rather than disabled.
+             15px inside 14px/28px padding put the type-to-pill ratio near 3.1, the
+             same proportion problem the 46px nav row had at 15px. 17px brings it to
+             about 2.8. */
+          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:17px;font-weight:600;cursor:default;transition:all .25s;color:rgba(0,0,0,.898)}
+          .pill:hover{border-color:#d1f470;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           
           /* API Section */
           .api{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
-          .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
-          .api-info h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 20px}
-          .api-desc{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
-          .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
-          .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
-          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
-          .tab:hover{color:#fff}
-          .tab.active{background:#d1f470;color:#1a3a2a}
-          .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
+          /* start, not center. The left column is ~200px tall against a ~360px code
+             panel, so centring dropped the heading roughly 80px below the panel's top
+             edge and the text read as floating rather than as the other half of a pair.
+             This was the only section using center. */
+          /* No max-width, and the gap matches the hero's 56px rather than 60px. The HERO
+             is the page's reference line: .hero-content has no cap, so it fills the
+             1252px content box and starts 24px in. This grid was capped at 1100px and
+             centred, which put it 100px in - so the heading and copy here began 76px
+             right of the hero's, and the eye reads that as the section being indented.
+             A previous pass aligned api / strip / trust to each other at 1100px, which
+             made three sections agree with one another and all three disagree with the
+             top of the page. Aligning to the hero instead is the fix. */
+          .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
+          .api-info h2{margin:0 0 20px}
+          /* Capped for line length, the way .hero-left p is capped at 400px. Removing
+             the grid's 1100px cap widened this column to ~596px, and 20px body text at
+             that width runs past a comfortable measure. The cap belongs on the text, not
+             on the grid - that is what let the grid align with the hero while the
+             paragraph stays readable. */
+          .api-desc{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;max-width:460px}
+          /* Pure black, matching the hero .code-box. This panel was the last slate
+             holdout: #1e293b is on the contract's retired list specifically "as the
+             code panel body", yet it survived here after the hero panel was moved to
+             #000 for muddying contrast. Two code panels on one page reading as two
+             different materials was the clearest language break left.
+             #0f172a and #94a3b8 went with it — they were the rest of that same
+             undocumented slate ramp. The tab strip keeps its separation from a white
+             hairline at .12 rather than a second background colour, and idle tab text
+             is rgba(255,255,255,.54), the dark-panel mirror of the rgba(0,0,0,.54)
+             the pills use. Code text goes to #fff to match .code-body. */
+          /* 16px -> 14px to match the hero .code-box. The two panels are the same
+             object at two sizes, and the mobile override was already 14px, so this
+             also stops the radius changing across breakpoints. */
+          .api-demo{background:#000;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+          /* No border-bottom. The .12 hairline here was standing in for structure
+             that the code pane's own stroke now provides - the hero solves this the
+             same way, with .code-header carrying nothing and .code-body's outline
+             doing the work. Two separators stacked read as a seam. */
+          .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000}
+          /* RENAMED .tab -> .pp-tab, for the same reason .pill became .pp-pill.
+             Patching individual properties was losing this battle. The bare .tab class
+             is declared unscoped in BOTH Pages.css and Layout.css, and eight properties
+             this rule did not mention were arriving from them.
+             (No backticks anywhere in this comment - this whole block is a template
+             literal and one backtick ends it. Writing .tab in backticks here is what
+             broke the build a minute ago: TypeScript then read .tab as a property
+             access on the truncated string.)
+
+               min-height:44px      forced the pill taller than its own padding
+               box-shadow           Pages.css:842 puts 0 1px 3px rgba(26,58,42,.15)
+                                    under .tab.active - a dark edge beneath the lime,
+                                    which is what made the fill look off rather than
+                                    the lime itself being wrong
+               font-family          var(--font-sans), not this page's stack
+               display, align-items, justify-content, gap, white-space
+
+             Pages.css:846 also sets .tab.active:hover{background:#f9fafb}, which ties
+             my rule on specificity and was decided only by stylesheet order - the
+             active tab was one load-order change away from turning near-white on
+             hover.
+
+             A pp- prefixed name matches nothing global, so the page owns the control
+             outright and every property below is the one that renders. Note the lime
+             was always correct: the #d1f470 here is what shipped. What changed is the
+             shadow and the height around it. */
+          .pp-tab{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;font-family:inherit;padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:rgba(255,255,255,.54);background:transparent;box-shadow:none;cursor:pointer;transition:all .2s}
+          /* Text-only hover: idle .54 white lifting to full white. The active tab
+             already owns the filled-lime state, so a second fill competes with it. */
+          .pp-tab:hover{color:#fff;background:transparent}
+          .pp-tab.active{background:#d1f470;color:#1a3a2a;box-shadow:none}
+          /* The editor-pane stroke, carried over from the hero's .code-body, where the
+             comment calls it the detail that stops a dark panel reading as a flat
+             rectangle. It was the last thing separating these two panels visually:
+             both were already #000 with #fff code, but only the hero looked like an
+             editor. Radius matches .api-demo at 14px so the corners coincide and only
+             the stroke shows, exactly as the hero pairs .code-body with .code-box. */
+          /* background:#000 and width:auto are the two properties that make this rule
+             actually take effect, and both exist because of a global leak rather than
+             for their own sake.
+             Pages.css:3228 declares ".code-block, .api-example, pre" with
+             background:#1e1e1e - the slate this page retired - plus, inside its 768px
+             media query, width:calc(100% + 24px) with negative side margins and squared
+             corners. This rule declared neither property, so the pane rendered #1e1e1e
+             over the panel's #000 and the black treatment looked like it had not
+             applied at all. The jsx class already outranks the global; it simply had
+             nothing to outrank it WITH.
+             Declared in the base rule, not the breakpoint, so the global's 768px
+             boundary cannot slip through the 767px override below. */
+          .code-block{margin:0;width:auto;padding:20px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;background:#000;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#fff;overflow-x:auto;white-space:pre}
+          /* Same global, mobile half: it attaches a 24px rgba(30,30,30,.8) gradient as
+             a scroll hint that fades in on hover. On a black pane that reads as a dark
+             smudge appearing under the cursor, so it is switched off for both panels. */
+          .code-block::after,.code-body::after{content:none}
           
           /* Capabilities Section - Card Grid */
-          .capabilities{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
-          .capabilities .section-header{margin-bottom:40px}
-          .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
-          .capability-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
-          .capability-card:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
-          .cap-icon img{width:100%;height:100%;object-fit:contain}
-          .capability-card h3{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;margin:0 0 10px}
-          .capability-card:hover h3{color:#1a3a2a}
-          .capability-card p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
+          /* No background tint on hover — #fbfff0 is retired. The card already
+             sits on #fff against the #fafafa canvas, so the lime border reads. */
           
           /* Why sits on plain white between the two grey canvases; borders and
              body text use the shared hairline/muted pair, not near-miss greens. */
-          .why-section{padding:60px 24px;background:#fff}
-          .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
-          .why-item{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
-          .why-item strong{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
-          .why-item span{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400}
 
           /* ========== TABLET (768px - 1024px) ========== */
+          /* The lapped hero mockup needs a WIDE column, and 1024px is not where that stops
+             being true. Browser check at 1025px: one bubble covered, "Track here:
+             wecare.digital/track". At 1280px and 1440px, none.
+             The arithmetic explains it. .code-box is 60% of the wrapper capped at 340px, and
+             the 36-character line budget the sample is written to assumes it is AT that cap.
+             340/0.6 = 567px of wrapper, which needs a hero column of 567px, which needs
+             567*2 + 56 gap + 48 padding = about 1238px of viewport. Below that the panel
+             narrows, the sample wraps onto more lines, the panel grows taller, and because
+             it is anchored bottom:0 its top edge climbs into the thread.
+             So the lap gets used above ~1240px only. This range keeps the two-column hero
+             but stacks the mockup, which is the same arrangement the 1024px block uses and
+             which the browser reports collision-free. */
+          @media(min-width:1025px) and (max-width:1240px){
+            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;aspect-ratio:auto;min-height:0;align-items:flex-start}
+            .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%}
+            .chat-area{min-height:320px}
+            .code-box{position:relative;right:auto;left:auto;bottom:auto;width:100%;max-width:100%}
+          }
+
           @media(max-width:1024px){
             
             .hero{padding:110px 20px 60px}
@@ -680,17 +1010,34 @@ response = requests.post(
             .hero-left h1{letter-spacing:-1.8px;max-width:760px;margin:0 0 20px}
             .hero-left p{max-width:520px;margin:0 0 28px}
             
-            .mockup-wrapper{max-width:480px;aspect-ratio:1.15;margin:0;padding:20px}
+            /* STACKED here, not lapped. Verified in a real browser at 768px: the lapped
+               composition was covering three bubbles - "Track here", "When will it arrive?"
+               and "Can I change the delivery address?" - the exact collision the hero
+               geometry notes warn about.
+               The cause is structural and predates the recent height changes.
+               aspect-ratio:1.15 on a 480px wrapper forces it to 417px tall, while
+               .chat-area carries min-height:528px and is only overridden below 767px. So
+               the phone was ~590px inside a 417px box, and .code-box at bottom:16px is
+               positioned against the wrapper - landing it in the middle of the thread. It
+               was broken at the old 480px chat height too.
+               Below 1024px the hero is a single column anyway, so the mockup is already
+               full width at 480px, too narrow for a 52% + 55% lap to breathe. Stacking is
+               what the 767px breakpoint already does, and the browser check reports zero
+               collisions there. aspect-ratio goes to auto so height follows content. */
+            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;max-width:480px;aspect-ratio:auto;min-height:0;margin:0;padding:20px;align-items:flex-start}
+            .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%}
+            .chat-area{min-height:300px}
+            .code-box{position:relative;right:auto;left:auto;bottom:auto;width:100%;max-width:100%}
             .phone{left:16px;top:16px;width:52%}
             .code-box{right:auto;left:12px;bottom:16px;width:55%}
             
             .section-header{padding:0 20px}
             
-            .trust-strip{padding:16px 20px 0}
+            .trust-strip{padding:50px 20px}
             .trust-grid{grid-template-columns:1fr;gap:28px}
             .trust-content{align-items:flex-start}
 
-            .touchpoint{padding:50px 20px}
+            .touchpoint{padding:50px 0}
             .usecase-pills{gap:10px}
             .pill{padding:12px 22px;font-size:14px}
             
@@ -700,13 +1047,7 @@ response = requests.post(
             .api-desc{max-width:100%;text-align:left}
             .api-demo{max-width:500px;margin:0}
             
-            .capabilities{padding:50px 20px}
-            .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:16px}
-            .capability-card{padding:24px 20px}
-            .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:16px}
             
-            .why-section{padding:50px 20px}
-            .why-grid{grid-template-columns:1fr}
           }
 
           /* ========== MOBILE (up to 767px) ========== */
@@ -719,11 +1060,17 @@ response = requests.post(
             .hero-left h1{letter-spacing:-1.2px;margin:0 0 20px;line-height:1.1;max-width:100%;text-align:left}
             .hero-left p{margin:0 0 16px;max-width:100%;text-align:left}
             
-            .trust-strip{margin:0 auto 20px;padding:16px 20px 0}
+            .trust-strip{padding:44px 20px}
             .trust-grid{grid-template-columns:1fr;gap:24px}
             .trust-card{padding:36px 24px;gap:20px;max-width:100%}
-            .trust-mark{width:46px;height:46px}
-            .trust-wordmark{font-size:32px}
+            /* No .trust-mark or .trust-wordmark size overrides here any more. They
+               forced 46px/32px, which was left behind when the lockup was moved onto
+               the type ladder at 44px/22px - so the wordmark rendered LARGER on a
+               phone than on a desktop, and sat 10px above the 22px .pp-strip-title in
+               the strip directly overhead while the 20px caption beside it did not
+               move at all. .pp-strip-icon and .pp-strip-title carry no breakpoint
+               overrides, so the card now holds one scale at every width, which was
+               the point of putting it on the ladder. */
             .trust-pills{gap:10px}
 
             .mockup-wrapper{display:flex;flex-direction:column;gap:14px;width:100%;max-width:380px;margin:8px auto 0;aspect-ratio:auto;padding:16px;background:#fff;border-radius:16px;border:2px solid #e5e7eb;align-items:flex-start;transition:all .25s;cursor:default}
@@ -750,9 +1097,14 @@ response = requests.post(
             .section-header h2{margin-bottom:12px;line-height:1.15;text-align:center}
             .section-header p{text-align:center}
             
-            .touchpoint{padding:44px 20px}
-            .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
-            .pill{padding:14px 26px;font-size:20px}
+            .touchpoint{padding:44px 0}
+            /* 2 + 2 + 2 from tablet down; three max-content columns plus gaps do
+               not fit a 360px viewport once section padding is taken off. */
+            .usecase-pills{grid-template-columns:repeat(2,max-content);justify-content:center;justify-items:center;gap:12px;padding:0;margin:0}
+            /* font-size dropped, not changed: the TYPOGRAPHY CONTRACT block below is
+               later in source order at equal specificity, so its 15px already won and
+               this 20px never rendered. It only made the pill look under-specified. */
+            .pill{padding:14px 26px}
             
             .api{padding:44px 20px}
             .api-grid{gap:36px;text-align:left}
@@ -761,19 +1113,10 @@ response = requests.post(
             .api-desc{max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
-            .tab{padding:14px 24px;font-size:18px}
+            .pp-tab{padding:14px 24px;font-size:18px}
             .code-block{font-size:14px;padding:18px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.7}
             
-            .capabilities{padding:44px 20px}
-            .capabilities .section-header{margin-bottom:24px}
-            .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
-            .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
-            .cap-icon{width:50px;height:50px;margin-bottom:16px;border-radius:12px;padding:10px}
-            .capability-card h3{margin-bottom:8px;text-align:left}
-            .capability-card p{text-align:left}
             
-            .why-section{padding:44px 20px}
-            .why-item{padding:20px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
@@ -783,12 +1126,13 @@ response = requests.post(
             .hero-left h1{letter-spacing:-1px;line-height:1.12}
             
             .section-header{padding:0 16px}
-            .trust-strip{padding:16px 16px 0}
+            .trust-strip{padding:36px 16px}
             .trust-card{padding:30px 20px}
-            .trust-mark{width:42px;height:42px}
             .gos-closer{padding:64px 20px 76px}
             .gos-closer-head{letter-spacing:-1.4px;line-height:1.1}
-            .trust-wordmark{font-size:30px}
+            /* .trust-mark 42px and .trust-wordmark 30px removed alongside the 1024px
+               pair above - the same stale pre-ladder sizes. Padding still tightens
+               here; only the type and the mark stop moving. */
 
             .mockup-wrapper{padding:14px;border-radius:14px;gap:12px;max-width:100%}
             .phone{border-radius:14px}
@@ -801,7 +1145,7 @@ response = requests.post(
             .code-box{border-radius:12px}
             .code-body{font-size:14px;padding:14px}
             
-            .touchpoint{padding:36px 16px}
+            .touchpoint{padding:36px 0}
             .usecase-pills{gap:10px}
             .pill{padding:12px 20px;font-size:18px}
             
@@ -809,22 +1153,20 @@ response = requests.post(
             .api-info h2{text-align:left}
             .api-desc{text-align:left}
             .code-tabs{gap:8px;padding:14px}
-            .tab{padding:12px 20px;font-size:17px}
+            .pp-tab{padding:12px 20px;font-size:17px}
             .code-block{font-size:14px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
             
-            .capabilities{padding:36px 16px}
-            .capabilities-grid{grid-template-columns:1fr;gap:12px}
-            .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
-            .cap-icon{width:48px;height:48px;margin-bottom:14px;padding:9px}
-            .capability-card h3{text-align:left}
-            .capability-card p{text-align:left}
             
           }
           
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
           @media(max-width:360px){
             
-            .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
+            /* 16px, not 14px. Every other section stays on 16px at this width - the 480px
+               block sets api, trust-strip and .pp-inner to 16 and nothing overrides them
+               here - so the hero alone sat 2px left of everything else. Measured at 360px:
+               hero text at 14px, the rest at 16px. */
+            .hero{padding:calc(80px + env(safe-area-inset-top)) 16px 36px}
             .hero-left h1{letter-spacing:-.8px}
             
             .pill{padding:12px 18px;font-size:17px}
@@ -850,12 +1192,16 @@ response = requests.post(
              h1 and p are intentionally absent: their base rule is the contract. */
           .section-header h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
           .section-header p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
-          .pill{font-size:var(--text-base)}
+          /* 15px explicit, not var(--text-base). That token is declared twice —
+             tokens.css:83 says 16px, Pages.css:59 says 15px — and only Pages.css is
+             imported by _app.tsx, so the pills were 15px by accident of import
+             order. Importing tokens.css would silently have resized every pill.
+             .pp-pill is listed here too; it was missing from this contract block
+             despite being the class the touchpoint section actually renders. */
+          .pill,.pp-pill{font-size:17px}
           .api-info h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
           .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}
-          .tab{font-size:15px}
-          .capability-card h3{font-size:22px;line-height:1.27;letter-spacing:-.25px}
-          .capability-card p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
+          .pp-tab{font-size:15px}
           
           /* ========== REDUCED MOTION ========== */
           @media(prefers-reduced-motion:reduce){
@@ -876,12 +1222,62 @@ response = requests.post(
              the page from; the id selectors beat the shared section classes
              regardless of source order. */
           #touchpoint,#capabilities{max-width:none;width:100vw;margin-left:calc(50% - 50vw);background:#fafafa}
-          .pp-inner{max-width:1300px;margin:0 auto}
+          /* 1252px, not 1300px, and the difference is the point. A section like .hero is a
+             1300px box with 24px padding, so its CONTENT starts at 1300-48 = 1252px wide.
+             The full-bleed sections put their padding on the outer 100vw element and then
+             nest this, so at 1300px this inner box started 24px left of the hero's content
+             edge. Measured in a real browser at 1440px: hero text at 94px, strip items at
+             70px. 1252px makes both 94px. */
+          .pp-inner{max-width:1300px;margin:0 auto;padding:0 24px;box-sizing:border-box}
+
+          /* ===== TEMPORARY: proposed Capabilities strip, for side-by-side review =====
+             NO NEW TOKENS. Every value below already exists in the language:
+               icon fill   rgba(209,244,112,.22)  the nav hover / active tint
+               icon glyph  #1a3a2a                palette dark green
+               title       22px/700/-.25px/#000   the card-heading level, unchanged
+               subtitle    14px/400 rgba(0,0,0,.54) the label level
+             22 over 14 is what produces the compact feel, using two rungs of the
+             existing ladder rather than inventing a smaller heading.
+             Borderless on purpose: the cards it replaces carry a 2px hairline and a
+             lime hover while also being cursor:default, so they look clickable and are
+             not. Per the hairline rule 2px means hoverable, so a non-interactive strip
+             should carry no border and no hover at all. */
+          .pp-strip{padding:60px 0}
+          /* No .pp-strip .section-header rules here any more. They existed only to
+             left-align and un-cap a heading this section no longer has, so they went
+             with it rather than being left to look load-bearing. .section-header is
+             still shared with #touchpoint, whose heading IS centred over centred
+             pills - so anything re-added here must stay scoped to .pp-strip. */
+          .pp-strip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 24px}
+          .pp-strip-item{display:flex;align-items:flex-start;gap:14px;min-width:0}
+          .pp-strip-icon{width:44px;height:44px;flex:0 0 auto;box-sizing:border-box;padding:10px;border-radius:50%;background:rgba(209,244,112,.22);display:flex;align-items:center;justify-content:center}
+          .pp-strip-icon img{width:100%;height:100%;object-fit:contain;display:block}
+          .pp-strip-text{display:flex;flex-direction:column;gap:5px;min-width:0}
+          .pp-strip-title{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
+          .pp-strip-sub{font-size:14px;font-weight:400;line-height:1.4;color:rgba(0,0,0,.54)}
+          @media(max-width:1024px){
+            .pp-strip-grid{grid-template-columns:repeat(2,1fr);gap:26px 20px}
+            .pp-strip{padding:50px 0}
+            .pp-inner{padding:0 20px}
+          }
+          @media(max-width:767px){
+            .pp-strip-grid{grid-template-columns:1fr;gap:22px}
+            .pp-strip{padding:44px 0}
+            .pp-inner{padding:0 20px}
+          }
+          @media(max-width:480px){
+            .pp-strip{padding:36px 0}
+            .pp-inner{padding:0 16px}
+          }
 
           /* Use-case pills as spans, since they carry no handler. Same paint as
              .pill; inline-flex restores the centring a button gets for free. */
-          .pp-pill{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pp-pill:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+          /* Paint matches .pill exactly — muted black label, no retired hover
+             tint. min-height is dropped: at 15px with 14px of vertical padding the
+             pill computes to ~48px, so a 32px floor never applied and only implied
+             a constraint that was not doing anything. */
+          .pp-pill{display:inline-flex;align-items:center;justify-content:center;padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:17px;font-weight:600;cursor:default;transition:all .25s;color:rgba(0,0,0,.898)}
+          .pp-pill:hover{border-color:#d1f470;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
 
           @media(max-width:1024px){
             .pp-pill{padding:12px 22px}

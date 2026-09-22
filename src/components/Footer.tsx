@@ -22,7 +22,11 @@ const Footer: React.FC = () => (
           <p className="ft-tagline">Trusted everyday services for Bharat</p>
         </div>
 
-        <span className="ft-mark">WECARE.DIGITAL</span>
+        {/* Links out to the company site. It was a bare span, so the one place on every
+            public page that names WECARE.DIGITAL was not clickable. External and
+            cross-origin, hence rel="noopener" - and a plain anchor rather than next/link
+            because this leaves the app entirely. */}
+        <a className="ft-mark" href="https://wecare.digital" rel="noopener noreferrer">WECARE.DIGITAL</a>
       </div>
     </div>
 
@@ -39,7 +43,15 @@ const Footer: React.FC = () => (
       .ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
       .ft-tagline{font-size:15px;line-height:1.6;color:#9ca3af;margin:0;max-width:320px}
 
-      .ft-mark{font-size:14px;color:#6b7280}
+      /* No underline in either state, by request - it previously appeared on hover.
+         That leaves colour as the only hover signal, which is fine for a standalone
+         mark, but colour alone is NOT an adequate keyboard focus indicator. So
+         :focus-visible is split out of the hover rule and gets a real ring rather
+         than inheriting a style that no longer draws anything. The ring reuses the
+         outline the language widget already uses instead of inventing a second one. */
+      .ft-mark{font-size:14px;color:#6b7280;text-decoration:none;transition:color .2s}
+      .ft-mark:hover{color:#1a3a2a}
+      .ft-mark:focus-visible{color:#1a3a2a;outline:3px solid rgba(26,58,42,.22);outline-offset:2px;border-radius:4px}
 
       /* Account wraps onto the next row before the columns get too narrow. */
       @media(max-width:1024px){

@@ -1,11 +1,150 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Dependabot version updates.
+#
+# This file previously shipped as the unedited GitHub template, with
+# `package-ecosystem: ""`. An empty ecosystem is not a valid value, so the whole
+# config was rejected and NO version updates ever ran. Security updates were
+# unaffected - those come from Dependabot alerts and need no config file - which
+# is why alerts were arriving while version updates were silent.
+#
+# Deliberately NOT set: `target-branch`. The default branch here is `stack`, so
+# Dependabot already targets the right place, and naming a target-branch
+# explicitly would turn OFF Dependabot security updates for that ecosystem.
+#
+# Cadence is intentionally conservative. `.github/workflows/deps-upgrade.yml` is
+# a manual bulk upgrade that regenerates the lockfile and pushes straight to
+# `stack`, so per-package npm PRs arriving daily would fight it. Minor and patch
+# updates are therefore grouped into a single monthly PR per manifest, and only
+# majors - the ones that warrant a human read - arrive on their own.
+#
+# Manifests covered (verified present, each with its own lockfile where npm):
+#   /                                              package.json + package-lock.json
+#   /store                                         package.json + package-lock.json
+#   /scripts/wix-blog-schema-api                   package.json + package-lock.json
+#   /requirements-dev.txt                          pip
+#   /amplify/functions/operations/docs-scraper     requirements.txt + Dockerfile
+#   /.github/workflows                             github-actions
 
 version: 2
+
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # GitHub Actions pins rot quietly and a bad bump fails loudly in CI rather than
+  # in production, so this one runs weekly and is the least risky of the set.
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(actions)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # The site itself. Majors here mean Next / React / Amplify, all of which need a
+  # real build-and-look, so they are deliberately left ungrouped.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+    groups:
+      npm-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # The Wix storefront. Separate lockfile, separate blast radius.
+  - package-ecosystem: "npm"
+    directory: "/store"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+    groups:
+      store-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # One-dependency helper script (dotenv). Grouped for consistency; it will
+  # almost never produce a PR.
+  - package-ecosystem: "npm"
+    directory: "/scripts/wix-blog-schema-api"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+    groups:
+      wix-schema-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # requirements-dev.txt is a FULL FREEZE of the local venv, not a loose set of
+  # ranges, and its header documents pins that cannot move on their own -
+  # pydantic==2.13.5 hard-pins pydantic_core==2.46.5, so a lone pydantic_core
+  # bump would be wrong even though it looks outdated.
+  #
+  # Grouping every non-major update into one PR is what protects that: coupled
+  # pins move together in a single coherent diff instead of arriving as separate,
+  # individually-broken PRs. Read the header of requirements-dev.txt before
+  # merging - this file does NOT define the Lambda runtime.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(py-deps)"
+    groups:
+      python-dev-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # The docs-scraper Lambda genuinely does install these at build time, so unlike
+  # requirements-dev.txt a bump here reaches production.
+  - package-ecosystem: "pip"
+    directory: "/amplify/functions/operations/docs-scraper"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(py-deps)"
+    groups:
+      docs-scraper-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Base image for the same Lambda container.
+  - package-ecosystem: "docker"
+    directory: "/amplify/functions/operations/docs-scraper"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(docker)"

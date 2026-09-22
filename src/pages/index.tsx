@@ -1,5 +1,6 @@
 import React from 'react';
 import Head from 'next/head';
+import BrandBadge from '../components/BrandBadge';
 
 const HomePage: React.FC = () => (
   <>
@@ -9,7 +10,15 @@ const HomePage: React.FC = () => (
       <link rel="canonical" href="https://stack.wecare.digital/" />
     </Head>
     <main className="home-shell" aria-label="Bharat Stack home">
-      <div className="home-layout" />
+      {/* Same pill as the Grahak OS hero, with the maker line flipped: this page is
+          the company, that page is one product of it. Sits inside .home-layout so
+          it inherits the canvas measure and the 96px section gap — the body is
+          otherwise still the undecided scaffold, and this does not change that. */}
+      <div className="home-layout">
+        <div className="home-eyebrow">
+          <BrandBadge label="Bharat Stack by WECARE.DIGITAL" />
+        </div>
+      </div>
     </main>
     <style jsx>{`
       .home-shell{
@@ -27,6 +36,15 @@ const HomePage: React.FC = () => (
         display:flex;
         flex-direction:column;
         gap:96px;
+      }
+      /* .home-layout is a flex column, whose default align-items:stretch would
+         pull the pill out to the full 1300px measure. This keeps it at its own
+         width without changing the canvas for whatever sections land here next.
+         It has to be a wrapper rather than a prop or className on the badge:
+         styled-jsx does not scope composite components, so anything passed in
+         from this page would arrive unstyled. */
+      .home-eyebrow{
+        align-self:flex-start;
       }
       @media(max-width:767px){
         .home-shell{min-height:calc(100vh - 85px);padding-top:96px}

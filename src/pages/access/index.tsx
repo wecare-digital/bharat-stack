@@ -9,6 +9,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import BrandBadge from '../../components/BrandBadge';
 
 interface PageProps {
   signOut?: () => void;
@@ -31,19 +32,24 @@ const AccessPage: React.FC<PageProps> = ({ user }) => {
       <Head>
         <title>Access | Bharat Stack by WECARE.DIGITAL</title>
       </Head>
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        background: '#f5f5f5'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 300, color: '#1a1a1a', marginBottom: '16px' }}>
-            WECARE.DIGITAL
-          </h1>
-          <p style={{ color: '#666' }}>Redirecting to dashboard...</p>
+      <div className="acp-wrap">
+        <div className="acp-card">
+          <BrandBadge label="Bharat Stack by WECARE.DIGITAL" />
+          <p className="acp-note">Redirecting to your dashboard…</p>
         </div>
+        <style jsx>{`
+          /* Brought onto the palette. This used #f5f5f5 behind #1a1a1a with a
+             300-weight heading - three values the design contract does not contain,
+             on the one screen every signed-in session passes through.
+             font-weight 300 is worth calling out: the Inter link in _app.tsx loads
+             400;500;600;700;800 and no 300 face, so that heading was being
+             synthetically lightened by the browser rather than rendered.
+             It is now the same badge the home page and the sign-in form use, on
+             white, with the single 20px/400 body level under it. */
+          .acp-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#fff;padding:24px}
+          .acp-card{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center}
+          .acp-note{margin:0;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898)}
+        `}</style>
       </div>
     </>
   );

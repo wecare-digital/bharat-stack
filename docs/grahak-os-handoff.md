@@ -1,183 +1,184 @@
 # Grahak OS frontend handoff
 
-Updated: **2026-09-22**
-
-Scope: the public `/grahak-os` page and the site language widget. The backend /
-security track has its own handoff in `docs/kiro-handoff.md` — this does not
-replace it.
-
-Design rules live in `.kiro/steering/grahak-os-design.md` and load automatically
-when you open files under `src/pages/grahak-os/`, `src/components/` or
-`src/styles/`. **Read that before changing any CSS here.**
+Rewritten 2026-09-22. The previous version was stale — it opened by asking for PR #3
+to be merged, which happened long ago.
 
 ## Position
 
-| Field | Value |
-|---|---|
-| Branch | `feat/grahak-os-trust-a-i` |
-| HEAD | `f1ffe452` pushed, working tree clean |
-| vs `origin/stack` | `origin/stack` merged in — **0 behind**, no conflicts |
-| PR | **[#3](https://github.com/wecare-digital/bharat-stack/pull/3) open into `stack`, `mergeable: true`** |
-| Gate | 33 tests pass (7 files), `tsc` clean, `npm run build` clean, `/grahak-os` exported |
-| CodeQL | `CodeQL: success`, all four `Analyze` jobs green, zero failure annotations |
+- Repo `wecare-digital/bharat-stack`. Default branch is **`stack`**, not `main`.
+- All work is on the single long-lived branch **`feat/grahak-os-trust-a-i`**, currently
+  at **`40025a1f`**, working tree clean, **0 behind `stack`**.
+- **No PR is open.** Owner's standing instruction: push to this one branch, open a PR
+  only when explicitly asked, and the **owner merges** — never the agent.
+- `stack.wecare.digital` is built from `stack`, so **none of this is live yet**. The
+  deployed `/grahak-os` is still the pre-rewrite page and still ships the
+  empty-`<body>` export (~3.2 KB) that `3884070a` fixed on this branch.
 
-## Complete
+## Shipped on this branch, most recent first
 
 | Commit | What |
 |---|---|
-| `e4db6a9a` | Google Cloud Translation inside `wecare-site-language`, key from Secrets Manager at request time. Cloud Run relay deleted from the client |
-| `4fe013cb` | Hero mockup rebuilt to the reference composition — 90px panel lap, full code sample, 0 bubble collisions |
-| `b18d4b98` | Language widget UI — moved clear of the mockup and the WhatsApp button, lists languages without typing |
-| `6a230ef0` | Meta card made neutral, logo lockup colour fixed, duplicate self-declared badge removed |
-| `131f885c` | Meta card stripped to mark + designation, both halves equalised at 201px |
+| `40025a1f` | Sign-in screen branded; AuthGate header offset fixed; `/access` on palette |
+| `1fd4dd40` | Nav menu grouped by type + search; FAQ and Partners surfaced |
+| `957e9e54` | Meta card held on one type scale; footer hover underline removed |
+| `f092ee3b` | Removed the "Everything you need" heading that was approved for deletion and missed |
+| `38bd3cc0` | `LanguageBar` `set-state-in-effect` error fixed |
+| `0c85e23a` | `dependabot.yml` replaced (was the unedited template, so version updates never ran) |
+| `2e64146a` | `npm ci` made a blocking gate in `deps-upgrade.yml` |
+| `b6afc684` | `package-lock.json` resynced — `npm ci` works again |
 
-Earlier in the branch: hero cycling channel pill with per-channel tint and dot,
-notion type ladder and single body level page-wide, black brand lockup, footer
-stripped to brand signature, `!important` overrides removed from `Header.tsx`,
-trust section as equal columns with the S3 Meta mark.
+## Needs the owner, not an agent
 
-## Pending
+1. **Merge.** Nothing above reaches production until this branch lands in `stack`.
+2. **Dependency vulnerabilities are not code-fixable today.** `/store`'s seven findings
+   all come from `@wix/cli`, and **`1.1.247` is the latest published version** — there
+   is nothing to upgrade to. The root critical `tar` comes only from `tar@6.2.1` nested
+   under `plivo-browser-sdk → wasm-pack → binary-install`, all `fixAvailable: false`;
+   the copy we control (`@capacitor/cli`) is already on `7.5.22`, above the whole
+   `<=7.5.20` vulnerable range. The only lever is `overrides`, which means forcing
+   tar 7 under packages written for tar 6 — that risks the Plivo softphone's install,
+   so it is a judgement call, not a patch. Dependabot's alerts API returns 403 to the
+   sandbox token (`security_events` scope), so work from `npm audit`.
+3. **`amplify.yml` still deploys with `npm install`.** Now that `npm ci` works,
+   switching would make deploys reproducible — untested on Amplify's runner.
+4. **Real-device pass.** Everything has been verified in headless Chromium only. iOS
+   Safari and the Android WebView shells have not been checked.
 
-Ordered by what unblocks the most.
+## Open work an agent can pick up
 
-### 1. Merge PR #3 — one click, and it is what makes any of this visible
+- **`src/pages/_document.tsx:60`** sets `<meta httpEquiv="X-Frame-Options" content="DENY" />`.
+  Browsers ignore XFO in a meta tag entirely, so it provides **zero** protection and
+  logs a console error on every page load. `amplify.yml` already sets the real header
+  (`SAMEORIGIN`). One-line deletion.
+- **`npm run lint` is red repo-wide**: 237 errors / 63 warnings across ~97 files,
+  including **116 more `react-hooks/set-state-in-effect` errors**. Only the
+  `LanguageBar` one was fixed. Baseline before this session was 242/64.
+- **Home page (`src/pages/index.tsx`) is still a scaffold.**
+- **`/faq` and `/partners` are now in the nav but are visually off-system** — inline
+  styles, `#f9f9f9`/`#1a1a1a`, not the design contract's palette.
+- **VayuLok's rotation promises Pollen and Heatmap**, which have no endpoint wired.
+- **`trust-subtext` restates the channel list a third time** on `/grahak-os`.
 
-`origin/stack` has already been merged into the branch (no conflicts) and the gate
-re-run on the merged tree. **PR #3 is open into `stack` and `mergeable: true`.**
+## Traps that have already cost real time
 
-**Amplify builds `stack`** (`amplify.yml`, artifacts from `out/`) and every
-workflow is `branches: [ stack ]`. That is why none of this work was visible on
-`https://stack.wecare.digital/grahak-os/` while it sat on a branch — pushing a
-branch deploys nothing. Merging the PR triggers the Amplify build; allow a few
-minutes, then hard-refresh past CloudFront. If the build fails it will be in the
-`preBuild` npm install, which uses `--legacy-peer-deps`.
+- **styled-jsx drops a `className` passed via spread.** `{...props}` then styled-jsx
+  appends its *own* `className` attribute, which wins — the element ships with only
+  `class="jsx-hash"` and no styling at all. Write `className` **inline** on the
+  element. This broke the whole nav menu and **all 33 tests still passed**, because
+  they assert role/name/href and never look at classes.
+- **styled-jsx does not scope composite components.** A parent's `<style jsx>` cannot
+  reach into `<BrandBadge />`. Such components style themselves — see `BrandBadge`,
+  `BrandLockup`, `AuthBrand`.
+- **`src/styles/*.css` is imported globally by `_app.tsx` and declares unscoped rules
+  for generic names** — `.page`, `.tab`, `.code-block`, `.nav-item`, `.badge`,
+  `.section-header`. Several "my change didn't apply" bugs were this. Prefix new
+  classes (`pp-`, `ft-`, `ag-`, `acp-`).
+- **A stray backtick inside `<style jsx>{`…`}</style>` breaks the build** (once for 520
+  tsc errors). Check with:
+  ```bash
+  python -c "s=open('src/pages/grahak-os/index.tsx').read();i=s.find('<style jsx>{\`');j=s.rfind('\`}</style>');print(s[i+13:j].count('\`'))"
+  ```
+- **`npx tsc --noEmit` must run *after* `npm run build`** — it needs generated
+  `next-env.d.ts`.
+- **`cmd | tail; echo $?` reports `tail`'s exit code, not the command's.** Redirect to
+  a file and check `$?`, or use `PIPESTATUS`.
+- **`trailingSlash: true`.** Links to exported pages need the trailing slash
+  (`/vayulok/`), or they redirect. `/access` is deliberately bare.
+- **The Amplify `Authenticator` renders client-side only** — the static export contains
+  none of its markup, so anything in that tree must be verified in a browser.
+- **Its `components.Header` slot is typed `() => JSX.Element | null`.** `React.FC` is
+  `(props, context?)` and is **not assignable**; tsc fails with "Target signature
+  provides too few arguments."
+- **`Header.test.tsx` asserts literal CSS substrings**, including
+  `"@media(max-width:767px){.hdr-in{height:96px"`. `.hdr-in` must stay the first rule
+  in that media query, and `container.querySelector('button')` must return the nav
+  trigger — so no `<button>` may precede it.
+- **Node 24 is required** (`engines: >=24.0.0`). In the sandbox:
+  `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 24`.
 
-`stack` has **no required status checks configured**, so nothing blocks the merge.
-Two checks are red and neither is from this work — both diagnosed to root cause,
-not merely observed to also fail on `stack`:
+## Verification gate
 
-| Check | Root cause |
-|---|---|
-| `Provider policy gate` | `amplify/functions/messaging/plivo-answer/handler.py:724` passes `provider='plivo'` on a path the scanner classifies as SMS. Policy is Plivo-is-voice-only. **Not fixed — needs someone who knows whether that call is SMS or voice.** Either a real violation or a scanner false positive; the file is untouched by this branch |
-| `github-advanced-security` | **Not attributed.** The sandbox token gets HTTP 403 on both the Dependabot and code-scanning alert APIs. It is not a finding on this PR's code: `CodeQL` and all four `Analyze` jobs are green with zero failure annotations. The repo carries 48 open Dependabot advisories on the default branch, the likeliest source |
-
-`Handler auth enforcement (source)` **was** red and is now green — fixed in
-`3f60088d`. It had nothing to do with route auth: its dependency step greps
-`requirements-dev.txt` for an allowlist that omitted `cryptography`, which
-`tests/test_flow_crypto_and_ssrf.py` imports at module scope, so pytest failed at
-*collection* on every run. With the import resolved the suite is **1546 passed, 1
-skipped, 0 failed** — nothing was hiding behind it. A blocking gate that fails
-unconditionally teaches people to merge through red, so this was worth fixing even
-though it was not ours.
-
-### 2. Deploy the translation change — needs the Mac
+All of these were green at `40025a1f`:
 
 ```bash
-python scripts/deploy_site_language.py
+npx vitest run                       # 33 passed / 7 files
+npm run build                        # then:
+npx tsc --noEmit                     # 0 errors
+./scripts/check-provider-policy.sh   # 8/8 ok
+.venv/bin/python -m pytest -q        # 1623 passed, 1 skipped
+npx eslint .                         # 237e/63w — red, pre-existing
 ```
 
-Until this runs, **translation still serves Amazon Translate**. The code is
-committed and safe to deploy either way: provider defaults to `auto`, so a missing
-key or a disabled API degrades to Amazon silently.
+Browser harnesses live **outside** the repo in `/projects/pwtest` (Playwright +
+Chromium; reinstall with `npx playwright install chromium` — the binary does not
+survive a sandbox reset). Each one boots its own HTTP server against `out/`, because
+background servers are blocked:
 
-### 3. Enable Cloud Translation on the Google key — needs the Google console
+| Script | Checks |
+|---|---|
+| `check.js` | 11 viewports: overflow, collisions, hydration errors, edge alignment |
+| `typecheck.js` | Meta card type scale vs `.pp-strip-title` at 5 widths |
+| `navcheck.js` | Grouped dropdown, filtering, empty state, panel inside viewport |
+| `langbar.js` | Saved-language restore against a stubbed API |
+| `authcheck.js` / `ordercheck.js` | Sign-in badge renders, and sits above the form |
 
-The secret already exists: **`wecare/google/cloud`, field `api_key`** ("unified
-Google API key", registered in `scripts/store_provider_secret.py`). Do **not**
-create a `wecare/google-translate` — a parallel id means rotation updates one copy
-and consumers keep reading the other.
+`langbar.js` has **one known failing assertion** — "no console errors" — caused by the
+`X-Frame-Options` meta tag above. It fires on every page load regardless of
+translation.
 
-Two things must be true on that key: Cloud Translation API **enabled** on the
-project, and the key **not restricted** to other APIs. CloudWatch will name the
-failure after deploy:
+When writing new browser checks: compare the **rects** returned by
+`getBoundingClientRect`, not DOM elements, and **scope selectors**. Both mistakes
+produced false failures here — `document.querySelector('input')` matched the header's
+new nav search field, not a sign-in field.
 
-```
-{"event":"google_translate_failed","error":"RuntimeError: google http 403: SERVICE_DISABLED","fallback":"aws"}
-```
+## Running it locally (Windows / PowerShell 5.1)
 
-`SERVICE_DISABLED` → enable the API. `API_KEY_SERVICE_BLOCKED` → widen the key's
-restrictions. `{"event":"translate_provider_resolved","provider":"google"}` → working.
-
-Cost note: Google is ~$20/M characters after 500k free per month; Amazon Translate
-is ~$15/M. Google is chosen for Indic quality, not price. The real cost control is
-the existing DynamoDB cache (90-day TTL) plus request dedupe.
-
-### 4. Verify the Meta designation string — needs the partner portal
-
-The page says **"Meta Tech Partner"**. That could not be confirmed as a real Meta
-designation: the badge Meta grants is **Meta Business Partner** (technology
-providers are a category within it), it is awarded after review, and it cannot be
-self-declared. Meta's brand guidance is also to use the logo files they publish
-rather than a re-typed wordmark — the `.trust-wordmark` span is a stand-in.
-
-The self-declared caps pill was removed. The remaining string is unchanged on
-purpose: altering a partnership claim is the owner's call. One-line fix once
-confirmed.
-
-### 5. Wix still calls the uncapped Cloud Run relay — needs a decision
-
-The Stack app no longer touches `wecare-translation-relay`, but the Wix site still
-does for translation and TTS. **That is now the only path billing Google with no
-request cap.** Note `stack` recently gained
-`shared/wix-velo/backend/google-services.web.js`, a Wix backend web method that
-reads `GOOGLE_SERVER_API_KEY` from Wix's own Secrets Manager — but it covers
-weather / forecast / air / solar only, not translation.
-
-Recommended: point Wix at `/site-language/translate` rather than adding translate
-to the Wix module, because the Wix module has no cache and translation is the one
-Google service that repeats constantly. The Wix domains are already in
-`ALLOWED_ORIGINS`.
-
-Also worth recording: there are now **two secret stores holding a Google key** —
-AWS `wecare/google/cloud` and Wix `GOOGLE_SERVER_API_KEY`. If they hold the same
-underlying key, a rotation must update both.
-
-### 6. Home page is an empty scaffold
-
-`src/pages/index.tsx` renders `home-shell` / `home-layout` divs and nothing else.
-Not started. Should follow the same contract in
-`.kiro/steering/grahak-os-design.md`.
-
-### 7. Smaller items
-
-- Section rhythm was never implemented — every section is `background:#fff`.
-- `.why-section` has no `max-width` (~1391px vs `.api`'s 1300px).
-- `_app.tsx` `mounted` gate ships an empty body on static export, so JSON-LD and
-  meta are invisible to non-JS crawlers.
-- `LanguageBar.tsx` has one **pre-existing** ESLint error
-  (`react-hooks/set-state-in-effect`, the restore-saved-language effect). Verified
-  present at HEAD before this session's changes; deliberately untouched because
-  that effect governs language restore behaviour.
-- `/site-language/*` routes are intentionally unauthenticated — the handler
-  explains why — and the mitigation is the API Gateway throttle
-  (15 rps / 30 burst) in `scripts/deploy_site_language.py`, not auth.
-
-## Running it locally
-
-Windows PowerShell 5.1 has no `&&`; chain with `;`. Single line, self-checking:
+PowerShell 5.1 has no `&&`; run these as separate lines.
 
 ```powershell
-cd C:\Users\wecar\bharat-stack; taskkill /IM node.exe /F 2>$null; git pull origin feat/grahak-os-trust-a-i; $h = git log --oneline -1; Write-Host "HEAD: $h" -ForegroundColor Cyan; if ($h -notlike "131f885c*") { Write-Host "WRONG COMMIT - stopping" -ForegroundColor Red } else { Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue; npm run dev }
+cd C:\Users\wecar\bharat-stack
+git checkout feat/grahak-os-trust-a-i
+git checkout -- package-lock.json     # see the trap below
+git pull origin feat/grahak-os-trust-a-i
+git log --oneline -1                  # MUST print the expected commit
+npm ci
+Remove-Item -Recurse -Force .next
+npm run dev
 ```
 
-Then `http://localhost:3000/grahak-os/` — **trailing slash required**
-(`trailingSlash: true`), and **Ctrl+Shift+R** not F5, because styled-jsx CSS is
-cached in `.next` and a plain refresh makes real changes look invisible.
+Then `http://localhost:3000/grahak-os/` — **trailing slash required**.
 
-`nvm` is not installed on that machine and is not needed — Node 24.19.0 is the
-system Node.
+Three things that have each wasted a full round trip:
 
-## Environment notes
+1. **`git pull` aborts if `package-lock.json` is locally modified** (`npm install`
+   leaves it that way) and prints `Aborting` in a wall of output. The pull silently
+   does nothing and you keep running old code. **Always confirm with
+   `git log --oneline -1` after pulling.**
+2. **`Remove-Item ... -ErrorAction SilentlyContinue` hides its own failure.** On
+   Windows the delete fails while a `node` process holds `.next` open. Stop the dev
+   server first (`Ctrl+C`, then `Stop-Process -Name node -Force`).
+3. **If an old `next dev` still holds port 3000**, the new one starts on **3001**
+   while 3000 keeps serving the old build. Read the port it prints.
 
-- Windows, repo at `C:\Users\wecar\bharat-stack`. Duplicate clones exist at
-  `bharat-stack-preview` and `Workspaces\bharat-stack` — check `git log --oneline -1`
-  before concluding a change "did not apply".
-- `gh` CLI is not installed locally.
-- All four hooks in `.kiro/hooks/` hardcode a macOS path
-  (`D=/Users/wecaredigital/wecare-store`) and need Python, which is absent on the
-  Windows machine. **The inline-secret guard described in
-  `.kiro/steering/secret-handling.md` therefore does not run there.** Treat that
-  rule as manual until the hooks are fixed.
-- Grammarly injects attributes into `<body>` and causes a hydration warning.
-  `suppressHydrationWarning` was drafted on a since-deleted branch and is **not**
-  applied on this one.
+Fastest check that you are on this branch: **`http://localhost:3000/vayulok/`**. That
+page does not exist on `stack`, so a 404 means the pull did not land.
+
+The dev service worker no longer needs Ctrl+Shift+R — `_app.tsx` unregisters workers
+and clears caches outside production. But a worker installed *before* that fix can
+still replay a stale bundle, and the code that removes it lives inside the bundle it
+is replaying; one hard reload breaks that loop permanently.
+
+## Design contract
+
+`.kiro/steering/grahak-os-design.md`, scoped to `src/pages/grahak-os/**`,
+`src/components/**`, `src/styles/**`. Load-bearing points:
+
+- Section `h2` (700) is deliberately **heavier** than the hero `h1` (600).
+- Exactly **one** body level: 20px/400.
+- Card-heading rung is **22px/700** — `.pp-strip-title`, `.trust-wordmark`.
+- Lime `#d1f470` is for **our own surfaces only** — never on a third-party mark, which
+  is why the Meta card stays neutral while the brand badge is full lime.
+- Hairlines: 2px = hoverable, 1px = static, always `#e5e7eb`.
+- Retired, do not reintroduce: `#2f6b52`, `#075e54`, `#f2fbf6`, `#fbfff0`, `#1e293b`.
+- Inter is loaded at **400;500;600;700;800**. There is no 300 face — asking for one
+  gets a synthesised weight.
