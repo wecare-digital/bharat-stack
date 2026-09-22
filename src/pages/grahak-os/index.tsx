@@ -396,9 +396,18 @@ response = requests.post(
             points with a fourth copy of the page's four-pillar sentence as its intro.
             Same six items, same titles, same one-line descs - one section.
 
-            The subtitle "AI-powered lifecycle management that delivers results" went
-            with the cards rather than moving across. "Delivers results" asserts
-            nothing, and the strip is legible without a line under the heading.
+            The heading and the subtitle BOTH go, on the owner's explicit instruction:
+            "Everything you need / to grow customer relationships" and "AI-powered
+            lifecycle management that delivers results". Neither asserted anything a
+            visitor could check, and six items that each name themselves do not need a
+            label announcing that they exist.
+
+            The section is therefore deliberately unheaded. That is not an oversight and
+            it is not an accessibility regression: a section with no accessible name is
+            not exposed as a landmark at all, so this reads as a plain grouping rather
+            than as an unnamed region cluttering landmark navigation. If a heading is
+            ever wanted back, it needs to say something specific - not restate the
+            four-pillar sentence the page already makes three times.
 
             Note alt="" on the icons. The cards used alt={cap.title} directly beside an
             h3 of the same string, so every title was announced twice by a screen reader
@@ -406,9 +415,6 @@ response = requests.post(
             next to them is the content. */}
         <section className={`pp-strip anim ${show('capabilities') ? 'show' : ''}`} id="capabilities">
           <div className="pp-inner">
-            <div className="section-header">
-              <h2>Everything you need<br/>to grow customer relationships</h2>
-            </div>
             <div className="pp-strip-grid">
               { capabilities.map( ( cap, i ) => (
                 <div key={ i } className="pp-strip-item">
@@ -1230,14 +1236,11 @@ response = requests.post(
              not. Per the hairline rule 2px means hoverable, so a non-interactive strip
              should carry no border and no hover at all. */
           .pp-strip{padding:60px 0}
-          /* Left, not centred - and scoped to .pp-strip because .section-header is shared
-             with #touchpoint, whose pills ARE centred and whose heading should stay centred
-             over them. Here the items are a left-aligned grid, so a centred heading in a
-             700px measure sat over content starting at the far left and the two did not
-             agree. The 700px cap also goes: it is a reading measure for a paragraph, and
-             this heading no longer has one under it. */
-          .pp-strip .section-header{max-width:none;margin:0 0 36px;padding:0;align-items:flex-start;text-align:left}
-          .pp-strip .section-header h2{text-align:left;width:auto;max-width:720px}
+          /* No .pp-strip .section-header rules here any more. They existed only to
+             left-align and un-cap a heading this section no longer has, so they went
+             with it rather than being left to look load-bearing. .section-header is
+             still shared with #touchpoint, whose heading IS centred over centred
+             pills - so anything re-added here must stay scoped to .pp-strip. */
           .pp-strip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 24px}
           .pp-strip-item{display:flex;align-items:flex-start;gap:14px;min-width:0}
           .pp-strip-icon{width:44px;height:44px;flex:0 0 auto;box-sizing:border-box;padding:10px;border-radius:50%;background:rgba(209,244,112,.22);display:flex;align-items:center;justify-content:center}
