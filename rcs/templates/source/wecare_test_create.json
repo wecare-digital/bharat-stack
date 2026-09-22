@@ -1,0 +1,8 @@
+{
+  "component": {
+    "text": "Test template creation from inner page. Order: {{order_id}}"
+  },
+  "name": "wecare_test_create",
+  "status": "approved",
+  "type": "text_message"
+}
