@@ -359,54 +359,22 @@ response = requests.post(
           </div>
         </section>
 
-        <section className={`capabilities anim ${show('capabilities') ? 'show' : ''}`} id="capabilities">
+        {/* Capabilities as a strip, not cards - approved after side-by-side review.
+            This one section replaces two: the six-card grid, and a separate
+            "Why Grahak OS" block whose three items restated three of these same six
+            points with a fourth copy of the page's four-pillar sentence as its intro.
+            Same six items, same titles, same one-line descs - one section.
+
+            The subtitle "AI-powered lifecycle management that delivers results" went
+            with the cards rather than moving across. "Delivers results" asserts
+            nothing, and the strip is legible without a line under the heading.
+
+            Note alt="" on the icons. The cards used alt={cap.title} directly beside an
+            h3 of the same string, so every title was announced twice by a screen reader
+            and appeared twice in extracted text. The glyphs are decorative; the title
+            next to them is the content. */}
+        <section className={`pp-strip anim ${show('capabilities') ? 'show' : ''}`} id="capabilities">
           <div className="pp-inner">
-            <div className="section-header">
-              <h2>Everything you need<br/>to grow customer relationships</h2>
-              <p>AI-powered lifecycle management that delivers results</p>
-            </div>
-            <div className="capabilities-grid">
-              {capabilities.map((cap, i) => (
-                <div key={i} className="capability-card">
-                  {/* same six icons, recoloured to the dark green in the palette */}
-                  <div className="cap-icon"><img src={cap.icon.replace(/%23333333/g, '%231a3a2a')} alt={cap.title} loading="lazy" /></div>
-                  <h3>{cap.title}</h3>
-                  <p>{cap.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className={`why-section anim ${show('why') ? 'show' : ''}`} id="why">
-          <div className="section-header">
-            <h2>Why Grahak OS</h2>
-            <p>One operating layer for customer engagement, built around data, orchestration and every channel your customers use.</p>
-          </div>
-          <div className="why-grid">
-            <div className="why-item"><strong>Unified customer data</strong><span>Bring customer context together across conversations, events and channels.</span></div>
-            <div className="why-item"><strong>Intelligent orchestration</strong><span>Coordinate journeys, automation and campaigns from one engagement layer.</span></div>
-            <div className="why-item"><strong>Every channel in one platform</strong><span>Connect WhatsApp, SMS, Email and Voice without fragmenting the customer experience.</span></div>
-          </div>
-        </section>
-
-        {/* ===================== TEMPORARY REVIEW BLOCK =====================
-            Side-by-side preview, following the precedent set by b4269923 which
-            paired each section with a PROPOSED alternative for review.
-
-            This is the strip treatment proposed for Capabilities. It renders from
-            the SAME capabilities array as the card grid above - deliberately, so
-            the comparison is format against format with the content held constant.
-            Nothing here is new copy.
-
-            WHEN APPROVED: delete .why-section, delete the .capability-card grid,
-            move this markup up into #capabilities, and delete both this comment and
-            the .pp-strip-flag label below. WHEN REJECTED: delete this whole section
-            and its .pp-strip* rules. Either way it does not stay.
-            ================================================================= */}
-        <section className={`pp-strip anim ${show('capstrip') ? 'show' : ''}`} id="capstrip">
-          <div className="pp-inner">
-            <p className="pp-strip-flag">Proposed — replaces the Capabilities cards and the Why section</p>
             <div className="section-header">
               <h2>Everything you need<br/>to grow customer relationships</h2>
             </div>
@@ -599,11 +567,13 @@ response = requests.post(
           .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}
           /* HAIRLINE RULE — 2px means hoverable, 1px means static, and the colour
              is always #e5e7eb.
-             That split is deliberate, not drift: .pill, .pp-pill, .capability-card
-             and .mockup-wrapper are 2px and all four have a :hover that swaps the
-             border to lime, which needs the extra weight to register. .cap-icon,
-             .why-item and this card are static and sit at 1px. Do NOT "unify" the
-             two weights — you would flatten a working signal.
+             That split is deliberate, not drift: .pill, .pp-pill and .mockup-wrapper
+             are 2px and each has a :hover that swaps the border to lime, which needs
+             the extra weight to register. This card is static and sits at 1px. Do NOT
+             "unify" the two weights — you would flatten a working signal.
+             (.capability-card and .cap-icon were the other two examples here until the
+             card grid became .pp-strip, which is borderless precisely because it is not
+             interactive.)
              What was actually inconsistent was this card's colour: it alone used
              rgba(0,0,0,.1) where the other six light hairlines use #e5e7eb, the
              value the design contract calls the shared hairline. Same lightness, so
@@ -850,26 +820,11 @@ response = requests.post(
           .code-block::after,.code-body::after{content:none}
           
           /* Capabilities Section - Card Grid */
-          .capabilities{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
-          .capabilities .section-header{margin-bottom:40px}
-          .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
-          .capability-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
           /* No background tint on hover — #fbfff0 is retired. The card already
              sits on #fff against the #fafafa canvas, so the lime border reads. */
-          .capability-card:hover{border-color:#d1f470;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
-          .cap-icon img{width:100%;height:100%;object-fit:contain}
-          .capability-card h3{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;margin:0 0 10px}
-          .capability-card:hover h3{color:#1a3a2a}
-          .capability-card p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
           
           /* Why sits on plain white between the two grey canvases; borders and
              body text use the shared hairline/muted pair, not near-miss greens. */
-          .why-section{padding:60px 24px;background:#fff}
-          .why-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;max-width:1100px;margin:0 auto}
-          .why-item{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px}
-          .why-item strong{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
-          .why-item span{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400}
 
           /* ========== TABLET (768px - 1024px) ========== */
           @media(max-width:1024px){
@@ -899,13 +854,7 @@ response = requests.post(
             .api-desc{max-width:100%;text-align:left}
             .api-demo{max-width:500px;margin:0}
             
-            .capabilities{padding:50px 20px}
-            .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:16px}
-            .capability-card{padding:24px 20px}
-            .cap-icon{width:40px;height:40px;font-size:18px;margin-bottom:16px}
             
-            .why-section{padding:50px 20px}
-            .why-grid{grid-template-columns:1fr}
           }
 
           /* ========== MOBILE (up to 767px) ========== */
@@ -968,16 +917,7 @@ response = requests.post(
             .pp-tab{padding:14px 24px;font-size:18px}
             .code-block{font-size:14px;padding:18px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.7}
             
-            .capabilities{padding:44px 20px}
-            .capabilities .section-header{margin-bottom:24px}
-            .capabilities-grid{grid-template-columns:repeat(2,1fr);gap:14px}
-            .capability-card{padding:22px 18px;border-radius:14px;text-align:left}
-            .cap-icon{width:50px;height:50px;margin-bottom:16px;border-radius:12px;padding:10px}
-            .capability-card h3{margin-bottom:8px;text-align:left}
-            .capability-card p{text-align:left}
             
-            .why-section{padding:44px 20px}
-            .why-item{padding:20px}
           }
 
           /* ========== SMALL MOBILE (up to 480px) ========== */
@@ -1016,12 +956,6 @@ response = requests.post(
             .pp-tab{padding:12px 20px;font-size:17px}
             .code-block{font-size:14px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
             
-            .capabilities{padding:36px 16px}
-            .capabilities-grid{grid-template-columns:1fr;gap:12px}
-            .capability-card{padding:20px 18px;border-radius:12px;text-align:left}
-            .cap-icon{width:48px;height:48px;margin-bottom:14px;padding:9px}
-            .capability-card h3{text-align:left}
-            .capability-card p{text-align:left}
             
           }
           
@@ -1064,8 +998,6 @@ response = requests.post(
           .api-info h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
           .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .pp-tab{font-size:15px}
-          .capability-card h3{font-size:22px;line-height:1.27;letter-spacing:-.25px}
-          .capability-card p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           
           /* ========== REDUCED MOTION ========== */
           @media(prefers-reduced-motion:reduce){
@@ -1085,13 +1017,10 @@ response = requests.post(
              .pill / .stat / .phone / .chat-area that styled-jsx cannot shield
              the page from; the id selectors beat the shared section classes
              regardless of source order. */
-          #touchpoint,#capabilities,#capstrip{max-width:none;width:100vw;margin-left:calc(50% - 50vw);background:#fafafa}
+          #touchpoint,#capabilities{max-width:none;width:100vw;margin-left:calc(50% - 50vw);background:#fafafa}
           .pp-inner{max-width:1300px;margin:0 auto}
 
           /* ===== TEMPORARY: proposed Capabilities strip, for side-by-side review =====
-             Placed after .why-section so it lands on white and its own grey band reads
-             as a separate block - two adjacent tints would have merged into one long
-             band and made the comparison harder than it needs to be.
              NO NEW TOKENS. Every value below already exists in the language:
                icon fill   rgba(209,244,112,.22)  the nav hover / active tint
                icon glyph  #1a3a2a                palette dark green
@@ -1104,7 +1033,6 @@ response = requests.post(
              not. Per the hairline rule 2px means hoverable, so a non-interactive strip
              should carry no border and no hover at all. */
           .pp-strip{padding:60px 24px}
-          .pp-strip-flag{max-width:1100px;margin:0 auto 28px;padding:10px 14px;border:1px dashed rgba(0,0,0,.2);border-radius:10px;font-size:14px;font-weight:400;line-height:1.4;color:rgba(0,0,0,.54);background:#fff}
           .pp-strip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 24px;max-width:1100px;margin:0 auto}
           .pp-strip-item{display:flex;align-items:flex-start;gap:14px;min-width:0}
           .pp-strip-icon{width:44px;height:44px;flex:0 0 auto;box-sizing:border-box;padding:10px;border-radius:50%;background:rgba(209,244,112,.22);display:flex;align-items:center;justify-content:center}
