@@ -636,9 +636,23 @@ response = requests.post(
           
           /* Touchpoint Section */
           .touchpoint{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
-          .usecase-pills{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;max-width:700px;margin:0 auto}
-          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pill:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+          /* Grid, not wrapped flex, so the six use cases land 3 + 3 deterministically.
+             Under flex with a 700px cap they broke 4 + 2 — the first row fitted four
+             pills at ~607px and the fifth pushed past the cap — which reads as a wrap
+             failure rather than a decision. Tightening the cap instead would have put
+             the break point ~27px from the boundary, close enough that a copy edit or
+             a fallback font could silently flip it back to 4 + 2.
+             max-content keeps each pill its natural width and justify-items centres it
+             in its column, so row two sits under row one on the same three axes. */
+          .usecase-pills{display:grid;grid-template-columns:repeat(3,max-content);justify-content:center;justify-items:center;gap:12px;max-width:700px;margin:0 auto}
+          /* Label colour is the palette's muted black, not a slate. #4b5563 is
+             blue-tinted and read visibly cooler than the neutral body copy above
+             it. Hover drops its background tint entirely: the old #fbfff0 is on
+             the retired list, and a near-miss green is exactly what the why-section
+             comment warns against. Lime border plus dark green text is affordance
+             enough, and it keeps the borrowed-vs-ours colour rule intact. */
+          .pill{padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:15px;font-weight:600;cursor:default;transition:all .25s;color:rgba(0,0,0,.54)}
+          .pill:hover{border-color:#d1f470;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           
           /* API Section */
           .api{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
@@ -657,7 +671,9 @@ response = requests.post(
           .capabilities .section-header{margin-bottom:40px}
           .capabilities-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
           .capability-card{background:#fff;border:2px solid #e5e7eb;border-radius:16px;padding:28px 24px;transition:all .25s;cursor:default}
-          .capability-card:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+          /* No background tint on hover — #fbfff0 is retired. The card already
+             sits on #fff against the #fafafa canvas, so the lime border reads. */
+          .capability-card:hover{border-color:#d1f470;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
           .cap-icon{width:52px;height:52px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:10px}
           .cap-icon img{width:100%;height:100%;object-fit:contain}
           .capability-card h3{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;margin:0 0 10px}
@@ -751,8 +767,13 @@ response = requests.post(
             .section-header p{text-align:center}
             
             .touchpoint{padding:44px 20px}
-            .usecase-pills{justify-content:center;gap:12px;flex-wrap:wrap;padding:0;margin:0}
-            .pill{padding:14px 26px;font-size:20px}
+            /* 2 + 2 + 2 from tablet down; three max-content columns plus gaps do
+               not fit a 360px viewport once section padding is taken off. */
+            .usecase-pills{grid-template-columns:repeat(2,max-content);justify-content:center;justify-items:center;gap:12px;padding:0;margin:0}
+            /* font-size dropped, not changed: the TYPOGRAPHY CONTRACT block below is
+               later in source order at equal specificity, so its 15px already won and
+               this 20px never rendered. It only made the pill look under-specified. */
+            .pill{padding:14px 26px}
             
             .api{padding:44px 20px}
             .api-grid{gap:36px;text-align:left}
@@ -850,7 +871,13 @@ response = requests.post(
              h1 and p are intentionally absent: their base rule is the contract. */
           .section-header h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
           .section-header p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
-          .pill{font-size:var(--text-base)}
+          /* 15px explicit, not var(--text-base). That token is declared twice —
+             tokens.css:83 says 16px, Pages.css:59 says 15px — and only Pages.css is
+             imported by _app.tsx, so the pills were 15px by accident of import
+             order. Importing tokens.css would silently have resized every pill.
+             .pp-pill is listed here too; it was missing from this contract block
+             despite being the class the touchpoint section actually renders. */
+          .pill,.pp-pill{font-size:15px}
           .api-info h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
           .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .tab{font-size:15px}
@@ -880,8 +907,12 @@ response = requests.post(
 
           /* Use-case pills as spans, since they carry no handler. Same paint as
              .pill; inline-flex restores the centring a button gets for free. */
-          .pp-pill{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:var(--text-base);font-weight:600;cursor:default;transition:all .25s;color:#4b5563}
-          .pp-pill:hover{border-color:#d1f470;color:#1a3a2a;background:#fbfff0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+          /* Paint matches .pill exactly — muted black label, no retired hover
+             tint. min-height is dropped: at 15px with 14px of vertical padding the
+             pill computes to ~48px, so a 32px floor never applied and only implied
+             a constraint that was not doing anything. */
+          .pp-pill{display:inline-flex;align-items:center;justify-content:center;padding:14px 28px;border:2px solid #e5e7eb;background:#fff;border-radius:50px;font-size:15px;font-weight:600;cursor:default;transition:all .25s;color:rgba(0,0,0,.54)}
+          .pp-pill:hover{border-color:#d1f470;color:#1a3a2a;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
 
           @media(max-width:1024px){
             .pp-pill{padding:12px 22px}
