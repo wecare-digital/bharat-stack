@@ -63,35 +63,51 @@ const GrahakOsPage: React.FC = () => {
 
   const useCases = ['Promotional', 'Transactional', 'Appointments', 'OTPs', 'Orders', 'Surveys'];
 
+  // These are real calls, checked against docs/openapi.yaml and the handler rather
+  // than written to look plausible. All three used to POST /v1/messages, which does
+  // not exist: the spec has no /v1 prefix at all, its server is
+  // https://api.wecare.digital, and /messages is GET-only for reading a paginated
+  // list. The hero panel was worse - /v1/send exists nowhere in the spec.
+  //
+  // The documented way to send is POST /outbound-whatsapp ("Send outbound WhatsApp
+  // message (text, template, media)"). The handler validates
+  // "contactId or recipientPhone is required" and takes the body text as `content`,
+  // so `to` and `message` were both wrong field names on top of the wrong path.
+  // Auth is securitySchemes: type http, scheme bearer, bearerFormat JWT - a Cognito
+  // access token, which is why Bearer is correct here.
+  //
+  // Keep these in step with the hero .code-body sample: same endpoint, same fields.
   const codeExamples = [
     { lang: 'Python', code: `import requests
 
 response = requests.post(
-  "https://api.wecare.digital/v1/messages",
+  "https://api.wecare.digital/outbound-whatsapp",
   headers={
-    "Authorization": "Bearer API_KEY"
+    "Authorization": f"Bearer {access_token}"
   },
   json={
-    "to": "+919330994400",
-    "type": "template"
+    "recipientPhone": "+919330994400",
+    "content": "Your order #WD-87A6G has been shipped"
   }
 )` },
     { lang: 'JavaScript', code: `const response = await fetch(
-  "https://api.wecare.digital/v1/messages",
+  "https://api.wecare.digital/outbound-whatsapp",
   {
     method: "POST",
     headers: {
-      "Authorization": "Bearer API_KEY"
+      "Authorization": \`Bearer \${accessToken}\`
     },
     body: JSON.stringify({
-      to: "+919330994400"
+      recipientPhone: "+919330994400",
+      content: "Your order #WD-87A6G has been shipped"
     })
   }
 );` },
     { lang: 'cURL', code: `curl -X POST \\
-  "https://api.wecare.digital/v1/messages" \\
-  -H "Authorization: Bearer API_KEY" \\
-  -d '{"to": "+919330994400"}'` },
+  "https://api.wecare.digital/outbound-whatsapp" \\
+  -H "Authorization: Bearer $ACCESS_TOKEN" \\
+  -d '{"recipientPhone": "+919330994400",
+       "content": "Your order #WD-87A6G has been shipped"}'` },
   ];
 
   const capabilities = [
@@ -302,13 +318,12 @@ response = requests.post(
                       absorb exactly that. Lengthen any line here and you move the
                       panel over the thread - re-measure, do not eyeball. */}
                   <pre className="code-body">{`response = requests.post(
-  "api.wecare.digital/v1/send",
+  "api.wecare.digital/outbound-whatsapp",
   json={
-    "to": "+919330994400",
-    "channel": "whatsapp",
-    "message": "Your order #WD-87A6G has been shipped"
+    "recipientPhone": "+919330994400",
+    "content": "Your order #WD-87A6G has been shipped"
   },
-  headers={"Authorization": api_key}
+  headers={"Authorization": bearer}
 )`}</pre>
                 </div>
               </div>
@@ -346,7 +361,17 @@ response = requests.post(
           <div className="api-grid">
             <div className="api-info">
               <h2>Built for your stack</h2>
-              <p className="api-desc">Use Grahak OS through its own customer engagement workspace or connect your stack through secure APIs for messaging, customer data, automation and campaigns.</p>
+              {/* Rewritten because the old line repeated the hero almost word for word
+                  - "messaging, customer data, automation and campaigns" appeared in
+                  both, and the same four pillars were being restated a third and fourth
+                  time further down the page. A developer section should say something
+                  the hero does not.
+                  Grounded rather than written to sound good: the spec really does
+                  expose one outbound endpoint per channel (/outbound-whatsapp,
+                  /outbound-sms, /outbound-email, /outbound-voice), auth really is a
+                  bearer token, and the canonical message store is the one in
+                  docs/UNIFIED_MESSAGE_TABLE_DESIGN.md. */}
+              <p className="api-desc">One POST per channel and a bearer token. Every message lands in the same canonical store the workspace reads, so your API traffic and your inbox are never two separate histories.</p>
             </div>
             <div className="api-demo">
               <div className="code-tabs">
@@ -632,7 +657,14 @@ response = requests.post(
              wrapper grows by what the panel grew, and the ~20px panel-over-phone
              overhang stays put when the phone grows by the same amount as the
              wrapper. Change one without the other and the composition breaks. */
-          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:614px;background:#fff;border-radius:28px;padding:28px 24px 24px}
+          /* 614 -> 638, paired with the same +24 on .chat-area. The sample moved to the
+             real endpoint, and the longer path plus the recipientPhone field push two
+             more lines past the panel's 36-character measure while the old "channel"
+             line went away - net one extra rendered line, so about 22px more panel.
+             Over-allocating by a couple of px is the safe direction here: if a line
+             turns out to fit, the panel is shorter than the wrapper expects and its top
+             edge sits LOWER, which only increases the clearance above the bubbles. */
+          .mockup-wrapper{position:relative;width:100%;max-width:580px;min-height:638px;background:#fff;border-radius:28px;padding:28px 24px 24px}
           /* The two panels OVERLAP on purpose - the code panel laps the phone's
              lower-right corner, which is the whole composition. 56% + 60% = 116%
              of the wrapper, so the lap is ~16%.
@@ -657,7 +689,7 @@ response = requests.post(
              instead of ~20px; growing the phone by the same amount keeps that. The
              extra height lands as empty beige below the typing dots, which is what
              a real thread looks like anyway. */
-          .chat-area{background:#ece5dd;padding:16px 14px;min-height:504px;display:flex;flex-direction:column;gap:9px}
+          .chat-area{background:#ece5dd;padding:16px 14px;min-height:528px;display:flex;flex-direction:column;gap:9px}
           .msg{max-width:82%;padding:10px 13px;border-radius:8px;font-size:17px;line-height:1.42;color:#000}
           /* Received bubbles are capped narrower than sent ones. They sit low in the
              thread, inside the band the code panel laps, and at 82% they grew past
