@@ -164,9 +164,25 @@ at `right:96px; bottom:16px` with its width capped against `calc(100vw - 108px)`
    symptom is type silently falling back to an inherited 17px.
 5. **Global unscoped CSS in `src/styles/*.css` leaks in** for generic class names:
    `.pill`, `.stat`, `.phone`, `.chat-area`, `.btn-primary`, `.sep`, `.msg-time`,
-   `.ftr`, `.contact-name`. `Layout.css:214` has
-   `.layout ~ .ftr{position:fixed;bottom:0}` — a dormant landmine; `ftr` was
-   dropped from Footer because of it.
+   `.ftr`, `.contact-name`, **`.tab`, `.code-block`, `.nav-item`, and bare `pre`**.
+   `Layout.css:214` has `.layout ~ .ftr{position:fixed;bottom:0}` — a dormant
+   landmine; `ftr` was dropped from Footer because of it.
+
+   **Specificity is not the protection you think it is.** The jsx class means a page
+   rule always outranks a global one — but only for properties the page rule actually
+   declares. Anything left undeclared falls through, and the symptom is a change that
+   looks like it never applied:
+
+   | Leak | Global | Effect before it was closed |
+   |---|---|---|
+   | `.code-block` | `Pages.css:3228` `background:#1e1e1e` | API code pane rendered the **retired** slate over the panel's `#000`, so the black treatment looked like it had not shipped |
+   | `.tab:hover` | `Layout.css:1815` `background:var(--hover)` = `rgba(209,244,112,.2)` | idle tabs lit up in a pale lime wash on hover |
+   | `.code-block`, `pre` | same rule's 768px block | `width:calc(100% + 24px)`, negative side margins, squared corners, and an `::after` scroll gradient that fades in on hover |
+
+   So when a restyle appears not to take, **check whether the property is declared at
+   all** before suspecting the build, the cache or the service worker. Declare
+   `background`, `width` and `border` explicitly on any element whose class name is
+   generic, even where the value looks like a default.
 
 ## Routing traps
 

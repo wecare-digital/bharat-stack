@@ -687,7 +687,11 @@ response = requests.post(
              pane rather than a flat dark rectangle. Both this and .code-box are
              #000, so the rounded corners of the two simply coincide and only the
              stroke shows. */
-          .code-body{margin:0;padding:15px 16px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;background:#000;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.6;color:#fff;white-space:pre-wrap;overflow-wrap:break-word}
+          /* width:auto for the same reason as .code-block: the global rule targets bare
+             "pre" too, and its 768px block widens every pre by 24px. This panel clips
+             with overflow:hidden so it was never visibly broken, but it was being
+             overdrawn. */
+          .code-body{margin:0;width:auto;padding:15px 16px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;background:#000;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:14px;line-height:1.6;color:#fff;white-space:pre-wrap;overflow-wrap:break-word}
           
           /* Section Header */
           .section-header{text-align:center;margin:0 auto 32px;max-width:700px;padding:0 24px;display:flex;flex-direction:column;align-items:center}
@@ -739,7 +743,16 @@ response = requests.post(
              doing the work. Two separators stacked read as a seam. */
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:rgba(255,255,255,.54);background:transparent;cursor:pointer;transition:all .2s}
-          .tab:hover{color:#fff}
+          /* background:transparent is NOT redundant. .tab is declared unscoped in both
+             Layout.css and Pages.css, and Layout.css:1815 sets
+             .tab:hover{background:var(--hover)} where --hover is rgba(209,244,112,.2).
+             This rule only set color, so that pale lime wash came through unopposed and
+             hovering an idle tab lit it up in a colour this panel never asked for.
+             Declaring the property is the whole fix - the jsx class already wins on
+             specificity, it just had nothing to win with.
+             Hover is deliberately text-only: idle .54 white lifting to full white is
+             the affordance, since the active tab already owns the filled-lime state. */
+          .tab:hover{color:#fff;background:transparent}
           .tab.active{background:#d1f470;color:#1a3a2a}
           /* The editor-pane stroke, carried over from the hero's .code-body, where the
              comment calls it the detail that stops a dark panel reading as a flat
@@ -747,7 +760,23 @@ response = requests.post(
              both were already #000 with #fff code, but only the hero looked like an
              editor. Radius matches .api-demo at 14px so the corners coincide and only
              the stroke shows, exactly as the hero pairs .code-body with .code-box. */
-          .code-block{margin:0;padding:20px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#fff;overflow-x:auto;white-space:pre}
+          /* background:#000 and width:auto are the two properties that make this rule
+             actually take effect, and both exist because of a global leak rather than
+             for their own sake.
+             Pages.css:3228 declares ".code-block, .api-example, pre" with
+             background:#1e1e1e - the slate this page retired - plus, inside its 768px
+             media query, width:calc(100% + 24px) with negative side margins and squared
+             corners. This rule declared neither property, so the pane rendered #1e1e1e
+             over the panel's #000 and the black treatment looked like it had not
+             applied at all. The jsx class already outranks the global; it simply had
+             nothing to outrank it WITH.
+             Declared in the base rule, not the breakpoint, so the global's 768px
+             boundary cannot slip through the 767px override below. */
+          .code-block{margin:0;width:auto;padding:20px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;background:#000;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#fff;overflow-x:auto;white-space:pre}
+          /* Same global, mobile half: it attaches a 24px rgba(30,30,30,.8) gradient as
+             a scroll hint that fades in on hover. On a black pane that reads as a dark
+             smudge appearing under the cursor, so it is switched off for both panels. */
+          .code-block::after,.code-body::after{content:none}
           
           /* Capabilities Section - Card Grid */
           .capabilities{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
