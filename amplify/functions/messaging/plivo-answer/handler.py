@@ -715,13 +715,18 @@ def _route_dial_events(params: dict, request_id: str) -> dict:
     whereas guessing means duplicate SMS to real people under our registered DLT
     sender.
     """
+    from lambda_utils.notifications import keys as notif_keys
     from lambda_utils.notifications import service as notif_service
     from lambda_utils.notifications import store as notif_store
 
     call_uuid = params.get('CallUUID', '')
     try:
+        # PROVIDER_PLIVO names the CALL provider whose callback shape this is —
+        # it selects the dial-callback parser, not an SMS transport. Plivo is the
+        # approved PSTN voice provider (§6); the notification channels it fans out
+        # to still resolve through the normal AWS senders.
         outcome = notif_service.handle_connected_call(
-            params, provider='plivo', request_id=request_id)
+            params, provider=notif_keys.PROVIDER_PLIVO, request_id=request_id)
     except notif_store.NotificationStoreUnavailable as exc:
         # Fail closed. 503 so Plivo retries; nothing was sent.
         log_event(logger, 'plivo_dial_store_unavailable', level='error',

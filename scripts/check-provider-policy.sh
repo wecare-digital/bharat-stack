@@ -148,6 +148,16 @@ rule "legacy-aws-sms" \
      '(AWS\.SNS\.SMS\.|pinpoint\.send_messages|PINPOINT_APP_ID)'
 
 # A provider literal being assigned for an SMS send.
+#
+# This matches the literal, not the meaning, so it cannot tell an SMS transport
+# choice apart from a voice-callback discriminator — `provider='plivo'` passed to
+# notifications.handle_connected_call names the callback shape being parsed, and
+# Plivo is the approved voice provider there. Where a provider identity is a
+# legitimate part of the call/notification domain, pass the named constant
+# (`notifications.keys.PROVIDER_PLIVO`) rather than a bare string: it is what the
+# domain compares against internally, and it keeps this rule meaning what its
+# description says. Do not add a path exclusion to silence it — that would blind
+# the rule to a real Plivo SMS assignment in the same file.
 rule "sms-provider-literal" \
      "no SMS path assigning a non-AWS provider" \
      "(provider *= *['\"](sinch|airtel|plivo)['\"]|provider: *['\"](sinch|airtel|plivo)['\"])"
