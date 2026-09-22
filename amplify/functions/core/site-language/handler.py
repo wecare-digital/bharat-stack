@@ -379,14 +379,20 @@ def _translate_texts(texts: List[str], target: str, source: str) -> Tuple[List[D
     nav label or a repeated CTA arrives many times in one batch and used to be
     billed once per occurrence.
     """
-    # Derived from a bool, so the key is not in scope for this log line. See the
-    # note in _google_key() for why that distinction is load-bearing.
+    # DO NOT log which provider was resolved here, or anywhere the value derives
+    # from _google_enabled(). CodeQL tracks taint interprocedurally:
+    # provider <- _google_enabled() <- _google_key() <- the secret. It failed the
+    # build twice on this - once as "google" if key else "aws" inside _google_key(),
+    # then again here after the value was reduced to a bool, because the call chain
+    # still reaches the secret. Neither version could actually emit a key; the point
+    # is that the analysis cannot prove that, and this repo's history with leaked
+    # credentials means the scanner gets the benefit of the doubt.
+    #
+    # Nothing is lost. Which provider ran is already observable two other ways:
+    # the "provider" field on the translate response, and the
+    # google_translate_failed warning below, which is the signal that actually
+    # matters operationally.
     provider = "google" if _google_enabled() else "aws"
-    logger.info(
-        json.dumps({"event": "translate_provider_resolved",
-                    "provider": provider,
-                    "secret": GOOGLE_SECRET_NAME})
-    )
     rows: List[Optional[Dict[str, str]]] = [None] * len(texts)
     pending: Dict[str, List[int]] = {}
 
