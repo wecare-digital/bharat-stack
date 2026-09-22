@@ -10,6 +10,9 @@ import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { Amplify } from 'aws-amplify';
 import { Authenticator, ThemeProvider, Theme, useAuthenticator } from '@aws-amplify/ui-react';
+// Brand line above the sign-in form. Lives in its own file and styles itself,
+// because styled-jsx cannot scope a composite component from here.
+import AuthBrandHeader from '../components/AuthBrand';
 import '@aws-amplify/ui-react/styles.css';
 import '../styles/Pages.css';
 import '../styles/Layout.css';
@@ -365,12 +368,25 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ( { children } ) => {
   return (
     <>
       <Header />
-      <div style={ { display: 'flex', flexDirection: 'column', minHeight: '100vh', paddingTop: 96 } }>
-        <div style={ { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' } }>
+      <div className="ag-shell">
+        <div className="ag-centre">
           { children }
         </div>
         <Footer />
       </div>
+      <style jsx>{`
+        /* 108px, not the flat 96px this used to inline.
+           The public header is position:fixed and 108px tall, dropping to 96px only
+           below 768px - so a single 96px value pulled the whole centred block 12px
+           up UNDER the header on every desktop, which is exactly where the new brand
+           badge above the form sits. Matched to both of the header's heights rather
+           than to one of them.
+           Moved out of inline styles for that reason: a style attribute cannot carry
+           a media query, so the two-height fix is not expressible inline. */
+        .ag-shell{display:flex;flex-direction:column;min-height:100vh;padding-top:108px}
+        .ag-centre{flex:1;display:flex;align-items:center;justify-content:center}
+        @media(max-width:767px){.ag-shell{padding-top:96px}}
+      `}</style>
     </>
   );
 };
@@ -597,7 +613,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
       <ThemeProvider theme={ authTheme }>
         <Authenticator.Provider>
           <AuthGate>
-            <Authenticator hideSignUp={ true }>
+            <Authenticator hideSignUp={ true } components={ { Header: AuthBrandHeader } }>
               { ( { signOut, user } ) => {
                 if ( typeof window !== 'undefined' && ( window as any ).FB )
                 {
