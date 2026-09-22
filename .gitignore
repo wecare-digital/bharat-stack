@@ -15,6 +15,10 @@ out/
 
 # Environment variables
 .env*
+# ...but example templates carry no values and are meant to be committed. Without
+# this negation `.env.example` needs `git add -f` every time, which is how a real
+# `.env` eventually gets force-added by muscle memory.
+!.env*.example
 
 # AWS Amplify
 amplify/mock-data/

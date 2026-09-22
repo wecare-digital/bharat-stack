@@ -1,0 +1,36 @@
+{
+  "actions": [
+    {
+      "actionTypes": [
+        "openUrlAction"
+      ],
+      "application": "BROWSER",
+      "kind": "action",
+      "postbackData": "rcsmenu",
+      "text": "Get Started",
+      "url": "https://r.wecare.digital/getstarted"
+    }
+  ],
+  "bodyLength": 200,
+  "cardOrientation": "VERTICAL",
+  "documentedOnly": false,
+  "fingerprint": "e587f5e7617982ae",
+  "forceRefresh": false,
+  "hasTrailingBackticks": true,
+  "isCarousel": false,
+  "isRichCard": true,
+  "mediaExtension": "mp4",
+  "mediaHeight": "MEDIUM",
+  "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+  "name": "rcsmenu",
+  "referencedByCode": true,
+  "status": "approved",
+  "suggestionCount": 1,
+  "thumbnailImageAlignment": null,
+  "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+  "title": "Thanks for contacting WECARE.DIGITAL!",
+  "titleLength": 37,
+  "type": "rich_card",
+  "variableSyntax": "none",
+  "variables": []
+}

@@ -1,0 +1,36 @@
+{
+  "component": {
+    "richCard": {
+      "standaloneCard": {
+        "cardContent": {
+          "description": "Submit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.\n``````\nWECARE.DIGITAL",
+          "media": {
+            "contentInfo": {
+              "fileUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+              "forceRefresh": false,
+              "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png"
+            },
+            "height": "SHORT"
+          },
+          "suggestions": [
+            {
+              "action": {
+                "openUrlAction": {
+                  "application": "BROWSER",
+                  "url": "https://r.wecare.digital/getstarted"
+                },
+                "postbackData": "wecaremenu",
+                "text": "Get Started"
+              }
+            }
+          ],
+          "title": "Thanks for contacting WECARE.DIGITAL!"
+        },
+        "cardOrientation": "VERTICAL"
+      }
+    }
+  },
+  "name": "wecaremenu",
+  "status": "approved",
+  "type": "rich_card"
+}

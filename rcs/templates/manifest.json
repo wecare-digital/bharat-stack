@@ -1,0 +1,511 @@
+{
+  "generatedAt": "2026-09-22T07:25:12.933003+00:00",
+  "generator": "scripts/rcs_template_sync.py",
+  "source": {
+    "platform": "Sinch India (ex-ACL Mobile)",
+    "readVia": "lambda wecare-rcs-send:live action=templates",
+    "note": "The official Sinch MCP server cannot read these: it authenticates against the global Sinch Build platform with KEY_ID/KEY_SECRET, which this account does not have."
+  },
+  "counts": {
+    "total": 11,
+    "richCard": 6,
+    "textMessage": 5,
+    "carousel": 0,
+    "approved": 11,
+    "referencedByCode": 1,
+    "documentedOnly": 2,
+    "unreferenced": 8
+  },
+  "templates": [
+    {
+      "name": "test16",
+      "type": "text_message",
+      "status": "approved",
+      "isRichCard": false,
+      "cardOrientation": null,
+      "thumbnailImageAlignment": null,
+      "mediaHeight": null,
+      "mediaUrl": null,
+      "mediaExtension": null,
+      "thumbnailUrl": null,
+      "forceRefresh": null,
+      "title": null,
+      "titleLength": 0,
+      "bodyLength": 230,
+      "suggestionCount": 0,
+      "actions": [],
+      "variables": [],
+      "variableSyntax": "none",
+      "hasTrailingBackticks": false,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": false,
+      "fingerprint": "3fbdcc2b89e32d97"
+    },
+    {
+      "name": "test17",
+      "type": "text_message",
+      "status": "approved",
+      "isRichCard": false,
+      "cardOrientation": null,
+      "thumbnailImageAlignment": null,
+      "mediaHeight": null,
+      "mediaUrl": null,
+      "mediaExtension": null,
+      "thumbnailUrl": null,
+      "forceRefresh": null,
+      "title": null,
+      "titleLength": 0,
+      "bodyLength": 21,
+      "suggestionCount": 0,
+      "actions": [],
+      "variables": [],
+      "variableSyntax": "none",
+      "hasTrailingBackticks": false,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": false,
+      "fingerprint": "d51378361cd3ce28"
+    },
+    {
+      "name": "get_started",
+      "type": "rich_card",
+      "status": "approved",
+      "isRichCard": true,
+      "cardOrientation": "HORIZONTAL",
+      "thumbnailImageAlignment": "LEFT",
+      "mediaHeight": "TALL",
+      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaExtension": "mp4",
+      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/WECARE+SC.png",
+      "forceRefresh": false,
+      "title": "Thanks for contacting WECARE.DIGITAL!",
+      "titleLength": 37,
+      "bodyLength": 200,
+      "suggestionCount": 1,
+      "actions": [
+        {
+          "kind": "action",
+          "text": "Get Started",
+          "postbackData": "get_started",
+          "actionTypes": [
+            "openUrlAction"
+          ],
+          "url": "https://r.wecare.digital/getstarted",
+          "application": "BROWSER"
+        }
+      ],
+      "variables": [],
+      "variableSyntax": "none",
+      "hasTrailingBackticks": true,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": false,
+      "fingerprint": "dcde30b2910de7be"
+    },
+    {
+      "name": "wecare_order_update",
+      "type": "text_message",
+      "status": "approved",
+      "isRichCard": false,
+      "cardOrientation": null,
+      "thumbnailImageAlignment": null,
+      "mediaHeight": null,
+      "mediaUrl": null,
+      "mediaExtension": null,
+      "thumbnailUrl": null,
+      "forceRefresh": null,
+      "title": null,
+      "titleLength": 0,
+      "bodyLength": 99,
+      "suggestionCount": 0,
+      "actions": [],
+      "variables": [
+        "order_id",
+        "status"
+      ],
+      "variableSyntax": "curly",
+      "hasTrailingBackticks": false,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": false,
+      "fingerprint": "85246b4d8212bf81"
+    },
+    {
+      "name": "wecare_test_create",
+      "type": "text_message",
+      "status": "approved",
+      "isRichCard": false,
+      "cardOrientation": null,
+      "thumbnailImageAlignment": null,
+      "mediaHeight": null,
+      "mediaUrl": null,
+      "mediaExtension": null,
+      "thumbnailUrl": null,
+      "forceRefresh": null,
+      "title": null,
+      "titleLength": 0,
+      "bodyLength": 59,
+      "suggestionCount": 0,
+      "actions": [],
+      "variables": [
+        "order_id"
+      ],
+      "variableSyntax": "curly",
+      "hasTrailingBackticks": false,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": false,
+      "fingerprint": "fc3a75151e9b2f17"
+    },
+    {
+      "name": "wecare_v2_test",
+      "type": "text_message",
+      "status": "approved",
+      "isRichCard": false,
+      "cardOrientation": null,
+      "thumbnailImageAlignment": null,
+      "mediaHeight": null,
+      "mediaUrl": null,
+      "mediaExtension": null,
+      "thumbnailUrl": null,
+      "forceRefresh": null,
+      "title": null,
+      "titleLength": 0,
+      "bodyLength": 72,
+      "suggestionCount": 0,
+      "actions": [],
+      "variables": [
+        "custom_param1b",
+        "custom_param2b"
+      ],
+      "variableSyntax": "bracket",
+      "hasTrailingBackticks": false,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": false,
+      "fingerprint": "7c52b69d0f3bc388"
+    },
+    {
+      "name": "wecaremenu",
+      "type": "rich_card",
+      "status": "approved",
+      "isRichCard": true,
+      "cardOrientation": "VERTICAL",
+      "thumbnailImageAlignment": null,
+      "mediaHeight": "SHORT",
+      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaExtension": "mp4",
+      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "forceRefresh": false,
+      "title": "Thanks for contacting WECARE.DIGITAL!",
+      "titleLength": 37,
+      "bodyLength": 200,
+      "suggestionCount": 1,
+      "actions": [
+        {
+          "kind": "action",
+          "text": "Get Started",
+          "postbackData": "wecaremenu",
+          "actionTypes": [
+            "openUrlAction"
+          ],
+          "url": "https://r.wecare.digital/getstarted",
+          "application": "BROWSER"
+        }
+      ],
+      "variables": [],
+      "variableSyntax": "none",
+      "hasTrailingBackticks": true,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": false,
+      "fingerprint": "45f4f266e786af50"
+    },
+    {
+      "name": "wdorder",
+      "type": "rich_card",
+      "status": "approved",
+      "isRichCard": true,
+      "cardOrientation": "VERTICAL",
+      "thumbnailImageAlignment": null,
+      "mediaHeight": "SHORT",
+      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaExtension": "mp4",
+      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "forceRefresh": false,
+      "title": "Thanks for placing your order with WECARE.DIGITAL!",
+      "titleLength": 50,
+      "bodyLength": 233,
+      "suggestionCount": 1,
+      "actions": [
+        {
+          "kind": "action",
+          "text": "Get Started",
+          "postbackData": "wdorder",
+          "actionTypes": [
+            "openUrlAction"
+          ],
+          "url": "https://r.wecare.digital/getstarted",
+          "application": "BROWSER"
+        }
+      ],
+      "variables": [],
+      "variableSyntax": "none",
+      "hasTrailingBackticks": true,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": false,
+      "fingerprint": "1ac3f5abd02b0cdc"
+    },
+    {
+      "name": "waalert",
+      "type": "rich_card",
+      "status": "approved",
+      "isRichCard": true,
+      "cardOrientation": "VERTICAL",
+      "thumbnailImageAlignment": null,
+      "mediaHeight": "MEDIUM",
+      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaExtension": "mp4",
+      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "forceRefresh": false,
+      "title": "Thanks for contacting WECARE.DIGITAL!",
+      "titleLength": 37,
+      "bodyLength": 150,
+      "suggestionCount": 1,
+      "actions": [
+        {
+          "kind": "action",
+          "text": "Get Started",
+          "postbackData": "waalert",
+          "actionTypes": [
+            "openUrlAction"
+          ],
+          "url": "https://r.wecare.digital/getstarted",
+          "application": "BROWSER"
+        }
+      ],
+      "variables": [],
+      "variableSyntax": "none",
+      "hasTrailingBackticks": false,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": true,
+      "fingerprint": "6a72a0afad64f23b"
+    },
+    {
+      "name": "rcsmenu",
+      "type": "rich_card",
+      "status": "approved",
+      "isRichCard": true,
+      "cardOrientation": "VERTICAL",
+      "thumbnailImageAlignment": null,
+      "mediaHeight": "MEDIUM",
+      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaExtension": "mp4",
+      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "forceRefresh": false,
+      "title": "Thanks for contacting WECARE.DIGITAL!",
+      "titleLength": 37,
+      "bodyLength": 200,
+      "suggestionCount": 1,
+      "actions": [
+        {
+          "kind": "action",
+          "text": "Get Started",
+          "postbackData": "rcsmenu",
+          "actionTypes": [
+            "openUrlAction"
+          ],
+          "url": "https://r.wecare.digital/getstarted",
+          "application": "BROWSER"
+        }
+      ],
+      "variables": [],
+      "variableSyntax": "none",
+      "hasTrailingBackticks": true,
+      "isCarousel": false,
+      "referencedByCode": true,
+      "documentedOnly": false,
+      "fingerprint": "e587f5e7617982ae"
+    },
+    {
+      "name": "rcsorder",
+      "type": "rich_card",
+      "status": "approved",
+      "isRichCard": true,
+      "cardOrientation": "VERTICAL",
+      "thumbnailImageAlignment": null,
+      "mediaHeight": "MEDIUM",
+      "mediaUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
+      "mediaExtension": "mp4",
+      "thumbnailUrl": "https://app.wecare.digital/stream/media/m/wecare-digital-rcs-h.png",
+      "forceRefresh": false,
+      "title": "Thanks for placing your order with WECARE.DIGITAL!",
+      "titleLength": 50,
+      "bodyLength": 233,
+      "suggestionCount": 1,
+      "actions": [
+        {
+          "kind": "action",
+          "text": "Get Started",
+          "postbackData": "rcsorder",
+          "actionTypes": [
+            "openUrlAction"
+          ],
+          "url": "https://r.wecare.digital/getstarted",
+          "application": "BROWSER"
+        }
+      ],
+      "variables": [],
+      "variableSyntax": "none",
+      "hasTrailingBackticks": true,
+      "isCarousel": false,
+      "referencedByCode": false,
+      "documentedOnly": true,
+      "fingerprint": "a1587ba1e19cfea8"
+    }
+  ],
+  "findings": [
+    {
+      "severity": "HIGH",
+      "template": "get_started",
+      "finding": "HORIZONTAL card orientation with TALL media height",
+      "consequence": "TALL is not offered for horizontal cards; the media may be dropped, leaving a card with no video",
+      "action": "set mediaHeight to MEDIUM, or cardOrientation to VERTICAL",
+      "needsProviderReadback": true
+    },
+    {
+      "severity": "MEDIUM",
+      "template": "get_started",
+      "finding": "body contains six literal backticks",
+      "consequence": "renders as a code block or as visible backticks depending on the RCS client",
+      "action": "do NOT edit the approved template in place; create a clean versioned successor and switch after it is approved"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "get_started",
+      "finding": "rich card carries video media (.mp4)",
+      "consequence": "inline playback and autoplay differ between Google Messages and Apple Messages; a still thumbnail is the only guaranteed common rendering",
+      "action": "confirm on both handsets that the thumbnail is legible when the video does not play inline"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "get_started",
+      "finding": "openUrlAction forces application=BROWSER",
+      "consequence": "opens the system browser rather than a webview; acceptable, but the transition is more abrupt on iPhone",
+      "action": "confirm the landing page is mobile-legible"
+    },
+    {
+      "severity": "MEDIUM",
+      "template": "wecaremenu",
+      "finding": "body contains six literal backticks",
+      "consequence": "renders as a code block or as visible backticks depending on the RCS client",
+      "action": "do NOT edit the approved template in place; create a clean versioned successor and switch after it is approved"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "wecaremenu",
+      "finding": "rich card carries video media (.mp4)",
+      "consequence": "inline playback and autoplay differ between Google Messages and Apple Messages; a still thumbnail is the only guaranteed common rendering",
+      "action": "confirm on both handsets that the thumbnail is legible when the video does not play inline"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "wecaremenu",
+      "finding": "openUrlAction forces application=BROWSER",
+      "consequence": "opens the system browser rather than a webview; acceptable, but the transition is more abrupt on iPhone",
+      "action": "confirm the landing page is mobile-legible"
+    },
+    {
+      "severity": "MEDIUM",
+      "template": "wdorder",
+      "finding": "body contains six literal backticks",
+      "consequence": "renders as a code block or as visible backticks depending on the RCS client",
+      "action": "do NOT edit the approved template in place; create a clean versioned successor and switch after it is approved"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "wdorder",
+      "finding": "rich card carries video media (.mp4)",
+      "consequence": "inline playback and autoplay differ between Google Messages and Apple Messages; a still thumbnail is the only guaranteed common rendering",
+      "action": "confirm on both handsets that the thumbnail is legible when the video does not play inline"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "wdorder",
+      "finding": "openUrlAction forces application=BROWSER",
+      "consequence": "opens the system browser rather than a webview; acceptable, but the transition is more abrupt on iPhone",
+      "action": "confirm the landing page is mobile-legible"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "waalert",
+      "finding": "rich card carries video media (.mp4)",
+      "consequence": "inline playback and autoplay differ between Google Messages and Apple Messages; a still thumbnail is the only guaranteed common rendering",
+      "action": "confirm on both handsets that the thumbnail is legible when the video does not play inline"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "waalert",
+      "finding": "openUrlAction forces application=BROWSER",
+      "consequence": "opens the system browser rather than a webview; acceptable, but the transition is more abrupt on iPhone",
+      "action": "confirm the landing page is mobile-legible"
+    },
+    {
+      "severity": "MEDIUM",
+      "template": "rcsmenu",
+      "finding": "body contains six literal backticks",
+      "consequence": "renders as a code block or as visible backticks depending on the RCS client",
+      "action": "do NOT edit the approved template in place; create a clean versioned successor and switch after it is approved"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "rcsmenu",
+      "finding": "rich card carries video media (.mp4)",
+      "consequence": "inline playback and autoplay differ between Google Messages and Apple Messages; a still thumbnail is the only guaranteed common rendering",
+      "action": "confirm on both handsets that the thumbnail is legible when the video does not play inline"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "rcsmenu",
+      "finding": "openUrlAction forces application=BROWSER",
+      "consequence": "opens the system browser rather than a webview; acceptable, but the transition is more abrupt on iPhone",
+      "action": "confirm the landing page is mobile-legible"
+    },
+    {
+      "severity": "MEDIUM",
+      "template": "rcsorder",
+      "finding": "body contains six literal backticks",
+      "consequence": "renders as a code block or as visible backticks depending on the RCS client",
+      "action": "do NOT edit the approved template in place; create a clean versioned successor and switch after it is approved"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "rcsorder",
+      "finding": "rich card carries video media (.mp4)",
+      "consequence": "inline playback and autoplay differ between Google Messages and Apple Messages; a still thumbnail is the only guaranteed common rendering",
+      "action": "confirm on both handsets that the thumbnail is legible when the video does not play inline"
+    },
+    {
+      "severity": "INFORMATIONAL",
+      "template": "rcsorder",
+      "finding": "openUrlAction forces application=BROWSER",
+      "consequence": "opens the system browser rather than a webview; acceptable, but the transition is more abrupt on iPhone",
+      "action": "confirm the landing page is mobile-legible"
+    },
+    {
+      "severity": "MEDIUM",
+      "template": "get_started, test16, test17, wdorder, wecare_order_update, wecare_test_create, wecare_v2_test, wecaremenu",
+      "finding": "8 approved templates no code path sends",
+      "consequence": "unused approved surface; several are obvious test leftovers sitting in production",
+      "action": "confirm each is intentional, then retire the test templates"
+    }
+  ],
+  "findingCounts": {
+    "HIGH": 1,
+    "MEDIUM": 6,
+    "INFORMATIONAL": 12
+  }
+}
