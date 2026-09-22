@@ -23,7 +23,13 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).toContain( '.avatar{width:40px;height:40px;background:#1a3a2a' );
     expect( source ).toContain( '.verified-badge{width:22px;height:22px;background:#1a3a2a' );
     expect( source ).toContain( '.msg.sent{background:#d1f470' );
-    expect( source ).toContain( '.tab.active{background:#d1f470;color:#1a3a2a}' );
+    // Renamed .tab -> .pp-tab so the page owns the control outright: the bare .tab
+    // class is declared unscoped in Pages.css and Layout.css, which were supplying
+    // min-height, box-shadow, font-family and five more properties this page never
+    // asked for. The lime pair being guarded here is unchanged.
+    expect( source ).toContain( '.pp-tab.active{background:#d1f470;color:#1a3a2a' );
+    // The class must stay pp- prefixed. Reverting it to .tab silently reopens the leak.
+    expect( source ).toContain( 'className={`pp-tab ' );
     // The Meta card is deliberately OUTSIDE the lime system. Framing another
     // company's logo in our own brand colour made a credential look like a sticker
     // we printed ourselves, so the card is neutral and the lime stays on our own

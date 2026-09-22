@@ -351,7 +351,7 @@ response = requests.post(
             <div className="api-demo">
               <div className="code-tabs">
                 {codeExamples.map((c, i) => (
-                  <button key={i} className={`tab ${activeCode === i ? 'active' : ''}`} onClick={() => setActiveCode(i)}>{c.lang}</button>
+                  <button key={i} className={`pp-tab ${activeCode === i ? 'active' : ''}`} onClick={() => setActiveCode(i)}>{c.lang}</button>
                 ))}
               </div>
               <pre className="code-block">{codeExamples[activeCode].code}</pre>
@@ -751,18 +751,37 @@ response = requests.post(
              same way, with .code-header carrying nothing and .code-body's outline
              doing the work. Two separators stacked read as a seam. */
           .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000}
-          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:rgba(255,255,255,.54);background:transparent;cursor:pointer;transition:all .2s}
-          /* background:transparent is NOT redundant. .tab is declared unscoped in both
-             Layout.css and Pages.css, and Layout.css:1815 sets
-             .tab:hover{background:var(--hover)} where --hover is rgba(209,244,112,.2).
-             This rule only set color, so that pale lime wash came through unopposed and
-             hovering an idle tab lit it up in a colour this panel never asked for.
-             Declaring the property is the whole fix - the jsx class already wins on
-             specificity, it just had nothing to win with.
-             Hover is deliberately text-only: idle .54 white lifting to full white is
-             the affordance, since the active tab already owns the filled-lime state. */
-          .tab:hover{color:#fff;background:transparent}
-          .tab.active{background:#d1f470;color:#1a3a2a}
+          /* RENAMED .tab -> .pp-tab, for the same reason .pill became .pp-pill.
+             Patching individual properties was losing this battle. The bare .tab class
+             is declared unscoped in BOTH Pages.css and Layout.css, and eight properties
+             this rule did not mention were arriving from them.
+             (No backticks anywhere in this comment - this whole block is a template
+             literal and one backtick ends it. Writing .tab in backticks here is what
+             broke the build a minute ago: TypeScript then read .tab as a property
+             access on the truncated string.)
+
+               min-height:44px      forced the pill taller than its own padding
+               box-shadow           Pages.css:842 puts 0 1px 3px rgba(26,58,42,.15)
+                                    under .tab.active - a dark edge beneath the lime,
+                                    which is what made the fill look off rather than
+                                    the lime itself being wrong
+               font-family          var(--font-sans), not this page's stack
+               display, align-items, justify-content, gap, white-space
+
+             Pages.css:846 also sets .tab.active:hover{background:#f9fafb}, which ties
+             my rule on specificity and was decided only by stylesheet order - the
+             active tab was one load-order change away from turning near-white on
+             hover.
+
+             A pp- prefixed name matches nothing global, so the page owns the control
+             outright and every property below is the one that renders. Note the lime
+             was always correct: the #d1f470 here is what shipped. What changed is the
+             shadow and the height around it. */
+          .pp-tab{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;font-family:inherit;padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:rgba(255,255,255,.54);background:transparent;box-shadow:none;cursor:pointer;transition:all .2s}
+          /* Text-only hover: idle .54 white lifting to full white. The active tab
+             already owns the filled-lime state, so a second fill competes with it. */
+          .pp-tab:hover{color:#fff;background:transparent}
+          .pp-tab.active{background:#d1f470;color:#1a3a2a;box-shadow:none}
           /* The editor-pane stroke, carried over from the hero's .code-body, where the
              comment calls it the detail that stops a dark panel reading as a flat
              rectangle. It was the last thing separating these two panels visually:
@@ -903,7 +922,7 @@ response = requests.post(
             .api-desc{max-width:100%;text-align:left}
             .api-demo{border-radius:14px;max-width:100%;margin:0}
             .code-tabs{padding:16px;gap:10px;justify-content:flex-start;flex-wrap:wrap}
-            .tab{padding:14px 24px;font-size:18px}
+            .pp-tab{padding:14px 24px;font-size:18px}
             .code-block{font-size:14px;padding:18px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.7}
             
             .capabilities{padding:44px 20px}
@@ -951,7 +970,7 @@ response = requests.post(
             .api-info h2{text-align:left}
             .api-desc{text-align:left}
             .code-tabs{gap:8px;padding:14px}
-            .tab{padding:12px 20px;font-size:17px}
+            .pp-tab{padding:12px 20px;font-size:17px}
             .code-block{font-size:14px;padding:16px;min-height:auto;text-align:left;white-space:pre-wrap;word-break:break-word;overflow-x:visible;line-height:1.65}
             
             .capabilities{padding:36px 16px}
@@ -1001,7 +1020,7 @@ response = requests.post(
           .pill,.pp-pill{font-size:17px}
           .api-info h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
           .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}
-          .tab{font-size:15px}
+          .pp-tab{font-size:15px}
           .capability-card h3{font-size:22px;line-height:1.27;letter-spacing:-.25px}
           .capability-card p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           
