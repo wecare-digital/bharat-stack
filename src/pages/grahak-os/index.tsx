@@ -439,8 +439,13 @@ response = requests.post(
                 re-typed wordmark - so the <span> below is a stand-in for a proper
                 lockup asset. Do not invent a stronger claim here. */}
             <div className="trust-card">
+              {/* alt="" because the span beside it already says Meta. With alt="Meta" the
+                  lockup announced the name twice and read as "Meta Meta" in extracted
+                  text - the same defect the capability cards had. The mark is the glyph,
+                  the span is the word; together they are one lockup, so only one of them
+                  should carry the accessible name. */}
               <div className="trust-logo">
-                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="Meta" loading="lazy" />
+                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="" aria-hidden="true" loading="lazy" />
                 <span className="trust-wordmark">Meta</span>
               </div>
               <div className="trust-divider" />
@@ -470,7 +475,7 @@ response = requests.post(
           {/* Explicit break so the product name lands alone on the last line. Needs a
               br rather than the pre-line trick .section-header h2 uses, because
               .gos-closer-head does not set white-space. */}
-          <h2 className="gos-closer-head">Transform customer engagement with<br/>Grahak OS</h2>
+          <h2 className="gos-closer-head">Transform customer<br/>engagement with<br/>Grahak OS</h2>
         </section>
 
 
@@ -494,7 +499,17 @@ response = requests.post(
              one property declared twice, drops the first as redundant, and the fallback
              disappears from the shipped bundle. Verified in out/ - only clip survived.
              A @supports block cannot be collapsed that way. */
-          .page{min-height:100vh;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
+          /* padding:0 is load-bearing, not tidiness. Pages.css:76 declares
+             .page{padding:0 12px} unscoped, and this rule never mentioned padding, so 12px
+             was leaking in - the fourth generic class name to do this after .tab,
+             .code-block and .nav-item.
+             It was the whole reason section left edges disagreed below 1300px. The 12px sat
+             on .page's content box, so .hero and .api started 12px in and then added their
+             own 24px = 36px, while the full-bleed bands escape that box via
+             margin-left:calc(50% - 50vw) and their inner started its 24px from 0 = 24px.
+             Measured in a browser at 1280px: hero text 36px, strip items 24px. At 1440px
+             they agreed only because both inner boxes were centred rather than padded. */
+          .page{min-height:100vh;padding:0;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;overflow-x:hidden}
           @supports (overflow-x:clip){
             .page{overflow-x:clip}
           }
@@ -643,16 +658,28 @@ response = requests.post(
              the change is near-invisible; the point is one token for one job.
              (.code-body's 1.5px white stroke is exempt — it is the editor-pane
              detail on a black panel, documented at its own rule.) */
-          .trust-card{border:1px solid #e5e7eb;background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
+          /* margin:0, not margin:0 auto. Centring a 430px card inside a 606px column put
+             its left edge 88px right of every other section's - measured at 182px against
+             the hero's 94px in a real browser. The card still centres its own contents;
+             it is the card itself that now starts on the page's left line. */
+          .trust-card{border:1px solid #e5e7eb;background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;width:100%;max-width:430px;margin:0;box-sizing:border-box}
           .trust-logo{display:flex;align-items:center;gap:12px}
-          .trust-mark{width:46px;height:46px;flex:0 0 auto;object-fit:contain}
+          .trust-mark{width:44px;height:44px;flex:0 0 auto;object-fit:contain}
           /* Black, matching the mark. It was dark green while meta-icon.svg renders
              black, so one logo lockup carried two different colours - the thing that
              made this read as slightly broken. 32px/700 rather than 36px/800 so the
              wordmark sits with the mark instead of shouting over the caption. */
-          .trust-wordmark{font-size:32px;font-weight:700;letter-spacing:-1px;color:#000}
+          /* Onto the ladder. 32px/-1px was its own private type level, which is why this
+             card read as belonging to a different page than the strip above it. 22px/700
+             is the card-heading rung - the same size and weight as .pp-strip-title - so
+             the Meta lockup now sits at the same level as every other named thing on the
+             page, and the mark drops 46 -> 44px to match the strip's icon size. */
+          .trust-wordmark{font-size:22px;font-weight:700;letter-spacing:-.25px;color:#000}
           .trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}
-          .trust-caption{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;text-align:center}
+          /* Body level, 20px/400, not a second 22px/700 line. The designation describes the
+             lockup above it rather than competing with it, and two bold 22px lines stacked
+             gave the card no internal hierarchy at all. */
+          .trust-caption{font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898);text-align:center}
           .trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
 
           /* ===== Closing statement (Notion-style display type + motion) ===== */
@@ -794,7 +821,7 @@ response = requests.post(
           .section-header p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;text-align:center;width:100%}
           
           /* Touchpoint Section */
-          .touchpoint{padding:60px 24px;background:#fff}
+          .touchpoint{padding:60px 0;background:#fff}
           /* Grid, not wrapped flex, so the six use cases land 3 + 3 deterministically.
              Under flex with a 700px cap they broke 4 + 2 — the first row fitted four
              pills at ~607px and the fifth pushed past the cap — which reads as a wrap
@@ -926,6 +953,25 @@ response = requests.post(
              body text use the shared hairline/muted pair, not near-miss greens. */
 
           /* ========== TABLET (768px - 1024px) ========== */
+          /* The lapped hero mockup needs a WIDE column, and 1024px is not where that stops
+             being true. Browser check at 1025px: one bubble covered, "Track here:
+             wecare.digital/track". At 1280px and 1440px, none.
+             The arithmetic explains it. .code-box is 60% of the wrapper capped at 340px, and
+             the 36-character line budget the sample is written to assumes it is AT that cap.
+             340/0.6 = 567px of wrapper, which needs a hero column of 567px, which needs
+             567*2 + 56 gap + 48 padding = about 1238px of viewport. Below that the panel
+             narrows, the sample wraps onto more lines, the panel grows taller, and because
+             it is anchored bottom:0 its top edge climbs into the thread.
+             So the lap gets used above ~1240px only. This range keeps the two-column hero
+             but stacks the mockup, which is the same arrangement the 1024px block uses and
+             which the browser reports collision-free. */
+          @media(min-width:1025px) and (max-width:1240px){
+            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;aspect-ratio:auto;min-height:0;align-items:flex-start}
+            .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%}
+            .chat-area{min-height:320px}
+            .code-box{position:relative;right:auto;left:auto;bottom:auto;width:100%;max-width:100%}
+          }
+
           @media(max-width:1024px){
             
             .hero{padding:110px 20px 60px}
@@ -933,7 +979,24 @@ response = requests.post(
             .hero-left h1{letter-spacing:-1.8px;max-width:760px;margin:0 0 20px}
             .hero-left p{max-width:520px;margin:0 0 28px}
             
-            .mockup-wrapper{max-width:480px;aspect-ratio:1.15;margin:0;padding:20px}
+            /* STACKED here, not lapped. Verified in a real browser at 768px: the lapped
+               composition was covering three bubbles - "Track here", "When will it arrive?"
+               and "Can I change the delivery address?" - the exact collision the hero
+               geometry notes warn about.
+               The cause is structural and predates the recent height changes.
+               aspect-ratio:1.15 on a 480px wrapper forces it to 417px tall, while
+               .chat-area carries min-height:528px and is only overridden below 767px. So
+               the phone was ~590px inside a 417px box, and .code-box at bottom:16px is
+               positioned against the wrapper - landing it in the middle of the thread. It
+               was broken at the old 480px chat height too.
+               Below 1024px the hero is a single column anyway, so the mockup is already
+               full width at 480px, too narrow for a 52% + 55% lap to breathe. Stacking is
+               what the 767px breakpoint already does, and the browser check reports zero
+               collisions there. aspect-ratio goes to auto so height follows content. */
+            .mockup-wrapper{display:flex;flex-direction:column;gap:14px;max-width:480px;aspect-ratio:auto;min-height:0;margin:0;padding:20px;align-items:flex-start}
+            .phone{position:relative;left:auto;top:auto;width:100%;max-width:100%}
+            .chat-area{min-height:300px}
+            .code-box{position:relative;right:auto;left:auto;bottom:auto;width:100%;max-width:100%}
             .phone{left:16px;top:16px;width:52%}
             .code-box{right:auto;left:12px;bottom:16px;width:55%}
             
@@ -943,7 +1006,7 @@ response = requests.post(
             .trust-grid{grid-template-columns:1fr;gap:28px}
             .trust-content{align-items:flex-start}
 
-            .touchpoint{padding:50px 20px}
+            .touchpoint{padding:50px 0}
             .usecase-pills{gap:10px}
             .pill{padding:12px 22px;font-size:14px}
             
@@ -997,7 +1060,7 @@ response = requests.post(
             .section-header h2{margin-bottom:12px;line-height:1.15;text-align:center}
             .section-header p{text-align:center}
             
-            .touchpoint{padding:44px 20px}
+            .touchpoint{padding:44px 0}
             /* 2 + 2 + 2 from tablet down; three max-content columns plus gaps do
                not fit a 360px viewport once section padding is taken off. */
             .usecase-pills{grid-template-columns:repeat(2,max-content);justify-content:center;justify-items:center;gap:12px;padding:0;margin:0}
@@ -1044,7 +1107,7 @@ response = requests.post(
             .code-box{border-radius:12px}
             .code-body{font-size:14px;padding:14px}
             
-            .touchpoint{padding:36px 16px}
+            .touchpoint{padding:36px 0}
             .usecase-pills{gap:10px}
             .pill{padding:12px 20px;font-size:18px}
             
@@ -1061,7 +1124,11 @@ response = requests.post(
           /* ========== VERY SMALL SCREENS (up to 360px) ========== */
           @media(max-width:360px){
             
-            .hero{padding:calc(80px + env(safe-area-inset-top)) 14px 36px}
+            /* 16px, not 14px. Every other section stays on 16px at this width - the 480px
+               block sets api, trust-strip and .pp-inner to 16 and nothing overrides them
+               here - so the hero alone sat 2px left of everything else. Measured at 360px:
+               hero text at 14px, the rest at 16px. */
+            .hero{padding:calc(80px + env(safe-area-inset-top)) 16px 36px}
             .hero-left h1{letter-spacing:-.8px}
             
             .pill{padding:12px 18px;font-size:17px}
@@ -1117,7 +1184,13 @@ response = requests.post(
              the page from; the id selectors beat the shared section classes
              regardless of source order. */
           #touchpoint,#capabilities{max-width:none;width:100vw;margin-left:calc(50% - 50vw);background:#fafafa}
-          .pp-inner{max-width:1300px;margin:0 auto}
+          /* 1252px, not 1300px, and the difference is the point. A section like .hero is a
+             1300px box with 24px padding, so its CONTENT starts at 1300-48 = 1252px wide.
+             The full-bleed sections put their padding on the outer 100vw element and then
+             nest this, so at 1300px this inner box started 24px left of the hero's content
+             edge. Measured in a real browser at 1440px: hero text at 94px, strip items at
+             70px. 1252px makes both 94px. */
+          .pp-inner{max-width:1300px;margin:0 auto;padding:0 24px;box-sizing:border-box}
 
           /* ===== TEMPORARY: proposed Capabilities strip, for side-by-side review =====
              NO NEW TOKENS. Every value below already exists in the language:
@@ -1131,7 +1204,7 @@ response = requests.post(
              lime hover while also being cursor:default, so they look clickable and are
              not. Per the hairline rule 2px means hoverable, so a non-interactive strip
              should carry no border and no hover at all. */
-          .pp-strip{padding:60px 24px}
+          .pp-strip{padding:60px 0}
           /* Left, not centred - and scoped to .pp-strip because .section-header is shared
              with #touchpoint, whose pills ARE centred and whose heading should stay centred
              over them. Here the items are a left-aligned grid, so a centred heading in a
@@ -1149,14 +1222,17 @@ response = requests.post(
           .pp-strip-sub{font-size:14px;font-weight:400;line-height:1.4;color:rgba(0,0,0,.54)}
           @media(max-width:1024px){
             .pp-strip-grid{grid-template-columns:repeat(2,1fr);gap:26px 20px}
-            .pp-strip{padding:50px 20px}
+            .pp-strip{padding:50px 0}
+            .pp-inner{padding:0 20px}
           }
           @media(max-width:767px){
             .pp-strip-grid{grid-template-columns:1fr;gap:22px}
-            .pp-strip{padding:44px 20px}
+            .pp-strip{padding:44px 0}
+            .pp-inner{padding:0 20px}
           }
           @media(max-width:480px){
-            .pp-strip{padding:36px 16px}
+            .pp-strip{padding:36px 0}
+            .pp-inner{padding:0 16px}
           }
 
           /* Use-case pills as spans, since they carry no handler. Same paint as

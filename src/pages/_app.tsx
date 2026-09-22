@@ -377,7 +377,7 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ( { children } ) => {
 
 export default function App ( { Component, pageProps }: AppProps ) {
   const router = useRouter();
-  const [ mounted, setMounted ] = useState( false );
+
 
   // EXACT-MATCH allowlist. A public page missing from this list renders an empty
   // body with HTTP 200 — a 404 that does not look like one — so every new public
@@ -386,7 +386,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
   const showPublicWhatsApp = router.pathname === '/' || router.pathname === '/grahak-os';
 
   useEffect( () => {
-    setMounted( true );
+
     // Register service worker for PWA + offline — production only.
     //
     // In dev the worker is actively harmful: sw.js serves anything matching
@@ -421,11 +421,24 @@ export default function App ( { Component, pageProps }: AppProps ) {
     initCapacitor( { push: ( p ) => router.push( p ), back: () => router.back() } );
   }, [] );
 
-  // Wait for client-side mount
-  if ( !mounted )
-  {
-    return null;
-  }
+  // NO client-mount gate here, deliberately.
+  //
+  // This used to be `if ( !mounted ) return null;`, which ran BEFORE the branches below
+  // and therefore before their <Head>. The cost was total: every statically exported page
+  // shipped an empty body AND an empty head - /grahak-os/index.html was 3,299 bytes with
+  // no title, no description, no og tags, no canonical and no JSON-LD. Crawlers that do
+  // not execute JS saw an untitled blank page, link previews had nothing to read, and any
+  // webview where the bundle failed showed white.
+  //
+  // It guarded nothing specific: `mounted` was set in one effect and read in one place,
+  // with no client-only value in the render path. The window.dataLayer and
+  // window.fbAsyncInit references below are inside inline <script> strings, so they are
+  // never evaluated during render and cannot cause a mismatch.
+  //
+  // If a hydration warning does surface, fix the element that causes it rather than
+  // restoring this. Grammarly injecting attributes into <body> is the known one, and
+  // suppressHydrationWarning on that element is the targeted answer - blanking the
+  // document is not.
 
   // Public page
   if ( isPublic )

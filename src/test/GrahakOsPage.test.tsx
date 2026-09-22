@@ -68,7 +68,12 @@ describe( 'Grahak OS five approved visual fixes', () => {
   it( 'keeps the Meta card to the logo and the designation only', () => {
     // One logo lockup, one colour. The wordmark was dark green while the hosted
     // meta-icon.svg renders black, which is what made the lockup look broken.
-    expect( source ).toContain( '.trust-wordmark{font-size:32px;font-weight:700;letter-spacing:-1px;color:#000}' );
+    // Was 32px/-1px, its own private type level, which is why this card read as belonging
+    // to a different page than the strip above it. Now the card-heading rung, 22px/700 with
+    // -.25px tracking, identical to .pp-strip-title. What this line guards is unchanged and
+    // is the point of the comment above: ONE colour for the lockup, black to match the
+    // hosted mark. The negative case below still pins out the dark-green 36px/800 version.
+    expect( source ).toContain( '.trust-wordmark{font-size:22px;font-weight:700;letter-spacing:-.25px;color:#000}' );
     expect( source ).not.toContain( '.trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}' );
     expect( source ).toContain( '.trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}' );
     // The card carries the mark and the designation and nothing else. A capability
