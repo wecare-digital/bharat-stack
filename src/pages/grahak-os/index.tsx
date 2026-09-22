@@ -430,14 +430,30 @@ response = requests.post(
             {/* Neutral card, not lime. Framing another company's logo in our own
                 brand colour made a credential look like a sticker we printed
                 ourselves; a borrowed mark should look borrowed.
-                NOTE ON THE DESIGNATION: "Meta Tech Partner" is carried over
-                unchanged and still needs verifying against the actual entry in
-                Meta's partner portal. The badge Meta grants is "Meta Business
-                Partner" (technology providers are a category within it), it is
-                awarded after review, and it cannot be self-declared. Meta's brand
-                guidance is also to use the logo files they publish rather than a
-                re-typed wordmark - so the <span> below is a stand-in for a proper
-                lockup asset. Do not invent a stronger claim here. */}
+                THE DESIGNATION IS NOW A STATEMENT OF FACT, NOT A CLAIMED TITLE.
+                The previous caption claimed a partner title - deliberately not quoted
+                here, because a test asserts that exact string is absent from this file
+                and a comment repeating it would defeat the guard. The comment on the
+                right-hand column already learned this lesson once.
+                That title is not a designation Meta issues: the real terms are
+                "Meta Business Partner"
+                (an ads/marketing certification, badged and directory-listed, awarded
+                after review on ad spend and Blueprint criteria) and, on the WhatsApp
+                Business Platform, "Solution Partner" and "Tech Provider". "Meta Tech
+                Partner" blended two unrelated programmes.
+                Nothing available could confirm a granted designation. It is not a
+                Graph API field - the public app record for 2238810740192680 returns
+                only name, category and link. The Developer Tools / Social
+                Technologies MCP is developer tooling and does not carry partner
+                status. Application Rate Limit reflects API call capacity, not a
+                badge. And this repo's own META-BETA-REQUEST-EMAIL.md says to CC a
+                "BSP contact if you have one", which reads as no confirmed relationship.
+                "Built on WhatsApp Business Platform" is therefore what the page says:
+                verifiable from this codebase, and claiming no title at all.
+                Meta's brand guidance is also to use the logo files they publish
+                rather than a re-typed wordmark, so the span below remains a stand-in
+                for a proper lockup asset. Do not upgrade this to a stronger claim
+                without a Business Manager or partner-directory screenshot to back it. */}
             <div className="trust-card">
               {/* alt="" because the span beside it already says Meta. With alt="Meta" the
                   lockup announced the name twice and read as "Meta Meta" in extracted
@@ -449,7 +465,7 @@ response = requests.post(
                 <span className="trust-wordmark">Meta</span>
               </div>
               <div className="trust-divider" />
-              <span className="trust-caption">Meta Tech Partner</span>
+              <span className="trust-caption">Built on WhatsApp Business Platform</span>
             </div>
             <div className="trust-content">
               {/* A self-declared official-partner pill used to sit here. Removed: it

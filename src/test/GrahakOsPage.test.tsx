@@ -127,7 +127,15 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'OFFICIAL META TECH PARTNER' );
     expect( source ).not.toContain( 'trust-badge' );
     expect( source ).toContain( '<h2 className="trust-heading">Trusted by Meta</h2>' );
-    expect( source ).toContain( 'Meta Tech Partner' );
+    // Was 'Meta Tech Partner'. Retired by owner decision after none of the available
+    // sources could confirm it: it is not a Graph API field, the Developer Tools MCP does
+    // not carry partner status, and it is not a designation Meta issues at all - the real
+    // terms are Meta Business Partner, Solution Partner and Tech Provider.
+    // "Built on WhatsApp Business Platform" is verifiable from this codebase and claims no
+    // title, so the guard flips: the old string must now be ABSENT, and any re-typed
+    // variant of it should fail here too.
+    expect( source ).toContain( 'Built on WhatsApp Business Platform' );
+    expect( source ).not.toContain( 'Meta Tech Partner' );
     expect( source ).toContain( 'Customer engagement across WhatsApp, SMS, Email &amp; Voice — powered by Grahak OS.' );
     expect( source ).toContain( '<span className="pill">WhatsApp</span>' );
     expect( source ).toContain( '<span className="pill">Voice</span>' );

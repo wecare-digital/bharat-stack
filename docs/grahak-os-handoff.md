@@ -113,17 +113,33 @@ Cost note: Google is ~$20/M characters after 500k free per month; Amazon Transla
 is ~$15/M. Google is chosen for Indic quality, not price. The real cost control is
 the existing DynamoDB cache (90-day TTL) plus request dedupe.
 
-### 4. Verify the Meta designation string — needs the partner portal
+### 4. ~~Verify the Meta designation string~~ — settled
 
-The page says **"Meta Tech Partner"**. That could not be confirmed as a real Meta
-designation: the badge Meta grants is **Meta Business Partner** (technology
-providers are a category within it), it is awarded after review, and it cannot be
-self-declared. Meta's brand guidance is also to use the logo files they publish
-rather than a re-typed wordmark — the `.trust-wordmark` span is a stand-in.
+The card now reads **"Built on WhatsApp Business Platform"**. The previous caption
+claimed a partner title that **Meta does not issue**. The real terms are **Meta
+Business Partner** (an ads/marketing certification — badged, directory-listed,
+awarded after review against ad-spend and Blueprint criteria) and, on the WhatsApp
+Business Platform, **Solution Partner** and **Tech Provider**. The old string blended
+two unrelated programmes.
 
-The self-declared caps pill was removed. The remaining string is unchanged on
-purpose: altering a partnership claim is the owner's call. One-line fix once
-confirmed.
+Everything reachable was checked and **none of it can confirm a granted designation**:
+
+| Source | Result |
+|---|---|
+| Graph API | Not a field. The public record for app `2238810740192680` returns only `name`, `category` (Utilities) and `link` |
+| Developer Tools / Social Technologies MCP | Developer tooling — docs, changelog, app diagnostics. Carries no partner status, and 8 of its 10 tools need an app-scoped connection |
+| Application Rate Limit | Graph API call capacity, not a badge |
+| This repo | `partner-onboarding/handler.py:143` shares a **solution-partner line of credit** with client WABAs via `whatsapp_credit_sharing_and_attach`, and `EmbeddedSignupPanel.tsx` onboards clients — so the platform is *built for* Solution Partner operation. That is capability, not a granted role, and `EXTENDED_CREDIT_ID` may be unset |
+| `.kiro/steering/META-BETA-REQUEST-EMAIL.md:218` | Says to CC a "BSP contact **if you have one**" — reads as no confirmed relationship |
+
+The chosen wording is verifiable from this codebase and claims no title. **Do not
+upgrade it** without a Business Manager or partner-directory screenshot.
+
+**Still open, and it is the bigger claim:** the section heading is `Trusted by Meta`,
+which asserts endorsement more strongly than the caption ever did, and a test pins
+that exact string as "agreed" wording. Softening the caption while the headline still
+says Meta trusts you is incoherent. Authoritative check for both: Business Manager →
+Partner status, or search WECARE.DIGITAL in the Meta Business Partners directory.
 
 ### 5. Wix still calls the uncapped Cloud Run relay — needs a decision
 
