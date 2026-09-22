@@ -53,7 +53,9 @@ to be merged, which happened long ago.
 - **`npm run lint` is red repo-wide**: 237 errors / 63 warnings across ~97 files,
   including **116 more `react-hooks/set-state-in-effect` errors**. Only the
   `LanguageBar` one was fixed. Baseline before this session was 242/64.
-- **Home page (`src/pages/index.tsx`) is still a scaffold.**
+- **Home page (`src/pages/index.tsx`) is still a scaffold — DEFERRED by the owner
+  (2026-09-22). Do not start it unprompted.** It is listed here so nobody mistakes it
+  for an oversight, not as a task to pick up.
 - **`/faq` and `/partners` are now in the nav but are visually off-system** — inline
   styles, `#f9f9f9`/`#1a1a1a`, not the design contract's palette.
 - **VayuLok's rotation promises Pollen and Heatmap**, which have no endpoint wired.
