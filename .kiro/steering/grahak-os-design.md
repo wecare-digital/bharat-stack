@@ -46,6 +46,15 @@ Eyebrows/labels are **not uppercase and not letter-spaced** — notion uses plai
 **Never put lime on a third-party mark.** The Meta card was lime and read as a
 sticker we printed ourselves; a borrowed logo must look borrowed. A test pins this.
 
+The inverse also holds: lime **is** the right green for our own marks. `BrandBadge`
+(the `Grahak OS · by Bharat Stack` / `Bharat Stack by WECARE.DIGITAL` pill on
+`/grahak-os` and `/`) fills with `rgba(209,244,112,.22)` — `#d1f470` at 22%, the
+same tint `Header` uses for nav hover, active and expanded — over a
+`1px solid #d1f470` hairline, which is the `.nav-menu` border. Reuse those two
+values for any new green tint rather than mixing a fresh pale green; that is how
+`#f2fbf6` and `#fbfff0` got here in the first place. `#1a3a2a` on that tint is
+~11.9:1.
+
 Retired, do not reintroduce: `#2f6b52`, `#075e54`, `#f2fbf6`, `#fbfff0`,
 `#1e293b` (as the code panel body). All five are now absent from the page — the
 last holdouts were `#fbfff0` on three `:hover` rules and `#1e293b` on `.api-demo`,
