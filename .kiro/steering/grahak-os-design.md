@@ -47,7 +47,29 @@ Eyebrows/labels are **not uppercase and not letter-spaced** — notion uses plai
 sticker we printed ourselves; a borrowed logo must look borrowed. A test pins this.
 
 Retired, do not reintroduce: `#2f6b52`, `#075e54`, `#f2fbf6`, `#fbfff0`,
-`#1e293b` (as the code panel body).
+`#1e293b` (as the code panel body). All five are now absent from the page — the
+last holdouts were `#fbfff0` on three `:hover` rules and `#1e293b` on `.api-demo`,
+cleared along with `#0f172a` and `#94a3b8` from the same slate ramp. **Both code
+panels are `#000`.**
+
+`#4b5563` is also gone: pill labels are `rgba(0,0,0,.54)`, the label value above.
+It was the only blue-tinted grey in the page's own copy and read cooler than the
+neutral body text beside it.
+
+## Hairlines — weight carries meaning
+
+`2px` means hoverable, `1px` means static, and the colour is always `#e5e7eb`.
+
+| Weight | Elements | Why |
+|---|---|---|
+| `2px solid #e5e7eb` | `.pill`, `.pp-pill`, `.capability-card`, `.mockup-wrapper` | All four have a `:hover` that swaps the border to lime `#d1f470`; it needs the weight to register |
+| `1px solid #e5e7eb` | `.cap-icon`, `.why-item`, `.trust-card` | Static, no hover |
+
+**Do not "unify" the two weights** — the split is a signal, not drift. `.trust-card`
+was the one real inconsistency and used `rgba(0,0,0,.1)`; it is `#e5e7eb` now.
+
+`.code-body`'s `1.5px solid rgba(255,255,255,.92)` is exempt: it is the editor-pane
+stroke on a black panel, documented at its own rule.
 
 ## Hero mockup geometry — these are solved together
 
@@ -151,11 +173,26 @@ reverted; each says why.
 
 ## Known open issues
 
-- **Section rhythm is not implemented.** `.touchpoint`, `.api`, `.capabilities`,
-  `.why-section` are all `background:#fff`. The intended alternating white / grey
-  `#fafafa` rhythm was never applied.
+- ~~Section rhythm is not implemented.~~ **It is.** `#touchpoint,#capabilities` sit
+  on `#fafafa` at `width:100vw` with a centring negative margin, and `.pp-inner`
+  carries the 1300px measure — see the `FULL-BLEED SECTIONS (pp-*)` block. The
+  earlier `background:#fff` on those section classes is overridden by those id
+  selectors, so grepping for `background:#fff` makes it look unimplemented when it
+  is not. Rhythm today: hero white, touchpoint grey, api white, capabilities grey,
+  why / trust / closer white.
 - `.why-section` has **no `max-width`** — measures ~1391px against `.api`'s 1300px.
+  Visually inert (white on white, and its children are capped at 700/1100px and
+  centred), so this is a consistency nit, not a visible defect.
 - `.page{overflow-x:hidden}` should be `clip` so tint bands reach the true viewport
-  edge (~25px short today; changing it shifts all sections ~7.5px).
-- `.pill` uses `font-size:var(--text-base)` while everything else is explicit, and
-  a mobile breakpoint pushes it to 20px.
+  edge (~25px short today; changing it shifts all sections ~7.5px). **Still open.**
+- ~~`.pill` uses `font-size:var(--text-base)`, and a mobile breakpoint pushes it to
+  20px.~~ **Both fixed.** `.pill` and `.pp-pill` are an explicit `15px`. The token
+  was the real hazard: `--text-base` is declared as `16px` in `tokens.css` and
+  `15px` in `Pages.css`, and only `Pages.css` is imported by `_app.tsx` — so the
+  size was decided by import order, and importing `tokens.css` would have resized
+  every pill. The `20px` was already dead: this TYPOGRAPHY CONTRACT block is later
+  in source order at equal specificity, so its value had always won.
+- `.usecase-pills` is a 3-column `max-content` grid, not wrapped flex, so the six
+  use cases land 3 + 3 deterministically (2 columns at `=<767px`). Under flex they
+  broke 4 + 2, and a tightened cap would have sat ~27px from the boundary — close
+  enough for a copy edit or a fallback font to flip it back.

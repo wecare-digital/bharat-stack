@@ -303,7 +303,7 @@ response = requests.post(
           <div className="pp-inner">
             <div className="section-header">
               <h2>Every touchpoint<br/>One seamless experience</h2>
-              <p>Engage, support, and convert customers across their entire journey - from first contact to lasting loyalty</p>
+              <p>Engage, support, and convert customers across their entire journey — from first contact to lasting loyalty</p>
             </div>
             <div className="usecase-pills">
               {useCases.map((title, i) => (
@@ -525,7 +525,20 @@ response = requests.post(
              floated as a small box against a tall column. Stretching makes both
              halves the same height and the card centres its own content inside. */
           .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:stretch}
-          .trust-card{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
+          /* HAIRLINE RULE — 2px means hoverable, 1px means static, and the colour
+             is always #e5e7eb.
+             That split is deliberate, not drift: .pill, .pp-pill, .capability-card
+             and .mockup-wrapper are 2px and all four have a :hover that swaps the
+             border to lime, which needs the extra weight to register. .cap-icon,
+             .why-item and this card are static and sit at 1px. Do NOT "unify" the
+             two weights — you would flatten a working signal.
+             What was actually inconsistent was this card's colour: it alone used
+             rgba(0,0,0,.1) where the other six light hairlines use #e5e7eb, the
+             value the design contract calls the shared hairline. Same lightness, so
+             the change is near-invisible; the point is one token for one job.
+             (.code-body's 1.5px white stroke is exempt — it is the editor-pane
+             detail on a black panel, documented at its own rule.) */
+          .trust-card{border:1px solid #e5e7eb;background:#fff;border-radius:20px;padding:34px 30px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;width:100%;max-width:430px;margin:0 auto;box-sizing:border-box}
           .trust-logo{display:flex;align-items:center;gap:12px}
           .trust-mark{width:46px;height:46px;flex:0 0 auto;object-fit:contain}
           /* Black, matching the mark. It was dark green while meta-icon.svg renders
@@ -659,12 +672,22 @@ response = requests.post(
           .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;max-width:1100px;margin:0 auto;align-items:center}
           .api-info h2{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95);margin:0 0 20px}
           .api-desc{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0}
-          .api-demo{background:#1e293b;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
-          .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#0f172a}
-          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:#94a3b8;background:transparent;cursor:pointer;transition:all .2s}
+          /* Pure black, matching the hero .code-box. This panel was the last slate
+             holdout: #1e293b is on the contract's retired list specifically "as the
+             code panel body", yet it survived here after the hero panel was moved to
+             #000 for muddying contrast. Two code panels on one page reading as two
+             different materials was the clearest language break left.
+             #0f172a and #94a3b8 went with it — they were the rest of that same
+             undocumented slate ramp. The tab strip keeps its separation from a white
+             hairline at .12 rather than a second background colour, and idle tab text
+             is rgba(255,255,255,.54), the dark-panel mirror of the rgba(0,0,0,.54)
+             the pills use. Code text goes to #fff to match .code-body. */
+          .api-demo{background:#000;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+          .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000;border-bottom:1px solid rgba(255,255,255,.12)}
+          .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:rgba(255,255,255,.54);background:transparent;cursor:pointer;transition:all .2s}
           .tab:hover{color:#fff}
           .tab.active{background:#d1f470;color:#1a3a2a}
-          .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#e2e8f0;overflow-x:auto;white-space:pre}
+          .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#fff;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */
           .capabilities{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}

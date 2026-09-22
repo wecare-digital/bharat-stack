@@ -28,8 +28,14 @@ describe( 'Grahak OS five approved visual fixes', () => {
     // company's logo in our own brand colour made a credential look like a sticker
     // we printed ourselves, so the card is neutral and the lime stays on our own
     // surfaces. Do not "restore" the tint.
-    expect( source ).toContain( '.trust-card{border:1px solid rgba(0,0,0,.1);background:#fff' );
+    // The hairline moved from rgba(0,0,0,.1) to #e5e7eb when the page settled on one
+    // border colour for one job — it was the only light hairline of seven not using
+    // it. What this guard protects is unchanged and is the next two lines: the card
+    // stays 1px and NEUTRAL. #e5e7eb is a grey, not a brand colour; lime at 2px is
+    // still what must never come back.
+    expect( source ).toContain( '.trust-card{border:1px solid #e5e7eb;background:#fff' );
     expect( source ).not.toContain( '.trust-card{border:2px solid #d1f470' );
+    expect( source ).not.toContain( '.trust-card{border:1px solid #d1f470' );
     expect( source ).not.toContain( '#2f6b52' );
     expect( source ).not.toContain( '.verified-badge{width:22px;height:22px;background:#075e54' );
     expect( source ).not.toContain( '.meta-panel{background:#d9fbf2' );
@@ -50,7 +56,7 @@ describe( 'Grahak OS five approved visual fixes', () => {
 
   it( 'keeps the Meta card from stretching into a wide flat rectangle', () => {
     expect( source ).toContain( 'max-width:430px' );
-    expect( source ).toContain( '.trust-card{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:20px;padding:34px 30px' );
+    expect( source ).toContain( '.trust-card{border:1px solid #e5e7eb;background:#fff;border-radius:20px;padding:34px 30px' );
   } );
 
   it( 'keeps the Meta card to the logo and the designation only', () => {
@@ -79,7 +85,7 @@ describe( 'Grahak OS five approved visual fixes', () => {
 
   it( 'renders the Trusted by Meta section as two equal columns with an unboxed right half', () => {
     expect( source ).toContain( '.trust-grid{display:grid;grid-template-columns:1fr 1fr' );
-    expect( source ).toContain( '.trust-card{border:1px solid rgba(0,0,0,.1);background:#fff' );
+    expect( source ).toContain( '.trust-card{border:1px solid #e5e7eb;background:#fff' );
     // right half stays plain: no border, no background panel
     expect( source ).toContain( '.trust-content{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}' );
     expect( source ).not.toContain( 'grid-template-columns:minmax(0,360px) 1fr' );
