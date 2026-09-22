@@ -88,7 +88,7 @@ jobs:
             tests/test_public_webhook_auth.py
 
       - name: Full python suite
-        # 1245 tests that previously ran only on a developer's machine. A guard
+        # 1598 tests that previously ran only on a developer's machine. A guard
         # nobody runs is not a guard.
         run: python -m pytest -q
 
