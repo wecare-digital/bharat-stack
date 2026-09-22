@@ -106,8 +106,171 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _create_template(body, request_id, origin)
     elif action == 'delete_template':
         return _delete_template(body, request_id, origin)
+    elif action == 'diagnostics':
+        return _diagnostics(body, request_id, origin)
     else:
         return cors_response(400, {'error': f'Unknown action: {action}'}, origin)
+
+
+# ── Read-only control-plane discovery ────────────────────────────────────────
+#
+# Why this exists here rather than in a script or over MCP.
+#
+# The official Sinch MCP server authenticates against the GLOBAL Sinch Build
+# platform with KEY_ID/KEY_SECRET. This integration runs on the Sinch INDIA
+# platform inherited from the ACL Mobile acquisition, authenticated by a Keycloak
+# password grant. An exhaustive search on 2026-09-22 found no key_id or key_secret
+# in any of the 31 secrets, the single SSM parameter, any S3 object, or the
+# environment of any of 59 Lambdas. So MCP cannot introspect this account at all.
+#
+# This function already holds the India credential and already authenticates. A
+# read-only probe from inside it is therefore the only way to discover the RCS
+# sender, agent, channel status and capabilities - and it keeps the password inside
+# the Lambda, which is the point: the credential never reaches an operator's
+# terminal, a log, or an agent's context.
+#
+# GET only. Every candidate path is enumerated explicitly rather than accepted from
+# the request, so this cannot be turned into a general-purpose proxy for the Sinch
+# credential by a caller who controls `body`.
+
+_DIAG_PATHS = [
+    # Conversation API shape - convapi mirrors Sinch's own, so these are the ones
+    # most likely to carry `channelStatus`, which the audit specifically needs.
+    ('convapi', '/v1/projects/{project_id}/apps'),
+    ('convapi', '/v1/projects/{project_id}/apps/{app_id}'),
+    ('convapi', '/v1/projects/{project_id}/webhooks'),
+    # Access API shape - the template endpoints live here and work, so sibling
+    # agent/capability resources plausibly do too. v2 keys on the app name, v1 on
+    # the bot id; both spellings are tried because the template code uses both.
+    ('accessapi', '/access-api/v2/rcs/{username}'),
+    ('accessapi', '/access-api/v2/rcs/{username}/agent'),
+    ('accessapi', '/access-api/v2/rcs/{username}/capabilities'),
+    ('accessapi', '/access-api/v2/rcs/{username}/testers'),
+    ('accessapi', '/access-api/v1/rcs/{bot_id}'),
+    ('accessapi', '/access-api/v1/rcs/{bot_id}/agent'),
+    ('accessapi', '/access-api/v1/rcs/{bot_id}/capabilities'),
+    ('accessapi', '/access-api/v1/rcs/{bot_id}/testers'),
+]
+
+_DIAG_HOSTS = {
+    'convapi': 'https://convapi.aclwhatsapp.com',
+    'accessapi': 'https://api.aclwhatsapp.com',
+}
+
+# Response keys worth reporting because the audit asks for them by name.
+_DIAG_INTERESTING = (
+    'channelStatus', 'channel_status', 'state', 'status', 'region', 'countries',
+    'countryStatus', 'country_status', 'testNumberStates', 'test_numbers',
+    'testers', 'capabilities', 'features', 'agent', 'agentId', 'bot', 'botId',
+    'senderId', 'sender_id', 'authName', 'auth_name', 'displayName', 'brand',
+    'webhooks', 'target', 'triggers', 'apps', 'id', 'name', 'conversation_app',
+)
+
+
+def _diag_shape(value, depth: int = 0):
+    """Describe a response by SHAPE and interesting keys, never verbatim.
+
+    A control-plane response can contain a bearer token, an auth token or a
+    customer number. Reporting the key set plus scalar values for an allowlist of
+    non-sensitive fields gives the audit what it needs without copying the payload.
+    """
+    if depth > 3:
+        return '...'
+    if isinstance(value, dict):
+        out = {}
+        for k, v in list(value.items())[:40]:
+            lowered = str(k).lower()
+            if any(t in lowered for t in ('token', 'secret', 'password', 'key',
+                                          'credential', 'authorization')):
+                out[k] = '<redacted>'
+            elif isinstance(v, (dict, list)):
+                out[k] = _diag_shape(v, depth + 1)
+            elif k in _DIAG_INTERESTING or depth <= 1:
+                out[k] = v if not isinstance(v, str) else v[:120]
+            else:
+                out[k] = f'<{type(v).__name__}>'
+        return out
+    if isinstance(value, list):
+        return [_diag_shape(v, depth + 1) for v in value[:5]] + (
+            [f'...{len(value) - 5} more'] if len(value) > 5 else [])
+    if isinstance(value, str):
+        return value[:120]
+    return value
+
+
+def _diagnostics(body: Dict, request_id: str, origin: str) -> Dict:
+    """Probe the India control plane read-only and report what answers.
+
+    Returns per-path HTTP status and a redacted shape. Nothing is mutated and no
+    message is sent.
+    """
+    token = _get_token()
+    if not token:
+        return cors_response(500, {'error': 'Auth failed — cannot probe'}, origin)
+
+    creds = _get_secrets()
+    substitutions = {
+        'project_id': RCS_PROJECT_ID,
+        'app_id': RCS_APP_ID,
+        'username': creds.get('username', 'wecaretrans'),
+        'bot_id': creds.get('bot_id', ''),
+    }
+
+    results = []
+    for host_key, template in _DIAG_PATHS:
+        try:
+            path = template.format(**substitutions)
+        except KeyError as exc:
+            results.append({'path': template, 'skipped': f'missing {exc}'})
+            continue
+        if '{' in path or path.endswith('/'):
+            results.append({'path': template, 'skipped': 'unresolved substitution'})
+            continue
+
+        url = f'{_DIAG_HOSTS[host_key]}{path}'
+        entry = {'host': host_key, 'path': path}
+        try:
+            req = urllib.request.Request(url, headers={
+                'Authorization': f'Bearer {token}',
+                'Accept': 'application/json',
+            }, method='GET')
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                entry['status'] = resp.status
+                raw = resp.read().decode('utf-8', 'replace')
+                entry['bytes'] = len(raw)
+                try:
+                    entry['shape'] = _diag_shape(json.loads(raw))
+                except (ValueError, json.JSONDecodeError):
+                    entry['shape'] = f'<non-json {raw[:80]}>'
+        except urllib.error.HTTPError as e:
+            entry['status'] = e.code
+            detail = e.read().decode('utf-8', 'replace')[:200] if e.fp else ''
+            entry['error'] = detail
+        except Exception as e:  # noqa: BLE001
+            entry['status'] = None
+            entry['error'] = f'{type(e).__name__}: {str(e)[:120]}'
+        results.append(entry)
+
+    logger.info(json.dumps({
+        'event': 'rcs_diagnostics',
+        'probed': len(results),
+        'answered': sum(1 for r in results if r.get('status') == 200),
+        'requestId': request_id,
+    }))
+
+    return cors_response(200, {
+        'platform': 'sinch-india (ex-ACL)',
+        'authHost': RCS_AUTH_URL.split('/realms')[0],
+        'convapiHost': _DIAG_HOSTS['convapi'],
+        'accessApiHost': _DIAG_HOSTS['accessapi'],
+        'identifiersConfigured': {
+            'project_id': bool(RCS_PROJECT_ID),
+            'app_id': bool(RCS_APP_ID),
+            'username': bool(substitutions['username']),
+            'bot_id': bool(substitutions['bot_id']),
+        },
+        'probes': results,
+    }, origin)
 
 
 def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
@@ -122,11 +285,38 @@ def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
     if not phone:
         return cors_response(400, {'error': 'phoneNumber is required'}, origin)
 
-    # Clean phone number — identity must be WITHOUT + prefix per Sinch docs
-    clean = phone.replace('+', '').replace(' ', '').replace('-', '')
-    if not clean.startswith('91'):
-        clean = '91' + clean[-10:]
-    identity = clean  # No + prefix — Sinch requires "919876543210" format
+    # Identity must be digits WITHOUT a + prefix per the Sinch Conversation API.
+    #
+    # This used to be `if not clean.startswith('91'): clean = '91' + clean[-10:]`, which
+    # fabricates an Indian number out of a foreign one. Several countries are exactly 10
+    # digits in full E.164 - +6581234567 (Singapore), +85212345678 (Hong Kong),
+    # +4512345678 (Denmark) - so that rule turned a Singapore number into
+    # +916581234567: a different, real Indian subscriber. That is misdelivery, not
+    # misrouting, and `lambda_utils.comms.numbers` exists because it has happened here
+    # before; its docstring records the incident.
+    #
+    # `to_e164` honours an explicit country code and only assumes India for a bare
+    # 10-digit number. Sinch India RCS can only reach Indian recipients anyway, so a
+    # non-India destination is refused explicitly rather than silently rewritten.
+    from lambda_utils.comms import numbers as _numbers
+
+    e164 = _numbers.to_e164(phone)
+    if not e164:
+        return cors_response(400, {'error': 'phoneNumber is not a usable number'}, origin)
+    if not _numbers.is_india(e164):
+        logger.warning(json.dumps({
+            'event': 'rcs_send_refused_non_india',
+            'phone': _numbers.last4(e164),
+            'reason': 'Sinch India RCS serves Indian destinations only; refusing rather '
+                      'than rewriting the number',
+            'requestId': request_id,
+        }))
+        return cors_response(400, {
+            'error': 'RCS is available for Indian destinations only',
+            'success': False,
+        }, origin)
+    clean = e164.lstrip('+')
+    identity = clean
 
     # Get auth token
     token = _get_token()
