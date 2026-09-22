@@ -113,21 +113,37 @@ const authTheme: Theme = {
       },
       fieldcontrol: {
         borderRadius: { value: '13px' },
-        borderColor: { value: '#d1f470' },
+        // #e5e7eb at rest, NOT lime. The design contract's hairline rule is that
+        // the colour is always #e5e7eb and lime marks an interactive state; a lime
+        // resting border made every idle input on the sign-in card read as focused,
+        // and spent the page's one accent on three inert outlines. Lime returns
+        // below, in the focus ring, which is where the contract puts it.
+        borderColor: { value: '#e5e7eb' },
         _focus: {
           borderColor: { value: '#1a3a2a' },
           boxShadow: { value: '0 0 0 3px rgba(209, 244, 112, 0.3)' },
         },
       },
+      // INERT while the Authenticator is mounted with hideSignUp - with sign-up
+      // hidden, Amplify renders no tab list at all, so nothing below is visible on
+      // /access today (measured in a browser: zero elements match [role="tab"]).
+      // Kept and corrected rather than deleted so that flipping hideSignUp cannot
+      // ship off-palette tabs: the idle colour was #6b7280, which is the legacy
+      // --color-muted from Pages.css and not a palette value at all.
+      //
+      // The active state is the palette's own tab treatment - #d1f470 fill with
+      // #1a3a2a type, the pair used by .pp-tab.active, .msg.sent and BrandBadge -
+      // rather than the underline-only version this had before.
       tabs: {
         item: {
-          color: { value: '#6b7280' },
+          color: { value: 'rgba(0, 0, 0, 0.54)' },
           _active: {
             color: { value: '#1a3a2a' },
+            backgroundColor: { value: '#d1f470' },
             borderColor: { value: '#d1f470' },
           },
           _hover: {
-            color: { value: '#0f2a1d' },
+            color: { value: '#1a3a2a' },
           },
         },
       },
@@ -146,6 +162,20 @@ const authTheme: Theme = {
       small: { value: '0.875rem' },
       medium: { value: '1rem' },
       large: { value: '1.125rem' },
+    },
+    // Amplify ships its own stack - 'InterVariable','Inter var','Inter',… - which
+    // resolves to the same face the rest of the site uses, so this was never a
+    // visible bug. It is pinned to the site stack anyway so the sign-in card cannot
+    // drift onto a different font than .page declares: InterVariable is a
+    // *different file* from the Inter that _app loads from Google Fonts at
+    // 400;500;600;700;800, and if a variable build ever resolves locally on a
+    // visitor's machine the card would render in it while every other surface did
+    // not. Same list, same order as grahak-os/index.tsx .page.
+    fonts: {
+      default: {
+        variable: { value: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+        static: { value: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+      },
     },
   },
 };
@@ -398,7 +428,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // EXACT-MATCH allowlist. A public page missing from this list renders an empty
   // body with HTTP 200 — a 404 that does not look like one — so every new public
   // route has to be added here as well as created under src/pages.
-  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners';
+  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test';
   const showPublicWhatsApp = router.pathname === '/' || router.pathname === '/grahak-os';
 
   useEffect( () => {

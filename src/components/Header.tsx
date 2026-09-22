@@ -17,21 +17,34 @@ interface NavLink {
 
 // One list, grouped by type, rather than four hand-written anchors.
 //
-// FAQ and Partners were the find here: both are real pages, both are in the
-// isPublic allowlist in _app.tsx, and neither was reachable from the menu - so
-// two public pages existed that a visitor could only get to by typing the URL.
+// Selfservice and Partners are ABSOLUTE URLs onto the marketing site, and the two
+// pages that used to back them (src/pages/faq.tsx, src/pages/partners.tsx) are
+// gone along with their entries in the isPublic allowlist in _app.tsx. Keep them
+// absolute: pointing these at local routes again resurrects two pages that no
+// longer exist and the allowlist would render them as a blank 200.
+//
+// They open in the SAME tab, which is why neither carries target="_blank". That is
+// the default for a plain anchor, so it is the absence of an attribute doing the
+// work here - do not "fix" it by adding target, and note rel="noopener" would be
+// inert without one.
+//
+// Neither external entry has a `match`: it is compared against router.pathname,
+// which can never equal an absolute URL, so a value there would be misleading
+// dead weight.
 //
 // Trailing slashes are load-bearing on the static pages: next.config.js sets
-// trailingSlash, so /vayulok would redirect before resolving. /access is left
-// bare deliberately - it is the authenticated entry point, not one of the
-// exported public pages.
+// trailingSlash, so /vayulok would redirect before resolving. /access is bare
+// deliberately - it is the authenticated entry point, not an exported public page
+// - but it still needs `match`, because without it the Sign in row was the only
+// item in this menu that never lit up on its own page: every other route got the
+// lime .22 active tint at weight 800 and /access stayed transparent at 600.
 const LINKS: NavLink[] = [
   { label: 'Home', href: '/', match: '/', group: '' },
   { label: 'Grahak OS', href: '/grahak-os/', match: '/grahak-os', group: 'Products' },
   { label: 'VayuLok', href: '/vayulok/', match: '/vayulok', group: 'Products' },
-  { label: 'FAQ', href: '/faq/', match: '/faq', group: 'Company' },
-  { label: 'Partners', href: '/partners/', match: '/partners', group: 'Company' },
-  { label: 'Sign in', href: '/access', group: 'Account' },
+  { label: 'Selfservice', href: 'https://www.wecare.digital/selfservice', group: 'Company' },
+  { label: 'Partners', href: 'https://www.wecare.digital/product-page/referral-partner', group: 'Company' },
+  { label: 'Sign in', href: '/access', match: '/access', group: 'Account' },
 ];
 
 const GROUP_ORDER: Array<NavLink[ 'group' ]> = [ '', 'Products', 'Company', 'Account' ];

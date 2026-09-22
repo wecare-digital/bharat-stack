@@ -161,8 +161,14 @@ const VayuLokPage: React.FC = () => {
 
       <style jsx>{`
         /* Header is fixed at 108px, 96px under 767px - the same offsets the home
-           page uses, so the two public shells start at the same place. */
-        .vl-shell{min-height:calc(100vh - 69px);padding-top:108px;box-sizing:border-box;background:#fff}
+           page uses, so the two public shells start at the same place.
+           The font stack is declared rather than inherited, matching .page on
+           /grahak-os/ and .home-shell. This page did already render in Inter, but
+           only via the body rule in @aws-amplify/ui-react's styles.css - so the
+           typeface of a public marketing page depended on an auth library's CSS
+           import order. Pages.css's --font-sans has no Inter in it, so nothing here
+           would have fallen back to the right face. */
+        .vl-shell{min-height:calc(100vh - 69px);padding-top:108px;box-sizing:border-box;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a}
         /* No flex gap: the only gap in the page is under the badge and .vl-eyebrow
            owns it. A column gap would apply to nothing and quietly mislead whoever
            adds the second element. */

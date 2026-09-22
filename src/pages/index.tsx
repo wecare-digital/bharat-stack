@@ -21,11 +21,21 @@ const HomePage: React.FC = () => (
       </div>
     </main>
     <style jsx>{`
+      /* The font stack is declared here, not inherited. Measured in a browser, this
+         page already rendered in Inter - but only because @aws-amplify/ui-react's
+         styles.css sets a font-family on body that happens to start with Inter. The
+         public pages' typeface was therefore a side effect of an auth library's
+         stylesheet, and would have changed silently if that import moved or the
+         package bumped. This is the same stack .page declares on /grahak-os/.
+         Note --font-sans in Pages.css contains no Inter at all, so that is not a
+         fallback that would have caught it. */
       .home-shell{
         min-height:calc(100vh - 69px);
         padding-top:108px;
         box-sizing:border-box;
         background:#fff;
+        font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+        color:#1a1a1a;
       }
       .home-layout{
         width:100%;

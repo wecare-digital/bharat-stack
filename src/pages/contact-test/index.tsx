@@ -120,7 +120,10 @@ const ContactUsPage: React.FC<PageProps> = ( { signOut, user } ) => {
               <div style={ { display: 'flex', flexDirection: 'column', gap: 8 } }>
                 { [
                   { label: 'Self-Service Portal', href: '/forms/selfservice' },
-                  { label: 'FAQ', href: '/faq' },
+                  // Absolute, same tab. The local /faq page was deleted; this is the
+                  // marketing site's Selfservice page, the same target the header menu
+                  // uses. /forms/selfservice above is a DIFFERENT, still-live app route.
+                  { label: 'Selfservice', href: 'https://www.wecare.digital/selfservice' },
                   { label: 'Subscribe for Updates', href: '#', note: 'Send "subscribe" on WhatsApp' },
                 ].map( ( link, i ) => (
                   <a key={ i } href={ link.href } style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(209,244,112,0.3)', background: '#f9fafb', textDecoration: 'none', fontSize: 13, color: '#1a3a2a', fontWeight: 500, transition: 'background 0.15s' } }>
