@@ -221,11 +221,20 @@ def _google_key() -> str:
         logger.warning("google key unavailable (%s), using amazon translate", type(exc).__name__)
 
     _google_key_cache.update({"loaded": True, "key": key})
-    logger.info(
-        json.dumps({"event": "translate_provider_resolved",
-                    "provider": "google" if key else "aws",
-                    "secret": GOOGLE_SECRET_NAME})
-    )
+    # Deliberately no logging here, and this getter has no side effects.
+    #
+    # It previously logged which provider had been resolved, as
+    # "google" if key else "aws" - a string literal, so no key could ever reach
+    # the output. CodeQL still failed the build on it
+    # (py/clear-text-logging-sensitive-data): the secret appears INSIDE a logging
+    # expression, and its taint analysis cannot see that the ternary discards the
+    # value. CodeQL is structurally right regardless of this instance - this repo
+    # lost four live credentials to exactly this class of mistake, see
+    # .kiro/steering/secret-handling.md - so the rule wins over the reasoning.
+    #
+    # The resolved provider is logged in _translate_texts instead, where the
+    # value comes from _google_enabled() returning a bool and nothing in scope
+    # holds the key.
     return key
 
 
@@ -370,7 +379,14 @@ def _translate_texts(texts: List[str], target: str, source: str) -> Tuple[List[D
     nav label or a repeated CTA arrives many times in one batch and used to be
     billed once per occurrence.
     """
+    # Derived from a bool, so the key is not in scope for this log line. See the
+    # note in _google_key() for why that distinction is load-bearing.
     provider = "google" if _google_enabled() else "aws"
+    logger.info(
+        json.dumps({"event": "translate_provider_resolved",
+                    "provider": provider,
+                    "secret": GOOGLE_SECRET_NAME})
+    )
     rows: List[Optional[Dict[str, str]]] = [None] * len(texts)
     pending: Dict[str, List[int]] = {}
 
@@ -397,14 +413,23 @@ def _translate_texts(texts: List[str], target: str, source: str) -> Tuple[List[D
                 # key restricted to other APIs, quota, timeout - degrades to
                 # Amazon rather than failing the visitor's page.
                 #
-                # str(exc) is safe to log here precisely because the key travels in
-                # the x-goog-api-key header: no urllib exception can echo it, since
-                # none of them carry request headers. It would NOT be safe if the
-                # key were a ?key= query param, because HTTPError/URLError repr can
-                # include the URL.
+                # Only OUR OWN RuntimeError text is logged verbatim, because
+                # _google_translate_batch builds it from the HTTP status and
+                # Google's error.status field and nothing else. Every other
+                # exception contributes its type only.
+                #
+                # This is stricter than necessary: the key travels in the
+                # x-goog-api-key header, and no urllib exception carries request
+                # headers, so str(exc) could not echo it. But "I reasoned it cannot
+                # leak" is what the previous version of this file said one line
+                # before CodeQL failed the build on it, and a diagnostic is not
+                # worth arguing with a secrets rule over. No detail is lost: the
+                # useful 403 reason is already inside the RuntimeError.
+                detail = str(exc) if isinstance(exc, RuntimeError) else ""
                 logger.warning(
                     json.dumps({"event": "google_translate_failed",
-                                "error": f"{type(exc).__name__}: {exc}",
+                                "errorType": type(exc).__name__,
+                                "detail": detail,
                                 "fallback": "aws"})
                 )
                 provider = "aws"
