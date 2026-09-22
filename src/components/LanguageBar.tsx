@@ -28,11 +28,9 @@ const NATIVE: Record<string, string> = {
   gu: 'ગુજરાતી', kn: 'ಕನ್ನಡ', ml: 'മലയാളം', pa: 'ਪੰਜਾਬੀ', ur: 'اردو',
 };
 
-// Shown immediately when the panel opens, in rough order of speakers. The
-// service returns ~75 languages from Amazon Translate, but this is a product for
-// Bharat: surfacing the Indic set first means the common case is one tap and no
-// typing. Search still reaches the full catalogue.
-const PRIMARY = [ 'en', 'hi', 'bn', 'mr', 'te', 'ta', 'gu', 'kn', 'ml', 'pa', 'ur' ];
+// PRIMARY, the resting Indic list, is deliberately gone rather than left unused:
+// the panel is search-only now. NATIVE below stays, because search results still
+// lead with the native name.
 
 const SKIP_TAGS = new Set( [
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'SVG', 'CANVAS', 'VIDEO', 'AUDIO',
@@ -244,17 +242,23 @@ const LanguageBar: React.FC = () => {
     } catch { setSpeaking( false ); setStatus( 'Audio is unavailable right now.' ); }
   }, [ contentRoot, current, speaking, stopSpeaking ] );
 
-  // An empty query used to return an empty array, so opening the panel showed
-  // nothing but "Type a language name or code." - the visitor had to guess that
-  // their language was in there before seeing any evidence of it. Now the Indic
-  // set is the resting state and typing widens the search to everything.
+  // Search-only: an empty query returns nothing and the panel lists no languages
+  // until the visitor types. Owner's decision.
+  //
+  // THIS IS A ROUND TRIP, and the reason it was changed away from is still valid, so
+  // it is recorded rather than deleted. The panel behaved exactly this way once. It
+  // was changed to show the Indic set at rest because search-only means the visitor
+  // has to guess their language is in here before seeing any evidence that it is -
+  // and the Hindi or Tamil speaker this product is built for has to type in the Latin
+  // alphabet to find their own script. Reverting to search-only reinstates that cost.
+  //
+  // The mitigation is the empty state below: it says what to do instead of showing a
+  // blank box, and the input is autofocused when the panel opens, so typing is the
+  // only action required. If the cost shows up in behaviour, the previous resting
+  // list is one commit back in history.
   const filtered = useMemo( () => {
     const term = query.trim().toLocaleLowerCase();
-    if ( !term ) {
-      return PRIMARY
-        .map( code => langs.find( lang => lang.code === code ) )
-        .filter( ( lang ): lang is Lang => Boolean( lang ) );
-    }
+    if ( !term ) return [];
     return langs
       .filter( lang => [ lang.code, lang.name, lang.native || '' ].some( value => value.toLocaleLowerCase().includes( term ) ) )
       .slice( 0, 14 );
@@ -332,8 +336,13 @@ const LanguageBar: React.FC = () => {
           onChange={ event => setQuery( event.target.value ) }
           onKeyDown={ event => { if ( event.key === 'Escape' ) setOpen( false ); } }
         />
-        <div className="group">{ searching ? 'Results' : 'Indian languages' }</div>
+        {/* Heading only while there is something to head. At rest the panel is the
+            field and the prompt, with no empty section label above them. */}
+        { searching && <div className="group">Results</div> }
         <div className="results" role="listbox" aria-label="Language results">
+          {/* Not decoration. With no resting list this is the only thing telling the
+              visitor the catalogue exists at all, so the panel never opens blank. */}
+          { !searching && <div className="hint">Type a language name to translate this page.</div> }
           { searching && !filtered.length && <div className="hint">No matching language.</div> }
           { filtered.map( lang => (
             <button key={ lang.code } type="button" className="opt" role="option" aria-selected={ lang.code === current } aria-current={ lang.code === current ? 'true' : 'false' } onClick={ () => { void applyLanguage( lang.code ); } }>
