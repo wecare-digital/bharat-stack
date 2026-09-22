@@ -8,6 +8,6 @@
     "update": "node update-post-schema.js"
   },
   "dependencies": {
-    "dotenv": "^16.6.1"
+    "dotenv": "^18.0.1"
   }
 }
