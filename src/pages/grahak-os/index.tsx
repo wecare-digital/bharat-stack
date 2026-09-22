@@ -729,12 +729,25 @@ response = requests.post(
              hairline at .12 rather than a second background colour, and idle tab text
              is rgba(255,255,255,.54), the dark-panel mirror of the rgba(0,0,0,.54)
              the pills use. Code text goes to #fff to match .code-body. */
-          .api-demo{background:#000;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
-          .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000;border-bottom:1px solid rgba(255,255,255,.12)}
+          /* 16px -> 14px to match the hero .code-box. The two panels are the same
+             object at two sizes, and the mobile override was already 14px, so this
+             also stops the radius changing across breakpoints. */
+          .api-demo{background:#000;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+          /* No border-bottom. The .12 hairline here was standing in for structure
+             that the code pane's own stroke now provides - the hero solves this the
+             same way, with .code-header carrying nothing and .code-body's outline
+             doing the work. Two separators stacked read as a seam. */
+          .code-tabs{display:flex;gap:6px;padding:14px 16px;background:#000}
           .tab{padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:rgba(255,255,255,.54);background:transparent;cursor:pointer;transition:all .2s}
           .tab:hover{color:#fff}
           .tab.active{background:#d1f470;color:#1a3a2a}
-          .code-block{margin:0;padding:20px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#fff;overflow-x:auto;white-space:pre}
+          /* The editor-pane stroke, carried over from the hero's .code-body, where the
+             comment calls it the detail that stops a dark panel reading as a flat
+             rectangle. It was the last thing separating these two panels visually:
+             both were already #000 with #fff code, but only the hero looked like an
+             editor. Radius matches .api-demo at 14px so the corners coincide and only
+             the stroke shows, exactly as the hero pairs .code-body with .code-box. */
+          .code-block{margin:0;padding:20px;border:1.5px solid rgba(255,255,255,.92);border-radius:14px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:15px;line-height:1.65;color:#fff;overflow-x:auto;white-space:pre}
           
           /* Capabilities Section - Card Grid */
           .capabilities{padding:60px 24px;max-width:1300px;margin:0 auto;background:#fff}
