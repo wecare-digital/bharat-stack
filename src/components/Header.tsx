@@ -12,7 +12,7 @@ interface NavLink {
   /** router.pathname value that marks this link as the current page. */
   match?: string;
   /** Group heading. Empty string means "render with no heading above it". */
-  group: '' | 'Products' | 'Company' | 'Account';
+  group: '' | 'Products' | 'Service' | 'Account';
 }
 
 // One list, grouped by type, rather than four hand-written anchors.
@@ -42,12 +42,20 @@ const LINKS: NavLink[] = [
   { label: 'Home', href: '/', match: '/', group: '' },
   { label: 'Grahak OS', href: '/grahak-os/', match: '/grahak-os', group: 'Products' },
   { label: 'VayuLok', href: '/vayulok/', match: '/vayulok', group: 'Products' },
-  { label: 'Selfservice', href: 'https://www.wecare.digital/selfservice', group: 'Company' },
-  { label: 'Partners', href: 'https://www.wecare.digital/product-page/referral-partner', group: 'Company' },
+  { label: 'Selfservice', href: 'https://www.wecare.digital/selfservice', group: 'Service' },
+  { label: 'Partners', href: 'https://www.wecare.digital/product-page/referral-partner', group: 'Service' },
   { label: 'Sign in', href: '/access', match: '/access', group: 'Account' },
 ];
 
-const GROUP_ORDER: Array<NavLink[ 'group' ]> = [ '', 'Products', 'Company', 'Account' ];
+// 'Service', not 'Company'. Neither row under it is about the company: one is the
+// customer self-help portal and the other is a product page for prospective
+// referral partners, so the old heading described the wrong thing.
+//
+// This union is the only place a group name is declared - the headings render
+// straight from these strings and GROUP_ORDER below sets their order - so renaming
+// a group means editing the type, the LINKS entries and this array together, and
+// tsc catches it if you miss one. No test asserts on the heading text.
+const GROUP_ORDER: Array<NavLink[ 'group' ]> = [ '', 'Products', 'Service', 'Account' ];
 
 const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
   const [ open, setOpen ] = useState( false );
