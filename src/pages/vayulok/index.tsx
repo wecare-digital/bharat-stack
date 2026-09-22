@@ -7,10 +7,30 @@
  * in this repository describes what VayuLok does beyond the capabilities the rotating
  * words name, so any further copy here would be invented, on a public page.
  *
- * THE ROTATING WORDS ARE NOT DECORATIVE CLAIMS. Air, Weather, Forecast and Solar are
- * the four services shared/wix-velo/backend/google-services.web.js actually covers,
- * so the headline rotates through real platform capability rather than aspirational
- * copy. Verified against that file, not taken from a doc.
+ * THE ROTATING WORDS, AND WHICH OF THEM ARE BACKED TODAY.
+ *
+ * Air, Weather, Forecast and Solar each name an endpoint that
+ * shared/wix-velo/backend/google-services.web.js already calls - checked against that
+ * file rather than taken from a doc:
+ *
+ *   Air       airquality.googleapis.com/v1/currentConditions:lookup
+ *   Weather   weather.googleapis.com/v1/currentConditions:lookup
+ *   Forecast  weather.googleapis.com/v1/forecast/days:lookup
+ *   Solar     solar.googleapis.com/v1/buildingInsights:findClosest
+ *
+ * Heatmap and Pollen are ROADMAP, added at the owner's request. Both are real Google
+ * APIs, neither is wired here yet:
+ *
+ *   Pollen    pollen.googleapis.com/v1/forecast:lookup                 (unused)
+ *   Heatmap   airquality .../mapTypes/{type}/heatmapTiles/{z}/{x}/{y}  (unused)
+ *
+ * Heatmap is also the one word in the set that is a VIEW rather than a subject, so it
+ * reads oddly in the slot - "Bharat Heatmap Intelligence" parses as intelligence
+ * about heatmaps rather than a heatmap of intelligence. Kept because it was asked
+ * for; "Pollution" or dropping it are the alternatives if that grates on screen.
+ *
+ * So the rotation is no longer a pure statement of what is built. When the two
+ * endpoints land, delete this caveat.
  *
  * Mechanism is lifted from the Grahak OS hero so the two pages animate identically:
  * measured width so the pill resizes instead of snapping, a pale tint with a
@@ -39,11 +59,28 @@ import Head from 'next/head';
 import BrandBadge from '../../components/BrandBadge';
 
 const VayuLokPage: React.FC = () => {
+  // Order is hue rhythm as much as grouping. Air + Pollen are what is in the air,
+  // Weather + Forecast are conditions, Solar is the adjacent service, Heatmap is the
+  // view rather than a subject. Sequencing them this way leaves only one adjacent
+  // warm pair (Solar -> Heatmap); the obvious logical order stacked amber, red and
+  // yellow consecutively and the pill stopped feeling like it was changing.
+  //
+  // The first four tint/dot pairs are reused verbatim from the Grahak OS hero. The
+  // last two are new, and follow that system's construction rule rather than being
+  // picked freely: a pale tint with a saturated dot of the SAME hue, at roughly the
+  // 100/600 relationship the existing four use. Reusing one of the four for Heatmap
+  // or Pollen was the alternative, but every existing pair is hue-matched to its
+  // subject and doubling up would have broken exactly that.
+  // Red for Heatmap because the map reads as heat; yellow for Pollen for the obvious
+  // reason. Neither touches the brand palette - like the Grahak OS channel tints,
+  // these are a per-subject system that sits outside it by design.
   const cycleWords = [
     { word: 'Air', tint: '#e0f7c8', dot: '#3da35a' },
+    { word: 'Pollen', tint: '#fef9c3', dot: '#ca8a04' },
     { word: 'Weather', tint: '#dbeafe', dot: '#2563eb' },
     { word: 'Forecast', tint: '#ede9fe', dot: '#9849e8' },
     { word: 'Solar', tint: '#fef3c7', dot: '#f0a818' },
+    { word: 'Heatmap', tint: '#fee2e2', dot: '#dc2626' },
   ];
   const [ cycleIndex, setCycleIndex ] = useState( 0 );
   const [ cycleW, setCycleW ] = useState<number | null>( null );
