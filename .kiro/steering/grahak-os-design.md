@@ -47,13 +47,24 @@ Eyebrows/labels are **not uppercase and not letter-spaced** — notion uses plai
 sticker we printed ourselves; a borrowed logo must look borrowed. A test pins this.
 
 The inverse also holds: lime **is** the right green for our own marks. `BrandBadge`
-(the `Grahak OS · by Bharat Stack` / `Bharat Stack by WECARE.DIGITAL` pill on
-`/grahak-os` and `/`) fills with `rgba(209,244,112,.22)` — `#d1f470` at 22%, the
-same tint `Header` uses for nav hover, active and expanded — over a
-`1px solid #d1f470` hairline, which is the `.nav-menu` border. Reuse those two
-values for any new green tint rather than mixing a fresh pale green; that is how
-`#f2fbf6` and `#fbfff0` got here in the first place. `#1a3a2a` on that tint is
-~11.9:1.
+— the pill on `/`, `/grahak-os` and `/vayulok` — fills with **`#d1f470` at full
+strength and `#1a3a2a` type**, the same pair as `.tab.active` and `.msg.sent`, with
+no border (neither of those carries one either). `#1a3a2a` on `#d1f470` is ~10:1.
+
+There are exactly **three** lime treatments in this design language. Reach for one
+of these rather than mixing a fresh tint or a new alpha — inventing an in-between
+value is how `#f2fbf6` and `#fbfff0` got here in the first place:
+
+| Treatment | Use | Examples |
+|---|---|---|
+| `#d1f470` fill + `#1a3a2a` type | our own surfaces, full voice | `.msg.sent`, `.tab.active`, `BrandBadge` |
+| `rgba(209,244,112,.22)` fill | transient state, not identity | nav hover / active / expanded |
+| `#1a3a2a` fill + `#d1f470` type | inverted, dark | `Layout.tsx` mode switch |
+
+The badge began on the `.22` tint and was lifted, because that value composites to
+`(245,253,224)` over white — a wash that reads as barely-not-white rather than as a
+green badge. It is a **state** tint, not an identity one; that distinction is the
+reason the two exist.
 
 Retired, do not reintroduce: `#2f6b52`, `#075e54`, `#f2fbf6`, `#fbfff0`,
 `#1e293b` (as the code panel body). All five are now absent from the page — the
