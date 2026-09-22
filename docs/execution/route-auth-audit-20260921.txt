@@ -1,56 +1,18 @@
-HTTP APIs scanned : 2  (79g3bbufdh, zllr9lrg7j)
+HTTP APIs scanned : 1  (zllr9lrg7j)
 handler dirs      : 354
 live functions    : 58
-
---- 79g3bbufdh  wecare-api
-    routes 1 across 1 page(s), integrations 1
-    gateway-authorized                  : 0
-    gateway NONE, handler authenticates : 1
-    DANGLING (target function absent)   : 0
-    UNRESOLVED (source not found)       : 0
-    OPEN (no auth at either layer)      : 0
-    strict: handler-authenticates 0, open 1
 
 --- zllr9lrg7j  wecare-digital-api
     routes 326 across 4 page(s), integrations 101
     gateway-authorized                  : 0
-    gateway NONE, handler authenticates : 305
+    gateway NONE, handler authenticates : 300
+    expected public (allowlisted)       : 5
     DANGLING (target function absent)   : 0
     UNRESOLVED (source not found)       : 0
     OPEN (no auth at either layer)      : 0
-    strict: handler-authenticates 274, open 31
-
-OPEN ONLY UNDER --strict - relies on a weak marker (Authorization / api_key / verify_token):
-  POST /ai/generate -> wecare-ai-generate-response
-  DELETE /links/{code} -> stack-wecare-url-shortener
-  DELETE /voice-in/c2c -> wecare-voice-in-c2c
-  DELETE /voice-in/c2c/clear-logs -> wecare-voice-in-c2c
-  DELETE /voice-in/obd -> wecare-voice-in-obd
-  DELETE /voice-in/obd/audio-library -> wecare-voice-in-obd
-  DELETE /voice-in/obd/clear-logs -> wecare-voice-in-obd
-  GET /bulk/worker -> wecare-bulk-worker
-  GET /links -> stack-wecare-url-shortener
-  GET /links/{code} -> stack-wecare-url-shortener
-  GET /r/{code} -> stack-wecare-url-shortener
-  GET /store/preview-product-image -> wecare-product-image-gen
-  GET /voice-in/c2c -> wecare-voice-in-c2c
-  GET /voice-in/obd -> wecare-voice-in-obd
-  GET /voice-in/obd/audio-library -> wecare-voice-in-obd
-  GET /webhook/sinch-rcs -> wecare-rcs-dlr
-  GET /{code} -> stack-wecare-url-shortener
-  POST /ai/generate -> wecare-ai-generate-response
-  POST /auth/validate -> wecare-auth-middleware
-  POST /links -> stack-wecare-url-shortener
-  POST /media/cleanup -> wecare-media-cleanup
-  POST /store/convert-flag -> wecare-product-image-gen
-  POST /store/generate-product-image -> wecare-product-image-gen
-  POST /voice-in/c2c -> wecare-voice-in-c2c
-  POST /voice-in/obd -> wecare-voice-in-obd
-  POST /voice-in/obd/audio-library -> wecare-voice-in-obd
-  POST /voice-in/obd/create -> wecare-voice-in-obd
-  POST /voice-in/obd/tts -> wecare-voice-in-obd
-  POST /voice-in/obd/upload-audio -> wecare-voice-in-obd
-  POST /voice-in/obd/upload-csv -> wecare-voice-in-obd
-  POST /webhook/sinch-rcs -> wecare-rcs-dlr
-  PUT /links/{code} -> stack-wecare-url-shortener
+      public: GET /r/{code}  (public short-link redirect; anonymous by definition)
+      public: GET /webhook/sinch-rcs  (Sinch health probe; POST carries the HMAC)
+      public: GET /{code}  (public short-link redirect; anonymous by definition)
+      public: POST /auth/validate  (token validation endpoint; authenticating it would be circular)
+      public: POST /webhook/sinch-rcs  (Sinch Conversation API HMAC over rawBody.nonce.timestamp)
 

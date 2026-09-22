@@ -42,6 +42,7 @@ TIMEOUT = 20
 
 # (label, method, path, body, expected status, why)
 PROBES = [
+    # --- signed provider ingresses ---
     ("whatsapp inbound, unsigned", "POST", "/whatsapp/inbound", {}, 401,
      "no X-Hub-Signature-256; must not reach the SNS-envelope parser"),
     ("whatsapp inbound, unsigned create_invoice", "POST", "/whatsapp/inbound",
@@ -53,14 +54,81 @@ PROBES = [
      503, "forged inbound must be refused before MessagesTable or rcs-send"),
     ("sinch rcs health", "GET", "/webhook/sinch-rcs", None, 200,
      "the health path stays reachable"),
+
+    # --- routes moved behind require_auth on 2026-09-21 ---
+    # All reads, so each is inert whether or not the guard holds.
+    ("short-link management, no token", "GET", "/links", None, 401,
+     "link enumeration was anonymous; a listing leaks every destination"),
+    ("obd campaigns, no token", "GET", "/voice-in/obd", None, 401,
+     "campaign read was anonymous"),
+    ("c2c calls, no token", "GET", "/voice-in/c2c", None, 401,
+     "call history read was anonymous"),
+    ("bulk worker status, no token", "GET", "/bulk/worker", None, 401,
+     "leaked SEND_MODE anonymously"),
+    ("product image preview, no token", "GET", "/store/preview-product-image",
+     None, 401, "image generation costs money per call"),
+    ("ai generate, no token", "POST", "/ai/generate", {"messageContent": "probe"},
+     401, "spent model tokens anonymously on both HTTP APIs"),
+
+    # --- AUTH_SKIP_PATHS narrowed on 2026-09-21 (SEC-ROUTE-009) ---
+    # `/wa-business/webhooks` was exempt from auth on the stated grounds that it
+    # "authenticates via verify token". It is not a Meta callback: it is the
+    # management surface for Meta's subscribed_apps API. Measured before the fix,
+    # GET returned 400 "wabaId required" - past auth, inside the handler.
+    #
+    # The POST and DELETE probes carry NO wabaId, so the handler's own 400 check
+    # would stop them before any Graph call even if the guard were broken. Without
+    # that, DELETE would unsubscribe the production WABA from every webhook field
+    # and stop all inbound WhatsApp delivery.
+    ("wa-business webhooks read, no token", "GET", "/wa-business/webhooks", None,
+     401, "listed the WABA's webhook subscriptions anonymously"),
+    ("wa-business webhooks subscribe, no token", "POST", "/wa-business/webhooks",
+     {}, 401, "POST forwards override_callback_uri to Meta: inbound redirection"),
+    ("wa-business webhooks unsubscribe, no token", "DELETE",
+     "/wa-business/webhooks", {}, 401,
+     "DELETE stops all inbound WhatsApp delivery for the WABA"),
+    ("wa-business substring near-miss, no token", "GET",
+     "/wa-business/webhooks-anything", None, 401,
+     "the old skip was a substring test, and ANY /wa-business/{proxy+} exists"),
+
+    # --- and the anonymous paths that must KEEP working ---
+    # The Flows data-exchange endpoint is the ONE legitimate exemption on that
+    # function: the payload is RSA+AES-GCM encrypted, so only a caller holding our
+    # public key can produce something we can decrypt. 421 is Meta's specified
+    # response to a decryption failure and tells Meta to refresh the key, so this
+    # junk payload is inert. A 401 here would mean the exemption was lost along
+    # with the webhooks one.
+    ("flows data-exchange stays public", "POST", "/wa-business/flow-data",
+     {"encrypted_flow_data": "bm90LXJlYWw=", "encrypted_aes_key": "bm90LXJlYWw=",
+      "initial_vector": "bm90LXJlYWw="}, 421,
+     "authenticates by RSA decryption, not by token"),
+    ("short-link redirect stays public", "GET", "/r/verify-probe-no-such-code",
+     None, 302, "a customer following a short link has no Cognito token"),
+    ("catch-all redirect stays public", "GET", "/verify-probe-no-such-code",
+     None, 302, "same, for the bare /{code} form"),
 ]
+
+# Deliberately not probed live: POST /media/cleanup. It is the only guarded route
+# with no read method, and if the guard were broken the probe itself would delete
+# media from Meta. Its guard is identical to the others verified here and is
+# covered by tests/test_route_auth_enforcement.py.
 
 
 # Build one opener with proxies explicitly disabled. urllib otherwise consults
 # the system proxy configuration, and on this machine an unset-but-present macOS
 # proxy lookup made the first request hang past a 180s budget while the identical
 # curl call returned in under a second.
-_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+#
+# Redirects are NOT followed. urllib follows them by default, which turned the
+# short-link probes into a 200 from the Wix fallback page and hid the 302 that is
+# the actual thing under test.
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(
+    urllib.request.ProxyHandler({}), _NoRedirect())
 
 
 def probe(method: str, path: str, body) -> tuple[int, str]:

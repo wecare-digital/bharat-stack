@@ -31,6 +31,9 @@ from lambda_utils.validation import normalize_phone
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
 from lambda_utils import meta_signature  # raw-body X-Hub-Signature-256 on the public route
+from lambda_utils import wa_status  # monotonic status ordering (no backward transitions)
+from lambda_utils import wa_internal_event  # typed ingress -> worker contract
+from botocore.exceptions import ClientError
 try:
     from lambda_utils import partner_billing  # per-tenant prepaid metering (optional)
 except Exception:  # noqa: BLE001
@@ -616,27 +619,34 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }
         return _handle_dashboard_invoice(event, request_id)
     
+    # Accept the typed contract from the ingress AND the legacy synthetic SNS
+    # envelope. Both arms are load-bearing: the ingress and this worker deploy
+    # separately and the invoke is asynchronous, so in-flight events can carry the
+    # old shape, and dlq-replay may hold stored payloads in it for its retention
+    # period. `shape` is logged so the legacy arm's retirement can be measured
+    # rather than guessed. See lambda_utils/wa_internal_event.
+    _work_items = wa_internal_event.parse(event)
+
     logger.info(json.dumps({
         'event': 'inbound_processing_start',
-        'recordCount': len(event.get('Records', [])),
+        'itemCount': len(_work_items),
+        'shapes': sorted({i['shape'] for i in _work_items}),
         'requestId': request_id
     }))
-    
-    for record in event.get('Records', []):
+
+    if not _work_items:
+        logger.warning(json.dumps({
+            'event': 'inbound_unrecognised_event',
+            'topLevelKeys': sorted(k for k in event.keys())[:12],
+            'requestId': request_id,
+        }))
+
+    for _item in _work_items:
         try:
-            # Parse SNS message
-            sns_message = json.loads(record.get('Sns', {}).get('Message', '{}'))
-            
-            # Extract WABA context - which WABA received this message
-            context_data = sns_message.get('context', {})
-            meta_waba_ids = context_data.get('MetaWabaIds', [])
-            meta_phone_number_ids = context_data.get('MetaPhoneNumberIds', [])
-            
-            webhook_entry_str = sns_message.get('whatsAppWebhookEntry', '{}')
-            aws_message_id = sns_message.get('messageId', str(uuid.uuid4()))
-            
-            # Decode whatsAppWebhookEntry JSON string
-            webhook_entry = json.loads(webhook_entry_str)
+            meta_waba_ids = _item['waba_ids']
+            meta_phone_number_ids = _item['phone_number_ids']
+            aws_message_id = _item['message_id'] or str(uuid.uuid4())
+            webhook_entry = _item['entry']
             
             # Process each change in the webhook entry
             for change in webhook_entry.get('changes', []):
@@ -945,9 +955,23 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             logger.error(json.dumps({
                 'event': 'record_processing_error',
                 'error': str(e),
+                'shape': _item.get('shape'),
                 'requestId': request_id
             }))
-            _send_to_dlq(record, str(e), request_id)
+            # DLQ the normalized work item, not the raw envelope. dlq-replay
+            # invokes the stored payload directly, and wa_internal_event.parse
+            # accepts this shape, so a replay now actually reproduces the work -
+            # which it could not do when the stored record was half of an SNS
+            # envelope the worker no longer looked at.
+            _send_to_dlq(
+                wa_internal_event.build(
+                    entry=_item.get('entry') or {},
+                    waba_id=_item.get('waba_id') or '',
+                    meta_phone_number_ids=_item.get('phone_number_ids') or [],
+                    request_id=request_id,
+                ),
+                str(e), request_id,
+            )
             error_count += 1
     
     logger.info(json.dumps({
@@ -2807,10 +2831,21 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None, wa
             if items:
                 message_id = items[0].get('id') or items[0].get('messageId')
                 # Build update expression  -  include recipientBsuid and parentRecipientBsuid if available
-                update_expr = 'SET #status = :status, statusUpdatedAt = :ts'
+                #
+                # statusRank makes the write MONOTONIC. Meta guarantees neither
+                # order nor exactly-once delivery of status webhooks, and this
+                # used to be an unconditional SET, so the last webhook to arrive
+                # won whatever it said: a late `sent` overwrote `read`, and a
+                # re-delivered `failed` overwrote `delivered`. The rank plus the
+                # ConditionExpression below refuse any backward transition, which
+                # also makes duplicate deliveries harmless. See lambda_utils/wa_status.py
+                # for the ranking and why `failed` sits between sent and delivered.
+                update_expr = ('SET #status = :status, statusUpdatedAt = :ts, '
+                               f'{wa_status.RANK_ATTRIBUTE} = :rank')
                 expr_values = {
                     ':status': status_value,
-                    ':ts': Decimal(str(timestamp))
+                    ':ts': Decimal(str(timestamp)),
+                    ':rank': Decimal(str(wa_status.rank(status_value))),
                 }
                 if recipient_user_id:
                     update_expr += ', recipientBsuid = :rbsuid'
@@ -2836,21 +2871,45 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None, wa
                             update_expr += ', errorDetails = :ed'
                             expr_values[':ed'] = json.dumps({'code': err_code, 'message': err_reason})
 
-                table.update_item(
-                    Key={'id': message_id},
-                    UpdateExpression=update_expr,
-                    ExpressionAttributeNames={'#status': 'status'},
-                    ExpressionAttributeValues=expr_values
-                )
+                try:
+                    table.update_item(
+                        Key={'id': message_id},
+                        UpdateExpression=update_expr,
+                        ConditionExpression=wa_status.condition_expression(),
+                        ExpressionAttributeNames={'#status': 'status'},
+                        ExpressionAttributeValues=expr_values
+                    )
+                except ClientError as _ce:
+                    if _ce.response.get('Error', {}).get('Code') != 'ConditionalCheckFailedException':
+                        raise
+                    # A backward or duplicate transition. Not an error: it is the
+                    # guard doing its job. Recorded so out-of-order delivery is
+                    # observable rather than invisible.
+                    logger.info(json.dumps({
+                        'event': 'status_out_of_order_skipped',
+                        'messageId': message_id,
+                        'whatsappMessageId': whatsapp_message_id,
+                        'incomingStatus': status_value,
+                        'incomingRank': wa_status.rank(status_value),
+                        'table': direction,
+                        'requestId': request_id,
+                    }))
+                    updated = True
+                    break
 
                 # Mirror the same status onto the canonical MessagesTable (same id,
                 # written by the dual-write). Guarded — never breaks status processing.
+                # The rank guard is ANDed with the existence check so the mirror
+                # cannot regress either.
                 if table_name != UNIFIED_MESSAGES_TABLE:
                     try:
                         dynamodb.Table(UNIFIED_MESSAGES_TABLE).update_item(
                             Key={'id': message_id},
                             UpdateExpression=update_expr,
-                            ConditionExpression='attribute_exists(id)',
+                            ConditionExpression=(
+                                'attribute_exists(id) AND ('
+                                + wa_status.condition_expression() + ')'
+                            ),
                             ExpressionAttributeNames={'#status': 'status'},
                             ExpressionAttributeValues=expr_values
                         )
@@ -2862,6 +2921,7 @@ def _process_status(status: Dict, request_id: str, contacts_map: Dict = None, wa
                     'messageId': message_id,
                     'whatsappMessageId': whatsapp_message_id,
                     'status': status_value,
+                    'statusRank': wa_status.rank(status_value),
                     'table': direction,
                     'requestId': request_id
                 }))

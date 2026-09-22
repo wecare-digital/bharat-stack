@@ -43,6 +43,7 @@ from functools import wraps
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.middleware import require_auth
 
 logger = get_logger(__name__)
 
@@ -711,6 +712,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     http_method = event.get('httpMethod') or event.get('requestContext', {}).get('http', {}).get('method', '')
     if http_method == 'OPTIONS':
         return options_response(origin)
+
+    # ── Authenticate API Gateway callers ──
+    # POST /ai/generate was public on BOTH HTTP APIs with no handler check. Every
+    # call spends model tokens, and the body is a prompt, so an anonymous caller
+    # could both run up cost and feed the model arbitrary instructions. The live
+    # callers are the dashboard chat surfaces (FloatingAgent, InternalChatTab and
+    # api/client.ts), all of which already attach a Cognito bearer token from
+    # fetchAuthSession. Internal invokes from other Lambdas carry no API Gateway
+    # context and are unaffected.
+    auth_failure = require_auth(event)
+    if auth_failure is not None:
+        return auth_failure
 
     # Parse body
     body = event

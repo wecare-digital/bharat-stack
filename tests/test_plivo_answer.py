@@ -78,7 +78,7 @@ def _event(body='', qs=None, b64=False):
 
 
 PLIVO_FORM = (
-    'CallUUID=abc-123&From=919903300044&To=918031830030'
+    'CallUUID=abc-123&From=919876543210&To=918031830030'
     '&Direction=inbound&CallStatus=ringing'
 )
 
@@ -231,7 +231,7 @@ def test_xml_escaping_of_media_url(monkeypatch):
 # Post-call follow-up SMS
 # --------------------------------------------------------------------------
 HANGUP_FORM = (
-    'CallUUID=abc-123&From=919903300044&To=918031830030'
+    'CallUUID=abc-123&From=919876543210&To=918031830030'
     '&Direction=inbound&CallStatus=completed&Duration=25'
 )
 
@@ -265,7 +265,7 @@ def test_completed_sends_sms_and_returns_no_xml(monkeypatch):
     assert r['statusCode'] == 200
     assert '<Play>' not in r['body'], 'must not replay audio on hangup'
     assert len(calls) == 1
-    assert calls[0][0] == '919903300044'
+    assert calls[0][0] == '919876543210'
 
 
 def test_unverified_completed_pass_sends_no_sms(monkeypatch):
@@ -351,13 +351,13 @@ def test_indian_caller_invokes_sms_lambda_async(monkeypatch):
     import types
     monkeypatch.setitem(__import__('sys').modules, 'boto3',
                         types.SimpleNamespace(client=lambda *a, **k: FakeLambda()))
-    pa._send_post_call_sms('919903300044', 'uuid-2', 'req-2')
+    pa._send_post_call_sms('919876543210', 'uuid-2', 'req-2')
     assert len(sent) == 1
     assert sent[0]['InvocationType'] == 'Event', 'must not block the call'
     assert 'wecare-sms-aws' in sent[0]['FunctionName']
     body = __import__('json').loads(
         __import__('json').loads(sent[0]['Payload'].decode())['body'])
-    assert body['phoneNumber'] == '+919903300044'
+    assert body['phoneNumber'] == '+919876543210'
     assert body['dltTemplateKey'] == 'ivr-default'
     assert body['messageType'] == 'TRANSACTIONAL'
 
@@ -372,7 +372,7 @@ def test_sms_failure_never_breaks_the_call(monkeypatch):
     import types
     monkeypatch.setitem(__import__('sys').modules, 'boto3',
                         types.SimpleNamespace(client=lambda *a, **k: Boom()))
-    pa._send_post_call_sms('919903300044', 'uuid-3', 'req-3')  # must not raise
+    pa._send_post_call_sms('919876543210', 'uuid-3', 'req-3')  # must not raise
 
 
 def test_disabled_flag_suppresses_sms(monkeypatch):
@@ -386,5 +386,5 @@ def test_disabled_flag_suppresses_sms(monkeypatch):
     import types
     monkeypatch.setitem(__import__('sys').modules, 'boto3',
                         types.SimpleNamespace(client=lambda *a, **k: FakeLambda()))
-    pa._send_post_call_sms('919903300044', 'uuid-4', 'req-4')
+    pa._send_post_call_sms('919876543210', 'uuid-4', 'req-4')
     assert sent == []

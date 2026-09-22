@@ -37,6 +37,7 @@ import boto3
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.middleware import require_auth
 
 from lambda_utils.logging import get_logger
 
@@ -126,6 +127,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         if http_method == 'OPTIONS':
             return _resp(200, {'ok': True})
+
+        # ── Authenticate API Gateway callers ──
+        # All three routes were public with no handler check, and image generation
+        # costs money per call, so an anonymous caller could run up spend. Note the
+        # WIX_API_KEY in this module is an OUTBOUND credential for calling Wix - it
+        # authenticates us to them, not them to us - and it was precisely the
+        # marker that made the route audit read this handler as authenticated.
+        auth_failure = require_auth(event)
+        if auth_failure is not None:
+            return auth_failure
 
         if http_method == 'POST' and '/generate-product-image' in path:
             body = json.loads(event.get('body', '{}') or '{}')

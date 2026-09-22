@@ -372,7 +372,7 @@
       "SYSTEM_CONFIG_TABLE": "stack-wecare-digital-SystemConfigTable"
     },
     "wecare-whatsapp-business-api": {
-      "AUTH_SKIP_PATHS": "/wa-business/webhooks,/wa-business/flow-data",
+      "AUTH_SKIP_PATHS": "/wa-business/flow-data",
       "FLOW_LOGS_TABLE": "stack-wecare-digital-FlowLogTable",
       "FLOW_PRIVATE_KEY_PASSPHRASE": "",
       "FLOW_PRIVATE_KEY_SECRET": "wecare/flow-private-key",

@@ -144,3 +144,66 @@ That integration is **unqualified** — it targets `$LATEST` rather than `:live`
 so it bypasses the version/alias deploy model the other 49 aliased functions use.
 Tracked as `DEPLOY-002`; not addressed here because it is a deploy-model question,
 not provider retirement.
+
+---
+
+## Addendum, 2026-09-21 — API `79g3bbufdh` (`wecare-api`) deleted entirely
+
+After the two dangling `/webhook/sinch-dlr` routes were removed, this API was left
+with a single route. Measuring it rather than assuming:
+
+| Evidence | Value |
+|---|---|
+| Custom domains mapped to it | **none** — `api.wecare.digital` and `r.wecare.digital` both map to `zllr9lrg7j` |
+| Requests, 30 days to 2026-09-21 | **zero** (no `Count` datapoint at all); `zllr9lrg7j` served **84,301** |
+| Remaining route | `POST /ai/generate` → `wecare-ai-generate-response`, **unqualified `$LATEST`** |
+| Same path on the live API | `POST /ai/generate` → `wecare-ai-generate-response:live` — already correct |
+| CORS | `AllowOrigins: ["*"]` |
+| `DisableExecuteApiEndpoint` | `false`, so it was publicly reachable at its execute-api URL |
+| Created | 2026-03-03 |
+
+So it was a dead duplicate that also defeated the alias deploy model: code reaching
+`$LATEST` served traffic without a published version or an alias move, which is
+exactly what `lambda-snapstart-deploy` steering exists to prevent. Tracked as
+`DEPLOY-002`.
+
+Deleted, in order: route `po5hjn4`, integration `qz7bhz2`, then the API. The stale
+Lambda resource-policy statement `apigateway-invoke` granting
+`arn:aws:execute-api:us-east-1:775261844268:79g3bbufdh/*/*` was removed too, so the
+function's only remaining grant is `zllr9lrg7j/*`.
+
+Source cleanup: `messaging/waba-management/handler.py` defaulted `CORS_API_IDS` to
+`zllr9lrg7j,79g3bbufdh`. Left in place, every CORS save from the admin UI would
+have failed on a `NotFoundException` for the deleted id.
+
+| Metric | Before | After |
+|---|---|---|
+| HTTP APIs | 2 | **1** |
+| Total routes | 327 | **326** |
+| Invoke grants on `wecare-ai-generate-response` | 2 APIs | **1** |
+
+### Rollback
+
+```bash
+aws apigatewayv2 create-api --name wecare-api --protocol-type HTTP \
+  --route-selection-expression '$request.method $request.path' \
+  --cors-configuration 'AllowOrigins=*,AllowMethods=GET,POST,PUT,DELETE,OPTIONS,AllowHeaders=content-type,authorization'
+# then, with the returned <API_ID>:
+aws apigatewayv2 create-integration --api-id <API_ID> \
+  --integration-type AWS_PROXY --integration-method POST \
+  --payload-format-version 2.0 --timeout-in-millis 30000 \
+  --integration-uri arn:aws:lambda:us-east-1:775261844268:function:wecare-ai-generate-response
+aws apigatewayv2 create-route --api-id <API_ID> \
+  --route-key 'POST /ai/generate' --target integrations/<INTEGRATION_ID>
+aws apigatewayv2 create-stage --api-id <API_ID> --stage-name prod --auto-deploy
+aws lambda add-permission --function-name wecare-ai-generate-response \
+  --statement-id apigateway-invoke --action lambda:InvokeFunction \
+  --principal apigateway.amazonaws.com \
+  --source-arn 'arn:aws:execute-api:us-east-1:775261844268:<API_ID>/*/*'
+```
+
+A restored API gets a new id, so the rollback recreates the capability, not the
+identifier. Nothing referenced the old id except the `CORS_API_IDS` default, and
+restoring it should also restore that entry. Note that recreating it reinstates
+both defects — a wildcard-CORS public surface and a `$LATEST` integration — so a
+rollback should be a deliberate, temporary step rather than the end state.

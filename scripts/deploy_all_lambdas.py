@@ -133,8 +133,19 @@ SPECS: List[Spec] = [
     # /l/* routes integrate `stack-wecare-url-shortener:live`, NOT
     # `wecare-url-shortener`, so the `stack-`prefixed one is the live shortlink
     # service and the other is a leftover. Keep both on the same code.
-    Spec("wecare-url-shortener", "core/url-shortener", standalone=True),
-    Spec("stack-wecare-url-shortener", "core/url-shortener", standalone=True),
+    #
+    # No longer standalone as of 2026-09-21. The /links management routes were
+    # anonymously reachable - anyone could enumerate every short link or repoint
+    # one at their own destination on a wecare.digital host - so the handler now
+    # calls lambda_utils.middleware.require_auth and needs lambda_utils in the
+    # package. The import validator caught this correctly on the first attempt and
+    # refused to upload code whose import could not resolve.
+    #
+    # The redirect path stays cheap: the handler imports require_auth lazily
+    # inside the management branch, so a customer following a short link never
+    # pays for loading the middleware or its Cognito client.
+    Spec("wecare-url-shortener", "core/url-shortener"),
+    Spec("stack-wecare-url-shortener", "core/url-shortener"),
     # --- messaging / whatsapp ---
     Spec("wecare-inbound-whatsapp", "messaging/inbound-whatsapp-handler"),
     Spec("wecare-outbound-whatsapp", "messaging/outbound-whatsapp"),

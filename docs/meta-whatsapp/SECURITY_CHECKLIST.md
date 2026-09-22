@@ -2,18 +2,21 @@
 
 | Control | Status | Notes |
 |---------|--------|-------|
-| Webhook GET verify | ✅ AWS-managed | AWS End User Messaging validates `hub.verify_token` before SNS publish |
-| Webhook X-Hub signature | ✅ AWS-managed | Inbound arrives via SNS from the managed integration, not a public POST |
+| Webhook GET verify | ✅ ours, fails closed | `whatsapp-calling/_verify_webhook` compares `hub.verify_token` with `hmac.compare_digest` and returns 403 when no token is available. **Not AWS-managed** — this row claimed it was until 2026-09-21; there is no linked WABA and no SNS ingress |
+| Webhook X-Hub signature | ✅ ours, fails closed | All three call sites now delegate to `lambda_utils/meta_signature`, which tries both WABA app secrets and never fails open. `POST /whatsapp/inbound` enforces it since 2026-09-21; before that it accepted unsigned webhooks, partly because this checklist said signature checking was somebody else's job. `whatsapp-business-api` kept a local copy that returned **True** when no app secret was configured until 2026-09-21 — nothing called it, but this row cited it as evidence |
+| Status webhook ordering | ✅ | `lambda_utils/wa_status` ranks the lifecycle and the DynamoDB write is guarded by a ConditionExpression, so a late `sent` cannot overwrite `read` |
+| Webhook replay window | ✅ fails closed | Entries older than 300s rejected. Until 2026-09-21 the parser wrapped the whole traversal in one `except (ValueError, TypeError): pass`, so corrupting the timestamp field defeated the window entirely and a malformed value also aborted the traversal before a genuinely stale entry was examined. Each timestamp is now judged independently: absent is allowed, unreadable and far-future are rejected |
 | `appsecret_proof` on Graph calls | ✅ | Computed HMAC-SHA256(token, app_secret) in outbound/inbound handlers |
 | Secrets in Secrets Manager (not code) | ✅ | `wecare/meta-system-user-token`, `wecare/meta-app-secret`, `wecare/flow-private-key` |
 | Secret values never logged | ✅ | Handlers log message ids/types, not tokens |
 | Admin API auth | ✅ (app-layer) | `require_auth` (Cognito JWT + role) enforced in handlers; `api.wecare.digital` returns 401 without token |
-| API Gateway authorizer | ⚠️ REVIEW | HTTP API routes are `Auth: NONE` at gateway; auth is enforced in-handler via `require_auth`. Consider a gateway JWT authorizer for defense-in-depth |
+| API Gateway authorizer | ⚠️ REVIEW | All 326 routes are `AuthorizationType=NONE` at the gateway; auth is enforced in-handler via `require_auth`. That single layer is why two separate in-handler gaps became directly internet-reachable (32 open routes, then `AUTH_SKIP_PATHS`). A gateway JWT authorizer would have contained both |
 | CORS | ⚠️ REVIEW | Gateway `AllowOrigins: *`; handlers echo specific origin. Tighten gateway to known origins |
 | Idempotency / dup webhooks | ⚠️ PARTIAL | dedup + DLQ + timeout-guard present; add explicit message-id dedup table if duplicates observed |
 | Flow payload encryption | ✅ | RSA private key in `wecare/flow-private-key` |
 | Media objects private | ✅ (assumed) | `app.wecare.digital` under `stack/whatsapp-media/`; presigned URLs for read. Confirm public-access-block |
-| Live-send gating | ✅ | `WA_LIVE_SMOKE_TEST` + `WA_QA_RECIPIENT` required before any test send |
+| `AUTH_SKIP_PATHS` scope | ✅ narrowed 2026-09-21 | Only `/wa-business/flow-data` is exempt, and it self-authenticates by RSA decryption. `/wa-business/webhooks` was also exempt — it is not a Meta callback but the management surface for `subscribed_apps`, where `DELETE` stops all inbound delivery and `POST` forwards `override_callback_uri`. Matching is now exact-or-child-segment, not substring |
+| Live-send gating | ✅ implemented, held off | `lambda_utils/live_smoke` enforces `WA_LIVE_SMOKE_TEST` + `WA_QA_RECIPIENT`. It is a **lockdown**: off changes nothing, on refuses every recipient but the QA number. Both vars are absent in production (measured on `wecare-outbound-whatsapp:19`) |
 
 ## Action items
 1. Add Cognito JWT authorizer to non-webhook HTTP API routes (defense in depth).

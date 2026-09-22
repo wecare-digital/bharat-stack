@@ -66,13 +66,17 @@ def handler(event, context):
     method = event.get("httpMethod", event.get("requestContext", {}).get("http", {}).get("method", "GET"))
     raw_path = event.get("path", event.get("rawPath", ""))
     
-    # Strip stage prefix (e.g., /prod/wa -> /wa) for custom domain requests
+    # Strip stage prefix (e.g., /prod/wa -> /wa) for custom domain requests.
+    #
+    # This used to be a hand-rolled fourth copy of the rule. It was the most
+    # complete one - it alone handled a path of exactly "/{stage}", which for a
+    # short-link service is the difference between the root and a lookup for a
+    # code named after the stage - so that case was folded into the shared helper
+    # rather than lost. See lambda_utils/http_path.py for the two incidents this
+    # rule exists to prevent.
+    from lambda_utils.http_path import normalize_path
+    path = normalize_path(event)
     stage = event.get("requestContext", {}).get("stage", "")
-    path = raw_path
-    if stage and stage != "$default" and path.startswith(f"/{stage}/"):
-        path = path[len(f"/{stage}"):]
-    elif stage and stage != "$default" and path.startswith(f"/{stage}"):
-        path = path[len(f"/{stage}"):] or "/"
     
     logger.info(f"URL Shortener: method={method} raw_path={raw_path} path={path} stage={stage}")
     try:
@@ -91,6 +95,29 @@ def handler(event, context):
             return redirect(code, event)
 
         # CRUD: /links
+        #
+        # Authentication is applied here rather than at the top of the handler
+        # because this function serves two different audiences on one Lambda:
+        # the short-link redirects below are anonymous by definition - a customer
+        # following r.wecare.digital/abc123 has no Cognito token - while link
+        # management is dashboard-only.
+        #
+        # Until 2026-09-21 none of it was authenticated. Anyone could enumerate
+        # every short link, repoint an existing one, or mint new ones on a
+        # wecare.digital domain, which is a ready-made phishing primitive.
+        # require_auth skips internal Lambda invokes and OPTIONS, so callers that
+        # are not API Gateway requests are unaffected.
+        if "links" in path and method in ("POST", "GET", "DELETE", "PUT"):
+            # Imported here, not at module scope, so the redirect paths above
+            # never pay to load the middleware or construct its Cognito client.
+            # A short-link redirect is latency-sensitive and anonymous; link
+            # management is neither.
+            from lambda_utils.middleware import require_auth
+
+            auth_failure = require_auth(event)
+            if auth_failure is not None:
+                return auth_failure
+
         if method == "POST" and "links" in path:
             return create_link(body)
         if method == "GET" and "links" in path:

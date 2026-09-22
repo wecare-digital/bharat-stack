@@ -24,7 +24,8 @@ class TestWebhookSignatureVerification:
 
     def test_missing_signature_returns_false(self):
         event = {'headers': {}, 'body': '{}'}
-        assert self.verify(event, 'req-1') is False
+        with patch('handler._get_app_secret', return_value='real_secret'):
+            assert self.verify(event, 'req-1') is False
 
     def test_valid_signature(self):
         secret = 'app_secret_123'
@@ -39,10 +40,37 @@ class TestWebhookSignatureVerification:
         with patch('handler._get_app_secret', return_value='real_secret'):
             assert self.verify(event, 'req-3') is False
 
-    def test_no_secret_fails_open(self):
+    def test_no_secret_fails_closed(self):
+        """Was `test_no_secret_fails_open`, and it asserted `is True`.
+
+        The implementation it pinned returned True when no app secret was
+        configured, commented "fail open only if secret not configured
+        (dev/test)". A verifier that trusts everything the moment its key is
+        missing inverts its own purpose: a misconfiguration - an unreadable
+        secret, a renamed field, a cache that failed to populate - silently turns
+        verification off in production rather than making noise.
+
+        The sibling guard in `whatsapp-calling` already failed closed here, and the
+        two implementations disagreed. Both now delegate to
+        `lambda_utils.meta_signature`, which never fails open.
+        """
         event = {'headers': {'x-hub-signature-256': 'sha256=anything'}, 'body': '{}'}
-        with patch('handler._get_app_secret', return_value=''):
-            assert self.verify(event, 'req-4') is True
+        with patch('handler._get_app_secret', return_value=''), \
+             patch('handler._token_cache', {'app_secret_waba2': ''}):
+            assert self.verify(event, 'req-4') is False
+
+    def test_second_waba_secret_is_actually_tried(self):
+        """`WABA2_IDS` is an empty set in this function, so
+        `_get_app_secret(waba_id=...)` can never select the WABA2 key. The
+        verifier reads `_token_cache` directly for that reason; this pins it, since
+        a callback signed by the second app would otherwise be rejected."""
+        secret2 = 'waba2_app_secret'
+        body = '{"field":"value"}'
+        sig = 'sha256=' + hmac.new(secret2.encode(), body.encode(), hashlib.sha256).hexdigest()
+        event = {'headers': {'x-hub-signature-256': sig}, 'body': body}
+        with patch('handler._get_app_secret', return_value='waba1_app_secret'), \
+             patch('handler._token_cache', {'app_secret_waba2': secret2}):
+            assert self.verify(event, 'req-5') is True
 
 
 class TestBusinessProfile:

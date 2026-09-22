@@ -46,6 +46,7 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 from lambda_utils.privacy import mask_phone, redact_pii
 from lambda_utils.message_store import put_call_breadcrumb
 from lambda_utils.middleware import require_auth  # unified timeline breadcrumb
+from lambda_utils import wa_internal_event  # typed ingress -> worker contract
 
 logger = get_logger(__name__)
 
@@ -238,7 +239,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # Reusing the already-tested helper rather than re-deriving the logic here:
     # this is the second place this exact bug appeared (plivo-answer was the
     # first, fixed in ea570bcd), and a third copy is how it would return.
-    from lambda_utils.plivo_signature import normalize_path as _strip_stage_prefix
+    from lambda_utils.http_path import normalize_path as _strip_stage_prefix
     path = _strip_stage_prefix(event) or path
     normalized_path = path.rstrip('/') or '/'
     query_params = event.get('queryStringParameters') or {}
@@ -388,48 +389,158 @@ def _verify_webhook_signature(event: Dict[str, Any], request_id: str) -> bool:
 WEBHOOK_MAX_AGE_SECONDS = 300  # 5 minutes
 
 
-def _validate_webhook_timestamp(body: Dict, request_id: str) -> bool:
+class _Unreadable:
+    """A container the traversal could not walk.
+
+    Needed because "unreadable" and "absent" must not collapse into each other. An
+    earlier draft signalled an unreadable container by yielding the container
+    itself as a pseudo-timestamp and relying on `int()` to raise - which worked for
+    a dict or a string, but a body of `None` was then classified `'absent'` and
+    allowed. Wrapping makes the distinction explicit instead of incidental.
     """
-    Reject webhook events older than 5 minutes (replay protection).
-    Checks entry[].changes[].value.metadata.timestamp or entry[].time.
-    Returns True if timestamp is valid (recent), False if stale.
+
+    __slots__ = ('value',)
+
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self) -> str:
+        return f'<unreadable {type(self.value).__name__}>'
+
+
+def _timestamp_verdict(raw, now: int) -> str:
+    """Classify one timestamp: `'absent' | 'ok' | 'stale' | 'unparsable' | 'future'`.
+
+    Split out so each timestamp is judged independently. The previous version
+    wrapped the whole traversal in a single try/except, which had two effects
+    beyond the intended one: a malformed value anywhere aborted the traversal, so
+    a genuinely stale timestamp later in the same payload was never examined, and
+    the except returned True.
     """
+    if isinstance(raw, _Unreadable):
+        return 'unparsable'
+    if raw is None or raw == '':
+        return 'absent'
     try:
-        now = int(time.time())
-        entries = body.get('entry', [])
-        for entry in entries:
-            # Check entry-level timestamp
-            entry_time = entry.get('time')
-            if entry_time:
-                age = now - int(entry_time)
-                if age > WEBHOOK_MAX_AGE_SECONDS:
-                    logger.warning(json.dumps({
-                        'event': 'webhook_timestamp_stale',
-                        'entryTime': entry_time,
-                        'age': age,
-                        'maxAge': WEBHOOK_MAX_AGE_SECONDS,
-                        'requestId': request_id,
-                    }))
-                    return False
-            # Check value-level timestamps
-            for change in entry.get('changes', []):
-                value = change.get('value', {})
-                calls = value.get('calls', [value])
-                for call in calls:
-                    ts = call.get('timestamp')
-                    if ts:
-                        age = now - int(ts)
-                        if age > WEBHOOK_MAX_AGE_SECONDS:
-                            logger.warning(json.dumps({
-                                'event': 'webhook_call_timestamp_stale',
-                                'callTimestamp': ts,
-                                'age': age,
-                                'requestId': request_id,
-                            }))
-                            return False
-    except (ValueError, TypeError) as e:
-        logger.warning(f'Webhook timestamp validation error: {e}')
-        # Fail open on parse errors — don't block legitimate events
+        ts = int(raw)
+    except (ValueError, TypeError):
+        return 'unparsable'
+    age = now - ts
+    if age > WEBHOOK_MAX_AGE_SECONDS:
+        return 'stale'
+    # A far-future timestamp never expires, so a single captured event could be
+    # replayed indefinitely. Allow one window of clock skew, no more.
+    if age < -WEBHOOK_MAX_AGE_SECONDS:
+        return 'future'
+    return 'ok'
+
+
+def _iter_webhook_timestamps(body: Dict):
+    """Yield `(label, raw_value)` for every timestamp position in the payload.
+
+    Unexpected container shapes are yielded as the raw container. `int({...})`
+    raises TypeError, so `_timestamp_verdict` classifies them `'unparsable'` and
+    the event is rejected. That is deliberate and it is the same rule as an
+    unreadable timestamp: a container we cannot walk may be hiding a stale
+    timestamp, so it is not evidence of freshness.
+
+    Skipping them instead would be the quiet version of the original bug. A first
+    draft of this function did exactly that - it fell back to `[value]` whenever
+    `calls` was not a list, so a payload with `calls` as an *object* wrapping a
+    stale timestamp was accepted. The old code at least raised AttributeError and
+    failed closed with a 500 (badly - Meta retries a 500 indefinitely - but
+    closed). Trading a noisy 500 for a silent accept would have made this change a
+    net regression.
+
+    `absent` is the one shape that stays allowed, at every level: Meta genuinely
+    omits `time`, `changes` and `calls` on some event types.
+    """
+    if not isinstance(body, dict):
+        yield 'body', _Unreadable(body)
+        return
+
+    entries = body.get('entry')
+    if entries is None:
+        return
+    if not isinstance(entries, list):
+        yield 'entry', _Unreadable(entries)
+        return
+
+    for entry in entries:
+        if not isinstance(entry, dict):
+            yield 'entry[]', _Unreadable(entry)
+            continue
+        yield 'entry.time', entry.get('time')
+
+        changes = entry.get('changes')
+        if changes is None:
+            continue
+        if not isinstance(changes, list):
+            yield 'entry.changes', _Unreadable(changes)
+            continue
+
+        for change in changes:
+            if not isinstance(change, dict):
+                yield 'changes[]', _Unreadable(change)
+                continue
+            value = change.get('value')
+            if value is None:
+                continue
+            if not isinstance(value, dict):
+                yield 'change.value', _Unreadable(value)
+                continue
+
+            calls = value.get('calls')
+            if calls is None:
+                # No calls envelope: the timestamp, if any, sits on `value`.
+                calls = [value]
+            elif isinstance(calls, dict):
+                # A single call object rather than a list. Read it as one call -
+                # the plausible shape change, and reading it is strictly safer
+                # than ignoring it.
+                calls = [calls]
+            elif not isinstance(calls, list):
+                yield 'value.calls', _Unreadable(calls)
+                continue
+
+            for call in calls:
+                if not isinstance(call, dict):
+                    yield 'calls[]', _Unreadable(call)
+                    continue
+                yield 'call.timestamp', call.get('timestamp')
+
+
+def _validate_webhook_timestamp(body: Dict, request_id: str) -> bool:
+    """Replay protection. True if the event may be processed.
+
+    Absent timestamp -> allowed. Meta does omit `time`/`timestamp` on some event
+    shapes, and rejecting those would drop legitimate traffic, so absence cannot
+    be treated as a failure.
+
+    Present but unparsable -> REJECTED. This is the case that used to fail open.
+    `int('not-a-number')` raised inside the one enclosing try/except, the handler
+    logged a warning and returned True, so anyone replaying a captured
+    signature-valid payload only had to corrupt the timestamp field to defeat the
+    5-minute window entirely. Replay protection that can be switched off by the
+    replayer is not replay protection. A value we cannot read is not evidence of
+    freshness, and the only safe reading of it is "too old".
+    """
+    now = int(time.time())
+    for label, raw in _iter_webhook_timestamps(body):
+        verdict = _timestamp_verdict(raw, now)
+        if verdict in ('absent', 'ok'):
+            continue
+        logger.warning(json.dumps({
+            'event': 'webhook_timestamp_rejected',
+            'position': label,
+            'verdict': verdict,
+            # The raw value is attacker-controlled, so cap it rather than logging
+            # an unbounded string.
+            'raw': str(raw)[:64],
+            'maxAge': WEBHOOK_MAX_AGE_SECONDS,
+            'requestId': request_id,
+        }))
+        return False
     return True
 
 
@@ -519,25 +630,21 @@ def _forward_to_inbound_handler(entry: Dict, waba_id: str, request_id: str) -> N
             if pid and pid not in meta_phone_ids:
                 meta_phone_ids.append(pid)
 
-        # Build the expected format the inbound handler expects
-        sns_message = {
-            'context': {
-                'MetaWabaIds': [waba_id],
-                'MetaPhoneNumberIds': meta_phone_ids,
-            },
-            'whatsAppWebhookEntry': json.dumps(entry),
-            'messageId': request_id,
-        }
-
-        # Wrap in SNS Records format
-        inbound_event = {
-            'Records': [{
-                'Sns': {
-                    'Message': json.dumps(sns_message),
-                    'MessageId': request_id,
-                }
-            }]
-        }
+        # A flat, typed, self-describing event — see lambda_utils/wa_internal_event.
+        #
+        # This used to be a synthetic SNS envelope,
+        # {"Records":[{"Sns":{"Message": "<json string containing another json
+        # string>"}}]}, left over from an architecture where Meta delivered through
+        # AWS End User Messaging Social into a topic. No such subscription exists
+        # anywhere in IaC or in the live event-source mappings, and the AWS account
+        # has no linked WABA, so the shape described nothing while costing a double
+        # JSON encode and sending every reader looking for a topic.
+        inbound_event = wa_internal_event.build(
+            entry=entry,
+            waba_id=waba_id,
+            meta_phone_number_ids=meta_phone_ids,
+            request_id=request_id,
+        )
 
         result = lambda_client.invoke(
             FunctionName=INBOUND_HANDLER_FUNCTION,
@@ -549,6 +656,7 @@ def _forward_to_inbound_handler(entry: Dict, waba_id: str, request_id: str) -> N
             'event': 'forwarded_to_inbound_handler',
             'wabaId': waba_id,
             'phoneNumberIds': meta_phone_ids,
+            'contractVersion': wa_internal_event.CONTRACT_VERSION,
             'statusCode': result.get('StatusCode'),
             'requestId': request_id,
         }))

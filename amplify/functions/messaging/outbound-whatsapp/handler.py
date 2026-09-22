@@ -26,6 +26,8 @@ from lambda_utils.response import cors_headers, extract_origin
 from lambda_utils.privacy import mask_phone, redact_pii
 from lambda_utils.middleware import require_auth
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
+from lambda_utils import graph_errors  # Meta error subcode + transient classification
+from lambda_utils import live_smoke  # WA_LIVE_SMOKE_TEST recipient lockdown
 
 logger = get_logger(__name__)
 
@@ -159,9 +161,50 @@ def _post_reaction_direct(meta_phone_id: str, token: str, app_secret: str,
                                    'wamid': message_id, 'error': str(e)[:200]}))
 
 
+class SmokeTestRecipientBlocked(RuntimeError):
+    """WA_LIVE_SMOKE_TEST is on and the recipient is not WA_QA_RECIPIENT.
+
+    Raised at the wire, immediately before the Graph call, so that no branch -
+    including one added later - can reach a customer while smoke mode is on. The
+    handler checks the same rule earlier and returns a clean 403; this is the
+    backstop that makes the earlier check an optimisation rather than the
+    guarantee.
+    """
+
+
+def _assert_smoke_recipient_allowed(to: Optional[str], where: str) -> None:
+    """Refuse a Graph send to anyone but the QA recipient while in smoke mode.
+
+    `to` absent means the payload carries no recipient phone (a BSUID-only send,
+    or an endpoint like block_users/typing that addresses something else). Those
+    are still refused in smoke mode, because "we could not tell who this reaches"
+    is not a reason to let a live test through.
+    """
+    allowed, reason = live_smoke.check_recipient(to)
+    if allowed:
+        return
+    logger.error(json.dumps({
+        'event': 'smoke_mode_send_blocked',
+        'where': where,
+        'reason': reason,
+        'to': mask_phone(to or ''),
+        **live_smoke.describe(),
+    }))
+    raise SmokeTestRecipientBlocked(reason)
+
+
 def _send_direct_api(phone_number_id: str, message_json: str) -> Dict:
     """Send message via Meta Graph API for Direct API phones."""
     import hmac as _hmac, hashlib as _hashlib
+    if live_smoke.is_smoke_mode():
+        try:
+            _payload = json.loads(message_json) if isinstance(message_json, str) else (message_json or {})
+        except (TypeError, ValueError):
+            _payload = {}
+        _assert_smoke_recipient_allowed(
+            (_payload.get('to') if isinstance(_payload, dict) else None),
+            'send_direct_api',
+        )
     if 'token' not in _direct_api_cache:
         resp = secrets_client.get_secret_value(SecretId='wecare/meta-system-user-token')
         data = json.loads(resp['SecretString'])
@@ -298,6 +341,20 @@ META_API_VERSION = 'v25.0'  # Latest WhatsApp Cloud API with full payment suppor
 MAX_TEXT_LENGTH = 4096  # Requirement 5.4
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
+
+# The status a row gets the moment Meta's send response returns 200.
+#
+# It used to be 'sent'. That claimed something Meta had not said: the send
+# response carries messages[0].id and, where present, message_status "accepted".
+# Writing 'sent' at that point manufactures a delivery signal from an
+# acknowledgement, and it also masked the ordering bug in _process_status,
+# because the row was never in a state that a real 'sent' webhook would advance.
+#
+# The HTTP response body still reports 'sent', deliberately: three frontend call
+# sites treat `result.status === 'sent'` as the success boolean
+# (dm/inbox, dm/sms, dm/broadcast). Those mean "the API accepted it", which is
+# true. Only the persisted lifecycle needed correcting.
+WA_INITIAL_STATUS = 'accepted'
 RATE_LIMIT_PER_SECOND = 80  # Requirement 5.9
 
 # WhatsApp Payment Configurations
@@ -576,6 +633,29 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not recipient_bsuid and contact.get('bsuid'):
                 recipient_bsuid = contact.get('bsuid', '')
         
+        # ── Live-send smoke-test lockdown ────────────────────────────────────
+        # Placed here, before the typing indicator, the block_users branch and
+        # every send branch, so that in smoke mode nothing at all reaches a
+        # handset other than WA_QA_RECIPIENT - not a message, not blue ticks, not
+        # a "typing…" bubble. _send_direct_api repeats the check at the wire as
+        # the actual guarantee; this one exists so a blocked test returns a clear
+        # 403 instead of surfacing as a 500.
+        _smoke_allowed, _smoke_reason = live_smoke.check_recipient(recipient_phone)
+        if not _smoke_allowed:
+            logger.warning(json.dumps({
+                'event': 'smoke_mode_request_blocked',
+                'reason': _smoke_reason,
+                'recipientPhone': mask_phone(recipient_phone or ''),
+                'contactId': contact_id,
+                'requestId': request_id,
+                **live_smoke.describe(),
+            }))
+            return _error_response(
+                403,
+                'Live smoke-test mode is active — only the configured QA recipient can be messaged',
+                _smoke_reason,
+            )
+        
         # Validate reaction request
         if is_reaction and not reaction_message_id:
             return _error_response(400, 'reactionMessageId is required for reactions')
@@ -612,6 +692,22 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     users = [recipient_phone]
                 if not users:
                     return _error_response(400, 'No user phone provided to block/unblock')
+                # blockUsers is an arbitrary list, not the resolved recipient, so
+                # the check above does not cover it. Blocking a real customer is a
+                # customer-visible side effect and has no place in a smoke test.
+                for _u in users:
+                    _ok, _why = live_smoke.check_recipient(_u)
+                    if not _ok:
+                        logger.warning(json.dumps({
+                            'event': 'smoke_mode_block_action_refused',
+                            'reason': _why, 'action': block_action,
+                            'user': mask_phone(str(_u)), 'requestId': request_id,
+                        }))
+                        return _error_response(
+                            403,
+                            'Live smoke-test mode is active — block/unblock is limited to the QA recipient',
+                            _why,
+                        )
                 result = _block_users_api(phone_number_id, users, block_action)
                 return {'statusCode': 200, 'headers': cors_headers(origin), 'body': json.dumps({'success': True, 'action': block_action, 'users': users, 'result': result})}
             except Exception as e:
@@ -619,10 +715,23 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         # Opt-in enforcement: all contacts allowed by default (permissive)
         # Service window check: outside 24h window, only templates are allowed (WhatsApp policy)
-        within_window = True
-        if contact and contact.get('id'):
-            within_window = _is_within_service_window(contact)
+        #
+        # This used to default `within_window = True` and only evaluate the window
+        # when a contact row with an `id` existed, so a send to a bare phone number
+        # with no contact record skipped the check entirely. That is the case most
+        # likely to be outside the window - there is no record of the customer ever
+        # messaging us - and Meta rejected it with 131047 after we had already
+        # decided it was allowed. `_is_within_service_window` already fails closed
+        # on a missing `lastInboundMessageAt`, so the honest default is False and
+        # the absence of a contact is simply another way of having no open window.
+        within_window = _is_within_service_window(contact) if contact else False
         if not within_window and not is_template:
+            logger.info(json.dumps({
+                'event': 'send_blocked_outside_window',
+                'contactId': contact_id,
+                'hasContactRecord': bool(contact),
+                'requestId': request_id,
+            }))
             return _error_response(403, 'Outside 24h service window — only template messages allowed')
         
         # Requirement 5.4: Validate text length (skip for reactions)
@@ -750,7 +859,7 @@ def _handle_dry_run(message_id: str, contact_id: str, recipient_phone: str,
         'event': 'dry_run_message',
         'messageId': message_id,
         'contactId': contact_id,
-        'recipientPhone': recipient_phone,
+        'recipientPhone': mask_phone(recipient_phone),
         'contentLength': len(content) if content else 0,
         'isTemplate': is_template,
         'requestId': request_id
@@ -775,7 +884,7 @@ def _handle_dry_run_reaction(message_id: str, contact_id: str, recipient_phone: 
         'event': 'dry_run_reaction',
         'messageId': message_id,
         'contactId': contact_id,
-        'recipientPhone': recipient_phone,
+        'recipientPhone': mask_phone(recipient_phone),
         'reactionMessageId': reaction_message_id,
         'emoji': reaction_emoji,
         'requestId': request_id
@@ -874,8 +983,8 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
             'event': 'reaction_send_error',
             'messageId': message_id,
             'reactionMessageId': reaction_message_id,
-            'recipientPhone': recipient_phone,
-            'formattedPhone': _normalize_phone_number(recipient_phone),
+            'recipientPhone': mask_phone(recipient_phone),
+            'formattedPhone': mask_phone(_normalize_phone_number(recipient_phone)),
             'phoneNumberId': phone_number_id,
             'error': error_msg,
             'requestId': request_id
@@ -986,7 +1095,7 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
             message_id=message_id,
             contact_id=contact_id,
             content=f'Order Status: {order_status} - {description}',
-            status='sent',
+            status=WA_INITIAL_STATUS,
             is_template=False,
             whatsapp_message_id=whatsapp_message_id,
             phone_number_id=phone_number_id,
@@ -1248,7 +1357,7 @@ def _handle_checkout_template_send(
             message_id=message_id,
             contact_id=contact_id,
             content=f'[Checkout: {template_name}] {item_names} — Ref: {ref_id}',
-            status='sent',
+            status=WA_INITIAL_STATUS,
             is_template=True,
             whatsapp_message_id=whatsapp_message_id,
             phone_number_id=phone_number_id,
@@ -1641,7 +1750,7 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             message_id=message_id,
             contact_id=contact_id,
             content=f'[Interactive: {interactive_type}] {interactive_data.get("body", "")}',
-            status='sent',
+            status=WA_INITIAL_STATUS,
             is_template=False,
             whatsapp_message_id=whatsapp_message_id,
             phone_number_id=phone_number_id,
@@ -1766,8 +1875,8 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             'event': 'message_payload_built',
             'messageId': message_id,
             'contactId': contact_id,
-            'recipientPhone': recipient_phone,
-            'normalizedPhone': message_payload.get('to'),
+            'recipientPhone': mask_phone(recipient_phone),
+            'normalizedPhone': mask_phone(message_payload.get('to')),
             'payloadType': message_payload.get('type'),
             'hasMedia': bool(whatsapp_media_id),
             'mediaId': whatsapp_media_id,
@@ -1873,7 +1982,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             message_id=message_id,
             contact_id=contact_id,
             content=stored_content,
-            status='sent',
+            status=WA_INITIAL_STATUS,
             is_template=is_template,
             whatsapp_message_id=whatsapp_message_id,
             media_id=whatsapp_media_id,
@@ -2029,11 +2138,35 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
 
         is_throttled = http_code == 429 or meta_code in (4, 80007, 130429, 131056) or 'throttl' in error_body.lower()
 
+        # lambda_utils.graph_errors already normalizes Meta's envelope and was
+        # covered by tests, but no handler imported it: error_subcode was dropped
+        # on the floor, and "permanent vs transient" was a narrow throttle string
+        # match rather than a classification. Two codes with the same number can
+        # differ only by subcode, so losing it loses the reason.
+        # normalize() returns a NESTED envelope, {'error': {...}} - reading the
+        # top level silently yields None for every field.
+        try:
+            normalized = graph_errors.normalize(error_body, http_code).get('error', {})
+        except Exception:  # noqa: BLE001 - classification must never break the error path
+            normalized = {}
+        error_subcode = normalized.get('error_subcode')
+        fbtrace_id = normalized.get('fbtrace_id')
+        # Prefer the per-code retry flag the error table already carries; fall back
+        # to the normalizer's status-based judgement.
+        table_entry = META_MESSAGE_ERRORS.get(meta_code) if meta_code else None
+        if table_entry is not None:
+            is_transient = bool(table_entry.get('retry'))
+        else:
+            is_transient = bool(normalized.get('is_transient', is_throttled))
+
         logger.error(json.dumps({
             'event': 'send_meta_error',
             'messageId': message_id,
             'httpCode': http_code,
             'metaCode': meta_code,
+            'metaSubcode': error_subcode,
+            'fbtraceId': fbtrace_id,
+            'classification': 'transient' if is_transient else 'permanent',
             'metaMessage': meta_message,
             'metaDetails': meta_details,
             'requestId': request_id,
@@ -2048,6 +2181,9 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             error_details={
                 'type': 'throttling' if is_throttled else 'meta_error',
                 'code': meta_code,
+                'subcode': error_subcode,
+                'classification': 'transient' if is_transient else 'permanent',
+                'fbtraceId': fbtrace_id,
                 'message': meta_message or error_body[:500],
                 'details': meta_details,
             },
@@ -2069,13 +2205,18 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         error_msg = str(e)
         error_type = type(e).__name__
         
+        # mask_phone was imported in this module and never called once. These two
+        # fields were the only place the sender logged a customer's number in
+        # cleartext, and CloudWatch retention on this function is indefinite.
         logger.error(json.dumps({
             'event': 'send_api_error',
             'messageId': message_id,
             'error': error_msg,
             'errorType': error_type,
-            'recipientPhone': recipient_phone,
-            'normalizedPhone': message_payload.get('to') if 'message_payload' in locals() else 'unknown',
+            'recipientPhone': mask_phone(recipient_phone),
+            'normalizedPhone': mask_phone(
+                message_payload.get('to') if 'message_payload' in locals() else ''
+            ) or 'unknown',
             'requestId': request_id
         }))
         

@@ -1655,57 +1655,15 @@ const schema = a.schema( {
     ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-  // PstnNotificationDelivery — one row per (call, channel, version).
-  //
-  // The identifier IS the idempotency key: `<aLegUuid>:<channel>:<version>`.
-  // A conditional put on it is what makes "at most one SMS and one RCS per
-  // connected call" true under concurrent duplicate callbacks, rather than
-  // hoping two workers do not overlap.
-  PstnNotificationDelivery: a
-    .model( {
-      deliveryId: a.id().required(),     // aLegUuid:channel:version
-      callId: a.string(),
-      aLegUuid: a.string(),
-      channel: a.enum( [ 'sms', 'rcs' ] ),
-      version: a.string().default( 'v1' ),
-      // Which provider actually carried it, decided by destination:
-      // +91 SMS -> AWS ap-south-1; +91 RCS -> Sinch; else AWS.
-      provider: a.string(),
-      destination: a.string(),
-      isoCountry: a.string(),
-      eligibility: a.enum( [ 'ELIGIBLE', 'INELIGIBLE', 'UNSUPPORTED' ] ),
-      eligibilityReason: a.string(),
-      // SKIPPED is distinct from FAILED: an ineligible RCS destination is not a
-      // failure, and merging them would make a health dashboard alarm on normal
-      // traffic.
-      state: a.enum( [ 'PENDING', 'SENT', 'FAILED', 'SKIPPED' ] ),
-      attemptCount: a.integer().default( 0 ),
-      maxAttempts: a.integer().default( 3 ),
-      providerRequestId: a.string(),
-      providerMessageId: a.string(),
-      dltTemplateKey: a.string(),
-      dltTemplateId: a.string(),
-      errorCategory: a.string(),        // sanitized class, not a provider dump
-      // Permanent vs transient decides whether a retry is even attempted. DLT,
-      // destination and permission errors never clear by retrying.
-      errorIsPermanent: a.boolean().default( false ),
-      statusTransitions: a.string(),    // JSON array of {state, at}
-      claimedAt: a.integer(),
-      firstAttemptAt: a.integer(),
-      lastAttemptAt: a.integer(),
-      completedAt: a.integer(),
-      deliveryReceiptAt: a.integer(),
-      createdAt: a.integer(),
-      expiresAt: a.integer(),
-    } )
-    .identifier( [ 'deliveryId' ] )
-    .secondaryIndexes( ( index ) => [
-      index( 'callId' ),
-      index( 'aLegUuid' ),
-      index( 'state' ),
-      index( 'providerMessageId' ),
-    ] )
-    .authorization( ( allow ) => [ allow.authenticated() ] ),
+  // PstnNotificationDelivery was declared here until 2026-09-21 and existed in
+  // none of the 66 live tables (NOTIF-STORE-001). Its identifier scheme and
+  // eligibility/state vocabulary live on in lambda_utils/notifications, which
+  // adds the whatsapp channel, an append-only attempt history and a
+  // transactional outbox. Those four tables are provisioned and verified by
+  // scripts/provision_notification_domain.py rather than declared here,
+  // because a declaration in this file is not evidence a table exists - which
+  // is precisely how the original came to be permanently broken while looking
+  // complete in source.
 
   // PstnFlowVersion — immutable routing/IVR revisions.
   //

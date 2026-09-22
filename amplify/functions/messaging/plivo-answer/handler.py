@@ -376,11 +376,50 @@ def _claim_once(call_uuid: str, suffix: str) -> bool:
         return True
 
 
-def _send_post_call_sms(caller: str, call_uuid: str, request_id: str) -> None:
-    """Text the caller the self-service links. Fire and forget.
+def _external_party(params: dict) -> tuple:
+    """`(recipient, reason)` — the customer side of this call, by direction.
 
-    Routes through wecare-sms-aws, which owns DLT resolution, rather than calling
-    a provider directly - one place decides how Indian traffic is sent.
+    Exists because `_send_post_call_sms` used to be called with
+    `params.get('From')` regardless of direction. On an inbound call `From` is the
+    customer and that is right; on an outbound call `From` is our own CLI, so the
+    business number would have been texted - billed to us, under our own registered
+    DLT sender.
+
+    Direction is the rule and the business-number registry is the backstop, for the
+    reason set out in `lambda_utils.notifications.events`: they fail differently, so
+    one mistake in either is not enough to message ourselves.
+    """
+    from lambda_utils.notifications import events as notif_events
+
+    direction = str(params.get('Direction') or '').strip().lower()
+    if direction in ('inbound', 'in', 'incoming'):
+        recipient = params.get('From', '')
+    elif direction in ('outbound', 'out', 'outgoing', 'outbound-api', 'outbound_api'):
+        recipient = params.get('To', '')
+    else:
+        # No safe default: guessing inbound texts our own number on every outbound
+        # call, guessing outbound texts the agent endpoint on every inbound one.
+        return '', 'ambiguous_direction'
+
+    if not recipient:
+        return '', 'no_external_party'
+    if notif_events.is_business_number(recipient):
+        return '', 'recipient_is_business_number'
+    return recipient, ''
+
+
+def _send_post_call_sms(caller: str, call_uuid: str, request_id: str) -> None:
+    """Text the customer the self-service links. Fire and forget.
+
+    LEGACY, and triggered by hangup, which the brief lists as *not* a notification
+    trigger. It is retained because it is the only connected-call notification
+    actually reaching customers today - measured at 32 sends in 14 days, against 0
+    for the compliant `/plivo/dial-events` path - so silencing it before the
+    replacement is live would simply stop callers getting a follow-up. Its
+    retirement is manifest-first work for Phase 9; see
+    `docs/notification-retirement-manifest.md`.
+
+    Callers must pass a recipient resolved by `_external_party`, not a raw `From`.
     """
     if not POST_CALL_SMS_ENABLED or not caller:
         return
@@ -599,7 +638,12 @@ def _route_answer(params: dict, request_id: str, trust: str = TRUST_NONE) -> dic
                          'sideEffectsSuppressed': True}, status=202)
         if _claim_once(call_uuid, 'postcall'):
             _persist_cdr(params, 'answer-hangup-pass', request_id)
-            _send_post_call_sms(params.get('From', ''), call_uuid, request_id)
+            _recipient, _why = _external_party(params)
+            if _recipient:
+                _send_post_call_sms(_recipient, call_uuid, request_id)
+            else:
+                log_event(logger, 'plivo_post_call_sms_skipped', reason=_why,
+                          callUuid=call_uuid, requestId=request_id)
         else:
             log_event(logger, 'plivo_postcall_deduped', callUuid=call_uuid,
                       route='answer', requestId=request_id)
@@ -632,7 +676,12 @@ def _route_hangup(params: dict, request_id: str) -> dict:
     fresh = _claim_once(call_uuid, 'postcall')
     persisted = _persist_cdr(params, 'hangup', request_id)
     if fresh:
-        _send_post_call_sms(params.get('From', ''), call_uuid, request_id)
+        _recipient, _why = _external_party(params)
+        if _recipient:
+            _send_post_call_sms(_recipient, call_uuid, request_id)
+        else:
+            log_event(logger, 'plivo_post_call_sms_skipped', reason=_why,
+                      callUuid=call_uuid, requestId=request_id)
     else:
         log_event(logger, 'plivo_postcall_deduped', callUuid=call_uuid,
                   route='hangup', requestId=request_id)
@@ -666,77 +715,46 @@ def _route_dial_events(params: dict, request_id: str) -> dict:
     whereas guessing means duplicate SMS to real people under our registered DLT
     sender.
     """
-    from lambda_utils.pstn import claims as pstn_claims
-    from lambda_utils.pstn import notifications as pstn_notifications
+    from lambda_utils.notifications import service as notif_service
+    from lambda_utils.notifications import store as notif_store
 
     call_uuid = params.get('CallUUID', '')
     try:
-        outcome = pstn_notifications.handle_connected(
-            params, request_id=request_id, dispatch=_dispatch_notification)
-    except pstn_claims.ClaimStoreUnavailable as exc:
+        outcome = notif_service.handle_connected_call(
+            params, provider='plivo', request_id=request_id)
+    except notif_store.NotificationStoreUnavailable as exc:
         # Fail closed. 503 so Plivo retries; nothing was sent.
-        log_event(logger, 'plivo_dial_claim_store_unavailable', level='error',
+        log_event(logger, 'plivo_dial_store_unavailable', level='error',
                   callUuid=call_uuid,
-                  alert='PSTN_CLAIM_STORE_UNAVAILABLE',
+                  alert='NOTIF_STORE_UNAVAILABLE',
                   error=type(exc).__name__, requestId=request_id)
-        return _ack({'error': 'claim store unavailable, retry'}, status=503)
+        return _ack({'error': 'notification store unavailable, retry'}, status=503)
 
     _persist_cdr(params, 'dial-events', request_id)
     log_event(logger, 'plivo_dial_event', callUuid=call_uuid,
               dialAction=params.get('DialAction', ''),
               claimed=outcome.get('claimed'),
-              reason=outcome.get('reason'), requestId=request_id)
+              reason=outcome.get('reason'),
+              published=','.join(outcome.get('published') or []) or None,
+              skipped=','.join(outcome.get('skipped') or []) or None,
+              requestId=request_id)
     return _ack({'ok': True, 'callUuid': call_uuid,
                  'claimed': outcome.get('claimed', False)})
 
 
-def _dispatch_notification(*, channel: str, delivery_id: str, destination: str,
-                           body: str, provider: str, dlt_template_key: str,
-                           a_leg_uuid: str, request_id: str) -> None:
-    """Send one channel for a claimed connected call.
-
-    Called once per eligible channel, AFTER that channel's claim succeeded, so an
-    exception here leaves the channel PENDING and retryable rather than duplicating
-    a completed one.
-
-    SMS goes through the shared dispatcher, which routes to AWS End User Messaging
-    and applies the DLT gate. RCS is not dispatched inline yet - see below.
-    """
-    from lambda_utils.pstn import claims as pstn_claims
-    from lambda_utils.pstn import notifications as pstn_notifications
-
-    if channel == 'sms':
-        from lambda_utils.comms.notify import send_notification_sms
-        outcome = send_notification_sms(
-            destination, body, dlt_template_key=dlt_template_key,
-            campaign='plivo-connected-notification', request_id=request_id,
-            wait=True)
-        if outcome.ok:
-            pstn_claims.record_attempt(
-                delivery_id, state='SENT', provider=provider,
-                provider_message_id=outcome.provider_message_id,
-                request_id=request_id)
-            return
-        category, permanent = pstn_notifications.classify_provider_error(
-            outcome.error or outcome.skipped_reason)
-        pstn_claims.record_attempt(
-            delivery_id, state='FAILED', provider=provider,
-            error_category=category, error_is_permanent=permanent,
-            request_id=request_id)
-        return
-
-    if channel == 'rcs':
-        # India RCS runs through the approved Sinch module. It is left PENDING here
-        # rather than sent inline because a second synchronous provider call inside
-        # a signed webhook would add its latency to Plivo's callback timeout, and a
-        # timeout mid-send is the one case where the claim cannot record what
-        # happened. A queued worker owns this; until it exists the row stays
-        # PENDING and visibly unsent rather than being reported as delivered.
-        log_event(logger, 'plivo_rcs_deferred', deliveryId=delivery_id,
-                  provider=provider, requestId=request_id)
-        return
-
-    raise ValueError(f'unknown notification channel {channel!r}')
+# `_dispatch_notification` was removed here on 2026-09-21.
+#
+# It sent SMS inline, synchronously, inside the signed webhook, and left RCS
+# permanently `PENDING` with a comment explaining that a worker would own it one day.
+# No worker was ever built, so every RCS row it created would have sat unsent forever
+# - and the table it wrote to did not exist either, so in practice the route answered
+# 503 and `plivo_dial_event` fired 0 times in 14 days.
+#
+# Dispatch now belongs to the outbox in `lambda_utils.notifications.store`: the claim
+# and the job are written in one transaction, and a worker leases the job. Nothing is
+# sent from this webhook, which removes both the provider latency inside Plivo's
+# callback timeout and the one unrecoverable case - a timeout mid-send, where the
+# claim cannot record what happened.
 
 
 _ROUTES = {

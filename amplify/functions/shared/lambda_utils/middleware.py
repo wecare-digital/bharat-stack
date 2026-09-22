@@ -26,8 +26,49 @@ USER_POOL_ID = os.environ.get('COGNITO_USER_POOL_ID', 'us-east-1_cSx0RHCIR')
 
 ROLE_HIERARCHY = {'Admin': 3, 'Operator': 2, 'Viewer': 1}
 
-# Paths that skip auth (webhooks, health checks, etc.)
+# Paths that skip auth. Only genuinely self-authenticating provider endpoints
+# belong here - a Meta Flows data-exchange endpoint proves authenticity by RSA
+# decryption, a provider webhook by HMAC signature. An endpoint that merely
+# *sounds* like a callback does not qualify; see `path_is_exempt`.
 AUTH_SKIP_PATHS = os.environ.get('AUTH_SKIP_PATHS', '').split(',')
+
+
+def path_is_exempt(path: str, stage: str = '', skips=None) -> bool:
+    """Exact path match, or a child segment of an exempt path. Never a substring.
+
+    The original form was `skip.strip() in path`, a bare substring test, and that
+    is wider than it looks once a catch-all route exists. `wecare-whatsapp-business-api`
+    serves `ANY /wa-business/{proxy+}` alongside its explicit routes, so a request
+    to `/wa-business/webhooks-anything` reached the same handler, matched the
+    substring, and skipped authentication - then fell into the handler's
+    `elif '/webhooks' in path` branch and executed the management action anyway.
+    Two loose matchers in series, each individually defensible.
+
+    Matching on segment boundaries removes the first one. `/wa-business/flow-data`
+    still exempts itself and `/wa-business/flow-data/sub`; it no longer exempts
+    `/wa-business/flow-dataX` or `/x/wa-business/flow-data`.
+    """
+    candidates = [s.strip() for s in (AUTH_SKIP_PATHS if skips is None else skips) if s and s.strip()]
+    if not candidates:
+        return False
+
+    # Strip the API Gateway stage prefix, so `/prod/x` and `/x` behave alike. On
+    # this HTTP API the custom-domain mapping puts the stage in the path, and that
+    # difference has already caused two production incidents - see
+    # `lambda_utils.http_path`. Without this, a stage-prefixed request to a
+    # genuinely exempt endpoint would be sent to the auth gate instead.
+    try:
+        from lambda_utils.http_path import strip_stage
+        normalized = strip_stage(path or '', stage or '')
+    except Exception:  # pragma: no cover - the normalizer must never gate auth
+        normalized = path or ''
+    normalized = '/' + (normalized or '').strip('/')
+
+    for skip in candidates:
+        skip = '/' + skip.strip('/')
+        if normalized == skip or normalized.startswith(skip + '/'):
+            return True
+    return False
 
 
 def require_auth(
@@ -79,11 +120,10 @@ def require_auth(
     if not is_api_gateway:
         return None
 
-    # Skip auth for configured paths (webhooks, etc.)
+    # Skip auth for configured self-authenticating provider endpoints.
     path = rc.get('http', {}).get('path', event.get('path', ''))
-    for skip in AUTH_SKIP_PATHS:
-        if skip and skip.strip() and skip.strip() in path:
-            return None
+    if path_is_exempt(path, str(rc.get('stage') or '')):
+        return None
 
     # Extract token
     headers = event.get('headers', {})

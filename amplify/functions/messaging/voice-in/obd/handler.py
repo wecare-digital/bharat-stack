@@ -47,6 +47,7 @@ from typing import Dict, Any, List
 from decimal import Decimal
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.middleware import require_auth
 
 # Configure logging
 from lambda_utils.logging import get_logger
@@ -121,7 +122,22 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         if http_method == 'OPTIONS':
             return _response(200, {'message': 'OK'})
-        
+
+        # ── Authenticate API Gateway callers ──
+        # All ten /voice-in/obd routes were public (AuthorizationType=NONE) with no
+        # handler check: campaign create, TTS synthesis, audio and CSV upload, and
+        # DELETE clear-logs were anonymously reachable. The retired provider that
+        # once posted here is gone; the live callers are dashboard operations, which
+        # already send a Cognito bearer token. require_auth skips OPTIONS and
+        # internal Lambda invokes.
+        #
+        # This deliberately sits BEFORE the CDR-callback branch below. That branch
+        # exists for a retired provider and is now unreachable without a token;
+        # removing it outright belongs to the Airtel retirement sweep, not here.
+        auth_failure = require_auth(event)
+        if auth_failure is not None:
+            return auth_failure
+
         # Detect Airtel CDR callback (Airtel sends OBD CDR callbacks to this endpoint)
         if http_method == 'POST' and _is_cdr_callback(body):
             return _handle_cdr_callback(body, request_id)

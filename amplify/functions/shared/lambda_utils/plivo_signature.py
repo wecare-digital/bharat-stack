@@ -159,32 +159,16 @@ def validate_signature(method: str, uri: str, nonce: str, auth_token: str,
 # --------------------------------------------------------------------------
 # API Gateway helpers
 # --------------------------------------------------------------------------
-def normalize_path(event: Dict[str, Any]) -> str:
-    """The path as the CALLER wrote it, with any API Gateway stage prefix removed.
-
-    Measured on this API: a request to https://api.wecare.digital/plivo/answer
-    arrives with rawPath = "/prod/plivo/answer". The custom domain mapping puts
-    the stage in the path.
-
-    That single character difference breaks two things at once:
-
-      * routing - "/prod/plivo/hangup" does not equal "/plivo/hangup", so a
-        hangup callback falls through to whatever the default route is. If that
-        default is the answer handler, a terminated call gets the IVR back.
-      * SIGNATURES - Plivo signed "https://api.wecare.digital/plivo/hangup".
-        Reconstructing ".../prod/plivo/hangup" yields a different digest, so
-        every genuine callback fails verification. Fail-closed then drops
-        everything.
-
-    Stripping is driven by requestContext.stage rather than a hardcoded "prod",
-    so a second stage does not reintroduce this.
-    """
-    rc = event.get("requestContext") or {}
-    path = (event.get("rawPath") or (rc.get("http") or {}).get("path") or "")
-    stage = str(rc.get("stage") or "")
-    if stage and stage != "$default" and path.startswith(f"/{stage}/"):
-        path = path[len(stage) + 1:]
-    return path or "/"
+# Stage-prefix normalization moved to lambda_utils/http_path.py on 2026-09-21.
+#
+# It lived here because the Plivo signature check was the first thing the stage
+# prefix broke, but the WhatsApp ingress and the short-link service depend on the
+# same rule, and nobody auditing WhatsApp routing would look for it in a Plivo
+# module. Re-exported so existing imports and tests keep working unchanged.
+#
+# The moved version also handles a path that is exactly "/{stage}", which this one
+# did not - see http_path for why that mattered to url-shortener.
+from lambda_utils.http_path import normalize_path  # noqa: E402,F401  (re-export)
 
 
 def reconstruct_url(event: Dict[str, Any], *, force_host: str = "") -> str:

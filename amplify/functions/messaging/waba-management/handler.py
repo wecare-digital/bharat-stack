@@ -50,7 +50,15 @@ apigw_client = boto3.client('apigatewayv2', region_name=os.environ.get('AWS_REGI
 _meta = MetaGraphClient()
 
 # CORS management — the HTTP APIs whose CorsConfiguration this admin UI controls.
-CORS_API_IDS = [s.strip() for s in os.environ.get('CORS_API_IDS', 'zllr9lrg7j,79g3bbufdh').split(',') if s.strip()]
+#
+# `79g3bbufdh` ("wecare-api") was removed from this default on 2026-09-21 when the
+# API itself was deleted. It was a dead duplicate: no custom domain mapped to it,
+# it recorded zero requests in 30 days while the live API served 84,301, and its
+# single route POST /ai/generate duplicated the live API's route while pointing at
+# unqualified $LATEST rather than the `live` alias. It also carried
+# AllowOrigins ["*"]. Listing a deleted api id here would make every CORS save
+# attempt fail on a NotFoundException.
+CORS_API_IDS = [s.strip() for s in os.environ.get('CORS_API_IDS', 'zllr9lrg7j').split(',') if s.strip()]
 # Core origins always kept in the allowlist so the dashboard/native app can never
 # be locked out, even if an admin saves a bad list.
 CORS_CORE_ORIGINS = [

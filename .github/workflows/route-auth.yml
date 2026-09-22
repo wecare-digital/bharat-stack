@@ -1,0 +1,136 @@
+name: Route auth
+
+# Every HTTP route must authenticate its caller, or be allowlisted with a reason.
+#
+# Why this workflow exists
+# -----------------------
+# Account 775261844268 runs 327 HTTP API routes behind ZERO API Gateway
+# authorizers. Authentication is therefore entirely a handler-level property, and
+# nothing was checking that property in CI.
+#
+# On 2026-09-21 that gap produced two live holes and thirty open routes:
+#
+#   * /webhook/sinch-rcs verified no signature at all, yet wrote to the canonical
+#     message store and could invoke wecare-rcs-send with a phone number taken
+#     from the unauthenticated request body.
+#   * POST /whatsapp/inbound accepted an unsigned Meta webhook envelope and
+#     honoured action=create_invoice before any authorization.
+#   * Seven handlers - url-shortener, voice-in/c2c, voice-in/obd,
+#     product-image-gen, media-cleanup, bulk-worker, ai-generate-response -
+#     contained no caller check whatsoever. The audit had called them
+#     authenticated because it accepted `Authorization` as evidence, and in every
+#     one of them that string was a CORS allow-header or an OUTBOUND provider
+#     credential.
+#
+# Two jobs, because the two questions need different inputs.
+#
+#   source-gate  runs on every push and PR, needs no credentials, and asserts the
+#                guard is present and ordered before the side effect. This is the
+#                blocking gate.
+#   live-gate    needs AWS read access, so it runs on a schedule and on demand.
+#                It catches the case source cannot see: a route added or
+#                re-pointed in the console, which is exactly how the five dangling
+#                prohibited-provider routes survived.
+#
+# If source-gate fails on your PR you have added an HTTP route whose handler has
+# no require_auth, no signature verification and no shared-secret check. Add one,
+# or add the route to EXPECTED_PUBLIC_ROUTES in scripts/audit_route_auth.py with a
+# reason that says why authentication is impossible or circular rather than merely
+# inconvenient.
+
+on:
+  push:
+    branches: [stack]
+  pull_request:
+    branches: [stack]
+  schedule:
+    # 07:10 UTC daily, shortly after the Plivo drift job.
+    - cron: '10 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # for the OIDC role assumption in live-gate
+
+jobs:
+  source-gate:
+    name: Handler auth enforcement (source)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: |
+          grep -E '^(pytest|boto3|botocore|requests|PyYAML)==' requirements-dev.txt \
+            > ci-test-requirements.txt
+          python -m pip install -r ci-test-requirements.txt
+
+      - name: Assert every guarded handler authenticates its caller
+        run: |
+          python -m pytest -q \
+            tests/test_route_auth_enforcement.py \
+            tests/test_public_webhook_auth.py
+
+      - name: Full python suite
+        # 1245 tests that previously ran only on a developer's machine. A guard
+        # nobody runs is not a guard.
+        run: python -m pytest -q
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Route auth — source gate"
+            echo ''
+            echo 'Mode: **blocking**. Asserts `require_auth` or a raw-body'
+            echo 'signature verifier is present, returns its failure, and runs'
+            echo 'before the first side effect.'
+            echo ''
+            echo 'Allowlisted public routes must state why auth is impossible'
+            echo 'or circular — see `EXPECTED_PUBLIC_ROUTES`.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  live-gate:
+    name: Route auth drift (live AWS)
+    runs-on: ubuntu-latest
+    # Only meaningful with a read-only role. Skipped rather than failed when the
+    # repository variable is absent, so a fork or a fresh clone is not red for a
+    # reason the contributor cannot fix.
+    if: vars.ROUTE_AUTH_ROLE_ARN != ''
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          grep -E '^(boto3|botocore)==' requirements-dev.txt > ci-aws-requirements.txt
+          python -m pip install -r ci-aws-requirements.txt
+
+      - name: Assume read-only role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.ROUTE_AUTH_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Audit every HTTP API route
+        run: python scripts/audit_route_auth.py --gate
+
+      - name: Machine-readable evidence
+        if: always()
+        run: |
+          mkdir -p route-auth
+          python scripts/audit_route_auth.py --json > route-auth/report.json || true
+
+      - name: Retain evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-auth-${{ github.sha }}
+          path: route-auth/

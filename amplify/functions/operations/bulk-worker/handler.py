@@ -13,6 +13,7 @@ from boto3.dynamodb.conditions import Key, Attr
 from typing import Dict, Any, Optional
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.middleware import require_auth
 from lambda_utils.rate_limit import check_rate_limit
 
 from lambda_utils.logging import get_logger
@@ -55,6 +56,13 @@ def handler(event, context):
 
     # Handle API Gateway HTTP requests (status check)
     if 'requestContext' in event and 'http' in event.get('requestContext', {}):
+        # GET /bulk/worker was public with no handler check. It only reports
+        # status, but SEND_MODE is operational detail that should not be readable
+        # anonymously. SQS-driven and direct invokes carry no API Gateway context,
+        # so require_auth passes them through and only the public route is gated.
+        auth_failure = require_auth(event)
+        if auth_failure is not None:
+            return auth_failure
         return _response(200, {'status': 'bulk-worker-active', 'sendMode': SEND_MODE})
 
     # Handle SQS event

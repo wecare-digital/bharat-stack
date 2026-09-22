@@ -111,17 +111,31 @@ STRONG_MARKERS = (
     "compare_digest",
     "shared_secret",
     "SHARED_SECRET",
+    # Delegation to the shared verifiers. Handler source is concatenated per
+    # directory, so a handler that calls out to lambda_utils shows only the call
+    # site - without these, rcs-dlr and inbound-whatsapp read as unauthenticated
+    # even though they verify correctly.
+    "sinch_signature.verify",
+    "meta_signature.verify",
 )
 
-# Matched by handlers that only SEND credentials to a provider. Kept in the
-# default set for baseline continuity, excluded by --strict.
+# Markers that only prove a handler can CALL OUT with a credential, never that it
+# checks its own caller. Retired from the default set on 2026-09-21 after each one
+# was traced to an outbound header or a CORS string:
 #
-# `appsecret_proof` was originally listed as strong. It is not: it is the
-# outbound `appsecret_proof` query parameter Meta requires on Graph CALLS. On
-# 2026-09-21 that single marker was enough to classify
-# `POST /whatsapp/inbound` -> `wecare-inbound-whatsapp` as "handler
-# authenticates", when that handler verifies no inbound signature at all. A
-# marker must prove the handler checks ITS CALLER, not that it can call out.
+#   appsecret_proof  the Graph query parameter Meta requires on outbound calls.
+#                    On its own it classified POST /whatsapp/inbound as
+#                    "handler authenticates" while that handler verified nothing.
+#   api_key/API_KEY  in product-image-gen this is WIX_API_KEY, the outbound
+#                    credential for calling Wix.
+#   Authorization    in all seven affected handlers this was either
+#                    "Access-Control-Allow-Headers: Content-Type,Authorization"
+#                    or an outbound `Authorization: Bearer` to a provider.
+#   verify_token     a Meta webhook verify token, used on the GET handshake only.
+#
+# They remain listed so --lenient can reproduce the old baseline for comparison,
+# but the default is now the strict set. A marker must prove the handler checks
+# ITS CALLER.
 WEAK_MARKERS = (
     "appsecret_proof",
     "verify_token",
@@ -131,11 +145,25 @@ WEAK_MARKERS = (
     "Authorization",
 )
 
-MARKERS = STRONG_MARKERS + WEAK_MARKERS
+MARKERS = STRONG_MARKERS
 
-# Routes intentionally reachable without a caller identity. Each needs a reason.
-EXPECTED_PUBLIC = {
+# Routes intentionally reachable without a caller identity. Each needs a reason,
+# and each was read before being listed.
+EXPECTED_PUBLIC_METHODS = {
     "OPTIONS": "CORS preflight; carries no data and must not require auth",
+}
+
+EXPECTED_PUBLIC_ROUTES = {
+    # Short links are followed by customers who have no Cognito session. The
+    # handler authenticates the /links management routes separately.
+    "GET /{code}": "public short-link redirect; anonymous by definition",
+    "GET /r/{code}": "public short-link redirect; anonymous by definition",
+    # The endpoint whose job is to validate a token cannot require a valid token.
+    "POST /auth/validate": "token validation endpoint; authenticating it would be circular",
+    # Provider webhooks authenticate by signature over the raw body, which cannot
+    # be expressed as an API Gateway authorizer. Verified in the handler.
+    "GET /webhook/sinch-rcs": "Sinch health probe; POST carries the HMAC",
+    "POST /webhook/sinch-rcs": "Sinch Conversation API HMAC over rawBody.nonce.timestamp",
 }
 
 
@@ -197,6 +225,7 @@ def classify(routes, integrations, sources, live_functions, markers):
     open_routes: list[tuple[str, str]] = []
     dangling: list[tuple[str, str]] = []
     unresolved: list[tuple[str, str]] = []
+    expected_public: list[tuple[str, str]] = []
 
     for rt in sorted(routes, key=lambda x: x["RouteKey"]):
         key = rt["RouteKey"]
@@ -204,7 +233,10 @@ def classify(routes, integrations, sources, live_functions, markers):
         if rt.get("AuthorizationType") not in (None, "NONE"):
             authorized += 1
             continue
-        if method in EXPECTED_PUBLIC:
+        if method in EXPECTED_PUBLIC_METHODS:
+            continue
+        if key in EXPECTED_PUBLIC_ROUTES:
+            expected_public.append((key, EXPECTED_PUBLIC_ROUTES[key]))
             continue
 
         target = (rt.get("Target") or "").split("/")[-1]
@@ -229,7 +261,7 @@ def classify(routes, integrations, sources, live_functions, markers):
         else:
             open_routes.append((key, fn))
 
-    return authorized, handler_ok, open_routes, dangling, unresolved
+    return authorized, handler_ok, open_routes, dangling, unresolved, expected_public
 
 
 def main() -> int:
@@ -238,8 +270,11 @@ def main() -> int:
                     help="exit 1 if any OPEN route is found")
     ap.add_argument("--api", action="append", metavar="API_ID",
                     help="restrict to one api id (repeatable); default is all")
-    ap.add_argument("--strict", action="store_true",
-                    help="also report the result with weak markers removed")
+    ap.add_argument("--lenient", action="store_true",
+                    help="also accept the weak markers (Authorization, api_key, "
+                         "verify_token, appsecret_proof) that were retired from "
+                         "the default set on 2026-09-21; reproduces the old "
+                         "baseline for comparison only")
     ap.add_argument("--json", action="store_true",
                     help="emit machine-readable evidence instead of a report")
     args = ap.parse_args()
@@ -301,8 +336,9 @@ def main() -> int:
 
     for aid in api_ids:
         d = per_api[aid]
-        authorized, handler_ok, open_r, dangling, unresolved = classify(
-            d["routes"], d["integrations"], sources, live_functions, MARKERS)
+        markers = MARKERS + WEAK_MARKERS if args.lenient else MARKERS
+        authorized, handler_ok, open_r, dangling, unresolved, pub = classify(
+            d["routes"], d["integrations"], sources, live_functions, markers)
 
         entry = {
             "name": api_names.get(aid, ""),
@@ -311,22 +347,11 @@ def main() -> int:
             "integrations": len(d["integrations"]),
             "gatewayAuthorized": authorized,
             "handlerAuthenticates": len(handler_ok),
+            "expectedPublic": [f"{k}  ({why})" for k, why in pub],
             "open": [f"{k} -> {f}" for k, f in open_r],
             "dangling": [f"{k} -> {f}" for k, f in dangling],
             "unresolved": [f"{k} -> {f}" for k, f in unresolved],
         }
-
-        if args.strict:
-            _, s_ok, s_open, _, _ = classify(
-                d["routes"], d["integrations"], sources, live_functions,
-                STRONG_MARKERS)
-            newly = [f"{k} -> {f}" for k, f in s_open
-                     if (k, f) not in set(open_r)]
-            entry["strict"] = {
-                "handlerAuthenticates": len(s_ok),
-                "open": len(s_open),
-                "onlyOpenUnderStrict": newly,
-            }
 
         report["apis"][aid] = entry
         total_open += [(aid, k, f) for k, f in open_r]
@@ -356,12 +381,12 @@ def main() -> int:
               f"integrations {e['integrations']}")
         print(f"    gateway-authorized                  : {e['gatewayAuthorized']}")
         print(f"    gateway NONE, handler authenticates : {e['handlerAuthenticates']}")
+        print(f"    expected public (allowlisted)       : {len(e['expectedPublic'])}")
         print(f"    DANGLING (target function absent)   : {len(e['dangling'])}")
         print(f"    UNRESOLVED (source not found)       : {len(e['unresolved'])}")
         print(f"    OPEN (no auth at either layer)      : {len(e['open'])}")
-        if args.strict:
-            print(f"    strict: handler-authenticates {e['strict']['handlerAuthenticates']}, "
-                  f"open {e['strict']['open']}")
+        for line in e["expectedPublic"]:
+            print(f"      public: {line}")
         print()
 
     if total_open:
@@ -381,15 +406,9 @@ def main() -> int:
         if len(total_unresolved) > 40:
             print(f"  ... {len(total_unresolved) - 40} more")
         print()
-    if args.strict:
-        extra = [x for aid in api_ids
-                 for x in report["apis"][aid]["strict"]["onlyOpenUnderStrict"]]
-        if extra:
-            print("OPEN ONLY UNDER --strict - relies on a weak marker "
-                  "(Authorization / api_key / verify_token):")
-            for line in extra:
-                print(f"  {line}")
-            print()
+    if args.lenient:
+        print("NOTE: --lenient accepted the retired weak markers. The default run "
+              "is the honest one.\n")
 
     if total_open and args.gate:
         return 1
