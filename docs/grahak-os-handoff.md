@@ -52,16 +52,23 @@ branch deploys nothing. Merging the PR triggers the Amplify build; allow a few
 minutes, then hard-refresh past CloudFront. If the build fails it will be in the
 `preBuild` npm install, which uses `--legacy-peer-deps`.
 
-Three checks on the PR are red. **None is from this work:**
+`stack` has **no required status checks configured**, so nothing blocks the merge.
+Two checks are red and neither is from this work — both diagnosed to root cause,
+not merely observed to also fail on `stack`:
 
-| Check | Status |
+| Check | Root cause |
 |---|---|
-| `Provider policy gate` | Fails identically on `stack` HEAD `e27b9475` |
-| `Handler auth enforcement (source)` | Fails identically on `stack` HEAD `e27b9475` |
-| `github-advanced-security` | Cause not determined — the sandbox token lacks scope to read security alerts (HTTP 403 on the Dependabot API). It is **not** a code-scanning finding on this PR: `CodeQL` itself is green with zero failure annotations. The repo carries 48 open Dependabot advisories on the default branch, which is the likeliest source |
+| `Provider policy gate` | `amplify/functions/messaging/plivo-answer/handler.py:724` passes `provider='plivo'` on a path the scanner classifies as SMS. Policy is Plivo-is-voice-only. **Not fixed — needs someone who knows whether that call is SMS or voice.** Either a real violation or a scanner false positive; the file is untouched by this branch |
+| `github-advanced-security` | **Not attributed.** The sandbox token gets HTTP 403 on both the Dependabot and code-scanning alert APIs. It is not a finding on this PR's code: `CodeQL` and all four `Analyze` jobs are green with zero failure annotations. The repo carries 48 open Dependabot advisories on the default branch, the likeliest source |
 
-Those first two failing on the default branch is worth fixing on its own, but it
-is backend scope, not this branch's.
+`Handler auth enforcement (source)` **was** red and is now green — fixed in
+`3f60088d`. It had nothing to do with route auth: its dependency step greps
+`requirements-dev.txt` for an allowlist that omitted `cryptography`, which
+`tests/test_flow_crypto_and_ssrf.py` imports at module scope, so pytest failed at
+*collection* on every run. With the import resolved the suite is **1546 passed, 1
+skipped, 0 failed** — nothing was hiding behind it. A blocking gate that fails
+unconditionally teaches people to merge through red, so this was worth fixing even
+though it was not ours.
 
 ### 2. Deploy the translation change — needs the Mac
 
