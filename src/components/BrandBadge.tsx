@@ -1,4 +1,5 @@
 import React from 'react';
+import BrandMark from './BrandMark';
 
 interface BrandBadgeProps {
   /** Full label, e.g. "Grahak OS · by Bharat Stack". */
@@ -43,11 +44,14 @@ interface BrandBadgeProps {
  */
 const BrandBadge: React.FC<BrandBadgeProps> = ( { label } ) => (
   <span className="brand-badge">
-    <i className="brand-badge-dot" aria-hidden="true" />
+    {/* The mark replaces a plain 10px dot. It inherits #1a3a2a through
+        currentColor, so the badge stays a two-colour object. BrandMark sizes
+        itself; styled-jsx cannot reach into it from here. */}
+    <BrandMark />
     { label }
     <style jsx>{ `
       .brand-badge{display:inline-flex;align-items:center;gap:10px;padding:10px 17px;border-radius:9999px;background:#d1f470;font-size:14px;font-weight:600;letter-spacing:-.125px;line-height:1;color:#1a3a2a;white-space:nowrap}
-      .brand-badge-dot{width:10px;height:10px;border-radius:50%;background:#1a3a2a;flex:0 0 auto}
+
       @media(max-width:480px){
         .brand-badge{white-space:normal}
       }
