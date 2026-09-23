@@ -316,11 +316,10 @@ const HomePage: React.FC = () => {
                   someone non-technical: it is the part you are not meant to have to look at. */}
               <h2 className="home-flow-title" id="home-flow-title">You won’t see this part. You’ll feel it.</h2>
               <p className="home-flow-lead">
-                Travel, documents, disputes, rituals, reflection — each one is its own
-                service, and all of them run on the same foundation underneath. You will
-                probably never look at it. What you notice is that access is simpler,
-                updates are clearer, follow-ups actually arrive, and everything behaves the
-                same way every time.
+                Each service stands on its own, and all of them run on the same
+                foundation underneath. You will probably never look at it. What you notice
+                is that access is simpler, updates are clearer, follow-ups actually arrive,
+                and everything behaves the same way every time.
               </p>
               { /* THREE BEATS, EACH ONE SOMETHING A CUSTOMER CAN NOTICE HAPPENING TO THEM.
                    These have now been rewritten twice. First they named components ("Built
@@ -336,11 +335,22 @@ const HomePage: React.FC = () => {
               <ul className="home-flow-list">
                 <li>
                   <strong>One account for all of it</strong>
-                  <span>Sign in once. Whatever you need next — a booking, a document, a dispute — is already waiting under the same account, on the same bill.</span>
+                  {/* The em-dash aside used to read "a booking, a document, a
+                      dispute" - three service names, so the sentence aged the moment
+                      any one of them changed. It was also doing little work: the
+                      claim is that the account carries forward, not what you happen
+                      to have asked for. */}
+                  <span>Sign in once. Whatever you need next is already waiting under the same account, on the same bill.</span>
                 </li>
                 <li>
-                  <strong>We reach you where you actually look</strong>
-                  <span>WhatsApp, SMS, email and a phone call all go out together, so the update lands on whichever one you check, instead of waiting in line behind the others.</span>
+                  {/* Named four channels before. Those are the delivery mechanism,
+                      which is exactly the part this section promises you will never
+                      have to think about - and one of the four was a third-party
+                      brand whose terms are not ours to depend on. "Every channel at
+                      once" keeps the whole argument (simultaneous, not sequential)
+                      without pinning it to a list that can change. */}
+                  <strong>Updates reach you where you actually look</strong>
+                  <span>Every channel goes out at the same time, so the update lands wherever you check instead of waiting in line behind the others.</span>
                 </li>
                 <li>
                   <strong>A hiccup doesn’t become your problem</strong>
@@ -387,10 +397,9 @@ const HomePage: React.FC = () => {
                 Start with one thing. The rest is already here.
               </h2>
               <p className="home-close-lead">
-                Book a stay, sort out a document, settle a dispute, order a puja kit — begin
-                with whatever you actually need today. Whenever you come back for something
-                else, it is on the same account, at prices you can see before you decide,
-                with the same people to ask if anything goes wrong.
+                Begin with whatever matters right now. Whenever you come back for
+                something else, it is on the same account, at prices you can see before you
+                decide, with the same people to ask if anything goes wrong.
               </p>
               <span className="home-close-rule" aria-hidden="true" />
               <ul className="home-close-points">
