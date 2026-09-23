@@ -398,7 +398,8 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // EXACT-MATCH allowlist. A public page missing from this list renders an empty
   // body with HTTP 200 — a 404 that does not look like one — so every new public
   // route has to be added here as well as created under src/pages.
-  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners';
+  const isContentPublic = router.pathname === '/blog' || router.pathname === '/post/[slug]';
+  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/faq' || router.pathname === '/partners' || isContentPublic;
   const showPublicWhatsApp = router.pathname === '/' || router.pathname === '/grahak-os';
 
   useEffect( () => {
@@ -461,7 +462,8 @@ export default function App ( { Component, pageProps }: AppProps ) {
   {
     return (
       <ErrorBoundary>
-        <Head>
+        { !isContentPublic && (
+          <Head>
           <title>Bharat Stack by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM India</title>
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -514,6 +516,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( faqSchema ) } } />
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( serviceSchema ) } } />
         </Head>
+        ) }
         {/* Google Analytics 4 (G-S3G6REP6Q7) */ }
         <Script src={ `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}` } strategy="afterInteractive" />
         <Script id="google-analytics-ads" strategy="afterInteractive">

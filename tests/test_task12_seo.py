@@ -50,31 +50,31 @@ def test_seo_routes_require_admin(seo_handler):
     denied = {'statusCode': 403, 'body': '{}'}
     event = request('/seo-tools/blog-create', {'title': 'Title', 'content': 'Body'})
     with patch.object(seo_handler, 'require_auth', return_value=denied) as auth, \
-            patch.object(seo_handler.wix, 'create_blog_post') as create:
+            patch.object(seo_handler.storage, 'create_blog_post') as create:
         response = seo_handler.handler(event, None)
     assert response is denied
     auth.assert_called_once_with(event, required_role='Admin')
     create.assert_not_called()
 
 
-def test_create_claim_success_calls_wix(seo_handler):
+def test_create_claim_success_writes_aws_blog(seo_handler):
     event = request('/seo-tools/blog-create', {'title': 'Title', 'content': 'Body'})
     with patch.object(seo_handler, 'require_auth', return_value=None), \
             patch.object(seo_handler, 'claim_admin_action', return_value=True), \
-            patch.object(seo_handler.wix, 'create_blog_post', return_value={
+            patch.object(seo_handler.storage, 'create_blog_post', return_value={
                 'postId': 'post-1', 'slug': 'title', 'title': 'Title',
             }) as create:
         response = seo_handler.handler(event, None)
     assert response['statusCode'] == 200
     assert payload(response)['postId'] == 'post-1'
-    create.assert_called_once()
+    create.assert_called_once_with({'title': 'Title', 'content': 'Body'}, 'server-admin')
 
 
-def test_create_duplicate_does_not_call_wix(seo_handler):
+def test_create_duplicate_does_not_write_blog(seo_handler):
     event = request('/seo-tools/blog-create', {'title': 'Title', 'content': 'Body'})
     with patch.object(seo_handler, 'require_auth', return_value=None), \
             patch.object(seo_handler, 'claim_admin_action', return_value=False), \
-            patch.object(seo_handler.wix, 'create_blog_post') as create:
+            patch.object(seo_handler.storage, 'create_blog_post') as create:
         response = seo_handler.handler(event, None)
     assert response['statusCode'] == 409
     create.assert_not_called()
@@ -84,7 +84,7 @@ def test_create_claim_storage_failure_fails_closed(seo_handler):
     event = request('/seo-tools/blog-create', {'title': 'Title', 'content': 'Body'})
     with patch.object(seo_handler, 'require_auth', return_value=None), \
             patch.object(seo_handler, 'claim_admin_action', side_effect=RuntimeError('down')), \
-            patch.object(seo_handler.wix, 'create_blog_post') as create:
+            patch.object(seo_handler.storage, 'create_blog_post') as create:
         response = seo_handler.handler(event, None)
     assert response['statusCode'] == 503
     create.assert_not_called()
@@ -147,11 +147,11 @@ def test_scope_filter_paginates_until_matching_record(seo_handler):
     assert table.query.call_count == 2
 
 
-def test_non_blog_apply_returns_501_without_wix_call(seo_handler):
+def test_non_blog_apply_returns_501_without_blog_write(seo_handler):
     with patch.object(seo_handler.storage, 'get_audit', return_value={
         'id': 'audit-page', 'pageType': 'page', 'status': 'approved',
     }), patch.object(seo_handler, 'claim_admin_action') as claim, \
-            patch.object(seo_handler.wix, 'apply_blog_audit') as apply:
+            patch.object(seo_handler.storage, 'apply_blog_audit') as apply:
         response = seo_handler._review(
             {'auditId': 'audit-page', 'action': 'apply'}, 'server-admin', '',
         )
@@ -169,7 +169,7 @@ def test_blog_apply_uses_applying_transition(seo_handler):
             patch.object(seo_handler.storage, 'transition_audit', side_effect=[
                 applying, applied,
             ]) as transition, \
-            patch.object(seo_handler.wix, 'apply_blog_audit') as apply:
+            patch.object(seo_handler.storage, 'apply_blog_audit') as apply:
         response = seo_handler._review(
             {'auditId': 'audit-blog', 'action': 'apply'}, 'server-admin', '',
         )
@@ -180,19 +180,19 @@ def test_blog_apply_uses_applying_transition(seo_handler):
     assert transition.call_args_list[1].args[:4] == (
         'audit-blog', ['applying'], 'applied', 'server-admin',
     )
-    apply.assert_called_once_with(applying)
+    apply.assert_called_once_with(applying, 'server-admin')
 
 
 def test_failed_blog_apply_restores_approved_state(seo_handler):
     approved = {'id': 'audit-blog', 'pageType': 'blog', 'status': 'approved'}
     applying = {**approved, 'status': 'applying', 'blogPostId': 'post-1'}
-    restored = {**approved, 'applicationError': 'Wix apply failed'}
+    restored = {**approved, 'applicationError': 'Blog SEO apply failed'}
     with patch.object(seo_handler.storage, 'get_audit', return_value=approved), \
             patch.object(seo_handler, 'claim_admin_action', return_value=True), \
             patch.object(seo_handler.storage, 'transition_audit', side_effect=[
                 applying, restored,
             ]) as transition, \
-            patch.object(seo_handler.wix, 'apply_blog_audit', side_effect=RuntimeError('failed')):
+            patch.object(seo_handler.storage, 'apply_blog_audit', side_effect=RuntimeError('failed')):
         response = seo_handler._review(
             {'auditId': 'audit-blog', 'action': 'apply'}, 'server-admin', '',
         )
@@ -200,4 +200,38 @@ def test_failed_blog_apply_restores_approved_state(seo_handler):
     assert transition.call_args_list[1].args[:4] == (
         'audit-blog', ['applying'], 'approved', 'server-admin',
     )
-    assert payload(response)['error'] == 'Wix apply failed; audit remains approved'
+    assert payload(response)['error'] == 'Blog SEO apply failed; audit remains approved'
+
+def test_public_blog_endpoint_returns_only_storage_public_view_without_auth(seo_handler):
+    event = {
+        'requestContext': {
+            'apiId': 'api-1',
+            'http': {'method': 'GET', 'path': '/seo-tools/blog-public', 'sourceIp': '127.0.0.1'},
+        },
+        'rawPath': '/seo-tools/blog-public',
+    }
+    published = [{
+        'id': 'blog-1', 'slug': 'hello', 'title': 'Hello', 'status': 'published',
+        'url': 'https://www.wecare.digital/post/hello',
+    }]
+    with patch.object(seo_handler.storage, 'list_blog_posts', return_value=published) as posts, \
+            patch.object(seo_handler, 'require_auth') as auth:
+        response = seo_handler.handler(event, None)
+    assert response['statusCode'] == 200
+    assert payload(response)['posts'] == published
+    posts.assert_called_once_with(published_only=True, include_content=False)
+    auth.assert_not_called()
+
+
+def test_blog_audit_reads_aws_post_not_wix(seo_handler):
+    with patch.object(seo_handler, '_claim', return_value=None), \
+            patch.object(seo_handler.storage, 'get_blog_post', return_value={
+                'id': 'blog-1', 'slug': 'hello', 'title': 'Hello',
+            }) as get_post, \
+            patch.object(seo_handler, '_run_audit', return_value=(
+                {'id': 'audit-1'}, {'model': 'model-1'},
+            )):
+        response = seo_handler._blog_audit({'slug': 'hello'}, 'server-admin', '')
+    assert response['statusCode'] == 200
+    get_post.assert_called_once_with('hello')
+

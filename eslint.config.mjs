@@ -28,7 +28,6 @@ export default [
       '.amplify/**',
       'amplify_outputs.json',
       '**/__pycache__/**',
-      'scripts/wix-blog-schema-api/**',
     ],
   },
   ...(Array.isArray(next) ? next : [next]),

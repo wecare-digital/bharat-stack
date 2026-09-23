@@ -1,7 +1,17 @@
 User-agent: *
 Allow: /
+Disallow: /access/
 Disallow: /admin/
+Disallow: /contacts/
+Disallow: /dashboard/
+Disallow: /dm/
+Disallow: /forms/
+Disallow: /link/
+Disallow: /pay/
+Disallow: /seo/
 Disallow: /settings/
+Disallow: /store/
+Disallow: /task/
 Disallow: /api/
 
-Sitemap: https://stack.wecare.digital/sitemap.xml
+Sitemap: https://www.wecare.digital/sitemap.xml
