@@ -251,11 +251,105 @@ def test_rejection_does_not_reveal_which_check_failed(rec):
         assert leak not in body
 
 
-def test_unknown_path_falls_back_to_answer_behaviour(rec):
+def test_unknown_path_is_refused_not_served_as_an_answer_fetch(rec):
+    """An unrecognised path must NOT get answer semantics.
+
+    This test used to assert the opposite - that `/plivo/unknown` returned the IVR.
+    That fallback is precisely what concealed the stage-prefix incident: with
+    `(_route_answer, False)` as the default, `/prod/plivo/hangup` "worked" by
+    returning <Play> to a hangup callback, which re-answers a terminated call. The
+    handler's own comment said not to treat an unknown path as an answer fetch, and
+    then did exactly that behind a warning log.
+
+    Nothing live depends on the fallback: all five routes on integration mk92rna
+    are exact `POST /plivo/{answer,fallback,hangup,events,dial-events}`, there is no
+    $default or {proxy+} route on this API, and `normalize_path` strips the stage
+    from `requestContext.stage` rather than a hardcoded "prod". So an unknown path
+    can only arrive from a route added without a `_ROUTES` entry - the case that
+    must fail loudly rather than silently serve an IVR.
+    """
     params = dict(FORM, CallStatus=["ringing"])
     r = pa.handler(_event("/plivo/unknown", params=params, token=ANSWER_TOKEN), None)
-    assert r["statusCode"] == 200
-    assert "<Play>" in r["body"]
+    assert r["statusCode"] == 404
+    assert "<Play>" not in r["body"]
+    assert rec.sms == [] and rec.cdr == []
+
+
+def test_unknown_path_is_refused_before_provider_verification(rec):
+    """A signed request to an unknown path is still refused. The path is not a
+    credential, and verifying first would make the 404 depend on secret reads."""
+    r = pa.handler(_event("/plivo/status", signed=True), None)
+    assert r["statusCode"] == 404
+    assert rec.cdr == []
+
+
+def test_every_route_declared_in_routes_is_reachable(rec):
+    """The replacement for the fallback's accidental safety net.
+
+    With unknown paths now refused, a route present in API Gateway but missing from
+    `_ROUTES` returns 404 in production. This asserts the table is the single source
+    of truth and that all five live paths are in it.
+    """
+    assert set(pa._ROUTES) == {
+        "/plivo/answer", "/plivo/fallback", "/plivo/hangup",
+        "/plivo/events", "/plivo/dial-events",
+    }
+    for path, (_route, require_sig) in pa._ROUTES.items():
+        ev = _event(path, signed=True)
+        assert pa.handler(ev, None)["statusCode"] != 404, f"{path} is unreachable"
+        # The three callbacks with side effects require a signature; the two
+        # answer-style fetches cannot, because Plivo does not sign them.
+        assert require_sig is (path in ("/plivo/hangup", "/plivo/events",
+                                        "/plivo/dial-events"))
+
+
+# --------------------------------------------------------------------------
+# the diagnostic token gate — constant-time, and not a crash surface
+# --------------------------------------------------------------------------
+def test_the_token_comparison_is_constant_time():
+    """The token is a bearer secret, so it gets the same treatment as the signature.
+
+    `plivo_signature.validate_signature` already documents this and uses
+    `hmac.compare_digest`; `_verify_provider` compared the token with a plain `==`
+    in the same file. A `==` on a secret returns as soon as two bytes differ, which
+    leaks its length and its matching prefix. Cheap to fix, so there is no reason to
+    hold a lower standard for the weaker of the two credentials.
+    """
+    import inspect
+    gate = inspect.getsource(pa._verify_provider) + inspect.getsource(pa._token_matches)
+    assert "compare_digest" in gate, \
+        "the ?token= gate must compare with hmac.compare_digest, not =="
+    assert "qs.get('token') == token" not in gate
+
+    # Behaviour, not just shape: equal-length non-matching tokens must be refused,
+    # and an exact match accepted, through the same helper.
+    assert pa._token_matches(ANSWER_TOKEN, ANSWER_TOKEN) is True
+    assert pa._token_matches("x" * len(ANSWER_TOKEN), ANSWER_TOKEN) is False
+    assert pa._token_matches(None, ANSWER_TOKEN) is False
+    assert pa._token_matches("", ANSWER_TOKEN) is False
+    # A list is what API Gateway yields for a repeated query parameter.
+    assert pa._token_matches([ANSWER_TOKEN], ANSWER_TOKEN) is False
+
+
+def test_a_non_ascii_token_is_rejected_rather_than_crashing(rec):
+    """`hmac.compare_digest` raises TypeError on a non-ASCII str, so the fix has to
+    encode both sides. Without that, `?token=café` turns a 403 into a 500 - and on
+    /plivo/answer a 500 means the caller hears silence instead of a clean hangup."""
+    ev = _event("/plivo/answer", signed=False, token="caf\u00e9")
+    r = pa.handler(ev, None)
+    assert r["statusCode"] == 403
+    assert "text/xml" in r["headers"]["Content-Type"]
+
+
+def test_a_shorter_token_prefix_is_rejected(rec):
+    """A matching prefix must not pass. Guards against an accidental startswith."""
+    ev = _event("/plivo/answer", signed=False, token=ANSWER_TOKEN[:-1])
+    assert pa.handler(ev, None)["statusCode"] == 403
+
+
+def test_a_missing_token_is_rejected_when_one_is_configured(rec):
+    ev = _event("/plivo/answer", signed=False)
+    assert pa.handler(ev, None)["statusCode"] == 403
 
 
 def test_cdr_write_failure_does_not_break_the_callback(rec, monkeypatch):
