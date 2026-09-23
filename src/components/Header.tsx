@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import BrandLockup from './BrandLockup';
 
@@ -11,65 +11,151 @@ interface NavLink {
   href: string;
   /** router.pathname value that marks this link as the current page. */
   match?: string;
-  /** Group heading. Empty string means "render with no heading above it". */
-  group: '' | 'Products' | 'Service' | 'Account';
+  /** True for absolute URLs off this app. Same tab either way - see PENDING_HREF. */
+  external?: boolean;
 }
 
-// One list, grouped by type, rather than four hand-written anchors.
+interface NavSection {
+  /** '' renders the links with no heading above them. */
+  heading: string;
+  /** When set, the heading itself is a link. Used by Selfservice, which is both a
+   *  real destination and the parent of the rows beneath it. */
+  headingHref?: string;
+  links: NavLink[];
+}
+
+/** One column of the mega menu. Columns may hold more than one section. */
+interface NavColumn {
+  sections: NavSection[];
+}
+
+const SELFSERVICE = 'https://www.wecare.digital/selfservice';
+const PARTNERS = 'https://www.wecare.digital/product-page/referral-partner';
+
+// PLACEHOLDER, pending the owner's per-service URLs.
 //
-// Selfservice and Partners are ABSOLUTE URLs onto the marketing site, and the two
-// pages that used to back them (src/pages/faq.tsx, src/pages/partners.tsx) are
-// gone along with their entries in the isPublic allowlist in _app.tsx. Keep them
-// absolute: pointing these at local routes again resurrects two pages that no
-// longer exist and the allowlist would render them as a blank 200.
+// Every Selfservice child points at the Selfservice landing page for now. That is a
+// deliberate choice over href="#" or a guessed path: "#" scrolls the page to the top
+// and looks broken, and an invented path like /selfservice/submit-request would 404
+// on the marketing site. Pointing at the parent means every row in the menu works
+// today and lands the visitor one click from what they wanted.
 //
-// They open in the SAME tab, which is why neither carries target="_blank". That is
-// the default for a plain anchor, so it is the absence of an attribute doing the
-// work here - do not "fix" it by adding target, and note rel="noopener" would be
-// inert without one.
-//
-// Neither external entry has a `match`: it is compared against router.pathname,
-// which can never equal an absolute URL, so a value there would be misleading
-// dead weight.
+// To wire the real links: replace PENDING_HREF on each row below with its URL. The
+// constant is referenced rather than inlined so `grep PENDING_HREF` lists exactly
+// what is still outstanding, and Header.test.tsx asserts all seven rows exist so a
+// typo during that edit cannot silently drop one.
+const PENDING_HREF = SELFSERVICE;
+
+// One structure, rendered as columns, rather than the single flat list this used to
+// be. The Selfservice group is why: seven children under one parent made a
+// single-column dropdown roughly 700px tall, past the bottom of a laptop viewport.
 //
 // Trailing slashes are load-bearing on the static pages: next.config.js sets
 // trailingSlash, so /vayulok would redirect before resolving. /access is bare
-// deliberately - it is the authenticated entry point, not an exported public page
-// - but it still needs `match`, because without it the Sign in row was the only
-// item in this menu that never lit up on its own page: every other route got the
-// lime .22 active tint at weight 800 and /access stayed transparent at 600.
-const LINKS: NavLink[] = [
-  { label: 'Home', href: '/', match: '/', group: '' },
-  { label: 'Grahak OS', href: '/grahak-os/', match: '/grahak-os', group: 'Products' },
-  { label: 'VayuLok', href: '/vayulok/', match: '/vayulok', group: 'Products' },
-  { label: 'Selfservice', href: 'https://www.wecare.digital/selfservice', group: 'Service' },
-  { label: 'Partners', href: 'https://www.wecare.digital/product-page/referral-partner', group: 'Service' },
-  { label: 'Sign in', href: '/access', match: '/access', group: 'Account' },
-];
-
-// 'Service', not 'Company'. Neither row under it is about the company: one is the
-// customer self-help portal and the other is a product page for prospective
-// referral partners, so the old heading described the wrong thing.
+// deliberately - it is the authenticated entry point, not an exported public page -
+// but it still needs `match`, or the Sign in row is the only item in this menu that
+// never lights up on its own page.
 //
-// This union is the only place a group name is declared - the headings render
-// straight from these strings and GROUP_ORDER below sets their order - so renaming
-// a group means editing the type, the LINKS entries and this array together, and
-// tsc catches it if you miss one. No test asserts on the heading text.
-const GROUP_ORDER: Array<NavLink[ 'group' ]> = [ '', 'Products', 'Service', 'Account' ];
+// The external entries carry no target, so they open in the SAME tab. That is the
+// default for a plain anchor, so it is the ABSENCE of an attribute doing the work -
+// do not "fix" it by adding target, and note rel="noopener" would be inert without
+// one. They also carry no `match`: it is compared against router.pathname, which can
+// never equal an absolute URL.
+const COLUMNS: NavColumn[] = [
+  {
+    sections: [
+      { heading: '', links: [ { label: 'Home', href: '/', match: '/' } ] },
+      {
+        heading: 'Products',
+        links: [
+          { label: 'Grahak OS', href: '/grahak-os/', match: '/grahak-os' },
+          { label: 'VayuLok', href: '/vayulok/', match: '/vayulok' },
+        ],
+      },
+    ],
+  },
+  {
+    sections: [
+      {
+        heading: 'Selfservice',
+        headingHref: SELFSERVICE,
+        links: [
+          { label: 'Submit Request', href: PENDING_HREF, external: true },
+          { label: 'Request Amendment', href: PENDING_HREF, external: true },
+          { label: 'Request Tracking', href: PENDING_HREF, external: true },
+          { label: 'Drop Docs', href: PENDING_HREF, external: true },
+          { label: 'Bharat Rx', href: PENDING_HREF, external: true },
+          { label: 'Leave Review', href: PENDING_HREF, external: true },
+          // FAQ lives here now. The local /faq page was deleted and its nav entry
+          // became Selfservice; this is the same content as a child of it.
+          { label: 'FAQ', href: PENDING_HREF, external: true },
+        ],
+      },
+    ],
+  },
+  {
+    sections: [
+      // "Work with us", NOT "Company" - that word was explicitly retired from this
+      // menu, and restructuring into columns nearly reintroduced it. Not "Service"
+      // either: that would sit one column away from "Selfservice" and read as the
+      // same category. This heading says who the column is for, which is the honest
+      // distinction - Selfservice is for existing customers, this is for prospective
+      // referral partners.
+      { heading: 'Work with us', links: [ { label: 'Partners', href: PARTNERS, external: true } ] },
+      { heading: 'Account', links: [ { label: 'Sign in', href: '/access', match: '/access' } ] },
+    ],
+  },
+];
 
 const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
   const [ open, setOpen ] = useState( false );
   const [ query, setQuery ] = useState( '' );
   const router = useRouter();
+  const rootRef = useRef<HTMLDivElement | null>( null );
+  const triggerRef = useRef<HTMLButtonElement | null>( null );
+  const hasOpened = useRef( false );
 
   const term = query.trim().toLocaleLowerCase();
   const searching = term.length > 0;
 
+  // Flattened once, from the same structure the columns render, so a link can never
+  // exist in the menu but be missing from search.
+  const allLinks = useMemo( () => COLUMNS.flatMap( column => column.sections.flatMap( section => (
+    section.headingHref
+      ? [ { label: section.heading, href: section.headingHref, external: true }, ...section.links ]
+      : section.links
+  ) ) ), [] );
+
   const filtered = useMemo( () => (
-    searching ? LINKS.filter( link => link.label.toLocaleLowerCase().includes( term ) ) : LINKS
-  ), [ searching, term ] );
+    searching ? allLinks.filter( link => link.label.toLocaleLowerCase().includes( term ) ) : allLinks
+  ), [ allLinks, searching, term ] );
 
   const close = () => { setOpen( false ); setQuery( '' ); };
+
+  // Escape closes from anywhere, and an outside pointerdown dismisses. Neither
+  // existed before: the menu could only be closed by clicking the trigger again or
+  // following a link, so Escape did nothing and a click elsewhere left it open over
+  // the page. Matches the language widget, so both menus answer to the same keys.
+  useEffect( () => {
+    if ( !open ) return undefined;
+    const onKeyDown = ( event: KeyboardEvent ) => { if ( event.key === 'Escape' ) close(); };
+    const onPointerDown = ( event: PointerEvent ) => {
+      if ( rootRef.current && !rootRef.current.contains( event.target as Node ) ) close();
+    };
+    document.addEventListener( 'keydown', onKeyDown );
+    document.addEventListener( 'pointerdown', onPointerDown );
+    return () => {
+      document.removeEventListener( 'keydown', onKeyDown );
+      document.removeEventListener( 'pointerdown', onPointerDown );
+    };
+  }, [ open ] );
+
+  // Focus returns to the trigger on close, so a keyboard user is not dropped onto
+  // <body> and made to tab from the top of the document again.
+  useEffect( () => {
+    if ( open ) { hasOpened.current = true; return; }
+    if ( hasOpened.current ) triggerRef.current?.focus();
+  }, [ open ] );
 
   // Driven off router.pathname, which carries no trailing slash even though the
   // hrefs do - hence the separate `match` field.
@@ -83,6 +169,16 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
   // never look at classes. Only reading the built HTML caught it.
   const isActive = ( link: NavLink ) => link.match !== undefined && router.pathname === link.match;
 
+  const renderLink = ( link: NavLink, extraClass = '' ) => (
+    <a
+      key={ link.label + link.href }
+      href={ link.href }
+      className={ `nav-item ${extraClass} ${isActive( link ) ? 'active' : ''}`.trim() }
+      aria-current={ isActive( link ) ? 'page' : undefined }
+      onClick={ close }
+    >{ link.label }</a>
+  );
+
   return (
     <header className={ `hdr ${homeBrand ? 'hdr-home' : ''}`.trim() }>
       <div className="hdr-in">
@@ -90,12 +186,13 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
           <a href="/" className="logo" aria-label="Bharat Stack home">
             <BrandLockup />
           </a>
-          <div className="nav-dropdown">
+          <div className="nav-dropdown" ref={ rootRef }>
             {/* This must stay the FIRST button in the header. Header.test.tsx reaches
                 the trigger with container.querySelector('button') to assert the chevron
                 is drawn rather than typed, so the search field below is an input and no
                 control is added ahead of this element. */}
             <button
+              ref={ triggerRef }
               type="button"
               className="nav-trigger"
               aria-label="Open navigation"
@@ -107,7 +204,7 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
             <nav className={ `nav-menu ${open ? 'open' : ''}` } aria-label="Public navigation">
               {/* Not autofocused. The language panel autofocuses its search because
                   searching is the only way to use it, but this menu is readable at a
-                  glance - popping the on-screen keyboard over a six-item list on a
+                  glance - popping the on-screen keyboard over the whole catalogue on a
                   phone would cost more than it saves. */}
               <input
                 className="nav-search"
@@ -119,40 +216,42 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
                 onKeyDown={ event => { if ( event.key === 'Escape' ) close(); } }
               />
 
-              {/* Flat results while searching: group headings over a filtered list
+              {/* Flat results while searching: column headings over a filtered list
                   describe categories that are no longer all present, which reads as
                   missing items rather than as a narrowed list. */}
-              { searching && filtered.map( link => (
-                <a
-                  key={ link.href }
-                  href={ link.href }
-                  className={ `nav-item ${isActive( link ) ? 'active' : ''}`.trim() }
-                  aria-current={ isActive( link ) ? 'page' : undefined }
-                  onClick={ close }
-                >{ link.label }</a>
-              ) ) }
-              { searching && !filtered.length && (
-                <p className="nav-empty">No matching page.</p>
+              { searching && (
+                <div className="nav-results">
+                  { filtered.map( link => renderLink( link ) ) }
+                  { !filtered.length && <p className="nav-empty">No matching page.</p> }
+                </div>
               ) }
 
-              { !searching && GROUP_ORDER.map( group => {
-                const items = LINKS.filter( link => link.group === group );
-                if ( !items.length ) return null;
-                return (
-                  <div key={ group || 'ungrouped' } className="nav-group">
-                    { group && <span className="nav-group-label">{ group }</span> }
-                    { items.map( link => (
-                      <a
-                        key={ link.href }
-                        href={ link.href }
-                        className={ `nav-item ${isActive( link ) ? 'active' : ''}`.trim() }
-                        aria-current={ isActive( link ) ? 'page' : undefined }
-                        onClick={ close }
-                      >{ link.label }</a>
-                    ) ) }
-                  </div>
-                );
-              } ) }
+              { !searching && (
+                <div className="nav-cols">
+                  { COLUMNS.map( ( column, columnIndex ) => (
+                    <div key={ columnIndex } className="nav-col">
+                      { column.sections.map( ( section, sectionIndex ) => (
+                        <div key={ section.heading || sectionIndex } className="nav-group">
+                          { section.heading && ( section.headingHref
+                            ? (
+                              // The heading is the parent destination as well as a
+                              // label, so it is a link. Styled as a heading rather
+                              // than as a row so the hierarchy still reads.
+                              <a
+                                href={ section.headingHref }
+                                className="nav-group-label nav-group-link"
+                                onClick={ close }
+                              >{ section.heading }</a>
+                            )
+                            : <span className="nav-group-label">{ section.heading }</span>
+                          ) }
+                          { section.links.map( link => renderLink( link, section.headingHref ? 'nav-sub' : '' ) ) }
+                        </div>
+                      ) ) }
+                    </div>
+                  ) ) }
+                </div>
+              ) }
             </nav>
           </div>
         </div>
@@ -169,56 +268,111 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
         .nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}
         .nav-arrow{width:7px;height:7px;box-sizing:border-box;margin:0;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
         .nav-trigger[aria-expanded='true'] .nav-arrow{transform:translateY(2px) rotate(225deg)}
-        /* min-width went 216 -> 268px with the search field: a 19px item plus a full
-           width input needs the room, and "Grahak OS" must not sit against the padding. */
-        .nav-menu{position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid #d1f470;border-radius:10px;padding:10px 0;min-width:268px;opacity:0;visibility:hidden;transform:translateY(4px);transition:all .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
-        .nav-dropdown:hover .nav-menu,.nav-dropdown:focus-within .nav-menu,.nav-menu.open{opacity:1;visibility:visible;transform:translateY(0)}
+
+        /* MEGA PANEL.
+           WIDTH IS 760px, NOT THE PAGE MEASURE. It was first built at the site's
+           1252px measure, which measured 1252x393 with its three columns only
+           158/308/148px tall - a panel more than half empty, and it looked it. Twelve
+           rows do not need the full page width. 760px is what the content asks for:
+           the widest label, "Request Amendment" at 17px/600, needs ~210px of row, so
+           three of those plus the 20px gutters and 14px padding comes to ~700px.
+           Anchored left of the trigger rather than centred, because a narrow panel
+           centred in the viewport under a left-aligned trigger reads as unrelated to
+           it. min() against calc(100vw - 208px) is what stops the absolute
+           positioning overflowing on a narrow window before the mobile rule takes
+           over. That 208 is MEASURED, not estimated: the panel's left edge sits at
+           180px - the brand lockup plus the trigger - and 180 + 24px of right gutter
+           is 204, taken to 208 for margin. A first attempt reserved 176px from a
+           guessed 152px offset and overflowed the viewport by 4px at 900px wide,
+           which the width sweep caught. If the lockup ever changes width, re-measure
+           this rather than adjusting it by eye.
+
+           max-height CLEARS THE WHATSAPP BUTTON GEOMETRICALLY, which is the only way
+           to clear it. #wecarewa-widget is injected by an external script at
+           z-index 2147483647, the maximum 32-bit integer, so nothing can ever be
+           stacked above it - measured here, the full-height mobile panel ran straight
+           through it and the green circle painted over the Selfservice rows. The
+           design contract records this for .wc-langbar; it applies to any floating
+           panel. The measured footprint (60x60, 80px from the bottom) does not match
+           the documented one (64x64, 120px), so the reserve clears the LARGER of the
+           two plus a gap. overflow-y:auto is what keeps the rows reachable once the
+           panel is capped.
+
+           z-index is declared rather than left at auto. It cannot win against the
+           widget above, but leaving it implicit meant the panel's stacking depended
+           entirely on .hdr's context, which is fragile to reorder.
+
+           Opening is driven ONLY by React state now. It used to also open on
+           :hover and :focus-within, which meant the panel could be visible while
+           aria-expanded was false - the arrow unrotated and a screen reader announcing
+           it as collapsed. A mega panel appearing on an accidental mouse-over is also
+           far more disruptive than a small dropdown was. */
+        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 208px));max-height:calc(100vh - 320px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fff;border:1px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+        .nav-menu.open{opacity:1;visibility:visible;transform:translateY(0);transition:opacity .2s,transform .2s,visibility 0s}
 
         /* Search field. Sized off the language panel's input rather than a new set of
            numbers - same 42px row, same 10px radius, same focus ring - so the two
            search fields on the site are recognisably the same control. */
-        .nav-search{width:calc(100% - 28px);margin:2px 14px 8px;min-height:42px;box-sizing:border-box;border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:10px 12px;font-size:15px;font-weight:400;line-height:1.3;color:rgba(0,0,0,.898);font-family:inherit;outline:none}
+        .nav-search{width:100%;margin:0 0 12px;min-height:42px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:15px;font-weight:400;line-height:1.3;color:rgba(0,0,0,.898);font-family:inherit;outline:none}
         .nav-search::placeholder{color:rgba(0,0,0,.42)}
-        .nav-search:focus{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(26,58,42,.1)}
+        .nav-search:focus{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(209,244,112,.3)}
+
+        /* Three equal columns with minmax(0,1fr) rather than 1fr: a bare 1fr uses
+           min-content as its floor, so "Request Amendment" would force its column
+           wider than a third and push the others narrow. */
+        .nav-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 20px;align-items:start}
+        .nav-col{display:flex;flex-direction:column;gap:10px;min-width:0}
+        .nav-results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 20px}
 
         /* 12px/500 muted, matching the language panel's group label. A heading over
            menu items must read as a category and not as a disabled item, which is why
            it is well below the 19px the items themselves use. */
         .nav-group{display:flex;flex-direction:column}
-        .nav-group + .nav-group{margin-top:6px;padding-top:6px;border-top:1px solid #e5e7eb}
-        .nav-group-label{padding:6px 22px 2px;font-size:12px;font-weight:500;letter-spacing:.04em;color:rgba(0,0,0,.42)}
-        .nav-empty{margin:0;padding:10px 22px 12px;font-size:14px;color:rgba(0,0,0,.5)}
+        .nav-group-label{display:block;padding:6px 12px 4px;font-size:12px;font-weight:500;letter-spacing:.04em;color:rgba(0,0,0,.42);text-transform:none}
+        /* The Selfservice heading is a link, so it needs an affordance the plain
+           headings do not have - without one it looks like the same inert label. */
+        .nav-group-link{color:#1a3a2a;text-decoration:none;border-radius:8px}
+        .nav-group-link:hover,.nav-group-link:focus-visible{background:rgba(209,244,112,.22);outline:none}
+        .nav-empty{margin:0;padding:10px 12px 12px;font-size:14px;color:rgba(0,0,0,.54)}
 
         /* 15px/46px was undersized against a 108px header and a 24px brand lockup,
            and it sat below the 16-17px the global .nav-item rules use for the same
-           control elsewhere. 17px on a 54px row also clears the 44px minimum touch
-           target with room to spare. min-width went with it so "Grahak OS" cannot
-           end up near the padding at the larger size. */
-        /* Sized in two passes, and the first one was wrong in a way worth recording:
-           the row went to 54px while the type only went to 17px, so the box grew
-           proportionally more than the glyphs and the text read SMALLER than before
-           rather than larger. 19px puts the type-to-row ratio at ~2.8, near the
+           control elsewhere. 19px puts the type-to-row ratio at ~2.8, near the
            2.5-ish a notion-style menu sits at, and keeps a deliberate step down from
            the 24px brand lockup instead of near-matching it.
            Nothing global was fighting this: the styled-jsx rule carries a jsx class,
            so it beats Layout.css's plain .nav-item on specificity, and
            inner-pages.css's .layout .nav-item block is empty and out of scope for the
-           public header anyway. */
-        .nav-item{display:flex;align-items:center;min-height:54px;padding:0 22px;font-size:19px;font-weight:600;color:#1a3a2a;text-decoration:none}
+           public header anyway.
+           The row is 46px here, not the 54px of the old single column: three columns
+           of 19px rows at 54px made the panel taller than the Selfservice list needs,
+           and 46px still clears the 44px minimum touch target. */
+        .nav-item{display:flex;align-items:center;min-height:46px;padding:0 12px;font-size:19px;font-weight:600;color:#1a3a2a;text-decoration:none;border-radius:8px}
         .nav-item:hover,.nav-item:focus-visible,.nav-item.active{background:rgba(209,244,112,.22);outline:none}
         .nav-item.active{font-weight:800}
-        /* The .nav-item override here is NOT redundant with the base rule: Layout.css
-           declares .nav-item inside its own mobile media queries at 16px and 17px, and
-           it is imported globally by _app.tsx. This keeps the public header's size its
-           own decision at the breakpoint where those rules switch on. */
-        /* The panel breaks out of the dropdown's relative box below 768px. Anchored
-           to the trigger it is 268px wide starting about 152px in, which ran 60px past
-           a 360px viewport - and the old 216px panel overflowed here too, by 8px, it
-           was just less visible. Fixed to the viewport with a 16px gutter each side
-           instead, sitting just under the 96px mobile header.
-           NOTE: .hdr-in must stay the first rule inside this media query - Header.test
-           asserts the literal string "@media(max-width:767px){.hdr-in{height:96px". */
-        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.nav-item{font-size:19px;min-height:56px}.nav-menu{position:fixed;top:100px;left:16px;right:16px;min-width:0;width:auto}}
+        /* Children of a linked heading step down to 17px. Same weight and colour, so
+           they read as the same kind of thing at a lower level rather than as a
+           different control - and the size difference is what carries the hierarchy
+           now that indentation alone would be ambiguous inside a column. */
+        .nav-sub{font-size:17px;min-height:42px}
+
+        /* The panel breaks to fewer columns before the columns get too narrow to hold
+           "Request Amendment" on one line. Measured rather than guessed: at 19px/17px
+           the widest label needs ~210px of row, so three columns stop fitting inside
+           the 1252px measure once the viewport is under ~820px. */
+        @media(max-width:1024px){.nav-cols,.nav-results{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        /* NOTE: .hdr-in must stay the first rule inside this media query - Header.test
+           asserts the literal string "@media(max-width:767px){.hdr-in{height:96px".
+           Below 768px the panel is a single scrolling column pinned to the viewport
+           with a 16px gutter, sitting just under the 96px mobile header. max-height
+           plus overflow-y is what stops twelve rows running off the bottom of a
+           phone - the old six-item dropdown never needed it. */
+        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.nav-menu{position:fixed;top:100px;left:16px;right:16px;width:auto;max-height:calc(100vh - 308px)}.nav-cols,.nav-results{grid-template-columns:minmax(0,1fr)}.nav-item{font-size:19px;min-height:52px}.nav-sub{font-size:17px;min-height:46px}}
+
+        @media(prefers-reduced-motion:reduce){
+          .nav-menu{transition:none}
+          .nav-arrow{transition:none}
+        }
       `}</style>
     </header>
   );
