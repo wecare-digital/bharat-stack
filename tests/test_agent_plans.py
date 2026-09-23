@@ -531,11 +531,15 @@ def test_the_global_kill_switch_stops_the_reads_too(agent, monkeypatch):
 
 
 def test_list_tools_reports_the_catalog_and_its_version(agent):
+    """Scoped to this surface. The catalog also holds the dashboard loop's 30
+    snake_case tools, and advertising both spellings would invite the model to call a
+    name this surface does not accept."""
     result = _call(agent, function="listTools")
     assert result["success"] is True
     assert result["catalogVersion"] == gov.CATALOG_VERSION
-    assert set(result["enabled"]) == set(READ_TOOLS)
-    assert set(result["refused"]) == set(APPLY_TOOLS)
+    agent_surface = set(gov.tools_for(gov.SURFACE_AGENT))
+    assert set(result["enabled"]) == set(READ_TOOLS) & agent_surface
+    assert set(result["refused"]) == set(APPLY_TOOLS) & agent_surface
 
 
 def test_list_tools_says_retrying_will_not_help(agent):

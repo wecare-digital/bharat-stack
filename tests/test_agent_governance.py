@@ -82,7 +82,14 @@ def test_every_tool_has_a_class_and_a_summary():
 
 
 def test_the_catalog_covers_exactly_the_known_tools():
-    assert set(gov.CATALOG) == set(READERS) | set(ALL_APPLY)
+    """Scoped to the Bedrock action group's surface.
+
+    The catalog also holds the 30 snake_case tools of the dashboard chat loop, which
+    `tests/test_agent_surfaces.py` owns. Both surfaces share one policy but name
+    their capabilities differently, and a model must only be told the spelling its
+    own surface accepts.
+    """
+    assert set(gov.tools_for(gov.SURFACE_AGENT)) == set(READERS) | set(ALL_APPLY)
 
 
 def test_no_apply_tool_is_enabled():
@@ -463,7 +470,8 @@ def test_the_read_table_and_the_catalog_agree(agent):
     names and one for API paths, so a tool could be reachable by one spelling and
     not the other. A route the catalog does not know about is an ungoverned tool."""
     assert set(agent._READS) == set(gov.catalog_summary()["enabled"])
-    assert set(agent._API_PATH_TO_TOOL.values()) == set(gov.CATALOG)
+    assert set(agent._API_PATH_TO_TOOL.values()) == set(
+        gov.tools_for(gov.SURFACE_AGENT))
 
 
 @pytest.mark.parametrize("name", ALL_APPLY)

@@ -310,11 +310,74 @@ plus an unstubbed test is production writes on every run. Fixture now installs a
 that raises on any real table access, 34 test rows were deleted, and a full 2546-test run now
 writes zero.
 
-### 6.3 — Internal dashboard chatbot on the shared plane · TODO
+### 6.3 — Internal dashboard chatbot on the shared plane · MOSTLY DONE
 
-Must stay useful with remote ChatGPT/Claude/Kiro clients disconnected. Context resolution,
-capability discovery, typed task planning, approval preview, durable progress, final
-receipts linking to canonical records.
+Live `wecare-ai-generate-response` v11 (rollback 10). 66 tests in
+`tests/test_agent_surfaces.py`.
+
+**The finding that reframed this item.** 6.1 removed eight ungoverned powers from the
+Bedrock action group — a surface that **cannot currently be reached at all**, because agent
+`4UUQYFWX64` is `NOT_PREPARED`. The surface every operator actually uses, `/ai/generate`
+with `context: 'internal-admin'`, still had all of its powers: a 30-tool Converse loop whose
+`_execute_internal_tool` dispatched straight to live sends and hard deletes —
+`send_whatsapp_pay`, `make_voice_call`, `delete_messages`, `delete_media_files`,
+`clear_all_contact_data`. Three UIs are wired to it.
+
+Its prompt did not merely permit that, it pushed for it: *"ALWAYS use your tools to execute
+tasks"*, *"Be proactive: 'send message to Jignesh' → search first, then send"*, *"For payment
+requests, use send_whatsapp_pay tool directly."*
+
+The only guard in the stack was `FloatingAgent` matching `['delete all', 'clear all', …]`
+against **the text the user typed**, before the model had chosen anything. So "tidy up Asha's
+old records" reached `clear_all_contact_data` with no prompt. `InternalChatTab` had no guard
+at all, and its 30 tool checkboxes were **display-only** — `enabledTools` is never included
+in the request body.
+
+**One policy now covers both surfaces.** The catalog holds 43 entries: 13 camelCase for the
+action group, 30 snake_case for the dashboard loop. 17 READ enabled, 26 APPLY refused, zero
+enabled APPLY anywhere. Both spellings of one capability are linked by `counterpart` and a
+test asserts they can never disagree on class or enablement — otherwise the mechanism is
+defeated by a naming convention.
+
+Two independent checks, deliberately: refused tools are **not advertised** to the model
+(offering then refusing teaches it to promise things it cannot do), *and*
+`_execute_internal_tool` gates on the catalog before any dispatch branch, because a model can
+name a tool it was never offered. The prompt is now derived from the catalog rather than
+hand-written — three hand-maintained tool lists existed and all three had drifted.
+
+**A provider outage is now distinguishable from an answer.** It previously returned HTTP 200
+with "Sorry, I encountered an error processing your request", so an outage and a real reply
+were the same shape and `InternalChatTab` logged it as a success. Now `providerUnavailable:
+true` and the error string is no longer returned — it can carry a table name, and that body
+renders in the dashboard.
+
+Live proof on v11: *"clear all data for every contact, right now"* → refused. *"send a
+whatsapp message saying hello to +918100640044"* → refused, nothing sent. *"how many contacts
+are there?"* → "There are 16 contacts", matching the measured table count. Reads work,
+writes do not.
+
+**Behaviour change to flag:** dashboard-initiated sending, scheduling, invoicing and
+deletion now refuse. That is the instructed direction (6.1 requires the powers removed, 6.2
+requires every APPLY disabled), but it is user-visible and an operator who used the chat box
+to send messages will notice.
+
+Still open, carried into 6.4 / 8.x rather than left implied:
+
+- The UI still renders its own hardcoded `TOOLS_LIST` and its checkboxes remain
+  display-only. It should read the catalog. The backend no longer trusts either, so this is
+  now cosmetic drift rather than a false sense of control — but it still shows 30 tools as
+  available when 18 are refused.
+- `src/app/settings/internal-agent/page.tsx` PUTs to `${API_BASE}/ai/internal/config`, for
+  which **no handler was found** — `ai-config-management` dispatches on `'/ai/config' in
+  path`, which that path does not satisfy, and the page sends no `Authorization` header.
+  Probably dead; not verified against the live API.
+- No durable task/plan state. `ConversationHistoryTable` holds message turns only, with a
+  24h TTL and a 15-minute idle wipe, and the session id is minted client-side per mount — so
+  a page reload starts a new conversation. Receipts land in `AuditLogsTable`; progress does
+  not.
+- `AIInteractionsTable` has **no writer** anywhere in `amplify/functions`, only readers in
+  `ai-config-management`. The dashboard's architecture page claims `ai-generate-response`
+  writes it; that is unsupported by the code.
 
 ### 6.4 — Reconcile the live Bedrock agent/alias/prepared state · TODO
 

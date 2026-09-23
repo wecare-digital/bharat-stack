@@ -66,7 +66,7 @@ CLASS_APPLY = "APPLY"
 #
 # `plans.catalog_fingerprint()` computes the shape independently, so a reclassified
 # tool is caught even if somebody forgets to bump this.
-CATALOG_VERSION = "1"
+CATALOG_VERSION = "2"
 
 # Kill switches. They SUBTRACT ONLY.
 #
@@ -88,6 +88,18 @@ class ToolUnknown(KeyError):
     """The requested tool is not in the catalog. Never guessed at."""
 
 
+# Which agent surface offers a tool. Two exist and they name the same capabilities
+# differently: the Bedrock action group uses camelCase (`sendWhatsApp`) and the
+# dashboard chat loop in `/ai/generate` uses snake_case (`send_whatsapp`).
+#
+# Both spellings are first-class catalog entries rather than one being canonical,
+# because both are live and renaming either would change a live response shape. What
+# matters is that the two spellings of one capability can never disagree about their
+# class or their enablement, and `tests/test_agent_surfaces.py` asserts exactly that.
+SURFACE_AGENT = "agent"        # Bedrock action group, camelCase
+SURFACE_INTERNAL = "internal"  # dashboard chat tool loop, snake_case
+
+
 @dataclass(frozen=True)
 class Tool:
     name: str
@@ -102,6 +114,11 @@ class Tool:
     # function names and API semantics are not a model's business - but they are
     # exactly what the next engineer needs so the power is not reintroduced.
     detail: str = ""
+    # Which surface offers this spelling.
+    surface: str = SURFACE_AGENT
+    # The same capability's name on the other surface, when there is one. Used only
+    # to assert the two cannot diverge; not exposed to a model.
+    counterpart: str = ""
 
 
 class ToolRefused(PermissionError):
@@ -223,6 +240,163 @@ CATALOG: Dict[str, Tool] = {
                 "and minting an identifier outside it breaks that series.")),
 }
 
+# --------------------------------------------------------------------------
+# The dashboard chat surface: /ai/generate, context='internal-admin'
+# --------------------------------------------------------------------------
+# Added 2026-09-23, and this is the half that mattered.
+#
+# Phase 6.1 removed eight ungoverned powers from the Bedrock action group - a
+# surface that cannot currently be reached at all, because agent 4UUQYFWX64 is
+# NOT_PREPARED. Meanwhile the surface every operator actually uses, `/ai/generate`
+# with `context: 'internal-admin'`, ran a 30-tool Bedrock Converse loop whose
+# `_execute_internal_tool` dispatched straight to live sends and hard deletes:
+# `send_whatsapp_pay`, `make_voice_call`, `delete_messages`, `delete_media_files`
+# and `clear_all_contact_data` among them. Three UIs are wired to it
+# (FloatingAgent, InternalChatTab, the dashboard AI tab).
+#
+# Its system prompt did not merely permit that, it pushed for it:
+#     "ALWAYS use your tools to execute tasks. Never explain how to do something
+#      manually." / "Be proactive: 'send message to Jignesh' -> search first, then
+#      send." / "For payment requests, use send_whatsapp_pay tool directly."
+#
+# The only guard anywhere was a substring match in FloatingAgent against the text
+# the USER typed - `['delete all', 'clear all', ...]` - evaluated before the model
+# had chosen anything, so "tidy up Asha's records" reached `clear_all_contact_data`
+# without a prompt. InternalChatTab had no guard at all, and its 30 tool checkboxes
+# were display-only: the toggles were never included in the request body.
+#
+# So the same policy now covers both surfaces. 12 READ, 18 APPLY.
+_SEND = (
+    "Sending is refused. Draft what you would send and hand it to a person for "
+    "approval - do not state that anything was sent."
+)
+_SEND_DETAIL = (
+    "This dispatched to a live outbound sender chosen by the model, so the model's "
+    "tool selection was the only authorisation between a chat box and a real "
+    "customer under our registered sender. Route it through the plan / approval / "
+    "receipt path before re-enabling."
+)
+_DESTRUCTIVE = (
+    "Deleting data is refused. Report what you believe should be removed and let a "
+    "person do it. Do not state that anything was deleted."
+)
+
+
+def _read(name: str, summary: str, counterpart: str = "") -> Tool:
+    return Tool(name=name, tool_class=CLASS_READ, enabled=True, summary=summary,
+                surface=SURFACE_INTERNAL, counterpart=counterpart)
+
+
+def _apply(name: str, summary: str, refusal: str, detail: str,
+           counterpart: str = "") -> Tool:
+    return Tool(name=name, tool_class=CLASS_APPLY, enabled=False, summary=summary,
+                refusal=refusal, detail=detail, surface=SURFACE_INTERNAL,
+                counterpart=counterpart)
+
+
+CATALOG.update({
+    # ---------------- READ: enabled ----------------
+    "search_contacts": _read("search_contacts", "Find contacts by name, phone or email.",
+                             counterpart="searchContacts"),
+    "get_messages": _read("get_messages", "Recent messages for a contact.",
+                          counterpart="getMessages"),
+    "get_stats": _read("get_stats", "Dashboard counts.", counterpart="getStats"),
+    "get_voice_cdr": _read("get_voice_cdr", "Recent voice call records."),
+    "get_billing_summary": _read("get_billing_summary", "AWS spend summary."),
+    "get_invoice_list": _read("get_invoice_list", "Existing invoices."),
+    "get_wix_products": _read("get_wix_products", "Storefront products."),
+    "get_wix_orders": _read("get_wix_orders", "Storefront orders."),
+    "list_media_files": _read("list_media_files", "Stored media files."),
+    "list_scheduled_messages": _read("list_scheduled_messages",
+                                     "Messages already scheduled."),
+    "list_submit_requests": _read("list_submit_requests", "Flow submissions."),
+    "list_templates": _read("list_templates", "Approved message templates."),
+
+    # ---------------- APPLY: refused ----------------
+    # Sends. Every one of these reached a real recipient on the model's decision.
+    "send_whatsapp": _apply("send_whatsapp", "Send a WhatsApp message.",
+                            _SEND, _SEND_DETAIL, counterpart="sendWhatsApp"),
+    "send_whatsapp_buttons": _apply("send_whatsapp_buttons",
+                                    "Send an interactive button message.",
+                                    _SEND, _SEND_DETAIL),
+    "send_whatsapp_list": _apply("send_whatsapp_list",
+                                 "Send an interactive list message.",
+                                 _SEND, _SEND_DETAIL),
+    "send_whatsapp_flow": _apply("send_whatsapp_flow", "Send a WhatsApp Flow.",
+                                 _SEND, _SEND_DETAIL),
+    "send_template": _apply("send_template", "Send an approved template.",
+                            _SEND, _SEND_DETAIL),
+    "send_sms": _apply("send_sms", "Send an SMS.", _SEND, _SEND_DETAIL,
+                       counterpart="sendSms"),
+    "send_email": _apply("send_email", "Send an email.", _SEND, _SEND_DETAIL,
+                         counterpart="sendEmail"),
+    "make_voice_call": _apply(
+        "make_voice_call", "Place a voice call to a contact.", _SEND,
+        "A model placing a PSTN call is a send with a per-minute cost and a person "
+        "on the other end. " + _SEND_DETAIL),
+    "send_whatsapp_pay": _apply(
+        "send_whatsapp_pay", "Send a payment request.",
+        "Requesting money is refused. Prepare the details for a person to review; "
+        "do not state that a payment request was sent.",
+        "This asked a customer for money on the model's decision. Payment capture, "
+        "refund and payment-configuration changes are prohibited outright, and a "
+        "payment REQUEST is the same conversation with the customer."),
+    "schedule_message": _apply(
+        "schedule_message", "Schedule a message for later.",
+        "Scheduling a message is refused - it is a send with a delay. Hand the "
+        "details to a person; do not state that anything was scheduled.",
+        "A deferred send is still a send, and it is worse to review after the fact "
+        "because the model that chose it is long gone by the time it goes out."),
+    "create_invoice": _apply(
+        "create_invoice", "Create an invoice.",
+        "Creating an invoice is refused here. Do not state that an invoice exists.",
+        "The invoice-engine function owns the GST number sequence; minting a number "
+        "outside it breaks that series.", counterpart="createInvoice"),
+
+    # Contact writes.
+    "create_contact": _apply(
+        "create_contact", "Create a contact.",
+        "Creating a contact record is refused here. Ask a person to create it.",
+        "The contact service owns creation, including the invariant that `id` is "
+        "physical and `contactId` is its alias.", counterpart="createContact"),
+    "update_contact": _apply(
+        "update_contact", "Update a contact.",
+        "Changing a contact record is refused here. Report what should change and "
+        "let a person apply it.",
+        "An unreviewed field-level update chosen by a model can overwrite "
+        "provenance-bearing fields.", counterpart="updateContact"),
+    "add_contact_email": _apply(
+        "add_contact_email", "Add an email to a contact.",
+        "Changing a contact record is refused here. Report it and let a person "
+        "apply it.",
+        "Same writer-ownership reasoning as update_contact; an email address is the "
+        "field an account-recovery path would trust."),
+
+    # Deletes. The sharpest of the set.
+    "delete_contact": _apply("delete_contact", "Delete a contact.",
+                             _DESTRUCTIVE,
+                             "An unconditional marker write, which DynamoDB treats "
+                             "as an upsert - so deleting an unknown id created a "
+                             "row rather than removing one.",
+                             counterpart="deleteContact"),
+    "delete_messages": _apply(
+        "delete_messages", "Delete a contact's messages.", _DESTRUCTIVE,
+        "Messages are the record of what was said to a customer. A model choosing "
+        "to remove them destroys the evidence of its own earlier actions."),
+    "delete_media_files": _apply(
+        "delete_media_files", "Delete stored media.", _DESTRUCTIVE,
+        "Media referenced by a sent message; deleting it breaks the record "
+        "retrospectively."),
+    "clear_all_contact_data": _apply(
+        "clear_all_contact_data", "Erase everything held about a contact.",
+        _DESTRUCTIVE,
+        "The widest blast radius in the whole tool set, and it was reachable from a "
+        "chat box. The only guard was FloatingAgent matching the substring 'clear "
+        "all' in what the user typed, so any phrasing the model interpreted as "
+        "tidying up - and every request routed through InternalChatTab, which had "
+        "no guard at all - went straight through."),
+})
+
 
 def resolve(name: str) -> Tool:
     """The catalog entry, or `ToolUnknown`. Never a default."""
@@ -284,18 +458,33 @@ def assert_executable(name: str) -> Tool:
     return tool
 
 
-def catalog_summary() -> Dict[str, Any]:
+def tools_for(surface: str) -> Dict[str, Tool]:
+    """Catalog entries offered by one surface.
+
+    The two surfaces name the same capabilities differently, so a model must be told
+    only the spelling its own surface accepts. Handing it both would invite it to
+    call `sendWhatsApp` on a loop that dispatches `send_whatsapp`, and the resulting
+    "unknown tool" would look like a bug rather than a naming mismatch.
+    """
+    return {t.name: t for t in CATALOG.values() if t.surface == surface}
+
+
+def catalog_summary(surface: str = SURFACE_AGENT) -> Dict[str, Any]:
     """What a model may be told about its own tools.
 
     Names, classes and summaries only. No table name, function name or ARN - a
     model does not need the topology to call a tool, and anything put here ends up
     in a prompt, then in a transcript.
+
+    `enabled` reflects live enablement including the kill switches, not just the
+    catalog default, so a switched-off tool is not advertised as available.
     """
+    scoped = tools_for(surface)
     return {
         "enabled": {t.name: {"class": t.tool_class, "summary": t.summary}
-                    for t in CATALOG.values() if t.enabled},
+                    for t in scoped.values() if is_enabled(t.name)},
         "refused": {t.name: {"class": t.tool_class, "reason": t.refusal}
-                    for t in CATALOG.values() if not t.enabled},
+                    for t in scoped.values() if not is_enabled(t.name)},
     }
 
 
