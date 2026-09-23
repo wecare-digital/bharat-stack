@@ -83,6 +83,18 @@ function fallbackBlocks ( content: string ) {
   return content.split( /\r?\n/ ).map( line => line.trim() ).filter( Boolean );
 }
 
+function inlineFormat ( text: string ) {
+  return text.split( /(\*\*[^*]+\*\*|\*[^*]+\*)/g ).filter( Boolean ).map( ( part, index ) => {
+    if ( part.startsWith( '**' ) && part.endsWith( '**' ) ) {
+      return <strong key={ index }>{ part.slice( 2, -2 ) }</strong>;
+    }
+    if ( part.startsWith( '*' ) && part.endsWith( '*' ) ) {
+      return <em key={ index }>{ part.slice( 1, -1 ) }</em>;
+    }
+    return part;
+  } );
+}
+
 export default function BlogPostPage ( { post }: Props ) {
   const canonical = `https://wecare.digital/post/${post.slug}/`;
   const title = post.seoTitle || post.title;
@@ -146,7 +158,12 @@ export default function BlogPostPage ( { post }: Props ) {
           <div className="content">
             { richNodes.length > 0
               ? richNodes.map( ( node, index ) => renderRicosNode( node, `block-${index}` ) )
-              : blocks.map( ( line, index ) => <p key={ index }>{ line }</p> ) }
+              : blocks.map( ( line, index ) => {
+                if ( line.startsWith( '### ' ) ) return <h3 key={ index }>{ inlineFormat( line.slice( 4 ) ) }</h3>;
+                if ( line.startsWith( '## ' ) ) return <h2 key={ index }>{ inlineFormat( line.slice( 3 ) ) }</h2>;
+                if ( line.startsWith( '# ' ) ) return <h2 key={ index }>{ inlineFormat( line.slice( 2 ) ) }</h2>;
+                return <p key={ index }>{ inlineFormat( line ) }</p>;
+              } ) }
           </div>
           { post.tags && post.tags.length > 0 && (
             <div className="tags">{ post.tags.map( tag => <span key={ tag }>{ tag }</span> ) }</div>
@@ -159,7 +176,7 @@ export default function BlogPostPage ( { post }: Props ) {
         .back{display:inline-block;color:#1a3a2a;text-decoration:none;font-size:13px;font-weight:650;margin-bottom:26px}
         .back:before{content:'← ';margin-right:4px}
         .category{display:inline-block;background:#d1f470;color:#1a3a2a;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;margin-bottom:18px}
-        h1{font-size:clamp(40px,6vw,68px);line-height:1.04;letter-spacing:-.045em;color:#1a3a2a;margin:0 0 18px;font-weight:600}
+        h1{font-size:clamp(36px,4.3vw,60px);line-height:1.04;letter-spacing:-2.2px;color:#1a3a2a;margin:0 0 18px;font-weight:600}
         .byline{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#6b7280;margin-bottom:38px}
         .content{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         .content :global(p),
