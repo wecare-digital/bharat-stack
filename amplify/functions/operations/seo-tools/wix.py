@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import boto3
 
 WIX_API = 'https://www.wixapis.com'
-SITE_BASE = 'https://www.wecare.digital'
+SITE_BASE = 'https://wecare.digital'
 SECRET_NAME = os.environ.get('WIX_API_KEY_SECRET', 'wecare/wix-api-key')
 SITE_ID = os.environ.get('WIX_SITE_ID', '')
 _api_key = None
