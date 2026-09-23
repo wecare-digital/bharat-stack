@@ -124,6 +124,7 @@ SPECS: List[Spec] = [
     Spec("wecare-automation-rules", "core/automation-rules"),
     Spec("wecare-contacts", "core/contacts"),
     Spec("wecare-conversation-meta", "core/conversation-meta"),
+    Spec("wecare-crm", "core/crm"),
     Spec("wecare-faq-handler", "core/faq-handler"),
     Spec("wecare-messages-delete", "core/messages-delete"),
     Spec("wecare-messages-read", "core/messages-read"),
