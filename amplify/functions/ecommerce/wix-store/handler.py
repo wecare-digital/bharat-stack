@@ -1,16 +1,14 @@
 """
 Wix Store Integration Lambda Function
 
-Purpose: Full bridge between WECARE.DIGITAL platform and Wix Stores/eCommerce REST APIs.
-Supports two modes:
-  - 'api' (default): Wix REST API at wixapis.com
-  - 'velo': Velo HTTP Functions on your published Wix site (yoursite.com/_functions/*)
+Purpose: API-only bridge between WECARE.DIGITAL and a Wix Headless commerce backend.
 
-Velo mode gives access to custom order numbers and all Wix Data collection fields
-that aren't exposed through the standard REST API.
+Catalog reads and product management use Wix Stores Catalog V3.
+Inventory uses Inventory Items V3.
+Orders use the Wix eCommerce Orders APIs.
+No Wix Editor or Velo runtime is required.
 
-Wix API Docs: https://dev.wix.com/docs/rest/business-solutions/stores
-Velo HTTP Functions: https://dev.wix.com/docs/velo/apis/wix-http-functions
+Wix Catalog V3 docs: https://dev.wix.com/docs/api-reference/business-solutions/stores/catalog-v3/introduction
 """
 
 import os
@@ -30,12 +28,8 @@ import boto3
 # ---------------------------------------------------------------------------
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
-from lambda_utils.idempotency import claim_admin_action
 
 logger = get_logger(__name__)
-
-# Mode: 'api' or 'velo'
-WIX_MODE = os.environ.get('WIX_MODE', 'api')
 
 # REST API config
 # WIX_API_KEY is loaded from Secrets Manager (wecare/wix-api-key), with a
@@ -79,58 +73,236 @@ WIX_SITE_ID = os.environ.get('WIX_SITE_ID', '')
 WIX_ACCOUNT_ID = os.environ.get('WIX_ACCOUNT_ID', '')
 WIX_API_BASE = os.environ.get('WIX_API_BASE_URL', 'https://www.wixapis.com')
 
-# Velo HTTP Functions config
-WIX_VELO_BASE = os.environ.get('WIX_VELO_BASE_URL', '')  # e.g. https://www.yoursite.com
-WIX_VELO_API_KEY = os.environ.get('WIX_VELO_API_KEY', '')  # shared secret for auth
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 PRODUCTS_CACHE_TABLE = os.environ.get('WIX_PRODUCTS_CACHE_TABLE', 'stack-wecare-digital-WixProductsCache')
 ORDERS_CACHE_TABLE = os.environ.get('WIX_ORDERS_CACHE_TABLE', 'stack-wecare-digital-WixOrdersCache')
 ORDER_IDS_TABLE = os.environ.get('WIX_ORDER_IDS_TABLE', 'stack-wecare-digital-WixOrderIds')
-ORDER_RETRY_WINDOW_SECONDS = int(os.environ.get('ORDER_RETRY_WINDOW_SECONDS', '300'))
-lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 # Module-level origin for CORS (set per-invocation in handler)
 origin = ''
+
+CATALOG_PRODUCT_FIELDS = [
+    'URL',
+    'CURRENCY',
+    'MEDIA_ITEMS_INFO',
+    'DESCRIPTION',
+    'DIRECT_CATEGORIES_INFO',
+    'ALL_CATEGORIES_INFO',
+    'VARIANT_OPTION_CHOICE_NAMES',
+    'WEIGHT_MEASUREMENT_UNIT_INFO',
+]
+
+CATEGORY_TREE_REFERENCE = {'appNamespace': '@wix/stores'}
+
+
+def _fields_suffix(fields: list) -> str:
+    return '?' + '&'.join(f'fields={field}' for field in fields) if fields else ''
+
+
+def _first_variant(product: dict) -> dict:
+    return ((product.get('variantsInfo') or {}).get('variants') or [{}])[0] or {}
+
+
+def _money_amount(value: Any) -> str:
+    if isinstance(value, dict):
+        value = value.get('amount', '')
+    if value is None:
+        return ''
+    return str(value)
+
+
+def _normalize_v3_product(product: dict) -> dict:
+    """Expose a stable compatibility shape to the existing Amplify admin UI."""
+    normalized = dict(product or {})
+    variant_rows = (product.get('variantsInfo') or {}).get('variants') or []
+    first = variant_rows[0] if variant_rows else {}
+    amount = _money_amount(((first.get('price') or {}).get('actualPrice') or {}))
+    if not amount:
+        amount = _money_amount(((product.get('actualPriceRange') or {}).get('minValue') or {}))
+    currency = product.get('currency') or 'INR'
+    try:
+        numeric_price = float(amount) if amount else 0.0
+    except (TypeError, ValueError):
+        numeric_price = 0.0
+
+    media = product.get('media') or {}
+    main_media = media.get('main') or {}
+    media_items = ((media.get('itemsInfo') or {}).get('items') or [])
+    inventory = product.get('inventory') or {}
+    availability = str(inventory.get('availabilityStatus') or '').upper()
+    in_stock = bool(inventory.get('inStock')) or availability in {
+        'IN_STOCK', 'PARTIALLY_OUT_OF_STOCK'
+    }
+
+    categories = []
+    for category in ((product.get('directCategoriesInfo') or {}).get('categories') or []):
+        if isinstance(category, dict):
+            categories.append({
+                **category,
+                '_id': category.get('id', ''),
+                'name': category.get('name', ''),
+            })
+
+    compatible_options = []
+    for option in product.get('options') or []:
+        choices = []
+        for choice in ((option.get('choicesSettings') or {}).get('choices') or []):
+            choices.append({
+                **choice,
+                'description': choice.get('name', ''),
+                'value': choice.get('name', ''),
+            })
+        compatible_options.append({
+            **option,
+            'choices': choices,
+        })
+
+    compatible_variants = []
+    for variant in variant_rows:
+        choices = {}
+        for choice in variant.get('choices') or []:
+            names = choice.get('optionChoiceNames') or {}
+            option_name = names.get('optionName') or ''
+            choice_name = names.get('choiceName') or ''
+            if option_name:
+                choices[option_name] = choice_name
+        variant_amount = _money_amount(((variant.get('price') or {}).get('actualPrice') or {}))
+        compatible_variants.append({
+            **variant,
+            'choices': choices,
+            'variant': {
+                **variant,
+                'sku': variant.get('sku', ''),
+                'priceData': {
+                    'formatted': {
+                        'price': f'{currency} {variant_amount}'.strip()
+                    }
+                },
+            },
+        })
+
+    brand = product.get('brand') or {}
+    ribbon = product.get('ribbon') or {}
+    normalized.update({
+        '_id': product.get('id', ''),
+        'description': product.get('plainDescription') or product.get('description') or '',
+        'price': numeric_price,
+        'formattedPrice': f'{currency} {amount}'.strip() if amount else '',
+        'currency': currency,
+        'sku': first.get('sku', ''),
+        'ribbon': ribbon.get('name', '') if isinstance(ribbon, dict) else ribbon,
+        'brand': brand.get('name', '') if isinstance(brand, dict) else brand,
+        'inStock': in_stock,
+        'quantityInStock': inventory.get('quantity'),
+        'productType': str(product.get('productType') or '').lower(),
+        'mainMedia': main_media,
+        'mediaItems': media_items,
+        'collections': categories,
+        'customTextFields': product.get('modifiers') or [],
+        'productOptions': compatible_options,
+        'variants': compatible_variants,
+        'lastUpdated': product.get('updatedDate', ''),
+        '_siteUrl': f"https://www.wecare.digital/product-page/{product.get('slug', '')}"
+                    if product.get('slug') else '',
+        '_mainImage': main_media.get('url', '') if isinstance(main_media, dict) else '',
+        '_mediaCount': len(media_items),
+        '_priceSummary': {
+            'amount': numeric_price,
+            'currency': currency,
+            'formatted': f'{currency} {amount}'.strip() if amount else '',
+        },
+        '_stockSummary': {
+            'inStock': in_stock,
+            'trackInventory': inventory.get('trackQuantity', False),
+            'inventoryStatus': availability or 'UNKNOWN',
+            'quantity': inventory.get('quantity'),
+        },
+    })
+    return normalized
+
+
+def _normalize_category(category: dict) -> dict:
+    return {
+        **(category or {}),
+        '_id': (category or {}).get('id', ''),
+        'mainMedia': (category or {}).get('image') or {},
+    }
+
+
+def _simple_product_to_v3(source: dict) -> dict:
+    """Translate the legacy admin form payload into a Catalog V3 product."""
+    src = dict(source or {})
+    if src.get('variantsInfo'):
+        product = {k: v for k, v in src.items()
+                   if k not in {'imageUrls', 's3Keys', 'folder', 'priceData', 'stock', 'sku'}}
+        product['productType'] = str(product.get('productType') or 'PHYSICAL').upper()
+        return product
+
+    product_type = str(src.get('productType') or 'PHYSICAL').upper()
+    price_data = src.get('priceData') or {}
+    price = price_data.get('price', src.get('price', 0))
+    sku = str(src.get('sku') or '').strip()
+    if not sku or not sku.startswith(SKU_PREFIX + '-'):
+        sku = _generate_sku(src.get('name', ''))
+
+    variant = {
+        'visible': True,
+        'sku': sku,
+        'price': {'actualPrice': {'amount': str(price or 0)}},
+    }
+    if src.get('weight') not in (None, ''):
+        try:
+            variant['physicalProperties'] = {'weight': float(src.get('weight') or 0)}
+        except (TypeError, ValueError):
+            variant['physicalProperties'] = {}
+    product = {
+        'name': src.get('name', ''),
+        'productType': product_type,
+        'variantsInfo': {'variants': [variant]},
+    }
+    if product_type == 'PHYSICAL':
+        product['physicalProperties'] = src.get('physicalProperties') or {}
+        variant['physicalProperties'] = {}
+
+    if 'visible' in src:
+        product['visible'] = bool(src.get('visible'))
+    description = src.get('plainDescription', src.get('description'))
+    if isinstance(description, str) and description:
+        product['plainDescription'] = description
+    if isinstance(src.get('brand'), dict):
+        product['brand'] = src['brand']
+    elif src.get('brand'):
+        product['brand'] = {'name': str(src['brand'])}
+    if isinstance(src.get('ribbon'), dict):
+        product['ribbon'] = src['ribbon']
+    elif src.get('ribbon'):
+        product['ribbon'] = {'name': str(src['ribbon'])}
+    if src.get('media'):
+        product['media'] = src['media']
+    if src.get('options'):
+        product['options'] = src['options']
+    if src.get('modifiers'):
+        product['modifiers'] = src['modifiers']
+    return product
+
 
 
 # ===================================================================
 # HANDLER
 # ===================================================================
 
-def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """
-    Main Lambda handler — routes by path prefix.
 
-    Routes:
-      GET  /sites                        - List account sites (account-level)
-      GET  /products                     - Query products
-      GET  /products/:id                 - Get single product (full detail)
-      GET  /collections                   - Query collections
-      GET  /collections/:id              - Get single collection
-      GET  /collections/:id/products     - Products in a collection
-      GET  /inventory                    - Query inventory items
-      GET  /inventory/:productId         - Inventory for a product
-      GET  /orders                       - Search orders (full detail)
-      GET  /orders/:id                   - Get single order (full detail)
-      GET  /orders/:id/fulfillments      - Fulfillments for an order
-      GET  /orders/:id/transactions      - Transactions for an order
-      GET  /sample-products              - BNB CLUB sample product templates
-      POST /create-product               - Create a single product
-      POST /bulk-create-products         - Bulk create products
-      POST /update-product               - Update a product
-      POST /delete-product               - Delete a product
-      POST /add-product-image            - Add image(s) to a product (URL or S3 key)
-      POST /upload-product-image         - Upload base64 image to S3 + attach to product
-      POST /sync/products                - Sync products → DynamoDB
-      POST /sync/orders                  - Sync orders → DynamoDB
-      POST /backfill-order-ids           - Backfill WD-ORD numbers for all existing orders
-    """
+def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    """Route authenticated admin/store requests to the Wix REST APIs."""
     request_id = context.aws_request_id if context else 'local'
     global origin
     origin = extract_origin(event)
 
     try:
-        http_method = event.get('httpMethod', event.get('requestContext', {}).get('http', {}).get('method', 'GET'))
+        http_method = event.get(
+            'httpMethod',
+            event.get('requestContext', {}).get('http', {}).get('method', 'GET'),
+        )
         path = event.get('path', event.get('rawPath', '/'))
         params = event.get('queryStringParameters', {}) or {}
 
@@ -144,88 +316,55 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'action': 'wix_store_request',
             'method': http_method,
             'path': path,
-            'mode': WIX_MODE,
+            'catalogVersion': 'v3',
             'requestId': request_id,
         }))
 
-        # Order notification BFF always uses the protected Velo collection bridge.
-        if '/order-notifications/retry' in path and http_method == 'POST':
-            return _retry_order_notification(event, request_id)
-        if '/order-notifications' in path and http_method == 'GET':
-            return _list_order_notifications(params, request_id)
-
-        # ---- Velo mode: route through Velo HTTP Functions ----
-        if WIX_MODE == 'velo':
-            body = _parse_body(event) if http_method == 'POST' else {}
-            return _velo_route(path, params, request_id, http_method, body)
-
-        # ---- POST: Product management (check before resource routes) ----
         if http_method == 'POST':
             if '/create-product' in path:
-                body = _parse_body(event)
-                return _create_product_rest(body, request_id)
+                return _create_product_rest(_parse_body(event), request_id)
             if '/bulk-create-products' in path:
-                body = _parse_body(event)
-                return _bulk_create_products_rest(body, request_id)
+                return _bulk_create_products_rest(_parse_body(event), request_id)
             if '/update-product' in path:
-                body = _parse_body(event)
-                product_data = body.get('product', body)
-                pid = body.get('productId', product_data.get('id', ''))
-                updates = body.get('updates', product_data)
-                if not pid:
-                    return _response(400, {'error': 'Missing productId', 'requestId': request_id})
-                try:
-                    result = _wix_request(f'/stores/v1/products/{pid}', method='PATCH', body={'product': updates})
-                    return _response(200, {'product': result.get('product', {}), 'updated': True, 'requestId': request_id})
-                except Exception as e:
-                    return _response(500, {'error': str(e), 'requestId': request_id})
+                return _update_product_rest(_parse_body(event), request_id)
             if '/delete-product' in path:
                 body = _parse_body(event)
-                pid = body.get('productId', '')
+                pid = str(body.get('productId', '')).strip()
                 if not pid:
                     return _response(400, {'error': 'Missing productId', 'requestId': request_id})
-                try:
-                    _wix_request(f'/stores/v1/products/{pid}', method='DELETE')
-                    return _response(200, {'deleted': True, 'requestId': request_id})
-                except Exception as e:
-                    return _response(500, {'error': str(e), 'requestId': request_id})
+                _wix_request(f'/stores/v3/products/{pid}', method='DELETE')
+                return _response(200, {'deleted': True, 'requestId': request_id})
             if '/add-product-image' in path:
-                body = _parse_body(event)
-                return _add_product_image(body, request_id)
+                return _add_product_image(_parse_body(event), request_id)
             if '/upload-product-image' in path:
-                body = _parse_body(event)
-                return _upload_product_image(event, body, request_id)
+                return _upload_product_image(event, _parse_body(event), request_id)
             if '/backfill-order-ids' in path:
                 return _backfill_order_ids(request_id)
+            if '/sync' in path:
+                if 'products' in path:
+                    return _sync_products(request_id)
+                if 'orders' in path:
+                    return _sync_orders(request_id)
 
-        # ---- Account-level ----
         if '/sites' in path:
             return _list_sites(params, request_id)
 
-        # ---- Collections ----
         if '/collections' in path:
-            coll_id = _extract_id(path, 'collections')
-            if coll_id and '/products' in path.split('collections/' + coll_id)[-1]:
-                return _collection_products(coll_id, params, request_id)
-            if coll_id:
-                return _get_collection(coll_id, request_id)
+            category_id = _extract_id(path, 'collections')
+            if category_id and '/products' in path.split('collections/' + category_id)[-1]:
+                return _collection_products(category_id, params, request_id)
+            if category_id:
+                return _get_collection(category_id, request_id)
             return _list_collections(params, request_id)
 
-        # ---- Products ----
         if '/products' in path:
             product_id = _extract_id(path, 'products')
-            if product_id:
-                return _get_product(product_id, request_id)
-            return _list_products(params, request_id)
+            return _get_product(product_id, request_id) if product_id else _list_products(params, request_id)
 
-        # ---- Inventory ----
         if '/inventory' in path:
             product_id = _extract_id(path, 'inventory')
-            if product_id:
-                return _get_inventory(product_id, request_id)
-            return _query_inventory(params, request_id)
+            return _get_inventory(product_id, request_id) if product_id else _query_inventory(params, request_id)
 
-        # ---- Orders ----
         if '/orders' in path:
             order_id = _extract_id(path, 'orders')
             if order_id:
@@ -236,14 +375,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return _get_order(order_id, request_id)
             return _search_orders(params, request_id)
 
-        # ---- Sync ----
-        if '/sync' in path and http_method == 'POST':
-            if 'products' in path:
-                return _sync_products(request_id)
-            if 'orders' in path:
-                return _sync_orders(request_id)
-
-        # ---- Sample products ----
         if '/sample-products' in path:
             return _get_sample_products(request_id)
 
@@ -256,11 +387,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'requestId': request_id,
         }))
         return _response(500, {'error': 'Internal server error', 'message': str(e)})
-
-
-# ===================================================================
-# WIX API CLIENT
-# ===================================================================
 
 def _wix_request(endpoint: str, method: str = 'GET', body: dict = None,
                  level: str = 'site') -> Dict[str, Any]:
@@ -344,44 +470,49 @@ def _list_sites(params: dict, request_id: str) -> Dict[str, Any]:
 # PRODUCTS
 # ===================================================================
 
+
 def _list_products(params: dict, request_id: str) -> Dict[str, Any]:
-    """Query products from Wix Stores catalog. Includes variants when requested."""
-    limit = int(params.get('limit', 100))
-    offset = int(params.get('offset', 0))
-    include_variants = params.get('includeVariants', 'true').lower() == 'true'
+    """List/search Catalog V3 products while preserving the admin UI contract."""
+    limit = max(1, min(int(params.get('limit', 100)), 100))
+    cursor = params.get('cursor', '')
+    search_text = str(params.get('search', '') or '').strip()
+    category_id = str(params.get('collectionId', '') or '').strip()
 
-    query_body = {
-        'query': {
-            'paging': {'limit': limit, 'offset': offset},
-        },
-        'includeVariants': include_variants,
-        'includeHiddenProducts': params.get('includeHidden', 'false').lower() == 'true',
-    }
+    if search_text or category_id:
+        search = {'cursorPaging': {'limit': limit}}
+        if cursor:
+            search['cursorPaging']['cursor'] = cursor
+        if search_text:
+            search['search'] = {
+                'expression': search_text,
+                'fields': ['name'],
+                'fuzzy': False,
+            }
+        if category_id:
+            search['filter'] = {
+                'directCategoriesInfo.categories': {
+                    '$matchItems': [{'id': {'$eq': category_id}}]
+                }
+            }
+        result = _wix_request('/stores/v3/products/search', method='POST', body={
+            'fields': CATALOG_PRODUCT_FIELDS,
+            'search': search,
+        })
+    else:
+        paging = {'limit': limit}
+        if cursor:
+            paging['cursor'] = cursor
+        result = _wix_request('/stores/v3/products/query', method='POST', body={
+            'fields': CATALOG_PRODUCT_FIELDS,
+            'query': {'cursorPaging': paging},
+        })
 
-    # Text search filter
-    search = params.get('search')
-    if search:
-        query_body['query']['filter'] = {'name': {'$contains': search}}
-
-    # Collection filter
-    collection_id = params.get('collectionId')
-    if collection_id:
-        query_body['query']['filter'] = query_body['query'].get('filter', {})
-        query_body['query']['filter']['collections.id'] = {'$hasSome': [collection_id]}
-
-    result = _wix_request('/stores/v1/products/query', method='POST', body=query_body)
-    products = result.get('products', [])
-
-    # Enrich each product with site URL and stock summary
-    for p in products:
-        slug = p.get('slug', '')
-        p['_siteUrl'] = f'https://www.wecare.digital/product-page/{slug}' if slug else ''
-        p['_mainImage'] = _get_main_media(p)
-        p['_mediaCount'] = len(p.get('media', {}).get('items', []))
-
+    products = [_normalize_v3_product(p) for p in result.get('products', [])]
+    paging = result.get('pagingMetadata') or {}
     return _response(200, {
         'products': products,
-        'totalResults': result.get('totalResults', len(products)),
+        'totalResults': paging.get('count', len(products)),
+        'nextCursor': (paging.get('cursors') or {}).get('next', ''),
         'siteUrl': 'https://www.wecare.digital',
         'dashboardUrl': f'https://manage.wix.com/dashboard/{WIX_SITE_ID}/store/products',
         'requestId': request_id,
@@ -389,140 +520,132 @@ def _list_products(params: dict, request_id: str) -> Dict[str, Any]:
 
 
 def _get_product(product_id: str, request_id: str) -> Dict[str, Any]:
-    """Get full product detail including variants, options, media, collections, and site URL."""
-    result = _wix_request(f'/stores/v1/products/{product_id}')
-    product = result.get('product', {})
+    endpoint = f'/stores/v3/products/{product_id}{_fields_suffix(CATALOG_PRODUCT_FIELDS)}'
+    product = _wix_request(endpoint).get('product', {})
+    normalized = _normalize_v3_product(product)
 
-    # Also fetch inventory for this product
     try:
-        inv = _wix_request(
-            f'/stores/v2/inventoryItems/product/{product_id}/getVariants',
-            method='POST',
-            body={},
-        )
-        product['_inventory'] = inv.get('inventoryItem', {})
-    except Exception as e:
-        product['_inventory'] = {'error': str(e)}
+        inventory = _wix_request('/stores/v3/inventory-items/query', method='POST', body={
+            'query': {
+                'filter': {'productId': {'$eq': product_id}},
+                'cursorPaging': {'limit': 1000},
+            }
+        }).get('inventoryItems', [])
+        normalized['_inventoryItems'] = inventory
+        normalized['quantityInStock'] = sum(
+            float(item.get('quantity') or 0) for item in inventory
+            if item.get('quantity') is not None
+        ) if inventory else normalized.get('quantityInStock')
+        if inventory:
+            normalized['inStock'] = any(
+                item.get('inStock') is True
+                or str(item.get('availabilityStatus') or '').upper() == 'IN_STOCK'
+                for item in inventory
+            )
+    except Exception as error:
+        normalized['_inventoryError'] = str(error)
 
-    # Add computed fields for convenience
-    slug = product.get('slug', '')
-    product['_siteUrl'] = f'https://www.wecare.digital/product-page/{slug}' if slug else ''
-    product['_dashboardUrl'] = f'https://manage.wix.com/dashboard/{WIX_SITE_ID}/store/products'
-    product['_mediaCount'] = len(product.get('media', {}).get('items', []))
-    product['_mainImage'] = _get_main_media(product)
+    normalized['_dashboardUrl'] = f'https://manage.wix.com/dashboard/{WIX_SITE_ID}/store/products'
+    return _response(200, {'product': normalized, 'requestId': request_id})
 
-    # Stock summary
-    stock = product.get('stock', {})
-    product['_stockSummary'] = {
-        'inStock': stock.get('inStock', False),
-        'trackInventory': stock.get('trackInventory', False),
-        'inventoryStatus': stock.get('inventoryStatus', 'UNKNOWN'),
-        'quantity': stock.get('quantity', None),
-    }
-
-    # Price summary
-    price = product.get('price', {})
-    product['_priceSummary'] = {
-        'amount': price.get('price', 0),
-        'currency': price.get('currency', 'INR'),
-        'formatted': price.get('formatted', {}).get('price', ''),
-        'discounted': price.get('formatted', {}).get('discountedPrice', ''),
-    }
-
-    return _response(200, {'product': product, 'requestId': request_id})
-
-
-# ===================================================================
-# COLLECTIONS
-# ===================================================================
 
 def _list_collections(params: dict, request_id: str) -> Dict[str, Any]:
-    """Query store collections."""
-    limit = int(params.get('limit', 100))
-    offset = int(params.get('offset', 0))
-
-    result = _wix_request('/stores/v1/collections/query', method='POST', body={
-        'query': {
-            'paging': {'limit': limit, 'offset': offset},
-        }
+    """Compatibility route: V3 categories replace legacy Stores collections."""
+    limit = max(1, min(int(params.get('limit', 100)), 1000))
+    cursor = params.get('cursor', '')
+    paging = {'limit': limit}
+    if cursor:
+        paging['cursor'] = cursor
+    result = _wix_request('/categories/v1/categories/query', method='POST', body={
+        'query': {'cursorPaging': paging},
+        'treeReference': CATEGORY_TREE_REFERENCE,
+        'returnNonVisibleCategories': True,
     })
-
+    categories = [_normalize_category(x) for x in result.get('categories', [])]
+    metadata = result.get('pagingMetadata') or {}
     return _response(200, {
-        'collections': result.get('collections', []),
-        'totalResults': result.get('totalResults', 0),
+        'collections': categories,
+        'categories': categories,
+        'totalResults': metadata.get('count', len(categories)),
+        'nextCursor': (metadata.get('cursors') or {}).get('next', ''),
         'requestId': request_id,
     })
 
 
 def _get_collection(collection_id: str, request_id: str) -> Dict[str, Any]:
-    """Get a single collection by ID."""
-    result = _wix_request(f'/stores/v1/collections/{collection_id}')
+    endpoint = (
+        f'/categories/v1/categories/{collection_id}'
+        '?treeReference.appNamespace=%40wix%2Fstores'
+    )
+    category = _normalize_category(_wix_request(endpoint).get('category', {}))
     return _response(200, {
-        'collection': result.get('collection', {}),
+        'collection': category,
+        'category': category,
         'requestId': request_id,
     })
 
 
 def _collection_products(collection_id: str, params: dict, request_id: str) -> Dict[str, Any]:
-    """Get products belonging to a specific collection."""
-    limit = int(params.get('limit', 100))
-    offset = int(params.get('offset', 0))
-
-    result = _wix_request('/stores/v1/products/query', method='POST', body={
-        'query': {
-            'paging': {'limit': limit, 'offset': offset},
-            'filter': {'collections.id': {'$hasSome': [collection_id]}},
+    limit = max(1, min(int(params.get('limit', 100)), 100))
+    cursor = params.get('cursor', '')
+    paging = {'limit': limit}
+    if cursor:
+        paging['cursor'] = cursor
+    result = _wix_request('/stores/v3/products/search', method='POST', body={
+        'fields': CATALOG_PRODUCT_FIELDS,
+        'search': {
+            'filter': {
+                'directCategoriesInfo.categories': {
+                    '$matchItems': [{'id': {'$eq': collection_id}}]
+                }
+            },
+            'cursorPaging': paging,
         },
-        'includeVariants': True,
     })
-
+    products = [_normalize_v3_product(p) for p in result.get('products', [])]
+    metadata = result.get('pagingMetadata') or {}
     return _response(200, {
+        'products': products,
         'collectionId': collection_id,
-        'products': result.get('products', []),
-        'totalResults': result.get('totalResults', 0),
+        'totalResults': metadata.get('count', len(products)),
+        'nextCursor': (metadata.get('cursors') or {}).get('next', ''),
         'requestId': request_id,
     })
 
 
-# ===================================================================
-# INVENTORY
-# ===================================================================
-
 def _query_inventory(params: dict, request_id: str) -> Dict[str, Any]:
-    """Query inventory items across the store."""
-    limit = int(params.get('limit', 100))
-    offset = int(params.get('offset', 0))
-
-    result = _wix_request('/stores-reader/v2/inventoryItems/query', method='POST', body={
-        'query': {
-            'paging': {'limit': limit, 'offset': offset},
-        }
+    limit = max(1, min(int(params.get('limit', 100)), 1000))
+    cursor = params.get('cursor', '')
+    paging = {'limit': limit}
+    if cursor:
+        paging['cursor'] = cursor
+    result = _wix_request('/stores/v3/inventory-items/query', method='POST', body={
+        'query': {'cursorPaging': paging}
     })
-
+    items = result.get('inventoryItems', [])
+    metadata = result.get('pagingMetadata') or {}
     return _response(200, {
-        'inventoryItems': result.get('inventoryItems', []),
-        'totalResults': result.get('totalResults', 0),
+        'inventoryItems': items,
+        'totalResults': metadata.get('count', len(items)),
+        'nextCursor': (metadata.get('cursors') or {}).get('next', ''),
         'requestId': request_id,
     })
 
 
 def _get_inventory(product_id: str, request_id: str) -> Dict[str, Any]:
-    """Get inventory variants for a specific product."""
-    result = _wix_request(
-        f'/stores/v2/inventoryItems/product/{product_id}/getVariants',
-        method='POST',
-        body={},
-    )
+    result = _wix_request('/stores/v3/inventory-items/query', method='POST', body={
+        'query': {
+            'filter': {'productId': {'$eq': product_id}},
+            'cursorPaging': {'limit': 1000},
+        }
+    })
+    items = result.get('inventoryItems', [])
     return _response(200, {
         'productId': product_id,
-        'inventoryItem': result.get('inventoryItem', {}),
+        'inventoryItems': items,
+        'inventoryItem': items[0] if items else {},
         'requestId': request_id,
     })
-
-
-# ===================================================================
-# ORDERS (full detail with custom order numbers)
-# ===================================================================
 
 def _search_orders(params: dict, request_id: str) -> Dict[str, Any]:
     """
@@ -916,116 +1039,135 @@ def _base36(num: int) -> str:
     return result
 
 
+
 def _create_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
-    """Create a single product via Wix REST API. Auto-generates WD SKU if not provided.
-    
-    Accepts media in multiple formats (imported via Wix Media Manager):
-      - product.imageUrls[]              (shorthand — list of public URLs)
-      - product.s3Keys[]                 (S3 keys in app.wecare.digital bucket)
-      - product.folder                   (Wix Media Manager folder: 'flags'|'products'|'bnb-club')
-    """
-    product_data = body.get('product', {})
-    if not product_data.get('name'):
+    source = dict(body.get('product') or {})
+    if not source.get('name'):
         return _response(400, {'error': 'Missing product.name', 'requestId': request_id})
 
-    # Auto-generate SKU if not provided or doesn't have our prefix
-    if not product_data.get('sku') or not product_data['sku'].startswith(SKU_PREFIX + '-'):
-        product_data['sku'] = _generate_sku(product_data['name'])
-
-    # Ensure all products are in stock by default
-    if 'stock' not in product_data:
-        product_data['stock'] = {'trackInventory': False, 'inStock': True}
-
-    # Extract image URLs/keys for post-creation attachment (don't pass to create)
-    image_urls = product_data.pop('imageUrls', [])
-    s3_keys = product_data.pop('s3Keys', [])
-    media_folder = product_data.pop('folder', 'products')
+    image_urls = source.pop('imageUrls', [])
+    s3_keys = source.pop('s3Keys', [])
+    media_folder = source.pop('folder', 'products')
+    product_data = _simple_product_to_v3(source)
 
     try:
-        result = _wix_request(
-            '/stores/v1/products',
-            method='POST',
-            body={'product': product_data}
-        )
-        created_product = result.get('product', {})
-        pid = created_product.get('id', '')
-
-        # Attach images via Media Manager import flow (if any provided)
+        result = _wix_request('/stores/v3/products', method='POST', body={
+            'fields': CATALOG_PRODUCT_FIELDS,
+            'product': product_data,
+        })
+        created = result.get('product', {})
+        pid = created.get('id', '')
         if pid and (image_urls or s3_keys):
-            try:
-                _add_product_image({
-                    'productId': pid,
-                    'imageUrls': image_urls,
-                    's3Keys': s3_keys,
-                    'folder': media_folder,
-                }, request_id)
-                # Re-fetch product to get updated media
-                created_product = _wix_request(f'/stores/v1/products/{pid}').get('product', {})
-            except Exception as img_err:
-                created_product['_imageAttachError'] = str(img_err)
-
+            image_result = _add_product_image({
+                'productId': pid,
+                'imageUrls': image_urls,
+                's3Keys': s3_keys,
+                'folder': media_folder,
+            }, request_id)
+            if image_result.get('statusCode') >= 400:
+                created['_imageAttachError'] = json.loads(image_result.get('body', '{}')).get('error', '')
+            else:
+                created = _wix_request(
+                    f'/stores/v3/products/{pid}{_fields_suffix(CATALOG_PRODUCT_FIELDS)}'
+                ).get('product', created)
         return _response(200, {
-            'product': created_product,
+            'product': _normalize_v3_product(created),
             'created': True,
             'requestId': request_id,
         })
-    except Exception as e:
-        return _response(500, {'error': str(e), 'requestId': request_id})
+    except Exception as error:
+        return _response(500, {'error': str(error), 'requestId': request_id})
 
+
+
+def _update_product_rest(body: dict, request_id: str) -> Dict[str, Any]:
+    source = body.get('updates') or body.get('product') or {}
+    product_id = str(body.get('productId') or source.get('id') or '').strip()
+    if not product_id:
+        return _response(400, {'error': 'Missing productId', 'requestId': request_id})
+
+    current = _wix_request(
+        f'/stores/v3/products/{product_id}{_fields_suffix(CATALOG_PRODUCT_FIELDS)}'
+    ).get('product', {})
+    revision = current.get('revision')
+    if revision is None:
+        return _response(409, {'error': 'Product revision unavailable', 'requestId': request_id})
+
+    patch_product = {'id': product_id, 'revision': revision}
+    for key in ('name', 'visible', 'visibleInPos', 'seoData', 'media', 'ribbon'):
+        if key in source:
+            patch_product[key] = source[key]
+
+    if 'plainDescription' in source:
+        patch_product['plainDescription'] = source['plainDescription']
+    elif isinstance(source.get('description'), str):
+        patch_product['plainDescription'] = source['description']
+
+    if isinstance(source.get('brand'), dict) and source['brand'].get('id'):
+        patch_product['brand'] = {'id': source['brand']['id']}
+
+    variant_change = any(key in source for key in ('price', 'priceData', 'sku', 'variantsInfo'))
+    if variant_change:
+        variants = json.loads(json.dumps(
+            (source.get('variantsInfo') or current.get('variantsInfo') or {}).get('variants') or []
+        ))
+        if not variants:
+            variants = [{'price': {'actualPrice': {'amount': '0'}}}]
+        first = variants[0]
+        if 'sku' in source:
+            first['sku'] = source.get('sku') or ''
+        if 'priceData' in source or 'price' in source:
+            amount = (source.get('priceData') or {}).get('price', source.get('price', 0))
+            first.setdefault('price', {})['actualPrice'] = {'amount': str(amount)}
+        patch_product['variantsInfo'] = {'variants': variants}
+        patch_product['options'] = source.get('options', current.get('options', []))
+
+    if 'options' in source and 'variantsInfo' not in patch_product:
+        patch_product['options'] = source['options']
+        patch_product['variantsInfo'] = current.get('variantsInfo', {'variants': []})
+
+    result = _wix_request(
+        f'/stores/v3/products/{product_id}',
+        method='PATCH',
+        body={'fields': CATALOG_PRODUCT_FIELDS, 'product': patch_product},
+    )
+    return _response(200, {
+        'product': _normalize_v3_product(result.get('product', {})),
+        'updated': True,
+        'requestId': request_id,
+    })
 
 def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
-    """Bulk create products via Wix REST API (sequential)."""
     products_array = body.get('products', [])
     if not products_array:
         return _response(400, {'error': 'Missing or empty products array', 'requestId': request_id})
 
     results = []
-    for product_data in products_array:
-        # Auto-generate SKU if not provided
-        if not product_data.get('sku') or not product_data['sku'].startswith(SKU_PREFIX + '-'):
-            product_data['sku'] = _generate_sku(product_data.get('name', ''))
-        # Ensure in stock by default
-        if 'stock' not in product_data:
-            product_data['stock'] = {'trackInventory': False, 'inStock': True}
+    for source in products_array:
+        product_data = _simple_product_to_v3(source)
         try:
-            result = _wix_request(
-                '/stores/v1/products',
-                method='POST',
-                body={'product': product_data}
-            )
-            created = result.get('product', {})
+            created = _wix_request('/stores/v3/products', method='POST', body={
+                'product': product_data
+            }).get('product', {})
             results.append({
                 'success': True,
-                'name': product_data.get('name', ''),
-                'productId': created.get('id', created.get('_id', '')),
+                'name': source.get('name', ''),
+                'productId': created.get('id', ''),
             })
-        except Exception as e:
+        except Exception as error:
             results.append({
                 'success': False,
-                'name': product_data.get('name', ''),
-                'error': str(e),
+                'name': source.get('name', ''),
+                'error': str(error),
             })
 
     return _response(200, {
         'total': len(products_array),
-        'succeeded': len([r for r in results if r['success']]),
-        'failed': len([r for r in results if not r['success']]),
+        'succeeded': sum(1 for row in results if row['success']),
+        'failed': sum(1 for row in results if not row['success']),
         'results': results,
         'requestId': request_id,
     })
-
-
-S3_BUCKET = 'app.wecare.digital'
-S3_PRODUCT_PREFIX = 'stack/store/products'
-
-# Wix Media Manager folder IDs (WECARE Store structure)
-WIX_MEDIA_FOLDERS = {
-    'root': '1380adfd536841efa2557823f0e3f46f',       # WECARE Store
-    'flags': '207cd45424d34ebb9652011e7a17b2a4',       # WECARE Store > Flags
-    'products': '347f7383033f4838af6c3d52c267ac1c',    # WECARE Store > Products
-    'bnb-club': 'f6f39ae4b1be412390a77588b0731f9c',   # WECARE Store > Products > BNB Club
-}
-
 
 def _s3_public_url(key: str) -> str:
     """Convert an S3 key to a public HTTPS URL."""
@@ -1042,9 +1184,8 @@ def _import_to_wix_media(url: str, display_name: str, folder: str = 'products') 
     Args:
         url: Public URL of the image to import
         display_name: File name in Wix Media Manager (include extension)
-        folder: Folder key from WIX_MEDIA_FOLDERS (default: 'products')
+        folder: Optional logical label retained for caller compatibility
     """
-    folder_id = WIX_MEDIA_FOLDERS.get(folder, WIX_MEDIA_FOLDERS['products'])
 
     # Detect mime type from extension
     ext = display_name.rsplit('.', 1)[-1].lower() if '.' in display_name else 'png'
@@ -1056,7 +1197,6 @@ def _import_to_wix_media(url: str, display_name: str, folder: str = 'products') 
         'displayName': display_name,
         'mediaType': 'IMAGE',
         'mimeType': mime_type,
-        'parentFolderId': folder_id,
     }
 
     # Use site-media API (different from stores API)
@@ -1075,64 +1215,56 @@ def _import_to_wix_media(url: str, display_name: str, folder: str = 'products') 
     return result.get('file', {})
 
 
+
 def _add_product_media_api(product_id: str, wix_media_urls: list) -> Dict[str, Any]:
-    """
-    Attach images to a product using the dedicated Add Product Media endpoint.
-    POST https://www.wixapis.com/stores/v1/products/{id}/media
+    current = _wix_request(
+        f'/stores/v3/products/{product_id}?fields=MEDIA_ITEMS_INFO'
+    ).get('product', {})
+    revision = current.get('revision')
+    if revision is None:
+        raise RuntimeError('Catalog V3 product revision unavailable')
 
-    Args:
-        product_id: Wix product ID
-        wix_media_urls: List of Wix-hosted media URLs (from Media Manager)
-    """
-    media_items = [{'url': u, 'mediaType': 'IMAGE'} for u in wix_media_urls]
-    api_url = f'{WIX_API_BASE}/stores/v1/products/{product_id}/media'
-    headers = {
-        'Authorization': _load_wix_api_key(),
-        'Content-Type': 'application/json',
-        'wix-site-id': WIX_SITE_ID,
-    }
-    data = json.dumps({'media': media_items}).encode('utf-8')
-    req = urllib.request.Request(api_url, data=data, headers=headers, method='POST')
+    media = current.get('media') or {}
+    existing = list(((media.get('itemsInfo') or {}).get('items') or []))
+    known_urls = {item.get('url') for item in existing if isinstance(item, dict)}
+    for url in wix_media_urls:
+        if url and url not in known_urls:
+            existing.append({'url': url})
+            known_urls.add(url)
 
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode('utf-8') or '{}')
+    main = media.get('main') or ({'url': wix_media_urls[0]} if wix_media_urls else {})
+    return _wix_request(
+        f'/stores/v3/products/{product_id}',
+        method='PATCH',
+        body={
+            'fields': ['MEDIA_ITEMS_INFO', 'CURRENCY'],
+            'product': {
+                'id': product_id,
+                'revision': revision,
+                'media': {
+                    'main': main,
+                    'itemsInfo': {'items': existing},
+                },
+            },
+        },
+    )
 
 
 def _add_product_image(body: dict, request_id: str) -> Dict[str, Any]:
-    """
-    Add image(s) to an existing product by URL or S3 key.
-
-    Flow:
-      1. Import each image into Wix Media Manager (WECARE Store folder)
-      2. Attach to product via dedicated Add Product Media endpoint
-
-    Body:
-      productId: required
-      imageUrls: [url, ...]       — public URLs (S3, CDN, etc.)
-      s3Keys: [key, ...]          — S3 keys in app.wecare.digital bucket
-      folder: 'flags'|'products'|'bnb-club' — Wix Media Manager folder (default: 'products')
-    """
     pid = body.get('productId', '')
     if not pid:
         return _response(400, {'error': 'Missing productId', 'requestId': request_id})
 
     folder = body.get('folder', 'products')
-    urls_to_import = []
-
-    for url in body.get('imageUrls', []):
-        urls_to_import.append(url)
-    for key in body.get('s3Keys', []):
-        urls_to_import.append(_s3_public_url(key))
-
+    urls_to_import = list(body.get('imageUrls', []))
+    urls_to_import.extend(_s3_public_url(key) for key in body.get('s3Keys', []))
     if not urls_to_import:
         return _response(400, {'error': 'No imageUrls or s3Keys provided', 'requestId': request_id})
 
     try:
-        # Step 1: Import each image into Wix Media Manager
         wix_media_urls = []
         imported_files = []
         for url in urls_to_import:
-            # Extract filename from URL
             file_name = url.rstrip('/').split('/')[-1].split('?')[0] or 'image.png'
             wix_file = _import_to_wix_media(url, file_name, folder)
             wix_url = wix_file.get('url', '')
@@ -1148,23 +1280,18 @@ def _add_product_image(body: dict, request_id: str) -> Dict[str, Any]:
         if not wix_media_urls:
             return _response(500, {'error': 'Failed to import images to Wix Media Manager', 'requestId': request_id})
 
-        # Step 2: Attach to product via dedicated endpoint
-        _add_product_media_api(pid, wix_media_urls)
-
-        # Step 3: Verify by fetching product
-        product = _wix_request(f'/stores/v1/products/{pid}').get('product', {})
-
+        updated = _add_product_media_api(pid, wix_media_urls).get('product', {})
+        normalized = _normalize_v3_product(updated)
         return _response(200, {
             'productId': pid,
-            'mediaCount': len(product.get('media', {}).get('items', [])),
-            'mainImage': _get_main_media(product),
+            'mediaCount': normalized.get('_mediaCount', 0),
+            'mainImage': normalized.get('_mainImage', ''),
             'importedFiles': imported_files,
             'updated': True,
             'requestId': request_id,
         })
-    except Exception as e:
-        return _response(500, {'error': str(e), 'requestId': request_id})
-
+    except Exception as error:
+        return _response(500, {'error': str(error), 'requestId': request_id})
 
 def _upload_product_image(event: dict, body: dict, request_id: str) -> Dict[str, Any]:
     """
@@ -1269,44 +1396,58 @@ def _get_sample_products(request_id: str) -> Dict[str, Any]:
 # SYNC TO DYNAMODB CACHE
 # ===================================================================
 
+
 def _sync_products(request_id: str) -> Dict[str, Any]:
-    """Sync all Wix products to local DynamoDB cache."""
+    """Sync Catalog V3 product summaries to the existing DynamoDB cache."""
     table = dynamodb.Table(PRODUCTS_CACHE_TABLE)
     synced = 0
-    offset = 0
+    cursor = ''
 
     while True:
-        result = _wix_request('/stores/v1/products/query', method='POST', body={
-            'query': {'paging': {'limit': 100, 'offset': offset}},
-            'includeVariants': True,
+        paging = {'limit': 100}
+        if cursor:
+            paging['cursor'] = cursor
+        result = _wix_request('/stores/v3/products/query', method='POST', body={
+            'fields': CATALOG_PRODUCT_FIELDS,
+            'query': {'cursorPaging': paging},
         })
         products = result.get('products', [])
         if not products:
             break
 
         with table.batch_writer() as batch:
-            for p in products:
+            for raw in products:
+                p = _normalize_v3_product(raw)
                 batch.put_item(Item={
                     'productId': p.get('id'),
                     'name': p.get('name', ''),
                     'slug': p.get('slug', ''),
-                    'price': str(p.get('price', {}).get('formatted', {}).get('actualPrice', '0')),
-                    'currency': p.get('price', {}).get('currency', 'USD'),
-                    'inStock': p.get('stock', {}).get('inStock', False),
-                    'productType': p.get('productType', 'physical'),
-                    'mediaUrl': _get_main_media(p),
-                    'rawData': json.dumps(p, default=str),
+                    'price': str(p.get('formattedPrice', '')),
+                    'currency': p.get('currency', 'INR'),
+                    'inStock': bool(p.get('inStock')),
+                    'productType': p.get('productType', ''),
+                    'mediaUrl': p.get('_mainImage', ''),
+                    'rawData': json.dumps(raw, default=str),
                     'syncedAt': datetime.now(timezone.utc).isoformat(),
                 })
                 synced += 1
 
-        offset += 100
-        if len(products) < 100:
+        metadata = result.get('pagingMetadata') or {}
+        cursor = (metadata.get('cursors') or {}).get('next', '')
+        if not cursor:
             break
 
-    logger.info(json.dumps({'action': 'sync_products_complete', 'count': synced, 'requestId': request_id}))
-    return _response(200, {'message': f'Synced {synced} products', 'requestId': request_id})
-
+    logger.info(json.dumps({
+        'action': 'sync_products_complete',
+        'count': synced,
+        'catalogVersion': 'v3',
+        'requestId': request_id,
+    }))
+    return _response(200, {
+        'message': f'Synced {synced} products',
+        'count': synced,
+        'requestId': request_id,
+    })
 
 def _sync_orders(request_id: str) -> Dict[str, Any]:
     """Sync Wix orders to DynamoDB — both WixOrdersCache AND central OrdersTable."""
@@ -1452,186 +1593,6 @@ def _sync_orders(request_id: str) -> Dict[str, Any]:
 # HELPERS
 # ===================================================================
 
-def _list_order_notifications(params: dict, request_id: str) -> Dict[str, Any]:
-    result = _velo_request('orderNotifications', {
-        'status': params.get('status', ''),
-        'limit': params.get('limit', '200'),
-    })
-    notifications = result.get('notifications', result.get('items', []))
-    return _response(200, {'notifications': notifications, 'count': len(notifications),
-                           'requestId': request_id})
-
-
-def _invoke_json(function_name: str, payload: dict) -> dict:
-    response = lambda_client.invoke(
-        FunctionName=function_name,
-        InvocationType='RequestResponse',
-        Payload=json.dumps(payload).encode('utf-8'),
-    )
-    raw = response['Payload'].read()
-    if response.get('FunctionError'):
-        raise RuntimeError(f'{function_name} invocation failed')
-    try:
-        result = json.loads(raw.decode('utf-8')) if raw else {}
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise RuntimeError(f'{function_name} returned an invalid response') from error
-    body = result.get('body', result)
-    if isinstance(body, str):
-        try:
-            body = json.loads(body or '{}')
-        except json.JSONDecodeError as error:
-            raise RuntimeError(f'{function_name} returned an invalid body') from error
-    if not isinstance(body, dict):
-        raise RuntimeError(f'{function_name} returned an invalid body')
-    if int(result.get('statusCode', 200)) >= 400:
-        raise RuntimeError(str(body.get('error') or f'{function_name} returned an error'))
-    return body
-
-
-def _persist_order_retry(order_id: str, channel: str, status: str, actor: str,
-                         attempted_at: str, provider_message_id: str = '',
-                         error: str = '') -> None:
-    _velo_request('orderNotificationStatus', method='POST', body={
-        'orderId': order_id,
-        'channel': channel,
-        'status': status,
-        'providerMessageId': provider_message_id,
-        'error': error[:500],
-        'actor': actor,
-        'attemptedAt': attempted_at,
-    })
-
-
-def _retry_order_notification(event: dict, request_id: str) -> Dict[str, Any]:
-    body = _parse_body(event)
-    order_id = str(body.get('orderId', '')).strip()
-    channel = str(body.get('channel', '')).lower()
-    if not order_id or channel not in {'whatsapp', 'sms'}:
-        return _response(400, {'error': 'orderId and channel (whatsapp or sms) are required'})
-
-    records = _velo_request('orderNotifications', {
-        'orderId': order_id,
-        'limit': '1',
-    }).get('notifications', [])
-    if not records:
-        return _response(404, {'error': 'Order notification not found'})
-    record = records[0]
-    phone = str(record.get('phone', '')).strip()
-    if not phone:
-        return _response(400, {'error': 'Order notification has no phone number'})
-
-    actor = (event.get('_auth') or {}).get('username', '')
-    bucket = int(datetime.now(timezone.utc).timestamp()) // ORDER_RETRY_WINDOW_SECONDS
-    claim_key = f'admin:order-retry:{order_id}:{channel}:{bucket}'
-    try:
-        claimed = claim_admin_action(
-            claim_key,
-            actor,
-            'order-notification.retry',
-            ORDER_RETRY_WINDOW_SECONDS * 2,
-        )
-    except Exception:
-        logger.exception('Order retry idempotency claim failed')
-        return _response(503, {'error': 'Retry guard unavailable; no message was sent'})
-    if not claimed:
-        return _response(409, {'error': 'A retry for this order and channel is already in progress'})
-
-    attempted_at = datetime.now(timezone.utc).isoformat()
-    try:
-        if channel == 'whatsapp':
-            payload = {'body': json.dumps({
-                'recipientPhone': phone,
-                'phoneNumberId': os.environ.get(
-                    'ORDER_WHATSAPP_PHONE_ID',
-                    'phone-number-id-waba1-direct-1016149501586345',
-                ),
-                'isTemplate': True,
-                'templateName': 'wd_order',
-                'templateParams': [],
-                'templateHeaderMedia': os.environ.get(
-                    'ORDER_TEMPLATE_VIDEO_URL',
-                    'https://app.wecare.digital/stream/media/m/selfservice.mp4',
-                ),
-                'templateHeaderType': 'video',
-            })}
-            sent = _invoke_json(
-                os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp'),
-                payload,
-            )
-            provider_id = sent.get('whatsappMessageId') or sent.get('messageId', '')
-        else:
-            sms_content = os.environ.get(
-                'ORDER_SMS_TEXT',
-                "Thanks for placing your order with WECARE.DIGITAL!\n\n"
-                "Your order has been received. We'll review it and share updates shortly.\n\n"
-                "Need help? Submit a request here: https://wecare.digital/selfservice "
-                "or message / voice note us on WhatsApp: https://r.wecare.digital/wa.",
-            )
-            # AWS End User Messaging, via the shared dispatcher. The regulatory
-            # identity (entity id, sender id, approved template id) is resolved
-            # from the template KEY by lambda_utils.comms.dlt, so this handler
-            # no longer carries copies of it.
-            #
-            # wait=True because this is an operator-triggered retry whose result
-            # is persisted and shown: _persist_order_retry needs the provider
-            # message id, and a caller-visible failure must be reported rather
-            # than fired and forgotten.
-            from lambda_utils.comms.notify import send_notification_sms
-            outcome = send_notification_sms(
-                phone, sms_content,
-                dlt_template_key=os.environ.get('ORDER_SMS_DLT_TEMPLATE_KEY', 'wd_order'),
-                campaign='order-notification-retry',
-                request_id=str(record.get('wdOrderId', '')) or order_id,
-                wait=True)
-            if not outcome.ok:
-                raise RuntimeError(
-                    outcome.error or outcome.skipped_reason or 'SMS not accepted')
-            provider_id = outcome.provider_message_id
-    except Exception as error:
-        provider_error = str(error)[:500] or 'Provider send failed'
-        logger.exception('Order notification retry failed before provider confirmation')
-        try:
-            _persist_order_retry(
-                order_id, channel, 'failed', actor, attempted_at, error=provider_error,
-            )
-        except Exception:
-            logger.exception('Failed to persist failed order notification retry')
-        return _response(502, {
-            'error': 'Notification provider retry failed',
-            'orderId': order_id,
-            'channel': channel,
-            'requestId': request_id,
-        })
-
-    try:
-        _persist_order_retry(
-            order_id,
-            channel,
-            'sent',
-            actor,
-            attempted_at,
-            provider_message_id=str(provider_id or ''),
-        )
-    except Exception:
-        logger.exception('Provider send succeeded but retry status persistence failed')
-        return _response(502, {
-            'error': 'Message was sent but delivery status could not be persisted; do not retry yet',
-            'messageSent': True,
-            'orderId': order_id,
-            'channel': channel,
-            'providerMessageId': provider_id,
-            'requestId': request_id,
-        })
-
-    return _response(200, {
-        'success': True,
-        'orderId': order_id,
-        'channel': channel,
-        'providerMessageId': provider_id,
-        'requestId': request_id,
-    })
-
-
 def _extract_id(path: str, resource: str) -> Optional[str]:
     """Extract resource ID from path like /orders/abc123 or /orders/abc123/fulfillments."""
     parts = path.rstrip('/').split('/')
@@ -1644,10 +1605,13 @@ def _extract_id(path: str, resource: str) -> Optional[str]:
     return None
 
 
-def _get_main_media(product: dict) -> str:
-    """Extract main media URL from product."""
-    return product.get('media', {}).get('mainMedia', {}).get('image', {}).get('url', '')
 
+def _get_main_media(product: dict) -> str:
+    media = product.get('media') or {}
+    v3_main = media.get('main') or {}
+    if isinstance(v3_main, dict) and v3_main.get('url'):
+        return v3_main['url']
+    return media.get('mainMedia', {}).get('image', {}).get('url', '')
 
 def _parse_body(event: dict) -> dict:
     """Parse request body from event."""
@@ -1669,156 +1633,3 @@ def _response(status_code: int, body: dict) -> Dict[str, Any]:
         'headers': cors_headers(origin),
         'body': json.dumps(body, default=str),
     }
-
-
-# ===================================================================
-# VELO HTTP FUNCTIONS MODE
-# ===================================================================
-# When WIX_MODE='velo', calls go to your Wix site's Velo HTTP Functions
-# at https://www.yoursite.com/_functions/<endpoint>
-#
-# This gives access to Wix Data collections directly, including:
-# - Custom order numbers (customOrderNumber field)
-# - All Stores/Orders collection fields
-# - All Stores/Products collection fields with collections included
-# - Any custom fields you've added
-#
-# Required Velo code on Wix side: backend/http-functions.js
-# Velo source code is in store/src/ — sync to Wix via Git integration.
-# ===================================================================
-
-def _velo_request(endpoint: str, params: dict = None, method: str = 'GET',
-                  body: dict = None) -> Dict[str, Any]:
-    """
-    Call a Velo HTTP Function on the published Wix site.
-    GET:  {WIX_VELO_BASE}/_functions/{endpoint}?key=val&...
-    POST: {WIX_VELO_BASE}/_functions/{endpoint}  (body as JSON)
-    """
-    if not WIX_VELO_BASE:
-        raise RuntimeError("WIX_VELO_BASE_URL not configured. Set it to your Wix site URL.")
-
-    query_string = ''
-    if params and method == 'GET':
-        parts = [f"{k}={urllib.request.quote(str(v))}" for k, v in params.items() if v]
-        if parts:
-            query_string = '?' + '&'.join(parts)
-
-    url = f"{WIX_VELO_BASE}/_functions/{endpoint}{query_string}"
-    headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-    }
-    if WIX_VELO_API_KEY:
-        headers['x-api-key'] = WIX_VELO_API_KEY
-
-    data = json.dumps(body).encode('utf-8') if body and method == 'POST' else None
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
-
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode('utf-8'))
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode('utf-8') if e.fp else ''
-        logger.error(json.dumps({
-            'action': 'velo_api_error',
-            'status': e.code,
-            'url': url,
-            'response': error_body[:500],
-        }))
-        raise RuntimeError(f"Velo HTTP error {e.code}: {error_body[:200]}")
-
-
-def _velo_route(path: str, params: dict, request_id: str,
-                http_method: str = 'GET', body: dict = None) -> Dict[str, Any]:
-    """Route requests through Velo HTTP Functions."""
-
-    # ---- POST: Product management ----
-    if http_method == 'POST':
-        if '/create-product' in path or (('/products' in path) and '/sync' not in path and not _extract_id(path, 'products')):
-            result = _velo_request('create-product', method='POST', body=body)
-            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-
-        if '/bulk-create-products' in path:
-            result = _velo_request('bulk-create-products', method='POST', body=body)
-            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-
-        if '/update-product' in path:
-            result = _velo_request('update-product', method='POST', body=body)
-            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-
-        if '/delete-product' in path:
-            result = _velo_request('delete-product', method='POST', body=body)
-            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-
-        # Sync — always uses REST API for bulk operations
-        if '/sync' in path:
-            if 'products' in path:
-                return _sync_products(request_id)
-            if 'orders' in path:
-                return _sync_orders(request_id)
-
-        return _response(404, {'error': 'POST route not found', 'path': path, 'mode': 'velo'})
-
-    # ---- GET: Sample products ----
-    if '/sample-products' in path:
-        result = _velo_request('sample-products')
-        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-
-    # Products
-    if '/products' in path:
-        product_id = _extract_id(path, 'products')
-        if product_id:
-            result = _velo_request('product', {'id': product_id})
-            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-        result = _velo_request('products', {
-            'limit': params.get('limit', '100'),
-            'search': params.get('search', ''),
-            'collectionId': params.get('collectionId', ''),
-        })
-        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-
-    # Orders (includes custom order numbers from Wix Data)
-    if '/orders' in path:
-        order_id = _extract_id(path, 'orders')
-        if order_id:
-            result = _velo_request('order', {'id': order_id})
-            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-        result = _velo_request('orders', {
-            'limit': params.get('limit', '50'),
-            'status': params.get('status', ''),
-            'email': params.get('email', ''),
-            'memberId': params.get('memberId', ''),
-            'customOrderNumber': params.get('customOrderNumber', ''),
-        })
-        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-
-    # Collections
-    if '/collections' in path:
-        result = _velo_request('collections', {
-            'limit': params.get('limit', '100'),
-        })
-        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-
-    # Inventory
-    if '/inventory' in path:
-        product_id = _extract_id(path, 'inventory')
-        if product_id:
-            result = _velo_request('inventory', {'productId': product_id})
-            return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-        result = _velo_request('inventory-all', {
-            'limit': params.get('limit', '100'),
-        })
-        return _response(200, {**result, 'requestId': request_id, 'mode': 'velo'})
-
-    # Sites — always uses REST API (account-level, not available via Velo)
-    if '/sites' in path:
-        return _list_sites(params, request_id)
-
-    # Sync — always uses REST API for bulk operations
-    if '/sync' in path:
-        if 'products' in path:
-            return _sync_products(request_id)
-        if 'orders' in path:
-            return _sync_orders(request_id)
-
-    return _response(404, {'error': 'Not found', 'path': path, 'mode': 'velo'})

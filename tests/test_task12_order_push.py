@@ -1,8 +1,6 @@
-"""Focused Task 12 regression tests for order retries and push devices."""
+"""Focused regression tests for Wix Catalog V3 and push devices."""
 import importlib.util
-import io
 import json
-import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -13,20 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SHARED = ROOT / 'amplify' / 'functions' / 'shared'
 if str(SHARED) not in sys.path:
     sys.path.insert(0, str(SHARED))
-
-from lambda_utils.comms import notify as notify_mod  # noqa: E402
-
-
-def _sms_outcome(*, ok, provider_message_id='', error=''):
-    """A comms.notify.NotificationResult, for patching the SMS seam.
-
-    The order-notification SMS path goes through
-    lambda_utils.comms.notify.send_notification_sms rather than a raw Lambda
-    invoke, so these tests patch that function on its own module. It is imported
-    inside the handler function body, so the patch resolves at call time.
-    """
-    return notify_mod.NotificationResult(
-        queued=ok, provider_message_id=provider_message_id, error=error)
 
 
 def load_handler(name, relative_path):
@@ -53,108 +37,131 @@ def push_handler():
     )
 
 
-def test_invoke_json_detects_outer_function_error(wix_handler):
-    wix_handler.lambda_client = MagicMock()
-    wix_handler.lambda_client.invoke.return_value = {
-        'FunctionError': 'Unhandled',
-        'Payload': io.BytesIO(b'{"errorMessage":"failed"}'),
+def test_v3_product_normalizer_reads_variant_price_sku_and_options(wix_handler):
+    product = {
+        'id': 'prod-1',
+        'revision': '7',
+        'name': 'Coffee',
+        'slug': 'coffee',
+        'currency': 'INR',
+        'productType': 'PHYSICAL',
+        'plainDescription': 'Fresh coffee',
+        'media': {
+            'main': {'url': 'https://example.test/coffee.png'},
+            'itemsInfo': {'items': [{'url': 'https://example.test/coffee.png'}]},
+        },
+        'inventory': {'availabilityStatus': 'IN_STOCK'},
+        'options': [{
+            'name': 'Size',
+            'choicesSettings': {'choices': [{'name': 'Small'}, {'name': 'Large'}]},
+        }],
+        'variantsInfo': {'variants': [{
+            'id': 'var-1',
+            'sku': 'WD-COFFEE',
+            'price': {'actualPrice': {'amount': '199'}},
+            'choices': [{
+                'optionChoiceNames': {'optionName': 'Size', 'choiceName': 'Small'},
+            }],
+        }]},
     }
-    with pytest.raises(RuntimeError, match='invocation failed'):
-        wix_handler._invoke_json('provider-function', {'body': '{}'})
+
+    result = wix_handler._normalize_v3_product(product)
+
+    assert result['_id'] == 'prod-1'
+    assert result['price'] == 199.0
+    assert result['formattedPrice'] == 'INR 199'
+    assert result['sku'] == 'WD-COFFEE'
+    assert result['inStock'] is True
+    assert result['mainMedia']['url'].endswith('coffee.png')
+    assert result['productOptions'][0]['choices'][0]['description'] == 'Small'
+    assert result['variants'][0]['choices'] == {'Size': 'Small'}
 
 
-def test_order_retry_fails_closed_when_claim_storage_fails(wix_handler):
-    event = {
-        'body': json.dumps({'orderId': 'order-1', 'channel': 'sms'}),
-        '_auth': {'username': 'admin-user'},
-    }
-    with patch.object(wix_handler, '_velo_request', return_value={
-        'notifications': [{'orderId': 'order-1', 'phone': '919999999999'}],
-    }), patch.object(wix_handler, 'claim_admin_action', side_effect=RuntimeError('storage down')), \
-            patch.object(wix_handler, '_invoke_json') as invoke:
-        response = wix_handler._retry_order_notification(event, 'req-1')
-    assert response['statusCode'] == 503
-    invoke.assert_not_called()
-
-
-def test_order_retry_duplicate_does_not_send(wix_handler):
-    event = {
-        'body': json.dumps({'orderId': 'order-1', 'channel': 'whatsapp'}),
-        '_auth': {'username': 'admin-user'},
-    }
-    with patch.object(wix_handler, '_velo_request', return_value={
-        'notifications': [{'orderId': 'order-1', 'phone': '919999999999'}],
-    }), patch.object(wix_handler, 'claim_admin_action', return_value=False), \
-            patch.object(wix_handler, '_invoke_json') as invoke:
-        response = wix_handler._retry_order_notification(event, 'req-2')
-    assert response['statusCode'] == 409
-    invoke.assert_not_called()
-
-
-def test_order_retry_persists_provider_failure(wix_handler):
-    event = {
-        'body': json.dumps({'orderId': 'order-1', 'channel': 'sms'}),
-        '_auth': {'username': 'admin-user'},
-    }
-    calls = []
-
-    def velo(endpoint, params=None, method='GET', body=None):
-        calls.append((endpoint, method, body))
-        if endpoint == 'orderNotifications':
-            return {'notifications': [{'orderId': 'order-1', 'phone': '919999999999'}]}
-        return {'ok': True}
-
-    with patch.object(wix_handler, '_velo_request', side_effect=velo), \
-            patch.object(wix_handler, 'claim_admin_action', return_value=True), \
-            patch.object(notify_mod, 'send_notification_sms',
-                         return_value=_sms_outcome(ok=False, error='provider unavailable')):
-        response = wix_handler._retry_order_notification(event, 'req-3')
-    assert response['statusCode'] == 502
-    status_updates = [body for endpoint, method, body in calls if endpoint == 'orderNotificationStatus']
-    assert status_updates and status_updates[0]['status'] == 'failed'
-    assert status_updates[0]['actor'] == 'admin-user'
-
-
-def test_sms_retry_uses_approved_dlt_contract(wix_handler):
-    """The order retry names an APPROVED DLT template key, and nothing more.
-
-    Rewritten 2026-09-19. This test previously asserted that the handler itself
-    built the DLT payload - a raw dltTemplateId, entityId and sourceAddress -
-    which is the duplication the shared DLT module removed. The contract is now
-    stronger, not weaker: the caller may name a template KEY, and must NOT be
-    able to assert a raw template id, entity or sender, because that would let it
-    send unregistered content under our registered entity.
-    """
-    from lambda_utils.comms import dlt as dlt_mod
-
-    event = {
-        'body': json.dumps({'orderId': 'order-1', 'channel': 'sms'}),
-        '_auth': {'username': 'admin-user'},
-    }
-    captured = {}
-
-    def fake_send(phone, content, **kwargs):
-        captured['phone'] = phone
-        captured['content'] = content
-        captured.update(kwargs)
-        return _sms_outcome(ok=True, provider_message_id='message-1')
-
-    with patch.object(wix_handler, '_velo_request', side_effect=[
-        {'notifications': [{'orderId': 'order-1', 'wdOrderId': 'WD-1', 'phone': '919999999999'}]},
-        {'ok': True},
-    ]), patch.object(wix_handler, 'claim_admin_action', return_value=True), \
-            patch.object(notify_mod, 'send_notification_sms', side_effect=fake_send):
-        response = wix_handler._retry_order_notification(event, 'req-4')
+def test_inventory_lookup_uses_inventory_items_v3_product_filter(wix_handler):
+    with patch.object(wix_handler, '_wix_request', return_value={
+        'inventoryItems': [{'id': 'inv-1', 'productId': 'prod-1', 'quantity': 4}]
+    }) as request:
+        response = wix_handler._get_inventory('prod-1', 'req-1')
 
     assert response['statusCode'] == 200
-    # a template KEY, and one that is actually approved
-    assert captured['dlt_template_key'] == 'wd_order'
-    assert captured['dlt_template_key'] in dlt_mod.known_keys()
-    # the regulatory identity is resolved centrally, never asserted by the caller
-    for forbidden in ('dlt_template_id', 'entity_id', 'source_address', 'api_version'):
-        assert forbidden not in captured
-    # the retry is synchronous, because the provider message id is persisted
-    assert captured['wait'] is True
+    endpoint = request.call_args.args[0]
+    body = request.call_args.kwargs['body']
+    assert endpoint == '/stores/v3/inventory-items/query'
+    assert body['query']['filter'] == {'productId': {'$eq': 'prod-1'}}
+    assert json.loads(response['body'])['inventoryItems'][0]['quantity'] == 4
+
+
+def test_create_product_translates_legacy_admin_form_to_catalog_v3(wix_handler):
+    created = {
+        'id': 'prod-1',
+        'revision': '1',
+        'name': 'Tea',
+        'currency': 'INR',
+        'productType': 'PHYSICAL',
+        'variantsInfo': {'variants': [{
+            'id': 'var-1',
+            'sku': 'WD-TEA',
+            'price': {'actualPrice': {'amount': '149'}},
+        }]},
+    }
+    with patch.object(wix_handler, '_wix_request', return_value={'product': created}) as request:
+        response = wix_handler._create_product_rest({
+            'product': {
+                'name': 'Tea',
+                'productType': 'physical',
+                'priceData': {'currency': 'INR', 'price': 149},
+                'sku': 'WD-TEA',
+                'description': 'Assam tea',
+                'weight': 0.25,
+            }
+        }, 'req-2')
+
+    endpoint = request.call_args.args[0]
+    body = request.call_args.kwargs['body']
+    assert endpoint == '/stores/v3/products'
+    assert body['product']['productType'] == 'PHYSICAL'
+    variant = body['product']['variantsInfo']['variants'][0]
+    assert variant['sku'] == 'WD-TEA'
+    assert variant['price']['actualPrice']['amount'] == '149'
+    assert variant['physicalProperties']['weight'] == 0.25
+    assert response['statusCode'] == 200
+
+
+def test_update_product_fetches_and_sends_current_revision(wix_handler):
+    current = {
+        'id': 'prod-1',
+        'revision': '12',
+        'name': 'Old',
+        'options': [],
+        'variantsInfo': {'variants': [{
+            'id': 'var-1',
+            'sku': 'WD-OLD',
+            'price': {'actualPrice': {'amount': '100'}},
+        }]},
+    }
+    updated = {
+        **current,
+        'revision': '13',
+        'name': 'New',
+        'currency': 'INR',
+    }
+    with patch.object(wix_handler, '_wix_request', side_effect=[
+        {'product': current},
+        {'product': updated},
+    ]) as request:
+        response = wix_handler._update_product_rest({
+            'productId': 'prod-1',
+            'updates': {'name': 'New', 'price': 120},
+        }, 'req-3')
+
+    patch_call = request.call_args_list[1]
+    assert patch_call.args[0] == '/stores/v3/products/prod-1'
+    assert patch_call.kwargs['method'] == 'PATCH'
+    product = patch_call.kwargs['body']['product']
+    assert product['revision'] == '12'
+    assert product['name'] == 'New'
+    assert product['variantsInfo']['variants'][0]['price']['actualPrice']['amount'] == '120'
+    assert response['statusCode'] == 200
 
 
 def test_push_registration_uses_live_id_key(push_handler):
@@ -198,24 +205,3 @@ def test_push_devices_require_admin(push_handler):
         response = push_handler.handler(event, None)
     assert response is denied
     require_auth.assert_called_once_with(event, required_role='Admin')
-
-
-def test_order_retry_reports_provider_success_when_status_persistence_fails(wix_handler):
-    event = {
-        'body': json.dumps({'orderId': 'order-1', 'channel': 'sms'}),
-        '_auth': {'username': 'admin-user'},
-    }
-    with patch.object(wix_handler, '_velo_request', return_value={
-        'notifications': [{'orderId': 'order-1', 'phone': '919999999999'}],
-    }), patch.object(wix_handler, 'claim_admin_action', return_value=True), \
-            patch.object(notify_mod, 'send_notification_sms',
-                         return_value=_sms_outcome(
-                             ok=True, provider_message_id='provider-message-1')), \
-            patch.object(wix_handler, '_persist_order_retry',
-                         side_effect=RuntimeError('storage down')):
-        response = wix_handler._retry_order_notification(event, 'req-5')
-    body = json.loads(response['body'])
-    assert response['statusCode'] == 502
-    assert body['messageSent'] is True
-    assert body['providerMessageId'] == 'provider-message-1'
-    assert 'do not retry yet' in body['error']

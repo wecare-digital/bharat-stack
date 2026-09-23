@@ -2775,164 +2775,42 @@ Content-Type: application/json`}</pre>
                   </div>
                 </div>
 
-                {/* Wix Store Webhook Section */ }
+                {/* Wix Headless Commerce Section */ }
                 <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1a3a2a' } }>
                   <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
                     <div style={ { width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #d1d5db' } }>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><line x1="3" y1="6" x2="21" y2="6" stroke="#1a3a2a" strokeWidth="2" /><path d="M16 10a4 4 0 01-8 0" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </div>
                     <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>WECARE.DIGITAL Wix Store</h3>
-                      <span className="badge" style={ { background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' } }>Wix eCommerce + Velo | Active</span>
+                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>Wix Headless Commerce</h3>
+                      <span className="badge" style={ { background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' } }>API-only | Catalog V3</span>
                     </div>
                   </div>
 
-                  {/* Quick Links */ }
-                  <div style={ { display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' } }>
-                    <a href="https://www.wecare.digital/store" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#d1f470', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500 } }>
-                      Live Store
-                    </a>
-                    <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/products" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
-                      Wix Products
-                    </a>
-                    <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/orders" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
-                      Wix Orders
-                    </a>
-                    <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/media-manager" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
-                      Media Manager
-                    </a>
-                    <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5" target="_blank" rel="noopener noreferrer" style={ { display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem', background: '#f9fafb', color: '#1a3a2a', borderRadius: '6px', fontSize: '0.8rem', textDecoration: 'none', fontWeight: 500, border: '1px solid #d1d5db' } }>
-                      Wix Dashboard
-                    </a>
-                  </div>
+                  <p style={ { fontSize: '0.85rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1rem' } }>
+                    Bharat Stack is the only codebase and Amplify is the public frontend. Wix is used as a clean commerce backend for
+                    catalog, inventory, cart and orders. The deleted Wix Editor/Velo repository is not part of the target architecture.
+                  </p>
 
-                  <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db' } }>
-                    <h4 style={ { margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#1a3a2a' } }>API Endpoints (Lambda: wecare-wix-store)</h4>
+                  <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem', fontSize: '0.8rem' } }>
                     { [
-                      { label: 'List Products', method: 'GET', path: '/wix-store/products' },
-                      { label: 'Get Product (full)', method: 'GET', path: '/wix-store/products/{id}' },
-                      { label: 'List Collections', method: 'GET', path: '/wix-store/collections' },
-                      { label: 'Get Collection', method: 'GET', path: '/wix-store/collections/{id}' },
-                      { label: 'Collection Products', method: 'GET', path: '/wix-store/collections/{id}/products' },
-                      { label: 'Query Inventory', method: 'GET', path: '/wix-store/inventory' },
-                      { label: 'Product Inventory', method: 'GET', path: '/wix-store/inventory/{productId}' },
-                      { label: 'Search Orders (WD)', method: 'GET', path: '/wix-store/orders' },
-                      { label: 'Get Order', method: 'GET', path: '/wix-store/orders/{id}' },
-                      { label: 'Order Fulfillments', method: 'GET', path: '/wix-store/orders/{id}/fulfillments' },
-                      { label: 'Order Transactions', method: 'GET', path: '/wix-store/orders/{id}/transactions' },
-                      { label: 'Create Product', method: 'POST', path: '/wix-store/create-product' },
-                      { label: 'Add Product Image', method: 'POST', path: '/wix-store/add-product-image' },
-                      { label: 'Upload Product Image', method: 'POST', path: '/wix-store/upload-product-image' },
-                      { label: 'Sync Products → DynamoDB', method: 'POST', path: '/wix-store/sync/products' },
-                      { label: 'Sync Orders → DynamoDB', method: 'POST', path: '/wix-store/sync/orders' },
-                      { label: 'Generate Product Image', method: 'POST', path: '/store/generate-product-image' },
-                      { label: 'Preview Product Image', method: 'GET', path: '/store/preview-product-image' },
-                      { label: 'Convert Flag → PNG', method: 'POST', path: '/store/convert-flag' },
-                    ].map( ( { label, method, path } ) => (
-                      <div key={ path } style={ { marginBottom: '0.5rem' } }>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>{ label }</label>
-                        <code style={ { fontSize: '0.8rem', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' } }>
-                          <span style={ { color: method === 'POST' ? '#1a3a2a' : '#1d4ed8', fontWeight: 600 } }>{ method }</span> https://api.wecare.digital{ path }
-                        </code>
+                      [ 'Products', 'Catalog V3' ],
+                      [ 'Categories', 'Categories V3' ],
+                      [ 'Inventory', 'Inventory Items V3' ],
+                      [ 'Cart', 'eCommerce Cart V2' ],
+                      [ 'Orders', 'eCommerce Orders' ],
+                      [ 'Payment UI', 'AWS + Razorpay' ],
+                    ].map( ( [ label, value ] ) => (
+                      <div key={ label } style={ { background: '#f9fafb', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb' } }>
+                        <div style={ { color: '#6b7280', fontSize: '0.7rem' } }>{ label }</div>
+                        <div style={ { fontWeight: 600, color: '#1a3a2a', marginTop: 2 } }>{ value }</div>
                       </div>
                     ) ) }
                   </div>
 
-                  <div style={ { background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#E65100' } }>Configuration</h4>
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' } }>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Wix Site ID</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Wix Account ID</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>•••••••• (stored in Lambda env WIX_ACCOUNT_ID)</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Wix Site URL</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>https://www.wecare.digital</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Mode</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>Dual (REST API + Velo HTTP Functions)</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Custom Order ID Format</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>WD-ORD-{ '{' }<span style={ { color: '#1a3a2a' } }>UUID8</span>{ '}' }-DD-MM-YYYY-HH:MM:SS-IST</code>
-                      </div>
-                      <div>
-                        <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>DynamoDB Tables</label>
-                        <code style={ { fontSize: '0.75rem', color: '#111827' } }>WixOrderIds, WixProductsCache, WixOrdersCache</code>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #d1d5db' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#0f2a1d' } }>TWO REPOS — IMPORTANT</h4>
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' } }>
-                      <div style={ { background: '#fff', padding: '0.5rem', borderRadius: '4px' } }>
-                        <div style={ { fontWeight: 600, color: '#0f2a1d', marginBottom: '2px' } }>Stack CRM Repo</div>
-                        <a href="https://github.com/wecare-digital/bharat-stack" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a', fontSize: '0.75rem', wordBreak: 'break-all' } }>wecare-digital/bharat-stack</a>
-                        <div style={ { fontSize: '0.7rem', color: '#666', marginTop: '2px' } }>Branch: <code>stack</code> | Dashboard, Lambdas, Amplify, store/src/ (reference copy)</div>
-                      </div>
-                      <div style={ { background: '#fff', padding: '0.5rem', borderRadius: '4px' } }>
-                        <div style={ { fontWeight: 600, color: '#0f2a1d', marginBottom: '2px' } }>Wix Velo Repo (LIVE)</div>
-                        <a href="https://github.com/wecare-digital/store" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a', fontSize: '0.75rem', wordBreak: 'break-all' } }>wecare-digital/store</a>
-                        <div style={ { fontSize: '0.7rem', color: '#666', marginTop: '2px' } }>Branch: <code>main</code> | Connected to Wix Editor via Git Integration — auto-syncs on push</div>
-                      </div>
-                    </div>
-                    <div style={ { marginTop: '0.5rem', fontSize: '0.75rem', color: '#0f2a1d', background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' } }>
-                      Shared code lives in <code>shared/wix-velo/</code> — sync script copies to both repos. Wix page files need internal IDs (e.g. <code>HOME.c1dmp.js</code>) — only the Wix Editor can create page files.
-                    </div>
-                  </div>
-
-                  <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#1a3a2a' } }>Wix Data Collections</h4>
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem' } }>
-                      <div style={ { background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' } }>
-                        <code style={ { color: '#1a3a2a', fontWeight: 600 } }>OrderIDs</code>
-                        <div style={ { fontSize: '0.7rem', color: '#666' } }>Written by Velo (Thank You page). Fields: orderId (WD-ORD), wixOrderId, orderNumber, buyerEmail, buyerPhone, totalAmount, orderDate</div>
-                      </div>
-                      <div style={ { background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' } }>
-                        <code style={ { color: '#1a3a2a', fontWeight: 600 } }>OrderCustomIds</code>
-                        <div style={ { fontSize: '0.7rem', color: '#666' } }>Written by Velo + Lambda. Fields: orderId (Wix UUID), customOrderNumber (WD-ORD), memberId, buyerEmail</div>
-                      </div>
-                      <div style={ { background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' } }>
-                        <code style={ { color: '#1a3a2a', fontWeight: 600 } }>Stores/Products</code>
-                        <div style={ { fontSize: '0.7rem', color: '#666' } }>Wix native. Read-only from REST API. SKU prefix: WD-</div>
-                      </div>
-                      <div style={ { background: '#fff', padding: '0.4rem 0.5rem', borderRadius: '4px' } }>
-                        <code style={ { color: '#1a3a2a', fontWeight: 600 } }>Stores/Orders</code>
-                        <div style={ { fontSize: '0.7rem', color: '#666' } }>Wix native. customField writable via Velo only. Native # hidden everywhere.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={ { background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' } }>
-                    <h4 style={ { margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: '#2E7D32' } }>Velo Code (store/src/)</h4>
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.8rem' } }>
-                      { [
-                        { file: 'backend/http-functions.js', desc: 'HTTP API endpoints' },
-                        { file: 'backend/events.js', desc: 'Order created → WD assignment' },
-                        { file: 'backend/orderId.web.js', desc: 'WD ID generator' },
-                        { file: 'backend/member-orders.web.js', desc: 'Member order queries' },
-                        { file: 'backend/product-manager.web.js', desc: 'Product CRUD (in-stock default)' },
-                        { file: 'backend/hide-native-order-number.js', desc: 'Hide Wix native order # + branding' },
-                        { file: 'backend/pinger.js', desc: 'Health check (hourly)' },
-                        { file: 'public/global-apply.js', desc: 'CSS + DOM injection for native # hide' },
-                        { file: 'pages/', desc: 'Store, Product, Collection, My Orders, Thank You' },
-                      ].map( ( { file, desc } ) => (
-                        <div key={ file } style={ { background: '#fff', padding: '0.35rem 0.5rem', borderRadius: '4px' } }>
-                          <code style={ { fontSize: '0.75rem', color: '#2E7D32' } }>{ file }</code>
-                          <span style={ { fontSize: '0.65rem', color: '#9ca3af', marginLeft: '4px' } }>{ desc }</span>
-                        </div>
-                      ) ) }
-                    </div>
-                  </div>
-
-                  <div style={ { background: '#FFF9C4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #FFF176', fontSize: '0.8rem', color: '#F57F17' } }>
-                    Note: Wix Secrets Manager needs: <code>WECARE_API_KEY</code> (shared secret) and <code>WECARE_API_URL</code> (https://api.wecare.digital). Wix Data collections: <code>OrderIDs</code> (Thank You page writes WD-ORD here) + <code>OrderCustomIds</code> (Lambda/dashboard reads from here). DynamoDB: <code>stack-wecare-digital-WixOrderIds</code> (Lambda order mapping). Always push Velo changes to <code>store.wecare.digital</code> repo (main branch), NOT stack repo.
+                  <div style={ { marginTop: '1rem', background: '#f9fafb', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.8rem', color: '#374151' } }>
+                    Runtime adapter: <code>amplify/functions/ecommerce/wix-store/handler.py</code>. Product prices and SKUs are variant-level;
+                    product updates use Wix revisions; inventory is queried separately.
                   </div>
                 </div>
 

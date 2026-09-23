@@ -261,24 +261,30 @@ def list_site_pages() -> List[Dict[str, Any]]:
 
 
 def list_products() -> List[Dict[str, Any]]:
-    data = request('POST', '/stores/v1/products/query', {
-        'query': {'paging': {'limit': 100}}, 'includeVariants': False,
-        'includeHiddenProducts': False,
+    data = request('POST', '/stores/v3/products/query', {
+        'fields': ['CURRENCY', 'MEDIA_ITEMS_INFO', 'DESCRIPTION'],
+        'query': {'cursorPaging': {'limit': 100}},
     })
     products = []
     for product in data.get('products', []):
-        price = product.get('price', {}) or {}
+        price_range = product.get('actualPriceRange', {}) or {}
+        minimum = price_range.get('minValue', {}) or {}
+        amount = minimum.get('amount', '')
+        currency = product.get('currency', 'INR')
         media = product.get('media', {}) or {}
-        image = media.get('mainMedia', {}).get('image', {}).get('url', '')
+        image = (media.get('main', {}) or {}).get('url', '')
+        inventory = product.get('inventory', {}) or {}
+        availability = str(inventory.get('availabilityStatus', '')).upper()
         products.append({
             'id': product.get('id', ''), 'name': product.get('name', ''),
             'slug': product.get('slug', ''),
-            'url': f"{SITE_BASE}/product-page/{product.get('slug', '')}",
-            'description': str(product.get('description', ''))[:200],
-            'price': price.get('formatted', {}).get('price', ''),
-            'priceAmount': price.get('price', 0), 'currency': price.get('currency', 'INR'),
-            'inStock': product.get('stock', {}).get('inStock', False), 'image': image,
-            'type': product.get('productType', 'physical'),
+            'url': f"{SITE_BASE}/store/product/{product.get('slug', '')}",
+            'description': str(product.get('plainDescription', '') or '')[:200],
+            'price': f"{currency} {amount}".strip() if amount else '',
+            'priceAmount': amount or 0, 'currency': currency,
+            'inStock': availability in ('IN_STOCK', 'PARTIALLY_OUT_OF_STOCK'),
+            'image': image,
+            'type': str(product.get('productType', '')).lower(),
             'hasJsonLd': False, 'jsonLdType': '',
         })
     return products

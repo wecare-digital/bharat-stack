@@ -17,9 +17,6 @@ ROUTES = {
     "wecare-push-notifications:live": [
         "GET /push/devices", "POST /push/send",
     ],
-    "wecare-wix-store:live": [
-        "GET /store/order-notifications", "POST /store/order-notifications/retry",
-    ],
     "wecare-seo-tools": ["ANY /seo-tools/{proxy+}"],
     "wecare-docs-scraper": [
         "GET /docs/sources", "POST /docs/sources",

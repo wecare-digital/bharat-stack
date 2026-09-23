@@ -9,9 +9,9 @@
  *
  * THE ROTATING WORDS, AND WHICH OF THEM ARE BACKED TODAY.
  *
- * Air, Weather, Forecast and Solar each name an endpoint that
- * shared/wix-velo/backend/google-services.web.js already calls - checked against that
- * file rather than taken from a doc:
+ * Air, Weather, Forecast and Solar name Google service capabilities that were
+ * previously prototyped in the retired Wix/Velo backend. They are not treated as
+ * live runtime integrations until corresponding AWS endpoints are implemented:
  *
  *   Air       airquality.googleapis.com/v1/currentConditions:lookup
  *   Weather   weather.googleapis.com/v1/currentConditions:lookup

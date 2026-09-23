@@ -1,6 +1,6 @@
 /**
  * Store Page - WECARE.DIGITAL
- * Wix Store Integration — Products, Orders, Collections, Inventory
+ * Wix Headless Commerce — Catalog V3, Categories, Inventory, Orders
  * URL: https://stack.wecare.digital/store
  */
 
@@ -25,7 +25,7 @@ type TabType = 'products' | 'orders' | 'collections' | 'manage' | 'admin' | 'set
 const TABS: TabItem[] = [
   { id: 'products', label: 'Products' },
   { id: 'orders', label: 'Orders' },
-  { id: 'collections', label: 'Collections' },
+  { id: 'collections', label: 'Categories' },
   { id: 'manage', label: 'Product Manager' },
   { id: 'admin', label: 'Store Admin' },
   { id: 'settings', label: 'Settings' },
@@ -49,7 +49,7 @@ const StorePage: React.FC<PageProps> = ( { signOut, user } ) => {
   const [ orderStatusFilter, setOrderStatusFilter ] = useState( '' );
   const [ selectedOrder, setSelectedOrder ] = useState<api.WixOrder | null>( null );
 
-  // Collections
+  // Categories (the route id stays 'collections' for compatibility)
   const [ collections, setCollections ] = useState<api.WixCollection[]>( [] );
   const [ collectionCount, setCollectionCount ] = useState( 0 );
   const [ selectedCollectionId, setSelectedCollectionId ] = useState<string>( '' );
@@ -133,7 +133,7 @@ const StorePage: React.FC<PageProps> = ( { signOut, user } ) => {
       setCollectionCount( data.totalCount );
     } catch ( e )
     {
-      console.error( 'Failed to fetch collections:', e );
+      console.error( 'Failed to fetch categories:', e );
     }
     setLoading( false );
   }, [] );
@@ -656,150 +656,41 @@ const StorePage: React.FC<PageProps> = ( { signOut, user } ) => {
           {/* ---- STORE ADMIN TAB ---- */ }
           { activeTab === 'admin' && (
             <div style={ { maxWidth: 900 } }>
-              {/* Site Overview */ }
               <div style={ { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 } }>
-                <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 } }>
-                  <h3 style={ { margin: 0, fontSize: 16, fontWeight: 600 } }>Wix Site</h3>
-                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5" target="_blank" rel="noopener noreferrer"
-                    style={ { fontSize: 12, color: '#1a3a2a', textDecoration: 'none', padding: '4px 12px', border: '1px solid #f3f4f6', borderRadius: 8 } }>
-                    Open Wix Dashboard →
-                  </a>
-                </div>
-                <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 } }>
-                  <div style={ adminCard }><span style={ adminLabel }>Site Name</span><span style={ adminVal }>WECARE.DIGITAL</span></div>
-                  <div style={ adminCard }><span style={ adminLabel }>Site ID</span><span style={ { ...adminVal, fontSize: 11, fontFamily: 'monospace' } }>c17b0e20-d96d</span></div>
-                  <div style={ adminCard }><span style={ adminLabel }>URL</span><a href="https://www.wecare.digital" target="_blank" rel="noopener noreferrer" style={ { ...adminVal, color: '#1a3a2a', textDecoration: 'none' } }>wecare.digital</a></div>
-                  <div style={ adminCard }><span style={ adminLabel }>Status</span><span style={ { ...adminVal, color: '#1a3a2a' } }>Published</span></div>
-                  <div style={ adminCard }><span style={ adminLabel }>Currency</span><span style={ adminVal }>INR (₹)</span></div>
-                  <div style={ adminCard }><span style={ adminLabel }>Conv. Fee</span><span style={ adminVal }>2% + 18% GST</span></div>
-                </div>
-              </div>
-
-              {/* Velo Code Files */ }
-              <div style={ { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 } }>
-                <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 } }>
-                  <h3 style={ { margin: 0, fontSize: 16, fontWeight: 600 } }>Velo Code Files</h3>
-                  <a href="https://editor.wix.com/html/editor/web/renderer/edit/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5" target="_blank" rel="noopener noreferrer"
-                    style={ { fontSize: 12, color: '#1a3a2a', textDecoration: 'none', padding: '4px 12px', border: '1px solid #f3f4f6', borderRadius: 8 } }>
-                    Open in Wix Editor →
-                  </a>
-                </div>
-
-                {/* Backend Files */ }
-                <div style={ { marginBottom: 16 } }>
-                  <div style={ { fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 } }>Backend</div>
-                  <div style={ { display: 'flex', flexDirection: 'column', gap: 6 } }>
-                    { [
-                      { name: 'orderId.web.js', desc: 'Custom order ID (WD prefix)', type: 'web-module', status: 'active' },
-                      { name: 'convenience-fee.js', desc: 'Checkout convenience fee (2.2% + 18% GST)', type: 'backend', status: 'active' },
-                      { name: 'pinger.js', desc: 'SEO + Store API health checks', type: 'backend', status: 'active' },
-                      { name: 'sku-batch.web.js', desc: 'Batch SKU ops (dryRun, prefix)', type: 'web-module', status: 'active' },
-                      { name: 'events.js', desc: 'Auto SKU on product create', type: 'events', status: 'active' },
-                      { name: 'http-functions.js', desc: 'SEO + AI + Store API (merged)', type: 'http', status: 'active' },
-                      { name: 'jobs.config', desc: 'Scheduled jobs configuration', type: 'config', status: 'active' },
-                    ].map( f => (
-                      <div key={ f.name } style={ { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 } }>
-                        <span style={ { fontSize: 16, width: 24, textAlign: 'center' } }>
-                          { f.type === 'web-module' ? 'Plug' : f.type === 'events' ? 'Evt' : f.type === 'http' ? 'API' : f.type === 'config' ? 'Cfg' : 'File' }
-                        </span>
-                        <div style={ { flex: 1 } }>
-                          <div style={ { fontWeight: 500, fontSize: 13, fontFamily: 'monospace' } }>{ f.name }</div>
-                          <div style={ { fontSize: 11, color: '#6b7280' } }>{ f.desc }</div>
-                        </div>
-                        <span style={ {
-                          fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500,
-                          background: f.status === 'active' ? '#f3f4f6' : '#f9fafb',
-                          color: f.status === 'active' ? '#1a3a2a' : '#1a3a2a',
-                        } }>
-                          { f.status === 'active' ? 'Active' : 'Pending Merge' }
-                        </span>
-                      </div>
-                    ) ) }
-                  </div>
-                </div>
-
-                {/* Public Files */ }
-                <div style={ { marginBottom: 16 } }>
-                  <div style={ { fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 } }>Public</div>
-                  <div style={ { display: 'flex', flexDirection: 'column', gap: 6 } }>
-                    { [
-                      { name: 'global-apply.js', desc: 'Global site-level code (runs on every page)' },
-                      { name: 'ops-lite.js', desc: 'Operations / utility functions' },
-                      { name: 'seo-bridge.js', desc: 'SEO meta tags & structured data' },
-                      { name: 'site-hygiene.js', desc: 'Site maintenance & cleanup' },
-                    ].map( f => (
-                      <div key={ f.name } style={ { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 } }>
-                        <span style={ { fontSize: 16, width: 24, textAlign: 'center', color: '#1a3a2a' } }>File</span>
-                        <div style={ { flex: 1 } }>
-                          <div style={ { fontWeight: 500, fontSize: 13, fontFamily: 'monospace' } }>{ f.name }</div>
-                          <div style={ { fontSize: 11, color: '#6b7280' } }>{ f.desc }</div>
-                        </div>
-                        <span style={ { fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: '#f3f4f6', color: '#1a3a2a' } }>Active</span>
-                      </div>
-                    ) ) }
-                  </div>
-                </div>
-
-                {/* Service Plugins */ }
-                <div>
-                  <div style={ { fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 } }>Service Plugins</div>
-                  <div style={ { display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#f9fafb', borderRadius: 8 } }>
-                    <span style={ { fontSize: 16, width: 24, textAlign: 'center', color: '#1a3a2a' } }>Ext</span>
-                    <div style={ { flex: 1 } }>
-                      <div style={ { fontWeight: 500, fontSize: 13, fontFamily: 'monospace' } }>automations-velo-action-provider</div>
-                      <div style={ { fontSize: 11, color: '#6b7280' } }>Custom automation actions for Wix Automations</div>
-                    </div>
-                    <span style={ { fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: '#f3f4f6', color: '#1a3a2a' } }>Active</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Actions */ }
-              <div style={ { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, marginBottom: 16 } }>
-                <h3 style={ { margin: '0 0 12px', fontSize: 16, fontWeight: 600 } }>Quick Actions</h3>
-                <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 } }>
-                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/products" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
-                    <div><div style={ { fontWeight: 500, fontSize: 13 } }>Manage Products</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
-                  </a>
-                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/orders" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
-                    <div><div style={ { fontWeight: 500, fontSize: 13 } }>Manage Orders</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
-                  </a>
-                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/inventory" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
-                    <div><div style={ { fontWeight: 500, fontSize: 13 } }>Inventory</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
-                  </a>
-                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/store/coupons" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-                    <div><div style={ { fontWeight: 500, fontSize: 13 } }>Coupons</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
-                  </a>
-                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/analytics" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10" /><polyline points="18 20 12 10 6 20" /><polyline points="4 14 12 6 20 14" /></svg>
-                    <div><div style={ { fontWeight: 500, fontSize: 13 } }>Analytics</div><div style={ { fontSize: 11, color: '#6b7280' } }>Wix Dashboard</div></div>
-                  </a>
-                  <a href="https://manage.wix.com/dashboard/c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5/developer-tools/secrets-manager" target="_blank" rel="noopener noreferrer" style={ actionBtn }>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a2a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg>
-                    <div><div style={ { fontWeight: 500, fontSize: 13 } }>Secrets Manager</div><div style={ { fontSize: 11, color: '#6b7280' } }>API Keys & Secrets</div></div>
-                  </a>
-                </div>
-              </div>
-
-              {/* Git Integration Info */ }
-              <div style={ { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 } }>
-                <h3 style={ { margin: '0 0 8px', fontSize: 16, fontWeight: 600 } }>Git Integration</h3>
-                <p style={ { fontSize: 13, color: '#6b7280', margin: '0 0 12px' } }>
-                  Velo code is managed in <code>store/src/</code> — sync with Wix via GitHub integration.
+                <h3 style={ { margin: '0 0 8px', fontSize: 16, fontWeight: 600 } }>Headless Commerce Architecture</h3>
+                <p style={ { fontSize: 13, color: '#6b7280', margin: 0, lineHeight: 1.6 } }>
+                  Amplify owns the storefront and checkout UI. Wix is a backend-only commerce service accessed through REST APIs.
+                  There is no Wix Editor or Velo runtime dependency in Bharat Stack.
                 </p>
-                <div style={ { fontSize: 13, background: '#f9fafb', padding: 12, borderRadius: 8, fontFamily: 'monospace', lineHeight: 1.8 } }>
-                  <span style={ { color: '#6b7280' } }># Pull code from Wix</span><br />
-                  cd wix-store<br />
-                  wix login<br />
-                  wix dev<br /><br />
-                  <span style={ { color: '#6b7280' } }># Push changes to Wix</span><br />
-                  git add -A<br />
-                  git commit -m "Update Velo code"<br />
-                  git push
+              </div>
+
+              <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginBottom: 16 } }>
+                <div style={ adminCard }><span style={ adminLabel }>Products</span><span style={ adminVal }>Catalog V3</span></div>
+                <div style={ adminCard }><span style={ adminLabel }>Organization</span><span style={ adminVal }>Categories V3</span></div>
+                <div style={ adminCard }><span style={ adminLabel }>Stock</span><span style={ adminVal }>Inventory Items V3</span></div>
+                <div style={ adminCard }><span style={ adminLabel }>Orders</span><span style={ adminVal }>eCommerce Orders</span></div>
+                <div style={ adminCard }><span style={ adminLabel }>Cart / Checkout</span><span style={ adminVal }>Cart V2 + AWS UI</span></div>
+                <div style={ adminCard }><span style={ adminLabel }>Payment</span><span style={ adminVal }>Razorpay via AWS</span></div>
+              </div>
+
+              <div style={ { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 } }>
+                <h3 style={ { margin: '0 0 12px', fontSize: 16, fontWeight: 600 } }>Commerce API</h3>
+                <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 } }>
+                  { [
+                    [ 'GET', '/wix-store/products', 'Catalog V3 products' ],
+                    [ 'GET', '/wix-store/products/{id}', 'Product + variants + inventory' ],
+                    [ 'GET', '/wix-store/collections', 'Categories V3 compatibility route' ],
+                    [ 'GET', '/wix-store/inventory', 'Inventory Items V3' ],
+                    [ 'GET', '/wix-store/orders', 'eCommerce orders' ],
+                    [ 'POST', '/wix-store/create-product', 'Create Catalog V3 product' ],
+                    [ 'POST', '/wix-store/update-product', 'Revision-safe product update' ],
+                    [ 'POST', '/wix-store/sync/products', 'Refresh AWS product cache' ],
+                  ].map( ( [ method, path, description ] ) => (
+                    <div key={ path } style={ { padding: 10, borderRadius: 8, background: '#f9fafb' } }>
+                      <div><strong>{ method }</strong> <code>{ path }</code></div>
+                      <div style={ { color: '#6b7280', marginTop: 3 } }>{ description }</div>
+                    </div>
+                  ) ) }
                 </div>
               </div>
             </div>
@@ -837,13 +728,13 @@ const StorePage: React.FC<PageProps> = ( { signOut, user } ) => {
               <div style={ { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20 } }>
                 <h3 style={ { margin: '0 0 8px', fontSize: 16, fontWeight: 600 } }>Integration Mode</h3>
                 <p style={ { fontSize: 13, color: '#6b7280', margin: '0 0 12px' } }>
-                  Configure in <code>amplify/functions/ecommerce/wix-store/resource.ts</code>
+                  API-only self-managed headless. The Lambda reads credentials and project identity from AWS runtime configuration.
                 </p>
-                <div style={ { fontSize: 13, background: '#f9fafb', padding: 12, borderRadius: 8, fontFamily: 'monospace' } }>
-                  WIX_MODE = "api" | "velo"<br />
-                  WIX_API_KEY = IST.eyJ...<br />
-                  WIX_SITE_ID = (from sites list above)<br />
-                  WIX_VELO_BASE_URL = https://www.yoursite.com
+                <div style={ { fontSize: 13, background: '#f9fafb', padding: 12, borderRadius: 8, fontFamily: 'monospace', lineHeight: 1.8 } }>
+                  Catalog = Wix Stores V3<br />
+                  Inventory = Inventory Items V3<br />
+                  Cart = eCommerce Cart V2<br />
+                  Frontend = AWS Amplify / Next.js
                 </div>
               </div>
             </div>
