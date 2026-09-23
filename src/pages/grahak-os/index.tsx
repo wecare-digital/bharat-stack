@@ -270,7 +270,12 @@ response = requests.post(
                     <span className="back-arrow"></span>
                     <div className="avatar">W</div>
                     <div className="contact-info">
-                      <span className="contact-name">WECARE.DIGITAL</span>
+                      {/* A company name, not copy. Without this the translation
+                          widget rewrote it, so the mock WhatsApp thread showed a
+                          Tamil rendering of "WECARE.DIGITAL" as the business name -
+                          which is exactly the sender a real customer would be
+                          checking to see they are talking to the right company. */}
+                      <span className="contact-name" data-wc-no-translate="true">WECARE.DIGITAL</span>
                       <span className="contact-status">online</span>
                     </div>
                     <div className="verified-badge"></div>
@@ -304,7 +309,11 @@ response = requests.post(
                 <div className="code-box">
                   <div className="code-header">
                     <div className="dots"><span className="dot-red"></span><span className="dot-yellow"></span><span className="dot-green"></span></div>
-                    <span className="file-name">send_message.py</span>
+                    {/* A filename. The code body below is already safe because
+                        LanguageBar skips CODE and PRE, but this title sits outside
+                        those tags and was being translated - a Tamil send_message.py
+                        is not a file anyone can open. */}
+                    <span className="file-name" data-wc-no-translate="true">send_message.py</span>
                   </div>
                   {/* The full, real call - not an abbreviation. An earlier pass cut
                       this down to fit a 248px panel, which lost the assignment, the

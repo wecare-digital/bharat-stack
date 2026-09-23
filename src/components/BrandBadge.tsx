@@ -42,8 +42,18 @@ interface BrandBadgeProps {
  *
  * #1a3a2a on #d1f470 measures ~10:1.
  */
+/**
+ * data-wc-no-translate: the label is a BRAND NAME and must survive translation.
+ * LanguageBar rewrites text nodes in place, and with the page set to Tamil this
+ * badge was rendering as a translation of "Grahak OS · by Bharat Stack" - a product
+ * and a company name, neither of which has a Tamil equivalent. The attribute is read
+ * by collectTextNodes in LanguageBar.tsx and rejects the whole subtree.
+ *
+ * Marked here rather than at each call site so every surface inherits it: this badge
+ * appears on Home, /grahak-os, /vayulok and the sign-in screen.
+ */
 const BrandBadge: React.FC<BrandBadgeProps> = ( { label } ) => (
-  <span className="brand-badge">
+  <span className="brand-badge" data-wc-no-translate="true">
     {/* The mark replaces a plain 10px dot. It inherits #1a3a2a through
         currentColor, so the badge stays a two-colour object. BrandMark sizes
         itself; styled-jsx cannot reach into it from here. */}
