@@ -36,7 +36,7 @@ const SEOSitemaps: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="card" style={{ maxWidth: 500 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Submit Sitemap to Google</h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <input placeholder="Sitemap URL (e.g. https://www.wecare.digital/sitemap.xml)" value={url}
+            <input placeholder="Sitemap URL (e.g. https://wecare.digital/sitemap.xml)" value={url}
               onChange={e => setUrl(e.target.value)} className="input" required />
             <input placeholder="Property ID" value={propertyId} onChange={e => setPropertyId(e.target.value)}
               className="input" required />
