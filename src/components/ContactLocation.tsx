@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 /**
  * The map and address block on /contact/.
@@ -49,13 +49,89 @@ import React from 'react';
 const PLACE_ID = 'ChIJQTvOovt3AjoRitCdl0-xHJk';
 
 /**
- * The exact query string measured to resolve our business listing on the keyless embed.
- * Mirrored in /projects/pwtest/mapprobe.js as SHIPPED_QUERY.
+ * COORDINATES, NOT A PLACE QUERY - and that switch is what removes Google's card.
+ *
+ * The embed used to be queried by business name. That made Google draw its OWN info card
+ * inside the frame: a white Roboto panel with "WECARE.DIGITAL", the address, a blue
+ * open-in-new-tab button, a blue directions button, a 4.5-star rating and an (i) icon.
+ * None of it could be restyled. The iframe is cross-origin, so our CSS and JS cannot reach
+ * a single node inside it - there is no selector, no injected stylesheet and no amount of
+ * !important that touches it. Asking for that box "in our design" therefore has exactly
+ * one solution: stop Google drawing a box, and draw our own outside the frame.
+ *
+ * A lat/lng query does that. Measured in a framed browser: with coordinates the frame
+ * contains no business name, no rating and no action buttons - just a pin - while a name
+ * query still carries all of it.
+ *
+ * WHERE THESE NUMBERS COME FROM. Two independent sources were checked, and they disagree
+ * by roughly 200 m. OpenStreetMap geocodes "Phears Lane, Tiretti" to 22.5731893,
+ * 88.3576881 - the street, not the building. Google's own resolved position for the
+ * business listing is the pair below, which is the point the old name-query pin was
+ * already dropping. The Google pair is used because it is the verified premises rather
+ * than a street centroid, and because it keeps the pin exactly where it was before this
+ * change. Confirmed visually: the pin lands on Phears Ln between Haberly Ln and Sri Nath,
+ * which is the block in the postal address.
  */
-const MAP_QUERY = 'WECARE.DIGITAL, Phears Lane, Kolkata 700012';
+const LAT = 22.5717148;
+const LNG = 88.3566972;
 
-/** z=17 is building level: the lane is named and the block is legible without panning. */
-const EMBED_URL = `https://maps.google.com/maps?q=${encodeURIComponent( MAP_QUERY )}&z=17&output=embed`;
+/**
+ * IST, written out rather than assumed from the visitor's clock. Someone deciding whether
+ * it is a reasonable hour to call Kolkata needs OUR time, not theirs, and India has no
+ * daylight saving so the offset never moves - but the tz database is still the right way to
+ * express it, because hard-coding +05:30 arithmetic is how these things rot.
+ */
+const IST_ZONE = 'Asia/Kolkata';
+
+/**
+ * Live weather for the office, from Open-Meteo.
+ *
+ * WHY THIS PROVIDER: it needs no API key and sends access-control-allow-origin: *, both of
+ * which matter on a static export where there is no server of ours to proxy through and no
+ * safe place to put a credential. Measured before committing: HTTP 200, CORS wildcard
+ * present, and it snaps to the nearest grid cell about 4 km away, which is correct enough
+ * for "what is it like there right now" and is not being presented as more precise.
+ *
+ * LICENSING, FLAGGED RATHER THAN BURIED: Open-Meteo's free tier is for NON-COMMERCIAL use.
+ * This is a commercial site, so this call should not stay here indefinitely. Two clean exits,
+ * both better than the status quo: take their commercial plan, or proxy it through a Lambda
+ * behind api.wecare.digital using the Google Weather key the owner already holds - which is
+ * also how it stops being a third-party request from our own page. VayuLok is already the
+ * weather product, so that endpoint arguably ought to exist anyway.
+ *
+ * IT FAILS INVISIBLY ON PURPOSE. If the request errors, times out or the shape changes, the
+ * weather line is simply not rendered. An address card must never show "—°C" or a spinner
+ * where a temperature should be; the address is the job and it is never blocked on this.
+ */
+const WEATHER_URL =
+  `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}` +
+  '&current=temperature_2m,weather_code&timezone=' + encodeURIComponent( IST_ZONE );
+
+/**
+ * WMO weather codes to short human labels.
+ *
+ * Deliberately coarse. The full table distinguishes "light" from "moderate" from "dense"
+ * drizzle; on a contact card that is noise, and every extra word pushes the address down.
+ * Codes are grouped to the phrase a person would actually use.
+ */
+const WMO: Record<number, string> = {
+  0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast',
+  45: 'Fog', 48: 'Freezing fog',
+  51: 'Light drizzle', 53: 'Drizzle', 55: 'Heavy drizzle',
+  56: 'Freezing drizzle', 57: 'Freezing drizzle',
+  61: 'Light rain', 63: 'Rain', 65: 'Heavy rain',
+  66: 'Freezing rain', 67: 'Freezing rain',
+  71: 'Light snow', 73: 'Snow', 75: 'Heavy snow', 77: 'Snow grains',
+  80: 'Showers', 81: 'Showers', 82: 'Heavy showers',
+  85: 'Snow showers', 86: 'Snow showers',
+  95: 'Thunderstorm', 96: 'Thunderstorm', 99: 'Thunderstorm',
+};
+
+/**
+ * z=18 rather than 17. Losing Google's card freed the space it used to cover, and one step
+ * closer makes the lane names either side of the pin legible without panning.
+ */
+const EMBED_URL = `https://maps.google.com/maps?q=${LAT},${LNG}&z=18&output=embed`;
 
 const ADDRESS_LINES = [
   'The W.B.S.I.D.C. Building',
@@ -82,6 +158,57 @@ const EMAIL = 'one@wecare.digital';
 const DIRECTIONS_URL = `https://www.google.com/maps/dir/?api=1&destination=WECARE.DIGITAL&destination_place_id=${PLACE_ID}`;
 
 const ContactLocation: React.FC = () => {
+  // NULL UNTIL MOUNTED, and that is a correctness requirement rather than caution. With
+  // output:'export' this component is rendered to HTML at build time in Node, so formatting
+  // a clock during render would bake the BUILD time into the file and then disagree with the
+  // browser on hydration - a guaranteed mismatch, and a wrong time on screen until React
+  // reconciled it. Rendering nothing server-side and filling both in after mount is the only
+  // way either value can be honest.
+  const [ istTime, setIstTime ] = useState<string | null>( null );
+  const [ weather, setWeather ] = useState<{ temp: number; label: string } | null>( null );
+
+  useEffect( () => {
+    const format = () => new Intl.DateTimeFormat( 'en-IN', {
+      timeZone: IST_ZONE, hour: '2-digit', minute: '2-digit', hour12: false,
+    } ).format( new Date() );
+
+    // FIRST TICK VIA requestAnimationFrame, not a direct call. setIstTime( format() ) in the
+    // effect body would be a synchronous setState in an effect - the exact
+    // react-hooks/set-state-in-effect error this repo already carries 115 of, and there is no
+    // reason to add the 116th. A rAF callback lands before the first paint a user can see, so
+    // nothing is lost visually.
+    const raf = requestAnimationFrame( () => setIstTime( format() ) );
+    // 20s, not 60s: a minute-resolution clock updated once a minute can sit visibly stale for
+    // almost a full minute after the minute rolls over.
+    const id = window.setInterval( () => setIstTime( format() ), 20000 );
+
+    return () => { cancelAnimationFrame( raf ); window.clearInterval( id ); };
+  }, [] );
+
+  useEffect( () => {
+    // AbortController so a visitor who leaves before the response lands does not get a
+    // setState on an unmounted component.
+    const ac = new AbortController();
+
+    ( async () => {
+      try {
+        const res = await fetch( WEATHER_URL, { signal: ac.signal } );
+        if ( !res.ok ) return;
+        const data = await res.json();
+        const temp = data?.current?.temperature_2m;
+        const code = data?.current?.weather_code;
+        // Number.isFinite, not a truthiness check: 0 °C is a real temperature and 0 is also
+        // the WMO code for "Clear", so `if ( !temp )` would silently discard both.
+        if ( !Number.isFinite( temp ) ) return;
+        setWeather( { temp: Math.round( temp ), label: WMO[ code ] ?? '' } );
+      } catch {
+        /* Deliberately silent - see WEATHER_URL. The card renders without this line. */
+      }
+    } )();
+
+    return () => ac.abort();
+  }, [] );
+
   return (
     <section className="cl" aria-labelledby="cl-title">
       <h2 className="cl-h2" id="cl-title">Where to find us</h2>
@@ -99,6 +226,44 @@ const ContactLocation: React.FC = () => {
             referrerPolicy="no-referrer-when-downgrade"
             allowFullScreen
           />
+
+          {/* OUR CARD, IN PLACE OF GOOGLE'S. This sits OUTSIDE the iframe and on top of
+              it, which is the only way it can be ours - see the note on LAT/LNG for why
+              nothing inside a cross-origin frame can be styled.
+              It carries the two things Google's panel had that are worth keeping, the name
+              and the street, in this site's type and colour, and drops the two that were
+              noise: a star rating from two reviews, and duplicate buttons for actions the
+              address column beside it already offers.
+              Positioned TOP-left on purpose. Google's attribution, the "Map data ©2026
+              Google / Terms / Report a map error" strip, sits along the bottom edge and is
+              a condition of using the embed at all - covering it would be a licence
+              breach, not a design choice, so the card stays clear of it. */}
+          <div className="cl-card">
+            <p className="cl-card-name">WECARE.DIGITAL</p>
+            <p className="cl-card-addr">Phears Lane, Tiretti<br />Kolkata 700012</p>
+
+            {/* LIVE ROW. Rendered only once at least one value has arrived, so the card never
+                shows an empty strip or a placeholder dash. Both chips carry the theme's own
+                rounded corners - 10px, one step inside the card's 14px, which is how nested
+                radii stay concentric instead of looking stuck on. */}
+            { ( istTime || weather ) && (
+              <p className="cl-card-live">
+                { istTime && (
+                  <span className="cl-chip">
+                    <span className="cl-chip-k">IST</span>
+                    {/* tabular-nums in CSS stops the chip resizing as digits change. */}
+                    <span className="cl-chip-v">{ istTime }</span>
+                  </span>
+                ) }
+                { weather && (
+                  <span className="cl-chip">
+                    <span className="cl-chip-v">{ weather.temp }°C</span>
+                    { weather.label && <span className="cl-chip-k">{ weather.label }</span> }
+                  </span>
+                ) }
+              </p>
+            ) }
+          </div>
         </div>
 
         <div className="cl-copy">
@@ -156,6 +321,45 @@ const ContactLocation: React.FC = () => {
         /* display:block kills the inline-element baseline gap under the iframe, which
            otherwise shows as a few pixels of tint along the bottom edge. */
         .cl-frame{display:block;width:100%;height:100%;border:0}
+
+        /* THE CARD THAT REPLACED GOOGLE'S. Same 14px radius and 2px lime edge as the map
+           frame itself, so it reads as part of this site rather than as a tooltip the map
+           produced. The shadow is the one already used for hover lift elsewhere, not a new
+           value. */
+        .cl-card{
+          position:absolute;top:16px;left:16px;z-index:1;
+          max-width:calc(100% - 32px);
+          padding:14px 18px;
+          border:2px solid #d1f470;border-radius:14px;
+          background:#fff;
+          box-shadow:0 4px 12px rgba(26,58,42,.12);
+        }
+        /* Card-heading rung at its small end: 19px/700. Smaller than the 22px used on the
+           page's own cards because this one overlays a map and must not dominate it. */
+        .cl-card-name{margin:0 0 4px;font-size:19px;font-weight:700;letter-spacing:-.25px;line-height:1.2;color:#1a3a2a}
+        .cl-card-addr{margin:0;font-size:15px;font-weight:400;line-height:1.4;color:rgba(0,0,0,.54)}
+
+        /* The live row. Separated by the site's 1px static hairline rather than extra space,
+           so it reads as a second kind of information instead of a loose afterthought. */
+        .cl-card-live{
+          display:flex;flex-wrap:wrap;gap:6px;
+          margin:10px 0 0;padding-top:10px;border-top:1px solid #e5e7eb;
+        }
+        /* 10px radius: one step inside the card's 14px. Nesting the same 14px would make the
+           inner corner look slacker than the outer one at this size, which is the usual way
+           rounded corners go wrong. The .22 lime tint is the contract's quiet fill - these are
+           labels, not actions, so full-strength lime would overstate them. */
+        .cl-chip{
+          display:inline-flex;align-items:baseline;gap:5px;
+          padding:4px 9px;border-radius:10px;
+          background:rgba(209,244,112,.22);
+          white-space:nowrap;
+        }
+        /* Uppercase micro-label, same 12px/700/.08em as every eyebrow on the site. */
+        .cl-chip-k{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.54)}
+        /* tabular-nums keeps the clock from shifting width as the digits change, which is
+           what makes a ticking time look like a bug. */
+        .cl-chip-v{font-size:14px;font-weight:700;letter-spacing:-.1px;color:#1a3a2a;font-variant-numeric:tabular-nums}
 
         .cl-copy{min-width:0}
         .cl-label{

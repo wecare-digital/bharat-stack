@@ -21,12 +21,22 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
     {/* Split after the dot, with the dot itself carrying the accent - matching the
         owner's reference lockup, which sets WECARE. on the first line and DIGITAL on
         the second with the full stop picked out in colour.
-        The dot is DARK RED, back to the reference. It was lime, and the owner's word for
-        the result was "not viable" - which is the visibility problem, correctly
-        identified: #d1f470 on white measures about 1.4:1, so at 26px a single full stop
-        in it was effectively invisible. Lime is a fill colour on this site, sitting behind
-        #1a3a2a type; it was never going to work AS the mark. #991b1b measures about 7.5:1
-        on white, so the dot is finally legible at the one size it is ever drawn.
+        THE DOT HAS BEEN THROUGH THREE COLOURS, and the reasoning matters because each
+        change fixed the previous one's actual defect.
+        It was lime (#d1f470), which the owner called "not viable" - correctly: lime on
+        white measures about 1.4:1, so at 26px a single full stop in it was invisible.
+        Lime is a fill colour here, sitting behind #1a3a2a type; it was never going to
+        work AS a mark.
+        It then became dark red (#991b1b) at about 7.5:1, which solved legibility and
+        introduced a subtler problem the owner then named - asking for something "more
+        visible, like neon". At 26px, one glyph of #991b1b reads as near-black: it is
+        high-contrast but it does not read as a COLOUR, so the accent stopped registering
+        as an accent. Contrast and vividness are not the same measurement.
+        It is now #ff0040. That measures about 3.9:1 on white - lower than the dark red,
+        deliberately, and still comfortably past the 3:1 that WCAG asks of a non-text
+        graphic, which is the right bar for a decorative glyph in a wordmark rather than
+        the 4.5:1 for body text. The gain is that it is unmistakably red on screen instead
+        of reading as dark ink.
         An earlier pass split this as WECARE / .DIGITAL, which put the dot at the head of
         the second line where it reads as a leading separator rather than as the end of
         a sentence. The dot belongs to WECARE. */}
@@ -49,8 +59,11 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
       .brand-copy>span{font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-.4px}
       /* The accent is on the dot only, and it is the one place this site uses red. Kept to
          a single glyph so it never competes with lime for meaning: lime marks interaction
-         and state, this marks the brand. */
-      .brand-dot{color:#991b1b}
+         and state, this marks the brand.
+         No glow, deliberately. A text-shadow halo is the usual way to make a colour look
+         "neon", and at 26px on white it would just blur the one glyph that has to stay
+         crisp - the saturation is doing the work instead. */
+      .brand-dot{color:#ff0040}
       .brand-stack{display:flex;align-items:center;gap:2px}
       @media(max-width:767px){
         .brand-lockup{gap:8px}
