@@ -111,6 +111,71 @@ def _money_amount(value: Any) -> str:
     return str(value)
 
 
+def _read_only_variant_to_product_variant(variant: dict) -> dict:
+    """Map Read-Only Variants V3 rows to the nested Products V3 variant shape."""
+    row = dict(variant or {})
+    return {
+        'id': row.get('variantId') or row.get('id', ''),
+        'visible': row.get('visible', True),
+        'sku': row.get('sku', ''),
+        'barcode': row.get('barcode', ''),
+        'choices': row.get('optionChoices') or [],
+        'price': row.get('price') or {},
+        'inventoryStatus': row.get('inventoryStatus') or {},
+    }
+
+
+def _hydrate_product_variants(products: list) -> list:
+    """Attach variants to Query/Search Products V3 results in one batched read.
+
+    Query Products and Search Products intentionally omit variant data. The
+    Read-Only Variants V3 API is designed for this use case and supports
+    filtering by up to a page of product IDs plus cursor paging up to 1,000
+    variants per call.
+    """
+    rows = [dict(product or {}) for product in (products or [])]
+    product_ids = [row.get('id') for row in rows if row.get('id')]
+    if not product_ids:
+        return rows
+
+    variants_by_product = {product_id: [] for product_id in product_ids}
+    cursor = ''
+
+    while True:
+        if cursor:
+            query = {'cursorPaging': {'limit': 1000, 'cursor': cursor}}
+        else:
+            query = {
+                'filter': {'productData.productId': {'$in': product_ids}},
+                'cursorPaging': {'limit': 1000},
+            }
+
+        result = _wix_request(
+            '/stores/v3/products/query-variants',
+            method='POST',
+            body={'fields': ['CURRENCY'], 'query': query},
+        )
+
+        for variant in result.get('variants', []):
+            product_id = (variant.get('productData') or {}).get('productId')
+            if product_id in variants_by_product:
+                variants_by_product[product_id].append(
+                    _read_only_variant_to_product_variant(variant)
+                )
+
+        metadata = result.get('pagingMetadata') or {}
+        cursor = (metadata.get('cursors') or {}).get('next', '')
+        if not cursor:
+            break
+
+    for row in rows:
+        product_id = row.get('id')
+        if product_id in variants_by_product:
+            row['variantsInfo'] = {'variants': variants_by_product[product_id]}
+
+    return rows
+
+
 def _normalize_v3_product(product: dict) -> dict:
     """Expose a stable compatibility shape to the existing Amplify admin UI."""
     normalized = dict(product or {})
@@ -130,9 +195,13 @@ def _normalize_v3_product(product: dict) -> dict:
     media_items = ((media.get('itemsInfo') or {}).get('items') or [])
     inventory = product.get('inventory') or {}
     availability = str(inventory.get('availabilityStatus') or '').upper()
+    variant_in_stock = any(
+        (variant.get('inventoryStatus') or {}).get('inStock') is True
+        for variant in variant_rows
+    )
     in_stock = bool(inventory.get('inStock')) or availability in {
         'IN_STOCK', 'PARTIALLY_OUT_OF_STOCK'
-    }
+    } or variant_in_stock
 
     categories = []
     for category in ((product.get('directCategoriesInfo') or {}).get('categories') or []):
@@ -507,7 +576,8 @@ def _list_products(params: dict, request_id: str) -> Dict[str, Any]:
             'query': {'cursorPaging': paging},
         })
 
-    products = [_normalize_v3_product(p) for p in result.get('products', [])]
+    raw_products = _hydrate_product_variants(result.get('products', []))
+    products = [_normalize_v3_product(p) for p in raw_products]
     paging = result.get('pagingMetadata') or {}
     return _response(200, {
         'products': products,
@@ -602,7 +672,8 @@ def _collection_products(collection_id: str, params: dict, request_id: str) -> D
             'cursorPaging': paging,
         },
     })
-    products = [_normalize_v3_product(p) for p in result.get('products', [])]
+    raw_products = _hydrate_product_variants(result.get('products', []))
+    products = [_normalize_v3_product(p) for p in raw_products]
     metadata = result.get('pagingMetadata') or {}
     return _response(200, {
         'products': products,
@@ -1411,7 +1482,7 @@ def _sync_products(request_id: str) -> Dict[str, Any]:
             'fields': CATALOG_PRODUCT_FIELDS,
             'query': {'cursorPaging': paging},
         })
-        products = result.get('products', [])
+        products = _hydrate_product_variants(result.get('products', []))
         if not products:
             break
 
