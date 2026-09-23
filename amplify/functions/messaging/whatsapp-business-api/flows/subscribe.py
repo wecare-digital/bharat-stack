@@ -18,7 +18,7 @@ from flows.common import (
     dynamodb, lambda_client, CONTACTS_TABLE, FLOW_SUBMISSIONS_TABLE,
     OUTBOUND_WHATSAPP_FUNCTION, PHONE1_ID,
     get_phone_from_token, get_phone_number_id_for_flow,
-    find_contact_by_phone, save_flow_submission,
+    find_contact_by_phone, record_completion,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,19 +60,50 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
     ship_pin = data.get('ship_pin', '')  # "Postal Code" in flow UI
     ship_country = data.get('ship_country', '')
 
-    # ── Generate or reuse subscriber ID ──
-    subscriber_uuid = str(uuid.uuid4())
-    contact_id = find_contact_by_phone(phone)
-    existing_sub_id = _find_existing_subscriber_id(phone)
-    subscriber_id = existing_sub_id or f'WD-SUB-{subscriber_uuid[:8].upper()}'
-    is_resubscribe = bool(existing_sub_id)
-
     # ── Build address strings ──
     addr_parts = [ship_house, ship_building, ship_street, ship_city,
                   ship_state, ship_pin, ship_country]
     address_str = ', '.join(p for p in addr_parts if p)
 
-    # ── SET COMPLETE RESPONSE FIRST — before any saves ──
+    # ── Claim the completion BEFORE any save ──
+    # A retry of this data_exchange used to run the whole body again. With no existing
+    # contact it minted a fresh `subscriber_uuid` and wrote a **second Contact row with a
+    # different id**, then sent a second welcome message. `_find_existing_subscriber_id`
+    # was the only thing standing in the way and it reads an eventually-consistent GSI, so
+    # a fast redelivery slipped past it.
+    #
+    # The derived reference removes that dependency entirely: it is a function of the flow
+    # token, so it is the same value on every delivery whether or not the index has caught
+    # up. The conditional put inside `record_completion` decides who proceeds.
+    subscriber_uuid = str(uuid.uuid4())
+    contact_id = find_contact_by_phone(phone)
+    existing_sub_id = _find_existing_subscriber_id(phone)
+
+    form_payload = {
+        'full_name': full_name, 'phone_number': phone_number,
+        'email_address': email_address, 'company_name': company_name,
+        'wa_username': wa_username, 'designation': designation,
+        'ship_house': ship_house, 'ship_building': ship_building,
+        'ship_street': ship_street, 'ship_city': ship_city,
+        'ship_state': ship_state, 'ship_pin': ship_pin,
+        'ship_country': ship_country,
+    }
+    result = record_completion(
+        flow_code=FLOW_CODE, flow_type='subscription', phone=phone,
+        contact_id=contact_id, sender_name=full_name,
+        form_data=form_payload,
+        flow_token=flow_token, request_id=request_id, screen='REVIEW',
+        reference_prefix='WD-SUB',
+        requires_payment=False, payment_amount=0, status='completed',
+    )
+
+    # A returning subscriber keeps the id they already have; a new one gets the derived
+    # reference. Note that the claim id is per *completion* (per flow token), not per
+    # subscriber - otherwise a subscriber could never update their details a second time.
+    subscriber_id = existing_sub_id or result.reference
+    is_resubscribe = bool(existing_sub_id)
+
+    # ── SET COMPLETE RESPONSE ──
     welcome_msg = (
         f'Welcome back to WECARE.DIGITAL! Your details have been updated.\nSubscriber ID: {subscriber_id}'
         if is_resubscribe else
@@ -91,6 +122,15 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
         'is_resubscribe': is_resubscribe,
         'phone_suffix': phone[-4:] if phone else '',
     }))
+
+    if not result.should_fire_side_effects:
+        logger.info(json.dumps({
+            'event': 'subscribe_no_side_effects',
+            'status': result.status, 'submissionId': result.submission_id,
+            'reason': 'duplicate completion' if result.duplicate else result.error,
+            'requestId': request_id,
+        }))
+        return response_payload
 
     # ── Save contact with structured address fields ──
     now_ts = int(time.time())
@@ -120,26 +160,9 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
     except Exception as e:
         logger.warning(f'Subscribe contact save failed: {e}')
 
-    # ── Save flow submission with ALL collected fields ──
-    try:
-        save_flow_submission(
-            flow_code=FLOW_CODE, flow_type='subscription', phone=phone,
-            contact_id=contact_id, sender_name=full_name,
-            form_data={
-                'full_name': full_name, 'phone_number': phone_number,
-                'email_address': email_address, 'company_name': company_name,
-                'wa_username': wa_username, 'designation': designation,
-                'ship_house': ship_house, 'ship_building': ship_building,
-                'ship_street': ship_street, 'ship_city': ship_city,
-                'ship_state': ship_state, 'ship_pin': ship_pin,
-                'ship_country': ship_country,
-            },
-            flow_token=flow_token, request_id=request_id,
-            submission_number=subscriber_id,
-            requires_payment=False, payment_amount=0, status='completed',
-        )
-    except Exception as e:
-        logger.warning(f'Subscribe submission save failed: {e}')
+    # The submission row was already written by `record_completion` above - it is the claim.
+    # It used to be written here instead, after the contact save, which is why a failed
+    # claim could not gate anything: there was nothing to gate on yet.
 
     # ── Send confirmation message (async) ──
     try:

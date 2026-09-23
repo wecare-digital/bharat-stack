@@ -97,6 +97,95 @@ def get_contact_name(contact_id: str) -> str:
 
 # ── Submission save ──
 
+def record_completion(flow_code: str, flow_type: str, phone: str,
+                      contact_id: str, sender_name: str, form_data: Dict,
+                      flow_token: str, request_id: str,
+                      screen: str = '',
+                      submission_number: str = '',
+                      requires_payment: bool = False,
+                      payment_amount: int = 0,
+                      payment_ref_id: str = '',
+                      status: str = 'open',
+                      reference_prefix: str = ''):
+    """Claim this completion once, and say whether THIS caller won.
+
+    The single writer, shared with the inbound Lambda:
+    `lambda_utils.flow_completion.claim_completion`. Callers must branch on
+    `result.should_fire_side_effects` before sending a message, creating an invoice or
+    charging anything.
+
+    `submission_number` is now an override, not the norm. Every caller used to mint a
+    fresh random one, which is precisely why a retry produced a second row - and a second
+    request number shown to the same customer for the same request. The derived default is
+    a function of the flow token, so a retry lands on the row that already exists.
+
+    **This function never raises.** Every caller assigns its result inside a `try:` and then
+    branches on it afterwards, so an exception here would leave `result` unbound and turn a
+    claim failure into a NameError - an error screen for the customer instead of their
+    confirmation. Returning an `error` result keeps the flow's terminal screen intact while
+    still refusing the side effects.
+    """
+    from lambda_utils import flow_completion
+
+    try:
+        return _record_completion(
+            flow_completion, flow_code=flow_code, flow_type=flow_type, phone=phone,
+            contact_id=contact_id, sender_name=sender_name, form_data=form_data,
+            flow_token=flow_token, request_id=request_id, screen=screen,
+            submission_number=submission_number, requires_payment=requires_payment,
+            payment_amount=payment_amount, payment_ref_id=payment_ref_id,
+            status=status, reference_prefix=reference_prefix)
+    except Exception as e:  # noqa: BLE001 - a claim failure must not become a NameError
+        logger.error(json.dumps({
+            'event': 'flow_completion_unexpected_error',
+            'flowCode': flow_code, 'error': str(e)[:200], 'requestId': request_id,
+        }))
+        return flow_completion.CompletionResult(
+            status='error', submission_id='', reference='', key='', error=str(e)[:200])
+
+
+def _record_completion(flow_completion, *, flow_code, flow_type, phone, contact_id,
+                       sender_name, form_data, flow_token, request_id, screen,
+                       submission_number, requires_payment, payment_amount,
+                       payment_ref_id, status, reference_prefix):
+    """The body of `record_completion`. Split out so the wrapper above stays total."""
+    result = flow_completion.claim_completion(
+        flow_token=flow_token,
+        screen=screen,
+        flow_code=flow_code,
+        flow_type=flow_type,
+        phone=phone,
+        contact_id=contact_id,
+        sender_name=sender_name,
+        form_data=form_data if isinstance(form_data, dict) else {},
+        reference_prefix=reference_prefix or f'WD-{(flow_code or "")[:6]}',
+        submission_id=submission_number or None,
+        requires_payment=requires_payment,
+        payment_amount=payment_amount,
+        payment_ref_id=payment_ref_id,
+        status=status,
+        request_id=request_id,
+    )
+
+    # Mirror a fresh completion into the CRM. Best-effort: the FlowSubmission row is the
+    # system of record for the submission, the lead is a projection of it.
+    if result.created and contact_id:
+        fd = form_data if isinstance(form_data, dict) else {}
+        flow_completion.capture_crm_lead(
+            result,
+            contact_id=contact_id,
+            flow_token=flow_token,
+            subject=fd.get('subject', ''),
+            detail=fd.get('description', ''),
+            phone=phone,
+            name=sender_name,
+            email=fd.get('email', ''),
+            amount_paise=payment_amount if requires_payment else None,
+            request_id=request_id,
+        )
+    return result
+
+
 def save_flow_submission(flow_code: str, flow_type: str, phone: str,
                          contact_id: str, sender_name: str, form_data: Dict,
                          flow_token: str, request_id: str,
@@ -104,56 +193,27 @@ def save_flow_submission(flow_code: str, flow_type: str, phone: str,
                          requires_payment: bool = False,
                          payment_amount: int = 0,
                          payment_ref_id: str = '',
-                         status: str = 'open') -> Dict:
-    """Save a submission to FlowSubmissionsTable.
-    ORDER-CENTRIC: orderId, subject, description, requestType are promoted
-    to top-level fields so the orderId GSI works for order-based queries.
+                         status: str = 'open',
+                         screen: str = '') -> Dict:
+    """Backwards-compatible wrapper. Prefer `record_completion`.
+
+    Kept because nine flow modules call it. It now goes through the idempotent writer, so
+    every one of those nine gets the conditional put without being edited - but it still
+    returns a bare dict, so a caller using this form **cannot tell a duplicate from a fresh
+    claim**. That is the exact blindness that let a retry send a second payment link.
+
+    Any caller with a side effect must use `record_completion` and check
+    `should_fire_side_effects`. This wrapper returns `{}` for both duplicate and error so
+    the legacy `if not item: return` checks keep behaving as they did.
     """
-    try:
-        now = int(time.time())
-        sub_id = submission_number or f'WD-{flow_code[:6]}-{uuid.uuid4().hex[:8].upper()}'
-        # Extract order-centric fields from form_data for top-level indexing
-        fd = form_data if isinstance(form_data, dict) else {}
-        order_id = fd.get('order_id', '') or fd.get('orderId', '')
-        subject = fd.get('subject', '')
-        description = fd.get('description', '')
-        request_type = fd.get('request_type', '') or fd.get('requestType', '')
-        item = {
-            'submissionId': sub_id,
-            'flowCode': flow_code,
-            'flowType': flow_type,
-            'phone': phone,
-            'contactId': contact_id or '',
-            'senderName': sender_name or '',
-            'formData': json.dumps(form_data) if isinstance(form_data, dict) else str(form_data),
-            'submissionNumber': sub_id,
-            'flowToken': flow_token,
-            # ORDER-CENTRIC: top-level fields for GSI queries
-            'orderId': order_id,
-            'subject': subject,
-            'description': description,
-            'requestType': request_type,
-            'status': status,
-            'paymentRequired': requires_payment,
-            'paymentAmount': payment_amount if requires_payment else 0,
-            'paymentStatus': 'pending' if requires_payment else 'none',
-            'paymentRefId': payment_ref_id if requires_payment else '',
-            'createdAt': Decimal(str(now)),
-            'updatedAt': Decimal(str(now)),
-            'ttl': now + (365 * 86400),
-        }
-        table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
-        table.put_item(Item={k: v for k, v in item.items() if v is not None and v != ''})
-        logger.info(json.dumps({
-            'event': 'flow_submission_saved', 'submissionId': sub_id,
-            'flowCode': flow_code, 'orderId': order_id,
-            'requiresPayment': requires_payment,
-            'paymentAmount': payment_amount, 'requestId': request_id,
-        }))
-        return item
-    except Exception as e:
-        logger.error(f'Flow submission save failed: {e}')
-        return {}
+    result = record_completion(
+        flow_code=flow_code, flow_type=flow_type, phone=phone, contact_id=contact_id,
+        sender_name=sender_name, form_data=form_data, flow_token=flow_token,
+        request_id=request_id, screen=screen, submission_number=submission_number,
+        requires_payment=requires_payment, payment_amount=payment_amount,
+        payment_ref_id=payment_ref_id, status=status,
+    )
+    return result.item if result.created else {}
 
 
 # ── Payment ──

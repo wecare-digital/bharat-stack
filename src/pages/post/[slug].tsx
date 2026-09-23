@@ -61,7 +61,7 @@ export default function BlogPostPage ( { post }: Props ) {
         <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( articleSchema ) } } />
         <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( breadcrumbSchema ) } } />
         { ( post.jsonLd?.faqSchema?.mainEntity?.length || 0 ) > 0 && (
-          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( post.jsonLd.faqSchema ) } } />
+          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( post.jsonLd?.faqSchema ) } } />
         ) }
       </Head>
       <main className="article-shell">

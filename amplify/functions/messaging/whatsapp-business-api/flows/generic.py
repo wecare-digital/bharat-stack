@@ -14,7 +14,7 @@ from typing import Dict
 from flows.common import (
     dynamodb, FLOW_SUBMISSIONS_TABLE,
     get_phone_from_token, get_phone_number_id_for_flow,
-    find_contact_by_phone, save_flow_submission,
+    find_contact_by_phone, record_completion,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ def handle_form(data: Dict, flow_token: str, request_id: str,
     # ── Save (non-blocking) ──
     try:
         contact_id = find_contact_by_phone(phone) if phone else ''
-        save_flow_submission(
+        result = record_completion(
             flow_code=flow_key, flow_type='generic_form', phone=phone,
             contact_id=contact_id, sender_name=data.get('name', ''),
             form_data=data, flow_token=flow_token, request_id=request_id,
