@@ -243,13 +243,23 @@ def _normalize_phone(phone: str) -> str:
     `lambda_utils.comms.numbers`. This now delegates to the same module, so the two senders
     cannot drift apart again - a second normaliser is precisely how they diverged.
 
-    The leading-zero step stays local
-    ---------------------------------
-    `comms.numbers.to_e164` is country-agnostic and turns ``09903300044`` into
-    ``+09903300044``, which is not a number. `0` is the Indian STD trunk prefix and the old
-    docstring here promised to accept that form, so it is stripped before handing over -
-    rather than teaching a generic E.164 helper an India-specific dialling convention that
-    would then apply to the SMS and voice paths too.
+    The old docstring promised `09903300044`. That is deliberately no longer accepted
+    ------------------------------------------------------------------------------------
+    A leading `0` followed by ten digits is the Indian STD trunk prefix - and it is also the
+    UK national format: `07911123456` has exactly that shape, and its ten digits start with
+    7, inside the same 6-9 range Indian mobiles use. The two forms are structurally
+    indistinguishable without a country context.
+
+    Assuming India would therefore be the same mistake as the `'91' + clean[-10:]` rule this
+    replaced, just narrower. Measured before deciding: all 13 rows in ContactsTable store
+    `+91` E.164, twelve digits, and **zero** leading-zero forms exist anywhere in
+    ContactsTable or CrmLeads. So the special case served no real input while creating a
+    disagreement between this sender and `notifications.policy`, which normalises through
+    the same helper and refused the form.
+
+    One authority, no local exceptions. If a genuine STD-formatted number ever needs to be
+    accepted, it should be normalised where the country IS known - at the point of capture -
+    not guessed at send time.
 
     Returns `''` rather than raising: every caller in this module already treats an empty
     identity as "do not send".
@@ -257,18 +267,11 @@ def _normalize_phone(phone: str) -> str:
     if not phone:
         return ''
 
-    candidate = str(phone).strip()
-    digits = ''.join(ch for ch in candidate if ch.isdigit())
-    # Indian STD trunk prefix: 0 followed by a 10-digit mobile. Only when there is no
-    # explicit country code, so +919... is untouched.
-    if not candidate.lstrip().startswith('+') and len(digits) == 11 and digits.startswith('0'):
-        candidate = digits[1:]
-
-    e164 = _numbers.to_e164(candidate)
+    e164 = _numbers.to_e164(str(phone).strip())
     if not e164 or not _numbers.is_india(e164):
         logger.warning(json.dumps({
             'event': 'rcs_recipient_refused',
-            'phone': _numbers.last4(e164 or candidate),
+            'phone': _numbers.last4(e164 or str(phone)),
             'reason': 'Sinch India RCS serves Indian destinations only; refusing rather '
                       'than rewriting the number',
         }))

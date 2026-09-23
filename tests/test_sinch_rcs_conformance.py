@@ -257,8 +257,21 @@ class TestRecipientIdentity:
         from lambda_utils import sinch_rcs
 
         for value in ("+919903300044", "919903300044", "9903300044",
-                      "09903300044", "+91 99033 00044"):
+                      "+91 99033 00044"):
             assert sinch_rcs._normalize_phone(value) == "919903300044", value
+
+    def test_the_ambiguous_std_trunk_form_is_refused(self):
+        """`0` + ten digits is the Indian STD prefix AND the UK national format.
+
+        `07911123456` (UK) has the same shape and its ten digits also start in 6-9, so
+        assuming India would be the fabrication bug again, just narrower. Measured: all 13
+        ContactsTable rows store `+91` E.164 and zero leading-zero forms exist, so accepting
+        it bought nothing and made this sender disagree with `notifications.policy`.
+        """
+        from lambda_utils import sinch_rcs
+
+        assert sinch_rcs._normalize_phone("09903300044") == ""
+        assert sinch_rcs._normalize_phone("07911123456") == ""
 
     def test_the_qa_recipient_is_accepted(self):
         from lambda_utils import sinch_rcs
@@ -314,3 +327,83 @@ class TestSendPayloadShape:
         identity = sinch_rcs._normalize_phone("+919903300044")
         assert identity == "919903300044"
         assert not identity.startswith("+")
+
+
+class TestEligibilityAndSendingAgree:
+    """India-only must be decided at eligibility time, not just refused at send time.
+
+    Two layers make the same country decision:
+
+      `notifications.policy.decide_rcs`  chooses a provider and creates a delivery row
+      `sinch_rcs._normalize_phone`       builds the identity, or refuses
+
+    If they disagree, one of two bad things happens. Either eligibility says Sinch and the
+    sender refuses - producing a delivery row that no-ops with nothing reporting a fault -
+    or eligibility says non-India and routes to AWS RCS, which is not provisioned, so a
+    reachable Indian customer silently loses the channel.
+
+    They disagreed until this was written: `decide_rcs` called `numbers.is_india` on the raw
+    destination, and `is_india('9903300044')` is False while
+    `is_india(to_e164('9903300044'))` is True. A bare ten-digit Indian mobile was reported
+    as `INELIGIBLE_UNSUPPORTED: non-India RCS requires AWS End User Messaging RCS` - wrong
+    verdict, misleading reason - while the sender would have accepted it.
+    """
+
+    #: (destination, sinch_is_the_right_answer)
+    CASES = (
+        ("+919903300044", True),
+        ("919903300044", True),
+        ("9903300044", True),          # bare Indian mobile: the case that disagreed
+        ("+918100640044", True),       # the owner-nominated QA recipient
+        ("09903300044", False),        # ambiguous with the UK national format
+        ("+6581234567", False),        # Singapore: 10 digits in full E.164
+        ("+14155552671", False),
+        ("+85212345678", False),
+        ("+4512345678", False),
+        ("", False),
+    )
+
+    @pytest.fixture(autouse=True)
+    def _enabled(self, monkeypatch):
+        monkeypatch.setenv("SINCH_RCS_ENABLED", "true")
+
+    @pytest.mark.parametrize("destination,expected", CASES)
+    def test_both_layers_reach_the_same_verdict(self, destination, expected):
+        from lambda_utils import sinch_rcs
+        from lambda_utils.notifications import policy
+
+        decision = policy.decide_rcs(destination)
+        policy_says_sinch = bool(decision.eligible) and decision.provider == "sinch-rcs"
+        sender_accepts = bool(sinch_rcs._normalize_phone(destination))
+
+        assert policy_says_sinch == expected, (
+            f"policy verdict for {destination!r} is {policy_says_sinch}, expected {expected}"
+            f" ({decision.reason})")
+        assert sender_accepts == expected, (
+            f"sender verdict for {destination!r} is {sender_accepts}, expected {expected}")
+
+    def test_non_india_is_never_routed_to_sinch(self):
+        """Sinch is approved for India only and is not a non-India fallback."""
+        from lambda_utils.notifications import policy
+
+        for destination in ("+6581234567", "+14155552671", "+4512345678"):
+            decision = policy.decide_rcs(destination)
+            assert decision.provider != "sinch-rcs", (
+                f"{destination} must not be routed to Sinch")
+
+    def test_india_with_the_flag_off_is_ineligible_not_routed_elsewhere(self, monkeypatch):
+        """Turning RCS off must not silently promote the message to another provider."""
+        monkeypatch.setenv("SINCH_RCS_ENABLED", "false")
+        from lambda_utils.notifications import policy
+
+        decision = policy.decide_rcs("+919903300044")
+        assert decision.eligible is False
+        assert decision.provider == "sinch-rcs"
+        assert "SINCH_RCS_ENABLED" in decision.reason
+
+    def test_the_policy_normalises_before_classifying(self):
+        """The fix, pinned: classifying a raw destination misreads a bare Indian mobile."""
+        code = code_only(SHARED / "lambda_utils" / "notifications" / "policy.py")
+        assert "numbers.is_india(destination)" not in code, (
+            "classify a normalised number, not the raw destination")
+        assert "def _india(" in code
