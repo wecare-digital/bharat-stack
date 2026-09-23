@@ -4,7 +4,7 @@ import type { CycleWord } from '../components/RotatingHero';
  * The WECARE.DIGITAL product pages, as data.
  *
  * SEVEN PAGES, ONE SHAPE. Elsewhere, Expo Week, Dastavez, Clear Closure, Ritual Guru,
- * Swdhya and Niji Setu are all the same kind of page: a rotating hero, a short lead, three
+ * Open Possibility and Niji Setu are all the same kind of page: a rotating hero, a short lead, three
  * points, an optional boundary note and one call to action. Seven copy-pasted page files
  * would mean seven places to fix a spacing bug and seven chances for them to drift apart,
  * which is exactly how the old site ended up with a different footer on every page. The
@@ -195,25 +195,36 @@ export const PRODUCTS: ProductDef[] = [
     ctaHref: PRODUCT_CTA,
   },
   {
-    slug: 'swdhya',
-    name: 'Swdhya',
+    // RENAMED FROM "Swdhya" at the owner's request, and the slug moved with the name -
+    // "Open Possibility" living at /swdhya/ would have been incoherent to anyone reading
+    // the address bar. Safe to move because this page has never been published: it exists
+    // only on this unmerged branch, so there is no external link or search equity to keep.
+    //
+    // THE SANSKRIT STAYS, BUT ITS JOB CHANGED. स्वाध्याय (svādhyāya, self-study) is
+    // literally where the old name came from, so the epigraph used to be the etymology of
+    // the word "Swdhya". It can no longer do that. It is kept because it still describes
+    // the METHOD accurately - self-study, then self-awareness, then light - while the new
+    // name describes the OUTCOME. The lead is rewritten so the line reads as the root of
+    // the practice rather than as an explanation of a name that is no longer there.
+    slug: 'open-possibility',
+    name: 'Open Possibility',
     blurb: 'Reflection-led conversations that end in a decision.',
-    title: 'Swdhya — reflection-led conversations | WECARE.DIGITAL',
+    title: 'Open Possibility — reflection-led conversations | WECARE.DIGITAL',
     description:
-      'Swdhya by WECARE.DIGITAL — a conversational practice of self-inquiry that turns reflection into clarity, connection and committed action.',
+      'Open Possibility by WECARE.DIGITAL — a conversational practice of self-inquiry that turns reflection into clarity, connection and committed action.',
     frame: 'Reflection into',
     words: cycle( 'clarity', 'action', 'direction', 'focus' ),
     sub: 'A conversational practice of self-inquiry, for moving toward what actually matters.',
-    sectionHeading: 'What Swdhya does',
+    sectionHeading: 'What Open Possibility does',
     lead:
-      'स्वाध्यायात् आत्मबोधः, आत्मबोधात् प्रकाशः — from self-study comes self-awareness; from self-awareness comes light. Swdhya is a conversational practice of self-inquiry that turns reflection into clarity, connection and committed action.',
+      'स्वाध्यायात् आत्मबोधः, आत्मबोधात् प्रकाशः — from self-study comes self-awareness; from self-awareness comes light. That is the practice. Open Possibility is what it opens: a conversation of self-inquiry that turns reflection into clarity, connection and committed action.',
     points: [
       { heading: 'Conversation, not instruction', body: 'The work happens in dialogue. Nobody hands you a conclusion you did not arrive at.' },
       { heading: 'Reflection with an outcome', body: 'Sessions end somewhere — a decision, a next step — rather than trailing off.' },
       { heading: 'Toward what matters', body: 'The direction is yours. The practice is a way of finding it and then committing to it.' },
     ],
     note:
-      'Swdhya is a reflective practice, not therapy, counselling or medical treatment, and nothing in it is clinical advice. If you need mental-health support, please speak to a qualified professional; in an emergency, contact local emergency services.',
+      'Open Possibility is a reflective practice, not therapy, counselling or medical treatment, and nothing in it is clinical advice. If you need mental-health support, please speak to a qualified professional; in an emergency, contact local emergency services.',
     ctaLabel: 'Start a conversation',
     ctaHref: PRODUCT_CTA,
   },

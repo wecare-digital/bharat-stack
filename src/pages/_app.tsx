@@ -416,7 +416,9 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   '/dastavez': { name: 'Dastavez', type: 'WebPage', description: 'Business documentation and registrations in India.' },
   '/clear-closure': { name: 'Clear Closure', type: 'WebPage', description: 'Online dispute resolution, fully online.' },
   '/ritual-guru': { name: 'Ritual Guru', type: 'WebPage', description: 'Curated, temple-grade puja kits.' },
-  '/swdhya': { name: 'Swdhya', type: 'WebPage', description: 'Reflection-led conversations that create clarity and action.' },
+  // Renamed from '/swdhya' / 'Swdhya'. The route moved with the brand name; the page was
+  // never published, so there is nothing to redirect from.
+  '/open-possibility': { name: 'Open Possibility', type: 'WebPage', description: 'Reflection-led conversations that create clarity and action.' },
   '/niji-setu': { name: 'Niji Setu', type: 'WebPage', description: 'A QR code people scan to reach you on a masked call.' },
 };
 
