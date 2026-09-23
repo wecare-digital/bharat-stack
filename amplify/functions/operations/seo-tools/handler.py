@@ -345,16 +345,16 @@ def handler(event: Dict[str, Any], context: Optional[Any]):
     if method == 'OPTIONS':
         return options_response(origin)
 
-    # Public read surface for Amplify static generation. Only published posts are
-    # returned; drafts, audits, logs and Admin mutation routes remain protected.
+    # Public read surface for the headless site. Wix Blog is the source of truth;
+    # drafts, audits, logs and Admin mutation routes remain protected.
     if method == 'GET' and (path.endswith('/blog-public') or '/blog-public/' in path):
         if '/blog-public/' in path:
             slug = path.split('/blog-public/', 1)[1].strip('/')
-            post = storage.get_blog_post(slug, published_only=True)
+            post = wix.get_blog_post_by_slug(slug)
             if not post:
                 return _response(404, {'ok': False, 'error': 'Blog post not found'}, origin)
             return _response(200, {'ok': True, 'post': post}, origin)
-        posts = storage.list_blog_posts(published_only=True, include_content=False)
+        posts = wix.list_blog_posts()
         return _response(200, {'ok': True, 'posts': posts, 'total': len(posts)}, origin)
 
     auth_result = require_auth(event, required_role='Admin')
