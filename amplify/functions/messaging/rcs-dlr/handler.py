@@ -29,6 +29,8 @@ from lambda_utils.response import cors_headers, extract_origin
 from lambda_utils.message_store import put_message  # canonical MessagesTable writer
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
 from lambda_utils import sinch_signature  # raw-body HMAC on the public callback
+from lambda_utils import rcs_status  # monotonic status ordering + failure classification
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
 
@@ -252,8 +254,24 @@ def _process_delivery(data: Dict, request_id: str):
     reason = report.get('reason', {})
     metadata = data.get('message_metadata', '')
 
-    status = RCS_STATUS_MAP.get(sinch_status, sinch_status.lower() if sinch_status else 'unknown')
+    # Canonical status and its rank come from lambda_utils.rcs_status, which is now the
+    # single definition. RCS_STATUS_MAP below is retained only as a fallback for a
+    # status that module does not recognise, so an unknown value still gets logged
+    # rather than dropped.
+    status = rcs_status.canonical(sinch_status) or (
+        RCS_STATUS_MAP.get(sinch_status, sinch_status.lower() if sinch_status else 'unknown'))
     now = int(time.time())
+    reason_text = reason.get('description', '') if isinstance(reason, dict) else str(reason or '')
+
+    # Classify the failure so a permanently unreachable recipient is visible. Measured
+    # over 30 days to 2026-09-22: 559 of 559 failures were the same terminal class -
+    # "Number is RCS disabled or Bot is not launched with the number's provider" - and
+    # one recipient was sent 90 messages, failing all 90, because nothing learned from it.
+    unreachable = False
+    failure_category = ''
+    if status == 'failed':
+        disposition, failure_category = rcs_status.classify_failure(reason_text)
+        unreachable = rcs_status.is_rcs_unreachable(reason_text)
 
     logger.info(json.dumps({
         'event': 'rcs_delivery_update',
@@ -262,24 +280,64 @@ def _process_delivery(data: Dict, request_id: str):
         'sinchStatus': sinch_status,
         'channel': channel,
         'identity': identity[-4:] if identity else '',
-        'reason': reason.get('description', ''),
+        'reason': reason_text,
+        'failureCategory': failure_category or None,
+        'rcsUnreachable': unreachable or None,
         'requestId': request_id,
     }))
+
+    # A dedicated line for the terminal class, so the volume is alarmable without
+    # parsing prose out of the generic update line.
+    if unreachable:
+        logger.warning(json.dumps({
+            'event': 'rcs_recipient_unreachable',
+            'messageId': message_id,
+            'identity': identity[-4:] if identity else '',
+            'category': failure_category,
+            'detail': 'recipient has RCS disabled, or the agent is not launched with '
+                      'their operator; retrying cannot succeed until that changes',
+            'requestId': request_id,
+        }))
 
     if not message_id:
         return
 
-    # Phase 4: legacy RcsMessagesTable update STOPPED — update status on canonical only.
+    # Monotonic guard. Previously an unconditional SET, so a QUEUED_ON_CHANNEL arriving
+    # after DELIVERED rewrote a delivered message back to `sent`, and a re-delivered
+    # FAILED rewrote `delivered`. With 728 QUEUED_ON_CHANNEL against 166 DELIVERED in
+    # the measured window that is not a theoretical race - it means the delivered count
+    # is a floor rather than a measurement.
+    incoming_rank = rcs_status.rank(status)
     try:
         dynamodb.Table(MESSAGES_TABLE).update_item(
             Key={'id': message_id},
-            UpdateExpression='SET #s = :status, dlrTime = :dlr, updatedAt = :now',
-            ConditionExpression='attribute_exists(id)',
+            UpdateExpression=(
+                'SET #s = :status, dlrTime = :dlr, updatedAt = :now, '
+                f'{rcs_status.RANK_ATTRIBUTE} = :rank'
+            ),
+            ConditionExpression=rcs_status.condition_expression(),
             ExpressionAttributeNames={'#s': 'status'},
-            ExpressionAttributeValues={':status': status, ':dlr': data.get('event_time', ''), ':now': now},
+            ExpressionAttributeValues={
+                ':status': status,
+                ':dlr': data.get('event_time', ''),
+                ':now': now,
+                ':rank': incoming_rank,
+            },
         )
     except Exception as e:
-        logger.debug(f'MessagesTable RCS DLR update skipped for {message_id}: {e}')
+        # A ConditionalCheckFailedException here is the guard working, not a fault: it
+        # means a later status already won. Logged distinctly so the two cases are not
+        # conflated in triage.
+        if 'ConditionalCheckFailed' in str(e):
+            logger.info(json.dumps({
+                'event': 'rcs_delivery_out_of_order_skipped',
+                'messageId': message_id,
+                'incomingStatus': status,
+                'incomingRank': incoming_rank,
+                'requestId': request_id,
+            }))
+        else:
+            logger.debug(f'MessagesTable RCS DLR update skipped for {message_id}: {e}')
 
 
 def _process_inbound(data: Dict, request_id: str):
@@ -429,7 +487,12 @@ def _process_opt(data: Dict, event_type: str, request_id: str):
 
 
 def _lookup_contact_by_phone(phone: str) -> str:
-    """Look up contactId from Contacts table by phone number."""
+    """The contact's canonical id for this phone number, or `''` if there is none.
+
+    See the matching function in `rcs-send`: resolution goes through `contact_key` so a
+    row carrying only `id`, or one whose `contactId` alias has drifted, still yields the
+    key that actually works against the table.
+    """
     if not phone:
         return ''
     clean = phone.replace('+', '').replace(' ', '').replace('-', '')
@@ -451,7 +514,16 @@ def _lookup_contact_by_phone(phone: str) -> str:
             )
             items = resp.get('Items', [])
             if items:
-                return items[0].get('contactId', '')
+                item = items[0]
+                try:
+                    contact_key.assert_consistent(item)
+                except contact_key.ContactKeyMismatch as exc:
+                    logger.warning(json.dumps({
+                        'event': 'contact_key_mismatch',
+                        'source': 'rcs-dlr._lookup_contact_by_phone',
+                        'reason': str(exc),
+                    }))
+                return contact_key.resolve(item)
     except Exception as e:
         logger.debug(f"Contact lookup by phone failed: {e}")
     return ''

@@ -46,7 +46,7 @@ const BharatRxPage: React.FC = () => (
         name="description"
         content="Bharat Rx by WECARE.DIGITAL — request medicines, consults, reminders and records in one place, with every request tracked end to end."
       />
-      <link rel="canonical" key="canonical" href="https://stack.wecare.digital/bharat-rx/" />
+      <link rel="canonical" key="canonical" href="https://wecare.digital/bharat-rx/" />
     </Head>
     <RotatingHero
       ariaLabel="Bharat Rx"

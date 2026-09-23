@@ -41,7 +41,7 @@ const PrivacyPage: React.FC = () => (
         name="description"
         content="How WECARE.DIGITAL collects, uses, stores, shares and protects personal data — what we collect, why, who it is shared with, how long we keep it, and your rights."
       />
-      <link rel="canonical" key="canonical" href="https://stack.wecare.digital/privacy/" />
+      <link rel="canonical" key="canonical" href="https://wecare.digital/privacy/" />
     </Head>
     <RotatingHero
       ariaLabel="Privacy policy"

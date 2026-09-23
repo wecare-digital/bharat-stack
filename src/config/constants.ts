@@ -73,9 +73,9 @@ export const GST_RATES = [
 // Convenience Fee Configuration
 // Fee is charged on the cart/collection subtotal, then GST is applied to the
 // fee itself: total = (subtotal x percent%) x (1 + gstPercent/100).
-// NOTE: the Wix checkout SPI keeps its own copy of these rates in
-// store/src/backend/ecom/additional-fees/convenience-fee.js because Velo code
-// cannot import from this bundle. Change both together.
+// The public checkout is AWS-owned. Server-side checkout/order code must use
+// the same values when composing the final payable amount; do not duplicate
+// these rates in a Wix Editor/Velo project.
 export const CONVENIENCE_FEE = {
   percent: 2.2,
   gstPercent: 18.0,

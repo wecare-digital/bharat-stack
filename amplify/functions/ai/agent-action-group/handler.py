@@ -34,6 +34,7 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 
 # Configure logging
 from lambda_utils.logging import get_logger
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
 
@@ -377,7 +378,8 @@ def _create_contact(params: Dict, request_id: str) -> Dict:
         now = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         
         contact = {
-            'id': contact_id,
+            # `id` alone left this contact unresolvable to the RCS phone-index readers.
+            **contact_key.contact_item_keys(contact_id),
             'name': name or '',
             'phone': phone or '',
             'email': email or '',

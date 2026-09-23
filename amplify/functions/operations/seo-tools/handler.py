@@ -1,4 +1,4 @@
-"""Admin-only API Gateway handler for durable static-hosted SEO tools."""
+"""SEO API for AWS-native blog content plus authenticated Admin SEO tools."""
 import json
 import logging
 import time
@@ -180,7 +180,7 @@ def _blog_audit(body: Dict[str, Any], actor: str, origin: str):
     duplicate = _claim({'slug': slug}, actor, 'seo.blog.audit', origin)
     if duplicate:
         return duplicate
-    post = wix.find_blog_post(slug)
+    post = storage.get_blog_post(slug)
     if not post:
         raise LookupError('Blog post not found')
     audit, log = _run_audit(post, 'blog')
@@ -260,25 +260,25 @@ def _review(body: Dict[str, Any], actor: str, origin: str):
     if not applying:
         return _response(409, {'ok': False, 'error': 'Audit state changed; refresh and retry'}, origin)
     try:
-        wix.apply_blog_audit(applying)
+        storage.apply_blog_audit(applying, actor)
     except Exception:
-        logger.exception('Wix blog SEO apply failed')
+        logger.exception('AWS blog SEO apply failed')
         try:
             restored = storage.transition_audit(
                 audit_id, ['applying'], 'approved', actor,
-                {'applicationError': 'Wix apply failed'},
+                {'applicationError': 'Blog SEO apply failed'},
             )
         except Exception:
-            logger.exception('Failed to restore SEO audit after Wix apply failure')
+            logger.exception('Failed to restore SEO audit after blog apply failure')
             restored = None
         if not restored:
-            logger.error('SEO audit state is unconfirmed after Wix apply failure')
+            logger.error('SEO audit state is unconfirmed after blog apply failure')
             return _response(502, {
                 'ok': False,
-                'error': 'Wix apply failed; audit state could not be confirmed. Refresh before retrying',
+                'error': 'Blog SEO apply failed; audit state could not be confirmed. Refresh before retrying',
                 'stateUnconfirmed': True,
             }, origin)
-        return _response(502, {'ok': False, 'error': 'Wix apply failed; audit remains approved'}, origin)
+        return _response(502, {'ok': False, 'error': 'Blog SEO apply failed; audit remains approved'}, origin)
     applied_at = storage.now_iso()
     updated = storage.transition_audit(
         audit_id, ['applying'], 'applied', actor,
@@ -295,10 +295,10 @@ def _review(body: Dict[str, Any], actor: str, origin: str):
 
 def _route_get(path: str, event: Dict[str, Any], origin: str):
     if path.endswith('/blog-posts'):
-        posts = wix.list_blog_posts()
+        posts = storage.list_blog_posts()
         return _response(200, {'ok': True, 'posts': posts, 'total': len(posts)}, origin)
     if path.endswith('/blog-create'):
-        return _response(200, {'ok': True, **wix.blog_form_options()}, origin)
+        return _response(200, {'ok': True, **storage.blog_form_options()}, origin)
     if path.endswith('/seo-logs'):
         record_type = 'log' if _query(event, 'type', 'audits') == 'logs' else 'audit'
         scope = _query(event, 'scope')
@@ -319,7 +319,7 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
         duplicate = _claim(body, actor, 'seo.blog.create', origin)
         if duplicate:
             return duplicate
-        return _response(200, {'ok': True, **wix.create_blog_post(body)}, origin)
+        return _response(200, {'ok': True, **storage.create_blog_post(body, actor)}, origin)
     if path.endswith('/seo-clean'):
         slug = str(body.get('slug', '')).strip()
         if not slug:
@@ -327,7 +327,7 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
         duplicate = _claim({'slug': slug}, actor, 'seo.blog.clean', origin)
         if duplicate:
             return duplicate
-        return _response(200, {'ok': True, **wix.clean_blog_post(slug)}, origin)
+        return _response(200, {'ok': True, **storage.clean_blog_post(slug, actor)}, origin)
     if path.endswith('/ai-seo-audit'):
         return _blog_audit(body, actor, origin)
     if path.endswith('/page-audit'):
@@ -344,6 +344,19 @@ def handler(event: Dict[str, Any], context: Optional[Any]):
     method, path = _method_path(event)
     if method == 'OPTIONS':
         return options_response(origin)
+
+    # Public read surface for Amplify static generation. Only published posts are
+    # returned; drafts, audits, logs and Admin mutation routes remain protected.
+    if method == 'GET' and (path.endswith('/blog-public') or '/blog-public/' in path):
+        if '/blog-public/' in path:
+            slug = path.split('/blog-public/', 1)[1].strip('/')
+            post = storage.get_blog_post(slug, published_only=True)
+            if not post:
+                return _response(404, {'ok': False, 'error': 'Blog post not found'}, origin)
+            return _response(200, {'ok': True, 'post': post}, origin)
+        posts = storage.list_blog_posts(published_only=True, include_content=False)
+        return _response(200, {'ok': True, 'posts': posts, 'total': len(posts)}, origin)
+
     auth_result = require_auth(event, required_role='Admin')
     if auth_result is not None:
         return auth_result

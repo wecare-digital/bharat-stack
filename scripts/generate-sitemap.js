@@ -1,60 +1,88 @@
 #!/usr/bin/env node
 /**
- * Generate sitemap.xml for stack.wecare.digital
- * Scans the out/ directory for HTML files and generates a sitemap.
- * Run after `next build && next export` or `npm run build`.
+ * Generate the PUBLIC sitemap for www.wecare.digital from the static export.
  *
- * Usage: node scripts/generate-sitemap.js
+ * The repository contains many authenticated dashboard pages under the same
+ * static export. They must never be emitted into the public sitemap.
  */
-
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath( import.meta.url );
+const __dirname = path.dirname( __filename );
 
-const SITE_URL = 'https://stack.wecare.digital';
-const OUT_DIR = path.join(__dirname, '..', 'out');
-const OUTPUT_FILE = path.join(OUT_DIR, 'sitemap.xml');
+const SITE_URL = 'https://wecare.digital';
+const OUT_DIR = path.join( __dirname, '..', 'out' );
+const OUTPUT_FILE = path.join( OUT_DIR, 'sitemap.xml' );
 
-// Pages that should NOT be in the sitemap (internal/auth-protected)
-const EXCLUDE = [
-  '/404', '/_not-found', '/.well-known',
-];
+// EXPLICIT ALLOWLIST, deliberately - the export also contains the authenticated
+// dashboard, so scanning for every index.html would leak those into a public sitemap.
+// Anything added here must be a real public route AND in the isPublic allowlist in
+// _app.tsx, or it will 200 with an empty body.
+//
+// /faq and /partners were removed: both pages were deleted on owner instruction, so
+// those entries described URLs that no longer build. /terms and /privacy carry real
+// published documents now and are indexable, so they belong here.
+const PUBLIC_EXACT = new Set( [
+  '/',
+  '/bharat-rx',
+  '/blog',
+  '/contact',
+  '/grahak-os',
+  '/my-order',
+  '/privacy',
+  '/terms',
+  '/vayulok',
+] );
+const PUBLIC_PREFIXES = [ '/post/' ];
 
-function findHtmlFiles(dir, base = '') {
+function normalizeRoute ( base ) {
+  if ( !base ) return '/';
+  const route = base.startsWith( '/' ) ? base : '/' + base;
+  return route.replace( /\/+$/, '' ) || '/';
+}
+
+function isPublicRoute ( route ) {
+  return PUBLIC_EXACT.has( route ) || PUBLIC_PREFIXES.some( prefix => route.startsWith( prefix ) );
+}
+
+function findHtmlFiles ( dir, base = '' ) {
   const urls = [];
-  if (!fs.existsSync(dir)) return urls;
+  if ( !fs.existsSync( dir ) ) return urls;
 
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
+  const entries = fs.readdirSync( dir, { withFileTypes: true } );
+  for ( const entry of entries )
+  {
+    const fullPath = path.join( dir, entry.name );
     const urlPath = base + '/' + entry.name;
 
-    if (entry.isDirectory()) {
-      // Skip node_modules, _next, etc.
-      if (entry.name.startsWith('_') || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
-      urls.push(...findHtmlFiles(fullPath, urlPath));
-    } else if (entry.name === 'index.html') {
-      const pagePath = base || '/';
-      // Check exclusions
-      if (!EXCLUDE.some(ex => pagePath.startsWith(ex))) {
-        urls.push(pagePath + '/');
-      }
+    if ( entry.isDirectory() )
+    {
+      if ( entry.name.startsWith( '_' ) || entry.name.startsWith( '.' ) || entry.name === 'node_modules' ) continue;
+      urls.push( ...findHtmlFiles( fullPath, urlPath ) );
+    }
+    else if ( entry.name === 'index.html' )
+    {
+      const route = normalizeRoute( base );
+      if ( isPublicRoute( route ) ) urls.push( route );
     }
   }
   return urls;
 }
 
-function generateSitemap(urls) {
-  const today = new Date().toISOString().split('T')[0];
-  const entries = urls.map(url => `  <url>
-    <loc>${SITE_URL}${url}</loc>
+function generateSitemap ( routes ) {
+  const today = new Date().toISOString().split( 'T' )[ 0 ];
+  const unique = [ ...new Set( routes ) ].sort();
+  const entries = unique.map( route => {
+    const pathname = route === '/' ? '/' : route + '/';
+    return `  <url>
+    <loc>${SITE_URL}${pathname}</loc>
     <lastmod>${today}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>${url === '/' ? '1.0' : '0.7'}</priority>
-  </url>`).join('\n');
+    <changefreq>${route.startsWith( '/post/' ) ? 'monthly' : 'weekly'}</changefreq>
+    <priority>${route === '/' ? '1.0' : route === '/blog' ? '0.8' : '0.7'}</priority>
+  </url>`;
+  } ).join( '\n' );
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -62,12 +90,7 @@ ${entries}
 </urlset>`;
 }
 
-// Run
-const urls = findHtmlFiles(OUT_DIR);
-console.log(`Found ${urls.length} pages in out/`);
-urls.forEach(u => console.log(`  ${u}`));
-
-const sitemap = generateSitemap(urls);
-fs.writeFileSync(OUTPUT_FILE, sitemap, 'utf-8');
-console.log(`\nSitemap written to: ${OUTPUT_FILE}`);
-console.log(`Submit to Google: ${SITE_URL}/sitemap.xml`);
+const routes = findHtmlFiles( OUT_DIR );
+const sitemapXml = generateSitemap( routes );
+fs.writeFileSync( OUTPUT_FILE, sitemapXml, 'utf-8' );
+console.log( `Public sitemap: ${routes.length} URLs -> ${OUTPUT_FILE}` );

@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Dict
 from flows.common import (
     dynamodb, get_phone_from_token, find_contact_by_phone,
-    get_contact_name, save_flow_submission,
+    get_contact_name, record_completion,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,13 @@ def handle_review_form(data: Dict, flow_token: str, request_id: str) -> Dict:
     phone = get_phone_from_token(flow_token)
     contact_id = find_contact_by_phone(phone)
     name = get_contact_name(contact_id)
-    review_id = f'WD-REV-{uuid.uuid4().hex[:8].upper()}'
+    # Derived from the completion key rather than random. A Meta retry of
+    # this data_exchange recomputes the same id, so the domain write below
+    # overwrites an identical row instead of creating a second one, and the
+    # conditional put inside record_completion refuses the duplicate.
+    from lambda_utils import flow_completion as _fc
+    review_id = _fc.reference_for(
+        _fc.completion_key(flow_token, 'REVIEW_FORM', data)[0], 'WD-REV')
     now = int(time.time())
 
     rating = 0
@@ -69,21 +75,24 @@ def handle_review_form(data: Dict, flow_token: str, request_id: str) -> Dict:
         logger.warning(f'Review save failed: {e}')
 
     try:
-        save_flow_submission(
+        result = record_completion(
             flow_code=FLOW_CODE, flow_type='feedback', phone=phone,
             contact_id=contact_id, sender_name=name,
             form_data=data, flow_token=flow_token, request_id=request_id,
-            submission_number=review_id, requires_payment=False, status='submitted',
+            screen='REVIEW_FORM', submission_number=review_id, requires_payment=False, status='submitted',
         )
     except Exception as e:
         logger.warning(f'Review submission save failed: {e}')
 
-    try:
-        from flows.common import send_simple_confirmation
-        send_simple_confirmation(phone, flow_token, 'Review Submitted', review_id,
-            f'*Rating:* {"⭐" * rating}\n*Category:* {data.get("category", "")}')
-    except Exception:
-        pass
+    # Only a fresh claim may message the customer. Without this guard a Meta
+    # retry of the same completion sent a second confirmation for one submission.
+    if result.should_fire_side_effects:
+        try:
+            from flows.common import send_simple_confirmation
+            send_simple_confirmation(phone, flow_token, 'Review Submitted', review_id,
+                f'*Rating:* {"⭐" * rating}\n*Category:* {data.get("category", "")}')
+        except Exception:
+            pass
 
     stars = '⭐' * rating if rating else ''
     return {

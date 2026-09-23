@@ -29,6 +29,7 @@ from decimal import Decimal
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.logging import get_logger
+from lambda_utils import payment_status  # monotonic status, one vocabulary, dedup key
 
 logger = get_logger(__name__)
 
@@ -122,12 +123,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         event_type = payload.get('event', '')
         event_data = payload.get('payload', {})
 
-        # Extract Razorpay event ID for idempotency
-        razorpay_event_id = payload.get('account_id', '') + ':' + payload.get('event', '') + ':' + str(payload.get('created_at', ''))
-        # Use payment entity ID if available (more reliable)
-        _entity = event_data.get('payment', {}).get('entity', {})
-        if _entity.get('id'):
-            razorpay_event_id = _entity['id'] + ':' + event_type
+        # Idempotency key. Built from whichever entity the event carries, not only
+        # `payload.payment.entity`.
+        #
+        # This previously fell back to `account_id:event:created_at` for every event
+        # without a payment entity - which is refund, dispute, settlement, payout,
+        # order.paid, invoice.*, payment_link.* and downtime, i.e. all of our live
+        # traffic. Razorpay emits one downtime per bank and banks fail together, so
+        # `created_at` is not a discriminator. Measured over 4 days to 2026-09-23:
+        # 3030 events received, 1495 claimed as duplicates, and 19 keys whose
+        # deliveries carried DIFFERENT bodies - at least 59 distinct events silently
+        # thrown away. See lambda_utils/payment_status.dedup_key.
+        razorpay_event_id = payment_status.dedup_key(payload)
 
         logger.info(json.dumps({'event': 'razorpay_event_received', 'eventType': event_type, 'razorpayEventId': razorpay_event_id, 'requestId': request_id}))
 
@@ -317,14 +324,28 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
     try:
         table = dynamodb.Table(WEBHOOK_LOG_TABLE)
         now = int(time.time())
-        # Extract payment entity for structured fields
-        _entity = event_data.get('payment', {}).get('entity', {})
+        # Whichever entity the event carries, not only `payload.payment.entity`. With the
+        # old payment-only lookup, all 607 live downtime rows stored `amount: 0` and a
+        # `status` inferred from the event-type suffix, and carried no entity id at all -
+        # so this table, which exists to be the reconciliation record, could not identify
+        # which downtime any row referred to.
+        _container, _entity = payment_status.extract_entity(event_data)
+        try:
+            _amount = payment_status.paise(_entity.get('amount')) if \
+                _entity.get('amount') is not None else 0
+        except ValueError:
+            _amount = 0
         item = {
             'id': str(uuid.uuid4()),
             'eventType': event_type or 'unknown',
             'orderId': _entity.get('order_id', ''),
-            'amount': int(_entity.get('amount', 0)),
+            # Integer paise. Named plainly because this table previously held a bare
+            # `amount` whose unit depended on which handler wrote the row.
+            'amount': _amount,
+            'amountPaise': _amount,
             'status': _entity.get('status', event_type.split('.')[-1] if '.' in event_type else ''),
+            'entityKey': _container,
+            'entityId': _entity.get('id', ''),
             'rawPayload': json.dumps(event_data, default=str)[:4000],  # Truncate large payloads
             'processedAt': now,
             'createdAt': now,
@@ -335,7 +356,11 @@ def _log_webhook_event(event_type: str, event_data: Dict, request_id: str, razor
         # every event without a payment entity (e.g. payment.downtime) and silently
         # dropped those rows from the audit trail. Omit the attribute instead so the
         # row still persists and is simply absent from that sparse index.
-        _payment_id = _entity.get('id') or ''
+        #
+        # Only a genuine payment id goes in: a downtime id is not a payment id, and
+        # putting one here would make that index return non-payments.
+        _payment_id = (_entity.get('id') or '') if _container == 'payment' else \
+            (_entity.get('payment_id') or '')
         if _payment_id:
             item['paymentId'] = _payment_id
         if razorpay_event_id:
@@ -1028,14 +1053,46 @@ def _store_payment_record(payment: Dict, status: str, request_id: str) -> None:
         'requestId': request_id,
     }
 
+    # The rank makes this write MONOTONIC. It used to be a bare `put_item`, which meant
+    # the last delivery won whatever it said - and because a `put_item` replaces the whole
+    # item while this record carries no refund fields, a redelivered `payment.captured`
+    # arriving after `refund.processed` both reset the status to captured AND erased
+    # `refundId` and `refundAmount`. The row then read as money kept when the money had
+    # been returned, with nothing anywhere reporting it.
+    #
+    # `refunded` outranks `captured`, so that put is now refused outright and the refund
+    # fields survive by never being overwritten. Same mechanism as
+    # lambda_utils/wa_status and rcs_status, applied to the one domain where a backward
+    # transition is a financial misstatement rather than a cosmetic one.
+    record[payment_status.RANK_ATTRIBUTE] = payment_status.rank(status)
+
     # Remove empty string values (DynamoDB doesn't allow empty strings in some cases)
     clean = {k: v for k, v in record.items() if v is not None and v != ''}
 
     try:
         table = dynamodb.Table(PAYMENTS_TABLE)
-        table.put_item(Item=clean)
-        logger.info(json.dumps({'event': 'payment_stored', 'paymentId': payment_id, 'status': status, 'requestId': request_id}))
+        table.put_item(
+            Item=clean,
+            ConditionExpression=payment_status.condition_expression(),
+            ExpressionAttributeValues={':rank': payment_status.rank(status)},
+        )
+        logger.info(json.dumps({'event': 'payment_stored', 'paymentId': payment_id,
+                                'status': status,
+                                'rank': payment_status.rank(status),
+                                'requestId': request_id}))
     except Exception as e:
+        if 'ConditionalCheckFailedException' in str(e):
+            # Expected and correct: a stale or out-of-order delivery. Recorded at info,
+            # not error, so it does not read as a fault - but recorded, because a high
+            # volume here would mean the provider is redelivering heavily.
+            logger.info(json.dumps({
+                'event': 'payment_status_not_applied',
+                'paymentId': payment_id,
+                'incomingStatus': status,
+                'reason': payment_status.describe(status) + ' does not beat the stored rank',
+                'requestId': request_id,
+            }))
+            return
         logger.error(json.dumps({'event': 'payment_store_error', 'paymentId': payment_id, 'error': str(e), 'requestId': request_id}))
 
 def _mark_invoice_paid_by_reference(reference_id: str, request_id: str) -> None:
@@ -1321,28 +1378,61 @@ def _handle_payment_link(event_type: str, event_data: Dict, request_id: str) -> 
 
 def _handle_refund(event_type: str, event_data: Dict, request_id: str) -> None:
     """Handle refund.* events."""
-    refund = event_data.get('refund', {}).get('entity', {})
+    _, refund = payment_status.extract_entity(event_data)
     refund_id = refund.get('id', '')
     payment_id = refund.get('payment_id', '')
-    amount = int(refund.get('amount', 0)) / 100
+    # Paise, matching `amount` on the same row. It used to divide by 100 and store rupees
+    # in `refundAmount` while `amount` on that very item stayed in paise - one row, two
+    # units, and no field name saying which. Nothing would have caught a reconciliation
+    # comparing them. PaymentsTable holds 0 rows, so there is nothing to migrate.
+    try:
+        refund_paise = payment_status.paise(refund.get('amount'))
+    except ValueError as exc:
+        logger.error(json.dumps({
+            'event': 'refund_amount_unusable', 'refundId': refund_id,
+            'paymentId': payment_id, 'reason': str(exc), 'requestId': request_id,
+        }))
+        refund_paise = None
     status = refund.get('status', '')
     logger.info(json.dumps({
         'event': event_type, 'refundId': refund_id, 'paymentId': payment_id,
-        'amount': amount, 'status': status, 'requestId': request_id,
+        'amountPaise': refund_paise, 'status': status, 'requestId': request_id,
     }))
 
     # Update payment record status if refund processed
-    if event_type == 'refund.processed' and payment_id:
+    if event_type == 'refund.processed' and payment_id and refund_paise is not None:
         try:
             table = dynamodb.Table(PAYMENTS_TABLE)
             import time as _time
+            # Monotonic, like the capture write. `refunded` outranks `captured`, so this
+            # applies over a captured payment and is then itself protected from any later
+            # redelivered payment.* event.
+            refunded_rank = payment_status.rank(payment_status.REFUNDED)
             table.update_item(
                 Key={'id': payment_id},
-                UpdateExpression='SET #st = :st, #refundId = :rid, #refundAmount = :ra, #ua = :now',
-                ExpressionAttributeNames={'#st': 'status', '#refundId': 'refundId', '#refundAmount': 'refundAmount', '#ua': 'updatedAt'},
-                ExpressionAttributeValues={':st': 'refunded', ':rid': refund_id, ':ra': Decimal(str(amount)), ':now': Decimal(str(int(_time.time())))},
+                UpdateExpression=('SET #st = :st, #refundId = :rid, #refundAmount = :ra, '
+                                  f'#rank = :rank, #ua = :now'),
+                ConditionExpression=payment_status.condition_expression('#rank'),
+                ExpressionAttributeNames={
+                    '#st': 'status', '#refundId': 'refundId',
+                    '#refundAmount': 'refundAmountPaise',
+                    '#rank': payment_status.RANK_ATTRIBUTE, '#ua': 'updatedAt',
+                },
+                ExpressionAttributeValues={
+                    ':st': payment_status.REFUNDED, ':rid': refund_id,
+                    ':ra': Decimal(str(refund_paise)), ':rank': refunded_rank,
+                    ':now': Decimal(str(int(_time.time()))),
+                },
             )
         except Exception as e:
+            if 'ConditionalCheckFailedException' in str(e):
+                logger.info(json.dumps({
+                    'event': 'refund_status_not_applied', 'paymentId': payment_id,
+                    'refundId': refund_id,
+                    'reason': 'stored rank already at or beyond refunded',
+                    'requestId': request_id,
+                }))
+                return
             logger.error(json.dumps({'event': 'refund_update_error', 'error': str(e), 'requestId': request_id}))
 
 
@@ -1351,15 +1441,20 @@ def _handle_refund(event_type: str, event_data: Dict, request_id: str) -> None:
 # ═══════════════════════════════════════════════════════════════════
 
 def _handle_dispute(event_type: str, event_data: Dict, request_id: str) -> None:
-    """Handle payment.dispute.* events."""
-    dispute = event_data.get('dispute', {}).get('entity', {})
-    dispute_id = dispute.get('id', '')
-    payment_id = dispute.get('payment_id', '')
-    amount = int(dispute.get('amount', 0)) / 100
-    reason = dispute.get('reason_code', '')
+    """Handle payment.dispute.* events.
+
+    Same entity-key defect as downtime: a dispute arrives under ``payment.dispute``, and
+    this read ``event_data.get('dispute')``. No dispute has been received on this account,
+    so unlike downtime the fault was never exercised - but it would have logged an empty
+    dispute for a contested payment, which is the worst possible moment to have no detail.
+
+    Still log-only. Writing `disputed` onto the payment row is a behaviour change and a
+    separate decision; the rank exists in `payment_status` for when it is made.
+    """
     logger.warning(json.dumps({
-        'event': event_type, 'disputeId': dispute_id, 'paymentId': payment_id,
-        'amount': amount, 'reason': reason, 'requestId': request_id,
+        'event': event_type,
+        **payment_status.entity_summary(event_data),
+        'requestId': request_id,
     }))
 
 
@@ -1368,12 +1463,22 @@ def _handle_dispute(event_type: str, event_data: Dict, request_id: str) -> None:
 # ═══════════════════════════════════════════════════════════════════
 
 def _handle_downtime(event_type: str, event_data: Dict, request_id: str) -> None:
-    """Handle payment.downtime.* events."""
-    downtime = event_data.get('downtime', {}).get('entity', event_data.get('payment', {}).get('downtime', {}))
-    method = downtime.get('method', '')
-    instrument = downtime.get('instrument', {})
+    """Handle payment.downtime.* events.
+
+    The entity arrives under the literal key ``payment.downtime`` - with a dot. This used
+    to read ``event_data.get('downtime')`` and then fall back to
+    ``event_data.get('payment', {}).get('downtime', {})``; neither key exists, so the
+    entity was always `{}`.
+
+    Verified against CloudWatch: all 607 downtime events in the live log were processed
+    with `method: ""` and `instrument: "{}"`. Downtime is currently the ONLY payment
+    webhook traffic this account receives, and its method, affected bank and severity -
+    the entire actionable content - were being discarded.
+    """
     logger.warning(json.dumps({
-        'event': event_type, 'method': method, 'instrument': str(instrument)[:200], 'requestId': request_id,
+        'event': event_type,
+        **payment_status.entity_summary(event_data),
+        'requestId': request_id,
     }))
 
 

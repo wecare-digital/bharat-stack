@@ -43,7 +43,7 @@ const MyOrderPage: React.FC = () => (
         name="description"
         content="Check the status of an order, delivery, request or booking with WECARE.DIGITAL, and find what to do if something needs changing."
       />
-      <link rel="canonical" key="canonical" href="https://stack.wecare.digital/my-order/" />
+      <link rel="canonical" key="canonical" href="https://wecare.digital/my-order/" />
     </Head>
     <RotatingHero
       ariaLabel="My order"

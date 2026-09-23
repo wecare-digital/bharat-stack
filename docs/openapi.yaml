@@ -214,17 +214,6 @@ paths:
       tags: [Operations]
       summary: Send a push notification (Admin only)
       responses: { '200': { description: Push accepted } }
-  /store/order-notifications:
-    get:
-      tags: [E-commerce]
-      summary: List protected Wix order-notification records
-      responses: { '200': { description: Notification list } }
-  /store/order-notifications/retry:
-    post:
-      tags: [E-commerce]
-      summary: Retry one order notification with fail-closed idempotency (Admin only)
-      responses: { '200': { description: Retry completed }, '409': { description: Duplicate retry } }
-
   /docs/sources:
     get: { tags: [Operations], summary: List documentation sources (Admin only), responses: { '200': { description: Source list } } }
     post: { tags: [Operations], summary: Add a documentation source (Admin only), responses: { '200': { description: Source added } } }
@@ -233,10 +222,25 @@ paths:
   /docs/changelog:
     get: { tags: [Operations], summary: Read documentation changes (Admin only), responses: { '200': { description: Changelog } } }
 
+  /seo-tools/blog-public:
+    get:
+      tags: [SEO]
+      summary: List published AWS-native blog posts
+      security: []
+      responses: { '200': { description: Published blog post summaries } }
+
+  /seo-tools/blog-public/{slug}:
+    get:
+      tags: [SEO]
+      summary: Read one published AWS-native blog post
+      security: []
+      parameters: [{ name: slug, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Published blog post }, '404': { description: Post not found } }
+
   /seo-tools/{proxy}:
     get:
       tags: [SEO]
-      summary: Read Admin SEO tools data
+      summary: Read authenticated SEO tools data
       parameters: [{ name: proxy, in: path, required: true, description: Greedy route suffix, schema: { type: string } }]
       responses: { '200': { description: SEO data } }
     post:

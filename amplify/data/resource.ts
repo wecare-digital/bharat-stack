@@ -9,9 +9,31 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 const schema = a.schema( {
   // Table 1: Contacts - Contact records with opt-in preferences
   // Requirement 3.2: Default Block Rule - allowlist fields required
+  // Contact identifier contract (CRM-KEY-001), settled against the live table on
+  // 2026-09-22 rather than from this declaration:
+  //
+  //   stack-wecare-digital-ContactsTable  KeySchema: id (HASH), no sort key
+  //   GSIs: bsuid-index, email-index, phone-index
+  //   13 items, every one carrying BOTH id and contactId, equal in 13 of 13
+  //
+  // In source, 20 files read or write the table and every one uses Key={'id': ...};
+  // there is not a single Key={'contactId': ...}. So `id` is the physical key, the
+  // runtime is correct, and this model previously declared `contactId` as the
+  // identifier - a third version of the truth matching neither the table nor the code.
+  //
+  // `id` is now declared as the identifier to match the deployed table. `contactId` is
+  // retained as an explicit alias because 13 rows carry it and two
+  // `_lookup_contact_by_phone` readers return it, but it is no longer presented as the
+  // key. `lambda_utils/contact_key` owns the invariant that the two agree; before that
+  // module they agreed only by habit, and a diverged row would have made those readers
+  // return a value that resolves to nothing - a message stored against a contact that
+  // cannot be looked up, with no error anywhere.
   Contact: a
     .model( {
-      contactId: a.id().required(),
+      id: a.id().required(),
+      // Alias of `id`, kept for the outward API and the phone-index readers. Writers
+      // must set it via contact_key.contact_item_keys so the two cannot diverge.
+      contactId: a.string(),
       name: a.string(),
       phone: a.string(),
       email: a.string(),
@@ -69,7 +91,11 @@ const schema = a.schema( {
       updatedAt: a.datetime(),
       deletedAt: a.datetime(),
     } )
-    .identifier( [ 'contactId' ] )
+    // `id`, matching the deployed KeySchema. Was `contactId`, which the live table has
+    // never used as its partition key.
+    .identifier( [ 'id' ] )
+    // These three match the deployed GSIs exactly: phone-index, email-index,
+    // bsuid-index. Verified 2026-09-22.
     .secondaryIndexes( ( index ) => [
       index( 'phone' ),
       index( 'email' ),
@@ -1791,6 +1817,194 @@ const schema = a.schema( {
       index( 'phone' ),
       index( 'flowId' ),
       index( 'flowCode' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // CRM — Lead, Pipeline, Stage, Opportunity, Activity.
+  //
+  // Added in Phase 4. Before this the live account held 70 tables and not one CRM
+  // entity: FlowSubmission, AdClickAttribution, SubmitRequest, Order and
+  // ConversationMeta each carried a fragment of the funnel, and none could be
+  // joined into "who is in the pipeline, at what stage, worth how much".
+  //
+  // Provisioned by `scripts/provision_crm_domain.py`, whose index map is pinned to
+  // the one the tests model — see TestProvisioningMatchesWhatTheCodeQueries. The
+  // declarations below match the deployed key schemas exactly. CRM-KEY-001 is what
+  // happens when they do not: this file claimed `contactId` was the Contact key for
+  // as long as the live table had been using `id`.
+  //
+  // No model here carries a TTL. These rows are the business record — which enquiry
+  // came from which campaign and what it was worth — and it cannot be rebuilt from
+  // MessagesTable, which expires at 30 days.
+  //
+  // Domain logic lives in `lambda_utils/crm/`; these models exist so that the
+  // declared schema and the deployed tables agree.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // CrmPipeline — configuration. `pipelineId` is derived from the name, so
+  // re-provisioning is a no-op rather than a second pipeline that splits the board.
+  CrmPipeline: a
+    .model( {
+      pipelineId: a.id().required(),
+      name: a.string().required(),
+      description: a.string(),
+      // A string, not a boolean: DynamoDB cannot index a boolean, and the
+      // alternative is scanning every pipeline on every request.
+      isDefault: a.string().required(),
+      active: a.boolean().default( true ),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    } )
+    .identifier( [ 'pipelineId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'isDefault' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // CrmStage — a column on the board. `displayOrder` is position only;
+  // opportunities reference `stageId`, so reordering does not rewrite them.
+  CrmStage: a
+    .model( {
+      stageId: a.id().required(),
+      pipelineId: a.string().required(),
+      name: a.string().required(),
+      // OPEN | WON | LOST. Entering a closed stage implies the outcome, which is how
+      // dragging a card to Won wins the deal in one action instead of two.
+      kind: a.string().required(),
+      displayOrder: a.integer().required(),
+      // Forecast weight in whole percent. Deliberately optional: a default 50 would
+      // quietly become half the pipeline value in every report.
+      probability: a.integer(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    } )
+    .identifier( [ 'stageId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'pipelineId' ).sortKeys( [ 'displayOrder' ] ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // CrmLead — an inbound enquiry. `leadId` is a hash of (source, sourceRef), so a
+  // replayed webhook lands on the same row; MANUAL and IMPORT get random ids so a
+  // deliberate duplicate stays a duplicate.
+  CrmLead: a
+    .model( {
+      leadId: a.id().required(),
+      // The Contact's canonical `id` value. See lambda_utils/contact_key.
+      contactId: a.string().required(),
+      pipelineId: a.string().required(),
+      // NEW | WORKING | NURTURING | QUALIFIED | CONVERTED | DISQUALIFIED | JUNK.
+      // JUNK is separate from DISQUALIFIED because they mean different things to a
+      // conversion rate: one was never an enquiry at all.
+      state: a.string().required(),
+      source: a.string().required(),
+      // Stored as well as hashed into the id: the hash gives idempotency, the stored
+      // value answers "which Flow submission was this?", which a digest cannot.
+      sourceRef: a.string(),
+      // "{contactId}#{pipelineId}" — the business-duplicate question, answered at
+      // read time as policy rather than enforced as a uniqueness constraint.
+      contactPipelineKey: a.string().required(),
+      phone: a.string(),
+      name: a.string(),
+      email: a.string(),
+      subject: a.string(),
+      detail: a.string(),
+      ownerId: a.string(),
+      channel: a.string(),
+      campaign: a.string(),
+      // Integer paise, matching FlowSubmission.paymentAmount and Payment. Float
+      // currency drifts visibly once a forecast sums a few thousand rows.
+      amountPaise: a.integer(),
+      metadata: a.json(),
+      // Absent until conversion. That absence is the ConditionExpression that makes
+      // conversion once-only, so it must never be initialised to a placeholder.
+      opportunityId: a.string(),
+      convertedAt: a.integer(),
+      disqualifiedReason: a.string(),
+      // Captured once and never moved: response time is measured from it, and an
+      // overwrite would make every slow response look instant.
+      firstTouchedAt: a.integer(),
+      lastActivityAt: a.integer(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    } )
+    .identifier( [ 'leadId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ).sortKeys( [ 'createdAt' ] ),
+      index( 'state' ).sortKeys( [ 'createdAt' ] ),
+      index( 'contactPipelineKey' ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // CrmOpportunity — a qualified lead with a value, on a board.
+  CrmOpportunity: a
+    .model( {
+      opportunityId: a.id().required(),
+      contactId: a.string().required(),
+      pipelineId: a.string().required(),
+      stageId: a.string().required(),
+      title: a.string().required(),
+      // OPEN | WON | LOST | ABANDONED. ABANDONED is not LOST: a deal that evaporated
+      // does not belong in a win-rate denominator.
+      outcome: a.string().required(),
+      leadId: a.string(),
+      amountPaise: a.integer(),
+      currency: a.string().default( 'INR' ),
+      ownerId: a.string(),
+      source: a.string(),
+      expectedCloseAt: a.integer(),
+      metadata: a.json(),
+      // Separate from createdAt because stage dwell time is what identifies a stuck
+      // funnel, and it cannot be derived from row age after the first move.
+      stageEnteredAt: a.integer(),
+      closedAt: a.integer(),
+      closeReason: a.string(),
+      lastActivityAt: a.integer(),
+      createdAt: a.integer(),
+      updatedAt: a.integer(),
+    } )
+    .identifier( [ 'opportunityId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ).sortKeys( [ 'createdAt' ] ),
+      index( 'stageId' ).sortKeys( [ 'createdAt' ] ),
+    ] )
+    .authorization( ( allow ) => [ allow.authenticated() ] ),
+
+  // CrmActivity — the append-only timeline. Three sparse indexes, one per subject.
+  CrmActivity: a
+    .model( {
+      activityId: a.id().required(),
+      // NOTE | CALL | MESSAGE | EMAIL | MEETING | TASK | STAGE_CHANGE |
+      // STATE_CHANGE | SYSTEM. A closed set: free text becomes forty spellings of
+      // "call" within a month and no report can group them.
+      kind: a.string().required(),
+      contactId: a.string(),
+      leadId: a.string(),
+      opportunityId: a.string(),
+      summary: a.string(),
+      body: a.string(),
+      actorId: a.string(),
+      channel: a.string(),
+      // A provider id — wamid, call id, payment id — so a timeline entry traces back
+      // to the transport record that caused it.
+      reference: a.string(),
+      // The last three kinds are system-written. A user-supplied STAGE_CHANGE could
+      // claim a transition that never happened, destroying the timeline's value as
+      // the audit trail for stage movement.
+      isSystem: a.boolean().default( false ),
+      dueAt: a.integer(),
+      completedAt: a.integer(),
+      metadata: a.json(),
+      // The sort key of all three timeline indexes.
+      at: a.integer().required(),
+      createdAt: a.integer(),
+    } )
+    .identifier( [ 'activityId' ] )
+    .secondaryIndexes( ( index ) => [
+      index( 'contactId' ).sortKeys( [ 'at' ] ),
+      index( 'leadId' ).sortKeys( [ 'at' ] ),
+      index( 'opportunityId' ).sortKeys( [ 'at' ] ),
     ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 

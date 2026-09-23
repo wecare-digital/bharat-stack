@@ -39,7 +39,7 @@ type StatusFilter = 'all' | 'pending' | 'audited' | 'approved' | 'applied';
 const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' };
 const td: React.CSSProperties = { padding: '6px 10px' };
 const btn: React.CSSProperties = { padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' };
-const BASE = 'https://www.wecare.digital';
+const BASE = 'https://wecare.digital';
 
 const SYSTEM_PAGES: SitePage[] = [
   { path: '/cart-page', name: 'Cart', type: 'system', url: `${BASE}/cart-page`, title: 'Cart', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
@@ -116,7 +116,7 @@ const PagesManager: React.FC<PageProps> = ({ signOut, user }) => {
   const handleAction = async (id: string, action: string) => {
     addLog(`${action} ${id.substring(0, 20)}...`);
     try { const d = await (await seoToolsFetch('seo-approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId: id, action }) })).json();
-      if (d.ok) { addLog(`${action} done${d.applied ? ' — pushed to Wix' : ''}`); await fetchAudits(); if (selectedAudit?.id === id) setSelectedAudit(d.audit); }
+      if (d.ok) { addLog(`${action} done${d.applied ? ' — saved to AWS' : ''}`); await fetchAudits(); if (selectedAudit?.id === id) setSelectedAudit(d.audit); }
       else addLog(d.error);
     } catch (e: any) { addLog(e.message); }
   };
@@ -533,7 +533,7 @@ function AuditDetail({ audit, audits, onSelect, onAction }: { audit: PageAudit |
 
     {/* Meta Tags — full OG, Twitter, robots, canonical */}
     <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-      <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>🏷️ Meta Tags (pushed to Wix on Apply)</h3>
+      <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>🏷️ Meta Tags (rendered by the public frontend where supported)</h3>
       <div style={{ display: 'grid', gap: 4 }}>{metaTags.map(([prop, val], i) => (
         <div key={i} style={{ display: 'flex', gap: 8, padding: '3px 8px', background: i % 2 === 0 ? '#f9fafb' : '#fff', borderRadius: 4, fontSize: 11 }}>
           <span style={{ color: '#6b7280', minWidth: 160, fontFamily: 'monospace', flexShrink: 0 }}>{prop}</span>
@@ -606,7 +606,7 @@ function BlogCreator({ addLog }: { addLog: (m: string) => void }) {
   const [hashtags, setHashtags] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [availableTags, setAvailableTags] = useState<any[]>([]);
-  const [selectedCat, setSelectedCat] = useState('');
+  const [category, setCategory] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -619,14 +619,14 @@ function BlogCreator({ addLog }: { addLog: (m: string) => void }) {
 
   const publishPost = async () => {
     if (!title.trim() || !content.trim()) { addLog('Title and content required'); return; }
-    setPublishing(true); addLog(`Publishing "${title}"...`);
+    setPublishing(true); addLog(`Saving published post "${title}" to AWS...`);
     try {
       const body: any = { title: title.trim(), content: content.trim() };
-      if (selectedCat) body.categoryIds = [selectedCat];
+      if (category.trim()) body.category = category.trim();
       if (tags.trim()) body.tagLabels = tags.split(',').map(t => t.trim()).filter(Boolean);
       if (hashtags.trim()) body.hashtags = hashtags.split(',').map(h => h.trim()).filter(Boolean);
       const d = await (await seoToolsFetch('blog-create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
-      if (d.ok) { addLog(`Published: ${d.slug} (${d.postId})`); setTitle(''); setContent(''); setTags(''); setHashtags(''); }
+      if (d.ok) { addLog(`Published in AWS: ${d.slug} (${d.postId})`); if (d.rebuildRequired) addLog('Amplify rebuild required before this new static URL is public.'); setTitle(''); setContent(''); setTags(''); setHashtags(''); setCategory(''); }
       else addLog(`Failed: ${d.error}`);
     } catch (e: any) { addLog(e.message); }
     setPublishing(false);
@@ -650,10 +650,8 @@ function BlogCreator({ addLog }: { addLog: (m: string) => void }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <div>
           <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Category</label>
-          <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, fontFamily: 'inherit' }}>
-            <option value="">No category</option>
-            {categories.map((c: any) => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
+          <input value={category} onChange={e => setCategory(e.target.value)} list="pages-blog-category-options" placeholder="e.g. Insights" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, fontFamily: 'inherit' }} />
+          <datalist id="pages-blog-category-options">{categories.map((c: any) => <option key={c.id} value={c.label} />)}</datalist>
         </div>
         <div>
           <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Tags (comma-separated)</label>
@@ -666,8 +664,8 @@ function BlogCreator({ addLog }: { addLog: (m: string) => void }) {
         <input value={hashtags} onChange={e => setHashtags(e.target.value)} placeholder="Stand, ConsciousChoice, Integrity, Swdhya" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e5e7eb', fontSize: 13, fontFamily: 'inherit' }} />
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={publishPost} disabled={publishing || !title.trim() || !content.trim()} style={{ ...btn, background: '#d1f470', fontWeight: 600, padding: '8px 20px', fontSize: 13 }}>{publishing ? 'Publishing...' : 'Publish to Wix'}</button>
-        <button onClick={() => { setTitle(''); setContent(''); setTags(''); setHashtags(''); setSelectedCat(''); }} style={{ ...btn, background: '#f3f4f6', padding: '8px 20px', fontSize: 13 }}>Clear</button>
+        <button onClick={publishPost} disabled={publishing || !title.trim() || !content.trim()} style={{ ...btn, background: '#d1f470', fontWeight: 600, padding: '8px 20px', fontSize: 13 }}>{publishing ? 'Publishing...' : 'Publish'}</button>
+        <button onClick={() => { setTitle(''); setContent(''); setTags(''); setHashtags(''); setCategory(''); }} style={{ ...btn, background: '#f3f4f6', padding: '8px 20px', fontSize: 13 }}>Clear</button>
       </div>
     </div>
     <div className="card" style={{ padding: 16 }}>
@@ -680,9 +678,10 @@ Regular text becomes a paragraph.
 Each line = one paragraph.
 Empty lines are skipped.
 
-Style: Wix Blog default theme (Helvetica Neue / system font)
-Author: Swdhya Vaksetu (set automatically)
-After publishing: go to Blog SEO Manager > Clean+Audit for SEO`}</pre>
+Style: WECARE.DIGITAL Amplify article layout
+Author: current Admin user
+After publishing: go to Blog SEO Manager > Clean+Audit for SEO.
+A new slug becomes public after the next Amplify static build.`}</pre>
     </div>
   </div>);
 }

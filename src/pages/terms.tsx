@@ -38,7 +38,7 @@ const TermsPage: React.FC = () => (
         name="description"
         content="The agreement between you and WECARE.DIGITAL when you use our services: orders, payments, refunds, delivery, professional services and dispute resolution."
       />
-      <link rel="canonical" key="canonical" href="https://stack.wecare.digital/terms/" />
+      <link rel="canonical" key="canonical" href="https://wecare.digital/terms/" />
     </Head>
     <RotatingHero
       ariaLabel="Terms of service"

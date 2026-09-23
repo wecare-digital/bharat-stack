@@ -71,7 +71,6 @@ REQUIRED_SECRET_IDS = [
     "wecare/openai/api",
     "wecare/plivo/api",
     "wecare/meta-system-user-token",
-    "wecare/wix-api-key",
     "wecare/flow-private-key",
     "wecare/agent-connector-token",
 ]

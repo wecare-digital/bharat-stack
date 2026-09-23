@@ -3,10 +3,20 @@ Sinch RCS Send Lambda Function
 
 Purpose: Send RCS messages via Sinch India Conversation API
 Enterprise: WECARE.DIGITAL
-App ID: wecaretrans
 BOT Type: Transactional
-Project ID: c8114d03-eeb2-401d-a8f1-abb93594cb33
-Conv App ID: 01KQSB792X3R148D8ZGHQYW3SP
+
+Configuration, as confirmed against the live account on 2026-09-23. The first three are
+NON-SECRET and are supplied as environment variables; the credential pair is not:
+
+  Username        wecaretrans                            (secret field, NOT an env var)
+  Project ID      c8114d03-eeb2-401d-a8f1-abb93594cb33    RCS_PROJECT_ID
+  Conv App ID     01KQSB792X3R148D8ZGHQYW3SP              RCS_APP_ID
+  Bot ID          69e0b2c980cbf50614ffa5fd                (secret field)
+
+This header previously read "App ID: wecaretrans", which conflated the Sinch *username*
+with the Conversation App id. They are different values addressing different things -
+the username authenticates the password grant and keys the v2 template endpoints, while
+the app id identifies the Conversation App in the send payload.
 
 Authentication:
 - Token endpoint: POST https://auth.aclwhatsapp.com/realms/ipmessaging/protocol/openid-connect/token
@@ -28,7 +38,17 @@ Templates:
 - Template creation: POST https://api.aclwhatsapp.com/access-api/v1/rcs/{botId}/templates
 
 Secrets: wecare/sinch/rcs
-Expected keys: username, password, project_id, app_id
+Expected keys: username, password, project_id, app_id, bot_id
+
+Credentials come from Secrets Manager and nowhere else. There are deliberately no literal
+defaults for `username` or `bot_id`: a default username puts half of the password-grant
+credential pair into source control, and it also masks a real fault - a secret missing its
+username would otherwise authenticate as the literal with an empty password and return a
+401 that reads like a provider outage rather than a configuration error.
+
+Do NOT migrate this to auth.sinch.com or a KEY_ID/KEY_SECRET pair. Live traffic
+authenticates with the username/password grant against auth.aclwhatsapp.com; the global
+Sinch credentials are a different account and would not carry this project.
 """
 
 import os
@@ -46,6 +66,7 @@ from typing import Dict, Any
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
 
@@ -106,8 +127,171 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _create_template(body, request_id, origin)
     elif action == 'delete_template':
         return _delete_template(body, request_id, origin)
+    elif action == 'diagnostics':
+        return _diagnostics(body, request_id, origin)
     else:
         return cors_response(400, {'error': f'Unknown action: {action}'}, origin)
+
+
+# ── Read-only control-plane discovery ────────────────────────────────────────
+#
+# Why this exists here rather than in a script or over MCP.
+#
+# The official Sinch MCP server authenticates against the GLOBAL Sinch Build
+# platform with KEY_ID/KEY_SECRET. This integration runs on the Sinch INDIA
+# platform inherited from the ACL Mobile acquisition, authenticated by a Keycloak
+# password grant. An exhaustive search on 2026-09-22 found no key_id or key_secret
+# in any of the 31 secrets, the single SSM parameter, any S3 object, or the
+# environment of any of 59 Lambdas. So MCP cannot introspect this account at all.
+#
+# This function already holds the India credential and already authenticates. A
+# read-only probe from inside it is therefore the only way to discover the RCS
+# sender, agent, channel status and capabilities - and it keeps the password inside
+# the Lambda, which is the point: the credential never reaches an operator's
+# terminal, a log, or an agent's context.
+#
+# GET only. Every candidate path is enumerated explicitly rather than accepted from
+# the request, so this cannot be turned into a general-purpose proxy for the Sinch
+# credential by a caller who controls `body`.
+
+_DIAG_PATHS = [
+    # Conversation API shape - convapi mirrors Sinch's own, so these are the ones
+    # most likely to carry `channelStatus`, which the audit specifically needs.
+    ('convapi', '/v1/projects/{project_id}/apps'),
+    ('convapi', '/v1/projects/{project_id}/apps/{app_id}'),
+    ('convapi', '/v1/projects/{project_id}/webhooks'),
+    # Access API shape - the template endpoints live here and work, so sibling
+    # agent/capability resources plausibly do too. v2 keys on the app name, v1 on
+    # the bot id; both spellings are tried because the template code uses both.
+    ('accessapi', '/access-api/v2/rcs/{username}'),
+    ('accessapi', '/access-api/v2/rcs/{username}/agent'),
+    ('accessapi', '/access-api/v2/rcs/{username}/capabilities'),
+    ('accessapi', '/access-api/v2/rcs/{username}/testers'),
+    ('accessapi', '/access-api/v1/rcs/{bot_id}'),
+    ('accessapi', '/access-api/v1/rcs/{bot_id}/agent'),
+    ('accessapi', '/access-api/v1/rcs/{bot_id}/capabilities'),
+    ('accessapi', '/access-api/v1/rcs/{bot_id}/testers'),
+]
+
+_DIAG_HOSTS = {
+    'convapi': 'https://convapi.aclwhatsapp.com',
+    'accessapi': 'https://api.aclwhatsapp.com',
+}
+
+# Response keys worth reporting because the audit asks for them by name.
+_DIAG_INTERESTING = (
+    'channelStatus', 'channel_status', 'state', 'status', 'region', 'countries',
+    'countryStatus', 'country_status', 'testNumberStates', 'test_numbers',
+    'testers', 'capabilities', 'features', 'agent', 'agentId', 'bot', 'botId',
+    'senderId', 'sender_id', 'authName', 'auth_name', 'displayName', 'brand',
+    'webhooks', 'target', 'triggers', 'apps', 'id', 'name', 'conversation_app',
+)
+
+
+def _diag_shape(value, depth: int = 0):
+    """Describe a response by SHAPE and interesting keys, never verbatim.
+
+    A control-plane response can contain a bearer token, an auth token or a
+    customer number. Reporting the key set plus scalar values for an allowlist of
+    non-sensitive fields gives the audit what it needs without copying the payload.
+    """
+    if depth > 3:
+        return '...'
+    if isinstance(value, dict):
+        out = {}
+        for k, v in list(value.items())[:40]:
+            lowered = str(k).lower()
+            if any(t in lowered for t in ('token', 'secret', 'password', 'key',
+                                          'credential', 'authorization')):
+                out[k] = '<redacted>'
+            elif isinstance(v, (dict, list)):
+                out[k] = _diag_shape(v, depth + 1)
+            elif k in _DIAG_INTERESTING or depth <= 1:
+                out[k] = v if not isinstance(v, str) else v[:120]
+            else:
+                out[k] = f'<{type(v).__name__}>'
+        return out
+    if isinstance(value, list):
+        return [_diag_shape(v, depth + 1) for v in value[:5]] + (
+            [f'...{len(value) - 5} more'] if len(value) > 5 else [])
+    if isinstance(value, str):
+        return value[:120]
+    return value
+
+
+def _diagnostics(body: Dict, request_id: str, origin: str) -> Dict:
+    """Probe the India control plane read-only and report what answers.
+
+    Returns per-path HTTP status and a redacted shape. Nothing is mutated and no
+    message is sent.
+    """
+    token = _get_token()
+    if not token:
+        return cors_response(500, {'error': 'Auth failed — cannot probe'}, origin)
+
+    creds = _get_secrets()
+    substitutions = {
+        'project_id': RCS_PROJECT_ID,
+        'app_id': RCS_APP_ID,
+        'username': creds.get('username') or '',
+        'bot_id': creds.get('bot_id', ''),
+    }
+
+    results = []
+    for host_key, template in _DIAG_PATHS:
+        try:
+            path = template.format(**substitutions)
+        except KeyError as exc:
+            results.append({'path': template, 'skipped': f'missing {exc}'})
+            continue
+        if '{' in path or path.endswith('/'):
+            results.append({'path': template, 'skipped': 'unresolved substitution'})
+            continue
+
+        url = f'{_DIAG_HOSTS[host_key]}{path}'
+        entry = {'host': host_key, 'path': path}
+        try:
+            req = urllib.request.Request(url, headers={
+                'Authorization': f'Bearer {token}',
+                'Accept': 'application/json',
+            }, method='GET')
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                entry['status'] = resp.status
+                raw = resp.read().decode('utf-8', 'replace')
+                entry['bytes'] = len(raw)
+                try:
+                    entry['shape'] = _diag_shape(json.loads(raw))
+                except (ValueError, json.JSONDecodeError):
+                    entry['shape'] = f'<non-json {raw[:80]}>'
+        except urllib.error.HTTPError as e:
+            entry['status'] = e.code
+            detail = e.read().decode('utf-8', 'replace')[:200] if e.fp else ''
+            entry['error'] = detail
+        except Exception as e:  # noqa: BLE001
+            entry['status'] = None
+            entry['error'] = f'{type(e).__name__}: {str(e)[:120]}'
+        results.append(entry)
+
+    logger.info(json.dumps({
+        'event': 'rcs_diagnostics',
+        'probed': len(results),
+        'answered': sum(1 for r in results if r.get('status') == 200),
+        'requestId': request_id,
+    }))
+
+    return cors_response(200, {
+        'platform': 'sinch-india (ex-ACL)',
+        'authHost': RCS_AUTH_URL.split('/realms')[0],
+        'convapiHost': _DIAG_HOSTS['convapi'],
+        'accessApiHost': _DIAG_HOSTS['accessapi'],
+        'identifiersConfigured': {
+            'project_id': bool(RCS_PROJECT_ID),
+            'app_id': bool(RCS_APP_ID),
+            'username': bool(substitutions['username']),
+            'bot_id': bool(substitutions['bot_id']),
+        },
+        'probes': results,
+    }, origin)
 
 
 def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
@@ -122,11 +306,38 @@ def _send_rcs(body: Dict, request_id: str, origin: str) -> Dict:
     if not phone:
         return cors_response(400, {'error': 'phoneNumber is required'}, origin)
 
-    # Clean phone number — identity must be WITHOUT + prefix per Sinch docs
-    clean = phone.replace('+', '').replace(' ', '').replace('-', '')
-    if not clean.startswith('91'):
-        clean = '91' + clean[-10:]
-    identity = clean  # No + prefix — Sinch requires "919876543210" format
+    # Identity must be digits WITHOUT a + prefix per the Sinch Conversation API.
+    #
+    # This used to be `if not clean.startswith('91'): clean = '91' + clean[-10:]`, which
+    # fabricates an Indian number out of a foreign one. Several countries are exactly 10
+    # digits in full E.164 - +6581234567 (Singapore), +85212345678 (Hong Kong),
+    # +4512345678 (Denmark) - so that rule turned a Singapore number into
+    # +916581234567: a different, real Indian subscriber. That is misdelivery, not
+    # misrouting, and `lambda_utils.comms.numbers` exists because it has happened here
+    # before; its docstring records the incident.
+    #
+    # `to_e164` honours an explicit country code and only assumes India for a bare
+    # 10-digit number. Sinch India RCS can only reach Indian recipients anyway, so a
+    # non-India destination is refused explicitly rather than silently rewritten.
+    from lambda_utils.comms import numbers as _numbers
+
+    e164 = _numbers.to_e164(phone)
+    if not e164:
+        return cors_response(400, {'error': 'phoneNumber is not a usable number'}, origin)
+    if not _numbers.is_india(e164):
+        logger.warning(json.dumps({
+            'event': 'rcs_send_refused_non_india',
+            'phone': _numbers.last4(e164),
+            'reason': 'Sinch India RCS serves Indian destinations only; refusing rather '
+                      'than rewriting the number',
+            'requestId': request_id,
+        }))
+        return cors_response(400, {
+            'error': 'RCS is available for Indian destinations only',
+            'success': False,
+        }, origin)
+    clean = e164.lstrip('+')
+    identity = clean
 
     # Get auth token
     token = _get_token()
@@ -298,7 +509,7 @@ def _get_token() -> str:
 def _authenticate() -> str:
     """Authenticate with Sinch RCS using username/password."""
     creds = _get_secrets()
-    username = creds.get('username', 'wecaretrans')
+    username = creds.get('username') or ''
     password = creds.get('password', '')
 
     if not password:
@@ -423,7 +634,7 @@ def _list_templates(body: Dict, request_id: str, origin: str) -> Dict:
         return cors_response(500, {'error': 'Auth failed'}, origin)
 
     creds = _get_secrets()
-    username = creds.get('username', 'wecaretrans')
+    username = creds.get('username') or ''
 
     # v2 API uses username as appId
     url = f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates"
@@ -456,7 +667,7 @@ def _create_template(body: Dict, request_id: str, origin: str) -> Dict:
         return cors_response(400, {'error': 'name and text are required'}, origin)
 
     creds = _get_secrets()
-    username = creds.get('username', 'wecaretrans')
+    username = creds.get('username') or ''
 
     # v2 API uses username as appId
     url = f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates"
@@ -526,16 +737,35 @@ def _delete_template(body: Dict, request_id: str, origin: str) -> Dict:
     if not name:
         return cors_response(400, {'error': 'Template name is required'}, origin)
 
+    # Secrets Manager only, with no literal fallbacks. `username` is half of the
+    # password-grant credential pair, so a default put it in source control; and a default
+    # `bot_id` silently addresses whichever bot that literal names, which after a bot change
+    # would query the wrong agent and report its templates as ours.
     creds = _get_secrets()
-    bot_id = creds.get('bot_id', '69e0b2c980cbf50614ffa5fd')
-    username = creds.get('username', 'wecaretrans')
+    bot_id = str(creds.get('bot_id') or '').strip()
+    username = str(creds.get('username') or '').strip()
+    if not username:
+        logger.error(json.dumps({
+            'event': 'rcs_template_lookup_no_credentials',
+            'secretId': RCS_SECRET_NAME,
+            'missingFields': [f for f in ('username', 'bot_id')
+                              if not str(creds.get(f) or '').strip()],
+            'requestId': request_id,
+        }))
+        return cors_response(500, {
+            'error': 'RCS credentials unavailable',
+            'detail': f'{RCS_SECRET_NAME} is missing username',
+        }, origin)
 
-    # Try multiple endpoint formats (v1 with botId, v2 with username)
-    urls = [
-        f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates/{name}",
-        f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates/{name}",
-        f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates?name={name}",
-    ]
+    # Try multiple endpoint formats (v2 with username, v1 with botId). The v1 forms are
+    # skipped when bot_id is absent rather than sent with an empty path segment, which would
+    # hit a different resource entirely.
+    urls = [f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates/{name}"]
+    if bot_id:
+        urls += [
+            f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates/{name}",
+            f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates?name={name}",
+        ]
 
     for url in urls:
         try:
@@ -599,7 +829,14 @@ def _store_rcs_message(message_id: str, phone: str, content: str, status: str,
 
 
 def _lookup_contact_by_phone(phone: str) -> str:
-    """Look up contactId from Contacts table by phone number. Returns '' if not found."""
+    """The contact's canonical id for this phone number, or `''` if there is none.
+
+    Resolution goes through `contact_key`, which prefers `id` - the table's actual
+    partition key - over the `contactId` alias. This used to read
+    ``items[0].get('contactId', '')`` directly, which had two failure modes: a row
+    carrying only `id` yielded `''` and silently detached the message from its contact,
+    and a row whose alias had drifted yielded a value that resolves to nothing.
+    """
     if not phone:
         return ''
     # Normalize: try with and without 91 prefix
@@ -622,7 +859,20 @@ def _lookup_contact_by_phone(phone: str) -> str:
             )
             items = resp.get('Items', [])
             if items:
-                return items[0].get('contactId', '')
+                item = items[0]
+                try:
+                    contact_key.assert_consistent(item)
+                except contact_key.ContactKeyMismatch as exc:
+                    # Surfaced rather than swallowed: a diverged row means some writer has
+                    # broken the invariant, and staying quiet here is what would let a
+                    # wrong contact id spread into MessagesTable. `resolve` still returns
+                    # the usable key, so the send itself is not blocked.
+                    logger.warning(json.dumps({
+                        'event': 'contact_key_mismatch',
+                        'source': 'rcs-send._lookup_contact_by_phone',
+                        'reason': str(exc),
+                    }))
+                return contact_key.resolve(item)
     except Exception as e:
         logger.debug(f"Contact lookup by phone failed: {e}")
     return ''

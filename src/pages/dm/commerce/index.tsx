@@ -330,7 +330,11 @@ const CommercePage: React.FC<PageProps> = ( { signOut, user, embedded = false } 
                         <ul style={ list }>
                             { payments.slice( 0, 25 ).map( ( p: any, i: number ) => (
                                 <li key={ p.id || p.paymentId || p.referenceId || i } style={ row }>
-                                    <span style={ { fontSize: 13 } }>{ p.referenceId || p.paymentId || p.id } · ₹{ p.amountInRupees ?? p.amount ?? '—' } · <b>{ p.status || '—' }</b></span>
+                                    { /* amountRupees is a string derived from integer paise by the
+                                         API; amountInRupees is the legacy numeric field. `amount`
+                                         is paise, so it is deliberately NOT a fallback here - it
+                                         would render a 2500 rupee payment as 250000. */ }
+                                    <span style={ { fontSize: 13 } }>{ p.referenceId || p.paymentId || p.id } · ₹{ p.amountRupees ?? p.amountInRupees ?? '—' } · <b>{ p.status || '—' }</b></span>
                                     <span style={ { fontSize: 12, color: 'var(--text-muted)' } }>{ p.method || p.source || 'razorpay' }</span>
                                 </li>
                             ) ) }

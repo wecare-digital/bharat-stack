@@ -4380,7 +4380,10 @@ export async function updateCallingSettings ( phoneId: string, settings: {
 const WIX_STORE_BASE = `${API_BASE}/wix-store`;
 
 export interface WixProduct {
+  /** Compatibility ID used by the existing admin UI. Catalog V3 also returns id/revision. */
   _id: string;
+  id?: string;
+  revision?: string;
   name: string;
   description: string;
   price: number;
@@ -4427,13 +4430,17 @@ export interface WixOrder {
   _fulfillments?: any;
 }
 
-export interface WixCollection {
+export interface WixCategory {
   _id: string;
+  id?: string;
   name: string;
   description: string;
   mainMedia: any;
   slug: string;
 }
+
+/** Legacy UI name retained while the /collections compatibility route maps to Categories V3. */
+export type WixCollection = WixCategory;
 
 export async function listWixSites (): Promise<any[]> {
   const data = await apiCall<any>( `${WIX_STORE_BASE}/sites` );
@@ -4490,7 +4497,7 @@ export async function getWixOrder ( orderId: string ): Promise<WixOrder | null> 
   return data?.order || null;
 }
 
-export async function listWixCollections ( limit?: number ): Promise<{ collections: WixCollection[]; totalCount: number }> {
+export async function listWixCollections ( limit?: number ): Promise<{ collections: WixCategory[]; totalCount: number }> {
   const qs = limit ? `?limit=${limit}` : '';
   const data = await apiCall<any>( `${WIX_STORE_BASE}/collections${qs}` );
   return { collections: data?.collections || [], totalCount: data?.totalCount || data?.totalResults || 0 };

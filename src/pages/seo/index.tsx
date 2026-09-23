@@ -9,10 +9,11 @@ import SEO from '../../components/SEO';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
-const WIX_BASE = 'https://www.wecare.digital';
+const PUBLIC_SITE = 'https://wecare.digital';
+const BLOG_PUBLIC_API = `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/seo-tools/blog-public`;
 
 const seoPages = [
-  { path: '/seo/blog-manager', label: 'Blog SEO Manager', desc: 'AI audit, clean, approve, apply SEO for all 108 blog posts', icon: '📝' },
+  { path: '/seo/blog-manager', label: 'Blog SEO Manager', desc: 'Create AWS-native posts; AI audit, approve and apply SEO', icon: '📝' },
   { path: '/seo/pages-manager', label: 'Site Pages SEO', desc: 'AI SEO for site, system & product pages — Site / System / Products tabs', icon: '📄' },
   { path: '/seo/tools', label: 'SEO Tools', desc: 'Blog SEO, button audit, live checks, PageSpeed', icon: '🔧' },
   { path: '/seo/pages', label: 'Pages Inventory', desc: 'All crawled pages with filters and details', icon: '📄' },
@@ -33,22 +34,14 @@ const SEOHub: React.FC<PageProps> = ( { signOut, user } ) => {
     async function fetchLiveStats () {
       try
       {
-        const [ healthRes, seoRes, faqRes ] = await Promise.all( [
-          fetch( `${WIX_BASE}/_functions/health` ).then( r => r.ok ? r.json() : null ).catch( () => null ),
-          fetch( `${WIX_BASE}/_functions/seohead?path=/` ).then( r => r.ok ? r.json() : null ).catch( () => null ),
-          fetch( `${WIX_BASE}/_functions/faq` ).then( r => r.ok ? r.json() : null ).catch( () => null ),
+        const [ siteRes, blogRes ] = await Promise.all( [
+          fetch( PUBLIC_SITE, { method: 'GET' } ).catch( () => null ),
+          fetch( BLOG_PUBLIC_API ).then( r => r.ok ? r.json() : null ).catch( () => null ),
         ] );
-
-        const faqCount = faqRes?.faqs
-          ? Object.values( faqRes.faqs ).flat().length
-          : faqRes?.schema?.mainEntity?.length || 0;
-
         setLiveStats( {
-          products: healthRes?.productCount || 0,
-          seoTitle: seoRes?.title || '—',
-          schemas: ( seoRes?.structuredData || [] ).length,
-          faqItems: faqCount,
-          status: healthRes?.status || 'unknown',
+          status: siteRes?.ok ? 'ok' : 'unknown',
+          blogPosts: Array.isArray( blogRes?.posts ) ? blogRes.posts.length : 0,
+          publicBase: PUBLIC_SITE.replace( 'https://', '' ),
         } );
       } catch
       {
@@ -73,10 +66,10 @@ const SEOHub: React.FC<PageProps> = ( { signOut, user } ) => {
         {/* Live Stats */ }
         <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 28 } }>
           <StatCard label="Site Status" value={ loading ? '...' : ( liveStats?.status === 'ok' ? '✅ Live' : '❌ Down' ) } />
-          <StatCard label="Products" value={ loading ? '...' : liveStats?.products } />
-          <StatCard label="FAQ Items" value={ loading ? '...' : liveStats?.faqItems } />
-          <StatCard label="Homepage Schemas" value={ loading ? '...' : liveStats?.schemas } />
-          <StatCard label="Site Pages" value="35" />
+          <StatCard label="Published Blog Posts" value={ loading ? '...' : liveStats?.blogPosts } />
+          <StatCard label="Blog Source" value="AWS" />
+          <StatCard label="Public Host" value={ loading ? '...' : liveStats?.publicBase } />
+          <StatCard label="Frontend" value="Amplify" />
         </div>
 
         {/* Sub-pages */ }

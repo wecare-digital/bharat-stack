@@ -42,6 +42,11 @@ Amplify.configure( {
         oauth: {
           domain: process.env.NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN || '',
           scopes: [ 'openid', 'email', 'profile' ],
+          // stack.wecare.digital, NOT the apex. This is an OAuth redirect URI, which
+          // Cognito validates against a registered allowlist - sending a host that is
+          // not registered fails with redirect_mismatch and sign-in stops working.
+          // The apex is the canonical PUBLIC host (stack's f6c397a5); this app is
+          // served from the subdomain, and the two are not interchangeable here.
           redirectSignIn: [
             process.env.NEXT_PUBLIC_APP_URL || 'https://stack.wecare.digital/',
           ],
@@ -191,7 +196,7 @@ const organizationSchema = {
   // Stable @id so other nodes - the WebSite, the per-page WebPage, and the
   // product-level SoftwareApplication on /grahak-os - can reference this one entity
   // instead of restating it and risking a conflicting copy.
-  "@id": "https://stack.wecare.digital/#organization",
+  "@id": "https://wecare.digital/#organization",
   "name": "WECARE.DIGITAL",
   "alternateName": "WECARE.DIGITAL",
   "url": "https://wecare.digital",
@@ -206,7 +211,7 @@ const organizationSchema = {
   "contactPoint": {
     "@type": "ContactPoint",
     "contactType": "customer service",
-    "url": "https://www.wecare.digital/contact",
+    "url": "https://wecare.digital/contact",
     "availableLanguage": [ "English", "Hindi" ]
   },
   "address": {
@@ -265,10 +270,10 @@ const softwareSchema = {
 const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  "@id": "https://stack.wecare.digital/#website",
+  "@id": "https://wecare.digital/#website",
   "name": "WECARE.DIGITAL",
   "alternateName": "WECARE.DIGITAL",
-  "url": "https://stack.wecare.digital",
+  "url": "https://wecare.digital",
   "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
   "publisher": {
     "@type": "Organization",
@@ -277,7 +282,7 @@ const websiteSchema = {
   // SearchAction REMOVED. It declared the sitelinks search box, which Google removed
   // from Search on 2024-11-21 and whose documentation was deleted a month later -
   // Google's own guidance is that the markup does not need removing but will not be
-  // used. It was also pointing at https://stack.wecare.digital/contacts?q=, an
+  // used. It was also pointing at https://wecare.digital/contacts?q=, an
   // AUTHENTICATED dashboard route, so it advertised a search endpoint that returns a
   // login wall to anyone not signed in. Wrong on both counts, so it is gone rather
   // than left as inert weight.
@@ -328,7 +333,7 @@ const faqSchema = {
 const serviceSchema = {
   "@context": "https://schema.org",
   "@type": "Service",
-  "@id": "https://stack.wecare.digital/#service",
+  "@id": "https://wecare.digital/#service",
   // `name` was missing. It is a required property on Service, and without it the
   // entity describes a serviceType with nothing to call it - a validator reports it and
   // Google has no label to attach.
@@ -336,7 +341,7 @@ const serviceSchema = {
   "serviceType": "WhatsApp Business API Platform",
   // Reference, not a restatement: the full Organization is declared once with this
   // @id, so repeating its properties here is what creates conflicting copies.
-  "provider": { "@id": "https://stack.wecare.digital/#organization" },
+  "provider": { "@id": "https://wecare.digital/#organization" },
   "areaServed": {
     "@type": "Country",
     "name": "India"
@@ -402,7 +407,7 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   '/bharat-rx': { name: 'Bharat Rx', type: 'WebPage', description: 'Medicines, consults, reminders and records in one place.' },
 };
 
-const SITE = 'https://stack.wecare.digital';
+const SITE = 'https://wecare.digital';
 
 const getPublicPageSchema = ( pathname: string ) => {
   const meta = PUBLIC_PAGE_META[ pathname ];
@@ -454,6 +459,8 @@ const getBreadcrumbSchema = ( pageName: string, pageUrl: string ) => ( {
       "@type": "ListItem",
       "position": 1,
       "name": "Home",
+      // App host: this breadcrumb is rendered on authenticated pages, which are served
+      // from the subdomain. Only the public marketing canonicals moved to the apex.
       "item": "https://stack.wecare.digital"
     },
     {
@@ -532,7 +539,13 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // EXACT-MATCH allowlist. A public page missing from this list renders an empty
   // body with HTTP 200 — a 404 that does not look like one — so every new public
   // route has to be added here as well as created under src/pages.
-  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/contact' || router.pathname === '/terms' || router.pathname === '/privacy' || router.pathname === '/my-order' || router.pathname === '/bharat-rx';
+  // Blog and post pages own their own <head> via SEO.tsx, so the sitewide Head below is
+  // suppressed for them - that is stack's arrangement and it is kept.
+  const isContentPublic = router.pathname === '/blog' || router.pathname === '/post/[slug]';
+  // /faq and /partners are deliberately ABSENT. stack still lists them because this
+  // branch's removal has not landed there yet; both pages were deleted on owner
+  // instruction and re-adding the routes here would render blank 200s for them.
+  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/contact' || router.pathname === '/terms' || router.pathname === '/privacy' || router.pathname === '/my-order' || router.pathname === '/bharat-rx' || isContentPublic;
 
   // trailingSlash is set in next.config.js, so the canonical form of every route except
   // the root carries a trailing slash. A canonical pointing at the slashless URL names
@@ -602,7 +615,8 @@ export default function App ( { Component, pageProps }: AppProps ) {
   {
     return (
       <ErrorBoundary>
-        <Head>
+        { !isContentPublic && (
+          <Head>
           <title>WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM India</title>
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -652,7 +666,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
 
           {/* Twitter */ }
           <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:url" content="https://stack.wecare.digital/" />
+          <meta name="twitter:url" content="https://wecare.digital/" />
           <meta name="twitter:title" content="WECARE.DIGITAL - WhatsApp Business API Platform" />
           <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
           <meta name="twitter:image" content={ LOGO_URL } />
@@ -702,6 +716,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( serviceSchema ) } } />
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( getPublicPageSchema( router.pathname ) ) } } />
         </Head>
+        ) }
         {/* NO DIRECT gtag.js HERE - BY POLICY, and it was being violated.
             _document.tsx states that all Google tracking on this property is delivered
             exclusively through the GTM container, which itself fires GA4
@@ -753,6 +768,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
 
   // Get page name for breadcrumb
   const pageName = router.pathname.split( '/' ).filter( Boolean ).map( s => s.charAt( 0 ).toUpperCase() + s.slice( 1 ) ).join( ' > ' ) || 'Dashboard';
+  // App host - authenticated routes are served from the subdomain.
   const pageUrl = `https://stack.wecare.digital${router.pathname}`;
 
   // Protected pages

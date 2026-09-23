@@ -45,10 +45,10 @@ logger = get_logger(__name__)
 
 S3_BUCKET = 'app.wecare.digital'
 
-# Wix API key is loaded from Secrets Manager (wecare/wix-api-key), with a
-# fallback to the WIX_API_KEY env var during migration. Cached per container.
+# Wix credentials are intentionally unconfigured until the fresh Headless
+# project is provisioned. No legacy secret name is used as a default.
 _secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', 'wecare/wix-api-key')
+WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', '').strip()
 _wix_key_cache = {}
 
 
@@ -56,18 +56,19 @@ def _load_wix_api_key() -> str:
     if 'key' in _wix_key_cache:
         return _wix_key_cache['key']
     key = ''
-    try:
-        raw = _secrets_client.get_secret_value(SecretId=WIX_API_KEY_SECRET).get('SecretString', '') or ''
+    if WIX_API_KEY_SECRET:
         try:
-            data = json.loads(raw)
-            key = (data.get('api_key') or data.get('apiKey') or data.get('WIX_API_KEY')
-                   or data.get('key') or data.get('value') or '').strip()
-        except (ValueError, TypeError):
-            key = raw.strip()  # secret stored as a plain string
-    except Exception as e:
-        logger.warning(f'Wix API key: Secrets Manager load failed, falling back to env: {e}')
+            raw = _secrets_client.get_secret_value(SecretId=WIX_API_KEY_SECRET).get('SecretString', '') or ''
+            try:
+                data = json.loads(raw)
+                key = (data.get('api_key') or data.get('apiKey') or data.get('WIX_API_KEY')
+                       or data.get('key') or data.get('value') or '').strip()
+            except (ValueError, TypeError):
+                key = raw.strip()
+        except Exception as e:
+            logger.warning(f'Wix API key: explicit Secrets Manager load failed: {e}')
     if not key:
-        key = os.environ.get('WIX_API_KEY', '')
+        raise RuntimeError('Wix Headless API credentials are not configured')
     _wix_key_cache['key'] = key
     return key
 S3_PREFIX = 'stack/store/products'
@@ -430,22 +431,12 @@ def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
                     'wix-site-id': WIX_SITE_ID,
                 }
 
-                # Wix Media Manager folder IDs
-                MEDIA_FOLDERS = {
-                    'flags': '207cd45424d34ebb9652011e7a17b2a4',
-                    'products': '347f7383033f4838af6c3d52c267ac1c',
-                    'bnb-club': 'f6f39ae4b1be412390a77588b0731f9c',
-                }
-                folder = body.get('folder', 'bnb-club')
-                folder_id = MEDIA_FOLDERS.get(folder, MEDIA_FOLDERS['bnb-club'])
-
                 # Step 1: Import image into Wix Media Manager
                 import_body = json.dumps({
                     'url': public_url,
                     'displayName': file_name,
                     'mediaType': 'IMAGE',
                     'mimeType': 'image/png',
-                    'parentFolderId': folder_id,
                 }).encode('utf-8')
                 import_req = urllib.request.Request(
                     f'{WIX_API_BASE}/site-media/v1/files/import',
@@ -455,14 +446,41 @@ def _generate_and_upload(body: dict, request_id: str) -> Dict[str, Any]:
                     wix_file = json.loads(resp.read().decode('utf-8')).get('file', {})
                 wix_media_url = wix_file.get('url', '')
 
-                # Step 2: Attach to product via dedicated endpoint
+                # Step 2: Attach through Catalog V3. Product updates require
+                # the current revision, and media is updated on the product.
                 if wix_media_url:
+                    get_req = urllib.request.Request(
+                        f'{WIX_API_BASE}/stores/v3/products/{pid}?fields=MEDIA_ITEMS_INFO',
+                        headers=headers,
+                        method='GET'
+                    )
+                    with urllib.request.urlopen(get_req, timeout=30) as resp:
+                        current = json.loads(resp.read().decode('utf-8')).get('product', {})
+
+                    revision = current.get('revision')
+                    if revision is None:
+                        raise RuntimeError('Catalog V3 product revision unavailable')
+
+                    media = current.get('media') or {}
+                    items = list(((media.get('itemsInfo') or {}).get('items') or []))
+                    if not any(isinstance(item, dict) and item.get('url') == wix_media_url for item in items):
+                        items.append({'url': wix_media_url})
+                    main = media.get('main') or {'url': wix_media_url}
+
                     media_body = json.dumps({
-                        'media': [{'url': wix_media_url, 'mediaType': 'IMAGE'}]
+                        'product': {
+                            'id': pid,
+                            'revision': revision,
+                            'media': {
+                                'main': main,
+                                'itemsInfo': {'items': items},
+                            },
+                        },
+                        'fields': ['MEDIA_ITEMS_INFO'],
                     }).encode('utf-8')
                     media_req = urllib.request.Request(
-                        f'{WIX_API_BASE}/stores/v1/products/{pid}/media',
-                        data=media_body, headers=headers, method='POST'
+                        f'{WIX_API_BASE}/stores/v3/products/{pid}',
+                        data=media_body, headers=headers, method='PATCH'
                     )
                     with urllib.request.urlopen(media_req, timeout=30) as resp:
                         resp.read()

@@ -21,7 +21,7 @@ from typing import Dict
 from flows.orders import fetch_orders_for_flow, extract_short_id
 from flows.common import (
     dynamodb, get_phone_from_token, find_contact_by_phone,
-    get_contact_name, save_flow_submission,
+    get_contact_name, record_completion,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,13 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
     phone = get_phone_from_token(flow_token)
     contact_id = find_contact_by_phone(phone)
     name = get_contact_name(contact_id)
-    doc_id = f'WD-DOC-{uuid.uuid4().hex[:8].upper()}'
+    # Derived from the completion key rather than random. A Meta retry of
+    # this data_exchange recomputes the same id, so the domain write below
+    # overwrites an identical row instead of creating a second one, and the
+    # conditional put inside record_completion refuses the duplicate.
+    from lambda_utils import flow_completion as _fc
+    doc_id = _fc.reference_for(
+        _fc.completion_key(flow_token, 'REVIEW', data)[0], 'WD-DOC')
     now = int(time.time())
     order_id = data.get('order_id', '')
     if order_id == 'none':
@@ -105,22 +111,25 @@ def handle_review(data: Dict, flow_token: str, request_id: str) -> Dict:
 
     # Save to FlowSubmissionTable
     try:
-        save_flow_submission(
+        result = record_completion(
             flow_code=FLOW_CODE, flow_type='document', phone=phone,
             contact_id=contact_id, sender_name=name,
             form_data={**data, 'doc_id': doc_id},
             flow_token=flow_token, request_id=request_id,
-            submission_number=doc_id, requires_payment=False, status='awaiting_upload',
+            screen='REVIEW', submission_number=doc_id, requires_payment=False, status='awaiting_upload',
         )
     except Exception as e:
         logger.warning(f'Document submission save failed: {e}')
 
-    try:
-        from flows.common import send_simple_confirmation
-        send_simple_confirmation(phone, flow_token, 'Document Registered', doc_id,
-            f'*Type:* {data.get("doc_type", "")}\nPlease send the document as a WhatsApp message now.')
-    except Exception:
-        pass
+    # Only a fresh claim may message the customer. Without this guard a Meta
+    # retry of the same completion sent a second confirmation for one submission.
+    if result.should_fire_side_effects:
+        try:
+            from flows.common import send_simple_confirmation
+            send_simple_confirmation(phone, flow_token, 'Document Registered', doc_id,
+                f'*Type:* {data.get("doc_type", "")}\nPlease send the document as a WhatsApp message now.')
+        except Exception:
+            pass
 
     return {
         'screen': 'CONFIRM',

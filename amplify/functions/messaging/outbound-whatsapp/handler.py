@@ -28,6 +28,7 @@ from lambda_utils.middleware import require_auth
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils import graph_errors  # Meta error subcode + transient classification
 from lambda_utils import live_smoke  # WA_LIVE_SMOKE_TEST recipient lockdown
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
 
@@ -2939,10 +2940,10 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             gst_paise = int(order_data.get('tax', {}).get('value', 0))
         
         # Convenience Fee: configurable rate (default 2.2%) + GST on that rate (default 18%)
-        # Can be overridden per-order via convenienceFeeRate and convenienceFeeGstRate
-        # This default is the authoritative charged rate for WhatsApp payments and
-        # must stay in sync with CONVENIENCE_FEE in src/config/constants.ts and with
-        # FEE_RATE in store/src/backend/ecom/additional-fees/convenience-fee.js.
+        # Can be overridden per-order via convenienceFeeRate and convenienceFeeGstRate.
+        # The public checkout is AWS-owned, so this server-side default and
+        # CONVENIENCE_FEE in src/config/constants.ts are the two copies that must
+        # remain aligned until fee calculation is centralized in the checkout service.
         conv_fee_rate = Decimal(str(order_details.get('convenienceFeeRate', '0.022')))
         conv_fee_gst_rate = Decimal(str(order_details.get('convenienceFeeGstRate', '0.18')))
         skip_conv_fee = order_details.get('skipConvenienceFee', False)
@@ -3542,8 +3543,7 @@ def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
     contact_id = det_id or str(uuid.uuid4())
     now = int(time.time())
     contact = {
-        'id': contact_id,
-        'contactId': contact_id,
+        **contact_key.contact_item_keys(contact_id),
         'name': '',
         'phone': with_plus,
         'optInWhatsApp': True,

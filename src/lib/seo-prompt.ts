@@ -11,12 +11,10 @@
  */
 
 const BRAND = 'WECARE.DIGITAL';
-const BASE = 'https://www.wecare.digital';
-const AUTHOR = 'Swdhya Vaksetu';
-const AUTHOR_URL = `${BASE}/swdhya`;
+const BASE = 'https://wecare.digital';
 const LOGO = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
 
-export const SEO_SYSTEM_PROMPT = `You are an expert SEO editor and content strategist specializing in Wix websites. You follow Google's E-E-A-T guidelines and Wix SEO best practices.
+export const SEO_SYSTEM_PROMPT = `You are an expert SEO editor and content strategist for a self-managed headless website. You follow Google's E-E-A-T guidelines and modern technical SEO best practices.
 
 YOUR PRIMARY MISSION:
 Read the blog post content carefully. Understand what the author is saying. Then generate SEO metadata that is RELEVANT to the actual content — not generic filler. Every field you generate must reflect the real substance of the blog post.
@@ -41,8 +39,8 @@ DUPLICATE CLEANUP:
   1. BlogPosting (exactly 1)
   2. BreadcrumbList (exactly 1)
   3. FAQPage (exactly 1, or null if not applicable)
-- When this SEO data is applied to Wix, it REPLACES all existing seoData tags completely — a clean slate.
-- No leftover Wix-generated schemas, no duplicate BlogPosting, no stale BreadcrumbList.
+- When approved, this SEO data replaces the SEO fields stored on the AWS BlogPost — a clean slate.
+- Never carry forward schemas or keywords from a previous site merely because they existed there.
 
 STRICT FIELD RULES:
 - SEO title: ≤60 characters, include primary keyword near the start, end with " | ${BRAND}"
@@ -54,8 +52,8 @@ STRICT FIELD RULES:
 - Every JSON-LD object MUST include "@context": "https://schema.org" — never omit this
 - All schemas MUST include "inLanguage": "en-IN"
 - All URLs must use ${BASE} as base
-- Author is always: ${AUTHOR} (Person type, not Organization)
-- Author URL: ${AUTHOR_URL}
+- Preserve the author supplied with the blog post. If none is supplied, use ${BRAND}.
+- Use Person only for a named human author; use Organization for ${BRAND}.
 - Publisher: ${BRAND} (Organization type)
 - Publisher logo: ${LOGO}
 - Language: en-IN
@@ -94,33 +92,12 @@ export interface BlogPostData {
   coverImage?: string;
   publishedDate?: string;
   modifiedDate?: string;
+  authorName?: string;
   currentSeoTitle?: string;
   currentMetaDescription?: string;
   currentKeywords?: string[];
   hasJsonLd?: boolean;
 }
-
-/** Blog slugs for internal link suggestions */
-const BLOG_SLUGS_SAMPLE = [
-  'stand', 'the-stone-must-fall-as-the-tiger-must-leap', 'vitality',
-  'transformation', '__act', 'no-agreement', 'velocity', 'values',
-  'trump-card', 'transformative-learning', 'commitment', 'choice',
-  'integrity-and-balance', 'responsibility', 'listening', 'being',
-  'principles', 'standards', 'sharing', 'breakdown', 'aliveness',
-  'competencies', 'complete-completion', 'decision', 'disappear',
-  'empty-meaningless', 'force-vs-power', 'i-identity', 'ideals',
-  'informative-learning', 'occur-occurring', 'on-the-court',
-  'payoff-in-rackets', 'problems-worthy-of-a-life',
-  'realm-of-survival-realm-of-enrollment', 'reason-reasonable',
-  'shadow-side-of-strong-suits', 'story-1', 'touch-move-or-inspire',
-  'throwing-your-hat-over-the-wall', 'the-real-birthday-gift',
-  'right-wrong-or-an-honored-place-in-the-dialogue',
-  'lenses-we-live-through', 'choice-the-word-that-allows-yes',
-  'law-of-universal-gravitation', 'world-of-knowing',
-  'being-cause-in-the-matter', 'the-portal-of-admiration-loyalty-the-true-cost',
-  're-filing-the-past', 'introduction-to-cells', 'the-paradox-of-popular',
-  'at-stake', 'at-choice-vs-at-effect',
-];
 
 export function buildUserMessage(post: BlogPostData): string {
   const parts = [
@@ -129,6 +106,7 @@ export function buildUserMessage(post: BlogPostData): string {
     `Slug: ${post.slug}`,
     `URL: ${post.url}`,
     `Excerpt: ${post.excerpt || '(none)'}`,
+    `Author: ${post.authorName || BRAND}`,
   ];
 
   if (post.content) {
@@ -150,10 +128,6 @@ export function buildUserMessage(post: BlogPostData): string {
   parts.push(`Current Keywords: ${post.currentKeywords?.join(', ') || '(none)'}`);
   parts.push(`Has JSON-LD: ${post.hasJsonLd ? 'Yes (will be replaced)' : 'No'}`);
   parts.push('NOTE: All existing seoData tags will be WIPED and replaced with your output. No duplicates possible.');
-
-  parts.push('');
-  parts.push(`OTHER BLOG POSTS ON SITE (for internal link suggestions — link to thematically related posts only):`);
-  parts.push(BLOG_SLUGS_SAMPLE.join(', '));
 
   parts.push('');
   parts.push(`IMPORTANT: Read the blog content above carefully. Generate ALL fields based on what the content actually says.`);
@@ -189,7 +163,7 @@ export function buildUserMessage(post: BlogPostData): string {
       "datePublished": "ISO date",
       "dateModified": "ISO date",
       "wordCount": number,
-      "author": { "@type": "Person", "name": "Swdhya Vaksetu", "url": "https://www.wecare.digital/swdhya" },
+      "author": { "@type": "Person or Organization", "name": "author supplied in the input" },
       "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL", "logo": { "@type": "ImageObject", "url": "logo_url" } },
       "mainEntityOfPage": { "@type": "WebPage", "@id": "page_url" },
       "inLanguage": "en-IN",
@@ -199,8 +173,8 @@ export function buildUserMessage(post: BlogPostData): string {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wecare.digital/" },
-        { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://www.wecare.digital/blog" },
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
+        { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://wecare.digital/blog" },
         { "@type": "ListItem", "position": 3, "name": "Post Title", "item": "post_url" }
       ]
     },
@@ -227,7 +201,7 @@ export function buildUserMessage(post: BlogPostData): string {
     {"property": "og:image:width", "content": "1200"},
     {"property": "og:image:height", "content": "630"},
     {"property": "og:image:alt", "content": "same as seoTitle"},
-    {"property": "article:author", "content": "Swdhya Vaksetu"},
+    {"property": "article:author", "content": "author supplied in the input"},
     {"property": "article:published_time", "content": "ISO date"},
     {"property": "article:modified_time", "content": "ISO date"},
     {"name": "twitter:card", "content": "summary_large_image"},

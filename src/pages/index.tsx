@@ -139,7 +139,7 @@ const HomePage: React.FC = () => {
       <Head>
         <title>WECARE.DIGITAL</title>
         <meta name="description" content="WECARE.DIGITAL." />
-        <link rel="canonical" key="canonical" href="https://stack.wecare.digital/" />
+        <link rel="canonical" key="canonical" href="https://wecare.digital/" />
       </Head>
       <main className="home-shell" aria-label="WECARE.DIGITAL home">
         {/* Same pill as the Grahak OS hero, with the maker line flipped: this page is

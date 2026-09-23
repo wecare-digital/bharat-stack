@@ -33,6 +33,10 @@ import urllib.error
 import urllib.parse
 import boto3
 
+# Country logic has exactly one home. `rcs-send` already uses this module for the same
+# decision, and adding a second normaliser here is what produced the defect below.
+from lambda_utils.comms import numbers as _numbers
+
 logger = logging.getLogger(__name__)
 
 # Auth and API endpoints (same as rcs-send handler — the working one)
@@ -57,26 +61,69 @@ def is_rcs_enabled() -> bool:
     return os.environ.get('SINCH_RCS_ENABLED', 'false').lower() == 'true'
 
 
+#: The only place these credentials come from. Never an environment variable, never a
+#: literal: the password grant authenticates with `username` + `password`, so a hardcoded
+#: username is half a credential sitting in source control.
+SINCH_RCS_SECRET_ID = os.environ.get('RCS_SECRET_NAME', 'wecare/sinch/rcs')
+
+#: Every field the secret carries. `bot_id` was previously not loaded here at all, so
+#: anything routed through this module had no bot id even though the secret held one.
+SINCH_RCS_FIELDS = ('username', 'password', 'project_id', 'app_id', 'bot_id')
+
+#: Without both of these there is no authentication, so proceeding is pointless.
+REQUIRED_FIELDS = ('username', 'password')
+
+
 def _load_sinch_credentials() -> dict:
-    """Load Sinch credentials from Secrets Manager (cached)."""
+    """Load Sinch RCS credentials from Secrets Manager. Cached per execution environment.
+
+    Secrets Manager only, with **no default for any field**. The previous version fell back
+    to `data.get('username', 'wecaretrans')` plus literal project and app ids, which was
+    wrong twice over:
+
+    * it put half of the password-grant credential pair into source control, and
+    * it made an incomplete secret *look* usable. A missing `username` would authenticate as
+      `wecaretrans` with an empty password, producing a 401 that reads like a provider
+      outage rather than a configuration fault - and if the username were ever rotated, the
+      fallback would mask it.
+
+    Returns `{}` when the secret cannot be read or a required field is blank, naming the
+    missing field. Never logs a value.
+    """
     if _sinch_cache.get('loaded'):
         return _sinch_cache
 
     try:
         client = _get_secrets_client()
-        resp = client.get_secret_value(SecretId='wecare/sinch/rcs')
+        resp = client.get_secret_value(SecretId=SINCH_RCS_SECRET_ID)
         data = json.loads(resp['SecretString'])
-        _sinch_cache.update({
-            'username': data.get('username', 'wecaretrans'),
-            'password': data.get('password', ''),
-            'project_id': data.get('project_id', 'c8114d03-eeb2-401d-a8f1-abb93594cb33'),
-            'app_id': data.get('app_id', '01KQSB792X3R148D8ZGHQYW3SP'),
-            'loaded': True,
-        })
-        return _sinch_cache
     except Exception as e:
-        logger.error(f'Sinch RCS credentials not available: {e}')
+        logger.error(json.dumps({
+            'event': 'sinch_rcs_secret_unavailable',
+            'secretId': SINCH_RCS_SECRET_ID,
+            'error': str(e)[:200],
+        }))
         return {}
+
+    missing = [f for f in REQUIRED_FIELDS if not str(data.get(f) or '').strip()]
+    if missing:
+        # Field names only. Naming them turns an opaque 401 into a fixable fault.
+        logger.error(json.dumps({
+            'event': 'sinch_rcs_secret_incomplete',
+            'secretId': SINCH_RCS_SECRET_ID,
+            'missingFields': missing,
+        }))
+        return {}
+
+    _sinch_cache.update({f: str(data.get(f) or '').strip() for f in SINCH_RCS_FIELDS})
+    _sinch_cache['loaded'] = True
+    logger.info(json.dumps({
+        'event': 'sinch_rcs_secret_loaded',
+        'secretId': SINCH_RCS_SECRET_ID,
+        # Presence only, never values.
+        'fieldsPresent': sorted(f for f in SINCH_RCS_FIELDS if _sinch_cache.get(f)),
+    }))
+    return _sinch_cache
 
 
 def _get_token() -> str:
@@ -103,7 +150,7 @@ def _get_token() -> str:
 def _authenticate() -> str:
     """Authenticate with Sinch RCS using username/password grant."""
     creds = _load_sinch_credentials()
-    username = creds.get('username', 'wecaretrans')
+    username = creds.get('username') or ''
     password = creds.get('password', '')
 
     if not password:
@@ -182,30 +229,54 @@ def _refresh_token() -> str:
 
 
 def _normalize_phone(phone: str) -> str:
-    """Normalize phone for RCS — Sinch requires digits only WITHOUT + prefix.
-    
-    Sinch Conversation API identity format: "919903300044" (no + prefix).
-    
-    Handles all input formats:
-    - "+919903300044" → "919903300044"
-    - "919903300044"  → "919903300044"
-    - "9903300044"    → "919903300044" (10 digits)
-    - "09903300044"   → "919903300044" (11 digits with leading 0)
-    - "+91 99033 00044" → "919903300044" (with spaces)
+    """The Sinch Conversation API identity (12 digits, no `+`), or `''` if unreachable.
+
+    What changed, and why it mattered
+    ---------------------------------
+    This used to end with ``return '91' + clean[-10:]`` for any input of ten digits or more.
+    That is not normalisation, it is fabrication. Several countries are exactly ten digits in
+    full E.164 - Singapore, Hong Kong, Denmark - so ``+65 8123 4567`` became
+    ``916581234567``: a real and *different* Indian subscriber. The provider accepted it, the
+    message was delivered to a stranger, and nothing anywhere reported a fault.
+
+    `rcs-send` had the same defect and was fixed earlier by delegating to
+    `lambda_utils.comms.numbers`. This now delegates to the same module, so the two senders
+    cannot drift apart again - a second normaliser is precisely how they diverged.
+
+    The old docstring promised `09903300044`. That is deliberately no longer accepted
+    ------------------------------------------------------------------------------------
+    A leading `0` followed by ten digits is the Indian STD trunk prefix - and it is also the
+    UK national format: `07911123456` has exactly that shape, and its ten digits start with
+    7, inside the same 6-9 range Indian mobiles use. The two forms are structurally
+    indistinguishable without a country context.
+
+    Assuming India would therefore be the same mistake as the `'91' + clean[-10:]` rule this
+    replaced, just narrower. Measured before deciding: all 13 rows in ContactsTable store
+    `+91` E.164, twelve digits, and **zero** leading-zero forms exist anywhere in
+    ContactsTable or CrmLeads. So the special case served no real input while creating a
+    disagreement between this sender and `notifications.policy`, which normalises through
+    the same helper and refused the form.
+
+    One authority, no local exceptions. If a genuine STD-formatted number ever needs to be
+    accepted, it should be normalised where the country IS known - at the point of capture -
+    not guessed at send time.
+
+    Returns `''` rather than raising: every caller in this module already treats an empty
+    identity as "do not send".
     """
     if not phone:
         return ''
-    clean = phone.replace('+', '').replace(' ', '').replace('-', '')
-    # Strip leading 0 (Indian STD prefix) — produces 10-digit number
-    if clean.startswith('0') and len(clean) == 11:
-        clean = clean[1:]
-    # Already has 91 prefix? keep as-is (12 digits total)
-    if clean.startswith('91') and len(clean) == 12:
-        return clean
-    # Otherwise, take last 10 digits and prepend 91
-    if len(clean) >= 10:
-        return '91' + clean[-10:]
-    return clean
+
+    e164 = _numbers.to_e164(str(phone).strip())
+    if not e164 or not _numbers.is_india(e164):
+        logger.warning(json.dumps({
+            'event': 'rcs_recipient_refused',
+            'phone': _numbers.last4(e164 or str(phone)),
+            'reason': 'Sinch India RCS serves Indian destinations only; refusing rather '
+                      'than rewriting the number',
+        }))
+        return ''
+    return e164.lstrip('+')
 
 
 def send_rcs_text(phone: str, text: str, correlation_id: str = '') -> dict:

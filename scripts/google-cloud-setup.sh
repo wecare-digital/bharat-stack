@@ -59,7 +59,6 @@ MIRROR_MAP=(
   "wecare/google-api-key:wecare-google-api-key"
   "wecare/razorpay-webhook:wecare-razorpay-webhook"
   "wecare/meta-system-user-token:wecare-meta-system-user-token"
-  "wecare/wix-api-key:wecare-wix-api-key"
   "wecare/github-pat:wecare-github-pat"
 )
 

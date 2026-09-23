@@ -224,7 +224,8 @@ def get_submissions_for_order(order_id: str) -> List[Dict]:
 def fetch_orders_for_flow(phone: str, email: str) -> list:
     """
     Fetch orders for a user by phone or email.
-    ORDER-CENTRIC: queries OrdersTable first (all sources), then Wix as fallback.
+    ORDER-CENTRIC: queries OrdersTable first (all sources), then the API-only
+    Wix Store Lambda as the commerce fallback.
     Returns list of {id, title} for WhatsApp Flow dropdown.
     Dropdown format: "A1B2C3D4 — 22 Feb 2026, 6:00 PM"
     Internal id: full "WD-ORD - A1B2C3D4 - 22-02-2026 - 18:00:00 - IST"
@@ -311,28 +312,5 @@ def fetch_orders_for_flow(phone: str, email: str) -> list:
             return results
     except Exception as e:
         logger.warning(json.dumps({'action': 'fetch_orders_wix_failed', 'error': str(e)}))
-
-    # ── Source 3: Wix Velo fallback ──
-    try:
-        import urllib.request, urllib.parse
-        wix_url = os.environ.get('WIX_SITE_URL', 'https://www.wecare.digital')
-        api_key = os.environ.get('WIX_API_KEY', '')
-        qp = f'email={urllib.parse.quote(email)}' if email else ''
-        url = f'{wix_url}/_functions/orders?limit=50&{qp}'
-        hdrs = {'x-api-key': api_key} if api_key else {}
-        req = urllib.request.Request(url, headers=hdrs, method='GET')
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-            for o in data.get('orders', []):
-                wd_id = o.get('customOrderNumber', '') or (o.get('customField', {}) or {}).get('value', '')
-                if not wd_id or not wd_id.startswith('WD-ORD'):
-                    continue
-                if not email and clean_phone:
-                    op = (o.get('buyerPhone', '') or '').replace('+', '').replace(' ', '').replace('-', '')
-                    if clean_phone_short not in op and clean_phone not in op:
-                        continue
-                _add(wd_id, format_order_dropdown(wd_id))
-    except Exception as e:
-        logger.error(json.dumps({'action': 'fetch_orders_velo_failed', 'error': str(e)}))
 
     return results

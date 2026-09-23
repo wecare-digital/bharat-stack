@@ -176,12 +176,31 @@ def decide_whatsapp(destination: str, *, sender_phone_id: str = "") -> ChannelDe
         reason=f"{label} -> Meta Direct, template object {template_id}")
 
 
+def _india(destination: str) -> bool:
+    """Is this destination Indian, whatever form it arrived in?
+
+    `numbers.is_india` expects E.164, so calling it on a raw destination misclassifies a
+    bare ten-digit Indian mobile as foreign: `is_india('9903300044')` is False while
+    `is_india(to_e164('9903300044'))` is True.
+
+    That mattered because the senders normalise and this did not, so the two layers
+    disagreed about the same number. A bare ten-digit Indian mobile was declared
+    `INELIGIBLE_UNSUPPORTED: non-India RCS requires AWS End User Messaging RCS` - both the
+    wrong verdict and a misleading reason - while `rcs-send` would have accepted it happily.
+    Normalising first makes eligibility and sending agree.
+    """
+    if not destination:
+        return False
+    e164 = numbers.to_e164(destination)
+    return bool(e164) and numbers.is_india(e164)
+
+
 def decide_sms(destination: str) -> ChannelDecision:
     """AWS End User Messaging for every destination. The region follows the number."""
     if not destination:
         return ChannelDecision(CHANNEL_SMS, eligible=False, reason="no_destination")
 
-    if numbers.is_india(destination):
+    if _india(destination):
         return ChannelDecision(
             CHANNEL_SMS, eligible=True, provider=PROVIDER_AWS_EUM,
             region=SMS_INDIA_REGION, dlt_template_key=SMS_DLT_TEMPLATE_KEY,
@@ -202,7 +221,7 @@ def decide_rcs(destination: str) -> ChannelDecision:
     if not destination:
         return ChannelDecision(CHANNEL_RCS, eligible=False, reason="no_destination")
 
-    if numbers.is_india(destination):
+    if _india(destination):
         if not _flag("SINCH_RCS_ENABLED"):
             return ChannelDecision(
                 CHANNEL_RCS, eligible=False, provider=PROVIDER_SINCH_RCS,

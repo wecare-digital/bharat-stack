@@ -373,7 +373,58 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
                 'requestId': request_id,
             }))
 
-    invoice_id = str(uuid.uuid4())
+    # ── Atomic claim, so a racing duplicate cannot consume a GST invoice number ──
+    #
+    # The scan above is the only dedup there was, and a DynamoDB scan is eventually
+    # consistent: razorpay-webhook and inbound-whatsapp-handler both invoke this for the
+    # same payment, both can scan and miss, and both then insert. `invoiceId` was a fresh
+    # uuid4, so the `attribute_not_exists(invoiceId)` on the final put never fired.
+    #
+    # That mattered more than an ordinary duplicate row, because `_get_next_invoice_number`
+    # IS atomic - the loser would have burned a real sequential number out of the GST
+    # series. A gap in that series is a compliance artifact, not just untidy data.
+    #
+    # Deriving `invoiceId` from (referenceId, paymentId) makes the existing condition
+    # load-bearing, and claiming a minimal row BEFORE touching the sequence means the
+    # loser never increments it. `invoiceId` is opaque to every caller - it is a foreign
+    # key in InvoiceItems/InvoiceAssets and an identifier in responses - so deriving it
+    # changes no contract.
+    dedup_source = reference_id or payment_id
+    if dedup_source:
+        import hashlib as _hashlib
+        invoice_id = 'inv-' + _hashlib.sha256(
+            f'invoice\x1f{reference_id}\x1f{payment_id}'.encode('utf-8')
+        ).hexdigest()[:32]
+        try:
+            table.put_item(
+                Item={'invoiceId': invoice_id, 'status': 'claiming', 'createdAt': now},
+                ConditionExpression='attribute_not_exists(invoiceId)',
+            )
+        except Exception as claim_err:
+            if 'ConditionalCheckFailedException' not in str(claim_err):
+                logger.error(json.dumps({
+                    'event': 'invoice_claim_error', 'error': str(claim_err),
+                    'referenceId': reference_id, 'requestId': request_id}))
+                return _resp(500, {'error': 'Could not claim invoice'})
+            existing_inv = table.get_item(Key={'invoiceId': invoice_id}).get('Item', {})
+            logger.info(json.dumps({
+                'event': 'invoice_dedup_hit_atomic',
+                'existingInvoiceId': invoice_id,
+                'referenceId': reference_id, 'paymentId': payment_id,
+                'note': 'lost the claim race; no invoice number consumed',
+                'requestId': request_id,
+            }))
+            return _resp(200, {
+                'invoiceId': invoice_id,
+                'invoiceNumber': existing_inv.get('invoiceNumber', ''),
+                'total': float(existing_inv.get('total', 0)),
+                'referenceId': existing_inv.get('referenceId', reference_id),
+                'deduplicated': True,
+            })
+    else:
+        # No reference and no payment id: nothing to dedupe on, so a random id is the
+        # honest answer rather than a hash of nothing that would collide every time.
+        invoice_id = str(uuid.uuid4())
 
     # Auto-generate referenceId if not provided (WD-PAY- + 8-char hex)
     if not reference_id:
@@ -504,10 +555,11 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
         'paidAt': body.get('paidAt', 0),
     }
 
-    table.put_item(
-        Item={k: v for k, v in invoice.items() if v is not None and v != ''},
-        ConditionExpression='attribute_not_exists(invoiceId)',
-    )
+    # Unconditional: the claim above already established exclusivity for the derived id,
+    # and this write is what replaces the minimal claim row with the real invoice. A
+    # condition here would refuse our own claim. For the no-reference path the id is a
+    # fresh uuid4, so there is nothing to collide with either.
+    table.put_item(Item={k: v for k, v in invoice.items() if v is not None and v != ''})
 
     # Store invoice items (including greenPacking + notificationFee as line items)
     items_table = dynamodb.Table(INVOICE_ITEMS_TABLE)

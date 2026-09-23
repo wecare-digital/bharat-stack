@@ -30,7 +30,7 @@ export default function InstructionsContent () {
       <Card title="Overview">
         <p style={ { fontSize: 13, color: '#374151', lineHeight: 1.7, margin: 0 } }>
           AI-powered SEO for wecare.digital using Claude Sonnet 4.6 via AWS Bedrock.
-          164 total pages: 108 blogs + 37 site pages + 5 products + 14 system pages.
+          AWS-native blog posts plus public site, product, and system pages.
           Every page gets clean JSON-LD (no duplicates), meta tags, keywords, FAQ schema, and SEO score.
           Human approval required. 🧹🤖 = Clean first then Audit. 🤖 = Audit only.
         </p>
@@ -38,7 +38,7 @@ export default function InstructionsContent () {
 
       {/* ═══ 1. BLOG POST JSON-LD ═══ */ }
       <JCard n="1" title='Blog Post (/post/*) — BlogPosting + BreadcrumbList + FAQPage'
-        desc="108 blog posts. Author: Person (Swdhya Vaksetu). FAQ extracted from content by AI. All 3 schemas pushed via Wix Blog API seoData.tags."
+        desc="AWS-native blog posts. AI can generate BlogPosting, BreadcrumbList and evidence-based FAQPage data; approved SEO is stored with the post and rendered by Amplify."
         code={ `// ── 1. BlogPosting ──
 {
   "@context": "https://schema.org",
@@ -46,14 +46,14 @@ export default function InstructionsContent () {
   "headline": "Stand: The Practice of Standing With Another",
   "description": "Standing with another is a conscious free choice rooted in responsibility and intentionality—without requiring reciprocity.",
   "keywords": "standing with another, conscious free choice, willingness to be responsible, being in relationship, intentionality",
-  "url": "https://www.wecare.digital/post/stand",
+  "url": "https://wecare.digital/post/stand",
   "image": ["https://app.wecare.digital/stream/media/m/wecare-digital.png"],
   "datePublished": "2025-09-12T00:18:04.958Z",
   "dateModified": "2025-09-12T00:18:04.958Z",
   "wordCount": 75,
-  "author": { "@type": "Person", "name": "Swdhya Vaksetu", "url": "https://www.wecare.digital/swdhya" },
+  "author": { "@type": "Person", "name": "Swdhya Vaksetu", "url": "https://wecare.digital/swdhya" },
   "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL", "logo": { "@type": "ImageObject", "url": "https://app.wecare.digital/stream/media/m/wecare-digital.png" } },
-  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://www.wecare.digital/post/stand" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://wecare.digital/post/stand" },
   "inLanguage": "en-IN",
   "articleSection": "Philosophy of Relationship"
 }
@@ -63,9 +63,9 @@ export default function InstructionsContent () {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wecare.digital/" },
-    { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://www.wecare.digital/blog" },
-    { "@type": "ListItem", "position": 3, "name": "Stand", "item": "https://www.wecare.digital/post/stand" }
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
+    { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://wecare.digital/blog" },
+    { "@type": "ListItem", "position": 3, "name": "Stand", "item": "https://wecare.digital/post/stand" }
   ]
 }
 
@@ -103,10 +103,10 @@ export default function InstructionsContent () {
   "name": "Microservices for Everyday Bharat",
   "description": "Digital services for everyday Bharat — travel, legal, ritual, reflection, and dispute resolution with transparent pricing.",
   "keywords": "digital services India, everyday Bharat, travel support, legal support, WECARE.DIGITAL",
-  "url": "https://www.wecare.digital/",
+  "url": "https://wecare.digital/",
   "image": "https://app.wecare.digital/stream/media/m/wecare-digital.png",
   "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL" },
-  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://www.wecare.digital/" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://wecare.digital/" },
   "inLanguage": "en-IN"
 }
 
@@ -115,7 +115,7 @@ export default function InstructionsContent () {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "WECARE.DIGITAL",
-  "url": "https://www.wecare.digital/",
+  "url": "https://wecare.digital/",
   "logo": "https://app.wecare.digital/stream/media/m/wecare-digital.png",
   "email": "one@wecare.digital",
   "telephone": "+91 9330994400",
@@ -127,8 +127,8 @@ export default function InstructionsContent () {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wecare.digital/" },
-    { "@type": "ListItem", "position": 2, "name": "BNB Club", "item": "https://www.wecare.digital/bnb" }
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
+    { "@type": "ListItem", "position": 2, "name": "BNB Club", "item": "https://wecare.digital/bnb" }
   ]
 }
 
@@ -165,7 +165,7 @@ export default function InstructionsContent () {
   "@type": "Product",
   "name": "Partner Up — Activate 4,000+ SKUs",
   "description": "Unlock earnings across 4,000+ SKUs from BNB Club, Expo Week, Legal Champ, No-Fault, Ritual Guru, Swdhya.",
-  "url": "https://www.wecare.digital/product-page/partner-up",
+  "url": "https://wecare.digital/product-page/partner-up",
   "image": "https://static.wixstatic.com/media/6b2d7a_cffca42eb2e7428fb618600456d257d9~mv2.png",
   "brand": { "@type": "Brand", "name": "WECARE.DIGITAL" },
   "offers": {
@@ -173,7 +173,7 @@ export default function InstructionsContent () {
     "price": "4599",
     "priceCurrency": "INR",
     "availability": "https://schema.org/InStock",
-    "url": "https://www.wecare.digital/product-page/partner-up"
+    "url": "https://wecare.digital/product-page/partner-up"
   },
   "inLanguage": "en-IN"
 }
@@ -183,9 +183,9 @@ export default function InstructionsContent () {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wecare.digital/" },
-    { "@type": "ListItem", "position": 2, "name": "Store", "item": "https://www.wecare.digital/store" },
-    { "@type": "ListItem", "position": 3, "name": "Partner Up", "item": "https://www.wecare.digital/product-page/partner-up" }
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
+    { "@type": "ListItem", "position": 2, "name": "Store", "item": "https://wecare.digital/store" },
+    { "@type": "ListItem", "position": 3, "name": "Partner Up", "item": "https://wecare.digital/product-page/partner-up" }
   ]
 }
 
@@ -216,7 +216,7 @@ export default function InstructionsContent () {
   "@type": "WebPage",
   "name": "Your Cart",
   "description": "Review items in your cart before checkout.",
-  "url": "https://www.wecare.digital/cart-page",
+  "url": "https://wecare.digital/cart-page",
   "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL" },
   "inLanguage": "en-IN"
 }
@@ -230,9 +230,9 @@ export default function InstructionsContent () {
       {/* ═══ 5. NEW PAGE ═══ */ }
       <JCard n="5" title='Any New Page (future) — AI auto-detects type'
         desc="New blog/page/product created → AI detects type → applies correct schema set."
-        code={ `// New blog post published → Wix Velo events.js fires automatically
-// AI reads content → generates: BlogPosting + BreadcrumbList + FAQPage
-// Saved as pending_review → admin approves in dashboard → pushed to Wix
+        code={ `// New blog post is saved in the SEO Tools DynamoDB table
+// Admin runs AI audit → BlogPosting + BreadcrumbList + optional FAQPage
+// Saved as pending_review → admin approves → SEO saved back to the AWS BlogPost
 
 // New site page → manual audit from dashboard
 // AI generates: WebPage + BreadcrumbList + Organization + FAQPage
@@ -262,11 +262,11 @@ export default function InstructionsContent () {
           <li>🧹🤖 Clean + Audit = wipe all old SEO data first, then run AI audit (recommended for first time)</li>
           <li>🤖 Audit only = run AI on current state (use for re-audits after content changes)</li>
           <li>Blog titles: expert-written only — AI suggests but NEVER auto-publishes</li>
-          <li>All changes require human approval before pushing to Wix</li>
+          <li>All AI SEO changes require human approval before they are saved to the published AWS post</li>
           <li>No monthly refresh — set once, done. Re-audit only on request</li>
-          <li>Multiple keywords pushed to Wix: 1 focus (isMain) + 9 secondary</li>
+          <li>Focus and secondary keywords are stored with the AWS post and rendered by Amplify metadata</li>
           <li>All old duplicate JSON-LD wiped on Apply — complete replacement</li>
-          <li>Author: always Swdhya Vaksetu (Person, not Organization)</li>
+          <li>Author is stored per AWS post; the current Admin identity is the default</li>
           <li>Model: Claude Sonnet 4.6 via Bedrock — ~$0.05/page (fallback: Nova Pro)</li>
         </ul>
       </Card>
@@ -274,12 +274,13 @@ export default function InstructionsContent () {
       {/* Architecture */ }
       <Card title="Architecture">
         <pre style={ { ...pre, lineHeight: 1.8 } }>{ `Dashboard → authenticated api.wecare.digital/seo-tools/*
-         → Admin-only SEO Lambda → Wix Blog API / live page SEO
+         → SEO Lambda → AWS-native BlogPost records in SeoToolsTable
          → AWS Bedrock (Claude Sonnet 4.6, fallback models)
          → retained DynamoDB audit + AI log records (PITR)
-         → conditional approval → blog-only Wix apply
+         → conditional approval → SEO saved to the AWS BlogPost
+         → public read API → Amplify static /blog and /post/{slug}
 
-Keywords: 1 focus (isMain:true) + 9 secondary pushed to Wix seoData.settings.keywords
+Keywords: focus + secondary keywords are stored on the BlogPost and rendered in public metadata
 JSON-LD: BlogPosting + BreadcrumbList + FAQPage (3 scripts, no duplicates)
 Mutations: fail-closed idempotency claims; actor always comes from Cognito
 Pages/products: audit and review only; apply is intentionally unsupported

@@ -39,10 +39,9 @@ export function addSeoResources ( stack: Stack ) {
             LOG_LEVEL: 'INFO',
             SEO_TOOLS_TABLE: SEO_TOOLS_TABLE_NAME,
             WEBHOOK_DEDUP_TABLE: 'stack-wecare-digital-WebhookDedup',
-            WIX_API_KEY_SECRET: 'wecare/wix-api-key',
-            // Live WECARE.DIGITAL site. The API key in `wecare/wix-api-key` is
-            // scoped to the account that owns this site; 461dece3 returns 404.
-            WIX_SITE_ID: 'c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5',
+            // Wix Headless credentials are intentionally not injected here.
+            // Add the new site/account/secret explicitly after the fresh
+            // Headless project credentials are provisioned.
             BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6',
         },
     } );
