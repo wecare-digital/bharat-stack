@@ -3,29 +3,12 @@ name: Deploy docs-scraper (container Lambda)
 # Builds the Playwright/Chromium container image and deploys wecare-docs-scraper.
 # Runs on a CI runner (has Docker) — solves the "no Docker locally" blocker.
 #
-# ⚠️ NOT CURRENTLY FUNCTIONAL — measured 2026-09-19. This workflow cannot
-# authenticate to AWS, so any run fails at "Configure AWS credentials" with
-# "Could not load credentials from any providers" (run 35424658259, 9s).
-#   * `gh secret list` returns nothing: neither AWS_ACCESS_KEY_ID nor
-#     AWS_SECRET_ACCESS_KEY is set on the repository.
-#   * `iam list-open-id-connect-providers` returns an empty list, so the
-#     `id-token: write` permission below has no GitHub OIDC provider to use
-#     either, despite being the recommended path.
-# Consequence: wecare-docs-scraper has not been rebuilt since 2026-07-04
-# (ECR tags `latest`/`2746f10`, 789.6 MB, pushed 2026-07-04T05:13Z; the live
-# function's LastModified matches). It is Active, just frozen at that image.
-# Until one of the two auth paths is configured, every triggered run will go red.
+# AWS authentication uses GitHub OIDC and a least-privilege deploy role in
+# account 775261844268. No long-lived AWS access keys are stored in GitHub.
 #
-# To fix, pick one:
-#   a) create a GitHub OIDC provider + a deploy role scoped to ECR push and
-#      lambda:UpdateFunctionCode, then replace the credential step with
-#      `role-to-assume:` (recommended — no long-lived keys), or
-#   b) set the two repo secrets from an IAM user scoped to ECR + Lambda.
-# Both are account-level security changes and need explicit sign-off; neither
-# was done as part of the 2026-09-19 audit.
-#
-# The IAM role the create-function branch references,
-# arn:aws:iam::775261844268:role/wecare-digital-lambda-role, does exist.
+# The container is built from the repository root because handler.py imports the
+# shared lambda_utils package; the Dockerfile copies only the function files and
+# that shared package into the Lambda image.
 
 on:
   workflow_dispatch: {}
@@ -58,8 +41,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::775261844268:role/GitHubActions-bharat-stack-docs-scraper
+          role-session-name: bharat-stack-docs-scraper
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Ensure ECR repository exists
@@ -81,7 +64,7 @@ jobs:
         run: |
           IMAGE="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${GITHUB_SHA::7}"
           IMAGE_LATEST="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:latest"
-          docker build -t "$IMAGE" -t "$IMAGE_LATEST" "$FUNCTION_DIR"
+          docker build -f "$FUNCTION_DIR/Dockerfile" -t "$IMAGE" -t "$IMAGE_LATEST" .
           docker push "$IMAGE"
           docker push "$IMAGE_LATEST"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"

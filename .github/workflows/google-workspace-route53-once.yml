@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   apply-google-verification:
@@ -20,8 +21,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::775261844268:role/GitHubActions-bharat-stack-google-route53
+          role-session-name: bharat-stack-google-route53
           aws-region: us-east-1
 
       - name: Verify account and upsert only Google verification DNS records
@@ -29,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          EXPECTED_ACCOUNT='809904170947'
+          EXPECTED_ACCOUNT='775261844268'
           ROOT_DOMAIN='wecare.digital.'
           CNAME_NAME='qu75cp2vx25y.wecare.digital.'
           CNAME_TARGET='gv-jipfxur7egi32x.dv.googlehosted.com'
