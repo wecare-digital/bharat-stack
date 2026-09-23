@@ -56,6 +56,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import BrandBadge from '../components/BrandBadge';
 import WorkflowTerminal from '../components/WorkflowTerminal';
+import PlatformCapabilities from '../components/PlatformCapabilities';
 
 /* The SUITE array that used to live here - the three original products plus the seven from
    src/content/products.ts - went with the service-directory grid it fed. See the comment on
@@ -288,36 +289,61 @@ const HomePage: React.FC = () => {
                  many services run here, they run on one shared foundation, and AI is a
                  feature inside a few of them rather than the thing being sold. */ }
             <div className="home-flow-copy">
-              <h2 className="home-flow-title" id="home-flow-title">Many services, one foundation</h2>
+              {/* WRITTEN FOR A CUSTOMER, NOT FOR AN ENGINEER. The previous version of this
+                  column said "they share one login, one audit trail, one bill and one place
+                  to watch them" and called the terminal "the panel". Audit trails, queues,
+                  identity and monitoring are how the thing is BUILT; nobody arriving at this
+                  page is shopping for those. The old wecare.digital site already had the
+                  right instinct and said so outright - customers may never see the
+                  underlying systems, but they feel simpler access, clearer communication,
+                  prompt follow-ups and more reliable delivery. This column now says that,
+                  and the headline gives the black terminal beside it a reason to exist for
+                  someone non-technical: it is the part you are not meant to have to look at. */}
+              <h2 className="home-flow-title" id="home-flow-title">You won’t see this part. You’ll feel it.</h2>
               <p className="home-flow-lead">
-                Messaging, orders, payments, records and support are separate services — but
-                they share one login, one audit trail, one bill and one place to watch them.
-                The panel follows a single customer request through all of it.
+                Travel, documents, disputes, rituals, reflection — each one is its own
+                service, and all of them run on the same foundation underneath. You will
+                probably never look at it. What you notice is that access is simpler,
+                updates are clearer, follow-ups actually arrive, and everything behaves the
+                same way every time.
               </p>
-              { /* THE THREE BEATS NAME A CONSEQUENCE, NOT A COMPONENT. The earlier version
-                   led on mechanism - "Built once, used everywhere", "Runs in parallel, not
-                   in line", "Absorbs failure quietly" - which described the architecture
-                   accurately and told a reader nothing about what it buys them. Each
-                   heading is now the thing you get and the sentence under it is the
-                   mechanism as evidence, which is the right way round for a page that has
-                   to sell before it explains. The channels are named rather than counted
-                   because "four channels" means nothing until you know which four. */ }
+              { /* THREE BEATS, EACH ONE SOMETHING A CUSTOMER CAN NOTICE HAPPENING TO THEM.
+                   These have now been rewritten twice. First they named components ("Built
+                   once, used everywhere"). Then they named consequences but still in our
+                   own vocabulary - audit trails, carriers, channels leaving in the same
+                   moment, "nobody gets paged". Better, still inward-facing: a carrier
+                   outage and an on-call page are OUR problems, and describing how well we
+                   handle them quietly asks the reader to care about our operations.
+                   Each one is now written from the outside: sign in once, hear from us
+                   where you actually look, and get the message late rather than never. The
+                   mechanism is still there as the reason to believe it, just no longer the
+                   subject of the sentence. */ }
               <ul className="home-flow-list">
                 <li>
-                  <strong>One login, one bill, one audit trail</strong>
-                  <span>Identity, queues, storage and monitoring are shared, so the tenth service costs you no more accounts to manage and no more invoices to reconcile than the first.</span>
+                  <strong>One account for all of it</strong>
+                  <span>Sign in once. Whatever you need next — a booking, a document, a dispute — is already waiting under the same account, on the same bill.</span>
                 </li>
                 <li>
-                  <strong>Four channels at once, not one after another</strong>
-                  <span>WhatsApp, SMS, email and voice leave in the same moment. A slow carrier holds up its own channel and nothing else.</span>
+                  <strong>We reach you where you actually look</strong>
+                  <span>WhatsApp, SMS, email and a phone call all go out together, so the update lands on whichever one you check, instead of waiting in line behind the others.</span>
                 </li>
                 <li>
-                  <strong>Outages get absorbed, not escalated</strong>
-                  <span>A failed send retries itself and arrives late instead of going missing. Nobody gets paged because a carrier had a bad minute.</span>
+                  <strong>A hiccup doesn’t become your problem</strong>
+                  <span>If a message doesn’t get through the first time, it goes again by itself. You hear from us a little later instead of never, and nobody has to chase it.</span>
                 </li>
               </ul>
             </div>
           </section>
+
+          {/* THE PROOF, BETWEEN THE CLAIM AND THE ASK. The section above says the shared
+              foundation is something you feel rather than see; this shows seven concrete
+              things it does. It sits here rather than after the closing band on purpose -
+              evidence belongs before the call to action, not after someone has already
+              been asked to act.
+              Moved off /contact/ at the owner's request. PlatformCapabilities styles
+              itself and carries no margin-top: .home-layout is a flex column with gap:96px
+              and owns the section rhythm. */}
+          <PlatformCapabilities />
 
           {/* THE CLOSING BAND, AND WHY IT IS NOT A SERVICE DIRECTORY ANY MORE.
               This slot held a ten-card grid listing every service by name. The owner's
@@ -338,23 +364,50 @@ const HomePage: React.FC = () => {
               the three lines stagger in behind it, which lands the argument and then stops. */}
           <section className="home-close" aria-labelledby="home-close-title" ref={ closeRef }>
             <div className="home-close-panel">
-              <p className="home-close-eyebrow">One foundation</p>
+              {/* THIS WAS SELLING A PLATFORM TO A CTO. It said "you do not buy a platform
+                  and then wait months to use it", offered "a WhatsApp number that answers, a
+                  queue that holds", and promised "nothing to migrate", "no second support
+                  queue", "no rebuild". Migration, queues and rebuilds are procurement
+                  language: they assume the reader is buying infrastructure and has an
+                  engineering team to point at it.
+                  That is the wrong audience for this page. The headline above is "Everyday
+                  services for travel / rituals / documents", and the old wecare.digital site
+                  is explicit about who it serves - everyday Bharat, individuals as much as
+                  businesses, with the promise that needs get easier to access, understand and
+                  manage. So this now speaks to one person who wants one thing done, and the
+                  three lines are that site's own "Tap. Track. Done." written out. */}
+              <p className="home-close-eyebrow">Everyday Bharat</p>
               <h2 className="home-close-title" id="home-close-title">
-                Start with one service. The rest are already wired in.
+                Start with one thing. The rest is already here.
               </h2>
               <p className="home-close-lead">
-                You do not buy a platform and then wait months to use it. Take the one thing
-                you need this week — a WhatsApp number that answers, a queue that holds,
-                a record you are required to keep — and it runs on the same login, the same
-                bill and the same audit trail as anything you add after it.
+                Book a stay, sort out a document, settle a dispute, order a puja kit — begin
+                with whatever you actually need today. Whenever you come back for something
+                else, it is on the same account, at prices you can see before you decide,
+                with the same people to ask if anything goes wrong.
               </p>
               <span className="home-close-rule" aria-hidden="true" />
               <ul className="home-close-points">
-                <li>Nothing to migrate when you add the second one</li>
-                <li>No second invoice, no second login, no second support queue</li>
-                <li>No rebuild when what you need changes</li>
+                <li>Nothing to set up a second time</li>
+                <li>One place to see everything you have asked for</li>
+                <li>Prices shown up front, before you commit</li>
               </ul>
-              <Link className="home-close-cta" href="/contact/">Tell us what you need</Link>
+              {/* A PLAIN <a>, AND IT MUST STAY ONE. This was briefly next/link to silence
+                  @next/next/no-html-link-for-pages, and that silently destroyed the button:
+                  styled-jsx only attaches its scoping class to lowercase DOM tags, never to
+                  a capitalised component, because it cannot know whether the component
+                  forwards className to a DOM node. <Link className="home-close-cta"> therefore
+                  rendered class="home-close-cta" with no jsx- scope, the compiled
+                  .jsx-xxx.home-close-cta rule matched nothing, and the lime pill rendered as
+                  bare text under the last bullet. Lint passed the whole time.
+                  Do not "fix" this back. The alternatives are worse: an inner <span> carrying
+                  the class moves the pill off the focusable element and breaks the focus ring,
+                  and :global() would leak this rule out of the component. Every other CTA on
+                  the public pages - ProductPage, ContactLocation, the header logo - is a plain
+                  <a> for the same reason, and on a static export a full page load is the right
+                  behaviour anyway. The cost is one known eslint error, which is accepted here
+                  rather than traded for a broken control. */}
+              <a className="home-close-cta" href="/contact/">Tell us what you need</a>
             </div>
           </section>
         </div>
@@ -408,10 +461,13 @@ const HomePage: React.FC = () => {
         .home-flow-list strong{display:block;margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.2px;color:#000}
         .home-flow-list span{display:block;font-size:16px;line-height:1.5;color:rgba(0,0,0,.54)}
 
-        /* THE CLOSING BAND. 96px above it is the same section rhythm .home-layout uses
-           between the hero and the terminal band, so this lands on the existing grid rather
-           than introducing a third spacing value. */
-        .home-close{margin-top:96px}
+        /* THE CLOSING BAND. NO margin-top - that was a measured bug, not a style choice.
+           .home-layout is a flex column with gap:96px, so every direct child is already
+           96px from its neighbour. This rule used to add margin-top:96px on top of that
+           gap, and the two are additive: the measured distance from .home-flow to
+           .home-close was 192px while hero-to-flow was 96px, so the closing band sat at
+           double the page's rhythm. The gap owns the spacing; sections do not. */
+        /* (no .home-close rule of its own - see above) */
 
         /* A tinted panel rather than plain page, because this is the one block on the page
            asking for a decision and it should read as a different surface from the argument
@@ -514,7 +570,9 @@ const HomePage: React.FC = () => {
         }
 
         @media(max-width:767px){
-          .home-close{margin-top:64px}
+          /* No margin-top here either. .home-layout's gap drops to 64px at this
+             breakpoint, so the narrow-screen rhythm is already handled by the parent - the
+             margin that used to be here made it 128px. */
           .home-close-title{max-width:none}
           .home-close-lead{font-size:18px}
         }

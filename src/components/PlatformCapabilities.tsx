@@ -1,18 +1,34 @@
 import React from 'react';
 
 /**
- * The capability strip under the map on /contact/.
+ * The capability strip on the home page.
+ *
+ * MOVED OFF /contact/ at the owner's request, and renamed with it - this was
+ * ContactCapabilities.tsx with a cc- prefix, which would have been a lie in its new home.
+ * The class prefix is pcap- rather than cap-, because grahak-os/index.tsx still discusses
+ * a .cap-icon in a comment and a prefix that reads as "already taken" invites collisions.
  *
  * SELF-STYLING, like the other composite components here: styled-jsx cannot scope a
  * composite component from its parent.
  *
- * WHY THIS EXISTS RATHER THAN THE WHOLE APP. The owner's arrival map carries air
- * quality, weather, solar, currency, world time, translation with spoken audio, Street
- * View and a West Bengal discovery rail. Embedding all of it on a contact page would
- * import a second design system and bury the address. Naming it instead does the more
- * useful job: a visitor working out how to reach an office learns, at the moment they
- * are already being helped, that the help is something we built. That is the point the
- * owner asked for - present the stack as a feature, not as a widget.
+ * NO margin-top. It is a direct child of .home-layout, which is a flex column with
+ * gap:96px, so the section rhythm is already owned by the parent. The version of
+ * .home-close that carried its own margin-top:96px on top of that gap measured 192px
+ * between sections instead of 96px - the two are additive, and only one of them should
+ * exist.
+ *
+ * THE HEADLINE HAD TO CHANGE, and this is the one edit to the owner's supplied copy.
+ * On the contact page it read "The map that gets you here does rather more than that",
+ * which worked because a map was directly above it. There is no map on the home page, so
+ * that sentence pointed at nothing. The lead's own closing line was the strongest thing
+ * in the block, so it was promoted to the heading, and the lead now says where the
+ * capabilities can actually be seen running. Every one of the seven items below is
+ * verbatim as supplied.
+ *
+ * WHY NAME THEM RATHER THAN EMBED THEM. The owner's arrival map carries air quality,
+ * weather, solar, currency, world time, translation with spoken audio, Street View and a
+ * West Bengal discovery rail. Embedding all of it would import a second design system.
+ * Naming it presents the stack as a capability rather than a widget, which is the point.
  *
  * EVERY FIGURE HERE IS TAKEN FROM THE RUNNING CODE, not estimated:
  *   - Weather and air quality refresh on a 15-minute interval (15 * 60 * 1000).
@@ -76,57 +92,67 @@ const CAPABILITIES: Capability[] = [
   },
 ];
 
-const ContactCapabilities: React.FC = () => (
-  <section className="cc" aria-labelledby="cc-title">
-    <p className="cc-eyebrow">Built and run by us</p>
-    <h2 className="cc-h2" id="cc-title">The map that gets you here does rather more than that</h2>
-    <p className="cc-lead">
+const PlatformCapabilities: React.FC = () => (
+  <section className="pcap" aria-labelledby="pcap-title">
+    <p className="pcap-eyebrow">Built and run by us</p>
+    <h2 className="pcap-h2" id="pcap-title">The shortest honest answer to what we do</h2>
+    <p className="pcap-lead">
       Everything below is ours — the same platform we build for customers, pointed at our
-      own front door. It is the shortest honest answer to what we actually do.
+      own front door. You can watch all of it running on{ ' ' }
+      <a className="pcap-link" href="/contact/">our contact page</a>.
     </p>
 
-    <ul className="cc-grid">
+    <ul className="pcap-grid">
       { CAPABILITIES.map( item => (
-        <li className="cc-item" key={ item.name }>
-          <span className="cc-icon" aria-hidden="true">
+        <li className="pcap-item" key={ item.name }>
+          <span className="pcap-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24">{ item.icon }</svg>
           </span>
-          <div className="cc-copy">
-            <strong className="cc-name">{ item.name }</strong>
-            <span className="cc-detail">{ item.detail }</span>
+          <div className="pcap-copy">
+            <strong className="pcap-name">{ item.name }</strong>
+            <span className="pcap-detail">{ item.detail }</span>
           </div>
         </li>
       ) ) }
     </ul>
 
     <style jsx>{`
-      /* cc- prefixed. The globally imported src/styles/*.css declares unscoped rules for
+      /* pcap- prefixed. The globally imported src/styles/*.css declares unscoped rules for
          generic names and styled-jsx does not shield a page from them. */
-      .cc{max-width:1000px;margin-top:72px}
+      /* max-width:1000px, not the layout's full 1300px: seven two-line details set at the
+         full measure would run past a comfortable reading length. */
+      .pcap{max-width:1000px}
 
-      .cc-eyebrow{
+      .pcap-eyebrow{
         margin:0 0 12px;font-size:12px;font-weight:700;
         letter-spacing:.08em;text-transform:uppercase;color:#1a3a2a;
       }
       /* Section h2 on the contract's 700 rung, heavier than the hero h1's 600 - the
          inversion this site uses everywhere. Same clamp as the other section headings so
          this reads as their sibling rather than a new level. */
-      .cc-h2{
+      .pcap-h2{
         max-width:760px;margin:0 0 16px;
         font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;
         letter-spacing:-1.2px;color:rgba(0,0,0,.95);
       }
       /* The single body level the contract allows: 20px/400/1.4/-.125px. */
-      .cc-lead{
+      .pcap-lead{
         max-width:640px;margin:0 0 36px;
         font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898);
       }
+      /* A plain <a>, like every other link on the public pages: next/link would not receive
+         styled-jsx's scoping class, so this rule would silently stop matching. */
+      .pcap-link{color:#1a3a2a;font-weight:600;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+      .pcap-link:hover{background:rgba(209,244,112,.22)}
+      .pcap-link:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
 
-      /* auto-fit with a 300px floor rather than a fixed count: seven items divide badly
-         into two, three or four, and letting them reflow avoids an orphan row of one at
-         an awkward width. align-items:start so a short card does not stretch to match a
-         tall neighbour. */
-      .cc-grid{
+      /* auto-fit with a 300px floor rather than a fixed column count. To be accurate about
+         what this does and does not buy: seven is prime, so a trailing short row is
+         unavoidable at any column count (3+3+1 here at full width, 2+2+2+1 at mid). What
+         auto-fit avoids is a fixed count that becomes wrong at some viewport - the columns
+         follow the available width instead of being asserted. align-items:start so a short
+         item does not stretch to match a tall neighbour. */
+      .pcap-grid{
         margin:0;padding:0;list-style:none;
         display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
         gap:18px 28px;align-items:start;
@@ -134,43 +160,42 @@ const ContactCapabilities: React.FC = () => (
       /* Hairline separator above each item instead of a card border. Seven bordered boxes
          would read as seven buttons; a rule reads as a list, which is what this is.
          1px because it is static - 2px on this site means you can interact with it. */
-      .cc-item{
+      .pcap-item{
         display:flex;gap:14px;align-items:flex-start;
         padding-top:18px;border-top:1px solid #e5e7eb;
       }
 
       /* The .22 lime tint: the contract's quiet treatment, correct for a label rather
-         than an action. Full-strength lime stays on the one call to action above. */
-      .cc-icon{
+         than an action. Full-strength lime stays on the page's one call to action. */
+      .pcap-icon{
         flex:0 0 auto;width:40px;height:40px;border-radius:12px;
         display:grid;place-items:center;
         background:rgba(209,244,112,.22);color:#1a3a2a;
       }
       /* fill:none + stroke on currentColor is what lets one icon set inherit the colour
          of whatever it sits in, with no per-icon overrides. */
-      .cc-icon svg{
+      .pcap-icon svg{
         width:22px;height:22px;fill:none;stroke:currentColor;
         stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;
       }
 
-      .cc-copy{min-width:0;display:flex;flex-direction:column;gap:5px}
+      .pcap-copy{min-width:0;display:flex;flex-direction:column;gap:5px}
       /* Card-heading rung: 22px/700/-.25px, same as the product page points. */
-      .cc-name{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
+      .pcap-name{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
       /* Detail drops to the 17px reading size used for long prose elsewhere - at 20px
          seven paragraphs of it would outweigh the lead that introduces them. */
-      .cc-detail{font-size:17px;font-weight:400;line-height:1.55;letter-spacing:-.05px;color:rgba(0,0,0,.54)}
+      .pcap-detail{font-size:17px;font-weight:400;line-height:1.55;letter-spacing:-.05px;color:rgba(0,0,0,.54)}
 
       @media(max-width:899px){
-        .cc{margin-top:56px}
-        .cc-lead{font-size:18px;margin-bottom:28px}
-        .cc-grid{grid-template-columns:1fr;gap:0}
-        .cc-name{font-size:20px}
-        .cc-detail{font-size:16.5px}
+        .pcap-lead{font-size:18px;margin-bottom:28px}
+        .pcap-grid{grid-template-columns:1fr;gap:0}
+        .pcap-name{font-size:20px}
+        .pcap-detail{font-size:16.5px}
         /* Slightly tighter rhythm once they are a single stacked column. */
-        .cc-item{padding-top:16px;margin-bottom:16px}
+        .pcap-item{padding-top:16px;margin-bottom:16px}
       }
     `}</style>
   </section>
 );
 
-export default ContactCapabilities;
+export default PlatformCapabilities;

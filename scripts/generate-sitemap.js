@@ -41,9 +41,10 @@ const PUBLIC_EXACT = new Set( [
   '/dastavez',
   '/elsewhere',
   '/expo-week',
+  // Renamed '/swdhya' -> '/open-possibility' -> '/anew'. Alphabetical, so it moved to the
+  // top of this group.
+  '/anew',
   '/niji-setu',
-  // Renamed from '/swdhya'. Kept in alphabetical order with the rest, so it moved position.
-  '/open-possibility',
   '/ritual-guru',
 ] );
 const PUBLIC_PREFIXES = [ '/post/' ];

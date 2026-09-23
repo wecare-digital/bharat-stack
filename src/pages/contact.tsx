@@ -2,7 +2,6 @@ import React from 'react';
 import Head from 'next/head';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 import ContactLocation from '../components/ContactLocation';
-import ContactCapabilities from '../components/ContactCapabilities';
 
 /**
  * /contact — the Selfservice entry point.
@@ -62,12 +61,11 @@ const ContactPage: React.FC = () => (
           reason the query is plain text rather than a place_id. */}
       <ContactLocation />
 
-      {/* The arrival stack, named rather than embedded. The owner's map app carries air
-          quality, solar, currency, world time, translation, Street View and West Bengal
-          discovery; putting the whole thing on a contact page would import a second
-          design system and bury the address. This presents it as capability instead,
-          which is what it is. ContactCapabilities styles itself. */}
-      <ContactCapabilities />
+      {/* THE CAPABILITY STRIP HAS MOVED TO THE HOME PAGE, at the owner's request. It used
+          to sit here as <ContactCapabilities /> - the seven things the arrival map can do.
+          It is now src/components/PlatformCapabilities.tsx and renders on '/'.
+          This page is better for it: /contact/ is where someone goes to reach us, and a
+          seven-item platform showcase underneath the address competed with that job. */}
     </RotatingHero>
   </>
 );

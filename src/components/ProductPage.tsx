@@ -21,7 +21,7 @@ import type { ProductDef } from '../content/products';
  *
  * THE NOTE IS A HAIRLINE BOX, NOT A LIME ONE. Several of these products are regulated or
  * easily misread - Dastavez is not a law firm, Clear Closure does not act for either party,
- * Open Possibility is not therapy, Elsewhere cannot promise a visa. Those have to be read,
+ * Anew is not therapy, Elsewhere cannot promise a visa. Those statements have to be read,
  * but lime on this site means "actionable", and the single lime surface on the page is
  * already spent on the call to action. A boundary statement competing with the CTA for the
  * same signal would be a worse outcome than a quiet one that is actually legible.
