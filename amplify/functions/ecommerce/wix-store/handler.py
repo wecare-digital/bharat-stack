@@ -65,8 +65,6 @@ def _load_wix_api_key() -> str:
         except Exception as e:
             logger.warning(f'Wix API key: explicit Secrets Manager load failed: {e}')
     if not _wix_api_key_cache:
-        _wix_api_key_cache = os.environ.get('WIX_API_KEY', '').strip()
-    if not _wix_api_key_cache:
         raise RuntimeError('Wix Headless API credentials are not configured')
     return _wix_api_key_cache
 
