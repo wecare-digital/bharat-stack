@@ -13,6 +13,7 @@ WIX_API = 'https://www.wixapis.com'
 SITE_BASE = 'https://wecare.digital'
 SECRET_NAME = os.environ.get('WIX_API_KEY_SECRET', '').strip()
 SITE_ID = os.environ.get('WIX_SITE_ID', '').strip()
+ACCOUNT_ID = os.environ.get('WIX_ACCOUNT_ID', '').strip()
 _api_key = None
 
 SITE_PAGES = [
@@ -68,6 +69,8 @@ def request(method: str, path: str, body: Optional[Dict[str, Any]] = None) -> Di
         'Authorization': _load_api_key(), 'wix-site-id': SITE_ID,
         'Content-Type': 'application/json', 'Accept': 'application/json',
     }
+    if ACCOUNT_ID:
+        headers['wix-account-id'] = ACCOUNT_ID
     data = json.dumps(body).encode('utf-8') if body is not None else None
     req = urllib.request.Request(WIX_API + path, data=data, headers=headers, method=method)
     try:
@@ -114,6 +117,141 @@ def list_site_pages() -> List[Dict[str, Any]]:
 
     with ThreadPoolExecutor(max_workers=8) as executor:
         return list(executor.map(load_page, SITE_PAGES))
+
+
+DEFAULT_BLOG_AUTHOR = os.environ.get('WIX_BLOG_AUTHOR_NAME', 'Anew by WECARE.DIGITAL').strip() or 'Anew by WECARE.DIGITAL'
+
+
+def _seo_values(post: Dict[str, Any]) -> Dict[str, Any]:
+    seo = post.get('seoData') or {}
+    title = ''
+    description = ''
+    robots = 'index, follow, max-image-preview:large'
+    for tag in seo.get('tags', []) or []:
+        tag_type = str(tag.get('type') or '').lower()
+        props = tag.get('props') or {}
+        if tag_type == 'title':
+            title = str(tag.get('children') or '').strip()
+        elif tag_type == 'meta':
+            name = str(props.get('name') or '').lower()
+            if name == 'description':
+                description = str(props.get('content') or '').strip()
+            elif name == 'robots':
+                robots = str(props.get('content') or robots).strip()
+    keywords = []
+    for keyword in (seo.get('settings') or {}).get('keywords', []) or []:
+        term = str(keyword.get('term') or '').strip()
+        if term:
+            keywords.append(term)
+    return {
+        'seoTitle': title,
+        'metaDescription': description,
+        'robots': robots,
+        'keywords': keywords,
+    }
+
+
+def _blog_reference_maps() -> Dict[str, Dict[str, str]]:
+    categories = request('GET', '/blog/v3/categories?paging.limit=100').get('categories', []) or []
+    tags = request('POST', '/v3/tags/query', {
+        'query': {'cursorPaging': {'limit': 100}},
+    }).get('tags', []) or []
+    members = request('GET', '/members/v1/members?fieldsets=FULL&paging.limit=100').get('members', []) or []
+    return {
+        'categories': {
+            str(item.get('id') or ''): str(item.get('label') or item.get('title') or '').strip()
+            for item in categories if item.get('id')
+        },
+        'tags': {
+            str(item.get('id') or ''): str(item.get('label') or '').strip()
+            for item in tags if item.get('id')
+        },
+        'members': {
+            str(item.get('id') or ''): str((item.get('profile') or {}).get('nickname') or '').strip()
+            for item in members if item.get('id')
+        },
+    }
+
+
+def _blog_view(post: Dict[str, Any], refs: Dict[str, Dict[str, str]], include_content: bool) -> Dict[str, Any]:
+    slug = str(post.get('slug') or '').strip()
+    seo = _seo_values(post)
+    category_ids = post.get('categoryIds') or []
+    tag_ids = post.get('tagIds') or []
+    category = next((refs['categories'].get(str(value), '') for value in category_ids if refs['categories'].get(str(value))), '')
+    tags = [refs['tags'][str(value)] for value in tag_ids if refs['tags'].get(str(value))]
+    author = refs['members'].get(str(post.get('memberId') or ''), '') or DEFAULT_BLOG_AUTHOR
+    result = {
+        'id': post.get('id', ''),
+        'title': post.get('title', ''),
+        'slug': slug,
+        'excerpt': post.get('excerpt', ''),
+        'url': f'{SITE_BASE}/post/{slug}/',
+        'seoTitle': seo['seoTitle'],
+        'metaDescription': seo['metaDescription'],
+        'focusKeyword': seo['keywords'][0] if seo['keywords'] else '',
+        'keywords': seo['keywords'],
+        'jsonLd': {},
+        'publishedDate': post.get('firstPublishedDate', ''),
+        'modifiedDate': post.get('lastPublishedDate') or post.get('firstPublishedDate', ''),
+        'coverImage': '',
+        'category': category,
+        'tags': tags,
+        'hashtags': post.get('hashtags', []) or [],
+        'authorName': author,
+        'robots': seo['robots'],
+    }
+    if include_content:
+        result['content'] = post.get('contentText', '') or ''
+        result['richContent'] = post.get('richContent') or {}
+    return result
+
+
+def list_blog_posts() -> List[Dict[str, Any]]:
+    refs = _blog_reference_maps()
+    posts: List[Dict[str, Any]] = []
+    cursor = ''
+    while True:
+        paging = {'limit': 100}
+        if cursor:
+            paging['cursor'] = cursor
+        body = {
+            'fieldsets': ['URL', 'SEO'],
+            'query': {'cursorPaging': paging},
+            'skipCount': True,
+        }
+        data = request('POST', '/v3/posts/query', body)
+        posts.extend(data.get('posts', []) or [])
+        cursor = str(((data.get('pagingMetadata') or {}).get('cursors') or {}).get('next') or '')
+        if not cursor:
+            break
+    return [_blog_view(post, refs, include_content=False) for post in posts]
+
+
+def get_blog_post_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+    wanted = str(slug or '').strip().strip('/')
+    if not wanted:
+        return None
+    refs = _blog_reference_maps()
+    params = urllib.parse.urlencode([
+        ('fieldsets', 'URL'),
+        ('fieldsets', 'CONTENT_TEXT'),
+        ('fieldsets', 'SEO'),
+        ('fieldsets', 'RICH_CONTENT'),
+    ])
+    try:
+        data = request(
+            'GET',
+            '/v3/posts/slugs/' + urllib.parse.quote(wanted, safe='') + '?' + params,
+        )
+    except RuntimeError as error:
+        if 'status 404' in str(error):
+            return None
+        raise
+    post = data.get('post')
+    if not post:
+        return None
+    return _blog_view(post, refs, include_content=True)
 
 
 def list_products() -> List[Dict[str, Any]]:
