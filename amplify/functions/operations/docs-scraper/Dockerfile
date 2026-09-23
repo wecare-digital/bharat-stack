@@ -1,7 +1,7 @@
 # Meta / external documentation scraper — WECARE.DIGITAL
 # Playwright + headless Chromium is far larger than the 250MB zip limit,
 # so this Lambda is packaged as a container image (deploy via ECR).
-FROM mcr.microsoft.com/playwright/python:v1.45.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.63.0-jammy
 
 # AWS Lambda Runtime Interface Client so the container works as a Lambda.
 WORKDIR /var/task
