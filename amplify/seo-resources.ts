@@ -1,7 +1,6 @@
 import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
 export const SEO_TOOLS_TABLE_NAME = 'stack-wecare-digital-SeoToolsTable';
 
@@ -40,18 +39,13 @@ export function addSeoResources ( stack: Stack ) {
             LOG_LEVEL: 'INFO',
             SEO_TOOLS_TABLE: SEO_TOOLS_TABLE_NAME,
             WEBHOOK_DEDUP_TABLE: 'stack-wecare-digital-WebhookDedup',
-            WIX_API_KEY_SECRET: 'wecare/wix/headless-api-key',
             WIX_SITE_ID: 'fcd82f0c-9572-49c7-acfb-88fb05042ece',
             WIX_ACCOUNT_ID: '15f02319-40ff-4288-b8e6-69c791adae5e',
+            WIX_CLIENT_ID: '197cd718-e4ec-4e2e-b380-46c297eb18a2',
             WIX_BLOG_AUTHOR_NAME: 'Anew by WECARE.DIGITAL',
             BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6',
         },
     } );
-
-    const wixSecret = secretsmanager.Secret.fromSecretNameV2(
-        stack, 'WixHeadlessApiKeySecret', 'wecare/wix/headless-api-key'
-    );
-    wixSecret.grantRead( seoFunction );
 
     return { table, function: seoFunction };
 }
