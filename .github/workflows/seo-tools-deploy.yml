@@ -1,11 +1,21 @@
-name: Deploy SEO tools Lambda
+name: SEO tools Lambda
 
 # Public blog reads use Wix Headless anonymous OAuth via the public client ID.
-# This deploy role has permission only to update/invoke wecare-seo-tools; no
-# Secrets Manager access or admin Wix credential is required.
+# Pull requests run focused tests only. A push to stack deploys and then invokes
+# the real Lambda to verify the approved Integrity post end to end.
 
 on:
   workflow_dispatch: {}
+  pull_request:
+    branches: [ stack ]
+    paths:
+      - 'amplify/functions/operations/seo-tools/**'
+      - 'amplify/functions/seo_tools_handler.py'
+      - 'amplify/functions/shared/lambda_utils/**'
+      - 'amplify/functions/shared/static_knowledge_base.py'
+      - 'tests/test_task12_seo.py'
+      - 'scripts/deploy_seo_tools.py'
+      - '.github/workflows/seo-tools-deploy.yml'
   push:
     branches: [ stack ]
     paths:
@@ -22,12 +32,10 @@ env:
   FUNCTION: wecare-seo-tools
 
 jobs:
-  test-and-deploy:
+  test:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
-
     steps:
       - uses: actions/checkout@v7
 
@@ -40,6 +48,17 @@ jobs:
 
       - name: Run SEO tools tests
         run: python -m pytest tests/test_task12_seo.py -q
+
+  deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
 
       - name: Package SEO tools Lambda
         run: |
@@ -134,7 +153,7 @@ jobs:
                   node_type = str(value.get('type') or '').upper()
                   if node_type:
                       node_types.append(node_type)
-                  text = ((value.get('textData') or {}).get('text'))
+                  text = (value.get('textData') or {}).get('text')
                   if text:
                       text_parts.append(text)
                   for nested in value.values():
