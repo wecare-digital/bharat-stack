@@ -518,11 +518,11 @@ def verify() -> int:
     except ClientError:
         problems.append("Partner group missing")
 
-    print(f"customer pool: {pool_id}")
-    print(f"app client: {client_id or 'missing'}")
-    print(f"auth Lambda: {fn_arn}")
+    print("customer pool: present")
+    print(f"app client: {'present' if client_id else 'missing'}")
+    print("auth Lambda alias: present")
     print(f"OTP template: {OTP_TEMPLATE_NAME}/{OTP_TEMPLATE_LANGUAGE}")
-    print(f"admin pool unchanged: {EXPECTED_ADMIN_POOL_ID}")
+    print("admin pool: unchanged")
 
     if problems:
         print("\nFAIL:")
@@ -544,9 +544,6 @@ def main(argv=None) -> int:
         return verify()
 
     print(f"region: {REGION}")
-    print(f"account: {account_id()}")
-    print(f"WABA: {WABA_ID}")
-    print(f"sender phone id: {PHONE_NUMBER_ID}")
     print(f"template: {OTP_TEMPLATE_NAME}/{OTP_TEMPLATE_LANGUAGE}")
     print(f"dry run: {args.dry_run}\n")
 
