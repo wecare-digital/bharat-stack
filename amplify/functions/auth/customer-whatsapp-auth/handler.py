@@ -21,7 +21,18 @@ import time
 import boto3
 
 
-_lambda = boto3.client("lambda")
+_lambda = None
+
+
+def _lambda_client():
+    """Create the AWS client lazily so imports/tests never need AWS config."""
+    global _lambda
+    if _lambda is None:
+        _lambda = boto3.client(
+            "lambda",
+            region_name=os.environ.get("AWS_REGION", "us-east-1"),
+        )
+    return _lambda
 
 SENDER_FUNCTION = os.environ.get(
     "SENDER_FUNCTION", "wecare-whatsapp-business-api:live"
@@ -76,7 +87,7 @@ def _send_otp(phone: str, otp: str) -> None:
         "path": "/wa-business/messages/send/template",
         "body": json.dumps(body),
     }
-    response = _lambda.invoke(
+    response = _lambda_client().invoke(
         FunctionName=SENDER_FUNCTION,
         InvocationType="RequestResponse",
         Payload=json.dumps(event).encode("utf-8"),
@@ -156,7 +167,6 @@ def _create_auth_challenge(event: dict) -> dict:
             {
                 "event": "customer_whatsapp_otp_sent",
                 "wabaId": META_WABA_ID,
-                "destination": _mask_phone(phone),
                 "template": TEMPLATE_NAME,
             }
         )
