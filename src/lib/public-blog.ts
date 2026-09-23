@@ -5,6 +5,7 @@ export interface PublicBlogPost {
   excerpt: string;
   url: string;
   content?: string;
+  richContent?: { nodes?: any[] };
   seoTitle?: string;
   metaDescription?: string;
   focusKeyword?: string;
@@ -33,8 +34,6 @@ export async function listPublicBlogPosts (): Promise<PublicBlogPost[]> {
     return body?.ok && Array.isArray( body.posts ) ? body.posts : [];
   } catch
   {
-    // The SEO Lambda is deployed independently from the static frontend. A
-    // frontend build must remain valid while that backend deployment is pending.
     return [];
   }
 }
