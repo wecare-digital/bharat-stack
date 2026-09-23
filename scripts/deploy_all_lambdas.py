@@ -187,6 +187,7 @@ SPECS: List[Spec] = [
     # separate destructive approval.
     Spec("wecare-notification-worker", "messaging/notification-worker"),
     Spec("wecare-plivo-answer", "messaging/plivo-answer"),
+    Spec("wecare-pstn-softphone", "messaging/pstn-softphone"),
     # --- messaging / rcs, push, scheduling ---
     Spec("wecare-rcs-send", "messaging/rcs-send"),
     Spec("wecare-rcs-dlr", "messaging/rcs-dlr"),
