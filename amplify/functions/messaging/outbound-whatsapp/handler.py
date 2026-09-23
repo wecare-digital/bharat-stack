@@ -2940,10 +2940,10 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
             gst_paise = int(order_data.get('tax', {}).get('value', 0))
         
         # Convenience Fee: configurable rate (default 2.2%) + GST on that rate (default 18%)
-        # Can be overridden per-order via convenienceFeeRate and convenienceFeeGstRate
-        # This default is the authoritative charged rate for WhatsApp payments and
-        # must stay in sync with CONVENIENCE_FEE in src/config/constants.ts and with
-        # FEE_RATE in store/src/backend/ecom/additional-fees/convenience-fee.js.
+        # Can be overridden per-order via convenienceFeeRate and convenienceFeeGstRate.
+        # The public checkout is AWS-owned, so this server-side default and
+        # CONVENIENCE_FEE in src/config/constants.ts are the two copies that must
+        # remain aligned until fee calculation is centralized in the checkout service.
         conv_fee_rate = Decimal(str(order_details.get('convenienceFeeRate', '0.022')))
         conv_fee_gst_rate = Decimal(str(order_details.get('convenienceFeeGstRate', '0.18')))
         skip_conv_fee = order_details.get('skipConvenienceFee', False)

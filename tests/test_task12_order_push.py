@@ -77,6 +77,74 @@ def test_v3_product_normalizer_reads_variant_price_sku_and_options(wix_handler):
     assert result['variants'][0]['choices'] == {'Size': 'Small'}
 
 
+def test_v3_product_list_hydrates_read_only_variants(wix_handler):
+    product_page = {
+        'products': [{
+            'id': 'prod-1',
+            'name': 'Coffee',
+            'slug': 'coffee',
+            'currency': 'INR',
+            'productType': 'PHYSICAL',
+            'plainDescription': 'Fresh coffee',
+            'inventory': {},
+        }],
+        'pagingMetadata': {'count': 1, 'cursors': {}},
+    }
+    variant_page = {
+        'variants': [{
+            'variantId': 'var-1',
+            'sku': 'WD-COFFEE',
+            'price': {'actualPrice': {'amount': '199', 'formattedAmount': 'INR 199'}},
+            'inventoryStatus': {'inStock': True},
+            'productData': {'productId': 'prod-1', 'currency': 'INR'},
+            'optionChoices': [{
+                'optionChoiceNames': {'optionName': 'Size', 'choiceName': 'Small'},
+            }],
+        }],
+        'pagingMetadata': {'count': 1, 'cursors': {}, 'hasNext': False},
+    }
+
+    with patch.object(
+        wix_handler,
+        '_wix_request',
+        side_effect=[product_page, variant_page],
+    ) as request:
+        response = wix_handler._list_products({}, 'req-list')
+
+    body = json.loads(response['body'])
+    assert response['statusCode'] == 200
+    assert body['products'][0]['price'] == 199.0
+    assert body['products'][0]['sku'] == 'WD-COFFEE'
+    assert body['products'][0]['inStock'] is True
+    assert body['products'][0]['variants'][0]['choices'] == {'Size': 'Small'}
+
+    product_call = request.call_args_list[0]
+    variant_call = request.call_args_list[1]
+    assert product_call.args[0] == '/stores/v3/products/query'
+    assert 'PLAIN_DESCRIPTION' in product_call.kwargs['body']['fields']
+    assert variant_call.args[0] == '/stores/v3/products/query-variants'
+    assert variant_call.kwargs['body']['query']['filter'] == {
+        'productData.productId': {'$in': ['prod-1']}
+    }
+    assert variant_call.kwargs['body']['query']['cursorPaging']['limit'] == 1000
+
+
+def test_whatsapp_order_flow_has_no_velo_http_fallback():
+    source = (
+        ROOT
+        / 'amplify'
+        / 'functions'
+        / 'messaging'
+        / 'whatsapp-business-api'
+        / 'flows'
+        / 'orders.py'
+    ).read_text()
+
+    assert '/_functions/orders' not in source
+    assert 'fetch_orders_velo_failed' not in source
+    assert 'WIX_SITE_URL' not in source
+
+
 def test_inventory_lookup_uses_inventory_items_v3_product_filter(wix_handler):
     with patch.object(wix_handler, '_wix_request', return_value={
         'inventoryItems': [{'id': 'inv-1', 'productId': 'prod-1', 'quantity': 4}]
