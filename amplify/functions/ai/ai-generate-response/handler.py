@@ -4,8 +4,10 @@ AI Generate Response Lambda Function
 Purpose: Generate AI response using Bedrock for WhatsApp and admin contexts
 
 Architecture:
-- INTERNAL: Bedrock Agent (FloatingAgent) for admin tasks - unchanged
-  - Agent ID: QIEEHEBTZO / Alias: ASCBD7YPUT / KB: static-faq
+- INTERNAL: Bedrock Converse API with a governed tool catalog, for admin tasks.
+  No Bedrock Agent is involved. The account's only agent is an empty,
+  never-prepared shell and every identifier that named it was fabricated -
+  see the retirement note further down this file.
 - EXTERNAL: Bedrock Converse API (Amazon Nova Lite) for WhatsApp auto-reply
   - Multimodal: text, images, audio, video, documents
   - Conversation history via DynamoDB (per-contact session)
@@ -50,10 +52,6 @@ from lambda_utils import contact_key  # `id` is the physical key; `contactId` is
 logger = get_logger(__name__)
 
 # AWS clients
-bedrock_agent_runtime = boto3.client(
-    'bedrock-agent-runtime',
-    region_name=os.environ.get('AWS_REGION', 'us-east-1')
-)
 bedrock_runtime = boto3.client(
     'bedrock-runtime',
     region_name=os.environ.get('AWS_REGION', 'us-east-1'),
@@ -72,13 +70,8 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-Contacts
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
 
-# Internal Agent (FloatingAgent - admin tasks, unchanged)
-INTERNAL_AGENT_ID = os.environ.get('INTERNAL_AGENT_ID', '4UUQYFWX64')
-INTERNAL_AGENT_ALIAS = os.environ.get('INTERNAL_AGENT_ALIAS', 'TSTALIASID')
-INTERNAL_KB_ID = os.environ.get('INTERNAL_KB_ID', 'static-faq')
-
-# External (WhatsApp auto-reply - Converse API)
-EXTERNAL_KB_ID = os.environ.get('EXTERNAL_KB_ID', 'static-faq')
+# No agent or knowledge-base identifiers are read here. See the retirement
+# note lower in this file for what was measured and why they are gone.
 MODEL_ID = os.environ.get('MODEL_ID', 'amazon.nova-pro-v1:0')
 GUARDRAIL_ID = os.environ.get('GUARDRAIL_ID', '')
 GUARDRAIL_VERSION = os.environ.get('GUARDRAIL_VERSION', 'DRAFT')
@@ -4231,72 +4224,42 @@ def _release_processing_lock(phone_hash: str) -> None:
 # INTERNAL AGENT (unchanged from original)
 # ============================================================================
 
-def _invoke_bedrock_agent(user_message: str, agent_id: str, agent_alias: str, kb_id: str, request_id: str) -> str:
-    """Invoke Bedrock Agent for internal admin response generation."""
-    try:
-        session_id = str(uuid.uuid4())
-        detected_lang, lang_name = _detect_language(user_message)
-
-        language_instruction = f"[RESPOND IN {lang_name.upper()} ONLY] "
-        enhanced_message = language_instruction + user_message
-
-        logger.info(json.dumps({
-            'event': 'bedrock_agent_invoke',
-            'agentId': agent_id,
-            'sessionId': session_id,
-            'messageLength': len(user_message),
-            'detectedLanguage': lang_name,
-            'requestId': request_id
-        }))
-
-        response = bedrock_agent_runtime.invoke_agent(
-            agentId=agent_id,
-            agentAliasId=agent_alias,
-            sessionId=session_id,
-            inputText=enhanced_message,
-            enableTrace=False
-        )
-
-        completion = ""
-        for event in response.get('completion', []):
-            if 'chunk' in event:
-                chunk_data = event['chunk']
-                if 'bytes' in chunk_data:
-                    completion += chunk_data['bytes'].decode('utf-8')
-
-        if completion:
-            logger.info(json.dumps({
-                'event': 'bedrock_agent_success',
-                'responseLength': len(completion),
-                'detectedLanguage': lang_name,
-                'requestId': request_id
-            }))
-            return completion.strip()
-
-        # Fallback to KB only if kb_id is provided (external path)
-        if kb_id:
-            return _query_knowledge_base(user_message, kb_id, detected_lang, lang_name, request_id)
-
-        # For internal agent (no KB), return empty to let caller handle
-        return ""
-
-    except Exception as e:
-        logger.error(json.dumps({
-            'event': 'bedrock_agent_error',
-            'error': str(e),
-            'requestId': request_id
-        }))
-        # Only use KB fallback if kb_id provided (external path)
-        if kb_id:
-            detected_lang, lang_name = _detect_language(user_message)
-            return _query_knowledge_base(user_message, kb_id, detected_lang, lang_name, request_id)
-        # For internal agent, return empty
-        return ""
-
-
-# ============================================================================
-# LANGUAGE DETECTION
-# ============================================================================
+# `_invoke_bedrock_agent` and `_query_knowledge_base` were removed here on
+# 2026-09-23, together with the `bedrock_agent_runtime` client and the
+# INTERNAL_AGENT_ID / INTERNAL_AGENT_ALIAS / *_KB_ID constants.
+#
+# Both were unreachable: `_invoke_bedrock_agent` had ZERO call sites, and
+# `_query_knowledge_base` was called only from inside it. They are gone rather than
+# left unused because they carried fabricated configuration, and dead code holding
+# plausible identifiers is what made this system look configured for months - the
+# action group's own docstring claimed a working agent on the strength of it.
+#
+# Measured against account 775261844268 on 2026-09-23:
+#
+#   agents                   1 -> 4UUQYFWX64, NOT_PREPARED, foundationModel null,
+#                            instruction 0 chars, role null, never prepared,
+#                            0 action groups, 0 knowledge bases, last touched
+#                            2026-04-25
+#   knowledge bases          0 in the entire account
+#   action group Lambda      resource policy grants apigateway.amazonaws.com only,
+#                            with NO bedrock.amazonaws.com principal - so Bedrock
+#                            could not have invoked it even if the agent were wired
+#
+# Every identifier that named this surface was fabricated. The LIVE environment was
+# worse than these defaults: INTERNAL_AGENT_ID=QIEEHEBTZO, ALIAS=ASCBD7YPUT,
+# INTERNAL_KB_ID=D0JU8Q7IQS, EXTERNAL_KB_ID=LYMQLKZNY7 - none of which exist. And
+# `static-faq` was never an id in any format.
+#
+# Nothing needs an agent. The live dashboard path uses the Converse API directly
+# (`_handle_internal` -> `_internal_converse_with_tools`) and is unaffected.
+# Provisioning a real agent would be NEW capability creation, not reconciliation: it
+# needs a foundation model, written instructions, an IAM role, the action group
+# attached, a `bedrock.amazonaws.com` invoke permission on that Lambda, a prepare,
+# and a real alias. That is an owner decision, recorded in
+# .kiro/work/phases-5-10/plan.md item 6.4.
+#
+# The empty agent itself is deliberately left in place: deleting it is a destructive
+# AWS operation requiring explicit confirmation, and it is inert and free.
 
 def _detect_language(text: str) -> Tuple[str, str]:
     """Detect language from text using character patterns."""
@@ -4327,64 +4290,6 @@ def _detect_language(text: str) -> Tuple[str, str]:
 
 # ============================================================================
 # KB QUERY (for internal fallback - unchanged)
-# ============================================================================
-
-def _query_knowledge_base(user_message: str, kb_id: str, detected_lang: str, lang_name: str, request_id: str) -> str:
-    """Direct Knowledge Base query with Nova Lite (internal fallback)."""
-    try:
-        prompt_template = f"""You are WECARE.DIGITAL's friendly AI assistant.
-
-CRITICAL: You MUST respond ONLY in {lang_name}. Do not mix languages.
-
-INSTRUCTIONS:
-- Respond ONLY in {lang_name} language
-- Keep responses SHORT (2-3 sentences max)
-- Use 1-2 emojis for warmth
-- Always mention the specific brand name
-- End with a clear action (website, phone, or next step)
-
-BRANDS:
-- Travel/Hotels/Visa ? BNB Club (bnbclub.in)
-- Documents/Registration/GST ? Legal Champ (legalchamp.in)
-- Disputes/Complaints ? No Fault (nofault.in)
-- Puja/Rituals ? Ritual Guru (ritualguru.in)
-- Self-inquiry/Reflection ? Swdhya (swdhya.in)
-
-CONTACT: +91 9330994400 | one@wecare.digital
-
-CONTEXT FROM KNOWLEDGE BASE:
-$search_results$
-
-USER QUESTION ({lang_name}): $query$
-
-Respond helpfully in {lang_name} and end with a specific action."""
-
-        response = bedrock_agent_runtime.retrieve_and_generate(
-            input={'text': user_message},
-            retrieveAndGenerateConfiguration={
-                'type': 'KNOWLEDGE_BASE',
-                'knowledgeBaseConfiguration': {
-                    'knowledgeBaseId': kb_id,
-                    'modelArn': f'arn:aws:bedrock:us-east-1::foundation-model/{MODEL_ID}',
-                    'generationConfiguration': {
-                        'promptTemplate': {'textPromptTemplate': prompt_template}
-                    }
-                }
-            }
-        )
-
-        output = response.get('output', {}).get('text', '')
-        if output:
-            return output.strip()
-        return _get_fallback_response(lang_name)
-
-    except Exception as e:
-        logger.error(json.dumps({'event': 'kb_query_error', 'error': str(e), 'requestId': request_id}))
-        return _get_fallback_response(lang_name)
-
-
-# ============================================================================
-# FALLBACK RESPONSES
 # ============================================================================
 
 def _get_fallback_response(lang_name: str = 'English') -> str:
