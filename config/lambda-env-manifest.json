@@ -2,7 +2,7 @@
   "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - regenerate with scripts/env_manifest.py --export after infrastructure changes.",
   "_region": "us-east-1",
   "_functions": 58,
-  "_variables": 325,
+  "_variables": 319,
   "_fingerprinted": 8,
   "functions": {
     "stack-wecare-url-shortener": {
@@ -236,7 +236,12 @@
       "POST_CALL_SMS_ENABLED": "true",
       "SMS_FUNCTION": "wecare-sms-aws:live"
     },
-    "wecare-product-image-gen": {},
+    "wecare-product-image-gen": {
+      "CREDENTIAL_PURGE_EPOCH": "2026-09-23T03:05:00Z",
+      "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
+      "WIX_CREDENTIALS_DISABLED": "true",
+      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
+    },
     "wecare-push-notifications": {},
     "wecare-razorpay-webhook": {
       "AWS_ACCOUNT_ID": "775261844268",
@@ -276,9 +281,13 @@
     "wecare-seo-tools": {
       "BEDROCK_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
       "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
+      "CREDENTIAL_PURGE_EPOCH": "2026-09-23T03:05:00Z",
       "LOG_LEVEL": "INFO",
       "SEO_TOOLS_TABLE": "stack-wecare-digital-SeoToolsTable",
-      "WEBHOOK_DEDUP_TABLE": "stack-wecare-digital-WebhookDedup"
+      "WEBHOOK_DEDUP_TABLE": "stack-wecare-digital-WebhookDedup",
+      "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
+      "WIX_CREDENTIALS_DISABLED": "true",
+      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
     },
     "wecare-service-api": {
       "DOCS_S3_BUCKET": "wecare-digital-media",
@@ -414,10 +423,14 @@
     },
     "wecare-wix-store": {
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
+      "CREDENTIAL_PURGE_EPOCH": "2026-09-23T03:05:00Z",
       "LOG_LEVEL": "INFO",
+      "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
       "WIX_API_BASE_URL": "https://www.wixapis.com",
+      "WIX_CREDENTIALS_DISABLED": "true",
       "WIX_ORDERS_CACHE_TABLE": "stack-wecare-digital-WixOrdersCache",
-      "WIX_PRODUCTS_CACHE_TABLE": "stack-wecare-digital-WixProductsCache"
+      "WIX_PRODUCTS_CACHE_TABLE": "stack-wecare-digital-WixProductsCache",
+      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
     }
   }
 }

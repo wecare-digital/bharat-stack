@@ -24,19 +24,11 @@ Worth recording, because both can be re-derived instead of trusted:
 - **Account ID came out of the API key itself.** A Wix API key is an `IST.`-prefixed JWT
   whose payload contains `{ tenant: { type: "account", id } }`. Decoding it is base64 — no
   network call, no secret sent anywhere.
-- **Site ID was supplied by the owner** as the "Headless Site ID".
+- **Site ID was supplied by the owner** as the "Headless Site ID". The only accepted Wix
+  Site ID for this repository is `fcd82f0c-9572-49c7-acfb-88fb05042ece`. Retired Editor site identifiers are
+  deliberately omitted from current configuration and runbooks.
 
-  This replaced an earlier value, `c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5`, and the way that
-  one was justified is worth keeping as a caution. It came from
-  `POST /site-list/v2/sites/query`, which returned exactly one site, and it matched the
-  `siteId` in the then-present `store/wix.config.json`. Two independent sources agreed — and
-  they were both describing the **retired editor site**, which is exactly the site this
-  project no longer uses. Agreement established that the id was *real*, not that it was the
-  *right* one.
-
-  It has **not** been verified from this repo, because checking it means calling the Wix API
-  with the admin key and that key should not leave Secrets Manager to confirm an identifier.
-  From an environment that legitimately holds it:
+  To verify the current site from an environment that legitimately holds the admin key:
 
   ```bash
   curl -X POST https://www.wixapis.com/site-list/v2/sites/query \
@@ -46,8 +38,6 @@ Worth recording, because both can be re-derived instead of trusted:
   ```
 
   Confirm `fcd82f0c-9572-49c7-acfb-88fb05042ece` appears with the expected display name.
-  `wixAdminHeaders()` sends this id on every admin call, so a wrong value addresses the wrong
-  site quietly rather than failing outright.
 
 ## The API key is a secret and is not in this repo
 
