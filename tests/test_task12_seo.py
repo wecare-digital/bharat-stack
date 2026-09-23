@@ -202,7 +202,7 @@ def test_failed_blog_apply_restores_approved_state(seo_handler):
     )
     assert payload(response)['error'] == 'Blog SEO apply failed; audit remains approved'
 
-def test_public_blog_endpoint_returns_only_storage_public_view_without_auth(seo_handler):
+def test_public_blog_endpoint_returns_wix_posts_without_auth(seo_handler):
     event = {
         'requestContext': {
             'apiId': 'api-1',
@@ -211,15 +211,43 @@ def test_public_blog_endpoint_returns_only_storage_public_view_without_auth(seo_
         'rawPath': '/seo-tools/blog-public',
     }
     published = [{
-        'id': 'blog-1', 'slug': 'hello', 'title': 'Hello', 'status': 'published',
-        'url': 'https://wecare.digital/post/hello',
+        'id': 'blog-1', 'slug': 'hello', 'title': 'Hello',
+        'url': 'https://wecare.digital/post/hello/',
     }]
-    with patch.object(seo_handler.storage, 'list_blog_posts', return_value=published) as posts, \
+    with patch.object(seo_handler.wix, 'list_blog_posts', return_value=published) as posts, \
             patch.object(seo_handler, 'require_auth') as auth:
         response = seo_handler.handler(event, None)
     assert response['statusCode'] == 200
     assert payload(response)['posts'] == published
-    posts.assert_called_once_with(published_only=True, include_content=False)
+    posts.assert_called_once_with()
+    auth.assert_not_called()
+
+
+def test_public_blog_detail_reads_wix_by_slug(seo_handler):
+    event = {
+        'requestContext': {
+            'apiId': 'api-1',
+            'http': {
+                'method': 'GET',
+                'path': '/seo-tools/blog-public/integrity-and-balance',
+                'sourceIp': '127.0.0.1',
+            },
+        },
+        'rawPath': '/seo-tools/blog-public/integrity-and-balance',
+    }
+    post = {
+        'id': 'blog-1',
+        'slug': 'integrity-and-balance',
+        'title': 'Integrity',
+        'coverImage': '',
+    }
+    with patch.object(
+        seo_handler.wix, 'get_blog_post_by_slug', return_value=post
+    ) as get_post, patch.object(seo_handler, 'require_auth') as auth:
+        response = seo_handler.handler(event, None)
+    assert response['statusCode'] == 200
+    assert payload(response)['post'] == post
+    get_post.assert_called_once_with('integrity-and-balance')
     auth.assert_not_called()
 
 

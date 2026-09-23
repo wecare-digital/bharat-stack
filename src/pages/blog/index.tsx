@@ -76,7 +76,6 @@ export default function BlogIndex ( { posts }: Props ) {
           <section className="post-grid" aria-label="Published posts">
             { posts.map( post => (
               <article key={ post.id || post.slug } className="post-card">
-                { post.coverImage && <img src={ post.coverImage } alt="" loading="lazy" /> }
                 <div className="post-copy">
                   { post.category && <span className="category">{ post.category }</span> }
                   <h2><Link href={ `/post/${post.slug}/` }>{ post.title }</Link></h2>
@@ -94,14 +93,13 @@ export default function BlogIndex ( { posts }: Props ) {
         ) }
       </main>
       <style jsx>{`
-        .blog-shell{max-width:1180px;margin:0 auto;padding:156px 24px 96px;color:#111827}
+        .blog-shell{max-width:1180px;margin:0 auto;padding:156px 24px 96px;color:#111827;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         .blog-hero{max-width:720px;margin-bottom:56px}
         .eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;color:#1a3a2a;text-transform:uppercase;margin:0 0 12px}
         h1{font-size:clamp(44px,7vw,76px);line-height:1;letter-spacing:-.045em;margin:0 0 18px;color:#1a3a2a}
         .blog-hero>p:last-child{font-size:18px;line-height:1.7;color:#6b7280;margin:0}
         .post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
         .post-card{border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;background:#fff}
-        .post-card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
         .post-copy{padding:22px}
         .category{display:inline-block;background:#d1f470;color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:12px}
         h2{font-size:21px;line-height:1.25;margin:0 0 10px}
