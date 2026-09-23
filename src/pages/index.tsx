@@ -18,17 +18,22 @@
  * WORD LENGTH IS A DESIGN CONSTRAINT, not a copy detail, for one measured reason:
  * the pill animates to each word's measured width, so the spread between the
  * shortest and longest word is how far the headline's tail travels on every tick.
- * These four span 196-290px at the 60px cap (~94px). An earlier draft using
- * "Intelligence" spanned 205-310px (~105px).
+ * Measured at 1280px: consumers 278, enterprises 280, frontier tech 300,
+ * AI applications 361. Spread 83px.
  *
- * To be precise about what is and is not known: both sets glide rather than snap -
- * sampling shows the width interpolating smoothly in each case - so the shorter
- * spread is a margin-of-safety choice, not the fix for an observed defect. What
- * WOULD be a real defect is the headline reflowing to a second line on the longest
- * word only, which shifts everything below it; animcheck.js measures the h1 height
- * across a full rotation to catch that, and it is constant today.
+ * The real constraint is NOT the spread, it is reflow: the headline growing to a
+ * second line on the longest word only would shift every section below it every
+ * 2400ms. That is checked by measuring the h1's height across a full rotation -
+ * sampled here at 131px for all four words, nine consecutive samples, constant.
  *
- * Keep replacements within ~2 characters of each other and re-run that harness.
+ * Re-measure after changing a word. Note that animcheck.js, referenced in this
+ * file and three other places, DOES NOT EXIST in the repo - so "re-run the
+ * harness" currently means measuring h1 height in a browser by hand. Either write
+ * it or stop citing it.
+ *
+ * A unit test cannot see reflow, so src/test/HomePage.test.tsx pins only the one
+ * thing it can: no word longer than 18 characters, i.e. long enough to still fit
+ * the pill's own line at the narrowest breakpoint.
  *
  * The four tint/dot pairs are reused VERBATIM from the Grahak OS hero - no new
  * colours. Hue maps onto sense the way it does on the other two pages: green for our
@@ -105,15 +110,26 @@ import WorkflowTerminal from '../components/WorkflowTerminal';
 // Every tint/dot pair is reused VERBATIM from the Grahak OS hero and the VayuLok
 // rotation - nine words across six available pairs, so three repeat. Repeats are
 // placed non-adjacently so no two consecutive ticks share a colour.
+// Four words, and the five that were here before are gone on purpose:
+// travel, rituals, documents, reflection and disputes each named a SERVICE. A
+// service can be repriced, renamed or discontinued, and on the day one is, the
+// headline is simply false. What remains are the two audiences we serve and the
+// two kinds of thing we build - none of which stops being true when a single
+// offering changes.
+//
+// Three words were adjusted from the owner's list for grammar, not meaning:
+//   consumer  -> consumers     "services for consumer" is not English
+//   enterprise -> enterprises  parallel with consumers
+//   ai        -> AI            an initialism, and the rest of the page capitalises it
+// Revert any of those if the original wording was deliberate.
+//
+// Four distinct tints so no two consecutive ticks share a colour - with four
+// words that is automatic, which is why the non-adjacency juggling the nine-word
+// set needed is gone.
 const CYCLE_WORDS = [
-  { word: 'travel', tint: '#dbeafe', dot: '#2563eb' },
-  { word: 'rituals', tint: '#fef3c7', dot: '#f0a818' },
-  { word: 'documents', tint: '#e0f7c8', dot: '#3da35a' },
-  { word: 'reflection', tint: '#ede9fe', dot: '#9849e8' },
-  { word: 'disputes', tint: '#fee2e2', dot: '#dc2626' },
-  { word: 'ai applications', tint: '#dbeafe', dot: '#2563eb' },
-  { word: 'consumer', tint: '#fef3c7', dot: '#f0a818' },
-  { word: 'enterprise', tint: '#ede9fe', dot: '#9849e8' },
+  { word: 'consumers', tint: '#fef3c7', dot: '#f0a818' },
+  { word: 'enterprises', tint: '#ede9fe', dot: '#9849e8' },
+  { word: 'AI applications', tint: '#dbeafe', dot: '#2563eb' },
   { word: 'frontier tech', tint: '#e0f7c8', dot: '#3da35a' },
 ];
 
