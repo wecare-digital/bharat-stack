@@ -16,7 +16,7 @@ interface SEOProps {
 
 const BASE_URL = 'https://stack.wecare.digital';
 const DEFAULT_IMAGE = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
-const SITE_NAME = 'Bharat Stack by WECARE.DIGITAL';
+const SITE_NAME = 'WECARE.DIGITAL';
 
 // Default keywords for all pages
 const DEFAULT_KEYWORDS = 'WhatsApp Business API, WhatsApp CRM, bulk messaging, SMS API, email marketing, voice calls, Razorpay payments, customer engagement, multi-channel CRM, WECARE.DIGITAL, Stack CRM';

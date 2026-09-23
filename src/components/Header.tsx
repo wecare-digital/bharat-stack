@@ -169,21 +169,28 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
   // never look at classes. Only reading the built HTML caught it.
   const isActive = ( link: NavLink ) => link.match !== undefined && router.pathname === link.match;
 
-  const renderLink = ( link: NavLink, extraClass = '' ) => (
-    <a
-      key={ link.label + link.href }
-      href={ link.href }
-      className={ `nav-item ${extraClass} ${isActive( link ) ? 'active' : ''}`.trim() }
-      aria-current={ isActive( link ) ? 'page' : undefined }
-      onClick={ close }
-    >{ link.label }</a>
-  );
+  // NO renderLink() HELPER. The anchor markup is duplicated inline in both branches
+  // below, on purpose, and it must stay that way.
+  //
+  // It was briefly a shared renderLink( link, extraClass ) helper, which silently
+  // unstyled the entire menu. styled-jsx only attaches its scoping class to JSX it
+  // can see statically inside the return tree; markup produced by a separate function
+  // gets a different hash, so none of the .nav-item rules in the style block below
+  // matched, and every row fell through to the unscoped global .nav-item in
+  // Layout.css:659 - 15px at weight 560 with no lime hover and no active tint.
+  //
+  // This is the first trap in the design contract, and it is invisible to the tests:
+  // 112 browser assertions passed while every row was unstyled, because they assert
+  // text, href and aria-current and never read computed style. Only
+  // CSS.getMatchedStylesForNode showed that the jsx rules were not matching at all.
+  // megamenu.js now asserts computed font-size, weight and the active background so
+  // this cannot recur silently.
 
   return (
     <header className={ `hdr ${homeBrand ? 'hdr-home' : ''}`.trim() }>
       <div className="hdr-in">
         <div className="logo-nav">
-          <a href="/" className="logo" aria-label="Bharat Stack home">
+          <a href="/" className="logo" aria-label="WECARE.DIGITAL home">
             <BrandLockup />
           </a>
           <div className="nav-dropdown" ref={ rootRef }>
@@ -221,7 +228,15 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
                   missing items rather than as a narrowed list. */}
               { searching && (
                 <div className="nav-results">
-                  { filtered.map( link => renderLink( link ) ) }
+                  { filtered.map( link => (
+                    <a
+                      key={ link.label + link.href }
+                      href={ link.href }
+                      className={ `nav-item ${isActive( link ) ? 'active' : ''}`.trim() }
+                      aria-current={ isActive( link ) ? 'page' : undefined }
+                      onClick={ close }
+                    >{ link.label }</a>
+                  ) ) }
                   { !filtered.length && <p className="nav-empty">No matching page.</p> }
                 </div>
               ) }
@@ -245,7 +260,15 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
                             )
                             : <span className="nav-group-label">{ section.heading }</span>
                           ) }
-                          { section.links.map( link => renderLink( link, section.headingHref ? 'nav-sub' : '' ) ) }
+                          { section.links.map( link => (
+                            <a
+                              key={ link.label + link.href }
+                              href={ link.href }
+                              className={ `nav-item ${section.headingHref ? 'nav-sub' : ''} ${isActive( link ) ? 'active' : ''}`.trim() }
+                              aria-current={ isActive( link ) ? 'page' : undefined }
+                              onClick={ close }
+                            >{ link.label }</a>
+                          ) ) }
                         </div>
                       ) ) }
                     </div>
@@ -278,14 +301,19 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            three of those plus the 20px gutters and 14px padding comes to ~700px.
            Anchored left of the trigger rather than centred, because a narrow panel
            centred in the viewport under a left-aligned trigger reads as unrelated to
-           it. min() against calc(100vw - 208px) is what stops the absolute
+           it. min() against calc(100vw - 256px) is what stops the absolute
            positioning overflowing on a narrow window before the mobile rule takes
-           over. That 208 is MEASURED, not estimated: the panel's left edge sits at
-           180px - the brand lockup plus the trigger - and 180 + 24px of right gutter
-           is 204, taken to 208 for margin. A first attempt reserved 176px from a
-           guessed 152px offset and overflowed the viewport by 4px at 900px wide,
-           which the width sweep caught. If the lockup ever changes width, re-measure
-           this rather than adjusting it by eye.
+           over.
+
+           THAT 256 IS COUPLED TO THE BRAND LOCKUP'S WIDTH, and it has now been wrong
+           twice. The panel's left edge is wherever the lockup plus the trigger ends:
+           a first attempt reserved 176px from a guessed 152px offset and overflowed
+           by 4px at 900px wide; measuring gave 180px, so it became 208; then the logo
+           was sized up from 60px to 68px, the offset moved to 225px, and 208 overflowed
+           again at 768-960px. 225 + 24px of gutter is 249, taken to 256.
+           So: if BrandLockup's logo height or type size changes, THIS NUMBER MOVES.
+           Re-measure it, do not nudge it - the width sweep in megamenu.js is what
+           catches it, and it caught both of these.
 
            max-height CLEARS THE WHATSAPP BUTTON GEOMETRICALLY, which is the only way
            to clear it. #wecarewa-widget is injected by an external script at
@@ -307,7 +335,7 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            aria-expanded was false - the arrow unrotated and a screen reader announcing
            it as collapsed. A mega panel appearing on an accidental mouse-over is also
            far more disruptive than a small dropdown was. */
-        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 208px));max-height:calc(100vh - 320px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fff;border:1px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 256px));max-height:calc(100vh - 320px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fff;border:1px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
         .nav-menu.open{opacity:1;visibility:visible;transform:translateY(0);transition:opacity .2s,transform .2s,visibility 0s}
 
         /* Search field. Sized off the language panel's input rather than a new set of

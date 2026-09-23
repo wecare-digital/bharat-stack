@@ -1,6 +1,6 @@
 /**
  * VayuLok public product page
- * Bharat Air Intelligence, by Bharat Stack
+ * Bharat Air Intelligence, by WECARE.DIGITAL
  *
  * DELIBERATELY CLEAR. The page is the tag and the rotating line beneath it, nothing
  * else. That is the owner's call, and it also happens to be the honest one: nothing
@@ -112,8 +112,8 @@ const VayuLokPage: React.FC = () => {
   return (
     <>
       <Head>
-        <title>VayuLok by Bharat Stack</title>
-        <meta name="description" content="VayuLok - Bharat Air Intelligence, by Bharat Stack." />
+        <title>VayuLok by WECARE.DIGITAL</title>
+        <meta name="description" content="VayuLok - Bharat Air Intelligence, by WECARE.DIGITAL." />
         <link rel="canonical" href="https://stack.wecare.digital/vayulok/" />
       </Head>
 
@@ -123,7 +123,7 @@ const VayuLokPage: React.FC = () => {
               pills cannot drift apart. The wrapper carries the spacing because
               styled-jsx cannot style a composite component from here. */}
           <div className="vl-eyebrow">
-            <BrandBadge label="VayuLok by Bharat Stack" />
+            <BrandBadge label="VayuLok by WECARE.DIGITAL" />
           </div>
 
           <h1 className="vl-head">

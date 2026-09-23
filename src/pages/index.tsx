@@ -111,17 +111,17 @@ const HomePage: React.FC = () => {
   return (
     <>
       <Head>
-        <title>Bharat Stack by WECARE.DIGITAL</title>
-        <meta name="description" content="Bharat Stack by WECARE.DIGITAL." />
+        <title>WECARE.DIGITAL</title>
+        <meta name="description" content="WECARE.DIGITAL." />
         <link rel="canonical" href="https://stack.wecare.digital/" />
       </Head>
-      <main className="home-shell" aria-label="Bharat Stack home">
+      <main className="home-shell" aria-label="WECARE.DIGITAL home">
         {/* Same pill as the Grahak OS hero, with the maker line flipped: this page is
             the company, that page is one product of it. */}
         <div className={ `home-layout ${shown ? 'show' : ''}`.trim() }>
           <div className="home-hero">
             <div className="home-eyebrow">
-              <BrandBadge label="Bharat Stack by WECARE.DIGITAL" />
+              <BrandBadge label="WECARE.DIGITAL" />
             </div>
 
             {/* The pill sits on its OWN LINE, and that is a correctness fix rather

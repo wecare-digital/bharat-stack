@@ -8,7 +8,7 @@ vi.mock( 'next/head', () => ( { default: ( { children }: { children: React.React
 const cssOf = ( container: HTMLElement ) =>
   Array.from( container.querySelectorAll( 'style' ) ).map( node => node.textContent || '' ).join( '\n' );
 
-describe( 'Bharat Stack Home', () => {
+describe( 'WECARE.DIGITAL Home', () => {
   // Replaces an assertion that the body stays blank "until the Home design is
   // decided". The rotating headline is that decision, so the old test would have
   // passed while describing the opposite of what ships.

@@ -2,7 +2,7 @@ import React from 'react';
 import BrandMark from './BrandMark';
 
 interface BrandBadgeProps {
-  /** Full label, e.g. "Grahak OS · by Bharat Stack". */
+  /** Full label, e.g. "Grahak OS · by WECARE.DIGITAL". */
   label: string;
 }
 
@@ -45,7 +45,7 @@ interface BrandBadgeProps {
 /**
  * data-wc-no-translate: the label is a BRAND NAME and must survive translation.
  * LanguageBar rewrites text nodes in place, and with the page set to Tamil this
- * badge was rendering as a translation of "Grahak OS · by Bharat Stack" - a product
+ * badge was rendering as a translation of "Grahak OS · by WECARE.DIGITAL" - a product
  * and a company name, neither of which has a Tamil equivalent. The attribute is read
  * by collectTextNodes in LanguageBar.tsx and rejects the whole subtree.
  *

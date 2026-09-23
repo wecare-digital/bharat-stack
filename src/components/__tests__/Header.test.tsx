@@ -7,11 +7,11 @@ const routerState = vi.hoisted( () => ( { pathname: '/' } ) );
 vi.mock( 'next/router', () => ( { useRouter: () => routerState } ) );
 
 describe( 'Header', () => {
-  it( 'shows the shared Bharat Stack brand', () => {
+  it( 'shows the shared WECARE.DIGITAL brand', () => {
     render( <Header /> );
-    expect( screen.getByText( 'Bharat' ) ).toBeInTheDocument();
-    expect( screen.getByText( 'Stack' ) ).toBeInTheDocument();
-    expect( screen.getByRole( 'link', { name: /Bharat Stack home/i } ) ).toHaveAttribute( 'href', '/' );
+    expect( screen.getByText( 'WECARE' ) ).toBeInTheDocument();
+    expect( screen.getByText( '.DIGITAL' ) ).toBeInTheDocument();
+    expect( screen.getByRole( 'link', { name: /WECARE.DIGITAL home/i } ) ).toHaveAttribute( 'href', '/' );
   } );
 
   it( 'uses separate Home and Grahak OS routes', () => {
@@ -58,7 +58,7 @@ describe( 'Header', () => {
     expect( arrow ).not.toBeNull();
     expect( arrow?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 
-    // Drawn with two 2px Bharat Stack dark-green borders on a 7px border-box,
+    // Drawn with two 2px WECARE.DIGITAL dark-green borders on a 7px border-box,
     // rotated 45deg. margin:0 defeats the global .nav-arrow{margin-left:auto}
     // in Layout.css, which would otherwise push it off centre.
     expect( css ).toContain( '.nav-arrow{width:7px;height:7px;box-sizing:border-box;margin:0' );

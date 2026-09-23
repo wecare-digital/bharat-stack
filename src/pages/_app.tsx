@@ -1,5 +1,5 @@
 ﻿/**
- * Bharat Stack by WECARE.DIGITAL
+ * WECARE.DIGITAL
  * Simplified auth - just wrap protected pages with Authenticator
  */
 
@@ -185,7 +185,7 @@ const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "WECARE.DIGITAL",
-  "alternateName": "Bharat Stack",
+  "alternateName": "WECARE.DIGITAL",
   "url": "https://wecare.digital",
   "logo": LOGO_URL,
   "image": LOGO_URL,
@@ -211,8 +211,8 @@ const organizationSchema = {
 const softwareSchema = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Bharat Stack by WECARE.DIGITAL",
-  "alternateName": "Bharat Stack",
+  "name": "WECARE.DIGITAL",
+  "alternateName": "WECARE.DIGITAL",
   "applicationCategory": "BusinessApplication",
   "applicationSubCategory": "CRM Software",
   "operatingSystem": "Web Browser",
@@ -257,8 +257,8 @@ const softwareSchema = {
 const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  "name": "Bharat Stack by WECARE.DIGITAL",
-  "alternateName": "Bharat Stack",
+  "name": "WECARE.DIGITAL",
+  "alternateName": "WECARE.DIGITAL",
   "url": "https://stack.wecare.digital",
   "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
   "publisher": {
@@ -283,7 +283,7 @@ const faqSchema = {
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "What is Bharat Stack by WECARE.DIGITAL?",
+      "name": "What is WECARE.DIGITAL?",
       "acceptedAnswer": {
         "@type": "Answer",
         "text": "Stack CRM is an enterprise multi-channel messaging platform that integrates WhatsApp Business API, SMS, Email, and Voice communications. It helps businesses engage customers, send bulk messages, collect payments via Razorpay, and automate responses with AI."
@@ -516,7 +516,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
     return (
       <ErrorBoundary>
         <Head>
-          <title>Bharat Stack by WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM India</title>
+          <title>WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM India</title>
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
@@ -530,18 +530,18 @@ export default function App ( { Component, pageProps }: AppProps ) {
           {/* Open Graph */ }
           <meta property="og:type" content="website" />
           <meta property="og:url" content="https://stack.wecare.digital/" />
-          <meta property="og:title" content="Bharat Stack - WhatsApp Business API Platform | WECARE.DIGITAL" />
+          <meta property="og:title" content="WECARE.DIGITAL - WhatsApp Business API Platform | WECARE.DIGITAL" />
           <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
           <meta property="og:image" content={ LOGO_URL } />
           <meta property="og:image:width" content="512" />
           <meta property="og:image:height" content="512" />
-          <meta property="og:site_name" content="Bharat Stack by WECARE.DIGITAL" />
+          <meta property="og:site_name" content="WECARE.DIGITAL" />
           <meta property="og:locale" content="en_IN" />
 
           {/* Twitter */ }
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:url" content="https://stack.wecare.digital/" />
-          <meta name="twitter:title" content="Bharat Stack - WhatsApp Business API Platform" />
+          <meta name="twitter:title" content="WECARE.DIGITAL - WhatsApp Business API Platform" />
           <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
           <meta name="twitter:image" content={ LOGO_URL } />
 
@@ -622,7 +622,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
   return (
     <ErrorBoundary>
       <Head>
-        <title>Bharat Stack by WECARE.DIGITAL</title>
+        <title>WECARE.DIGITAL</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />

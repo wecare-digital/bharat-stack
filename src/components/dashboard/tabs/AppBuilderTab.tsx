@@ -378,8 +378,8 @@ const AppBuilderTab: React.FC<Props> = ( { data } ) => {
           <h3 className="ab-heading" style={ { marginTop: 24 } }>Manifest Preview</h3>
           <div className="ab-code-block">
             <pre>{ JSON.stringify( {
-              name: 'Bharat Stack by WECARE.DIGITAL',
-              short_name: 'Bharat Stack',
+              name: 'WECARE.DIGITAL',
+              short_name: 'WECARE.DIGITAL',
               description: 'Enterprise WhatsApp Business API Platform',
               start_url: '/',
               display: 'standalone',

@@ -123,14 +123,14 @@ response = requests.post(
     <>
       <Head>
         <title>Grahak OS by WECARE.DIGITAL - Customer Engagement Platform</title>
-        <meta name="description" content="Grahak OS is the customer engagement product in Bharat Stack by WECARE.DIGITAL, unifying WhatsApp, SMS, Email, Voice, automation and customer data in one experience." />
+        <meta name="description" content="Grahak OS is the customer engagement product in WECARE.DIGITAL, unifying WhatsApp, SMS, Email, Voice, automation and customer data in one experience." />
         <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://stack.wecare.digital/grahak-os/" />
         <meta property="og:title" content="Grahak OS - Customer Engagement Platform | WECARE.DIGITAL" />
         <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
         <meta property="og:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
-        <meta property="og:site_name" content="Bharat Stack by WECARE.DIGITAL" />
+        <meta property="og:site_name" content="WECARE.DIGITAL" />
         <meta property="og:locale" content="en_IN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content="https://stack.wecare.digital/grahak-os/" />
@@ -165,7 +165,7 @@ response = requests.post(
           "@context": "https://schema.org",
           "@type": "Organization",
           "name": "WECARE.DIGITAL",
-          "alternateName": "Bharat Stack",
+          "alternateName": "WECARE.DIGITAL",
           "url": "https://wecare.digital",
           "logo": "https://app.wecare.digital/stream/media/m/wecaredigital.png",
           "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
@@ -188,7 +188,7 @@ response = requests.post(
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web Browser",
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
-          "description": "Customer engagement product in Bharat Stack with WhatsApp Business API, SMS, Email, Voice, customer data and AI automation.",
+          "description": "Customer engagement product in WECARE.DIGITAL with WhatsApp Business API, SMS, Email, Voice, customer data and AI automation.",
           "featureList": ["WhatsApp Business API", "Bulk Messaging", "SMS API", "Email Marketing", "Voice Calls", "Razorpay Payments", "AI Responses", "Analytics"],
         })}} />
         
@@ -197,9 +197,9 @@ response = requests.post(
           "@context": "https://schema.org",
           "@type": "FAQPage",
           "mainEntity": [
-            { "@type": "Question", "name": "What is Grahak OS?", "acceptedAnswer": { "@type": "Answer", "text": "Grahak OS is the customer engagement product in Bharat Stack, unifying customer data and multi-channel communication across WhatsApp, SMS, Email, and Voice." }},
+            { "@type": "Question", "name": "What is Grahak OS?", "acceptedAnswer": { "@type": "Answer", "text": "Grahak OS is the customer engagement product in WECARE.DIGITAL, unifying customer data and multi-channel communication across WhatsApp, SMS, Email, and Voice." }},
             { "@type": "Question", "name": "How to send bulk WhatsApp messages?", "acceptedAnswer": { "@type": "Answer", "text": "Upload contacts, create templates, and send promotional or transactional messages to thousands of customers via WhatsApp Business API." }},
-            { "@type": "Question", "name": "Does it support WhatsApp payments?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, Grahak OS supports payment workflows through the existing Bharat Stack integrations." }}
+            { "@type": "Question", "name": "Does it support WhatsApp payments?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, Grahak OS supports payment workflows through the existing WECARE.DIGITAL integrations." }}
           ]
         })}} />
         
@@ -225,7 +225,7 @@ response = requests.post(
                   to carry the spacing, since that is the one thing the page rather
                   than the component should decide. */}
               <div className="hero-eyebrow">
-                <BrandBadge label="Grahak OS · by Bharat Stack" />
+                <BrandBadge label="Grahak OS · by WECARE.DIGITAL" />
               </div>
               <h1>
                 Reach customers<br />across{ ' ' }
