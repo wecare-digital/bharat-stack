@@ -103,7 +103,7 @@ def list_slug_records(slug: str) -> List[Dict[str, Any]]:
 
 
 BLOG_RECORD_TYPE = 'blogPost'
-PUBLIC_SITE_URL = os.environ.get('PUBLIC_SITE_URL', 'https://www.wecare.digital').rstrip('/')
+PUBLIC_SITE_URL = os.environ.get('PUBLIC_SITE_URL', 'https://wecare.digital').rstrip('/')
 
 
 def _slugify(value: str) -> str:
