@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 
-os.environ.setdefault("META_WABA_ID", "2513394156072604")
-os.environ.setdefault("META_PHONE_NUMBER_ID", "1055232054343117")
+os.environ.setdefault("META_WABA_ID", "2094615664435155")
+os.environ.setdefault("META_PHONE_NUMBER_ID", "1016149501586345")
 os.environ.setdefault("OTP_TEMPLATE_NAME", "wecare_otp")
 os.environ.setdefault("OTP_TEMPLATE_LANGUAGE", "en")
 
@@ -120,7 +120,7 @@ def test_correct_waba_sends_six_digit_otp(monkeypatch):
         {
             "userAttributes": {
                 "phone_number": "+919876543210",
-                "custom:partner_waba_id": "2513394156072604",
+                "custom:partner_waba_id": "2094615664435155",
             }
         },
     )
@@ -198,7 +198,7 @@ def test_sender_payload_uses_approved_authentication_template(monkeypatch):
 
     assert calls[0]["FunctionName"] == "wecare-whatsapp-business-api:live"
     assert event["path"] == "/wa-business/messages/send/template"
-    assert body["phoneId"] == "1055232054343117"
+    assert body["phoneId"] == "1016149501586345"
     assert body["templateName"] == "wecare_otp"
     assert body["language"] == "en"
     assert body["components"][0]["parameters"][0]["text"] == "123456"
