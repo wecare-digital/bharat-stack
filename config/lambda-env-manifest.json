@@ -17,9 +17,6 @@
       "LOG_LEVEL": "INFO",
       "MESSAGES_INBOUND_TABLE": "stack-wecare-digital-WhatsAppInboundTable",
       "MESSAGES_OUTBOUND_TABLE": "stack-wecare-digital-WhatsAppOutboundTable",
-      "OUTBOUND_EMAIL_FUNCTION": "wecare-outbound-email",
-      "OUTBOUND_SMS_FUNCTION": "wecare-outbound-sms",
-      "OUTBOUND_WHATSAPP_FUNCTION": "wecare-outbound-whatsapp",
       "REGION": "us-east-1",
       "S3_BUCKET": "app.wecare.digital"
     },

@@ -51,7 +51,13 @@ FUNCTIONS = ROOT / "amplify" / "functions"
 #: adding it here is caught by `test_writer_inventory_is_complete`.
 CONTACT_WRITERS = (
     "ai/ai-generate-response/handler.py",
-    "ai/agent-action-group/handler.py",
+    # `ai/agent-action-group/handler.py` was listed here until 2026-09-23. It is no
+    # longer a writer: createContact and updateContact were removed with the rest of
+    # the action group's APPLY tools, so it cannot write a contact row at all. It
+    # moves to CONTACT_PHONE_READERS below, because it still resolves an id out of a
+    # phone-index result. Removing the entry is safe because
+    # `test_writer_inventory_is_complete` greps the tree rather than trusting this
+    # list, so a reintroduced writer fails that test rather than slipping through.
     "core/contacts/handler.py",
     "messaging/outbound-whatsapp/handler.py",
     "messaging/inbound-whatsapp-handler/handler.py",
@@ -61,6 +67,7 @@ CONTACT_WRITERS = (
 CONTACT_PHONE_READERS = (
     "messaging/rcs-send/handler.py",
     "messaging/rcs-dlr/handler.py",
+    "ai/agent-action-group/handler.py",
 )
 
 
