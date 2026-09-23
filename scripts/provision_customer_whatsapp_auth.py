@@ -27,8 +27,6 @@ from botocore.exceptions import ClientError
 
 
 REGION = "us-east-1"
-ACCOUNT_ID = "775261844268"
-
 FUNCTION_NAME = "wecare-customer-whatsapp-auth"
 LIVE_ALIAS = "live"
 FUNCTION_SOURCE = (
@@ -51,6 +49,19 @@ OTP_TTL_SECONDS = "600"
 MAX_ATTEMPTS = "3"
 
 EXPECTED_ADMIN_POOL_ID = "us-east-1_cSx0RHCIR"
+
+
+_account_id_cache = None
+
+
+def account_id() -> str:
+    """Resolve the active AWS account instead of embedding it in source."""
+    global _account_id_cache
+    if _account_id_cache is None:
+        _account_id_cache = boto3.client(
+            "sts", region_name=REGION
+        ).get_caller_identity()["Account"]
+    return _account_id_cache
 
 
 def iam():
@@ -149,11 +160,11 @@ def ensure_role(dry_run: bool) -> str:
             "Action": ["lambda:InvokeFunction"],
             "Resource": [
                 (
-                    f"arn:aws:lambda:{REGION}:{ACCOUNT_ID}:function:"
+                    f"arn:aws:lambda:{REGION}:{account_id()}:function:"
                     "wecare-whatsapp-business-api"
                 ),
                 (
-                    f"arn:aws:lambda:{REGION}:{ACCOUNT_ID}:function:"
+                    f"arn:aws:lambda:{REGION}:{account_id()}:function:"
                     "wecare-whatsapp-business-api:live"
                 ),
             ],
@@ -510,8 +521,6 @@ def verify() -> int:
     print(f"customer pool: {pool_id}")
     print(f"app client: {client_id or 'missing'}")
     print(f"auth Lambda: {fn_arn}")
-    print(f"WABA: {WABA_ID}")
-    print(f"phone number id: {PHONE_NUMBER_ID}")
     print(f"OTP template: {OTP_TEMPLATE_NAME}/{OTP_TEMPLATE_LANGUAGE}")
     print(f"admin pool unchanged: {EXPECTED_ADMIN_POOL_ID}")
 
@@ -535,7 +544,7 @@ def main(argv=None) -> int:
         return verify()
 
     print(f"region: {REGION}")
-    print(f"account: {ACCOUNT_ID}")
+    print(f"account: {account_id()}")
     print(f"WABA: {WABA_ID}")
     print(f"sender phone id: {PHONE_NUMBER_ID}")
     print(f"template: {OTP_TEMPLATE_NAME}/{OTP_TEMPLATE_LANGUAGE}")
