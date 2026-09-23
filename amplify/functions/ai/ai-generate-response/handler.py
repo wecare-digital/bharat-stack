@@ -43,6 +43,7 @@ from functools import wraps
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.agent import governance as gov
 from lambda_utils.middleware import require_auth
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
@@ -768,12 +769,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         import traceback
         logger.error(f"TRACEBACK: {traceback.format_exc()}")
         
-        fallback_msg = "Sorry, I encountered an error. Please try again or contact support."
-        
+        fallback_msg = ("Something went wrong and this request was not processed. "
+                        "Nothing was changed.")
+
         return {
             'statusCode': 200,
             'headers': headers,
-            'body': json.dumps({'suggestedResponse': fallback_msg, 'error': str(e)})
+            # `providerUnavailable` so the caller can distinguish an outage from a
+            # reply. The error string itself is NOT returned: it can carry a table
+            # name or a key, and this body is rendered in the dashboard.
+            'body': json.dumps({'suggestedResponse': fallback_msg,
+                                'providerUnavailable': True,
+                                'errorCode': 'AI_GENERATE_FAILED'})
         }
 
 
@@ -844,32 +851,49 @@ def _handle_internal(body: Dict, headers: Dict, request_id: str) -> Dict:
             conversation_history = conversation_history[-MAX_HISTORY_MESSAGES:]
 
         # System prompt for internal admin agent
-        system_prompts = [{
-            'text': '''You are WECARE.DIGITAL's internal CRM assistant. You execute tasks using your tools.
+        # The system prompt is DERIVED from the governed catalog, not written by
+        # hand. Three hand-maintained tool lists already existed - this prompt,
+        # InternalChatTab's TOOLS_LIST and the settings page's AVAILABLE_TOOLS - and
+        # all three had drifted from what the loop actually dispatches.
+        #
+        # What the previous prompt said is worth recording, because it is why this
+        # mattered rather than being a tidy-up:
+        #
+        #   "ALWAYS use your tools to execute tasks. Never explain how to do
+        #    something manually."
+        #   "Be proactive: 'send message to Jignesh' -> search first, then send."
+        #   "For payment requests, use send_whatsapp_pay tool directly."
+        #
+        # Combined with live send and hard-delete tools and no approval step, that
+        # instructed the model to message customers and erase records on its own
+        # reading of a sentence typed into a chat box.
+        _catalog = gov.catalog_summary(gov.SURFACE_INTERNAL)
+        _enabled_lines = "\n".join(
+            f"- {name}: {meta['summary']}"
+            for name, meta in sorted(_catalog["enabled"].items()))
+        _refused_names = ", ".join(sorted(_catalog["refused"]))
 
-YOU HAVE THESE TOOLS - USE THEM, never say you can't do something if a tool exists for it:
-- search_contacts, create_contact, update_contact, add_contact_email
-- send_whatsapp, send_whatsapp_buttons, send_whatsapp_list, send_whatsapp_pay
-- send_whatsapp_flow, list_submit_requests
-- make_voice_call, send_sms, send_email
-- get_messages, get_stats
-- schedule_message, list_scheduled_messages
-- list_templates, send_template
-- delete_contact, delete_messages, delete_media_files, list_media_files, clear_all_contact_data
-- get_voice_cdr, get_billing_summary, get_invoice_list, create_invoice
-- get_wix_products, get_wix_orders
+        system_prompts = [{
+            'text': f"""You are WECARE.DIGITAL's internal CRM assistant. You answer questions about the CRM. You cannot change anything.
+
+TOOLS YOU CAN USE:
+{_enabled_lines}
+
+TOOLS THAT ARE REFUSED, and cannot be made to work by retrying or rephrasing:
+{_refused_names}
 
 RULES:
-- ALWAYS use your tools to execute tasks. Never explain how to do something manually.
-- Keep responses ULTRA SHORT. 1 sentence max. No greetings, no filler, no offers to help further.
-- Never include <thinking> tags in responses.
-- Be proactive: "send message to Jignesh" -> search first, then send.
-- For payment requests, use send_whatsapp_pay tool directly.
-- For submit request flows, use send_whatsapp_flow tool.
-- Do the task, confirm briefly. Example: "Sent message to Jignesh." or "Found 2 contacts matching 'amen'."
-- If user just says hi/hello, reply only: "Ready. What do you need?"
-- When a tool returns an error, report it clearly. Do not retry with the same bad input.
-- contactId must always be a UUID. If you only have a name, search_contacts first to get the UUID.'''
+- Only use a tool from the first list. If a request needs one from the second list,
+  say plainly that you cannot do it and describe exactly what a person should do.
+- NEVER state or imply that you have sent, scheduled, created, updated or deleted
+  anything. You cannot. Saying you did is worse than refusing, because the person
+  will believe you and stop checking.
+- A read result may be truncated. If a tool reports truncated, say "at least N"
+  rather than "N" - do not present a partial answer as a total.
+- Keep answers short. One or two sentences. No greetings, no filler.
+- Never include <thinking> tags in a response.
+- contactId is always a UUID. If you only have a name, use search_contacts first.
+- If a tool returns an error, report it plainly. Do not retry the same bad input."""
         }]
 
         # Define tools for internal agent - COMPREHENSIVE STACK CRM CAPABILITIES
@@ -1435,10 +1459,13 @@ RULES:
                 }
             }
         ]
+        # Advertise only what will actually run. Offering a tool and then
+        # refusing it teaches the model to promise things it cannot do, and it
+        # narrates the promise to a person before the refusal comes back.
         suggestion = _internal_converse_with_tools(
             conversation_history=conversation_history,
             system_prompts=system_prompts,
-            tools=tools,
+            tools=_internal_tool_config(tools),
             request_id=request_id,
             session_id=session_id,
             temperature=temperature,
@@ -1494,7 +1521,14 @@ RULES:
             'statusCode': 200,
             'headers': headers,
             'body': json.dumps({
-                'suggestedResponse': 'Sorry, I encountered an error processing your request. Please try again.',
+                'suggestedResponse': ('The assistant is unavailable right now, so this '
+                                     'request was not processed. Nothing was changed. '
+                                     'Please try again shortly.'),
+                # The UI could not previously tell an outage from an answer: this
+                # returned 200 with an apology, and InternalChatTab logged it as a
+                # success. A caller needs to know the difference to decide whether
+                # retrying is sensible.
+                'providerUnavailable': True,
                 'errorCode': 'INTERNAL_ERROR',
                 'requestId': request_id
             })
@@ -1676,8 +1710,96 @@ def _internal_converse_with_tools(
     return "I've completed the available steps for your request."
 
 
+def _refuse_internal_tool(refused, tool_input: Dict, request_id: str) -> Dict:
+    """A refusal the model can act on, plus a receipt of the attempt.
+
+    Returns the same shape the action group returns, so both surfaces refuse
+    identically: `success: False`, an explicit `refused: True`, and no key a caller
+    could read as a completed side effect.
+
+    A dry-run plan is attached for APPLY tools. A bare "no" leaves the model free to
+    invent a narration; a hashed plan gives it something concrete to hand to a
+    person. The receipt records the attempt, which was previously invisible - there
+    was no way to tell a well-behaved prompt from one repeatedly trying to send.
+    """
+    from lambda_utils.agent import plans, receipts
+
+    result = {
+        'success': False,
+        'refused': True,
+        'tool': refused.tool,
+        'toolClass': refused.tool_class,
+        'error': refused.reason,
+    }
+    if refused.tool_class != gov.CLASS_APPLY:
+        return result
+
+    try:
+        plan = plans.build_plan(refused.tool, tool_input or {})
+    except Exception:  # noqa: BLE001
+        return result
+
+    # Best effort: the audit write must not turn a refusal into an error. Nothing
+    # happened, so the record is evidence rather than a safeguard - see
+    # lambda_utils/agent/receipts.py for why that stops being true once an apply can
+    # actually run.
+    try:
+        receipts.record_receipt(plan, result=receipts.RESULT_REFUSED,
+                                detail=f'internal chat refusal at {request_id}')
+    except Exception:  # noqa: BLE001
+        pass
+
+    result['plan'] = plans.describe_plan(plan)
+    result['nextStep'] = ('Tell the operator what you would have done and ask them '
+                          'to do it. Do not say it has been done.')
+    return result
+
+
+def _internal_tool_config(tool_specs: List[Dict]) -> List[Dict]:
+    """Keep only the tool specs the catalog currently permits.
+
+    The specs themselves stay hand-written because they carry the input
+    schemas, which are real content. What is derived is WHICH of them the
+    model is shown.
+    """
+    permitted = []
+    for spec in tool_specs:
+        name = ((spec or {}).get('toolSpec') or {}).get('name', '')
+        if name and gov.is_enabled(name):
+            permitted.append(spec)
+    return permitted
+
+
 def _execute_internal_tool(tool_name: str, tool_input: Dict, request_id: str) -> Dict:
-    """Execute internal agent tool and return result."""
+    """Execute an internal tool, if the catalog permits it.
+
+    The gate is FIRST, before any dispatch branch. A refusal that fires after
+    the send is a log line, not a guard.
+
+    Filtering the advertised toolConfig is not sufficient on its own: the
+    model can name a tool it was never offered, and the previous dispatcher
+    would have run it. Two independent checks, because one of them is a hint
+    to a language model and the other is the actual boundary.
+    """
+    try:
+        gov.assert_executable(tool_name)
+    except gov.ToolRefused as refused:
+        logger.warning(json.dumps({
+            'event': 'internal_tool_refused',
+            'alert': 'AGENT_APPLY_ATTEMPTED',
+            'tool': refused.tool,
+            'toolClass': refused.tool_class,
+            'requestId': request_id,
+        }))
+        return _refuse_internal_tool(refused, tool_input, request_id)
+    except gov.ToolUnknown:
+        logger.warning(json.dumps({
+            'event': 'internal_tool_unknown', 'tool': tool_name,
+            'requestId': request_id}))
+        return {'success': False, 'refused': True,
+                'error': f'No such tool: {tool_name}. Use one of the tools '
+                         f'listed in your instructions.'}
+
     try:
         # Contact Management
         if tool_name == 'search_contacts':

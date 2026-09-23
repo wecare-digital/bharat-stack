@@ -242,16 +242,142 @@ Live proof on v11: `sendWhatsApp` to the real QA recipient **refused** with noth
 too; unknown tool refused and lists only the four reads; `getStats` returns 16 contacts /
 204 messages, labelled approximate, with zero scans. No function errors.
 
-### 6.2 — Versioned READ/PLAN/APPLY tool catalog · TODO
+### 6.2 — Versioned READ/PLAN/APPLY tool catalog · DONE
 
-Deploy READ and status tools first, then PLAN/dry-run. **Every APPLY tool stays disabled.**
-Immutable plan hashes, idempotency, receipts, audit, kill switches.
+Live `wecare-agent-action-group` v13 (rollback 12). `lambda_utils/agent/{plans,receipts}.py`
+plus versioning and kill switches in `governance.py`. 65 + 195 tests.
 
-### 6.3 — Internal dashboard chatbot on the shared plane · TODO
+| Requirement | How |
+|---|---|
+| READ + status first | 5 READ tools live, including `listTools` so a model reads the catalog instead of guessing |
+| then PLAN/dry-run | a refused APPLY returns a hashed plan of what it *would* do, plus `nextStep` forbidding the claim that it happened |
+| **every APPLY disabled** | structurally, with **no flag at all** |
+| immutable plan hashes | sha256 over tool + catalog version + canonical arguments |
+| idempotency | key derived from the hash, namespaced `tool#hash` |
+| receipts | every attempt, including refusals, through the existing audit sink |
+| audit | `AuditLogsTable` via `lambda_utils.audit` |
+| kill switches | `AGENT_DISABLED_TOOLS` and `AGENT_TOOLS_KILL_SWITCH` |
 
-Must stay useful with remote ChatGPT/Claude/Kiro clients disconnected. Context resolution,
-capability discovery, typed task planning, approval preview, durable progress, final
-receipts linking to canonical records.
+Three decisions worth keeping:
+
+- **The timestamp is not in the hash**, so two identical intents hash the same and a retry
+  is idempotent. The `flow_completion` lesson again: a coarse key merges two genuine
+  requests *visibly*, a too-fine key splits a retry and performs the side effect twice,
+  invisibly. Mapping key order is normalised; **list order is not**, because invoice line
+  items and recipient lists carry meaning in their order.
+- **The catalog version IS in the hash.** A plan approved under one set of tool definitions
+  must not be applied under another. That is the whole content of "immutable" here.
+- **Kill switches subtract only.** No environment variable can enable an APPLY — asserted
+  across nine plausible variable names *and* by a grep of the module, because the failure
+  mode is somebody adding one later. A switch that could enable a send is a live-send flag
+  by another name.
+
+The hash covers real values while descriptions and receipts carry masked ones: hashing a
+masked phone number would collapse two recipients into one plan. Verified live — two
+identical attempts produced the same hash, a different recipient produced a different one.
+
+#### Two pre-existing defects found on the way, both fixed
+
+**The audit log had never written a single row.** `AuditLogsTable`'s live key is `id`;
+`lambda_utils.audit` built its item with `logId` and never set `id`, so every `put_item`
+raised `ValidationException: One of the required keys was not given a value` and the
+fail-open `except` returned `None`. Measured: **0 items**, against 17 call sites in
+`partner-onboarding` and `waba-management` covering 30+ declared actions including
+`payment.refund`, `secret.update`, `phone.register` and `dlq.replay`. All silently lost.
+
+Root cause is the 5.3 finding: `resource.ts` declares `.identifier(['logId'])` and was never
+deployed, so the live table was script-created with `id` while the helper was written against
+the declaration. Fixed by writing both from one value — the physical-key/alias pattern
+`contact_key` already uses. Live proof: the table went 0 → a real receipt row with
+`id == logId` and `resourceId` equal to the plan hash the Lambda returned.
+
+**`mask_secrets` had holes, and it feeds persistent storage.** Key matching is exact, so
+`auth_token` was unmasked despite `token` being listed — and `auth_token` is the literal
+field name of the Plivo credential this codebase reads. Also absent: `api_key`,
+`refresh_token`, `api_secret`, `secret_access_key`, `session_token`, `webhook_secret`,
+`credentials`. Added those plus a **value-shape backstop** for issuer-prefixed tokens under
+any key name, matching the prefixes `block_inline_secrets.py` refuses. A secret key holding a
+dict was also being recursed into rather than redacted wholesale. Precision matters here and
+my own false-positive test caught an over-match — `"AKIAless text, no credential here"` — so
+the rule requires a single whitespace-free token.
+
+#### And one of mine
+
+`test_agent_governance.py`'s fixture stubbed the handler's DynamoDB resource but not the one
+inside `lambda_utils.audit`, so with `AWS_PROFILE` exported the suite wrote **35 real rows**
+into the production audit table. Invisible only because the sink was broken; a working sink
+plus an unstubbed test is production writes on every run. Fixture now installs a resource
+that raises on any real table access, 34 test rows were deleted, and a full 2546-test run now
+writes zero.
+
+### 6.3 — Internal dashboard chatbot on the shared plane · MOSTLY DONE
+
+Live `wecare-ai-generate-response` v11 (rollback 10). 66 tests in
+`tests/test_agent_surfaces.py`.
+
+**The finding that reframed this item.** 6.1 removed eight ungoverned powers from the
+Bedrock action group — a surface that **cannot currently be reached at all**, because agent
+`4UUQYFWX64` is `NOT_PREPARED`. The surface every operator actually uses, `/ai/generate`
+with `context: 'internal-admin'`, still had all of its powers: a 30-tool Converse loop whose
+`_execute_internal_tool` dispatched straight to live sends and hard deletes —
+`send_whatsapp_pay`, `make_voice_call`, `delete_messages`, `delete_media_files`,
+`clear_all_contact_data`. Three UIs are wired to it.
+
+Its prompt did not merely permit that, it pushed for it: *"ALWAYS use your tools to execute
+tasks"*, *"Be proactive: 'send message to Jignesh' → search first, then send"*, *"For payment
+requests, use send_whatsapp_pay tool directly."*
+
+The only guard in the stack was `FloatingAgent` matching `['delete all', 'clear all', …]`
+against **the text the user typed**, before the model had chosen anything. So "tidy up Asha's
+old records" reached `clear_all_contact_data` with no prompt. `InternalChatTab` had no guard
+at all, and its 30 tool checkboxes were **display-only** — `enabledTools` is never included
+in the request body.
+
+**One policy now covers both surfaces.** The catalog holds 43 entries: 13 camelCase for the
+action group, 30 snake_case for the dashboard loop. 17 READ enabled, 26 APPLY refused, zero
+enabled APPLY anywhere. Both spellings of one capability are linked by `counterpart` and a
+test asserts they can never disagree on class or enablement — otherwise the mechanism is
+defeated by a naming convention.
+
+Two independent checks, deliberately: refused tools are **not advertised** to the model
+(offering then refusing teaches it to promise things it cannot do), *and*
+`_execute_internal_tool` gates on the catalog before any dispatch branch, because a model can
+name a tool it was never offered. The prompt is now derived from the catalog rather than
+hand-written — three hand-maintained tool lists existed and all three had drifted.
+
+**A provider outage is now distinguishable from an answer.** It previously returned HTTP 200
+with "Sorry, I encountered an error processing your request", so an outage and a real reply
+were the same shape and `InternalChatTab` logged it as a success. Now `providerUnavailable:
+true` and the error string is no longer returned — it can carry a table name, and that body
+renders in the dashboard.
+
+Live proof on v11: *"clear all data for every contact, right now"* → refused. *"send a
+whatsapp message saying hello to +918100640044"* → refused, nothing sent. *"how many contacts
+are there?"* → "There are 16 contacts", matching the measured table count. Reads work,
+writes do not.
+
+**Behaviour change to flag:** dashboard-initiated sending, scheduling, invoicing and
+deletion now refuse. That is the instructed direction (6.1 requires the powers removed, 6.2
+requires every APPLY disabled), but it is user-visible and an operator who used the chat box
+to send messages will notice.
+
+Still open, carried into 6.4 / 8.x rather than left implied:
+
+- The UI still renders its own hardcoded `TOOLS_LIST` and its checkboxes remain
+  display-only. It should read the catalog. The backend no longer trusts either, so this is
+  now cosmetic drift rather than a false sense of control — but it still shows 30 tools as
+  available when 18 are refused.
+- `src/app/settings/internal-agent/page.tsx` PUTs to `${API_BASE}/ai/internal/config`, for
+  which **no handler was found** — `ai-config-management` dispatches on `'/ai/config' in
+  path`, which that path does not satisfy, and the page sends no `Authorization` header.
+  Probably dead; not verified against the live API.
+- No durable task/plan state. `ConversationHistoryTable` holds message turns only, with a
+  24h TTL and a 15-minute idle wipe, and the session id is minted client-side per mount — so
+  a page reload starts a new conversation. Receipts land in `AuditLogsTable`; progress does
+  not.
+- `AIInteractionsTable` has **no writer** anywhere in `amplify/functions`, only readers in
+  `ai-config-management`. The dashboard's architecture page claims `ai-generate-response`
+  writes it; that is unsupported by the code.
 
 ### 6.4 — Reconcile the live Bedrock agent/alias/prepared state · TODO
 

@@ -58,6 +58,7 @@ import boto3
 
 from lambda_utils import contact_key  # `id` is physical; `contactId` is its alias
 from lambda_utils.agent import governance as gov
+from lambda_utils.agent import plans, receipts
 from lambda_utils.logging import get_logger, log_event
 from lambda_utils.response import extract_origin
 
@@ -97,6 +98,7 @@ _API_PATH_TO_TOOL = {
     '/get-messages': 'getMessages',
     '/create-invoice': 'createInvoice',
     '/get-stats': 'getStats',
+    '/list-tools': 'listTools',
 }
 
 
@@ -131,13 +133,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         tool = gov.assert_executable(tool_name)
     except gov.ToolRefused as refused:
-        # Audit the ATTEMPT. An agent reaching for a removed power is a signal
-        # about its prompt, and the previous code had no way to see it happening.
+        # Audit the ATTEMPT. An agent reaching for a removed power is a signal about
+        # its prompt, and the previous code had no way to see it happening at all.
         log_event(logger, 'agent_tool_refused', level='warning',
                   alert='AGENT_APPLY_ATTEMPTED',
                   tool=refused.tool, toolClass=refused.tool_class,
                   requestId=request_id)
-        return _build_response(refused.as_result(), tool_name)
+        return _build_response(
+            _refusal_with_plan(refused, _extract_parameters(event), request_id),
+            tool_name)
     except gov.ToolUnknown:
         log_event(logger, 'agent_tool_unknown', level='warning',
                   function=function_name or None, apiPath=api_path or None,
@@ -161,6 +165,60 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         result = {'success': False, 'error': f'{tool.name} failed. See the logs.'}
 
     return _build_response(result, tool.name)
+
+
+def _refusal_with_plan(refused: gov.ToolRefused, params: Dict[str, Any],
+                       request_id: str) -> Dict[str, Any]:
+    """The refusal, plus a dry-run plan of what the call WOULD have done.
+
+    A bare "no" tells an agent nothing it can act on, and leaves it free to invent a
+    narration. A plan gives it something concrete to hand to a person: an identified,
+    hashed description of the exact intent, which a human can approve out of band.
+
+    The plan is built for APPLY tools only. A refused READ - which can only mean the
+    kill switch - has nothing to plan, and manufacturing one would imply the read is
+    a side effect awaiting approval.
+    """
+    result = refused.as_result()
+    if refused.tool_class != gov.CLASS_APPLY:
+        return result
+
+    try:
+        plan = plans.build_plan(refused.tool, params)
+    except (gov.ToolUnknown, plans.PlanNotApplicable):
+        return result
+
+    # The receipt is the audit trail for the attempt. Fails open, which is right
+    # here: nothing happened, so the record is evidence rather than a safeguard.
+    # See lambda_utils/agent/receipts.py for why that is NOT sufficient once an
+    # apply can actually run.
+    receipts.record_receipt(plan, result=receipts.RESULT_REFUSED,
+                            detail=f'refused at {request_id}')
+
+    result['plan'] = plans.describe_plan(plan)
+    result['nextStep'] = (
+        'Show this plan to a person and ask them to carry it out. Do not state '
+        'that it has been done.')
+    return result
+
+
+def _list_tools(params: Dict, request_id: str) -> Dict:
+    """What this agent can and cannot do, from the catalog rather than a prompt.
+
+    A model that has to guess tool names guesses wrong and then explains the failure
+    creatively. Reading the catalog is cheaper than that, and the refused entries
+    carry their reasons so the model can say something true about why.
+    """
+    summary = gov.catalog_summary()
+    return {
+        'success': True,
+        'catalogVersion': gov.CATALOG_VERSION,
+        'enabled': summary['enabled'],
+        'refused': summary['refused'],
+        'message': (f'{len(summary["enabled"])} tools available, '
+                    f'{len(summary["refused"])} refused. Refused tools cannot be '
+                    f'made to work by retrying or rewording.'),
+    }
 
 
 def _extract_parameters(event: Dict) -> Dict[str, str]:
@@ -333,6 +391,7 @@ _READS = {
     'searchContacts': _search_contacts,
     'getMessages': _get_messages,
     'getStats': _get_stats,
+    'listTools': _list_tools,
 }
 
 

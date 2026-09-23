@@ -69,7 +69,7 @@ jobs:
     name: Provider policy gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Check provider policy
         run: ./scripts/check-provider-policy.sh --verbose

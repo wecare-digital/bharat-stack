@@ -65,7 +65,9 @@ WRITERS = ("createContact", "updateContact")
 FABRICATORS = ("createInvoice",)
 ALL_APPLY = SENDERS + DELETERS + WRITERS + FABRICATORS
 
-READERS = ("getContact", "searchContacts", "getMessages", "getStats")
+# `listTools` is a READ that returns the catalog. A model that has to guess tool
+# names guesses wrong and then explains the failure creatively.
+READERS = ("getContact", "searchContacts", "getMessages", "getStats", "listTools")
 
 
 # ==========================================================================
@@ -80,7 +82,14 @@ def test_every_tool_has_a_class_and_a_summary():
 
 
 def test_the_catalog_covers_exactly_the_known_tools():
-    assert set(gov.CATALOG) == set(READERS) | set(ALL_APPLY)
+    """Scoped to the Bedrock action group's surface.
+
+    The catalog also holds the 30 snake_case tools of the dashboard chat loop, which
+    `tests/test_agent_surfaces.py` owns. Both surfaces share one policy but name
+    their capabilities differently, and a model must only be told the spelling its
+    own surface accepts.
+    """
+    assert set(gov.tools_for(gov.SURFACE_AGENT)) == set(READERS) | set(ALL_APPLY)
 
 
 def test_no_apply_tool_is_enabled():
@@ -394,7 +403,32 @@ def agent(monkeypatch):
     import lambda_utils.middleware as mw
     monkeypatch.setattr(mw, "require_auth", lambda event: None)
 
+    # Stub the AUDIT sink as well, not only the handler's own resource.
+    #
+    # Learned the hard way on 2026-09-23: this fixture patched `module.dynamodb`, but
+    # `receipts` -> `audit` holds its OWN boto3 resource, so the receipt path escaped
+    # the stub entirely. With AWS_PROFILE exported from ~/.zprofile, `pytest` wrote 35
+    # real rows into the production `AuditLogsTable` - a test suite performing
+    # production writes, which is only invisible while the sink is broken.
+    import lambda_utils.audit as audit_module
+    written = []
+    monkeypatch.setattr(audit_module, "record_audit",
+                        lambda **kw: written.append(kw) or "log-stub")
+
+    from lambda_utils.agent import receipts as receipts_module
+    monkeypatch.setattr(receipts_module, "audit", audit_module)
+
+    class RefusingResource:
+        """Any AWS call through the audit module is a test defect, not a fallback."""
+
+        def Table(self, name):  # noqa: N802
+            raise AssertionError(
+                f"a test reached real DynamoDB table {name!r}; stub it")
+
+    monkeypatch.setattr(audit_module, "_dynamodb", RefusingResource())
+
     module._tables = tables
+    module._written_receipts = written
     return module
 
 
@@ -436,7 +470,8 @@ def test_the_read_table_and_the_catalog_agree(agent):
     names and one for API paths, so a tool could be reachable by one spelling and
     not the other. A route the catalog does not know about is an ungoverned tool."""
     assert set(agent._READS) == set(gov.catalog_summary()["enabled"])
-    assert set(agent._API_PATH_TO_TOOL.values()) == set(gov.CATALOG)
+    assert set(agent._API_PATH_TO_TOOL.values()) == set(
+        gov.tools_for(gov.SURFACE_AGENT))
 
 
 @pytest.mark.parametrize("name", ALL_APPLY)
@@ -596,3 +631,26 @@ def test_auth_failure_short_circuits_before_any_tool_runs(agent, monkeypatch):
                         lambda event: {"statusCode": 401, "body": "{}"})
     response = agent.handler({"function": "getStats", "parameters": []}, None)
     assert response["statusCode"] == 401
+
+
+def test_the_test_suite_cannot_write_to_the_real_audit_table(agent):
+    """A regression guard for a mistake this file made.
+
+    The fixture stubbed the handler's own DynamoDB resource but not the one inside
+    `lambda_utils.audit`, so the receipt path went straight to AWS. With
+    AWS_PROFILE exported from ~/.zprofile, running pytest wrote 35 real rows into
+    the production AuditLogsTable. That was only invisible because the sink happened
+    to be broken at the time - a working sink plus an unstubbed test is production
+    writes on every test run.
+    """
+    import lambda_utils.audit as audit_module
+    with pytest.raises(AssertionError, match="real DynamoDB"):
+        audit_module._dynamodb.Table("stack-wecare-digital-AuditLogsTable")
+
+
+def test_a_refusal_records_a_receipt_through_the_stub(agent):
+    """The behaviour the stub must still allow through, so stubbing has not turned
+    the receipt assertion vacuous."""
+    _invoke(agent, function="sendWhatsApp", phone="+918100640044", message="hi")
+    assert len(agent._written_receipts) == 1
+    assert agent._written_receipts[0]["action"] == "agent.tool.refused"

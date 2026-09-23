@@ -57,9 +57,9 @@ jobs:
     name: Handler auth enforcement (source)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -114,9 +114,9 @@ jobs:
     # reason the contributor cannot fix.
     if: vars.ROUTE_AUTH_ROLE_ARN != ''
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -126,7 +126,7 @@ jobs:
           python -m pip install -r ci-aws-requirements.txt
 
       - name: Assume read-only role
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.ROUTE_AUTH_ROLE_ARN }}
           aws-region: us-east-1
@@ -142,7 +142,7 @@ jobs:
 
       - name: Retain evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: route-auth-${{ github.sha }}
           path: route-auth/
