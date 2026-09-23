@@ -12,7 +12,7 @@ function contentBlocks ( content: string ) {
 }
 
 export default function BlogPostPage ( { post }: Props ) {
-  const canonical = `https://www.wecare.digital/post/${post.slug}/`;
+  const canonical = `https://wecare.digital/post/${post.slug}/`;
   const title = post.seoTitle || post.title;
   const description = post.metaDescription || post.excerpt || '';
   const blocks = contentBlocks( post.content || '' );
@@ -26,7 +26,7 @@ export default function BlogPostPage ( { post }: Props ) {
     datePublished: post.publishedDate || undefined,
     dateModified: post.modifiedDate || post.publishedDate || undefined,
     author: { '@type': 'Organization', name: post.authorName || 'WECARE.DIGITAL' },
-    publisher: { '@type': 'Organization', name: 'WECARE.DIGITAL', url: 'https://www.wecare.digital/' },
+    publisher: { '@type': 'Organization', name: 'WECARE.DIGITAL', url: 'https://wecare.digital/' },
     image: post.coverImage ? [ post.coverImage ] : undefined,
     inLanguage: 'en-IN',
   };
@@ -34,8 +34,8 @@ export default function BlogPostPage ( { post }: Props ) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.wecare.digital/' },
-      { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://www.wecare.digital/blog/' },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://wecare.digital/' },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://wecare.digital/blog/' },
       { '@type': 'ListItem', position: 3, name: post.title, item: canonical },
     ],
   };
