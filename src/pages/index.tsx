@@ -47,23 +47,21 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
+// next/link, not a bare <a>, for the one internal link on this page. The mega-menu and the
+// product CTAs still use <a> - they escape @next/next/no-html-link-for-pages only because
+// their hrefs are dynamic expressions the rule cannot resolve, which is a lint accident
+// rather than a decision. Link is already the pattern in Layout, PageHeader, Breadcrumbs
+// and the dashboard pages, and on a trailingSlash:true export '/contact/' resolves the
+// same either way - so this side is the one worth being consistent with.
+import Link from 'next/link';
 import BrandBadge from '../components/BrandBadge';
 import WorkflowTerminal from '../components/WorkflowTerminal';
-import { PRODUCTS } from '../content/products';
 
-/**
- * The home-page service directory.
- *
- * The three originals are listed explicitly because they predate src/content/products.ts and
- * have hand-written pages of their own; the seven newer products come off that array, so
- * adding a product does not require remembering this file.
- */
-const SUITE: Array<{ name: string; blurb: string; href: string }> = [
-  { name: 'Grahak OS', blurb: 'Customer engagement across WhatsApp, SMS, email and voice.', href: '/grahak-os/' },
-  { name: 'VayuLok', blurb: 'Bharat air, pollen and weather intelligence.', href: '/vayulok/' },
-  { name: 'Bharat Rx', blurb: 'Consults and appointments, with records kept in one place.', href: '/bharat-rx/' },
-  ...PRODUCTS.map( p => ( { name: p.name, blurb: p.blurb, href: `/${p.slug}/` } ) ),
-];
+/* The SUITE array that used to live here - the three original products plus the seven from
+   src/content/products.ts - went with the service-directory grid it fed. See the comment on
+   .home-close below for why the home page no longer enumerates services. The products are
+   still linked from the header mega-menu on every route and still in the sitemap, so
+   src/content/products.ts remains the single source for both. */
 
 // Module scope, not inside the component: the rotation effect reads .length, and a
 // literal declared in the body would make that a changing dependency and force an
@@ -125,6 +123,15 @@ const HomePage: React.FC = () => {
   const wordRefs = useRef<( HTMLSpanElement | null )[]>( [] );
   const [ shown, setShown ] = useState( false );
 
+  // The closing band reveals when it scrolls into view. Unlike the hero's one-shot
+  // timeout, this cannot fire on a timer: the section sits below the fold, so a timed
+  // reveal would play to an empty viewport and be over before anyone scrolled to it.
+  //
+  // NO REACT STATE FOR THIS ONE, deliberately - see the effect below. The reveal is a
+  // visual side-effect with no bearing on what React renders, so it is driven by
+  // classList on the node itself.
+  const closeRef = useRef<HTMLElement | null>( null );
+
   useEffect( () => {
     // One-shot entrance, same 60ms beat as VayuLok. No observer: there is a single
     // block above the fold, so there is nothing to reveal on scroll.
@@ -139,6 +146,49 @@ const HomePage: React.FC = () => {
       2400
     );
     return () => window.clearInterval( id );
+  }, [] );
+
+  useEffect( () => {
+    const el = closeRef.current;
+    if ( !el ) return;
+
+    // THE ANIMATION IS OPT-IN, NOT OPT-OUT, and that inversion is the important part.
+    //
+    // The first version of this rendered the band hidden (opacity:0) and added an "in"
+    // class to reveal it. That makes JavaScript load-bearing for reading the page: if the
+    // bundle fails, IntersectionObserver is missing, or the effect throws, the closing
+    // section is permanently invisible. An entrance effect must never be the reason
+    // content cannot be read.
+    //
+    // So the CSS now ships the FINAL state - everything visible - and this effect adds
+    // .is-armed to hide the start state only once it knows it can animate. No JS, no
+    // observer, or reduced motion all leave the band fully readable, and the effect is
+    // purely additive.
+    //
+    // It also uses classList rather than setState on purpose. This is a visual
+    // side-effect that does not change what React renders, which is exactly the case the
+    // react-hooks/set-state-in-effect rule exists to steer away from state; driving the
+    // DOM directly is the documented use for an effect, and it avoids a cascading render
+    // on every scroll into view.
+    if ( typeof IntersectionObserver === 'undefined' ) return;
+    if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) return;
+
+    el.classList.add( 'is-armed' );
+
+    const io = new IntersectionObserver(
+      entries => {
+        if ( entries.some( e => e.isIntersecting ) ) {
+          el.classList.add( 'is-in' );
+          io.disconnect(); // One-shot: it is an entrance, not a scroll effect.
+        }
+      },
+      // 18% visible before it plays, so the reveal is not already finished by the time
+      // the section is properly on screen.
+      { threshold: 0.18 }
+    );
+    io.observe( el );
+
+    return () => io.disconnect();
   }, [] );
 
   useEffect( () => {
@@ -244,47 +294,68 @@ const HomePage: React.FC = () => {
                 they share one login, one audit trail, one bill and one place to watch them.
                 The panel follows a single customer request through all of it.
               </p>
+              { /* THE THREE BEATS NAME A CONSEQUENCE, NOT A COMPONENT. The earlier version
+                   led on mechanism - "Built once, used everywhere", "Runs in parallel, not
+                   in line", "Absorbs failure quietly" - which described the architecture
+                   accurately and told a reader nothing about what it buys them. Each
+                   heading is now the thing you get and the sentence under it is the
+                   mechanism as evidence, which is the right way round for a page that has
+                   to sell before it explains. The channels are named rather than counted
+                   because "four channels" means nothing until you know which four. */ }
               <ul className="home-flow-list">
-                <li><strong>Built once, used everywhere</strong><span>Identity, queues, storage and monitoring are the same underneath every service.</span></li>
-                <li><strong>Runs in parallel, not in line</strong><span>Four channels go out at the same time. None of them waits for the others.</span></li>
-                <li><strong>Absorbs failure quietly</strong><span>A carrier outage is retried and delivered without anyone having to notice.</span></li>
+                <li>
+                  <strong>One login, one bill, one audit trail</strong>
+                  <span>Identity, queues, storage and monitoring are shared, so the tenth service costs you no more accounts to manage and no more invoices to reconcile than the first.</span>
+                </li>
+                <li>
+                  <strong>Four channels at once, not one after another</strong>
+                  <span>WhatsApp, SMS, email and voice leave in the same moment. A slow carrier holds up its own channel and nothing else.</span>
+                </li>
+                <li>
+                  <strong>Outages get absorbed, not escalated</strong>
+                  <span>A failed send retries itself and arrives late instead of going missing. Nobody gets paged because a carrier had a bad minute.</span>
+                </li>
               </ul>
             </div>
           </section>
 
-          {/* THE PAGE USED TO STOP AT THE TERMINAL. The owner's note was that it needed
-              something after the code section to feel complete, and that was right for a
-              structural reason rather than a decorative one: the terminal ends on the claim
-              "many services, one foundation" and the page then offered no way to see the
-              services or reach any of them. The home page had no outbound route to ten
-              product pages that exist.
+          {/* THE CLOSING BAND, AND WHY IT IS NOT A SERVICE DIRECTORY ANY MORE.
+              This slot held a ten-card grid listing every service by name. The owner's
+              objection was that the list is not a fixed set - it is an internal, moving
+              inventory - so publishing it on the home page made a promise about scope that
+              would be wrong again every time something was added or retired. A closing
+              argument does not go stale; a roster does.
 
-              A DIRECTORY, NOT AN ANIMATION. There are already two moving things above this -
-              the rotating headline and the streaming panel - and a third would compete with
-              both while adding nothing a visitor can act on. This closes the argument the
-              page makes and then lets someone follow it. It also gives every product page an
-              internal link from the site's strongest page, which is how they get discovered.
+              NOTHING IS ORPHANED BY REMOVING IT. Every product page is still linked from
+              the header mega-menu, which renders on all sixteen public routes, and all of
+              them are still in the sitemap - so the internal linking that made the grid
+              worth having is intact without the home page having to enumerate anything.
 
-              GENERATED FROM src/content/products.ts for the seven products, with the three
-              originals listed explicitly - so a new product appears here automatically rather
-              than being forgotten in an eleventh place. */}
-          <section className="home-suite" aria-labelledby="home-suite-title">
-            <h2 className="home-suite-title" id="home-suite-title">Everything we run</h2>
-            <p className="home-suite-lead">
-              { SUITE.length } services on that one foundation. Each does a single job
-              properly, and you reach all of them with the same account.
-            </p>
-            <ul className="home-suite-grid">
-              { SUITE.map( item => (
-                <li key={ item.href }>
-                  <a className="home-suite-card" href={ item.href }>
-                    <span className="home-suite-name">{ item.name }</span>
-                    <span className="home-suite-desc">{ item.blurb }</span>
-                    <span className="home-suite-go" aria-hidden="true">→</span>
-                  </a>
-                </li>
-              ) ) }
-            </ul>
+              THE ANIMATION IS SCROLL-TRIGGERED, NOT LOOPING, and that is the point. There
+              are already two continuously moving things above this - the rotating headline
+              and the streaming panel - so a third loop would compete with both. This
+              reveals once when it comes into view: the lime rule draws itself across and
+              the three lines stagger in behind it, which lands the argument and then stops. */}
+          <section className="home-close" aria-labelledby="home-close-title" ref={ closeRef }>
+            <div className="home-close-panel">
+              <p className="home-close-eyebrow">One foundation</p>
+              <h2 className="home-close-title" id="home-close-title">
+                Start with one service. The rest are already wired in.
+              </h2>
+              <p className="home-close-lead">
+                You do not buy a platform and then wait months to use it. Take the one thing
+                you need this week — a WhatsApp number that answers, a queue that holds,
+                a record you are required to keep — and it runs on the same login, the same
+                bill and the same audit trail as anything you add after it.
+              </p>
+              <span className="home-close-rule" aria-hidden="true" />
+              <ul className="home-close-points">
+                <li>Nothing to migrate when you add the second one</li>
+                <li>No second invoice, no second login, no second support queue</li>
+                <li>No rebuild when what you need changes</li>
+              </ul>
+              <Link className="home-close-cta" href="/contact/">Tell us what you need</Link>
+            </div>
           </section>
         </div>
       </main>
@@ -319,61 +390,133 @@ const HomePage: React.FC = () => {
           font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
           color:rgba(0,0,0,.898);margin:0 0 24px;
         }
-        .home-flow-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:16px}
-        /* 1px static hairline on the left edge, per the rule that 1px means static and
-           2px means hoverable. These are not interactive, so 1px. */
-        .home-flow-list li{padding-left:16px;border-left:1px solid #e5e7eb}
+        .home-flow-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:18px}
+        /* LIME, AND 3px RATHER THAN 1px - both parts are deliberate.
+           This was a 1px #e5e7eb hairline. The owner asked for the separating line to be
+           lime green, and lime simply does not survive at 1px: #d1f470 measures about
+           1.4:1 against white, so a hairline of it reads as almost nothing on a bright
+           screen - the change would have been invisible and the request unmet.
+           3px is not a violation of the 1px-static / 2px-hoverable border rule either.
+           That rule governs BORDERS ON SURFACES, where thickness signals whether a box can
+           be hovered; this is a typographic accent bar beside text, a different role, and
+           at 3px it cannot be mistaken for a hover affordance the way 2px could.
+           padding-left goes 16px -> 18px to keep the optical gap between bar and text the
+           same now that the bar is 2px wider. */
+        .home-flow-list li{padding-left:18px;border-left:3px solid #d1f470}
         /* Card-heading rung at the small end: 17px/700, a step below .pp-strip-title's
            22px because these sit inside a sidebar rather than on the page. */
         .home-flow-list strong{display:block;margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.2px;color:#000}
         .home-flow-list span{display:block;font-size:16px;line-height:1.5;color:rgba(0,0,0,.54)}
 
-        /* THE SERVICE DIRECTORY. 96px above it is the same section rhythm .home-layout uses
+        /* THE CLOSING BAND. 96px above it is the same section rhythm .home-layout uses
            between the hero and the terminal band, so this lands on the existing grid rather
            than introducing a third spacing value. */
-        .home-suite{margin-top:96px}
-        /* Section h2 on the contract's 700 rung - heavier than the hero h1's 600, which is
-           the inversion the whole site uses. Same clamp as .home-flow-title so the two
-           section headings are siblings. */
-        .home-suite-title{margin:0 0 14px;font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;letter-spacing:-1.2px;color:rgba(0,0,0,.95)}
-        .home-suite-lead{margin:0 0 34px;max-width:640px;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898)}
+        .home-close{margin-top:96px}
 
-        /* auto-fit with a 280px floor rather than a fixed column count: ten cards divide
-           badly into any single number, and letting them reflow means no orphan row of one
-           at an awkward width. */
-        .home-suite-grid{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
-        /* 1px hairline at rest, per the rule that 1px is static and 2px is hoverable - so the
-           border thickens on hover instead of the box moving, which would reflow the grid.
-           padding-right leaves room for the arrow so long names never collide with it. */
-        .home-suite-card{
-          position:relative;display:flex;flex-direction:column;gap:6px;height:100%;
-          padding:20px 44px 20px 20px;border:1px solid #e5e7eb;border-radius:14px;
-          text-decoration:none;background:#fff;
-          transition:border-color .2s,background-color .2s,transform .2s,box-shadow .2s;
+        /* A tinted panel rather than plain page, because this is the one block on the page
+           asking for a decision and it should read as a different surface from the argument
+           above it. Same 14px radius and same rgba(209,244,112,.22) tint the rest of the
+           site uses for own-surface lime - no new colour. */
+        .home-close-panel{
+          padding:clamp(28px,4vw,56px);
+          border:2px solid #d1f470;border-radius:14px;
+          background:rgba(209,244,112,.22);
         }
-        .home-suite-card:hover{border-color:#d1f470;background:rgba(209,244,112,.22);transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.08)}
-        .home-suite-card:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
-        /* Card-heading rung: 22px/700/-.25px. */
-        .home-suite-name{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
-        .home-suite-desc{font-size:16px;font-weight:400;line-height:1.5;color:rgba(0,0,0,.54)}
-        /* The arrow slides on hover. Transform only - animating the right property would
-           trigger layout on every frame for what is a 3px move. */
-        .home-suite-go{
-          position:absolute;top:22px;right:18px;font-size:18px;color:#1a3a2a;opacity:.34;
-          transition:opacity .2s,transform .2s;
+
+        .home-close-eyebrow{
+          margin:0 0 14px;font-size:12px;font-weight:700;
+          letter-spacing:.08em;text-transform:uppercase;color:#1a3a2a;
         }
-        .home-suite-card:hover .home-suite-go{opacity:1;transform:translateX(3px)}
+        /* Section h2 on the contract's 700 rung - heavier than the hero h1's 600, which is
+           the inversion the whole site uses. Same clamp as the other section headings so
+           they read as siblings. */
+        .home-close-title{
+          margin:0 0 16px;max-width:19ch;
+          font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;
+          letter-spacing:-1.2px;color:rgba(0,0,0,.95);
+        }
+        /* The one body level: 20px/400/1.4/-.125px. max-width in ch, not px, so the measure
+           stays ~62 characters whatever the clamp does to the heading beside it. */
+        .home-close-lead{
+          margin:0;max-width:62ch;
+          font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
+          color:rgba(0,0,0,.898);
+        }
+
+        /* READ THE .is-armed PATTERN BEFORE CHANGING ANY OF THIS.
+           Every rule below ships its FINAL, visible state as the default. .is-armed is
+           added by JavaScript only when it has confirmed it can animate, and that is what
+           hides the start state; .is-in then plays the reveal. The effect is therefore
+           additive, and no JS / no IntersectionObserver / reduced motion all leave this
+           section fully readable instead of stuck at opacity:0. */
+
+        /* THE RULE DRAWS ITSELF. transform:scaleX is the whole animation - it is
+           compositor-only, so it cannot cause layout on any frame, which animating width
+           would do 60 times a second. transform-origin:left makes it grow from the left
+           edge rather than the centre. */
+        .home-close-rule{
+          display:block;height:3px;margin:30px 0;background:#d1f470;
+          transform-origin:left center;
+          transition:transform .62s cubic-bezier(.22,.61,.36,1);
+        }
+        .home-close.is-armed .home-close-rule{transform:scaleX(0)}
+        .home-close.is-armed.is-in .home-close-rule{transform:scaleX(1)}
+
+        .home-close-points{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+        /* 17px/600 - the card-heading rung at its small end. These are claims, not body
+           copy, so they sit above the 16px secondary level. */
+        .home-close-points li{
+          position:relative;padding-left:26px;
+          font-size:17px;font-weight:600;line-height:1.45;letter-spacing:-.2px;color:#1a3a2a;
+          transition:opacity .5s ease,transform .5s ease;
+        }
+        /* A tick drawn with two borders on a rotated box: no asset, no request, cannot 404 -
+           the same technique as the map pin. */
+        .home-close-points li::before{
+          content:'';position:absolute;left:2px;top:6px;
+          width:11px;height:6px;
+          border-left:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;
+          transform:rotate(-45deg);
+        }
+        .home-close.is-armed .home-close-points li{opacity:0;transform:translateY(8px)}
+        .home-close.is-armed.is-in .home-close-points li{opacity:1;transform:none}
+        /* Staggered behind the rule, which finishes at .62s. Three 90ms steps read as one
+           settling movement rather than three separate events. */
+        .home-close.is-armed.is-in .home-close-points li:nth-child(1){transition-delay:.34s}
+        .home-close.is-armed.is-in .home-close-points li:nth-child(2){transition-delay:.43s}
+        .home-close.is-armed.is-in .home-close-points li:nth-child(3){transition-delay:.52s}
+
+        /* Full-strength lime with #1a3a2a type: the contract's own-surface pairing. Solid
+           lime on the tinted panel still separates because the panel is the same hue at
+           22% - the button is the saturated version of its own background, which is why it
+           needs no shadow at rest. */
+        .home-close-cta{
+          display:inline-flex;align-items:center;min-height:52px;margin-top:32px;
+          padding:0 28px;border:2px solid #d1f470;border-radius:50px;
+          background:#d1f470;color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
+          transition:opacity .5s ease,transform .5s ease,background-color .2s,box-shadow .2s;
+        }
+        .home-close.is-armed .home-close-cta{opacity:0;transform:translateY(8px)}
+        .home-close.is-armed.is-in .home-close-cta{opacity:1;transform:none;transition-delay:.62s}
+        .home-close-cta:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+        .home-close-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
 
         @media(prefers-reduced-motion:reduce){
-          .home-suite-card,.home-suite-go{transition:none}
-          .home-suite-card:hover{transform:none}
-          .home-suite-card:hover .home-suite-go{transform:none}
+          /* Belt and braces. The effect already never arms under reduced motion - the JS
+             returns before adding .is-armed - so these rules are the guard for the case
+             where the preference changes after arming, when the class is already on the
+             node. They kill the movement without hiding anything. */
+          .home-close-rule,.home-close-points li,.home-close-cta{transition:none}
+          .home-close.is-armed .home-close-rule{transform:scaleX(1)}
+          .home-close.is-armed .home-close-points li,
+          .home-close.is-armed .home-close-cta{opacity:1;transform:none}
+          .home-close-cta:hover{transform:none}
         }
 
         @media(max-width:767px){
-          .home-suite{margin-top:64px}
-          .home-suite-lead{font-size:18px}
-          .home-suite-grid{grid-template-columns:1fr}
+          .home-close{margin-top:64px}
+          .home-close-title{max-width:none}
+          .home-close-lead{font-size:18px}
         }
 
         @media(max-width:1024px){
