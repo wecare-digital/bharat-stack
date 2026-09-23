@@ -66,16 +66,16 @@ const SEOPages: React.FC<PageProps> = ( { signOut, user } ) => {
         <div style={ { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 } }>
           <h1 className="inner-page-title" style={ { margin: 0 } }>Pages Inventory</h1>
           <div style={ { display: 'flex', gap: 8 } }>
-            <button className="btn btn-primary" onClick={ () => handleCrawl( 'www.wecare.digital' ) }>Crawl WWW</button>
-            <button className="btn btn-primary" onClick={ () => handleCrawl( 'stack.wecare.digital' ) }>Crawl Stack</button>
+            <button className="btn btn-primary" onClick={ () => handleCrawl( 'wecare.digital' ) }>Crawl Site</button>
           </div>
         </div>
 
         <div style={ { display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' } }>
           <select value={ domain } onChange={ e => setDomain( e.target.value ) } className="input" style={ { width: 200 } }>
             <option value="">All domains</option>
-            <option value="www.wecare.digital">www.wecare.digital</option>
-            <option value="stack.wecare.digital">stack.wecare.digital</option>
+            <option value="wecare.digital">wecare.digital</option>
+            <option value="www.wecare.digital">www.wecare.digital (legacy)</option>
+            <option value="stack.wecare.digital">stack.wecare.digital (legacy)</option>
           </select>
           <select value={ pageType } onChange={ e => setPageType( e.target.value ) } className="input" style={ { width: 200 } }>
             <option value="">All types</option>
