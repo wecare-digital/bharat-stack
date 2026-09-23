@@ -262,7 +262,7 @@ def _simple_product_to_v3(source: dict) -> dict:
     }
     if product_type == 'PHYSICAL':
         product['physicalProperties'] = src.get('physicalProperties') or {}
-        variant['physicalProperties'] = {}
+        variant.setdefault('physicalProperties', {})
 
     if 'visible' in src:
         product['visible'] = bool(src.get('visible'))
