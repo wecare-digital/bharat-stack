@@ -305,10 +305,17 @@ const WorkflowTerminal: React.FC = () => {
         .wt-light{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
         /* LIME AND NEUTRALS ONLY, on instruction. The window lights were red/amber/lime
            borrowed from macOS; the first two are the only warm hues on the page and they
-           pulled the eye to chrome rather than to content. Two neutral alphas plus one
-           lime keeps the traffic-light shape and reads as ours. */
-        .wt-red{background:rgba(255,255,255,.22)}
-        .wt-amber{background:rgba(255,255,255,.40)}
+           pulled the eye to chrome rather than to content. Two neutral dots plus one lime
+           keeps the traffic-light shape and reads as ours.
+           DARK alphas, not white. The first attempt used rgba(255,255,255,.22) and .40 -
+           white on a light bar. Composited against this bar's #fafafa those land on
+           251,251,251 and 252,252,252: a difference of 1 and 2 out of 255, so both dots
+           were invisible and the window appeared to have a single light. The panel BODY is
+           black, which is what made white look right in the abstract; the title bar is
+           not. Measured with a compositing check rather than judged by eye, and
+           brandcheck.js now asserts each light is actually distinguishable from the bar. */
+        .wt-red{background:rgba(0,0,0,.16)}
+        .wt-amber{background:rgba(0,0,0,.30)}
         .wt-lime{background:#d1f470}
         .wt-bar-title{margin-left:8px;color:rgba(0,0,0,.54);font-size:11px}
         .wt-bar-state{margin-left:auto;display:flex;align-items:center;gap:7px;color:rgba(0,0,0,.42);font-size:10px}

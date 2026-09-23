@@ -205,11 +205,81 @@ const HomePage: React.FC = () => {
           {/* The 96px gap on .home-layout is the section rhythm this was reserved for -
               it existed with one child specifically so the next block would land on it.
               WorkflowTerminal styles itself; styled-jsx cannot reach into it from here,
-              which is why it takes no className. */}
-          <WorkflowTerminal />
+              which is why it takes no className.
+
+              THE TERMINAL NO LONGER SITS ALONE AT FULL WIDTH. On its own it ran the whole
+              1252px measure with a 650px black panel and nothing to read beside it, which
+              is what made the section feel heavy and left the right-hand side empty. It
+              is now the left column of a two-column band, with the section's heading and
+              a short list of what the workflow is doing in the right column - so the
+              panel is explained rather than just displayed, and the space is used. */}
+          <section className="home-flow" aria-labelledby="home-flow-title">
+            <div className="home-flow-panel">
+              <WorkflowTerminal />
+            </div>
+            <div className="home-flow-copy">
+              <h2 className="home-flow-title" id="home-flow-title">Work that runs itself</h2>
+              <p className="home-flow-lead">
+                Every request is planned, checked and retried without anyone chasing it.
+                The panel is a real workflow: it reads its own configuration, calls the
+                tools it needs, notices when a result is incomplete, and tries again.
+              </p>
+              <ul className="home-flow-list">
+                <li><strong>Plans before it acts</strong><span>Maps the shortest safe path instead of running every step in order.</span></li>
+                <li><strong>Notices its own gaps</strong><span>A low-confidence result triggers a deeper lookup, not a silent pass.</span></li>
+                <li><strong>Checks before finishing</strong><span>The optimised path is verified, so faster never means less correct.</span></li>
+              </ul>
+            </div>
+          </section>
         </div>
       </main>
       <style jsx>{`
+        /* TWO-COLUMN BAND: terminal left, explanation right.
+           The panel is 1fr and the copy column is a fixed 380px rather than the reverse,
+           because the terminal's content is monospace at a fixed size and reflows badly
+           when squeezed, while prose reflows cleanly at any width.
+           align-items:start keeps the copy at the top of the band instead of centring it
+           against a 650px panel, which would leave a gap above and below it.
+           Collapses to one column at 1024px - below that a 380px sidebar alongside a
+           terminal gives both columns too little, and the copy reads better above the
+           panel where it introduces it. */
+        .home-flow{
+          display:grid;
+          grid-template-columns:minmax(0,1fr) 380px;
+          gap:44px;
+          align-items:start;
+        }
+        .home-flow-panel{min-width:0}
+        /* Sticky so the explanation stays level with the panel while the eye follows the
+           stream. 128px clears the fixed 108px header with room to breathe. */
+        .home-flow-copy{position:sticky;top:128px}
+        /* Section h2 is the contract's 700 rung - HEAVIER than the hero h1's 600. That
+           inversion is deliberate and is the same on every page. */
+        .home-flow-title{
+          font-size:clamp(26px,2.6vw,34px);font-weight:700;line-height:1.1;
+          letter-spacing:-1px;color:rgba(0,0,0,.95);margin:0 0 14px;
+        }
+        /* The one body level: 20px/400/1.4/-.125px. */
+        .home-flow-lead{
+          font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
+          color:rgba(0,0,0,.898);margin:0 0 24px;
+        }
+        .home-flow-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:16px}
+        /* 1px static hairline on the left edge, per the rule that 1px means static and
+           2px means hoverable. These are not interactive, so 1px. */
+        .home-flow-list li{padding-left:16px;border-left:1px solid #e5e7eb}
+        /* Card-heading rung at the small end: 17px/700, a step below .pp-strip-title's
+           22px because these sit inside a sidebar rather than on the page. */
+        .home-flow-list strong{display:block;margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.2px;color:#000}
+        .home-flow-list span{display:block;font-size:16px;line-height:1.5;color:rgba(0,0,0,.54)}
+
+        @media(max-width:1024px){
+          .home-flow{grid-template-columns:minmax(0,1fr);gap:32px}
+          /* Copy first on a narrow screen: it introduces the panel, and a 650px black
+             box arriving with no context is the thing that felt overwhelming. */
+          .home-flow-copy{position:static;order:-1}
+        }
+
         /* The font stack is declared here, not inherited. Measured in a browser, this
            page already rendered in Inter - but only because @aws-amplify/ui-react's
            styles.css sets a font-family on body that happens to start with Inter. The

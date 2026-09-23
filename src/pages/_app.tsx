@@ -60,7 +60,10 @@ Amplify.configure( {
 const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 const LOGO_SVG_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.svg';
 const FAVICON_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.ico';
-const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '';
+// Read but deliberately NOT used to inject a tag. GA4 is fired by the GTM container
+// (see _document.tsx); a direct gtag.js snippet here double-counts. Kept so the env
+// var stays documented and so anything that needs the id for a dataLayer push has it.
+export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '';
 
 // Custom Amplify UI Theme - Lime + Dark Green matching site design
 const authTheme: Theme = {
@@ -396,6 +399,7 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   '/terms': { name: 'Terms', type: 'WebPage', description: 'Terms of service.' },
   '/privacy': { name: 'Privacy', type: 'WebPage', description: 'How WECARE.DIGITAL handles your data.' },
   '/my-order': { name: 'My Order', type: 'WebPage', description: 'Check the status of an order, delivery, request or booking.' },
+  '/bharat-rx': { name: 'Bharat Rx', type: 'WebPage', description: 'Medicines, consults, reminders and records in one place.' },
 };
 
 const SITE = 'https://stack.wecare.digital';
@@ -528,7 +532,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // EXACT-MATCH allowlist. A public page missing from this list renders an empty
   // body with HTTP 200 — a 404 that does not look like one — so every new public
   // route has to be added here as well as created under src/pages.
-  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/contact' || router.pathname === '/terms' || router.pathname === '/privacy' || router.pathname === '/my-order';
+  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/contact' || router.pathname === '/terms' || router.pathname === '/privacy' || router.pathname === '/my-order' || router.pathname === '/bharat-rx';
 
   // trailingSlash is set in next.config.js, so the canonical form of every route except
   // the root carries a trailing slash. A canonical pointing at the slashless URL names
@@ -698,16 +702,19 @@ export default function App ( { Component, pageProps }: AppProps ) {
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( serviceSchema ) } } />
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( getPublicPageSchema( router.pathname ) ) } } />
         </Head>
-        {/* Google Analytics 4 (G-S3G6REP6Q7) */ }
-        <Script src={ `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}` } strategy="afterInteractive" />
-        <Script id="google-analytics-ads" strategy="afterInteractive">
-          { `
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}', { 'send_page_view': true });
-          `}
-        </Script>
+        {/* NO DIRECT gtag.js HERE - BY POLICY, and it was being violated.
+            _document.tsx states that all Google tracking on this property is delivered
+            exclusively through the GTM container, which itself fires GA4
+            (G-GNRPFFBXMF) and Google Ads (AW-18396505964), and that adding a direct
+            snippet alongside it double-counts every pageview and conversion.
+            This file was doing exactly that. Measured in a browser, the home page
+            requested gtag/js FOUR times: G-S3G6REP6Q7 bare from the snippet that used
+            to be here, plus AW-18396505964, G-GNRPFFBXMF and G-S3G6REP6Q7 again from
+            the container. So G-S3G6REP6Q7 was loaded twice on every page view.
+            The snippet is injected client-side by next/script, so it never appeared in
+            the static HTML and could not be found by grepping the export - only a
+            request log shows it. tagcheck.js now asserts the container loads once and
+            no direct gtag.js accompanies it. */}
         {/* Facebook SDK for JavaScript */ }
         <Script id="facebook-sdk-init-public" strategy="afterInteractive">
           { `
@@ -769,16 +776,19 @@ export default function App ( { Component, pageProps }: AppProps ) {
         <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( organizationSchema ) } } />
         <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( getBreadcrumbSchema( pageName, pageUrl ) ) } } />
       </Head>
-      {/* Google Analytics 4 (G-S3G6REP6Q7) */ }
-      <Script src={ `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}` } strategy="afterInteractive" />
-      <Script id="google-analytics-ads" strategy="afterInteractive">
-        { `
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${GA_MEASUREMENT_ID}', { 'send_page_view': true });
-        `}
-      </Script>
+        {/* NO DIRECT gtag.js HERE - BY POLICY, and it was being violated.
+            _document.tsx states that all Google tracking on this property is delivered
+            exclusively through the GTM container, which itself fires GA4
+            (G-GNRPFFBXMF) and Google Ads (AW-18396505964), and that adding a direct
+            snippet alongside it double-counts every pageview and conversion.
+            This file was doing exactly that. Measured in a browser, the home page
+            requested gtag/js FOUR times: G-S3G6REP6Q7 bare from the snippet that used
+            to be here, plus AW-18396505964, G-GNRPFFBXMF and G-S3G6REP6Q7 again from
+            the container. So G-S3G6REP6Q7 was loaded twice on every page view.
+            The snippet is injected client-side by next/script, so it never appeared in
+            the static HTML and could not be found by grepping the export - only a
+            request log shows it. tagcheck.js now asserts the container loads once and
+            no direct gtag.js accompanies it. */}
       {/* Facebook SDK for JavaScript */ }
       <Script id="facebook-sdk-init" strategy="afterInteractive">
         { `

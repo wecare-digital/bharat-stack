@@ -71,9 +71,11 @@ const COLUMNS: NavColumn[] = [
           { label: 'Grahak OS', href: '/grahak-os/', match: '/grahak-os' },
           { label: 'VayuLok', href: '/vayulok/', match: '/vayulok' },
           // Bharat Rx moved here from Selfservice: it is a product, not one of the
-          // request actions the Selfservice column lists. Still on PENDING_HREF -
-          // it has no page of its own yet, so it points at the marketing site.
-          { label: 'Bharat Rx', href: PENDING_HREF, external: true },
+          // request actions the Selfservice column lists. It now has its own page, so it
+          // is a local route with `match` rather than a PENDING_HREF placeholder - a
+          // product listed beside Grahak OS and VayuLok that landed on a generic
+          // marketing page was worse than not listing it.
+          { label: 'Bharat Rx', href: '/bharat-rx/', match: '/bharat-rx' },
         ],
       },
     ],
