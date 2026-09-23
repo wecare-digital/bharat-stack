@@ -130,6 +130,14 @@ SPECS: List[Spec] = [
     Spec("wecare-messages-read", "core/messages-read"),
     Spec("wecare-service-api", "core/service-api"),
     Spec("wecare-site-language", "core/site-language", standalone=True),
+    # --- auth / customer ---
+    # First creation is owned by scripts/provision_customer_whatsapp_auth.py.
+    # After that, normal code updates use this deploy map.
+    Spec(
+        "wecare-customer-whatsapp-auth",
+        "auth/customer-whatsapp-auth",
+        standalone=True,
+    ),
     # Both url-shortener functions build from the same source. The HTTP API's
     # /l/* routes integrate `stack-wecare-url-shortener:live`, NOT
     # `wecare-url-shortener`, so the `stack-`prefixed one is the live shortlink
