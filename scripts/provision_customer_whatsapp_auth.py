@@ -30,6 +30,7 @@ REGION = "us-east-1"
 ACCOUNT_ID = "775261844268"
 
 FUNCTION_NAME = "wecare-customer-whatsapp-auth"
+LIVE_ALIAS = "live"
 FUNCTION_SOURCE = (
     Path(__file__).resolve().parents[1]
     / "amplify/functions/auth/customer-whatsapp-auth/handler.py"
@@ -246,6 +247,35 @@ def ensure_function(dry_run: bool) -> str:
     raise RuntimeError("Lambda create retry exhausted")
 
 
+def ensure_live_alias(dry_run: bool) -> str:
+    try:
+        lam().get_alias(FunctionName=FUNCTION_NAME, Name=LIVE_ALIAS)
+        return "exists"
+    except ClientError as exc:
+        if not _not_found(exc, "ResourceNotFoundException"):
+            raise
+
+    if dry_run:
+        return "would publish v1 and create live alias"
+
+    published = lam().publish_version(
+        FunctionName=FUNCTION_NAME,
+        Description="initial customer WhatsApp auth release",
+    )
+    version = published["Version"]
+    lam().get_waiter("function_active_v2").wait(
+        FunctionName=FUNCTION_NAME,
+        Qualifier=version,
+    )
+    lam().create_alias(
+        FunctionName=FUNCTION_NAME,
+        Name=LIVE_ALIAS,
+        FunctionVersion=version,
+        Description="Production Cognito trigger target",
+    )
+    return f"created -> v{version}"
+
+
 def ensure_pool(dry_run: bool) -> tuple[str, str | None]:
     current = find_pool()
     if current:
@@ -312,9 +342,10 @@ def ensure_pool(dry_run: bool) -> tuple[str, str | None]:
 def attach_triggers(pool_id: str, dry_run: bool) -> str:
     if dry_run:
         return "would attach custom-auth triggers"
-    function_arn = lam().get_function(
-        FunctionName=FUNCTION_NAME
-    )["Configuration"]["FunctionArn"]
+    function_arn = lam().get_alias(
+        FunctionName=FUNCTION_NAME,
+        Name=LIVE_ALIAS,
+    )["AliasArn"]
     pool = cognito().describe_user_pool(
         UserPoolId=pool_id
     )["UserPool"]
@@ -350,6 +381,7 @@ def ensure_invoke_permission(pool_id: str, dry_run: bool) -> str:
     try:
         lam().add_permission(
             FunctionName=FUNCTION_NAME,
+            Qualifier=LIVE_ALIAS,
             StatementId=sid,
             Action="lambda:InvokeFunction",
             Principal="cognito-idp.amazonaws.com",
@@ -440,7 +472,11 @@ def verify() -> int:
     lambda_config = desc.get("LambdaConfig") or {}
 
     fn = lam().get_function(FunctionName=FUNCTION_NAME)["Configuration"]
-    fn_arn = fn["FunctionArn"]
+    alias = lam().get_alias(
+        FunctionName=FUNCTION_NAME,
+        Name=LIVE_ALIAS,
+    )
+    fn_arn = alias["AliasArn"]
 
     for key in (
         "DefineAuthChallenge",
@@ -508,6 +544,7 @@ def main(argv=None) -> int:
     print(f"role: {ensure_role(args.dry_run)}")
     print(f"log group: {ensure_log_group(args.dry_run)}")
     print(f"Lambda: {ensure_function(args.dry_run)}")
+    print(f"live alias: {ensure_live_alias(args.dry_run)}")
 
     pool_status, pool_id = ensure_pool(args.dry_run)
     print(f"customer pool: {pool_status}")
