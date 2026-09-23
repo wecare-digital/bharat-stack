@@ -64,16 +64,20 @@ describe( 'Header', () => {
     expect( selfservice?.textContent ).not.toContain( 'Bharat Rx' );
   } );
 
-  it( 'links Terms but deliberately never links Privacy', () => {
+  it( 'lists Terms and Privacy under a Legal Stuff heading', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
 
     expect( screen.getByRole( 'link', { name: 'Terms' } ) ).toHaveAttribute( 'href', '/terms/' );
 
-    // The owner asked for /privacy to exist WITHOUT a menu entry. This is the guard
-    // against someone "completing" the Legal column later - the page is reachable via
-    // the allowlist in _app.tsx, and that is the whole intent.
-    expect( screen.queryByRole( 'link', { name: 'Privacy' } ) ).toBeNull();
+    // Privacy is linked now. It was deliberately unlinked while its text was a
+    // placeholder, and the assertion here guarded that; the owner asked for it to be
+    // listed once the real policy landed, so the guard is replaced rather than deleted.
+    expect( screen.getByRole( 'link', { name: 'Privacy' } ) ).toHaveAttribute( 'href', '/privacy/' );
+
+    // The heading matches the published document's own title.
+    expect( screen.getByText( 'Legal Stuff' ) ).toBeInTheDocument();
+    expect( screen.queryByText( /^Legal$/ ) ).toBeNull();
   } );
 
   it( 'uses the approved public header dimensions and brand navigation colors', () => {

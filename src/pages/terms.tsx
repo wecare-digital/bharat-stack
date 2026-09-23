@@ -1,19 +1,24 @@
 import React from 'react';
 import Head from 'next/head';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
+import LegalDocument from '../components/LegalDocument';
+import { TERMS_SECTIONS, TERMS_INTRO, TERMS_UPDATED } from '../content/legal/terms';
 
 /**
- * /terms — Terms of service.
+ * /terms — Terms of Service.
  *
- * ROUTING: '/terms' must be in the EXACT-MATCH allowlist in _app.tsx or this renders
- * an empty body with HTTP 200. trailingSlash means the URL is /terms/.
+ * ROUTING: '/terms' must be in the EXACT-MATCH allowlist in _app.tsx or this renders an
+ * empty body with HTTP 200. trailingSlash means the URL is /terms/.
  *
- * THE LEGAL TEXT IS DELIBERATELY NOT WRITTEN. This page ships the hero and a marked
- * placeholder, and nothing more. Drafting terms of service is a legal act with
- * consequences for refunds, liability and jurisdiction, and inventing plausible
- * clauses would produce a document that looks authoritative and binds nobody -
- * actively worse than an obvious gap. The copy has to come from the owner or their
- * counsel; drop it into LEGAL_SECTIONS below and the placeholder disappears.
+ * THE PLACEHOLDER IS GONE. This now carries the owner's real published document, all 45
+ * sections plus the 12 sub-clauses of section 14, ported from the Wix page by parsing it
+ * rather than retyping it. See src/content/legal/terms.ts for exactly what was and was
+ * not changed - structure and navigation only, never the wording of a clause.
+ *
+ * noindex was also removed with the placeholder. It existed because an indexed empty
+ * legal page is the document a regulator or a payment provider gets pointed at; that
+ * reasoning no longer applies to a complete one, and terms of service should be
+ * findable.
  */
 
 // "Terms of service / payment / refunds / delivery" - all four complete the frame, and
@@ -25,63 +30,33 @@ const CYCLE_WORDS: CycleWord[] = [
   { word: 'delivery', tint: '#ede9fe', dot: '#9849e8' },
 ];
 
-/** Populate with the approved text. Empty renders the pending notice. */
-const LEGAL_SECTIONS: Array<{ heading: string; body: string }> = [];
-
 const TermsPage: React.FC = () => (
   <>
     <Head>
-      <title>Terms — WECARE.DIGITAL</title>
-      <meta name="description" content="Terms of service for WECARE.DIGITAL." />
+      <title>Terms of Service — WECARE.DIGITAL</title>
+      <meta
+        name="description"
+        content="The agreement between you and WECARE.DIGITAL when you use our services: orders, payments, refunds, delivery, professional services and dispute resolution."
+      />
       <link rel="canonical" key="canonical" href="https://stack.wecare.digital/terms/" />
-      {/* Not indexed while the text is a placeholder. An indexed empty terms page is
-          worse than no terms page: it is the document a customer or a payment provider
-          would be pointed at. Remove this when LEGAL_SECTIONS is filled. */}
-      { !LEGAL_SECTIONS.length && <meta name="robots" content="noindex,nofollow" /> }
     </Head>
     <RotatingHero
       ariaLabel="Terms of service"
-      badgeLabel="Legal — WECARE.DIGITAL"
+      badgeLabel="Legal Stuff — WECARE.DIGITAL"
       frame="Terms of"
       words={ CYCLE_WORDS }
       sub="The agreement between you and WECARE.DIGITAL when you use our services."
     >
-      <section className="lg-body" aria-label="Terms of service">
-        { LEGAL_SECTIONS.length
-          ? LEGAL_SECTIONS.map( section => (
-            <div key={ section.heading } className="lg-section">
-              <h2 className="lg-heading">{ section.heading }</h2>
-              <p className="lg-text">{ section.body }</p>
-            </div>
-          ) )
-          : (
-            <div className="lg-pending">
-              <h2 className="lg-heading">Not published yet</h2>
-              <p className="lg-text">
-                These terms are being prepared and are not in force. Nothing on this
-                page forms an agreement. For anything urgent, reach us through the
-                Selfservice portal.
-              </p>
-            </div>
-          ) }
-        <style jsx>{`
-          /* lg- prefixed. The globally imported src/styles/*.css declares unscoped
-             rules for generic names, and styled-jsx does not shield a page from them.
-             Section h2 is the contract's 700 rung - HEAVIER than the hero h1's 600.
-             That inversion is intentional across the whole site. */
-          .lg-body{max-width:700px;display:flex;flex-direction:column;gap:32px}
-          .lg-section,.lg-pending{display:flex;flex-direction:column;gap:12px}
-          .lg-heading{
-            font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;
-            letter-spacing:-1.2px;color:rgba(0,0,0,.95);margin:0;
-          }
-          /* The one body level: 20px/400/1.4/-.125px. */
-          .lg-text{
-            font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
-            color:rgba(0,0,0,.898);margin:0;
-          }
-        `}</style>
-      </section>
+      <LegalDocument
+        sections={ TERMS_SECTIONS }
+        intro={ TERMS_INTRO }
+        updated={ TERMS_UPDATED }
+        notice={ <>
+          These Terms are a summary of the agreement in force and are provided for
+          information. They are not legal advice. For a question about how a clause
+          applies to you, contact us at <a href="mailto:one@wecare.digital">one@wecare.digital</a>.
+        </> }
+      />
     </RotatingHero>
   </>
 );

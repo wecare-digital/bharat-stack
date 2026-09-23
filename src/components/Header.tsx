@@ -88,7 +88,11 @@ const COLUMNS: NavColumn[] = [
           // drops the menu row too, so there is no FAQ entry point left anywhere.
           { label: 'Submit Request', href: PENDING_HREF, external: true },
           { label: 'Request Amendment', href: PENDING_HREF, external: true },
-          { label: 'Request Tracking', href: PENDING_HREF, external: true },
+          // "My Order" REPLACES the old "Request Tracking" row rather than sitting beside
+          // it: the two answer the same question, and offering both sends one visitor to
+          // two places for one answer. Unlike its siblings this is a local page, so it
+          // carries `match` and lights up on its own route.
+          { label: 'My Order', href: '/my-order/', match: '/my-order' },
           { label: 'Drop Docs', href: PENDING_HREF, external: true },
           { label: 'Leave Review', href: PENDING_HREF, external: true },
           // Local pages, so these carry `match` and light up on their own route.
@@ -98,12 +102,18 @@ const COLUMNS: NavColumn[] = [
         ],
       },
       {
-        // /privacy is NOT here, on purpose - the owner asked for that page to exist
-        // without a menu entry. It is still in the allowlist in _app.tsx, which is
-        // what makes it reachable. Do not "complete" this section by adding it.
-        heading: 'Legal',
+        // "Legal Stuff", matching the heading on the published document this content
+        // came from, rather than the shorter "Legal" used while it was a placeholder.
+        //
+        // Privacy IS listed now. It was deliberately absent while its text was a
+        // placeholder - an unfindable page was preferable to advertising an empty
+        // policy - and the owner asked for it once the real policy landed. Header.test
+        // asserts both rows, so the earlier guard against adding Privacy is retired
+        // rather than silently broken.
+        heading: 'Legal Stuff',
         links: [
           { label: 'Terms', href: '/terms/', match: '/terms' },
+          { label: 'Privacy', href: '/privacy/', match: '/privacy' },
         ],
       },
     ],
@@ -295,7 +305,20 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
         </div>
       </div>
       <style jsx>{`
-        .hdr{position:fixed;top:0;left:0;right:0;z-index:1001;background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+        /* OPAQUE BY DEFAULT, translucent only where the blur actually works.
+           It was rgba(255,255,255,.97) with backdrop-filter:blur(20px) unconditionally.
+           Measured, backdrop-filter computes to the keyword none in environments that
+           do not support it - and without the blur the 3% translucency is not a frosted
+           effect, it is just bleed-through. On the marketing pages that is invisible
+           because almost nothing scrolls under the header; on /terms/ and /privacy/,
+           which are 40,000 characters of dense prose, lines were faintly legible
+           through it and behind the logo.
+           So the base rule is a solid #fff, and the translucent treatment is restored
+           inside @supports where the blur it depends on is real. */
+        .hdr{position:fixed;top:0;left:0;right:0;z-index:1001;background:#fff}
+        @supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){
+          .hdr{background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+        }
         .hdr-in{max-width:1300px;margin:0 auto;padding:18px 24px;display:flex;align-items:center;box-sizing:border-box;height:108px}
         .logo{display:flex;align-items:center;text-decoration:none}
         .logo-nav{display:flex;align-items:center;gap:10px}
