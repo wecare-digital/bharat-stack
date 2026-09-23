@@ -426,12 +426,52 @@ model, instructions, IAM role, action group attached, a `bedrock.amazonaws.com` 
 permission, a prepare, and a real alias. Nothing needs it. The empty agent stays — deleting
 it is destructive, needs confirmation, and it is inert and free.
 
-### 7.1 — Shared integration registry + sync/metric boundary · TODO
+### 7.1 — Shared integration registry + sync/metric boundary · PARTIAL (registry done)
 
-Server-side adapters: Google Ads, GA4, Search Console, GBP, Play Reporting, Bing Webmaster,
-Meta Ads/CTWA, Wix. READ only, and only where owner access exists — otherwise fixtures plus
-`WAITING_FOR_OWNER`. Record scopes, ownership, quota, freshness, provider request ids.
-Do not modify any credential.
+`lambda_utils/integrations/registry.py`, 55 tests. Measured before writing anything, because
+the brief's provider list and the repo's state disagree:
+
+| Provider | Adapter files | Credential | Access |
+|---|---|---|---|
+| Google Ads | **0** | `wecare/google/ads` | SCOPE_UNVERIFIED |
+| GA4 | 6 | `wecare/seo/google-oauth` | SCOPE_UNVERIFIED |
+| Search Console | **0** | `wecare/seo/google-oauth` | SCOPE_UNVERIFIED |
+| Business Profile | 4 | `wecare/seo/google-oauth` | SCOPE_UNVERIFIED |
+| Play Reporting | **0** | **none** | CREDENTIAL_ABSENT |
+| Bing Webmaster | 14 | `wecare/bing/api` | SCOPE_UNVERIFIED |
+| Meta Ads / CTWA | 26 | `wecare/meta-system-user-token` | SCOPE_UNVERIFIED |
+| Wix | 31 | **none** — env fallback | SCOPE_UNVERIFIED |
+
+Three of eight have no adapter; one of those has no credential either. **Nothing is
+`VERIFIED`** — that state means a real authorised read succeeded and was recorded, and none
+has. All eight are `waiting_for_owner()` with the exact console action that would unblock
+them.
+
+Design points that earned their place:
+
+- **Access is three-state, not a boolean.** A credential existing is not a scope being
+  granted — the Phase 4e finding encoded: the Google OAuth client works and
+  `contacts.readonly` was still never added to the consent screen.
+- **Two providers have no read-only scope at all.** Business Profile's `business.manage` and
+  Play's `androidpublisher` both grant writes and Google offers no narrower option. They sit
+  in `write_capable_scopes` with a required mitigation naming *where* the constraint is
+  actually enforced — GET-only at code review, and a restricted Play Console role
+  respectively. My own test caught them mislabelled as read-only. Google Ads declares **no**
+  scope at all for the same reason, and no adapter may be built against it until reviewed.
+- **Quota is `used`/`limit`, never a percentage** — "can I make 400 more calls today" is the
+  only question a caller has, and a percentage cannot answer it. `quotaKnown: false` is
+  distinguishable from `remaining: 0`; those are opposite situations.
+- **A read carries its provider request id or records that it has none.** Absent is a fact;
+  fabricated wastes a support ticket.
+- **Freshness is derived from the provider's own `max_age_seconds`.** Search Console carries
+  an explicit note that its data lags 2-3 days at source, so a fresh cache is not fresh data.
+- Read-only by construction: no write verb exists, no provider call is made, and
+  `get_secret_value` appears nowhere — existence is a `DescribeSecret` question.
+
+**Remaining for 7.1:** the adapters themselves, which cannot be written past a
+`SCOPE_UNVERIFIED` boundary without owner console actions. The `sync/metric boundary` half
+(scheduled sync jobs writing metrics) is still to do and is not blocked — it can be built
+against fixtures.
 
 ### 7.2 — Refactor the Meta Ads/attribution and Wix monoliths · TODO
 
