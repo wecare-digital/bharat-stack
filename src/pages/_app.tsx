@@ -404,7 +404,20 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   '/terms': { name: 'Terms', type: 'WebPage', description: 'Terms of service.' },
   '/privacy': { name: 'Privacy', type: 'WebPage', description: 'How WECARE.DIGITAL handles your data.' },
   '/my-order': { name: 'My Order', type: 'WebPage', description: 'Check the status of an order, delivery, request or booking.' },
-  '/bharat-rx': { name: 'Bharat Rx', type: 'WebPage', description: 'Medicines, consults, reminders and records in one place.' },
+  // Bharat Rx does NOT do medicine retail - the owner confirmed that, and the description
+  // said "Medicines, consults, reminders and records" until then. Structured data that
+  // promises a product the page does not offer is worse than none.
+  '/bharat-rx': { name: 'Bharat Rx', type: 'WebPage', description: 'Consults, appointments, reminders and records in one place.' },
+  // The seven product pages. Descriptions are shorter than the pages' own meta descriptions
+  // on purpose: this feeds WebPage.description in the schema graph, where a sentence is
+  // enough, while the <title>/<meta> pair in ProductPage.tsx does the search-result work.
+  '/elsewhere': { name: 'Elsewhere', type: 'WebPage', description: 'End-to-end travel: visas, bookings and journeys.' },
+  '/expo-week': { name: 'Expo Week', type: 'WebPage', description: 'A virtual travel fair and immersive digital expo.' },
+  '/dastavez': { name: 'Dastavez', type: 'WebPage', description: 'Business documentation and registrations in India.' },
+  '/clear-closure': { name: 'Clear Closure', type: 'WebPage', description: 'Online dispute resolution, fully online.' },
+  '/ritual-guru': { name: 'Ritual Guru', type: 'WebPage', description: 'Curated, temple-grade puja kits.' },
+  '/swdhya': { name: 'Swdhya', type: 'WebPage', description: 'Reflection-led conversations that create clarity and action.' },
+  '/niji-setu': { name: 'Niji Setu', type: 'WebPage', description: 'A QR code people scan to reach you on a masked call.' },
 };
 
 const SITE = 'https://wecare.digital';
@@ -545,7 +558,15 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // /faq and /partners are deliberately ABSENT. stack still lists them because this
   // branch's removal has not landed there yet; both pages were deleted on owner
   // instruction and re-adding the routes here would render blank 200s for them.
-  const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/contact' || router.pathname === '/terms' || router.pathname === '/privacy' || router.pathname === '/my-order' || router.pathname === '/bharat-rx' || isContentPublic;
+  // PUBLIC_PAGE_META is the single list of public marketing routes now. The seven new product
+  // pages made the old inline chain of ORs unreadable and, worse, made it possible to add a
+  // page to the menu and the sitemap while forgetting this one - which renders an empty body
+  // with HTTP 200 and is invisible until someone loads the route. Deriving the allowlist from
+  // the metadata map means a product cannot exist for structured data but not for rendering.
+  const isPublic = router.pathname === '/'
+    || router.pathname === '/contact-test'
+    || Object.prototype.hasOwnProperty.call( PUBLIC_PAGE_META, router.pathname )
+    || isContentPublic;
 
   // trailingSlash is set in next.config.js, so the canonical form of every route except
   // the root carries a trailing slash. A canonical pointing at the slashless URL names

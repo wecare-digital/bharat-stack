@@ -49,6 +49,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import BrandBadge from '../components/BrandBadge';
 import WorkflowTerminal from '../components/WorkflowTerminal';
+import { PRODUCTS } from '../content/products';
+
+/**
+ * The home-page service directory.
+ *
+ * The three originals are listed explicitly because they predate src/content/products.ts and
+ * have hand-written pages of their own; the seven newer products come off that array, so
+ * adding a product does not require remembering this file.
+ */
+const SUITE: Array<{ name: string; blurb: string; href: string }> = [
+  { name: 'Grahak OS', blurb: 'Customer engagement across WhatsApp, SMS, email and voice.', href: '/grahak-os/' },
+  { name: 'VayuLok', blurb: 'Bharat air, pollen and weather intelligence.', href: '/vayulok/' },
+  { name: 'Bharat Rx', blurb: 'Consults and appointments, with records kept in one place.', href: '/bharat-rx/' },
+  ...PRODUCTS.map( p => ( { name: p.name, blurb: p.blurb, href: `/${p.slug}/` } ) ),
+];
 
 // Module scope, not inside the component: the rotation effect reads .length, and a
 // literal declared in the body would make that a changing dependency and force an
@@ -236,6 +251,41 @@ const HomePage: React.FC = () => {
               </ul>
             </div>
           </section>
+
+          {/* THE PAGE USED TO STOP AT THE TERMINAL. The owner's note was that it needed
+              something after the code section to feel complete, and that was right for a
+              structural reason rather than a decorative one: the terminal ends on the claim
+              "many services, one foundation" and the page then offered no way to see the
+              services or reach any of them. The home page had no outbound route to ten
+              product pages that exist.
+
+              A DIRECTORY, NOT AN ANIMATION. There are already two moving things above this -
+              the rotating headline and the streaming panel - and a third would compete with
+              both while adding nothing a visitor can act on. This closes the argument the
+              page makes and then lets someone follow it. It also gives every product page an
+              internal link from the site's strongest page, which is how they get discovered.
+
+              GENERATED FROM src/content/products.ts for the seven products, with the three
+              originals listed explicitly - so a new product appears here automatically rather
+              than being forgotten in an eleventh place. */}
+          <section className="home-suite" aria-labelledby="home-suite-title">
+            <h2 className="home-suite-title" id="home-suite-title">Everything we run</h2>
+            <p className="home-suite-lead">
+              { SUITE.length } services on that one foundation. Each does a single job
+              properly, and you reach all of them with the same account.
+            </p>
+            <ul className="home-suite-grid">
+              { SUITE.map( item => (
+                <li key={ item.href }>
+                  <a className="home-suite-card" href={ item.href }>
+                    <span className="home-suite-name">{ item.name }</span>
+                    <span className="home-suite-desc">{ item.blurb }</span>
+                    <span className="home-suite-go" aria-hidden="true">→</span>
+                  </a>
+                </li>
+              ) ) }
+            </ul>
+          </section>
         </div>
       </main>
       <style jsx>{`
@@ -277,6 +327,54 @@ const HomePage: React.FC = () => {
            22px because these sit inside a sidebar rather than on the page. */
         .home-flow-list strong{display:block;margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.2px;color:#000}
         .home-flow-list span{display:block;font-size:16px;line-height:1.5;color:rgba(0,0,0,.54)}
+
+        /* THE SERVICE DIRECTORY. 96px above it is the same section rhythm .home-layout uses
+           between the hero and the terminal band, so this lands on the existing grid rather
+           than introducing a third spacing value. */
+        .home-suite{margin-top:96px}
+        /* Section h2 on the contract's 700 rung - heavier than the hero h1's 600, which is
+           the inversion the whole site uses. Same clamp as .home-flow-title so the two
+           section headings are siblings. */
+        .home-suite-title{margin:0 0 14px;font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;letter-spacing:-1.2px;color:rgba(0,0,0,.95)}
+        .home-suite-lead{margin:0 0 34px;max-width:640px;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898)}
+
+        /* auto-fit with a 280px floor rather than a fixed column count: ten cards divide
+           badly into any single number, and letting them reflow means no orphan row of one
+           at an awkward width. */
+        .home-suite-grid{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+        /* 1px hairline at rest, per the rule that 1px is static and 2px is hoverable - so the
+           border thickens on hover instead of the box moving, which would reflow the grid.
+           padding-right leaves room for the arrow so long names never collide with it. */
+        .home-suite-card{
+          position:relative;display:flex;flex-direction:column;gap:6px;height:100%;
+          padding:20px 44px 20px 20px;border:1px solid #e5e7eb;border-radius:14px;
+          text-decoration:none;background:#fff;
+          transition:border-color .2s,background-color .2s,transform .2s,box-shadow .2s;
+        }
+        .home-suite-card:hover{border-color:#d1f470;background:rgba(209,244,112,.22);transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.08)}
+        .home-suite-card:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+        /* Card-heading rung: 22px/700/-.25px. */
+        .home-suite-name{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
+        .home-suite-desc{font-size:16px;font-weight:400;line-height:1.5;color:rgba(0,0,0,.54)}
+        /* The arrow slides on hover. Transform only - animating the right property would
+           trigger layout on every frame for what is a 3px move. */
+        .home-suite-go{
+          position:absolute;top:22px;right:18px;font-size:18px;color:#1a3a2a;opacity:.34;
+          transition:opacity .2s,transform .2s;
+        }
+        .home-suite-card:hover .home-suite-go{opacity:1;transform:translateX(3px)}
+
+        @media(prefers-reduced-motion:reduce){
+          .home-suite-card,.home-suite-go{transition:none}
+          .home-suite-card:hover{transform:none}
+          .home-suite-card:hover .home-suite-go{transform:none}
+        }
+
+        @media(max-width:767px){
+          .home-suite{margin-top:64px}
+          .home-suite-lead{font-size:18px}
+          .home-suite-grid{grid-template-columns:1fr}
+        }
 
         @media(max-width:1024px){
           .home-flow{grid-template-columns:minmax(0,1fr);gap:32px}

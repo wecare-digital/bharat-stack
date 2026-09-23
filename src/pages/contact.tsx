@@ -1,6 +1,8 @@
 import React from 'react';
 import Head from 'next/head';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
+import ContactLocation from '../components/ContactLocation';
+import ContactCapabilities from '../components/ContactCapabilities';
 
 /**
  * /contact — the Selfservice entry point.
@@ -52,7 +54,21 @@ const ContactPage: React.FC = () => (
       frame="You can"
       words={ CYCLE_WORDS }
       sub="Every request is tracked end to end, with transparent pricing and one place to check where things stand."
-    />
+    >
+      {/* The map and the postal address. ContactLocation styles itself; styled-jsx
+          cannot reach into it from here, which is why it takes no className. The API key
+          is read from NEXT_PUBLIC_GOOGLE_MAPS_KEY and is not in this repo - see that
+          file's header for why the key still needs a referrer restriction even though it
+          ends up visible in the built page. */}
+      <ContactLocation />
+
+      {/* The arrival stack, named rather than embedded. The owner's map app carries air
+          quality, solar, currency, world time, translation, Street View and West Bengal
+          discovery; putting the whole thing on a contact page would import a second
+          design system and bury the address. This presents it as capability instead,
+          which is what it is. ContactCapabilities styles itself. */}
+      <ContactCapabilities />
+    </RotatingHero>
   </>
 );
 

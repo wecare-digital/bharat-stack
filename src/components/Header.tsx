@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import BrandLockup from './BrandLockup';
+import { PRODUCTS } from '../content/products';
 
 interface HeaderProps {
   homeBrand?: boolean;
@@ -82,6 +83,15 @@ const COLUMNS: NavColumn[] = [
           // product listed beside Grahak OS and VayuLok that landed on a generic
           // marketing page was worse than not listing it.
           { label: 'Bharat Rx', href: '/bharat-rx/', match: '/bharat-rx' },
+          // GENERATED FROM src/content/products.ts, not retyped. Ten products across a menu,
+          // a sitemap allowlist, a structured-data map and seven route files is four places
+          // a name or a slug can disagree; mapping the same array means the menu cannot
+          // list a product that has no page, or miss one that does.
+          ...PRODUCTS.map( p => ( {
+            label: p.name,
+            href: `/${p.slug}/`,
+            match: `/${p.slug}`,
+          } ) ),
         ],
       },
     ],
@@ -137,7 +147,10 @@ const COLUMNS: NavColumn[] = [
       // same category. This heading says who the column is for, which is the honest
       // distinction - Selfservice is for existing customers, this is for prospective
       // referral partners.
-      { heading: 'Work with us', links: [ { label: 'Partners', href: PARTNERS, external: true } ] },
+      // "Refer & Earn", not "Partners", on instruction. It is also the better label: it says
+      // what you get rather than what you become, and the destination is the referral-partner
+      // product page.
+      { heading: 'Work with us', links: [ { label: 'Refer & Earn', href: PARTNERS, external: true } ] },
       { heading: 'Account', links: [ { label: 'Sign in', href: '/access', match: '/access' } ] },
     ],
   },

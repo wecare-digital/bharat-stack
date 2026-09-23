@@ -34,6 +34,16 @@ const PUBLIC_EXACT = new Set( [
   '/privacy',
   '/terms',
   '/vayulok',
+  // The seven product pages. These must stay in step with PUBLIC_PAGE_META in _app.tsx:
+  // a route missing there renders an empty body with HTTP 200, so advertising it here
+  // without it there would put blank pages in front of a crawler.
+  '/clear-closure',
+  '/dastavez',
+  '/elsewhere',
+  '/expo-week',
+  '/niji-setu',
+  '/ritual-guru',
+  '/swdhya',
 ] );
 const PUBLIC_PREFIXES = [ '/post/' ];
 
