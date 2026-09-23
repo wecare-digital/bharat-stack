@@ -10,7 +10,7 @@ import SEO from '../../components/SEO';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
-const SITE_BASE = 'https://www.wecare.digital';
+const SITE_BASE = 'https://wecare.digital';
 const BLOG_PUBLIC_API = `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/seo-tools/blog-public`;
 const ALL_PAGES = [
   '/', '/grahak-os', '/vayulok', '/faq', '/partners', '/blog',
@@ -72,7 +72,7 @@ const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
       const r = await fetch(BLOG_PUBLIC_API);
       if (r.ok) {
         const data = await r.json();
-        blogUrls = (data.posts || []).map((post: any) => `https://www.wecare.digital/post/${post.slug}/`);
+        blogUrls = (data.posts || []).map((post: any) => `https://wecare.digital/post/${post.slug}/`);
         addLog(`Blog posts: ${blogUrls.length}`);
       }
     } catch (e: any) {
@@ -131,7 +131,7 @@ const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
       addLog('  Then POST to /index endpoint');
       addLog('');
       addLog('Meanwhile, Google can crawl the single public sitemap:');
-      addLog('  - https://www.wecare.digital/sitemap.xml');
+      addLog('  - https://wecare.digital/sitemap.xml');
       addLog('');
       addLog('The sitemap is regenerated from the public Amplify export on every build.');
       addLog('Full re-indexing typically takes 3-7 days.');
@@ -139,7 +139,7 @@ const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
 
       // Still useful: ping Google with sitemap notification
       addLog('Pinging Google with sitemap URLs...');
-      const sitemaps = [ 'https://www.wecare.digital/sitemap.xml' ];
+      const sitemaps = [ 'https://wecare.digital/sitemap.xml' ];
       for (const sm of sitemaps) {
         try {
           const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sm)}`;
