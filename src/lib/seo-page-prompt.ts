@@ -13,7 +13,7 @@
  */
 
 const BRAND = 'WECARE.DIGITAL';
-const BASE = 'https://www.wecare.digital';
+const BASE = 'https://wecare.digital';
 const AUTHOR = 'Swdhya Vaksetu';
 const AUTHOR_URL = `${BASE}/swdhya`;
 const LOGO = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';

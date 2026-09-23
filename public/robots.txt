@@ -14,4 +14,4 @@ Disallow: /store/
 Disallow: /task/
 Disallow: /api/
 
-Sitemap: https://www.wecare.digital/sitemap.xml
+Sitemap: https://wecare.digital/sitemap.xml

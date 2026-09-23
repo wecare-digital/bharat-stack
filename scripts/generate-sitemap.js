@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath( import.meta.url );
 const __dirname = path.dirname( __filename );
 
-const SITE_URL = 'https://www.wecare.digital';
+const SITE_URL = 'https://wecare.digital';
 const OUT_DIR = path.join( __dirname, '..', 'out' );
 const OUTPUT_FILE = path.join( OUT_DIR, 'sitemap.xml' );
 

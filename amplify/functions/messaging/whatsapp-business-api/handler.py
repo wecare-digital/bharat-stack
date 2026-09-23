@@ -630,7 +630,7 @@ def _create_catalog_product(body: Dict) -> Dict:
         'currency': currency,
         'availability': (body.get('availability') or 'in stock'),
         'condition': (body.get('condition') or 'new'),
-        'url': (body.get('url') or 'https://www.wecare.digital/'),
+        'url': (body.get('url') or 'https://wecare.digital/'),
         'image_url': (body.get('imageUrl') or body.get('image_url')
                       or 'https://app.wecare.digital/stream/media/m/wecare-digital.png'),
     }

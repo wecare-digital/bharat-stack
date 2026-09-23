@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function BlogIndex ( { posts }: Props ) {
-  const canonical = 'https://www.wecare.digital/blog/';
+  const canonical = 'https://wecare.digital/blog/';
 
   return (
     <>

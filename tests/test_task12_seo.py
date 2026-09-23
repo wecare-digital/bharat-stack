@@ -212,7 +212,7 @@ def test_public_blog_endpoint_returns_only_storage_public_view_without_auth(seo_
     }
     published = [{
         'id': 'blog-1', 'slug': 'hello', 'title': 'Hello', 'status': 'published',
-        'url': 'https://www.wecare.digital/post/hello',
+        'url': 'https://wecare.digital/post/hello',
     }]
     with patch.object(seo_handler.storage, 'list_blog_posts', return_value=published) as posts, \
             patch.object(seo_handler, 'require_auth') as auth:

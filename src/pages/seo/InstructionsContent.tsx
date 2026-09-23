@@ -46,14 +46,14 @@ export default function InstructionsContent () {
   "headline": "Stand: The Practice of Standing With Another",
   "description": "Standing with another is a conscious free choice rooted in responsibility and intentionality—without requiring reciprocity.",
   "keywords": "standing with another, conscious free choice, willingness to be responsible, being in relationship, intentionality",
-  "url": "https://www.wecare.digital/post/stand",
+  "url": "https://wecare.digital/post/stand",
   "image": ["https://app.wecare.digital/stream/media/m/wecare-digital.png"],
   "datePublished": "2025-09-12T00:18:04.958Z",
   "dateModified": "2025-09-12T00:18:04.958Z",
   "wordCount": 75,
-  "author": { "@type": "Person", "name": "Swdhya Vaksetu", "url": "https://www.wecare.digital/swdhya" },
+  "author": { "@type": "Person", "name": "Swdhya Vaksetu", "url": "https://wecare.digital/swdhya" },
   "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL", "logo": { "@type": "ImageObject", "url": "https://app.wecare.digital/stream/media/m/wecare-digital.png" } },
-  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://www.wecare.digital/post/stand" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://wecare.digital/post/stand" },
   "inLanguage": "en-IN",
   "articleSection": "Philosophy of Relationship"
 }
@@ -63,9 +63,9 @@ export default function InstructionsContent () {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wecare.digital/" },
-    { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://www.wecare.digital/blog" },
-    { "@type": "ListItem", "position": 3, "name": "Stand", "item": "https://www.wecare.digital/post/stand" }
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
+    { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://wecare.digital/blog" },
+    { "@type": "ListItem", "position": 3, "name": "Stand", "item": "https://wecare.digital/post/stand" }
   ]
 }
 
@@ -103,10 +103,10 @@ export default function InstructionsContent () {
   "name": "Microservices for Everyday Bharat",
   "description": "Digital services for everyday Bharat — travel, legal, ritual, reflection, and dispute resolution with transparent pricing.",
   "keywords": "digital services India, everyday Bharat, travel support, legal support, WECARE.DIGITAL",
-  "url": "https://www.wecare.digital/",
+  "url": "https://wecare.digital/",
   "image": "https://app.wecare.digital/stream/media/m/wecare-digital.png",
   "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL" },
-  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://www.wecare.digital/" },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://wecare.digital/" },
   "inLanguage": "en-IN"
 }
 
@@ -115,7 +115,7 @@ export default function InstructionsContent () {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": "WECARE.DIGITAL",
-  "url": "https://www.wecare.digital/",
+  "url": "https://wecare.digital/",
   "logo": "https://app.wecare.digital/stream/media/m/wecare-digital.png",
   "email": "one@wecare.digital",
   "telephone": "+91 9330994400",
@@ -127,8 +127,8 @@ export default function InstructionsContent () {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wecare.digital/" },
-    { "@type": "ListItem", "position": 2, "name": "BNB Club", "item": "https://www.wecare.digital/bnb" }
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
+    { "@type": "ListItem", "position": 2, "name": "BNB Club", "item": "https://wecare.digital/bnb" }
   ]
 }
 
@@ -165,7 +165,7 @@ export default function InstructionsContent () {
   "@type": "Product",
   "name": "Partner Up — Activate 4,000+ SKUs",
   "description": "Unlock earnings across 4,000+ SKUs from BNB Club, Expo Week, Legal Champ, No-Fault, Ritual Guru, Swdhya.",
-  "url": "https://www.wecare.digital/product-page/partner-up",
+  "url": "https://wecare.digital/product-page/partner-up",
   "image": "https://static.wixstatic.com/media/6b2d7a_cffca42eb2e7428fb618600456d257d9~mv2.png",
   "brand": { "@type": "Brand", "name": "WECARE.DIGITAL" },
   "offers": {
@@ -173,7 +173,7 @@ export default function InstructionsContent () {
     "price": "4599",
     "priceCurrency": "INR",
     "availability": "https://schema.org/InStock",
-    "url": "https://www.wecare.digital/product-page/partner-up"
+    "url": "https://wecare.digital/product-page/partner-up"
   },
   "inLanguage": "en-IN"
 }
@@ -183,9 +183,9 @@ export default function InstructionsContent () {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wecare.digital/" },
-    { "@type": "ListItem", "position": 2, "name": "Store", "item": "https://www.wecare.digital/store" },
-    { "@type": "ListItem", "position": 3, "name": "Partner Up", "item": "https://www.wecare.digital/product-page/partner-up" }
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
+    { "@type": "ListItem", "position": 2, "name": "Store", "item": "https://wecare.digital/store" },
+    { "@type": "ListItem", "position": 3, "name": "Partner Up", "item": "https://wecare.digital/product-page/partner-up" }
   ]
 }
 
@@ -216,7 +216,7 @@ export default function InstructionsContent () {
   "@type": "WebPage",
   "name": "Your Cart",
   "description": "Review items in your cart before checkout.",
-  "url": "https://www.wecare.digital/cart-page",
+  "url": "https://wecare.digital/cart-page",
   "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL" },
   "inLanguage": "en-IN"
 }

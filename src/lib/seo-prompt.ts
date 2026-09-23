@@ -11,7 +11,7 @@
  */
 
 const BRAND = 'WECARE.DIGITAL';
-const BASE = 'https://www.wecare.digital';
+const BASE = 'https://wecare.digital';
 const LOGO = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
 
 export const SEO_SYSTEM_PROMPT = `You are an expert SEO editor and content strategist for a self-managed headless website. You follow Google's E-E-A-T guidelines and modern technical SEO best practices.
@@ -173,8 +173,8 @@ export function buildUserMessage(post: BlogPostData): string {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.wecare.digital/" },
-        { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://www.wecare.digital/blog" },
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://wecare.digital/" },
+        { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://wecare.digital/blog" },
         { "@type": "ListItem", "position": 3, "name": "Post Title", "item": "post_url" }
       ]
     },

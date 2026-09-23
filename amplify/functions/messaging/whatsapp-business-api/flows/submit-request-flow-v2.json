@@ -167,7 +167,7 @@
             "text": "View your orders",
             "on-click-action": {
               "name": "open_url",
-              "url": "https://www.wecare.digital/orders"
+              "url": "https://wecare.digital/orders"
             }
           },
           {

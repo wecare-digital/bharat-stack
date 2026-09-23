@@ -14,7 +14,7 @@ interface SEOProps {
   ogImage?: string;
 }
 
-const BASE_URL = 'https://stack.wecare.digital';
+const BASE_URL = 'https://wecare.digital';
 const DEFAULT_IMAGE = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
 const SITE_NAME = 'Bharat Stack by WECARE.DIGITAL';
 

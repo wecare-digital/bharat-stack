@@ -20,7 +20,7 @@ SEO_FIELDS = """Return only JSON with: seoTitle, metaDescription, focusKeyword,
 secondaryKeywords (9), jsonLd, metaTags, internalLinks, imageAltText,
 seoScoreBefore, seoScoreAfter, scoreBreakdown, warnings, confidence.
 Titles must be at most 60 characters and descriptions 120-160 characters.
-Use en-IN, https://www.wecare.digital URLs, and factual source content only."""
+Use en-IN, https://wecare.digital URLs, and factual source content only."""
 
 
 def client():

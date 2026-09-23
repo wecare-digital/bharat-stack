@@ -39,7 +39,7 @@ type StatusFilter = 'all' | 'pending' | 'audited' | 'approved' | 'applied';
 const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280' };
 const td: React.CSSProperties = { padding: '6px 10px' };
 const btn: React.CSSProperties = { padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' };
-const BASE = 'https://www.wecare.digital';
+const BASE = 'https://wecare.digital';
 
 const SYSTEM_PAGES: SitePage[] = [
   { path: '/cart-page', name: 'Cart', type: 'system', url: `${BASE}/cart-page`, title: 'Cart', metaDescription: '', keywords: [], jsonLdTypes: [], hasJsonLd: false, canonical: '' },
