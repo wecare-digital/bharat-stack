@@ -379,17 +379,52 @@ Still open, carried into 6.4 / 8.x rather than left implied:
   `ai-config-management`. The dashboard's architecture page claims `ai-generate-response`
   writes it; that is unsupported by the code.
 
-### 6.4 — Reconcile the live Bedrock agent/alias/prepared state · TODO
+### 6.4 — Reconcile the live Bedrock agent/alias/prepared state · DONE (retired)
 
-Rediscover the agent, alias and prepared state; find and fix stale ids.
+**There was nothing to reconcile it to.** 47 tests in `tests/test_bedrock_agent_state.py`.
 
-Already measured during 6.1, 2026-09-23 — start from this rather than re-reading it:
-the account holds **exactly one** agent, `4UUQYFWX64` (`wecare-digital-agent`), status
-**`NOT_PREPARED`**. The action group's docstring named `QIEEHEBTZO` with alias `ASCBD7YPUT`;
-neither exists. That docstring is corrected, but the live state is not: `NOT_PREPARED` means
-nothing can currently invoke the action group through Bedrock at all. It **is** reachable at
-`POST /ai/agent`, which is why `require_auth` in that handler is load-bearing rather than
-belt-and-braces. Check the alias list and any stale id in `ai-config-management` too.
+| Measured | |
+|---|---|
+| agents | 1 — `4UUQYFWX64`, `NOT_PREPARED` |
+| foundationModel | **null** |
+| instruction | **0 characters** |
+| agentResourceRoleArn | **null** |
+| preparedAt | **never** |
+| action groups | **0** |
+| knowledge bases (agent / account) | **0 / 0** |
+| versions / aliases | `DRAFT` only; `TSTALIASID`, the auto-created test alias |
+| last updated | 2026-04-25, five months ago |
+| action group Lambda resource policy | `apigateway.amazonaws.com` only — **no `bedrock.amazonaws.com` principal** |
+
+The agent was created and abandoned. It was never wired to the action group, and Bedrock was
+never granted permission to invoke that Lambda. Preparing it would fail outright: no model,
+no instruction, no role. `config.ts` said it "needs action groups + prepare", which
+understated it.
+
+**Every identifier naming this surface was fabricated, and the live env was worse than the
+source defaults:** `INTERNAL_AGENT_ID=QIEEHEBTZO`, `INTERNAL_AGENT_ALIAS=ASCBD7YPUT`,
+`INTERNAL_KB_ID=D0JU8Q7IQS`, `EXTERNAL_KB_ID=LYMQLKZNY7`, `AI_AGENT_ID=Z4YAK0ZLBO`,
+`AI_AGENT_ALIAS=WANPKHQGIB`. `static-faq` was never an id in any format.
+
+Both consumers were unreachable: `_invoke_bedrock_agent()` had **zero** call sites, and
+`_query_knowledge_base()` was called only from inside it. `whatsapp-calling` referenced its
+three agent variables **nowhere** in source despite all three being set live.
+
+Retired rather than reconciled: 125 lines of unreachable code and the
+`bedrock_agent_runtime` client deleted and replaced by a note carrying the measurement; all
+9 stale vars removed from the 3 live functions **and** the manifest; fabricated defaults in
+`config.ts`, `ai-config-management` (×2), `inbound-whatsapp-handler` and
+`src/types/dashboard.ts` replaced with empty strings, because that config is returned by an
+API and rendered in the dashboard where a plausible id reads as configuration.
+
+Live: 5 functions `Active` (ai-generate-response 12, ai-query-kb 10, whatsapp-calling 17,
+ai-config-management 10, inbound-whatsapp 44), zero stale vars, and Converse still answers —
+"There are 18 contacts in the CRM".
+
+**Owner decision, not a blocker.** Provisioning a real agent is new capability creation:
+model, instructions, IAM role, action group attached, a `bedrock.amazonaws.com` invoke
+permission, a prepare, and a real alias. Nothing needs it. The empty agent stays — deleting
+it is destructive, needs confirmation, and it is inert and free.
 
 ### 7.1 — Shared integration registry + sync/metric boundary · TODO
 
