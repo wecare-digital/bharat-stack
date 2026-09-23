@@ -9,9 +9,31 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 const schema = a.schema( {
   // Table 1: Contacts - Contact records with opt-in preferences
   // Requirement 3.2: Default Block Rule - allowlist fields required
+  // Contact identifier contract (CRM-KEY-001), settled against the live table on
+  // 2026-09-22 rather than from this declaration:
+  //
+  //   stack-wecare-digital-ContactsTable  KeySchema: id (HASH), no sort key
+  //   GSIs: bsuid-index, email-index, phone-index
+  //   13 items, every one carrying BOTH id and contactId, equal in 13 of 13
+  //
+  // In source, 20 files read or write the table and every one uses Key={'id': ...};
+  // there is not a single Key={'contactId': ...}. So `id` is the physical key, the
+  // runtime is correct, and this model previously declared `contactId` as the
+  // identifier - a third version of the truth matching neither the table nor the code.
+  //
+  // `id` is now declared as the identifier to match the deployed table. `contactId` is
+  // retained as an explicit alias because 13 rows carry it and two
+  // `_lookup_contact_by_phone` readers return it, but it is no longer presented as the
+  // key. `lambda_utils/contact_key` owns the invariant that the two agree; before that
+  // module they agreed only by habit, and a diverged row would have made those readers
+  // return a value that resolves to nothing - a message stored against a contact that
+  // cannot be looked up, with no error anywhere.
   Contact: a
     .model( {
-      contactId: a.id().required(),
+      id: a.id().required(),
+      // Alias of `id`, kept for the outward API and the phone-index readers. Writers
+      // must set it via contact_key.contact_item_keys so the two cannot diverge.
+      contactId: a.string(),
       name: a.string(),
       phone: a.string(),
       email: a.string(),
@@ -69,7 +91,11 @@ const schema = a.schema( {
       updatedAt: a.datetime(),
       deletedAt: a.datetime(),
     } )
-    .identifier( [ 'contactId' ] )
+    // `id`, matching the deployed KeySchema. Was `contactId`, which the live table has
+    // never used as its partition key.
+    .identifier( [ 'id' ] )
+    // These three match the deployed GSIs exactly: phone-index, email-index,
+    // bsuid-index. Verified 2026-09-22.
     .secondaryIndexes( ( index ) => [
       index( 'phone' ),
       index( 'email' ),
