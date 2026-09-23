@@ -64,8 +64,36 @@ def rec(monkeypatch):
     r = Recorder()
 
     class FakeTable:
+        """`_persist_cdr` writes with a conditional `update_item`, not `put_item`:
+        all five routes share the row id `plivo#{CallUUID}`, so a blind put let a
+        late mid-call callback delete a completed call's terminal fields. This fake
+        resolves the SET expression so the assertions below still read a row."""
+
         def put_item(self, Item):
             r.cdr.append(Item)
+
+        def update_item(self, Key, UpdateExpression, ExpressionAttributeNames,
+                        ExpressionAttributeValues, ConditionExpression=None):
+            clauses, depth, buf = [], 0, ""
+            for ch in UpdateExpression[4:]:      # strip "SET "
+                depth += (ch == "(") - (ch == ")")
+                if ch == "," and depth == 0:
+                    clauses.append(buf)
+                    buf = ""
+                    continue
+                buf += ch
+            if buf.strip():
+                clauses.append(buf)
+
+            row = {"id": Key["id"]}
+            for clause in clauses:
+                lhs, rhs = clause.split(" = ", 1)
+                name = ExpressionAttributeNames[lhs.strip()]
+                rhs = rhs.strip()
+                if rhs.startswith("if_not_exists("):
+                    rhs = rhs[:-1].split(",")[-1].strip()
+                row[name] = ExpressionAttributeValues[rhs]
+            r.cdr.append(row)
 
     monkeypatch.setattr(pa, "_table", lambda: FakeTable())
     monkeypatch.setattr(pa, "_get_plivo_auth_token", lambda: AUTH_TOKEN)

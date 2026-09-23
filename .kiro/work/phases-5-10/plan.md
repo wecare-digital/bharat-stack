@@ -99,16 +99,47 @@ Two defects found and fixed:
 Live: `/plivo/status` → 404 (was 200 + `<Play>`); all five real paths still reach their auth
 layer, none 404. 37 tests in `tests/test_plivo_routes.py`.
 
-### 5.3 — PSTN call/event model: provision or retire · TODO
+### 5.3 — PSTN call/event model: provision or retire · DONE
 
-`PstnCall`, `PstnCallEvent`, `PstnAgentPresence`, `PstnFlowVersion`, `PstnRecordingAudit`
-are declared in `amplify/data/resource.ts` and **absent from the account**; no Python
-references them. Decide per model: provision it because something will write it, or delete
-the declaration because nothing will. Do not leave five phantom declarations.
+**Retired, not provisioned.** All five declarations and their `backend.ts` TTL entries are
+gone, replaced by a note recording where each concern actually lives.
 
-`VoiceCDRTable` holds 36 real rows — that is the live call record today. Check whether any
-status write there is unconditional, the way `wa_status` / `rcs_status` / `payment_status`
-were.
+The decisive discovery came first: **`amplify/data/resource.ts` has never been deployed.**
+Zero AppSync GraphQL APIs in the account, and no Amplify data CloudFormation stack — the
+only Amplify app, `d22dm4b0jn71jw`, is frontend hosting. Every `stack-wecare-digital-*`
+table exists because a provisioning *script* created it. So the file is a schema document
+that reads like infrastructure, which is exactly how `PstnNotificationDelivery` came to
+cause a real outage: claims raised `ClaimStoreUnavailable` and `/plivo/dial-events`
+answered 503 without sending, while the source looked complete.
+
+Provisioning the five would have created five empty tables with 13 GSIs and no writer.
+Where each concern lives instead: `PstnCall` → `VoiceCDRTable` (the live record, 56 rows,
+written on every callback); `PstnCallEvent` → the ordering problem it was for is now fixed
+in place by `cdrRank`; `PstnAgentPresence` → `PstnSoftphoneSessions` + `pstn/softphone.py`
+from 5.1; `PstnFlowVersion` and `PstnRecordingAudit` → nothing, because there is no flow
+editor and no recording feature.
+
+**The unconditional status write was there, exactly as suspected.** All five `_persist_cdr`
+call sites write the same row id `plivo#{CallUUID}` with a blind `put_item`, so the last
+callback to arrive won the whole item — and `put_item` REPLACES, so `hangupCause`,
+`durationSec` and `end_time` were deleted rather than left alone. A mid-call payload has no
+`Duration`, `_plivo_overall_status` downgrades a zero-duration `completed` to `'Missed'`,
+and `_calculate_stats` counts the answer rate off that field. An answered call would be
+reported as missed.
+
+Latent, not yet fired: 56 of 56 live rows were won by `route='hangup'`. Reachable by
+design though — `_route_dial_events` answers 503 on purpose so Plivo redelivers, and a
+redelivery can land after hangup. It becomes routine the moment browser routing is enabled.
+
+Fixed with `_CDR_ROUTE_RANK` + a conditional `update_item`: merge forward, never lower the
+lifecycle state, equal ranks allowed through (a retried hangup with a corrected
+`BillDuration` must land), and `createdAt` written once via `if_not_exists` because it is
+the sort key for both read paths.
+
+Verified against **real DynamoDB**, not just the fake: rank-10 after rank-40 →
+`ConditionalCheckFailedException`; row still `Answered`/42s/`NORMAL_CLEARING`; equal-rank
+retry landed with `createdAt` unmoved; a field absent from the write survived. Probe row
+deleted, table back to 56. Live v15 (rollback 14).
 
 ### 5.4 — Softphone device matrix, contract-level · TODO
 
@@ -230,4 +261,7 @@ Open, each with a reason, from earlier phases. Fold into the item that touches t
 | `rcsmenu` template id/version `UNVERIFIED` | RCS | LOW |
 | Google redirect URI + `contacts.readonly` consent scope | 4e | WAITING_FOR_OWNER |
 | Truecaller callback registration on developer.truecaller.com | 4e | WAITING_FOR_OWNER |
-| 49 Dependabot alerts (1 critical, 20+ high) | — | HIGH |
+| `amplify/data/resource.ts` is **not deployed** — 0 AppSync APIs, no data stack. 69 models declared, **12 have no table** under any naming, and **19 live tables no model declares**. Reads like infrastructure, is a document | 5.3 | HIGH |
+| 7 remaining phantom models after the 5 PSTN ones: `AdminActionLog` `AirtelC2C` `AirtelSMS` `ProviderDriftSnapshot` `RateLimitTracker` `RcsMessages` `SmsAws`. Airtel is a retired provider; `RcsMessages` already has "write STOPPED" in `rcs-send`; `ProviderDriftSnapshot` has zero writers; `RateLimitTracker`/`SmsAws` look like name drift from the live `RateLimitTable`/`SmsOutboundTable` | 5.3 | MEDIUM |
+| `VoiceCDRTable` has **no GSI** and readers filter in memory after a `Scan`. Fine at 56 rows, not at 56,000 | 5.3 | LOW |
+| 40 Dependabot alerts (1 critical, 20 high, 18 moderate, 1 low) — count re-read from the push warning on 2026-09-23, down from 49 | — | HIGH |
