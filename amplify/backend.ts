@@ -7,7 +7,6 @@ import { addBackendResources } from './backend-resources';
 import { addSeoResources } from './seo-resources';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
 /**
  * WECARE.DIGITAL Admin Platform Backend
@@ -145,13 +144,6 @@ const dedupTable = dynamodb.Table.fromTableName(
   'stack-wecare-digital-WebhookDedup',
 );
 dedupTable.grantWriteData( seoLambda );
-
-const wixApiKey = secretsmanager.Secret.fromSecretNameV2(
-  dataStack,
-  'SeoWixApiKeySecret',
-  'wecare/wix-api-key',
-);
-wixApiKey.grantRead( seoLambda );
 
 seoLambda.addToRolePolicy( new iam.PolicyStatement( {
   actions: [ 'bedrock:InvokeModel' ],
