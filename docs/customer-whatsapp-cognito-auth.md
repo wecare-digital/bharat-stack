@@ -16,12 +16,12 @@ Verified against the live Meta-facing backend on 2026-09-23:
 
 | Item | Value |
 |---|---|
-| Customer WABA | `2513394156072604` |
-| WABA name | `Manish Agarwal` |
-| WhatsApp sender | `+91 99033 00044` |
-| Meta phone-number ID | `1055232054343117` |
+| Customer WABA | `2094615664435155` |
+| WABA name | `WECARE.DIGITAL` |
+| WhatsApp sender | `+91 93309 94400` |
+| Meta phone-number ID | `1016149501586345` |
 | OTP template | `wecare_otp` |
-| Template ID | `913524847974607` |
+| Template ID | `1292079089453029` |
 | Category | `AUTHENTICATION` |
 | Status | `APPROVED` |
 | Language | `en` |
@@ -60,7 +60,7 @@ CRM/message side effects that authentication traffic does not need.
 - OTPs are six digits, expire after 10 minutes, and allow at most three attempts.
 - OTP comparison uses `secrets.compare_digest`.
 - OTPs and complete phone numbers are never logged.
-- The user's `custom:partner_waba_id` must equal `2513394156072604` before
+- The user's `custom:partner_waba_id` must equal `2094615664435155` before
   any OTP is sent. This is the cross-WABA isolation gate.
 - The auth Lambda has no Meta token. Its IAM role can invoke only the existing
   WhatsApp sender Lambda and write its own CloudWatch logs.
