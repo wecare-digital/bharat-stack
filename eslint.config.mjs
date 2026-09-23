@@ -28,12 +28,17 @@ export default [
       '.amplify/**',
       'amplify_outputs.json',
       '**/__pycache__/**',
-      // Vendored third-party reference code (Wix's own Next.js headless examples). It is
-      // here to be READ, not built or shipped, and it is written against Next 13 with a
-      // different lint config. Linting it added exactly 10 errors and 7 warnings to this
-      // repo's count for code nobody here will change - noise that makes the real number
-      // less trustworthy.
-      'docs/reference/**',
+      // NOTE: there was a 'docs/reference/**' ignore here for a vendored copy of Wix's
+      // own Next.js headless examples. That tree has been deleted, so the ignore went
+      // with it rather than being left behind as inert config.
+      //
+      // DO NOT re-add a blanket ignore if you vendor reference code again. That is what
+      // hid the real problem last time: the tree was excluded from ESLint and tsc, so it
+      // looked handled - but CodeQL still scans the whole repository, and it raised a
+      // high-severity "clear text storage of sensitive information" alert on the Wix
+      // demo's localStorage OAuth write, which then blocked a pull request on code that
+      // was never built or shipped. Lint/type exclusions do not make third-party code
+      // invisible to security scanning.
     ],
   },
   ...(Array.isArray(next) ? next : [next]),

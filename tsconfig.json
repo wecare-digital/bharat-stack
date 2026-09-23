@@ -39,7 +39,6 @@
     "node_modules",
     "amplify/**/*",
     ".amplify/**/*",
-    "store/**/*",
-    "docs/reference/**/*"
+    "store/**/*"
   ]
 }
