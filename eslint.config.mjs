@@ -28,6 +28,12 @@ export default [
       '.amplify/**',
       'amplify_outputs.json',
       '**/__pycache__/**',
+      // Vendored third-party reference code (Wix's own Next.js headless examples). It is
+      // here to be READ, not built or shipped, and it is written against Next 13 with a
+      // different lint config. Linting it added exactly 10 errors and 7 warnings to this
+      // repo's count for code nobody here will change - noise that makes the real number
+      // less trustworthy.
+      'docs/reference/**',
     ],
   },
   ...(Array.isArray(next) ? next : [next]),

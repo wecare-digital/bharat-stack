@@ -44,6 +44,12 @@ const PARTNERS = 'https://www.wecare.digital/product-page/referral-partner';
 // constant is referenced rather than inlined so `grep PENDING_HREF` lists exactly
 // what is still outstanding, and Header.test.tsx asserts all seven rows exist so a
 // typo during that edit cannot silently drop one.
+// STILL A PLACEHOLDER, AND NOW A DIFFERENT KIND OF PROBLEM. These rows point at the
+// external Selfservice landing page, which the owner has said is going away. So they
+// currently aim at a URL that is scheduled to stop existing, rather than at a page that
+// merely looks generic. They need four real destinations - Submit Request, Request
+// Amendment, Drop Docs, Leave Review - or they should be dropped from the menu. Flagged
+// rather than guessed: an invented path like /selfservice/submit-request would 404.
 const PENDING_HREF = SELFSERVICE;
 
 // One structure, rendered as columns, rather than the single flat list this used to
@@ -83,8 +89,11 @@ const COLUMNS: NavColumn[] = [
   {
     sections: [
       {
+        // NO headingHref. "Selfservice" is a group label now, not a destination - the
+        // owner's instruction is that there is no Selfservice page, only the items under
+        // it. It previously linked to the external landing page, which made the heading
+        // both a category and a link and gave a visitor two things to click for one idea.
         heading: 'Selfservice',
-        headingHref: SELFSERVICE,
         links: [
           // FAQ removed on request. The local /faq page was already deleted; this
           // drops the menu row too, so there is no FAQ entry point left anywhere.

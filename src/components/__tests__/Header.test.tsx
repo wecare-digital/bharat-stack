@@ -60,8 +60,16 @@ describe( 'Header', () => {
     expect( products ).not.toBeNull();
     expect( products?.textContent ).toContain( 'Bharat Rx' );
 
-    const selfservice = screen.getByRole( 'link', { name: 'Selfservice' } ).closest( '.nav-group' );
+    // Selfservice is found by TEXT, not by role=link. It used to be a link, because the
+    // heading doubled as a link to the external landing page; that page is being retired
+    // and the heading is now a plain group label, so getByRole('link') would throw here.
+    const selfservice = screen.getByText( 'Selfservice' ).closest( '.nav-group' );
+    expect( selfservice ).not.toBeNull();
     expect( selfservice?.textContent ).not.toContain( 'Bharat Rx' );
+
+    // And it must NOT be a link any more - that is the actual requirement, so assert it
+    // rather than leaving it implied by the lookup above happening to work.
+    expect( screen.queryByRole( 'link', { name: 'Selfservice' } ) ).toBeNull();
   } );
 
   it( 'lists Terms and Privacy under a Legal Stuff heading', () => {

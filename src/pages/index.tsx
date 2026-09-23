@@ -217,17 +217,22 @@ const HomePage: React.FC = () => {
             <div className="home-flow-panel">
               <WorkflowTerminal />
             </div>
+            { /* THE COPY FOLLOWS THE PANEL'S NEW SUBJECT. It used to describe an agent -
+                 "work that runs itself", plans, low-confidence results - which together
+                 with the old stream positioned this as an agentic AI product. It is not:
+                 many services run here, they run on one shared foundation, and AI is a
+                 feature inside a few of them rather than the thing being sold. */ }
             <div className="home-flow-copy">
-              <h2 className="home-flow-title" id="home-flow-title">Work that runs itself</h2>
+              <h2 className="home-flow-title" id="home-flow-title">Many services, one foundation</h2>
               <p className="home-flow-lead">
-                Every request is planned, checked and retried without anyone chasing it.
-                The panel is a real workflow: it reads its own configuration, calls the
-                tools it needs, notices when a result is incomplete, and tries again.
+                Messaging, orders, payments, records and support are separate services — but
+                they share one login, one audit trail, one bill and one place to watch them.
+                The panel follows a single customer request through all of it.
               </p>
               <ul className="home-flow-list">
-                <li><strong>Plans before it acts</strong><span>Maps the shortest safe path instead of running every step in order.</span></li>
-                <li><strong>Notices its own gaps</strong><span>A low-confidence result triggers a deeper lookup, not a silent pass.</span></li>
-                <li><strong>Checks before finishing</strong><span>The optimised path is verified, so faster never means less correct.</span></li>
+                <li><strong>Built once, used everywhere</strong><span>Identity, queues, storage and monitoring are the same underneath every service.</span></li>
+                <li><strong>Runs in parallel, not in line</strong><span>Four channels go out at the same time. None of them waits for the others.</span></li>
+                <li><strong>Absorbs failure quietly</strong><span>A carrier outage is retried and delivered without anyone having to notice.</span></li>
               </ul>
             </div>
           </section>

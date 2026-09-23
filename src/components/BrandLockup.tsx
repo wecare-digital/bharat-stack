@@ -21,9 +21,12 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
     {/* Split after the dot, with the dot itself carrying the accent - matching the
         owner's reference lockup, which sets WECARE. on the first line and DIGITAL on
         the second with the full stop picked out in colour.
-        The reference uses red; this uses lime #d1f470, on instruction and because red
-        is not a palette colour and would be the only one on the page. The typeface and
-        weights are ours, not the reference's.
+        The dot is DARK RED, back to the reference. It was lime, and the owner's word for
+        the result was "not viable" - which is the visibility problem, correctly
+        identified: #d1f470 on white measures about 1.4:1, so at 26px a single full stop
+        in it was effectively invisible. Lime is a fill colour on this site, sitting behind
+        #1a3a2a type; it was never going to work AS the mark. #991b1b measures about 7.5:1
+        on white, so the dot is finally legible at the one size it is ever drawn.
         An earlier pass split this as WECARE / .DIGITAL, which put the dot at the head of
         the second line where it reads as a leading separator rather than as the end of
         a sentence. The dot belongs to WECARE. */}
@@ -44,12 +47,10 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
       .brand-lockup img{height:68px;width:auto;border-radius:12px;flex-shrink:0;display:block;object-fit:contain}
       .brand-copy{display:flex;flex-direction:column;justify-content:center;line-height:1.08}
       .brand-copy>span{font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-.4px}
-      /* The accent is on the dot only. Lime on white is far too low-contrast for text,
-         which is why this is deliberately the one glyph that carries it and never a
-         word - the contract pins lime as a FILL behind #1a3a2a type, not as type on
-         white. A full stop is a shape rather than something you read, so it survives
-         the contrast it would fail as a letter. */
-      .brand-dot{color:#d1f470}
+      /* The accent is on the dot only, and it is the one place this site uses red. Kept to
+         a single glyph so it never competes with lime for meaning: lime marks interaction
+         and state, this marks the brand. */
+      .brand-dot{color:#991b1b}
       .brand-stack{display:flex;align-items:center;gap:2px}
       @media(max-width:767px){
         .brand-lockup{gap:8px}

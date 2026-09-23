@@ -13,12 +13,23 @@ import RotatingHero, { type CycleWord } from '../components/RotatingHero';
  * ROUTING: '/bharat-rx' must be in the EXACT-MATCH allowlist in _app.tsx or this renders
  * an empty body with HTTP 200. trailingSlash means the URL is /bharat-rx/.
  *
- * COPY IS DELIBERATELY NON-COMMITTAL ABOUT CLINICAL CLAIMS. Nothing here states what Rx
- * dispenses, diagnoses or advises, because I do not know what the product actually does
- * and a health-adjacent product page is the wrong place to guess. It describes the shape
- * of the service - a request, a professional, a record - which is what the Terms already
- * support in sections 8 and 17. Replace this with the real proposition; it is marked and
- * easy to find.
+ * TWO TRACKS: ORDERING AND CONSULTING. The first version described one generic flow -
+ * send a request, a professional reviews it, track it - which is a consultation and only a
+ * consultation. The owner pointed out that the page said nothing about ordering medicine,
+ * which is correct and was the more important of the two jobs: the hero cycles "medicines"
+ * first, so a visitor arriving to reorder a prescription was promised that and then shown
+ * a booking flow.
+ *
+ * COPY IS STILL NON-COMMITTAL ABOUT CLINICAL CLAIMS. Nothing here states what Rx
+ * diagnoses or advises, because a health-adjacent page is the wrong place to guess.
+ *
+ * ONE STATEMENT NEEDS CONFIRMING, and it is in the note at the foot of the page:
+ * "prescription medicines need a valid prescription and are dispensed by a licensed
+ * pharmacy". I did not invent that to fill space - selling prescription medicines in India
+ * without one is not lawful, so the page cannot describe an ordering flow and stay silent
+ * about it. It is written as the requirement rather than as a claim about a named partner,
+ * which is consistent with how Terms sections 5 and 6 already frame third-party sellers
+ * and providers. Confirm the fulfilment arrangement and make it specific.
  *
  * NO PRODUCT SCHEMA, ON PURPOSE. Grahak OS carries SoftwareApplication because it is a
  * real, describable product with a feature list. Marking this up the same way while the
@@ -44,7 +55,7 @@ const BharatRxPage: React.FC = () => (
       <title>Bharat Rx — WECARE.DIGITAL</title>
       <meta
         name="description"
-        content="Bharat Rx by WECARE.DIGITAL — request medicines, consults, reminders and records in one place, with every request tracked end to end."
+        content="Bharat Rx by WECARE.DIGITAL — order medicines from a prescription with delivery and refill reminders, or book a consult. Orders and records stay in one place."
       />
       <link rel="canonical" key="canonical" href="https://wecare.digital/bharat-rx/" />
     </Head>
@@ -53,49 +64,102 @@ const BharatRxPage: React.FC = () => (
       badgeLabel="Bharat Rx by WECARE.DIGITAL"
       frame="One place for"
       words={ CYCLE_WORDS }
-      sub="Requests go to a qualified professional, and every one is tracked end to end with transparent pricing."
+      sub="Order from a prescription and track it to your door, or book a consult — with transparent pricing on both."
     >
       <section className="brx" aria-label="About Bharat Rx">
-        <h2 className="brx-h2">How it works</h2>
-        <ol className="brx-steps">
-          <li className="brx-step">
-            <span className="brx-step-n">1</span>
-            <div>
-              <strong className="brx-step-t">Send a request</strong>
-              <p className="brx-p">Describe what you need and attach anything relevant — a prescription, a photograph, a previous record.</p>
-            </div>
-          </li>
-          <li className="brx-step">
-            <span className="brx-step-n">2</span>
-            <div>
-              <strong className="brx-step-t">A professional reviews it</strong>
-              <p className="brx-p">Requests that need a qualified opinion get one. What that involves depends on the request, and is set out in section 17 of the Terms.</p>
-            </div>
-          </li>
-          <li className="brx-step">
-            <span className="brx-step-n">3</span>
-            <div>
-              <strong className="brx-step-t">Track it to completion</strong>
-              <p className="brx-p">Status, changes and history stay in one place, alongside every other request you have made.</p>
-            </div>
-          </li>
-        </ol>
+        {/* TWO TRACKS, because ordering medicine and booking a consult are different jobs
+            and the page previously described only the second. The old single list read
+            "send a request, a professional reviews it, track it" - which is a consultation
+            flow, so a visitor who came to reorder a prescription found nothing that looked
+            like their task even though the hero promises medicines first. */}
+        <h2 className="brx-h2">Two things you can do here</h2>
 
-        <a className="brx-cta" href={ SELFSERVICE }>Start a request</a>
+        <div className="brx-tracks">
+          <div className="brx-track">
+            <span className="brx-track-tag">Order medicines</span>
+            <ol className="brx-steps">
+              <li className="brx-step">
+                <span className="brx-step-n">1</span>
+                <div>
+                  <strong className="brx-step-t">Send your prescription or list</strong>
+                  <p className="brx-p">Photograph a prescription, reorder from a past order, or type the items you need.</p>
+                </div>
+              </li>
+              <li className="brx-step">
+                <span className="brx-step-n">2</span>
+                <div>
+                  <strong className="brx-step-t">We confirm price and stock</strong>
+                  <p className="brx-p">You see what is available and what it costs — including substitutes — before you pay.</p>
+                </div>
+              </li>
+              <li className="brx-step">
+                <span className="brx-step-n">3</span>
+                <div>
+                  <strong className="brx-step-t">It reaches your door</strong>
+                  <p className="brx-p">Track the order to delivery, and set a refill reminder for the ones you take regularly.</p>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <div className="brx-track">
+            <span className="brx-track-tag">Book a consult</span>
+            <ol className="brx-steps">
+              <li className="brx-step">
+                <span className="brx-step-n">1</span>
+                <div>
+                  <strong className="brx-step-t">Describe what you need</strong>
+                  <p className="brx-p">Attach anything relevant — a report, a photograph, a previous record.</p>
+                </div>
+              </li>
+              <li className="brx-step">
+                <span className="brx-step-n">2</span>
+                <div>
+                  <strong className="brx-step-t">A professional reviews it</strong>
+                  <p className="brx-p">Requests that need a qualified opinion get one. What that involves is set out in section 17 of the Terms.</p>
+                </div>
+              </li>
+              <li className="brx-step">
+                <span className="brx-step-n">3</span>
+                <div>
+                  <strong className="brx-step-t">Keep the record</strong>
+                  <p className="brx-p">Outcomes, prescriptions and history stay in one place, next to your orders.</p>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        <a className="brx-cta" href={ SELFSERVICE }>Order medicines or book a consult</a>
 
         {/* Health-adjacent service, so the boundary is stated on the page rather than left
             to the Terms. This is not a medical disclaimer written by me - it points at
             the owner's own clauses and says plainly what the page is not. */}
         <p className="brx-note">
-          Bharat Rx coordinates requests and records. It is not a substitute for
-          professional medical advice, diagnosis or treatment, and nothing on this page is
-          advice. In an emergency, contact local emergency services.
+          Prescription medicines need a valid prescription and are dispensed by a licensed
+          pharmacy. Bharat Rx coordinates the order, the consult and the record; it is not a
+          substitute for professional medical advice, diagnosis or treatment, and nothing on
+          this page is advice. In an emergency, contact local emergency services.
         </p>
 
         <style jsx>{`
           /* brx- prefixed. The globally imported src/styles/*.css declares unscoped rules
              for generic names and styled-jsx does not shield a page from them. */
-          .brx{max-width:700px}
+          /* Wider than the old 700px because there are two tracks now. Each column still
+             lands near 46 characters at 20px, inside the 45-75 measure the site holds to. */
+          .brx{max-width:1000px}
+          .brx-tracks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:44px}
+          .brx-track{min-width:0}
+          /* Labels the track without competing with the step headings: the .22 tint again,
+             which is the quiet treatment, not the actionable one. */
+          .brx-track-tag{
+            display:inline-block;margin:0 0 20px;padding:6px 14px;border-radius:50px;
+            background:rgba(209,244,112,.22);color:#1a3a2a;
+            font-size:14px;font-weight:700;letter-spacing:.02em;
+          }
+          @media(max-width:899px){
+            .brx-tracks{grid-template-columns:1fr;gap:38px}
+          }
           /* Section h2 is the contract's 700 rung - HEAVIER than the hero h1's 600. That
              inversion is intentional across the site. */
           .brx-h2{
