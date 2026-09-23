@@ -50,6 +50,20 @@ def record_audit(action: str, actor: Optional[str] = None, resource_type: Option
     now = int(time.time())
     try:
         item = {
+            # `id` is the LIVE table's partition key; `logId` is the alias that
+            # `amplify/data/resource.ts` declares. Both are written from one value so
+            # they cannot diverge - the same physical-key/alias pattern as
+            # lambda_utils.contact_key.
+            #
+            # Until 2026-09-23 only `logId` was set, so every put_item raised
+            # "ValidationException: One of the required keys was not given a value"
+            # and the fail-open except below returned None. Measured: the table held
+            # 0 items, so not one audit record from any of the 17 call sites had ever
+            # been stored. The mismatch exists because resource.ts has never been
+            # deployed - there is no AppSync API or Amplify data stack in the account
+            # - so the live table was created by a script with an `id` key while this
+            # helper was written against the declaration.
+            'id': log_id,
             'logId': log_id,
             'action': action,
             'userId': actor or 'system',
@@ -59,7 +73,10 @@ def record_audit(action: str, actor: Optional[str] = None, resource_type: Option
             'details': json.dumps(mask_secrets(details or {}), default=str)[:8000],
             'expiresAt': now + TTL_DAYS * 24 * 60 * 60,
         }
-        _dynamodb.Table(AUDIT_TABLE).put_item(Item={k: v for k, v in item.items() if v != ''})
+        # Empty values are stripped, but never the keys: a filter that can drop the
+        # partition key is how a write becomes unconditionally invalid.
+        written = {k: v for k, v in item.items() if v != '' or k in ('id', 'logId')}
+        _dynamodb.Table(AUDIT_TABLE).put_item(Item=written)
         return log_id
     except Exception as e:  # noqa: BLE001
         logger.warning('{"event":"audit_write_failed","action":"%s","error":"%s"}' % (action, str(e)[:160]))

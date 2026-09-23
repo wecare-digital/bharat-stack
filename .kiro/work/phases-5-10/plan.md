@@ -242,10 +242,73 @@ Live proof on v11: `sendWhatsApp` to the real QA recipient **refused** with noth
 too; unknown tool refused and lists only the four reads; `getStats` returns 16 contacts /
 204 messages, labelled approximate, with zero scans. No function errors.
 
-### 6.2 — Versioned READ/PLAN/APPLY tool catalog · TODO
+### 6.2 — Versioned READ/PLAN/APPLY tool catalog · DONE
 
-Deploy READ and status tools first, then PLAN/dry-run. **Every APPLY tool stays disabled.**
-Immutable plan hashes, idempotency, receipts, audit, kill switches.
+Live `wecare-agent-action-group` v13 (rollback 12). `lambda_utils/agent/{plans,receipts}.py`
+plus versioning and kill switches in `governance.py`. 65 + 195 tests.
+
+| Requirement | How |
+|---|---|
+| READ + status first | 5 READ tools live, including `listTools` so a model reads the catalog instead of guessing |
+| then PLAN/dry-run | a refused APPLY returns a hashed plan of what it *would* do, plus `nextStep` forbidding the claim that it happened |
+| **every APPLY disabled** | structurally, with **no flag at all** |
+| immutable plan hashes | sha256 over tool + catalog version + canonical arguments |
+| idempotency | key derived from the hash, namespaced `tool#hash` |
+| receipts | every attempt, including refusals, through the existing audit sink |
+| audit | `AuditLogsTable` via `lambda_utils.audit` |
+| kill switches | `AGENT_DISABLED_TOOLS` and `AGENT_TOOLS_KILL_SWITCH` |
+
+Three decisions worth keeping:
+
+- **The timestamp is not in the hash**, so two identical intents hash the same and a retry
+  is idempotent. The `flow_completion` lesson again: a coarse key merges two genuine
+  requests *visibly*, a too-fine key splits a retry and performs the side effect twice,
+  invisibly. Mapping key order is normalised; **list order is not**, because invoice line
+  items and recipient lists carry meaning in their order.
+- **The catalog version IS in the hash.** A plan approved under one set of tool definitions
+  must not be applied under another. That is the whole content of "immutable" here.
+- **Kill switches subtract only.** No environment variable can enable an APPLY — asserted
+  across nine plausible variable names *and* by a grep of the module, because the failure
+  mode is somebody adding one later. A switch that could enable a send is a live-send flag
+  by another name.
+
+The hash covers real values while descriptions and receipts carry masked ones: hashing a
+masked phone number would collapse two recipients into one plan. Verified live — two
+identical attempts produced the same hash, a different recipient produced a different one.
+
+#### Two pre-existing defects found on the way, both fixed
+
+**The audit log had never written a single row.** `AuditLogsTable`'s live key is `id`;
+`lambda_utils.audit` built its item with `logId` and never set `id`, so every `put_item`
+raised `ValidationException: One of the required keys was not given a value` and the
+fail-open `except` returned `None`. Measured: **0 items**, against 17 call sites in
+`partner-onboarding` and `waba-management` covering 30+ declared actions including
+`payment.refund`, `secret.update`, `phone.register` and `dlq.replay`. All silently lost.
+
+Root cause is the 5.3 finding: `resource.ts` declares `.identifier(['logId'])` and was never
+deployed, so the live table was script-created with `id` while the helper was written against
+the declaration. Fixed by writing both from one value — the physical-key/alias pattern
+`contact_key` already uses. Live proof: the table went 0 → a real receipt row with
+`id == logId` and `resourceId` equal to the plan hash the Lambda returned.
+
+**`mask_secrets` had holes, and it feeds persistent storage.** Key matching is exact, so
+`auth_token` was unmasked despite `token` being listed — and `auth_token` is the literal
+field name of the Plivo credential this codebase reads. Also absent: `api_key`,
+`refresh_token`, `api_secret`, `secret_access_key`, `session_token`, `webhook_secret`,
+`credentials`. Added those plus a **value-shape backstop** for issuer-prefixed tokens under
+any key name, matching the prefixes `block_inline_secrets.py` refuses. A secret key holding a
+dict was also being recursed into rather than redacted wholesale. Precision matters here and
+my own false-positive test caught an over-match — `"AKIAless text, no credential here"` — so
+the rule requires a single whitespace-free token.
+
+#### And one of mine
+
+`test_agent_governance.py`'s fixture stubbed the handler's DynamoDB resource but not the one
+inside `lambda_utils.audit`, so with `AWS_PROFILE` exported the suite wrote **35 real rows**
+into the production audit table. Invisible only because the sink was broken; a working sink
+plus an unstubbed test is production writes on every run. Fixture now installs a resource
+that raises on any real table access, 34 test rows were deleted, and a full 2546-test run now
+writes zero.
 
 ### 6.3 — Internal dashboard chatbot on the shared plane · TODO
 

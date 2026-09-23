@@ -50,14 +50,33 @@ Worth recording, because each is invisible until you look at the power itself:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import os
+from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
-# Tool classes. PLAN is declared but unused here; plan item 6.2 introduces
-# dry-run tooling and will populate it.
+# Tool classes.
 CLASS_READ = "READ"
 CLASS_PLAN = "PLAN"
 CLASS_APPLY = "APPLY"
+
+# Catalog version. Bumped by hand when a tool's NAME, CLASS or ENABLEMENT changes -
+# deliberately not on every deploy, and deliberately not a timestamp. A version that
+# moved on each deploy would invalidate every outstanding plan, and a mechanism that
+# invalidates everything weekly gets abandoned within a month.
+#
+# `plans.catalog_fingerprint()` computes the shape independently, so a reclassified
+# tool is caught even if somebody forgets to bump this.
+CATALOG_VERSION = "1"
+
+# Kill switches. They SUBTRACT ONLY.
+#
+# `AGENT_DISABLED_TOOLS` is a comma-separated list of tools to switch off, and
+# `AGENT_TOOLS_KILL_SWITCH` turns everything off. There is deliberately no variable
+# that turns anything ON: a switch able to enable a send is a live-send flag by
+# another name, and the first person to find it under pressure would throw it.
+# `tests/test_agent_plans.py` asserts that across a list of plausible names.
+ENV_DISABLED_TOOLS = "AGENT_DISABLED_TOOLS"
+ENV_KILL_SWITCH = "AGENT_TOOLS_KILL_SWITCH"
 
 # Read bounds. Small on purpose: a "limit" of ten thousand is an exhaustive scan
 # with extra steps, and an agent answering a question does not need every row.
@@ -139,6 +158,10 @@ CATALOG: Dict[str, Tool] = {
     "getStats": Tool(
         name="getStats", tool_class=CLASS_READ, enabled=True,
         summary="Approximate counts of contacts and messages."),
+    "listTools": Tool(
+        name="listTools", tool_class=CLASS_READ, enabled=True,
+        summary=("List the tools available now, and the ones that are refused with "
+                 "the reason. Call this rather than guessing at a tool name.")),
 
     # ---------------- refused: APPLY ----------------
     "sendWhatsApp": Tool(
@@ -209,11 +232,55 @@ def resolve(name: str) -> Tool:
     return CATALOG[key]
 
 
+def killed_tools() -> frozenset:
+    """Tools switched off by the environment, lowercased for comparison.
+
+    Read on every call rather than cached at import: this is an incident-response
+    control, and a value that only takes effect after every warm sandbox recycles is
+    not one. An unrecognised name is ignored, because a typo in an incident variable
+    must not take the working tools down with it.
+    """
+    raw = os.environ.get(ENV_DISABLED_TOOLS, "") or ""
+    return frozenset(part.strip().lower() for part in raw.split(",") if part.strip())
+
+
+def kill_switch_engaged() -> bool:
+    return str(os.environ.get(ENV_KILL_SWITCH, "")).strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def is_enabled(name: str) -> bool:
+    """Whether the tool may run right now.
+
+    Catalog enablement AND the kill switches. The two combine with `and`, never
+    `or` - that is what makes the environment unable to promote a refused tool.
+    """
+    try:
+        tool = resolve(name)
+    except ToolUnknown:
+        return False
+    if not tool.enabled:
+        return False
+    if kill_switch_engaged():
+        return False
+    return tool.name.lower() not in killed_tools()
+
+
 def assert_executable(name: str) -> Tool:
     """The catalog entry, if it may run. Raises `ToolRefused` otherwise."""
     tool = resolve(name)
     if not tool.enabled:
         raise ToolRefused(tool.name, tool.tool_class, tool.refusal)
+    if kill_switch_engaged():
+        raise ToolRefused(
+            tool.name, tool.tool_class,
+            "All agent tools are switched off by the global kill switch. This is "
+            "deliberate and temporary; report it rather than working around it.")
+    if tool.name.lower() in killed_tools():
+        raise ToolRefused(
+            tool.name, tool.tool_class,
+            f"{tool.name} is switched off by the kill switch. This is deliberate "
+            f"and temporary - it is not the same as a tool that is never allowed.")
     return tool
 
 

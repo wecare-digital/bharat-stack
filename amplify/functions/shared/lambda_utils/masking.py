@@ -15,7 +15,56 @@ _SECRET_KEYS = {
     'encrypted_aes_key', 'initial_vector', 'private_key', 'privatekey', 'passphrase',
     'client_encryption_key', 'sip_password', 'password', 'secret', 'client_secret',
     'flow_token', 'flowtoken',
+    # Added 2026-09-23. Every one of these was absent, and this module feeds
+    # `audit.record_audit` and `record_system_event`, so an unmasked value lands in a
+    # persistent DynamoDB row rather than a log line that rotates.
+    #
+    # `auth_token` is the sharpest of them: it is the literal field name of the
+    # Plivo account credential this codebase reads from Secrets Manager, and having
+    # `token` in the list did not cover it, because matching is exact.
+    'api_key', 'apikey', 'auth_token', 'authtoken', 'auth_id', 'authid',
+    'refresh_token', 'refreshtoken', 'api_secret', 'apisecret',
+    'secret_access_key', 'secretaccesskey', 'session_token', 'sessiontoken',
+    'webhook_secret', 'webhooksecret', 'credentials', 'bearer',
 }
+
+# Value-shape backstop. Issuer-prefixed credentials are redacted under ANY key name,
+# because no key list can cover a field called `notes` or `detail`.
+#
+# Deliberately the same prefixes that scripts/block_inline_secrets.py refuses on a
+# command line, and high-precision for the same reason: a noisy mask gets switched
+# off, or makes the audit trail unreadable so nobody consults it. Like that hook, it
+# will NOT catch an arbitrary high-entropy string with no issuer prefix - it is a
+# backstop, not a substitute for keeping credentials out of a details dict.
+_ISSUER_PREFIXES = (
+    'sk-', 'sk_live_', 'sk_test_', 'pk_live_', 'rzp_live_', 'rzp_test_',
+    'AIza', 'ghp_', 'gho_', 'ghu_', 'ghs_', 'ghr_', 'xoxb-', 'xoxp-', 'xoxa-',
+    'AKIA', 'ASIA', 'shpat_', 'shpss_', 'glpat-',
+)
+# Long enough that a real token matches and a prose fragment such as "SK-1001" or a
+# sentence beginning "AKIAless" does not.
+_ISSUER_MIN_LENGTH = 20
+_PEM_MARKER = '-----BEGIN'
+
+
+def _looks_like_a_credential(value: Any) -> bool:
+    """A single issuer-prefixed token, or a PEM private key block.
+
+    The whitespace rule is what makes this precise rather than merely eager. A
+    credential is one opaque token and never contains a space, whereas prose that
+    happens to begin with an issuer prefix does - "AKIAless text, no credential here"
+    matched on a prefix-and-length check alone, which is why that assertion exists.
+    """
+    if not isinstance(value, str):
+        return False
+    stripped = value.strip()
+    if _PEM_MARKER in stripped and 'PRIVATE KEY' in stripped:
+        return True
+    if len(stripped) < _ISSUER_MIN_LENGTH:
+        return False
+    if any(c.isspace() for c in stripped):
+        return False
+    return stripped.startswith(_ISSUER_PREFIXES)
 # Keys treated as phone/WA id (partial mask)
 _PHONE_KEYS = {
     'phone', 'phonenumber', 'phone_number', 'wa_id', 'recipient_id', 'from', 'to',
@@ -38,8 +87,10 @@ def _mask_tail(value: str, keep: int = 4) -> str:
 
 
 def mask_value(key: str, value: Any) -> Any:
-    k = (key or '').lower()
+    k = (key or '').lower().replace('-', '_')
     if k in _SECRET_KEYS:
+        return _FULL
+    if _looks_like_a_credential(value):
         return _FULL
     if isinstance(value, str):
         if k in _PHONE_KEYS:
@@ -54,7 +105,10 @@ def mask_secrets(obj: Any) -> Any:
     if isinstance(obj, dict):
         out = {}
         for k, v in obj.items():
-            kl = (k or '').lower()
+            kl = (k or '').lower().replace('-', '_')
+            # Checked BEFORE recursing, so a secret key holding a dict or a list is
+            # redacted wholesale rather than walked into. `{'credentials': {...}}`
+            # previously recursed and emitted the contents.
             if kl in _SECRET_KEYS:
                 out[k] = _FULL
             elif isinstance(v, (dict, list)):
@@ -64,6 +118,9 @@ def mask_secrets(obj: Any) -> Any:
         return out
     if isinstance(obj, list):
         return [mask_secrets(i) for i in obj]
+    # A bare issuer-shaped string, e.g. an element of a list.
+    if _looks_like_a_credential(obj):
+        return _FULL
     return obj
 
 
