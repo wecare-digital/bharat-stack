@@ -7,26 +7,69 @@ interface Props {
   posts: PublicBlogPost[];
 }
 
+/**
+ * STRUCTURED DATA IS DECLARED HERE, not in _app.tsx.
+ *
+ * This route is in `isContentPublic`, and _app.tsx renders its shared <Head> behind
+ * `!isContentPublic` - so the Organization, WebSite, WebPage and BreadcrumbList graph
+ * every other public route gets is deliberately suppressed on /blog/ and /post/[slug]/,
+ * to stop two components emitting competing canonicals. The consequence went unnoticed:
+ * /blog/ is in the sitemap and indexable but shipped ZERO JSON-LD, while the structured
+ * data checker only looked at six hardcoded routes and never asked about this one.
+ *
+ * THE GRAPH IS SELF-CONTAINED ON PURPOSE. It cannot reference the shared nodes by @id -
+ * `#website` and `#organization` are defined in the <Head> that is suppressed here, so
+ * pointing at them would emit references that resolve to nothing, which is worse than
+ * omitting them. Publisher is therefore inlined.
+ */
 export default function BlogIndex ( { posts }: Props ) {
   const canonical = 'https://wecare.digital/blog/';
+  const DESCRIPTION = 'Ideas, guides and updates from WECARE.DIGITAL.';
+
+  const schema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Blog',
+        '@id': `${canonical}#blog`,
+        url: canonical,
+        name: 'WECARE.DIGITAL Blog',
+        description: DESCRIPTION,
+        inLanguage: 'en-IN',
+        publisher: { '@type': 'Organization', name: 'WECARE.DIGITAL', url: 'https://wecare.digital' },
+        breadcrumb: { '@id': `${canonical}#breadcrumb` },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        '@id': `${canonical}#breadcrumb`,
+        // The tail must be the canonical, slash included, or the breadcrumb describes a
+        // URL that redirects. trailingSlash is on for this export.
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://wecare.digital/' },
+          { '@type': 'ListItem', position: 2, name: 'Blog', item: canonical },
+        ],
+      },
+    ],
+  };
 
   return (
     <>
       <Head>
         <title>Blog | WECARE.DIGITAL</title>
-        <meta name="description" content="Ideas, guides and updates from WECARE.DIGITAL." />
+        <meta name="description" content={ DESCRIPTION } />
         <link rel="canonical" href={ canonical } />
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Blog | WECARE.DIGITAL" />
-        <meta property="og:description" content="Ideas, guides and updates from WECARE.DIGITAL." />
+        <meta property="og:description" content={ DESCRIPTION } />
         <meta property="og:url" content={ canonical } />
         <meta name="robots" content="index, follow, max-image-preview:large" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( schema ) } } />
       </Head>
       <main className="blog-shell">
         <section className="blog-hero">
           <p className="eyebrow">WECARE.DIGITAL</p>
           <h1>Blog</h1>
-          <p>Ideas, guides and updates published from Bharat Stack.</p>
+          <p>Ideas, guides and updates published by the WECARE.DIGITAL team.</p>
         </section>
 
         { posts.length > 0 ? (

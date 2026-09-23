@@ -16,13 +16,35 @@ const SITE_URL = 'https://wecare.digital';
 const OUT_DIR = path.join( __dirname, '..', 'out' );
 const OUTPUT_FILE = path.join( OUT_DIR, 'sitemap.xml' );
 
+// EXPLICIT ALLOWLIST, deliberately - the export also contains the authenticated
+// dashboard, so scanning for every index.html would leak those into a public sitemap.
+// Anything added here must be a real public route AND in the isPublic allowlist in
+// _app.tsx, or it will 200 with an empty body.
+//
+// /faq and /partners were removed: both pages were deleted on owner instruction, so
+// those entries described URLs that no longer build. /terms and /privacy carry real
+// published documents now and are indexable, so they belong here.
 const PUBLIC_EXACT = new Set( [
   '/',
+  '/bharat-rx',
   '/blog',
-  '/faq',
+  '/contact',
   '/grahak-os',
-  '/partners',
+  '/my-order',
+  '/privacy',
+  '/terms',
   '/vayulok',
+  // The seven product pages. These must stay in step with PUBLIC_PAGE_META in _app.tsx:
+  // a route missing there renders an empty body with HTTP 200, so advertising it here
+  // without it there would put blank pages in front of a crawler.
+  '/clear-closure',
+  '/dastavez',
+  '/elsewhere',
+  '/expo-week',
+  '/niji-setu',
+  // Renamed from '/swdhya'. Kept in alphabetical order with the rest, so it moved position.
+  '/open-possibility',
+  '/ritual-guru',
 ] );
 const PUBLIC_PREFIXES = [ '/post/' ];
 

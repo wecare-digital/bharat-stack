@@ -27,7 +27,7 @@ import BrandBadge from './BrandBadge';
 // "Target signature provides too few arguments. Expected 1 or more, but got 0."
 const AuthBrandHeader = (): React.JSX.Element => (
   <div className="authbrand">
-    <BrandBadge label="Bharat Stack by WECARE.DIGITAL" />
+    <BrandBadge label="WECARE.DIGITAL" />
     <style jsx>{`
       /* Centred, because the form beneath it is centred - left-aligning it would
          hang the pill off the card's left edge. The 20px below is what lets the

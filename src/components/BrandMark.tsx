@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * The Bharat Stack / WECARE.DIGITAL mark, inlined.
+ * The WECARE.DIGITAL / WECARE.DIGITAL mark, inlined.
  *
  * Source: https://app.wecare.digital/stream/media/m/wecare-digital.svg
  * That file cannot be used through an img tag here, for two reasons that both live

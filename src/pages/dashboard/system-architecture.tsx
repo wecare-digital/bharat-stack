@@ -615,7 +615,7 @@ const BOT_MENU: BotMenuItem[] = [
   { row: 4, section: 'Start Here', icon: '💳', title: 'Make a Payment', description: 'Pay an invoice or complete a pending payment', action: 'Opens payment lookup' },
   { row: 5, section: 'Explore WECARE', icon: '🛍️', title: 'Explore Store', description: 'Browse services, brands, and offers', action: 'CTA link → wecare.digital' },
   { row: 6, section: 'Explore WECARE', icon: '🎁', title: 'Gift Cards', description: 'Send a digital gift card', action: 'CTA link → wecare.digital/gift-card' },
-  { row: 7, section: 'Explore WECARE', icon: '🇮🇳', title: 'Bharat Stack', description: 'Discover Bharat Stack and services', action: 'Info text + evolving services' },
+  { row: 7, section: 'Explore WECARE', icon: '🇮🇳', title: 'WECARE.DIGITAL', description: 'Discover WECARE.DIGITAL and services', action: 'Info text + evolving services' },
   { row: 8, section: 'Help & Answers', icon: '❓', title: 'FAQs', description: 'Find answers to common questions', action: 'CTA link → wecare.digital/faq' },
   { row: 9, section: 'Help & Answers', icon: '💛', title: 'About WECARE.DIGITAL', description: 'Learn more about WECARE.DIGITAL', action: 'CTA link → wecare.digital' },
 ];

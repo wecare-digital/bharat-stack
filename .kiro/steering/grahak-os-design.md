@@ -187,10 +187,14 @@ at `right:96px; bottom:16px` with its width capped against `calc(100vw - 108px)`
 ## Routing traps
 
 - `next.config.js` sets `trailingSlash: true` → URLs need the trailing slash.
-- `src/pages/_app.tsx:382` has an **exact-match** public route allowlist:
-  `router.pathname === '/' || '/grahak-os' || '/contact-test' || '/faq' || '/partners'`.
+- `src/pages/_app.tsx` has an **exact-match** public route allowlist (search for
+  `const isPublic` — the line number has moved twice, so do not trust one here):
+  `router.pathname === '/' || '/grahak-os' || '/vayulok' || '/contact-test'`.
   Any other route renders an empty body with HTTP 200. Add new public pages there
-  or they will look like a 404 that isn't one.
+  or they will look like a 404 that isn't one. `/faq` and `/partners` were removed
+  from this list when both pages were deleted in favour of absolute links to
+  `www.wecare.digital` — re-adding a local route for either is what would make
+  those links look broken again.
 - `_app.tsx` returns `null` until `mounted`, so the static export ships an **empty
   body** for `/grahak-os/`. All JSON-LD and meta are invisible to non-JS crawlers.
   Known, unaddressed.

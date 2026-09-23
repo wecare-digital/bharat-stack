@@ -18,7 +18,7 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).toContain( 'className="hero-cycle"' );
   } );
 
-  it( 'uses the approved Bharat Stack lime and dark green color system', () => {
+  it( 'uses the approved WECARE.DIGITAL lime and dark green color system', () => {
     expect( source ).toContain( '.phone-header{background:#1a3a2a' );
     expect( source ).toContain( '.avatar{width:40px;height:40px;background:#1a3a2a' );
     expect( source ).toContain( '.verified-badge{width:22px;height:22px;background:#1a3a2a' );

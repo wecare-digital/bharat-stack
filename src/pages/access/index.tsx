@@ -30,11 +30,11 @@ const AccessPage: React.FC<PageProps> = ({ user }) => {
   return (
     <>
       <Head>
-        <title>Access | Bharat Stack by WECARE.DIGITAL</title>
+        <title>Access | WECARE.DIGITAL</title>
       </Head>
       <div className="acp-wrap">
         <div className="acp-card">
-          <BrandBadge label="Bharat Stack by WECARE.DIGITAL" />
+          <BrandBadge label="WECARE.DIGITAL" />
           <p className="acp-note">Redirecting to your dashboard…</p>
         </div>
         <style jsx>{`

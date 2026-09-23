@@ -123,17 +123,17 @@ response = requests.post(
     <>
       <Head>
         <title>Grahak OS by WECARE.DIGITAL - Customer Engagement Platform</title>
-        <meta name="description" content="Grahak OS is the customer engagement product in Bharat Stack by WECARE.DIGITAL, unifying WhatsApp, SMS, Email, Voice, automation and customer data in one experience." />
+        <meta name="description" content="Grahak OS is the customer engagement product in WECARE.DIGITAL, unifying WhatsApp, SMS, Email, Voice, automation and customer data in one experience." />
         <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications" />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://stack.wecare.digital/grahak-os/" />
+        <meta property="og:url" content="https://wecare.digital/grahak-os/" />
         <meta property="og:title" content="Grahak OS - Customer Engagement Platform | WECARE.DIGITAL" />
         <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
         <meta property="og:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
-        <meta property="og:site_name" content="Bharat Stack by WECARE.DIGITAL" />
+        <meta property="og:site_name" content="WECARE.DIGITAL" />
         <meta property="og:locale" content="en_IN" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content="https://stack.wecare.digital/grahak-os/" />
+        <meta name="twitter:url" content="https://wecare.digital/grahak-os/" />
         <meta name="twitter:title" content="Grahak OS - Customer Engagement Platform" />
         <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
         <meta name="twitter:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
@@ -145,7 +145,7 @@ response = requests.post(
         <meta name="language" content="English" />
         <meta name="geo.region" content="IN" />
         <meta name="geo.placename" content="India" />
-        <link rel="canonical" href="https://stack.wecare.digital/grahak-os/" />
+        <link rel="canonical" key="canonical" href="https://wecare.digital/grahak-os/" />
         <meta name="theme-color" content="#000000" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -160,56 +160,34 @@ response = requests.post(
         <link rel="preconnect" href="https://img.icons8.com" />
         <link rel="dns-prefetch" href="https://img.icons8.com" />
         
-        {/* Structured Data - Organization */}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "Organization",
-          "name": "WECARE.DIGITAL",
-          "alternateName": "Bharat Stack",
-          "url": "https://wecare.digital",
-          "logo": "https://app.wecare.digital/stream/media/m/wecaredigital.png",
-          "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
-          "foundingDate": "2020",
-          "sameAs": ["https://www.linkedin.com/company/wecare-digital"],
-          "contactPoint": {
-            "@type": "ContactPoint",
-            "contactType": "customer service",
-            "url": "https://wecare.digital/contact",
-            "availableLanguage": ["English", "Hindi"]
-          },
-          "address": { "@type": "PostalAddress", "addressCountry": "IN" }
-        })}} />
-        
-        {/* Structured Data - Software Application */}
+        {/* Structured Data - PAGE-SPECIFIC ONLY.
+            This page used to emit a second Organization, a second FAQPage and a second
+            WebSite on top of the five site-level entities _app.tsx already renders -
+            nine blocks with four duplicated types, including two WebSite entities with
+            DIFFERENT names and different SearchActions. Google's guidelines do not
+            allow conflicting duplicate entities for one page, and two WebSite nodes
+            claiming to be the site is exactly that.
+
+            Removed here: Organization and WebSite (site-level, owned by _app.tsx) and
+            FAQPage (Google stopped showing FAQ rich results on 2026-05-07, and it
+            duplicated the sitewide copy anyway).
+
+            Kept: SoftwareApplication, because it is genuinely about THIS product rather
+            than the platform, and it carries the richer featureList. @id is set so it
+            is a distinct node from the platform-level one and the two cannot be read as
+            contradicting each other. */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
+          "@id": "https://wecare.digital/grahak-os/#software",
           "name": "Grahak OS by WECARE.DIGITAL",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web Browser",
+          "url": "https://wecare.digital/grahak-os/",
+          "publisher": { "@id": "https://wecare.digital/#organization" },
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
-          "description": "Customer engagement product in Bharat Stack with WhatsApp Business API, SMS, Email, Voice, customer data and AI automation.",
-          "featureList": ["WhatsApp Business API", "Bulk Messaging", "SMS API", "Email Marketing", "Voice Calls", "Razorpay Payments", "AI Responses", "Analytics"],
-        })}} />
-        
-        {/* Structured Data - FAQ */}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          "mainEntity": [
-            { "@type": "Question", "name": "What is Grahak OS?", "acceptedAnswer": { "@type": "Answer", "text": "Grahak OS is the customer engagement product in Bharat Stack, unifying customer data and multi-channel communication across WhatsApp, SMS, Email, and Voice." }},
-            { "@type": "Question", "name": "How to send bulk WhatsApp messages?", "acceptedAnswer": { "@type": "Answer", "text": "Upload contacts, create templates, and send promotional or transactional messages to thousands of customers via WhatsApp Business API." }},
-            { "@type": "Question", "name": "Does it support WhatsApp payments?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, Grahak OS supports payment workflows through the existing Bharat Stack integrations." }}
-          ]
-        })}} />
-        
-        {/* Structured Data - WebSite with SearchAction */}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          "name": "Grahak OS by WECARE.DIGITAL",
-          "url": "https://stack.wecare.digital/grahak-os/",
-          "potentialAction": { "@type": "SearchAction", "target": "https://stack.wecare.digital/contacts?q={search_term_string}", "query-input": "required name=search_term_string" }
+          "description": "Customer engagement product in WECARE.DIGITAL with WhatsApp Business API, SMS, Email, Voice, customer data and AI automation.",
+          "featureList": ["WhatsApp Business API", "Bulk Messaging", "SMS API", "Email Marketing", "Voice Calls", "Razorpay Payments", "AI Responses", "Analytics"]
         })}} />
       </Head>
       
@@ -225,7 +203,7 @@ response = requests.post(
                   to carry the spacing, since that is the one thing the page rather
                   than the component should decide. */}
               <div className="hero-eyebrow">
-                <BrandBadge label="Grahak OS · by Bharat Stack" />
+                <BrandBadge label="Grahak OS · by WECARE.DIGITAL" />
               </div>
               <h1>
                 Reach customers<br />across{ ' ' }
@@ -270,7 +248,12 @@ response = requests.post(
                     <span className="back-arrow"></span>
                     <div className="avatar">W</div>
                     <div className="contact-info">
-                      <span className="contact-name">WECARE.DIGITAL</span>
+                      {/* A company name, not copy. Without this the translation
+                          widget rewrote it, so the mock WhatsApp thread showed a
+                          Tamil rendering of "WECARE.DIGITAL" as the business name -
+                          which is exactly the sender a real customer would be
+                          checking to see they are talking to the right company. */}
+                      <span className="contact-name" data-wc-no-translate="true">WECARE.DIGITAL</span>
                       <span className="contact-status">online</span>
                     </div>
                     <div className="verified-badge"></div>
@@ -304,7 +287,11 @@ response = requests.post(
                 <div className="code-box">
                   <div className="code-header">
                     <div className="dots"><span className="dot-red"></span><span className="dot-yellow"></span><span className="dot-green"></span></div>
-                    <span className="file-name">send_message.py</span>
+                    {/* A filename. The code body below is already safe because
+                        LanguageBar skips CODE and PRE, but this title sits outside
+                        those tags and was being translated - a Tamil send_message.py
+                        is not a file anyone can open. */}
+                    <span className="file-name" data-wc-no-translate="true">send_message.py</span>
                   </div>
                   {/* The full, real call - not an abbreviation. An earlier pass cut
                       this down to fit a 248px panel, which lost the assignment, the

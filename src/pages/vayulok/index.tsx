@@ -1,6 +1,6 @@
 /**
  * VayuLok public product page
- * Bharat Air Intelligence, by Bharat Stack
+ * Bharat Air Intelligence, by WECARE.DIGITAL
  *
  * DELIBERATELY CLEAR. The page is the tag and the rotating line beneath it, nothing
  * else. That is the owner's call, and it also happens to be the honest one: nothing
@@ -112,9 +112,9 @@ const VayuLokPage: React.FC = () => {
   return (
     <>
       <Head>
-        <title>VayuLok by Bharat Stack</title>
-        <meta name="description" content="VayuLok - Bharat Air Intelligence, by Bharat Stack." />
-        <link rel="canonical" href="https://stack.wecare.digital/vayulok/" />
+        <title>VayuLok by WECARE.DIGITAL</title>
+        <meta name="description" content="VayuLok - Bharat Air Intelligence, by WECARE.DIGITAL." />
+        <link rel="canonical" key="canonical" href="https://wecare.digital/vayulok/" />
       </Head>
 
       <main className="vl-shell" aria-label="VayuLok">
@@ -123,7 +123,7 @@ const VayuLokPage: React.FC = () => {
               pills cannot drift apart. The wrapper carries the spacing because
               styled-jsx cannot style a composite component from here. */}
           <div className="vl-eyebrow">
-            <BrandBadge label="VayuLok by Bharat Stack" />
+            <BrandBadge label="VayuLok by WECARE.DIGITAL" />
           </div>
 
           <h1 className="vl-head">
@@ -161,8 +161,14 @@ const VayuLokPage: React.FC = () => {
 
       <style jsx>{`
         /* Header is fixed at 108px, 96px under 767px - the same offsets the home
-           page uses, so the two public shells start at the same place. */
-        .vl-shell{min-height:calc(100vh - 69px);padding-top:108px;box-sizing:border-box;background:#fff}
+           page uses, so the two public shells start at the same place.
+           The font stack is declared rather than inherited, matching .page on
+           /grahak-os/ and .home-shell. This page did already render in Inter, but
+           only via the body rule in @aws-amplify/ui-react's styles.css - so the
+           typeface of a public marketing page depended on an auth library's CSS
+           import order. Pages.css's --font-sans has no Inter in it, so nothing here
+           would have fallen back to the right face. */
+        .vl-shell{min-height:calc(100vh - 69px);padding-top:108px;box-sizing:border-box;background:#fff;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a}
         /* No flex gap: the only gap in the page is under the badge and .vl-eyebrow
            owns it. A column gap would apply to nothing and quietly mislead whoever
            adds the second element. */
