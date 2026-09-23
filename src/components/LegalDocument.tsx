@@ -47,6 +47,30 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated
   const topLevel = sections.filter( s => !s.number.includes( '.' ) );
   const hasSummaries = sections.some( s => s.inShort );
 
+  /**
+   * HOW MANY ROWS THE CONTENTS RAIL HAS TO SPAN, counted from the children that actually
+   * land in column 1.
+   *
+   * The rail used to declare grid-row:1/-1 in CSS, which looks right and is not. Line -1
+   * resolves against the EXPLICIT row grid, and .lgd only ever declares
+   * grid-template-columns - so the explicit row grid has a single line, -1 resolves back
+   * to line 1, and "1 / -1" collapses to a one-row span. The rail then sat in row 1 and
+   * its 740px height inflated that row, leaving "Last updated" alone at the top of it and
+   * a measured 719px hole above the first paragraph. Every assertion still passed, because
+   * the suite checked the reading column width and the deep-link offset but never the
+   * vertical distance between two children.
+   *
+   * Counted rather than given a large magic span so it stays exact if the document grows:
+   * the updated line, one row per intro paragraph, the notice, the summaries disclaimer,
+   * and one row per section.
+   */
+  const columnOneRows =
+    1
+    + intro.length
+    + ( notice ? 1 : 0 )
+    + ( hasSummaries ? 1 : 0 )
+    + sections.length;
+
   return (
     <div className="lgd">
       <p className="lgd-updated">Last updated { updated }</p>
@@ -70,7 +94,10 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated
         </p>
       ) }
 
-      <nav className="lgd-toc" aria-label="Contents">
+      { /* gridRow is inline because it depends on the document's length, which CSS cannot
+           count. Harmless below 1100px, where .lgd is not a grid and the property is
+           ignored. */ }
+      <nav className="lgd-toc" aria-label="Contents" style={ { gridRow: `1 / span ${columnOneRows}` } }>
         <h2 className="lgd-toc-title">Contents</h2>
         <ol className="lgd-toc-list">
           { topLevel.map( s => (
@@ -144,12 +171,13 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated
              Matching the shape of the rule it has to beat is what fixes it. */
           /* Sticky at 128px, the same offset the sections use for scroll-margin, so the
              rail sits level with whatever heading a contents link just jumped to.
-             grid-row:1/-1 makes its area the full document height, which is what gives
-             sticky something to travel inside. max-height keeps 45 entries reachable on
-             a short laptop screen rather than running off the bottom unscrollable. */
+             The row span comes from an inline style, not from here - see columnOneRows in
+             the component. It has to cover every row so the rail's grid area is the full
+             document height, which is what gives sticky something to travel inside.
+             max-height keeps 45 entries reachable on a short laptop screen rather than
+             running off the bottom unscrollable. */
           .lgd > .lgd-toc{
             grid-column:2;
-            grid-row:1 / -1;
             position:sticky;top:128px;
             margin:0;
             max-height:calc(100vh - 160px);

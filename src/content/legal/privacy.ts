@@ -27,7 +27,13 @@
  *
  * STILL NEEDS A LAWYER for two things I could not resolve by editing: the DPDP Act 2023
  * requires a named Data Protection Officer or equivalent contact, and consent notices
- * must be itemised per purpose. Both are noted in section 23.
+ * should be itemised per purpose. Both need a decision from the business and its counsel.
+ *
+ * THAT NOTE BELONGS HERE AND NOWHERE ELSE. It was briefly written into section 23 as a
+ * rendered paragraph beginning "PENDING LEGAL REVIEW", which published an internal
+ * engineering to-do inside the policy itself - telling every reader, and any regulator who
+ * opened the page, that the document was known to be incomplete. Open questions about a
+ * legal document go in this comment, which ships in the repo and not on the page.
  */
 
 import type { LegalSection } from './types';
@@ -338,7 +344,6 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       'For any question, request or complaint about your personal data, contact our Privacy and Grievance Desk: email one@wecare.digital, or call +91 9330994400. Our postal address is in section 24.',
       'We may ask for enough information to verify your identity or authority before acting on a request.',
       'If you are not satisfied with our response, you keep any right you have to approach a data-protection authority, board, regulator, court or other lawful forum. Using our grievance process first is not a precondition.',
-      'PENDING LEGAL REVIEW: under the Digital Personal Data Protection Act 2023 this section should also name a Data Protection Officer or equivalent contact, and consent notices should be itemised per purpose. Both need a decision from the business and its counsel; neither can be resolved by editing this text.',
     ],
   },
   {
