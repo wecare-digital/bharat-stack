@@ -68,7 +68,7 @@ def _load_wix_api_key() -> str:
         except Exception as e:
             logger.warning(f'Wix API key: explicit Secrets Manager load failed: {e}')
     if not key:
-        key = os.environ.get('WIX_API_KEY', '')
+        raise RuntimeError('Wix Headless API credentials are not configured')
     _wix_key_cache['key'] = key
     return key
 S3_PREFIX = 'stack/store/products'
