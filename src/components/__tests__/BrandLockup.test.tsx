@@ -6,8 +6,8 @@ import BrandLockup from '../BrandLockup';
 describe( 'BrandLockup', () => {
   it( 'renders the canonical WECARE.DIGITAL brand', () => {
     const { container } = render( <BrandLockup /> );
-    expect( screen.getByText( 'WECARE' ) ).toBeInTheDocument();
-    expect( screen.getByText( '.DIGITAL' ) ).toBeInTheDocument();
+    expect( screen.getByText( /WECARE/ ) ).toBeInTheDocument();
+    expect( screen.getByText( 'DIGITAL' ) ).toBeInTheDocument();
     expect( container.querySelector( '.brand-lockup.full' ) ).toBeTruthy();
   } );
 

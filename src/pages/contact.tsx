@@ -44,7 +44,7 @@ const ContactPage: React.FC = () => (
         name="description"
         content="Submit a request, amend or track an existing one, drop documents, or leave a review."
       />
-      <link rel="canonical" href="https://stack.wecare.digital/contact/" />
+      <link rel="canonical" key="canonical" href="https://stack.wecare.digital/contact/" />
     </Head>
     <RotatingHero
       ariaLabel="Contact WECARE.DIGITAL"

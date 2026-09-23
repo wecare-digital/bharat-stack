@@ -29,6 +29,7 @@ import Footer from '../components/Footer';
 import { ToastProvider } from '../contexts/ToastContext';
 import { ConfirmProvider } from '../contexts/ConfirmContext';
 import { initCapacitor, isNative } from '../lib/capacitor';
+import { VERIFICATION } from '../config/analytics';
 
 // Configure Amplify — all secrets from env vars
 Amplify.configure( {
@@ -184,6 +185,10 @@ const authTheme: Theme = {
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
+  // Stable @id so other nodes - the WebSite, the per-page WebPage, and the
+  // product-level SoftwareApplication on /grahak-os - can reference this one entity
+  // instead of restating it and risking a conflicting copy.
+  "@id": "https://stack.wecare.digital/#organization",
   "name": "WECARE.DIGITAL",
   "alternateName": "WECARE.DIGITAL",
   "url": "https://wecare.digital",
@@ -257,6 +262,7 @@ const softwareSchema = {
 const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
+  "@id": "https://stack.wecare.digital/#website",
   "name": "WECARE.DIGITAL",
   "alternateName": "WECARE.DIGITAL",
   "url": "https://stack.wecare.digital",
@@ -265,14 +271,13 @@ const websiteSchema = {
     "@type": "Organization",
     "name": "WECARE.DIGITAL"
   },
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": {
-      "@type": "EntryPoint",
-      "urlTemplate": "https://stack.wecare.digital/contacts?q={search_term_string}"
-    },
-    "query-input": "required name=search_term_string"
-  },
+  // SearchAction REMOVED. It declared the sitelinks search box, which Google removed
+  // from Search on 2024-11-21 and whose documentation was deleted a month later -
+  // Google's own guidance is that the markup does not need removing but will not be
+  // used. It was also pointing at https://stack.wecare.digital/contacts?q=, an
+  // AUTHENTICATED dashboard route, so it advertised a search endpoint that returns a
+  // login wall to anyone not signed in. Wrong on both counts, so it is gone rather
+  // than left as inert weight.
   "inLanguage": "en-IN"
 };
 
@@ -320,11 +325,15 @@ const faqSchema = {
 const serviceSchema = {
   "@context": "https://schema.org",
   "@type": "Service",
+  "@id": "https://stack.wecare.digital/#service",
+  // `name` was missing. It is a required property on Service, and without it the
+  // entity describes a serviceType with nothing to call it - a validator reports it and
+  // Google has no label to attach.
+  "name": "WECARE.DIGITAL customer engagement services",
   "serviceType": "WhatsApp Business API Platform",
-  "provider": {
-    "@type": "Organization",
-    "name": "WECARE.DIGITAL"
-  },
+  // Reference, not a restatement: the full Organization is declared once with this
+  // @id, so repeating its properties here is what creates conflicting copies.
+  "provider": { "@id": "https://stack.wecare.digital/#organization" },
   "areaServed": {
     "@type": "Country",
     "name": "India"
@@ -365,7 +374,73 @@ const serviceSchema = {
   }
 };
 
-// Breadcrumb schema for internal pages
+/**
+ * Per-route WebPage + BreadcrumbList for the PUBLIC pages, as a single @graph.
+ *
+ * Why this exists: every public page was emitting the same five site-level entities
+ * and nothing that identified the page itself, so Google had no per-URL description of
+ * the site's hierarchy. Breadcrumbs are the supported signal for that.
+ *
+ * Deliberately NOT a sitelinks search box - see the note on websiteSchema. Google
+ * removed that feature in November 2024.
+ *
+ * /contact uses ContactPage, which is the correct schema.org type for it. The rest are
+ * WebPage. Anything not listed falls back to a bare WebPage with no breadcrumb, which
+ * is correct for the home page: a breadcrumb whose only entry is the page you are on
+ * says nothing.
+ */
+const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description: string }> = {
+  '/grahak-os': { name: 'Grahak OS', type: 'WebPage', description: 'Customer engagement across WhatsApp, SMS, Email and Voice.' },
+  '/vayulok': { name: 'VayuLok', type: 'WebPage', description: 'Bharat air and weather intelligence.' },
+  '/contact': { name: 'Contact', type: 'ContactPage', description: 'Submit, amend or track a request, drop documents, or leave a review.' },
+  '/terms': { name: 'Terms', type: 'WebPage', description: 'Terms of service.' },
+  '/privacy': { name: 'Privacy', type: 'WebPage', description: 'How WECARE.DIGITAL handles your data.' },
+};
+
+const SITE = 'https://stack.wecare.digital';
+
+const getPublicPageSchema = ( pathname: string ) => {
+  const meta = PUBLIC_PAGE_META[ pathname ];
+  if ( !meta ) {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      '@id': `${SITE}/#webpage`,
+      url: `${SITE}/`,
+      name: 'WECARE.DIGITAL',
+      isPartOf: { '@id': `${SITE}/#website` },
+      inLanguage: 'en-IN',
+    };
+  }
+  // trailingSlash is set, so the canonical URL carries the slash. Breadcrumb items
+  // must match the canonical or they describe a URL that redirects.
+  const url = `${SITE}${pathname}/`;
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': meta.type,
+        '@id': `${url}#webpage`,
+        url,
+        name: meta.name,
+        description: meta.description,
+        isPartOf: { '@id': `${SITE}/#website` },
+        inLanguage: 'en-IN',
+        breadcrumb: { '@id': `${url}#breadcrumb` },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        '@id': `${url}#breadcrumb`,
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE}/` },
+          { '@type': 'ListItem', position: 2, name: meta.name, item: url },
+        ],
+      },
+    ],
+  };
+};
+
+// Breadcrumb schema for internal (authenticated) pages
 const getBreadcrumbSchema = ( pageName: string, pageUrl: string ) => ( {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
@@ -453,6 +528,13 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // body with HTTP 200 — a 404 that does not look like one — so every new public
   // route has to be added here as well as created under src/pages.
   const isPublic = router.pathname === '/' || router.pathname === '/grahak-os' || router.pathname === '/vayulok' || router.pathname === '/contact-test' || router.pathname === '/contact' || router.pathname === '/terms' || router.pathname === '/privacy';
+
+  // trailingSlash is set in next.config.js, so the canonical form of every route except
+  // the root carries a trailing slash. A canonical pointing at the slashless URL names
+  // a location that 308-redirects, which is a contradictory signal.
+  const canonicalUrl = router.pathname === '/'
+    ? `${SITE}/`
+    : `${SITE}${router.pathname}/`;
   const showPublicWhatsApp = router.pathname === '/' || router.pathname === '/grahak-os';
 
   useEffect( () => {
@@ -525,11 +607,36 @@ export default function App ( { Component, pageProps }: AppProps ) {
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="icon" href={ FAVICON_URL } />
           <link rel="apple-touch-icon" href={ LOGO_URL } />
-          <link rel="canonical" href="https://stack.wecare.digital/" />
+          {/* CANONICAL AND og:url ARE COMPUTED, and carry a key.
+              Both were hardcoded to the site root, on every page. The result was that
+              /contact/, /terms/, /privacy/, /grahak-os/ and /vayulok/ each shipped TWO
+              canonical tags - this root one first, then the page's own correct one -
+              which is ambiguous, and the most likely reading is that every page is a
+              duplicate of the homepage. That alone would keep those URLs from ranking,
+              and sitelinks with them. /contact-test had no canonical at all.
+              key="canonical" is what makes this safe to keep here: next/head dedupes by
+              key and a page's Head is processed after _app's, so a page that sets its
+              own canonical overrides this one instead of adding a second. Routes that
+              set none now inherit a correct value rather than pointing at the root. */}
+          <link rel="canonical" key="canonical" href={ canonicalUrl } />
+
+          {/* Search Console / Bing Webmaster ownership.
+              Rendered only when the env value is set. An empty content="" tag is worse
+              than no tag: verification fails either way, but an empty one looks
+              configured and stops anyone looking for the cause.
+              Note the Bing property is registered as https://www.wecare.digital/ - the
+              www apex, not stack.wecare.digital - so verifying this host may need a
+              second property added there. */}
+          { VERIFICATION.google && (
+            <meta name="google-site-verification" content={ VERIFICATION.google } />
+          ) }
+          { VERIFICATION.bing && (
+            <meta name="msvalidate.01" content={ VERIFICATION.bing } />
+          ) }
 
           {/* Open Graph */ }
           <meta property="og:type" content="website" />
-          <meta property="og:url" content="https://stack.wecare.digital/" />
+          <meta property="og:url" key="og:url" content={ canonicalUrl } />
           <meta property="og:title" content="WECARE.DIGITAL - WhatsApp Business API Platform | WECARE.DIGITAL" />
           <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
           <meta property="og:image" content={ LOGO_URL } />
@@ -561,12 +668,34 @@ export default function App ( { Component, pageProps }: AppProps ) {
           <meta name="mobile-web-app-capable" content="yes" />
           <link rel="manifest" href="/manifest.json" />
 
-          {/* Structured Data */ }
+          {/* Structured Data.
+              SITE-LEVEL ENTITIES ONLY, emitted once. Google's structured data
+              guidelines require the markup to represent the page's actual content, and
+              a page must not carry two conflicting copies of the same entity.
+
+              faqSchema is GONE from here. Two reasons, either of which is sufficient:
+              Google stopped showing FAQ rich results on 2026-05-07 and is dropping the
+              search appearance and Rich Results Test support, so it earns nothing; and
+              it was emitted on EVERY public page, including /terms, /privacy, /contact
+              and /vayulok, none of which contain an FAQ. Marking up content that is not
+              on the page is a guidelines violation, not merely useless.
+
+              A per-route BreadcrumbList and WebPage are added below instead. Those are
+              still supported, and breadcrumbs are the part of this that actually helps
+              Google understand site hierarchy. */}
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( organizationSchema ) } } />
-          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( softwareSchema ) } } />
+          {/* The PLATFORM-level SoftwareApplication is emitted everywhere EXCEPT
+              /grahak-os, which declares its own product-level one. Both together put
+              two SoftwareApplication entities on a single page, which leaves Google to
+              guess which application the page is actually about. The product page wins
+              there because it is the more specific claim; every other page keeps the
+              platform entity. */}
+          { router.pathname !== '/grahak-os' && (
+            <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( softwareSchema ) } } />
+          ) }
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( websiteSchema ) } } />
-          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( faqSchema ) } } />
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( serviceSchema ) } } />
+          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( getPublicPageSchema( router.pathname ) ) } } />
         </Head>
         {/* Google Analytics 4 (G-S3G6REP6Q7) */ }
         <Script src={ `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}` } strategy="afterInteractive" />

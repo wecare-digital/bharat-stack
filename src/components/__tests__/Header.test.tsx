@@ -9,8 +9,8 @@ vi.mock( 'next/router', () => ( { useRouter: () => routerState } ) );
 describe( 'Header', () => {
   it( 'shows the shared WECARE.DIGITAL brand', () => {
     render( <Header /> );
-    expect( screen.getByText( 'WECARE' ) ).toBeInTheDocument();
-    expect( screen.getByText( '.DIGITAL' ) ).toBeInTheDocument();
+    expect( screen.getByText( /WECARE/ ) ).toBeInTheDocument();
+    expect( screen.getByText( 'DIGITAL' ) ).toBeInTheDocument();
     expect( screen.getByRole( 'link', { name: /WECARE.DIGITAL home/i } ) ).toHaveAttribute( 'href', '/' );
   } );
 

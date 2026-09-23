@@ -303,8 +303,12 @@ const WorkflowTerminal: React.FC = () => {
            dots and lime, instead of macOS #ff5f57/#febc2e/#28c840. */
         .wt-bar{height:47px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 15px;background:#fafafa;border-bottom:1px solid #e5e7eb}
         .wt-light{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
-        .wt-red{background:#dc2626}
-        .wt-amber{background:#f0a818}
+        /* LIME AND NEUTRALS ONLY, on instruction. The window lights were red/amber/lime
+           borrowed from macOS; the first two are the only warm hues on the page and they
+           pulled the eye to chrome rather than to content. Two neutral alphas plus one
+           lime keeps the traffic-light shape and reads as ours. */
+        .wt-red{background:rgba(255,255,255,.22)}
+        .wt-amber{background:rgba(255,255,255,.40)}
         .wt-lime{background:#d1f470}
         .wt-bar-title{margin-left:8px;color:rgba(0,0,0,.54);font-size:11px}
         .wt-bar-state{margin-left:auto;display:flex;align-items:center;gap:7px;color:rgba(0,0,0,.42);font-size:10px}
@@ -355,12 +359,16 @@ const WorkflowTerminal: React.FC = () => {
         .wt-results{margin-top:10px;display:flex;flex-wrap:wrap;gap:7px}
         .wt-chip{padding:5px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:5px;color:rgba(255,255,255,.54);font-size:10px}
         .wt-chip.is-ok{color:#d1f470;border-color:rgba(209,244,112,.34)}
-        .wt-chip.is-warn{color:#f0a818;border-color:rgba(240,168,24,.3)}
+        /* A warning is carried by weight, not by a second hue: brighter text on a
+           brighter border, still neutral, so lime stays the only colour in the panel. */
+        .wt-chip.is-warn{color:rgba(255,255,255,.88);border-color:rgba(255,255,255,.34)}
 
         .wt-diff{margin-top:11px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:7px;font-size:10px}
         .wt-diff-title{padding:8px 11px;color:rgba(255,255,255,.42);border-bottom:1px solid rgba(255,255,255,.14)}
         .wt-diff-line{padding:5px 11px;line-height:1.55;white-space:nowrap;overflow-x:auto}
-        .wt-diff-line.is-del{color:#dc2626;background:rgba(220,38,38,.08)}
+        /* Removed lines read as struck-through and dimmed rather than red - the minus
+           sign and the strike already say "deleted" without spending a hue on it. */
+        .wt-diff-line.is-del{color:rgba(255,255,255,.48);background:rgba(255,255,255,.03);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.3)}
         .wt-diff-line.is-add{color:#d1f470;background:rgba(209,244,112,.08)}
         .wt-diff-sign{display:inline-block;width:17px;opacity:.7}
 

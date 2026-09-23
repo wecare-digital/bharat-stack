@@ -145,7 +145,7 @@ response = requests.post(
         <meta name="language" content="English" />
         <meta name="geo.region" content="IN" />
         <meta name="geo.placename" content="India" />
-        <link rel="canonical" href="https://stack.wecare.digital/grahak-os/" />
+        <link rel="canonical" key="canonical" href="https://stack.wecare.digital/grahak-os/" />
         <meta name="theme-color" content="#000000" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -160,56 +160,34 @@ response = requests.post(
         <link rel="preconnect" href="https://img.icons8.com" />
         <link rel="dns-prefetch" href="https://img.icons8.com" />
         
-        {/* Structured Data - Organization */}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "Organization",
-          "name": "WECARE.DIGITAL",
-          "alternateName": "WECARE.DIGITAL",
-          "url": "https://wecare.digital",
-          "logo": "https://app.wecare.digital/stream/media/m/wecaredigital.png",
-          "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
-          "foundingDate": "2020",
-          "sameAs": ["https://www.linkedin.com/company/wecare-digital"],
-          "contactPoint": {
-            "@type": "ContactPoint",
-            "contactType": "customer service",
-            "url": "https://www.wecare.digital/contact",
-            "availableLanguage": ["English", "Hindi"]
-          },
-          "address": { "@type": "PostalAddress", "addressCountry": "IN" }
-        })}} />
-        
-        {/* Structured Data - Software Application */}
+        {/* Structured Data - PAGE-SPECIFIC ONLY.
+            This page used to emit a second Organization, a second FAQPage and a second
+            WebSite on top of the five site-level entities _app.tsx already renders -
+            nine blocks with four duplicated types, including two WebSite entities with
+            DIFFERENT names and different SearchActions. Google's guidelines do not
+            allow conflicting duplicate entities for one page, and two WebSite nodes
+            claiming to be the site is exactly that.
+
+            Removed here: Organization and WebSite (site-level, owned by _app.tsx) and
+            FAQPage (Google stopped showing FAQ rich results on 2026-05-07, and it
+            duplicated the sitewide copy anyway).
+
+            Kept: SoftwareApplication, because it is genuinely about THIS product rather
+            than the platform, and it carries the richer featureList. @id is set so it
+            is a distinct node from the platform-level one and the two cannot be read as
+            contradicting each other. */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
+          "@id": "https://stack.wecare.digital/grahak-os/#software",
           "name": "Grahak OS by WECARE.DIGITAL",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web Browser",
+          "url": "https://stack.wecare.digital/grahak-os/",
+          "publisher": { "@id": "https://stack.wecare.digital/#organization" },
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
           "description": "Customer engagement product in WECARE.DIGITAL with WhatsApp Business API, SMS, Email, Voice, customer data and AI automation.",
-          "featureList": ["WhatsApp Business API", "Bulk Messaging", "SMS API", "Email Marketing", "Voice Calls", "Razorpay Payments", "AI Responses", "Analytics"],
-        })}} />
-        
-        {/* Structured Data - FAQ */}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          "mainEntity": [
-            { "@type": "Question", "name": "What is Grahak OS?", "acceptedAnswer": { "@type": "Answer", "text": "Grahak OS is the customer engagement product in WECARE.DIGITAL, unifying customer data and multi-channel communication across WhatsApp, SMS, Email, and Voice." }},
-            { "@type": "Question", "name": "How to send bulk WhatsApp messages?", "acceptedAnswer": { "@type": "Answer", "text": "Upload contacts, create templates, and send promotional or transactional messages to thousands of customers via WhatsApp Business API." }},
-            { "@type": "Question", "name": "Does it support WhatsApp payments?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, Grahak OS supports payment workflows through the existing WECARE.DIGITAL integrations." }}
-          ]
-        })}} />
-        
-        {/* Structured Data - WebSite with SearchAction */}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          "name": "Grahak OS by WECARE.DIGITAL",
-          "url": "https://stack.wecare.digital/grahak-os/",
-          "potentialAction": { "@type": "SearchAction", "target": "https://stack.wecare.digital/contacts?q={search_term_string}", "query-input": "required name=search_term_string" }
+          "featureList": ["WhatsApp Business API", "Bulk Messaging", "SMS API", "Email Marketing", "Voice Calls", "Razorpay Payments", "AI Responses", "Analytics"]
         })}} />
       </Head>
       

@@ -33,7 +33,7 @@ const TermsPage: React.FC = () => (
     <Head>
       <title>Terms — WECARE.DIGITAL</title>
       <meta name="description" content="Terms of service for WECARE.DIGITAL." />
-      <link rel="canonical" href="https://stack.wecare.digital/terms/" />
+      <link rel="canonical" key="canonical" href="https://stack.wecare.digital/terms/" />
       {/* Not indexed while the text is a placeholder. An indexed empty terms page is
           worse than no terms page: it is the document a customer or a payment provider
           would be pointed at. Remove this when LEGAL_SECTIONS is filled. */}

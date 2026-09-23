@@ -41,7 +41,7 @@ const PrivacyPage: React.FC = () => (
     <Head>
       <title>Privacy — WECARE.DIGITAL</title>
       <meta name="description" content="How WECARE.DIGITAL handles your data." />
-      <link rel="canonical" href="https://stack.wecare.digital/privacy/" />
+      <link rel="canonical" key="canonical" href="https://stack.wecare.digital/privacy/" />
       {/* noindex while the text is a placeholder. An indexed empty privacy policy is
           the document a regulator or an app store would be pointed at. Remove this
           when POLICY_SECTIONS is filled. */}

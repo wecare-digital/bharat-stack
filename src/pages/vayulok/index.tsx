@@ -114,7 +114,7 @@ const VayuLokPage: React.FC = () => {
       <Head>
         <title>VayuLok by WECARE.DIGITAL</title>
         <meta name="description" content="VayuLok - Bharat Air Intelligence, by WECARE.DIGITAL." />
-        <link rel="canonical" href="https://stack.wecare.digital/vayulok/" />
+        <link rel="canonical" key="canonical" href="https://stack.wecare.digital/vayulok/" />
       </Head>
 
       <main className="vl-shell" aria-label="VayuLok">
