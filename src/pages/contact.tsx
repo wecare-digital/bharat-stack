@@ -56,10 +56,10 @@ const ContactPage: React.FC = () => (
       sub="Every request is tracked end to end, with transparent pricing and one place to check where things stand."
     >
       {/* The map and the postal address. ContactLocation styles itself; styled-jsx
-          cannot reach into it from here, which is why it takes no className. The API key
-          is read from NEXT_PUBLIC_GOOGLE_MAPS_KEY and is not in this repo - see that
-          file's header for why the key still needs a referrer restriction even though it
-          ends up visible in the built page. */}
+          cannot reach into it from here, which is why it takes no className. The map is
+          keyless - it needs no Google credential at all, so nothing has to be restricted,
+          rotated or kept out of the built page. See that file's header for the measured
+          reason the query is plain text rather than a place_id. */}
       <ContactLocation />
 
       {/* The arrival stack, named rather than embedded. The owner's map app carries air

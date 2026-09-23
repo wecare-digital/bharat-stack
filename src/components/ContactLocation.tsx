@@ -16,31 +16,46 @@ import React from 'react';
  * language onto a marketing page. What the owner asked for was the map in OUR design,
  * followed by the address, and that is what this is.
  *
- * THE API KEY IS NOT IN THIS FILE OR THIS REPO. The supplied HTML hard-coded the same
- * Google key four times, for Maps, Weather, Air Quality and Solar. It is read from
- * NEXT_PUBLIC_GOOGLE_MAPS_KEY instead.
+ * NO API KEY, AND THEREFORE NO KEY IN THE PAGE SOURCE. This used to build a Maps Embed
+ * API url (maps/embed/v1/place) from NEXT_PUBLIC_GOOGLE_MAPS_KEY, which had two problems.
+ * The owner asked for the map to render INLINE with no redirection out to Google, and the
+ * keyed version could not: with no key configured it rendered a panel that linked to
+ * Google instead of a map, because an Embed API iframe without a key paints a Google
+ * error page inside our frame. And NEXT_PUBLIC_ with output:'export' inlines the value
+ * into the built HTML, so the key was going to be publicly readable in the page source
+ * and would have needed referrer-locking and its own embed-only key to stay un-abusable.
  *
- * Note what NEXT_PUBLIC_ honestly means here: with output:'export' the value is inlined
- * into the built HTML at build time, so it IS publicly visible in the page source. That
- * is unavoidable and normal - any browser that renders a Google map can read the key
- * used to render it. The protection is therefore NOT secrecy, it is a restriction: set
- * an HTTP-referrer allowlist on the key in Google Cloud Console (wecare.digital/*,
- * stack.wecare.digital/*) and enable only the Maps Embed API on it. An unrestricted key
- * in a public page is billable by anyone who copies it.
+ * It now uses the legacy keyless endpoint - maps?q=...&output=embed - which needs no
+ * credential, no billing account and no rotation. The map always renders. Nobody is sent
+ * to Google to see where we are.
  *
- * USE A SEPARATE, EMBED-ONLY KEY. Do not reuse the key that also carries Weather, Air
- * Quality and Solar: those are server-side APIs that cannot be referrer-restricted, so
- * publishing that key would expose three paid APIs rather than one.
+ * THE TRADE-OFF, STATED: that endpoint is long-lived and very widely used but it is NOT
+ * formally documented by Google, so it carries no compatibility promise the way the Embed
+ * API does. If it is ever withdrawn the frame goes blank and the address block below it
+ * keeps working. /projects/pwtest/mapprobe.js is the canary - it asserts the frame paints
+ * street-level tiles AND names Kolkata, so a silent regression is caught rather than
+ * discovered by a visitor.
  *
- * IT DEGRADES INSTEAD OF BREAKING. With no key configured the iframe is not rendered at
- * all - an Embed API iframe without a key paints a Google error page inside our frame,
- * which looks worse than not having a map. The address, plus code, phone, email and a
- * keyless Google Maps link all still work, so the page keeps doing its actual job.
+ * THE QUERY FORM IS MEASURED, NOT GUESSED. Four forms were tested in a real framed
+ * browser. place_id: syntax LOOKS right and returns HTTP 200 with a full set of map
+ * tiles, but this endpoint does not parse it and silently renders the entire planet. The
+ * plain-text business query below is the only one that resolves our actual Google
+ * Business listing, so the pin is labelled WECARE.DIGITAL and carries the verified
+ * address. Do not "tidy" this into a place_id.
  */
 
-// The verified Google Place for WECARE.DIGITAL. Taken from the owner's own map config,
-// and the same id the sitemap-adjacent structured data uses.
+// The verified Google Place for WECARE.DIGITAL. Still used for the keyless deep links
+// below, where place_id IS honoured - it is only the embed endpoint that ignores it.
 const PLACE_ID = 'ChIJQTvOovt3AjoRitCdl0-xHJk';
+
+/**
+ * The exact query string measured to resolve our business listing on the keyless embed.
+ * Mirrored in /projects/pwtest/mapprobe.js as SHIPPED_QUERY.
+ */
+const MAP_QUERY = 'WECARE.DIGITAL, Phears Lane, Kolkata 700012';
+
+/** z=17 is building level: the lane is named and the block is legible without panning. */
+const EMBED_URL = `https://maps.google.com/maps?q=${encodeURIComponent( MAP_QUERY )}&z=17&output=embed`;
 
 const ADDRESS_LINES = [
   'The W.B.S.I.D.C. Building',
@@ -55,39 +70,35 @@ const PHONE_DISPLAY = '+91 93309 94400';
 const PHONE_HREF = '+919330994400';
 const EMAIL = 'one@wecare.digital';
 
-/** Keyless. Any Google Maps client resolves a place_id query without credentials. */
+/**
+ * Keyless deep link for turn-by-turn directions. The /maps/dir/ endpoint DOES honour
+ * place_id (unlike the embed endpoint above), so this pins the exact verified premises
+ * rather than a geocoded guess at the street.
+ *
+ * This is the one link in the section that leaves the site, and it is deliberate: it is an
+ * explicit "Get directions" button a visitor chooses to press, not the map being replaced
+ * by a redirect. Seeing where we are costs no navigation; routing to us needs a maps app.
+ */
 const DIRECTIONS_URL = `https://www.google.com/maps/dir/?api=1&destination=WECARE.DIGITAL&destination_place_id=${PLACE_ID}`;
-const PLACE_URL = `https://www.google.com/maps/search/?api=1&query=WECARE.DIGITAL&query_place_id=${PLACE_ID}`;
 
 const ContactLocation: React.FC = () => {
-  const mapsKey = ( process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '' ).trim();
-  const embedUrl = mapsKey
-    ? `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent( mapsKey )}&q=place_id:${PLACE_ID}&zoom=17`
-    : '';
-
   return (
     <section className="cl" aria-labelledby="cl-title">
       <h2 className="cl-h2" id="cl-title">Where to find us</h2>
 
       <div className="cl-grid">
+        {/* UNCONDITIONAL. There is no key branch and no link-out placeholder any more:
+            the map itself is the thing the owner asked to see on the page, so it renders
+            for every visitor on every load. */}
         <div className="cl-map">
-          { embedUrl ? (
-            <iframe
-              className="cl-frame"
-              src={ embedUrl }
-              title="Map showing the WECARE.DIGITAL office in Kolkata"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-            />
-          ) : (
-            /* No key configured. A deliberate, styled panel rather than a broken frame. */
-            <a className="cl-fallback" href={ PLACE_URL } target="_blank" rel="noopener noreferrer">
-              <span className="cl-fallback-pin" aria-hidden="true" />
-              <strong className="cl-fallback-title">Open the map</strong>
-              <span className="cl-fallback-sub">Phears Lane, Kolkata — opens in Google Maps</span>
-            </a>
-          ) }
+          <iframe
+            className="cl-frame"
+            src={ EMBED_URL }
+            title="Map showing the WECARE.DIGITAL office on Phears Lane, Kolkata"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+          />
         </div>
 
         <div className="cl-copy">
@@ -146,25 +157,6 @@ const ContactLocation: React.FC = () => {
            otherwise shows as a few pixels of tint along the bottom edge. */
         .cl-frame{display:block;width:100%;height:100%;border:0}
 
-        .cl-fallback{
-          position:absolute;inset:0;
-          display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-          padding:24px;text-align:center;text-decoration:none;
-          background:rgba(209,244,112,.22);
-          transition:background-color .2s;
-        }
-        .cl-fallback:hover{background:rgba(209,244,112,.34)}
-        .cl-fallback:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:-4px}
-        /* A pin drawn in CSS rather than shipped as an asset: one div, no request, and it
-           cannot 404. The rotated square with one sharp corner is the standard map-pin
-           silhouette. */
-        .cl-fallback-pin{
-          width:22px;height:22px;margin-bottom:6px;
-          background:#1a3a2a;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
-        }
-        .cl-fallback-title{font-size:20px;font-weight:700;letter-spacing:-.25px;color:#1a3a2a}
-        .cl-fallback-sub{font-size:15px;line-height:1.45;color:rgba(0,0,0,.54)}
-
         .cl-copy{min-width:0}
         .cl-label{
           margin:0 0 6px;font-size:12px;font-weight:700;
@@ -201,7 +193,7 @@ const ContactLocation: React.FC = () => {
         .cl-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
 
         @media(prefers-reduced-motion:reduce){
-          .cl-cta,.cl-fallback{transition:none}
+          .cl-cta{transition:none}
           .cl-cta:hover{transform:none}
         }
 
