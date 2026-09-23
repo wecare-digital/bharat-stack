@@ -272,7 +272,7 @@ def _normalize_v3_product(product: dict) -> dict:
         'productOptions': compatible_options,
         'variants': compatible_variants,
         'lastUpdated': product.get('updatedDate', ''),
-        '_siteUrl': f"https://www.wecare.digital/product-page/{product.get('slug', '')}"
+        '_siteUrl': f"https://wecare.digital/product-page/{product.get('slug', '')}"
                     if product.get('slug') else '',
         '_mainImage': main_media.get('url', '') if isinstance(main_media, dict) else '',
         '_mediaCount': len(media_items),
@@ -584,7 +584,7 @@ def _list_products(params: dict, request_id: str) -> Dict[str, Any]:
         'products': products,
         'totalResults': paging.get('count', len(products)),
         'nextCursor': (paging.get('cursors') or {}).get('next', ''),
-        'siteUrl': 'https://www.wecare.digital',
+        'siteUrl': 'https://wecare.digital',
         'dashboardUrl': f'https://manage.wix.com/dashboard/{WIX_SITE_ID}/store/products',
         'requestId': request_id,
     })
