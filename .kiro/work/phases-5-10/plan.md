@@ -62,17 +62,42 @@ Commit `921a1417`. `lambda_utils/pstn/softphone.py` + `messaging/pstn-softphone`
 5 routes live, all 401 unauthenticated, browser routing OFF, 58 tests.
 Table `PstnSoftphoneSessions` ACTIVE with TTL.
 
-### 5.2 — Plivo callback authentication audit · TODO
+### 5.2 — Plivo callback authentication audit · DONE
 
-The five existing callbacks are `POST /plivo/{answer,hangup,events,dial-events,fallback}`.
-`wecare/plivo-answer` holds a `token` field used as `?token=`.
+Live `wecare-plivo-answer` v14. The premise — "a token nothing checks" — turned out to be
+wrong: verification is real. Per route, measured:
 
-Establish, per route: is the token actually **verified**, or merely present in the URL we
-gave Plivo? A token in a query string that nothing checks is decoration. Report each route
-as verified / unverified, and fix the unverified ones.
+| Route | Gate | Verdict |
+|---|---|---|
+| `POST /plivo/hangup` | V3 signature **required** | verified |
+| `POST /plivo/events` | V3 signature **required** | verified |
+| `POST /plivo/dial-events` | V3 signature **required** | verified |
+| `POST /plivo/answer` | signature when present, else `?token=` | verified, side effects need ≥ `TRUST_TOKEN` |
+| `POST /plivo/fallback` | signature when present, else `?token=` | verified |
 
-Watch for: a token compared with `==` rather than `hmac.compare_digest`; a query-string
-token appearing in CloudWatch access logs.
+`answer` and `fallback` cannot require a signature: Plivo does not sign `answer_url`
+fetches, so rejecting an unsigned one drops every real call. The privilege is split instead
+— XML is served at `TRUST_NONE`, the `CallStatus=completed` SMS pass is not.
+
+Both secrets show `LastAccessedDate` 2026-09-23, so the gate is live rather than silently
+degraded to `unverified_no_token_configured`.
+
+**The token does not leak.** Stage `prod` logs `$context.path`, which excludes the query
+string, and no handler log site emits the value — only the mechanism name `'token'`.
+
+Two defects found and fixed:
+
+- `qs.get('token') == token` — short-circuits at the first differing byte, in the same file
+  whose signature verifier documents why that is wrong. Now `_token_matches` with
+  `hmac.compare_digest`, both sides encoded (`compare_digest` raises `TypeError` on a
+  non-ASCII str, and a 500 on `/plivo/answer` is a non-XML body, so the caller hears
+  silence instead of a clean hangup).
+- Unknown path fell through to `(_route_answer, False)`. That is what concealed the
+  stage-prefix incident — `/prod/plivo/hangup` "worked" by returning `<Play>` to a hangup
+  callback, re-answering a terminated call. Now a 404, refused before `_verify_provider`.
+
+Live: `/plivo/status` → 404 (was 200 + `<Play>`); all five real paths still reach their auth
+layer, none 404. 37 tests in `tests/test_plivo_routes.py`.
 
 ### 5.3 — PSTN call/event model: provision or retire · TODO
 

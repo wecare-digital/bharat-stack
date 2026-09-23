@@ -47,6 +47,7 @@ The hangup endpoint MUST NOT return the answer IVR. Returning <Play> to a hangup
 callback is how a terminated call gets re-answered.
 """
 import base64
+import hmac
 import json
 import os
 import time
@@ -349,9 +350,29 @@ def _verify_provider(event: dict, *, require_signature: bool) -> tuple:
         return True, TRUST_NONE, 'unverified_no_token_configured'
 
     qs = event.get('queryStringParameters') or {}
-    if qs.get('token') == token:
+    if _token_matches(qs.get('token'), token):
         return True, TRUST_TOKEN, 'token'
     return False, TRUST_NONE, 'bad_or_missing_token'
+
+
+def _token_matches(presented, expected: str) -> bool:
+    """Constant-time comparison of the diagnostic bearer token.
+
+    This was a plain `==` until 2026-09-23, in the same file where
+    `plivo_signature.validate_signature` already documents why that is wrong and
+    uses `hmac.compare_digest`. `==` on a secret short-circuits at the first
+    differing byte, leaking its length and matching prefix. The token is the weaker
+    of the two credentials, which is a reason to compare it carefully, not loosely.
+
+    Both sides are encoded first because `compare_digest` raises TypeError on a
+    non-ASCII str, and `?token=caf\u00e9` turning a 403 into a 500 matters here: on
+    /plivo/answer a 500 is a non-XML body, so the caller hears silence instead of a
+    clean hangup.
+    """
+    if not isinstance(presented, str) or not presented:
+        return False
+    return hmac.compare_digest(presented.encode('utf-8', 'surrogatepass'),
+                               expected.encode('utf-8', 'surrogatepass'))
 
 
 # --------------------------------------------------------------------------
@@ -784,13 +805,29 @@ def handler(event, context):
     path = plivo_signature.normalize_path(event).rstrip('/') or '/plivo/answer'
 
     if path not in _ROUTES:
-        # Do not silently treat an unrecognised path as an answer fetch. That is
-        # what hid the stage-prefix bug: /prod/plivo/hangup "worked" by falling
-        # through to the IVR instead of failing visibly.
+        # Refuse. Until 2026-09-23 this logged a warning and then fell through to
+        # `(_route_answer, False)` anyway - which is the behaviour the comment here
+        # said not to have, and it is what hid the stage-prefix incident:
+        # /prod/plivo/hangup "worked" by returning <Play> to a hangup callback,
+        # which re-answers a terminated call.
+        #
+        # Nothing live depends on the fallback. All five routes on this integration
+        # are exact POST paths, the API has no $default or {proxy+} route, and
+        # normalize_path strips the stage from requestContext.stage rather than a
+        # hardcoded "prod". So the only way to reach here is a route added without a
+        # _ROUTES entry, and for that case a 404 that shows up in the metric beats an
+        # IVR served to a callback.
+        #
+        # Refused BEFORE _verify_provider, deliberately: the path is not a
+        # credential, and verifying first would make this 404 depend on two secret
+        # reads it has no need for.
         log_event(logger, 'plivo_unknown_path', level='warning',
                   path=path, rawPath=event.get('rawPath', ''),
+                  alert='PLIVO_UNKNOWN_PATH_REFUSED',
                   requestId=request_id)
-    route, require_signature = _ROUTES.get(path, (_route_answer, False))
+        return _ack({'error': 'not found'}, status=404)
+
+    route, require_signature = _ROUTES[path]
 
     ok, trust, mechanism = _verify_provider(event,
                                             require_signature=require_signature)
