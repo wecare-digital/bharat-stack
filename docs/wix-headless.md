@@ -12,7 +12,7 @@ Non-secret, committed in [`src/config/wix.ts`](../src/config/wix.ts):
 | What | Value |
 |---|---|
 | Account ID | `15f02319-40ff-4288-b8e6-69c791adae5e` |
-| Site ID | `c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5` |
+| Site ID (headless) | `fcd82f0c-9572-49c7-acfb-88fb05042ece` |
 | Site name | WECARE.DIGITAL |
 | Headless client ID | `197cd718-e4ec-4e2e-b380-46c297eb18a2` |
 | App ID (key identity) | `35d5f45b-ccc3-433b-886e-ca73a9379935` |
@@ -24,10 +24,30 @@ Worth recording, because both can be re-derived instead of trusted:
 - **Account ID came out of the API key itself.** A Wix API key is an `IST.`-prefixed JWT
   whose payload contains `{ tenant: { type: "account", id } }`. Decoding it is base64 — no
   network call, no secret sent anywhere.
-- **Site ID came from the API**: `POST /site-list/v2/sites/query` with the key and the
-  `wix-account-id` header returned exactly one site. Its ID matched the `siteId` in the
-  deleted `store/wix.config.json`. Two independent sources agreeing is the only reason to
-  be confident it is the *right* site and not merely *a* site.
+- **Site ID was supplied by the owner** as the "Headless Site ID".
+
+  This replaced an earlier value, `c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5`, and the way that
+  one was justified is worth keeping as a caution. It came from
+  `POST /site-list/v2/sites/query`, which returned exactly one site, and it matched the
+  `siteId` in the then-present `store/wix.config.json`. Two independent sources agreed — and
+  they were both describing the **retired editor site**, which is exactly the site this
+  project no longer uses. Agreement established that the id was *real*, not that it was the
+  *right* one.
+
+  It has **not** been verified from this repo, because checking it means calling the Wix API
+  with the admin key and that key should not leave Secrets Manager to confirm an identifier.
+  From an environment that legitimately holds it:
+
+  ```bash
+  curl -X POST https://www.wixapis.com/site-list/v2/sites/query \
+    -H "Authorization: $WIX_API_KEY" \
+    -H "wix-account-id: 15f02319-40ff-4288-b8e6-69c791adae5e" \
+    -H 'Content-Type: application/json' -d '{}'
+  ```
+
+  Confirm `fcd82f0c-9572-49c7-acfb-88fb05042ece` appears with the expected display name.
+  `wixAdminHeaders()` sends this id on every admin call, so a wrong value addresses the wrong
+  site quietly rather than failing outright.
 
 ## The API key is a secret and is not in this repo
 
