@@ -30,7 +30,7 @@
  * The real constraint is NOT the spread, it is reflow: the headline growing to a
  * second line on the longest word only would shift every section below it every
  * 2400ms. That is checked by measuring the h1's height across a full rotation -
- * sampled here at 131px for all four words, nine consecutive samples, constant.
+ * sampled at 131px for all FIVE words, eleven consecutive samples, constant.
  *
  * Re-measure after changing a word. Note that animcheck.js, referenced in this
  * file and three other places, DOES NOT EXIST in the repo - so "re-run the
