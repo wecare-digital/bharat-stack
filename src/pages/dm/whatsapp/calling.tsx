@@ -9,6 +9,7 @@ import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
+import { acquireAudioStream } from '../../../lib/pstn/mediaCapability';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -357,8 +358,10 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
     setOutboundStep( 'calling' );
     try
     {
-      // 1. Get microphone
-      const stream = await navigator.mediaDevices.getUserMedia( {
+      // 1. Get microphone. Guarded, because an unguarded call in a container with
+      // no navigator.mediaDevices throws a TypeError about reading a property of
+      // undefined, and that string goes straight to setOutboundError.
+      const stream = await acquireAudioStream( {
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       } );
       outboundStreamRef.current = stream;
@@ -743,7 +746,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
     {
       // 1. Get microphone access
       toast.info( 'Requesting microphone access...' );
-      const localStream = await navigator.mediaDevices.getUserMedia( { audio: true } );
+      const localStream = await acquireAudioStream( { audio: true } );
       localStreamRef.current = localStream;
 
       // 2. Create RTCPeerConnection
