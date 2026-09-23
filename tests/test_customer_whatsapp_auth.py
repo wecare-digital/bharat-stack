@@ -181,7 +181,7 @@ def test_sender_payload_uses_approved_authentication_template(monkeypatch):
 
     class _Payload:
         def read(self):
-            return b'{"statusCode": 200, "body": "{\"success\": true}"}'
+            return b'{"statusCode": 200}'
 
     class _Lambda:
         def invoke(self, **kwargs):
