@@ -38,15 +38,11 @@ ROLE_ARN = f"arn:aws:iam::{ACCOUNT}:role/{ROLE_NAME}"
 # Frontend calls https://api.wecare.digital/seo-tools/{route} (src/api/seo.ts).
 API_ID = "zllr9lrg7j"
 
-# Live Wix site (verified: API key is scoped to this site; 461dece3 returns 404).
-WIX_SITE_ID = "c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5"
-
 ENV_VARS = {
     "LOG_LEVEL": "INFO",
     "SEO_TOOLS_TABLE": TABLE_NAME,
     "WEBHOOK_DEDUP_TABLE": DEDUP_TABLE,
-    "WIX_API_KEY_SECRET": "wecare/wix-api-key",
-    "WIX_SITE_ID": WIX_SITE_ID,
+    # Wix Headless credentials are added only after the new project is provisioned.
     "BEDROCK_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
     "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
 }

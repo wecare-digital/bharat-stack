@@ -33,7 +33,6 @@ export const TABLES = {
 // Wix Store Configuration
 export const WIX_CONFIG = {
   API_BASE_URL: 'https://www.wixapis.com',
-  API_KEY: process.env.WIX_API_KEY || '',
   SITE_ID: process.env.WIX_SITE_ID || '',
   ACCOUNT_ID: process.env.WIX_ACCOUNT_ID || '',
 };

@@ -206,7 +206,6 @@ CHECKS = {
     "wecare/razorpay/api": check_razorpay,
     "wecare/plivo/api": check_plivo,
     "wecare/openai/api": check_openai,
-    "wecare/wix-api-key": check_wix,
     "wecare/google-api-key": lambda s: check_google_key(s, "api_key"),
     "wecare/google/cloud": lambda s: check_google_key(s, "unified_google_api_key"),
     "wecare/razorpay-webhook": lambda s: check_shared_secret(

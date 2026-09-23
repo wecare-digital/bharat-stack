@@ -31,12 +31,10 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 
 logger = get_logger(__name__)
 
-# REST API config
-# WIX_API_KEY is loaded from Secrets Manager (wecare/wix-api-key), with a
-# fallback to the WIX_API_KEY env var during migration. Handles both a JSON
-# secret ({"api_key": "..."}) and a plain-string secret.
+# REST API config. No legacy secret/site defaults are allowed: the fresh
+# Headless project must be configured explicitly before Wix calls can run.
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', 'wecare/wix-api-key')
+WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', '').strip()
 
 
 _wix_api_key_cache = ''
@@ -55,17 +53,19 @@ def _load_wix_api_key() -> str:
     global _wix_api_key_cache
     if _wix_api_key_cache:
         return _wix_api_key_cache
-    try:
-        raw = secrets_client.get_secret_value(SecretId=WIX_API_KEY_SECRET).get('SecretString', '') or ''
+    if WIX_API_KEY_SECRET:
         try:
-            data = json.loads(raw)
-            _wix_api_key_cache = (data.get('api_key') or data.get('apiKey') or data.get('WIX_API_KEY')
-                                  or data.get('key') or data.get('value') or '').strip()
-        except (ValueError, TypeError):
-            _wix_api_key_cache = raw.strip()  # secret stored as a plain string
-    except Exception as e:
-        logger.warning(f'Wix API key: Secrets Manager load failed, falling back to env: {e}')
-        _wix_api_key_cache = os.environ.get('WIX_API_KEY', '')
+            raw = secrets_client.get_secret_value(SecretId=WIX_API_KEY_SECRET).get('SecretString', '') or ''
+            try:
+                data = json.loads(raw)
+                _wix_api_key_cache = (data.get('api_key') or data.get('apiKey') or data.get('WIX_API_KEY')
+                                      or data.get('key') or data.get('value') or '').strip()
+            except (ValueError, TypeError):
+                _wix_api_key_cache = raw.strip()
+        except Exception as e:
+            logger.warning(f'Wix API key: explicit Secrets Manager load failed: {e}')
+    if not _wix_api_key_cache:
+        raise RuntimeError('Wix Headless API credentials are not configured')
     return _wix_api_key_cache
 
 

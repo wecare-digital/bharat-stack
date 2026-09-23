@@ -11,8 +11,8 @@ import boto3
 
 WIX_API = 'https://www.wixapis.com'
 SITE_BASE = 'https://wecare.digital'
-SECRET_NAME = os.environ.get('WIX_API_KEY_SECRET', 'wecare/wix-api-key')
-SITE_ID = os.environ.get('WIX_SITE_ID', '')
+SECRET_NAME = os.environ.get('WIX_API_KEY_SECRET', '').strip()
+SITE_ID = os.environ.get('WIX_SITE_ID', '').strip()
 _api_key = None
 
 SITE_PAGES = [
@@ -48,6 +48,8 @@ def _load_api_key() -> str:
     global _api_key
     if _api_key is not None:
         return _api_key
+    if not SECRET_NAME or not SITE_ID:
+        raise RuntimeError('Wix Headless credentials are not configured')
     raw = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1')).get_secret_value(
         SecretId=SECRET_NAME
     ).get('SecretString', '')
