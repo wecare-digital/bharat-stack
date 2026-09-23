@@ -426,11 +426,16 @@ const LanguageBar: React.FC = () => {
            Hence: 0s with no delay on .open (visible and focusable immediately), and
            0s with a .18s delay on the closed state, so the panel stays visible long
            enough for the opacity fade to finish. */
-        .panel{visibility:hidden;opacity:0;transform:translateY(6px) scale(.98);transform-origin:bottom right;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s linear .18s;width:min(324px,calc(100vw - 108px));background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16),0 2px 8px rgba(16,32,24,.06)}
+        .panel{visibility:hidden;opacity:0;transform:translateY(6px) scale(.98);transform-origin:bottom right;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s linear .18s;width:min(324px,calc(100vw - 108px));background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16),0 2px 8px rgba(16,32,24,.06)}
         .panel.open{visibility:visible;opacity:1;transform:none;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s}
-        .search{width:100%;min-height:42px;box-sizing:border-box;border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:10px 12px;font-size:15px;font-weight:400;line-height:1.3;color:rgba(0,0,0,.898);outline:none}
+        /* #e5e7eb at 1px: the contract's hairline value and weight for a STATIC
+           edge, replacing rgba(0,0,0,.12). The focus ring is the lime
+           rgba(209,244,112,.3) the sign-in fields use, so a focused field looks the
+           same whether it is in this widget or on /access - it was
+           rgba(26,58,42,.1), a fourth focus treatment nothing else shared. */
+        .search{width:100%;min-height:42px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:15px;font-weight:400;line-height:1.3;color:rgba(0,0,0,.898);outline:none}
         .search::placeholder{color:rgba(0,0,0,.42)}
-        .search:focus{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(26,58,42,.1)}
+        .search:focus{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(209,244,112,.3)}
         .group{padding:10px 10px 4px;font-size:12px;font-weight:500;color:rgba(0,0,0,.42)}
         .results{max-height:296px;overflow:auto;margin-top:2px}
         .hint{padding:12px 10px;color:rgba(0,0,0,.5);font-size:14px}
@@ -442,18 +447,34 @@ const LanguageBar: React.FC = () => {
            one highlight instead of producing two competing ones.
            The applied-language rule comes second on purpose: when the cursor is on
            the row that is already applied, dark green wins over the grey wash. */
-        .opt[aria-selected='true']{background:#f4f7f5}
-        .opt[aria-current='true']{background:#1a3a2a;color:#fff}
+        /* Both states now come from the palette's three lime treatments instead of
+           invented pale greens. The keyboard/hover cursor takes the TRANSIENT tint
+           rgba(209,244,112,.22) - the same value the nav uses for hover - where it
+           used to be #f4f7f5, a one-off grey-green that matched nothing else.
+           The applied language takes the INVERTED treatment, #1a3a2a fill with
+           #d1f470 type, which the contract measures at ~10:1. It was #1a3a2a with
+           white type; white is not one of the three pairings, and the lime reads as
+           the same object as BrandBadge and .msg.sent rather than as a generic
+           selected row. */
+        .opt[aria-selected='true']{background:rgba(209,244,112,.22)}
+        .opt[aria-current='true']{background:#1a3a2a;color:#d1f470}
         .nat{font-size:15px;font-weight:500}
-        .eng{font-size:13px;color:rgba(0,0,0,.5)}
-        .opt[aria-current='true'] .eng{color:rgba(255,255,255,.7)}
-        .meta{margin-left:auto;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:rgba(0,0,0,.35);white-space:nowrap}
-        .opt[aria-current='true'] .meta{color:rgba(255,255,255,.6)}
-        .panel-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:8px 4px 2px;border-top:1px solid rgba(0,0,0,.07)}
-        .current-language{font-size:13px;font-weight:500;color:rgba(0,0,0,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .listen-btn{min-height:34px;padding:7px 13px;border:0;border-radius:8px;background:#f0f4f1;color:#1a3a2a;font-size:13px;font-weight:500;line-height:1;cursor:pointer}
-        .listen-btn:hover{background:#e6ece8}
-        .listen-btn.on{background:#1a3a2a;color:#fff}
+        .eng{font-size:13px;color:rgba(0,0,0,.54)}
+        .opt[aria-current='true'] .eng{color:rgba(209,244,112,.72)}
+        .meta{margin-left:auto;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:rgba(0,0,0,.42);white-space:nowrap}
+        .opt[aria-current='true'] .meta{color:rgba(209,244,112,.6)}
+        .panel-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:8px 4px 2px;border-top:1px solid #e5e7eb}
+        .current-language{font-size:13px;font-weight:500;color:rgba(0,0,0,.54);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        /* Three states, three documented treatments, escalating in voice:
+           rest   -> .22 lime tint  (transient, quiet)
+           hover  -> #d1f470 fill   (our own surface, full voice)
+           on     -> #1a3a2a fill + #d1f470 type (inverted, dark)
+           It was #f0f4f1 / #e6ece8 / white-on-green - two invented tints and a
+           pairing that is not in the palette. Inventing in-between values is exactly
+           how #f2fbf6 and #fbfff0 got into this codebase and had to be retired. */
+        .listen-btn{min-height:34px;padding:7px 13px;border:0;border-radius:8px;background:rgba(209,244,112,.22);color:#1a3a2a;font-size:13px;font-weight:500;line-height:1;cursor:pointer;transition:background-color .2s,color .2s}
+        .listen-btn:hover{background:#d1f470;color:#1a3a2a}
+        .listen-btn.on{background:#1a3a2a;color:#d1f470}
         .language-trigger{width:48px;height:48px;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 20px rgba(16,32,24,.14)}
         .language-trigger:hover{border-color:#1a3a2a;background:#f4f7f5}
         .language-trigger:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}

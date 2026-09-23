@@ -54,19 +54,28 @@ import BrandBadge from '../components/BrandBadge';
 // exhaustive-deps suppression the way VayuLok needed one.
 // Lowercase: these sit mid-sentence, not at the head of one.
 //
-// Order is hue rhythm, the same consideration VayuLok documents - green, amber,
-// blue, purple leaves no two adjacent tints in the same temperature band, so the
-// pill always reads as having changed. Sorting them logically (the two commercial
-// ones together) put amber next to green and the change stopped registering.
+// These are the owner's own service domains, from the positioning copy: travel,
+// documentation, dispute resolution, rituals, reflection "and more". Two are
+// shortened for the pill because the pill's width is layout (see the note above) -
+// "documentation" becomes documents and "dispute resolution" becomes disputes. The
+// full phrases are not lost; they belong in body copy, not in a rotating slot.
 //
-// All four tints and dots are reused VERBATIM from the Grahak OS hero. No new
-// colours, and each hue maps onto its sense: green for the customer domain we
-// already serve, amber for commerce, blue for climate, purple for service.
+// Order is hue rhythm, the consideration VayuLok documents: blue, amber, green,
+// purple, red alternates cool and warm on every step except green -> purple, which
+// is unavoidable with five words across three cool hues and is the most separated
+// of the available cool pairs. Grouping them by meaning instead - the two
+// paperwork ones together - put green beside green and the change stopped reading.
+//
+// Every tint/dot pair is reused VERBATIM from the Grahak OS hero and the VayuLok
+// rotation. No new colours. Hue maps onto sense: blue for journeys, amber for the
+// warmth of ritual, green for paperwork cleared, purple for reflection, red for
+// conflict.
 const CYCLE_WORDS = [
-  { word: 'customers', tint: '#e0f7c8', dot: '#3da35a' },
-  { word: 'commerce', tint: '#fef3c7', dot: '#f0a818' },
-  { word: 'climate', tint: '#dbeafe', dot: '#2563eb' },
-  { word: 'service', tint: '#ede9fe', dot: '#9849e8' },
+  { word: 'travel', tint: '#dbeafe', dot: '#2563eb' },
+  { word: 'rituals', tint: '#fef3c7', dot: '#f0a818' },
+  { word: 'documents', tint: '#e0f7c8', dot: '#3da35a' },
+  { word: 'reflection', tint: '#ede9fe', dot: '#9849e8' },
+  { word: 'disputes', tint: '#fee2e2', dot: '#dc2626' },
 ];
 
 const HomePage: React.FC = () => {
@@ -115,8 +124,19 @@ const HomePage: React.FC = () => {
               <BrandBadge label="Bharat Stack by WECARE.DIGITAL" />
             </div>
 
+            {/* The pill sits on its OWN LINE, and that is a correctness fix rather
+                than a layout preference.
+                Inline after the frame text, the headline's line count depended on
+                which word was showing: measured at 1440px, "reflection" pushed the
+                h1 from 75px to 138px while the four shorter words fitted one line,
+                so every 2400ms the whole page below jumped by 63px. Widening
+                max-width only relocates that to a different viewport - with a word
+                whose width varies by 156px inside flowing text, some width will
+                always split the line for the long word and not the short one.
+                Giving the pill its own block makes line count independent of word
+                width, so the glide is free to be as wide as it likes. */}
             <h1 className="home-head">
-              Practical AI for{ ' ' }
+              <span className="home-head-line">Everyday services for</span>
               <span
                 className="home-mark"
                 style={ { background: CYCLE_WORDS[ cycleIndex ].tint } }
@@ -151,7 +171,8 @@ const HomePage: React.FC = () => {
                 breadth. Deliberately one sentence: a second would put two body
                 blocks on a page that has no section rhythm yet. */}
             <p className="home-sub">
-              Lower cost, less complexity, and real-world utility over scale.
+              Transparent pricing, guided journeys, and dependable support — on one
+              shared foundation.
             </p>
           </div>
         </div>
@@ -241,8 +262,13 @@ const HomePage: React.FC = () => {
         /* Rotating pill. Same geometry, easing and timings as .hero-mark on Grahak OS
            and .vl-mark on VayuLok - em-based so it tracks the clamp() headline at
            every width. */
+        /* Blocks, so the frame and the pill never share a line. See the note in the
+           markup: this is what stops the h1's height depending on which word is
+           active. margin-top is the optical gap between the two lines - line-height
+           1.04 leaves almost no leading, so without it the pill crowds the text. */
+        .home-head-line{display:block}
         .home-mark{
-          position:relative;display:inline-block;white-space:nowrap;
+          position:relative;display:inline-block;white-space:nowrap;margin-top:.08em;
           padding:.02em .3em .02em .22em;
           border-radius:9999px;
           background:#e0f7c8;

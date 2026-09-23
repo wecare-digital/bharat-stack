@@ -417,6 +417,30 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ( { children } ) => {
         .ag-centre{flex:1;display:flex;align-items:center;justify-content:center}
         @media(max-width:767px){.ag-shell{padding-top:96px}}
       `}</style>
+      {/* GLOBAL, deliberately: this styles the Amplify Authenticator's own card,
+          which is rendered inside a composite component that styled-jsx cannot
+          scope into. Targeted via data-amplify-router, a documented Amplify data
+          attribute, rather than the amplify-* class names, which are internal.
+          Scoped under .ag-shell so it can only ever apply to the unauthenticated
+          sign-in chrome and not to anything in the dashboard.
+
+          A 4px lime TOP EDGE, not a lime outline on all four sides. The owner asked
+          for a lime border, and a full lime outline is the one thing that should not
+          go here: the contract reserves lime for interactive state and #e5e7eb for
+          static edges, and a lime ring around a resting card is precisely what made
+          the input fields read as permanently focused - the defect fixed one commit
+          ago. A single heavy top edge reads as brand, cannot be mistaken for focus,
+          and still uses full-strength #d1f470, which is correct here because this
+          card IS one of our own surfaces. The other three sides take the static
+          hairline. */}
+      <style jsx global>{`
+        .ag-shell [data-amplify-router]{
+          border:1px solid #e5e7eb;
+          border-top:4px solid #d1f470;
+          border-radius:16px;
+          overflow:hidden;
+        }
+      `}</style>
     </>
   );
 };

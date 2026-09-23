@@ -17,7 +17,7 @@ describe( 'Bharat Stack Home', () => {
     const heading = screen.getByRole( 'heading', { level: 1 } );
 
     // Only the pill rotates; the frame does not.
-    expect( heading.textContent ).toMatch( /^Practical AI for/ );
+    expect( heading.textContent ).toMatch( /^Everyday services for/ );
   } );
 
   it( 'carries the cost and complexity half of the positioning in the body line', () => {
@@ -27,7 +27,8 @@ describe( 'Bharat Stack Home', () => {
     // rest of the claim. One sentence, one body level.
     const sub = container.querySelector( '.home-sub' );
     expect( sub ).toBeInTheDocument();
-    expect( sub?.textContent ).toBe( 'Lower cost, less complexity, and real-world utility over scale.' );
+    expect( sub?.textContent?.replace( /\s+/g, ' ' ).trim() )
+      .toBe( 'Transparent pricing, guided journeys, and dependable support — on one shared foundation.' );
     expect( container.querySelectorAll( '.home-sub' ) ).toHaveLength( 1 );
   } );
 
@@ -42,8 +43,13 @@ describe( 'Bharat Stack Home', () => {
     // observed snap - measured sampling shows wider sets still glide. The defect it
     // guards against is the headline reflowing on the longest word only; the browser
     // harness measures h1 height across a rotation for that.
+    // 4, widened from 2 when the owner's five service domains replaced the first
+    // draft: travel (6) to reflection (10). The character count is only a cheap
+    // proxy - the binding constraint is that the h1 must not reflow on the longest
+    // word, which only a browser can measure, and animcheck.js checks it at four
+    // viewports. Widening this without that check passing would be meaningless.
     const lengths = words.map( w => w.length );
-    expect( Math.max( ...lengths ) - Math.min( ...lengths ) ).toBeLessThanOrEqual( 2 );
+    expect( Math.max( ...lengths ) - Math.min( ...lengths ) ).toBeLessThanOrEqual( 4 );
   } );
 
   it( 'exposes the word list to screen readers once, and hides every animated copy', () => {
@@ -52,12 +58,12 @@ describe( 'Bharat Stack Home', () => {
     // One readable copy of the full list...
     const srOnly = container.querySelector( '.home-sr-only' );
     expect( srOnly ).toBeInTheDocument();
-    expect( srOnly?.textContent ).toBe( 'customers, commerce, climate, service' );
+    expect( srOnly?.textContent ).toBe( 'travel, rituals, documents, reflection, disputes' );
 
     // ...and every visually-rotating copy hidden, so the headline is not read out
     // four times over. Each animated word must carry aria-hidden.
     const words = Array.from( container.querySelectorAll( '.home-cyc-word' ) );
-    expect( words ).toHaveLength( 4 );
+    expect( words ).toHaveLength( 5 );
     words.forEach( word => expect( word ).toHaveAttribute( 'aria-hidden', 'true' ) );
 
     // Exactly one is active at a time.
