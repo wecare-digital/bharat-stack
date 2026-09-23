@@ -515,10 +515,51 @@ Every retired route redirects; deep links survive a refresh.
 Exact manifests, rollback evidence, drain/archive/migrate first. Prove zero live
 invocations before deleting anything.
 
-### 9.2 — Route/dependency cleanup and bundle optimization · TODO
+### 9.2 — Route/dependency cleanup and bundle optimization · PARTIAL (dependencies triaged)
 
-Before/after bytes, measured not estimated. 49 Dependabot alerts outstanding (1 critical,
-20+ high) — triage them here.
+Dependency half done ahead of order, because a **critical** alert should not wait behind UI
+work. Route cleanup and before/after bundle bytes still to do.
+
+**BEFORE:** 20 advisories — 1 critical, 5 high, 14 moderate.
+**AFTER:** 5 advisories — 0 critical, 1 high, 4 moderate.
+
+All 39 GitHub alerts were npm, all in `package-lock.json`, and **none reached production**.
+Several were already satisfied by the installed copy (`tar@7.5.22`, `uuid@11.1.1`,
+`@opentelemetry/core@2.11.0`) — GitHub was alerting against superseded lock entries.
+
+**The critical alert and four of the five highs came from one unused dependency.**
+`plivo-browser-sdk@2.2.21` was declared as a **production** dependency and imported
+**nowhere** — zero matches across `src`, `amplify`, `scripts`. Its chain:
+
+    plivo-browser-sdk -> wasm-pack -> binary-install -> axios@0.26.1 + tar@6.2.1
+
+`wasm-pack` runs `postinstall: node ./install.js`, so `binary-install` downloads a binary
+over `axios@0.26.1` and extracts it with `tar@6.2.1` on **every `npm ci`**, in CI and on every
+developer machine. The critical CVE was in a postinstall archive extractor for a tool the
+application never invokes — the classic supply-chain position, and `fixAvailable` was `False`
+for all of it because `plivo-browser-sdk` pins `2.2.21` exactly.
+
+Removed. `npm audit fix` then cleared `@capacitor/cli`, `uuid` and `xcode`.
+
+**The softphone work expects this SDK back.** `pstn/browser_token.py` mints its JWTs and
+`src/lib/pstn/mediaCapability.ts` preflights audio for it. It is not needed yet — browser
+routing is off, and per-session Plivo endpoints are an unstarted owner decision (5.4). When
+it returns, add a **current** version; do not restore `2.2.21`, whose transitive chain is
+what produced the critical.
+
+**The remaining 5 are dev-only and the offered "fix" is a downgrade.** All descend from
+`@aws-amplify/backend-cli` → `schema-generator` → `graphql-schema-generator`, which pulls
+`mysql2@3.9.9` (high) and `csv-parse@5.6.0`. npm's only remedy is `@aws-amplify/backend-cli`
+**0.11.1**, a major downgrade of the CLI, which is not a fix.
+
+Worth connecting to 5.3: that generator produces a schema for
+`amplify/data/resource.ts`, which has **never been deployed** — 0 AppSync APIs, no Amplify
+data stack. So the tooling carrying the last high alert exists to serve a backend that is
+not live. Retiring `@aws-amplify/backend*` is the real remedy, but its types are used by
+`amplify/*.ts` at typecheck, so that is a scoped change rather than a drive-by.
+
+Verified after the change: `npm run build` succeeds (16 sitemap URLs), typecheck clean,
+73 vitest, 2743 pytest.
 
 ### 9.3 — Native packaging · WAITING_FOR_OWNER
 
