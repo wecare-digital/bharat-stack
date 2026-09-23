@@ -7,7 +7,7 @@ const HomePage: React.FC = () => (
     <Head>
       <title>Bharat Stack by WECARE.DIGITAL</title>
       <meta name="description" content="Bharat Stack by WECARE.DIGITAL." />
-      <link rel="canonical" href="https://stack.wecare.digital/" />
+      <link rel="canonical" href="https://wecare.digital/" />
     </Head>
     <main className="home-shell" aria-label="Bharat Stack home">
       {/* Same pill as the Grahak OS hero, with the maker line flipped: this page is
