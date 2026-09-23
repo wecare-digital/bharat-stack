@@ -20,40 +20,18 @@
  *     base64, needs no network and no secret handling, and is why the account ID did not
  *     have to be looked up anywhere. The owner has since confirmed the same value
  *     independently, so two sources agree on it.
- *   - SITE_ID was supplied directly by the owner as the "Headless Site ID". See the note on
- *     the constant below for why the value it replaced is not simply an older spelling of
- *     the same thing.
+ *   - SITE_ID was supplied directly by the owner as the "Headless Site ID". This is the
+ *     only Wix site identifier this repository is allowed to use.
  */
 
 /** Wix account that owns the site and the API key. */
 export const WIX_ACCOUNT_ID = '15f02319-40ff-4288-b8e6-69c791adae5e';
 
 /**
- * The headless site this repo talks to, supplied by the owner.
+ * The only Wix site this repo talks to.
  *
- * THIS REPLACED A DIFFERENT SITE, NOT A TYPO OF THIS ONE. The previous value was
- * c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5, and the comment above used to justify it like this:
- * it came from POST /site-list/v2/sites/query, which returned exactly one site, and it
- * matched the siteId in the since-deleted store/wix.config.json. Those two sources did
- * agree - but they agreed about the OLD Wix site, the editor site that has been retired.
- * That is precisely the site this project no longer uses, so a confident derivation pointed
- * at the wrong place. Worth remembering: "two independent sources agree" establishes that a
- * value is real, not that it is the one you want.
- *
- * NOT INDEPENDENTLY VERIFIED HERE. Confirming it would mean calling the Wix API with the
- * admin key, and that key is a bearer credential held in Secrets Manager - it is not
- * something to pull into a sandbox to check an id. So this is taken on the owner's word.
- * To verify it yourself, from an environment that legitimately holds the key:
- *
- *   curl -X POST https://www.wixapis.com/site-list/v2/sites/query \
- *     -H "Authorization: $WIX_API_KEY" \
- *     -H "wix-account-id: 15f02319-40ff-4288-b8e6-69c791adae5e" \
- *     -H 'Content-Type: application/json' -d '{}'
- *
- * and check this id appears with the expected display name.
- *
- * IT IS SENT ON EVERY ADMIN CALL by wixAdminHeaders() below, so if it is wrong, catalog,
- * inventory, cart and order calls all address the wrong site rather than failing loudly.
+ * Retired Wix Editor site identifiers are intentionally not retained here. Keeping a
+ * superseded ID beside the live one makes accidental reuse more likely.
  */
 export const WIX_SITE_ID = 'fcd82f0c-9572-49c7-acfb-88fb05042ece';
 

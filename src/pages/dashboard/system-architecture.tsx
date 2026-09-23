@@ -382,7 +382,7 @@ const ENV_VARS: EnvVar[] = [
   { key: 'PayU UPI VPA (hardcoded)', value: '(in whatsapp-business-api handler)', sensitive: true, category: 'Payments — Hardcoded', risk: 'PayU UPI VPA in source code' },
   { key: 'Airtel API Key (in comment)', value: '(visible in c2c/handler.py comment)', sensitive: true, category: 'Voice — Hardcoded', risk: 'CRITICAL: Airtel HMAC key in code comment' },
   { key: 'Airtel App ID (hardcoded)', value: '(in c2c handler + data schema)', sensitive: true, category: 'Voice — Hardcoded', risk: 'Airtel App ID in multiple files' },
-  { key: 'WIX_ACCOUNT_ID (hardcoded)', value: '6b2d7a93-ef14-... (fallback default)', sensitive: true, category: 'Ecommerce — Hardcoded', risk: 'Wix Account ID as fallback in 2 files' },
+  { key: 'WIX_ACCOUNT_ID (current Headless account)', value: '15f02319-40ff-4288-b8e6-69c791adae5e', sensitive: false, category: 'Ecommerce — Identifier', risk: 'Current non-secret Wix Headless account identifier' },
   // Secrets Manager entries (server-side, properly stored)
   { key: 'wecare/meta-system-user-token', value: '(Secrets Manager — 7 keys)', sensitive: true, category: 'Secrets Manager ✓' },
   { key: 'wecare/flow-private-key', value: '(Secrets Manager — 1 key)', sensitive: true, category: 'Secrets Manager ✓' },

@@ -26,12 +26,12 @@ WIX_API = "https://www.wixapis.com"
 WIX_ACCOUNT_ID = os.environ.get(
     "WIX_ACCOUNT_ID", "15f02319-40ff-4288-b8e6-69c791adae5e"
 )
-SOURCE_SITE_ID = os.environ.get(
-    "WIX_BLOG_SOURCE_SITE_ID", "c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5"
-)
 TARGET_SITE_ID = os.environ.get(
     "WIX_SITE_ID", "fcd82f0c-9572-49c7-acfb-88fb05042ece"
 )
+# The retired Wix Editor source is no longer addressable by this repository.
+# Export and apply operate only against the current Headless site.
+SOURCE_SITE_ID = TARGET_SITE_ID
 SECRET_NAME = os.environ.get(
     "WIX_API_KEY_SECRET", "wecare/wix/headless-api-key"
 )
