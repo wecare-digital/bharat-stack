@@ -1,0 +1,172 @@
+name: SEO tools Lambda
+
+# Public blog reads use Wix Headless anonymous OAuth via the public client ID.
+# Pull requests run focused tests only. A push to stack deploys and then invokes
+# the real Lambda to verify the approved Integrity post end to end.
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    branches: [ stack ]
+    paths:
+      - 'amplify/functions/operations/seo-tools/**'
+      - 'amplify/functions/seo_tools_handler.py'
+      - 'amplify/functions/shared/lambda_utils/**'
+      - 'amplify/functions/shared/static_knowledge_base.py'
+      - 'tests/test_task12_seo.py'
+      - 'scripts/deploy_seo_tools.py'
+      - '.github/workflows/seo-tools-deploy.yml'
+  push:
+    branches: [ stack ]
+    paths:
+      - 'amplify/functions/operations/seo-tools/**'
+      - 'amplify/functions/seo_tools_handler.py'
+      - 'amplify/functions/shared/lambda_utils/**'
+      - 'amplify/functions/shared/static_knowledge_base.py'
+      - 'tests/test_task12_seo.py'
+      - 'scripts/deploy_seo_tools.py'
+      - '.github/workflows/seo-tools-deploy.yml'
+
+env:
+  AWS_REGION: us-east-1
+  FUNCTION: wecare-seo-tools
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install focused test dependencies
+        run: python -m pip install --disable-pip-version-check pytest boto3
+
+      - name: Run SEO tools tests
+        run: python -m pytest tests/test_task12_seo.py -q
+
+  deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Package SEO tools Lambda
+        run: |
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+
+          root = Path.cwd()
+          functions = root / 'amplify' / 'functions'
+          out = Path('/tmp/seo-tools.zip')
+
+          with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
+              z.write(functions / 'seo_tools_handler.py', 'seo_tools_handler.py')
+              for f in sorted((functions / 'operations' / 'seo-tools').glob('*.py')):
+                  z.write(f, f'operations/seo-tools/{f.name}')
+              for f in sorted((functions / 'shared' / 'lambda_utils').glob('*.py')):
+                  z.write(f, f'shared/lambda_utils/{f.name}')
+              skb = functions / 'shared' / 'static_knowledge_base.py'
+              if skb.exists():
+                  z.write(skb, 'shared/static_knowledge_base.py')
+
+          print(f'Built {out} ({out.stat().st_size} bytes)')
+          PY
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::775261844268:role/GitHubActions-bharat-stack-seo-tools
+          role-session-name: bharat-stack-seo-tools
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy Lambda code
+        run: |
+          aws lambda update-function-code \
+            --function-name "$FUNCTION" \
+            --zip-file fileb:///tmp/seo-tools.zip \
+            --region "$AWS_REGION" >/tmp/deploy.json
+          aws lambda wait function-updated-v2 \
+            --function-name "$FUNCTION" \
+            --region "$AWS_REGION"
+          python - <<'PY'
+          import json
+          value = json.load(open('/tmp/deploy.json'))
+          print('Deployed code SHA:', value.get('CodeSha256'))
+          print('Last modified:', value.get('LastModified'))
+          PY
+
+      - name: Verify live Wix Integrity post
+        run: |
+          cat >/tmp/event.json <<'JSON'
+          {
+            "requestContext": {
+              "apiId": "smoke",
+              "http": {
+                "method": "GET",
+                "path": "/seo-tools/blog-public/integrity-and-balance",
+                "sourceIp": "127.0.0.1"
+              }
+            },
+            "rawPath": "/seo-tools/blog-public/integrity-and-balance"
+          }
+          JSON
+
+          aws lambda invoke \
+            --function-name "$FUNCTION" \
+            --cli-binary-format raw-in-base64-out \
+            --payload file:///tmp/event.json \
+            --region "$AWS_REGION" \
+            /tmp/response.json >/tmp/invoke.json
+
+          python - <<'PY'
+          import json
+
+          response = json.load(open('/tmp/response.json'))
+          assert response.get('statusCode') == 200, response
+          body = json.loads(response.get('body') or '{}')
+          assert body.get('ok') is True, body
+          post = body.get('post') or {}
+
+          assert post.get('title') == 'Integrity', post
+          assert post.get('slug') == 'integrity-and-balance', post
+          assert post.get('authorName') == 'Anew by WECARE.DIGITAL', post
+          assert post.get('category') == 'Conversations', post
+          assert not post.get('coverImage'), post
+
+          nodes = (post.get('richContent') or {}).get('nodes') or []
+          node_types = []
+          text_parts = []
+
+          def walk(value):
+              if isinstance(value, dict):
+                  node_type = str(value.get('type') or '').upper()
+                  if node_type:
+                      node_types.append(node_type)
+                  text = (value.get('textData') or {}).get('text')
+                  if text:
+                      text_parts.append(text)
+                  for nested in value.values():
+                      walk(nested)
+              elif isinstance(value, list):
+                  for nested in value:
+                      walk(nested)
+
+          walk(nodes)
+          text = '\n'.join(text_parts)
+          assert 'Once balance is distinguished, you do not need to rediscover it every time.' in text
+          assert 'We can always choose it again.' in text
+          assert not ({'IMAGE', 'GALLERY', 'GIF', 'VIDEO', 'AUDIO'} & set(node_types))
+
+          print('Live Integrity smoke test passed')
+          PY
