@@ -41,7 +41,6 @@
     "aws-cdk-lib": "2.270.0",
     "constructs": "10.8.1",
     "next": "^16.2.9",
-    "plivo-browser-sdk": "2.2.21",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
