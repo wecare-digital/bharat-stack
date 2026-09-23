@@ -189,6 +189,31 @@ def test_refresh_is_scheduled_before_expiry(api):
     assert result["refreshAfterSeconds"] == 240
 
 
+@pytest.mark.parametrize("requested", [
+    None, 1, 10, 24, 25, 29, 30, 31, 45, 60, 120, 300, 3600, 86400, 999999,
+    "not a number", 0, -1,
+])
+def test_refresh_always_leaves_usable_headroom(api, requested):
+    """The invariant, across every reachable TTL rather than just the default.
+
+    `refreshAfterSeconds` is `max(20, int(ttl * 0.8))`, and the 20s floor is the
+    interesting part: if it ever met or exceeded the TTL, a client following the
+    schedule would refresh at or after expiry and loop. Minting is a Plivo REST
+    call, so a refresh loop is a provider rate-limit incident, not a slow page.
+
+    It holds because `mint_token` clamps internally - `ttl = clamp_ttl(ttl_seconds)`
+    with a 30s floor - so `int(ttl * 0.8) >= 24 > 20` and the floor never applies.
+    That makes the clamp load-bearing for a reason unrelated to why it was added,
+    which is exactly the kind of coupling a single-value test does not protect.
+    """
+    result = _mint(ttl_seconds=requested)
+    ttl = result["expiresInSeconds"]
+    refresh = result["refreshAfterSeconds"]
+    assert ttl >= 30, "clamp_ttl's floor is what keeps the schedule sane"
+    assert 0 < refresh < ttl, f"refresh {refresh} leaves no headroom in {ttl}s"
+    assert ttl - refresh >= 6, "too little headroom to complete a re-login"
+
+
 # ==========================================================================
 # only minimal bootstrap reaches the browser
 # ==========================================================================
