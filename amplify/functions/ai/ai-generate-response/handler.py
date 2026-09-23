@@ -462,7 +462,7 @@ DEFAULT_BOT_FLOW = {
         },
         'store_gift_card': {
             'text': "?? *Gift Card*\n\nGive the gift of choice! Redeemable across all WECARE.DIGITAL brands. ??",
-            'cta': {'text': 'Get Gift Card', 'url': 'https://www.wecare.digital/gift-card'},
+            'cta': {'text': 'Get Gift Card', 'url': 'https://wecare.digital/gift-card'},
         },
     },
 
