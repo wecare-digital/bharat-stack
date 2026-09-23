@@ -149,21 +149,45 @@ def _get_payment(payment_id: str, request_id: str) -> Dict[str, Any]:
 
 
 def _normalize_payment(item: Dict) -> Dict:
-    """Normalize payment record for API response."""
-    amount = item.get('amount', 0)
-    if isinstance(amount, (int, float)):
-        amount_rupees = amount / 100 if amount > 1000 else amount
-    else:
-        amount_rupees = float(amount) / 100 if float(amount) > 1000 else float(amount)
-    
+    """Normalize payment record for API response.
+
+    `amount` is integer paise, as written by razorpay-webhook's `_store_payment_record`.
+
+    This used to guess the unit by magnitude: `amount / 100 if amount > 1000 else amount`.
+    That is wrong below ₹10 in both directions - 500 paise (₹5) reported as ₹500, and 999
+    paise (₹9.99) reported as ₹999 - and a magnitude test can never recover a unit that
+    was not recorded. The value was computed and then never used, so no response was
+    actually affected; it is removed rather than left one edit away from being wired in.
+
+    The unit is now explicit via `payment_status.rupees_str`, which returns a string
+    precisely so it cannot be summed or compared by accident. Every float-rupee bug in
+    this tree started as a display conversion that later got used in arithmetic.
+    """
+    try:
+        from lambda_utils import payment_status
+        amount_paise = payment_status.paise(item.get('amount', 0))
+        rupees = payment_status.rupees_str(amount_paise)
+    except Exception:
+        amount_paise, rupees = 0, '0.00'
+
     return {
         'id': item.get('id', ''),
         'paymentId': item.get('paymentId', ''),
         'orderId': item.get('orderId', ''),
         'referenceId': item.get('referenceId', ''),
         'status': item.get('status', 'unknown'),
+        # Kept for the existing consumers of this shape. `amountPaise` is the one to read.
         'amount': float(item.get('amount', 0)),
-        'amountInRupees': float(item.get('amountInRupees', amount_rupees)),
+        'amountPaise': amount_paise,
+        # A string, and derived from paise rather than from whatever the stored
+        # `amountInRupees` happens to hold - that field was itself built from a float
+        # division at write time.
+        'amountRupees': rupees,
+        # Retained because src/pages/dm/commerce reads it. Now derived from paise here
+        # instead of echoing the stored float, so the two cannot disagree. Dropping it
+        # would have made that page fall back to `amount` and render paise as rupees -
+        # ₹250000 for a ₹2500 payment.
+        'amountInRupees': float(rupees),
         'currency': item.get('currency', 'INR'),
         'method': item.get('method', ''),
         'contact': item.get('contact', ''),
