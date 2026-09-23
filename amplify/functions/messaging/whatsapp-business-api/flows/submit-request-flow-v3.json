@@ -123,7 +123,7 @@
           {
             "type": "EmbeddedLink",
             "text": "View Orders",
-            "on-click-action": { "name": "open_url", "url": "https://www.wecare.digital/orders" }
+            "on-click-action": { "name": "open_url", "url": "https://wecare.digital/orders" }
           },
           {
             "type": "Form",
