@@ -1,5 +1,5 @@
 {
-  "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - this is the source of truth to diff against. Regenerate with scripts/env_manifest.py --export; verify with no arguments.",
+  "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - regenerate with scripts/env_manifest.py --export after infrastructure changes.",
   "_region": "us-east-1",
   "_functions": 58,
   "_variables": 325,
@@ -287,9 +287,7 @@
       "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
       "LOG_LEVEL": "INFO",
       "SEO_TOOLS_TABLE": "stack-wecare-digital-SeoToolsTable",
-      "WEBHOOK_DEDUP_TABLE": "stack-wecare-digital-WebhookDedup",
-      "WIX_API_KEY_SECRET": "wecare/wix-api-key",
-      "WIX_SITE_ID": "sha256:dc2021db4555"
+      "WEBHOOK_DEDUP_TABLE": "stack-wecare-digital-WebhookDedup"
     },
     "wecare-service-api": {
       "DOCS_S3_BUCKET": "wecare-digital-media",
@@ -429,13 +427,9 @@
     "wecare-wix-store": {
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "LOG_LEVEL": "INFO",
-      "WIX_ACCOUNT_ID": "6b2d7a93-ef14-45ab-a04e-d445f599e9f4",
       "WIX_API_BASE_URL": "https://www.wixapis.com",
-      "WIX_MODE": "api",
       "WIX_ORDERS_CACHE_TABLE": "stack-wecare-digital-WixOrdersCache",
-      "WIX_PRODUCTS_CACHE_TABLE": "stack-wecare-digital-WixProductsCache",
-      "WIX_SITE_ID": "sha256:dc2021db4555",
-      "WIX_VELO_BASE_URL": "https://www.wecare.digital"
+      "WIX_PRODUCTS_CACHE_TABLE": "stack-wecare-digital-WixProductsCache"
     }
   }
 }
