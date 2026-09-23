@@ -21,7 +21,6 @@ export const productImageGenFunction = {
   memorySize: 512,
   environment: {
     LOG_LEVEL: 'INFO',
-    WIX_API_KEY: '${WIX_API_KEY}',
-    WIX_SITE_ID: '${WIX_SITE_ID}',
+    // Wix Headless credentials are injected only after the new project is provisioned.
   },
 };
