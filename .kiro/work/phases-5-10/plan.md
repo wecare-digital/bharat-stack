@@ -198,11 +198,49 @@ absent on every function.
 Steps 1 and 2 are both owner decisions, so the matrix cannot be produced unattended. Device
 metadata belongs in `docs/rcs-ios-android-testing.md` alongside the RCS handset rows.
 
-### 6.1 — Strip the action group's ungoverned powers · TODO
+### 6.1 — Strip the action group's ungoverned powers · DONE
 
-`ai/agent-action-group` can currently send directly, scan whole tables, delete data, and
-report placeholder success. The brief requires all four removed. Route its useful actions
-through one deterministic query/command service.
+Live `wecare-agent-action-group` v11 (rollback 10). Twelve tools became **4 enabled READ
+and 8 refused APPLY**, governed by `lambda_utils/agent/governance.py` — 115 tests.
+
+All four powers removed, and the implementations **deleted** rather than left behind an
+`if`. Dead code that still works is how a power comes back:
+
+| Power | Was | Now |
+|---|---|---|
+| SEND | `sendWhatsApp/Sms/Email` invoked `wecare-outbound-*` directly | refused; no Lambda client, no `OUTBOUND_*_FUNCTION` in env or manifest |
+| SCAN | `searchContacts` paginated all of ContactsTable then filtered in Python; `getStats` did 3 exhaustive scans; `getMessages` scanned both message tables | one bounded page, `Limit` sent to DynamoDB, `truncated` reported; stats from table metadata, **zero scans** |
+| DELETE | `deleteMessage` hard-deleted; `deleteContact` wrote `deletedAt` | both refused |
+| FABRICATE | `createInvoice` returned `success: True` with `INV-<random>` and wrote nothing | refused, and the refusal tells the model not to claim an invoice exists |
+
+Three bugs were hiding inside those powers, each reachable only because the power existed:
+
+- `deleteMessage` reported success for **any** id. `delete_item` succeeds on a nonexistent
+  key and the inbound attempt was wrapped in `try/except: pass`, so the outbound branch was
+  unreachable and every call claimed a deletion.
+- `deleteContact` used an unconditional `update_item`. DynamoDB upserts, so deleting an
+  unknown id **created** a row holding only `{id, deletedAt}` — a delete that manufactured
+  records.
+- `_find_contact_by_phone` scanned with `contains(phone, last10)` and `Limit=1`. `Limit`
+  applies **before** the FilterExpression, so it examined one arbitrary item and discarded
+  it, normally matching nobody; and `contains` could match the wrong number. ContactsTable
+  has `phone-index` and `email-index`, both ALL-projected, so the scan was never needed.
+
+Design points worth keeping: refusals are split into a short model-facing `refusal` (no
+table names, function names or ARNs — it travels into a prompt and then a transcript) and an
+operator-facing `detail` holding the forensics. My own test caught `DynamoDB` and
+`update_item` leaking into the model-facing string. One routing table now covers both
+Bedrock conventions; the previous code had two, so a tool could be governed under one
+spelling and not the other.
+
+The handler also moved from `CONTACT_WRITERS` to `CONTACT_PHONE_READERS` in
+`test_contact_key_wiring.py` and earned that contract — it now calls `assert_consistent` and
+logs `contact_key_mismatch`.
+
+Live proof on v11: `sendWhatsApp` to the real QA recipient **refused** with nothing sent;
+`createInvoice` refused with no id minted; `deleteMessage` refused via the API-path spelling
+too; unknown tool refused and lists only the four reads; `getStats` returns 16 contacts /
+204 messages, labelled approximate, with zero scans. No function errors.
 
 ### 6.2 — Versioned READ/PLAN/APPLY tool catalog · TODO
 
@@ -218,6 +256,14 @@ receipts linking to canonical records.
 ### 6.4 — Reconcile the live Bedrock agent/alias/prepared state · TODO
 
 Rediscover the agent, alias and prepared state; find and fix stale ids.
+
+Already measured during 6.1, 2026-09-23 — start from this rather than re-reading it:
+the account holds **exactly one** agent, `4UUQYFWX64` (`wecare-digital-agent`), status
+**`NOT_PREPARED`**. The action group's docstring named `QIEEHEBTZO` with alias `ASCBD7YPUT`;
+neither exists. That docstring is corrected, but the live state is not: `NOT_PREPARED` means
+nothing can currently invoke the action group through Bedrock at all. It **is** reachable at
+`POST /ai/agent`, which is why `require_auth` in that handler is load-bearing rather than
+belt-and-braces. Check the alias list and any stale id in `ai-config-management` too.
 
 ### 7.1 — Shared integration registry + sync/metric boundary · TODO
 
@@ -316,3 +362,4 @@ Open, each with a reason, from earlier phases. Fold into the item that touches t
 | `calling.tsx` auto-answer falls back to a **0 Hz oscillator** when the mic fails, so the call connects and the far party hears silence with no signal that capture failed. Left alone deliberately — changing it alters what a caller hears | 5.4 | MEDIUM |
 | `useWebRTCCalling.ts` has 3 pre-existing eslint errors (use-before-declare at 161, lost memoization at 226, setState-in-effect at 620). Present at HEAD before this work; confirmed by linting the file from `git show HEAD:` | 5.4 | LOW |
 | 40 Dependabot alerts (1 critical, 20 high, 18 moderate, 1 low) — count re-read from the push warning on 2026-09-23, down from 49 | — | HIGH |
+| `route-auth.yml`'s **live-AWS job has never run**. It is gated on `if: vars.ROUTE_AUTH_ROLE_ARN != ''` and `gh variable list` is empty, so the job reports `skipped` on every run (confirmed on `35866106357`). The source gate does run and is blocking; it is the console-drift half that is missing — the half that would catch a route added or re-pointed outside the repo. Unblock: create a read-only OIDC role trusted by this repo and set the repo variable | 5.2 | MEDIUM |
