@@ -32,12 +32,8 @@
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "CONVERSATION_TABLE": "stack-wecare-digital-ConversationHistoryTable",
       "CONVERSATION_TTL_HOURS": "24",
-      "EXTERNAL_KB_ID": "LYMQLKZNY7",
       "GUARDRAIL_ID": "",
       "GUARDRAIL_VERSION": "DRAFT",
-      "INTERNAL_AGENT_ALIAS": "ASCBD7YPUT",
-      "INTERNAL_AGENT_ID": "QIEEHEBTZO",
-      "INTERNAL_KB_ID": "D0JU8Q7IQS",
       "LOG_LEVEL": "INFO",
       "MAX_HISTORY_MESSAGES": "20",
       "MAX_INPUT_TEXT_LENGTH": "2000",
@@ -51,8 +47,6 @@
     },
     "wecare-ai-query-kb": {
       "AWS_ACCOUNT_ID": "775261844268",
-      "EXTERNAL_KB_ID": "LYMQLKZNY7",
-      "INTERNAL_KB_ID": "D0JU8Q7IQS",
       "LOG_LEVEL": "INFO",
       "REGION": "us-east-1",
       "S3_BUCKET": "app.wecare.digital",
@@ -387,9 +381,6 @@
       "WIX_SITE_URL": "https://www.wecare.digital"
     },
     "wecare-whatsapp-calling": {
-      "AI_AGENT_ALIAS": "WANPKHQGIB",
-      "AI_AGENT_ID": "Z4YAK0ZLBO",
-      "AI_KB_ID": "static-faq",
       "AI_LANGUAGE": "en-IN",
       "AI_VOICE_ID": "Kajal",
       "AUTO_PICKUP_AUDIO_KEY": "whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg",
