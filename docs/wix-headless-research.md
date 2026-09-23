@@ -21,8 +21,14 @@ This is not a greenfield decision — the repo is already a partial headless cli
 | Next.js store page | Renders our own store UI against those APIs | `src/pages/store/index.tsx` |
 
 Auth today is an **API key** from Secrets Manager (`wecare/wix-api-key`) plus
-`WIX_SITE_ID` / `WIX_ACCOUNT_ID` — `handler.py:38-80`. Site is
-`c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5` (`store/wix.config.json`).
+`WIX_SITE_ID` / `WIX_ACCOUNT_ID` — `handler.py:38-80`.
+
+> **Superseded.** This paragraph used to name the site as
+> `c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5`, sourced from `store/wix.config.json`. That file no
+> longer exists in the repo, and that id belongs to the **retired editor site**. The headless
+> site is `fcd82f0c-9572-49c7-acfb-88fb05042ece`, supplied by the owner. The single source of
+> truth is [`src/config/wix.ts`](../src/config/wix.ts) — prefer it over this research note,
+> which is a point-in-time document.
 
 So "should we go headless" is really **"should we finish going headless, and retire
 the Velo layer"**.
