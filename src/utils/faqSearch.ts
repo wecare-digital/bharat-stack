@@ -215,7 +215,7 @@ const FAQ_DATABASE: FAQ[] = [
     keywords: [ "gift", "card", "voucher", "present", "gifting" ],
     category: "payments",
     question: "Can I buy a gift card?",
-    answer: "Yes! Visit https://www.wecare.digital/gift-card to purchase a gift card for any amount. You can include a personal message. Gift cards are delivered digitally and can be redeemed at our store.",
+    answer: "Yes! Visit https://wecare.digital/gift-card to purchase a gift card for any amount. You can include a personal message. Gift cards are delivered digitally and can be redeemed at our store.",
     shortAnswer: "Yes, visit wecare.digital/gift-card",
   },
 ];
