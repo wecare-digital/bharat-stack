@@ -3,10 +3,20 @@ Sinch RCS Send Lambda Function
 
 Purpose: Send RCS messages via Sinch India Conversation API
 Enterprise: WECARE.DIGITAL
-App ID: wecaretrans
 BOT Type: Transactional
-Project ID: c8114d03-eeb2-401d-a8f1-abb93594cb33
-Conv App ID: 01KQSB792X3R148D8ZGHQYW3SP
+
+Configuration, as confirmed against the live account on 2026-09-23. The first three are
+NON-SECRET and are supplied as environment variables; the credential pair is not:
+
+  Username        wecaretrans                            (secret field, NOT an env var)
+  Project ID      c8114d03-eeb2-401d-a8f1-abb93594cb33    RCS_PROJECT_ID
+  Conv App ID     01KQSB792X3R148D8ZGHQYW3SP              RCS_APP_ID
+  Bot ID          69e0b2c980cbf50614ffa5fd                (secret field)
+
+This header previously read "App ID: wecaretrans", which conflated the Sinch *username*
+with the Conversation App id. They are different values addressing different things -
+the username authenticates the password grant and keys the v2 template endpoints, while
+the app id identifies the Conversation App in the send payload.
 
 Authentication:
 - Token endpoint: POST https://auth.aclwhatsapp.com/realms/ipmessaging/protocol/openid-connect/token
@@ -28,7 +38,17 @@ Templates:
 - Template creation: POST https://api.aclwhatsapp.com/access-api/v1/rcs/{botId}/templates
 
 Secrets: wecare/sinch/rcs
-Expected keys: username, password, project_id, app_id
+Expected keys: username, password, project_id, app_id, bot_id
+
+Credentials come from Secrets Manager and nowhere else. There are deliberately no literal
+defaults for `username` or `bot_id`: a default username puts half of the password-grant
+credential pair into source control, and it also masks a real fault - a secret missing its
+username would otherwise authenticate as the literal with an empty password and return a
+401 that reads like a provider outage rather than a configuration error.
+
+Do NOT migrate this to auth.sinch.com or a KEY_ID/KEY_SECRET pair. Live traffic
+authenticates with the username/password grant against auth.aclwhatsapp.com; the global
+Sinch credentials are a different account and would not carry this project.
 """
 
 import os
@@ -213,7 +233,7 @@ def _diagnostics(body: Dict, request_id: str, origin: str) -> Dict:
     substitutions = {
         'project_id': RCS_PROJECT_ID,
         'app_id': RCS_APP_ID,
-        'username': creds.get('username', 'wecaretrans'),
+        'username': creds.get('username') or '',
         'bot_id': creds.get('bot_id', ''),
     }
 
@@ -489,7 +509,7 @@ def _get_token() -> str:
 def _authenticate() -> str:
     """Authenticate with Sinch RCS using username/password."""
     creds = _get_secrets()
-    username = creds.get('username', 'wecaretrans')
+    username = creds.get('username') or ''
     password = creds.get('password', '')
 
     if not password:
@@ -614,7 +634,7 @@ def _list_templates(body: Dict, request_id: str, origin: str) -> Dict:
         return cors_response(500, {'error': 'Auth failed'}, origin)
 
     creds = _get_secrets()
-    username = creds.get('username', 'wecaretrans')
+    username = creds.get('username') or ''
 
     # v2 API uses username as appId
     url = f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates"
@@ -647,7 +667,7 @@ def _create_template(body: Dict, request_id: str, origin: str) -> Dict:
         return cors_response(400, {'error': 'name and text are required'}, origin)
 
     creds = _get_secrets()
-    username = creds.get('username', 'wecaretrans')
+    username = creds.get('username') or ''
 
     # v2 API uses username as appId
     url = f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates"
@@ -717,16 +737,35 @@ def _delete_template(body: Dict, request_id: str, origin: str) -> Dict:
     if not name:
         return cors_response(400, {'error': 'Template name is required'}, origin)
 
+    # Secrets Manager only, with no literal fallbacks. `username` is half of the
+    # password-grant credential pair, so a default put it in source control; and a default
+    # `bot_id` silently addresses whichever bot that literal names, which after a bot change
+    # would query the wrong agent and report its templates as ours.
     creds = _get_secrets()
-    bot_id = creds.get('bot_id', '69e0b2c980cbf50614ffa5fd')
-    username = creds.get('username', 'wecaretrans')
+    bot_id = str(creds.get('bot_id') or '').strip()
+    username = str(creds.get('username') or '').strip()
+    if not username:
+        logger.error(json.dumps({
+            'event': 'rcs_template_lookup_no_credentials',
+            'secretId': RCS_SECRET_NAME,
+            'missingFields': [f for f in ('username', 'bot_id')
+                              if not str(creds.get(f) or '').strip()],
+            'requestId': request_id,
+        }))
+        return cors_response(500, {
+            'error': 'RCS credentials unavailable',
+            'detail': f'{RCS_SECRET_NAME} is missing username',
+        }, origin)
 
-    # Try multiple endpoint formats (v1 with botId, v2 with username)
-    urls = [
-        f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates/{name}",
-        f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates/{name}",
-        f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates?name={name}",
-    ]
+    # Try multiple endpoint formats (v2 with username, v1 with botId). The v1 forms are
+    # skipped when bot_id is absent rather than sent with an empty path segment, which would
+    # hit a different resource entirely.
+    urls = [f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates/{name}"]
+    if bot_id:
+        urls += [
+            f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates/{name}",
+            f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates?name={name}",
+        ]
 
     for url in urls:
         try:
