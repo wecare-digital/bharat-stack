@@ -43,8 +43,8 @@ CLIENT_NAME = "wecare-customer-whatsapp-otp"
 GROUP_NAME = "Partner"
 
 # Live Meta values verified through the production backend on 2026-09-23.
-WABA_ID = "2513394156072604"
-PHONE_NUMBER_ID = "1055232054343117"
+WABA_ID = "2094615664435155"
+PHONE_NUMBER_ID = "1016149501586345"
 OTP_TEMPLATE_NAME = "wecare_otp"
 OTP_TEMPLATE_LANGUAGE = "en"
 OTP_TTL_SECONDS = "600"
@@ -217,7 +217,7 @@ def ensure_function(dry_run: bool) -> str:
                 Handler="handler.handler",
                 Code={"ZipFile": _zip_handler()},
                 Description=(
-                    "Cognito CUSTOM_AUTH WhatsApp OTP for customer WABA2"
+                    "Cognito CUSTOM_AUTH WhatsApp OTP for WECARE.DIGITAL WABA1"
                 ),
                 Timeout=15,
                 MemorySize=256,
