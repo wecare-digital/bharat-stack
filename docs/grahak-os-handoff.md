@@ -171,10 +171,41 @@ mkdir -p /projects/pwtest && cd /projects/pwtest
 npm init -y && npm i -D playwright && npx playwright install chromium
 ```
 
-In this sandbox Chromium lands in `/opt/playwright/chromium-<rev>/chrome-linux64/chrome`,
-**not** `~/.cache/ms-playwright`, so pass `executablePath` explicitly. Each harness
-boots its own HTTP server against `out/`, because background servers are blocked;
-`lib/serve.js` handles `trailingSlash` resolution.
+**Never hardcode the Chromium path.** In this sandbox it lands in
+`/opt/playwright/chromium-<rev>/chrome-linux64/chrome`, not `~/.cache/ms-playwright`
+— but **the revision changes across resets**, and harnesses pinned to
+`chromium-1243` all died with `executable doesn't exist` on a box that had
+`chromium-1232` sitting right there. That reads like a broken harness, not a missing
+browser, and it cost a debugging round. `lib/browser.js` resolves it: `CHROME` env
+var, then Playwright's own lookup, then the highest `chromium-*` under
+`/opt/playwright`, then `~/.cache/ms-playwright`; it throws naming every path it
+searched rather than returning undefined.
+
+**Harnesses are dual-mode.** `lib/serve.js` exports `target()`: with no `BASE` it
+boots its own static server against `out/` (background servers are blocked, so each
+run owns one) and handles `trailingSlash` resolution; with `BASE` set it points at
+that origin instead and starts nothing. So the same assertions run against either
+render:
+
+```bash
+node verify.js                 # against out/ (production export)
+bash rundev.sh                 # boots next dev, runs all three against it, kills it
+```
+
+That distinction is load-bearing: `next.config.js` only sets `output:'export'` when
+`NODE_ENV` is production, so `out/` is pre-generated HTML and dev is a live server.
+A suite that only ever ran against `out/` has not tested what you see locally. All
+57 assertions pass in both modes as of `5ff30ead`.
+
+`rundev.sh` **warms every route before asserting** — dev compiles per-route on first
+request, and an uncompiled route answers slowly enough that a harness measures a
+blank page and reports a false failure.
+
+Two console errors appear **only** under dev and are dev-server infrastructure, not
+regressions: `_clientMiddlewareManifest.js` is served with a MIME type Chromium
+refuses, and the `_next/hmr` websocket cannot complete a handshake through this
+sandbox's networking. `animcheck.js` allows exactly those two patterns; keep that
+list narrow, because a broad `/error/i` filter there would mask what it exists to catch.
 
 | Script | Checks | On disk |
 |---|---|---|
