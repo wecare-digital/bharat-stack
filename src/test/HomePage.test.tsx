@@ -66,12 +66,21 @@ describe( 'WECARE.DIGITAL Home', () => {
     // One readable copy of the full list...
     const srOnly = container.querySelector( '.home-sr-only' );
     expect( srOnly ).toBeInTheDocument();
-    expect( srOnly?.textContent ).toBe( 'travel, rituals, documents, reflection, disputes, ai applications, consumer, enterprise, frontier tech' );
+    expect( srOnly?.textContent ).toBe( 'consumers, enterprises, AI applications, frontier tech' );
 
     // ...and every visually-rotating copy hidden, so the headline is not read out
-    // four times over. Each animated word must carry aria-hidden.
+    // once per word. Each animated word must carry aria-hidden.
+    //
+    // The count is DERIVED from the screen-reader list rather than hardcoded. It was
+    // hardcoded to 9, which meant a word-list change failed this test for the wrong
+    // reason - the number, not the behaviour - twice over. Deriving it also pins
+    // something the old assertion could not: that the visible rotation and the list
+    // read aloud cannot drift apart. If a word is added to one and not the other,
+    // this fails, which is the actual accessibility bug worth catching.
+    const expectedWords = ( srOnly?.textContent || '' ).split( ', ' ).length;
     const words = Array.from( container.querySelectorAll( '.home-cyc-word' ) );
-    expect( words ).toHaveLength( 9 );
+    expect( words ).toHaveLength( expectedWords );
+    expect( words.map( w => w.textContent ) ).toEqual( ( srOnly?.textContent || '' ).split( ', ' ) );
     words.forEach( word => expect( word ).toHaveAttribute( 'aria-hidden', 'true' ) );
 
     // Exactly one is active at a time.
