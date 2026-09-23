@@ -224,8 +224,23 @@ const ContactLocation: React.FC = () => {
             title="Map showing the WECARE.DIGITAL office on Phears Lane, Kolkata"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            allowFullScreen
           />
+
+          {/* INTERACTION LOCK. The map is a fixed illustration now: no drag, no
+              scroll-zoom, no click, no info dialog.
+              This is a transparent sheet OVER the iframe, not a setting on it, because
+              the iframe is cross-origin - neither our CSS nor our JS can reach inside
+              it, so Google's own controls cannot be configured away from here. The
+              sheet swallows every pointer event before it reaches them, which makes the
+              pan, zoom and fullscreen buttons inert and stops any dialog opening.
+              It stops SHORT of the bottom edge on purpose. Google's attribution strip
+              lives there and remains clickable, because covering or disabling it is a
+              licence breach rather than a design choice - the same reason the card above
+              is positioned clear of it.
+              What this does NOT do is hide those buttons. They are painted inside the
+              frame and only a keyed Static Maps image or the Maps JS API with
+              disableDefaultUI can remove them - see the note above EMBED_URL. */}
+          <div className="cl-lock" aria-hidden="true" />
 
           {/* OUR CARD, IN PLACE OF GOOGLE'S. This sits OUTSIDE the iframe and on top of
               it, which is the only way it can be ours - see the note on LAT/LNG for why
@@ -240,7 +255,7 @@ const ContactLocation: React.FC = () => {
               breach, not a design choice, so the card stays clear of it. */}
           <div className="cl-card">
             <p className="cl-card-name">WECARE.DIGITAL</p>
-            <p className="cl-card-addr">Phears Lane, Tiretti<br />Kolkata 700012</p>
+            <p className="cl-card-addr">Phears Lane<br />Kolkata 700012, WB</p>
 
             {/* LIVE ROW. Rendered only once at least one value has arrived, so the card never
                 shows an empty strip or a placeholder dash. Both chips carry the theme's own
@@ -321,6 +336,9 @@ const ContactLocation: React.FC = () => {
         /* display:block kills the inline-element baseline gap under the iframe, which
            otherwise shows as a few pixels of tint along the bottom edge. */
         .cl-frame{display:block;width:100%;height:100%;border:0}
+        /* bottom:26px leaves Google's attribution strip uncovered and clickable. Raise
+           this and you are disabling a licence condition. */
+        .cl-lock{position:absolute;inset:0 0 26px 0;z-index:1;background:transparent;cursor:default}
 
         /* THE CARD THAT REPLACED GOOGLE'S. Same 14px radius and 2px lime edge as the map
            frame itself, so it reads as part of this site rather than as a tooltip the map

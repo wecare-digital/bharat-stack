@@ -18,13 +18,19 @@
  * WORD LENGTH IS A DESIGN CONSTRAINT, not a copy detail, for one measured reason:
  * the pill animates to each word's measured width, so the spread between the
  * shortest and longest word is how far the headline's tail travels on every tick.
- * Measured at 1280px: consumers 278, enterprises 280, frontier tech 300,
- * AI applications 361. Spread 83px.
+ * Measured at 1280px: climate 178, consumers 278, enterprises 280,
+ * frontier tech 300, AI applications 361. Spread 183px.
+ *
+ * That spread is 2.2x what it was before "climate" was added (83px across the four
+ * longer words), because climate is much the shortest. It still glides and still does
+ * not reflow, so this is a movement-feel judgement rather than a defect - but if the
+ * tail travel looks busy, "climate tech" measures ~290px, brings the spread back to
+ * ~83px, and reads more in parallel with "frontier tech" and "AI applications".
  *
  * The real constraint is NOT the spread, it is reflow: the headline growing to a
  * second line on the longest word only would shift every section below it every
  * 2400ms. That is checked by measuring the h1's height across a full rotation -
- * sampled here at 131px for all four words, nine consecutive samples, constant.
+ * sampled at 131px for all FIVE words, eleven consecutive samples, constant.
  *
  * Re-measure after changing a word. Note that animcheck.js, referenced in this
  * file and three other places, DOES NOT EXIST in the repo - so "re-run the
@@ -130,7 +136,8 @@ const CYCLE_WORDS = [
   { word: 'consumers', tint: '#fef3c7', dot: '#f0a818' },
   { word: 'enterprises', tint: '#ede9fe', dot: '#9849e8' },
   { word: 'AI applications', tint: '#dbeafe', dot: '#2563eb' },
-  { word: 'frontier tech', tint: '#e0f7c8', dot: '#3da35a' },
+  { word: 'climate', tint: '#e0f7c8', dot: '#3da35a' },
+  { word: 'frontier tech', tint: '#fee2e2', dot: '#dc2626' },
 ];
 
 const HomePage: React.FC = () => {
@@ -316,11 +323,10 @@ const HomePage: React.FC = () => {
                   someone non-technical: it is the part you are not meant to have to look at. */}
               <h2 className="home-flow-title" id="home-flow-title">You won’t see this part. You’ll feel it.</h2>
               <p className="home-flow-lead">
-                Travel, documents, disputes, rituals, reflection — each one is its own
-                service, and all of them run on the same foundation underneath. You will
-                probably never look at it. What you notice is that access is simpler,
-                updates are clearer, follow-ups actually arrive, and everything behaves the
-                same way every time.
+                Everything runs on the same AI foundation underneath. You may never need
+                to think about how it works. What you notice is that things feel connected:
+                you don’t keep repeating yourself, updates reach you where you are,
+                follow-ups happen automatically, and every experience feels familiar.
               </p>
               { /* THREE BEATS, EACH ONE SOMETHING A CUSTOMER CAN NOTICE HAPPENING TO THEM.
                    These have now been rewritten twice. First they named components ("Built
@@ -333,18 +339,28 @@ const HomePage: React.FC = () => {
                    where you actually look, and get the message late rather than never. The
                    mechanism is still there as the reason to believe it, just no longer the
                    subject of the sentence. */ }
+              {/* FOUR beats, not three, per the owner's copy. The fourth - that it
+                  remembers context - is the one that compounds, so it closes the list.
+                  Channel names are back. An earlier pass stripped them on the reading
+                  that the no-service-names rule covered them; the owner's own draft
+                  names them twice, which settles it. The rule is about SERVICE names,
+                  which change, not delivery channels. */}
               <ul className="home-flow-list">
                 <li>
-                  <strong>One account for all of it</strong>
-                  <span>Sign in once. Whatever you need next — a booking, a document, a dispute — is already waiting under the same account, on the same bill.</span>
+                  <strong>One account. One continuous experience.</strong>
+                  <span>Sign in once, and your context carries forward. What you’ve already shared stays connected, so the next thing you need doesn’t feel like starting over.</span>
                 </li>
                 <li>
-                  <strong>We reach you where you actually look</strong>
-                  <span>WhatsApp, SMS, email and a phone call all go out together, so the update lands on whichever one you check, instead of waiting in line behind the others.</span>
+                  <strong>Updates find you.</strong>
+                  <span>Important updates can reach you across WhatsApp, SMS, email or phone, so you’re less likely to miss what matters.</span>
                 </li>
                 <li>
-                  <strong>A hiccup doesn’t become your problem</strong>
-                  <span>If a message doesn’t get through the first time, it goes again by itself. You hear from us a little later instead of never, and nobody has to chase it.</span>
+                  <strong>Follow-ups happen automatically.</strong>
+                  <span>If something doesn’t go through or needs another nudge, it is tracked and followed up without waiting for you to chase it.</span>
+                </li>
+                <li>
+                  <strong>It remembers the context.</strong>
+                  <span>The more you use it, the less you need to repeat — helping each interaction feel faster, simpler and more relevant.</span>
                 </li>
               </ul>
             </div>
@@ -384,19 +400,19 @@ const HomePage: React.FC = () => {
                   three lines are that site's own "Tap. Track. Done." written out. */}
               <p className="home-close-eyebrow">Everyday Bharat</p>
               <h2 className="home-close-title" id="home-close-title">
-                Start with one thing. The rest is already here.
+                Start with what you need today. The rest stays with you.
               </h2>
+              {/* "We keep", not "We keeps" - the one grammar fix to the owner's draft. */}
               <p className="home-close-lead">
-                Book a stay, sort out a document, settle a dispute, order a puja kit — begin
-                with whatever you actually need today. Whenever you come back for something
-                else, it is on the same account, at prices you can see before you decide,
-                with the same people to ask if anything goes wrong.
+                Begin with whatever matters right now. When you come back for something
+                else, you don’t have to start from scratch. We keep the context, remember
+                what you’ve already shared, and help move things forward from there.
               </p>
               <span className="home-close-rule" aria-hidden="true" />
               <ul className="home-close-points">
-                <li>Nothing to set up a second time</li>
-                <li>One place to see everything you have asked for</li>
-                <li>Prices shown up front, before you commit</li>
+                <li>Tell us once. We remember the context.</li>
+                <li>Everything you’ve asked for, in one place.</li>
+                <li>Know the price before you commit.</li>
               </ul>
               {/* A PLAIN <a>, AND IT MUST STAY ONE. This was briefly next/link to silence
                   @next/next/no-html-link-for-pages, and that silently destroyed the button:
