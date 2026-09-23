@@ -4,6 +4,7 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
@@ -14,7 +15,12 @@ SITE_BASE = 'https://wecare.digital'
 SECRET_NAME = os.environ.get('WIX_API_KEY_SECRET', '').strip()
 SITE_ID = os.environ.get('WIX_SITE_ID', '').strip()
 ACCOUNT_ID = os.environ.get('WIX_ACCOUNT_ID', '').strip()
+WIX_CLIENT_ID = os.environ.get(
+    'WIX_CLIENT_ID', '197cd718-e4ec-4e2e-b380-46c297eb18a2'
+).strip()
 _api_key = None
+_visitor_access_token = None
+_visitor_access_token_expires_at = 0.0
 
 SITE_PAGES = [
     ('/', 'Homepage', 'landing'), ('/bnb', 'BNB Club', 'brand_hub'),
@@ -84,6 +90,78 @@ def request(method: str, path: str, body: Optional[Dict[str, Any]] = None) -> Di
         raise RuntimeError('Wix API request failed') from error
 
 
+def _load_visitor_access_token() -> str:
+    global _visitor_access_token, _visitor_access_token_expires_at
+    now = time.time()
+    if (
+        _visitor_access_token
+        and now < _visitor_access_token_expires_at - 60
+    ):
+        return _visitor_access_token
+    if not WIX_CLIENT_ID:
+        raise RuntimeError('Wix Headless client ID is not configured')
+    payload = json.dumps({
+        'clientId': WIX_CLIENT_ID,
+        'grantType': 'anonymous',
+    }).encode('utf-8')
+    req = urllib.request.Request(
+        WIX_API + '/oauth2/token',
+        data=payload,
+        headers={
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            data = json.loads(response.read().decode('utf-8'))
+    except urllib.error.HTTPError as error:
+        error.read()
+        raise RuntimeError(
+            f'Wix visitor token request failed with status {error.code}'
+        ) from error
+    except urllib.error.URLError as error:
+        raise RuntimeError('Wix visitor token request failed') from error
+
+    token = str(data.get('access_token') or '').strip()
+    if not token:
+        raise RuntimeError('Wix visitor token response did not include an access token')
+    expires_in = int(data.get('expires_in') or 0)
+    _visitor_access_token = token
+    _visitor_access_token_expires_at = now + max(expires_in, 300)
+    return token
+
+
+def public_blog_request(
+    method: str,
+    path: str,
+    body: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    data = json.dumps(body).encode('utf-8') if body is not None else None
+    req = urllib.request.Request(
+        WIX_API + path,
+        data=data,
+        headers={
+            'Authorization': _load_visitor_access_token(),
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            raw = response.read().decode('utf-8')
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as error:
+        error.read()
+        raise RuntimeError(
+            f'Wix public Blog API request failed with status {error.code}'
+        ) from error
+    except urllib.error.URLError as error:
+        raise RuntimeError('Wix public Blog API request failed') from error
+
+
 def public_json(path: str, timeout: int = 8) -> Dict[str, Any]:
     req = urllib.request.Request(SITE_BASE + path, headers={'Accept': 'application/json'})
     try:
@@ -151,24 +229,36 @@ def _seo_values(post: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _paged_blog_labels(path: str, key: str) -> List[Dict[str, Any]]:
+    items: List[Dict[str, Any]] = []
+    offset = 0
+    while True:
+        data = public_blog_request(
+            'POST',
+            path,
+            {'query': {'paging': {'limit': 100, 'offset': offset}}},
+        )
+        page = data.get(key, []) or []
+        items.extend(page)
+        if len(page) < 100:
+            break
+        offset += len(page)
+    return items
+
+
 def _blog_reference_maps() -> Dict[str, Dict[str, str]]:
-    categories = request('GET', '/blog/v3/categories?paging.limit=100').get('categories', []) or []
-    tags = request('POST', '/v3/tags/query', {
-        'query': {'cursorPaging': {'limit': 100}},
-    }).get('tags', []) or []
-    members = request('GET', '/members/v1/members?fieldsets=FULL&paging.limit=100').get('members', []) or []
+    categories = _paged_blog_labels('/blog/v3/categories/query', 'categories')
+    tags = _paged_blog_labels('/v3/tags/query', 'tags')
     return {
         'categories': {
-            str(item.get('id') or ''): str(item.get('label') or item.get('title') or '').strip()
+            str(item.get('id') or ''): str(
+                item.get('label') or item.get('title') or ''
+            ).strip()
             for item in categories if item.get('id')
         },
         'tags': {
             str(item.get('id') or ''): str(item.get('label') or '').strip()
             for item in tags if item.get('id')
-        },
-        'members': {
-            str(item.get('id') or ''): str((item.get('profile') or {}).get('nickname') or '').strip()
-            for item in members if item.get('id')
         },
     }
 
@@ -180,7 +270,7 @@ def _blog_view(post: Dict[str, Any], refs: Dict[str, Dict[str, str]], include_co
     tag_ids = post.get('tagIds') or []
     category = next((refs['categories'].get(str(value), '') for value in category_ids if refs['categories'].get(str(value))), '')
     tags = [refs['tags'][str(value)] for value in tag_ids if refs['tags'].get(str(value))]
-    author = refs['members'].get(str(post.get('memberId') or ''), '') or DEFAULT_BLOG_AUTHOR
+    author = DEFAULT_BLOG_AUTHOR
     result = {
         'id': post.get('id', ''),
         'title': post.get('title', ''),
@@ -220,7 +310,7 @@ def list_blog_posts() -> List[Dict[str, Any]]:
             'query': {'cursorPaging': paging},
             'skipCount': True,
         }
-        data = request('POST', '/v3/posts/query', body)
+        data = public_blog_request('POST', '/v3/posts/query', body)
         posts.extend(data.get('posts', []) or [])
         cursor = str(((data.get('pagingMetadata') or {}).get('cursors') or {}).get('next') or '')
         if not cursor:
@@ -240,7 +330,7 @@ def get_blog_post_by_slug(slug: str) -> Optional[Dict[str, Any]]:
         ('fieldsets', 'RICH_CONTENT'),
     ])
     try:
-        data = request(
+        data = public_blog_request(
             'GET',
             '/v3/posts/slugs/' + urllib.parse.quote(wanted, safe='') + '?' + params,
         )
