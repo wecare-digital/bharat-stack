@@ -30,6 +30,7 @@ from lambda_utils.message_store import put_message  # canonical MessagesTable wr
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
 from lambda_utils import sinch_signature  # raw-body HMAC on the public callback
 from lambda_utils import rcs_status  # monotonic status ordering + failure classification
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
 
@@ -486,7 +487,12 @@ def _process_opt(data: Dict, event_type: str, request_id: str):
 
 
 def _lookup_contact_by_phone(phone: str) -> str:
-    """Look up contactId from Contacts table by phone number."""
+    """The contact's canonical id for this phone number, or `''` if there is none.
+
+    See the matching function in `rcs-send`: resolution goes through `contact_key` so a
+    row carrying only `id`, or one whose `contactId` alias has drifted, still yields the
+    key that actually works against the table.
+    """
     if not phone:
         return ''
     clean = phone.replace('+', '').replace(' ', '').replace('-', '')
@@ -508,7 +514,16 @@ def _lookup_contact_by_phone(phone: str) -> str:
             )
             items = resp.get('Items', [])
             if items:
-                return items[0].get('contactId', '')
+                item = items[0]
+                try:
+                    contact_key.assert_consistent(item)
+                except contact_key.ContactKeyMismatch as exc:
+                    logger.warning(json.dumps({
+                        'event': 'contact_key_mismatch',
+                        'source': 'rcs-dlr._lookup_contact_by_phone',
+                        'reason': str(exc),
+                    }))
+                return contact_key.resolve(item)
     except Exception as e:
         logger.debug(f"Contact lookup by phone failed: {e}")
     return ''

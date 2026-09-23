@@ -46,6 +46,7 @@ from typing import Dict, Any
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
 
@@ -789,7 +790,14 @@ def _store_rcs_message(message_id: str, phone: str, content: str, status: str,
 
 
 def _lookup_contact_by_phone(phone: str) -> str:
-    """Look up contactId from Contacts table by phone number. Returns '' if not found."""
+    """The contact's canonical id for this phone number, or `''` if there is none.
+
+    Resolution goes through `contact_key`, which prefers `id` - the table's actual
+    partition key - over the `contactId` alias. This used to read
+    ``items[0].get('contactId', '')`` directly, which had two failure modes: a row
+    carrying only `id` yielded `''` and silently detached the message from its contact,
+    and a row whose alias had drifted yielded a value that resolves to nothing.
+    """
     if not phone:
         return ''
     # Normalize: try with and without 91 prefix
@@ -812,7 +820,20 @@ def _lookup_contact_by_phone(phone: str) -> str:
             )
             items = resp.get('Items', [])
             if items:
-                return items[0].get('contactId', '')
+                item = items[0]
+                try:
+                    contact_key.assert_consistent(item)
+                except contact_key.ContactKeyMismatch as exc:
+                    # Surfaced rather than swallowed: a diverged row means some writer has
+                    # broken the invariant, and staying quiet here is what would let a
+                    # wrong contact id spread into MessagesTable. `resolve` still returns
+                    # the usable key, so the send itself is not blocked.
+                    logger.warning(json.dumps({
+                        'event': 'contact_key_mismatch',
+                        'source': 'rcs-send._lookup_contact_by_phone',
+                        'reason': str(exc),
+                    }))
+                return contact_key.resolve(item)
     except Exception as e:
         logger.debug(f"Contact lookup by phone failed: {e}")
     return ''

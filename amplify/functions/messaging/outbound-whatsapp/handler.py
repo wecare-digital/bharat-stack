@@ -28,6 +28,7 @@ from lambda_utils.middleware import require_auth
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils import graph_errors  # Meta error subcode + transient classification
 from lambda_utils import live_smoke  # WA_LIVE_SMOKE_TEST recipient lockdown
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
 
@@ -3542,8 +3543,7 @@ def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
     contact_id = det_id or str(uuid.uuid4())
     now = int(time.time())
     contact = {
-        'id': contact_id,
-        'contactId': contact_id,
+        **contact_key.contact_item_keys(contact_id),
         'name': '',
         'phone': with_plus,
         'optInWhatsApp': True,

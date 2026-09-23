@@ -33,6 +33,7 @@ from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply r
 from lambda_utils import meta_signature  # raw-body X-Hub-Signature-256 on the public route
 from lambda_utils import wa_status  # monotonic status ordering (no backward transitions)
 from lambda_utils import wa_internal_event  # typed ingress -> worker contract
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 from botocore.exceptions import ClientError
 try:
     from lambda_utils import partner_billing  # per-tenant prepaid metering (optional)
@@ -2090,8 +2091,7 @@ def _get_or_create_contact(phone: str, sender_name: str = '', bsuid: str = '', u
         formatted_phone = phone if phone.startswith('+') else f'+{phone}'
 
     contact = {
-        'id': contact_id,
-        'contactId': contact_id,
+        **contact_key.contact_item_keys(contact_id),
         'name': sender_name or '',
         'phone': formatted_phone or None,
         'email': None,

@@ -44,6 +44,7 @@ from functools import wraps
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.middleware import require_auth
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
 
@@ -3670,7 +3671,12 @@ def _update_contact_with_customer_info(sender_phone: str, profile: Dict, request
             # Create new contact with customer info
             contact_id = str(uuid.uuid4())
             item = {
-                'id': contact_id,
+                # Both identifier spellings, from one value. This path used to write `id`
+                # alone, and the two RCS `_lookup_contact_by_phone` readers returned
+                # `contactId` with no fallback - so a contact first created here was
+                # invisible to them and its RCS messages were stored with an empty
+                # contact id, silently.
+                **contact_key.contact_item_keys(contact_id),
                 'phone': clean_phone,
                 'channel': 'whatsapp',
                 'source': 'payment_flow',
@@ -3781,7 +3787,8 @@ def _save_subscriber(data: Dict, phone_hash: str, request_id: str) -> None:
         else:
             # Create new contact
             contacts_table.put_item(Item={
-                'id': contact_id,
+                # See the payment_flow writer above: `id` alone is not enough.
+                **contact_key.contact_item_keys(contact_id),
                 'name': data.get('name', ''),
                 'email': data.get('email', ''),
                 'phone': clean_phone,
@@ -4336,8 +4343,7 @@ def _tool_create_contact(params: Dict, request_id: str) -> Dict:
         now = int(time.time())
         
         contact = {
-            'id': contact_id,
-            'contactId': contact_id,
+            **contact_key.contact_item_keys(contact_id),
             'name': name,
             'phone': phone,
             'email': email,

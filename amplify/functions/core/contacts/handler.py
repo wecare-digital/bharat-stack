@@ -29,6 +29,7 @@ from botocore.exceptions import ClientError
 from lambda_utils.response import cors_response, options_response, extract_origin
 from lambda_utils.logging import get_logger, log_event
 from lambda_utils.validation import sanitize_html, sanitize_dict, normalize_phone
+from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
 
@@ -177,8 +178,7 @@ def _create(body: Dict[str, Any], request_id: str, origin: str = '') -> Dict[str
     now = int(time.time())
 
     contact = {
-        'id': contact_id,
-        'contactId': contact_id,
+        **contact_key.contact_item_keys(contact_id),
         'name': body.get('name', '').strip(),
         'phone': phone,
         'email': email,
