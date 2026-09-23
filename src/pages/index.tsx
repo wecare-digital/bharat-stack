@@ -56,7 +56,6 @@ import Head from 'next/head';
 import Link from 'next/link';
 import BrandBadge from '../components/BrandBadge';
 import WorkflowTerminal from '../components/WorkflowTerminal';
-import PlatformCapabilities from '../components/PlatformCapabilities';
 
 /* The SUITE array that used to live here - the three original products plus the seven from
    src/content/products.ts - went with the service-directory grid it fed. See the comment on
@@ -335,15 +334,6 @@ const HomePage: React.FC = () => {
             </div>
           </section>
 
-          {/* THE PROOF, BETWEEN THE CLAIM AND THE ASK. The section above says the shared
-              foundation is something you feel rather than see; this shows seven concrete
-              things it does. It sits here rather than after the closing band on purpose -
-              evidence belongs before the call to action, not after someone has already
-              been asked to act.
-              Moved off /contact/ at the owner's request. PlatformCapabilities styles
-              itself and carries no margin-top: .home-layout is a flex column with gap:96px
-              and owns the section rhythm. */}
-          <PlatformCapabilities />
 
           {/* THE CLOSING BAND, AND WHY IT IS NOT A SERVICE DIRECTORY ANY MORE.
               This slot held a ten-card grid listing every service by name. The owner's
