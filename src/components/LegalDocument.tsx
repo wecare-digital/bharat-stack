@@ -27,7 +27,6 @@ import type { LegalSection } from '../content/legal/types';
 interface LegalDocumentProps {
   sections: LegalSection[];
   intro: string[];
-  updated: string;
   /** Rendered above the contents, for the "not legal advice" style note. */
   notice?: React.ReactNode;
 }
@@ -43,7 +42,7 @@ const withLinks = ( text: string, keyBase: string ): React.ReactNode => {
   ) );
 };
 
-const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated, notice } ) => {
+const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, notice } ) => {
   const topLevel = sections.filter( s => !s.number.includes( '.' ) );
   const hasSummaries = sections.some( s => s.inShort );
 
@@ -61,20 +60,30 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated
    * vertical distance between two children.
    *
    * Counted rather than given a large magic span so it stays exact if the document grows:
-   * the updated line, one row per intro paragraph, the notice, the summaries disclaimer,
-   * and one row per section.
+   * one row per intro paragraph, the notice, the summaries disclaimer, and one row per
+   * section.
+   *
+   * THE LEADING +1 WAS THE "LAST UPDATED" LINE and went when that line did. Leaving it
+   * would have spanned the rail one row further than the flow actually occupies, which is
+   * the same off-by-one that produced the 719px hole in the first place - so the gap
+   * assertion in legalcheck.js is the thing that proves this count is right, not reading it.
    */
   const columnOneRows =
-    1
-    + intro.length
+    intro.length
     + ( notice ? 1 : 0 )
     + ( hasSummaries ? 1 : 0 )
     + sections.length;
 
   return (
     <div className="lgd">
-      <p className="lgd-updated">Last updated { updated }</p>
-
+      { /* NO "LAST UPDATED" LINE, on instruction. The revision dates still exist as
+           TERMS_UPDATED and PRIVACY_UPDATED in src/content/legal/ for engineering
+           reference; they are simply not rendered, and the prop that carried them here
+           was removed rather than left accepting a value nobody displays.
+           Worth knowing what this costs, once: an effective date is the normal way a
+           reader, an app store reviewer or a regulator establishes WHICH version of a
+           contract they are looking at, and without one a later dispute has nothing to
+           anchor to. The owner's call, and reversible in one line. */ }
       { intro.map( ( paragraph, i ) => (
         <p key={ `intro-${i}` } className="lgd-intro">{ withLinks( paragraph, `intro-${i}` ) }</p>
       ) ) }
@@ -185,7 +194,6 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated
           }
         }
 
-        .lgd-updated{margin:0 0 28px;font-size:14px;font-weight:500;color:rgba(0,0,0,.54)}
         .lgd-intro{margin:0 0 16px;font-size:19px;font-weight:400;line-height:1.55;letter-spacing:-.125px;color:rgba(0,0,0,.898)}
 
         /* The one lime surface on the page. A legal document should not be decorated,

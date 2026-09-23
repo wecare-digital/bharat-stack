@@ -2,7 +2,7 @@ import React from 'react';
 import Head from 'next/head';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 import LegalDocument from '../components/LegalDocument';
-import { TERMS_SECTIONS, TERMS_INTRO, TERMS_UPDATED } from '../content/legal/terms';
+import { TERMS_SECTIONS, TERMS_INTRO } from '../content/legal/terms';
 
 /**
  * /terms — Terms of Service.
@@ -58,7 +58,6 @@ const TermsPage: React.FC = () => (
       <LegalDocument
         sections={ TERMS_SECTIONS }
         intro={ TERMS_INTRO }
-        updated={ TERMS_UPDATED }
         notice={ <>
           These Terms are the agreement between you and WECARE.DIGITAL, and they apply
           when you use our services. They are not legal advice about your particular

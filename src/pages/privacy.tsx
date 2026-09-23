@@ -2,7 +2,7 @@ import React from 'react';
 import Head from 'next/head';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 import LegalDocument from '../components/LegalDocument';
-import { PRIVACY_SECTIONS, PRIVACY_INTRO, PRIVACY_UPDATED } from '../content/legal/privacy';
+import { PRIVACY_SECTIONS, PRIVACY_INTRO } from '../content/legal/privacy';
 
 /**
  * /privacy — Privacy Policy.
@@ -55,7 +55,6 @@ const PrivacyPage: React.FC = () => (
       <LegalDocument
         sections={ PRIVACY_SECTIONS }
         intro={ PRIVACY_INTRO }
-        updated={ PRIVACY_UPDATED }
         notice={ <>
           To ask what data we hold, to correct it, or to have it deleted, write to
           {' '}<a href="mailto:one@wecare.digital">one@wecare.digital</a>. We may ask for
