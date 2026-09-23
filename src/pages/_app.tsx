@@ -168,7 +168,7 @@ const organizationSchema = {
   "contactPoint": {
     "@type": "ContactPoint",
     "contactType": "customer service",
-    "url": "https://www.wecare.digital/contact",
+    "url": "https://wecare.digital/contact",
     "availableLanguage": [ "English", "Hindi" ]
   },
   "address": {
