@@ -1,702 +1,613 @@
 /**
- * Terms of Service — section content.
+ * Terms of Service — rewritten in plain English.
  *
- * PORTED VERBATIM from the published document at
- * https://wecaredigitalbw.wixsite.com/website-1/legal-stuff
- * by parsing that page, not by retyping it, so no clause was altered in transit.
+ * THIS REPO IS NOW THE SOURCE OF TRUTH. The text originally came from the old Wix site,
+ * which is being retired, so there is no longer an upstream to sync with and no
+ * extractor to re-run. Edit this file.
  *
- * WHAT WAS CHANGED, and it is only ever structure:
- *   - Wix pads its layout with U+200B zero-width spaces; those are stripped.
- *   - Numbered headings became section objects with slugs, so the page can render a
- *     table of contents and support deep links. A 57-section document with no
- *     navigation is unreadable on a phone, which is where most of these get opened.
- *   - Links to the old Wix paths now point at /terms/ and /privacy/.
+ * WHAT THE REWRITE CHANGED, on owner instruction:
+ *   - Active voice, short sentences, "we" and "you". The original was written almost
+ *     entirely in the third person about itself ("WECARE.DIGITAL may request...") and
+ *     averaged well over 30 words a sentence.
+ *   - Cut the hedging that carried no meaning. "Where applicable law requires an
+ *     appropriate mechanism, an appropriate mechanism will be used" is a sentence that
+ *     says nothing; where a commitment is unconditional it now reads as one.
+ *   - Cut repetition. The "nothing in this section limits your rights under applicable
+ *     law" saver appeared fourteen times. It is a genuine and important protection, so
+ *     it is stated once up front in section 2 AND kept in the specific places where a
+ *     reader is most likely to be talked out of a remedy - sections 14, 14.2, 14.4,
+ *     14.6, 14.8, 14.9, 14.10, 31, 32 and 33 - rather than sprinkled everywhere.
+ *   - Added `inShort` to every top-level section. A 57-section contract with no summaries
+ *     is not readable on a phone, which is where it gets opened.
+ *   - REMOVED SCRAPED PAGE FURNITURE FROM SECTION 45. The extractor had swept up the old
+ *     site's footer and navigation into the contact section, so the signed-off Contact
+ *     Information clause ended with "BUY GIFT CARD", "DECARBONIZING", "INVITE", "APP",
+ *     the retired brand name, and the literal string "bottom of page". That was live.
  *
- * WHAT WAS NOT CHANGED: the wording of any clause. Editing the substance of a contract
- * or a privacy representation is a legal act, not a copy task - if a clause should read
- * differently, that change belongs to whoever owns the legal risk, and it should be
- * made here and on the source document together so the two cannot diverge.
+ * WHAT IT DID NOT CHANGE: any obligation, right, remedy, limitation, disclaimer or
+ * liability cap. Every section keeps its original NUMBER, id and scope, so citations
+ * still resolve - including the two from elsewhere in this codebase, src/pages/
+ * my-order.tsx to section 14 and src/pages/bharat-rx.tsx to section 17. Nothing was
+ * added that makes a commitment the original did not already make; in particular the
+ * original's deliberate vagueness about which conditions attach to which service is
+ * preserved, because that genuinely varies per service and inventing specifics here
+ * would create terms the business has not agreed to.
  *
- * THE SOURCE IS STILL THE WIX PAGE. Until it is retired, a change made there will not
- * appear here. Re-run the extractor rather than hand-patching, or the two drift.
+ * STILL NEEDS A LAWYER. Rewriting for clarity is not legal review. Two things I could
+ * see but cannot fix by editing: section 32's liability cap at "the amount paid for the
+ * product or Service giving rise to the claim" is untested against the Consumer
+ * Protection Act 2019 for the regulated-professional services in section 17, and
+ * section 39 names Kolkata courts while section 37 and section 39 both preserve consumer
+ * forum rights - the interaction should be confirmed rather than assumed.
  */
 
-export interface LegalSection {
-  /** "14" or "14.11" - preserved so cross-references in the text still resolve. */
-  number: string;
-  heading: string;
-  /** URL-safe anchor, e.g. "s14-11". */
-  id: string;
-  paragraphs: string[];
-}
+import type { LegalSection } from './types';
 
 export const TERMS_UPDATED = '2026-09-23';
-export const TERMS_SOURCE = 'https://wecaredigitalbw.wixsite.com/website-1/legal-stuff';
 
 export const TERMS_INTRO: string[] = [
-  "These Terms of Service (\"Terms\") govern your access to and use of the websites, applications, digital platforms, products, services, features and other offerings made available under the WECARE.DIGITAL brand.",
-  "WECARE.DIGITAL is a brand operated under the business name WECARE.DIGITAL BHARATWORKS (\"WECARE.DIGITAL\", \"Operator\", \"we\", \"us\" or \"our\").",
-  "By accessing or using the Services you agree to these Terms. If you do not agree, do not use the Services."
+  'These Terms of Service govern your use of the websites, apps, products and services offered under the WECARE.DIGITAL name. We call all of it "the Services".',
+  'WECARE.DIGITAL is a brand of WECARE.DIGITAL BHARATWORKS. In these Terms, "we", "us" and "our" mean that business, and "you" means anyone using the Services.',
+  'By using the Services you agree to these Terms. If you do not agree, please do not use them.',
+  'Read these Terms alongside our Privacy Policy at /privacy/, which explains what we do with personal data. Individual services sometimes add their own terms; where they do, those apply on top of these.',
+  'Nothing in these Terms takes away a right the law gives you and does not let you sign away. Where something here conflicts with such a right, the law wins.',
 ];
 
 export const TERMS_SECTIONS: LegalSection[] = [
   {
-    "number": "1",
-    "heading": "Definitions",
-    "id": "s1",
-    "paragraphs": [
-      "For these Terms:",
-      "\" WECARE.DIGITAL \" means the brand and trade identity through which the Services are offered.",
-      "\" WECARE.DIGITAL BHARATWORKS \" means the business operating the WECARE.DIGITAL brand.",
-      "\" Platform \" means any website, application, portal, digital interface, software, tool or other technology operated under or in connection with WECARE.DIGITAL.",
-      "\" Services \" means all present and future products, services, facilities, functions and offerings made available through or in connection with WECARE.DIGITAL.",
-      "Services may include physical products; customized or made-to-order products; marketplace services; professional and expert services; consultations and assistance services; documentation and processing services; bookings and appointments; travel and experience-related services; events and programs; dispute-resolution and facilitation services; digital products and content; memberships and subscriptions; self-service tools; technology-enabled workflows; payment and fulfilment facilitation; partner and referral programs; gift cards, credits and promotions; and other Services introduced from time to time.",
-      "\" User \", \"you\" or \"your\" means any individual, organization or other person accessing or using the Services.",
-      "\" Seller \" means any seller, vendor, merchant, manufacturer or other person offering goods through or in connection with the Platform.",
-      "\" Service Provider \" means any professional, expert, consultant, practitioner, institution, organization, agency or other person providing services through or in connection with the Platform.",
-      "\"Third-Party Provider\" means a Seller, Service Provider or another independent third party whose products or services may be accessed through WECARE.DIGITAL.",
-      "\" User Content \" means reviews, ratings, photographs, text, documents, comments, messages, files or other material submitted by a User.",
-      "\" Service-Specific Terms \" means additional conditions, policies, engagement terms, order terms, booking terms, cancellation conditions or other rules applying to a particular Service."
-    ]
+    number: '1', heading: 'The words we use', id: 's1',
+    inShort: 'Defined once here so the rest of the document can stay short.',
+    paragraphs: [
+      'WECARE.DIGITAL is the brand the Services are offered under. WECARE.DIGITAL BHARATWORKS is the business that operates it.',
+      'The Platform means any website, app, portal, interface, software or tool we operate under the WECARE.DIGITAL name.',
+      'The Services means everything we make available through WECARE.DIGITAL, now or in future. That can include physical products; customised or made-to-order products; marketplace services; professional and expert services; consultations and assistance; documentation and processing work; bookings and appointments; travel and experiences; events and programmes; dispute-resolution and facilitation services; digital products and content; memberships and subscriptions; self-service tools; technology-enabled workflows; payment and fulfilment facilitation; partner and referral programmes; gift cards, credits and promotions; and anything else we add later.',
+      'A User - "you" - is any person or organisation using the Services.',
+      'A Seller is anyone offering goods through the Platform. A Service Provider is any professional, expert, consultant, practitioner, institution, organisation or agency providing services through it. A Third-Party Provider means either of those, or any other independent business whose products or services you can reach through us.',
+      'User Content means anything you submit: reviews, ratings, photographs, text, documents, comments, messages and files.',
+      'Service-Specific Terms means the extra conditions that attach to a particular service - engagement terms, order or booking terms, cancellation conditions, or any other rules shown for that service.',
+    ],
   },
   {
-    "number": "2",
-    "heading": "Scope of These Terms",
-    "id": "s2",
-    "paragraphs": [
-      "These Terms apply to all Services currently offered through WECARE.DIGITAL and, unless otherwise stated, to Services introduced in the future.",
-      "We may introduce, modify, expand, reorganize, replace or discontinue Services from time to time.",
-      "Certain Services may be governed by additional Service-Specific Terms. These may include terms relating to professional or regulated services, Partner Up or other partner programs, referral or affiliate programs, gift cards, subscriptions, travel or experiences, digital products, events, enterprise services, customized products, documentation or processing services, or other specialized offerings.",
-      "Where Service-Specific Terms apply, they form part of your agreement for that particular Service.",
-      "If Service-Specific Terms conflict with these Terms, the Service-Specific Terms will apply to the relevant Service to the extent of the conflict, subject always to applicable law."
-    ]
+    number: '2', heading: 'What these Terms cover', id: 's2',
+    inShort: 'Everything we offer now and anything we add later. Some services add their own terms, and those take precedence for that service only.',
+    paragraphs: [
+      'These Terms apply to all Services we currently offer and, unless we say otherwise, to Services we introduce later.',
+      'We may add, change, expand, reorganise, replace or withdraw Services from time to time.',
+      'Some Services carry additional Service-Specific Terms - for example professional or regulated services, Partner Up and other partner programmes, referral and affiliate programmes, gift cards, subscriptions, travel and experiences, digital products, events, enterprise services, customised products, and documentation or processing work.',
+      'Where Service-Specific Terms apply, they form part of your agreement for that service.',
+      'If Service-Specific Terms contradict these Terms, the Service-Specific Terms govern that service, to the extent of the contradiction. That is subject to the law: neither document can remove a right you hold under applicable law and cannot waive.',
+    ],
   },
   {
-    "number": "3",
-    "heading": "Eligibility",
-    "id": "s3",
-    "paragraphs": [
-      "Unless a particular Service expressly states otherwise, you must be legally capable of entering into the relevant transaction.",
-      "A person who is not legally capable of independently entering into a binding transaction may use an eligible Service only where permitted by law and with appropriate involvement, authorization or consent from a parent, legal guardian or other authorized person.",
-      "We may request reasonable age, identity, authority or legal-capacity verification where necessary.",
-      "You must not misrepresent your age, identity, authority or legal capacity."
-    ]
+    number: '3', heading: 'Who can use the Services', id: 's3',
+    inShort: 'You need to be legally able to enter the transaction. Someone who is not can still use an eligible service where the law allows it and a parent or guardian is involved.',
+    paragraphs: [
+      'Unless a particular service says otherwise, you must be legally capable of entering into the transaction you are making.',
+      'Someone who cannot independently enter a binding transaction may use an eligible service only where the law permits it, and with the involvement, authorisation or consent of a parent, legal guardian or other authorised person.',
+      'We may ask you to verify your age, identity, authority or legal capacity where that is necessary.',
+      'Do not misrepresent your age, identity, authority or legal capacity.',
+    ],
   },
   {
-    "number": "4",
-    "heading": "Organizations and Business Users",
-    "id": "s4",
-    "paragraphs": [
-      "If you access or use the Services on behalf of a company, institution, school, organization, employer, association or another entity, you represent that you are authorized to act on its behalf.",
-      "Organizational or enterprise Services may be governed by a separate proposal, memorandum of understanding, order form, engagement letter, service agreement, master services agreement or other written agreement.",
-      "Where such an agreement has been entered into, it will prevail over these Terms for matters specifically addressed by that agreement."
-    ]
+    number: '4', heading: 'Using the Services for an organisation', id: 's4',
+    inShort: 'If you are acting for a company or institution, you are confirming you have authority to. A signed agreement with us outranks these Terms on anything it covers.',
+    paragraphs: [
+      'If you use the Services on behalf of a company, institution, school, employer, association or other organisation, you confirm that you are authorised to act for it.',
+      'Organisational and enterprise services may be covered by a separate proposal, memorandum of understanding, order form, engagement letter, service agreement or master services agreement.',
+      'Where we have entered into such an agreement, it prevails over these Terms on the matters it specifically addresses.',
+    ],
   },
   {
-    "number": "5",
-    "heading": "Nature of WECARE.DIGITAL Services",
-    "id": "s5",
-    "paragraphs": [
-      "WECARE.DIGITAL operates a multi-service digital ecosystem.",
-      "Our role may differ depending on the particular product, Service or transaction.",
-      "Depending on the circumstances, WECARE.DIGITAL may act as a direct seller of goods; a direct provider of Services; a marketplace; a digital or technology platform; an intermediary or facilitator; a booking or appointment facilitator; a payment or transaction facilitator; a workflow or communication facilitator; a reseller or distributor; a fulfilment or administrative coordinator; or another role expressly identified for a particular Service.",
-      "Where WECARE.DIGITAL is identified as the direct seller or provider, the relevant product or Service is supplied by or on behalf of the Operator.",
-      "Where an independent Third-Party Provider is identified as the Seller or Service Provider, the underlying goods or services may be supplied by that Third-Party Provider.",
-      "The relevant listing, checkout, booking flow, confirmation or Service-Specific Terms may identify the party supplying the product or Service and WECARE.DIGITAL's role in the transaction.",
-      "Nothing in this section excludes or limits any responsibility WECARE.DIGITAL is required to assume under applicable law."
-    ]
+    number: '5', heading: 'Our role changes with the service', id: 's5',
+    inShort: 'Sometimes we sell to you directly. Sometimes we are the marketplace and an independent business supplies what you bought. The listing, checkout or confirmation tells you which.',
+    paragraphs: [
+      'WECARE.DIGITAL runs a multi-service platform, and our role is not the same in every transaction.',
+      'Depending on what you are buying, we may act as the direct seller of goods; the direct provider of a service; a marketplace; a technology platform; an intermediary or facilitator; a booking or appointment facilitator; a payment or transaction facilitator; a workflow or communication facilitator; a reseller or distributor; a fulfilment or administrative coordinator; or in another role we identify for that service.',
+      'Where we are identified as the direct seller or provider, the product or service is supplied by us or on our behalf.',
+      'Where an independent Third-Party Provider is identified as the Seller or Service Provider, the underlying goods or services may be supplied by that provider rather than by us.',
+      'The listing, checkout, booking flow, confirmation or Service-Specific Terms may identify who is supplying what you are buying and what our role is.',
+      'This section does not reduce any responsibility the law requires us to carry.',
+    ],
   },
   {
-    "number": "6",
-    "heading": "Third-Party Sellers and Service Providers",
-    "id": "s6",
-    "paragraphs": [
-      "Third-Party Providers are responsible for the information they provide regarding their products, services, qualifications, licences, registrations, availability, prices, specifications and other relevant details.",
-      "Third-Party Providers must comply with applicable laws and with the terms governing their relationship with WECARE.DIGITAL.",
-      "Third-Party Providers must not provide materially false or misleading information; misrepresent qualifications or affiliations; offer unlawful or counterfeit goods; provide prohibited Services; manipulate ratings or reviews; infringe intellectual-property rights; engage in fraudulent conduct; or engage in unfair trade practices.",
-      "WECARE.DIGITAL may request identity, qualification, registration, licence, business or other verification from a Third-Party Provider.",
-      "We may restrict, suspend or remove a provider or listing where reasonably necessary for legal compliance, fraud prevention, Platform integrity, User safety, consumer protection or enforcement of applicable terms.",
-      "Any verification undertaken by WECARE.DIGITAL does not constitute a guarantee of a provider's future conduct, quality, suitability or outcome."
-    ]
+    number: '6', heading: 'Independent sellers and providers', id: 's6',
+    inShort: 'They are responsible for what they claim and what they supply. We verify what we can and can remove them, but our checks are not a guarantee of their work.',
+    paragraphs: [
+      'Third-Party Providers are responsible for what they tell you about their products, services, qualifications, licences, registrations, availability, prices and specifications.',
+      'They must follow the law and the terms of their relationship with us.',
+      'They must not give materially false or misleading information, misrepresent their qualifications or affiliations, offer unlawful or counterfeit goods, provide prohibited services, manipulate ratings or reviews, infringe intellectual-property rights, act fraudulently, or engage in unfair trade practices.',
+      'We may ask a Third-Party Provider to verify its identity, qualifications, registrations, licences or business details.',
+      'We may restrict, suspend or remove a provider or a listing where that is reasonably necessary for legal compliance, fraud prevention, the integrity of the Platform, user safety, consumer protection, or to enforce the terms that apply to them.',
+      'Any verification we carry out is a check, not a guarantee. It does not warrant a provider\'s future conduct, the quality of their work, their suitability for your purpose, or any particular outcome.',
+    ],
   },
   {
-    "number": "7",
-    "heading": "Marketplace and Transaction Information",
-    "id": "s7",
-    "paragraphs": [
-      "Where WECARE.DIGITAL operates as a marketplace or facilitator, information required for an informed purchasing decision will be displayed or made available as appropriate for the transaction and as required by applicable law.",
-      "Depending on the transaction, this may include Seller or Service Provider identity and contact information; material product or Service characteristics; price and compulsory charges; payment methods; delivery or fulfilment information; cancellation, return, replacement and refund conditions; warranty or guarantee information; and grievance-redressal information.",
-      "Where required by applicable law, relevant Seller or Service Provider information may also be supplied to a User after a transaction for effective grievance or dispute resolution.",
-      "Where imported goods or services require importer or other origin-related disclosures, applicable information will be provided as required by law."
-    ]
+    number: '7', heading: 'Information you get before you buy', id: 's7',
+    inShort: 'Before you commit we show what you need in order to decide: who is selling, what it is, what it costs in total, and how to cancel or complain.',
+    paragraphs: [
+      'Where we act as a marketplace or facilitator, we display or make available the information you need to make an informed decision, as appropriate to the transaction and as the law requires.',
+      'Depending on the transaction that can include who the Seller or Service Provider is and how to contact them; the material characteristics of the product or service; the price and any compulsory charges; accepted payment methods; delivery and fulfilment information; the cancellation, return, replacement and refund conditions; warranty or guarantee information; and how to raise a grievance.',
+      'Where the law requires it, we will also give you a Seller or Service Provider\'s details after a transaction so that you can pursue a grievance or dispute effectively.',
+      'Where imported goods or services require importer or country-of-origin disclosures, we provide that information as the law requires.',
+    ],
   },
   {
-    "number": "8",
-    "heading": "User Accounts",
-    "id": "s8",
-    "paragraphs": [
-      "Certain Services may require a User account.",
-      "You agree to provide accurate, current and complete information; keep your information reasonably updated; protect your account credentials; keep passwords and authentication information confidential; use your account lawfully; and inform us if you reasonably believe your account has been accessed without authorization.",
-      "You may not sell, transfer, rent or knowingly permit unauthorized use of your account.",
-      "We may request reasonable identity, payment, age, contact or business verification where necessary for security, compliance, fraud prevention or provision of a Service."
-    ]
+    number: '8', heading: 'Your account', id: 's8',
+    inShort: 'Keep your details accurate and your password to yourself. Tell us if you think someone else has got into your account.',
+    paragraphs: [
+      'Some Services need an account.',
+      'When you have one, please give us accurate, current and complete information; keep it reasonably up to date; look after your login credentials; keep your password and authentication details confidential; use the account lawfully; and tell us if you have reason to believe someone has accessed it without your authorisation.',
+      'Do not sell, transfer or rent your account, or knowingly let someone else use it without authorisation.',
+      'We may ask you to verify your identity, payment details, age, contact details or business details where that is necessary for security, legal compliance, fraud prevention, or to provide a service.',
+    ],
   },
   {
-    "number": "9",
-    "heading": "Orders, Bookings and Service Requests",
-    "id": "s9",
-    "paragraphs": [
-      "All products and Services are subject to availability and the conditions displayed for the relevant offering.",
-      "When you place an order, make a booking or submit a paid Service request, you are generally making an offer to purchase the relevant product or Service.",
-      "An automated acknowledgment that your request has been received does not necessarily constitute final acceptance.",
-      "A transaction may become confirmed when WECARE.DIGITAL or the relevant provider accepts it, a confirmation is issued, payment is successfully confirmed, or performance of the Service begins, depending on the nature of the transaction.",
-      "We may decline, suspend or cancel a transaction where reasonably necessary because of unavailability, payment failure, suspected fraud, incomplete or materially inaccurate information, a material pricing or listing error, legal or regulatory restrictions, safety concerns or another legitimate reason.",
-      "Where we cancel a paid transaction and a refund is legally or contractually due, the applicable refund will be processed."
-    ]
+    number: '9', heading: 'Orders, bookings and service requests', id: 's9',
+    inShort: 'Your order is an offer. It becomes a deal when we accept it, confirm it, take payment or start the work - not when the automatic acknowledgement email arrives.',
+    paragraphs: [
+      'Everything is subject to availability and to the conditions shown for it.',
+      'When you place an order, make a booking or submit a paid service request, you are generally offering to buy.',
+      'An automated message telling you we have received your request is not necessarily our acceptance of it.',
+      'Depending on the transaction, it becomes confirmed when we or the relevant provider accept it, when a confirmation is issued, when payment is confirmed, or when work on the service begins.',
+      'We may decline, suspend or cancel a transaction where that is reasonably necessary: the item is unavailable, payment failed, we suspect fraud, the information given is incomplete or materially wrong, there is a material pricing or listing error, there is a legal or regulatory restriction, there is a safety concern, or there is another legitimate reason.',
+      'If we cancel a transaction you have paid for and a refund is due to you by law or under these Terms, we will process it.',
+    ],
   },
   {
-    "number": "10",
-    "heading": "Affirmative Purchase Consent",
-    "id": "s10",
-    "paragraphs": [
-      "Paid products, Services, subscriptions or optional charges will not be treated as purchased merely because of User inactivity, a pre-selected paid option or a pre-ticked checkbox.",
-      "A purchase, booking or subscription must result from an affirmative action by the User.",
-      "Material mandatory charges applicable to the transaction will be disclosed before final purchase confirmation."
-    ]
+    number: '10', heading: 'Nothing is bought by default', id: 's10',
+    inShort: 'We do not charge you because you left a box ticked or did nothing at all. Buying takes a deliberate act from you.',
+    paragraphs: [
+      'We do not treat a paid product, service, subscription or optional charge as purchased because you were inactive, because a paid option was pre-selected, or because a checkbox was pre-ticked.',
+      'A purchase, booking or subscription has to follow from something you actively did.',
+      'We disclose the compulsory charges that apply to your transaction before you confirm it.',
+    ],
   },
   {
-    "number": "11",
-    "heading": "Prices, Taxes and Charges",
-    "id": "s11",
-    "paragraphs": [
-      "Prices displayed through WECARE.DIGITAL may vary according to the Service.",
-      "Depending on the transaction, the total amount payable may include the product price, Service fee, applicable taxes, delivery charges, booking charges, platform or facilitation charges, customization charges, processing charges or another disclosed charge.",
-      "Applicable compulsory charges will be disclosed before final confirmation of the transaction.",
-      "Prices and fees for future transactions may be changed from time to time.",
-      "A price change will not ordinarily alter the price of an already accepted transaction unless required by law, expressly agreed by you or necessary to correct an obvious material error before performance."
-    ]
+    number: '11', heading: 'Prices, taxes and charges', id: 's11',
+    inShort: 'The total can include tax, delivery and service fees. Everything compulsory is shown before you confirm, and a later price change does not reprice an order we already accepted.',
+    paragraphs: [
+      'Prices vary between Services.',
+      'Depending on the transaction, the total may include the product price, a service fee, applicable taxes, delivery charges, booking charges, platform or facilitation charges, customisation charges, processing charges, or another charge we disclose.',
+      'We disclose the compulsory charges before you finally confirm the transaction.',
+      'We may change prices and fees for future transactions.',
+      'A price change does not normally change the price of a transaction we have already accepted. The exceptions are where the law requires it, where you expressly agree, or where it is needed to correct an obvious material error before the work is done.',
+    ],
   },
   {
-    "number": "12",
-    "heading": "Payments",
-    "id": "s12",
-    "paragraphs": [
-      "Supported payment methods may include, where available, UPI, credit cards, debit cards, internet banking, payment gateways, approved wallets, bank transfers and other authorized payment methods.",
-      "Payment transactions may be processed by independent banks, gateways or payment service providers and may also be subject to their applicable terms.",
-      "WECARE.DIGITAL does not become a bank, payment bank or financial institution merely because it enables or facilitates payment for a transaction.",
-      "You may use only payment methods that you are legally authorized to use.",
-      "Where a payment fails, is reversed, disputed, charged back or appears potentially fraudulent, we may suspend the related transaction while the matter is investigated or resolved."
-    ]
+    number: '12', heading: 'Paying', id: 's12',
+    inShort: 'Use a payment method you are entitled to use. Banks and gateways actually move the money and their terms also apply. We are not a bank.',
+    paragraphs: [
+      'Where available, you can pay by UPI, credit card, debit card, internet banking, payment gateway, an approved wallet, bank transfer, or another authorised method.',
+      'Payments are processed by independent banks, gateways and payment service providers, and their terms may apply to that processing as well as ours.',
+      'Facilitating a payment does not make us a bank, a payment bank or a financial institution.',
+      'Only use payment methods you are legally entitled to use.',
+      'If a payment fails, is reversed, disputed or charged back, or looks like it may be fraudulent, we may suspend the related transaction while the matter is investigated or resolved.',
+    ],
   },
   {
-    "number": "13",
-    "heading": "Subscriptions, Memberships and Recurring Services",
-    "id": "s13",
-    "paragraphs": [
-      "Certain current or future Services may be provided through a subscription, membership or recurring-payment arrangement.",
-      "Before enrolling, applicable information concerning price, billing interval, material features, renewal, recurring-payment arrangements and cancellation will be disclosed.",
-      "Where recurring-payment authorization is required, authorization will be obtained through an applicable payment mechanism.",
-      "Unless otherwise stated or required by law, cancelling a recurring Service prevents future renewals but does not automatically entitle the User to a refund for a completed or already commenced billing period.",
-      "Free trials, introductory offers and promotional subscriptions may be subject to additional conditions disclosed at enrollment."
-    ]
+    number: '13', heading: 'Subscriptions, memberships and recurring payments', id: 's13',
+    inShort: 'We tell you the price, the billing interval and how to cancel before you sign up. Cancelling stops the next renewal; it does not usually refund the period you are already in.',
+    paragraphs: [
+      'Some Services are provided on a subscription, membership or recurring-payment basis.',
+      'Before you enrol we disclose the price, the billing interval, the material features, how renewal works, how the recurring payment is authorised, and how to cancel.',
+      'Where a recurring payment needs your authorisation, we obtain it through the relevant payment mechanism.',
+      'Unless we say otherwise or the law requires otherwise, cancelling stops future renewals but does not by itself entitle you to a refund for a billing period that is complete or already under way.',
+      'Free trials, introductory offers and promotional subscriptions may carry extra conditions, which we disclose when you enrol.',
+    ],
   },
   {
-    "number": "14",
-    "heading": "Cancellation, Service Changes, Credits and Refunds",
-    "id": "s14",
-    "paragraphs": [
-      "Cancellation, return, replacement, rescheduling, Service-change and refund eligibility depends on the type of product or Service, the reason for the request, the stage of fulfilment, amounts already incurred and the conditions disclosed for the relevant transaction.",
-      "Different conditions may apply to physical products, customized products, professional Services, consultations, appointments, documentation and processing Services, bookings, events, travel and experiences, subscriptions, digital products and other specialized Services.",
-      "Applicable conditions may be displayed on the relevant Service page, order or booking form, checkout page, confirmation, invoice or applicable Service-Specific Terms.",
-      "Nothing in this section limits a refund, replacement, cancellation or other remedy that must be provided under applicable law."
-    ]
+    number: '14', heading: 'Cancelling, changing and getting money back', id: 's14',
+    inShort: 'What you can cancel, change or recover depends on what it was, why you are asking, and how far along it is. Nothing in this section removes a refund the law requires.',
+    paragraphs: [
+      'Whether you can cancel, return, replace, reschedule, change a service or get a refund depends on the type of product or service, the reason for the request, how far fulfilment has got, the costs already incurred, and the conditions disclosed for that transaction.',
+      'Different conditions apply to physical products, customised products, professional services, consultations, appointments, documentation and processing work, bookings, events, travel and experiences, subscriptions, digital products and other specialised services.',
+      'The conditions that apply to you may be shown on the service page, the order or booking form, the checkout page, the confirmation, the invoice, or the Service-Specific Terms.',
+      'Nothing in this section or its sub-sections limits a refund, replacement, cancellation or other remedy the law requires us to provide.',
+    ],
   },
   {
-    "number": "14.1",
-    "heading": "Available Resolution Options",
-    "id": "s14-1",
-    "paragraphs": [
-      "Depending on the relevant transaction and where permitted by applicable law, an eligible cancellation or Service issue may be resolved through one or more of the following: Refund to the original payment method; WECARE.DIGITAL Gift Card or account credit; Replacement of a product; Rescheduling of a Service; Change to another available Service; Replacement booking; Adjustment against another WECARE.DIGITAL Service; or Another mutually agreed resolution.",
-      "Where applicable law requires a monetary refund, a Gift Card, account credit or replacement Service will not be imposed as a substitute for that monetary refund unless the User voluntarily agrees or applicable law otherwise permits."
-    ]
+    number: '14.1', heading: 'How an eligible problem can be resolved', id: 's14-1',
+    paragraphs: [
+      'Depending on the transaction, and where the law permits, an eligible cancellation or service problem may be resolved by a refund to your original payment method, a WECARE.DIGITAL gift card or account credit, a replacement product, rescheduling, a change to another available service, a replacement booking, an adjustment against another WECARE.DIGITAL service, or another resolution we agree with you.',
+      'Where the law requires us to refund money, we will not impose a gift card, account credit or replacement service instead - unless you choose to accept one, or the law allows it.',
+    ],
   },
   {
-    "number": "14.2",
-    "heading": "Gift Card or Account-Credit Refunds",
-    "id": "s14-2",
-    "paragraphs": [
-      "For certain eligible cancellations, promotional transactions or Services, a refund may be made available in the form of a WECARE.DIGITAL Gift Card or account credit where this option was disclosed for the relevant transaction or is voluntarily accepted by the User.",
-      "A Gift Card or account credit may be used toward eligible WECARE.DIGITAL products or Services; may be subject to Service, product or promotional restrictions disclosed when issued; may be non-transferable where stated; and may be adjusted if the original transaction is later reversed, disputed or found to involve fraud.",
-      "Gift Cards and account credits are not ordinarily redeemable for cash unless expressly stated or required by applicable law.",
-      "Where a transaction is expressly identified before purchase as eligible for Gift Card or account-credit refund only, that condition may apply to voluntary cancellations or changes only to the extent permitted by applicable law.",
-      "It will not remove any right to another form of refund or remedy that applicable law requires."
-    ]
+    number: '14.2', heading: 'Gift card and account-credit refunds', id: 's14-2',
+    paragraphs: [
+      'For some eligible cancellations, promotional transactions and services, a refund may be available as a WECARE.DIGITAL gift card or account credit - where that option was disclosed for the transaction, or where you choose it.',
+      'A gift card or account credit can be used towards eligible WECARE.DIGITAL products and services. It may carry restrictions we disclose when we issue it, may be non-transferable where we say so, and may be adjusted if the original transaction is later reversed, disputed, or found to involve fraud.',
+      'Gift cards and account credits are not normally redeemable for cash, unless we say so or the law requires it.',
+      'Where a transaction is identified before purchase as eligible for a gift card or credit refund only, that condition can apply to voluntary cancellations and changes - but only as far as the law permits, and it does not remove any refund or remedy the law requires.',
+    ],
   },
   {
-    "number": "14.3",
-    "heading": "Service Changes, Rescheduling and Adjustments",
-    "id": "s14-3",
-    "paragraphs": [
-      "Where a User does not wish to continue with the originally selected Service, WECARE.DIGITAL or the relevant Service Provider may, where available, permit a change to another Service; change of appointment; rescheduling; change of Service Provider; adjustment of the amount paid toward another eligible Service; or issuance of Gift Card or account credit.",
-      "If the replacement Service costs more than the original Service, the User may be required to pay the difference.",
-      "If the replacement Service costs less, the difference may, depending on the applicable Service-Specific Terms and applicable law, be refunded, issued as Gift Card or account credit, adjusted against another eligible Service or otherwise resolved by agreement.",
-      "Once a User voluntarily accepts and uses a replacement Service or agreed Service change, the original cancellation request may be treated as resolved to the extent appropriate."
-    ]
+    number: '14.3', heading: 'Changing or rescheduling a service', id: 's14-3',
+    paragraphs: [
+      'If you no longer want the service you originally chose, we or the provider may - where it is available - let you switch to another service, change or reschedule your appointment, change provider, put what you have paid towards another eligible service, or take a gift card or account credit instead.',
+      'If the replacement costs more, you may need to pay the difference.',
+      'If it costs less, the difference may be refunded, issued as a gift card or account credit, or adjusted against another eligible service - depending on the Service-Specific Terms and the law - or resolved another way by agreement.',
+      'Once you have accepted and used a replacement service or an agreed change, we may treat the original cancellation request as resolved to the extent appropriate.',
+    ],
   },
   {
-    "number": "14.4",
-    "heading": "Non-Refundable Charges",
-    "id": "s14-4",
-    "paragraphs": [
-      "Certain amounts may be non-refundable where permitted by applicable law and where the relevant condition has been appropriately disclosed before or in connection with the transaction.",
-      "Depending on the transaction, these may include: Work or professional time already performed; Consultation fees for a consultation already provided or commenced; Documentation, research, drafting or processing work already completed; Customization or personalization work already commenced; Government, statutory or filing fees already paid; Non-recoverable third-party charges already incurred; Confirmed booking or reservation charges that cannot be recovered from the relevant provider; Lawfully non-refundable payment-processing or transaction charges actually incurred; Delivery or logistics charges already incurred; Expedited or priority-processing charges after priority work has commenced; Activated, downloaded or consumed digital products or Services; Event, travel or experience costs already committed to a Third-Party Provider; and Another charge expressly identified as non-refundable before the relevant transaction. A fee will not be treated as non-refundable merely by labelling it as such where applicable law requires that amount to be refunded."
-    ]
+    number: '14.4', heading: 'Charges that may not come back', id: 's14-4',
+    paragraphs: [
+      'Some amounts may be non-refundable, where the law permits and where we disclosed that condition before or with the transaction.',
+      'Depending on the transaction those can include professional time already worked; a consultation already given or started; documentation, research, drafting or processing already done; customisation already begun; government, statutory or filing fees already paid; non-recoverable third-party charges already incurred; confirmed booking or reservation charges we cannot recover from the provider; payment-processing charges actually incurred, where they are lawfully non-refundable; delivery or logistics charges already incurred; priority-processing charges once the priority work has started; digital products or services already activated, downloaded or consumed; event, travel or experience costs already committed to a provider; and any other charge we identified as non-refundable before the transaction.',
+      'Calling a fee non-refundable does not make it so. Where the law requires an amount to be refunded, it is refunded.',
+    ],
   },
   {
-    "number": "14.5",
-    "heading": "Standard Products",
-    "id": "s14-5",
-    "paragraphs": [
-      "Return, replacement or refund eligibility for standard products will depend on the conditions disclosed for the particular product and applicable law."
-    ]
+    number: '14.5', heading: 'Standard products', id: 's14-5',
+    paragraphs: [
+      'Whether you can return or replace a standard product, or get a refund for it, depends on the conditions disclosed for that product and on the law.',
+    ],
   },
   {
-    "number": "14.6",
-    "heading": "Customized and Made-to-Order Products",
-    "id": "s14-6",
-    "paragraphs": [
-      "Customized, personalized or made-to-order goods may become non-cancellable or non-returnable for change-of-mind reasons after production, procurement or customization has commenced where this condition was disclosed before purchase.",
-      "This restriction does not eliminate rights available under applicable law relating to defective, damaged, spurious, materially misdescribed or otherwise non-conforming products."
-    ]
+    number: '14.6', heading: 'Customised and made-to-order products', id: 's14-6',
+    paragraphs: [
+      'Customised, personalised and made-to-order goods may stop being cancellable or returnable for change-of-mind reasons once production, procurement or customisation has started - where we disclosed that before you bought.',
+      'This does not affect your rights if the product turns out to be defective, damaged, spurious, materially misdescribed or otherwise not what was agreed.',
+    ],
   },
   {
-    "number": "14.7",
-    "heading": "Services Already Commenced",
-    "id": "s14-7",
-    "paragraphs": [
-      "Where a Service involves professional time, research, documentation, filing, processing, administration, procurement, booking, customization or other work that has already commenced, refund eligibility may depend on the stage of completion, work already performed, third-party costs already incurred and applicable Service-Specific Terms.",
-      "The refundable amount may be reduced by amounts reasonably and lawfully incurred for work already performed, non-recoverable third-party costs, statutory or government fees already paid and other disclosed costs attributable to the requested Service.",
-      "Any such restriction remains subject to applicable law."
-    ]
+    number: '14.7', heading: 'Services already started', id: 's14-7',
+    paragraphs: [
+      'Where a service involves professional time, research, documentation, filing, processing, administration, procurement, booking or customisation that has already started, what you can recover may depend on how far it has got, the work already done, the third-party costs already incurred, and the Service-Specific Terms.',
+      'The refundable amount may be reduced by what was reasonably and lawfully spent on work already performed, third-party costs we cannot recover, statutory or government fees already paid, and other disclosed costs attributable to your request.',
+      'Any such reduction is still subject to the law.',
+    ],
   },
   {
-    "number": "14.8",
-    "heading": "Defective, Deficient, Damaged or Misdescribed Goods and Services",
-    "id": "s14-8",
-    "paragraphs": [
-      "Nothing in these Terms restricts rights available under applicable law where goods are defective, damaged or spurious; Services are deficient; products or Services materially differ from their description; material agreed specifications are not met; the relevant product or Service cannot be supplied as agreed; or another legally recognized ground for refund, replacement, return or other remedy exists."
-    ]
+    number: '14.8', heading: 'Faulty, deficient, damaged or misdescribed goods and services', id: 's14-8',
+    paragraphs: [
+      'Nothing in these Terms restricts the rights the law gives you where goods are defective, damaged or spurious; a service is deficient; what you received differs materially from its description; agreed specifications were not met; what you bought cannot be supplied as agreed; or any other legally recognised ground for a refund, replacement, return or other remedy applies.',
+    ],
   },
   {
-    "number": "14.9",
-    "heading": "Cancellation by WECARE.DIGITAL or a Provider",
-    "id": "s14-9",
-    "paragraphs": [
-      "If an accepted transaction cannot be fulfilled and is cancelled by WECARE.DIGITAL or the relevant provider, we may, depending on the circumstances and applicable law, reschedule the Service, provide a replacement, offer an alternative Service, issue Gift Card or account credit, or process an applicable monetary refund.",
-      "Where applicable law entitles the User to a monetary refund, an alternative Service, Gift Card or account credit will not replace that entitlement unless voluntarily accepted by the User or otherwise permitted by law.",
-      "Where cancellation charges are imposed on a User for cancelling a confirmed transaction, WECARE.DIGITAL will comply with any corresponding obligations applicable when cancellation is initiated by WECARE.DIGITAL."
-    ]
+    number: '14.9', heading: 'When we or a provider cancel', id: 's14-9',
+    paragraphs: [
+      'If an accepted transaction cannot be fulfilled and we or the provider cancel it, we may - depending on the circumstances and the law - reschedule the service, provide a replacement, offer an alternative, issue a gift card or account credit, or refund you.',
+      'Where the law entitles you to your money back, an alternative service, gift card or credit does not replace that entitlement unless you choose to accept it or the law allows it.',
+      'Where we charge users for cancelling a confirmed transaction, we will meet the corresponding obligations that apply when the cancellation comes from us.',
+    ],
   },
   {
-    "number": "14.10",
-    "heading": "Refund Method",
-    "id": "s14-10",
-    "paragraphs": [
-      "Where an eligible monetary refund is approved, it will ordinarily be processed to the original payment method unless another method is agreed with the User, the applicable Service was expressly subject to a lawful Gift Card or credit-refund condition, the original payment method cannot reasonably receive the refund, or another method is required or permitted by applicable law.",
-      "Store credit, Gift Card or account credit may be offered as an option where appropriate but will not replace a monetary refund where applicable law requires a monetary refund."
-    ]
+    number: '14.10', heading: 'How a refund reaches you', id: 's14-10',
+    paragraphs: [
+      'An approved refund normally goes back to the payment method you used. It may go elsewhere if you agree to another method, if the service was expressly subject to a lawful gift card or credit-refund condition, if your original payment method cannot reasonably receive it, or if the law requires or permits another method.',
+      'We may offer store credit, a gift card or account credit as an option, but not as a substitute for money where the law requires money.',
+    ],
   },
   {
-    "number": "14.11",
-    "heading": "Refund Processing and Banking Time",
-    "id": "s14-11",
-    "paragraphs": [
-      "Once an approved monetary refund has been processed by WECARE.DIGITAL, the time required for the amount to appear in the User's bank, card, wallet or other payment account may depend on the relevant bank, card issuer, payment gateway or payment provider.",
-      "Depending on the payment provider, an approved refund may take up to 30 days or one applicable billing cycle to appear after processing, unless a shorter period is required by applicable law or the relevant payment provider.",
-      "This external processing period does not change the time at which WECARE.DIGITAL initiated the approved refund."
-    ]
+    number: '14.11', heading: 'How long a refund takes to appear', id: 's14-11',
+    paragraphs: [
+      'Once we have processed an approved refund, how long it takes to show up in your bank, card, wallet or other account is down to your bank, card issuer or payment provider.',
+      'Depending on the provider, that can take up to 30 days or one billing cycle after we process it, unless the law or the provider requires it to be faster.',
+      'That external delay does not change the date we initiated the refund.',
+    ],
   },
   {
-    "number": "14.12",
-    "heading": "Chargebacks and Payment Disputes",
-    "id": "s14-12",
-    "paragraphs": [
-      "If a User initiates a chargeback, payment dispute or reversal while a refund, Service change or other resolution is being processed, WECARE.DIGITAL may temporarily pause duplicate refund processing until the payment dispute is resolved.",
-      "A User must not knowingly obtain both a refund and a successful chargeback for the same amount."
-    ]
+    number: '14.12', heading: 'Chargebacks and payment disputes', id: 's14-12',
+    paragraphs: [
+      'If you start a chargeback, payment dispute or reversal while we are already processing a refund, service change or other resolution, we may pause our processing until the payment dispute is settled, so that you are not refunded twice for the same thing.',
+      'Please do not knowingly claim both a refund and a successful chargeback for the same amount.',
+    ],
   },
   {
-    "number": "15",
-    "heading": "Shipping, Delivery and Fulfilment",
-    "id": "s15",
-    "paragraphs": [
-      "Where a transaction involves physical products, delivery availability, charges and estimated timelines may vary according to the product, Seller, manufacturing or customization requirements, destination, stock availability and logistics provider.",
-      "Applicable delivery information will be displayed or communicated in connection with the relevant transaction.",
-      "Delivery dates are estimates unless expressly stated to be guaranteed.",
-      "You are responsible for supplying a complete and accurate delivery address and reasonable information required to complete delivery.",
-      "Where international shipping is offered, customs duties, import duties, taxes or other destination-specific charges may apply as disclosed for the transaction or under applicable law.",
-      "If an order is lost, materially delayed, damaged in transit or otherwise not fulfilled as agreed, the matter will be dealt with under the applicable Service-Specific policy and applicable law."
-    ]
+    number: '15', heading: 'Shipping, delivery and fulfilment', id: 's15',
+    inShort: 'Delivery options, charges and timelines vary. Dates are estimates unless we guarantee them. Give us a complete, accurate address.',
+    paragraphs: [
+      'For physical products, delivery availability, charges and estimated timelines vary with the product, the Seller, any manufacturing or customisation needed, the destination, stock, and the logistics provider.',
+      'We display or send you the delivery information for your transaction.',
+      'Delivery dates are estimates unless we expressly say they are guaranteed.',
+      'You are responsible for giving us a complete, accurate delivery address and the information needed to complete delivery.',
+      'Where we ship internationally, customs duties, import duties, taxes and other destination charges may apply, as disclosed for the transaction or as the law provides.',
+      'If an order is lost, materially delayed, damaged in transit or otherwise not fulfilled as agreed, we deal with it under the applicable policy for that service and under the law.',
+    ],
   },
   {
-    "number": "16",
-    "heading": "Appointments, Consultations and Scheduled Services",
-    "id": "s16",
-    "paragraphs": [
-      "Certain Services may involve appointments, consultations, sessions, events or scheduled engagements.",
-      "Availability may change until the booking has been confirmed.",
-      "Users are responsible for attending at the agreed time, supplying information reasonably required to provide the Service and complying with disclosed booking requirements.",
-      "Late arrival, missed appointments, rescheduling and cancellation may be subject to Service-Specific Terms.",
-      "If a provider cancels a scheduled Service, an appropriate rescheduling option, alternative arrangement or applicable refund may be offered.",
-      "Where the identity of a particular professional is material to a booking, a different professional will not automatically be treated as an equivalent substitute without appropriate disclosure or agreement."
-    ]
+    number: '16', heading: 'Appointments, consultations and scheduled services', id: 's16',
+    inShort: 'Turn up at the agreed time and bring what is needed. If a provider cancels, you get a reschedule, an alternative, or a refund. A named professional is not swapped without telling you.',
+    paragraphs: [
+      'Some Services involve appointments, consultations, sessions, events or other scheduled engagements.',
+      'Availability can change until your booking is confirmed.',
+      'You are responsible for attending at the agreed time, giving us the information needed to provide the service, and meeting the booking requirements we disclose.',
+      'Late arrival, missed appointments, rescheduling and cancellation may be subject to Service-Specific Terms.',
+      'If a provider cancels a scheduled service, we may offer you a reschedule, an alternative arrangement, or a refund where one applies.',
+      'Where the identity of a particular professional matters to your booking, we will not treat a different professional as an equivalent substitute without telling you or agreeing it with you.',
+    ],
   },
   {
-    "number": "17",
-    "heading": "Professional and Regulated Services",
-    "id": "s17",
-    "paragraphs": [
-      "Certain WECARE.DIGITAL Services may provide access to independent professionals, experts, consultants, practitioners, institutions or other specialized Service Providers.",
-      "Unless expressly stated otherwise for a particular Service, making an independent provider accessible through the Platform does not mean that WECARE.DIGITAL itself performs that provider's regulated professional duties.",
-      "The relevant provider remains responsible for its professional judgment, advice, qualifications, registrations, licences and professional obligations.",
-      "General information available through the Platform is provided for general informational purposes and should not automatically be treated as individualized legal, medical, financial, psychological, mental-health or other regulated professional advice.",
-      "No particular professional, commercial, legal, medical, personal or other outcome is guaranteed merely because a Service or professional is accessible through WECARE.DIGITAL.",
-      "Where a particular Service requires additional professional disclosures, engagement conditions or Service-Specific Terms, those provisions will apply.",
-      "WECARE.DIGITAL is not an emergency-response service.",
-      "If you require urgent medical, safety or other emergency assistance, contact the appropriate emergency service."
-    ]
+    number: '17', heading: 'Professional and regulated services', id: 's17',
+    inShort: 'Independent professionals reachable through us remain responsible for their own professional judgment and licences. General information on the Platform is not personal professional advice, and we are not an emergency service.',
+    paragraphs: [
+      'Some Services give you access to independent professionals, experts, consultants, practitioners, institutions and other specialists.',
+      'Unless we expressly say otherwise for a particular service, making an independent provider reachable through the Platform does not mean we perform that provider\'s regulated professional duties.',
+      'The provider remains responsible for their own professional judgment, advice, qualifications, registrations, licences and professional obligations.',
+      'General information on the Platform is general information. Do not treat it as individual legal, medical, financial, psychological, mental-health or other regulated professional advice about your situation.',
+      'Nothing guarantees a particular professional, commercial, legal, medical or personal outcome simply because a service or professional is reachable through WECARE.DIGITAL.',
+      'Where a service requires additional professional disclosures, engagement conditions or Service-Specific Terms, those apply as well.',
+      'WECARE.DIGITAL is not an emergency service. If you need urgent medical, safety or other emergency help, contact the appropriate emergency service directly.',
+    ],
   },
   {
-    "number": "18",
-    "heading": "Travel, Experience and Third-Party Fulfilment Services",
-    "id": "s18",
-    "paragraphs": [
-      "Certain Services may involve travel, accommodation, transportation, experiences, attractions, appointments or other activities fulfilled partly or entirely by Third-Party Providers.",
-      "Availability, cancellation requirements, identification requirements, timing, eligibility, entry conditions and other restrictions may be determined by the relevant provider.",
-      "You are responsible for reviewing applicable Service-Specific information before booking.",
-      "WECARE.DIGITAL does not guarantee governmental approvals, visas, admission, transportation schedules, weather conditions or outcomes controlled by independent third parties or public authorities.",
-      "Nothing in this section limits rights available under applicable law."
-    ]
+    number: '18', heading: 'Travel, experiences and services others fulfil', id: 's18',
+    inShort: 'The provider sets the rules for travel and experiences. We cannot guarantee visas, admission, schedules or the weather. Read the provider\'s conditions before booking.',
+    paragraphs: [
+      'Some Services involve travel, accommodation, transport, experiences, attractions or other activities fulfilled partly or entirely by Third-Party Providers.',
+      'The provider may set availability, cancellation requirements, identification requirements, timing, eligibility, entry conditions and other restrictions.',
+      'Please review the service-specific information before you book.',
+      'We cannot guarantee government approvals, visas, admission, transport schedules, weather, or anything else controlled by an independent third party or a public authority.',
+      'This section does not limit the rights the law gives you.',
+    ],
   },
   {
-    "number": "19",
-    "heading": "Documentation, Processing and Assistance Services",
-    "id": "s19",
-    "paragraphs": [
-      "Certain Services may assist Users with documentation, applications, submissions, administrative processes, research or coordination.",
-      "Unless expressly stated otherwise, these Services constitute assistance and do not guarantee approval, issuance, acceptance, adjudication, governmental action, regulatory action or any other third-party decision.",
-      "Users are responsible for providing accurate, complete and authentic information and documentation.",
-      "A User must not knowingly ask WECARE.DIGITAL or a provider to submit false, fraudulent, misleading or fabricated information."
-    ]
+    number: '19', heading: 'Documentation, processing and assistance', id: 's19',
+    inShort: 'We help you prepare and submit things. Help is not a guarantee of approval by anyone else, and we will not submit information we know to be false.',
+    paragraphs: [
+      'Some Services help you with documentation, applications, submissions, administrative processes, research or coordination.',
+      'Unless we expressly say otherwise, these services are assistance. They do not guarantee approval, issuance, acceptance, adjudication, or any decision by a government body, regulator or other third party.',
+      'You are responsible for giving us accurate, complete and genuine information and documents.',
+      'Do not ask us or a provider to submit information you know to be false, fraudulent, misleading or fabricated.',
+    ],
   },
   {
-    "number": "20",
-    "heading": "Digital Products and Digital Services",
-    "id": "s20",
-    "paragraphs": [
-      "Certain Services may include downloadable content, online content, virtual Services, digital materials, software-enabled features, online programs or other electronically delivered products.",
-      "Purchase of access does not transfer ownership of the underlying intellectual property unless expressly stated.",
-      "You may not reproduce, redistribute, resell, commercially exploit or publicly distribute digital materials except where expressly authorized.",
-      "Cancellation or refund eligibility may differ once digital access, download, activation or performance begins, subject to applicable law and any Service-Specific Terms disclosed before purchase."
-    ]
+    number: '20', heading: 'Digital products and digital services', id: 's20',
+    inShort: 'Buying access is not buying the underlying rights. Do not redistribute or resell digital material. Refund rules change once you download or start using it.',
+    paragraphs: [
+      'Some Services include downloadable or online content, virtual services, digital materials, software-enabled features and online programmes.',
+      'Buying access does not transfer ownership of the underlying intellectual property unless we expressly say it does.',
+      'Do not reproduce, redistribute, resell, commercially exploit or publicly distribute digital materials unless we expressly authorise it.',
+      'Cancellation and refund eligibility may change once digital access, download, activation or performance begins. That is subject to the law and to any Service-Specific Terms we disclosed before you bought.',
+    ],
   },
   {
-    "number": "21",
-    "heading": "Gift Cards, Credits and Stored Promotional Value",
-    "id": "s21",
-    "paragraphs": [
-      "WECARE.DIGITAL may offer or issue gift cards, vouchers, account credits, promotional balances, refund credits or similar facilities.",
-      "A Gift Card or credit may be purchased by a User; issued as part of a promotion; issued following an eligible cancellation; issued as an agreed alternative to a monetary refund; issued following a Service change or adjustment; or provided through another WECARE.DIGITAL program.",
-      "Separate Gift Card or Credit Terms may govern purchase, activation, eligible Services, redemption, restrictions, transferability, refunds, cancellation and other conditions.",
-      "Gift Cards, credits and promotional balances are not ordinarily redeemable for cash unless expressly stated or required under applicable law.",
-      "Where a Gift Card or credit is issued instead of a monetary refund, its issuance does not remove any mandatory consumer right that cannot lawfully be waived."
-    ]
+    number: '21', heading: 'Gift cards, credits and promotional balances', id: 's21',
+    inShort: 'They can be bought, given as a promotion, or issued after a cancellation. Separate gift card terms govern the detail. They are not normally cash.',
+    paragraphs: [
+      'We may offer or issue gift cards, vouchers, account credits, promotional balances and refund credits.',
+      'One may be bought by you, issued as part of a promotion, issued after an eligible cancellation, issued as an agreed alternative to a money refund, issued after a service change or adjustment, or provided through one of our programmes.',
+      'Separate gift card or credit terms may govern purchase, activation, which services they work on, redemption, restrictions, transferability, refunds and cancellation.',
+      'Gift cards, credits and promotional balances are not normally redeemable for cash, unless we say so or the law requires it.',
+      'Issuing a gift card or credit instead of a money refund does not remove a mandatory consumer right that cannot lawfully be waived.',
+    ],
   },
   {
-    "number": "22",
-    "heading": "Partner, Referral and Affiliate Programs",
-    "id": "s22",
-    "paragraphs": [
-      "WECARE.DIGITAL may operate partner, referral, affiliate or commission-based programs, including programs such as Partner Up.",
-      "Participation may require acceptance of separate Partner or Program Terms.",
-      "Such terms may govern eligibility, activation, qualifying transactions, referral attribution, commissions, reversals, cancellations, payout thresholds, payout schedules, applicable taxes, use of WECARE.DIGITAL branding, advertising and representations, prohibited referral practices, fraud prevention, confidentiality, suspension and termination.",
-      "Participation in a partner or referral program does not by itself create an employer-employee, partnership, franchise or agency relationship with WECARE.DIGITAL."
-    ]
+    number: '22', heading: 'Partner, referral and affiliate programmes', id: 's22',
+    inShort: 'Joining one means accepting its own terms. Taking part does not make you our employee, partner, franchisee or agent.',
+    paragraphs: [
+      'We may run partner, referral, affiliate and commission-based programmes, including Partner Up.',
+      'Taking part may require you to accept separate programme terms.',
+      'Those terms may cover eligibility, activation, which transactions qualify, how referrals are attributed, commissions, reversals, cancellations, payout thresholds and schedules, taxes, use of WECARE.DIGITAL branding, what you may say in advertising, prohibited referral practices, fraud prevention, confidentiality, suspension and termination.',
+      'Taking part in a programme does not by itself make you our employee, partner, franchisee or agent.',
+    ],
   },
   {
-    "number": "23",
-    "heading": "Promotions, Coupons and Offers",
-    "id": "s23",
-    "paragraphs": [
-      "WECARE.DIGITAL may offer discounts, coupons, promotional codes, referral benefits, credits or limited-time offers.",
-      "Promotions may be subject to eligibility requirements, validity periods, minimum transaction amounts, usage limits, product restrictions and additional terms.",
-      "Promotional benefits may not be exchanged for cash unless expressly stated or legally required.",
-      "We may cancel a promotional benefit obtained through fraud, manipulation, automated abuse, duplicate-account misuse or another material violation of promotional conditions."
-    ]
+    number: '23', heading: 'Promotions, coupons and offers', id: 's23',
+    inShort: 'Offers come with conditions and expiry dates, are not cash, and can be cancelled if they were obtained by abuse.',
+    paragraphs: [
+      'We may offer discounts, coupons, promotional codes, referral benefits, credits and limited-time offers.',
+      'A promotion may have eligibility requirements, a validity period, a minimum transaction amount, usage limits, product restrictions and other terms.',
+      'Promotional benefits cannot be exchanged for cash unless we say so or the law requires it.',
+      'We may cancel a promotional benefit obtained through fraud, manipulation, automated abuse, duplicate accounts, or another material breach of the promotion\'s conditions.',
+    ],
   },
   {
-    "number": "24",
-    "heading": "Reviews, Ratings and User Content",
-    "id": "s24",
-    "paragraphs": [
-      "You retain ownership of User Content that you lawfully own.",
-      "By submitting User Content to WECARE.DIGITAL, you grant WECARE.DIGITAL BHARATWORKS a non-exclusive, worldwide, royalty-free licence to host, store, reproduce, format, display and communicate that User Content to the extent reasonably necessary to provide the relevant Service, operate the Platform, display content you intentionally submit for publication, process transactions or requests, maintain Platform security, investigate disputes or complaints and comply with applicable law.",
-      "This licence does not transfer ownership of your User Content to WECARE.DIGITAL.",
-      "Where identifiable User Content is proposed to be used for advertising or promotional purposes beyond the context in which it was submitted, additional authorization will be obtained where required.",
-      "The licence will ordinarily end when the relevant User Content is permanently deleted, except to the extent continued retention is reasonably required for backups, record-keeping, legal obligations, dispute resolution, fraud prevention or another lawful purpose.",
-      "You represent that you have the rights necessary to submit User Content.",
-      "Reviews and ratings must reflect genuine experiences.",
-      "You must not submit fake reviews, manipulated reviews, undisclosed paid reviews, unlawful material, defamatory content, infringing content or content under a deliberately false identity.",
-      "We may moderate, restrict or remove User Content where reasonably necessary to comply with law or enforce these Terms."
-    ]
+    number: '24', heading: 'Reviews, ratings and what you post', id: 's24',
+    inShort: 'You keep ownership of what you post. You give us a licence to host and display it. Reviews must be genuine, and we need separate permission to use your content in advertising.',
+    paragraphs: [
+      'You keep ownership of User Content that is yours.',
+      'By submitting User Content, you give WECARE.DIGITAL BHARATWORKS a non-exclusive, worldwide, royalty-free licence to host, store, reproduce, format, display and communicate it - as far as is reasonably necessary to provide the service, run the Platform, display content you intentionally submitted for publication, process your transactions or requests, keep the Platform secure, investigate disputes or complaints, and comply with the law.',
+      'That licence does not transfer ownership of your content to us.',
+      'If we want to use identifiable User Content in advertising or promotion, beyond the context you submitted it in, we will get the additional permission required.',
+      'The licence normally ends when the content is permanently deleted - except where we still need it for backups, record-keeping, legal obligations, dispute resolution, fraud prevention, or another lawful purpose.',
+      'You confirm you have the rights you need in order to submit your User Content.',
+      'Reviews and ratings must reflect real experiences. Do not submit fake, manipulated or undisclosed paid reviews, unlawful material, defamatory content, infringing content, or anything under a deliberately false identity.',
+      'We may moderate, restrict or remove User Content where that is reasonably necessary to comply with the law or enforce these Terms.',
+    ],
   },
   {
-    "number": "25",
-    "heading": "Intellectual Property",
-    "id": "s25",
-    "paragraphs": [
-      "The Platform and its original software, workflows, design, text, graphics, logos, interfaces, photographs, videos, databases and other content are owned by or licensed to WECARE.DIGITAL BHARATWORKS or the applicable rights holder.",
-      "Such materials are protected by applicable intellectual-property laws.",
-      "The WECARE.DIGITAL name, brand identity, logos and associated marks may not be copied, imitated or used without appropriate authorization.",
-      "Your use of WECARE.DIGITAL gives you a limited, non-exclusive, non-transferable and revocable right to use the Platform for its intended purpose.",
-      "No intellectual-property ownership is transferred to you merely because you access or purchase a Service.",
-      "If you believe material available through WECARE.DIGITAL infringes your intellectual-property rights, contact one@wecare.digital and provide sufficient information for us to reasonably identify and review the complaint."
-    ]
+    number: '25', heading: 'Intellectual property', id: 's25',
+    inShort: 'The Platform and its content belong to us or our licensors. Using the site gives you a limited right to use it, not ownership of anything.',
+    paragraphs: [
+      'The Platform and its software, workflows, design, text, graphics, logos, interfaces, photographs, videos and databases belong to WECARE.DIGITAL BHARATWORKS or the relevant rights holder, or are licensed to us, and are protected by intellectual-property law.',
+      'The WECARE.DIGITAL name, brand identity, logos and marks may not be copied, imitated or used without our authorisation.',
+      'Using the Platform gives you a limited, non-exclusive, non-transferable, revocable right to use it for its intended purpose.',
+      'Buying or accessing a service does not transfer any intellectual property to you.',
+      'If you believe something on the Platform infringes your intellectual-property rights, email one@wecare.digital with enough detail for us to identify and review the complaint.',
+    ],
   },
   {
-    "number": "26",
-    "heading": "Acceptable Use",
-    "id": "s26",
-    "paragraphs": [
-      "You may use WECARE.DIGITAL only for lawful purposes.",
-      "You must not commit or facilitate fraud; impersonate another person; intentionally misrepresent your affiliation; threaten, harass or abuse another person; infringe intellectual-property or privacy rights; introduce malware or harmful software; interfere with Platform security; attempt unauthorized system or account access; circumvent technical restrictions; harvest personal information without authorization; send unlawful spam or unsolicited communications; manipulate reviews or ratings; exploit promotions fraudulently; materially disrupt Platform functionality; use automated systems in an abusive manner; list or request unlawful goods or Services; or otherwise use the Platform in violation of applicable law.",
-      "We may investigate suspected violations and take proportionate action where necessary."
-    ]
+    number: '26', heading: 'Acceptable use', id: 's26',
+    inShort: 'Use the Platform lawfully. No fraud, impersonation, harassment, malware, scraping personal data, review manipulation or breaking our security.',
+    paragraphs: [
+      'Use WECARE.DIGITAL only for lawful purposes.',
+      'Do not commit or help anyone commit fraud; impersonate another person; misrepresent who you are affiliated with; threaten, harass or abuse anyone; infringe intellectual-property or privacy rights; introduce malware or harmful code; interfere with the Platform\'s security; try to access systems or accounts you are not authorised to; get around technical restrictions; harvest personal information without authorisation; send unlawful spam; manipulate reviews or ratings; abuse promotions; materially disrupt how the Platform works; use automated tools abusively; list or request unlawful goods or services; or otherwise use the Platform in breach of the law.',
+      'We may investigate suspected breaches and take proportionate action where necessary.',
+    ],
   },
   {
-    "number": "27",
-    "heading": "Third-Party Websites, Tools and Integrations",
-    "id": "s27",
-    "paragraphs": [
-      "The Services may contain links to or rely upon independent third-party websites, payment processors, logistics providers, authentication systems, maps, communication platforms, cloud infrastructure, software or other services.",
-      "Third-party services may be governed by their own terms and privacy policies.",
-      "We do not control independent third-party systems and cannot guarantee their uninterrupted availability.",
-      "Nothing in this section excludes liability that WECARE.DIGITAL is required to assume under applicable law."
-    ]
+    number: '27', heading: 'Other websites, tools and integrations', id: 's27',
+    inShort: 'We rely on third-party services we do not control, and their terms apply to them. We cannot promise they will always be up.',
+    paragraphs: [
+      'The Services link to, or rely on, independent third-party websites, payment processors, logistics providers, authentication systems, maps, communication platforms, cloud infrastructure and software.',
+      'Those services have their own terms and privacy policies.',
+      'We do not control independent third-party systems and cannot guarantee they will be continuously available.',
+      'This section does not exclude liability the law requires us to carry.',
+    ],
   },
   {
-    "number": "28",
-    "heading": "Privacy and Personal Data",
-    "id": "s28",
-    "paragraphs": [
-      "Personal data collected through WECARE.DIGITAL will be handled in accordance with our Privacy Policy at: /privacy/ and applicable data-protection law.",
-      "The Privacy Policy forms a separate legal document and should be read together with these Terms.",
-      "Use of the Platform does not constitute unrestricted or blanket consent to every possible form of personal-data processing.",
-      "Where consent or another specific authorization is legally required for particular processing, an appropriate mechanism will be used.",
-      "Depending on the Service, personal information may be processed for purposes including account creation and administration, order fulfilment, booking management, payment processing, communication, customer support, identity verification, fraud prevention, Platform security, grievance resolution, legal compliance and provision of requested Services."
-    ]
+    number: '28', heading: 'Privacy and personal data', id: 's28',
+    inShort: 'Our Privacy Policy covers personal data and is a separate document worth reading. Using the Platform is not blanket consent to every possible use of your data.',
+    paragraphs: [
+      'We handle personal data in line with our Privacy Policy at /privacy/ and with data-protection law.',
+      'The Privacy Policy is a separate document and should be read together with these Terms.',
+      'Using the Platform is not unrestricted or blanket consent to every possible use of your personal data.',
+      'Where the law requires your consent, or another specific authorisation, for a particular use of your data, we obtain it.',
+      'Depending on the service, we may process personal data to create and administer your account, fulfil orders, manage bookings, process payments, communicate with you, provide support, verify identity, prevent fraud, keep the Platform secure, resolve grievances, comply with the law, and provide what you asked for.',
+    ],
   },
   {
-    "number": "29",
-    "heading": "Electronic and Service Communications",
-    "id": "s29",
-    "paragraphs": [
-      "By using the Services, you acknowledge that transactional and operational communications may be provided electronically where permitted.",
-      "These may include account notices, order confirmations, payment confirmations, booking confirmations, appointment reminders, delivery updates, security alerts, grievance correspondence, policy notices and other Service-related communications.",
-      "Such communications may be provided through email, SMS, telephone, messaging services, Platform notifications or other contact methods supplied by you.",
-      "Marketing communications will be managed separately and will include consent or opt-out mechanisms where required by applicable law."
-    ]
+    number: '29', heading: 'Messages we send you', id: 's29',
+    inShort: 'Messages about your account, order, payment or security come electronically and are part of the service. Marketing is handled separately and you can opt out of it.',
+    paragraphs: [
+      'By using the Services you accept that we may send you transactional and operational messages electronically, where the law permits.',
+      'These include account notices, order and payment confirmations, booking confirmations, appointment reminders, delivery updates, security alerts, grievance correspondence and policy notices.',
+      'We may send them by email, SMS, phone, messaging service, or as notifications on the Platform, using the contact details you gave us.',
+      'Marketing is handled separately, and carries the consent or opt-out mechanism the law requires.',
+    ],
   },
   {
-    "number": "30",
-    "heading": "Availability and Modification of Services",
-    "id": "s30",
-    "paragraphs": [
-      "We may maintain, update, improve, modify, replace, suspend or discontinue functionality from time to time.",
-      "Temporary interruptions may occur due to maintenance, technical failures, network disruption, third-party infrastructure, cybersecurity incidents, regulatory requirements, logistics failures or circumstances beyond reasonable control.",
-      "Where a paid Service is materially discontinued before it has been supplied, we will provide any remedy required under applicable law or applicable Service-Specific Terms."
-    ]
+    number: '30', heading: 'Availability and changes to the Services', id: 's30',
+    inShort: 'We update and occasionally withdraw features, and outages happen. If we discontinue something you paid for before supplying it, you get whatever remedy applies.',
+    paragraphs: [
+      'We maintain, update, improve, modify, replace, suspend and sometimes discontinue functionality.',
+      'Temporary interruptions can happen because of maintenance, technical failures, network problems, third-party infrastructure, cybersecurity incidents, regulatory requirements, logistics failures, or circumstances beyond our reasonable control.',
+      'If we materially discontinue a paid service before it has been supplied, we provide whatever remedy the law or the Service-Specific Terms require.',
+    ],
   },
   {
-    "number": "31",
-    "heading": "Disclaimer of Warranties",
-    "id": "s31",
-    "paragraphs": [
-      "To the maximum extent permitted by applicable law, the Platform is provided on an \"as available\" basis.",
-      "We do not guarantee that every feature or Service will always be uninterrupted, continuously available, completely error-free or suitable for every User's individual purpose.",
-      "We do not guarantee a particular business, professional, legal, medical, personal, travel, financial or other outcome merely because a product, Service or provider is accessible through WECARE.DIGITAL.",
-      "Nothing in these Terms excludes a statutory warranty, obligation, consumer right or remedy that cannot lawfully be excluded."
-    ]
+    number: '31', heading: 'What we do not promise', id: 's31',
+    inShort: 'We do not promise the Platform is flawless or always up, or that you will get a particular outcome. Statutory warranties and consumer rights still stand.',
+    paragraphs: [
+      'To the fullest extent the law allows, the Platform is provided on an "as available" basis.',
+      'We do not promise that every feature will be uninterrupted, always available, completely free of errors, or suited to your particular purpose.',
+      'We do not promise a particular business, professional, legal, medical, personal, travel or financial outcome because a product, service or provider is reachable through WECARE.DIGITAL.',
+      'Nothing here excludes a statutory warranty, obligation, consumer right or remedy that cannot lawfully be excluded.',
+    ],
   },
   {
-    "number": "32",
-    "heading": "Limitation of Liability",
-    "id": "s32",
-    "paragraphs": [
-      "Nothing in these Terms excludes or limits liability where exclusion or limitation is prohibited by applicable law.",
-      "Subject to that principle and to the maximum extent permitted by law, neither party will ordinarily be responsible to the other for indirect, incidental, special or consequential losses that were not reasonably foreseeable.",
-      "Where WECARE.DIGITAL's contractual liability may lawfully be limited, its aggregate contractual liability arising directly from a particular paid transaction will ordinarily not exceed the amount paid to WECARE.DIGITAL for the product or Service giving rise to the claim.",
-      "This limitation does not apply where liability cannot legally be restricted, including liability arising from fraud, wilful misconduct or another matter for which applicable law prohibits limitation.",
-      "Nothing in this section restricts mandatory consumer rights."
-    ]
+    number: '32', heading: 'Limits on liability', id: 's32',
+    inShort: 'Neither of us is liable for unforeseeable indirect losses, and our contractual liability for a paid transaction is normally capped at what you paid for it. Limits never apply where the law forbids them.',
+    paragraphs: [
+      'Nothing in these Terms excludes or limits liability where the law prohibits that.',
+      'Subject to that, and to the fullest extent the law allows, neither of us is normally responsible to the other for indirect, incidental, special or consequential losses that were not reasonably foreseeable.',
+      'Where our contractual liability may lawfully be limited, our total contractual liability arising directly from a particular paid transaction will normally not exceed what you paid us for the product or service the claim is about.',
+      'That cap does not apply where liability cannot legally be restricted, including liability for fraud or wilful misconduct.',
+      'Nothing in this section restricts mandatory consumer rights.',
+    ],
   },
   {
-    "number": "33",
-    "heading": "User Responsibility and Indemnity",
-    "id": "s33",
-    "paragraphs": [
-      "To the extent permitted by applicable law, you are responsible for losses, claims or reasonable costs directly arising from your unlawful use of the Services, your material breach of these Terms, your infringement of another person's rights or unlawful User Content submitted by you.",
-      "This section does not require a consumer to indemnify WECARE.DIGITAL for losses caused by WECARE.DIGITAL's own unlawful conduct or for liability that cannot lawfully be transferred."
-    ]
+    number: '33', heading: 'When you are responsible to us', id: 's33',
+    inShort: 'You cover losses that come from your unlawful use, your material breach, or unlawful content you posted. You never cover losses we caused ourselves.',
+    paragraphs: [
+      'As far as the law allows, you are responsible for losses, claims and reasonable costs arising directly from your unlawful use of the Services, your material breach of these Terms, your infringement of someone else\'s rights, or unlawful User Content you submitted.',
+      'This does not ask a consumer to cover losses caused by our own unlawful conduct, or liability that cannot lawfully be transferred.',
+    ],
   },
   {
-    "number": "34",
-    "heading": "Fraud Prevention and Platform Security",
-    "id": "s34",
-    "paragraphs": [
-      "We may use reasonable technical, operational and manual measures to identify and prevent unauthorized transactions, account takeover, fraudulent payments, promotion abuse, identity misuse, suspicious activity and other security risks.",
-      "Where reasonably necessary, a transaction or account may be temporarily restricted while verification is completed.",
-      "We may cooperate with banks, payment providers, regulators, law-enforcement authorities or other competent authorities where permitted or required by law."
-    ]
+    number: '34', heading: 'Fraud prevention and Platform security', id: 's34',
+    inShort: 'We screen for fraud and account takeover, may briefly hold a transaction while we verify it, and cooperate with banks and authorities where the law allows.',
+    paragraphs: [
+      'We use reasonable technical, operational and manual measures to detect and prevent unauthorised transactions, account takeover, fraudulent payments, promotion abuse, identity misuse and other security risks.',
+      'Where reasonably necessary, we may temporarily restrict a transaction or an account while verification is completed.',
+      'We may cooperate with banks, payment providers, regulators, law enforcement and other competent authorities where the law permits or requires it.',
+    ],
   },
   {
-    "number": "35",
-    "heading": "Suspension and Termination",
-    "id": "s35",
-    "paragraphs": [
-      "You may stop using the Services at any time.",
-      "Where available, you may request account closure through the applicable account or customer-support process.",
-      "We may restrict, suspend or terminate access where reasonably necessary due to suspected fraud, security risk, unlawful activity, material violation of these Terms, abuse of Users or providers, repeated payment failure, misuse of the Platform or another legitimate reason.",
-      "Where appropriate and legally required, we may provide notice or an opportunity to address the relevant issue.",
-      "Termination does not eliminate rights or obligations that arose before termination, including refund rights, payment obligations, dispute rights, confidentiality obligations, intellectual-property provisions or provisions intended by their nature to survive termination."
-    ]
+    number: '35', heading: 'Suspension and closing your account', id: 's35',
+    inShort: 'You can stop using the Services whenever you like. We can restrict access for fraud, security or serious breach. Rights that arose before termination survive it.',
+    paragraphs: [
+      'You can stop using the Services at any time.',
+      'Where account closure is available, you can request it through your account or through customer support.',
+      'We may restrict, suspend or terminate access where that is reasonably necessary because of suspected fraud, a security risk, unlawful activity, a material breach of these Terms, abuse of other users or providers, repeated payment failure, misuse of the Platform, or another legitimate reason.',
+      'Where it is appropriate and the law requires it, we will give you notice or a chance to put the problem right.',
+      'Termination does not wipe out rights and obligations that already existed - including refund rights, payment obligations, dispute rights, confidentiality obligations, intellectual-property provisions, and anything else meant by its nature to survive.',
+    ],
   },
   {
-    "number": "36",
-    "heading": "Force Majeure",
-    "id": "s36",
-    "paragraphs": [
-      "Neither party will be responsible for a failure or delay caused by circumstances beyond its reasonable control to the extent such circumstances prevent performance.",
-      "Examples may include natural disasters, severe weather, epidemic or public-health restrictions, war, civil disturbance, government action, widespread utility or telecommunications failures, labour disruption, transportation interruption, large-scale cyber incidents or similar circumstances outside reasonable control.",
-      "Nothing in this section removes a cancellation, refund or other right that applicable law requires to remain available."
-    ]
+    number: '36', heading: 'Events outside anyone\'s control', id: 's36',
+    inShort: 'Neither of us is liable for delays caused by things like disasters, war, government action or large-scale outages. Refund rights the law protects still stand.',
+    paragraphs: [
+      'Neither of us is responsible for a failure or delay caused by circumstances beyond our reasonable control, to the extent those circumstances actually prevent performance.',
+      'That can include natural disasters, severe weather, epidemics and public-health restrictions, war, civil disturbance, government action, widespread utility or telecommunications failures, labour disruption, transport interruption, and large-scale cyber incidents.',
+      'This section does not remove a cancellation, refund or other right the law requires to stay available.',
+    ],
   },
   {
-    "number": "37",
-    "heading": "Customer Care and Grievance Redressal",
-    "id": "s37",
-    "paragraphs": [
-      "Users may contact WECARE.DIGITAL regarding products, orders, bookings, payments, refunds, Sellers, Service Providers, account concerns, Platform concerns, privacy concerns or other grievances.",
-      "Customer Care & Grievance Contact",
-      "WECARE.DIGITAL Customer Grievance Desk",
-      "Business: WECARE.DIGITAL BHARATWORKS",
-      "Email: one@wecare.digital",
-      "Phone: +91 9330994400",
-      "Address: The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Ln Kolkata, West Bengal 700012, India",
-      "Formal complaints submitted through the designated grievance channel will be recorded and, where applicable, assigned a ticket or reference number for tracking.",
-      "Where applicable law prescribes a particular grievance process, acknowledgement period, resolution period or escalation process, WECARE.DIGITAL will handle the grievance in accordance with those requirements.",
-      "Nothing in this grievance procedure prevents a User from exercising any right available before an appropriate Consumer Commission, regulator, statutory authority, court or other lawful dispute-resolution forum."
-    ]
+    number: '37', heading: 'Customer care and complaints', id: 's37',
+    inShort: 'Email one@wecare.digital or call +91 9330994400. Formal complaints get a reference number. You can always go to a consumer commission or regulator instead.',
+    paragraphs: [
+      'Contact us about products, orders, bookings, payments, refunds, Sellers, Service Providers, your account, the Platform, privacy, or any other complaint.',
+      'WECARE.DIGITAL Customer Grievance Desk, WECARE.DIGITAL BHARATWORKS. Email one@wecare.digital or call +91 9330994400. Our address is The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Lane, Kolkata, West Bengal 700012, India.',
+      'We record formal complaints submitted through that channel and, where it applies, give you a ticket or reference number so you can track it.',
+      'Where the law sets a particular grievance process, acknowledgement period, resolution period or escalation route, we follow it.',
+      'Using our complaints process does not stop you exercising any right you have before a Consumer Commission, regulator, statutory authority, court or other lawful forum.',
+    ],
   },
   {
-    "number": "38",
-    "heading": "Changes to These Terms",
-    "id": "s38",
-    "paragraphs": [
-      "We may update these Terms where reasonably necessary to reflect changes in Services, business operations, technology, Platform functionality, security practices, applicable laws or regulatory requirements.",
-      "Where required by applicable law or where a change materially affects User rights, appropriate notice will be provided.",
-      "Changes will ordinarily operate prospectively.",
-      "Continued use of affected Services after revised Terms become applicable may constitute acceptance only to the extent permitted by applicable law.",
-      "Where fresh affirmative acceptance is legally required, we may request it.",
-      "A new or materially different Service may also be subject to Service-Specific Terms."
-    ]
+    number: '38', heading: 'Changes to these Terms', id: 's38',
+    inShort: 'We update these Terms when the Services or the law change, and give notice where a change materially affects you. Changes normally apply going forward, not backwards.',
+    paragraphs: [
+      'We update these Terms where that is reasonably necessary to reflect changes in our Services, operations, technology, Platform functionality, security practices, or the law.',
+      'Where the law requires it, or where a change materially affects your rights, we give you appropriate notice.',
+      'Changes normally operate going forward.',
+      'Continuing to use an affected service after revised Terms take effect counts as acceptance only as far as the law allows.',
+      'Where the law requires fresh, affirmative acceptance, we ask for it.',
+      'A new or materially different service may also carry its own Service-Specific Terms.',
+    ],
   },
   {
-    "number": "39",
-    "heading": "Governing Law and Dispute Resolution",
-    "id": "s39",
-    "paragraphs": [
-      "These Terms are governed by the laws of India.",
-      "Users are encouraged to first contact WECARE.DIGITAL Customer Care or the WECARE.DIGITAL Customer Grievance Desk to allow the concern to be reviewed and, where possible, resolved.",
-      "Nothing in these Terms restricts a consumer from approaching a Consumer Commission, regulator, statutory authority, court or another forum available under applicable law.",
-      "For disputes that are not subject to a mandatory statutory or consumer forum, the courts of competent jurisdiction in Kolkata, West Bengal will have jurisdiction, subject to applicable law."
-    ]
+    number: '39', heading: 'Governing law and disputes', id: 's39',
+    inShort: 'Indian law applies. Please talk to us first. Nothing stops you going to a consumer commission or regulator; other disputes go to the courts in Kolkata.',
+    paragraphs: [
+      'These Terms are governed by the laws of India.',
+      'Please contact our customer care team or the Customer Grievance Desk first, so we have a chance to look at the problem and, if we can, fix it.',
+      'Nothing in these Terms stops a consumer approaching a Consumer Commission, regulator, statutory authority, court or other forum available under the law.',
+      'For disputes that are not covered by a mandatory statutory or consumer forum, the courts of competent jurisdiction in Kolkata, West Bengal have jurisdiction, subject to the law.',
+    ],
   },
   {
-    "number": "40",
-    "heading": "Severability",
-    "id": "s40",
-    "paragraphs": [
-      "If a provision of these Terms is held to be invalid, unlawful or unenforceable, that provision will be interpreted or limited to the minimum extent necessary.",
-      "The remaining provisions will continue to remain effective."
-    ]
+    number: '40', heading: 'If part of this is unenforceable', id: 's40',
+    inShort: 'An invalid clause is narrowed or dropped. The rest still applies.',
+    paragraphs: [
+      'If a provision of these Terms is held invalid, unlawful or unenforceable, it is read down or limited to the minimum extent necessary.',
+      'The rest of these Terms continue to apply.',
+    ],
   },
   {
-    "number": "41",
-    "heading": "No Waiver",
-    "id": "s41",
-    "paragraphs": [
-      "A failure or delay by WECARE.DIGITAL in enforcing any provision or exercising any right does not constitute a waiver of that provision or right.",
-      "A waiver applies only to the specific circumstances for which it is given."
-    ]
+    number: '41', heading: 'Not enforcing something is not giving it up', id: 's41',
+    inShort: 'If we do not enforce a term straight away, we have not waived it.',
+    paragraphs: [
+      'If we fail or delay in enforcing a provision or exercising a right, that is not a waiver of it.',
+      'Where we do waive something, the waiver applies only to the circumstances we gave it for.',
+    ],
   },
   {
-    "number": "42",
-    "heading": "Assignment",
-    "id": "s42",
-    "paragraphs": [
-      "You may not transfer your account or contractual rights under these Terms in a manner that materially affects the Services without our prior consent.",
-      "WECARE.DIGITAL BHARATWORKS may transfer its rights or obligations in connection with a genuine business restructuring, merger, acquisition, sale, reorganization or transfer of the WECARE.DIGITAL operations, subject to applicable law and without reducing mandatory User or consumer rights."
-    ]
+    number: '42', heading: 'Transferring this agreement', id: 's42',
+    inShort: 'You need our consent to transfer your account or rights. We may transfer ours in a genuine restructuring, without reducing your mandatory rights.',
+    paragraphs: [
+      'Do not transfer your account or your rights under these Terms in a way that materially affects the Services without our prior consent.',
+      'WECARE.DIGITAL BHARATWORKS may transfer its rights or obligations as part of a genuine business restructuring, merger, acquisition, sale or reorganisation, subject to the law and without reducing your mandatory user or consumer rights.',
+    ],
   },
   {
-    "number": "43",
-    "heading": "Relationship of the Parties",
-    "id": "s43",
-    "paragraphs": [
-      "Nothing in these Terms creates an employment relationship, partnership, franchise, fiduciary relationship or joint venture between a User and WECARE.DIGITAL BHARATWORKS.",
-      "A Third-Party Provider does not become an employee of WECARE.DIGITAL merely because its products or Services are accessible through the Platform.",
-      "Separate contractual arrangements may govern relationships between WECARE.DIGITAL and individual Sellers, Service Providers, partners or affiliates."
-    ]
+    number: '43', heading: 'The relationship between us', id: 's43',
+    inShort: 'Using the Services does not make you our employee, partner or joint venturer, and a third-party provider does not become our employee by being listed.',
+    paragraphs: [
+      'Nothing in these Terms creates an employment relationship, partnership, franchise, fiduciary relationship or joint venture between you and WECARE.DIGITAL BHARATWORKS.',
+      'A Third-Party Provider does not become our employee because its products or services are reachable through the Platform.',
+      'Separate contracts may govern our relationships with individual Sellers, Service Providers, partners and affiliates.',
+    ],
   },
   {
-    "number": "44",
-    "heading": "Entire Agreement",
-    "id": "s44",
-    "paragraphs": [
-      "These Terms, together with the Privacy Policy at /privacy/, applicable Service-Specific Terms, order or booking information, applicable cancellation or refund conditions, applicable delivery conditions and any other policy expressly incorporated into a particular transaction form the agreement applicable to your use of the relevant Services.",
-      "Where a separately signed agreement, memorandum of understanding, engagement agreement, enterprise agreement or order form covers the same subject matter, that agreement will prevail for matters specifically addressed by it."
-    ]
+    number: '44', heading: 'The whole agreement', id: 's44',
+    inShort: 'These Terms plus the Privacy Policy, the service-specific terms and your order details make up the agreement. A separately signed agreement outranks them on what it covers.',
+    paragraphs: [
+      'Your agreement with us is made up of these Terms, the Privacy Policy at /privacy/, any Service-Specific Terms, your order or booking information, the applicable cancellation, refund and delivery conditions, and any other policy expressly built into a particular transaction.',
+      'Where a separately signed agreement, memorandum of understanding, engagement agreement, enterprise agreement or order form covers the same subject matter, that agreement prevails on the matters it specifically addresses.',
+    ],
   },
   {
-    "number": "45",
-    "heading": "Contact Information",
-    "id": "s45",
-    "paragraphs": [
-      "Brand: WECARE.DIGITAL",
-      "Operated under the business name:",
-      "WECARE.DIGITAL BHARATWORKS",
-      "Business Address: The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Ln Kolkata, West Bengal 700012, India",
-      "Customer Care:",
-      "Phone: +91 9330994400",
-      "Email: one@wecare.digital",
-      "For questions, complaints or concerns regarding these Terms or the Services, please contact us using the details above.",
-      "Privacy Policy",
-      "terms, refunds, shipping, and policies for WECARE.DIGITAL services.",
-      "A passionate team of solvers coming together in unexpected ways to solve the challenges and unmet needs of consumers today and tomorrow",
-      "BUY GIFT CARD",
-      "Any amount. Message included.",
-      "THE FUTURE IS ENGAGED",
-      "FOR MICROSERVICES DONE RIGHT, WECARE.DIGITAL IS YOUR GUIDING LIGHT. FAST, SECURE, AND ALWAYS SMART, WE'RE THE TECH YOU NEED TO START!",
-      "INFO",
-      "LEGAL STUFF",
-      "CONTACT",
-      "INVITE",
-      "APP",
-      "BHARAT STACK",
-      "DECARBONIZING",
-      "OPERATIONS",
-      "bottom of page"
-    ]
-  }
+    number: '45', heading: 'How to contact us', id: 's45',
+    inShort: 'WECARE.DIGITAL BHARATWORKS, Kolkata. one@wecare.digital, +91 9330994400.',
+    paragraphs: [
+      'WECARE.DIGITAL is operated under the business name WECARE.DIGITAL BHARATWORKS.',
+      'Our address is The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Lane, Kolkata, West Bengal 700012, India.',
+      'For customer care, email one@wecare.digital or call +91 9330994400.',
+      'Use those details for any question, complaint or concern about these Terms or the Services. Our Privacy Policy is at /privacy/.',
+    ],
+  },
 ];

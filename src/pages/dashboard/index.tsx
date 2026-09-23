@@ -2788,7 +2788,7 @@ Content-Type: application/json`}</pre>
                   </div>
 
                   <p style={ { fontSize: '0.85rem', color: '#6b7280', lineHeight: 1.6, margin: '0 0 1rem' } }>
-                    Bharat Stack is the only codebase and Amplify is the public frontend. Wix is used as a clean commerce backend for
+                    WECARE.DIGITAL is the only codebase and Amplify is the public frontend. Wix is used as a clean commerce backend for
                     catalog, inventory, cart and orders. The deleted Wix Editor/Velo repository is not part of the target architecture.
                   </p>
 

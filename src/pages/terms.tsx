@@ -10,15 +10,23 @@ import { TERMS_SECTIONS, TERMS_INTRO, TERMS_UPDATED } from '../content/legal/ter
  * ROUTING: '/terms' must be in the EXACT-MATCH allowlist in _app.tsx or this renders an
  * empty body with HTTP 200. trailingSlash means the URL is /terms/.
  *
- * THE PLACEHOLDER IS GONE. This now carries the owner's real published document, all 45
- * sections plus the 12 sub-clauses of section 14, ported from the Wix page by parsing it
- * rather than retyping it. See src/content/legal/terms.ts for exactly what was and was
- * not changed - structure and navigation only, never the wording of a clause.
+ * THE REAL DOCUMENT, all 45 sections plus the 12 sub-clauses of section 14. The text
+ * originally came from the old Wix site; it has since been rewritten into plain English
+ * on the owner's instruction, and THIS REPO IS NOW THE SOURCE OF TRUTH - there is no
+ * upstream page to sync with. src/content/legal/terms.ts records exactly what the
+ * rewrite changed and, more importantly, what it did not.
  *
- * noindex was also removed with the placeholder. It existed because an indexed empty
- * legal page is the document a regulator or a payment provider gets pointed at; that
- * reasoning no longer applies to a complete one, and terms of service should be
- * findable.
+ * noindex was removed with the placeholder. It existed because an indexed empty legal
+ * page is the document a regulator or a payment provider gets pointed at; that reasoning
+ * does not apply to a complete one, and terms of service should be findable.
+ *
+ * THE NOTICE SAYS THIS IS THE AGREEMENT, deliberately. It previously read "these Terms
+ * are a summary of the agreement in force and are provided for information", which is
+ * exactly backwards - it described the operative contract as a non-binding summary of
+ * some other document that does not exist. Telling readers that the terms they are
+ * agreeing to are merely informational is not a cautious disclaimer, it is an argument
+ * against your own enforceability. The genuinely useful caveat, that this is not legal
+ * advice about their particular situation, is kept.
  */
 
 // "Terms of service / payment / refunds / delivery" - all four complete the frame, and
@@ -52,9 +60,10 @@ const TermsPage: React.FC = () => (
         intro={ TERMS_INTRO }
         updated={ TERMS_UPDATED }
         notice={ <>
-          These Terms are a summary of the agreement in force and are provided for
-          information. They are not legal advice. For a question about how a clause
-          applies to you, contact us at <a href="mailto:one@wecare.digital">one@wecare.digital</a>.
+          These Terms are the agreement between you and WECARE.DIGITAL, and they apply
+          when you use our services. They are not legal advice about your particular
+          situation. If you want to know how a clause applies to you, ask us at{ ' ' }
+          <a href="mailto:one@wecare.digital">one@wecare.digital</a>.
         </> }
       />
     </RotatingHero>

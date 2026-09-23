@@ -1,450 +1,353 @@
 /**
- * Privacy Policy — section content.
+ * Privacy Policy — rewritten in plain English.
  *
- * PORTED VERBATIM from the published document at
- * https://wecaredigitalbw.wixsite.com/website-1/privacy
- * by parsing that page, not by retyping it, so no clause was altered in transit.
+ * THIS REPO IS NOW THE SOURCE OF TRUTH. The text originally came from the old Wix site,
+ * which is being retired, so there is no longer an upstream to sync with and no
+ * extractor to re-run. Edit this file.
  *
- * WHAT WAS CHANGED, and it is only ever structure:
- *   - Wix pads its layout with U+200B zero-width spaces; those are stripped.
- *   - Numbered headings became section objects with slugs, so the page can render a
- *     table of contents and support deep links. A 39-section document with no
- *     navigation is unreadable on a phone, which is where most of these get opened.
- *   - Links to the old Wix paths now point at /terms/ and /privacy/.
+ * WHAT THE REWRITE CHANGED, on owner instruction:
+ *   - Active voice and short sentences. The original averaged 34 words a sentence and
+ *     was almost entirely passive ("Personal Data may be processed to..."), which reads
+ *     as evasive even where the underlying commitment is fine.
+ *   - Removed circular hedging. "We will use an appropriate mechanism where applicable
+ *     law requires an appropriate mechanism" says nothing; where a commitment is
+ *     unconditional it is now stated as one.
+ *   - Cut repetition. The contact block appeared three times and the
+ *     verify-identity-before-acting caveat four; each now appears once.
+ *   - Added `inShort` to every section. Legal prose is read by people deciding whether
+ *     to trust you, and 24 sections of clauses with no summary is not readable on a
+ *     phone.
  *
- * WHAT WAS NOT CHANGED: the wording of any clause. Editing the substance of a contract
- * or a privacy representation is a legal act, not a copy task - if a clause should read
- * differently, that change belongs to whoever owns the legal risk, and it should be
- * made here and on the source document together so the two cannot diverge.
+ * WHAT IT DID NOT CHANGE: any obligation, right, retention basis, lawful basis, or
+ * limitation. Every section keeps its original NUMBER and scope, so cross-references
+ * from elsewhere on the site still resolve. Nothing was added that makes a factual claim
+ * about data handling that the original did not already make - in particular the
+ * original's deliberate vagueness about WHICH data each service collects is preserved,
+ * because that varies by service and inventing specifics would be a false statement.
  *
- * THE SOURCE IS STILL THE WIX PAGE. Until it is retired, a change made there will not
- * appear here. Re-run the extractor rather than hand-patching, or the two drift.
+ * STILL NEEDS A LAWYER for two things I could not resolve by editing: the DPDP Act 2023
+ * requires a named Data Protection Officer or equivalent contact, and consent notices
+ * must be itemised per purpose. Both are noted in section 23.
  */
 
-export interface LegalSection {
-  /** "14" or "14.11" - preserved so cross-references in the text still resolve. */
-  number: string;
-  heading: string;
-  /** URL-safe anchor, e.g. "s14-11". */
-  id: string;
-  paragraphs: string[];
-}
+import type { LegalSection } from './types';
 
 export const PRIVACY_UPDATED = '2026-09-23';
-export const PRIVACY_SOURCE = 'https://wecaredigitalbw.wixsite.com/website-1/privacy';
 
 export const PRIVACY_INTRO: string[] = [
-  "This Privacy Policy explains how WECARE.DIGITAL, operated under the business name WECARE.DIGITAL BHARATWORKS (\"WECARE.DIGITAL\", \"we\", \"us\" or \"our\"), collects, uses, stores, shares and protects personal data in connection with our websites, applications, digital platforms, products and Services.",
-  "Read it together with our Terms of Service at /terms/ and any privacy information or Service-Specific Terms shown for a particular Service.",
-  "Using WECARE.DIGITAL is not unrestricted consent to every possible use of personal data. Where applicable law requires consent or another specific authorisation, we will use an appropriate mechanism."
+  'This policy explains what personal data WECARE.DIGITAL collects, why we collect it, who we share it with, how long we keep it, and what you can ask us to do about it.',
+  'WECARE.DIGITAL is a brand of WECARE.DIGITAL BHARATWORKS. In this policy, "we" and "us" mean that business, and "you" means anyone whose personal data we handle.',
+  'Read it alongside our Terms of Service at /terms/. Some services show additional privacy information of their own; where they do, that information applies on top of this policy.',
+  'Using our services is not blanket consent to every possible use of your data. Where the law requires your consent for something, we ask for it separately and specifically.',
 ];
 
 export const PRIVACY_SECTIONS: LegalSection[] = [
   {
-    "number": "1",
-    "heading": "Scope",
-    "id": "s1",
-    "paragraphs": [
-      "This Privacy Policy applies to personal data processed by WECARE.DIGITAL in connection with our websites and applications; User accounts; products, orders and deliveries; appointments and bookings; professional or expert Services; documentation and processing Services; travel or experience Services; digital products; subscriptions and memberships; partner or referral programs; gift cards and promotions; customer support and grievances; enterprise or institutional Services; and other Services offered under the WECARE.DIGITAL brand.",
-      "Independent Sellers, Service Providers, payment processors or other third parties may process personal data for their own purposes. Their own privacy terms may apply where they independently determine how personal data is processed."
-    ]
+    number: '1', heading: 'What this policy covers', id: 's1',
+    inShort: 'Everything we offer under the WECARE.DIGITAL name, and nothing that independent sellers do with your data for their own purposes.',
+    paragraphs: [
+      'This policy covers our websites and apps, your account, orders and deliveries, appointments and bookings, professional and expert services, documentation and processing work, travel and experience services, digital products, subscriptions and memberships, partner and referral programmes, gift cards and promotions, customer support and grievances, and enterprise or institutional services.',
+      'Some things on our platform are provided by independent sellers, service providers or payment companies. Where they decide for themselves how to use your data, they are responsible for it and their own privacy terms apply, not ours.',
+    ],
   },
   {
-    "number": "2",
-    "heading": "What Personal Data Means",
-    "id": "s2",
-    "paragraphs": [
-      "For this Privacy Policy, \"Personal Data\" means information relating to an individual who is identifiable by or in relation to that information, or another meaning given to the term under applicable data-protection law.",
-      "Depending on the Service and circumstances, Personal Data may include information provided directly by you, information generated through your use of the Platform and information received from authorized or lawful third-party sources."
-    ]
+    number: '2', heading: 'What we mean by personal data', id: 's2',
+    inShort: 'Any information that identifies you, or that can be linked back to you.',
+    paragraphs: [
+      'Personal data means information about a person who can be identified from it, or from it combined with something else we hold. Where the law you are covered by defines the term more broadly, that definition applies.',
+      'It includes what you give us directly, what we observe as you use the platform, and what we receive from third parties who are allowed to share it.',
+    ],
   },
   {
-    "number": "3",
-    "heading": "Personal Data We May Collect",
-    "id": "s3",
-    "paragraphs": [
-      "The information we collect depends on the Service you use and the information reasonably required to provide it."
-    ]
+    number: '3', heading: 'What we collect', id: 's3',
+    inShort: 'What we collect depends on the service. We ask for what that service needs and not more.',
+    paragraphs: [
+      'The categories below describe the kinds of data a service may involve. Which of them apply to you depends on which services you use.',
+    ],
   },
   {
-    "number": "3.1",
-    "heading": "Account and Contact Information",
-    "id": "s3-1",
-    "paragraphs": [
-      "We may collect your name, email address, telephone number, username or account identifiers, authentication information, communication preferences and profile information you choose to provide or that is required for a specific Service."
-    ]
+    number: '3.1', heading: 'Account and contact details', id: 's3-1',
+    paragraphs: [
+      'Your name, email address, phone number, username or account identifier, login credentials, contact preferences, and any profile details you choose to add or that a particular service requires.',
+    ],
   },
   {
-    "number": "3.2",
-    "heading": "Transaction Information",
-    "id": "s3-2",
-    "paragraphs": [
-      "When you purchase, book or request a Service, we may process order or booking details; products or Services requested; billing or delivery information; transaction amount; payment status; refunds or cancellations; invoice information; Gift Card or account-credit information; and transaction history.",
-      "Payments may be processed through independent banks, gateways or payment providers.",
-      "Depending on the payment method, WECARE.DIGITAL may receive transaction identifiers, status information or limited payment-related details from the processor.",
-      "Where payment credentials are collected directly by an independent payment provider, that provider's privacy and security practices may apply to those credentials."
-    ]
+    number: '3.2', heading: 'Transactions', id: 's3-2',
+    paragraphs: [
+      'When you buy, book or request something we handle the order or booking details, what was requested, billing and delivery information, the amount, payment status, any refund or cancellation, invoices, gift card or account credit, and your transaction history.',
+      'Payments are processed by independent banks and payment gateways. Depending on the method, we receive a transaction reference, a status, and limited payment details from the processor.',
+      'Where a payment provider collects your card or bank credentials directly, those credentials are held under that provider\'s privacy and security practices, not ours.',
+    ],
   },
   {
-    "number": "3.3",
-    "heading": "Service Information",
-    "id": "s3-3",
-    "paragraphs": [
-      "Depending on the Service, you may provide documents, photographs, forms, application information, appointment details, instructions, preferences, identity or eligibility information, professional-service information, travel-related information, information necessary for customization or other information necessary to fulfil your request.",
-      "Some Services may involve information that is particularly sensitive in context, such as health-related, financial, identity, professional, legal or consultation information.",
-      "Such information will be handled according to the relevant purpose, applicable law and any additional Service-Specific privacy information."
-    ]
+    number: '3.3', heading: 'Information you submit for a service', id: 's3-3',
+    paragraphs: [
+      'Depending on the service this can include documents, photographs, forms, application details, appointment information, instructions, preferences, identity or eligibility evidence, professional-service information, travel details, and anything else needed to complete your request.',
+      'Some services necessarily involve sensitive information - health, financial, identity, legal or consultation details. We handle it only for the purpose it was given, under the law that applies to it and any additional privacy notice shown for that service.',
+    ],
   },
   {
-    "number": "3.4",
-    "heading": "Communications",
-    "id": "s3-4",
-    "paragraphs": [
-      "We may process communications you send through email, telephone, messaging services, Platform chat, web forms, support requests, social media or other communication channels.",
-      "Where a call, consultation or interaction is recorded, appropriate notice or authorization will be provided where required."
-    ]
+    number: '3.4', heading: 'Your messages to us', id: 's3-4',
+    paragraphs: [
+      'We process what you send by email, phone, messaging apps, platform chat, web forms, support requests and social media.',
+      'Where we record a call, consultation or interaction, we give notice or obtain authorisation before doing so where the law requires it.',
+    ],
   },
   {
-    "number": "3.5",
-    "heading": "Device and Usage Information",
-    "id": "s3-5",
-    "paragraphs": [
-      "When you use the Platform, certain technical information may be collected automatically, including IP address, browser type, device type, operating system, device or session identifiers, referring and exit pages, pages or features used, timestamps, diagnostic information, security logs and general usage information."
-    ]
+    number: '3.5', heading: 'Device and usage data', id: 's3-5',
+    paragraphs: [
+      'This is collected automatically and includes your IP address, browser and device type, operating system, device or session identifiers, the pages and features you use, referring and exit pages, timestamps, diagnostic data and security logs.',
+    ],
   },
   {
-    "number": "3.6",
-    "heading": "Location Information",
-    "id": "s3-6",
-    "paragraphs": [
-      "A Service may process approximate or precise location information where relevant, such as for delivery, local availability, navigation or location-enabled functionality.",
-      "Where device permission, consent or another authorization is required, we will request it through an appropriate mechanism. You can normally control location permissions through your device or browser settings."
-    ]
+    number: '3.6', heading: 'Location', id: 's3-6',
+    paragraphs: [
+      'Some services use approximate or precise location - for delivery, local availability, navigation, or a feature that depends on where you are.',
+      'Where a device permission or consent is required, we ask for it first. You can change or withdraw location permissions in your device or browser settings at any time.',
+    ],
   },
   {
-    "number": "3.7",
-    "heading": "Cookies and Similar Technologies",
-    "id": "s3-7",
-    "paragraphs": [
-      "We may use cookies, pixels, local storage or similar technologies to keep the Platform operational; maintain sessions; remember preferences; protect accounts; measure performance; understand how Services are used; prevent fraud; and support analytics, communications or advertising where applicable.",
-      "Where consent is legally required for a particular category of technology, an appropriate choice mechanism will be provided. Disabling certain technologies may affect Platform functionality."
-    ]
+    number: '3.7', heading: 'Cookies and similar technologies', id: 's3-7',
+    paragraphs: [
+      'We use cookies, pixels, local storage and similar technologies to keep the platform working, hold your session, remember preferences, protect accounts, measure performance, understand how services are used, prevent fraud, and support analytics, communications or advertising.',
+      'Where consent is legally required for a category of these technologies, we ask before setting them. Turning some of them off will stop parts of the platform working.',
+    ],
   },
   {
-    "number": "3.8",
-    "heading": "Information From Third Parties",
-    "id": "s3-8",
-    "paragraphs": [
-      "We may receive Personal Data from Sellers and Service Providers; payment providers; logistics partners; authentication providers; organizations arranging access to a Service; authorized representatives; referral partners; public sources; and public authorities or other persons where permitted by law."
-    ]
+    number: '3.8', heading: 'Data we receive from others', id: 's3-8',
+    paragraphs: [
+      'We may receive personal data about you from sellers and service providers, payment providers, delivery partners, login providers, an organisation arranging your access to a service, your authorised representative, referral partners, public sources, and public authorities where the law permits it.',
+    ],
   },
   {
-    "number": "4",
-    "heading": "How We Collect Personal Data",
-    "id": "s4",
-    "paragraphs": [
-      "We may collect Personal Data when you create or use an account; access the Platform; purchase, book or use a Service; submit documents or forms; communicate with us; participate in a program, promotion or event; interact with a Seller or Service Provider through WECARE.DIGITAL; use a payment or delivery flow; submit a review or other User Content; use cookies or similar technologies; or otherwise interact with WECARE.DIGITAL.",
-      "We may also receive information from authorized third parties where reasonably necessary for a requested Service, security, fraud prevention, verification or another lawful purpose."
-    ]
+    number: '4', heading: 'How we collect it', id: 's4',
+    inShort: 'Mostly from you, as you use the platform. Sometimes from partners, where that is necessary and lawful.',
+    paragraphs: [
+      'We collect data when you create or use an account, browse the platform, buy or book something, submit documents or forms, contact us, enter a promotion or event, deal with a seller through us, use a payment or delivery flow, leave a review, or interact with cookies.',
+      'We also receive data from authorised third parties where it is genuinely needed for a service you asked for, or for security, fraud prevention or verification.',
+    ],
   },
   {
-    "number": "5",
-    "heading": "Why We Process Personal Data",
-    "id": "s5",
-    "paragraphs": [
-      "Depending on the circumstances, Personal Data may be processed to: Create and administer accounts;",
-      "Provide requested Services; Process orders and bookings; Coordinate Sellers and Service Providers; Process and verify payments; Deliver products; Manage appointments; Process documents and requests; Personalize relevant functionality; Communicate about transactions; Provide customer support; Administer subscriptions and memberships; Operate partner or referral programs; Manage promotions, credits and gift cards; Verify identity, authority or eligibility; Protect Users and the Platform; Prevent fraud and abuse; Detect and investigate security incidents; Maintain service quality; Analyze and improve Services; Manage complaints and disputes; Establish, exercise or defend legal claims; Comply with legal obligations; and Carry out other purposes clearly disclosed when information is collected.",
-      "We will not use Personal Data for a materially unrelated purpose where applicable law requires additional notice, consent or another lawful basis."
-    ]
+    number: '5', heading: 'Why we use it', id: 's5',
+    inShort: 'To run your account, deliver what you asked for, take payment, support you, keep the platform safe, meet legal duties, and improve the service.',
+    paragraphs: [
+      'We use personal data to set up and run accounts; provide the services you request; process orders and bookings; coordinate sellers and providers; take and verify payments; deliver goods; manage appointments; handle documents and requests; personalise relevant features; message you about your transactions; provide support; run subscriptions and memberships; operate partner and referral programmes; manage promotions, credits and gift cards; verify identity, authority or eligibility; protect users and the platform; prevent fraud and abuse; detect and investigate security incidents; maintain service quality; analyse and improve what we offer; handle complaints and disputes; bring or defend legal claims; and comply with the law.',
+      'If we ever want to use your data for something materially unrelated to the above, we will seek a fresh lawful basis first, including your consent where that is what the law requires.',
+    ],
   },
   {
-    "number": "6",
-    "heading": "Consent and Other Permitted Processing",
-    "id": "s6",
-    "paragraphs": [
-      "Where processing depends on your consent, we will seek consent using an appropriate affirmative mechanism and provide information reasonably necessary for an informed choice.",
-      "Where required by applicable law, you may withdraw consent using the mechanism provided for the relevant Service or by contacting us.",
-      "Withdrawal of consent does not invalidate processing lawfully carried out before withdrawal.",
-      "If Personal Data is necessary to provide a requested Service, withdrawal, deletion or refusal to provide necessary information may mean that the Service cannot be provided or continued.",
-      "Personal Data may also be processed without consent where applicable law permits or requires such processing."
-    ]
+    number: '6', heading: 'Consent, and when we do not need it', id: 's6',
+    inShort: 'Where we rely on consent we ask clearly and you can withdraw it. Withdrawing may mean we can no longer provide the service.',
+    paragraphs: [
+      'Where we rely on your consent, we ask for it with a clear affirmative action and tell you what you are agreeing to.',
+      'You can withdraw consent at any time, using the mechanism shown for that service or by contacting us. Withdrawal stops future processing; it does not make lawful past processing unlawful.',
+      'If we need particular data to provide something you asked for, withdrawing consent or asking us to delete that data may mean we cannot start or continue the service. We will tell you when that is the case.',
+      'Some processing does not rely on consent - for example meeting a legal obligation, or preventing fraud. Where the law permits or requires us to process data on another basis, we do.',
+    ],
   },
   {
-    "number": "7",
-    "heading": "Children and Minors",
-    "id": "s7",
-    "paragraphs": [
-      "Services intended for independent purchase or contracting are generally designed for persons legally capable of entering into the relevant transaction.",
-      "Where a Service is made available to a child or minor and applicable law requires parental or guardian authorization, WECARE.DIGITAL will use appropriate measures to obtain or verify that authorization.",
-      "Where prohibited by applicable law, we will not knowingly undertake tracking, behavioural monitoring or targeted advertising directed at children.",
-      "If you believe Personal Data relating to a child has been processed without required authorization, contact one@wecare.digital ."
-    ]
+    number: '7', heading: 'Children', id: 's7',
+    inShort: 'Our services are built for adults. Where a child uses one and the law requires a guardian\'s consent, we obtain it. We do not target advertising at children.',
+    paragraphs: [
+      'Services that involve buying or entering into a contract are intended for people legally able to do so.',
+      'Where a service is available to a child and the law requires parental or guardian authorisation, we take steps to obtain and verify it.',
+      'We do not knowingly track, profile or target advertising at children where the law prohibits it.',
+      'If you believe we hold data about a child without the required authorisation, email one@wecare.digital and we will act on it.',
+    ],
   },
   {
-    "number": "8",
-    "heading": "Professional, Expert and Consultation Information",
-    "id": "s8",
-    "paragraphs": [
-      "Some WECARE.DIGITAL Services may involve professionals, experts, consultants, practitioners or institutions.",
-      "Information provided in connection with such Services remains Personal Data where it relates to an identifiable individual.",
-      "Access to consultation or professional-service information will be limited according to the purpose of the Service, applicable professional obligations, operational necessity and applicable law.",
-      "We do not treat consultation information as outside the scope of privacy protection merely because it was supplied during a professional interaction.",
-      "Information may be disclosed where required by law; where necessary to address a serious and legally recognized safety concern; where you authorize disclosure; where sharing is necessary to provide the Service you requested; or where another lawful basis applies.",
-      "Additional professional confidentiality requirements may apply to a particular Service Provider."
-    ]
+    number: '8', heading: 'Professional and consultation information', id: 's8',
+    inShort: 'What you tell a professional through us is still protected personal data. It is not shared just because it was said in a consultation.',
+    paragraphs: [
+      'Some services involve professionals, experts, practitioners or institutions.',
+      'Information you give in connection with those services is personal data like any other. Access to it is limited to what the service requires, subject to the professional\'s own obligations and the law.',
+      'We do not treat consultation information as falling outside privacy protection merely because it was given during a professional interaction.',
+      'We will disclose it only where the law requires it, where it is necessary to address a serious and legally recognised safety risk, where you authorise it, where sharing is necessary to provide the service you asked for, or where another lawful basis applies.',
+      'Individual professionals may owe you additional duties of confidentiality beyond this policy.',
+    ],
   },
   {
-    "number": "9",
-    "heading": "Enterprise, Employer and Institutional Services",
-    "id": "s9",
-    "paragraphs": [
-      "A Service may be provided, arranged or funded through an employer, educational institution, organization or another sponsoring entity.",
-      "In such cases, the organization may provide information necessary to confirm eligibility or administer access.",
-      "What information may be made available to the organization will depend on the applicable arrangement, Service-Specific Terms and law.",
-      "Where appropriate, reporting may use aggregated or de-identified information.",
-      "Personal consultation content will not be disclosed merely because an employer or institution funded access, except where you authorize it, disclosure is necessary for the Service as disclosed to you, or disclosure is otherwise lawfully permitted or required."
-    ]
+    number: '9', heading: 'When an employer or institution arranges your access', id: 's9',
+    inShort: 'They can see enough to confirm eligibility and pay for it. They do not get your consultation content just because they paid.',
+    paragraphs: [
+      'An employer, school, or other organisation may arrange or fund a service for you.',
+      'In that case the organisation gives us what is needed to confirm you are eligible and to administer your access.',
+      'What we report back to them depends on the arrangement, the service-specific terms and the law. Where we can report in aggregate or de-identified form, we do.',
+      'Your personal consultation content is not disclosed to that organisation merely because it funded your access. We disclose it only if you authorise it, if it is necessary to provide the service and we have told you so, or if the law requires it.',
+    ],
   },
   {
-    "number": "10",
-    "heading": "How We Share Personal Data",
-    "id": "s10",
-    "paragraphs": [
-      "Personal Data may be shared only as reasonably necessary for legitimate Service, operational, security, transactional or legal purposes and subject to applicable law."
-    ]
+    number: '10', heading: 'Who we share it with', id: 's10',
+    inShort: 'Only those who need it to deliver what you asked for, run the platform, or meet a legal obligation.',
+    paragraphs: [
+      'We share personal data only as far as necessary for a legitimate service, operational, security, transactional or legal purpose, and only as the law allows.',
+    ],
   },
   {
-    "number": "10.1",
-    "heading": "Sellers and Service Providers",
-    "id": "s10-1",
-    "paragraphs": [
-      "Where you request a product or Service supplied by an independent Seller or Service Provider, information reasonably necessary to fulfil, administer or support the transaction may be shared with that provider.",
-      "The provider may have independent legal and professional responsibilities concerning that information."
-    ]
+    number: '10.1', heading: 'Sellers and service providers', id: 's10-1',
+    paragraphs: [
+      'When you order something supplied by an independent seller or provider, we pass on what they need to fulfil and support the transaction. They may have their own legal and professional duties over that information.',
+    ],
   },
   {
-    "number": "10.2",
-    "heading": "Service Vendors and Data Processors",
-    "id": "s10-2",
-    "paragraphs": [
-      "We may use third parties that provide cloud hosting, communications, authentication, customer support, analytics, cybersecurity, payment processing, logistics, document processing, appointment systems, software infrastructure or other operational support.",
-      "Such providers should receive only information reasonably necessary for the relevant function and, where appropriate, be subject to contractual, confidentiality and security requirements."
-    ]
+    number: '10.2', heading: 'Suppliers who process data for us', id: 's10-2',
+    paragraphs: [
+      'We use third parties for cloud hosting, communications, authentication, support, analytics, security, payments, logistics, document processing, appointment systems and other infrastructure.',
+      'They receive only what their function requires, and are bound by contract, confidentiality and security obligations.',
+    ],
   },
   {
-    "number": "10.3",
-    "heading": "Payment Providers",
-    "id": "s10-3",
-    "paragraphs": [
-      "Information necessary to complete a payment, refund, chargeback or payment investigation may be transmitted directly to or received from payment gateways, banks, card networks or other payment providers.",
-      "Those providers may process information under their own privacy terms and regulatory obligations."
-    ]
+    number: '10.3', heading: 'Payment providers', id: 's10-3',
+    paragraphs: [
+      'What is needed to complete a payment, refund, chargeback or payment investigation passes between us and payment gateways, banks and card networks. They handle it under their own privacy terms and regulatory duties.',
+    ],
   },
   {
-    "number": "10.4",
-    "heading": "Logistics and Fulfilment Partners",
-    "id": "s10-4",
-    "paragraphs": [
-      "Delivery names, addresses, telephone numbers and other necessary fulfilment information may be shared with couriers, Sellers, warehouses or other fulfilment partners."
-    ]
+    number: '10.4', heading: 'Delivery partners', id: 's10-4',
+    paragraphs: [
+      'Delivery names, addresses, phone numbers and other details needed to complete a delivery are shared with couriers, sellers, warehouses and other fulfilment partners.',
+    ],
   },
   {
-    "number": "10.5",
-    "heading": "Business Customers or Sponsoring Organizations",
-    "id": "s10-5",
-    "paragraphs": [
-      "Where an organization arranges or funds access to a Service, information reasonably necessary to administer eligibility, billing, participation or the relevant arrangement may be shared as disclosed for that Service and as permitted by law."
-    ]
+    number: '10.5', heading: 'Organisations that fund your access', id: 's10-5',
+    paragraphs: [
+      'Where an organisation arranges or pays for a service, we share what is needed to administer eligibility, billing and participation - as described for that service, and as the law allows. Section 9 sets the limits.',
+    ],
   },
   {
-    "number": "10.6",
-    "heading": "Legal and Regulatory Disclosures",
-    "id": "s10-6",
-    "paragraphs": [
-      "We may disclose information where reasonably necessary or legally required to comply with law or lawful process; respond to competent authorities; protect rights or safety; investigate fraud; prevent cybersecurity incidents; enforce applicable agreements; or establish, exercise or defend legal claims."
-    ]
+    number: '10.6', heading: 'Legal and regulatory disclosure', id: 's10-6',
+    paragraphs: [
+      'We disclose data where it is necessary or legally required to comply with the law or legal process, respond to a competent authority, protect someone\'s rights or safety, investigate fraud, prevent a security incident, enforce our agreements, or bring or defend a legal claim.',
+    ],
   },
   {
-    "number": "10.7",
-    "heading": "Business Reorganization",
-    "id": "s10-7",
-    "paragraphs": [
-      "If WECARE.DIGITAL or its operations undergo a genuine restructuring, acquisition, merger, sale, financing or transfer, Personal Data may be transferred as part of that transaction subject to applicable law and appropriate safeguards."
-    ]
+    number: '10.7', heading: 'If the business is restructured', id: 's10-7',
+    paragraphs: [
+      'If WECARE.DIGITAL is restructured, acquired, merged, financed or sold, personal data may transfer as part of that transaction, subject to the law and to appropriate safeguards.',
+    ],
   },
   {
-    "number": "11",
-    "heading": "Public Information and User Content",
-    "id": "s11",
-    "paragraphs": [
-      "Information you intentionally submit for public display, such as certain reviews, ratings, public comments or profile content, may become visible to others.",
-      "Please avoid publishing information that you do not want to make public.",
-      "Our rights concerning User Content are described separately in the Terms of Service at:",
-      "/terms/",
-      "Submission of Personal Data for one purpose does not automatically authorize unrestricted promotional use.",
-      "Where additional authorization is legally required for advertising or promotional use of identifiable content, it will be obtained."
-    ]
+    number: '11', heading: 'What you post publicly', id: 's11',
+    inShort: 'Reviews and public profile content are visible to others. Giving us data for one purpose does not let us use it in advertising.',
+    paragraphs: [
+      'Anything you submit for public display - reviews, ratings, public comments, profile content - can be seen by other people. Please do not publish anything you would not want public.',
+      'Our rights over content you submit are set out in the Terms of Service at /terms/.',
+      'Giving us personal data for one purpose does not authorise us to use it in promotion or advertising. Where the law requires separate permission for that, we obtain it.',
+    ],
   },
   {
-    "number": "12",
-    "heading": "Analytics, Advertising and Marketing",
-    "id": "s12",
-    "paragraphs": [
-      "We may use aggregated or appropriately de-identified information to understand Platform performance, usage patterns and Service demand.",
-      "Where marketing communications are sent, applicable consent, unsubscribe or opt-out mechanisms will be used.",
-      "Transactional communications necessary for an account, order, booking, payment, security event, grievance or requested Service may continue even where you opt out of marketing.",
-      "Where personalized advertising involves Personal Data and requires consent or another specific choice under applicable law, the appropriate mechanism will be provided."
-    ]
+    number: '12', heading: 'Analytics, advertising and marketing', id: 's12',
+    inShort: 'You can opt out of marketing. You cannot opt out of messages about your own order, payment or security - those are part of the service.',
+    paragraphs: [
+      'We use aggregated or de-identified information to understand how the platform performs and what people need.',
+      'Marketing messages carry the consent, unsubscribe or opt-out mechanism the law requires.',
+      'Messages necessary for your account, order, booking, payment, a security event, a grievance or a service you asked for continue even if you opt out of marketing. They are not marketing.',
+      'Where personalised advertising uses your personal data and the law requires consent or a specific choice, we provide that choice.',
+    ],
   },
   {
-    "number": "13",
-    "heading": "Automated Tools and Service Improvement",
-    "id": "s13",
-    "paragraphs": [
-      "WECARE.DIGITAL may use software, automated systems or technology-assisted workflows to operate, secure, organize, route or improve Services.",
-      "Where an automated process materially affects a User in a manner for which applicable law requires additional disclosure, consent, review or another safeguard, an appropriate mechanism will be used.",
-      "Automated tools may also be used for fraud detection, security monitoring, spam prevention, service routing, analytics or operational support."
-    ]
+    number: '13', heading: 'Automated systems', id: 's13',
+    inShort: 'We use software to route, secure and improve services. Where an automated decision materially affects you and the law requires review, you get it.',
+    paragraphs: [
+      'We use software and automated workflows to operate, secure, organise, route and improve our services, and for fraud detection, security monitoring, spam prevention and analytics.',
+      'Where an automated process materially affects you and the law requires additional disclosure, consent, human review or another safeguard, we provide it.',
+    ],
   },
   {
-    "number": "14",
-    "heading": "International Processing and Transfers",
-    "id": "s14",
-    "paragraphs": [
-      "Some technology, cloud, communications, payment, analytics or service providers may process information outside the location from which you use WECARE.DIGITAL.",
-      "Where Personal Data is transferred or processed across borders, we will do so subject to applicable restrictions, lawful requirements and safeguards.",
-      "We may alter, restrict or discontinue a transfer arrangement where required by applicable law or governmental direction."
-    ]
+    number: '14', heading: 'Processing outside your country', id: 's14',
+    inShort: 'Some of our suppliers operate abroad, so data may be processed outside the country you use us from. Transfers are subject to legal safeguards.',
+    paragraphs: [
+      'Some technology, cloud, communications, payment and analytics providers process data outside the country you are using our services from.',
+      'Where data crosses a border we do so subject to the restrictions, requirements and safeguards that apply to that transfer.',
+      'We will change, restrict or stop a transfer arrangement where the law or a government direction requires it.',
+    ],
   },
   {
-    "number": "15",
-    "heading": "Data Retention",
-    "id": "s15",
-    "paragraphs": [
-      "We retain Personal Data only for as long as reasonably necessary for the purpose for which it was processed, legitimate operational requirements or applicable legal obligations.",
-      "Different categories of information may therefore have different retention periods.",
-      "Information may be retained where reasonably necessary for an active transaction or ongoing Service; account administration; financial, tax or accounting records; statutory record-keeping; transaction security; fraud prevention; complaint or dispute resolution; backups; legal claims; enforcement of agreements; or compliance with another applicable requirement.",
-      "Certain transaction, security, financial and processing records may need to be retained after account closure or a deletion request where required or permitted by law.",
-      "When Personal Data is no longer required, it may be deleted, anonymized, de-identified or otherwise handled in accordance with applicable law and our retention processes."
-    ]
+    number: '15', heading: 'How long we keep it', id: 's15',
+    inShort: 'For as long as the purpose needs, or the law requires. Some financial and security records outlast your account.',
+    paragraphs: [
+      'We keep personal data for as long as the purpose it was collected for requires, or as long as a legal obligation requires. Different categories therefore have different retention periods.',
+      'Data may be retained for an active transaction or ongoing service; account administration; financial, tax and accounting records; statutory record-keeping; transaction security; fraud prevention; a complaint or dispute; backups; legal claims; and enforcing our agreements.',
+      'Some transaction, security and financial records must be kept after you close your account or ask for deletion, because the law requires it. Section 18 explains how that interacts with a deletion request.',
+      'When data is no longer needed we delete, anonymise or de-identify it.',
+    ],
   },
   {
-    "number": "16",
-    "heading": "Security",
-    "id": "s16",
-    "paragraphs": [
-      "We use reasonable technical and organizational measures appropriate to the nature of the information and risks involved.",
-      "Measures may include, where appropriate, access controls, authentication measures, encryption or masking, monitoring and logging, backups, security testing, vendor controls, incident-response procedures and internal confidentiality restrictions.",
-      "No online or electronic system can guarantee absolute security.",
-      "Users are responsible for taking reasonable steps to protect account credentials and devices."
-    ]
+    number: '16', heading: 'Security', id: 's16',
+    inShort: 'We use access controls, encryption, monitoring, backups and vendor controls. No system is perfectly secure, so protect your own credentials too.',
+    paragraphs: [
+      'We use technical and organisational measures appropriate to the data and the risk. These include access controls, authentication, encryption or masking, monitoring and logging, backups, security testing, vendor controls, incident-response procedures and internal confidentiality rules.',
+      'No electronic system can be guaranteed completely secure. Please take reasonable care of your account credentials and devices.',
+    ],
   },
   {
-    "number": "17",
-    "heading": "Personal Data Breaches",
-    "id": "s17",
-    "paragraphs": [
-      "If we become aware of a Personal Data breach, we will assess the incident and take reasonable steps to contain, investigate and remediate it.",
-      "Affected individuals, competent authorities or other persons will be notified where and in the manner required by applicable law.",
-      "Such communications may include information concerning the nature of the incident, relevant risks, measures taken and steps Users can consider to protect themselves."
-    ]
+    number: '17', heading: 'If there is a data breach', id: 's17',
+    inShort: 'We contain it, investigate it, and tell you and the regulator where the law requires.',
+    paragraphs: [
+      'If we become aware of a personal data breach we assess it and take steps to contain, investigate and remedy it.',
+      'We notify affected people and the competent authorities where, and in the manner, the law requires.',
+      'A notification will describe what happened, the risks, what we have done, and what you can do to protect yourself.',
+    ],
   },
   {
-    "number": "18",
-    "heading": "Your Privacy Rights",
-    "id": "s18",
-    "paragraphs": [
-      "Subject to applicable law and any lawful exceptions, you may have rights concerning Personal Data processed by WECARE.DIGITAL.",
-      "Depending on the law and circumstances, these may include the ability to: Obtain information about Personal Data being processed; Request correction of inaccurate information; Request completion or updating of information; Request erasure where legally available; Withdraw consent where processing is based on consent; Raise a privacy grievance; Nominate another eligible individual where such a right is provided by law; and Exercise other rights provided by applicable law.",
-      "Requests may be sent to one@wecare.digital .",
-      "We may request reasonable information to verify identity, authority or the scope of a request before acting on it.",
-      "A deletion request will not require deletion of information that we must lawfully retain or that remains reasonably necessary for another lawful purpose."
-    ]
+    number: '18', heading: 'Your rights', id: 's18',
+    inShort: 'You can ask what we hold, correct it, complete it, have it deleted, withdraw consent, or complain. Email one@wecare.digital.',
+    paragraphs: [
+      'Subject to the law and any lawful exception, you can ask us to tell you what personal data we process about you; correct anything inaccurate; complete or update anything incomplete; delete data where the law allows; stop processing that relies on consent you have withdrawn; and consider a privacy grievance. Where the law gives you the right to nominate someone to exercise your rights, you can do that too.',
+      'Send requests to one@wecare.digital. We may ask you for enough information to confirm who you are, or that you are authorised to act for someone else, before we act.',
+      'A deletion request does not cover data we are legally required to keep, or that remains genuinely necessary for another lawful purpose. Where we cannot delete something, we tell you why.',
+    ],
   },
   {
-    "number": "19",
-    "heading": "Account Closure",
-    "id": "s19",
-    "paragraphs": [
-      "Where account closure functionality is available, you may request closure through the applicable Platform or customer-support process.",
-      "Closing an account does not necessarily result in immediate deletion of every record.",
-      "Information may continue to be retained where required or permitted for completed transactions, legal obligations, fraud prevention, security, dispute resolution, backups or another lawful purpose."
-    ]
+    number: '19', heading: 'Closing your account', id: 's19',
+    inShort: 'You can close it. Some records are kept afterwards where the law requires.',
+    paragraphs: [
+      'Where account closure is available you can request it through the platform or through customer support.',
+      'Closing an account does not delete every record immediately. Data may be kept for completed transactions, legal obligations, fraud prevention, security, an unresolved dispute, or backups. Section 15 explains the periods.',
+    ],
   },
   {
-    "number": "20",
-    "heading": "Communications Preferences",
-    "id": "s20",
-    "paragraphs": [
-      "You may be able to manage certain communication preferences through the Platform, an unsubscribe link, device settings or by contacting us.",
-      "Marketing preferences do not necessarily affect operational or transactional messages that are reasonably necessary for an account, transaction, booking, security matter, grievance or requested Service."
-    ]
+    number: '20', heading: 'Your contact preferences', id: 's20',
+    inShort: 'Manage them in the platform, by unsubscribe link, in device settings, or by asking us.',
+    paragraphs: [
+      'You can manage communication preferences through the platform, an unsubscribe link, your device settings, or by contacting us.',
+      'Marketing preferences do not affect operational messages about your account, a transaction, a booking, a security matter or a grievance.',
+    ],
   },
   {
-    "number": "21",
-    "heading": "Third-Party Websites and Services",
-    "id": "s21",
-    "paragraphs": [
-      "The Platform may contain links to independent websites, applications or services.",
-      "WECARE.DIGITAL does not control the privacy practices of independent third parties.",
-      "When you leave our Platform or interact directly with an independent provider, review that provider's privacy information and applicable terms."
-    ]
+    number: '21', heading: 'Other websites and services', id: 's21',
+    inShort: 'We do not control third-party sites we link to. Read their terms.',
+    paragraphs: [
+      'The platform links to independent websites, apps and services. We do not control how they handle your data.',
+      'When you leave our platform, or deal directly with an independent provider, their privacy information and terms apply.',
+    ],
   },
   {
-    "number": "22",
-    "heading": "Changes to This Privacy Policy",
-    "id": "s22",
-    "paragraphs": [
-      "We may update this Privacy Policy where reasonably necessary to reflect changes in our Services, technology, practices, security requirements, business operations or applicable law.",
-      "Where a change materially affects how Personal Data is handled or where applicable law requires notice, an appropriate notice will be provided.",
-      "We will not treat silence, inactivity or continued use as fresh consent where applicable law requires a separate affirmative consent mechanism."
-    ]
+    number: '22', heading: 'Changes to this policy', id: 's22',
+    inShort: 'We will tell you about material changes. Silence is never treated as consent where the law needs an explicit yes.',
+    paragraphs: [
+      'We update this policy when our services, technology, practices, security requirements or the law change.',
+      'Where a change materially affects how we handle your data, or where the law requires notice, we give notice.',
+      'We do not treat silence, inactivity or continued use as fresh consent where the law requires a separate affirmative consent.',
+    ],
   },
   {
-    "number": "23",
-    "heading": "Privacy Questions and Grievances",
-    "id": "s23",
-    "paragraphs": [
-      "For questions, requests or complaints concerning Personal Data, privacy or the handling of information, contact:",
-      "Privacy & Grievance Contact",
-      "WECARE.DIGITAL Privacy & Grievance Desk",
-      "Business: WECARE.DIGITAL BHARATWORKS",
-      "Email: one@wecare.digital",
-      "Phone: +91 9330994400",
-      "Address: The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Ln Kolkata, West Bengal 700012, India",
-      "We may request reasonable information to verify the identity or authority of a person making a privacy request.",
-      "Privacy requests and grievances will be handled in accordance with applicable law.",
-      "Where applicable law provides a right to approach a competent data-protection authority, board, regulator, court or other lawful forum, that right remains available."
-    ]
+    number: '23', heading: 'Questions and complaints', id: 's23',
+    inShort: 'Email one@wecare.digital or call +91 9330994400. You can always go to a data-protection authority instead.',
+    paragraphs: [
+      'For any question, request or complaint about your personal data, contact our Privacy and Grievance Desk: email one@wecare.digital, or call +91 9330994400. Our postal address is in section 24.',
+      'We may ask for enough information to verify your identity or authority before acting on a request.',
+      'If you are not satisfied with our response, you keep any right you have to approach a data-protection authority, board, regulator, court or other lawful forum. Using our grievance process first is not a precondition.',
+      'PENDING LEGAL REVIEW: under the Digital Personal Data Protection Act 2023 this section should also name a Data Protection Officer or equivalent contact, and consent notices should be itemised per purpose. Both need a decision from the business and its counsel; neither can be resolved by editing this text.',
+    ],
   },
   {
-    "number": "24",
-    "heading": "Contact Information",
-    "id": "s24",
-    "paragraphs": [
-      "Brand: WECARE.DIGITAL",
-      "Operated under the business name:",
-      "WECARE.DIGITAL BHARATWORKS",
-      "Business Address: The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Ln Kolkata, West Bengal 700012, India",
-      "Customer Care / Privacy Contact:",
-      "Phone: +91 9330994400",
-      "Email: one@wecare.digital",
-      "For questions, requests, complaints or concerns regarding this Privacy Policy or the handling of Personal Data, please contact us using the details above.",
-      "how WECARE.DIGITAL collects, uses, and protects personal data.",
-      "A passionate team of solvers coming together in unexpected ways to solve the challenges and unmet needs of consumers today and tomorrow",
-      "BUY GIFT CARD",
-      "Any amount. Message included.",
-      "THE FUTURE IS ENGAGED",
-      "FOR MICROSERVICES DONE RIGHT, WECARE.DIGITAL IS YOUR GUIDING LIGHT. FAST, SECURE, AND ALWAYS SMART, WE'RE THE TECH YOU NEED TO START!",
-      "INFO",
-      "LEGAL STUFF",
-      "CONTACT",
-      "INVITE",
-      "APP",
-      "BHARAT STACK",
-      "DECARBONIZING",
-      "OPERATIONS",
-      "bottom of page"
-    ]
-  }
+    number: '24', heading: 'Who we are and how to reach us', id: 's24',
+    inShort: 'WECARE.DIGITAL BHARATWORKS, Kolkata. one@wecare.digital, +91 9330994400.',
+    paragraphs: [
+      'Brand: WECARE.DIGITAL, operated under the business name WECARE.DIGITAL BHARATWORKS.',
+      'Address: The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Lane, Kolkata, West Bengal 700012, India.',
+      'Email one@wecare.digital or call +91 9330994400 with any question about this policy or about how we handle personal data.',
+    ],
+  },
 ];

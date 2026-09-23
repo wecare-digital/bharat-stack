@@ -15,10 +15,12 @@ import { PRIVACY_SECTIONS, PRIVACY_INTRO, PRIVACY_UPDATED } from '../content/leg
  * ROUTING: '/privacy' is in the EXACT-MATCH allowlist in _app.tsx. Without that entry
  * this renders an empty body with HTTP 200. trailingSlash means the URL is /privacy/.
  *
- * THE PLACEHOLDER IS GONE. This carries the owner's real published policy - 24 sections
- * plus the sub-clauses of 3 and 10 - ported from the Wix page by parsing it rather than
- * retyping it. src/content/legal/privacy.ts records exactly what was and was not
- * changed: structure and navigation only, never a representation about data handling.
+ * THE REAL POLICY - 24 sections plus the sub-clauses of 3 and 10. The text originally
+ * came from the old Wix site; it has since been rewritten into plain English on the
+ * owner's instruction, and THIS REPO IS NOW THE SOURCE OF TRUTH - there is no upstream
+ * page to sync with. src/content/legal/privacy.ts records what the rewrite changed and
+ * what it deliberately left alone, including why it did not invent specifics about which
+ * data each service collects.
  *
  * noindex was removed with the placeholder. A privacy policy should be indexable.
  */

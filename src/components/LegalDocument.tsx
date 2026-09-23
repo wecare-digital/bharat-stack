@@ -1,5 +1,5 @@
 import React from 'react';
-import type { LegalSection } from '../content/legal/terms';
+import type { LegalSection } from '../content/legal/types';
 
 /**
  * Renders a long legal document on the site's own type system.
@@ -45,6 +45,7 @@ const withLinks = ( text: string, keyBase: string ): React.ReactNode => {
 
 const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated, notice } ) => {
   const topLevel = sections.filter( s => !s.number.includes( '.' ) );
+  const hasSummaries = sections.some( s => s.inShort );
 
   return (
     <div className="lgd">
@@ -55,6 +56,19 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated
       ) ) }
 
       { notice && <div className="lgd-notice">{ notice }</div> }
+
+      {/* THE COMPONENT OWNS THIS DISCLAIMER, not the page, so it cannot be forgotten on a
+          document that has summaries. Rendered only when there are summaries to
+          disclaim. A plain-language summary above a binding clause is a real
+          improvement, but only if the reader is told which of the two governs - without
+          that line the summaries quietly become representations about the contract. */}
+      { hasSummaries && (
+        <p className="lgd-disclaimer">
+          The &ldquo;In short&rdquo; lines are plain-language summaries to help you find
+          the part you need. They are not part of the agreement and do not change it. Where
+          a summary and the numbered text below it differ, the numbered text is what applies.
+        </p>
+      ) }
 
       <nav className="lgd-toc" aria-label="Contents">
         <h2 className="lgd-toc-title">Contents</h2>
@@ -77,6 +91,12 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated
             { sub
               ? <h3 className="lgd-h3"><span className="lgd-num">{ section.number }</span>{ section.heading }</h3>
               : <h2 className="lgd-h2"><span className="lgd-num">{ section.number }</span>{ section.heading }</h2> }
+            { section.inShort && (
+              <p className="lgd-short">
+                <span className="lgd-short-tag">In short</span>
+                { section.inShort }
+              </p>
+            ) }
             { section.paragraphs.map( ( paragraph, i ) => (
               <p key={ `${section.id}-${i}` } className="lgd-p">{ withLinks( paragraph, `${section.id}-${i}` ) }</p>
             ) ) }
@@ -151,6 +171,24 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated
           font-size:16px;line-height:1.55;color:rgba(0,0,0,.898);
         }
 
+        /* Deliberately quiet - it sits directly under the lime notice and must not
+           compete with it for the same glance. Muted body colour at the intro size. */
+        .lgd-disclaimer{margin:0 0 36px;font-size:15.5px;line-height:1.6;color:rgba(0,0,0,.54)}
+
+        /* SUMMARIES USE NEUTRALS ONLY. Lime is already spoken for on this page: the
+           notice block owns it, and it means "read this before the clauses". Repeating
+           that treatment 45 times would spend the accent on every section and leave the
+           notice indistinguishable from ordinary body copy.
+           A 2px hairline rule plus muted text is enough separation because the summary
+           is doing the opposite job to the notice - it wants to be skimmed past once the
+           reader has found their section, not fixated on. Every value here is already
+           in the palette. */
+        .lgd-short{margin:0 0 14px;padding:0 0 0 14px;border-left:2px solid #e5e7eb;font-size:15.5px;font-weight:400;line-height:1.55;color:rgba(0,0,0,.54)}
+        /* display:block puts the tag on its own line so the summary text stays a clean
+           rectangle - inline, the first line was indented by the tag width and the
+           result read as a hanging indent rather than a label. */
+        .lgd-short-tag{display:block;margin-bottom:3px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.42)}
+
         .lgd-toc{margin:0 0 48px;padding:22px 24px;border:1px solid #e5e7eb;border-radius:14px}
         .lgd-toc-title{margin:0 0 14px;font-size:14px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:rgba(0,0,0,.54)}
         /* ONE column is the base, and two columns are opted into only for the inline
@@ -201,6 +239,10 @@ const LegalDocument: React.FC<LegalDocumentProps> = ( { sections, intro, updated
           .lgd-section{scroll-margin-top:112px}
           .lgd-intro{font-size:18px}
           .lgd-p{font-size:16.5px}
+          /* Summaries earn their keep on a phone, which is where these documents are
+             actually opened, so they shrink less than the body does. */
+          .lgd-short{font-size:15px;padding-left:12px}
+          .lgd-disclaimer{font-size:15px}
           /* Numbers move inline: a 44px gutter on a 320px screen costs 14% of the width. */
           .lgd-num{min-width:0;margin-right:8px}
         }
