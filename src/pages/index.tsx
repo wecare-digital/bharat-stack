@@ -48,6 +48,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
 import BrandBadge from '../components/BrandBadge';
+import WorkflowTerminal from '../components/WorkflowTerminal';
 
 // Module scope, not inside the component: the rotation effect reads .length, and a
 // literal declared in the body would make that a changing dependency and force an
@@ -70,12 +71,37 @@ import BrandBadge from '../components/BrandBadge';
 // rotation. No new colours. Hue maps onto sense: blue for journeys, amber for the
 // warmth of ritual, green for paperwork cleared, purple for reflection, red for
 // conflict.
+// Nine words now: the five service domains plus the four the owner added -
+// ai applications, consumer, enterprise, frontier tech.
+//
+// NOTE THE TWO AXES. The first five are service DOMAINS (what we do); the last four
+// are markets and capability tiers (who for, and how far out). Mixing them means the
+// pill answers two different questions on alternate ticks. That is a copy decision
+// rather than a bug and it is what was asked for, so it ships - but the two groups are
+// kept contiguous below, not interleaved, so the rotation reads as two passes rather
+// than as one confused list. Splitting them across two rotating slots, or dropping one
+// axis, are the alternatives if it reads oddly.
+//
+// Length spread is now 6 ("travel") to 15 ("ai applications"), well past the 2-4
+// characters the earlier sets held to. That is only safe because the pill sits on its
+// own line, so the h1's line count cannot change with the active word - the defect
+// that made the page jump 63px every 2400ms when "reflection" was the longest word.
+// The pill's tail still travels ~410px per cycle. animcheck.js re-verifies the h1
+// height across all 21 widths, which is the real gate.
+//
+// Every tint/dot pair is reused VERBATIM from the Grahak OS hero and the VayuLok
+// rotation - nine words across six available pairs, so three repeat. Repeats are
+// placed non-adjacently so no two consecutive ticks share a colour.
 const CYCLE_WORDS = [
   { word: 'travel', tint: '#dbeafe', dot: '#2563eb' },
   { word: 'rituals', tint: '#fef3c7', dot: '#f0a818' },
   { word: 'documents', tint: '#e0f7c8', dot: '#3da35a' },
   { word: 'reflection', tint: '#ede9fe', dot: '#9849e8' },
   { word: 'disputes', tint: '#fee2e2', dot: '#dc2626' },
+  { word: 'ai applications', tint: '#dbeafe', dot: '#2563eb' },
+  { word: 'consumer', tint: '#fef3c7', dot: '#f0a818' },
+  { word: 'enterprise', tint: '#ede9fe', dot: '#9849e8' },
+  { word: 'frontier tech', tint: '#e0f7c8', dot: '#3da35a' },
 ];
 
 const HomePage: React.FC = () => {
@@ -175,6 +201,12 @@ const HomePage: React.FC = () => {
               shared foundation.
             </p>
           </div>
+
+          {/* The 96px gap on .home-layout is the section rhythm this was reserved for -
+              it existed with one child specifically so the next block would land on it.
+              WorkflowTerminal styles itself; styled-jsx cannot reach into it from here,
+              which is why it takes no className. */}
+          <WorkflowTerminal />
         </div>
       </main>
       <style jsx>{`

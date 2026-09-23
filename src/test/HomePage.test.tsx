@@ -43,13 +43,21 @@ describe( 'WECARE.DIGITAL Home', () => {
     // observed snap - measured sampling shows wider sets still glide. The defect it
     // guards against is the headline reflowing on the longest word only; the browser
     // harness measures h1 height across a rotation for that.
-    // 4, widened from 2 when the owner's five service domains replaced the first
-    // draft: travel (6) to reflection (10). The character count is only a cheap
-    // proxy - the binding constraint is that the h1 must not reflow on the longest
-    // word, which only a browser can measure, and animcheck.js checks it at four
-    // viewports. Widening this without that check passing would be meaningless.
+    // The character band is GONE as an assertion, and that is deliberate rather than
+    // a loosening. It was a proxy for "the headline must not reflow", and the owner's
+    // four added words take the spread to 9 characters (travel -> ai applications),
+    // which no proxy bound can usefully cover.
+    //
+    // What replaced it is the actual constraint, measured in a browser: the pill sits
+    // on its own line, so the h1's line count is independent of word width, and
+    // animcheck.js asserts the h1's height is identical for every word at all 21
+    // viewports from 320 to 1920. Re-run that after any word change - a unit test
+    // cannot see reflow.
+    //
+    // The one thing still worth pinning here is that no word is so long it cannot fit
+    // the pill's own line at the narrowest breakpoint.
     const lengths = words.map( w => w.length );
-    expect( Math.max( ...lengths ) - Math.min( ...lengths ) ).toBeLessThanOrEqual( 4 );
+    expect( Math.max( ...lengths ) ).toBeLessThanOrEqual( 18 );
   } );
 
   it( 'exposes the word list to screen readers once, and hides every animated copy', () => {
@@ -58,12 +66,12 @@ describe( 'WECARE.DIGITAL Home', () => {
     // One readable copy of the full list...
     const srOnly = container.querySelector( '.home-sr-only' );
     expect( srOnly ).toBeInTheDocument();
-    expect( srOnly?.textContent ).toBe( 'travel, rituals, documents, reflection, disputes' );
+    expect( srOnly?.textContent ).toBe( 'travel, rituals, documents, reflection, disputes, ai applications, consumer, enterprise, frontier tech' );
 
     // ...and every visually-rotating copy hidden, so the headline is not read out
     // four times over. Each animated word must carry aria-hidden.
     const words = Array.from( container.querySelectorAll( '.home-cyc-word' ) );
-    expect( words ).toHaveLength( 5 );
+    expect( words ).toHaveLength( 9 );
     words.forEach( word => expect( word ).toHaveAttribute( 'aria-hidden', 'true' ) );
 
     // Exactly one is active at a time.

@@ -35,9 +35,45 @@ describe( 'Header', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
     expect( screen.getByRole( 'link', { name: 'Sign in' } ) ).toHaveAttribute( 'href', '/access' );
-    expect( screen.queryByRole( 'link', { name: 'Contact' } ) ).toBeNull();
+
+    // Contact is BACK, by owner request, and now points at a real local page - so the
+    // assertion that it stays absent is retired rather than failing. It was there to
+    // stop a deleted page creeping back into the menu, which is a decision the owner
+    // has now reversed deliberately. Studio and Sustainability are still retired and
+    // those guards stay.
+    expect( screen.getByRole( 'link', { name: 'Contact' } ) ).toHaveAttribute( 'href', '/contact/' );
     expect( screen.queryByText( 'Studio' ) ).toBeNull();
     expect( screen.queryByText( 'Sustainability' ) ).toBeNull();
+  } );
+
+  it( 'moves Bharat Rx to Products and drops FAQ entirely', () => {
+    render( <Header /> );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
+
+    // FAQ has no entry point left anywhere: the local page was deleted earlier and
+    // this row is now gone too.
+    expect( screen.queryByRole( 'link', { name: 'FAQ' } ) ).toBeNull();
+
+    // Bharat Rx is a product, not one of the Selfservice request actions. Asserted by
+    // column position, because the label alone would pass wherever it sat.
+    const products = screen.getByText( 'Products' ).closest( '.nav-group' );
+    expect( products ).not.toBeNull();
+    expect( products?.textContent ).toContain( 'Bharat Rx' );
+
+    const selfservice = screen.getByRole( 'link', { name: 'Selfservice' } ).closest( '.nav-group' );
+    expect( selfservice?.textContent ).not.toContain( 'Bharat Rx' );
+  } );
+
+  it( 'links Terms but deliberately never links Privacy', () => {
+    render( <Header /> );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
+
+    expect( screen.getByRole( 'link', { name: 'Terms' } ) ).toHaveAttribute( 'href', '/terms/' );
+
+    // The owner asked for /privacy to exist WITHOUT a menu entry. This is the guard
+    // against someone "completing" the Legal column later - the page is reachable via
+    // the allowlist in _app.tsx, and that is the whole intent.
+    expect( screen.queryByRole( 'link', { name: 'Privacy' } ) ).toBeNull();
   } );
 
   it( 'uses the approved public header dimensions and brand navigation colors', () => {

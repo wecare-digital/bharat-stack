@@ -70,6 +70,10 @@ const COLUMNS: NavColumn[] = [
         links: [
           { label: 'Grahak OS', href: '/grahak-os/', match: '/grahak-os' },
           { label: 'VayuLok', href: '/vayulok/', match: '/vayulok' },
+          // Bharat Rx moved here from Selfservice: it is a product, not one of the
+          // request actions the Selfservice column lists. Still on PENDING_HREF -
+          // it has no page of its own yet, so it points at the marketing site.
+          { label: 'Bharat Rx', href: PENDING_HREF, external: true },
         ],
       },
     ],
@@ -80,15 +84,26 @@ const COLUMNS: NavColumn[] = [
         heading: 'Selfservice',
         headingHref: SELFSERVICE,
         links: [
+          // FAQ removed on request. The local /faq page was already deleted; this
+          // drops the menu row too, so there is no FAQ entry point left anywhere.
           { label: 'Submit Request', href: PENDING_HREF, external: true },
           { label: 'Request Amendment', href: PENDING_HREF, external: true },
           { label: 'Request Tracking', href: PENDING_HREF, external: true },
           { label: 'Drop Docs', href: PENDING_HREF, external: true },
-          { label: 'Bharat Rx', href: PENDING_HREF, external: true },
           { label: 'Leave Review', href: PENDING_HREF, external: true },
-          // FAQ lives here now. The local /faq page was deleted and its nav entry
-          // became Selfservice; this is the same content as a child of it.
-          { label: 'FAQ', href: PENDING_HREF, external: true },
+          // Local pages, so these carry `match` and light up on their own route.
+          // Trailing slashes are load-bearing: trailingSlash is set, so /contact
+          // would redirect before resolving.
+          { label: 'Contact', href: '/contact/', match: '/contact' },
+        ],
+      },
+      {
+        // /privacy is NOT here, on purpose - the owner asked for that page to exist
+        // without a menu entry. It is still in the allowlist in _app.tsx, which is
+        // what makes it reachable. Do not "complete" this section by adding it.
+        heading: 'Legal',
+        links: [
+          { label: 'Terms', href: '/terms/', match: '/terms' },
         ],
       },
     ],
