@@ -1,32 +1,56 @@
 #!/usr/bin/env node
 /**
- * One-time script to update AWS Secrets Manager with new Wix API key.
- * Run: node scripts/_update_aws_secret.mjs
+ * Explicit Wix Headless credential loader.
+ *
+ * This script intentionally contains no site ID, account ID, secret name, or key.
+ * Populate all four values in .env.local only when provisioning the NEW Headless
+ * project, then run this script.
  */
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const dir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const env = readFileSync(resolve(dir, '.env.local'), 'utf8');
-const keyMatch = env.match(/^WIX_API_KEY=(.+)$/m);
-if (!keyMatch) { console.error('No WIX_API_KEY in .env.local'); process.exit(1); }
-const key = keyMatch[1].trim();
-console.log(`Key length: ${key.length}, ends: ...${key.slice(-4)}`);
 
-const secretValue = JSON.stringify({ api_key: key, site_id: 'c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5' });
-
-try {
-  console.log('Updating AWS Secrets Manager...');
-  const result = execSync(
-    `aws secretsmanager put-secret-value --secret-id "wecare/wix-api-key" --secret-string '${secretValue.replace(/'/g, "'\\''")}' --region us-east-1 --output json --no-cli-pager`,
-    { encoding: 'utf8', timeout: 60000 }
-  );
-  console.log('✅ AWS Secrets Manager updated');
-  console.log(result.substring(0, 200));
-} catch (e) {
-  console.error('❌ Failed:', e.message);
-  console.log('\nManual command:');
-  console.log(`aws secretsmanager put-secret-value --secret-id "wecare/wix-api-key" --secret-string '${secretValue}' --region us-east-1`);
+function required(name) {
+  const match = env.match(new RegExp(`^${name}=(.+)$`, 'm'));
+  const value = match?.[1]?.trim();
+  if (!value) {
+    console.error(`Missing ${name} in .env.local`);
+    process.exit(1);
+  }
+  return value;
 }
+
+const key = required('WIX_API_KEY');
+const siteId = required('WIX_SITE_ID');
+const accountId = required('WIX_ACCOUNT_ID');
+const secretName = required('WIX_API_KEY_SECRET');
+
+const secretValue = JSON.stringify({
+  api_key: key,
+  site_id: siteId,
+  account_id: accountId,
+});
+
+execFileSync(
+  'aws',
+  [
+    'secretsmanager',
+    'put-secret-value',
+    '--secret-id',
+    secretName,
+    '--secret-string',
+    secretValue,
+    '--region',
+    'us-east-1',
+    '--output',
+    'json',
+    '--no-cli-pager',
+  ],
+  { stdio: 'ignore', timeout: 60000 }
+);
+
+console.log('Wix Headless credentials updated in AWS Secrets Manager.');
