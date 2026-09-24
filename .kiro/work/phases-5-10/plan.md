@@ -539,10 +539,43 @@ two copies of one rule is how the stage-prefix bug returned twice.
 (`WixProductsCache`, `WixOrdersCache`, `WixOrderIds`). The production site must not be
 recreated or republished.
 
-**Remaining for 7.2:** the adapter/domain/job split of the 1707-line `wix-store`, the
-Meta Ads monolith boundaries, routing Wix-generated communication through the shared
-notification system, and Velo source drift reconciliation. None is blocked; all are
-substantial. `marketing-ads` and `wix-store` have **0** DynamoDB scans, so there is no
+**Update 2026-09-24 — a real bug found while mapping the seams, and fixed.**
+
+Mapping `wix-store` for the split turned up a cross-request leak its own comment described
+without noticing:
+
+    # Module-level origin for CORS (set per-invocation in handler)
+    origin = ''
+
+`_response` reads that global, and a Lambda execution environment is **reused**. That is
+harmless only if every path returning through `_response` sets it first, and two do not:
+`_sync_products` and `_sync_orders` run on a schedule with no HTTP event. On a warm sandbox
+they would emit the **previous HTTP caller's** Origin in a CORS header on a cron response.
+
+Fixed with a `finally` that clears it, so an unset path emits a blank origin rather than
+somebody else's. `tests/test_wix_origin_leak.py` (7 tests) exercises the behaviour rather
+than reading the source, because `global origin` is declared once at the top of `handler`
+and has to cover the assignment in the `finally` — easy to believe, worth proving. Verified
+RED: removing the `finally` fails 3 of the 7, including the exception path, which is the one
+most likely to leave a sandbox dirty. Deployed `wecare-wix-store` v16 → **v17**, live probes
+still 401, zero errors.
+
+Threading `origin` through the signatures is the cleaner boundary and was deliberately NOT
+done: **36 call sites across 22 functions, only 2 of which have an origin to pass**, in a
+1,743-line handler whose integration is entirely switched off and therefore cannot be
+live-verified. A reset is small and provable; the signature change is the honest remainder.
+
+The seam map itself is now measured rather than guessed. The pure-transform set is
+**closed** — 15 functions, 278 lines, calling nothing outside itself and needing only
+`SKU_PREFIX` — so the domain layer can be lifted out in one behaviour-preserving move
+whenever that is scheduled. An earlier substring check wrongly flagged four of them as
+impure; a proper call-graph pass showed `_normalize_v3_product`, `_simple_product_to_v3`,
+`_extract_id` and `_s3_public_url` make no I/O call at all.
+
+**Remaining for 7.2:** lifting that 278-line domain set into its own module, threading
+`origin` through the 22 signatures, the Meta Ads monolith boundaries, routing
+Wix-generated communication through the shared notification system, and Velo source drift
+reconciliation. None is blocked; all are substantial. `marketing-ads` and `wix-store` have **0** DynamoDB scans, so there is no
 scan debt left in them. `wecare-ad-attribution` has an **empty** live environment — no
 configuration at all — worth resolving with the split.
 

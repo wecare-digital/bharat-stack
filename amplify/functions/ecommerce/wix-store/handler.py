@@ -401,6 +401,20 @@ def _simple_product_to_v3(source: dict) -> dict:
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Route authenticated admin/store requests to the Wix REST APIs."""
     request_id = context.aws_request_id if context else 'local'
+    # `origin` is a module-level global that `_response` reads, and a Lambda execution
+    # environment is REUSED across invocations - so without the reset in the `finally`
+    # below, the value set here survives into the next request that does not set it.
+    #
+    # Two paths do not set it. `_sync_products` and `_sync_orders` run on a schedule with
+    # no HTTP event, and both return through `_response`: on a warm sandbox they would
+    # emit the last HTTP caller's Origin in a CORS header on a cron response. The reset
+    # makes that a blank origin instead of somebody else's.
+    #
+    # Threading `origin` through every signature would be the cleaner boundary, and it is
+    # deliberately NOT done here: 36 call sites across 22 functions, only 2 of which have
+    # an origin to pass, in a 1,743-line handler whose integration is entirely switched
+    # off and therefore cannot be live-verified. A reset is small, provable, and fixes the
+    # leak; the signature change is recorded as the remaining half of 7.2.
     global origin
     origin = extract_origin(event)
 
@@ -493,6 +507,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'requestId': request_id,
         }))
         return _response(500, {'error': 'Internal server error', 'message': str(e)})
+    finally:
+        # Clear the request-scoped global so it cannot outlive this invocation. See the
+        # note at the top of this function: the execution environment is reused, and the
+        # two scheduled sync paths return through `_response` without ever setting it.
+        origin = ''
 
 def _wix_request(endpoint: str, method: str = 'GET', body: dict = None,
                  level: str = 'site') -> Dict[str, Any]:

@@ -87,7 +87,7 @@ generate_integration_inventory --check  current
 | 5 Plivo PSTN + softphone | ✅ COMPLETE (5.1–5.4) |
 | 6 chatbot + governed ops | ✅ COMPLETE (6.1–6.4) |
 | 7.1 integration registry | ⚠️ **PARTIAL** — built, and now read by the UI. Live provider reads are `WAITING_FOR_OWNER` |
-| 7.2 Meta Ads / Wix refactor | ⚠️ **PARTIAL** — defects fixed; the boundary refactor is **not done** |
+| 7.2 Meta Ads / Wix refactor | ⚠️ **PARTIAL** — defects fixed and a cross-request CORS leak found and fixed while mapping the seams; the structural split is **still not done** |
 | 7.3 Growth + Commerce homes | ✅ COMPLETE (behind flags, both off) |
 | 8.1 eight module homes | ✅ COMPLETE |
 | 8.2 productVocabulary + CI | ✅ COMPLETE, now blocking at every severity |
@@ -125,7 +125,7 @@ generate_integration_inventory --check  current
 
 | Gap | Severity | Note |
 |---|---|---|
-| **7.2 boundary refactor not done** | MEDIUM | Meta Ads / Wix monoliths still monolithic. Defects were fixed; the query/plan/apply split was not attempted |
+| **7.2 boundary refactor still not done** | MEDIUM | Meta Ads / Wix monoliths still monolithic. Mapping the seams did find and fix a real cross-request CORS-origin leak (`wecare-wix-store` v17), and the pure-transform set is now measured as closed at 15 functions / 278 lines — but lifting it out, and threading `origin` through 22 signatures, was not attempted |
 | `wecare-customer-whatsapp-auth` in the deploy map, absent from the account | LOW | The customer-pool script was written and never run. One `failed=1` in every deploy-all |
 | `wecare-invoice-engine` imports `qrcode`, not in package or layers | LOW | Guarded by try/except, so it degrades rather than crashes |
 | `/vayulok` ships one `h1` and no `h2` | LOW | 489 chars of body text. A content gap, not a rendering one |
