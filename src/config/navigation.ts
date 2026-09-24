@@ -254,6 +254,19 @@ export const settingsConfig: SettingsGroup[] = [
     ],
   },
   {
+    id: 'modules',
+    label: 'Modules',
+    icon: 'dashboard',
+    hint: 'Growth and Commerce — read-only, behind flags',
+    items: [
+      // Both are flag-gated and currently OFF. They are listed anyway: the whole point
+      // of `getAllNavItems()` is that nothing is unreachable, and a flagged-off page
+      // that explains WHY it is off is more use than a 404.
+      { path: '/growth', label: 'Growth' },
+      { path: '/commerce', label: 'Commerce' },
+    ],
+  },
+  {
     id: 'seo',
     label: 'SEO',
     icon: 'search',
@@ -352,14 +365,20 @@ export const moduleHomes: ModuleHome[] = [
     innerPages: ['/dm/contact-360'],
   },
   {
-    id: 'commerce', label: 'Commerce', path: '/store',
-    innerPages: ['/dm/commerce', '/pay', '/pay/records'],
+    id: 'commerce', label: 'Commerce', path: '/commerce',
+    innerPages: ['/store', '/dm/commerce', '/pay', '/pay/records'],
+    note: 'Behind NEXT_PUBLIC_ENABLE_COMMERCE_MODULE, and OFF — not because it is '
+      + 'unfinished but because the storefront is live, so a new surface over a '
+      + 'production store opens deliberately. With the flag off it links to the working '
+      + 'pages rather than shadowing them.',
   },
   {
-    id: 'growth', label: 'Growth', path: '/seo',
-    innerPages: ['/seo/pages', '/seo/analytics', '/seo/tracking', '/seo/schema',
+    id: 'growth', label: 'Growth', path: '/growth',
+    innerPages: ['/seo', '/seo/pages', '/seo/analytics', '/seo/tracking', '/seo/schema',
       '/dm/whatsapp/ctwa-ads', '/dm/whatsapp/conversions-api'],
-    note: 'SEO is the live half. The ads/attribution half is behind flags — see 7.3.',
+    note: 'Behind NEXT_PUBLIC_ENABLE_GROWTH_MODULE, and OFF while 7 of 8 providers sit '
+      + 'at SCOPE_UNVERIFIED and one has no credential. The connection state it shows '
+      + 'is real and is the useful content at this stage.',
   },
   {
     id: 'service-operations', label: 'Service Operations', path: '/dm/service-ops',

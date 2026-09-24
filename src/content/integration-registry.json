@@ -1,0 +1,145 @@
+{
+  "generatedAt": "2026-09-24T10:51:34+00:00",
+  "source": "amplify/functions/shared/lambda_utils/integrations/registry.py",
+  "note": "Generated. Access is three-state on purpose: a credential existing is not a scope being granted, and VERIFIED means a real authorised read succeeded and was recorded. Nothing here claims VERIFIED.",
+  "counts": {
+    "SCOPE_UNVERIFIED": 7,
+    "CREDENTIAL_ABSENT": 1
+  },
+  "providers": [
+    {
+      "displayName": "Bing Webmaster Tools",
+      "owner": "WECARE.DIGITAL Bing Webmaster site (owner-held)",
+      "secretName": "wecare/bing/api",
+      "credentialPresent": true,
+      "access": "SCOPE_UNVERIFIED",
+      "readScopes": [],
+      "writeCapableScopes": [],
+      "writeScopeMitigation": null,
+      "maxAgeSeconds": 86400,
+      "adapterBuilt": true,
+      "unblock": "Confirm the site is verified in Bing Webmaster Tools and that the stored API key belongs to that account, then record a successful read to move this to VERIFIED.",
+      "notes": "API-key product, so there are no scopes to enumerate.",
+      "key": "bing_webmaster"
+    },
+    {
+      "displayName": "Google Business Profile",
+      "owner": "WECARE.DIGITAL business listing (owner-held)",
+      "secretName": "wecare/seo/google-oauth",
+      "credentialPresent": true,
+      "access": "SCOPE_UNVERIFIED",
+      "readScopes": [],
+      "writeCapableScopes": [
+        "https://www.googleapis.com/auth/business.manage"
+      ],
+      "writeScopeMitigation": "Google offers no read-only scope for this API, so the grant cannot be narrowed. Confine the adapter to GET endpoints (locations, reviews, insights) and never construct a mutating request. The registry cannot enforce that; it has to hold at code review, which is why the scope is declared write-capable here instead of sitting in read_scopes.",
+      "maxAgeSeconds": 43200,
+      "adapterBuilt": true,
+      "unblock": "Request business.manage on the existing OAuth client. Note it is write-capable and cannot be narrowed - see write_scope_mitigation before building against it.",
+      "notes": "4 files reference Business Profile; none has demonstrated a read.",
+      "key": "business_profile"
+    },
+    {
+      "displayName": "Google Analytics 4",
+      "owner": "WECARE.DIGITAL GA4 property (owner-held)",
+      "secretName": "wecare/seo/google-oauth",
+      "credentialPresent": true,
+      "access": "SCOPE_UNVERIFIED",
+      "readScopes": [
+        "https://www.googleapis.com/auth/analytics.readonly"
+      ],
+      "writeCapableScopes": [],
+      "writeScopeMitigation": null,
+      "maxAgeSeconds": 14400,
+      "adapterBuilt": true,
+      "unblock": "Add analytics.readonly to the consent screen of the EXISTING OAuth client and record the GA4 property id. Do not create a second client - the current one already carries a working grant.",
+      "notes": "6 files reference GA4; none has demonstrated an authorised read.",
+      "key": "ga4"
+    },
+    {
+      "displayName": "Google Ads",
+      "owner": "WECARE.DIGITAL Google Ads account (owner-held)",
+      "secretName": "wecare/google/ads",
+      "credentialPresent": true,
+      "access": "SCOPE_UNVERIFIED",
+      "readScopes": [],
+      "writeCapableScopes": [],
+      "writeScopeMitigation": null,
+      "maxAgeSeconds": 21600,
+      "adapterBuilt": false,
+      "unblock": "No adapter exists. Google Ads offers only one coarse scope, which grants writes as well as reads, so an adapter must be confined to report endpoints and reviewed before it is built. Confirm the developer token is approved for the account, then build the report-only adapter.",
+      "notes": "Scope list deliberately empty: the only Google Ads scope is read/write, and declaring it here would put a write capability in a read-only registry.",
+      "key": "google_ads"
+    },
+    {
+      "displayName": "Meta Ads and click-to-WhatsApp",
+      "owner": "WECARE.DIGITAL business portfolio (owner-held)",
+      "secretName": "wecare/meta-system-user-token",
+      "credentialPresent": true,
+      "access": "SCOPE_UNVERIFIED",
+      "readScopes": [
+        "ads_read",
+        "read_insights"
+      ],
+      "writeCapableScopes": [],
+      "writeScopeMitigation": null,
+      "maxAgeSeconds": 10800,
+      "adapterBuilt": true,
+      "unblock": "Confirm the system user token carries ads_read and read_insights and that the ad account is in the portfolio. Do NOT re-issue the token: the same secret serves WhatsApp messaging, and rotating it to add a scope would interrupt live messaging.",
+      "notes": "Shares its credential with the WhatsApp messaging path, which is why scope changes here are not free.",
+      "key": "meta_ads"
+    },
+    {
+      "displayName": "Google Play Reporting",
+      "owner": "WECARE.DIGITAL Play Console (owner-held)",
+      "secretName": null,
+      "credentialPresent": false,
+      "access": "CREDENTIAL_ABSENT",
+      "readScopes": [],
+      "writeCapableScopes": [
+        "https://www.googleapis.com/auth/androidpublisher"
+      ],
+      "writeScopeMitigation": "androidpublisher is a single coarse scope that also permits uploading releases and changing store listings. Grant it to a service account whose Play Console ROLE is restricted to reporting, so the restriction lives in the Play Console rather than in the token - that is the only place it can be enforced.",
+      "maxAgeSeconds": 86400,
+      "adapterBuilt": false,
+      "unblock": "No credential and no adapter. Create a Play Console service account, grant it read-only reporting on the app, store it as a new secret, then build the adapter. Native packaging is POST-PROJECT, so this is not a closure blocker.",
+      "notes": "The only provider with NO credential at all. That is a different blocker from a missing scope and sends you to a different console.",
+      "key": "play_reporting"
+    },
+    {
+      "displayName": "Google Search Console",
+      "owner": "WECARE.DIGITAL Search Console property (owner-held)",
+      "secretName": "wecare/seo/google-oauth",
+      "credentialPresent": true,
+      "access": "SCOPE_UNVERIFIED",
+      "readScopes": [
+        "https://www.googleapis.com/auth/webmasters.readonly"
+      ],
+      "writeCapableScopes": [],
+      "writeScopeMitigation": null,
+      "maxAgeSeconds": 86400,
+      "adapterBuilt": false,
+      "unblock": "No adapter exists. Add webmasters.readonly to the existing OAuth client's consent screen and confirm the property is verified, then build the adapter.",
+      "notes": "Search Console reports lag 2-3 days at source. Freshness here is cache age, NOT data recency - a caller must not read a fresh cache as fresh data.",
+      "key": "search_console"
+    },
+    {
+      "displayName": "Wix storefront",
+      "owner": "WECARE.DIGITAL Wix site (owner-held, live)",
+      "secretName": null,
+      "credentialPresent": false,
+      "access": "SCOPE_UNVERIFIED",
+      "readScopes": [
+        "wix-stores.read-products",
+        "wix-stores.read-orders"
+      ],
+      "writeCapableScopes": [],
+      "writeScopeMitigation": null,
+      "maxAgeSeconds": 3600,
+      "adapterBuilt": true,
+      "unblock": "Move the Wix credential into Secrets Manager. 31 files reference Wix and no wecare/wix* secret exists, so it is reading env fallbacks - which is both unauditable and the reason this entry cannot be verified.",
+      "notes": "No secret of its own: credentials arrive via env fallback. The storefront is LIVE and must not be recreated or republished.",
+      "key": "wix"
+    }
+  ]
+}
