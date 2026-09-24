@@ -7,9 +7,14 @@ import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import PageShell, { ShellTab } from '../../../components/PageShell';
 
-import EmailInbox from './inbox';
-import EmailCampaignPage from './campaign';
-import EmailLogsPage from './logs';
+// The unified inbox, preset to Email. ./inbox was a 263-line twin of rcs/inbox
+// and dm/inbox already reads and writes email.
+import UnifiedInbox from '../inbox';
+// dm/broadcast is the multi-channel superset and already sends email.
+import BroadcastPage from '../broadcast';
+// Unified logs, preset to this channel. ./logs was 268 lines over the same table;
+// its one unique feature, row delete, moved into dm/logs.
+import MessageLogsPage from '../logs';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -24,9 +29,9 @@ const EmailPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
     <PageShell title="Email" subtitle="AWS SES — Inbox, Campaigns & Logs" tabs={TABS} defaultTab="inbox">
       {(activeTab) => (
         <>
-          {activeTab === 'inbox' && <EmailInbox signOut={signOut} user={user} embedded />}
-          {activeTab === 'campaign' && <EmailCampaignPage signOut={signOut} user={user} embedded />}
-          {activeTab === 'logs' && <EmailLogsPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'inbox' && <UnifiedInbox signOut={signOut} user={user} embedded channel="email" />}
+          {activeTab === 'campaign' && <BroadcastPage signOut={signOut} user={user} embedded />}
+          {activeTab === 'logs' && <MessageLogsPage signOut={signOut} user={user} embedded channel="email" />}
         </>
       )}
     </PageShell>

@@ -23,20 +23,23 @@ name: UI labels
 # A false statement is worse on a dashboard than anywhere else, because an operator
 # reads it while deciding what to do next.
 #
-# MODE: blocking on HIGH severity only.
+# MODE: blocking on EVERY severity, since 2026-09-24.
 #
 # High severity is a resource identifier, or a retired provider presented as current —
 # a disclosure or a lie. Medium is a bare service word such as "Bedrock" in a tooltip:
-# a vocabulary improvement rather than a defect, and 20 remain.
+# a vocabulary problem rather than a defect.
 #
-# This is the same staging provider-policy.yml used: it ran with --expect-fail until the
-# count reached zero and was only then flipped to blocking. A gate that fails on day one
+# It ran HIGH-only while 20 medium violations stood, the same staging provider-policy.yml
+# used — advisory until the count reaches zero, then flip. A gate that fails on day one
 # for something nobody intends to fix this week gets switched off, and a switched-off
 # gate protects nothing.
 #
-# To see the medium set fail, run locally:
+# The count is now zero: 8 labels reworded, 3 files authorised with a stated reason, and
+# one false positive fixed in the scanner (`Cognito: {` inside Amplify.configure is an
+# SDK-mandated object key, not copy anybody reads). So the allowance has been withdrawn —
+# leaving it would mean the 21st violation landing silently under a "GATE PASSED" line.
 #
-#     python scripts/check_ui_labels.py --gate --strict
+# `--strict` is retained as a no-op alias so an older local command still works.
 #
 # If this job fails on your PR you have put a table name, ARN, function name, execute-api
 # URL or retired provider into ordinary product UI. Either use

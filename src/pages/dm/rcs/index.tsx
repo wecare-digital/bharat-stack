@@ -7,11 +7,17 @@ import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import PageShell, { ShellTab } from '../../../components/PageShell';
 
-import RcsInbox from './inbox';
+// The unified inbox, preset to RCS. ./inbox was 273 lines of which 196 were
+// byte-identical to ses/inbox, and dm/inbox already reads AND writes RCS.
+import UnifiedInbox from '../inbox';
 import RcsSendPage from './send';
 import RcsTemplatesPage from './templates';
-import RcsCampaignPage from './campaign';
-import RcsLogsPage from './logs';
+// dm/broadcast is the multi-channel superset. ./campaign made no send call at
+// all - it was campaign history synthesised from listMessages.
+import BroadcastPage from '../broadcast';
+// Unified logs, preset to this channel. ./logs was 119 lines calling the same
+// api.listMessages as dm/logs against the same canonical table.
+import MessageLogsPage from '../logs';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -28,11 +34,11 @@ const RcsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     <PageShell title="RCS" subtitle="Rich Communication Services — Inbox, Campaigns & Logs" tabs={ TABS } defaultTab="inbox">
       { ( activeTab ) => (
         <>
-          { activeTab === 'inbox' && <RcsInbox signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'inbox' && <UnifiedInbox signOut={ signOut } user={ user } embedded channel="rcs" /> }
           { activeTab === 'send' && <RcsSendPage signOut={ signOut } user={ user } embedded /> }
           { activeTab === 'templates' && <RcsTemplatesPage signOut={ signOut } user={ user } embedded /> }
-          { activeTab === 'campaign' && <RcsCampaignPage signOut={ signOut } user={ user } embedded /> }
-          { activeTab === 'logs' && <RcsLogsPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'campaign' && <BroadcastPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'logs' && <MessageLogsPage signOut={ signOut } user={ user } embedded channel="rcs" /> }
         </>
       ) }
     </PageShell>

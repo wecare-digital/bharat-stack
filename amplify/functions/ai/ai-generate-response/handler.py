@@ -46,10 +46,26 @@ from functools import wraps
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.agent import governance as gov
+from lambda_utils.agent import approvals as approval_module
+from lambda_utils.agent import drafts as draft_module
 from lambda_utils.middleware import require_auth
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 
 logger = get_logger(__name__)
+
+# Switch the approval store from in-memory to DynamoDB, once, at import.
+#
+# The in-memory default cannot hold an approval across invocations, so with it in
+# place an operator's yes in one request is gone by the time the apply arrives in
+# the next - every apply refuses. That is the right default and the wrong
+# production behaviour, which is why this line exists and why it is the only thing
+# that changes it.
+#
+# It does NOT enable anything. `governance.CATALOG` still holds all 18 APPLY tools
+# at `enabled=False`, so an apply is refused for two independent reasons; this
+# removes one of them. Both have to change, separately and deliberately.
+approval_module.use_dynamo_store()
+draft_module.use_dynamo_store()
 
 # AWS clients
 bedrock_runtime = boto3.client(
@@ -707,6 +723,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     http_method = event.get('httpMethod') or event.get('requestContext', {}).get('http', {}).get('method', '')
     if http_method == 'OPTIONS':
         return options_response(origin)
+
+    # ── The approval surface is a DIFFERENT route with a DIFFERENT gate ──
+    # Dispatched before the generic auth call below because it needs Admin, not
+    # merely a signed-in user. Deciding that inside the shared branch would mean one
+    # `require_auth` call trying to serve two different privilege levels, and the
+    # looser one wins by default in that arrangement.
+    if _is_approvals_path(event):
+        return _handle_approvals(event, headers, origin, request_id)
 
     # ── Authenticate API Gateway callers ──
     # POST /ai/generate was public on BOTH HTTP APIs with no handler check. Every
@@ -1455,6 +1479,13 @@ RULES:
         # Advertise only what will actually run. Offering a tool and then
         # refusing it teaches the model to promise things it cannot do, and it
         # narrates the promise to a person before the refusal comes back.
+        # Plans the model reached for and was refused. Collected during the loop
+        # because they cannot be recovered afterwards: the refusal goes back into the
+        # conversation as a tool result, and only the model's final prose escapes.
+        # Without this the dashboard could never offer an operator anything concrete
+        # to approve - it would have the model's narration of what it wanted to do,
+        # which is precisely the thing not to trust.
+        pending_plans: List[Dict] = []
         suggestion = _internal_converse_with_tools(
             conversation_history=conversation_history,
             system_prompts=system_prompts,
@@ -1462,7 +1493,8 @@ RULES:
             request_id=request_id,
             session_id=session_id,
             temperature=temperature,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
+            plan_sink=pending_plans,
         )
 
         # Add assistant response to history
@@ -1498,7 +1530,12 @@ RULES:
                 'suggestedResponse': suggestion,
                 'messageId': message_id,
                 'contactId': contact_id,
-                'sessionId': session_id
+                'sessionId': session_id,
+                # Arguments here are already redacted by `describe_plan`: the
+                # recipient is masked to its last four and the message body omitted.
+                # The hash identifies the exact intent without reproducing it, which
+                # is what lets the client approve by hash alone.
+                'pendingPlans': pending_plans,
             })
         }
 
@@ -1536,11 +1573,17 @@ def _internal_converse_with_tools(
     session_id: str = 'unknown',
     max_iterations: int = MAX_TOOL_USE_ITERATIONS,
     temperature: float = 0.7,
-    max_tokens: int = 2048
+    max_tokens: int = 2048,
+    plan_sink: Optional[List[Dict]] = None,
 ) -> str:
     """
     Internal agent conversation with tool use support.
     Handles multi-turn tool calling until final answer is reached.
+
+    `plan_sink`, when given, collects the redacted plan for every APPLY the model
+    reached for and was refused. It is an out-parameter rather than part of the
+    return value because the return value is the model's prose and three call sites
+    already treat it as a plain string.
     """
     current_messages = conversation_history.copy()
     iteration = 0
@@ -1624,7 +1667,21 @@ def _internal_converse_with_tools(
                         
                         try:
                             tool_result = _execute_internal_tool(tool_name, tool_input, request_id)
-                            
+
+                            # A refused APPLY that got as far as a saved draft is the
+                            # only thing an operator can be offered. `approvable` is
+                            # False when the draft write failed, and an unapprovable
+                            # plan must not be shown as approvable - that would put a
+                            # button in front of someone that always refuses.
+                            if (plan_sink is not None
+                                    and isinstance(tool_result, dict)
+                                    and tool_result.get('approvable')
+                                    and tool_result.get('plan')):
+                                plan = tool_result['plan']
+                                if not any(p.get('planHash') == plan.get('planHash')
+                                           for p in plan_sink):
+                                    plan_sink.append(plan)
+
                             # Check if tool returned an error
                             if isinstance(tool_result, dict) and 'error' in tool_result:
                                 tool_status = 'error'
@@ -1703,6 +1760,214 @@ def _internal_converse_with_tools(
     return "I've completed the available steps for your request."
 
 
+# ============================================================================
+# APPROVAL SURFACE (Admin only)
+# ============================================================================
+
+APPROVALS_BASE = '/ai/approvals'
+
+
+def _request_path(event: Dict) -> str:
+    """The request path with the stage prefix removed and no trailing slash.
+
+    Stage-prefix normalisation is not optional here. The custom-domain mapping on
+    this HTTP API puts the stage in the path, so the same logical route arrives as
+    `/ai/approvals` through one hostname and `/prod/ai/approvals` through another -
+    a difference that has already caused two production incidents elsewhere in this
+    codebase (see `lambda_utils.http_path`).
+    """
+    rc = event.get('requestContext') or {}
+    raw = (rc.get('http') or {}).get('path') or event.get('rawPath') \
+        or event.get('path') or ''
+    try:
+        from lambda_utils.http_path import strip_stage
+        raw = strip_stage(raw, str(rc.get('stage') or ''))
+    except Exception:  # noqa: BLE001 - normalisation must never decide the gate
+        pass
+    return '/' + str(raw or '').strip('/')
+
+
+def _is_approvals_path(event: Dict) -> bool:
+    """Exact segment match, never a substring.
+
+    `path_is_exempt` in the auth middleware carries the scar from the substring
+    version of this test: `skip in path` let `/wa-business/webhooks-anything` skip
+    authentication entirely. Matching on segment boundaries is the fix, and there is
+    no reason to repeat the mistake in a new place.
+    """
+    path = _request_path(event)
+    return path == APPROVALS_BASE or path.startswith(APPROVALS_BASE + '/')
+
+
+def _approval_body(event: Dict) -> Dict:
+    raw = event.get('body')
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw) or {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _load_plan_for_approval(body: Dict):
+    """The drafted plan named by `planHash`. The client sends a hash, nothing more.
+
+    The arguments are NOT taken from the request. They are loaded from the draft the
+    server wrote when it built the plan, for two reasons:
+
+    * The client never had them. `describe_plan` masks the recipient and omits the
+      message body, so a client that echoed its arguments back would be echoing
+      redacted ones - and a hash over masked values would collapse two different
+      recipients into one plan.
+    * A client that supplied its own arguments could display one intent and approve
+      another. Referring to a server-held draft by hash removes that gap entirely.
+
+    A `catalogVersion` mismatch is reported before the load, because "the tool
+    definitions changed under this plan" and "there is no such draft" send whoever
+    reads the refusal to two different places.
+    """
+    from lambda_utils.agent import drafts, plans
+
+    claimed_hash = str(body.get('planHash') or '').strip()
+    if not claimed_hash:
+        raise approval_module.ApprovalRejected(
+            'no planHash supplied; an approval must name the exact plan the '
+            'operator was shown')
+
+    claimed_version = str(body.get('catalogVersion') or '').strip()
+    if claimed_version and claimed_version != gov.CATALOG_VERSION:
+        raise approval_module.ApprovalRejected(
+            f'this plan was built against catalog version {claimed_version} and the '
+            f'current version is {gov.CATALOG_VERSION}; the tool definitions have '
+            f'changed, so rebuild the plan and look at it again before approving',
+            plan_hash=claimed_hash)
+
+    try:
+        return drafts.load(claimed_hash)
+    except drafts.DraftMissing as exc:
+        raise approval_module.ApprovalRejected(str(exc), plan_hash=claimed_hash)
+    except drafts.DraftCorrupt as exc:
+        raise approval_module.ApprovalRejected(str(exc), plan_hash=claimed_hash)
+    except gov.ToolUnknown:
+        raise approval_module.ApprovalRejected(
+            'the drafted plan names a tool that no longer exists',
+            plan_hash=claimed_hash)
+    except plans.PlanNotApplicable as exc:
+        raise approval_module.ApprovalRejected(str(exc), plan_hash=claimed_hash)
+
+
+def _handle_approvals(event: Dict, headers: Dict, origin: str,
+                      request_id: str) -> Dict:
+    """Grant or inspect an approval for one exact plan. Admin only.
+
+    Two sub-routes:
+
+        POST /ai/approvals          grant - records a human's yes
+        POST /ai/approvals/status   check - reports without consuming
+
+    Granting an approval does NOT make a send possible. Every APPLY tool is still
+    disabled in the catalog, so the response says `wouldApply: false` and
+    `stillDisabled: true` rather than leaving the caller to infer it. An approval
+    surface that reads as "done" when nothing can happen is the same failure as the
+    placeholder `createInvoice` that returned success and wrote no row.
+    """
+    method = (event.get('httpMethod')
+              or (event.get('requestContext') or {}).get('http', {}).get('method')
+              or '').upper()
+    if method != 'POST':
+        return cors_response(405, {
+            'error': 'Method not allowed',
+            'detail': f'{APPROVALS_BASE} accepts POST'}, origin)
+
+    # Admin, which since the second-factor change also means an Admin with an
+    # enrolled authenticator. A model must never be able to reach this path, and the
+    # only thing standing between it and this route is this call.
+    auth_failure = require_auth(event, required_role='Admin')
+    if auth_failure is not None:
+        logger.warning(json.dumps({
+            'event': 'approval_auth_refused',
+            'alert': 'AGENT_APPROVAL_UNAUTHORIZED',
+            'path': _request_path(event),
+            'requestId': request_id}))
+        return auth_failure
+
+    auth = event.get('_auth') or {}
+    # Identity comes from the VERIFIED token, never from the request body. A body
+    # field here would let the caller name their own approver, which is the one thing
+    # `_normalise_approver` exists to prevent.
+    operator = str(auth.get('email') or auth.get('username') or '').strip()
+
+    body = _approval_body(event)
+    path = _request_path(event)
+    is_status = path == APPROVALS_BASE + '/status'
+
+    from lambda_utils.agent import plans, receipts
+
+    try:
+        plan = _load_plan_for_approval(body)
+        if is_status:
+            approval = approval_module.check(plan)
+            payload = {
+                'success': True,
+                'approval': approval_module.describe(approval),
+                'plan': plans.describe_plan(plan),
+            }
+        else:
+            approval = approval_module.grant(plan, approved_by=operator)
+            payload = {
+                'success': True,
+                'approved': True,
+                'approval': approval_module.describe(approval),
+                'plan': plans.describe_plan(plan),
+                # Stated, not implied. `wouldApply` is computed from live
+                # enablement, so this cannot drift into claiming a send is now
+                # possible.
+                'stillDisabled': not gov.is_enabled(plan.tool),
+                'nextStep': (
+                    'This records the approval only. The tool itself is still '
+                    'disabled in the catalog, so applying it will still refuse. '
+                    'Nothing has been sent.'),
+            }
+            # Recorded whether or not an apply can follow, because "who approved
+            # what, and when" is the part that matters after the fact.
+            try:
+                receipts.record_receipt(
+                    plan, result=receipts.RESULT_REFUSED, actor=operator,
+                    detail=f'approved by operator at {request_id}; apply still '
+                           f'disabled by catalog')
+            except Exception:  # noqa: BLE001
+                pass
+            logger.info(json.dumps({
+                'event': 'agent_approval_granted',
+                'tool': plan.tool,
+                'planHash': plan.plan_hash,
+                'expiresAt': approval.expires_at,
+                'requestId': request_id}))
+    except approval_module.ApprovalRejected as rejected:
+        logger.warning(json.dumps({
+            'event': 'agent_approval_rejected',
+            'reason': rejected.reason,
+            'planHash': rejected.plan_hash,
+            'requestId': request_id}))
+        # 200 with an explicit refusal, matching how every other refusal on this
+        # surface is shaped: `success: False`, `refused: True`, and no key a caller
+        # could read as a completed side effect.
+        return {'statusCode': 200, 'headers': headers,
+                'body': json.dumps(rejected.as_result())}
+    except Exception as exc:  # noqa: BLE001
+        logger.error(json.dumps({
+            'event': 'agent_approval_error',
+            'errorType': type(exc).__name__,
+            'requestId': request_id}))
+        # The message is withheld: it can carry a table name. Fails closed.
+        return {'statusCode': 200, 'headers': headers, 'body': json.dumps({
+            'success': False, 'refused': True,
+            'reason': 'the approval could not be recorded, so nothing was approved',
+            'errorCode': 'AGENT_APPROVAL_FAILED'})}
+
+    return {'statusCode': 200, 'headers': headers, 'body': json.dumps(payload)}
+
+
 def _refuse_internal_tool(refused, tool_input: Dict, request_id: str) -> Dict:
     """A refusal the model can act on, plus a receipt of the attempt.
 
@@ -1742,7 +2007,26 @@ def _refuse_internal_tool(refused, tool_input: Dict, request_id: str) -> Dict:
     except Exception:  # noqa: BLE001
         pass
 
+    # Save the plan so an operator can approve it by hash. Without this the approval
+    # route has nothing to look up and every approve refuses with "no such draft" -
+    # the plan would exist only in this response, in masked form, and a masked plan
+    # cannot be re-hashed.
+    #
+    # Also best effort, and the ordering is deliberate: a draft that fails to save
+    # means the operator cannot approve, which is a refusal - the safe direction. A
+    # draft that saves when the send was refused costs a short-lived row.
+    drafted = False
+    try:
+        from lambda_utils.agent import drafts
+        drafts.record(plan)
+        drafted = True
+    except Exception:  # noqa: BLE001
+        logger.warning(json.dumps({
+            'event': 'agent_draft_not_saved', 'tool': plan.tool,
+            'planHash': plan.plan_hash, 'requestId': request_id}))
+
     result['plan'] = plans.describe_plan(plan)
+    result['approvable'] = drafted
     result['nextStep'] = ('Tell the operator what you would have done and ask them '
                           'to do it. Do not say it has been done.')
     return result

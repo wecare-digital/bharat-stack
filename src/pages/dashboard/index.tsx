@@ -2161,7 +2161,7 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
             <TabErrorBoundary tabName="Webhook">
               <div className="webhook-tab">
                 {/* Razorpay Webhook Section */ }
-                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #1a3a2a' } }>
+                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#1a1a1a', border: '1px solid #1a3a2a' } }>
                   <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
                     <div style={ { width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' } }>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -2169,24 +2169,24 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
                       </svg>
                     </div>
                     <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>Razorpay Webhook</h3>
-                      <span className="badge" style={ { background: '#f3f4f6', color: '#111827', marginTop: '4px' } }>Active</span>
+                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#1a1a1a' } }>Razorpay Webhook</h3>
+                      <span className="badge" style={ { background: '#f3f4f6', color: '#1a1a1a', marginTop: '4px' } }>Active</span>
                     </div>
                   </div>
 
                   <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' } }>
                     <div style={ { marginBottom: '0.75rem' } }>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Webhook URL</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' } }>https://api.wecare.digital/razorpay-webhook</code>
+                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#1a1a1a' } }>https://api.wecare.digital/razorpay-webhook</code>
                     </div>
                     <div>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Credentials</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>Managed server-side; values are never exposed in the browser.</code>
+                      <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>Managed server-side; values are never exposed in the browser.</code>
                     </div>
                   </div>
 
                   <div>
-                    <label style={ { fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' } }>Supported Events</label>
+                    <label style={ { fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#1a1a1a' } }>Supported Events</label>
                     <div style={ { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' } }>
                       { [
                         { event: 'payment.captured', desc: 'Payment successful', color: '#1a3a2a' },
@@ -2202,7 +2202,7 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
                         <div key={ event } style={ { background: '#f3f4f6', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #e5e7eb' } }>
                           <div style={ { display: 'flex', alignItems: 'center', gap: '0.5rem' } }>
                             <span style={ { width: '8px', height: '8px', borderRadius: '50%', background: color } } />
-                            <span style={ { fontFamily: 'monospace', color: '#111827' } }>{ event }</span>
+                            <span style={ { fontFamily: 'monospace', color: '#1a1a1a' } }>{ event }</span>
                           </div>
                           <div style={ { fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' } }>{ desc }</div>
                         </div>
@@ -2218,7 +2218,7 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
                   <div style={ { marginBottom: '0.75rem' } }>
                     <div style={ { fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' } }>Authentication: Basic Auth</div>
                     <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>All Razorpay APIs use HTTP Basic Auth with key_id:key_secret (base64 encoded).</div>
-                    <pre style={ { fontSize: '0.7rem', color: '#111827', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' } }>{ `# Basic Auth header
+                    <pre style={ { fontSize: '0.7rem', color: '#1a1a1a', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' } }>{ `# Basic Auth header
 Authorization: Basic base64(YOUR_KEY_ID:YOUR_KEY_SECRET)
 
 # curl example
@@ -2253,7 +2253,7 @@ curl -u YOUR_KEY_ID:YOUR_KEY_SECRET \\
                       ].map( ( { method, path, desc } ) => (
                         <div key={ `${method}${path}` } style={ { background: '#fff', padding: '0.35rem 0.5rem', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '0.5rem' } }>
                           <span style={ { color: method === 'POST' ? '#1a3a2a' : '#1d4ed8', fontWeight: 600, fontSize: '0.65rem', fontFamily: 'monospace', minWidth: '32px' } }>{ method }</span>
-                          <code style={ { fontSize: '0.7rem', color: '#111827' } }>{ path }</code>
+                          <code style={ { fontSize: '0.7rem', color: '#1a1a1a' } }>{ path }</code>
                           <span style={ { fontSize: '0.65rem', color: '#9ca3af', marginLeft: 'auto' } }>{ desc }</span>
                         </div>
                       ) ) }
@@ -2263,7 +2263,7 @@ curl -u YOUR_KEY_ID:YOUR_KEY_SECRET \\
                   <div style={ { marginBottom: '0.75rem' } }>
                     <div style={ { fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' } }>Webhook Verification</div>
                     <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Razorpay signs webhooks with HMAC SHA-256 using your webhook secret.</div>
-                    <pre style={ { fontSize: '0.7rem', color: '#111827', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' } }>{ `# Verify webhook signature
+                    <pre style={ { fontSize: '0.7rem', color: '#1a1a1a', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' } }>{ `# Verify webhook signature
 expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
 # Compare with X-Razorpay-Signature header`}</pre>
                     <div style={ { fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' } }>Webhook payloads are JSON. Retries on non-200 response. Use ports 80/443 only.</div>
@@ -2289,7 +2289,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
 
                 {/* Razorpay Data Captured */ }
                 <div className="section" style={ { background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' } }>
-                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' } }>
+                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1a1a1a' } }>
                     <DataIcon size={ 18 } />
                     Data Captured for Payments
                   </h4>
@@ -2317,7 +2317,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                 </div>
 
                 {/* PayU Webhook Section */ }
-                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#111827', border: '1px solid #1a3a2a' } }>
+                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#1a1a1a', border: '1px solid #1a3a2a' } }>
                   <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
                     <div style={ { width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' } }>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -2325,7 +2325,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                       </svg>
                     </div>
                     <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>PayU Webhook</h3>
+                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#1a1a1a' } }>PayU Webhook</h3>
                       <span className="badge" style={ { background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' } }>Active — credentials managed server-side</span>
                     </div>
                   </div>
@@ -2333,23 +2333,23 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                   <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' } }>
                     <div style={ { marginBottom: '0.75rem' } }>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Webhook URL</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#111827' } }>https://api.wecare.digital/payu-webhook</code>
+                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#1a1a1a' } }>https://api.wecare.digital/payu-webhook</code>
                     </div>
                     <div style={ { marginBottom: '0.75rem' } }>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>HTTP Method</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>POST (form-encoded or JSON)</code>
+                      <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>POST (form-encoded or JSON)</code>
                     </div>
                     <div style={ { marginBottom: '0.75rem' } }>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Hash Verification</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>SHA-512 reverse hash (SALT|status|...|key)</code>
+                      <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>SHA-512 reverse hash (SALT|status|...|key)</code>
                     </div>
                     <div style={ { marginBottom: '0.75rem' } }>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Credential Status</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>Managed server-side; values are never displayed in the browser</code>
+                      <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>Managed server-side; values are never displayed in the browser</code>
                     </div>
                     <div>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Lambda Function</label>
-                      <code style={ { fontSize: '0.85rem', color: '#111827' } }>wecare-payu-webhook</code>
+                      <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>wecare-payu-webhook</code>
                     </div>
                   </div>
 
@@ -2371,7 +2371,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                     <div style={ { marginBottom: '0.75rem' } }>
                       <div style={ { fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' } }>2. Payment Links / Payouts APIs (OAuth 2.0 client_credentials)</div>
                       <div style={ { fontSize: '0.75rem', color: '#6b7280', marginBottom: '2px' } }>Uses Client ID + Client Secret to get Bearer token.</div>
-                      <pre style={ { fontSize: '0.7rem', color: '#111827', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' } }>{ `# Get OAuth Token (Production)
+                      <pre style={ { fontSize: '0.7rem', color: '#1a1a1a', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' } }>{ `# Get OAuth Token (Production)
 POST https://accounts.payu.in/oauth/token
 Content-Type: application/x-www-form-urlencoded
 
@@ -2418,7 +2418,7 @@ Content-Type: application/json`}</pre>
                     <h4 style={ { margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#E65100' } }>WhatsApp Payment Configuration (Meta WABA)</h4>
                     <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' } }>
                       <div style={ { background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
-                        <div style={ { fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' } }>+91 9330994400</div>
+                        <div style={ { fontWeight: 600, fontSize: '0.85rem', color: '#1a1a1a', marginBottom: '4px' } }>+91 9330994400</div>
                         <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Config: <code style={ { color: '#1a3a2a' } }>WECAREDIGITAL</code> + <code style={ { color: '#1a3a2a' } }>WECAREUPI</code></div>
                         <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>WABA: <code>2094615664435155</code> (Active, Direct API)</div>
                         <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Provider: <code>Razorpay</code></div>
@@ -2427,7 +2427,7 @@ Content-Type: application/json`}</pre>
                         <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' } }>Verified via Graph API 2026-08-25</span>
                       </div>
                       <div style={ { background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
-                        <div style={ { fontWeight: 600, fontSize: '0.85rem', color: '#111827', marginBottom: '4px' } }>+91 9903300044</div>
+                        <div style={ { fontWeight: 600, fontSize: '0.85rem', color: '#1a1a1a', marginBottom: '4px' } }>+91 9903300044</div>
                         <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Config: <code style={ { color: '#1a3a2a' } }>WECAREDIGITAL</code> + <code style={ { color: '#1a3a2a' } }>WECAREUPI</code></div>
                         <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>WABA: <code>2513394156072604</code></div>
                         <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Provider: <code>Razorpay</code></div>
@@ -2440,7 +2440,7 @@ Content-Type: application/json`}</pre>
 
                   {/* Supported Events */ }
                   <div>
-                    <label style={ { fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' } }>Supported Events</label>
+                    <label style={ { fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#1a1a1a' } }>Supported Events</label>
                     <div style={ { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' } }>
                       { [
                         { event: 'payment.success', desc: 'Payment captured', color: '#1a3a2a' },
@@ -2452,7 +2452,7 @@ Content-Type: application/json`}</pre>
                         <div key={ event } style={ { background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #e5e7eb' } }>
                           <div style={ { display: 'flex', alignItems: 'center', gap: '0.5rem' } }>
                             <span style={ { width: '8px', height: '8px', borderRadius: '50%', background: color } } />
-                            <span style={ { fontFamily: 'monospace', color: '#111827' } }>{ event }</span>
+                            <span style={ { fontFamily: 'monospace', color: '#1a1a1a' } }>{ event }</span>
                           </div>
                           <div style={ { fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' } }>{ desc }</div>
                         </div>
@@ -2463,7 +2463,7 @@ Content-Type: application/json`}</pre>
 
                 {/* PayU Data Captured */ }
                 <div className="section" style={ { background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' } }>
-                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' } }>
+                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1a1a1a' } }>
                     <DataIcon size={ 18 } />
                     Data Captured for PayU Payments
                   </h4>
@@ -2509,7 +2509,7 @@ Content-Type: application/json`}</pre>
 
                 {/* Overall Call Status Matrix — legacy CDR status derivation, retained for historical records */ }
                 <div className="section" style={ { background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' } }>
-                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' } }>
+                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1a1a1a' } }>
                     <DataIcon size={ 18 } />
                     Overall Call Status Matrix
                   </h4>
@@ -2538,7 +2538,7 @@ Content-Type: application/json`}</pre>
                     </tbody>
                   </table>
 
-                  <h4 style={ { margin: '1rem 0 0.5rem 0', fontSize: '0.9rem', color: '#111827' } }>Number Status Values</h4>
+                  <h4 style={ { margin: '1rem 0 0.5rem 0', fontSize: '0.9rem', color: '#1a1a1a' } }>Number Status Values</h4>
                   <div style={ { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' } }>
                     { [
                       { status: 'Answer', desc: 'Call answered', color: '#2E7D32' },
@@ -2559,7 +2559,7 @@ Content-Type: application/json`}</pre>
 
                 {/* Voice CDR Data Captured */ }
                 <div className="section" style={ { background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' } }>
-                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#111827' } }>
+                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1a1a1a' } }>
                     <DataIcon size={ 18 } />
                     Data Captured for Voice CDR
                   </h4>
@@ -2617,7 +2617,7 @@ Content-Type: application/json`}</pre>
                     See docs/provider-retirement-inventory.md. */ }
 
                 {/* AWS Pinpoint SMS & Voice Section */ }
-                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1a3a2a' } }>
+                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#1a1a1a', border: '1px solid #1a3a2a' } }>
                   <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
                     <div style={ { width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' } }>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -2625,7 +2625,7 @@ Content-Type: application/json`}</pre>
                       </svg>
                     </div>
                     <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>AWS Pinpoint SMS & Voice v2</h3>
+                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#1a1a1a' } }>AWS Pinpoint SMS & Voice v2</h3>
                       <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px' } }>us-east-1 | Active</span>
                     </div>
                   </div>
@@ -2644,7 +2644,7 @@ Content-Type: application/json`}</pre>
                     ].map( ( { label, method, path } ) => (
                       <div key={ path } style={ { marginBottom: '0.5rem' } }>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>{ label }</label>
-                        <code style={ { fontSize: '0.8rem', color: '#111827', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' } }>
+                        <code style={ { fontSize: '0.8rem', color: '#1a1a1a', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' } }>
                           <span style={ { color: method === 'POST' ? '#1a3a2a' : method === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600 } }>{ method }</span> https://api.wecare.digital{ path }
                         </code>
                       </div>
@@ -2656,33 +2656,33 @@ Content-Type: application/json`}</pre>
                     <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' } }>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Voice (Toll-Free, Intl)</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>+1 (844) 489-1209</code>
+                        <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>+1 (844) 489-1209</code>
                       </div>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Toll-Free Status</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>PENDING Registration</code>
+                        <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>PENDING Registration</code>
                       </div>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>SMS Sender ID</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>WECARE</code>
+                        <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>WECARE</code>
                       </div>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>TTS Voice</label>
-                        <code style={ { fontSize: '0.85rem', color: '#111827' } }>RAVEENA (Indian English)</code>
+                        <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>RAVEENA (Indian English)</code>
                       </div>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Pool ID</label>
-                        <code style={ { fontSize: '0.75rem', color: '#111827' } }>TBD (pending toll-free approval)</code>
+                        <code style={ { fontSize: '0.75rem', color: '#1a1a1a' } }>TBD (pending toll-free approval)</code>
                       </div>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Protect Config</label>
-                        <code style={ { fontSize: '0.75rem', color: '#111827' } }>protect-b137924dfb934c32b1d10c28b737d08c</code>
+                        <code style={ { fontSize: '0.75rem', color: '#1a1a1a' } }>protect-b137924dfb934c32b1d10c28b737d08c</code>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label style={ { fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#111827' } }>Lambda Functions</label>
+                    <label style={ { fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#1a1a1a' } }>Lambda Functions</label>
                     <div style={ { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' } }>
                       { [
                         { name: 'wecare-sms-aws', desc: 'SMS send + CRUD', color: '#1a3a2a' },
@@ -2691,7 +2691,7 @@ Content-Type: application/json`}</pre>
                         <div key={ name } style={ { background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #e5e7eb' } }>
                           <div style={ { display: 'flex', alignItems: 'center', gap: '0.5rem' } }>
                             <span style={ { width: '8px', height: '8px', borderRadius: '50%', background: color } } />
-                            <span style={ { fontFamily: 'monospace', color: '#111827', fontWeight: 500 } }>{ name }</span>
+                            <span style={ { fontFamily: 'monospace', color: '#1a1a1a', fontWeight: 500 } }>{ name }</span>
                           </div>
                           <div style={ { fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' } }>{ desc }</div>
                         </div>
@@ -2701,13 +2701,13 @@ Content-Type: application/json`}</pre>
                 </div>
 
                 {/* WhatsApp Inbound Messages Webhook */ }
-                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #25D366' } }>
+                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#1a1a1a', border: '1px solid #25D366' } }>
                   <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
                     <div style={ { width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' } }>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" stroke="#25D366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </div>
                     <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>WhatsApp Inbound Messages</h3>
+                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#1a1a1a' } }>WhatsApp Inbound Messages</h3>
                       <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px' } }>Direct Meta Graph API | Active</span>
                     </div>
                   </div>
@@ -2715,11 +2715,11 @@ Content-Type: application/json`}</pre>
                   <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' } }>
                     <h4 style={ { margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#0f2a1d' } }>Webhook Configuration</h4>
                     <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' } }>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Verify Token</span><code style={ { color: '#111827' } }>Configured server-side</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Subscribed Fields</span><code style={ { color: '#111827' } }>messages, calls</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Lambda</span><code style={ { color: '#111827' } }>wecare-whatsapp-calling</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Meta App ID</span><code style={ { color: '#111827' } }>2238810740192680 (WECARE.DIGITAL)</code></div>
-                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>DynamoDB Table</span><code style={ { color: '#111827' } }>WhatsAppCallingTable</code></div>
+                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Verify Token</span><code style={ { color: '#1a1a1a' } }>Configured server-side</code></div>
+                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Subscribed Fields</span><code style={ { color: '#1a1a1a' } }>messages, calls</code></div>
+                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Lambda</span><code style={ { color: '#1a1a1a' } }>wecare-whatsapp-calling</code></div>
+                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>Meta App ID</span><code style={ { color: '#1a1a1a' } }>2238810740192680 (WECARE.DIGITAL)</code></div>
+                      <div><span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block' } }>DynamoDB Table</span><code style={ { color: '#1a1a1a' } }>WhatsAppCallingTable</code></div>
                     </div>
 
                     <div style={ { marginTop: '0.75rem' } }>
@@ -2752,12 +2752,12 @@ Content-Type: application/json`}</pre>
                     <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' } }>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>+91 93309 94400 (WECARE.DIGITAL)</label>
-                        <code style={ { fontSize: '0.8rem', color: '#111827' } }>Meta ID: 1016149501586345</code>
+                        <code style={ { fontSize: '0.8rem', color: '#1a1a1a' } }>Meta ID: 1016149501586345</code>
                         <div style={ { fontSize: '0.7rem', color: '#25D366' } }>SIP: sip.wecare.digital:5061 · SDES</div>
                       </div>
                       <div>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>+91 99033 00044 (Manish Agarwal)</label>
-                        <code style={ { fontSize: '0.8rem', color: '#111827' } }>Meta ID: 1055232054343117</code>
+                        <code style={ { fontSize: '0.8rem', color: '#1a1a1a' } }>Meta ID: 1055232054343117</code>
                         <div style={ { fontSize: '0.7rem', color: '#25D366' } }>SIP: sip.wecare.digital:5061 · SDES</div>
                       </div>
                     </div>
@@ -2776,13 +2776,13 @@ Content-Type: application/json`}</pre>
                 </div>
 
                 {/* Wix Headless Commerce Section */ }
-                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#111827', border: '1px solid #1a3a2a' } }>
+                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', color: '#1a1a1a', border: '1px solid #1a3a2a' } }>
                   <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
                     <div style={ { width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #d1d5db' } }>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><line x1="3" y1="6" x2="21" y2="6" stroke="#1a3a2a" strokeWidth="2" /><path d="M16 10a4 4 0 01-8 0" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </div>
                     <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#111827' } }>Wix Headless Commerce</h3>
+                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#1a1a1a' } }>Wix Headless Commerce</h3>
                       <span className="badge" style={ { background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' } }>API-only | Catalog V3</span>
                     </div>
                   </div>

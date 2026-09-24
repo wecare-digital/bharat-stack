@@ -1039,8 +1039,15 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
           <div className="contacts-table-wrapper" style={{ flex: 1, minWidth: 0, border: '2px solid #f3f4f6', borderRadius: 13, overflow: 'hidden', background: '#fff' }}>
             {loading ? <div style={{ padding: 24 }}><SkeletonTable rows={8} /></div> : loadError ? (
               <div style={{ padding: 48, textAlign: 'center' }}>
-                <p style={{ fontSize: 15, color: '#dc2626', marginBottom: 4 }}>Contacts Lambda returned 500</p>
-                <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>The wecare-contacts Lambda needs to be redeployed to AWS. Check CloudWatch logs.</p>
+                {/*
+                  Was "Contacts Lambda returned 500" / "needs to be redeployed to AWS.
+                  Check CloudWatch logs." Neither action is available to the person
+                  reading it, and an error that prescribes something you cannot do
+                  reads as a dead end. Say what happened, say nothing was lost, and
+                  give the one action that is actually in reach.
+                */}
+                <p style={{ fontSize: 15, color: '#dc2626', marginBottom: 4 }}>Couldn’t load contacts</p>
+                <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>The server returned an error, so nothing is shown here. No contact was changed or deleted. Try again — if it keeps happening, note the time and report it.</p>
                 <button onClick={() => loadContacts()} style={{ padding: '8px 16px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: 13, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
               </div>
             ) : filteredSorted.length === 0 ? (
@@ -1246,7 +1253,7 @@ const Contacts: React.FC<PageProps> = ({ signOut, user }) => {
                   <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px', fontSize: 24, color: '#1a3a2a', fontWeight: 700 }}>
                     {(detailContact.name || '?')[0]?.toUpperCase()}
                   </div>
-                  <p style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: 0 }}>{detailContact.name || 'Unnamed'}</p>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a', margin: 0 }}>{detailContact.name || 'Unnamed'}</p>
                   <p style={{ fontSize: 13, color: '#6b7280', margin: '4px 0 0' }}>{detailContact.phone}</p>
                 </div>
                 {[

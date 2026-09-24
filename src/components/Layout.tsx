@@ -5,6 +5,7 @@ import React, { ReactNode, useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import SearchModal from './SearchModal';
+import SettingsGear from './SettingsGear';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { navigationConfig, NavItem, NavSubItem, getAllNavItems } from '../config/navigation';
 import { useUserRole, isPartnerAllowed } from '../hooks/useUserRole';
@@ -272,6 +273,14 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
           <nav className="sidebar-nav">
             { renderNavItems( navForRole ) }
           </nav>
+          {/* The gear. Below the daily streams because it is the "everything
+              else" door, not a destination you aim for. Hidden from partner users,
+              who see a deliberately minimal nav. */}
+          { !isPartner && (
+            <div className="sidebar-gear">
+              <SettingsGear collapsed={ sidebarCollapsed } />
+            </div>
+          ) }
           <div className="sidebar-footer">
             { user && !sidebarCollapsed && (
               <div className="user-info">

@@ -93,7 +93,7 @@ export default function BlogIndex ( { posts }: Props ) {
         ) }
       </main>
       <style jsx>{`
-        .blog-shell{max-width:1180px;margin:0 auto;padding:156px 24px 96px;color:#111827;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+        .blog-shell{max-width:1180px;margin:0 auto;padding:156px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         .blog-hero{max-width:720px;margin-bottom:56px}
         .eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;color:#1a3a2a;text-transform:uppercase;margin:0 0 12px}
         h1{font-size:clamp(44px,7vw,76px);line-height:1;letter-spacing:-.045em;margin:0 0 18px;color:#1a3a2a}
@@ -103,7 +103,7 @@ export default function BlogIndex ( { posts }: Props ) {
         .post-copy{padding:22px}
         .category{display:inline-block;background:#d1f470;color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:12px}
         h2{font-size:21px;line-height:1.25;margin:0 0 10px}
-        h2 :global(a){color:#111827;text-decoration:none}
+        h2 :global(a){color:#1a1a1a;text-decoration:none}
         h2 :global(a:hover){color:#1a3a2a}
         .post-copy p{font-size:14px;line-height:1.65;color:#6b7280;margin:0 0 18px}
         .meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#9ca3af}

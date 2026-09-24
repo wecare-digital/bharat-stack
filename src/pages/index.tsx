@@ -367,8 +367,8 @@ const HomePage: React.FC = () => {
                   put AI twice in quick succession, which is the same redundancy this section
                   was cleaned up to remove. The page still says AI once, above the fold, where
                   positioning belongs. The distinction that
-                  makes it honest: "one AI foundation" describes the PLATFORM the services
-                  share, it does not claim each of the three beats below is itself AI. Keep
+                  made it honest while it was here: "one AI foundation" described the
+                  PLATFORM the services share, not a claim that each beat below is itself AI. Keep
                   it that way - if a beat ever asserts AI, it needs something behind it.
                   "Nothing falls between them" replaces "You never have to manage the joins
                   between them", which was awkward and put the reader in charge of plumbing

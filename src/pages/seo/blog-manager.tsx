@@ -5,7 +5,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
-import InstructionsContent from './InstructionsContent';
+// Moved out of src/pages/. It is a content COMPONENT, but sitting under pages/
+// meant Next routed it as /seo/InstructionsContent - a 292-line chrome-less page
+// nobody intended to publish.
+import InstructionsContent from '../../components/seo/InstructionsContent';
 import { seoToolsFetch } from '../../api/seo';
 
 interface PageProps { signOut?: () => void; user?: any; }
@@ -245,7 +248,7 @@ function AuditDetail({ audit, audits, onSelect, onAction }: { audit: AuditRecord
     {/* Meta Tags */}
     <div className="card" style={{ padding: 16, marginBottom: 16 }}><h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Meta Tags (rendered by Amplify after Apply)</h3>
       <div style={{ display: 'grid', gap: 4 }}>{[['og:title',audit.suggestedSeoTitle?.replace(' | WECARE.DIGITAL','')],['og:description',audit.suggestedMetaDescription],['og:url',`https://wecare.digital/post/${audit.blogSlug}`],['og:type','article'],['og:site_name','WECARE.DIGITAL'],['og:locale','en_IN'],['og:image',ai.jsonLd?.blogPosting?.image?.[0]||'default logo'],['article:author','Swdhya Vaksetu'],['twitter:card','summary_large_image'],['twitter:title',audit.suggestedSeoTitle?.replace(' | WECARE.DIGITAL','')],['twitter:description',audit.suggestedMetaDescription],['robots','index, follow, max-image-preview:large'],['canonical',`https://wecare.digital/post/${audit.blogSlug}`]].map(([p,v],i) => (
-        <div key={i} style={{ display: 'flex', gap: 8, padding: '3px 8px', background: i%2===0?'#f9fafb':'#fff', borderRadius: 4, fontSize: 11 }}><span style={{ color: '#6b7280', minWidth: 140, fontFamily: 'monospace' }}>{p}</span><span style={{ color: '#111827', flex: 1, wordBreak: 'break-word' }}>{v}</span></div>
+        <div key={i} style={{ display: 'flex', gap: 8, padding: '3px 8px', background: i%2===0?'#f9fafb':'#fff', borderRadius: 4, fontSize: 11 }}><span style={{ color: '#6b7280', minWidth: 140, fontFamily: 'monospace' }}>{p}</span><span style={{ color: '#1a1a1a', flex: 1, wordBreak: 'break-word' }}>{v}</span></div>
       ))}</div>
     </div>
     {audit.internalLinkSuggestions?.length > 0 && <div className="card" style={{ padding: 16, marginBottom: 16 }}><h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Internal Links</h3>{audit.internalLinkSuggestions.map((l:any,i:number) => <div key={i} style={{ padding: '4px 0', fontSize: 12 }}><span style={{ fontWeight: 600 }}>{l.text}</span> <span style={{ color: '#6b7280' }}>{l.url}</span> <span style={{ color: '#9ca3af', fontSize: 10 }}>({l.reason})</span></div>)}</div>}
@@ -256,7 +259,7 @@ function AuditDetail({ audit, audits, onSelect, onAction }: { audit: AuditRecord
 }
 function CF({ label, value, max }: { label: string; value: string; max: number }) {
   const len = value?.length || 0;
-  return (<div style={{ marginBottom: 12 }}><div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div><div style={{ fontSize: 12, color: '#111827', lineHeight: 1.5 }}>{value || '(empty)'}</div>{value && <div style={{ fontSize: 10, color: len > max ? '#ef4444' : '#22c55e', marginTop: 2 }}>{len}/{max} {len > max ? 'over limit' : 'ok'}</div>}</div>);
+  return (<div style={{ marginBottom: 12 }}><div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div><div style={{ fontSize: 12, color: '#1a1a1a', lineHeight: 1.5 }}>{value || '(empty)'}</div>{value && <div style={{ fontSize: 10, color: len > max ? '#ef4444' : '#22c55e', marginTop: 2 }}>{len}/{max} {len > max ? 'over limit' : 'ok'}</div>}</div>);
 }
 
 // ── LOGS VIEW ──

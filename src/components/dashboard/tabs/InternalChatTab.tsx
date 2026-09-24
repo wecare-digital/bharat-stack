@@ -28,39 +28,103 @@ interface ChatLog {
   status: 'success' | 'error';
 }
 
+/**
+ * A plan the agent reached for and was refused, as returned by `describe_plan`.
+ *
+ * `arguments` is already redacted server-side — the recipient is masked to its last
+ * four and the message body is omitted entirely. The browser never holds the real
+ * values, which is why approving sends only `planHash`: the server looks the draft
+ * up and re-derives the intent from its own copy.
+ *
+ * `wouldApply` is computed from live catalog enablement, not hardcoded, so it cannot
+ * drift into claiming a send is possible when it is not.
+ */
+interface PendingPlan {
+  tool: string;
+  toolClass: string;
+  catalogVersion: string;
+  planHash: string;
+  idempotencyKey: string;
+  createdAt: number;
+  arguments: Record<string, unknown>;
+  summary: string;
+  wouldApply: boolean;
+  refusal: string;
+}
+
+type ApprovalState =
+  | { kind: 'idle' }
+  | { kind: 'sending' }
+  | { kind: 'approved'; approvedBy: string; expiresAt: number; stillDisabled: boolean }
+  | { kind: 'refused'; reason: string };
+
 type SubTab = 'chat' | 'logs' | 'controls';
 
-const TOOLS_LIST = [
-  { id: 'search_contacts', name: 'Search Contacts', category: 'Contacts' },
-  { id: 'create_contact', name: 'Create Contact', category: 'Contacts' },
-  { id: 'update_contact', name: 'Update Contact', category: 'Contacts' },
-  { id: 'add_contact_email', name: 'Add Email', category: 'Contacts' },
-  { id: 'send_whatsapp', name: 'Send WhatsApp', category: 'Messaging' },
-  { id: 'send_whatsapp_buttons', name: 'Send Buttons', category: 'Messaging' },
-  { id: 'send_whatsapp_list', name: 'Send List', category: 'Messaging' },
-  { id: 'send_whatsapp_pay', name: 'WhatsApp Pay', category: 'Messaging' },
-  { id: 'send_whatsapp_flow', name: 'Send Flow', category: 'Messaging' },
-  { id: 'make_voice_call', name: 'Voice Call', category: 'Messaging' },
-  { id: 'send_sms', name: 'Send SMS', category: 'Messaging' },
-  { id: 'send_email', name: 'Send Email', category: 'Messaging' },
-  { id: 'get_messages', name: 'Get Messages', category: 'Analytics' },
-  { id: 'get_stats', name: 'Get Stats', category: 'Analytics' },
-  { id: 'schedule_message', name: 'Schedule Message', category: 'Scheduling' },
-  { id: 'list_scheduled_messages', name: 'List Scheduled', category: 'Scheduling' },
-  { id: 'list_templates', name: 'List Templates', category: 'Templates' },
-  { id: 'send_template', name: 'Send Template', category: 'Templates' },
-  { id: 'delete_contact', name: 'Delete Contact', category: 'Data' },
-  { id: 'delete_messages', name: 'Delete Messages', category: 'Data' },
-  { id: 'delete_media_files', name: 'Delete Media', category: 'Data' },
-  { id: 'list_media_files', name: 'List Media', category: 'Data' },
-  { id: 'clear_all_contact_data', name: 'Clear All Data', category: 'Data' },
-  { id: 'get_voice_cdr', name: 'Voice CDR', category: 'Analytics' },
-  { id: 'get_billing_summary', name: 'AWS Billing', category: 'Analytics' },
-  { id: 'get_invoice_list', name: 'List Invoices', category: 'Invoicing' },
-  { id: 'create_invoice', name: 'Create Invoice', category: 'Invoicing' },
-  { id: 'get_wix_products', name: 'Wix Products', category: 'Ecommerce' },
-  { id: 'get_wix_orders', name: 'Wix Orders', category: 'Ecommerce' },
-  { id: 'list_submit_requests', name: 'Flow Submissions', category: 'Flows' },
+/**
+ * The tool catalog, WITH its real authorisation state.
+ *
+ * This list used to be 30 bare names and `enabledTools` was initialised to all 30,
+ * so the panel read "Tool Capabilities (30/30)" and offered an Enable All toggle -
+ * while the backend refuses 18 of them unconditionally. `governance.py` states
+ * there is deliberately NO flag to enable an APPLY tool, because the approval,
+ * plan-hash and receipt machinery that would make one safe does not exist yet. So
+ * the toggle was cosmetic for those 18, and the panel advertised Send WhatsApp,
+ * Delete Contact, Clear All Data and Create Invoice as things the agent could do.
+ *
+ * That is the same defect the UI label gate exists to catch, in the one screen
+ * where being wrong matters most: a person reads this list to decide what to ask
+ * for.
+ *
+ * `cls` and `refused` mirror `lambda_utils/agent/governance.py`. A mirror can
+ * drift, so `tests/test_agent_ui_truth.py` parses this array and asserts it matches
+ * the Python catalog entry for entry - id, class and enablement. Change the catalog
+ * and that test fails until this list follows.
+ *
+ * The refused tools are shown rather than hidden, deliberately. Hiding them loses
+ * the information that the capability exists and is withheld on purpose, which is
+ * exactly what someone needs to know before asking the agent to send something.
+ */
+type ToolRow = {
+  id: string;
+  name: string;
+  category: string;
+  /** READ or APPLY, from the governance catalog. */
+  cls: string;
+  /** True when the backend refuses it regardless of any UI toggle. */
+  refused: boolean;
+};
+
+const TOOLS_LIST: ToolRow[] = [
+  { id: 'search_contacts', name: 'Search Contacts', category: 'Contacts', cls: 'READ', refused: false },
+  { id: 'create_contact', name: 'Create Contact', category: 'Contacts', cls: 'APPLY', refused: true },
+  { id: 'update_contact', name: 'Update Contact', category: 'Contacts', cls: 'APPLY', refused: true },
+  { id: 'add_contact_email', name: 'Add Email', category: 'Contacts', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp', name: 'Send WhatsApp', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp_buttons', name: 'Send Buttons', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp_list', name: 'Send List', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp_pay', name: 'WhatsApp Pay', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp_flow', name: 'Send Flow', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'make_voice_call', name: 'Voice Call', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_sms', name: 'Send SMS', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_email', name: 'Send Email', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'get_messages', name: 'Get Messages', category: 'Analytics', cls: 'READ', refused: false },
+  { id: 'get_stats', name: 'Get Stats', category: 'Analytics', cls: 'READ', refused: false },
+  { id: 'schedule_message', name: 'Schedule Message', category: 'Scheduling', cls: 'APPLY', refused: true },
+  { id: 'list_scheduled_messages', name: 'List Scheduled', category: 'Scheduling', cls: 'READ', refused: false },
+  { id: 'list_templates', name: 'List Templates', category: 'Templates', cls: 'READ', refused: false },
+  { id: 'send_template', name: 'Send Template', category: 'Templates', cls: 'APPLY', refused: true },
+  { id: 'delete_contact', name: 'Delete Contact', category: 'Data', cls: 'APPLY', refused: true },
+  { id: 'delete_messages', name: 'Delete Messages', category: 'Data', cls: 'APPLY', refused: true },
+  { id: 'delete_media_files', name: 'Delete Media', category: 'Data', cls: 'APPLY', refused: true },
+  { id: 'list_media_files', name: 'List Media', category: 'Data', cls: 'READ', refused: false },
+  { id: 'clear_all_contact_data', name: 'Clear All Data', category: 'Data', cls: 'APPLY', refused: true },
+  { id: 'get_voice_cdr', name: 'Voice CDR', category: 'Analytics', cls: 'READ', refused: false },
+  { id: 'get_billing_summary', name: 'AWS Billing', category: 'Analytics', cls: 'READ', refused: false },
+  { id: 'get_invoice_list', name: 'List Invoices', category: 'Invoicing', cls: 'READ', refused: false },
+  { id: 'create_invoice', name: 'Create Invoice', category: 'Invoicing', cls: 'APPLY', refused: true },
+  { id: 'get_wix_products', name: 'Wix Products', category: 'Ecommerce', cls: 'READ', refused: false },
+  { id: 'get_wix_orders', name: 'Wix Orders', category: 'Ecommerce', cls: 'READ', refused: false },
+  { id: 'list_submit_requests', name: 'Flow Submissions', category: 'Flows', cls: 'READ', refused: false },
 ];
 
 const InternalChatTab: React.FC = () => {
@@ -78,9 +142,15 @@ const InternalChatTab: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [logs, setLogs] = useState<ChatLog[]>([]);
   const [sessionId] = useState(() => `dash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-  const [enabledTools, setEnabledTools] = useState<Set<string>>(new Set(TOOLS_LIST.map(t => t.id)));
+  // Only the tools the backend will actually run. Seeding this with all 30 was
+  // what made the panel claim 30/30.
+  const AVAILABLE = TOOLS_LIST.filter(t => !t.refused);
+  const [enabledTools, setEnabledTools] = useState<Set<string>>(
+    new Set(AVAILABLE.map(t => t.id)));
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(2048);
+  const [pendingPlans, setPendingPlans] = useState<PendingPlan[]>([]);
+  const [approvalState, setApprovalState] = useState<Record<string, ApprovalState>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -174,6 +244,16 @@ const InternalChatTab: React.FC = () => {
       setStatusMessage('');
       const duration = Date.now() - startTime;
 
+      // Plans the agent reached for and was refused. Replaced rather than appended:
+      // these belong to the turn that just happened, and carrying an earlier turn's
+      // plan forward would leave an Approve button attached to a request the
+      // operator has moved on from.
+      const plans: PendingPlan[] = Array.isArray(data?.pendingPlans)
+        ? data.pendingPlans.filter((p: any) => p && typeof p.planHash === 'string')
+        : [];
+      setPendingPlans(plans);
+      setApprovalState({});
+
       const response = extractResponse(data);
       if (response) {
         setLogs(prev => [{
@@ -229,6 +309,71 @@ const InternalChatTab: React.FC = () => {
     setInput(text);
     setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 50);
   };
+
+  /**
+   * Record this operator's approval of one exact plan.
+   *
+   * Only `planHash` is sent. The server holds the draft and re-derives the tool and
+   * arguments from its own copy, so this request cannot redirect an approval at a
+   * different recipient — and the approver is taken from the bearer token, never
+   * from anything here.
+   *
+   * The route is Admin-only. A non-Admin gets 403, and a 403 is surfaced as what it
+   * is rather than as a generic failure, because "you are not allowed to approve
+   * this" and "the approval could not be recorded" need different responses.
+   */
+  const approvePlan = useCallback(async (plan: PendingPlan) => {
+    setApprovalState(prev => ({ ...prev, [plan.planHash]: { kind: 'sending' } }));
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.accessToken?.toString() ?? '';
+      const res = await fetch(`${API_BASE}/ai/approvals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ planHash: plan.planHash, catalogVersion: plan.catalogVersion }),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (res.status === 403) {
+        setApprovalState(prev => ({
+          ...prev,
+          [plan.planHash]: {
+            kind: 'refused',
+            reason: data?.detail || data?.error
+              || 'Approving an agent action needs an Admin account with a second factor enrolled.',
+          },
+        }));
+        return;
+      }
+      if (!res.ok || !data || data.success !== true) {
+        setApprovalState(prev => ({
+          ...prev,
+          [plan.planHash]: {
+            kind: 'refused',
+            reason: data?.reason || data?.error || 'The approval was not recorded.',
+          },
+        }));
+        return;
+      }
+      setApprovalState(prev => ({
+        ...prev,
+        [plan.planHash]: {
+          kind: 'approved',
+          approvedBy: String(data.approval?.approvedBy ?? ''),
+          expiresAt: Number(data.approval?.expiresAt ?? 0),
+          // Taken from the response, never assumed. Every APPLY tool is currently
+          // disabled, so this is true — and the panel has to say so rather than let
+          // a green tick imply the message went out.
+          stillDisabled: data.stillDisabled !== false,
+        },
+      }));
+    } catch {
+      setApprovalState(prev => ({
+        ...prev,
+        [plan.planHash]: { kind: 'refused', reason: 'Could not reach the server. Nothing was approved.' },
+      }));
+    }
+  }, []);
 
   const toggleTool = (id: string) => {
     setEnabledTools(prev => {
@@ -329,6 +474,119 @@ const InternalChatTab: React.FC = () => {
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/*
+            Plans the agent wanted to run and was refused.
+
+            Amber, not green and not red. Green would say "done" and red would say
+            "something broke"; this is neither — the action is understood, written
+            down, and withheld. The heading states plainly that approving does not
+            send, because the one failure this panel could reintroduce is a person
+            clicking Approve and believing a message went out.
+          */}
+          {pendingPlans.length > 0 && (
+            <div style={{
+              marginTop: '12px', padding: '12px', background: '#fffbeb',
+              border: '1px solid #e5e7eb', borderLeft: '3px solid #b45309',
+              borderRadius: '8px',
+            }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#78350f', marginBottom: '2px' }}>
+                {pendingPlans.length === 1 ? 'One action was withheld' : `${pendingPlans.length} actions were withheld`}
+              </div>
+              <div style={{ fontSize: '12px', color: '#92400e', marginBottom: '10px', lineHeight: 1.5 }}>
+                Approving records your decision against this exact request. It does not
+                send anything — these tools are switched off in the catalog, so applying
+                one still refuses.
+              </div>
+
+              {pendingPlans.map(plan => {
+                const state = approvalState[plan.planHash] ?? { kind: 'idle' as const };
+                return (
+                  <div key={plan.planHash} style={{
+                    padding: '10px', background: 'white', border: '1px solid #e5e7eb',
+                    borderRadius: '6px', marginBottom: '8px',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#1f2937' }}>
+                          {plan.tool}
+                          <span style={{
+                            marginLeft: '6px', padding: '1px 6px', borderRadius: '10px',
+                            background: '#fef3c7', color: '#92400e', fontSize: '11px', fontWeight: 500,
+                          }}>
+                            {plan.toolClass}
+                          </span>
+                        </div>
+                        {plan.summary && (
+                          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '3px', lineHeight: 1.5 }}>
+                            {plan.summary}
+                          </div>
+                        )}
+                        {Object.keys(plan.arguments ?? {}).length > 0 && (
+                          <div style={{
+                            fontSize: '12px', color: '#374151', marginTop: '6px',
+                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                            wordBreak: 'break-word',
+                          }}>
+                            {Object.entries(plan.arguments).map(([key, value]) => (
+                              <div key={key}>{key}: {String(value)}</div>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{
+                          fontSize: '11px', color: '#9ca3af', marginTop: '6px',
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                        }}>
+                          {/* Enough to match against a log line or an audit row
+                              without filling the card with 64 hex characters. */}
+                          plan {plan.planHash.slice(0, 12)}…
+                        </div>
+                      </div>
+
+                      {state.kind === 'approved' ? (
+                        <span style={{
+                          padding: '6px 12px', borderRadius: '6px', background: '#f3f4f6',
+                          color: '#374151', fontSize: '12px', whiteSpace: 'nowrap',
+                        }}>
+                          Approved
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => approvePlan(plan)}
+                          disabled={state.kind === 'sending'}
+                          style={{
+                            padding: '6px 14px', border: 'none', borderRadius: '6px',
+                            background: state.kind === 'sending' ? '#d1d5db' : '#1a3a2a',
+                            color: 'white', fontSize: '12px', fontWeight: 500,
+                            cursor: state.kind === 'sending' ? 'not-allowed' : 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {state.kind === 'sending' ? 'Recording…' : 'Approve'}
+                        </button>
+                      )}
+                    </div>
+
+                    {state.kind === 'approved' && (
+                      <div style={{ fontSize: '12px', color: '#374151', marginTop: '8px', lineHeight: 1.5 }}>
+                        Recorded for {state.approvedBy || 'you'}
+                        {state.expiresAt > 0 && <>, valid until {new Date(state.expiresAt * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</>}.
+                        {' '}Single use.
+                        {state.stillDisabled && (
+                          <> The tool is still disabled, so nothing was sent.</>
+                        )}
+                      </div>
+                    )}
+                    {state.kind === 'refused' && (
+                      <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '8px', lineHeight: 1.5 }}>
+                        {state.reason}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Input */}
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', alignItems: 'flex-end' }}>
@@ -437,15 +695,23 @@ const InternalChatTab: React.FC = () => {
           {/* Tool Capabilities */}
           <div style={{ padding: '16px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1f2937' }}>Tool Capabilities ({enabledTools.size}/{TOOLS_LIST.length})</h3>
+              {/* Counted against AVAILABLE, not TOOLS_LIST. The old denominator was
+                  30, which claimed the agent could do 18 things the backend refuses
+                  unconditionally. */}
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1f2937' }}>
+                Tool Capabilities ({enabledTools.size}/{AVAILABLE.length} available
+                {TOOLS_LIST.length - AVAILABLE.length > 0
+                  ? `, ${TOOLS_LIST.length - AVAILABLE.length} refused`
+                  : ''})
+              </h3>
               <button onClick={() => {
-                if (enabledTools.size === TOOLS_LIST.length) setEnabledTools(new Set());
-                else setEnabledTools(new Set(TOOLS_LIST.map(t => t.id)));
+                if (enabledTools.size === AVAILABLE.length) setEnabledTools(new Set());
+                else setEnabledTools(new Set(AVAILABLE.map(t => t.id)));
               }} style={{
                 padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
                 background: 'white', color: '#6b7280', cursor: 'pointer', fontSize: '11px',
               }}>
-                {enabledTools.size === TOOLS_LIST.length ? 'Disable All' : 'Enable All'}
+                {enabledTools.size === AVAILABLE.length ? 'Disable All' : 'Enable All'}
               </button>
             </div>
             {categories.map(cat => (
@@ -453,17 +719,36 @@ const InternalChatTab: React.FC = () => {
                 <div style={{ fontSize: '12px', fontWeight: 600, color: '#1a3a2a', marginBottom: '6px' }}>{cat}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {TOOLS_LIST.filter(t => t.category === cat).map(tool => (
-                    <label key={tool.id} style={{
-                      display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px',
-                      border: `1px solid ${enabledTools.has(tool.id) ? '#e5e7eb' : '#e5e7eb'}`,
-                      borderRadius: '6px', cursor: 'pointer', fontSize: '12px',
-                      background: enabledTools.has(tool.id) ? '#f9fafb' : 'white',
-                      color: enabledTools.has(tool.id) ? '#1a3a2a' : '#9ca3af',
-                    }}>
-                      <input type="checkbox" checked={enabledTools.has(tool.id)} onChange={() => toggleTool(tool.id)}
-                        style={{ accentColor: '#1a3a2a', width: '12px', height: '12px' }} />
-                      {tool.name}
-                    </label>
+                    tool.refused ? (
+                      /* Not a checkbox. A refused tool cannot be switched on from
+                         here or anywhere else - governance.py has no enabling flag
+                         by design - so offering a control would be a lie about who
+                         is in charge. Shown, not hidden, because knowing the
+                         capability exists and is withheld is the useful part. */
+                      <span key={tool.id}
+                        title={`${tool.cls} — refused until the plan/approval/receipt path exists`}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          padding: '4px 8px', border: '1px solid #b45309',
+                          borderRadius: '6px', fontSize: '12px',
+                          background: '#fffbeb', color: '#b45309', cursor: 'help',
+                        }}>
+                        {tool.name}
+                        <span style={{ fontSize: '10px', fontWeight: 600 }}>REFUSED</span>
+                      </span>
+                    ) : (
+                      <label key={tool.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px', cursor: 'pointer', fontSize: '12px',
+                        background: enabledTools.has(tool.id) ? '#f9fafb' : 'white',
+                        color: enabledTools.has(tool.id) ? '#1a3a2a' : '#9ca3af',
+                      }}>
+                        <input type="checkbox" checked={enabledTools.has(tool.id)} onChange={() => toggleTool(tool.id)}
+                          style={{ accentColor: '#1a3a2a', width: '12px', height: '12px' }} />
+                        {tool.name}
+                      </label>
+                    )
                   ))}
                 </div>
               </div>

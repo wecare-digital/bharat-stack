@@ -6,7 +6,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
-import InstructionsContent from './InstructionsContent';
+// Moved out of src/pages/. It is a content COMPONENT, but sitting under pages/
+// meant Next routed it as /seo/InstructionsContent - a 292-line chrome-less page
+// nobody intended to publish.
+import InstructionsContent from '../../components/seo/InstructionsContent';
 import { seoToolsFetch } from '../../api/seo';
 
 interface PageProps { signOut?: () => void; user?: any; }
@@ -537,7 +540,7 @@ function AuditDetail({ audit, audits, onSelect, onAction }: { audit: PageAudit |
       <div style={{ display: 'grid', gap: 4 }}>{metaTags.map(([prop, val], i) => (
         <div key={i} style={{ display: 'flex', gap: 8, padding: '3px 8px', background: i % 2 === 0 ? '#f9fafb' : '#fff', borderRadius: 4, fontSize: 11 }}>
           <span style={{ color: '#6b7280', minWidth: 160, fontFamily: 'monospace', flexShrink: 0 }}>{prop}</span>
-          <span style={{ color: '#111827', flex: 1, wordBreak: 'break-word' }}>{val || <span style={{ color: '#ef4444' }}>(empty)</span>}</span>
+          <span style={{ color: '#1a1a1a', flex: 1, wordBreak: 'break-word' }}>{val || <span style={{ color: '#ef4444' }}>(empty)</span>}</span>
         </div>
       ))}</div>
     </div>
@@ -719,7 +722,7 @@ function CF({ label, value, max }: { label: string; value: string; max: number }
   const len = value?.length || 0;
   return (<div style={{ marginBottom: 12 }}>
     <div style={{ fontSize: 10, color: '#6b7280', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
-    <div style={{ fontSize: 12, color: '#111827', lineHeight: 1.5 }}>{value || '(empty)'}</div>
+    <div style={{ fontSize: 12, color: '#1a1a1a', lineHeight: 1.5 }}>{value || '(empty)'}</div>
     {value && <div style={{ fontSize: 10, color: len > max ? '#ef4444' : '#22c55e', marginTop: 2 }}>{len}/{max} {len > max ? 'over limit' : 'ok'}</div>}
   </div>);
 }

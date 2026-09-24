@@ -48,8 +48,25 @@ from lambda_utils.agent.receipts import (  # noqa: F401
     build_receipt,
     record_receipt,
 )
+# Only the types are re-exported. `grant`, `check` and `consume` are deliberately
+# NOT lifted into this namespace: bare `check(plan)` at a call site does not say what
+# is being checked, and `assert_may_apply` reads as a general permission test rather
+# than "spend a single-use human approval". Callers import the module -
+# `from lambda_utils.agent import approvals` - so the verb keeps its subject.
+from lambda_utils.agent.approvals import (  # noqa: F401
+    Approval,
+    ApprovalRejected,
+)
+from lambda_utils.agent.drafts import (  # noqa: F401
+    DraftCorrupt,
+    DraftMissing,
+)
 
 __all__ = [
+    "Approval",
+    "ApprovalRejected",
+    "DraftCorrupt",
+    "DraftMissing",
     "CATALOG",
     "CATALOG_VERSION",
     "CLASS_APPLY",

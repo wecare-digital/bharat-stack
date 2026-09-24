@@ -356,9 +356,14 @@ const PushPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
               <div className="push-info-box">
                 <BellIcon size={ 18 } />
                 <div>
+                  {/*
+                    The reassurance is "your keys never touch this browser". Naming the
+                    services that hold them adds nothing to that promise and is not
+                    something the reader configures from here.
+                  */}
                   <strong>Credentials are managed server-side</strong>
-                  <p>Platform credentials and private keys are never entered into or returned to the browser. Configure the SNS platform applications and Lambda environment through the approved AWS deployment process.</p>
-                  <p>Device registrations are stored in DynamoDB and mapped to SNS endpoints on the server.</p>
+                  <p>Platform credentials and private keys are never entered into, or returned to, the browser. Push credentials are configured during deployment, not from this screen.</p>
+                  <p>Device registrations are stored on the server and matched to their push destination there.</p>
                 </div>
               </div>
             </div>
@@ -396,7 +401,7 @@ const pushStyles = `
 .push-preview-card{background:#fff;border-radius:12px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .push-preview-app{display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280;margin-bottom:6px}
 .push-preview-time{margin-left:auto;font-size:10px}
-.push-preview-title{font-size:14px;font-weight:600;color:#111827;margin-bottom:2px}
+.push-preview-title{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:2px}
 .push-preview-body{font-size:13px;color:rgba(0, 0, 0, 0.54);line-height:1.4}
 .push-table-wrap{overflow-x:auto;border:1px solid #e5e7eb;border-radius:10px}
 .push-table{width:100%;border-collapse:collapse;font-size:13px}

@@ -850,6 +850,16 @@ input, textarea, select {
 .nav-nested-level-2 { padding-left: 16px; }
 
 /* Sidebar Footer */
+/* The settings gear. Above the footer and below the daily streams: it is the
+   "everything else" door rather than a destination you aim for. flex-shrink:0 so a
+   long nav list scrolls instead of squashing the one control that reaches the other
+   ~90 pages. */
+.sidebar-gear {
+  padding: 10px 14px;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
 .sidebar-footer {
   padding: 10px 14px;
   border-top: 1px solid #e5e7eb;

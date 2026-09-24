@@ -76,6 +76,21 @@ AUTHORISED_SURFACES = {
         "WhatsApp Calling. Not customer-facing.",
     "src/pages/dm/whatsapp/waba-dashboard.tsx":
         "Technical Details: WABA and SNS subscription state for operators.",
+    # --- added 2026-09-24, clearing the 20 tracked medium violations -------------
+    "src/components/seo/InstructionsContent.tsx":
+        "Technical Details: the SEO pipeline's own architecture and cost breakdown is "
+        "the entire content. Same reason system-architecture.tsx is authorised; it only "
+        "shows up separately because it was moved out of src/pages/ to stop Next "
+        "publishing it as a chrome-less route.",
+    "src/pages/dm/whatsapp/cost-controls.tsx":
+        "Technical Details: the page lists the AWS services under cost control, so the "
+        "service names ARE the subject. Renaming them would leave an operator unable to "
+        "match a line here to a line on the bill.",
+    "src/pages/dm/whatsapp/migration.tsx":
+        "Technical Details: a WABA migration screen showing callback URL, phone ids and "
+        "where the verify token lives. Naming Secrets Manager is the by-reference form "
+        "that secret-handling.md asks for - it tells an operator where to look without "
+        "printing the value, and 'stored securely' would be useless to them.",
 }
 
 # Directories that are not UI at all.
@@ -155,6 +170,18 @@ def relevant_files():
 HISTORICAL_MARKERS = re.compile(
     r"histor|legacy|retired|deprecat|archive|former|previous|migrated|past", re.I)
 
+def is_config_object_key(line_text: str, word: str) -> bool:
+    """True for `Cognito: {` on its own line — an SDK config key, not a label.
+
+    Deliberately anchored to the WHOLE line rather than just testing for `: {` after
+    the word. The loose version also swallowed `<p>DynamoDB: {count} rows</p>`, where
+    the `{` opens a JSX interpolation rather than an object literal - which would have
+    turned a precision fix into a hole in the gate. A config key is alone on its line;
+    a label is not.
+    """
+    stripped = line_text.strip()
+    return stripped.startswith(word) and stripped[len(word):].strip() in (": {", ":{")
+
 
 def scan():
     violations = []
@@ -172,6 +199,15 @@ def scan():
                 # label, not a leak. `label: 'Airtel (historical)'` is the shape we
                 # want people to write.
                 if name == "retired_provider" and HISTORICAL_MARKERS.search(line_text):
+                    continue
+
+                # An object KEY introducing a block is code, not a label. This scanner
+                # reads UI copy, and `Cognito: {` inside `Amplify.configure()` is the
+                # SDK's own required key - there is no wording to change, and the only
+                # way to satisfy the gate would be to authorise all of _app.tsx, which
+                # does contain real UI copy (the MFA chooser labels) that should stay
+                # checked. Narrow on purpose: a label is never followed by `: {`.
+                if is_config_object_key(line_text, match.group(0)):
                     continue
 
                 violations.append({
@@ -217,24 +253,30 @@ def main() -> int:
                   f"product vocabulary, or add the file to AUTHORISED_SURFACES with a "
                   f"reason if it is genuinely a Technical Details surface.")
 
-    # Blocking on HIGH only, to begin with. High severity is a resource identifier or a
-    # retired provider presented as current - a disclosure or a false statement, and
-    # both are defects. Medium is a bare service word such as "Bedrock" in a tooltip:
-    # a vocabulary improvement, not a lie, and 20 of them remain.
+    # MEDIUM IS NOW BLOCKING TOO, as of 2026-09-24.
     #
-    # Same staging as provider-policy.yml, which ran with --expect-fail until the count
-    # reached zero and was only then flipped to blocking. A gate that fails on day one
-    # for something nobody is going to fix this week gets switched off.
-    blocking = [v for v in violations
-                if v["severity"] == "high" or (args.strict and v["severity"] == "medium")]
+    # It was high-only while 20 medium violations stood, on the same staging as
+    # provider-policy.yml: run advisory until the count reaches zero, then flip. A gate
+    # that fails on day one for something nobody is going to fix this week gets switched
+    # off, which is worse than a gate that starts narrow.
+    #
+    # The count is now zero - 8 labels reworded, 3 files authorised with a stated reason,
+    # and one false positive fixed in the scanner - so the allowance has outlived its
+    # purpose. Leaving it would mean the 21st violation lands silently under a line
+    # reading "GATE PASSED", which is exactly the shape of the problems this whole phase
+    # has been removing.
+    #
+    # `--strict` is kept as a no-op alias so any existing caller keeps working.
+    blocking = list(violations)
     if args.gate and blocking:
+        by_sev = {}
+        for v in blocking:
+            by_sev[v["severity"]] = by_sev.get(v["severity"], 0) + 1
         print(f"\nGATE FAILED on {len(blocking)} violation(s) "
-              f"({'high and medium' if args.strict else 'high severity only'}).")
+              f"({', '.join(f'{n} {s}' for s, n in sorted(by_sev.items()))}).")
         return 1
     if args.gate:
-        remaining = len(violations) - len(blocking)
-        print(f"\nGATE PASSED. {remaining} medium violation(s) remain and are "
-              f"tracked, not blocking. Run --strict to see them fail.")
+        print("\nGATE PASSED. No infrastructure names in ordinary UI, at any severity.")
     return 0
 
 

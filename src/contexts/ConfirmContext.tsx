@@ -118,7 +118,7 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
                     </svg>
                   )}
                 </div>
-                <h3 id="confirm-title" style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#111827' }}>
+                <h3 id="confirm-title" style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#1a1a1a' }}>
                   {dialog.title}
                 </h3>
               </div>

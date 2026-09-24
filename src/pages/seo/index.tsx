@@ -89,7 +89,7 @@ const SEOHub: React.FC<PageProps> = ( { signOut, user } ) => {
             >
               <div style={ { fontSize: 24, width: 40, textAlign: 'center', flexShrink: 0 } }>{ p.icon }</div>
               <div style={ { flex: 1 } }>
-                <div style={ { fontSize: 15, fontWeight: 600, color: '#111827' } }>{ p.label }</div>
+                <div style={ { fontSize: 15, fontWeight: 600, color: '#1a1a1a' } }>{ p.label }</div>
                 <div style={ { fontSize: 12, color: '#6b7280', marginTop: 2 } }>{ p.desc }</div>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>

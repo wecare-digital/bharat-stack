@@ -1228,7 +1228,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
               </div>
               <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' } }>
                 <div style={ { background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
-                  <div style={ { fontWeight: 600, color: '#111827', marginBottom: '4px' } }>🇮🇳 Indian Numbers (+91)</div>
+                  <div style={ { fontWeight: 600, color: '#1a1a1a', marginBottom: '4px' } }>🇮🇳 Indian Numbers (+91)</div>
                   <div style={ { color: '#6b7280', fontSize: '11px' } }>AWS End User Messaging, ap-south-1</div>
                   <div style={ { color: '#6b7280', fontSize: '11px' } }>Sender: WDBEEP (DLT-registered)</div>
                   <div style={ { color: '#6b7280', fontSize: '11px' } }>Template key: ivr-default</div>
@@ -1236,7 +1236,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                   <span style={ { display: 'inline-block', marginTop: '4px', padding: '2px 6px', background: '#dcfce7', color: '#166534', borderRadius: '4px', fontSize: '10px' } }>TRAI DLT ENFORCED</span>
                 </div>
                 <div style={ { background: '#fff', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
-                  <div style={ { fontWeight: 600, color: '#111827', marginBottom: '4px' } }>🌍 International Numbers</div>
+                  <div style={ { fontWeight: 600, color: '#1a1a1a', marginBottom: '4px' } }>🌍 International Numbers</div>
                   <div style={ { color: '#6b7280', fontSize: '11px' } }>AWS End User Messaging, us-east-1</div>
                   <div style={ { color: '#6b7280', fontSize: '11px' } }>Origination: pinned toll-free identity</div>
                   <div style={ { color: '#6b7280', fontSize: '11px' } }>Lambda: wecare-sms-aws</div>
@@ -1317,7 +1317,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
               </div>
             </div>
             <div style={ { ...s.card, marginTop: '12px' } }>
-              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#111827' } }>
+              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#1a1a1a' } }>
                 Active Calls { activeCalls.length > 0 && <span style={ { ...badge( 'active' ), marginLeft: '8px' } }>{ activeCalls.length }</span> }
               </h4>
               { activeCalls.length === 0 ? (
@@ -1336,7 +1336,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                     } }>
                       <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' } }>
                         <div>
-                          <span style={ { fontWeight: 600, fontSize: '14px', color: '#111827' } }>
+                          <span style={ { fontWeight: 600, fontSize: '14px', color: '#1a1a1a' } }>
                             { call.callerName || call.fromNumber || 'Unknown' }
                           </span>
                           { call.callerName && <span style={ { fontSize: '12px', color: '#6b7280', marginLeft: '8px' } }>{ call.fromNumber }</span> }
@@ -1475,7 +1475,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                     <span style={ { fontSize: '24px' } }>-</span>
                     <div style={ { flex: 1 } }>
                       <div style={ { fontWeight: 600, fontSize: '14px', color: '#0f2a1d' } }>Connected to { outboundPhone }</div>
-                      <div style={ { fontSize: '20px', fontWeight: 700, color: '#111827', fontFamily: 'monospace' } }>{ fmtDuration( outboundCallDuration ) }</div>
+                      <div style={ { fontSize: '20px', fontWeight: 700, color: '#1a1a1a', fontFamily: 'monospace' } }>{ fmtDuration( outboundCallDuration ) }</div>
                     </div>
                     <div style={ { display: 'flex', gap: '8px' } }>
                       <button onClick={ toggleOutboundMute }
@@ -1520,7 +1520,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* WebRTC Status */ }
             <div style={ { ...s.card, marginTop: '12px' } }>
-              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>WebRTC Status</h4>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#1a1a1a' } }>WebRTC Status</h4>
               <div style={ { fontSize: '13px', color: '#6b7280', lineHeight: 1.8 } }>
                 <div>Browser WebRTC: <span style={ { color: typeof window !== 'undefined' && ( window as any ).RTCPeerConnection ? '#1a3a2a' : '#1a3a2a', fontWeight: 600 } }>
                   { typeof window !== 'undefined' && ( window as any ).RTCPeerConnection ? '✓ Supported' : '✗ Not supported' }
@@ -1536,7 +1536,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
             {/* Recent Call Logs */ }
             <div style={ { ...s.card, marginTop: '12px' } }>
               <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' } }>
-                <h4 style={ { margin: 0, fontSize: '14px', color: '#111827' } }>Recent Call Logs</h4>
+                <h4 style={ { margin: 0, fontSize: '14px', color: '#1a1a1a' } }>Recent Call Logs</h4>
                 <button onClick={ loadCallLogs } style={ { padding: '4px 12px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' } }>
                   { loadingCalls ? 'Loading...' : 'Refresh' }
                 </button>
@@ -1600,7 +1600,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Signaling Configurations Table */ }
             <div style={ { ...s.card, marginTop: '16px' } }>
-              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Signaling & Media Configurations</h4>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#1a1a1a' } }>Signaling & Media Configurations</h4>
               <div style={ { overflowX: 'auto' } }>
                 <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '12px' } }>
                   <thead>
@@ -1615,7 +1615,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                   <tbody>
                     { SIGNAL_CONFIGS.map( ( c, i ) => (
                       <tr key={ i } style={ { borderBottom: '1px solid #f3f4f6' } }>
-                        <td style={ { ...tdStyle, fontWeight: 500, color: '#111827' } }>{ c.config }</td>
+                        <td style={ { ...tdStyle, fontWeight: 500, color: '#1a1a1a' } }>{ c.config }</td>
                         <td style={ tdStyle }>{ c.signaling }</td>
                         <td style={ tdStyle }>{ c.transport }</td>
                         <td style={ { ...tdStyle, fontFamily: 'monospace', fontSize: '11px' } }>{ c.media }</td>
@@ -1632,7 +1632,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Call Flow Diagram */ }
             <div style={ { ...s.card, marginTop: '16px' } }>
-              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#111827' } }>Call Flow (User-Initiated)</h4>
+              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#1a1a1a' } }>Call Flow (User-Initiated)</h4>
               <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' } }>
                 { [
                   { icon: 'Call', label: 'User calls', desc: 'User taps call icon in WhatsApp' },
@@ -1643,7 +1643,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                 ].map( ( f, i ) => (
                   <div key={ i } style={ { padding: '12px', background: '#f9fafb', borderRadius: '8px', textAlign: 'center' } }>
                     <div style={ { fontSize: '24px', marginBottom: '6px' } }>{ f.icon }</div>
-                    <div style={ { fontWeight: 600, fontSize: '12px', color: '#111827', marginBottom: '2px' } }>{ f.label }</div>
+                    <div style={ { fontWeight: 600, fontSize: '12px', color: '#1a1a1a', marginBottom: '2px' } }>{ f.label }</div>
                     <div style={ { fontSize: '11px', color: '#6b7280' } }>{ f.desc }</div>
                   </div>
                 ) ) }
@@ -1652,7 +1652,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Limits */ }
             <div style={ { ...s.card, marginTop: '16px' } }>
-              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Limits & Configuration</h4>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#1a1a1a' } }>Limits & Configuration</h4>
               <div style={ { overflowX: 'auto' } }>
                 <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } }>
                   <tbody>
@@ -1669,7 +1669,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Availability */ }
             <div style={ { ...s.card, marginTop: '16px' } }>
-              <h4 style={ { margin: '0 0 8px', fontSize: '14px', color: '#111827' } }>Availability</h4>
+              <h4 style={ { margin: '0 0 8px', fontSize: '14px', color: '#1a1a1a' } }>Availability</h4>
               <div style={ { fontSize: '13px', color: '#6b7280', lineHeight: 1.6 } }>
                 <p style={ { margin: '0 0 8px' } }>
                   <span style={ { fontWeight: 500, color: '#0f2a1d' } }>User-initiated calling:</span> Available everywhere Cloud API is available.
@@ -1691,10 +1691,10 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Phone Numbers */ }
             <div style={ { ...s.card, marginTop: '16px' } }>
-              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>WABA Phone Numbers</h4>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#1a1a1a' } }>WABA Phone Numbers</h4>
               { PHONE_NUMBERS.map( ( p, i ) => (
                 <div key={ i } style={ { display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none', flexWrap: 'wrap' } }>
-                  <span style={ { fontWeight: 600, fontSize: '14px', color: '#111827' } }>{ p.display }</span>
+                  <span style={ { fontWeight: 600, fontSize: '14px', color: '#1a1a1a' } }>{ p.display }</span>
                   <span style={ { fontSize: '12px', color: '#6b7280' } }>{ p.name }</span>
                   <span style={ badge( 'available' ) }>{ p.country }</span>
                   <span style={ { ...badge( p.quality === 'GREEN' ? 'active' : 'planned' ), fontSize: '10px' } }>Quality: { p.quality }</span>
@@ -1707,7 +1707,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Changelog */ }
             <div style={ { ...s.card, marginTop: '16px' } }>
-              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Changelog (Meta)</h4>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#1a1a1a' } }>Changelog (Meta)</h4>
               <div style={ { overflowX: 'auto' } }>
                 <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '12px' } }>
                   <thead>
@@ -1721,7 +1721,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                     { CHANGELOG.map( ( c, i ) => (
                       <tr key={ i } style={ { borderBottom: '1px solid #f3f4f6' } }>
                         <td style={ { ...tdStyle, whiteSpace: 'nowrap', fontWeight: 500, color: '#374151' } }>{ c.date }</td>
-                        <td style={ { ...tdStyle, fontWeight: 500, color: '#111827' } }>{ c.title }</td>
+                        <td style={ { ...tdStyle, fontWeight: 500, color: '#1a1a1a' } }>{ c.title }</td>
                         <td style={ tdStyle }>{ c.desc }</td>
                       </tr>
                     ) ) }
@@ -1732,7 +1732,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Docs */ }
             <div style={ { ...s.card, marginTop: '16px' } }>
-              <h4 style={ { margin: '0 0 8px', fontSize: '14px', color: '#111827' } }>Documentation</h4>
+              <h4 style={ { margin: '0 0 8px', fontSize: '14px', color: '#1a1a1a' } }>Documentation</h4>
               <div style={ { display: 'flex', gap: '16px', flexWrap: 'wrap' } }>
                 { [
                   { label: 'Meta Calling API', url: 'https://developers.facebook.com/docs/whatsapp/cloud-api/calling' },
@@ -1774,7 +1774,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Callback URL + Verify Token */ }
             <div style={ s.card }>
-              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#111827' } }>Meta Dashboard Configuration</h4>
+              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#1a1a1a' } }>Meta Dashboard Configuration</h4>
               <p style={ { margin: '0 0 12px', fontSize: '12px', color: '#6b7280' } }>
                 Enter these values in <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a' } }>Meta App Dashboard → WhatsApp → Configuration</a>
               </p>
@@ -1803,7 +1803,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Meta Access Token Info */ }
             <div style={ { ...s.card, marginTop: '12px' } }>
-              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Meta Access Token</h4>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#1a1a1a' } }>Meta Access Token</h4>
               <div style={ { overflowX: 'auto' } }>
                 <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: '13px' } }>
                   <tbody>
@@ -1827,7 +1827,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Step-by-step: How to configure in Meta Dashboard */ }
             <div style={ { ...s.card, marginTop: '12px' } }>
-              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#111827' } }>How to Configure Webhook in Meta Dashboard</h4>
+              <h4 style={ { margin: '0 0 12px', fontSize: '14px', color: '#1a1a1a' } }>How to Configure Webhook in Meta Dashboard</h4>
               <ol style={ { margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#374151', lineHeight: 1.8 } }>
                 <li>Go to <a href="https://developers.facebook.com/apps/891766673609917/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a' } }>developers.facebook.com → Your App → WhatsApp → Configuration</a></li>
                 <li>Under "Webhook", click "Edit" (or "Configure" if first time)</li>
@@ -1842,11 +1842,11 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Phone Number Readiness */ }
             <div style={ { ...s.card, marginTop: '12px' } }>
-              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Phone Number Calling Readiness</h4>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#1a1a1a' } }>Phone Number Calling Readiness</h4>
               { PHONE_NUMBERS.map( ( p, i ) => (
                 <div key={ i } style={ { padding: '10px 0', borderBottom: i < PHONE_NUMBERS.length - 1 ? '1px solid #f3f4f6' : 'none' } }>
                   <div style={ { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' } }>
-                    <span style={ { fontWeight: 600, fontSize: '14px', color: '#111827' } }>{ p.display }</span>
+                    <span style={ { fontWeight: 600, fontSize: '14px', color: '#1a1a1a' } }>{ p.display }</span>
                     <span style={ { fontSize: '12px', color: '#6b7280' } }>{ p.name }</span>
                     <span style={ badge( p.callingReady ? 'active' : 'planned' ) }>{ p.callingReady ? 'Ready' : 'Not Ready' }</span>
                   </div>
@@ -1860,7 +1860,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
 
             {/* Documentation Links */ }
             <div style={ { ...s.card, marginTop: '12px' } }>
-              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#111827' } }>Documentation</h4>
+              <h4 style={ { margin: '0 0 10px', fontSize: '14px', color: '#1a1a1a' } }>Documentation</h4>
               <div style={ { display: 'flex', gap: '12px', flexWrap: 'wrap' } }>
                 { [
                   { label: 'Getting Started (Access Token)', url: 'https://developers.facebook.com/docs/business-messaging/whatsapp/get-started' },
@@ -1901,7 +1901,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                   </div>
                   <div style={ { flex: 1, minWidth: 0 } }>
                     <div style={ { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' } }>
-                      <span style={ { fontWeight: 600, fontSize: '14px', color: '#111827' } }>{ step.title }</span>
+                      <span style={ { fontWeight: 600, fontSize: '14px', color: '#1a1a1a' } }>{ step.title }</span>
                       { step.code && (
                         <span style={ { fontSize: '11px', color: '#9ca3af' } }>
                           { expandedStep === step.step ? '▼' : '▶' } code
@@ -1987,7 +1987,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                 <tbody>
                   { AWS_RESOURCES.map( ( r, i ) => (
                     <tr key={ i } style={ { borderBottom: '1px solid #f3f4f6' } }>
-                      <td style={ { padding: '10px 14px', fontWeight: 500, color: '#111827' } }>{ r.service }</td>
+                      <td style={ { padding: '10px 14px', fontWeight: 500, color: '#1a1a1a' } }>{ r.service }</td>
                       <td style={ { padding: '10px 14px', color: '#6b7280', fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all' } }>{ r.resource }</td>
                       <td style={ { padding: '10px 14px', color: '#6b7280' } }>{ r.purpose }</td>
                       <td style={ { padding: '10px 14px' } }><span style={ badge( r.status ) }>{ r.status }</span></td>

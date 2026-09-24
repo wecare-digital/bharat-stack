@@ -210,7 +210,7 @@ const MigrationPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
 
       {/* Migration Log */}
       {logs.length > 0 && (
-        <div style={{ background: '#111827', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+        <div style={{ background: '#000', borderRadius: 10, padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af' }}>Migration Log</span>
             <button onClick={() => setLogs([])} style={{ fontSize: 11, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}>Clear</button>

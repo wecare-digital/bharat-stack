@@ -11,7 +11,10 @@ import WABADashboard from './waba-dashboard';
 import TemplatesPage from './templates';
 import WelcomePage from './welcome';
 import CampaignPage from './campaign';
-import LogsPage from './logs';
+// Unified logs, preset to WhatsApp. ./logs was 265 lines over the same canonical
+// table as dm/logs; its error decoding, CSV export, pagination and contact-name
+// resolution all moved into dm/logs rather than being dropped.
+import LogsPage from '../logs';
 import InteractiveListsPage from './interactive-lists';
 import FlowsPage from './flows';
 import CallingPage from './calling';
@@ -163,7 +166,7 @@ const WhatsAppSettingsPage: React.FC<PageProps> = ( { signOut, user } ) => (
           { activeTab === 'welcome' && <WelcomePage signOut={ signOut } user={ user } embedded /> }
           { activeTab === 'calling' && <CallingPage signOut={ signOut } user={ user } embedded /> }
           { activeTab === 'groups' && <GroupsPage signOut={ signOut } user={ user } embedded /> }
-          { activeTab === 'logs' && <LogsPage signOut={ signOut } user={ user } embedded /> }
+          { activeTab === 'logs' && <LogsPage signOut={ signOut } user={ user } embedded channel="whatsapp" /> }
           { activeTab === 'profile' && <BusinessProfilePage signOut={ signOut } user={ user } embedded /> }
           { activeTab === 'webhooks' && <WebhooksPage signOut={ signOut } user={ user } embedded /> }
           { activeTab === 'waba' && <WABADashboard signOut={ signOut } user={ user } embedded /> }

@@ -424,7 +424,11 @@ export interface Message {
   id: string;
   messageId: string;
   contactId: string;
-  channel: 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS';
+  // VOICE is a real stored channel — message_store.VALID_CHANNELS has included it
+  // since calls started leaving a breadcrumb row, and `/dm/inbox?channel=voice` is
+  // now the Calls destination. Omitting it here made the type assert something false
+  // about data the inbox already renders with its own badge and audio player.
+  channel: 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS' | 'VOICE';
   direction: 'INBOUND' | 'OUTBOUND';
   content: string;
   timestamp: string;
@@ -502,7 +506,7 @@ function normalizeMessage ( item: any ): Message {
     id: item.id || item.messageId || '',
     messageId: item.messageId || item.id || '',
     contactId: item.contactId || '',
-    channel: ( item.channel || 'WHATSAPP' ).toUpperCase() as 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS',
+    channel: ( item.channel || 'WHATSAPP' ).toUpperCase() as Message[ 'channel' ],
     direction: ( item.direction || 'INBOUND' ).toUpperCase() as 'INBOUND' | 'OUTBOUND',
     content: item.content || item.text || '',
     timestamp: normalizeTimestamp( timestamp ) || new Date().toISOString(),

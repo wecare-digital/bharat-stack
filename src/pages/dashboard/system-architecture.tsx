@@ -415,7 +415,7 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/dm/whatsapp/business-profile', label: 'WA Business Profile', backend: 'whatsapp-business-api', tables: '-' },
   { path: '/dm/whatsapp/webhooks', label: 'WA Webhooks', backend: 'inbound-whatsapp-handler', tables: 'WebhookDedup, SystemEvent' },
   { path: '/dm/whatsapp/migration', label: 'WA Migration', backend: 'waba-management', tables: '-' },
-  { path: '/dm/whatsapp/logs', label: 'WA Logs', backend: 'messages-read', tables: 'WhatsAppInbound, WhatsAppOutbound' },
+  { path: '/dm/logs', label: 'Message Logs (all channels)', backend: 'messages-read', tables: 'MessagesTable' },
   { path: '/dm/whatsapp/settings', label: 'WA Settings', backend: 'waba-management', tables: 'SystemConfig' },
   // SMS
   { path: '/dm/sms', label: 'SMS', backend: 'outbound-sms, sms-aws', tables: 'SmsAws, DLTTemplates, AirtelSMS (read-only history)' },
@@ -424,9 +424,7 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/dm/voice-in', label: 'Voice In', backend: 'voice-in, voice-cdr-read', tables: 'AirtelC2C, VoiceCDR, OBDCampaign' },
   // Email / RCS / Push
   { path: '/dm/ses', label: 'Email', backend: 'outbound-email', tables: '-' },
-  { path: '/dm/ses/campaign', label: 'Email Campaign', backend: 'outbound-email, bulk-job-create', tables: 'BulkJob' },
   { path: '/dm/rcs', label: 'RCS', backend: '(planned)', tables: '-' },
-  { path: '/dm/rcs/campaign', label: 'RCS Campaign', backend: '(planned)', tables: '-' },
   { path: '/dm/push', label: 'Push', backend: 'push-notifications', tables: '-' },
   { path: '/dm/logs', label: 'Message Logs', backend: 'messages-read', tables: 'WhatsAppInbound, WhatsAppOutbound, SmsAws' },
   // Pay
@@ -439,8 +437,7 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/access', label: 'Access Control', backend: 'auth-middleware', tables: 'User' },
   { path: '/link', label: 'URL Shortener', backend: 'url-shortener', tables: '-' },
   { path: '/link/create', label: 'Create Link', backend: 'url-shortener', tables: '-' },
-  { path: '/link/logs', label: 'Link Logs', backend: 'url-shortener', tables: '-' },
-  { path: '/forms', label: 'Forms', backend: 'whatsapp-business-api', tables: 'FlowRegistry' },
+    { path: '/forms', label: 'Forms', backend: 'whatsapp-business-api', tables: 'FlowRegistry' },
   { path: '/forms/selfservice', label: 'Self-Service Hub', backend: 'whatsapp-business-api, inbound-whatsapp-handler', tables: 'FlowRegistry, FlowSubmission, FlowLog, SubmitRequest' },
   { path: '/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
   { path: '/grahak-os', label: 'Grahak OS', backend: '(public product page)', tables: '-' },

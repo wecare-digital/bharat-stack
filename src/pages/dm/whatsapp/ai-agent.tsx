@@ -13,6 +13,7 @@ import * as api from '../../../api/client';
 import { API_BASE } from '../../../config/constants';
 import { useToastContext } from '../../../contexts/ToastContext';
 import Spinner from '../../../components/ui/Spinner';
+import MaybeLayout from '../../../components/MaybeLayout';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -37,7 +38,7 @@ const Pill = ( { ok, okText, badText }: { ok: boolean; okText: string; badText: 
     <span style={ { ...pillBase, background: ok ? '#ecfdf5' : '#fef2f2', color: ok ? '#047857' : '#b91c1c' } }>{ ok ? okText : badText }</span>
 );
 
-export default function AiAgentPage ( { }: PageProps ) {
+function AiAgentPageBody ( { }: PageProps ) {
     const toast = useToastContext();
     const [ waba, setWaba ] = useState<WabaKey>( 'WABA1' );
     const [ tab, setTab ] = useState<Tab>( 'settings' );
@@ -269,7 +270,7 @@ export default function AiAgentPage ( { }: PageProps ) {
             {/* ── SETTINGS ── */ }
             { tab === 'settings' && ( settingsLoading ? <Spinner /> : (
                 <div style={ card }>
-                    <h3 style={ { margin: '0 0 16px', fontSize: 16, color: '#111827' } }>Agent behaviour</h3>
+                    <h3 style={ { margin: '0 0 16px', fontSize: 16, color: '#1a1a1a' } }>Agent behaviour</h3>
                     <div style={ { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f3f4f6' } }>
                         <div><b>AI responder</b><div style={ { fontSize: 12, color: '#6b7280' } }>When on, the AI answers customers directly.</div></div>
                         <button disabled={ saving } onClick={ () => saveSettings( { enabled: !enabled } ) }
@@ -302,7 +303,7 @@ export default function AiAgentPage ( { }: PageProps ) {
             {/* ── BUSINESS INFO ── */ }
             { tab === 'business' && ( infoLoading ? <Spinner /> : (
                 <div style={ card }>
-                    <h3 style={ { margin: '0 0 16px', fontSize: 16, color: '#111827' } }>Business info the AI can reference</h3>
+                    <h3 style={ { margin: '0 0 16px', fontSize: 16, color: '#1a1a1a' } }>Business info the AI can reference</h3>
                     <label style={ label }>Business description</label>
                     <textarea style={ { ...input, minHeight: 70 } } value={ info.business_description || '' } onChange={ e => setInfo( { ...info, business_description: e.target.value } ) } />
                     <label style={ label }>How to purchase</label>
@@ -333,7 +334,7 @@ export default function AiAgentPage ( { }: PageProps ) {
             { tab === 'faqs' && (
                 <div>
                     <div style={ card }>
-                        <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#111827' } }>Add an FAQ (this becomes the AI's answer)</h3>
+                        <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#1a1a1a' } }>Add an FAQ (this becomes the AI's answer)</h3>
                         <label style={ label }>Question (as a customer would ask)</label>
                         <input style={ input } value={ newQ } onChange={ e => setNewQ( e.target.value ) } placeholder="What is your return policy?" />
                         <label style={ label }>Answer (complete & self-contained)</label>
@@ -346,11 +347,11 @@ export default function AiAgentPage ( { }: PageProps ) {
                     </div>
                     { faqsLoading ? <Spinner /> : (
                         <div style={ card }>
-                            <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#111827' } }>FAQs ({ faqs.length })</h3>
+                            <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#1a1a1a' } }>FAQs ({ faqs.length })</h3>
                             { faqs.length === 0 && <div style={ { color: '#9ca3af', fontSize: 14 } }>No FAQs yet.</div> }
                             { faqs.map( f => (
                                 <div key={ f.id } style={ { borderBottom: '1px solid #f3f4f6', padding: '10px 0' } }>
-                                    <div style={ { fontWeight: 600, color: '#111827' } }>{ f.question }</div>
+                                    <div style={ { fontWeight: 600, color: '#1a1a1a' } }>{ f.question }</div>
                                     <div style={ { fontSize: 13, color: 'rgba(0, 0, 0, 0.54)', margin: '4px 0' } }>{ f.answer }</div>
                                     <button onClick={ async () => {
                                         if ( !f.id ) return;
@@ -368,7 +369,7 @@ export default function AiAgentPage ( { }: PageProps ) {
             { tab === 'skills' && (
                 <div>
                     <div style={ card }>
-                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Add a skill (behaviour / tone directive)</h3>
+                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#1a1a1a' } }>Add a skill (behaviour / tone directive)</h3>
                         <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 12px' } }>Skills shape how the AI responds. Title must be lowercase letters, numbers and hyphens (e.g. brand-voice).</p>
                         <label style={ label }>Title (lowercase-hyphen)</label>
                         <input style={ input } value={ skTitle } onChange={ e => setSkTitle( e.target.value ) } placeholder="brand-voice" />
@@ -384,11 +385,11 @@ export default function AiAgentPage ( { }: PageProps ) {
                     </div>
                     { skillsLoading ? <Spinner /> : (
                         <div style={ card }>
-                            <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#111827' } }>Skills ({ skills.length })</h3>
+                            <h3 style={ { margin: '0 0 12px', fontSize: 16, color: '#1a1a1a' } }>Skills ({ skills.length })</h3>
                             { skills.length === 0 && <div style={ { color: '#9ca3af', fontSize: 14 } }>No skills yet.</div> }
                             { skills.map( s => (
                                 <div key={ s.id } style={ { borderBottom: '1px solid #f3f4f6', padding: '10px 0' } }>
-                                    <div style={ { fontWeight: 600, color: '#111827' } }>{ s.title || '(untitled)' }</div>
+                                    <div style={ { fontWeight: 600, color: '#1a1a1a' } }>{ s.title || '(untitled)' }</div>
                                     { s.description && <div style={ { fontSize: 12, color: '#9ca3af' } }>{ s.description }</div> }
                                     <div style={ { fontSize: 13, color: 'rgba(0, 0, 0, 0.54)', margin: '4px 0', whiteSpace: 'pre-wrap' } }>{ s.skill }</div>
                                     <button onClick={ async () => {
@@ -407,7 +408,7 @@ export default function AiAgentPage ( { }: PageProps ) {
             { tab === 'websites' && (
                 <div>
                     <div style={ card }>
-                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Website knowledge sources</h3>
+                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#1a1a1a' } }>Website knowledge sources</h3>
                         <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 12px' } }>The AI crawls these URLs and answers from their content.</p>
                         <div style={ { display: 'flex', gap: 8 } }>
                             <input style={ { ...input, marginBottom: 0 } } value={ newUrl } onChange={ e => setNewUrl( e.target.value ) } placeholder="https://wecare.digital/" />
@@ -438,7 +439,7 @@ export default function AiAgentPage ( { }: PageProps ) {
             {/* ── ROUTING (BOT vs AI) ── */ }
             { tab === 'routing' && ( routingLoading ? <Spinner /> : (
                 <div style={ card }>
-                    <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Bot vs AI routing</h3>
+                    <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#1a1a1a' } }>Bot vs AI routing</h3>
                     <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 16px' } }>
                         When the AI holds a conversation, messages matching these rules are handled by YOUR deterministic
                         bot (menu, flows, catalog, commands). Everything else is answered by the Meta AI. Applies to both WABAs.
@@ -474,7 +475,7 @@ export default function AiAgentPage ( { }: PageProps ) {
             { tab === 'connectors' && (
                 <div>
                     <div style={ card }>
-                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Connectors (external APIs the agent can call)</h3>
+                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#1a1a1a' } }>Connectors (external APIs the agent can call)</h3>
                         <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 12px' } }>
                             Define an external API the Meta AI can call. Name must be letters/numbers/underscores.
                             For our token-gated tool endpoint use API key auth with header <code>X-Agent-Token</code>.
@@ -536,7 +537,7 @@ export default function AiAgentPage ( { }: PageProps ) {
             { tab === 'techprovider' && (
                 <div>
                     <div style={ card }>
-                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Tech Provider — both WABAs</h3>
+                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#1a1a1a' } }>Tech Provider — both WABAs</h3>
                         <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 8px' } }>
                             Per-WABA workspace, eligibility and connector state. Reading connectors works on both WABAs.
                             Connector <b>create</b> on Meta may return a cosmetic <code>500 "Membrane: Authorization failed"</code>
@@ -617,7 +618,7 @@ export default function AiAgentPage ( { }: PageProps ) {
             { tab === 'allowlist' && (
                 <div>
                     <div style={ card }>
-                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#111827' } }>Allowlist</h3>
+                        <h3 style={ { margin: '0 0 8px', fontSize: 16, color: '#1a1a1a' } }>Allowlist</h3>
                         <p style={ { fontSize: 12, color: '#6b7280', margin: '0 0 12px' } }>Only used when Audience = "Allowlisted only". Add consumer numbers in E.164 (e.g. +918100640044).</p>
                         <div style={ { display: 'flex', gap: 8 } }>
                             <input style={ { ...input, marginBottom: 0 } } value={ newPhone } onChange={ e => setNewPhone( e.target.value ) } placeholder="+918100640044" />
@@ -647,3 +648,21 @@ export default function AiAgentPage ( { }: PageProps ) {
         </div>
     );
 }
+/** Shell-only view of the props: not all six pages declare these. */
+type AnyShellProps = { user?: unknown; signOut?: () => void };
+
+
+/**
+ * Standalone shell. This page renders no chrome of its own - it was written as an
+ * embedded tab body - so as a live route it had no sidebar, no breadcrumb and no
+ * back link, and the sidebar was the only way out. MaybeLayout renders children
+ * bare when `embedded`, so every hub that embeds it is unaffected.
+ */
+const AiAgentPage: React.FC<PageProps> = ( props ) => (
+  <MaybeLayout embedded={ props.embedded } user={ ( props as AnyShellProps ).user }
+    onSignOut={ ( props as AnyShellProps ).signOut }>
+    <AiAgentPageBody { ...props } />
+  </MaybeLayout>
+);
+
+export default AiAgentPage;

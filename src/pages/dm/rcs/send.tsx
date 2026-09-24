@@ -5,10 +5,11 @@ import React, { useState, useEffect } from 'react';
 import Button from '../../../components/ui/Button';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
+import MaybeLayout from '../../../components/MaybeLayout';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
-const RcsSendPage: React.FC<PageProps> = ( { embedded } ) => {
+const RcsSendPageBody: React.FC<PageProps> = ( { embedded } ) => {
     const [ phone, setPhone ] = useState( '' );
     const [ messageType, setMessageType ] = useState<'text' | 'template'>( 'template' );
     const [ text, setText ] = useState( '' );
@@ -112,5 +113,21 @@ const RcsSendPage: React.FC<PageProps> = ( { embedded } ) => {
         </div>
     );
 };
+/** Shell-only view of the props: not all six pages declare these. */
+type AnyShellProps = { user?: unknown; signOut?: () => void };
+
+
+/**
+ * Standalone shell. This page renders no chrome of its own - it was written as an
+ * embedded tab body - so as a live route it had no sidebar, no breadcrumb and no
+ * back link, and the sidebar was the only way out. MaybeLayout renders children
+ * bare when `embedded`, so every hub that embeds it is unaffected.
+ */
+const RcsSendPage: React.FC<PageProps> = ( props ) => (
+  <MaybeLayout embedded={ props.embedded } user={ ( props as AnyShellProps ).user }
+    onSignOut={ ( props as AnyShellProps ).signOut }>
+    <RcsSendPageBody { ...props } />
+  </MaybeLayout>
+);
 
 export default RcsSendPage;

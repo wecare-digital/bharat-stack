@@ -310,7 +310,27 @@ plus an unstubbed test is production writes on every run. Fixture now installs a
 that raises on any real table access, 34 test rows were deleted, and a full 2546-test run now
 writes zero.
 
-### 6.3 — Internal dashboard chatbot on the shared plane · MOSTLY DONE
+### 6.3 — Internal dashboard chatbot on the shared plane · DONE (APPLY enablement refused)
+
+**Closed 2026-09-24 by the approval work in `.kiro/work/ia-consolidation/plan.md` item D1.**
+What was outstanding here was the plan → approve → apply loop, and it now exists end to end:
+`stack-wecare-digital-AgentApprovalsTable` with an atomic single-use consume, a server-side
+draft store so a client approves by hash and never holds the arguments, an **Admin-gated**
+`POST /ai/approvals` (+ `/status`), and an amber approval panel in the chat that states in
+words that approving does not send. Live-verified 401 unauthenticated.
+
+**Enablement of the 18 APPLY tools is a REFUSAL, not a pending task.**
+`01-standing-authorization.md` lists any live-send flag under "never done, and never asked
+about either", so it generates no prompt and no confirmation queue entry. What changed is
+only that an apply is now refused for **one** reason (the catalog disables it) where before
+it was refused for two. The machinery a future enablement would need exists and is tested,
+which was the point — the worst time to design an approval system is the moment somebody
+wants a send turned on.
+
+The three sub-findings below remain accurate and are **not** blockers: they are recorded
+gaps, not missing deliverables.
+
+#### Original notes
 
 Live `wecare-ai-generate-response` v11 (rollback 10). 66 tests in
 `tests/test_agent_surfaces.py`.
@@ -702,7 +722,33 @@ and deleting one needs the export/snapshot procedure plus pointwise confirmation
 spending that for zero benefit. `legacy_history.py` is correctly named and reads historical
 rows.
 
-### 9.2 — Route/dependency cleanup and bundle optimization · PARTIAL (dependencies triaged)
+### 9.2 — Route/dependency cleanup and bundle optimization · PARTIAL (dependencies now CLEAN)
+
+**Update 2026-09-24 — the dependency half is finished.** `npm audit` reports **0
+vulnerabilities** and GitHub reports **0 open Dependabot alerts**, down from the 5 advisories
+recorded below. The last two were `mysql2 <3.22.0` (HIGH — auth plugin downgrade to
+`mysql_clear_password` leaks plaintext credentials) and `csv-parse <7.0.2`, both transitive
+under `@aws-amplify/backend-cli`, a devDependency reached only by
+`ampx generate schema-from-database` — which this project cannot use, since
+`amplify/data/resource.ts` has no SQL data source. Closed with `overrides`, the pattern
+already in `package.json` for `lodash`, `fast-xml-parser` and `immutable@3`.
+
+Method note worth keeping: pinning `mysql2` to the advisory's own `first_patched_version`
+of `3.22.0` did **not** clear the tree. `npm audit` then reported a *different* moderate
+advisory the Dependabot list had not mentioned — unbounded zlib inflate in the compressed
+protocol handler, affecting `<=3.23.0`. **A patched version answers one CVE, not "is this
+package clean now."** Pinned to `3.24.4`.
+
+**Route cleanup is also substantially done** — 25 routes invoking `$LATEST` reduced to 6
+(both remaining sets deliberate, named in `scripts/provision_live_alias.py`), 8 routes created
+for three dashboard pages that were calling endpoints which did not exist, `_routes.json`
+regenerated from the live API (322 → 353), and every `wecare-*` log group given a retention
+period (13 had none, meaning never).
+
+**Still genuinely outstanding: before/after bundle bytes.** No measurement has been taken, so
+no claim is made.
+
+#### Original dependency triage
 
 Dependency half done ahead of order, because a **critical** alert should not wait behind UI
 work. Route cleanup and before/after bundle bytes still to do.
@@ -888,9 +934,44 @@ has a reason to reach past the guard. Self-test **87 → 97**.
 the disclosed secret; it is unused); and the two carried over from 10.1 — put the operator
 in the `Admin` group, then move `ADMIN_MFA_REQUIRED` to enforce.
 
-### 10.2 — WAF · TODO
+### 10.2 — WAF · DONE
 
-Required target. 0 regional WebACLs today. Implement and live-verify.
+**The constraint that reshaped the item: WAF cannot protect an HTTP API.** Verified against
+AWS documentation rather than recalled — the protected resource types are a CloudFront
+distribution, an API Gateway **REST** API, an ALB, an AppSync GraphQL API, a Cognito user
+pool, an App Runner service, an Amplify application and a Verified Access instance.
+`zllr9lrg7j` is apigatewayv2, so no web ACL can ever attach to it. A service limit, not a
+choice. The API keeps the protection it already has: handler-level `require_auth`, provider
+signature verification, and per-route Lambda invoke permissions.
+
+Two web ACLs, because the scopes are incompatible — Amplify requires a CloudFront-scope ACL
+created in us-east-1 and AWS states a regional one is not usable with it.
+`scripts/provision_waf.py`, idempotent, `--apply` / `--verify`.
+
+| | Scope | Blocking | Counting |
+|---|---|---|---|
+| `wecare-amplify-waf` → app `d22dm4b0jn71jw` | `CLOUDFRONT` | rate 2000/5min, IpReputation, KnownBadInputs, CommonRuleSet | — |
+| `wecare-cognito-waf` → pool `us-east-1_cSx0RHCIR` | `REGIONAL` | rate 1000/5min | IpReputation, CommonRuleSet |
+
+Configured **differently on purpose**. Amplify serves a static export — GETs for HTML, JS
+and images, no bodies — so the managed groups have almost nothing legitimate to
+false-positive on and run in BLOCK. An untuned Core rule set in front of Cognito managed
+login could refuse the only account in the pool, so there the rate rule blocks and the
+managed groups COUNT until the logs are read. Logging ships in the same change, because a
+rule set counting into nothing is the audit sink that failed open in a new costume.
+
+**Live-verified, not asserted.** A Log4Shell probe returns **403** while `/` returns 200, and
+CloudWatch attributes the block to `AWSManagedRulesKnownBadInputsRuleSet`. Cognito shows
+allowed traffic and zero blocks. `--verify` prints the rate rule as **not verified** rather
+than implying otherwise — tripping it means thousands of requests at our own sign-in
+endpoint. Cost named: ~$17/month for two ACLs and their rules.
+
+One scare worth keeping: `signin.wecare.digital/login` returned 403 straight after
+attachment, which is exactly what a WAF lockout looks like. Ruled out on evidence — zero WAF
+samples, `InitiateAuth` still answering, and the default Cognito domain returning 302 for the
+same query. Real cause: the client had **no managed login branding**, so the custom domain
+(managed login) 403'd while the default domain fell back to the classic hosted UI. Created
+with Cognito-provided values: **403 → 200**.
 
 ### 10.3 — Production deployment checkpoint + closure report · TODO
 

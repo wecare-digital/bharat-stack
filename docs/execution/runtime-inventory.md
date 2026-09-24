@@ -1,17 +1,17 @@
 # Runtime inventory
 
-Generated 2026-09-21T09:10:38+00:00 · `us-east-1` · regenerate with `python scripts/generate_runtime_inventory.py`
+Generated 2026-09-24T07:19:14+00:00 · `us-east-1` · regenerate with `python scripts/generate_runtime_inventory.py`
 
 Machine-readable companion: `runtime-inventory.json`. Environment variable
 **names** are recorded, values never are.
 
 | Count | |
 |---|---:|
-| Lambda functions | 58 |
-| with a `live` alias | 49 |
+| Lambda functions | 62 |
+| with a `live` alias | 56 |
 | HTTP APIs | 1 |
-| Routes | 326 |
-| DynamoDB tables | 66 |
+| Routes | 353 |
+| DynamoDB tables | 77 |
 
 ## Anomalies
 
@@ -20,43 +20,22 @@ Each list is a question to answer, not automatically a defect.
 ### Live functions absent from the deploy map — cannot be patched by the standard path
 
 - `wecare-docs-scraper` — **expected**: PackageType=Image; ships via .github/workflows/docs-scraper-deploy.yml
+- `wecare-pstn-softphone`
 - `wecare-seo-tools` — **expected**: different in-zip layout; scripts/deploy_seo_tools.py owns it with its table and IAM policy
-
-Every entry above is a documented exception.
 
 ### Functions with routes but no `live` alias — `$LATEST` reaches production directly
 
-- `wecare-marketing-ads`
-- `wecare-partner-onboarding`
+- `wecare-docs-scraper`
 - `wecare-seo-tools`
 
 ### Routes whose integration is unqualified — bypasses the version/alias model
 
-- `zllr9lrg7j OPTIONS /partners/billing/settings -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/billing/analytics -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/send -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/billing/analytics -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/messages -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/tenants -> wecare-partner-onboarding`
-- `zllr9lrg7j POST /partners/billing/topup -> wecare-partner-onboarding`
-- `zllr9lrg7j DELETE /partners/tenants -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/embedded-signup -> wecare-partner-onboarding`
-- `zllr9lrg7j POST /partners/billing/settings -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/me -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/messages -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /marketing-ads -> wecare-marketing-ads`
-- `zllr9lrg7j POST /partners/billing/topup-order -> wecare-partner-onboarding`
-- `zllr9lrg7j POST /partners/send -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/me -> wecare-partner-onboarding`
+- `zllr9lrg7j POST /docs/scrape -> wecare-docs-scraper`
 - `zllr9lrg7j ANY /seo-tools -> wecare-seo-tools`
-- `zllr9lrg7j OPTIONS /partners/billing/topup-order -> wecare-partner-onboarding`
+- `zllr9lrg7j GET /docs/sources -> wecare-docs-scraper`
 - `zllr9lrg7j ANY /seo-tools/{proxy+} -> wecare-seo-tools`
-- `zllr9lrg7j OPTIONS /partners/tenants -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/billing -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/billing -> wecare-partner-onboarding`
-- `zllr9lrg7j POST /partners/embedded-signup -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/billing/topup -> wecare-partner-onboarding`
-- `zllr9lrg7j ANY /marketing-ads -> wecare-marketing-ads`
+- `zllr9lrg7j GET /docs/changelog -> wecare-docs-scraper`
+- `zllr9lrg7j POST /docs/sources -> wecare-docs-scraper`
 
 ### Routes pointing at a function that does not exist
 
@@ -64,7 +43,8 @@ Every entry above is a documented exception.
 
 ### Functions with errors in 7 days
 
-(none)
+- `wecare-inbound-whatsapp`: 9
+- `wecare-seo-tools`: 2
 
 ### Zero invocations in 7 days — candidates for retirement review
 
@@ -76,21 +56,22 @@ Every entry above is a documented exception.
 
 ### Log groups with no retention — unbounded cost and data retention
 
-- `wecare-ad-attribution`
-- `wecare-catalog-management`
-- `wecare-meta-analytics`
-- `wecare-plivo-answer`
-- `wecare-push-notifications`
-- `wecare-seo-tools`
-- `wecare-service-api`
-- `wecare-site-language`
-- `wecare-sla-engine`
+(none)
 
 ### Route paths no frontend file mentions — provider webhook, internal, or dead
 
 - `/agent-tool`
+- `/ai/approvals/status`
 - `/bulk/worker`
 - `/contacts/search`
+- `/crm/activities`
+- `/crm/contacts/{contactId}/360`
+- `/crm/leads`
+- `/crm/leads/{leadId}`
+- `/crm/leads/{leadId}/convert`
+- `/crm/opportunities`
+- `/crm/opportunities/{opportunityId}`
+- `/crm/pipelines`
 - `/inbox/meta/{conversationId}/note`
 - `/invoices/from-payment`
 - `/invoices/next-sequence`
@@ -109,11 +90,19 @@ Every entry above is a documented exception.
 - `/plivo/events`
 - `/plivo/fallback`
 - `/plivo/hangup`
+- `/pstn/diagnostics`
+- `/pstn/session`
+- `/pstn/session/events`
+- `/pstn/session/presence`
+- `/pstn/token`
 - `/site-language/languages`
 - `/site-language/translate`
 - `/site-language/tts`
 - `/site-language/voices`
 - `/sms-aws/templates`
+- `/store/convert-flag`
+- `/store/generate-product-image`
+- `/store/preview-product-image`
 - `/voice-aws/send`
 - `/voice-in/c2c/clear-logs`
 - `/voice-in/obd/clear-logs`

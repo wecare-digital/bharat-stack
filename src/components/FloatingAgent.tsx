@@ -195,7 +195,9 @@ const FloatingAgent: React.FC = () => {
     try {
       // Quick local help command only
       if (lowerText === 'help' || lowerText === 'what can you do' || lowerText === 'what can you do?') {
-        return 'I\'m your AI task assistant powered by Amazon Bedrock. I can:\n\n' +
+        // Names what it does, not what it runs on. Which model answers is not a
+        // decision the operator makes or can act on.
+        return 'I\'m your task assistant. I can:\n\n' +
           '- Send WhatsApp/SMS/Email messages\n' +
           '- Send interactive messages (buttons, lists)\n' +
           '- Make voice calls with TTS\n' +
