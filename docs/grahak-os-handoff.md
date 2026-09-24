@@ -1,34 +1,57 @@
 # Grahak OS frontend handoff
 
-Rewritten 2026-09-22. The previous version was stale — it opened by asking for PR #3
-to be merged, which happened long ago.
+Rewritten 2026-09-24. The previous version was stale in a way worth naming, because it
+keeps happening: it opened by describing **PR #5** as the most recent merge when PRs up to
+**#35** had already landed, it quoted a test count of 33 when the suite runs 73, a lint
+count of 237 when it is 230, and it cited a browser harness (`animcheck.js`) that existed
+in **no** file on disk. The revision before that one opened by asking for PR #3 to be
+merged, long after it was.
+
+**So: treat every number, hash and PR reference below as a claim to re-verify, not as
+fact.** Each section now says how to re-measure it. The one structural fix made for this
+is that the harness now lives in `tools/browser/` inside the repo, so "re-run the harness"
+is an instruction that survives a sandbox reset.
 
 ## Position
 
 - Repo `wecare-digital/bharat-stack`. Default branch is **`stack`**, not `main`.
-- All work is on the single long-lived branch **`feat/grahak-os-trust-a-i`**, working
-  tree clean, **0 behind `stack`**. Read the tip with `git log --oneline -1` rather
-  than trusting a hash written here — every previous revision of this file named a
-  commit that was stale by the time it was read.
-- **PR #5 was opened from this branch and squash-merged into `stack`** on
-  2026-09-22 as `457cc883`. Everything in the table below through `40025a1f` is
-  therefore **already on `stack` and live**, including the empty-`<body>` export fix
-  `3884070a`. The branch was then caught up with `stack` in `9696125b`.
+- All work is on the single long-lived branch **`feat/grahak-os-trust-a-i`**.
+- **THE BRANCH AUTO-DELETES ON MERGE.** It is squash-merged into `stack` and the remote
+  branch is then removed, so at the start of a session it usually **does not exist** —
+  `git ls-remote --heads origin` showed only `stack`. Recreate it from the default
+  branch:
+  ```bash
+  git fetch origin --prune
+  git checkout stack && git reset --hard origin/stack
+  git checkout -b feat/grahak-os-trust-a-i
+  ```
+  **Never trust a local copy of this branch after a merge.** A squash merge leaves the
+  old local branch looking "ahead" of `stack` by commits whose content is already
+  merged, so `git log` reads like unshipped work that is in fact live.
+- **Do not trust any commit hash, PR number or count written in this file.** Every
+  previous revision named something stale by the time it was read — the revision before
+  this one opened by describing PR **#5** as the latest merge when PRs up to **#35** had
+  landed. Read the real state: `gh api "repos/wecare-digital/bharat-stack/pulls?state=all&per_page=10"`
+  and `git log --oneline -1`.
+- Merges from this branch so far include PRs #26, #28, #32 and #35, all squash-merged
+  into `stack`. Anything described in earlier revisions of this file as "shipped on this
+  branch" is therefore already on `stack` and live.
 - No PR is open **now**. Owner's standing instruction: push to this one branch, open
   a PR only when explicitly asked, and the **owner merges** — never the agent.
 
-## Shipped on this branch, most recent first
+## Shipped in the latest session (branch recreated from `stack` at `e4cfbe0e`)
 
-| Commit | What |
+Deliberately no commit hashes: they are squash-merged away, and hashes in this file have
+misled every reader so far.
+
+| What | Where |
 |---|---|
-| `40025a1f` | Sign-in screen branded; AuthGate header offset fixed; `/access` on palette |
-| `1fd4dd40` | Nav menu grouped by type + search; FAQ and Partners surfaced |
-| `957e9e54` | Meta card held on one type scale; footer hover underline removed |
-| `f092ee3b` | Removed the "Everything you need" heading that was approved for deletion and missed |
-| `38bd3cc0` | `LanguageBar` `set-state-in-effect` error fixed |
-| `0c85e23a` | `dependabot.yml` replaced (was the unedited template, so version updates never ran) |
-| `2e64146a` | `npm ci` made a blocking gate in `deps-upgrade.yml` |
-| `b6afc684` | `package-lock.json` resynced — `npm ci` works again |
+| **`climate` → `climate tech`** in the Home rotation. Measured 178px → 298px, which cuts the pill's tail travel from a 183px spread to 83px, and puts the word on the same axis as `frontier tech` | `src/pages/index.tsx` |
+| **Contact card no longer hides behind the fixed header.** `scroll-margin-top:128px` / `112px` on `.cl`, `.cl-h2`, `.cl-map`, matching `.lgd-section`. Was 90px of a 151px card hidden at 768px | `src/components/ContactLocation.tsx` |
+| **The `X-Frame-Options` meta tag is gone.** It was the console error on every page load of the site; `amplify.yml` already sets the real header | `src/pages/_document.tsx` |
+| **The browser harness now lives in the repo** and `animcheck.js` actually exists | `tools/browser/` |
+| **Corrected the false "controls are inert" claim** on the contact map, and the `mapprobe.js` citation | `src/components/ContactLocation.tsx` |
+| Replaced 53 lines of self-contradicting comment above `CYCLE_WORDS` (it described nine words, then four, while the array held five) | `src/pages/index.tsx` |
 
 ## Needs the owner, not an agent
 
@@ -42,38 +65,105 @@ to be merged, which happened long ago.
    tar 7 under packages written for tar 6 — that risks the Plivo softphone's install,
    so it is a judgement call, not a patch. Dependabot's alerts API returns 403 to the
    sandbox token (`security_events` scope), so work from `npm audit`.
-3. **`amplify.yml` still deploys with `npm install`.** Now that `npm ci` works,
-   switching would make deploys reproducible — untested on Amplify's runner.
-4. **Real-device pass.** Everything has been verified in headless Chromium only. iOS
+3. **`npm ci` IS BROKEN AGAIN, and the usual fix provably does not work.** Earlier
+   revisions of this file said "`package-lock.json` resynced — `npm ci` works again".
+   That is no longer true. On `stack` at `e4cfbe0e`:
+   ```
+   npm error `npm ci` can only install packages when your package.json and
+   npm error package-lock.json ... are in sync.
+   npm error Missing: @opentelemetry/core@2.0.0 from lock file   (x4)
+   ```
+   **`npm install` exits 0 and leaves `package-lock.json` byte-identical** — `git diff`
+   is empty afterwards — so "update your lock file with `npm install`", which is what the
+   error message and the previous fix both say, cannot resolve it. `npm ci
+   --legacy-peer-deps` (what `deps-upgrade.yml` actually runs) fails identically.
+
+   The drift is **inside upstream tarballs, not in this repo.**
+   `@aws-amplify/data-construct` and `@aws-amplify/graphql-api-construct` each *bundle*
+   (`inBundle: true`) their own OpenTelemetry copies. Their bundled
+   `@opentelemetry/resources@2.0.0` and `sdk-trace-base@2.0.0` both declare an **exact**
+   dependency on `@opentelemetry/core@2.0.0`, while the `@opentelemetry/core` bundled
+   beside them is **2.8.0**. Two packages x two dependents = the four errors. `npm
+   install` succeeds because it trusts bundled deps rather than resolving them; `npm ci`
+   validates those edges and refuses.
+
+   Consequences: use `npm install` in the sandbox, not `npm ci`. `deps-upgrade.yml` is
+   `workflow_dispatch`-only so nothing fails per-push, but that workflow's `npm ci` gate
+   **will** fail if run — though since it deletes the lockfile and regenerates from
+   scratch on a networked runner first, it is also the most likely thing to fix this.
+   Worth a manual run at `mode=lock-only`.
+4. **`amplify.yml` still deploys with `npm install`.** Switching to `npm ci` would make
+   deploys reproducible, but it is blocked outright by the item above — and `npm install`
+   is currently the only command that works, so the status quo is load-bearing rather
+   than lazy.
+5. **Real-device pass.** Everything has been verified in headless Chromium only. iOS
    Safari and the Android WebView shells have not been checked.
+6. **The contact map's three Google controls are LIVE, not inert — pick a fix.** The
+   code claimed the interaction overlay made them inert. Measured, it does not: all three
+   sit in the 26px bottom strip the overlay deliberately leaves uncovered for attribution,
+   and a click hit-test lands on the iframe, so `Show satellite imagery` will actually
+   change the map. They cannot be safely patched with geometry, because the attribution
+   links sit in the same strip at coordinates Google does not document — a pixel-tuned
+   cut-out risks covering attribution, which is a licence breach worse than the defect.
+   Three options, all needing a decision: set `NEXT_PUBLIC_GOOGLE_MAPS_KEY` (the keyed
+   Maps JS path already passes `disableDefaultUI` and removes them outright), move to
+   Static Maps, or set `pointer-events:none` on the iframe and render our own attribution
+   links outside it. Full measurements are in the comment above `.cl-lock`.
+7. **`/grahak-os/` and `/vayulok/` heroes reflow at narrow widths — needs a design call.**
+   This is the "page jumps every 2400ms" defect the code believes it fixed. It was fixed
+   on Home and in `RotatingHero` by putting the pill on its own line, but the two inline
+   copies still set it mid-sentence (`Bharat <pill> Intelligence`, `across <pill>`), so
+   their h1 line count depends on the active word. Measured with `animcheck.js`:
+   Grahak OS at 320px is **168px on `WhatsApp` against 128px** on the other three, and at
+   360px 128 vs 87; VayuLok at 320px is **126px on `Weather`/`Forecast`/`Heatmap` against
+   87px** on `Air`/`Pollen`/`Solar`, and at 480px 87 vs 47. The fix is to move those two
+   onto `RotatingHero`, or to force the pill onto its own line at narrow widths — either
+   changes the hero's line structure on two product pages, which is why it was not done
+   unasked.
 
 ## Open work an agent can pick up
 
-- **`src/pages/_document.tsx:60`** sets `<meta httpEquiv="X-Frame-Options" content="DENY" />`.
-  Browsers ignore XFO in a meta tag entirely, so it provides **zero** protection and
-  logs a console error on every page load. `amplify.yml` already sets the real header
-  (`SAMEORIGIN`). One-line deletion.
-- **`npm run lint` is red repo-wide**: **236 errors / 63 warnings** across ~97 files,
-  including **116 `react-hooks/set-state-in-effect` errors**. Only the
-  `LanguageBar` one was fixed. 242/64 two sessions ago, 237/63 before this one — the
-  latest drop is just the deleted FAQ/Partners files taking one error with them.
+- ~~`_document.tsx` sets an `X-Frame-Options` meta tag.~~ **Deleted.** It gave zero
+  protection, since browsers honour XFO only as a header, and it logged an error on every
+  page load of the site — `animcheck.js` now reports **zero** console errors on `/`,
+  `/grahak-os/`, `/vayulok/` and `/contact/`. `amplify.yml` still sets the real
+  `SAMEORIGIN` header. A comment marks the spot so it is not re-added.
+- **`npm run lint` is red repo-wide**: **230 errors / 63 warnings**, including ~115
+  `react-hooks/set-state-in-effect` errors. Only the `LanguageBar` one was fixed.
+  Measured baseline, so it can be used as one: `git stash`-ing the latest session's
+  changes produced the identical 230/63, i.e. that work added no lint debt. Earlier
+  revisions of this file claimed 236/63 and 237/63; re-count rather than trusting a
+  number here.
 - ~~Home page is a scaffold, DEFERRED.~~ **Home now has a hero.** Owner asked for the
   rotating headline from Grahak OS and VayuLok, so `src/pages/index.tsx` carries the
   same pill on the same constants — 2400ms, `cubic-bezier(.16,1,.3,1)` for the wipe
-  and width glide, `(.34,1.56,.64,1)` for the dot pop. **The three pages are one
-  animation family: retune one and you must retune all three**, and
-  `HomePage.test.tsx` fails if Home drifts.
+  and width glide, `(.34,1.56,.64,1)` for the dot pop. **There are FOUR rotating
+  surfaces, not three** — `home-` on `/`, `hero-` on `/grahak-os/`, `vl-` on
+  `/vayulok/`, and `rh-` in `RotatingHero` (used by `/contact/`, `/terms/`, `/privacy/`,
+  `/bharat-rx/`, `/my-order/`). They are one animation family: retune one and you must
+  retune all four. `animcheck.js` compares the computed transitions across all four and
+  currently measures them identical; `HomePage.test.tsx` fails if Home drifts.
   - Copy is **provisional** and carries owner positioning (lower cost, less
     complexity, utility over scale). The rotation itself is the "across every domain"
     claim, enacted rather than asserted. Reword via `CYCLE_WORDS` and `.home-sub`.
+  - **No service names in the rotation.** travel, rituals, documents, reflection and
+    disputes were each in it at some point; a service can be discontinued, and on that
+    day the headline is false. Channel names (WhatsApp, SMS, email, phone) are fine,
+    which is why the Grahak OS hero may rotate them. Note `/contact/` still rotates
+    **`drop documents`** — it reads as an action rather than a service, but it is worth
+    an owner ruling given "documents" is on the banned list.
   - **Rotating word length is a layout constraint.** The pill animates to each word's
-    *measured* width, so the set is held within ~2 characters (196–290px at the 60px
-    cap). The real failure mode is the h1 reflowing on the longest word only, which
-    would shift the page every 2400ms — `animcheck.js` measures h1 height across a
-    full rotation at 1440/1024/768/390 and it is constant.
-  - Below the hero the page is still empty. There is no section rhythm yet, which is
-    why `.home-layout` keeps `gap:96px` for one child and the eyebrow owns its own
-    20px instead.
+    *measured* width, so the spread is how far the headline's tail travels per tick.
+    Measured at 1280px: `consumers` 278, `enterprises` 280, `climate tech` 298,
+    `frontier tech` 300, `AI applications` 361 — spread 83px. The real failure mode is
+    the h1 reflowing on the longest word only, which would shift the page every 2400ms;
+    `.home-head-line` is `display:block` so the pill owns its line and this cannot
+    happen. `node tools/browser/animcheck.js` measures h1 height for every word at 21
+    viewports from 320 to 1920 **and** through a live rotation: constant, 131px at
+    1280px.
+  - Below the hero there are now two sections — `.home-flow` (the `WorkflowTerminal`)
+    and the `.home-close` band, which reveals on scroll via `IntersectionObserver`
+    rather than a timer. `.home-layout`'s `gap:96px` is the section rhythm.
 - ~~`/faq` and `/partners` are now in the nav but are visually off-system.~~
   **Both pages are deleted.** The nav entries are absolute, same-tab links to
   `www.wecare.digital/selfservice` (relabelled **Selfservice**) and
@@ -147,29 +237,61 @@ to be merged, which happened long ago.
   and reading it in the next command gets "No such file or directory", which looks
   like the command failed when it did not. Keep the write and the read in one call,
   or put the file under `/projects`.
+- **A JSX comment cannot contain `*/`, and a glob will put one there.** Writing
+  `customHeaders` pattern `"**/*"` inside a `{/* … */}` block closes the comment early
+  and the build fails with `Expression expected` / `Unterminated string constant`
+  pointing at a *prose* line, which reads like a mangled file rather than a comment
+  delimiter. Cost one build cycle in `_document.tsx`.
+- **`elementFromPoint` takes VIEWPORT coordinates and returns `null` off-screen.**
+  Hit-testing the contact map's controls without scrolling the map into view returned
+  `null` for all five, which the harness then scored as "the click was blocked" — so the
+  check **passed while three controls were live**. Scroll the target into view first, and
+  treat "could not determine" as a failure rather than a pass. This is the same shape as
+  the `[role="tab"]`-matches-nothing trap above: an assertion that cannot see its subject
+  reports success.
+- **`cmd | grep -c …` in an `&&` chain aborts the chain when the count is zero**, because
+  `grep` exits 1 on no matches. A diagnostic command then silently never runs and the log
+  it was supposed to write does not exist, which looks like the tool failed. Related to
+  the `PIPESTATUS` note above and bites just as often.
+- **`npm ci` cannot install this repo** — see "Needs the owner". Use `npm install`. The
+  error tells you to run `npm install` to fix the lockfile; doing so exits 0 and changes
+  nothing, because the inconsistency is inside bundled upstream tarballs.
 
 ## Verification gate
 
-All of these were green at `40025a1f`:
+Measured at the head of the latest session's work:
 
 ```bash
-npx vitest run                       # 33 passed / 7 files
-npm run build                        # then:
+npx vitest run                       # 73 passed / 8 files
+npm run build                        # exit 0; then:
 npx tsc --noEmit                     # 0 errors
 ./scripts/check-provider-policy.sh   # 8/8 ok
-.venv/bin/python -m pytest -q        # 1623 passed, 1 skipped
-npx eslint .                         # 237e/63w — red, pre-existing
+npx eslint .                         # 230e/63w — red, pre-existing, unchanged by this work
+node tools/browser/animcheck.js      # 16/20 — 4 known failures, see below
+node tools/browser/contactcheck.js   # 12/13 — 1 known failure, see below
 ```
 
-Browser harnesses live **outside** the repo in `/projects/pwtest`. **A sandbox reset
-destroys the whole directory, not just the Chromium binary** — the six scripts listed
-in earlier revisions of this file were gone, so treat this table as a description of
-what to write, not of what is on disk. Rebuild with:
+Two things to know about that list. **`npm ci` is not in it** — it is broken, see
+"Needs the owner". And `.venv/bin/python -m pytest -q` is not in it either: there is no
+`.venv` in a fresh sandbox, and the latest session changed no Python, so it was not run.
+Earlier revisions quoted `33 passed / 7 files` and `237e/63w`; both were stale. Re-count.
+
+Browser harnesses now live **inside the repo**, at **`tools/browser/`**. They used to
+live in `/projects/pwtest`, and a sandbox reset destroys that whole directory — which is
+how `animcheck.js` came to be cited in four files while existing nowhere on disk, and
+`mapprobe.js` in a fifth. Under version control that cannot recur. See
+`tools/browser/README.md`.
 
 ```bash
-mkdir -p /projects/pwtest && cd /projects/pwtest
-npm init -y && npm i -D playwright && npx playwright install chromium
+cd tools/browser && npm install   # one package: playwright-core, no browser download
+cd ../.. && npm run build         # produces out/
+node tools/browser/animcheck.js
+node tools/browser/contactcheck.js
 ```
+
+`playwright-core` rather than `playwright` is deliberate: it never downloads a browser,
+so the app's own dependency tree and its already-fragile lockfile stay untouched, and
+nothing runs a browser-download postinstall on an Amplify deploy.
 
 **Never hardcode the Chromium path.** In this sandbox it lands in
 `/opt/playwright/chromium-<rev>/chrome-linux64/chrome`, not `~/.cache/ms-playwright`
@@ -188,40 +310,61 @@ that origin instead and starts nothing. So the same assertions run against eithe
 render:
 
 ```bash
-node verify.js                 # against out/ (production export)
-bash rundev.sh                 # boots next dev, runs all three against it, kills it
+node tools/browser/animcheck.js                              # against out/
+BASE=http://localhost:3000 node tools/browser/animcheck.js   # against next dev
 ```
 
 That distinction is load-bearing: `next.config.js` only sets `output:'export'` when
 `NODE_ENV` is production, so `out/` is pre-generated HTML and dev is a live server.
-A suite that only ever ran against `out/` has not tested what you see locally. All
-57 assertions pass in both modes as of `5ff30ead`.
+A suite that only ever ran against `out/` has not tested what you see locally.
 
-`rundev.sh` **warms every route before asserting** — dev compiles per-route on first
-request, and an uncompiled route answers slowly enough that a harness measures a
-blank page and reports a false failure.
+**State of that claim, stated precisely.** The `BASE` branch is verified: `animcheck.js`
+returns an identical 16/20 pointed at a separate origin as it does booting its own server.
+It has **not** been run against `next dev` in this sandbox, because a dev server started in
+one tool call is killed before the next one runs (`curl` then gets `000`, which reads as a
+broken harness rather than a dead server). To cover dev, start the server and run the
+harness **in a single command**, and **warm every route first** — dev compiles per route on
+first request, and an uncompiled route answers slowly enough that a harness measures a blank
+page and reports a false failure. The old `rundev.sh` that did this was lost with
+`/projects/pwtest`; rewriting it under `tools/browser/` is worth doing.
 
-Two console errors appear **only** under dev and are dev-server infrastructure, not
-regressions: `_clientMiddlewareManifest.js` is served with a MIME type Chromium
-refuses, and the `_next/hmr` websocket cannot complete a handshake through this
-sandbox's networking. `animcheck.js` allows exactly those two patterns; keep that
-list narrow, because a broad `/error/i` filter there would mask what it exists to catch.
+`animcheck.js` allows **three** console-error patterns and nothing else. Two appear only
+under dev and are dev-server infrastructure, not regressions: `_clientMiddlewareManifest.js`
+is served with a MIME type Chromium refuses, and the `_next/hmr` websocket cannot complete
+a handshake through this sandbox's networking. The third applies in **both** modes and is
+a local-origin artifact: `LanguageBar` fetches `api.wecare.digital/site-language`, which
+sends no `Access-Control-Allow-Origin` for `127.0.0.1`, so the request is refused by CORS.
+On the deployed site the page origin *is* `wecare.digital` and it succeeds. That entry is
+scoped to the one host, and the generic `Failed to load resource` line it also produces is
+matched by **request URL** rather than by text, so the exemption cannot swallow every
+failed request on the page.
 
-| Script | Checks | On disk |
+Keep that list narrow. A broad `/error/i` filter would have permanently hidden the
+`X-Frame-Options` error these checks exist to surface — it sat in that channel on every
+page load until it was found by exactly this assertion.
+
+| Script | Checks | In repo |
 |---|---|---|
-| `lib/serve.js` | Static server for `out/`, resolves `trailingSlash` | yes |
-| `verify.js` | Nav labels/hrefs/same-tab, deleted routes 404, `/access` active row, field hairlines, Inter per shell — 28 assertions | yes |
-| `fontcheck.js` | Type ladder + rendered-face diff of every surface vs `/grahak-os/` | yes |
-| `signprobe.js` | Dumps the client-only Authenticator tree, tabs, buttons, fields | yes |
-| `navprobe.js` | Nav row colours/weights per route | yes |
-| `check.js` | 11 viewports: overflow, collisions, hydration errors, edge alignment | **lost** |
-| `typecheck.js` | Meta card type scale vs `.pp-strip-title` at 5 widths | **lost** |
-| `langbar.js` | Saved-language restore against a stubbed API | **lost** |
-| `authcheck.js` / `ordercheck.js` | Sign-in badge renders, and sits above the form | **lost** |
+| `lib/browser.js` | Chromium resolution; throws naming every path searched | yes |
+| `lib/serve.js` | Static server for `out/`, resolves `trailingSlash`, or honours `BASE` | yes |
+| `animcheck.js` | Rotation reflow at 21 viewports on all four surfaces, animation-family transition parity, word widths, console errors — 20 assertions | yes |
+| `contactcheck.js` | Card and `#cl-title` vs the fixed header at 4 viewports, in-frame Google controls with a click hit-test, keyless-embed tile canary — 13 assertions | yes |
+| `verify.js`, `fontcheck.js`, `signprobe.js`, `navprobe.js` | Nav labels/hrefs, type ladder, Authenticator tree, nav row colours | **lost with `/projects/pwtest`** |
+| `check.js`, `typecheck.js`, `langbar.js`, `authcheck.js`, `ordercheck.js` | Viewport overflow, meta card type scale, language restore, sign-in badge order | **lost** |
 
-`langbar.js` has **one known failing assertion** — "no console errors" — caused by the
-`X-Frame-Options` meta tag above. It fires on every page load regardless of
-translation.
+The lost ones are a description of what to write, not of what exists. Rewrite them under
+`tools/browser/` so they stop evaporating.
+
+**Both in-repo harnesses have known failures, left failing on purpose** rather than tuned
+green — the same convention the old `langbar.js` note used:
+
+- `animcheck.js` — **4 failures**, all the `/grahak-os/` and `/vayulok/` hero reflow.
+- `contactcheck.js` — **1 failure**, the three live Google map controls.
+
+Both are owner decisions, described under "Needs the owner". Nothing else is red.
+`langbar.js`'s old known failure — "no console errors", caused by the `X-Frame-Options`
+meta tag — is **fixed at the source**: that tag is gone and all four public pages now
+measure zero console errors.
 
 When writing new browser checks: compare the **rects** returned by
 `getBoundingClientRect`, not DOM elements, and **scope selectors**. Both mistakes

@@ -1,0 +1,10 @@
+{
+  "name": "bharat-stack-browser-harness",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser measurement harness for the public pages. Deliberately NOT part of the app's package.json - see README.md.",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  }
+}

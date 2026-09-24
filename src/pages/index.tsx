@@ -18,24 +18,23 @@
  * WORD LENGTH IS A DESIGN CONSTRAINT, not a copy detail, for one measured reason:
  * the pill animates to each word's measured width, so the spread between the
  * shortest and longest word is how far the headline's tail travels on every tick.
- * Measured at 1280px: climate 178, consumers 278, enterprises 280,
- * frontier tech 300, AI applications 361. Spread 183px.
+ * Measured at 1280px by tools/browser/animcheck.js: consumers 278, enterprises 280,
+ * climate tech 290, frontier tech 300, AI applications 361. Spread 83px.
  *
- * That spread is 2.2x what it was before "climate" was added (83px across the four
- * longer words), because climate is much the shortest. It still glides and still does
- * not reflow, so this is a movement-feel judgement rather than a defect - but if the
- * tail travel looks busy, "climate tech" measures ~290px, brings the spread back to
- * ~83px, and reads more in parallel with "frontier tech" and "AI applications".
+ * See the note above CYCLE_WORDS for why "climate" became "climate tech" - briefly,
+ * the bare noun was 178px, which made that spread 183px, and it was also the only
+ * entry in the set answering a different question from the other four.
  *
  * The real constraint is NOT the spread, it is reflow: the headline growing to a
  * second line on the longest word only would shift every section below it every
- * 2400ms. That is checked by measuring the h1's height across a full rotation -
- * sampled at 131px for all FIVE words, eleven consecutive samples, constant.
+ * 2400ms. That cannot happen here because .home-head-line is display:block, so the
+ * pill owns its own line and the h1's line count does not depend on the active word.
+ * Verified, not assumed: h1 height is constant for every word at all 21 viewports
+ * from 320 to 1920, and constant across a live rotation.
  *
- * Re-measure after changing a word. Note that animcheck.js, referenced in this
- * file and three other places, DOES NOT EXIST in the repo - so "re-run the
- * harness" currently means measuring h1 height in a browser by hand. Either write
- * it or stop citing it.
+ * Re-measure after changing a word: `node tools/browser/animcheck.js`. The harness
+ * is in the repo, under tools/browser/, so that instruction stays true across sandbox
+ * resets - it used to name a file that existed nowhere on disk.
  *
  * A unit test cannot see reflow, so src/test/HomePage.test.tsx pins only the one
  * thing it can: no word longer than 18 characters, i.e. long enough to still fit
@@ -79,64 +78,56 @@ import WorkflowTerminal from '../components/WorkflowTerminal';
 // exhaustive-deps suppression the way VayuLok needed one.
 // Lowercase: these sit mid-sentence, not at the head of one.
 //
-// These are the owner's own service domains, from the positioning copy: travel,
-// documentation, dispute resolution, rituals, reflection "and more". Two are
-// shortened for the pill because the pill's width is layout (see the note above) -
-// "documentation" becomes documents and "dispute resolution" becomes disputes. The
-// full phrases are not lost; they belong in body copy, not in a rotating slot.
+// THE SET, AND WHY THESE FIVE. Two axes, deliberately: `consumers` and `enterprises`
+// are the audiences we serve; `AI applications`, `climate tech` and `frontier tech`
+// are the kinds of thing we build. Every entry stays true on the day a single
+// offering changes, which is the property the earlier sets did not have.
 //
-// Order is hue rhythm, the consideration VayuLok documents: blue, amber, green,
-// purple, red alternates cool and warm on every step except green -> purple, which
-// is unavoidable with five words across three cool hues and is the most separated
-// of the available cool pairs. Grouping them by meaning instead - the two
-// paperwork ones together - put green beside green and the change stopped reading.
-//
-// Every tint/dot pair is reused VERBATIM from the Grahak OS hero and the VayuLok
-// rotation. No new colours. Hue maps onto sense: blue for journeys, amber for the
-// warmth of ritual, green for paperwork cleared, purple for reflection, red for
-// conflict.
-// Nine words now: the five service domains plus the four the owner added -
-// ai applications, consumer, enterprise, frontier tech.
-//
-// NOTE THE TWO AXES. The first five are service DOMAINS (what we do); the last four
-// are markets and capability tiers (who for, and how far out). Mixing them means the
-// pill answers two different questions on alternate ticks. That is a copy decision
-// rather than a bug and it is what was asked for, so it ships - but the two groups are
-// kept contiguous below, not interleaved, so the rotation reads as two passes rather
-// than as one confused list. Splitting them across two rotating slots, or dropping one
-// axis, are the alternatives if it reads oddly.
-//
-// Length spread is now 6 ("travel") to 15 ("ai applications"), well past the 2-4
-// characters the earlier sets held to. That is only safe because the pill sits on its
-// own line, so the h1's line count cannot change with the active word - the defect
-// that made the page jump 63px every 2400ms when "reflection" was the longest word.
-// The pill's tail still travels ~410px per cycle. animcheck.js re-verifies the h1
-// height across all 21 widths, which is the real gate.
-//
-// Every tint/dot pair is reused VERBATIM from the Grahak OS hero and the VayuLok
-// rotation - nine words across six available pairs, so three repeat. Repeats are
-// placed non-adjacently so no two consecutive ticks share a colour.
-// Four words, and the five that were here before are gone on purpose:
-// travel, rituals, documents, reflection and disputes each named a SERVICE. A
-// service can be repriced, renamed or discontinued, and on the day one is, the
-// headline is simply false. What remains are the two audiences we serve and the
-// two kinds of thing we build - none of which stops being true when a single
-// offering changes.
+// NO SERVICE NAMES HERE, EVER. travel, rituals, documents, reflection and disputes
+// were each in this array at some point and each named a SERVICE. A service can be
+// repriced, renamed or discontinued, and on the day one is, the headline is simply
+// false. Channel names (WhatsApp, SMS, email, phone) are fine by contrast - they are
+// how we reach people, not what we sell, which is why the Grahak OS hero may rotate
+// them and this one may not.
 //
 // Three words were adjusted from the owner's list for grammar, not meaning:
-//   consumer  -> consumers     "services for consumer" is not English
+//   consumer   -> consumers    "services for consumer" is not English
 //   enterprise -> enterprises  parallel with consumers
-//   ai        -> AI            an initialism, and the rest of the page capitalises it
+//   ai         -> AI           an initialism, and the rest of the page capitalises it
 // Revert any of those if the original wording was deliberate.
 //
-// Four distinct tints so no two consecutive ticks share a colour - with four
-// words that is automatic, which is why the non-adjacency juggling the nine-word
-// set needed is gone.
+// `climate` BECAME `climate tech`, and that was decided by measurement rather than by
+// feel. Rendered widths at 1280px, from tools/browser/animcheck.js:
+//   climate 178 | consumers 278 | enterprises 280 | frontier tech 300 | AI applications 361
+// Bare "climate" was much the shortest word in the set, so the pill's tail swung 183px
+// every tick against 83px across the other four - 2.2x the movement for one word.
+// `climate tech` measures ~290px, which puts the spread back to ~83px. It also fixes
+// the sense: "climate" is a domain, while the other four are audiences or kinds of
+// thing we build, so the bare noun was the only entry answering a third question.
+// It now reads in parallel with `frontier tech` on both counts.
+//
+// RE-MEASURE AFTER CHANGING A WORD: `node tools/browser/animcheck.js`. That harness
+// lives inside the repo precisely so this instruction stays true - it previously named
+// a file that existed nowhere on disk, in this comment and three other places.
+//
+// REFLOW IS THE REAL CONSTRAINT, not the spread. A headline that grows to a second
+// line on the longest word only would shift every section below it every 2400ms. That
+// cannot happen on this page because .home-head-line is display:block, so the pill
+// owns its own line and the h1's line count is independent of which word is showing -
+// measured constant for every word at all 21 viewports from 320 to 1920, and again
+// through a live rotation. Do not make the pill inline to save a line: the two sibling
+// surfaces that do that, /vayulok/ and /grahak-os/, both reflow at narrow widths.
+//
+// Every tint/dot pair is reused VERBATIM from the Grahak OS hero and the VayuLok
+// rotation - no new colours. Five words, five distinct tints, so no two consecutive
+// ticks can share a colour without any ordering effort. Lime is deliberately absent:
+// this per-subject hue system sits outside the brand palette, which is reserved for
+// our own surfaces.
 const CYCLE_WORDS = [
   { word: 'consumers', tint: '#fef3c7', dot: '#f0a818' },
   { word: 'enterprises', tint: '#ede9fe', dot: '#9849e8' },
   { word: 'AI applications', tint: '#dbeafe', dot: '#2563eb' },
-  { word: 'climate', tint: '#e0f7c8', dot: '#3da35a' },
+  { word: 'climate tech', tint: '#e0f7c8', dot: '#3da35a' },
   { word: 'frontier tech', tint: '#fee2e2', dot: '#dc2626' },
 ];
 

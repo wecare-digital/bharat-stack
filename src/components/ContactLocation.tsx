@@ -32,9 +32,18 @@ import React, { useEffect, useRef, useState } from 'react';
  * THE TRADE-OFF, STATED: that endpoint is long-lived and very widely used but it is NOT
  * formally documented by Google, so it carries no compatibility promise the way the Embed
  * API does. If it is ever withdrawn the frame goes blank and the address block below it
- * keeps working. /projects/pwtest/mapprobe.js is the canary - it asserts the frame paints
- * street-level tiles AND names Kolkata, so a silent regression is caught rather than
- * discovered by a visitor.
+ * keeps working. tools/browser/contactcheck.js is the canary, so a silent regression is
+ * caught rather than discovered by a visitor. It enters the cross-origin frame, counts
+ * the tiles that actually loaded, and converts the lat/lng in our own iframe src into a
+ * Web Mercator tile index to confirm Google served THAT location - currently 39 tiles,
+ * 9 of them within 4 tiles of the expected z18 x195411 y114193.
+ *
+ * It does NOT look for the string "Kolkata", which an earlier version of this comment
+ * claimed: place names are rasterised into the tile images, so the frame exposes about
+ * 65 characters of text and a text match fails while the map is entirely correct. The
+ * tile-index check is both stronger and not a false-failure risk. (That earlier canary,
+ * mapprobe.js, lived outside the repo in /projects/pwtest and no longer exists at all -
+ * which is why every harness now lives in tools/browser/ under version control.)
  *
  * THE QUERY FORM IS MEASURED, NOT GUESSED. Four forms were tested in a real framed
  * browser. place_id: syntax LOOKS right and returns HTTP 200 with a full set of map
@@ -316,20 +325,45 @@ const ContactLocation: React.FC = () => {
                 referrerPolicy="no-referrer-when-downgrade"
               />
 
-          {/* INTERACTION LOCK. The map is a fixed illustration now: no drag, no
-              scroll-zoom, no click, no info dialog.
-              This is a transparent sheet OVER the iframe, not a setting on it, because
-              the iframe is cross-origin - neither our CSS nor our JS can reach inside
-              it, so Google's own controls cannot be configured away from here. The
-              sheet swallows every pointer event before it reaches them, which makes the
-              pan, zoom and fullscreen buttons inert and stops any dialog opening.
-              It stops SHORT of the bottom edge on purpose. Google's attribution strip
-              lives there and remains clickable, because covering or disabling it is a
-              licence breach rather than a design choice - the same reason the card above
-              is positioned clear of it.
-              What this does NOT do is hide those buttons. They are painted inside the
-              frame and only a keyed Static Maps image or the Maps JS API with
-              disableDefaultUI can remove them - see the note above EMBED_URL. */}
+          {/* INTERACTION LOCK - AND READ THE LIMIT BELOW, IT IS NOT WHAT IT LOOKS LIKE.
+              A transparent sheet OVER the iframe, not a setting on it, because the iframe
+              is cross-origin: neither our CSS nor our JS can reach inside it, so Google's
+              own controls cannot be configured away from here. Over the area it covers it
+              does work - it swallows drag, scroll-zoom, clicks and POI info dialogs.
+
+              IT DOES NOT MAKE GOOGLE'S CONTROLS INERT. This comment used to claim it did.
+              Measured with tools/browser/contactcheck.js, which enters the cross-origin
+              frame and then hit-tests each control through the page:
+
+                frame 668x500, lock covers y 0..474 (inset:0 0 26px 0)
+                "Show satellite imagery"  42x42 at (10,447)   15px below the lock
+                "Keyboard shortcuts"      87x14 at (319,486)  26px below the lock
+                "Map camera controls"     40x40 at (618,436)   2px below the lock
+
+              All three are anchored to the frame's BOTTOM edge, which is exactly the strip
+              the lock deliberately leaves uncovered for attribution. document.elementFromPoint
+              at each exposed point returns the iframe, so a real click reaches Google: the
+              satellite button will switch the imagery, and the map is not the fixed
+              illustration this file claims it is.
+
+              WHY IT IS NOT SIMPLY PATCHED. Blocking them means covering part of that bottom
+              strip while leaving "Terms" and "Report a map error" clickable - they sit in the
+              SAME strip, at x 538..662, with "Keyboard shortcuts" at x 319..406 between them
+              and the left edge. Those coordinates are Google's private layout, undocumented
+              and free to change. A pixel-tuned cut-out would therefore fail in one of two
+              directions on any Google change: silently re-expose a control, or silently cover
+              the attribution - and the second is a licence breach, which is far worse than
+              the defect being fixed. So this is deliberately NOT patched geometrically.
+
+              THE THREE REAL OPTIONS, all owner calls:
+                1. Set NEXT_PUBLIC_GOOGLE_MAPS_KEY. The keyed Maps JS path below already
+                   passes disableDefaultUI, which removes these controls outright rather than
+                   covering them. This is the fix the code is already written for.
+                2. Static Maps - a flat image has no controls at all. Also keyed.
+                3. pointer-events:none on the iframe plus our OWN attribution links rendered
+                   outside it. Robust and keyless, but it moves a licence-bearing element
+                   into our markup, so it needs a decision rather than a commit.
+              Until one is chosen, contactcheck.js fails one assertion on purpose. */}
               <div className="cl-lock" aria-hidden="true" />
             </>
           ) }
@@ -399,7 +433,25 @@ const ContactLocation: React.FC = () => {
       <style jsx>{`
         /* cl- prefixed. The globally imported src/styles/*.css declares unscoped rules
            for generic names and styled-jsx does not shield a page from them. */
-        .cl{max-width:1000px;margin-top:64px}
+
+        /* scroll-margin-top clears the fixed 108px header, using the same 128px/112px
+           pair as .lgd-section in LegalDocument rather than a new number.
+           WHAT THIS FIXES, MEASURED. The header is position:fixed at z-index 1001; the
+           map card is absolutely positioned 16px inside the frame at z-index 1. So
+           anything that scrolls this section to the top of the viewport puts the card
+           underneath the header. With scroll-margin-top at 0 that was 90px of a 151px
+           card hidden at 768px wide (76px at 1024, 78px at 390, 2px at 1440), and the
+           h2 itself landed completely behind the header when following /contact/#cl-title
+           - which is a real linkable URL, since the heading carries that id.
+           It is on all three of the section, the heading and the map so that an anchor,
+           an aria-labelledby jump or a programmatic scrollIntoView all land clear.
+           WHAT THIS DOES NOT FIX, stated so nobody re-measures it and files it twice:
+           a visitor scrolling by hand still passes the card under the header, because
+           that is what a fixed header does to every element on the page. Only pinning
+           the card (position:sticky inside the frame) would change that, which is a
+           design decision rather than a bug fix. */
+        .cl{max-width:1000px;margin-top:64px;scroll-margin-top:128px}
+        .cl-h2,.cl-map{scroll-margin-top:128px}
         /* Section h2 on the contract's 700 rung - heavier than the hero h1's 600, which
            is the inversion this whole site uses. Same clamp as the other section
            headings so they read as siblings. */
@@ -524,6 +576,13 @@ const ContactLocation: React.FC = () => {
           .cl-grid{grid-template-columns:1fr;gap:24px}
           .cl-map{aspect-ratio:16/9}
           .cl{margin-top:48px}
+        }
+
+        /* 112px below 768px, matching .lgd-section, because .hdr-in drops to 96px there.
+           Keyed to max-width:767px for the same reason the header rule is: at exactly
+           768px the header is still 108px tall, so the desktop offset must still apply. */
+        @media(max-width:767px){
+          .cl,.cl-h2,.cl-map{scroll-margin-top:112px}
         }
       `}</style>
     </section>

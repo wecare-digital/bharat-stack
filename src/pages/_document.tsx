@@ -57,7 +57,20 @@ export default function Document () {
     <Html lang="en">
       <Head>
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
+        {/* THERE IS DELIBERATELY NO X-Frame-Options META TAG HERE. Browsers honour XFO
+            only as an HTTP header and ignore the meta form entirely, so it provided zero
+            clickjacking protection while logging "X-Frame-Options may only be set via an
+            HTTP header" to the console on EVERY page load of the site. That error was
+            measured on /, /grahak-os/, /vayulok/ and /contact/, and it was the single
+            known failing assertion in the browser harness - a real error permanently
+            occupying the channel that exists to surface real errors.
+            The protection itself is not lost: amplify.yml sets the actual header
+            (X-Frame-Options: SAMEORIGIN) under customHeaders for every path, and that is
+            what ships, because the app is a static export and Next's own headers() never
+            runs. Do not re-add this as a meta tag; to change the policy, edit amplify.yml.
+            Note for future comments here: a JSX comment cannot contain a glob like the
+            one in that customHeaders pattern, because the slash-star sequence closes the
+            comment and the build fails with "Unterminated string constant". */}
         <meta name="referrer" content="strict-origin-when-cross-origin" />
         {/* Inter font for better readability and modern look */ }
         <link rel="preconnect" href="https://fonts.googleapis.com" />
