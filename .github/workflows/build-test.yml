@@ -42,6 +42,17 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      # For the "No server-side credential in the export" gate below, which is a Python
+      # script because every other secret scanner in this repo is one and shares its
+      # fingerprint convention. Declared explicitly rather than relying on `python`
+      # happening to be on the runner's PATH: ubuntu-latest ships python3, but an
+      # implicit alias is precisely how a check turns into a silent no-op. Same version
+      # and action as route-auth.yml. No dependencies are installed - the script uses
+      # only the standard library.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
       # `npm install`, NOT `npm ci`, and that is a documented constraint rather than an
       # oversight. `npm ci` cannot install this repo at all - it fails with four
       # "Missing: @opentelemetry/core@2.0.0 from lock file" errors, on `stack` as much as
@@ -71,6 +82,19 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # A GATE, and it runs here because it inspects out/, which only exists after the
+      # build. next.config.js uses output:'export', so every NEXT_PUBLIC_* value is
+      # inlined into a JS chunk and served to every visitor. That is correct for a Maps
+      # browser key and a disclosure for a server-side one, and the variable name cannot
+      # tell them apart - this repo has three secrets (wecare/google/cloud,
+      # wecare/google-api-key, wecare/google-maps) all holding ONE unified key that is
+      # read server-side, so pasting it into NEXT_PUBLIC_GOOGLE_MAPS_KEY would publish a
+      # live credential. The check compares FINGERPRINTS, never values, against the one
+      # already committed in docs/provider-inventory.md, so it needs no secret read.
+      # A legitimate browser key passes and is reported; the unified key fails the build.
+      - name: No server-side credential in the export
+        run: python scripts/verify_public_bundle_secrets.py
 
       # ORDER MATTERS: tsc must run AFTER the build, because it needs the generated
       # next-env.d.ts. Running it first produces a wall of errors about missing Next
