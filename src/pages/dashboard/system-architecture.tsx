@@ -464,7 +464,11 @@ const CODE_MAP: CodeFolder[] = [
   { path: 'src/hooks/', purpose: 'Custom hooks (keyboard, notifications, WebRTC)', files: '~3 files', linkedTo: 'Various pages' },
   { path: 'src/styles/', purpose: 'CSS modules and design tokens', files: '~8 files', linkedTo: 'All components' },
   { path: 'amplify/auth/', purpose: 'Cognito auth configuration', files: '1 file', linkedTo: 'Cognito User Pool' },
-  { path: 'amplify/data/', purpose: 'DynamoDB schema (49 tables)', files: '1 file', linkedTo: 'DynamoDB' },
+  // "49 tables" was wrong in both directions: the file declares 58 models and the
+  // account holds 77 tables. It is a data-model document, not the deployed schema
+  // — there are 0 AppSync APIs, so none of its models exist as tables. See the
+  // header of amplify/data/resource.ts.
+  { path: 'amplify/data/', purpose: 'Data model document — 58 models, 0 deployed', files: '1 file', linkedTo: 'DynamoDB' },
   { path: 'amplify/storage/', purpose: 'S3 storage + SQS queue config', files: '1 file', linkedTo: 'S3, SQS' },
   { path: 'amplify/functions/ai/', purpose: 'AI Lambda functions (4)', files: '4 dirs', linkedTo: 'Bedrock, DynamoDB' },
   { path: 'amplify/functions/core/', purpose: 'Core Lambda functions (6)', files: '6 dirs', linkedTo: 'DynamoDB, S3' },

@@ -217,7 +217,12 @@ def _sync_orders() -> Dict:
     try:
         lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         lambda_client.invoke(
-            FunctionName=os.environ.get('WIX_STORE_FUNCTION', 'stack-wecare-digital-wix-store'),
+            # `wecare-wix-store`, not `stack-wecare-digital-wix-store`: the stack
+            # prefix is the DynamoDB table convention and matches no Lambda. See
+            # the same correction in core/service-api/handler.py - neither caller
+            # sets WIX_STORE_FUNCTION in its live config, so this default is what
+            # actually ran.
+            FunctionName=os.environ.get('WIX_STORE_FUNCTION', 'wecare-wix-store'),
             InvocationType='Event',
             Payload=json.dumps({'action': 'sync_orders'}),
         )

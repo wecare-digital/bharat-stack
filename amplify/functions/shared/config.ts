@@ -24,7 +24,12 @@ export const TABLES = {
   RATE_LIMIT: process.env.RATE_LIMIT_TABLE || 'stack-wecare-digital-RateLimitTable',
   SYSTEM_CONFIG: process.env.SYSTEM_CONFIG_TABLE || 'stack-wecare-digital-SystemConfigTable',
   VOICE_CALLS: process.env.VOICE_CALLS_TABLE || 'stack-wecare-digital-VoiceCalls',
-  SMS_AWS: process.env.SMS_AWS_TABLE || 'stack-wecare-digital-SmsAwsTable',
+  // SMS_AWS removed 2026-09-24: `stack-wecare-digital-SmsAwsTable` does not exist
+  // in the account. SMS is stored in the canonical MessagesTable under
+  // channel='sms' (see MESSAGES below if added, and messaging/sms-aws/handler.py).
+  // Note this module currently has no importers - the Lambda fleet is Python and
+  // reads its own os.environ defaults - so it functions as documentation, which
+  // is exactly why a wrong value in it is worth correcting rather than ignoring.
   VOICE_AWS: process.env.VOICE_AWS_TABLE || 'stack-wecare-digital-VoiceAwsTable',
   WIX_PRODUCTS_CACHE: process.env.WIX_PRODUCTS_CACHE_TABLE || 'stack-wecare-digital-WixProductsCache',
   WIX_ORDERS_CACHE: process.env.WIX_ORDERS_CACHE_TABLE || 'stack-wecare-digital-WixOrdersCache',

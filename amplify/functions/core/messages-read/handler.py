@@ -31,7 +31,11 @@ s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east
 INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 # Other-channel message stores for the Unified Inbox (read-time aggregation).
-SMS_AWS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTable')
+# SMS_AWS_TABLE removed 2026-09-24. It named
+# `stack-wecare-digital-SmsAwsTable`, which does not exist in the account, and it
+# was referenced exactly once - by its own definition. SMS lives in the canonical
+# MessagesTable under channel='sms'; see messaging/sms-aws/handler.py, whose
+# _store_message writes there and nowhere else.
 VOICE_AWS_TABLE = os.environ.get('VOICE_AWS_TABLE', 'stack-wecare-digital-VoiceAwsTable')
 # RCS_TABLE removed 2026-09-21: unused constant naming a table that does not
 # exist. RCS reads come from the canonical MessagesTable.

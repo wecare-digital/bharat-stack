@@ -8,6 +8,22 @@ wrote into the same table under its own provider label.
 The only read path for that data used to be inside the Lambda being deleted, so
 this module exists to keep the history reachable after the sender is gone.
 
+The table is gone as well - measured, 2026-09-24
+-----------------------------------------------
+`ListTables` does not return `stack-wecare-digital-AirtelSMSTable`. It was deleted
+on 2026-09-20 with the Airtel retirement, which `operations/system-cleanup` records
+and this module did not. So every function below was reading a store that no longer
+exists, and the live route that reaches them
+(`sms-aws` -> `_legacy_history_route`) answered 500 as though the platform were
+faulty.
+
+The preservation intent above is unchanged and still correct; what changed is that
+it was not honoured, and this module now says so instead of raising. The reads
+report `storeAbsent` rather than an empty result, because "there is no record"
+and "the record was deleted" are different answers and only one of them is true.
+Whether to restore from a backup is a decision for whoever owns the retention
+policy, and it cannot be taken while the code presents the loss as a 500.
+
 Read-only by construction
 -------------------------
 There is no create and no update here. A historical record is a statement about
@@ -35,8 +51,23 @@ import json
 import os
 from typing import Any, Dict, Optional
 
+from lambda_utils import retired_store
+
 LEGACY_SMS_TABLE = os.environ.get("LEGACY_SMS_TABLE",
                                   "stack-wecare-digital-AirtelSMSTable")
+
+
+def _store_absent() -> Dict[str, Any]:
+    """The one description of the absence, so all four paths agree."""
+    return {
+        **retired_store.absent_payload(
+            LEGACY_SMS_TABLE,
+            what="Retired-provider SMS history",
+            retired="Deleted 2026-09-20 with the Airtel retirement.",
+        ),
+        "messages": [],
+        "count": 0,
+    }
 
 # Stored provider literals, mapped to a human label. These strings are DATA, not
 # configuration: they describe traffic that really was sent that way and must not
@@ -149,7 +180,12 @@ def list_messages(*, limit: int = 100, cursor: str = "",
         kwargs["ExpressionAttributeValues"] = values
         kwargs["ExpressionAttributeNames"] = names
 
-    result = _table().scan(**kwargs)
+    try:
+        result = _table().scan(**kwargs)
+    except Exception as exc:  # noqa: BLE001 - narrowed immediately below
+        if retired_store.is_absent(exc):
+            return _store_absent()
+        raise
     items = result.get("Items", []) or []
     items.sort(key=lambda row: float(row.get("createdAt", 0) or 0), reverse=True)
 
@@ -170,7 +206,16 @@ def list_messages(*, limit: int = 100, cursor: str = "",
 def get_message(message_id: str) -> Optional[Dict[str, Any]]:
     if not message_id:
         return None
-    item = _table().get_item(Key={"messageId": str(message_id)}).get("Item")
+    try:
+        item = _table().get_item(Key={"messageId": str(message_id)}).get("Item")
+    except Exception as exc:  # noqa: BLE001 - narrowed immediately below
+        if retired_store.is_absent(exc):
+            # Indistinguishable from "no such message" to a caller looking up one
+            # id, and that is the correct collapse: either way the record is not
+            # retrievable. The list and counts paths report the absence, because
+            # there the difference between "empty" and "gone" is the whole answer.
+            return None
+        raise
     return normalize(item) if item else None
 
 
@@ -192,7 +237,16 @@ def counts_by_provider() -> Dict[str, Any]:
         }
         if last_key:
             kwargs["ExclusiveStartKey"] = last_key
-        result = table.scan(**kwargs)
+        try:
+            result = table.scan(**kwargs)
+        except Exception as exc:  # noqa: BLE001 - narrowed immediately below
+            if retired_store.is_absent(exc):
+                # Critically, do NOT return total=0 / exact=True here. This
+                # function's output is the checksum a deletion decision is
+                # justified against, and "zero rows, exactly" would read as
+                # evidence that there was never anything to lose.
+                return _store_absent()
+            raise
         for row in result.get("Items", []) or []:
             key = str(row.get("provider") or "").strip().lower() or _UNKNOWN_PROVIDER
             counts[key] = counts.get(key, 0) + 1
@@ -232,7 +286,15 @@ def purge(*, confirm_table: str) -> Dict[str, Any]:
         kwargs: Dict[str, Any] = {"ProjectionExpression": "messageId"}
         if last_key:
             kwargs["ExclusiveStartKey"] = last_key
-        result = table.scan(**kwargs)
+        try:
+            result = table.scan(**kwargs)
+        except Exception as exc:  # noqa: BLE001 - narrowed immediately below
+            if retired_store.is_absent(exc):
+                # Asked to erase something already erased. Not an error - the
+                # caller's intent is satisfied - but it must not report a
+                # deletion it did not perform.
+                return {**_store_absent(), "deleted": 0, "alreadyAbsent": True}
+            raise
         items = result.get("Items", []) or []
         if not items:
             break

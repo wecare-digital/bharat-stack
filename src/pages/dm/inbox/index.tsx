@@ -199,14 +199,21 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded, channel }
     const prevThreadLen = useRef( 0 );
     const lastTypingRef = useRef<{ id: string; at: number }>( { id: '', at: 0 } );
     const [ loadingOlder, setLoadingOlder ] = useState( false );
+    // Why the last load returned nothing, when it returned nothing for a reason.
+    const [ loadFailure, setLoadFailure ] = useState<api.ApiFailure | null>( null );
 
     const loadData = useCallback( async () => {
         try
         {
-            const [ msgs, contacts ] = await Promise.all( [
+            // `listMessages`/`listContacts` return [] for BOTH "table is empty" and
+            // "the request failed", so the catch below never fires on an API error
+            // and the page would render "No conversations" over an outage.
+            // collectApiFailures recovers the reason without changing 300 wrappers.
+            const { data: [ msgs, contacts ], failures } = await api.collectApiFailures( () => Promise.all( [
                 api.listMessages( undefined, 'ALL', 2000 ),
                 api.listContacts(),
-            ] );
+            ] ) );
+            setLoadFailure( failures[ 0 ] ?? null );
             const names: Record<string, string> = {};
             const dir: Record<string, { username?: string; bsuid?: string; book?: string }> = {};
             contacts.forEach( c => {
@@ -786,6 +793,40 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded, channel }
                     <div className="ui-list">
                         { loading ? (
                             <div className="ui-empty">Loading…</div>
+                        ) : loadFailure && messages.length === 0 ? (
+                            /*
+                             * The load failed AND we have nothing cached to show. This is
+                             * the case that used to render as "No conversations": three
+                             * different problems (session expired, 8s timeout, route not
+                             * deployed) presented as an empty table, so the only visible
+                             * remedy was the wrong one. Say which it is, and offer the
+                             * remedy that matches.
+                             *
+                             * A failure with messages still on screen is deliberately
+                             * NOT surfaced here - a failed 15s poll should not blank a
+                             * working thread list.
+                             */
+                            <div className="ui-empty">
+                                { loadFailure.kind === 'unauthenticated' ? 'Your session has expired.' : 'Could not load the inbox.' }
+                                <br />
+                                <span style={ { color: colors.textMuted } }>{ loadFailure.message }</span>
+                                <br />
+                                { loadFailure.kind === 'unauthenticated' ? (
+                                    /*
+                                     * There is no /login route - every protected page is
+                                     * wrapped in the Amplify Authenticator by _app.tsx, so
+                                     * the way back to a sign-in form is to remount it.
+                                     * Reloading does that and re-runs the session check.
+                                     */
+                                    <button type="button" className="ui-link-btn" onClick={ () => window.location.reload() }>
+                                        Reload to sign in
+                                    </button>
+                                ) : (
+                                    <button type="button" className="ui-link-btn" onClick={ () => { setLoading( true ); loadData(); } }>
+                                        { loadFailure.retryable ? 'Retry' : 'Try again' }
+                                    </button>
+                                ) }
+                            </div>
                         ) : conversations.length === 0 ? (
                             /*
                              * "No conversations" on its own is indistinguishable from a

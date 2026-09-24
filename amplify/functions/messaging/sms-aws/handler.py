@@ -47,7 +47,11 @@ dynamodb = boto3.resource('dynamodb', region_name=REGION)
 pinpoint_sms = boto3.client('pinpoint-sms-voice-v2', region_name=REGION)
 
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
-SMS_TABLE = os.environ.get('SMS_AWS_TABLE', 'stack-wecare-digital-SmsAwsTable')
+# SMS_TABLE removed 2026-09-24. It named `stack-wecare-digital-SmsAwsTable`, which
+# does not exist in the account, and its only use was a "best-effort legacy
+# cleanup" delete inside _delete_message. That dual-write window is closed -
+# _store_message writes to the canonical MessagesTable only - so the delete could
+# never remove anything and only ever raised into a bare `except: pass`.
 # Canonical unified table — reads/deletes now target this (channel=sms).
 UNIFIED_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 # Non-India origination identity. MUST be pinned to a real number.
@@ -245,14 +249,9 @@ def _get_message(message_id: str, request_id: str) -> Dict[str, Any]:
 
 
 def _delete_message(message_id: str, request_id: str) -> Dict[str, Any]:
-    """Delete a single SMS message from the canonical table (and legacy, if present)."""
+    """Delete a single SMS message from the canonical table."""
     try:
         dynamodb.Table(UNIFIED_TABLE).delete_item(Key={'id': message_id})
-        # Best-effort legacy cleanup during the dual-write window.
-        try:
-            dynamodb.Table(SMS_TABLE).delete_item(Key={'id': message_id})
-        except Exception:
-            pass
         return _response(200, {'success': True, 'deleted': message_id})
     except Exception as e:
         logger.error(f"Delete message error: {str(e)}")

@@ -1,10 +1,58 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 
 /**
- * WECARE.DIGITAL DynamoDB Schema
- * 
- * 41 Tables with PAY_PER_REQUEST billing mode
- * TTL enabled on: Messages (30d), DLQMessages (7d), AuditLogs (180d), RateLimitTrackers (24h), VoiceCalls (90d), VoiceCDR (90d), OBDCampaign (90d), RazorpayWebhookLog (180d)
+ * WECARE.DIGITAL data model
+ *
+ * READ THIS BEFORE TRUSTING IT AS INFRASTRUCTURE.
+ *
+ * This file declares 58 models and is passed to `defineBackend` by
+ * `amplify/backend.ts`. It therefore looks deployed. It is not. Measured against
+ * account 775261844268 / us-east-1 on 2026-09-24:
+ *
+ *     AppSync GraphQL APIs        0
+ *     models declared here       58
+ *     DynamoDB tables live       77
+ *
+ * Not one model below has ever been materialised. Every table the platform
+ * actually uses was created by CDK (`amplify/link-resources.ts`,
+ * `backend-resources.ts`, `seo-resources.ts`) or by a `scripts/provision_*.py`
+ * script, under the `stack-wecare-digital-*` naming scheme, and the Python Lambda
+ * fleet addresses those names directly through `os.environ` defaults. Nothing at
+ * runtime reads this schema.
+ *
+ * The sharp edge
+ * --------------
+ * Amplify would not ADOPT the live tables if this were deployed. It would create
+ * its own, named after the API, and leave 77 populated tables untouched and
+ * unread beside 58 empty ones. The comments in this file cite physical names like
+ * `stack-wecare-digital-ContactsTable`, which makes it read as a description of
+ * the live tables; it is not that either. Treat every model here as
+ * documentation of intent unless you have checked the physical table yourself.
+ *
+ * Why it is not simply deleted
+ * ---------------------------
+ * `backend.ts` uses `backend.data.resources.stacks['data']` as the CDK stack that
+ * hosts the URL shortener, the SQS queues, the CloudWatch alarms and dashboard,
+ * and the SEO resources. Removing `data` from `defineBackend` would take all of
+ * that with it. The declaration is load-bearing as a stack anchor even though its
+ * models are inert.
+ *
+ * Keeping it honest
+ * -----------------
+ * Two gates, deliberately separate, because they answer different questions:
+ *
+ *     python scripts/check_data_model_drift.py --gate   declared models vs live tables
+ *     python scripts/audit_data_model_drift.py --gate   table names in code vs live tables
+ *
+ * The first is the one that guards this file. Six models declaring tables that do
+ * not exist were removed on 2026-09-24 (SmsAws, AirtelSMS, AirtelC2C,
+ * RcsMessages, AdminActionLog, ProviderDriftSnapshot) and every remaining
+ * disagreement is recorded with its reason in that script rather than left to be
+ * rediscovered.
+ *
+ * TTL is configured in `backend.ts` for 16 models, and is additionally enforced
+ * on the physical tables by `scripts/_fix_ddb_ttl.py` - which is what actually
+ * takes effect, since the CDK override has nothing to attach to.
  */
 const schema = a.schema( {
   // Table 1: Contacts - Contact records with opt-in preferences
@@ -286,31 +334,11 @@ const schema = a.schema( {
     ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-  // Table 16: SmsAws - AWS Pinpoint SMS Messages (dedicated, TTL: 90 days)
-  SmsAws: a
-    .model( {
-      messageId: a.id().required(),
-      contactId: a.string(),
-      phoneNumber: a.string().required(),
-      content: a.string().required(),
-      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
-      status: a.string(), // SENT, DELIVERED, FAILED
-      messageType: a.string(), // TRANSACTIONAL, PROMOTIONAL
-      senderId: a.string(),
-      providerMessageId: a.string(),
-      campaignId: a.string(),
-      campaignName: a.string(),
-      errorDetails: a.string(),
-      createdAt: a.integer(),
-      expiresAt: a.integer(), // TTL
-    } )
-    .identifier( [ 'messageId' ] )
-    .secondaryIndexes( ( index ) => [
-      index( 'contactId' ),
-      index( 'phoneNumber' ),
-    ] )
-    .authorization( ( allow ) => [ allow.authenticated() ] ),
-
+  // SmsAws REMOVED 2026-09-24. Declared a table `SmsAwsTable` that does not exist
+  // in the account; SMS is stored in the canonical MessagesTable under
+  // channel='sms' (messaging/sms-aws/handler.py `_store_message`). The three dead
+  // constants naming the absent table, and the system-cleanup registry entry that
+  // raised ResourceNotFound on every run, were removed in the same change.
   // Table 17: VoiceAws - AWS Pinpoint Voice Calls (dedicated, TTL: 90 days)
   VoiceAws: a
     .model( {
@@ -339,34 +367,6 @@ const schema = a.schema( {
     ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-  // Sender ID: WDBEEP | Entity ID: 1201161991108627443
-  AirtelSMS: a
-    .model( {
-      messageId: a.id().required(),
-      contactId: a.string(),
-      phoneNumber: a.string().required(),
-      content: a.string().required(),
-      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
-      status: a.enum( [ 'PENDING', 'SENT', 'DELIVERED', 'FAILED' ] ),
-      messageType: a.string(), // SERVICE_EXPLICIT, SERVICE_IMPLICIT, TRANSACTIONAL, PROMOTIONAL
-      senderId: a.string().default( 'WDBEEP' ),
-      entityId: a.string().default( '1201161991108627443' ),
-      dltTemplateId: a.string(),
-      providerMessageId: a.string(),
-      recipientCount: a.integer().default( 1 ),
-      apiVersion: a.string(), // v4, v5, v6
-      errorDetails: a.string(),
-      createdAt: a.integer(),
-      expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
-    } )
-    .identifier( [ 'messageId' ] )
-    .secondaryIndexes( ( index ) => [
-      index( 'contactId' ),
-      index( 'phoneNumber' ),
-      index( 'status' ),
-    ] )
-    .authorization( ( allow ) => [ allow.authenticated() ] ),
-
   // Table 15b: DLTTemplates - DLT Template Registry for Airtel SMS
   DLTTemplates: a
     .model( {
@@ -384,65 +384,22 @@ const schema = a.schema( {
     .identifier( [ 'templateId' ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-  // Table 15c: RcsMessages - Sinch RCS Messages (TTL: 90 days)
-  // Project: c8114d03-eeb2-401d-a8f1-abb93594cb33 | App: 01KQSB792X3R148D8ZGHQYW3SP
-  RcsMessages: a
-    .model( {
-      messageId: a.id().required(),
-      direction: a.enum( [ 'INBOUND', 'OUTBOUND' ] ),
-      channel: a.string().default( 'RCS' ),
-      phoneNumber: a.string().required(),
-      content: a.string(),
-      status: a.enum( [ 'sent', 'delivered', 'read', 'failed', 'received' ] ),
-      templateId: a.string(),
-      metadata: a.string(),
-      provider: a.string().default( 'sinch-rcs' ),
-      contactId: a.string(),
-      conversationId: a.string(),
-      dlrRaw: a.string(),
-      dlrTime: a.string(),
-      createdAt: a.integer(),
-      updatedAt: a.integer(),
-      expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
-    } )
-    .identifier( [ 'messageId' ] )
-    .secondaryIndexes( ( index ) => [
-      index( 'phoneNumber' ),
-      index( 'status' ),
-      index( 'contactId' ),
-    ] )
-    .authorization( ( allow ) => [ allow.authenticated() ] ),
-
-  // Table 15: AirtelC2C - Airtel Click-to-Call Records (TTL: 90 days)
-  // Caller ID: 8047311032 (Fixed Line · Karnataka) | App ID: WECAREDIG_fD4BKqUbC8k90jNrPR0n
-  AirtelC2C: a
-    .model( {
-      callId: a.id().required(),
-      contactId: a.string(),
-      fromNumber: a.string().required(),
-      toNumber: a.string().required(),
-      callerId: a.string().default( '8047311032' ),
-      callFlowId: a.string(), // Airtel call flow ID
-      status: a.enum( [ 'INITIATED', 'RINGING', 'CONNECTED', 'COMPLETED', 'FAILED', 'NO_ANSWER', 'BUSY' ] ),
-      duration: a.integer().default( 0 ),
-      recordingEnabled: a.boolean().default( true ),
-      recordingUrl: a.string(),
-      s3RecordingKey: a.string(),
-      correlationId: a.string(), // Airtel correlationId (Xchange ID)
-      errorDetails: a.string(),
-      createdAt: a.integer(),
-      updatedAt: a.integer(),
-      expiresAt: a.integer(), // TTL: Unix epoch seconds (90 days)
-    } )
-    .identifier( [ 'callId' ] )
-    .secondaryIndexes( ( index ) => [
-      index( 'contactId' ),
-      index( 'fromNumber' ),
-      index( 'toNumber' ),
-      index( 'status' ),
-    ] )
-    .authorization( ( allow ) => [ allow.authenticated() ] ),
-
+  // RcsMessages REMOVED 2026-09-24. Legacy RCS store. All writes stopped in the
+  // Phase 4 migration and the canonical MessagesTable is the sole store; the
+  // RCS_TABLE constants naming the absent table went on 2026-09-21. The name stays
+  // in ACCEPTED_ABSENT in scripts/audit_data_model_drift.py so a reintroduction is
+  // still reported.
+  // AirtelC2C and AirtelSMS REMOVED 2026-09-24. Both physical tables were deleted
+  // on 2026-09-20 with the Airtel retirement, so both models described storage that
+  // does not exist. The read paths that still name those tables are deliberate -
+  // they exist to keep retired-provider history reachable - and they now report the
+  // absence as 410 / storeAbsent through lambda_utils/retired_store rather than
+  // raising. See ACCEPTED_ABSENT in scripts/audit_data_model_drift.py.
+  //
+  // The DLT sender metadata that used to sit above AirtelSMS (Sender ID WDBEEP,
+  // Entity ID 1201161991108627443) is India DLT registration data, not provider
+  // configuration, and lives in the DLTTemplates model below - which has a real
+  // live table.
   // Table 13: VoiceCDR - Airtel Voice CDR Records (TTL: 90 days)
   // Inbound Number: +91 9319767034 (Mobile · Delhi) | Email: voice@wecare.digital
   VoiceCDR: a
@@ -1432,26 +1389,11 @@ const schema = a.schema( {
     ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-  // Table: AdminActionLog — Admin action audit trail
-  AdminActionLog: a
-    .model( {
-      logId: a.id().required(),
-      adminUserId: a.string().required(),
-      actionType: a.string().required(), // status_update | create | delete | assign | amend
-      entityType: a.string().required(), // order | submission | document | appointment | rx_slot | enterprise_case | review | faq
-      entityId: a.string().required(),
-      beforeData: a.string(), // JSON snapshot before
-      afterData: a.string(), // JSON snapshot after
-      notes: a.string(),
-      createdAt: a.integer(),
-    } )
-    .identifier( [ 'logId' ] )
-    .secondaryIndexes( ( index ) => [
-      index( 'entityType' ),
-      index( 'adminUserId' ),
-    ] )
-    .authorization( ( allow ) => [ allow.authenticated() ] ),
-
+  // AdminActionLog REMOVED 2026-09-24. Declared an `AdminActionLogsTable` that does
+  // not exist, and had zero readers and zero writers anywhere in the repo - the
+  // declaration was its only mention. The live admin audit trail is the AuditLog
+  // model on stack-wecare-digital-AuditLogsTable, written through
+  // lambda_utils/audit.py.
   // Table: AmendmentHistory — Track amendments to submissions
   AmendmentHistory: a
     .model( {
@@ -1606,43 +1548,12 @@ const schema = a.schema( {
   // is precisely how the original came to be permanently broken while looking
   // complete in source.
 
-  // ProviderDriftSnapshot — desired vs actual provider state, redacted.
-  //
-  // Written by the drift check so history is queryable: "when did this move?"
-  // needs more than the current comparison. Values are already redacted by the
-  // control plane (tokens appear as SHA-256 fingerprints).
-  ProviderDriftSnapshot: a
-    .model( {
-      snapshotId: a.id().required(),
-      provider: a.string().default( 'plivo' ),
-      resourceType: a.string(),         // application | number | endpoint | trunk
-      resourceId: a.string(),
-      drifted: a.boolean().default( false ),
-      // Severity is split because the responses differ: a moved callback URL is
-      // recoverable, a moved number binding means calls are not arriving.
-      criticalCount: a.integer().default( 0 ),
-      warningCount: a.integer().default( 0 ),
-      criticalFindings: a.string(),     // JSON array
-      warningFindings: a.string(),      // JSON array
-      desiredState: a.string(),         // JSON, redacted
-      actualState: a.string(),          // JSON, redacted
-      reconciliationStatus: a.enum( [
-        'DETECTED', 'ACKNOWLEDGED', 'RECONCILED', 'ACCEPTED_AS_IS', 'FAILED',
-      ] ),
-      reconciledBy: a.string(),
-      reconciledAt: a.integer(),
-      gitCommit: a.string(),
-      checkedAt: a.integer(),
-      createdAt: a.integer(),
-      expiresAt: a.integer(),
-    } )
-    .identifier( [ 'snapshotId' ] )
-    .secondaryIndexes( ( index ) => [
-      index( 'resourceType' ),
-      index( 'reconciliationStatus' ),
-    ] )
-    .authorization( ( allow ) => [ allow.authenticated() ] ),
-
+  // ProviderDriftSnapshot REMOVED 2026-09-24. No table, and no writer: the Plivo
+  // drift check in .github/workflows/plivo-drift.yml compares state and reports,
+  // it does not persist snapshots. backend.ts carried a TTL entry for it, which
+  // the `if ( table )` guard silently turned into a no-op. This was the deferred
+  // item 9.2 in .kiro/work/phases-5-10/plan.md; the retired-provider surface it
+  // was waiting for is being swept now, so it goes with the rest.
   // Table: FlowLog — Audit trail for every flow screen interaction
   FlowLog: a
     .model( {

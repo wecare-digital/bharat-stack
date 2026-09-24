@@ -18,6 +18,117 @@ export function getConnectionStatus () {
   return { status: connectionStatus, lastError: lastConnectionError };
 }
 
+/* ------------------------------------------------------------------------- *
+ * Structured failure channel
+ *
+ * Every wrapper below collapses a failed request to `null` (or to `[]`, for the
+ * list wrappers). That is convenient for callers but it destroys information:
+ * an expired session, an 8s timeout and a genuinely empty table all arrive at
+ * the UI as "nothing". A page cannot then choose between "Sign in again",
+ * "Retry" and "No messages yet", so it shows the emptiest of the three — which
+ * is how a stuck channel filter on /dm/inbox looked exactly like an outage.
+ *
+ * `apiCall` keeps its old shape so the ~300 wrappers are untouched. The failure
+ * is additionally recorded here, and `apiCallResult` / `collectApiFailures`
+ * expose it to any caller that wants to tell the cases apart.
+ * ------------------------------------------------------------------------- */
+
+export type ApiFailureKind =
+  /** 401 that survived a token refresh — the session is gone. */
+  | 'unauthenticated'
+  /** 403 — authenticated but not permitted (e.g. not in the Admin group). */
+  | 'forbidden'
+  /** 404 — the route itself is not deployed. */
+  | 'not-found'
+  /** 500 — the handler raised. */
+  | 'server'
+  /** 502/503 — API Gateway could not reach a healthy integration. */
+  | 'unavailable'
+  /** 504, or our own 8s AbortController firing. */
+  | 'timeout'
+  /** 429 — throttled, and the retries were exhausted. */
+  | 'rate-limited'
+  /** Request never produced a response: CORS, DNS, offline. */
+  | 'network'
+  /** Any other non-2xx status. */
+  | 'http';
+
+export interface ApiFailure {
+  kind: ApiFailureKind;
+  /** HTTP status, or `null` when the request never got a response at all. */
+  status: number | null;
+  /** Human-readable, safe to render. Never contains a token or a secret. */
+  message: string;
+  url: string;
+  /** True when trying the same call again could plausibly succeed. */
+  retryable: boolean;
+  at: number;
+}
+
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; failure: ApiFailure };
+
+const RETRYABLE_KINDS: ReadonlySet<ApiFailureKind> = new Set<ApiFailureKind>( [
+  'server', 'unavailable', 'timeout', 'rate-limited', 'network',
+] );
+
+let lastApiFailure: ApiFailure | null = null;
+const failureListeners = new Set<( failure: ApiFailure ) => void>();
+
+/** The most recent failure recorded by any call, or null since the last success. */
+export function getLastApiFailure (): ApiFailure | null {
+  return lastApiFailure;
+}
+
+function recordFailure ( kind: ApiFailureKind, status: number | null, message: string, url: string ): ApiFailure {
+  const failure: ApiFailure = {
+    kind,
+    status,
+    message,
+    url,
+    retryable: RETRYABLE_KINDS.has( kind ),
+    at: Date.now(),
+  };
+  lastApiFailure = failure;
+  connectionStatus = 'disconnected';
+  lastConnectionError = message;
+  failureListeners.forEach( listener => {
+    try { listener( failure ); } catch { /* a broken listener must not fail the call */ }
+  } );
+  return failure;
+}
+
+/**
+ * Run `load` and report any request failures it caused alongside its result.
+ *
+ * This is the escape hatch for the list wrappers, which return `[]` for both
+ * "empty" and "broken". A page can now render an error instead of an empty
+ * state:
+ *
+ *     const { data, failures } = await collectApiFailures( () => api.listMessages() );
+ *     if ( !data.length && failures.length ) showError( failures[ 0 ] );
+ *
+ * Caveat, stated rather than hidden: the collector is module-scoped, so a call
+ * started by some other component that fails inside this window is attributed
+ * here too. It is scoped to one awaited load, which in practice is one page's
+ * fetch, and it is strictly better than the `[]` it replaces. Use
+ * `apiCallResult` directly where exactness matters.
+ */
+export async function collectApiFailures<T> ( load: () => Promise<T> ): Promise<{ data: T; failures: ApiFailure[] }> {
+  const failures: ApiFailure[] = [];
+  const listener = ( failure: ApiFailure ) => { failures.push( failure ); };
+  failureListeners.add( listener );
+  try
+  {
+    const data = await load();
+    return { data, failures };
+  } finally
+  {
+    failureListeners.delete( listener );
+  }
+}
+
 // Helper function to delay with exponential backoff
 function delay ( ms: number ): Promise<void> {
   return new Promise( resolve => setTimeout( resolve, ms ) );
@@ -61,8 +172,21 @@ export async function verifyAdminAccess (): Promise<boolean> {
   return response.ok;
 }
 
-// Helper function for API calls with retry logic and better error handling
-async function apiCall<T> ( url: string, options?: RequestInit, retryCount = 0 ): Promise<T | null> {
+/**
+ * Back-compat helper: an API call whose failure collapses to `null`.
+ * Prefer `apiCallResult` in new code — it says *why* the call failed.
+ */
+async function apiCall<T> ( url: string, options?: RequestInit ): Promise<T | null> {
+  const result = await apiCallResult<T>( url, options );
+  return result.ok ? result.data : null;
+}
+
+/**
+ * API call with retry logic that reports the reason a request failed.
+ * Retries a 401 once with a refreshed token, and backs off on 429/502/503/504
+ * and network errors up to `RETRY_CONFIG.maxRetries`.
+ */
+export async function apiCallResult<T> ( url: string, options?: RequestInit, retryCount = 0 ): Promise<ApiResult<T>> {
   try
   {
     const controller = new AbortController();
@@ -88,31 +212,40 @@ async function apiCall<T> ( url: string, options?: RequestInit, retryCount = 0 )
     {
       connectionStatus = 'connected';
       lastConnectionError = null;
-      return response.json();
+      lastApiFailure = null;
+      return { ok: true, data: await response.json() as T };
     }
 
     // Handle specific HTTP errors
+    let kind: ApiFailureKind = 'http';
+    let message: string;
+
     if ( response.status === 401 )
     {
       // Token may have expired — try once with a fresh session
       if ( retryCount === 0 )
       {
         console.debug( 'Got 401, retrying with refreshed token...' );
-        return apiCall<T>( url, options, retryCount + 1 );
+        return apiCallResult<T>( url, options, retryCount + 1 );
       }
-      lastConnectionError = 'Authentication failed - please sign in again';
+      kind = 'unauthenticated';
+      message = 'Authentication failed - please sign in again';
     } else if ( response.status === 403 )
     {
-      lastConnectionError = 'Access denied - check API Gateway permissions';
+      kind = 'forbidden';
+      message = 'Access denied - check API Gateway permissions';
     } else if ( response.status === 404 )
     {
-      lastConnectionError = 'API endpoint not found';
+      kind = 'not-found';
+      message = 'API endpoint not found';
     } else if ( response.status === 500 )
     {
-      lastConnectionError = 'Server error - check Lambda logs';
+      kind = 'server';
+      message = 'Server error - check Lambda logs';
     } else if ( response.status === 502 || response.status === 503 || response.status === 504 )
     {
-      lastConnectionError = response.status === 504 ? 'Lambda timeout - function took too long' : 'API Gateway error - service unavailable';
+      kind = response.status === 504 ? 'timeout' : 'unavailable';
+      message = response.status === 504 ? 'Lambda timeout - function took too long' : 'API Gateway error - service unavailable';
       // Retry on 502/503 errors
       if ( retryCount < RETRY_CONFIG.maxRetries )
       {
@@ -122,7 +255,7 @@ async function apiCall<T> ( url: string, options?: RequestInit, retryCount = 0 )
         );
         console.debug( `Retrying API call (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...` );
         await delay( delayMs );
-        return apiCall<T>( url, options, retryCount + 1 );
+        return apiCallResult<T>( url, options, retryCount + 1 );
       }
     } else if ( response.status === 429 )
     {
@@ -135,9 +268,10 @@ async function apiCall<T> ( url: string, options?: RequestInit, retryCount = 0 )
         );
         console.debug( `Rate limited, retrying after ${delayMs}ms...` );
         await delay( delayMs );
-        return apiCall<T>( url, options, retryCount + 1 );
+        return apiCallResult<T>( url, options, retryCount + 1 );
       }
-      lastConnectionError = 'Rate limited - too many requests';
+      kind = 'rate-limited';
+      message = 'Rate limited - too many requests';
     } else
     {
       // Try to extract error message from response body
@@ -145,16 +279,16 @@ async function apiCall<T> ( url: string, options?: RequestInit, retryCount = 0 )
       {
         const errBody = await response.json();
         const msg = errBody?.error?.message || errBody?.error || errBody?.message;
-        lastConnectionError = msg ? `HTTP ${response.status}: ${msg}` : `HTTP ${response.status}: ${response.statusText}`;
+        message = msg ? `HTTP ${response.status}: ${msg}` : `HTTP ${response.status}: ${response.statusText}`;
       } catch
       {
-        lastConnectionError = `HTTP ${response.status}: ${response.statusText}`;
+        message = `HTTP ${response.status}: ${response.statusText}`;
       }
     }
 
-    connectionStatus = 'disconnected';
-    console.error( `API error: ${lastConnectionError}`, url );
-    return null;
+    const failure = recordFailure( kind, response.status, message, url );
+    console.error( `API error: ${failure.message}`, url );
+    return { ok: false, failure };
   } catch ( e: any )
   {
     // Retry on network errors
@@ -166,22 +300,27 @@ async function apiCall<T> ( url: string, options?: RequestInit, retryCount = 0 )
       );
       console.debug( `Network error, retrying (${retryCount + 1}/${RETRY_CONFIG.maxRetries}) after ${delayMs}ms...` );
       await delay( delayMs );
-      return apiCall<T>( url, options, retryCount + 1 );
+      return apiCallResult<T>( url, options, retryCount + 1 );
     }
 
-    connectionStatus = 'disconnected';
+    let kind: ApiFailureKind;
+    let message: string;
     if ( e.name === 'AbortError' )
     {
-      lastConnectionError = 'Request timeout - API took too long';
+      kind = 'timeout';
+      message = 'Request timeout - API took too long';
     } else if ( e.name === 'TypeError' )
     {
-      lastConnectionError = 'CORS error or network unavailable';
+      kind = 'network';
+      message = 'CORS error or network unavailable';
     } else
     {
-      lastConnectionError = e.message || 'Connection failed';
+      kind = 'network';
+      message = e.message || 'Connection failed';
     }
-    console.error( 'API call failed:', lastConnectionError, url, e );
-    return null;
+    const failure = recordFailure( kind, null, message, url );
+    console.error( 'API call failed:', failure.message, url, e );
+    return { ok: false, failure };
   }
 }
 

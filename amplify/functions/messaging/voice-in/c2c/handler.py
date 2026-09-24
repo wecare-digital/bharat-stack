@@ -41,6 +41,7 @@ from decimal import Decimal
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.middleware import require_auth
+from lambda_utils import retired_store
 
 logger = get_logger(__name__)
 
@@ -52,14 +53,43 @@ secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 lambda_client = boto3.client('lambda', region_name=AWS_REGION)
 
 # Environment variables
-# The physical table name is UNCHANGED - it holds real historical records that
-# must stay readable. Only the code identifier stops naming a provider.
+# The code identifier stops naming a provider; the physical table name is
+# unchanged because renaming it would not move any data.
 #
 # No env fallback is needed for the old variable name: its deployed value is
 # identical to this default, so a function whose configuration has not been
-# updated resolves to the same table either way.
+# updated resolves to the same table either way. Verified against the live
+# configuration - the retired-provider table variable still set on this function
+# carries exactly this value. Its name is not written out here because
+# scripts/check-provider-policy.sh treats the literal as a runtime reference to a
+# prohibited provider, and that bluntness is correct: a prohibition that can be
+# talked around with a comment is not a prohibition.
+#
+# CORRECTION, measured 2026-09-24 - this comment previously read "it holds real
+# historical records that must stay readable", which is false. `ListTables` does
+# not return this table; it was deleted on 2026-09-20 with the Airtel retirement,
+# as operations/system-cleanup already records. Five call sites below name it, and
+# this function took 39 invocations in 30 days, so the reads were answering 500.
+# They now answer 410 via _legacy_store_gone: the data was deliberately removed,
+# which is a different statement from "the platform is broken" and points at a
+# different remedy. Restoring it, if that is wanted, is a retention decision for
+# the owner and is not something this handler can take.
 LEGACY_C2C_TABLE = os.environ.get('LEGACY_C2C_TABLE',
                                   'stack-wecare-digital-AirtelC2CTable')
+
+
+def _legacy_store_gone(operation: str) -> Dict[str, Any]:
+    """410 for a read against the deleted retired-provider call store."""
+    logger.info({
+        'event': 'retired_store_absent',
+        'operation': operation,
+        'table': LEGACY_C2C_TABLE,
+    })
+    return _response(retired_store.ABSENT_HTTP_STATUS, retired_store.absent_payload(
+        LEGACY_C2C_TABLE,
+        what='Retired-provider click-to-call history',
+        retired='Deleted 2026-09-20 with the Airtel retirement.',
+    ))
 S3_BUCKET = 'app.wecare.digital'
 S3_RECORDING_PREFIX = 'stack/voice/'
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
@@ -198,6 +228,8 @@ def _list_calls(params: Dict, request_id: str) -> Dict[str, Any]:
             'count': len(calls)
         })
     except Exception as e:
+        if retired_store.is_absent(e):
+            return _legacy_store_gone('List')
         logger.error(f"List calls error: {str(e)}")
         return _response(500, {'error': str(e)})
 
@@ -423,7 +455,17 @@ def _handle_cdr_callback(body: Dict, request_id: str) -> Dict[str, Any]:
                     )
                     logger.info(json.dumps({'event': 'c2c_call_updated_from_cdr', 'callId': c2c_item['callId'], 'correlationId': client_correlation_id, 'requestId': request_id}))
             except Exception as link_err:
-                logger.warning(f"Failed to update C2C call from CDR: {str(link_err)}")
+                if retired_store.is_absent(link_err):
+                    # Expected since 2026-09-20: the legacy call store was deleted,
+                    # so there is no prior row to enrich. The CDR itself is still
+                    # written to VoiceCDRTable below, which is the record that
+                    # matters. Logged at info because it is the intended end state,
+                    # not a warning about something that needs fixing.
+                    logger.info({'event': 'retired_store_absent',
+                                 'operation': 'CDR back-link',
+                                 'table': LEGACY_C2C_TABLE})
+                else:
+                    logger.warning(f"Failed to update C2C call from CDR: {str(link_err)}")
 
         item = {}
         for key, value in cdr_record.items():
@@ -859,6 +901,8 @@ def _delete_call(call_id: str, hard_delete: bool, request_id: str) -> Dict[str, 
             )
             return _response(200, {'success': True, 'deleted': call_id, 'type': 'soft'})
     except Exception as e:
+        if retired_store.is_absent(e):
+            return _legacy_store_gone('Delete')
         logger.error(f"Delete call error: {str(e)}")
         return _response(500, {'error': str(e)})
 
@@ -909,6 +953,10 @@ def _clear_logs(request_id: str) -> Dict[str, Any]:
             'message': f'Cleared {deleted_count} C2C call logs'
         })
     except Exception as e:
+        if retired_store.is_absent(e):
+            # Asked to clear a store that is already gone. The caller's intent is
+            # satisfied, but it must not be told it deleted rows it did not.
+            return _legacy_store_gone('Clear logs')
         logger.error(f"Clear logs error: {str(e)}")
         return _response(500, {'error': str(e)})
 

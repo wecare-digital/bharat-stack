@@ -91,12 +91,12 @@ CLEANUP_RESOURCES = {
         'type': 'dynamodb',
         'table': 'stack-wecare-digital-VoiceAwsTable',
     },
-    'sms_aws': {
-        'label': 'SMS AWS (Pinpoint)',
-        'category': 'SMS',
-        'type': 'dynamodb',
-        'table': 'stack-wecare-digital-SmsAwsTable',
-    },
+    # sms_aws removed 2026-09-24, for the same reason airtel_sms / airtel_c2c were
+    # removed below: it named `stack-wecare-digital-SmsAwsTable`, which is not in
+    # the account. SMS rows now live in the canonical MessagesTable under
+    # channel='sms', which the `messages_legacy` entry already covers, so nothing
+    # became uncleanable - an entry that raises ResourceNotFound on every run just
+    # stopped doing that.
     # airtel_sms / airtel_c2c removed 2026-09-20: both tables were deleted from
     # the account with the Airtel retirement. A registry entry for a table that
     # no longer exists makes every cleanup run raise ResourceNotFound.

@@ -217,7 +217,14 @@ def _sync_orders() -> Dict:
     try:
         lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         lambda_client.invoke(
-            FunctionName=os.environ.get('WIX_STORE_FUNCTION', 'stack-wecare-digital-wix-store'),
+            # The deployed function is `wecare-wix-store`. The previous default,
+            # `stack-wecare-digital-wix-store`, named nothing in the account: that
+            # prefix belongs to DynamoDB tables, not Lambda functions. Confirmed
+            # against the live config on 2026-09-24 - neither this function nor
+            # wecare-whatsapp-business-api sets WIX_STORE_FUNCTION, so the default
+            # was always what ran, and every invoke raised
+            # ResourceNotFoundException.
+            FunctionName=os.environ.get('WIX_STORE_FUNCTION', 'wecare-wix-store'),
             InvocationType='Event',
             Payload=json.dumps({'action': 'sync_orders'}),
         )
