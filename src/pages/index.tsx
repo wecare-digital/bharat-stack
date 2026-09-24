@@ -399,19 +399,37 @@ const HomePage: React.FC = () => {
                   three lines are that site's own "Tap. Track. Done." written out. */}
               <p className="home-close-eyebrow">Everyday Bharat</p>
               <h2 className="home-close-title" id="home-close-title">
-                Start with what you need today. The rest stays with you.
+                Start with what you need today.
               </h2>
-              {/* "We keep", not "We keeps" - the one grammar fix to the owner's draft. */}
+              {/* THE CONTEXT CLAIM IS DELIBERATELY GONE FROM HERE, and so is the second
+                  sentence of the title above. The page was saying "we remember what you
+                  already told us" FOUR times: the flow section's first beat, this title,
+                  this lead (twice over), and the first point below. Two of those were
+                  near-verbatim - "what you’ve already shared" appeared here and in that
+                  beat, and "start from scratch" here against "starting over" there. A fifth
+                  instance was already deleted in 4d5dcba7. It is now stated twice: once in
+                  the flow beat that owns it, once in the point below.
+                  The replacement says something the page does not say anywhere else - that
+                  you can buy one thing without committing to a bundle - which is what a
+                  closing band is for. It also does NOT summarise the three points beneath
+                  it, which is the mistake just corrected in the flow section's lead. */}
               <p className="home-close-lead">
-                Begin with whatever matters right now. When you come back for something
-                else, you don’t have to start from scratch. We keep the context, remember
-                what you’ve already shared, and help move things forward from there.
+                Pick one thing and see how it goes. There’s no bundle to buy and no
+                minimum to commit to.
               </p>
               <span className="home-close-rule" aria-hidden="true" />
               <ul className="home-close-points">
+                {/* "Know the price before you commit" leads, and that order is the point:
+                    it is the only concrete, falsifiable promise on the page, and it was
+                    sitting last. NOTE it is still a promise with nothing behind it - no
+                    price appears anywhere on this page. Do not hardcode one here: the
+                    catalog floor is ₹599 today (Viveka) and the owner expects ₹49 once
+                    several thousand more products are loaded, so any number typed into this
+                    copy starts drifting immediately. Derive it from src/content/wix-catalog.json
+                    instead, then it cannot lie. */}
+                <li>Know the price before you commit.</li>
                 <li>Tell us once. We remember the context.</li>
                 <li>Everything you’ve asked for, in one place.</li>
-                <li>Know the price before you commit.</li>
               </ul>
               {/* A PLAIN <a>, AND IT MUST STAY ONE. This was briefly next/link to silence
                   @next/next/no-html-link-for-pages, and that silently destroyed the button:
