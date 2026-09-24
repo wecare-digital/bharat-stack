@@ -61,7 +61,11 @@ export const navigationConfig: NavItem[] = [
       { path: '/dm/channels', label: 'Channels', icon: 'message' },
       { path: '/dm/broadcast', label: 'Broadcast', icon: 'message' },
       { path: '/dm/content', label: 'Content Library', icon: 'message' },
-      { path: '/dm/calls', label: 'Calls', icon: 'voice' },
+      // Calls is a FILTER inside the inbox, not a page. dm/calls was 159 lines
+      // reading the same canonical MessagesTable the inbox already reads, and the
+      // inbox already renders voice with its own badge and an audio player.
+      // Call CONFIGURATION (/dm/voice, /dm/voice-in) stays separate.
+      { path: '/dm/inbox?channel=voice', label: 'Calls', icon: 'voice' },
       { path: '/dm/contact-360', label: 'Contact 360', icon: 'contacts' },
       { path: '/dm/scheduled', label: 'Scheduled', icon: 'message' },
       { path: '/dm/search', label: 'Search', icon: 'message' },
@@ -92,7 +96,10 @@ export const navigationConfig: NavItem[] = [
           { path: '/dm/whatsapp/conversions-api', label: 'Conversions API (CTWA)' },
           { path: '/dm/whatsapp/ctwa-ads', label: 'Ads → WhatsApp (CTWA)' },
           { path: '/dm/whatsapp/tech-partner', label: 'Tech Partner Readiness' },
-          { path: '/dm/whatsapp/logs', label: 'Message Logs' },
+          // One logs view for every channel. dm/whatsapp/logs was 265 lines
+          // over the same canonical table; its error decoding, CSV export and
+          // pagination moved into dm/logs, which now takes a channel preset.
+          { path: '/dm/logs?channel=whatsapp', label: 'Message Logs' },
           // Templates
           { path: '/dm/whatsapp/templates', label: 'Templates' },
           { path: '/dm/whatsapp/template-builder', label: 'Template Builder' },

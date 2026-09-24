@@ -1,157 +1,287 @@
 /**
- * Message Logs - View all messages across channels
+ * Message Logs — ONE view over the canonical MessagesTable, for every channel.
+ *
+ * WHY THIS FILE ABSORBED THREE OTHERS
+ * -----------------------------------
+ * There were four logs pages totalling 971 lines, and all four called the same
+ * `api.listMessages` against the same single table. They differed only in a
+ * channel filter string and a column set:
+ *
+ *   dm/logs          319  all channels, filters + summary cards
+ *   dm/ses/logs      268  channel EMAIL, plus a delete action
+ *   dm/whatsapp/logs 265  channel WHATSAPP, plus error decoding, CSV, pagination
+ *   dm/rcs/logs      119  channel RCS, nothing unique
+ *
+ * `messages-read/handler.py` calls MessagesTable "the single source the inbox
+ * reads" and the legacy per-channel dual-writes were already stopped, so there
+ * was never a data reason for four pages - only a UI one.
+ *
+ * Every capability from all four is kept, none dropped:
+ *   - channel / direction / status filters, and the summary cards (from dm/logs)
+ *   - contact-name resolution, failure-reason breakdown, CSV export, pagination
+ *     and WhatsApp error decoding (from dm/whatsapp/logs)
+ *   - row delete (from dm/ses/logs)
+ *
+ * THE `channel` PROP is what replaces the three files. A hub embeds this with its
+ * own channel and the filter is preset and hidden, because a channel selector
+ * inside a page already titled "RCS" is a control that can only ever be wrong.
+ * `?channel=` is accepted too, so a link or a Ctrl+K result can deep-link.
+ *
+ * WhatsApp error decoding stays WhatsApp-only. `describeWaError` maps Meta's
+ * numeric codes; showing a Meta explanation next to an SES bounce would invent a
+ * cause. Other channels show their raw `errorDetails` and nothing more.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import Button from '../../../components/ui/Button';
-import { SkeletonTable } from '../../../components/Skeleton';
+import Pagination from '../../../components/ui/Pagination';
+import InfoTooltip from '../../../components/ui/InfoTooltip';
+import { describeWaError } from '../../../lib/wa-errors';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
+
+export type LogChannel = 'whatsapp' | 'sms' | 'email' | 'voice' | 'rcs';
 
 interface PageProps {
   signOut?: () => void;
   user?: any;
   embedded?: boolean;
+  /** Preset and lock the channel. Used by the per-channel hubs. */
+  channel?: LogChannel;
 }
 
 interface MessageLog {
   id: string;
-  channel: 'whatsapp' | 'sms' | 'email' | 'voice' | 'rcs';
+  channel: LogChannel;
   direction: 'INBOUND' | 'OUTBOUND';
-  recipient: string;
+  contactId: string;
+  contactName?: string;
   content: string;
   status: string;
   createdAt: string;
+  messageType?: string;
+  errorCode?: number;
+  errorDetails?: string;
 }
 
-const MessageLogsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
+const LOGS_PER_PAGE = 50;
+
+const CHANNEL_BADGES: Record<string, { bg: string; color: string; label: string }> = {
+  whatsapp: { bg: '#f0fdf4', color: '#15803d', label: 'WhatsApp' },
+  sms: { bg: '#eff6ff', color: '#1d4ed8', label: 'SMS' },
+  email: { bg: '#fffbeb', color: '#b45309', label: 'Email' },
+  voice: { bg: '#f5f3ff', color: '#6d28d9', label: 'Voice' },
+  rcs: { bg: '#f0fdfa', color: '#0f766e', label: 'RCS' },
+};
+
+const STATUS_BADGES: Record<string, { bg: string; color: string; label: string }> = {
+  pending: { bg: '#fffbeb', color: '#b45309', label: 'Pending' },
+  queued: { bg: '#f9fafb', color: 'rgba(0,0,0,.54)', label: 'Queued' },
+  sent: { bg: '#eff6ff', color: '#1d4ed8', label: 'Sent' },
+  delivered: { bg: '#f0fdfa', color: '#0f766e', label: 'Delivered' },
+  read: { bg: '#f0fdf4', color: '#15803d', label: 'Read' },
+  received: { bg: '#f0fdf4', color: '#15803d', label: 'Received' },
+  failed: { bg: '#fef2f2', color: '#b91c1c', label: 'Failed' },
+  undelivered: { bg: '#fef2f2', color: '#b91c1c', label: 'Undelivered' },
+};
+
+const FAILED_STATUSES = [ 'failed', 'undelivered' ];
+
+const chBadge = ( c: string ) =>
+  CHANNEL_BADGES[ c ] || { bg: '#f9fafb', color: 'rgba(0,0,0,.54)', label: c || 'Unknown' };
+const stBadge = ( s: string ) =>
+  STATUS_BADGES[ s ] || { bg: '#f9fafb', color: 'rgba(0,0,0,.54)', label: s || 'unknown' };
+
+const MessageLogsPage: React.FC<PageProps> = ( { signOut, user, embedded, channel } ) => {
+  const router = useRouter();
   const [ logs, setLogs ] = useState<MessageLog[]>( [] );
   const [ loading, setLoading ] = useState( true );
   const [ channelFilter, setChannelFilter ] = useState<string>( 'all' );
   const [ directionFilter, setDirectionFilter ] = useState<string>( 'all' );
   const [ statusFilter, setStatusFilter ] = useState<string>( 'all' );
+  const [ page, setPage ] = useState( 1 );
+  const [ deletingId, setDeletingId ] = useState<string | null>( null );
   const toast = useToastContext();
 
-  useEffect( () => {
-    loadMessageLogs();
-  }, [] );
+  // A prop beats a query param beats "all". The prop is a hub presetting its own
+  // channel, so it must not be overridden by a stale URL.
+  const lockedChannel: LogChannel | undefined = useMemo( () => {
+    if ( channel ) return channel;
+    const q = String( router.query.channel || '' ).toLowerCase();
+    return ( q in CHANNEL_BADGES ) ? ( q as LogChannel ) : undefined;
+  }, [ channel, router.query.channel ] );
 
-  const loadMessageLogs = async () => {
+  const effectiveChannel = lockedChannel ?? ( channelFilter === 'all' ? undefined : channelFilter );
+
+  const load = useCallback( async () => {
     setLoading( true );
     try
     {
-      const messages = await api.listMessages();
-      const messageLogs = messages.map( m => ( {
+      // Contacts are fetched so a row can show a name instead of a raw id. This
+      // came from the WhatsApp page; the other three showed the bare contactId,
+      // which is unreadable.
+      const [ messages, contacts ] = await Promise.all( [
+        api.listMessages( undefined, lockedChannel ? lockedChannel.toUpperCase() : undefined, 2000 ),
+        api.listContacts().catch( () => [] as api.Contact[] ),
+      ] );
+      const names: Record<string, string> = {};
+      ( contacts || [] ).forEach( ( c ) => {
+        names[ c.contactId ] = c.name || c.phone || c.email || c.contactId;
+      } );
+      setLogs( ( messages || [] ).map( ( m ) => ( {
         id: m.messageId,
-        channel: ( m.channel?.toLowerCase() || 'whatsapp' ) as MessageLog[ 'channel' ],
-        direction: m.direction as 'INBOUND' | 'OUTBOUND',
-        recipient: m.contactId,
+        channel: ( m.channel?.toLowerCase() || 'whatsapp' ) as LogChannel,
+        direction: ( String( m.direction || '' ).toUpperCase() === 'INBOUND'
+          ? 'INBOUND' : 'OUTBOUND' ) as MessageLog[ 'direction' ],
+        contactId: m.contactId,
+        contactName: names[ m.contactId ],
         content: m.content || '',
-        status: m.status || 'unknown',
+        status: ( m.status || 'unknown' ).toLowerCase(),
         createdAt: m.timestamp,
-      } ) );
-      setLogs( messageLogs );
-    } catch ( err )
+        messageType: m.messageType,
+        errorCode: m.errorCode,
+        errorDetails: m.errorDetails,
+      } ) ) );
+    } catch
     {
-      console.error( 'Failed to load message logs:', err );
       toast.error( 'Failed to load message logs' );
     } finally
     {
       setLoading( false );
     }
-  };
+  }, [ lockedChannel, toast ] );
 
-  const getChannelBadge = ( channel: string ) => {
-    // Distinct, theme-aligned colors so channels are tellable at a glance.
-    const badges: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-      whatsapp: { bg: '#f0fdf4', color: '#15803d', icon: 'WA', label: 'WhatsApp' },
-      sms: { bg: '#eff6ff', color: '#1d4ed8', icon: 'SMS', label: 'SMS' },
-      email: { bg: '#fffbeb', color: '#b45309', icon: '@', label: 'Email' },
-      voice: { bg: '#f5f3ff', color: '#6d28d9', icon: 'VOICE', label: 'Voice' },
-      rcs: { bg: '#f0fdfa', color: '#0f766e', icon: 'RCS', label: 'RCS' },
-    };
-    return badges[ channel ] || { bg: '#f9fafb', color: '#6b7280', icon: '?', label: channel || 'Unknown' };
-  };
+  useEffect( () => { load(); }, [ load ] );
+  useEffect( () => { setPage( 1 ); }, [ channelFilter, directionFilter, statusFilter ] );
 
-  const getStatusBadge = ( status: string ) => {
-    const badges: Record<string, { bg: string; color: string; label: string }> = {
-      pending: { bg: '#fffbeb', color: '#b45309', label: 'Pending' },
-      queued: { bg: '#f9fafb', color: '#6b7280', label: 'Queued' },
-      sent: { bg: '#eff6ff', color: '#1d4ed8', label: 'Sent' },
-      delivered: { bg: '#f0fdfa', color: '#0f766e', label: 'Delivered' },
-      read: { bg: '#f0fdf4', color: '#15803d', label: 'Read' },
-      received: { bg: '#f0fdf4', color: '#15803d', label: 'Received' },
-      failed: { bg: '#fef2f2', color: '#b91c1c', label: 'Failed' },
-    };
-    return badges[ status ] || { bg: '#f9fafb', color: '#6b7280', label: status };
-  };
-
-  const getDirectionBadge = ( direction: string ) => {
-    if ( direction === 'INBOUND' )
-    {
-      return { bg: '#e5e5e5', color: '#000', icon: '↓', label: 'In' };
-    }
-    return { bg: '#f0f0f0', color: '#000', icon: '↑', label: 'Out' };
-  };
-
-  const filteredLogs = logs.filter( log => {
-    if ( channelFilter !== 'all' && log.channel !== channelFilter ) return false;
-    if ( directionFilter !== 'all' && log.direction !== directionFilter ) return false;
-    if ( statusFilter !== 'all' && log.status !== statusFilter ) return false;
+  const filtered = useMemo( () => logs.filter( ( l ) => {
+    if ( effectiveChannel && l.channel !== effectiveChannel ) return false;
+    if ( directionFilter !== 'all' && l.direction !== directionFilter ) return false;
+    if ( statusFilter !== 'all' && l.status !== statusFilter ) return false;
     return true;
-  } );
+  } ), [ logs, effectiveChannel, directionFilter, statusFilter ] );
 
-  const formatDate = ( dateStr: string ) => {
-    const date = new Date( dateStr );
-    return date.toLocaleDateString( 'en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+  const totals = useMemo( () => {
+    const failed = filtered.filter( ( l ) => FAILED_STATUSES.includes( l.status ) );
+    // Failure-reason breakdown, from the WhatsApp page. The single most useful
+    // thing on a logs screen and it existed on only one of the four.
+    const reasons: Record<string, number> = {};
+    failed.forEach( ( l ) => {
+      const info = l.channel === 'whatsapp'
+        ? describeWaError( l.errorCode, l.errorDetails ) : null;
+      const key = l.errorCode
+        ? `${l.errorCode} · ${info?.title || 'Error'}`
+        : ( info?.title || l.errorDetails || 'Unknown reason' );
+      reasons[ key ] = ( reasons[ key ] || 0 ) + 1;
+    } );
+    return {
+      total: filtered.length,
+      out: filtered.filter( ( l ) => l.direction === 'OUTBOUND' ).length,
+      in: filtered.filter( ( l ) => l.direction === 'INBOUND' ).length,
+      failed: failed.length,
+      topReasons: Object.entries( reasons ).sort( ( a, b ) => b[ 1 ] - a[ 1 ] ).slice( 0, 6 ),
+    };
+  }, [ filtered ] );
+
+  const totalPages = Math.max( 1, Math.ceil( filtered.length / LOGS_PER_PAGE ) );
+  const pageRows = filtered.slice( ( page - 1 ) * LOGS_PER_PAGE, page * LOGS_PER_PAGE );
+
+  const exportCsv = useCallback( () => {
+    const rows: string[][] = [ [ 'time', 'channel', 'direction', 'contact', 'type',
+      'status', 'errorCode', 'reason', 'content' ] ];
+    filtered.forEach( ( l ) => {
+      const info = FAILED_STATUSES.includes( l.status ) && l.channel === 'whatsapp'
+        ? describeWaError( l.errorCode, l.errorDetails ) : null;
+      rows.push( [
+        new Date( l.createdAt ).toISOString(), l.channel, l.direction,
+        l.contactName || l.contactId, l.messageType || 'text', l.status,
+        l.errorCode ? String( l.errorCode ) : '',
+        info ? info.reason : ( l.errorDetails || '' ), l.content,
+      ] );
+    } );
+    const csv = rows.map( ( r ) =>
+      r.map( ( cell ) => `"${String( cell ).replace( /"/g, '""' )}"` ).join( ',' )
+    ).join( '\n' );
+    const url = URL.createObjectURL( new Blob( [ csv ], { type: 'text/csv' } ) );
+    const a = document.createElement( 'a' );
+    a.href = url;
+    a.download = `message-logs-${effectiveChannel || 'all'}-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL( url );
+  }, [ filtered, effectiveChannel ] );
+
+  const remove = useCallback( async ( row: MessageLog ) => {
+    if ( deletingId ) return;
+    setDeletingId( row.id );
+    try
+    {
+      const ok = await api.deleteMessage( row.id, row.direction );
+      if ( ok )
+      {
+        setLogs( ( prev ) => prev.filter( ( l ) => l.id !== row.id ) );
+        toast.success( 'Message deleted' );
+      } else toast.error( 'Delete failed' );
+    } catch { toast.error( 'Delete failed' ); }
+    finally { setDeletingId( null ); }
+  }, [ deletingId, toast ] );
+
+  const fmt = ( s: string ) => {
+    const d = new Date( s );
+    return Number.isNaN( d.getTime() ) ? '—' : d.toLocaleDateString( 'en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
     } );
   };
 
-  const truncateContent = ( content: string, maxLen: number = 50 ) => {
-    if ( content.length <= maxLen ) return content;
-    return content.substring( 0, maxLen ) + '...';
-  };
+  const title = lockedChannel ? `${chBadge( lockedChannel ).label} Logs` : 'Message Logs';
 
   const content = (
     <>
       <div className="logs-page">
-        <PageHeader
-          title="Message Logs"
-          subtitle="View all messages across WhatsApp, SMS, Email, Voice, and RCS"
-          icon="logs"
-        />
+        { !embedded && (
+          <PageHeader
+            title={ title }
+            subtitle={ lockedChannel
+              ? `Every ${chBadge( lockedChannel ).label} message, from the canonical message store`
+              : 'Every message across WhatsApp, SMS, Email, Voice and RCS' }
+            icon="logs"
+          />
+        ) }
 
         <div className="filters">
+          { /* The channel selector is hidden when a hub has preset one: a channel
+               dropdown inside a page titled "RCS" can only ever be wrong. */ }
+          { !lockedChannel && (
+            <div className="filter-group">
+              <label htmlFor="lg-ch">Channel</label>
+              <select id="lg-ch" value={ channelFilter }
+                onChange={ ( e ) => setChannelFilter( e.target.value ) }>
+                <option value="all">All channels</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="sms">SMS</option>
+                <option value="email">Email</option>
+                <option value="voice">Voice</option>
+                <option value="rcs">RCS</option>
+              </select>
+            </div>
+          ) }
           <div className="filter-group">
-            <label>Channel:</label>
-            <select value={ channelFilter } onChange={ ( e ) => setChannelFilter( e.target.value ) }>
-              <option value="all">All Channels</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="sms">SMS</option>
-              <option value="email">Email</option>
-              <option value="voice">Voice</option>
-              <option value="rcs">RCS</option>
-            </select>
-          </div>
-          <div className="filter-group">
-            <label>Direction:</label>
-            <select value={ directionFilter } onChange={ ( e ) => setDirectionFilter( e.target.value ) }>
+            <label htmlFor="lg-dir">Direction</label>
+            <select id="lg-dir" value={ directionFilter }
+              onChange={ ( e ) => setDirectionFilter( e.target.value ) }>
               <option value="all">All</option>
-              <option value="INBOUND">↓ Inbound</option>
-              <option value="OUTBOUND">↑ Outbound</option>
+              <option value="INBOUND">Inbound</option>
+              <option value="OUTBOUND">Outbound</option>
             </select>
           </div>
           <div className="filter-group">
-            <label>Status:</label>
-            <select value={ statusFilter } onChange={ ( e ) => setStatusFilter( e.target.value ) }>
-              <option value="all">All Status</option>
+            <label htmlFor="lg-st">Status</label>
+            <select id="lg-st" value={ statusFilter }
+              onChange={ ( e ) => setStatusFilter( e.target.value ) }>
+              <option value="all">All statuses</option>
               <option value="sent">Sent</option>
               <option value="delivered">Delivered</option>
               <option value="read">Read</option>
@@ -159,149 +289,174 @@ const MessageLogsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => 
               <option value="failed">Failed</option>
             </select>
           </div>
-          <Button variant="secondary" icon="refresh" onClick={ loadMessageLogs } disabled={ loading } loading={ loading }>Refresh</Button>
+          <div className="filter-actions">
+            <Button variant="secondary" icon="refresh" onClick={ load }
+              disabled={ loading } loading={ loading }>Refresh</Button>
+            <Button variant="secondary" onClick={ exportCsv }
+              disabled={ !filtered.length }>Export CSV</Button>
+          </div>
         </div>
+
+        <div className="summary-cards">
+          <div className="summary-card">
+            <span className="card-value">{ totals.total }</span>
+            <span className="card-label">Total</span>
+          </div>
+          <div className="summary-card">
+            <span className="card-value">{ totals.out }</span>
+            <span className="card-label">Outbound</span>
+          </div>
+          <div className="summary-card">
+            <span className="card-value">{ totals.in }</span>
+            <span className="card-label">Inbound</span>
+          </div>
+          <div className="summary-card">
+            <span className="card-value card-value-bad">{ totals.failed }</span>
+            <span className="card-label">Failed</span>
+          </div>
+        </div>
+
+        { totals.topReasons.length > 0 && (
+          <div className="reasons">
+            <span className="reasons-title">Why they failed</span>
+            <ul className="reasons-list">
+              { totals.topReasons.map( ( [ reason, count ] ) => (
+                <li key={ reason }><strong>{ count }</strong> · { reason }</li>
+              ) ) }
+            </ul>
+          </div>
+        ) }
 
         <div className="table-container">
           <table className="logs-table">
             <thead>
               <tr>
-                <th>Channel</th>
+                { !lockedChannel && <th>Channel</th> }
                 <th>Dir</th>
-                <th>Recipient</th>
+                <th>Contact</th>
                 <th>Content</th>
                 <th>Status</th>
-                <th>Date</th>
+                <th>When</th>
+                <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               { loading ? (
-                <tr>
-                  <td colSpan={ 6 } className="loading-cell">Loading message logs...</td>
-                </tr>
-              ) : filteredLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={ 6 } className="empty-cell">
-                    <div className="empty-state">
-                      <p>No messages found</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredLogs.slice( 0, 100 ).map( log => {
-                  const channelBadge = getChannelBadge( log.channel );
-                  const statusBadge = getStatusBadge( log.status );
-                  const dirBadge = getDirectionBadge( log.direction );
-                  return (
-                    <tr key={ log.id }>
+                <tr><td colSpan={ 7 } className="state-cell">Loading…</td></tr>
+              ) : pageRows.length === 0 ? (
+                <tr><td colSpan={ 7 } className="state-cell">No messages found</td></tr>
+              ) : pageRows.map( ( row ) => {
+                const cb = chBadge( row.channel );
+                const sb = stBadge( row.status );
+                const waInfo = row.channel === 'whatsapp'
+                  && FAILED_STATUSES.includes( row.status )
+                  ? describeWaError( row.errorCode, row.errorDetails ) : null;
+                return (
+                  <tr key={ row.id }>
+                    { !lockedChannel && (
                       <td>
-                        <span className="channel-badge" style={ { background: channelBadge.bg, color: channelBadge.color } }>
-                          { channelBadge.icon } { channelBadge.label }
-                        </span>
+                        <span className="badge"
+                          style={ { background: cb.bg, color: cb.color } }>{ cb.label }</span>
                       </td>
-                      <td>
-                        <span className="dir-badge" style={ { background: dirBadge.bg, color: dirBadge.color } }>
-                          { dirBadge.icon }
-                        </span>
-                      </td>
-                      <td className="recipient-cell">{ log.recipient }</td>
-                      <td className="content-cell" title={ log.content }>{ truncateContent( log.content ) }</td>
-                      <td>
-                        <span className="status-badge" style={ { background: statusBadge.bg, color: statusBadge.color } }>
-                          { statusBadge.label }
-                        </span>
-                      </td>
-                      <td className="date-cell">{ formatDate( log.createdAt ) }</td>
-                    </tr>
-                  );
-                } )
-              ) }
+                    ) }
+                    <td><span className="dir">{ row.direction === 'INBOUND' ? 'In' : 'Out' }</span></td>
+                    <td className="mono">{ row.contactName || row.contactId }</td>
+                    <td className="content" title={ row.content }>
+                      { row.content.length > 60 ? `${row.content.slice( 0, 60 )}…` : row.content }
+                    </td>
+                    <td>
+                      <span className="badge"
+                        style={ { background: sb.bg, color: sb.color } }>{ sb.label }</span>
+                      { waInfo && (
+                        <InfoTooltip content={ `${waInfo.title} — ${waInfo.reason}` }>
+                          <span className="why">why?</span>
+                        </InfoTooltip>
+                      ) }
+                      { !waInfo && row.errorDetails && FAILED_STATUSES.includes( row.status ) && (
+                        <span className="raw-err" title={ row.errorDetails }>detail</span>
+                      ) }
+                    </td>
+                    <td className="when">{ fmt( row.createdAt ) }</td>
+                    <td>
+                      <Button variant="secondary" size="sm" onClick={ () => remove( row ) }
+                        disabled={ deletingId === row.id }
+                        loading={ deletingId === row.id }>Delete</Button>
+                    </td>
+                  </tr>
+                );
+              } ) }
             </tbody>
           </table>
         </div>
 
-        <div className="summary-cards">
-          <div className="summary-card">
-            <div className="card-icon">Total</div>
-            <div className="card-info">
-              <span className="card-value">{ logs.length }</span>
-              <span className="card-label">Total</span>
-            </div>
-          </div>
-          <div className="summary-card outbound">
-            <div className="card-icon">Out</div>
-            <div className="card-info">
-              <span className="card-value">{ logs.filter( l => l.direction === 'OUTBOUND' ).length }</span>
-              <span className="card-label">Outbound</span>
-            </div>
-          </div>
-          <div className="summary-card inbound">
-            <div className="card-icon">In</div>
-            <div className="card-info">
-              <span className="card-value">{ logs.filter( l => l.direction === 'INBOUND' ).length }</span>
-              <span className="card-label">Inbound</span>
-            </div>
-          </div>
-          <div className="summary-card error">
-            <div className="card-icon">Err</div>
-            <div className="card-info">
-              <span className="card-value">{ logs.filter( l => l.status === 'failed' ).length }</span>
-              <span className="card-label">Failed</span>
-            </div>
-          </div>
-        </div>
+        { totalPages > 1 && (
+          <Pagination currentPage={ page } totalPages={ totalPages } onPageChange={ setPage } />
+        ) }
       </div>
 
       <style jsx>{ `
-        .logs-page { padding: 20px; max-width: 1200px; margin: 0 auto; }
-        .page-header { margin-bottom: 20px; }
-        .page-header h1 { font-size: 22px; margin: 0 0 4px 0; }
-        .page-header p { color: #666; margin: 0; font-size: 14px; }
-        
-        .filters { display: flex; gap: 16px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        .filter-group { display: flex; align-items: center; gap: 8px; }
-        .filter-group label { font-size: 13px; color: #666; }
-        .filter-group select { padding: 8px 12px; border: 1px solid #000; border-radius: 13px; font-size: 13px; background: #fff; }
-        .filter-group select:hover { background: #f5f5f5; }
-        .refresh-btn { padding: 8px 16px; background: #fff; border: 1px solid #000; border-radius: 13px; cursor: pointer; font-size: 13px; margin-left: auto; }
-        .refresh-btn:hover { background: #f5f5f5; }
-        .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        .table-container { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
-        
-        .logs-table { width: 100%; border-collapse: collapse; }
-        .logs-table th { background: #f9fafb; padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; }
-        .logs-table td { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
-        .logs-table tr:last-child td { border-bottom: none; }
-        .logs-table tr:hover { background: #f9fafb; }
-        
-        .channel-badge, .status-badge, .dir-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
-        .dir-badge { padding: 4px 8px; }
-        
-        .recipient-cell { font-family: monospace; font-size: 12px; }
-        .content-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; }
-        .date-cell { color: #6b7280; font-size: 12px; }
-        
-        .loading-cell, .empty-cell { text-align: center; padding: 40px !important; color: #9ca3af; }
-        .empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .empty-icon { font-size: 32px; opacity: 0.5; }
-        .empty-state p { margin: 0; }
-        
-        .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-        .summary-card { display: flex; align-items: center; gap: 12px; background: #fff; padding: 16px 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .card-icon { font-size: 24px; }
-        .card-info { display: flex; flex-direction: column; }
-        .card-value { font-size: 24px; font-weight: 700; color: #111; }
-        .card-label { font-size: 12px; color: #6b7280; }
-        .summary-card.outbound .card-value { color: #000; }
-        .summary-card.inbound .card-value { color: #000; }
-        .summary-card.error .card-value { color: #4a4a4a; }
-        
-        @media (max-width: 800px) {
-          .summary-cards { grid-template-columns: repeat(2, 1fr); }
-          .filters { flex-direction: column; align-items: stretch; }
-          .refresh-btn { margin-left: 0; }
-          .table-container { overflow-x: auto; }
+        .logs-page{max-width:1300px;margin:0 auto;padding:20px}
+        .filters{display:flex;gap:16px;margin:0 0 20px;align-items:flex-end;flex-wrap:wrap}
+        .filter-group{display:flex;flex-direction:column;gap:6px}
+        .filter-group label{font-size:14px;color:rgba(0,0,0,.54)}
+        .filter-group select{
+          font-family:inherit;font-size:15px;color:rgba(0,0,0,.898);background:#fff;
+          border:2px solid #e5e7eb;border-radius:13px;padding:9px 12px;min-height:0;
+        }
+        .filter-group select:focus{outline:none;border-color:#d1f470}
+        .filter-actions{display:flex;gap:10px;margin-left:auto}
+
+        .summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:0 0 20px}
+        .summary-card{
+          display:flex;flex-direction:column;gap:2px;background:#fff;
+          border:1px solid #e5e7eb;border-radius:13px;padding:16px 18px;
+        }
+        .card-value{font-size:24px;font-weight:700;color:#000;line-height:1.2}
+        .card-value-bad{color:#b91c1c}
+        .card-label{font-size:14px;color:rgba(0,0,0,.54)}
+
+        .reasons{
+          background:#fffbeb;border:1px solid #b45309;border-radius:13px;
+          padding:14px 18px;margin:0 0 20px;
+        }
+        .reasons-title{font-size:15px;font-weight:600;color:#b45309}
+        .reasons-list{margin:8px 0 0;padding-left:18px}
+        .reasons-list li{font-size:14px;color:rgba(0,0,0,.898);line-height:1.6}
+
+        .table-container{
+          background:#fff;border:1px solid #e5e7eb;border-radius:13px;overflow:hidden;
+          margin:0 0 16px;
+        }
+        .logs-table{width:100%;border-collapse:collapse}
+        .logs-table th{
+          background:#fafafa;padding:11px 16px;text-align:left;font-size:14px;
+          font-weight:600;color:rgba(0,0,0,.54);border-bottom:1px solid #e5e7eb;
+        }
+        .logs-table td{
+          padding:11px 16px;border-bottom:1px solid #e5e7eb;font-size:14px;
+          color:rgba(0,0,0,.898);
+        }
+        .logs-table tr:last-child td{border-bottom:none}
+
+        .badge{
+          display:inline-flex;align-items:center;padding:4px 10px;border-radius:50px;
+          font-size:13px;font-weight:600;
+        }
+        .dir{font-size:13px;color:rgba(0,0,0,.54)}
+        .mono{font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px}
+        .content{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .when{color:rgba(0,0,0,.54);font-size:13px;white-space:nowrap}
+        .why,.raw-err{
+          margin-left:8px;font-size:13px;color:#b91c1c;text-decoration:underline;
+          cursor:help;
+        }
+        .state-cell{text-align:center;padding:40px;color:rgba(0,0,0,.54)}
+
+        @media(max-width:800px){
+          .summary-cards{grid-template-columns:repeat(2,1fr)}
+          .filters{flex-direction:column;align-items:stretch}
+          .filter-actions{margin-left:0}
+          .table-container{overflow-x:auto}
         }
       `}</style>
     </>

@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import Layout from '../../../components/Layout';
 import PageHeader from '../../../components/PageHeader';
 import InteractiveMessageComposer from '../../../components/InteractiveMessageComposer';
@@ -33,6 +34,21 @@ interface PageProps {
     signOut?: () => void;
     user?: any;
     embedded?: boolean;
+    /**
+     * Preset the channel filter. This is what lets one inbox replace the
+     * per-channel ones: the RCS and Email hubs embed this with their own channel
+     * rather than shipping their own 273- and 263-line copies, of which 196 lines
+     * were byte-identical to each other.
+     *
+     * A preset, not a lock — unlike the logs view, the selector stays visible.
+     * A conversation legitimately spans channels (a thread can open on RCS and
+     * continue over SMS when RCS is not deliverable), so widening back to ALL is
+     * the point rather than a mistake.
+     *
+     * `?channel=` is honoured too, so `/dm/inbox?channel=voice` is a real
+     * destination. That is how Calls stopped needing a page of its own.
+     */
+    channel?: string;
 }
 
 // Channel identity (distinct, on-brand) + reply deep-link target.
@@ -108,13 +124,19 @@ const fmtTime = ( ts: string | number ) => {
     return d.toLocaleDateString( 'en-IN', { day: '2-digit', month: 'short' } );
 };
 
-const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
+const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded, channel } ) => {
     const toast = useToastContext();
     const [ messages, setMessages ] = useState<api.Message[]>( [] );
     const [ contactNames, setContactNames ] = useState<Record<string, string>>( {} );
     const [ contactDir, setContactDir ] = useState<Record<string, { username?: string; bsuid?: string; book?: string }>>( {} );
     const [ selected, setSelected ] = useState<string | null>( null );
-    const [ channelFilter, setChannelFilter ] = useState<string>( 'ALL' );
+    // Seeded from the `channel` prop, else `?channel=`. Lowercased because the
+    // comparisons below lowercase each message's own channel, and 'ALL' is the
+    // only value that is not a channel name.
+    const router = useRouter();
+    const presetChannel = ( channel || '' ).toLowerCase();
+    const [ channelFilter, setChannelFilter ] = useState<string>(
+        presetChannel && presetChannel in CHANNEL ? presetChannel : 'ALL' );
     const [ search, setSearch ] = useState( '' );
     const [ loading, setLoading ] = useState( true );
     const [ replyText, setReplyText ] = useState( '' );
@@ -203,6 +225,16 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
             setLoading( false );
         }
     }, [ toast ] );
+
+    // `?channel=` applied after hydration. On a statically exported page
+    // router.query is EMPTY on first render, so the state initializer above cannot
+    // see it - this is not a duplicate of that. The prop wins, because a hub
+    // presetting its own channel must not be overridden by a stale URL.
+    useEffect( () => {
+        if ( presetChannel ) return;
+        const q = String( router.query.channel || '' ).toLowerCase();
+        if ( q && q in CHANNEL ) setChannelFilter( q );
+    }, [ router.query.channel, presetChannel ] );
 
     useEffect( () => {
         loadData();

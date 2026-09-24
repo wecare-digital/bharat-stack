@@ -38,7 +38,7 @@ const CHANNELS: ChannelCard[] = [
     },
     {
         key: 'email', label: 'Email', desc: 'Transactional & campaigns (SES)', fg: '#b45309', bg: '#fffbeb',
-        links: [ { label: 'Open', href: '/dm/ses' }, { label: 'Inbox', href: '/dm/ses/inbox' } ],
+        links: [ { label: 'Open', href: '/dm/ses' }, { label: 'Inbox', href: '/dm/inbox?channel=email' } ],
     },
     {
         key: 'voice', label: 'Voice', desc: 'Calls, OBD, C2C, CDR', fg: '#6d28d9', bg: '#f5f3ff',
@@ -54,7 +54,7 @@ const CROSS: { label: string; desc: string; href: string }[] = [
     { label: 'Unified Inbox', desc: 'All conversations, one thread per contact', href: '/dm/inbox' },
     { label: 'Broadcast', desc: 'Send a campaign across any channel', href: '/dm/broadcast' },
     { label: 'Content Library', desc: 'Templates & content across channels', href: '/dm/content' },
-    { label: 'Calls', desc: 'Unified call log across every channel', href: '/dm/calls' },
+    { label: 'Calls', desc: 'Call records, inside the unified inbox', href: '/dm/inbox?channel=voice' },
     { label: 'Contact 360', desc: 'Everything about a contact in one feed', href: '/dm/contact-360' },
     { label: 'Scheduled', desc: 'Upcoming scheduled sends', href: '/dm/scheduled' },
     { label: 'Analytics', desc: 'Cross-channel volume & delivery', href: '/dm/analytics' },
