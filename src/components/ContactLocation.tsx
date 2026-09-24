@@ -373,7 +373,6 @@ const ContactLocation: React.FC = () => {
                   aria-hidden because the frame above already carries the full accessible
                   name, and the address is in the column beside it - a screen reader should
                   not hear the company name three times. */}
-              <p className="cl-pinlabel" aria-hidden="true">WECARE.DIGITAL</p>
             </>
           ) : (
             <>
@@ -439,6 +438,20 @@ const ContactLocation: React.FC = () => {
               Google / Terms / Report a map error" strip, sits along the bottom edge and is
               a condition of using the embed at all - covering it would be a licence
               breach, not a design choice, so the card stays clear of it. */}
+          {/* OUTSIDE THE KEYED/KEYLESS BRANCH ON PURPOSE, so it renders on BOTH paths.
+              It used to sit inside the keyed branch only, which meant it was invisible in
+              production - NEXT_PUBLIC_GOOGLE_MAPS_KEY is not set, so the keyless iframe is
+              what ships and the label never appeared.
+              It needs no projection maths on either path: the keyless embed is centred on
+              LAT,LNG and the interaction lock prevents panning, so Google's pin is
+              permanently at the frame's centre, exactly as the keyed marker is. If the map
+              is ever made pannable this breaks and needs a real OverlayView.
+              WHAT THIS CANNOT DO: recolour Google's pin. On the keyless path that pin is
+              painted inside a cross-origin iframe, so its red is unreachable by our CSS -
+              only the keyed Maps JS path can replace it, and that path already draws a lime
+              #d1f470 pin with a #1a3a2a stroke. This label is the lime the owner asked for
+              that IS achievable today. */}
+          <p className="cl-pinlabel" aria-hidden="true">WECARE.DIGITAL</p>
           <div className="cl-card">
             <p className="cl-card-name">WECARE.DIGITAL</p>
             <p className="cl-card-addr">Phears Lane<br />Kolkata 700012, WB</p>
@@ -555,8 +568,8 @@ const ContactLocation: React.FC = () => {
           position:absolute;left:50%;top:50%;z-index:2;
           transform:translate(-50%,-100%) translateY(-58px);
           margin:0;padding:5px 11px;
-          border:2px solid #d1f470;border-radius:14px;
-          background:#fff;color:#1a3a2a;
+          border:2px solid #1a3a2a;border-radius:14px;
+          background:#d1f470;color:#1a3a2a;
           font-size:13px;font-weight:700;letter-spacing:-.1px;line-height:1.2;
           white-space:nowrap;pointer-events:none;
           box-shadow:0 4px 12px rgba(26,58,42,.12);
@@ -596,10 +609,10 @@ const ContactLocation: React.FC = () => {
           white-space:nowrap;
         }
         /* Uppercase micro-label, same 12px/700/.08em as every eyebrow on the site. */
-        .cl-chip-k{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(0,0,0,.54)}
+        .cl-chip-k{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:rgba(0,0,0,.72)}
         /* tabular-nums keeps the clock from shifting width as the digits change, which is
            what makes a ticking time look like a bug. */
-        .cl-chip-v{font-size:14px;font-weight:700;letter-spacing:-.1px;color:#1a3a2a;font-variant-numeric:tabular-nums}
+        .cl-chip-v{font-size:16px;font-weight:700;letter-spacing:-.1px;color:#1a3a2a;font-variant-numeric:tabular-nums}
 
         .cl-copy{min-width:0}
         .cl-label{
@@ -624,7 +637,7 @@ const ContactLocation: React.FC = () => {
         /* The plus code is a code, so it is set as one - tabular mono keeps the glyphs
            from shifting and signals that it is meant to be copied verbatim. */
         .cl-code{
-          font-family:'SF Mono',Monaco,Consolas,monospace;font-size:16px;
+          font-family:'SF Mono',Monaco,Consolas,monospace;font-size:16px;font-weight:700;
           padding:3px 8px;border-radius:6px;
           background:rgba(209,244,112,.22);color:#1a3a2a;
         }
