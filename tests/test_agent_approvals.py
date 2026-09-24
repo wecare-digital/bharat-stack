@@ -218,6 +218,116 @@ class TestFailsClosed:
         assert fresh.get("anything") is None
 
 
+class TestDynamoStore:
+    """The production store, against a fake table.
+
+    What matters is that single-use is enforced by the DATABASE and not by Python:
+    a read-then-write loses the race, and losing it means one approval spending
+    twice. So these assert on the condition expression, not just the outcome.
+    """
+
+    def _fake_table(self, rows=None, raise_conditional=False):
+        import types
+
+        class FakeTable:
+            def __init__(self):
+                self.rows = dict(rows or {})
+                self.last_update = None
+
+            def put_item(self, Item):  # noqa: N803 - boto3 casing
+                self.rows[Item["planHash"]] = dict(Item)
+
+            def get_item(self, Key):  # noqa: N803
+                row = self.rows.get(Key["planHash"])
+                return {"Item": dict(row)} if row else {}
+
+            def update_item(self, **kwargs):
+                self.last_update = kwargs
+                if raise_conditional:
+                    from botocore.exceptions import ClientError
+                    raise ClientError(
+                        {"Error": {"Code": "ConditionalCheckFailedException"}},
+                        "UpdateItem")
+                key = kwargs["Key"]["planHash"]
+                row = self.rows.get(key)
+                if row is None:
+                    from botocore.exceptions import ClientError
+                    raise ClientError(
+                        {"Error": {"Code": "ConditionalCheckFailedException"}},
+                        "UpdateItem")
+                row = dict(row)
+                row["consumedAt"] = kwargs["ExpressionAttributeValues"][":now"]
+                self.rows[key] = row
+                return {"Attributes": row}
+
+        table = FakeTable()
+        resource = types.SimpleNamespace(Table=lambda _name: table)
+        return table, resource
+
+    def _store_with(self, plan, **kwargs):
+        row = {
+            "planHash": plan.plan_hash, "tool": plan.tool,
+            "catalogVersion": plan.catalog_version, "approvedBy": "manish",
+            "approvedAt": NOW, "expiresAt": NOW + 900, "expiresTtl": NOW + 900,
+        }
+        table, resource = self._fake_table({plan.plan_hash: row}, **kwargs)
+        return appr.DynamoApprovalStore("T", client=resource), table
+
+    def test_round_trips_an_approval(self):
+        plan = a_plan()
+        table, resource = self._fake_table()
+        store = appr.DynamoApprovalStore("T", client=resource)
+        appr.set_store(store)
+        appr.grant(plan, approved_by="manish", now=NOW)
+        found = store.get(plan.plan_hash)
+        assert found is not None
+        assert found.approved_by == "manish"
+        assert found.consumed_at is None
+
+    def test_consume_uses_a_condition_not_a_read_then_write(self):
+        plan = a_plan()
+        store, table = self._store_with(plan)
+        store.consume(plan.plan_hash, NOW)
+        cond = table.last_update["ConditionExpression"]
+        # Both halves matter: single-use, and expiry independent of TTL reaping.
+        assert "attribute_not_exists(consumedAt)" in cond
+        assert "expiresAt > :now" in cond
+
+    def test_a_conditional_failure_is_a_refusal_not_an_error(self):
+        plan = a_plan()
+        store, _ = self._store_with(plan, raise_conditional=True)
+        # None, not an exception: already consumed, expired or absent all mean no.
+        assert store.consume(plan.plan_hash, NOW) is None
+
+    def test_a_missing_row_cannot_be_consumed(self):
+        plan = a_plan()
+        table, resource = self._fake_table()
+        store = appr.DynamoApprovalStore("T", client=resource)
+        assert store.consume(plan.plan_hash, NOW) is None
+
+    def test_it_writes_a_ttl_attribute_as_well_as_the_check(self):
+        plan = a_plan()
+        table, resource = self._fake_table()
+        store = appr.DynamoApprovalStore("T", client=resource)
+        appr.set_store(store)
+        appr.grant(plan, approved_by="manish", ttl_seconds=600, now=NOW)
+        row = table.rows[plan.plan_hash]
+        assert row["expiresTtl"] == NOW + 600
+        assert row["expiresAt"] == NOW + 600
+
+    def test_the_table_name_has_the_house_prefix(self):
+        assert appr.APPROVALS_TABLE.startswith("stack-wecare-digital-")
+
+    def test_consume_through_the_module_api_still_refuses_an_apply(self):
+        # Even with a real store and a valid approval, the catalog gate holds.
+        plan = a_plan()
+        table, resource = self._fake_table()
+        appr.set_store(appr.DynamoApprovalStore("T", client=resource))
+        appr.grant(plan, approved_by="manish", now=NOW)
+        with pytest.raises(gov.ToolRefused):
+            appr.assert_may_apply(plan, now=NOW)
+
+
 class TestRefusalShape:
     def test_a_refusal_carries_no_key_that_looks_like_success(self):
         # The direct lesson of the placeholder createInvoice, which returned

@@ -161,7 +161,110 @@ class InMemoryApprovalStore:
         return used
 
 
+APPROVALS_TABLE = os.environ.get(
+    "AGENT_APPROVALS_TABLE", "stack-wecare-digital-AgentApprovalsTable")
+
+
+class DynamoApprovalStore:
+    """The production store. Single-use is enforced by DynamoDB, not by Python.
+
+    `consume` is a single `update_item` with a condition expression: it sets
+    `consumedAt` only if the attribute does not already exist and the row has not
+    expired. That is the whole reason this class exists rather than a read-then-write
+    in the application - a read-then-write loses the race, and losing that race means
+    one approval spending twice, which is exactly the property single-use is for.
+
+    `ConditionalCheckFailedException` is therefore not an error to log and swallow;
+    it is the correct answer, and it becomes `None` so the caller refuses.
+
+    TTL is set as `expiresTtl` for DynamoDB to reap, AND checked in the condition.
+    DynamoDB's TTL deletion is asynchronous and documented as taking up to 48 hours,
+    so relying on it alone would leave an expired approval spendable for two days.
+    The TTL attribute is housekeeping; the condition is the control.
+    """
+
+    def __init__(self, table_name: Optional[str] = None, client: Any = None) -> None:
+        self._table_name = table_name or APPROVALS_TABLE
+        self._client = client
+        self._table = None
+
+    def _get_table(self):
+        if self._table is None:
+            import boto3  # imported lazily so tests never need AWS config
+            resource = self._client or boto3.resource(
+                "dynamodb", region_name=os.environ.get("AWS_REGION", "us-east-1"))
+            self._table = resource.Table(self._table_name)
+        return self._table
+
+    @staticmethod
+    def _to_row(approval: Approval) -> Dict[str, Any]:
+        row = {
+            "planHash": approval.plan_hash,
+            "tool": approval.tool,
+            "catalogVersion": approval.catalog_version,
+            "approvedBy": approval.approved_by,
+            "approvedAt": approval.approved_at,
+            "expiresAt": approval.expires_at,
+            # Reaped by DynamoDB eventually; the condition below is what actually
+            # enforces expiry.
+            "expiresTtl": approval.expires_at,
+        }
+        if approval.consumed_at is not None:
+            row["consumedAt"] = approval.consumed_at
+        return row
+
+    @staticmethod
+    def _from_row(row: Dict[str, Any]) -> Approval:
+        consumed = row.get("consumedAt")
+        return Approval(
+            plan_hash=str(row["planHash"]),
+            tool=str(row.get("tool", "")),
+            catalog_version=str(row.get("catalogVersion", "")),
+            approved_by=str(row.get("approvedBy", "")),
+            approved_at=int(row.get("approvedAt", 0)),
+            expires_at=int(row.get("expiresAt", 0)),
+            consumed_at=int(consumed) if consumed is not None else None,
+        )
+
+    def put(self, approval: Approval) -> None:
+        self._get_table().put_item(Item=self._to_row(approval))
+
+    def get(self, plan_hash: str) -> Optional[Approval]:
+        got = self._get_table().get_item(Key={"planHash": plan_hash})
+        row = got.get("Item")
+        return self._from_row(row) if row else None
+
+    def consume(self, plan_hash: str, now: int) -> Optional[Approval]:
+        """Atomic single-use. Returns None when somebody else already spent it."""
+        from botocore.exceptions import ClientError
+
+        try:
+            updated = self._get_table().update_item(
+                Key={"planHash": plan_hash},
+                UpdateExpression="SET consumedAt = :now",
+                # attribute_not_exists is the single-use guarantee; expiresAt keeps a
+                # lapsed approval unspendable regardless of TTL reaping lag.
+                ConditionExpression=(
+                    "attribute_not_exists(consumedAt) AND expiresAt > :now"),
+                ExpressionAttributeValues={":now": now},
+                ReturnValues="ALL_NEW",
+            )
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") \
+                    == "ConditionalCheckFailedException":
+                # Already consumed, expired, or absent. The correct answer is no.
+                return None
+            raise
+        row = updated.get("Attributes")
+        return self._from_row(row) if row else None
+
+
 _store: ApprovalStore = InMemoryApprovalStore()
+
+
+def use_dynamo_store(table_name: Optional[str] = None) -> None:
+    """Switch to the production store. Call once, at handler import time."""
+    set_store(DynamoApprovalStore(table_name))
 
 
 def set_store(store: ApprovalStore) -> None:
