@@ -240,8 +240,30 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 # ─── Invoice Sequencing (GST-compliant, internal only) ───
 
+class InvoiceSequenceUnavailable(RuntimeError):
+    """The GST invoice sequence could not be advanced.
+
+    Raised instead of returning a substitute number. See _get_next_invoice_number.
+    """
+
+
 def _get_next_invoice_number(fy: str = None) -> str:
-    """Generate next sequential invoice number. Format: WD/FY/NNNNN"""
+    """Generate next sequential invoice number. Format: WD/FY/NNNNN
+
+    Raises InvoiceSequenceUnavailable if the counter cannot be advanced.
+
+    This used to fall back to `WD-PAY-TEMP-<uuid>`, which put a non-sequential
+    number into the GST series. Under Rule 46(b) an invoice number has to be part
+    of a consecutive series for the financial year; a uuid is not, so the fallback
+    did not produce a degraded invoice, it produced an invalid one - and it did so
+    silently, at exactly the moment the system had lost the ability to tell what
+    the next number should be. Nothing downstream could distinguish it either,
+    because it was returned as an ordinary success.
+
+    Failing here is recoverable: the caller returns 503, the client retries, and
+    no document is issued. Issuing the wrong number is not recoverable, because a
+    GST invoice number cannot be reassigned once it has been sent to a customer.
+    """
     if not fy:
         now = time.localtime()
         year = now.tm_year
@@ -261,8 +283,15 @@ def _get_next_invoice_number(fy: str = None) -> str:
         fy_short = fy.replace('20', '').replace('-', '')
         return f"{prefix}/{fy_short}/{seq:05d}"
     except Exception as e:
-        logger.error(f"Sequence error: {e}")
-        return f"WD-PAY-TEMP-{uuid.uuid4().hex[:8].upper()}"
+        logger.error(json.dumps({
+            'event': 'invoice_sequence_unavailable',
+            'fy': fy,
+            'table': INVOICE_SEQ_TABLE,
+            'error': str(e)[:300],
+        }))
+        raise InvoiceSequenceUnavailable(
+            f"Could not advance the invoice sequence for FY {fy}"
+        ) from e
 
 
 def get_next_sequence_preview(body: Dict, request_id: str) -> Dict:
@@ -441,7 +470,25 @@ def create_invoice(body: Dict, request_id: str) -> Dict:
     if not customer_phone:
         return _resp(400, {'error': 'Missing mandatory field: customerPhone'})
 
-    invoice_number = _get_next_invoice_number(body.get('fy'))
+    try:
+        invoice_number = _get_next_invoice_number(body.get('fy'))
+    except InvoiceSequenceUnavailable as exc:
+        # 503, not 500: the request is well-formed and will succeed once the
+        # sequence counter is reachable again, so the caller should retry rather
+        # than treat the payload as bad. Nothing is written - an invoice with a
+        # number outside the GST series is worse than no invoice, because the
+        # number cannot be reassigned after it has gone to a customer.
+        logger.error(json.dumps({
+            'event': 'invoice_not_created_sequence_unavailable',
+            'referenceId': reference_id,
+            'error': str(exc),
+            'requestId': request_id,
+        }))
+        return _resp(503, {
+            'error': 'Invoice numbering is temporarily unavailable',
+            'errorCode': 'INVOICE_SEQUENCE_UNAVAILABLE',
+            'retryable': True,
+        })
 
     items = body.get('items', [])
     subtotal = sum(float(i.get('amount', 0)) * int(i.get('quantity', 1)) for i in items)
@@ -1465,37 +1512,38 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
         y += LINE_H
 
     # ═══ QR CODE — links to selfservice ═══
+    #
+    # Served from a pre-rendered S3 object, not generated. The runtime `import
+    # qrcode` branch that used to lead this block was removed on 2026-09-24:
+    #
+    #   * `qrcode` was in no requirements file and in no attached layer (the only
+    #     layer on this function is pillow-python312), so the import failed on
+    #     every single invoice and the code always fell through to here anyway.
+    #   * It logged at WARNING each time, for a condition that was permanent and
+    #     not actionable. A warning that always fires trains people to ignore
+    #     warnings.
+    #   * The encoded value is the constant `https://wecare.digital/selfservice`.
+    #     Every invoice would have produced a byte-identical image, so generating
+    #     it per render was work to reproduce a fixed asset.
+    #
+    # Adding the dependency would have been the wrong repair for the same reason:
+    # the right artifact for a constant is a file. `stream/media/m/qr-selfservice.png`
+    # is present (459 bytes, image/png, verified 2026-09-24).
     qr_rendered = False
     try:
-        import qrcode
-        qr = qrcode.QRCode(version=1, box_size=3, border=1)
-        qr.add_data('https://wecare.digital/selfservice')
-        qr.make(fit=True)
-        qr_img = qr.make_image(fill_color='black', back_color='white').convert('RGB')
-        qr_w, qr_h = qr_img.size
-        qr_x = (W - qr_w) // 2
-        img.paste(qr_img, (qr_x, y))
-        y += qr_h + 4
-        qr_rendered = True
-    except ImportError:
-        logger.warning("qrcode library not installed — trying S3 fallback QR image")
+        qr_s3_img = _load_s3_image('stream/media/m/qr-selfservice.png')
+        if qr_s3_img:
+            qr_s3_img = qr_s3_img.resize((80, 80), Image.LANCZOS).convert('RGB')
+            qr_x = (W - 80) // 2
+            img.paste(qr_s3_img, (qr_x, y))
+            y += 84
+            qr_rendered = True
     except Exception as qr_err:
-        logger.debug(f"QR code generation failed: {qr_err}")
+        # Debug, not warning: the text fallback below is a complete substitute, so
+        # a missing image degrades the invoice rather than breaking it.
+        logger.debug(f"QR image load failed: {qr_err}")
 
-    # Fallback: load pre-rendered QR from S3
-    if not qr_rendered:
-        try:
-            qr_s3_img = _load_s3_image('stream/media/m/qr-selfservice.png')
-            if qr_s3_img:
-                qr_s3_img = qr_s3_img.resize((80, 80), Image.LANCZOS).convert('RGB')
-                qr_x = (W - 80) // 2
-                img.paste(qr_s3_img, (qr_x, y))
-                y += 84
-                qr_rendered = True
-        except Exception as qr_fb_err:
-            logger.debug(f"QR S3 fallback failed: {qr_fb_err}")
-
-    # If still no QR, show text URL instead
+    # If the image is unavailable, the URL in text carries the same information.
     if not qr_rendered:
         _center("Scan QR or visit:", FSM, CLR_GRY)
         y += LINE_H

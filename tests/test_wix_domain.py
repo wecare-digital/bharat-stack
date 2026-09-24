@@ -153,14 +153,36 @@ class TestGoldenEquivalence:
     def test_money_amount_unwraps_a_wix_money_object(self):
         assert d._money_amount({"amount": "349.00"}) == "349.00"
 
-    def test_money_amount_passes_a_non_numeric_value_through_UNCHANGED(self):
-        # Recorded, not endorsed. `_money_amount` is a thin coercion — `str(value)` with a
-        # dict unwrap and None -> '' — so a junk price travels verbatim into a Wix product
-        # payload and Wix decides. This is PRE-EXISTING behaviour, identical before and
-        # after the lift (all 64 golden cases matched), so the test pins what is true
-        # rather than failing the build on an opinion. Listed as a LOW finding in the
-        # closure report: latent only because the Wix integration is entirely switched off.
-        assert d._money_amount("abc") == "abc"
+    def test_money_amount_rejects_a_non_numeric_value(self):
+        # CHANGED 2026-09-24, and the previous version of this test is the reason to
+        # explain it. It asserted `_money_amount("abc") == "abc"` and said so in its
+        # name: the function ended in a bare `str(value)`, so a junk price travelled
+        # verbatim into the `price` field the admin UI renders. That was pinned
+        # rather than fixed at the time, because it was pre-existing behaviour
+        # identical across all 64 golden cases and failing a build on an opinion is
+        # not a lift.
+        #
+        # It is fixed now, and the reason is stronger than taste: '' is what every
+        # caller already tests for when falling back to the next price source, so a
+        # truthy junk value STOPPED the fallback chain on the junk and never
+        # consulted the price range that may have held a real number. Validating
+        # repairs the fallback rather than just tidying the output.
+        assert d._money_amount("abc") == ""
+        assert d._money_amount({"amount": "not-a-price"}) == ""
+        assert d._money_amount("") == ""
+        assert d._money_amount("   ") == ""
+
+    def test_money_amount_keeps_every_shape_wix_actually_sends(self):
+        # The rejection must not take real amounts with it. Wix sends decimal
+        # strings, sometimes with no fractional part, sometimes as a number.
+        assert d._money_amount("1499") == "1499"
+        assert d._money_amount("1499.00") == "1499.00"
+        assert d._money_amount("0") == "0"
+        assert d._money_amount("0.00") == "0.00"
+        assert d._money_amount(1499) == "1499"
+        assert d._money_amount({"amount": "349.00"}) == "349.00"
+        # Whitespace is trimmed rather than rejected - a padded number is a number.
+        assert d._money_amount(" 349.00 ") == "349.00"
 
     @pytest.mark.parametrize("num,expected", [
         (0, "0"), (1, "1"), (35, "Z"), (36, "10"), (1295, "ZZ"), (1296, "100"),

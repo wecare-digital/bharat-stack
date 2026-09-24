@@ -10,6 +10,15 @@ different row shapes, and only two of the four guarded:
     flows/postpay.handle_submit                attribute_not_exists ✅  key from token
     inbound._handle_postpay_submission         attribute_not_exists ✅  key from request id
 
+Update, 2026-09-24: three writers, all guarded. `flows/common.save_flow_submission`
+now claims through `claim_completion` below. The second one in that table,
+`whatsapp-business-api._save_flow_submission`, turned out to have **zero callers** -
+verified with an AST pass over `amplify/`, not a grep - and was deleted rather than
+guarded, because wiring it up would have been a two-line change reintroducing exactly
+the duplicate-payment-link bug this module was written to prevent. It is still named
+above because this table is the record of what was measured; the removal note lives at
+its old site in that handler.
+
 And the encrypted `/flow-data` endpoint - the transport for every one of those 9 flows -
 has no deduplication of any kind. It cannot key on a `wamid` because the Meta Flows
 data-exchange callback does not carry one. So:

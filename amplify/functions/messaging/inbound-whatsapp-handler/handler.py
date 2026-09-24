@@ -3194,7 +3194,31 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
     if payment_status == 'captured':
         # ── Security: Verify payment via Meta Payment Lookup API ──
         # Meta docs: "must not rely solely on the status of the transaction provided in the webhook"
-        payment_verified = True  # Default to trust webhook, but log verification result
+        #
+        # There are four possible outcomes here and the code used to record only
+        # two. `payment_verified` was a bool initialised True, so a capture that
+        # was never checked - because the outbound row had no paymentConfigName, or
+        # because the lookup call itself failed - was indistinguishable in the logs
+        # and on the invoice from one Meta had confirmed. Asking "which captures did
+        # we accept without verifying?" had no answer.
+        #
+        # The accept/reject decision is deliberately UNCHANGED: only a lookup that
+        # actively contradicts the webhook rejects. Making this fail-closed would
+        # alter live payment acceptance, which is not a change to make silently and
+        # not one to make without payment traffic to validate against. It is
+        # available as PAYMENT_LOOKUP_REQUIRED, default off, so the decision can be
+        # taken deliberately by whoever owns it - and until then the exposure is at
+        # least visible.
+        VERIFIED = 'verified'
+        UNVERIFIED_NO_CONFIG = 'unverified_no_payment_config'
+        UNVERIFIED_LOOKUP_FAILED = 'unverified_lookup_failed'
+        REJECTED_MISMATCH = 'rejected_lookup_mismatch'
+
+        lookup_required = str(
+            os.environ.get('PAYMENT_LOOKUP_REQUIRED', '')
+        ).strip().lower() in ('1', 'true', 'yes', 'on')
+
+        verification_outcome = UNVERIFIED_NO_CONFIG
         if reference_id and originating_phone_id:
             try:
                 # Look up payment config from the original outbound message
@@ -3234,7 +3258,7 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
                         if payments:
                             lookup_status = payments[0].get('status', '')
                             if lookup_status != 'captured':
-                                payment_verified = False
+                                verification_outcome = REJECTED_MISMATCH
                                 logger.warning(json.dumps({
                                     'event': 'payment_lookup_mismatch',
                                     'webhookStatus': 'captured',
@@ -3243,33 +3267,75 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
                                     'requestId': request_id,
                                 }))
                             else:
+                                verification_outcome = VERIFIED
                                 logger.info(json.dumps({
                                     'event': 'payment_lookup_verified',
                                     'referenceId': reference_id,
                                     'requestId': request_id,
                                 }))
+                        else:
+                            # 200 with an empty payments array. Meta knows the
+                            # reference and reports nothing for it, which is not a
+                            # confirmation - previously this fell through leaving
+                            # payment_verified True.
+                            verification_outcome = UNVERIFIED_LOOKUP_FAILED
+                            logger.warning(json.dumps({
+                                'event': 'payment_lookup_empty',
+                                'referenceId': reference_id,
+                                'requestId': request_id,
+                            }))
                     except Exception as lookup_err:
-                        # Don't block payment on lookup failure  -  log and proceed
+                        verification_outcome = UNVERIFIED_LOOKUP_FAILED
                         logger.warning(json.dumps({
                             'event': 'payment_lookup_failed',
                             'error': str(lookup_err)[:200],
                             'referenceId': reference_id,
                             'requestId': request_id,
                         }))
+                else:
+                    verification_outcome = UNVERIFIED_NO_CONFIG
+                    logger.warning(json.dumps({
+                        'event': 'payment_lookup_skipped_no_config',
+                        'reason': ('no paymentConfigName on the outbound row for this '
+                                   'referenceId, so the Payment Lookup API cannot be '
+                                   'addressed'),
+                        'referenceId': reference_id,
+                        'requestId': request_id,
+                    }))
             except Exception as e:
+                verification_outcome = UNVERIFIED_LOOKUP_FAILED
                 logger.warning(json.dumps({
                     'event': 'payment_verification_error',
                     'error': str(e)[:200],
                     'requestId': request_id,
                 }))
 
-        if not payment_verified:
+        # A contradicting lookup always rejects. An absent one rejects only when
+        # PAYMENT_LOOKUP_REQUIRED is on.
+        reject = (
+            verification_outcome == REJECTED_MISMATCH
+            or (lookup_required and verification_outcome != VERIFIED)
+        )
+        if reject:
             logger.error(json.dumps({
                 'event': 'payment_capture_unverified_skipping',
+                'verificationOutcome': verification_outcome,
+                'lookupRequired': lookup_required,
                 'referenceId': reference_id,
                 'requestId': request_id,
             }))
             return
+
+        if verification_outcome != VERIFIED:
+            # Accepted without confirmation. Logged at error level on purpose: it
+            # is the level an alarm can be built on, and an unverified capture is
+            # exactly the thing someone should be able to count.
+            logger.error(json.dumps({
+                'event': 'payment_capture_accepted_unverified',
+                'verificationOutcome': verification_outcome,
+                'referenceId': reference_id,
+                'requestId': request_id,
+            }))
 
         # ── Direct invoice status update in InvoicesTable ──
         # Ensures the invoice is marked paid even if the dedup path in

@@ -1149,14 +1149,35 @@ def _mark_invoice_paid_by_reference(reference_id: str, request_id: str) -> None:
             'requestId': request_id,
         }))
 
-def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float, request_id: str) -> None:
-    """Fallback: find pending invoice by customer phone + amount and mark paid.
-    Uses strict 10-digit local number matching + tight amount tolerance (±₹0.01)."""
+def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float,
+                                           request_id: str) -> bool:
+    """Fallback: find the ONE pending invoice matching this phone and amount.
+
+    Matching is an exact 10-digit local number plus an exact integer-paise amount.
+    It used to be a float comparison with an epsilon, and both properties that
+    changed were wrong in the same direction - too permissive:
+
+    * The epsilon was 0.02 while the comment claimed +/- Rs 0.01, so a Rs 100.00
+      invoice matched a Rs 100.01 payment.
+    * More than one match was resolved by taking the oldest. Two pending invoices
+      for the same phone and the same total is an ordinary repeat order, and there
+      the old code marked the wrong invoice paid and left the real one
+      outstanding - one payment, two wrong rows.
+
+    Returns True only when exactly one invoice was matched and updated; False for
+    no match, an ambiguous match, or an error. An unreconciled payment is
+    recoverable because someone can still look at it; a wrongly-reconciled one is
+    not, because nothing downstream knows it was wrong.
+
+    Runs only after referenceId recovery has already failed, so there is no
+    further signal available here to disambiguate with.
+    """
     if not phone:
-        return
+        return False
     try:
         import time as _time
         import datetime
+        amount_paise = payment_status.paise(Decimal(str(amount_rupees)) * 100)
         table = dynamodb.Table(INVOICES_TABLE)
         clean_ph = phone.replace('+', '').replace(' ', '').replace('-', '')
         if clean_ph.startswith('91') and len(clean_ph) == 12:
@@ -1186,18 +1207,51 @@ def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float, req
                     inv_local = inv_phone_raw[-10:]
                 else:
                     inv_local = inv_phone_raw
-                inv_total = float(item.get('total', 0))
-                # STRICT: exact 10-digit match + amount within ₹0.01
-                if inv_local == local10 and len(local10) == 10 and abs(inv_total - amount_rupees) < 0.02:
+                # Exact match in integer paise. This used to be
+                # `abs(float(total) - amount_rupees) < 0.02`, whose comment claimed
+                # "within Rs 0.01" while the epsilon was 0.02 - so an invoice for
+                # 100.00 matched a payment of 100.01, and a float comparison
+                # decided which invoice was paid. Money is compared as minor units
+                # here and nowhere as a float.
+                try:
+                    inv_paise = payment_status.paise(
+                        Decimal(str(item.get('total', 0))) * 100)
+                except (ValueError, ArithmeticError, TypeError):
+                    continue
+                if inv_local == local10 and len(local10) == 10 and inv_paise == amount_paise:
                     candidates.append(item)
             if 'LastEvaluatedKey' in resp:
                 scan_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
             else:
                 break
 
-        if len(candidates) >= 1:
-            # Sort by createdAt ascending (oldest first) and mark the oldest matching one
-            candidates.sort(key=lambda x: int(x.get('createdAt', 0)))
+        if len(candidates) > 1:
+            # AMBIGUOUS - do not guess.
+            #
+            # This path previously sorted by createdAt and marked the OLDEST match
+            # paid. Two pending invoices for the same phone with the same total is
+            # an ordinary situation (a repeat order), and in that case the old code
+            # marked the wrong invoice paid AND left the real one outstanding: one
+            # payment, two wrong rows. Picking deterministically is not the same as
+            # picking correctly.
+            #
+            # This is the fallback that only runs after referenceId recovery has
+            # already failed, so there is no further signal available here to
+            # disambiguate. Refuse, and surface it for manual reconciliation -
+            # an unreconciled payment is recoverable, a wrongly-reconciled one is
+            # not, because nothing afterwards knows it was wrong.
+            logger.error(json.dumps({
+                'event': 'invoice_match_ambiguous_not_marked',
+                'candidateCount': len(candidates),
+                'candidateInvoiceIds': sorted(
+                    str(c.get('invoiceId', '')) for c in candidates)[:10],
+                'amountPaise': amount_paise,
+                'phoneLast4': local10[-4:] if len(local10) >= 4 else '',
+                'requestId': request_id,
+            }))
+            return False
+
+        if len(candidates) == 1:
             inv = candidates[0]
             table.update_item(
                 Key={'invoiceId': inv['invoiceId']},
@@ -1211,26 +1265,31 @@ def _mark_invoice_paid_by_phone_and_amount(phone: str, amount_rupees: float, req
                     ':pa': paid_at_ts, ':now': now,
                 },
             )
+            # Phone masked to the last four, as at every other log site in this
+            # codebase. These three lines carried the full number.
             logger.info(json.dumps({
                 'event': 'invoice_marked_paid_by_phone_amount',
                 'invoiceId': inv['invoiceId'],
-                'phone': phone,
-                'amount': amount_rupees,
-                'candidateCount': len(candidates),
+                'phoneLast4': local10[-4:] if len(local10) >= 4 else '',
+                'amountPaise': amount_paise,
                 'requestId': request_id,
             }))
-        else:
-            logger.warning(json.dumps({
-                'event': 'no_invoice_match_phone_amount',
-                'phone': phone, 'amount': amount_rupees,
-                'requestId': request_id,
-            }))
+            return True
+
+        logger.warning(json.dumps({
+            'event': 'no_invoice_match_phone_amount',
+            'phoneLast4': local10[-4:] if len(local10) >= 4 else '',
+            'amountPaise': amount_paise,
+            'requestId': request_id,
+        }))
+        return False
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'mark_invoice_paid_by_phone_error',
-            'phone': phone, 'error': str(e),
+            'error': str(e),
             'requestId': request_id,
         }))
+        return False
 
 
 # ═══════════════════════════════════════════════════════════════════

@@ -47,6 +47,7 @@ import re
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
 # The only module constant the extracted set needs.
@@ -58,11 +59,37 @@ def _fields_suffix(fields: list) -> str:
 def _first_variant(product: dict) -> dict:
     return ((product.get('variantsInfo') or {}).get('variants') or [{}])[0] or {}
 def _money_amount(value: Any) -> str:
+    """Extract a money amount as a string, or '' when there isn't one.
+
+    Returns '' rather than passing a non-numeric value through. It used to end in
+    a bare `str(value)`, so `_money_amount('abc')` returned `'abc'` and that went
+    into the `price` field the admin UI renders - a price reading "abc".
+
+    '' is the right rejection value rather than a raise, because every caller
+    already treats it as "no amount here, try the next source":
+
+        amount = _money_amount(variant actualPrice)
+        if not amount:
+            amount = _money_amount(product actualPriceRange minValue)
+
+    So validating actually repairs that fallback chain. Previously a junk value was
+    truthy, which stopped the chain on the junk and never consulted the price
+    range that may well have had a real number in it.
+    """
     if isinstance(value, dict):
         value = value.get('amount', '')
     if value is None:
         return ''
-    return str(value)
+    text = str(value).strip()
+    if not text:
+        return ''
+    # Wix sends amounts as decimal strings ("1499", "1499.00"). Anything that is
+    # not one is not an amount, whatever it is.
+    try:
+        Decimal(text)
+    except (InvalidOperation, ValueError, ArithmeticError):
+        return ''
+    return text
 def _read_only_variant_to_product_variant(variant: dict) -> dict:
     """Map Read-Only Variants V3 rows to the nested Products V3 variant shape."""
     row = dict(variant or {})

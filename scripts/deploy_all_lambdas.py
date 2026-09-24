@@ -98,9 +98,20 @@ class Spec:
         standalone: bool = False,
         extra_dirs: Sequence[str] = (),
         extra_files: Sequence[str] = (),
+        provisioned_by: str = "",
     ) -> None:
         self.name = name
         self.source = FUNCTIONS / source
+        # provisioned_by: the script that must CREATE this function before this
+        # one can update it. When set and the function is absent, that is
+        # "awaiting provisioning", not a deploy failure.
+        #
+        # This matters because the two were indistinguishable. Every deploy-all run
+        # ended `failed=1` for wecare-customer-whatsapp-auth, which has never been
+        # created - so a genuinely broken deploy would have arrived in a report that
+        # already said failed=1, and the habit of ignoring it was already trained.
+        # A counter that is never zero is not a signal.
+        self.provisioned_by = provisioned_by
         # standalone: handler.py only. Used where the handler imports nothing
         # from lambda_utils, and where the live package is handler.py alone
         # (url-shortener, site-language — see scripts/deploy_site_language.py).
@@ -147,6 +158,7 @@ SPECS: List[Spec] = [
         "wecare-customer-whatsapp-auth",
         "auth/customer-whatsapp-auth",
         standalone=True,
+        provisioned_by="python scripts/provision_customer_whatsapp_auth.py",
     ),
     # Cognito CustomMessage trigger: branded HTML for MFA, verification and
     # recovery email. First creation is owned by
@@ -580,9 +592,10 @@ def main() -> int:
     print(f"region={REGION} targets={len(selected)} dry_run={args.dry_run}")
     print()
 
-    tally = {"updated": 0, "unchanged": 0, "failed": 0}
+    tally = {"updated": 0, "unchanged": 0, "failed": 0, "awaiting_provisioning": 0}
     failures: List[str] = []
     deployed: List[str] = []
+    awaiting: List[str] = []
     all_warnings: List[str] = []
 
     for spec in selected:
@@ -599,6 +612,14 @@ def main() -> int:
             current = lam.get_function_configuration(FunctionName=spec.name)
         except ClientError as exc:
             if exc.response["Error"]["Code"] == "ResourceNotFoundException":
+                if spec.provisioned_by:
+                    # Expected: creation is owned elsewhere and has not happened
+                    # yet. Counted separately so `failed` stays a real signal.
+                    print(f"    not provisioned yet — create it with "
+                          f"{spec.provisioned_by}")
+                    tally["awaiting_provisioning"] += 1
+                    awaiting.append(f"{spec.name} ({spec.provisioned_by})")
+                    continue
                 print(f"    not found in {REGION} — refusing to create it here")
             else:
                 print(f"    get_function_configuration failed: {exc}")
@@ -637,9 +658,14 @@ def main() -> int:
 
     print()
     print(f"updated={tally['updated']} unchanged={tally['unchanged']} "
-          f"failed={tally['failed']}")
+          f"failed={tally['failed']} "
+          f"awaiting_provisioning={tally['awaiting_provisioning']}")
     if failures:
         print(f"failed: {', '.join(failures)}")
+    if awaiting:
+        print(f"awaiting provisioning ({len(awaiting)}), not a failure:")
+        for entry in awaiting:
+            print(f"  {entry}")
     if all_warnings:
         print(f"\n{len(all_warnings)} import warning(s):")
         for warning in all_warnings:

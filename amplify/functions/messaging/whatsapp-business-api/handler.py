@@ -3390,67 +3390,27 @@ def _get_flow_registry_by_code(flow_code: str) -> Dict:
         return {}
 
 
-def _save_flow_submission(flow_config: Dict, phone: str, contact_id: str,
-                          sender_name: str, form_data: Dict, flow_token: str,
-                          request_id: str) -> Dict:
-    """Save a generic flow submission to FlowSubmissionsTable. Returns the saved item."""
-    try:
-        now = int(time.time())
-        submission_id = str(uuid.uuid4())
-        flow_code = flow_config.get('flowCode', '')
-        prefix = flow_config.get('submissionPrefix', 'WD')
-        submission_number = f'{prefix}-{uuid.uuid4().hex[:8].upper()}'
-
-        requires_payment = flow_config.get('requiresPayment', False)
-        payment_amount = int(flow_config.get('paymentAmount', 0)) if requires_payment else 0
-        payment_ref_id = f'WD-PAY-{uuid.uuid4().hex[:8].upper()}' if requires_payment else ''
-
-        item = {
-            'submissionId': submission_id,
-            'flowId': flow_config.get('flowId', ''),
-            'flowCode': flow_code,
-            'flowType': flow_config.get('flowType', ''),
-            'flowVersion': flow_config.get('flowVersion', ''),
-            'phone': phone,
-            'contactId': contact_id,
-            'senderName': sender_name,
-            'formData': json.dumps(form_data, default=str),
-            'orderId': form_data.get('order_id', ''),
-            'requestType': form_data.get('request_type', ''),
-            'subject': form_data.get('subject', ''),
-            'description': form_data.get('description', ''),
-            'submissionNumber': submission_number,
-            'flowToken': flow_token,
-            'paymentRequired': requires_payment,
-            'paymentAmount': payment_amount,
-            'paymentStatus': 'pending' if requires_payment else 'none',
-            'paymentRefId': payment_ref_id,
-            'status': 'open',
-            'createdAt': Decimal(str(now)),
-            'updatedAt': Decimal(str(now)),
-        }
-
-        table = dynamodb.Table(FLOW_SUBMISSIONS_TABLE)
-        table.put_item(Item={k: v for k, v in item.items() if v is not None and v != '' and v is not False})
-
-        logger.info(json.dumps({
-            'event': 'flow_submission_saved',
-            'submissionId': submission_id,
-            'flowCode': flow_code,
-            'submissionNumber': submission_number,
-            'phone': phone[:6] + '***' if phone else '',
-            'paymentRequired': requires_payment,
-            'requestId': request_id,
-        }))
-        return item
-    except Exception as e:
-        logger.error(json.dumps({
-            'event': 'flow_submission_save_error',
-            'error': str(e),
-            'flowCode': flow_config.get('flowCode', ''),
-            'requestId': request_id,
-        }))
-        return {}
+# _save_flow_submission REMOVED 2026-09-24.
+#
+# It was the FOURTH writer into FlowSubmissionTable and the only one left with no
+# duplicate guard - a bare put_item with a random submissionId, so every call
+# created a new row. lambda_utils/flow_completion exists precisely to stop that:
+# one duplicated paid submit_request completion previously produced 2 submissions,
+# 2 invoices and 2 payment links sent to the customer, which is money, and nothing
+# in the system reported it.
+#
+# It had ZERO callers. Verified across amplify/, scripts/ and tests/, including
+# dynamic dispatch - the only other mentions of the name are flow_completion's own
+# audit docstring and references to the DIFFERENT function
+# flows/common.save_flow_submission, which is guarded via
+# flow_completion.claim_completion and is what the nine live flows use.
+#
+# Deleted rather than guarded. Wiring it up would have been a two-line change that
+# reintroduced the exact bug flow_completion was written to prevent, and a dead
+# unsafe writer beside a live safe one is an invitation. Recovering it, if a
+# non-flow submission path is ever wanted, means calling
+# flow_completion.claim_completion first and branching on the result - not
+# restoring this function. Prior text is in git history at 956e3e6a.
 
 
 def _enrich_contact_from_flow(contact_id: str, form_data: Dict, contact_mapping: Dict):
@@ -4260,6 +4220,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
 
     # Step 2: Route to flow module
     # Checkout sub_actions bypass the flow router
+    routing_failed = False
     sub_action = decrypted_data.get('sub_action', '')
     if sub_action and data.get('order_details'):
         response_payload = _handle_checkout_data_exchange(
@@ -4281,10 +4242,50 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 'event': 'flow_route_error', 'error': str(e),
                 'action': action, 'screen': screen, 'requestId': request_id,
             }))
-            response_payload = {'data': {'error': f'Flow routing failed: {str(e)}'}}
+            # The exception text used to go straight into `data.error`, which is
+            # rendered on the customer's handset. A Python traceback message is not
+            # a message for a customer, and it discloses internals to anyone who
+            # can open the flow. The detail stays in the log line above, keyed by
+            # requestId; the handset gets a stable code it can bind a message to.
+            routing_failed = True
+            response_payload = {'data': {
+                'error': 'Something went wrong. Please try again.',
+                'error_code': 'FLOW_ROUTING_FAILED',
+            }}
 
     if not response_payload:
-        response_payload = {'data': {'error': f'No response for action={action} screen={screen}'}}
+        routing_failed = True
+        response_payload = {'data': {
+            'error': 'Something went wrong. Please try again.',
+            'error_code': 'FLOW_NO_RESPONSE',
+        }}
+        logger.error(json.dumps({
+            'event': 'flow_no_response_payload',
+            'action': action, 'screen': screen, 'requestId': request_id,
+        }))
+
+    # A failed route used to fall through into `flow_response_full` at info level,
+    # so a dropped submission read as an ordinary response in the logs. Say it
+    # plainly instead, at a level an alarm can be built on.
+    #
+    # STILL OPEN, deliberately not guessed at: this returns HTTP 200 even when
+    # routing failed, so if Meta retries only on a non-200 then a failed
+    # data_exchange is never retried and the submission is silently lost. Changing
+    # the status is a live behaviour change on an encrypted customer-facing
+    # endpoint, and Meta's retry semantics for data_exchange are not documented
+    # clearly enough to act on - the observable symptom of a non-200 is the handset
+    # showing "Endpoint did not return a successful response", which suggests the
+    # user sees an error rather than a retry happening. Settling it needs one
+    # deliberate live test on the QA recipient. Note that retrying is now SAFE for
+    # the nine flows that go through flow_completion.claim_completion, so the
+    # change is available once the semantics are confirmed.
+    if routing_failed:
+        logger.error(json.dumps({
+            'event': 'flow_data_exchange_failed_returning_200',
+            'action': action, 'screen': screen,
+            'errorCode': response_payload.get('data', {}).get('error_code', ''),
+            'requestId': request_id,
+        }))
 
     # Log full response for debugging
     try:

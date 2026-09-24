@@ -166,6 +166,40 @@ def canonical(status: Optional[str]) -> str:
     return _ALIASES.get(value, "")
 
 
+def for_storage(status: Optional[str]) -> str:
+    """Canonical form for a value about to be WRITTEN. Raises if unmappable.
+
+    Deliberately stricter than `canonical()`, and the asymmetry is the point.
+
+    Reads are lenient because they run on provider input: an unknown word must
+    degrade to "do not apply" rather than break webhook processing, and history
+    already contains spellings nobody chose. Writes are the opposite case - we
+    control the value, and letting an unrecognised one through is how a sixth
+    vocabulary gets into storage. Every alias in `_ALIASES` exists because that
+    already happened five times.
+
+    Use this on any new write of a *payment* state. Note it does NOT apply to an
+    invoice or order *lifecycle* field: `InvoicesTable` legitimately carries both
+    `status` ("created" -> "sent" -> "paid", where the document is in its
+    lifecycle) and `paymentStatus` ("captured", what the money did). Those are two
+    different facts about one row and collapsing them onto one vocabulary would
+    lose information - which is why the audit's "five vocabularies" is really two
+    deliberate ones plus three that drifted.
+
+    The existing rows are not rewritten here. That migration touches the admin
+    surface and the frontend and is tracked for Phase 4f; `canonical()` keeps
+    reading what is already stored. This stops the problem growing meanwhile.
+    """
+    value = canonical(status)
+    if not value:
+        raise ValueError(
+            f"refusing to store {status!r} as a payment status: it maps to no "
+            f"known state. Add an alias to payment_status._ALIASES if this is a "
+            f"real provider spelling, rather than storing a sixth vocabulary."
+        )
+    return value
+
+
 def rank(status: Optional[str]) -> int:
     """Rank of a status; 0 for unknown, missing, or `none`."""
     return STATUS_RANK.get(canonical(status), 0)
