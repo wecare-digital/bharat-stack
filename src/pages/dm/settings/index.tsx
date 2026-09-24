@@ -45,7 +45,7 @@ const SettingsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         { label: 'RCS', desc: 'Bot config & templates (Sinch)', href: '/dm/rcs' },
         { label: 'Email', desc: 'SES from-address & campaigns', href: '/dm/ses' },
         { label: 'Voice', desc: 'Origination identity, OBD/C2C', href: '/dm/voice' },
-        { label: 'Push', desc: 'SNS platform apps & tokens', href: '/dm/push' },
+        { label: 'Push', desc: 'Mobile push apps and device tokens', href: '/dm/push' },
     ];
 
     const content = (

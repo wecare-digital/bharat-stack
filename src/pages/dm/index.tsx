@@ -51,7 +51,7 @@ const MessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
       <SEO title="Messages" description="Messaging hub — WhatsApp, SMS, Voice, Email, RCS" />
       <div className="inner-page-container" style={{ maxWidth: 960 }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 4px' }}>Messages</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', margin: '0 0 4px' }}>Messages</h1>
           <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>Send and manage messages across all channels</p>
         </div>
 
@@ -89,7 +89,7 @@ const MessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
         <div className="dm-modal-backdrop" onClick={() => setSendOpen(false)}>
           <div className="dm-modal" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid rgba(209,244,112,0.3)' }}>
-              <span style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>Send Message</span>
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#1a1a1a' }}>Send Message</span>
               <button onClick={() => setSendOpen(false)} style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(209,244,112,0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: '#1a3a2a' }}>×</button>
             </div>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -106,11 +106,11 @@ const MessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#1a3a2a', marginBottom: 6 }}>To (phone or email)</label>
-                <input value={sendTo} onChange={e => setSendTo(e.target.value)} placeholder="+91 98xxx xxxxx" style={{ width: '100%', height: 42, padding: '10px 14px', fontSize: 14, color: '#111827', background: '#fff', border: '1.5px solid #d1f470', borderRadius: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                <input value={sendTo} onChange={e => setSendTo(e.target.value)} placeholder="+91 98xxx xxxxx" style={{ width: '100%', height: 42, padding: '10px 14px', fontSize: 14, color: '#1a1a1a', background: '#fff', border: '1.5px solid #d1f470', borderRadius: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#1a3a2a', marginBottom: 6 }}>Message</label>
-                <textarea value={sendMsg} onChange={e => setSendMsg(e.target.value)} placeholder="Type your message..." rows={3} style={{ width: '100%', padding: '10px 14px', fontSize: 14, color: '#111827', background: '#fff', border: '1.5px solid #d1f470', borderRadius: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+                <textarea value={sendMsg} onChange={e => setSendMsg(e.target.value)} placeholder="Type your message..." rows={3} style={{ width: '100%', padding: '10px 14px', fontSize: 14, color: '#1a1a1a', background: '#fff', border: '1.5px solid #d1f470', borderRadius: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 20px', borderTop: '1px solid rgba(209,244,112,0.3)' }}>
@@ -126,13 +126,13 @@ const MessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
         .dm-qa-btn{display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border:1.5px solid #e5e7eb;border-radius:13px;cursor:pointer;transition:all .15s;text-align:left;font-family:inherit;-webkit-tap-highlight-color:transparent}
         .dm-qa-btn:hover,.dm-qa-btn:active{border-color:#d1f470;box-shadow:0 2px 8px rgba(209,244,112,0.2)}
         .dm-qa-icon{width:36px;height:36px;border-radius:10px;background:rgba(209,244,112,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-        .dm-qa-label{font-size:14px;font-weight:600;color:#111827}
+        .dm-qa-label{font-size:14px;font-weight:600;color:#1a1a1a}
         .dm-qa-desc{font-size:11px;color:#6b7280;margin-top:1px}
         .dm-channels{display:flex;flex-direction:column;gap:8px;margin-bottom:28px}
         .dm-ch-btn{display:flex;align-items:center;gap:14px;padding:14px 16px;background:#fff;border:1.5px solid #e5e7eb;border-radius:13px;cursor:pointer;transition:all .15s;text-align:left;font-family:inherit;width:100%;-webkit-tap-highlight-color:transparent}
         .dm-ch-btn:hover,.dm-ch-btn:active{border-color:#d1f470;background:rgba(209,244,112,0.04)}
         .dm-ch-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-        .dm-ch-label{font-size:15px;font-weight:600;color:#111827}
+        .dm-ch-label{font-size:15px;font-weight:600;color:#1a1a1a}
         .dm-ch-desc{font-size:12px;color:#6b7280;margin-top:1px}
         .dm-modal-backdrop{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3)}
         .dm-modal{position:relative;background:#fff;border-radius:13px;width:100%;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1.5px solid #d1f470;overflow:hidden;margin:16px}

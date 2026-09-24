@@ -280,7 +280,7 @@ const VoicePage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         tr:hover { background: #f9fafb; }
         .time-cell { font-size: 11px; color: #6b7280; }
         .phone-cell { font-family: monospace; color: #1a3a2a; font-size: 11px; }
-        .name-cell { font-weight: 500; color: #111827; }
+        .name-cell { font-weight: 500; color: #1a1a1a; }
         .success-cell { color: #1a3a2a; font-weight: 500; }
         .failed-cell { color: #1a3a2a; font-weight: 500; }
         .dir-in { background: #1a3a2a; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
@@ -294,7 +294,7 @@ const VoicePage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
         .modal-content { background: #fff; border-radius: 12px; padding: 20px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
         .modal-content.campaign-modal { max-width: 480px; }
-        .modal-content h3 { margin: 0 0 16px 0; color: #111827; }
+        .modal-content h3 { margin: 0 0 16px 0; color: #1a1a1a; }
         .form-group { margin-bottom: 14px; }
         .form-group label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 5px; color: #374151; }
         .form-group input, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px; font-family: inherit; box-sizing: border-box; }
@@ -316,7 +316,7 @@ const VoicePage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
         .contact-row.selected { background: #f9fafb; }
         .contact-avatar { width: 36px; height: 36px; background: #1a3a2a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; flex-shrink: 0; }
         .contact-details { flex: 1; }
-        .c-name { font-size: 13px; font-weight: 500; color: #111827; }
+        .c-name { font-size: 13px; font-weight: 500; color: #1a1a1a; }
         .c-phone { font-size: 11px; color: #6b7280; font-family: monospace; }
         .check { color: #1a3a2a; font-weight: bold; }
         @media (max-width: 768px) {

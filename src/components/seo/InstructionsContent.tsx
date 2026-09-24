@@ -14,7 +14,7 @@ function JCard ( { n, title, desc, code }: { n: string; title: string; desc: str
     <div className="card" style={ { padding: 16, marginBottom: 12 } }>
       <div style={ { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } }>
         <span style={ { padding: '2px 8px', background: '#d1f470', color: '#1a3a2a', borderRadius: 6, fontSize: 11, fontWeight: 700 } }>#{ n }</span>
-        <span style={ { fontSize: 13, fontWeight: 600, color: '#111827' } }>{ title }</span>
+        <span style={ { fontSize: 13, fontWeight: 600, color: '#1a1a1a' } }>{ title }</span>
       </div>
       <div style={ { fontSize: 11, color: '#6b7280', marginBottom: 8 } }>{ desc }</div>
       <pre style={ pre }>{ code }</pre>

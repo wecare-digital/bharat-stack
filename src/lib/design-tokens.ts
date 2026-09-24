@@ -26,7 +26,7 @@ export const colors = {
     surface: '#ffffff',
 
     // Text
-    text: '#111827',
+    text: '#1a1a1a',
     textSecondary: 'rgba(0, 0, 0, 0.54)',
     textMuted: '#6b7280',
     textLight: '#9ca3af',
@@ -51,7 +51,7 @@ export const colors = {
     grey600: 'rgba(0, 0, 0, 0.54)',
     grey700: '#374151',
     grey800: '#1f2937',
-    grey900: '#111827',
+    grey900: 'rgba(0, 0, 0, 0.95)',
 } as const;
 
 /**

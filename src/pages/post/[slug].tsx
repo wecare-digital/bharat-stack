@@ -171,7 +171,7 @@ export default function BlogPostPage ( { post }: Props ) {
         </article>
       </main>
       <style jsx>{`
-        .article-shell{max-width:900px;margin:0 auto;padding:148px 24px 96px;color:#111827;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+        .article-shell{max-width:900px;margin:0 auto;padding:148px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         article{max-width:760px;margin:0 auto}
         .back{display:inline-block;color:#1a3a2a;text-decoration:none;font-size:13px;font-weight:650;margin-bottom:26px}
         .back:before{content:'← ';margin-right:4px}

@@ -41,7 +41,7 @@ const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
         addLog(`Published posts: ${posts.length}`);
         addLog('Source: SeoToolsTable (recordType=blogPost)');
         addLog('Public routes: /blog/ and /post/{slug}/');
-        addLog('SEO apply: approved Bedrock output is stored on the AWS BlogPost.');
+        addLog('SEO apply: approved output is stored on the blog post record.');
         addLog('New slugs appear after the next Amplify static build.');
         if (posts.length) {
           addLog('');

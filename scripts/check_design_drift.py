@@ -55,7 +55,29 @@ RETIRED_COLOURS = {
     "#0f172a": "rest of the retired slate ramp",
     "#94a3b8": "rest of the retired slate ramp",
     "#1e1e1e": "retired code-panel background; both panels are #000",
+    # Promoted from the stylesheet-only rule on 2026-09-24. It used to live in its own
+    # scan because 129 uses were still sitting in inline React style objects across 22
+    # files - a separate job that is now done, so there is no longer a reason for it to
+    # be checked less strictly than the other eight.
+    "#111827": ("retired blue-tinted grey; #1a1a1a for text (tokens.css --text), "
+                "rgba(0,0,0,.95) for the heading rung, #000 for a code panel"),
 }
+
+# `design-tokens.ts` opens by declaring itself the single source of truth and says it
+# MIRRORS tokens.css. It did not: `text` was #111827 against `--text: #1a1a1a`, and
+# `grey900` was #111827 against `--color-grey-900: rgba(0,0,0,.95)`. That matters
+# because the file has 14 importers, so `colors.text` resolved to a retired colour in
+# 14 files while every rule reading the CSS variable resolved to the right one - two
+# primary text colours on the same screen, decided by which system a component happened
+# to use. Pinned here rather than trusted to a comment.
+TOKEN_MIRROR = {
+    "text": "--text",
+    "textSecondary": "--text-secondary",
+    "textMuted": "--text-muted",
+    "textLight": "--text-light",
+    "grey900": "--color-grey-900",
+}
+DESIGN_TOKENS_TS = SRC / "lib/design-tokens.ts"
 
 # State tokens that must stay visually distinct from one another.
 STATE_TOKENS = ("--success", "--warning", "--info", "--danger")
@@ -215,26 +237,59 @@ def scan_lime_resting_borders():
     return hits
 
 
-def scan_retired_in_styles():
-    """#111827 is retired for the same reason #4b5563 was: it is blue-tinted.
+def scan_token_mirror():
+    """`design-tokens.ts` must not contradict the CSS variable it claims to mirror.
 
-    Separate from RETIRED_COLOURS because that set is scanned across all of src/,
-    and #111827 still appears in inline React style objects in dozens of pages.
-    Those are a much larger, separate job; the stylesheets are the shared surface
-    and they are clean now, so this pins them without failing on work that has
-    not been scoped yet.
+    Values are compared after compositing, because the two files legitimately express
+    the same colour differently - `rgba(0,0,0,.898)` over white IS `#1a1a1a`, exactly -
+    and flagging that as a mismatch would push someone to "fix" agreement into
+    disagreement.
     """
-    hits = []
-    for path in sorted(STYLE_DIR.glob("*.css")):
-        rel = path.relative_to(ROOT).as_posix()
-        code = strip_comments(path.read_text(encoding="utf-8"), ".css")
-        for m in re.finditer(r"#111827", code, re.I):
-            hits.append({
-                "rule": "retired_colour_in_stylesheet", "file": rel,
-                "line": code[:m.start()].count("\n") + 1, "match": "#111827",
-                "why": ("blue-tinted grey beside .main-content's #000; use #000 for "
-                        "the heading rung or rgba(0,0,0,.898) for body")})
-    return hits
+    if not DESIGN_TOKENS_TS.exists() or not TOKENS_CSS.exists():
+        return []
+
+    css = strip_comments(TOKENS_CSS.read_text(encoding="utf-8"), ".css")
+    ts = strip_comments(DESIGN_TOKENS_TS.read_text(encoding="utf-8"), ".ts")
+
+    violations = []
+    for ts_key, css_var in TOKEN_MIRROR.items():
+        tm = re.search(rf"\b{re.escape(ts_key)}:\s*'([^']+)'", ts)
+        cm = re.search(rf"{re.escape(css_var)}:\s*([^;]+);", css)
+        if not tm or not cm:
+            continue
+        a, b = normalise_colour(tm.group(1)), normalise_colour(cm.group(1))
+        if a != b:
+            violations.append({
+                "rule": "token_mirror_mismatch",
+                "file": DESIGN_TOKENS_TS.relative_to(ROOT).as_posix(),
+                "line": ts[:tm.start()].count("\n") + 1,
+                "match": f"{ts_key}={tm.group(1)} vs {css_var}={cm.group(1).strip()}",
+                "why": ("this file says it mirrors tokens.css and has 14 importers, so "
+                        "a disagreement puts two different values for the same token on "
+                        "one screen depending on which system a component reads")})
+    return violations
+
+
+def normalise_colour(value: str) -> str:
+    """A colour as an #rrggbb string, compositing rgba() over white.
+
+    White because every surface these tokens paint text on is white or near-white, and
+    the contract's own body colour is written as `rgba(0,0,0,.898)` in one file and
+    `#1a1a1a` in another - the same colour, two spellings.
+    """
+    value = value.strip().lower()
+    m = re.match(r"rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)"
+                 r"(?:[,/\s]+([\d.]+))?\s*\)", value)
+    if m:
+        r, g, b = (float(m.group(i)) for i in (1, 2, 3))
+        a = float(m.group(4)) if m.group(4) is not None else 1.0
+        r, g, b = (round(c * a + 255 * (1 - a)) for c in (r, g, b))
+        return f"#{r:02x}{g:02x}{b:02x}"
+    m = re.match(r"#([0-9a-f]{3})$", value)
+    if m:
+        return "#" + "".join(c * 2 for c in m.group(1))
+    m = re.match(r"#([0-9a-f]{6})$", value)
+    return f"#{m.group(1)}" if m else value
 
 
 def scan_danger_in_success_green():
@@ -322,7 +377,7 @@ def main() -> int:
     args = parser.parse_args()
 
     violations = (scan_retired() + scan_state_collision()
-                  + scan_lime_resting_borders() + scan_retired_in_styles()
+                  + scan_lime_resting_borders() + scan_token_mirror()
                   + scan_danger_in_success_green()
                   + scan_measure() + scan_font_sans())
 

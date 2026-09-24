@@ -195,9 +195,21 @@ at `right:96px; bottom:16px` with its width capped against `calc(100vw - 108px)`
   from this list when both pages were deleted in favour of absolute links to
   `www.wecare.digital` — re-adding a local route for either is what would make
   those links look broken again.
-- `_app.tsx` returns `null` until `mounted`, so the static export ships an **empty
-  body** for `/grahak-os/`. All JSON-LD and meta are invisible to non-JS crawlers.
-  Known, unaddressed.
+- ~~`_app.tsx` returns `null` until `mounted`, so the static export ships an **empty
+  body** for `/grahak-os/`.~~ **Fixed.** The `if ( !mounted ) return null;` that ran
+  before the public branch is gone. Measured against the built export on 2026-09-24, by
+  stripping `<script>` from `<body>` and counting the remaining text:
+
+  | Page | Body text | JSON-LD |
+  |---|---|---|
+  | `out/index.html` | 2,501 chars | 1 block |
+  | `out/grahak-os/index.html` | 2,448 chars | 1 block |
+  | `out/vayulok/index.html` | 489 chars | 1 block |
+
+  A non-JS crawler now gets the copy, the headings and the structured data.
+  **Open, but a content gap rather than a rendering one:** `/vayulok` ships an `h1` and
+  no `h2` at all, which is why its body text is a fifth of the other two. That is the
+  page's actual content, not a partial render.
 
 ## Verifying a change
 
@@ -233,11 +245,22 @@ reverted; each says why.
   selectors, so grepping for `background:#fff` makes it look unimplemented when it
   is not. Rhythm today: hero white, touchpoint grey, api white, capabilities grey,
   why / trust / closer white.
-- `.why-section` has **no `max-width`** — measures ~1391px against `.api`'s 1300px.
-  Visually inert (white on white, and its children are capped at 700/1100px and
-  centred), so this is a consistency nit, not a visible defect.
-- `.page{overflow-x:hidden}` should be `clip` so tint bands reach the true viewport
-  edge (~25px short today; changing it shifts all sections ~7.5px). **Still open.**
+- ~~`.why-section` has **no `max-width`** — measures ~1391px against `.api`'s 1300px.~~
+  **Gone.** Re-measured 2026-09-24: neither `.why-section` nor `.why-item` exists
+  anywhere in `src/` any more, so this entry described a class that had already been
+  removed. Verified the general case instead, by parsing the styled-jsx of all three
+  public pages and flattening `@media` blocks: **every centred container** (`margin:0
+  auto`) on `/`, `/grahak-os` and `/vayulok` declares a `max-width`. The type-ladder rows
+  above still name `.why-item strong` and `.why-item span`; treat those as historical.
+- ~~`.page{overflow-x:hidden}` should be `clip`.~~ **Done, and done carefully.**
+  `grahak-os` ships `overflow-x:hidden` as the base with an `@supports
+  (overflow-x:clip)` block upgrading it — `clip` from Chrome 90 / Firefox 81 / Safari
+  16, and anything older still needs `hidden` or the `width:100vw` full-bleed bands make
+  the page horizontally scrollable. The two values are kept in **separate rules** on
+  purpose: written as two declarations on one rule, a CSS minifier drops the first as
+  dead. `/` and `/vayulok` never needed it — their only `overflow:hidden` uses are the
+  rotating-word mask and the sr-only utility, so `.home-flow-copy`'s `position:sticky`
+  has no scroll-container ancestor to break it.
 - ~~`.pill` uses `font-size:var(--text-base)`, and a mobile breakpoint pushes it to
   20px.~~ **Both fixed.** `.pill` and `.pp-pill` are an explicit `15px`. The token
   was the real hazard: `--text-base` is declared as `16px` in `tokens.css` and

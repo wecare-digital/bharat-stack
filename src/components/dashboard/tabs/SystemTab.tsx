@@ -525,7 +525,7 @@ export default function SystemTab () {
                             { logsLoading ? '...' : 'Refresh' }
                         </button>
                     </div>
-                    <div style={ { background: '#111827', borderRadius: 10, padding: 16, fontFamily: 'monospace', fontSize: 11, color: '#d1d5db', maxHeight: 400, overflow: 'auto' } }>
+                    <div style={ { background: '#000', borderRadius: 10, padding: 16, fontFamily: 'monospace', fontSize: 11, color: '#d1d5db', maxHeight: 400, overflow: 'auto' } }>
                         { logs.length === 0 ? (
                             <div style={ { color: '#6b7280' } }>No logs available</div>
                         ) : (

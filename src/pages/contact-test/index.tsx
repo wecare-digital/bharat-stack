@@ -37,7 +37,7 @@ const ContactUsPage: React.FC<PageProps> = ( { signOut, user } ) => {
   };
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '10px 14px', fontSize: 14, color: '#111827',
+    width: '100%', padding: '10px 14px', fontSize: 14, color: '#1a1a1a',
     background: '#fff', border: '1.5px solid #e5e7eb', borderRadius: 10,
     outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
     transition: 'border-color 0.15s',

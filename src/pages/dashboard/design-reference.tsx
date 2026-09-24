@@ -60,20 +60,20 @@ const DesignReferencePage: React.FC<PageProps> = ( { signOut, user } ) => {
                                 { name: 'Primary Hover', hex: '#0f2a1d', fg: '#fff' },
                                 { name: 'Lime', hex: '#d1f470', fg: '#1a3a2a' },
                                 { name: 'Lime Hover', hex: '#c5e866', fg: '#1a3a2a' },
-                                { name: 'White', hex: '#ffffff', fg: '#111827' },
-                                { name: 'BG Secondary', hex: '#f9fafb', fg: '#111827' },
-                                { name: 'BG Hover', hex: '#f5f5f5', fg: '#111827' },
-                                { name: 'Text Primary', hex: '#111827', fg: '#fff' },
+                                { name: 'White', hex: '#ffffff', fg: '#1a1a1a' },
+                                { name: 'BG Secondary', hex: '#f9fafb', fg: '#1a1a1a' },
+                                { name: 'BG Hover', hex: '#f5f5f5', fg: '#1a1a1a' },
+                                { name: 'Text Primary', hex: '#1a1a1a', fg: '#fff' },
                                 { name: 'Text Secondary', hex: '#6b7280', fg: '#fff' },
-                                { name: 'Text Muted', hex: '#9ca3af', fg: '#111827' },
-                                { name: 'Border', hex: '#e5e7eb', fg: '#111827' },
-                                { name: 'Border Dark', hex: '#d1d5db', fg: '#111827' },
+                                { name: 'Text Muted', hex: '#9ca3af', fg: '#1a1a1a' },
+                                { name: 'Border', hex: '#e5e7eb', fg: '#1a1a1a' },
+                                { name: 'Border Dark', hex: '#d1d5db', fg: '#1a1a1a' },
                                 { name: 'Danger', hex: '#dc2626', fg: '#fff' },
                                 { name: 'Danger Light', hex: '#fef2f2', fg: '#dc2626' },
                             ].map( ( c, i ) => (
                                 <div key={ i } style={ { textAlign: 'center' } }>
                                     <div style={ { width: '100%', height: 72, borderRadius: 12, background: c.hex, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.fg, fontSize: 11, fontWeight: 600, border: '1px solid #e5e7eb' } }>{ c.hex }</div>
-                                    <div style={ { marginTop: 6, fontSize: 12, fontWeight: 600, color: '#111827' } }>{ c.name }</div>
+                                    <div style={ { marginTop: 6, fontSize: 12, fontWeight: 600, color: '#1a1a1a' } }>{ c.name }</div>
                                 </div>
                             ) ) }
                         </div>

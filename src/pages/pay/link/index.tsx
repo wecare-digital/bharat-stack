@@ -216,7 +216,7 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         
         .coming-soon-banner { display: flex; align-items: center; gap: 16px; background: #f9fafb; padding: 16px 20px; border-radius: 13px; margin-bottom: 20px; border: 1.5px solid #1a3a2a; }
         .banner-icon { font-size: 24px; color: #1a3a2a; }
-        .banner-content h3 { margin: 0 0 4px 0; font-size: 16px; color: #111827; }
+        .banner-content h3 { margin: 0 0 4px 0; font-size: 16px; color: #1a1a1a; }
         .banner-content p { margin: 0; font-size: 13px; color: #4a4a4a; }
         
         .page-layout { display: grid; grid-template-columns: 1fr 400px; gap: 20px; }
@@ -248,7 +248,7 @@ const PayLinkPage: React.FC<PageProps> = ({ signOut, user, embedded }) => {
         .link-details { padding: 12px; background: #f9fafb; border-radius: 10px; margin-bottom: 16px; }
         .detail-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
         .detail-row span:first-child { color: #4a4a4a; }
-        .detail-row span:last-child { font-weight: 500; color: #111827; }
+        .detail-row span:last-child { font-weight: 500; color: #1a1a1a; }
         
         .share-buttons { display: flex; gap: 8px; }
         .share-btn { flex: 1; }
