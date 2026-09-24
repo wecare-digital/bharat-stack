@@ -103,6 +103,9 @@ export const navigationConfig: NavItem[] = [
     icon: 'payment',
     children: [
       { path: '/pay', label: 'Overview' },
+      // The ledger: what was billed, paid and delivered. Read-only on purpose -
+      // cancel, delete and resend all move money or message a customer.
+      { path: '/pay/records', label: 'Invoice records' },
       { path: '/pay/flow', label: 'Pay Flow' },
       { path: '/pay/link', label: 'Pay Link' },
     ],
@@ -140,15 +143,20 @@ export const navigationConfig: NavItem[] = [
     label: 'Forms',
     icon: 'form',
     children: [
+      // Responses first: a submitted request nobody actioned is a customer who paid
+      // and heard nothing, so the queue matters more than the builder.
+      { path: '/forms/responses', label: 'Responses' },
       { path: '/forms/create', label: 'Forms Builder' },
       { path: '/forms/selfservice', label: 'Self-service Hub' },
     ],
   },
   {
+    // No longer 'Soon'. It was a ComingSoon stub promising six features with no
+    // backend at all; it is now the conversation-meta work queue, which is real
+    // data the inbox already writes.
     path: '/task',
     label: 'Tasks',
     icon: 'checklist',
-    badge: 'Soon',
   },
 ];
 

@@ -210,5 +210,41 @@ catalog entry by entry — ids, class, and `refused` as the exact inverse of `en
 also guards the guard: if any APPLY tool is ever enabled without the approval path, that
 test fails too.
 
-### E1 — Task, Payments, Invoice records, Forms responses · TODO
-`/task` is a 33-line `ComingSoon` stub. The others need record views.
+### E1 — Task, Payments, Invoice records, Forms responses · DONE
+Each built on data that **already exists**, and the investigation mattered more than the
+building.
+
+**`/task` — there is no tasks backend in this repository.** No `TasksTable`, no task API,
+nothing. The old 33-line `ComingSoon` promised six features: create/assign, priorities,
+deadlines, progress, collaboration, templates, reminders — five had nothing behind them.
+Building that screen would have been fabrication, the same defect as the agent panel
+advertising 18 refused tools.
+
+What does exist is `conversation-meta`: `status` (open/pending/resolved), `assignee`,
+`tags`, `notes`, already written by the inbox on every conversation, and
+`GET /inbox/meta` returns all of it. So Tasks is that work queue. It states on screen
+that priorities, due dates, templates and reminders are **not stored anywhere yet** —
+absent rather than rendered as an empty column implying the field exists and is unset.
+
+**`/pay/records`** over `listInvoicesEngine` — full GST breakdown, delivery log per
+invoice via `getInvoiceDeliveryLog`. **Read-only deliberately**: `cancelInvoice`,
+`deleteInvoice` and `updateInvoiceEngine` all exist in the API and none is wired, because
+`deleteInvoice` takes an `adjustSequence` flag — a mis-click could renumber a statutory
+GST series. Totals are summed from each invoice's **stored** total, never recomputed from
+line items: the invoice is the record, and a second calculation is a second answer that
+disagrees the first time a rounding rule changes.
+
+**`/forms/responses`** over `listSubmitRequests`. Sorted **oldest unpaid first**, not by
+recency, because a recency sort buries exactly the rows that need attention and an
+unactioned request is a customer who paid and heard nothing. `isExpired` and `daysOld` are
+server-computed and called out rather than left as columns to notice.
+`resendSubmitRequestPayment` is deliberately not wired — it messages a customer about
+money.
+
+Phone numbers show the last four digits on both record screens, matching every log site in
+the codebase. Typecheck caught two fields I had invented on `InvoiceDeliveryLog`
+(`type`, `sentAt`); the real shape is `timestamp`, `channel`, `toNumber`, `status`,
+`error`.
+
+Nav: Invoice records added under Payments, Responses added **first** under Forms, and the
+`Soon` badge removed from Tasks because it is no longer a stub.
