@@ -102,6 +102,26 @@ const LIVE_SAMPLE_VIEWPORT = 1280;
  * "Failed to load resource" line it also produces is matched by the REQUEST URL rather
  * than by its text - otherwise the exemption would swallow every failed request on the
  * page, which is far too much to give away for one known-good call.
+ *
+ * One is THIRD-PARTY AND CROSS-ORIGIN, and it is the reason this list grew on
+ * 2026-09-25. /contact/ failed the gate on `stack` with:
+ *
+ *   Access to XMLHttpRequest at 'https://maps.googleapis.com/$rpc/google.internal.
+ *   maps.mapsjs.v1.MapsJsInternalService/GetViewportInfo' from origin
+ *   'https://www.google.com' has been blocked by CORS policy
+ *
+ * Read the origin: `https://www.google.com`, not our page. NEXT_PUBLIC_GOOGLE_MAPS_KEY
+ * is unset in CI, so ContactLocation ships the KEYLESS path - a google.com/maps/embed
+ * iframe - and this is Google's own bundle calling its own private RPC from inside that
+ * iframe and being refused by Google's own CORS policy. No markup, style or script of
+ * ours participates, and nothing we can change makes it stop; it also appears only
+ * sometimes, which is why the same assertion passed on PR #46. Chromium surfaces
+ * subframe console messages on the parent page, so it lands in this channel.
+ *
+ * Scoped to that one internal RPC path, NOT to maps.googleapis.com generally: a real
+ * failure of the keyed Maps JS API (maps/api/js, which our own code loads) must still
+ * fail this gate. The companion net::ERR_FAILED line carries no identifying text, so it
+ * is matched on the REQUEST URL for the same reason as the site-language entry above.
  */
 const ALLOWED = [
   { why: 'dev: Next serves this with a MIME type Chromium refuses', test: ( text ) => /_clientMiddlewareManifest\.js/.test( text ) },
@@ -111,6 +131,13 @@ const ALLOWED = [
     test: ( text, url ) =>
       /api\.wecare\.digital\/site-language/.test( text )
       || ( /Failed to load resource/.test( text ) && /api\.wecare\.digital\/site-language/.test( url || '' ) ),
+  },
+  {
+    why: "third party: Google's keyless maps/embed iframe calls its own private "
+      + 'MapsJsInternalService RPC and Google refuses it by CORS - origin is google.com, not ours',
+    test: ( text, url ) =>
+      /MapsJsInternalService/.test( text )
+      || ( /Failed to load resource/.test( text ) && /MapsJsInternalService/.test( url || '' ) ),
   },
 ];
 
