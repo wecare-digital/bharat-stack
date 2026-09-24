@@ -21,9 +21,17 @@ import React, { useEffect, useRef, useState } from 'react';
  * The owner asked for the map to render INLINE with no redirection out to Google, and the
  * keyed version could not: with no key configured it rendered a panel that linked to
  * Google instead of a map, because an Embed API iframe without a key paints a Google
- * error page inside our frame. And NEXT_PUBLIC_ with output:'export' inlines the value
- * into the built HTML, so the key was going to be publicly readable in the page source
- * and would have needed referrer-locking and its own embed-only key to stay un-abusable.
+ * error page inside our frame. And NEXT_PUBLIC_ with output:'export' bakes the value into
+ * the build, so the key is publicly readable and needs referrer-locking and its own
+ * embed-only key to stay un-abusable.
+ *
+ * WHERE THE KEY ACTUALLY ENDS UP, because this comment used to say "the built HTML ...
+ * readable in the page source" and that is wrong in a way that matters. Measured with a
+ * dummy key: it appears in exactly one file, a JS chunk under out/_next/static/chunks/,
+ * and in ZERO html files - because it is only read inside a useEffect, so it never reaches
+ * the prerendered markup. Anyone who checks by grepping the HTML or using View Source will
+ * find nothing and may conclude the key is not exposed. It is: that chunk is served to
+ * every visitor. Restrict it in the Cloud console regardless.
  *
  * It now uses the legacy keyless endpoint - maps?q=...&output=embed - which needs no
  * credential, no billing account and no rotation. The map always renders. Nobody is sent

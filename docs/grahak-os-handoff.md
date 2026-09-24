@@ -109,7 +109,43 @@ misled every reader so far.
    Maps JS path already passes `disableDefaultUI` and removes them outright), move to
    Static Maps, or set `pointer-events:none` on the iframe and render our own attribution
    links outside it. Full measurements are in the comment above `.cl-lock`.
-7. **`/grahak-os/` and `/vayulok/` heroes reflow at narrow widths — needs a design call.**
+7. **Type ladder: the section-h2 rung in the design contract is the site's minority
+   spelling — pick one.** Measured on all 15 public routes at 1280px with
+   `node tools/browser/typecheck.js`. Six distinct h2 treatments, each traceable to a
+   different authored `clamp()`, so **none of this is a browser rendering difference** —
+   every browser computes the same numbers.
+
+   | Declaration | @1280 | Owners |
+   |---|---|---|
+   | `clamp(32px,4.2vw,54px)`/700/1.04/-1.875px | 53.76px | `/grahak-os/` only — 3 headings. **This is what the contract says.** |
+   | `clamp(28px,3.2vw,40px)`/700/1.08/-1.2px | 40px | **12 headings on 10 pages** — `.home-close-title`, `.home-flow-title`, `.cl-h2`, `.mo-h2`, `.brx-h2`, `.pdp-h2` (×7) |
+   | `clamp(22px,2.4vw,28px)`/700/1.2/-0.6px | 28px | `.lgd-h2` ×69 on `/terms/` + `/privacy/` |
+   | `clamp(36px,4.3vw,60px)`/**600** | 55.04px | `/grahak-os/` `.gos-closer-head` — the **hero h1 clamp**, on an h2 |
+   | `14px`/600/uppercase/.04em | 14px | `.lgd-toc-title` "Contents" ×2 — an **eyebrow**, not a heading |
+
+   **Recommendation: adopt `clamp(28px,3.2vw,40px)`/700/1.08/-1.2px** as the marketing
+   section-h2 rung and amend the contract to match, rather than raising 12 headings to
+   meet 3. Two reasons beyond the head count. It is already one *byte-identical*
+   declaration under five class names in five files, so it was clearly deliberate. And the
+   contract's own rung barely reads as subordinate: the hero h1 is
+   `clamp(36px,4.3vw,60px)` = 55.04px at 1280, so a 53.76px h2 sits **1.28px** below its
+   own h1 — the size hierarchy collapses and only the 700/600 weight inversion separates
+   them. Every page authored after `/grahak-os/` quietly chose the smaller rung.
+
+   Then keep two rungs as deliberate exceptions, written into the contract so they stop
+   reading as drift: `.lgd-h2` at 28px (a legal document with 45 numbered sections cannot
+   carry 54px headings), and `.lgd-toc-title`, which should become a `<p>` or move onto the
+   12px/700/.08em eyebrow rung.
+
+   Already fixed, because it needed no decision: `/` carried **two** section-h2 sizes,
+   `.home-flow-title` at 33.28px beside `.home-close-title` at 40px, under a comment
+   claiming it was "the contract's rung … the same on every page". It is now on the 40px
+   rung and the home page is internally consistent. Still open on `/grahak-os/`:
+   `.gos-closer-head` at 55.04px/600 both exceeds the contract's 54px cap and inverts its
+   one hard rule that a section h2 is 700 and heavier than the h1. Either it is a
+   hero-scale closer by design — in which case the contract should name it and it probably
+   should not be an `<h2>` — or it is drift.
+8. **`/grahak-os/` and `/vayulok/` heroes reflow at narrow widths — needs a design call.**
    This is the "page jumps every 2400ms" defect the code believes it fixed. It was fixed
    on Home and in `RotatingHero` by putting the pill on its own line, but the two inline
    copies still set it mid-sentence (`Bharat <pill> Intelligence`, `across <pill>`), so
@@ -269,6 +305,7 @@ npx tsc --noEmit                     # 0 errors
 npx eslint .                         # 230e/63w — red, pre-existing, unchanged by this work
 node tools/browser/animcheck.js      # 16/20 — 4 known failures, see below
 node tools/browser/contactcheck.js   # 12/13 — 1 known failure, see below
+node tools/browser/typecheck.js      # 1/3   — 2 known failures, the type-ladder decision
 ```
 
 Two things to know about that list. **`npm ci` is not in it** — it is broken, see
@@ -349,8 +386,9 @@ page load until it was found by exactly this assertion.
 | `lib/serve.js` | Static server for `out/`, resolves `trailingSlash`, or honours `BASE` | yes |
 | `animcheck.js` | Rotation reflow at 21 viewports on all four surfaces, animation-family transition parity, word widths, console errors — 20 assertions | yes |
 | `contactcheck.js` | Card and `#cl-title` vs the fixed header at 4 viewports, in-frame Google controls with a click hit-test, keyless-embed tile canary — 13 assertions | yes |
+| `typecheck.js` | Every visible h1/h2/h3 on all 15 public routes at 2 widths; per-page consistency, the de-facto 40px rung, the contract gap — 3 assertions | yes |
 | `verify.js`, `fontcheck.js`, `signprobe.js`, `navprobe.js` | Nav labels/hrefs, type ladder, Authenticator tree, nav row colours | **lost with `/projects/pwtest`** |
-| `check.js`, `typecheck.js`, `langbar.js`, `authcheck.js`, `ordercheck.js` | Viewport overflow, meta card type scale, language restore, sign-in badge order | **lost** |
+| `check.js`, `langbar.js`, `authcheck.js`, `ordercheck.js` | Viewport overflow, language restore, sign-in badge order | **lost** |
 
 The lost ones are a description of what to write, not of what exists. Rewrite them under
 `tools/browser/` so they stop evaporating.
@@ -360,6 +398,7 @@ green — the same convention the old `langbar.js` note used:
 
 - `animcheck.js` — **4 failures**, all the `/grahak-os/` and `/vayulok/` hero reflow.
 - `contactcheck.js` — **1 failure**, the three live Google map controls.
+- `typecheck.js` — **2 failures**, the section-h2 rung decision and `.gos-closer-head`.
 
 Both are owner decisions, described under "Needs the owner". Nothing else is red.
 `langbar.js`'s old known failure — "no console errors", caused by the `X-Frame-Options`

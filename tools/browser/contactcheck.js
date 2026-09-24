@@ -95,7 +95,41 @@ async function measureOverlap( page ) {
 /** What Google paints inside the cross-origin iframe, and whether our lock covers it. */
 async function inspectMapFrame( page ) {
   const iframe = await page.$( 'iframe.cl-frame' );
-  if ( !iframe ) return { keyed: true, note: 'no iframe - the keyed Maps JS path is active' };
+  if ( !iframe ) {
+    /**
+     * KEYED PATH. NEXT_PUBLIC_GOOGLE_MAPS_KEY is set, so ContactLocation renders a plain
+     * div that the Maps JS API draws into - there is no iframe and nothing cross-origin.
+     *
+     * This branch exists so the harness does NOT go quiet the moment the map changes
+     * shape. Returning early with just a note would silently drop every map assertion and
+     * leave contactcheck reporting all-green about a surface it had stopped looking at,
+     * which is the "warning that looked like a success" failure this repo keeps hitting.
+     *
+     * NOT YET EXERCISED: there is no key in the sandbox, so this path has never run. Treat
+     * its first run as unverified and read the printed numbers before trusting the verdict.
+     */
+    const host = await page.evaluate( () => {
+      const el = document.querySelector( '.cl-frame' );
+      if ( !el ) return null;
+      const r = el.getBoundingClientRect();
+      return {
+        w: Math.round( r.width ), h: Math.round( r.height ),
+        // The API injects tiles and its attribution into the div. An empty div means the
+        // key was rejected, the referrer restriction blocked us, or billing is off - all
+        // of which render a blank grey panel rather than throwing.
+        children: el.children.length,
+        tiles: el.querySelectorAll( 'img' ).length,
+        // disableDefaultUI should leave no control buttons behind.
+        controls: el.querySelectorAll( 'button,[role="button"]' ).length,
+        // Attribution is a licence condition on this path too, and disableDefaultUI does
+        // not remove it. If this is absent, something is covering or breaking it.
+        hasAttribution: /google/i.test( el.textContent || '' ),
+        role: el.getAttribute( 'role' ),
+        ariaLabel: el.getAttribute( 'aria-label' ),
+      };
+    } );
+    return { keyed: true, host };
+  }
 
   // The frame is cross-origin. Playwright reaches it anyway; the PAGE cannot, which is
   // the whole reason these controls cannot be removed with CSS.
@@ -348,7 +382,22 @@ async function main() {
     const frameInfo = await inspectMapFrame( page );
 
     if ( frameInfo.keyed ) {
-      console.log( `  ${frameInfo.note}` );
+      const h = frameInfo.host;
+      console.log( '  keyed Maps JS path is active (no iframe). THIS BRANCH HAS NEVER RUN' );
+      console.log( '  with a real key - read these numbers rather than trusting the verdict.' );
+      if ( !h ) {
+        record( false, 'keyed map host element present', '.cl-frame not found' );
+      } else {
+        console.log( `  map div ${h.w}x${h.h}, ${h.children} child node(s), ${h.tiles} img tile(s), ${h.controls} control(s), role=${h.role}` );
+        record( h.w > 0 && h.h > 0, 'keyed map div has a box', `${h.w}x${h.h}` );
+        record( h.children > 0 || h.tiles > 0,
+          'Maps JS actually painted into the div (key accepted, referrer allowed, billing on)',
+          `${h.children} children / ${h.tiles} tiles - zero means a blank grey panel, not an exception` );
+        record( h.controls === 0, 'disableDefaultUI left no Google controls behind',
+          `${h.controls} control(s) found` );
+        record( h.hasAttribution === true, 'Google attribution is present (licence condition)',
+          h.hasAttribution ? 'found' : 'no "Google" text in the map div' );
+      }
     } else if ( frameInfo.error ) {
       console.log( `  (could not inspect: ${frameInfo.error})` );
     } else {
