@@ -1,5 +1,5 @@
 import React from 'react';
-import Head from 'next/head';
+import PageMeta from '../components/PageMeta';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 import LegalDocument from '../components/LegalDocument';
 import { PRIVACY_SECTIONS, PRIVACY_INTRO } from '../content/legal/privacy';
@@ -37,14 +37,11 @@ const CYCLE_WORDS: CycleWord[] = [
 
 const PrivacyPage: React.FC = () => (
   <>
-    <Head>
-      <title>Privacy Policy — WECARE.DIGITAL</title>
-      <meta
-        name="description"
-        content="How WECARE.DIGITAL collects, uses, stores, shares and protects personal data — what we collect, why, who it is shared with, how long we keep it, and your rights."
-      />
-      <link rel="canonical" key="canonical" href="https://wecare.digital/privacy/" />
-    </Head>
+    <PageMeta
+      title="Privacy Policy — WECARE.DIGITAL"
+      description="How WECARE.DIGITAL collects, uses, stores, shares and protects personal data — what we collect, why, who it is shared with, how long we keep it, and your rights."
+      path="/privacy/"
+    />
     <RotatingHero
       ariaLabel="Privacy policy"
       badgeLabel="Legal Stuff — WECARE.DIGITAL"

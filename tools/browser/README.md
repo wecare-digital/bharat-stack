@@ -77,6 +77,7 @@ see locally.
 | `lib/serve.js` | Static server over `out/`, resolves `trailingSlash`, or honours `BASE` |
 | `animcheck.js` | Rotating-headline reflow at 21 viewports (320–1920) on all four rotating surfaces, animation-family transition parity, console errors |
 | `contactcheck.js` | Card and `#cl-title` vs the fixed header at 4 viewports, Google's in-frame controls with a click hit-test, keyless-embed tile canary |
+| `seocheck.js` | The document head of all 15 public routes plus the 4 retired stubs: singleton tags, og/twitter derived from the page's own title and description, uniqueness, lengths, canonical and `og:url`, JSON-LD parse and `@id` conflicts, and that a real browser actually lands on `/contact/` from every retired URL |
 | `typecheck.js` | Every visible `h1`/`h2`/`h3` on all 15 public routes at 2 widths; per-page consistency, the de-facto 40px rung, and the gap to the design contract |
 | `uicheck.js` | Header lockup centring, and the two floating widgets: equal diameter, shared centre line, even gap, and that the open language panel clears the un-coverable WhatsApp button — 4 viewports |
 
@@ -85,11 +86,41 @@ see locally.
 | Script | Result |
 |---|---|
 | `animcheck.js` | **18/18** |
+| `seocheck.js` | **12/12** |
 | `typecheck.js` | **3/3** |
 | `uicheck.js` | **28/28** |
 | `contactcheck.js` | **12/13** — the one failure is blocked on a Google Maps API key |
 
 The single remaining failure is left red deliberately. It is not tuned to pass.
+
+### What `seocheck.js` found on its first run, and what it got wrong
+
+Worth recording, because two of its three initial failures were the harness's fault and
+"fixing" the code to satisfy them would have deleted correct markup.
+
+**Real:** `/grahak-os/` carried **three different titles and three different descriptions at
+once** — a `<title>`, an `og:title` and a `twitter:title` that were three separate strings,
+and likewise for the descriptions. Nothing chose between them; whichever a crawler or
+unfurler read first won, so the page described itself differently depending on where its
+link was pasted. It now uses `PageMeta` like every other route.
+
+**False positive — `@id` duplication.** The check counted every `@id` in the JSON-LD and
+reported all 15 routes as emitting duplicates. But an object with only `@id` is a
+*reference* to an entity defined elsewhere, which is the correct way to link JSON-LD — every
+page's `WebPage` references `#website` via `isPartOf`, and its own `#breadcrumb`. Only an
+object carrying **both** `@type` and `@id` is a definition. Fixed to count definitions only.
+
+**False positive — the retired stubs.** They reported as "not noindex, refresh is null"
+while being completely correct. Their `<meta http-equiv="refresh" content="0;url=/contact/">`
+fires the moment the document parses, so by the time Playwright could evaluate anything the
+browser was already on `/contact/` and the harness was reading **`/contact/`'s** head. A
+redirect working too well is indistinguishable from a broken head if you only look at the
+rendered DOM. The stubs are now read as **raw HTML over HTTP** — which is also what a
+crawler that does not execute JavaScript receives, so it is the more honest assertion — with
+a separate browser check that the redirect does land on `/contact/`.
+
+The general lesson, and it is the same one `elementFromPoint` taught in `contactcheck.js`:
+**decide what the measurement is actually measuring before believing its verdict.**
 
 ### Fixed: the rotating-headline reflow (was 4 failures in `animcheck.js`)
 

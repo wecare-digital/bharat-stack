@@ -55,7 +55,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import Head from 'next/head';
+import PageMeta from '../../components/PageMeta';
 import BrandBadge from '../../components/BrandBadge';
 
 const VayuLokPage: React.FC = () => {
@@ -111,11 +111,24 @@ const VayuLokPage: React.FC = () => {
 
   return (
     <>
-      <Head>
-        <title>VayuLok by WECARE.DIGITAL</title>
-        <meta name="description" content="VayuLok - Bharat Air Intelligence, by WECARE.DIGITAL." />
-        <link rel="canonical" key="canonical" href="https://wecare.digital/vayulok/" />
-      </Head>
+      {/* THIS PAGE'S TITLE AND DESCRIPTION WERE THE THINNEST ON THE SITE, measured against
+          the other fourteen public routes. The title was "VayuLok by WECARE.DIGITAL" - 25
+          characters, where the product pages run 52-68 - and the description was "VayuLok -
+          Bharat Air Intelligence, by WECARE.DIGITAL." at 53 characters, which restates the
+          brand name twice and tells a reader nothing. Every other page follows one house
+          pattern: "<Name> by WECARE.DIGITAL - <what it does>".
+          The wording below is assembled from copy already committed elsewhere in the repo
+          rather than invented: "Bharat air and weather intelligence" is this route's own
+          entry in PUBLIC_PAGE_META in _app.tsx.
+          DELIBERATELY NOT LISTING Pollen OR Heatmap even though the hero rotates both -
+          docs/grahak-os-handoff.md records that neither has an endpoint wired, and a meta
+          description is the wrong place to promise an unbuilt feature. Solar is left out on
+          the same caution. Add them here when they are real. */}
+      <PageMeta
+        title="VayuLok — Bharat air and weather intelligence | WECARE.DIGITAL"
+        description="VayuLok by WECARE.DIGITAL — air and weather intelligence for Bharat: air quality, weather and forecasts for wherever you are."
+        path="/vayulok/"
+      />
 
       <main className="vl-shell" aria-label="VayuLok">
         <div className={ `vl-layout ${shown ? 'show' : ''}`.trim() }>

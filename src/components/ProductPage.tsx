@@ -1,5 +1,5 @@
 import React from 'react';
-import Head from 'next/head';
+import PageMeta from './PageMeta';
 import RotatingHero from './RotatingHero';
 import type { ProductDef } from '../content/products';
 
@@ -31,17 +31,20 @@ interface ProductPageProps {
   product: ProductDef;
 }
 
-const SITE = 'https://wecare.digital';
+// The SITE constant that used to live here is gone: PageMeta owns the origin now, so
+// keeping a second copy of it here would be a second place for it to be wrong.
 
 const ProductPage: React.FC<ProductPageProps> = ( { product } ) => (
   <>
-    <Head>
-      <title>{ product.title }</title>
-      <meta name="description" content={ product.description } />
-      {/* key="canonical" so this replaces the shared one from _app.tsx rather than adding a
-          second - two canonicals on a page is the defect that was already fixed once here. */}
-      <link rel="canonical" key="canonical" href={ `${SITE}/${product.slug}/` } />
-    </Head>
+    {/* All seven product pages get their share preview from the same two strings that make
+        their <title> and <meta description>, so there is nothing to keep in sync. Before
+        this, none of them declared og: tags at all and all seven inherited the sitewide
+        company preview from _app.tsx - seven distinct products previewing as one page. */}
+    <PageMeta
+      title={ product.title }
+      description={ product.description }
+      path={ `/${product.slug}/` }
+    />
     <RotatingHero
       ariaLabel={ product.name }
       badgeLabel={ `${product.name} by WECARE.DIGITAL` }

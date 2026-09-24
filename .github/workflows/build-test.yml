@@ -4,8 +4,8 @@ name: Build and test
 # tests. The ten existing workflows cover CodeQL, route auth, provider policy, UI
 # labels, plivo and the deploy jobs - all valuable, none of which would notice a
 # broken build. A pull request could go green with a repo that does not compile, and
-# the only build verification was whatever a human ran locally. The test suite is 95
-# tests across 9 files and nothing was running it.
+# the only build verification was whatever a human ran locally. The test suite is 181
+# tests across 15 files and nothing was running it.
 #
 # Deliberately NOT a deploy workflow. It needs no AWS credentials and no secrets at
 # all, which is why it can safely run on pull requests from any source.
@@ -81,8 +81,43 @@ jobs:
       - name: Unit tests
         run: npx vitest run
 
+      # THE BROWSER HARNESS, AND IT IS A GATE. Four of the five suites are green and
+      # measure things no unit test can see, because they only exist once a browser has
+      # resolved a clamp, run an animation or applied next/head's de-duplication rules.
+      # Every one of them was written after a defect shipped that source inspection had
+      # missed: a headline that grew 41px and shifted the page every 2400ms, a section-h2
+      # rung that disagreed across pages, a language panel covering the WhatsApp button,
+      # and fourteen routes sharing one og:title so every product previewed as the company
+      # page. Running them here is what stops those coming back silently.
+      #
+      # No browser download. tools/browser depends on playwright-core, which never fetches
+      # one, and lib/browser.js resolves whatever Chromium is already on the machine -
+      # falling back to /usr/bin/google-chrome, which the ubuntu runner image ships. If it
+      # finds nothing it throws naming every path it searched, so a missing browser reads
+      # as a missing browser rather than as a test failure.
+      #
+      # It runs AFTER Build because the harness measures out/, the production export.
+      - name: Browser harness (install)
+        run: npm install --no-audit --no-fund --prefix tools/browser
+
+      - name: Browser harness
+        run: |
+          node tools/browser/animcheck.js
+          node tools/browser/seocheck.js
+          node tools/browser/typecheck.js
+          node tools/browser/uicheck.js
+
+      # REPORTED, NOT ENFORCED, and for a reason that is not flakiness: contactcheck has
+      # one assertion that cannot pass until the owner sets NEXT_PUBLIC_GOOGLE_MAPS_KEY.
+      # Three Google controls on the keyless map embed stay reachable without it. The
+      # suite is still worth running for its other twelve assertions, so it is printed
+      # rather than gated. Make it a gate on the day the key exists.
+      - name: Contact map harness (reported, not enforced)
+        continue-on-error: true
+        run: node tools/browser/contactcheck.js
+
       # INFORMATIONAL, never a gate - lint is red repo-wide and has been for a long
-      # time: 231 errors / 64 warnings at the time of writing, most of them
+      # time: 225 errors / 63 warnings at the time of writing, most of them
       # react-hooks/set-state-in-effect. Making it blocking would fail every pull
       # request regardless of its contents, which trains people to ignore CI. Printing
       # the count instead means a reviewer can see whether a change moved the number.

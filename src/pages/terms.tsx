@@ -1,5 +1,5 @@
 import React from 'react';
-import Head from 'next/head';
+import PageMeta from '../components/PageMeta';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 import LegalDocument from '../components/LegalDocument';
 import { TERMS_SECTIONS, TERMS_INTRO } from '../content/legal/terms';
@@ -40,14 +40,11 @@ const CYCLE_WORDS: CycleWord[] = [
 
 const TermsPage: React.FC = () => (
   <>
-    <Head>
-      <title>Terms of Service — WECARE.DIGITAL</title>
-      <meta
-        name="description"
-        content="The agreement between you and WECARE.DIGITAL when you use our services: orders, payments, refunds, delivery, professional services and dispute resolution."
-      />
-      <link rel="canonical" key="canonical" href="https://wecare.digital/terms/" />
-    </Head>
+    <PageMeta
+      title="Terms of Service — WECARE.DIGITAL"
+      description="The agreement between you and WECARE.DIGITAL when you use our services: orders, payments, refunds, delivery, professional services and dispute resolution."
+      path="/terms/"
+    />
     <RotatingHero
       ariaLabel="Terms of service"
       badgeLabel="Legal Stuff — WECARE.DIGITAL"
