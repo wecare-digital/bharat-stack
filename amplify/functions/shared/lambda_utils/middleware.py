@@ -169,6 +169,44 @@ def require_auth(
             'currentRole': role,
         }, origin)
 
+    # --- Admin second factor -------------------------------------------------
+    # Checked where the Admin privilege is USED, not at sign-in, because that is where
+    # it is actually exercised - and only when Admin is required, so an Admin reading a
+    # Viewer-level route does not pay an extra AdminGetUser per request.
+    #
+    # The role refusal above runs FIRST on purpose: a Viewer asking for Admin gets
+    # "Insufficient permissions", not an MFA message, which would disclose that the
+    # Admin role exists and what it requires.
+    mfa_enrolled: Optional[bool] = None
+    mfa_required = _admin_mfa_required()
+    if required_role == 'Admin':
+        mfa_enrolled = _has_enrolled_mfa(username)
+
+        if mfa_enrolled is not True:
+            log_level = 'error' if mfa_required else 'warning'
+            logger.warning(json.dumps({
+                'event': 'admin_without_mfa',
+                'alert': 'ADMIN_MFA_MISSING',
+                'level': log_level,
+                'username': username,
+                # None means the lookup failed; False means definitely not enrolled.
+                # Collapsing the two would make a Cognito outage look like a policy
+                # violation, and vice versa.
+                'mfaEnrolled': mfa_enrolled,
+                'enforcing': mfa_required,
+            }))
+
+        if mfa_required and mfa_enrolled is not True:
+            # Fails CLOSED, deliberately the opposite of the audit sink's choice. An
+            # audit write that fails open loses a record; an authorization check that
+            # fails open grants administrator.
+            return cors_response(403, {
+                'error': 'MFA required',
+                'detail': ('Administrator actions require a second factor. Enrol an '
+                           'authenticator app in your account settings, sign in '
+                           'again, and retry.'),
+            }, origin)
+
     # Attach auth info to event for downstream use.
     # `attributes` includes any custom attributes (e.g. custom:partner_waba_id)
     # so handlers can scope data to a specific tenant for customer users.
@@ -178,9 +216,58 @@ def require_auth(
         'role': role,
         'groups': groups,
         'attributes': attributes,
+        # True / False / None, where None means the lookup could not answer.
+        'mfaEnrolled': mfa_enrolled,
+        'mfaRequired': mfa_required,
     }
 
     return None
+
+
+def _admin_mfa_required() -> bool:
+    """Whether a missing Admin second factor should refuse rather than warn.
+
+    Read per call, not captured at import: this is a security posture switch and one
+    that only takes effect after every warm sandbox recycles is not much of a switch.
+
+    Defaults to warn. Measured 2026-09-23: the pool has one user, that user is in NO
+    group, and all four groups are empty - so enforcing immediately would refuse the
+    first Admin ever created until they enrolled, and whoever hit that would turn the
+    check off rather than enrol. Warn first, with a findable alert, then flip.
+    """
+    return str(os.environ.get('ADMIN_MFA_REQUIRED', '')).strip().lower() in (
+        '1', 'true', 'yes', 'on')
+
+
+def _has_enrolled_mfa(username: str) -> Optional[bool]:
+    """True / False / None for "does this user have a second factor registered".
+
+    Deliberately ENROLMENT, not "did this session use MFA". `require_auth` validates an
+    access token via `get_user`, and a Cognito access token carries no reliable `amr`
+    claim, so the session question is not answerable here. Enrolment plus a pool
+    `MfaConfiguration` of OPTIONAL or ON means Cognito will have issued a challenge;
+    claiming to verify more than that would overstate the control.
+
+    Any factor counts - TOTP, SMS or email OTP. The live account's sole user has
+    SMS_MFA and EMAIL_OTP and no TOTP, so insisting on TOTP would refuse the one person
+    who actually has a second factor.
+
+    Returns None rather than False when the lookup fails, so a Cognito outage is
+    distinguishable from a user who has enrolled nothing.
+    """
+    try:
+        detail = cognito.admin_get_user(UserPoolId=USER_POOL_ID, Username=username)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(json.dumps({
+            'event': 'mfa_lookup_failed', 'username': username,
+            'error': type(exc).__name__,
+        }))
+        return None
+
+    factors = detail.get('UserMFASettingList') or []
+    if detail.get('PreferredMfaSetting'):
+        return True
+    return bool(factors)
 
 
 def health_check(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:

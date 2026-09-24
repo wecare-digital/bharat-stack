@@ -674,10 +674,77 @@ Verified after the change: `npm run build` succeeds (16 sitemap URLs), typecheck
 APK/AAB/IPA and signing are **POST-PROJECT** per `.kiro/steering/00-current-owner-overrides.md`
 and cannot block closure. The web app must stay WebView/WKWebView-ready, which 8.3 covers.
 
-### 10.1 — Admin MFA · TODO
+### 10.1 — Admin MFA · DONE (enforcement staged, one owner decision)
 
-Required target per the owner overrides (not a blocking gate, but the work stands).
-Cognito MFA is currently OFF on pool WECARE.DIGITAL.
+Pool `us-east-1_cSx0RHCIR` (WECARE.DIGITAL). 20 tests in `tests/test_admin_mfa.py`.
+
+| | Before | After |
+|---|---|---|
+| `MfaConfiguration` | **OFF** | **OPTIONAL** |
+| Software token (TOTP) | not enabled | **enabled** |
+| SMS MFA config | present, unused | preserved |
+| Application-layer Admin MFA check | none | implemented, warn-mode |
+
+**Two findings, both worth stating.**
+
+*The sole user's MFA was enrolled but inert.* That user already had `SMS_MFA` and
+`EMAIL_OTP` registered with `EMAIL_OTP` preferred — but with the pool at `OFF`, Cognito
+issues no challenge even to a user who has factors. MFA looked configured and did
+nothing. Setting `OPTIONAL` **activated** the existing enrolment, which is why `OPTIONAL`
+was right and `ON` was not: `ON` forces every user through a setup flow that has never
+been exercised, and with one account the only thing it could achieve is locking out the
+sole operator. **This is a live sign-in behaviour change** — that user will now be
+challenged for email OTP.
+
+*Nobody is in any group.* All four groups — Admin, Operator, Viewer, Partner — have
+**zero** members, and `ROLE_HIERARCHY` defaults an ungrouped user to `Viewer`. Meanwhile
+**16 live handlers** gate on `required_role='Admin'`: `messages-read`, `seo-tools`,
+`docs-scraper`, `partner-onboarding` (×3), `outbound-whatsapp` payment actions,
+`waba-management`, `whatsapp-calling`, `scheduled-messages`, plus role-computed gates in
+`invoice-engine`, `crm`, `wix-store`, `whatsapp-voice`, `pstn-softphone`,
+`push-notifications`. Every one of them currently refuses the only account.
+
+That is **fail-closed, not exploitable** — but those features are unusable, and granting
+the role widens privilege, so it is an owner decision rather than something to do
+unilaterally.
+
+**The control.** An Admin must have a second factor enrolled, checked where the Admin
+role is *used* rather than at sign-in, and only when Admin is actually required — so an
+Admin reading a Viewer-level route pays no extra `AdminGetUser`. The role refusal runs
+first, deliberately: a Viewer asking for Admin gets "Insufficient permissions", not an
+MFA message that would disclose the role exists and what it needs.
+
+Honest about its limit: it checks **enrolment**, not whether MFA was used this session.
+`require_auth` validates an access token via `get_user`, and a Cognito access token
+carries no reliable `amr` claim, so the session question is unanswerable here. Enrolment
+plus pool `OPTIONAL` means Cognito will have challenged them; claiming more would
+overstate it.
+
+Any factor counts — TOTP, SMS or email OTP. Insisting on TOTP would refuse the one
+person who actually has a second factor.
+
+`mfaEnrolled` is `True`/`False`/**`None`**, where `None` means the lookup failed, so a
+Cognito outage is distinguishable from a user who enrolled nothing. When enforcing, an
+unknown answer **fails closed** — the opposite of the audit sink's choice, because a
+failed audit write loses a record whereas a failed authorization check grants
+administrator.
+
+Staged behind `ADMIN_MFA_REQUIRED`, defaulting to **warn** with an
+`ADMIN_MFA_MISSING` alert. Enforcing immediately would refuse the first Admin ever
+created until they enrolled, and whoever hit that would switch the check off rather than
+enrol.
+
+Deployed to all 58 packaged functions. Verified live: an Admin-gated route
+(`wecare-messages-read` v11) still answers **401** unauthenticated.
+
+**Owner decisions:** (1) put the operator in the `Admin` group so those 16 handlers
+become usable; (2) enrol TOTP and set `ADMIN_MFA_REQUIRED=true` to move from warn to
+enforce; (3) optionally consider pool `ON` once more than one admin exists.
+
+Noted in passing: `amplify/functions/auth/customer-whatsapp-auth` has source but **no
+deployed function**, and **zero** routes or integrations reference it — unshipped code.
+`deploy_all_lambdas.py` correctly refuses to create a production function that does not
+already exist.
 
 ### 10.2 — WAF · TODO
 
