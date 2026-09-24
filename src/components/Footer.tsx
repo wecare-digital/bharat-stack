@@ -49,9 +49,26 @@ const Footer: React.FC = () => (
          :focus-visible is split out of the hover rule and gets a real ring rather
          than inheriting a style that no longer draws anything. The ring reuses the
          outline the language widget already uses instead of inventing a second one. */
-      .ft-mark{font-size:14px;color:#6b7280;text-decoration:none;transition:color .2s}
-      .ft-mark:hover{color:#1a3a2a}
-      .ft-mark:focus-visible{color:#1a3a2a;outline:3px solid rgba(26,58,42,.22);outline-offset:2px;border-radius:4px}
+      /* Hover is the site's lime TRANSIENT tint - rgba(209,244,112,.22) behind
+         #1a3a2a type - not a colour change and not the full-strength #d1f470 fill.
+         The contract defines exactly three lime treatments and assigns that .22 tint
+         to transient state rather than identity; it is what .nav-item and
+         .nav-trigger already do on hover, so this link now answers to the same
+         gesture as the rest of the site instead of inventing a fourth treatment.
+         Full-strength lime is reserved for our own standing surfaces (BrandBadge,
+         .msg.sent, .tab.active) and would have made a hovered footer link look like
+         a permanent badge.
+         Padding and radius exist so the tint has a shape to fill - without them a
+         background on an inline anchor crops tight to the glyphs and reads as a
+         highlighter smear. Negative margin keeps the text optically aligned with the
+         grid edge despite that padding.
+         Base colour moved off #6b7280, a legacy Tailwind grey, onto the palette's
+         muted value rgba(0,0,0,.54) - the same value the contract already pins for
+         pill labels after #4b5563 was retired for reading cooler than the neutral
+         text beside it. */
+      .ft-mark{font-size:14px;color:rgba(0,0,0,.54);text-decoration:none;padding:6px 10px;margin:-6px -10px;border-radius:8px;transition:background-color .2s,color .2s}
+      .ft-mark:hover{background:rgba(209,244,112,.22);color:#1a3a2a}
+      .ft-mark:focus-visible{background:rgba(209,244,112,.22);color:#1a3a2a;outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
 
       /* Account wraps onto the next row before the columns get too narrow. */
       @media(max-width:1024px){

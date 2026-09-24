@@ -31,6 +31,9 @@ FUNCTIONS_DIR = ROOT / "amplify" / "functions"
 FUNCTION_NAME = "wecare-seo-tools"
 TABLE_NAME = "stack-wecare-digital-SeoToolsTable"
 DEDUP_TABLE = "stack-wecare-digital-WebhookDedup"
+WIX_SITE_ID = "fcd82f0c-9572-49c7-acfb-88fb05042ece"
+WIX_ACCOUNT_ID = "15f02319-40ff-4288-b8e6-69c791adae5e"
+WIX_CLIENT_ID = "197cd718-e4ec-4e2e-b380-46c297eb18a2"
 ROLE_NAME = "wecare-digital-lambda-role"
 ROLE_ARN = f"arn:aws:iam::{ACCOUNT}:role/{ROLE_NAME}"
 
@@ -42,7 +45,10 @@ ENV_VARS = {
     "LOG_LEVEL": "INFO",
     "SEO_TOOLS_TABLE": TABLE_NAME,
     "WEBHOOK_DEDUP_TABLE": DEDUP_TABLE,
-    # Wix Headless credentials are added only after the new project is provisioned.
+    "WIX_SITE_ID": WIX_SITE_ID,
+    "WIX_ACCOUNT_ID": WIX_ACCOUNT_ID,
+    "WIX_CLIENT_ID": WIX_CLIENT_ID,
+    "WIX_BLOG_AUTHOR_NAME": "Anew by WECARE.DIGITAL",
     "BEDROCK_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
     "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
 }
@@ -163,6 +169,9 @@ def deploy_lambda(zip_bytes: bytes) -> None:
 
     if exists:
         print(f"[lambda] {FUNCTION_NAME} exists — updating code + config")
+        current = lam.get_function_configuration(FunctionName=FUNCTION_NAME)
+        current_env = (current.get("Environment") or {}).get("Variables") or {}
+        config["Environment"] = {"Variables": {**current_env, **ENV_VARS}}
         lam.update_function_code(FunctionName=FUNCTION_NAME, ZipFile=zip_bytes)
         lam.get_waiter("function_updated_v2").wait(FunctionName=FUNCTION_NAME)
         lam.update_function_configuration(FunctionName=FUNCTION_NAME, **config)

@@ -2,7 +2,7 @@
   "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - regenerate with scripts/env_manifest.py --export after infrastructure changes.",
   "_region": "us-east-1",
   "_functions": 58,
-  "_variables": 325,
+  "_variables": 319,
   "_fingerprinted": 8,
   "functions": {
     "stack-wecare-url-shortener": {
@@ -17,9 +17,6 @@
       "LOG_LEVEL": "INFO",
       "MESSAGES_INBOUND_TABLE": "stack-wecare-digital-WhatsAppInboundTable",
       "MESSAGES_OUTBOUND_TABLE": "stack-wecare-digital-WhatsAppOutboundTable",
-      "OUTBOUND_EMAIL_FUNCTION": "wecare-outbound-email",
-      "OUTBOUND_SMS_FUNCTION": "wecare-outbound-sms",
-      "OUTBOUND_WHATSAPP_FUNCTION": "wecare-outbound-whatsapp",
       "REGION": "us-east-1",
       "S3_BUCKET": "app.wecare.digital"
     },
@@ -35,12 +32,8 @@
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "CONVERSATION_TABLE": "stack-wecare-digital-ConversationHistoryTable",
       "CONVERSATION_TTL_HOURS": "24",
-      "EXTERNAL_KB_ID": "LYMQLKZNY7",
       "GUARDRAIL_ID": "",
       "GUARDRAIL_VERSION": "DRAFT",
-      "INTERNAL_AGENT_ALIAS": "ASCBD7YPUT",
-      "INTERNAL_AGENT_ID": "QIEEHEBTZO",
-      "INTERNAL_KB_ID": "D0JU8Q7IQS",
       "LOG_LEVEL": "INFO",
       "MAX_HISTORY_MESSAGES": "20",
       "MAX_INPUT_TEXT_LENGTH": "2000",
@@ -54,8 +47,6 @@
     },
     "wecare-ai-query-kb": {
       "AWS_ACCOUNT_ID": "775261844268",
-      "EXTERNAL_KB_ID": "LYMQLKZNY7",
-      "INTERNAL_KB_ID": "D0JU8Q7IQS",
       "LOG_LEVEL": "INFO",
       "REGION": "us-east-1",
       "S3_BUCKET": "app.wecare.digital",
@@ -245,7 +236,12 @@
       "POST_CALL_SMS_ENABLED": "true",
       "SMS_FUNCTION": "wecare-sms-aws:live"
     },
-    "wecare-product-image-gen": {},
+    "wecare-product-image-gen": {
+      "CREDENTIAL_PURGE_EPOCH": "2026-09-23T03:05:00Z",
+      "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
+      "WIX_CREDENTIALS_DISABLED": "true",
+      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
+    },
     "wecare-push-notifications": {},
     "wecare-razorpay-webhook": {
       "AWS_ACCOUNT_ID": "775261844268",
@@ -285,9 +281,13 @@
     "wecare-seo-tools": {
       "BEDROCK_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
       "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
+      "CREDENTIAL_PURGE_EPOCH": "2026-09-23T03:05:00Z",
       "LOG_LEVEL": "INFO",
       "SEO_TOOLS_TABLE": "stack-wecare-digital-SeoToolsTable",
-      "WEBHOOK_DEDUP_TABLE": "stack-wecare-digital-WebhookDedup"
+      "WEBHOOK_DEDUP_TABLE": "stack-wecare-digital-WebhookDedup",
+      "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
+      "WIX_CREDENTIALS_DISABLED": "true",
+      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
     },
     "wecare-service-api": {
       "DOCS_S3_BUCKET": "wecare-digital-media",
@@ -390,9 +390,6 @@
       "WIX_SITE_URL": "https://www.wecare.digital"
     },
     "wecare-whatsapp-calling": {
-      "AI_AGENT_ALIAS": "WANPKHQGIB",
-      "AI_AGENT_ID": "Z4YAK0ZLBO",
-      "AI_KB_ID": "static-faq",
       "AI_LANGUAGE": "en-IN",
       "AI_VOICE_ID": "Kajal",
       "AUTO_PICKUP_AUDIO_KEY": "whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg",
@@ -427,9 +424,14 @@
     "wecare-wix-store": {
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "LOG_LEVEL": "INFO",
+      "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
       "WIX_API_BASE_URL": "https://www.wixapis.com",
+      "WIX_API_KEY_SECRET": "wecare/wix/headless",
+      "WIX_CREDENTIALS_DISABLED": "true",
       "WIX_ORDERS_CACHE_TABLE": "stack-wecare-digital-WixOrdersCache",
-      "WIX_PRODUCTS_CACHE_TABLE": "stack-wecare-digital-WixProductsCache"
+      "WIX_ORDER_IDS_TABLE": "stack-wecare-digital-WixOrderIds",
+      "WIX_PRODUCTS_CACHE_TABLE": "stack-wecare-digital-WixProductsCache",
+      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
     }
   }
 }

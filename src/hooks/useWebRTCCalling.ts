@@ -20,6 +20,8 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 
+import { acquireAudioStream } from '../lib/pstn/mediaCapability';
+
 const API_BASE = 'https://api.wecare.digital';
 
 export type CallStatus =
@@ -176,9 +178,19 @@ export function useWebRTCCalling(options: UseWebRTCCallingOptions = {}) {
     return pc;
   }, [iceServers, currentCall, onRemoteAudioStart, updateStatus, startDurationTimer]);
 
-  /** Get microphone stream and add tracks to peer connection */
+  /**
+   * Get microphone stream and add tracks to peer connection.
+   *
+   * Goes through `acquireAudioStream` rather than calling getUserMedia directly.
+   * The callers below surface failures with `setError(e.message)`, and an
+   * unguarded call in a container that exposes no `navigator.mediaDevices` throws
+   * "Cannot read properties of undefined (reading 'getUserMedia')" - which named
+   * the wrong layer and gave an operator nothing to act on. Both native shells
+   * exist in this repo, so that path is reachable, and each container has a
+   * different fix. See src/lib/pstn/mediaCapability.ts.
+   */
   const acquireMicrophone = useCallback(async (pc: RTCPeerConnection): Promise<MediaStream> => {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    const stream = await acquireAudioStream({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,

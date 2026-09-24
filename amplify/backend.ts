@@ -65,26 +65,38 @@ const TTL_CONFIG: Record<string, string> = {
   RazorpayWebhookLog: 'expiresAt',
   // PayUWebhookLog removed 2026-09-20 with the model; PayU is retired and its
   // table was deleted from the account.
-  // PSTN voice (Plivo), provider-neutral.
-  PstnCall: 'expiresAt',
-  PstnCallEvent: 'expiresAt',
-  // Presence expiresAt is dual-purpose: it is the TTL AND the availability
-  // cutoff. An agent whose browser closed without signing out stops being
-  // routable when the heartbeat goes stale, not when DynamoDB happens to sweep.
-  PstnAgentPresence: 'expiresAt',
+  // PSTN voice (Plivo). PstnCall, PstnCallEvent and PstnAgentPresence were
+  // configured here until 2026-09-23. All three were removed along with their
+  // declarations in data/resource.ts: none existed in the account, and nothing in
+  // amplify/functions read or wrote them. A TTL entry for a model that has no
+  // table is a no-op on the `if ( table )` guard below, so this block was quietly
+  // configuring nothing.
+  //
+  // The dual-purpose presence clock survives where it is actually used: in
+  // PstnSoftphoneSessions, whose expiresAt is both the DynamoDB TTL and the
+  // availability cutoff, so an agent whose browser closed without signing out
+  // stops being routable when the heartbeat goes stale rather than when DynamoDB
+  // happens to sweep. See scripts/provision_pstn_softphone.py, which sets it.
+  //
   // PstnNotificationDelivery was declared here and in data/resource.ts and
   // existed in none of the 66 live tables, so every claim against it raised
   // ClaimStoreUnavailable and the dial-events route answered 503 without
   // sending. Removed 2026-09-21 rather than materialised (NOTIF-STORE-001);
   // the replacement tables are provisioned and read back by
   // scripts/provision_notification_domain.py, which sets their own TTL.
+  // ProviderDriftSnapshot has no table either and no writer - the Plivo drift
+  // check in .github/workflows/plivo-drift.yml does not persist snapshots. Left
+  // declared for now because retiring it belongs with the rest of the
+  // retired-provider surface, which needs one manifest rather than a piecemeal
+  // sweep. Tracked in .kiro/work/phases-5-10/plan.md item 9.2.
   ProviderDriftSnapshot: 'expiresAt',
-  // Deliberately NOT here:
-  //   PstnFlowVersion     — immutable routing history; a rollback needs to be
-  //                         able to reach an old revision indefinitely.
-  //   PstnRecordingAudit  — the record that somebody listened to a call must
-  //                         outlive the audio itself, or the audit trail expires
-  //                         before the question is asked.
+  //
+  // PstnFlowVersion and PstnRecordingAudit were listed here as deliberately
+  // TTL-free - immutable routing history, and an audit record that must outlive
+  // the audio it describes. Both reasons are sound and both are moot: neither
+  // model had a table, and both declarations were removed on 2026-09-23. The
+  // reasoning is kept in data/resource.ts so it is available if either is ever
+  // built, rather than as a comment about a model that no longer exists.
 };
 
 try

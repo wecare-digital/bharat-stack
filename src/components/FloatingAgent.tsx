@@ -38,7 +38,7 @@ const FloatingAgent: React.FC = () => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hi! I\'m your Bharat Stack task assistant. I can help you:\n\n• Send WhatsApp messages\n• Find and manage contacts\n• Check stats and analytics\n• Execute admin tasks\n\nType or use voice input!',
+      content: 'Hi! I\'m your WECARE.DIGITAL task assistant. I can help you:\n\n• Send WhatsApp messages\n• Find and manage contacts\n• Check stats and analytics\n• Execute admin tasks\n\nType or use voice input!',
       timestamp: new Date(),
     }
   ]);
@@ -398,9 +398,9 @@ const FloatingAgent: React.FC = () => {
     <div className="agent-panel">
       <div className="agent-header">
         <div className="agent-header-info">
-          <img src={LOGO_URL} alt="Bharat Stack" className="agent-avatar-logo" />
+          <img src={LOGO_URL} alt="WECARE.DIGITAL" className="agent-avatar-logo" />
           <div className="agent-header-text">
-            <span className="agent-name">Bharat Stack</span>
+            <span className="agent-name">WECARE.DIGITAL</span>
             <span className="agent-subtitle">Task Assistant</span>
           </div>
         </div>

@@ -95,9 +95,19 @@ const LanguageBar: React.FC = () => {
   const [ busy, setBusy ] = useState( false );
   const [ speaking, setSpeaking ] = useState( false );
   const [ status, setStatus ] = useState( '' );
+  // Which result the keyboard is on. Not "which language is applied" - that is
+  // `current`. Reset by the handlers that change the result set rather than by an
+  // effect watching `query`, because setting state in an effect body is the
+  // react-hooks/set-state-in-effect error this file was already fixed for once.
+  const [ activeIndex, setActiveIndex ] = useState( 0 );
   const originals = useRef<Map<Text, string> | null>( null );
   const rootRef = useRef<HTMLDivElement | null>( null );
   const audioRef = useRef<HTMLAudioElement | null>( null );
+  const searchRef = useRef<HTMLInputElement | null>( null );
+  const triggerRef = useRef<HTMLButtonElement | null>( null );
+  // Distinguishes "panel closed" from "panel never opened", so the trigger is only
+  // refocused after a real close and not on first mount.
+  const hasOpened = useRef( false );
   // Latest-ref for applyLanguage, assigned by an effect further down. The saved
   // language restore has to call whatever applyLanguage currently is WITHOUT
   // subscribing to its identity - see the restore block in the catalogue effect.
@@ -181,6 +191,46 @@ const LanguageBar: React.FC = () => {
     };
     document.addEventListener( 'pointerdown', close );
     return () => document.removeEventListener( 'pointerdown', close );
+  }, [ open ] );
+
+  // Escape closes from ANYWHERE while the panel is open. It used to be handled only
+  // by onKeyDown on the search input, so Escape did nothing once focus had moved to
+  // the trigger, an option or the Listen button - the panel could be left open with
+  // no keyboard way to dismiss it.
+  useEffect( () => {
+    if ( !open ) return undefined;
+    const onKeyDown = ( event: KeyboardEvent ) => { if ( event.key === 'Escape' ) setOpen( false ); };
+    document.addEventListener( 'keydown', onKeyDown );
+    return () => document.removeEventListener( 'keydown', onKeyDown );
+  }, [ open ] );
+
+  // Focus into the field on open, and back onto the trigger on close.
+  //
+  // autoFocus could not do the first job: it is a mount-time prop, and the panel is
+  // hidden with CSS rather than unmounted, so the input is never remounted and
+  // autoFocus fired on the first render pass only - reopening the panel left focus
+  // wherever it was. The second job was simply missing: closing the panel dropped
+  // focus onto <body>, so a keyboard user had to tab from the top of the document
+  // again.
+  //
+  // Nested requestAnimationFrame, not one: the panel is still hidden when this
+  // effect runs, and focus() on a hidden element is silently a no-op. One frame was
+  // measurably not enough - the panel's computed visibility was still `hidden` on
+  // frames 0 and 1 and only flipped on frame 2. The CSS fix below (visibility at 0s
+  // rather than over .18s) is what actually makes it focusable on the first frame;
+  // the second frame here is belt-and-braces so this cannot silently regress if the
+  // transition is ever retuned.
+  useEffect( () => {
+    if ( open ) {
+      hasOpened.current = true;
+      let inner = 0;
+      const outer = window.requestAnimationFrame( () => {
+        inner = window.requestAnimationFrame( () => searchRef.current?.focus() );
+      } );
+      return () => { window.cancelAnimationFrame( outer ); window.cancelAnimationFrame( inner ); };
+    }
+    if ( hasOpened.current ) triggerRef.current?.focus();
+    return undefined;
   }, [ open ] );
 
   const restore = useCallback( () => {
@@ -301,6 +351,42 @@ const LanguageBar: React.FC = () => {
   const selected = langs.find( lang => lang.code === current );
   const canSpeak = selected?.canSpeak === true;
 
+  // Clamped at point of use rather than corrected in an effect: `filtered` shrinks
+  // as the visitor types, and an activeIndex left pointing past the end would make
+  // aria-activedescendant reference a non-existent id.
+  const active = filtered.length ? Math.min( activeIndex, filtered.length - 1 ) : 0;
+  const optionId = ( index: number ) => `wc-lang-opt-${index}`;
+
+  // Keeps the keyboard-active row in view when arrowing past the visible window.
+  // No state is set here, so it is not a set-state-in-effect.
+  useEffect( () => {
+    if ( !open || !filtered.length ) return;
+    document.getElementById( optionId( active ) )?.scrollIntoView( { block: 'nearest' } );
+  }, [ active, open, filtered.length ] );
+
+  const onSearchKeyDown = ( event: React.KeyboardEvent<HTMLInputElement> ) => {
+    if ( event.key === 'Escape' ) { setOpen( false ); return; }
+    if ( !filtered.length ) return;
+    const last = filtered.length - 1;
+    if ( event.key === 'ArrowDown' ) {
+      event.preventDefault();
+      setActiveIndex( active >= last ? 0 : active + 1 );
+    } else if ( event.key === 'ArrowUp' ) {
+      event.preventDefault();
+      setActiveIndex( active <= 0 ? last : active - 1 );
+    } else if ( event.key === 'Home' ) {
+      event.preventDefault();
+      setActiveIndex( 0 );
+    } else if ( event.key === 'End' ) {
+      event.preventDefault();
+      setActiveIndex( last );
+    } else if ( event.key === 'Enter' ) {
+      event.preventDefault();
+      const pick = filtered[ active ];
+      if ( pick ) void applyLanguage( pick.code );
+    }
+  };
+
   if ( typeof window !== 'undefined' && window.location.pathname === '/' ) return null;
   if ( langs.length < 2 ) return null;
 
@@ -322,69 +408,155 @@ const LanguageBar: React.FC = () => {
            16px gap beside its right:16px..80px column, and the panel width is
            capped against the same 108px so it can never grow back into it. */
         .wc-langbar{position:fixed;right:96px;left:auto;bottom:16px;top:auto;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-family:inherit}
-        .panel{display:none;width:min(324px,calc(100vw - 108px));background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16),0 2px 8px rgba(16,32,24,.06)}
-        .panel.open{display:block}
-        .search{width:100%;min-height:42px;box-sizing:border-box;border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:10px 12px;font-size:15px;font-weight:400;line-height:1.3;color:rgba(0,0,0,.898);outline:none}
+        /* visibility + opacity rather than display:none, so opening can animate -
+           display is not an animatable property. visibility:hidden still removes the
+           panel from the accessibility tree and from tab order, which display:none
+           was doing and which a plain opacity:0 would NOT do: an opacity-only panel
+           stays focusable and a keyboard user tabs into an invisible language list.
+           transform-origin is bottom right because the panel grows out of a trigger
+           sitting at the bottom right of the viewport.
+
+           NOTE the visibility timing: 0s with a DELAY, never over a duration.
+           Transitioning visibility over .18s looks harmless and broke focus.
+           visibility is a discrete property, so mid-transition it holds the START
+           value - measured here, the panel's computed visibility was still hidden on
+           frames 0 and 1 after opening and only flipped on frame 2. focus() on a
+           hidden element is a silent no-op, so the search field was never focused
+           and focus stayed on the trigger.
+           Hence: 0s with no delay on .open (visible and focusable immediately), and
+           0s with a .18s delay on the closed state, so the panel stays visible long
+           enough for the opacity fade to finish. */
+        .panel{visibility:hidden;opacity:0;transform:translateY(6px) scale(.98);transform-origin:bottom right;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s linear .18s;width:min(324px,calc(100vw - 108px));background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16),0 2px 8px rgba(16,32,24,.06)}
+        .panel.open{visibility:visible;opacity:1;transform:none;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s}
+        /* #e5e7eb at 1px: the contract's hairline value and weight for a STATIC
+           edge, replacing rgba(0,0,0,.12). The focus ring is the lime
+           rgba(209,244,112,.3) the sign-in fields use, so a focused field looks the
+           same whether it is in this widget or on /access - it was
+           rgba(26,58,42,.1), a fourth focus treatment nothing else shared. */
+        .search{width:100%;min-height:42px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:15px;font-weight:400;line-height:1.3;color:rgba(0,0,0,.898);outline:none}
         .search::placeholder{color:rgba(0,0,0,.42)}
-        .search:focus{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(26,58,42,.1)}
+        .search:focus{border-color:#1a3a2a;box-shadow:0 0 0 3px rgba(209,244,112,.3)}
         .group{padding:10px 10px 4px;font-size:12px;font-weight:500;color:rgba(0,0,0,.42)}
         .results{max-height:296px;overflow:auto;margin-top:2px}
         .hint{padding:12px 10px;color:rgba(0,0,0,.5);font-size:14px}
-        .opt{width:100%;min-height:42px;border:0;border-radius:9px;background:transparent;padding:8px 10px;display:flex;align-items:baseline;gap:8px;text-align:left;color:rgba(0,0,0,.898);cursor:pointer}
-        .opt:hover,.opt:focus-visible{background:#f4f7f5;outline:none}
-        .opt[aria-current='true']{background:#1a3a2a;color:#fff}
+        .opt{width:100%;min-height:42px;border:0;border-radius:9px;background:transparent;padding:8px 10px;display:flex;align-items:baseline;gap:8px;text-align:left;color:rgba(0,0,0,.898);cursor:pointer;box-sizing:border-box}
+        /* aria-selected is the KEYBOARD cursor, aria-current is the language actually
+           applied to the page. They are different things and used to be conflated on
+           one attribute, which meant arrowing through results moved no highlight at
+           all. Pointer hover sets the same active index, so mouse and keyboard share
+           one highlight instead of producing two competing ones.
+           The applied-language rule comes second on purpose: when the cursor is on
+           the row that is already applied, dark green wins over the grey wash. */
+        /* Both states now come from the palette's three lime treatments instead of
+           invented pale greens. The keyboard/hover cursor takes the TRANSIENT tint
+           rgba(209,244,112,.22) - the same value the nav uses for hover - where it
+           used to be #f4f7f5, a one-off grey-green that matched nothing else.
+           The applied language takes the INVERTED treatment, #1a3a2a fill with
+           #d1f470 type, which the contract measures at ~10:1. It was #1a3a2a with
+           white type; white is not one of the three pairings, and the lime reads as
+           the same object as BrandBadge and .msg.sent rather than as a generic
+           selected row. */
+        .opt[aria-selected='true']{background:rgba(209,244,112,.22)}
+        .opt[aria-current='true']{background:#1a3a2a;color:#d1f470}
         .nat{font-size:15px;font-weight:500}
-        .eng{font-size:13px;color:rgba(0,0,0,.5)}
-        .opt[aria-current='true'] .eng{color:rgba(255,255,255,.7)}
-        .meta{margin-left:auto;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:rgba(0,0,0,.35);white-space:nowrap}
-        .opt[aria-current='true'] .meta{color:rgba(255,255,255,.6)}
-        .panel-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:8px 4px 2px;border-top:1px solid rgba(0,0,0,.07)}
-        .current-language{font-size:13px;font-weight:500;color:rgba(0,0,0,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .listen-btn{min-height:34px;padding:7px 13px;border:0;border-radius:8px;background:#f0f4f1;color:#1a3a2a;font-size:13px;font-weight:500;line-height:1;cursor:pointer}
-        .listen-btn:hover{background:#e6ece8}
-        .listen-btn.on{background:#1a3a2a;color:#fff}
+        .eng{font-size:13px;color:rgba(0,0,0,.54)}
+        .opt[aria-current='true'] .eng{color:rgba(209,244,112,.72)}
+        .meta{margin-left:auto;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:rgba(0,0,0,.42);white-space:nowrap}
+        .opt[aria-current='true'] .meta{color:rgba(209,244,112,.6)}
+        .panel-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:8px 4px 2px;border-top:1px solid #e5e7eb}
+        .current-language{font-size:13px;font-weight:500;color:rgba(0,0,0,.54);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        /* Three states, three documented treatments, escalating in voice:
+           rest   -> .22 lime tint  (transient, quiet)
+           hover  -> #d1f470 fill   (our own surface, full voice)
+           on     -> #1a3a2a fill + #d1f470 type (inverted, dark)
+           It was #f0f4f1 / #e6ece8 / white-on-green - two invented tints and a
+           pairing that is not in the palette. Inventing in-between values is exactly
+           how #f2fbf6 and #fbfff0 got into this codebase and had to be retired. */
+        .listen-btn{min-height:34px;padding:7px 13px;border:0;border-radius:8px;background:rgba(209,244,112,.22);color:#1a3a2a;font-size:13px;font-weight:500;line-height:1;cursor:pointer;transition:background-color .2s,color .2s}
+        .listen-btn:hover{background:#d1f470;color:#1a3a2a}
+        .listen-btn.on{background:#1a3a2a;color:#d1f470}
         .language-trigger{width:48px;height:48px;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 20px rgba(16,32,24,.14)}
         .language-trigger:hover{border-color:#1a3a2a;background:#f4f7f5}
         .language-trigger:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
         .language-trigger[aria-expanded='true']{background:#1a3a2a;border-color:#1a3a2a;color:#fff}
-        .language-trigger:disabled{opacity:.55;cursor:not-allowed}
-        .language-trigger svg{width:24px;height:24px}
+        /* Translating is the one action here that takes real time - it is a sequence
+           of network round trips over every text node on the page. The trigger used
+           to only fade to .55 and stop responding, which reads as "broken" rather
+           than "working". aria-busy plus a visible spinner says which. */
+        .language-trigger:disabled{cursor:progress}
+        .language-trigger[aria-busy='true']{border-color:#1a3a2a}
+        .spin{width:20px;height:20px;border:2px solid rgba(26,58,42,.22);border-top-color:#1a3a2a;border-radius:50%;animation:wc-spin .7s linear infinite}
+        @keyframes wc-spin{to{transform:rotate(360deg)}}
+        .language-trigger svg{width:24px;height:24px;display:block}
         .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
         /* Same horizontal clearance on mobile, plus the safe-area inset for the iOS
            home indicator. The panel is capped against 104px for the same reason as
            the desktop rule. */
         @media(max-width:600px){.wc-langbar{right:92px;left:auto;top:auto;bottom:calc(16px + env(safe-area-inset-bottom))}.panel{width:min(300px,calc(100vw - 104px))}}
         @media print{.wc-langbar{display:none}}
+        /* The spinner keeps turning - it is the only signal that work is in flight,
+           and freezing it would misreport a live translation as a stalled one. It is
+           slowed instead. The panel settles to its open state with no motion. */
+        @media(prefers-reduced-motion:reduce){
+          .panel{transition:none}
+          .spin{animation-duration:2.4s}
+        }
       `}</style>
 
       <div className={ `panel ${open ? 'open' : ''}` }>
+        {/* A real combobox now. This is the pattern the markup was already implying -
+            a text field that filters an owned listbox - but the wiring was missing:
+            no aria-controls, no aria-activedescendant, and therefore no way for a
+            screen reader to announce the highlighted result as the visitor arrows
+            through it. autoFocus is gone; see the focus effect above for why it
+            could not work against a CSS-hidden panel. */}
         <input
+          ref={ searchRef }
           className="search"
           type="search"
+          role="combobox"
           value={ query }
           placeholder="Search all languages"
           aria-label="Search languages"
-          autoFocus={ open }
-          onChange={ event => setQuery( event.target.value ) }
-          onKeyDown={ event => { if ( event.key === 'Escape' ) setOpen( false ); } }
+          aria-expanded={ open }
+          aria-controls="wc-lang-listbox"
+          aria-autocomplete="list"
+          aria-activedescendant={ filtered.length ? optionId( active ) : undefined }
+          onChange={ event => { setQuery( event.target.value ); setActiveIndex( 0 ); } }
+          onKeyDown={ onSearchKeyDown }
         />
         {/* Heading only while there is something to head. At rest the panel is the
             field and the prompt, with no empty section label above them. */}
         { searching && <div className="group">Results</div> }
-        <div className="results" role="listbox" aria-label="Language results">
+        <div className="results" id="wc-lang-listbox" role="listbox" aria-label="Language results">
           {/* Not decoration. With no resting list this is the only thing telling the
               visitor the catalogue exists at all, so the panel never opens blank. */}
           { !searching && <div className="hint">Type a language name to translate this page.</div> }
           { searching && !filtered.length && <div className="hint">No matching language.</div> }
-          { filtered.map( lang => (
-            <button key={ lang.code } type="button" className="opt" role="option" aria-selected={ lang.code === current } aria-current={ lang.code === current ? 'true' : 'false' } onClick={ () => { void applyLanguage( lang.code ); } }>
+          {/* role="option" on a div, NOT on a button. A focusable button inside a
+              listbox is an invalid ARIA pairing - screen readers announce "button"
+              where an option is expected, and Tab became the only way to move
+              through results. In the combobox pattern the options are not focusable
+              at all: focus stays in the field and aria-activedescendant points at
+              the highlighted row, which is what makes Arrow keys work. */}
+          { filtered.map( ( lang, index ) => (
+            <div
+              key={ lang.code }
+              id={ optionId( index ) }
+              role="option"
+              className="opt"
+              aria-selected={ index === active }
+              aria-current={ lang.code === current ? 'true' : 'false' }
+              onPointerEnter={ () => setActiveIndex( index ) }
+              onClick={ () => { void applyLanguage( lang.code ); } }
+            >
               {/* Native name leads. Someone looking for Malayalam scans for
                   മലയാളം, not for the word "Malayalam" - and no flags, because a
                   flag is a country and these are languages. */}
               <span className="nat">{ lang.native || lang.name }</span>
               { lang.native && lang.native !== lang.name && <span className="eng">{ lang.name }</span> }
               <span className="meta">{ lang.code }</span>
-            </button>
+            </div>
           ) ) }
         </div>
         <div className="panel-actions">
@@ -397,11 +569,44 @@ const LanguageBar: React.FC = () => {
         </div>
       </div>
 
-      <button type="button" className="language-trigger" aria-expanded={ open } aria-label="Choose language" disabled={ busy } onClick={ () => setOpen( value => !value ) }>
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M3.5 12h17M12 3c2.5 2.6 3.7 5.6 3.7 9S14.5 18.4 12 21M12 3C9.5 5.6 8.3 8.6 8.3 12s1.2 6.4 3.7 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
+      <button
+        ref={ triggerRef }
+        type="button"
+        className="language-trigger"
+        aria-expanded={ open }
+        aria-label="Choose language"
+        aria-busy={ busy }
+        disabled={ busy }
+        onClick={ () => { setActiveIndex( 0 ); setOpen( value => !value ); } }
+      >
+        {/* Owner-supplied translate mark, replacing a hand-drawn globe.
+            Source: https://app.wecare.digital/stream/media/m/translate_indic.svg
+            (given as s3://app.wecare.digital/... - the s3 scheme is not fetchable by
+            a browser, and every other asset here uses this https host, so that is
+            the form used.)
+
+            INLINED rather than loaded through an img, for the same reason BrandMark
+            is: the source hardcodes fill="#1f1f1f" on its root svg, and a fill
+            inside the file cannot be reached by CSS. This trigger inverts on open -
+            #1a3a2a on white at rest, white on #1a3a2a when expanded - so the glyph
+            has to follow currentColor or it stays near-black on dark green and
+            effectively disappears. #1f1f1f is also not a palette value.
+            Inlining also drops a network request on every public page, and with it
+            the chance of an empty trigger while the file is in flight.
+
+            viewBox is the source's own 0 -960 960 960 (Material's baseline-relative
+            box); the negative Y is correct, not a typo. Only the root fill was
+            dropped and fill="currentColor" moved onto the path. */}
+        { busy
+          ? <span className="spin" aria-hidden="true" />
+          : (
+            <svg viewBox="0 -960 960 960" aria-hidden="true" focusable="false">
+              <path
+                fill="currentColor"
+                d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"
+              />
+            </svg>
+          ) }
       </button>
       <div className="sr" role="status" aria-live="polite">{ status }</div>
     </div>

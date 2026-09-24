@@ -6912,9 +6912,16 @@ DEFAULT_AI_CONFIG = {
     'responseDelay': 0,
     'supportedLanguages': ['en', 'hi', 'hi-Latn', 'bn', 'ta', 'te', 'gu', 'mr'],
     'defaultLanguage': 'en',
-    'agentId': '4UUQYFWX64',
-    'agentAlias': 'TSTALIASID',
-    'knowledgeBaseId': 'static-faq',
+    # No agent, alias or knowledge-base id. Re-measured 2026-09-23: the account's
+    # only Bedrock Agent is an empty never-prepared shell (no model, 0-character
+    # instruction, null role, 0 action groups) and the account holds 0 knowledge
+    # bases. The values previously here - '4UUQYFWX64' / 'TSTALIASID' /
+    # 'static-faq' - named nothing, and this config is returned by an API and
+    # rendered in the dashboard, so they read as working configuration.
+    # Empty means not configured, which is the truth. See plan item 6.4.
+    'agentId': '',
+    'agentAlias': '',
+    'knowledgeBaseId': '',
     'modelId': 'amazon.nova-pro-v1:0',
 }
 

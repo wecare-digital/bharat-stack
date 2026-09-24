@@ -47,6 +47,7 @@ The hangup endpoint MUST NOT return the answer IVR. Returning <Play> to a hangup
 callback is how a terminated call gets re-answered.
 """
 import base64
+import hmac
 import json
 import os
 import time
@@ -349,9 +350,29 @@ def _verify_provider(event: dict, *, require_signature: bool) -> tuple:
         return True, TRUST_NONE, 'unverified_no_token_configured'
 
     qs = event.get('queryStringParameters') or {}
-    if qs.get('token') == token:
+    if _token_matches(qs.get('token'), token):
         return True, TRUST_TOKEN, 'token'
     return False, TRUST_NONE, 'bad_or_missing_token'
+
+
+def _token_matches(presented, expected: str) -> bool:
+    """Constant-time comparison of the diagnostic bearer token.
+
+    This was a plain `==` until 2026-09-23, in the same file where
+    `plivo_signature.validate_signature` already documents why that is wrong and
+    uses `hmac.compare_digest`. `==` on a secret short-circuits at the first
+    differing byte, leaking its length and matching prefix. The token is the weaker
+    of the two credentials, which is a reason to compare it carefully, not loosely.
+
+    Both sides are encoded first because `compare_digest` raises TypeError on a
+    non-ASCII str, and `?token=caf\u00e9` turning a 403 into a 500 matters here: on
+    /plivo/answer a 500 is a non-XML body, so the caller hears silence instead of a
+    clean hangup.
+    """
+    if not isinstance(presented, str) or not presented:
+        return False
+    return hmac.compare_digest(presented.encode('utf-8', 'surrogatepass'),
+                               expected.encode('utf-8', 'surrogatepass'))
 
 
 # --------------------------------------------------------------------------
@@ -501,6 +522,93 @@ def _plivo_overall_status(params: dict, seconds: int) -> str:
     return mapped or (status.title() if status else '')
 
 
+# Where each callback sits in the call's life. All five _persist_cdr call sites
+# write the SAME row id - `plivo#{CallUUID}` - so without a rank the last callback
+# to arrive wins on the whole item, whatever it actually reports.
+#
+# Measured 2026-09-23 before this was added: 56 of 56 live rows were won by
+# `route='hangup'`, so it had not yet fired. It is reachable by design, not by
+# accident: `_route_dial_events` answers 503 on purpose when the notification
+# store is unreachable so Plivo REDELIVERS, and a redelivery can land after
+# hangup. It becomes routine the moment PSTN_BROWSER_ROUTING_ENABLED is turned on
+# and dial-events starts firing on every call.
+#
+# The damage is not cosmetic. A mid-call payload carries no Duration, so
+# `_plivo_overall_status` downgrades it to 'Missed', and `_calculate_stats` counts
+# the answer rate off exactly that field. `put_item` also REPLACES the item, so
+# `hangupCause`, `durationSec` and `end_time` were deleted rather than left alone.
+#
+# Equal ranks are allowed through: a retried hangup carrying a corrected
+# BillDuration must land, and the transitional completed pass on /plivo/answer is
+# the same lifecycle position as a hangup callback.
+_CDR_ROUTE_RANK = {
+    'events': 10,              # mid-call lifecycle event
+    'dial-events': 20,         # dial outcome, still mid-call
+    'fallback': 30,            # primary answer URL failed
+    'answer-hangup-pass': 40,  # terminal, arriving on the answer URL
+    'hangup': 40,              # terminal
+}
+CDR_RANK_ATTRIBUTE = 'cdrRank'
+
+# Set once and never restamped. `createdAt` is the sort key for both read paths in
+# voice-cdr-read AND the date fallback the renderer uses when `timestamp` is
+# absent, so moving it moves the row's place in history.
+_CDR_WRITE_ONCE = ('createdAt',)
+
+
+def _write_cdr_row(item: dict, route: str, call_uuid: str,
+                   request_id: str) -> bool:
+    """Merge the row forward. Never lowers the recorded lifecycle state.
+
+    An `update_item` rather than a `put_item` so that a field absent from this
+    callback is left alone instead of deleted, and conditional on the rank so a
+    late lower-ranked callback cannot win.
+    """
+    rank = Decimal(str(_CDR_ROUTE_RANK.get(route, 0)))
+    fields = {k: v for k, v in item.items()
+              if k != 'id' and v not in ('', None)}
+
+    names = {'#rank': CDR_RANK_ATTRIBUTE}
+    values = {':rank': rank}
+    sets = ['#rank = :rank']
+    for i, key in enumerate(sorted(fields)):
+        np, vp = f'#n{i}', f':v{i}'
+        names[np] = key
+        values[vp] = fields[key]
+        if key in _CDR_WRITE_ONCE:
+            sets.append(f'{np} = if_not_exists({np}, {vp})')
+        else:
+            sets.append(f'{np} = {vp}')
+
+    try:
+        _table().update_item(
+            Key={'id': item['id']},
+            UpdateExpression='SET ' + ', '.join(sets),
+            ConditionExpression='attribute_not_exists(#rank) OR #rank <= :rank',
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
+        )
+    except Exception as exc:  # noqa: BLE001
+        code = ''
+        response = getattr(exc, 'response', None)
+        if isinstance(response, dict):
+            code = (response.get('Error') or {}).get('Code') or ''
+        if code == 'ConditionalCheckFailedException':
+            # Not an error. A higher-ranked callback already recorded this call,
+            # so there is nothing to write. Reporting False here would make
+            # `_route_hangup` log cdrPersisted=false on a healthy call.
+            log_event(logger, 'plivo_cdr_write_superseded',
+                      callUuid=call_uuid, route=route, rank=int(rank),
+                      requestId=request_id)
+            return True
+        log_event(logger, 'plivo_cdr_persist_failed', level='error',
+                  callUuid=call_uuid, table=CDR_TABLE, route=route,
+                  error=f'{type(exc).__name__}: {str(exc)[:160]}',
+                  requestId=request_id)
+        return False
+    return True
+
+
 def _persist_cdr(params: dict, route: str, request_id: str) -> bool:
     """Final call state into VoiceCDRTable. Never raises.
 
@@ -578,13 +686,7 @@ def _persist_cdr(params: dict, route: str, request_id: str) -> bool:
 
         'expiresAt': Decimal(str(now + CDR_TTL_SECONDS)),
     }
-    try:
-        _table().put_item(Item={k: v for k, v in item.items() if v not in ('', None)})
-    except Exception as exc:  # noqa: BLE001
-        log_event(logger, 'plivo_cdr_persist_failed', level='error',
-                  callUuid=call_uuid, table=CDR_TABLE,
-                  error=f'{type(exc).__name__}: {str(exc)[:160]}',
-                  requestId=request_id)
+    if not _write_cdr_row(item, route, call_uuid, request_id):
         return False
 
     # Unified timeline breadcrumb, so a Plivo call also appears on the Calls
@@ -784,13 +886,29 @@ def handler(event, context):
     path = plivo_signature.normalize_path(event).rstrip('/') or '/plivo/answer'
 
     if path not in _ROUTES:
-        # Do not silently treat an unrecognised path as an answer fetch. That is
-        # what hid the stage-prefix bug: /prod/plivo/hangup "worked" by falling
-        # through to the IVR instead of failing visibly.
+        # Refuse. Until 2026-09-23 this logged a warning and then fell through to
+        # `(_route_answer, False)` anyway - which is the behaviour the comment here
+        # said not to have, and it is what hid the stage-prefix incident:
+        # /prod/plivo/hangup "worked" by returning <Play> to a hangup callback,
+        # which re-answers a terminated call.
+        #
+        # Nothing live depends on the fallback. All five routes on this integration
+        # are exact POST paths, the API has no $default or {proxy+} route, and
+        # normalize_path strips the stage from requestContext.stage rather than a
+        # hardcoded "prod". So the only way to reach here is a route added without a
+        # _ROUTES entry, and for that case a 404 that shows up in the metric beats an
+        # IVR served to a callback.
+        #
+        # Refused BEFORE _verify_provider, deliberately: the path is not a
+        # credential, and verifying first would make this 404 depend on two secret
+        # reads it has no need for.
         log_event(logger, 'plivo_unknown_path', level='warning',
                   path=path, rawPath=event.get('rawPath', ''),
+                  alert='PLIVO_UNKNOWN_PATH_REFUSED',
                   requestId=request_id)
-    route, require_signature = _ROUTES.get(path, (_route_answer, False))
+        return _ack({'error': 'not found'}, status=404)
+
+    route, require_signature = _ROUTES[path]
 
     ok, trust, mechanism = _verify_provider(event,
                                             require_signature=require_signature)

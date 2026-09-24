@@ -60,9 +60,13 @@ export interface WebhookConfig {
 
 export const DEFAULT_AI_CONFIG: InternalAIConfig = {
   enabled: true,
-  agentId: process.env.NEXT_PUBLIC_BEDROCK_AGENT_ID || '4UUQYFWX64',
-  agentAlias: process.env.NEXT_PUBLIC_BEDROCK_AGENT_ALIAS || 'TSTALIASID',
-  knowledgeBaseId: process.env.NEXT_PUBLIC_BEDROCK_KB_ID || 'static-faq',
+  // No fabricated defaults. Re-measured 2026-09-23: the account's only Bedrock
+  // Agent is an empty never-prepared shell and there are 0 knowledge bases, so
+  // '4UUQYFWX64' / 'TSTALIASID' / 'static-faq' named nothing. This object is
+  // rendered in the dashboard, where a plausible id reads as configuration.
+  agentId: process.env.NEXT_PUBLIC_BEDROCK_AGENT_ID || '',
+  agentAlias: process.env.NEXT_PUBLIC_BEDROCK_AGENT_ALIAS || '',
+  knowledgeBaseId: process.env.NEXT_PUBLIC_BEDROCK_KB_ID || '',
   modelId: 'amazon.nova-pro-v1:0',
   maxTokens: 1024,
   temperature: 0.7,

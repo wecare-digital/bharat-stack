@@ -1,0 +1,260 @@
+import type { CycleWord } from '../components/RotatingHero';
+
+/**
+ * The WECARE.DIGITAL product pages, as data.
+ *
+ * SEVEN PAGES, ONE SHAPE. Elsewhere, Expo Week, Dastavez, Clear Closure, Ritual Guru,
+ * Anew and Niji Setu are all the same kind of page: a rotating hero, a short lead, three
+ * points, an optional boundary note and one call to action. Seven copy-pasted page files
+ * would mean seven places to fix a spacing bug and seven chances for them to drift apart,
+ * which is exactly how the old site ended up with a different footer on every page. The
+ * copy lives here, the layout lives in ProductPage.tsx, and each route is a thin file.
+ *
+ * WHERE THE COPY CAME FROM. The six existing products were read off the old Wix pages with
+ * a real browser (pwtest/wixscrape.js). curl returns nothing usable - those pages ship JS
+ * bundles and an empty body, so the copy only exists after hydration. Each product's
+ * one-line positioning statement is the owner's own, taken from the "X IS A WECARE.DIGITAL
+ * BRAND FOR ..." line on its page, then rewritten into sentence case and plain English.
+ *
+ * WHAT WAS LEFT BEHIND, deliberately: the old site's page furniture, which the scrape picks
+ * up on every single page - "A passionate team of solvers...", "MICROSERVICE COMPANY",
+ * "DECARBONIZING", "OPERATIONS", "THE FUTURE IS ENGAGED", "Any amount. Message included.",
+ * "CLEAR CLOSURE STORE". That is the same chrome that had leaked into section 45 of the
+ * Terms and sat live for a session. It is navigation and slogans, not product copy, and
+ * none of it is here.
+ *
+ * NIJI SETU HAS NO WIX PAGE. Its copy comes from the owner's description: a QR code people
+ * scan to reach you on a masked call, with your real number never shown.
+ *
+ * TINTS AND DOTS ARE REUSED VERBATIM from the Grahak OS hero - four pairs, no new colours.
+ * Cycle words are held close in length on purpose so the pill barely travels; the animation
+ * harness sweeps 21 viewports and a long word is what makes the headline reflow.
+ */
+
+const BLUE = { tint: '#dbeafe', dot: '#2563eb' };
+const AMBER = { tint: '#fef3c7', dot: '#f0a818' };
+const GREEN = { tint: '#e0f7c8', dot: '#3da35a' };
+const PURPLE = { tint: '#ede9fe', dot: '#9849e8' };
+
+const cycle = ( a: string, b: string, c: string, d: string ): CycleWord[] => [
+  { word: a, ...BLUE },
+  { word: b, ...AMBER },
+  { word: c, ...GREEN },
+  { word: d, ...PURPLE },
+];
+
+export interface ProductPoint {
+  heading: string;
+  body: string;
+}
+
+export interface ProductDef {
+  /** Route slug. The page lives at /{slug}/ - trailingSlash is on. */
+  slug: string;
+  /** Display name, used in the menu and the badge. */
+  name: string;
+  /**
+   * One short line for the home-page directory. Separate from `sub` because that is a hero
+   * line with room to breathe, and from `description` because that is written for a search
+   * result. A card in a ten-item grid needs to be scannable in one glance.
+   */
+  blurb: string;
+  /** <title> */
+  title: string;
+  /** Meta description. Written to stand alone in a search result. */
+  description: string;
+  /** Hero frame text, before the rotating word. */
+  frame: string;
+  words: CycleWord[];
+  /** Hero sub-line. One sentence, per the design contract. */
+  sub: string;
+  /** Section heading above the points. */
+  sectionHeading: string;
+  lead: string;
+  points: ProductPoint[];
+  /** Boundary statement, where the service is regulated or easily misread. */
+  note?: string;
+  ctaLabel: string;
+  ctaHref: string;
+}
+
+// Every product's call to action lands on Selfservice until the real per-product
+// destinations exist. Referenced through a constant so `grep PRODUCT_CTA` lists them all.
+const PRODUCT_CTA = 'https://www.wecare.digital/selfservice';
+
+export const PRODUCTS: ProductDef[] = [
+  {
+    slug: 'elsewhere',
+    name: 'Elsewhere',
+    blurb: 'Travel, visas and journeys, handled end to end.',
+    title: 'Elsewhere — travel, visas and journeys | WECARE.DIGITAL',
+    description:
+      'Elsewhere by WECARE.DIGITAL — end-to-end travel: visas, bookings, group and individual journeys, planned and handled for you.',
+    frame: 'We handle the',
+    words: cycle( 'travel', 'visas', 'bookings', 'journey' ),
+    sub: 'A full-service travel club for people who would rather arrive than arrange.',
+    sectionHeading: 'What Elsewhere does',
+    lead:
+      'Elsewhere is the WECARE.DIGITAL brand for end-to-end travel — visas, bookings, and both group and individual journeys, from the first idea to the last transfer.',
+    points: [
+      { heading: 'Visas and documentation', body: 'The paperwork a trip needs, prepared and tracked, so an application is not the thing that delays you.' },
+      { heading: 'Groups and individuals', body: 'Whether it is one traveller or a company offsite, the itinerary is built around who is actually going.' },
+      { heading: 'One point of contact', body: 'Flights, stays, transfers and changes stay with one team, so nothing falls between two suppliers.' },
+    ],
+    note:
+      'Visas, entry permissions and travel approvals are granted by governments and airlines, not by us. We prepare and submit what is needed and keep you informed; we cannot guarantee an outcome another authority controls.',
+    ctaLabel: 'Plan a journey',
+    ctaHref: PRODUCT_CTA,
+  },
+  {
+    slug: 'expo-week',
+    name: 'Expo Week',
+    blurb: 'A virtual travel fair you can walk through from home.',
+    title: 'Expo Week — India\'s virtual travel fair | WECARE.DIGITAL',
+    description:
+      'Expo Week by WECARE.DIGITAL — a virtual travel fair and immersive digital expo. Explore beaches, mountains, hidden gems and global icons, and plan from home.',
+    frame: 'Explore',
+    words: cycle( 'beaches', 'mountains', 'hideaways', 'icons' ),
+    sub: 'A virtual travel fair: see the place before you commit to the trip.',
+    sectionHeading: 'What Expo Week does',
+    lead:
+      'Expo Week is virtual tourism — India\'s definitive virtual travel fair, bringing beach escapes, mountain retreats, hidden gems and global icons into one immersive destination you can walk through from home.',
+    points: [
+      { heading: 'Visit before you go', body: 'Browse destinations immersively rather than from a brochure, so the trip you book is the trip you pictured.' },
+      { heading: 'Handpicked, not endless', body: 'Curated experiences and exclusive offers, chosen so the shortlist is short enough to decide from.' },
+      { heading: 'Plan with purpose', body: 'Built around sustainable travel, so seeing more of a place does not mean costing it more.' },
+    ],
+    ctaLabel: 'Enter the expo',
+    ctaHref: PRODUCT_CTA,
+  },
+  {
+    slug: 'dastavez',
+    name: 'Dastavez',
+    blurb: 'Business documentation and registrations in India.',
+    title: 'Dastavez — business documentation and registrations | WECARE.DIGITAL',
+    description:
+      'Dastavez by WECARE.DIGITAL — affordable business documentation, registrations and paralegal support in India, done reliably with minimal effort from you.',
+    frame: 'Paperwork without the',
+    words: cycle( 'queues', 'guesswork', 'delays', 'runaround' ),
+    sub: 'Business documentation and registrations in India, handled properly the first time.',
+    sectionHeading: 'What Dastavez does',
+    lead:
+      'Dastavez is the WECARE.DIGITAL brand for business documentation and registrations in India — affordable documentation and paralegal support, so legal paperwork gets done reliably with minimal effort from you.',
+    points: [
+      { heading: 'Registrations and filings', body: 'The documents a business needs to exist and stay compliant, prepared correctly and filed on time.' },
+      { heading: 'Told what it costs first', body: 'Fees are set out before work starts, including the statutory ones that are not ours to waive.' },
+      { heading: 'Tracked to completion', body: 'You can see where a matter is, rather than wondering whether it moved this week.' },
+    ],
+    note:
+      'Dastavez is not a law firm and is not a substitute for a lawyer\'s advice. We prepare and process documentation; where a matter needs legal representation or an opinion, that is work for a qualified advocate.',
+    ctaLabel: 'Start a filing',
+    ctaHref: PRODUCT_CTA,
+  },
+  {
+    slug: 'clear-closure',
+    name: 'Clear Closure',
+    blurb: 'Settle a dispute online, without a courtroom.',
+    title: 'Clear Closure — online dispute resolution | WECARE.DIGITAL',
+    description:
+      'Clear Closure by WECARE.DIGITAL — an online dispute resolution (ODR) platform. Resolve matters faster, more flexibly and at lower cost, fully online.',
+    frame: 'Disputes resolved',
+    words: cycle( 'online', 'faster', 'calmly', 'fairly' ),
+    sub: 'Online dispute resolution: one secure place to settle a matter without a courtroom.',
+    sectionHeading: 'What Clear Closure does',
+    lead:
+      'Clear Closure is a technology platform for online dispute resolution, bringing the key processes and tools into one secure interface. The mission is plain: improve access to justice with calm, dignified, technology-led resolution.',
+    points: [
+      { heading: 'Independent professionals', body: 'A network of neutrals who are not employed by either side, so the process is not the other party\'s process.' },
+      { heading: 'Faster and cheaper', body: 'Smart workflows replace the scheduling and travel that make conventional disputes slow and expensive.' },
+      { heading: 'Fully online', body: 'Filings, evidence, hearings and the outcome live in one place, reachable from wherever you are.' },
+    ],
+    note:
+      'Clear Closure provides the platform and connects you to independent professionals. It does not act for either party, and nothing here removes your right to approach a consumer commission, regulator or court — Terms sections 37 and 39 set that out.',
+    ctaLabel: 'Open a matter',
+    ctaHref: PRODUCT_CTA,
+  },
+  {
+    slug: 'ritual-guru',
+    name: 'Ritual Guru',
+    blurb: 'Temple-grade puja kits, packed in small batches.',
+    title: 'Ritual Guru — temple-grade puja kits | WECARE.DIGITAL',
+    description:
+      'Ritual Guru by WECARE.DIGITAL — curated, temple-grade puja kits for festivals, vrats, housewarmings and daily worship, packed in small batches and clearly labelled.',
+    frame: 'Puja kits for',
+    words: cycle( 'festivals', 'vrats', 'new homes', 'daily use' ),
+    sub: 'India\'s living traditions, brought home in a kit that has everything and explains itself.',
+    sectionHeading: 'What Ritual Guru does',
+    lead:
+      'Ritual Guru brings India\'s living traditions into your home with curated, temple-grade puja kits — for festivals, vrats, housewarmings and daily worship.',
+    points: [
+      { heading: 'Packed in small batches', body: 'Made in small runs for freshness and fragrance, rather than sitting in a warehouse losing both.' },
+      { heading: 'Every component labelled', body: 'You know what each item is and what it is for, so the kit works whether or not you grew up with it.' },
+      { heading: 'Standard quantities, fair price', body: 'Measured consistently and priced openly, with responsible sourcing behind it.' },
+    ],
+    ctaLabel: 'Browse kits',
+    ctaHref: PRODUCT_CTA,
+  },
+  {
+    // RENAMED TWICE, and the slug moved with the name both times: Swdhya -> Open
+    // Possibility -> Anew. Neither earlier address was ever published - this page exists
+    // only on an unmerged branch - so there is no external link or search equity to keep
+    // and no redirect to write. If this page HAD shipped, /swdhya/ and /open-possibility/
+    // would both need 301s and this comment would be a migration note instead.
+    //
+    // THE SANSKRIT STAYS, BUT ITS JOB HAS CHANGED. स्वाध्याय (svādhyāya, self-study) is
+    // literally where the FIRST name came from, so the epigraph was originally the
+    // etymology of the word "Swdhya". It cannot do that for "Anew". It is kept because it
+    // still describes the METHOD exactly - self-study, then self-awareness, then light -
+    // while the name now names the RESULT: the chance to start again. The lead is written
+    // so the line reads as the root of the practice, not as an explanation of the name.
+    slug: 'anew',
+    name: 'Anew',
+    blurb: 'Reflection-led conversations that end in a decision.',
+    title: 'Anew — reflection-led conversations | WECARE.DIGITAL',
+    description:
+      'Anew by WECARE.DIGITAL — a conversational practice of self-inquiry that turns reflection into clarity, connection and committed action.',
+    frame: 'Reflection into',
+    words: cycle( 'clarity', 'action', 'direction', 'focus' ),
+    sub: 'A conversational practice of self-inquiry, for moving toward what actually matters.',
+    sectionHeading: 'What Anew does',
+    lead:
+      'स्वाध्यायात् आत्मबोधः, आत्मबोधात् प्रकाशः — from self-study comes self-awareness; from self-awareness comes light. That is the practice. Anew is what it gives you: the chance to begin again from clarity, rather than from wherever you got stuck.',
+    points: [
+      { heading: 'Conversation, not instruction', body: 'The work happens in dialogue. Nobody hands you a conclusion you did not arrive at.' },
+      { heading: 'Reflection with an outcome', body: 'Sessions end somewhere — a decision, a next step — rather than trailing off.' },
+      { heading: 'Toward what matters', body: 'The direction is yours. The practice is a way of finding it and then committing to it.' },
+    ],
+    note:
+      'Anew is a reflective practice, not therapy, counselling or medical treatment, and nothing in it is clinical advice. If you need mental-health support, please speak to a qualified professional; in an emergency, contact local emergency services.',
+    ctaLabel: 'Start a conversation',
+    ctaHref: PRODUCT_CTA,
+  },
+  {
+    slug: 'niji-setu',
+    name: 'Niji Setu',
+    blurb: 'A QR code that reaches you on a masked call.',
+    title: 'Niji Setu — a QR code that reaches you privately | WECARE.DIGITAL',
+    description:
+      'Niji Setu by WECARE.DIGITAL — a QR code people scan to reach you on a masked call. Your real number is never shown and never shared.',
+    frame: 'Your number stays',
+    words: cycle( 'private', 'masked', 'hidden', 'yours' ),
+    sub: 'A QR code people can scan to reach you on a masked call — your real number is never shown.',
+    sectionHeading: 'What Niji Setu does',
+    lead:
+      'Niji Setu is a bridge that does not hand over your phone number. Put the code where someone might need to reach you; if there is ever a problem, they scan it and get through on a masked call. Your number stays completely private.',
+    points: [
+      { heading: 'They scan, they do not see', body: 'The scan starts a call. It does not reveal a number, so there is nothing to save, copy or pass on.' },
+      { heading: 'Calls are masked both ways', body: 'The connection runs through us, so neither side ends up holding the other\'s personal number.' },
+      { heading: 'Useful exactly when it matters', body: 'A blocked car, a lost bag, a delivery at a gate — reachable in the moment, unreachable afterwards.' },
+    ],
+    ctaLabel: 'Get a code',
+    ctaHref: PRODUCT_CTA,
+  },
+];
+
+/** Lookup by slug, for the thin route files. */
+export const productBySlug = ( slug: string ): ProductDef => {
+  const found = PRODUCTS.find( p => p.slug === slug );
+  if ( !found ) throw new Error( `Unknown product slug: ${slug}` );
+  return found;
+};

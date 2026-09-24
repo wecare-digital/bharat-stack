@@ -660,7 +660,7 @@ const StorePage: React.FC<PageProps> = ( { signOut, user } ) => {
                 <h3 style={ { margin: '0 0 8px', fontSize: 16, fontWeight: 600 } }>Headless Commerce Architecture</h3>
                 <p style={ { fontSize: 13, color: '#6b7280', margin: 0, lineHeight: 1.6 } }>
                   Amplify owns the storefront and checkout UI. Wix is a backend-only commerce service accessed through REST APIs.
-                  There is no Wix Editor or Velo runtime dependency in Bharat Stack.
+                  There is no Wix Editor or Velo runtime dependency in WECARE.DIGITAL.
                 </p>
               </div>
 

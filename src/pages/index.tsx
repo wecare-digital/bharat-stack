@@ -1,57 +1,774 @@
-import React from 'react';
-import Head from 'next/head';
-import BrandBadge from '../components/BrandBadge';
+/**
+ * Home — the company page.
+ *
+ * The rotating headline pill is the SAME mechanism as the Grahak OS hero and the
+ * VayuLok headline, not a lookalike: identical 2400ms interval, identical easings
+ * (.16,1,.3,1 for the wipe and the width glide, .34,1.56,.64,1 for the dot pop),
+ * identical white entrance shutter and .33em dot. The three pages are meant to
+ * animate as one family, so if you retune one, retune all three.
+ *
+ * COPY IS PROVISIONAL, and carries the owner's positioning: AI worth having reduces
+ * cost and complexity, favours real-world utility over scale, and compounds across
+ * domains. The rotation is doing argumentative work rather than decoration - the
+ * pill cycling through four unrelated domains is the "across every domain" claim
+ * enacted rather than asserted, which is why the headline does not need to say it.
+ * The sub-line carries the cost/complexity half. To reword, edit CYCLE_WORDS and
+ * .home-sub; nothing else depends on the strings.
+ *
+ * WORD LENGTH IS A DESIGN CONSTRAINT, not a copy detail, for one measured reason:
+ * the pill animates to each word's measured width, so the spread between the
+ * shortest and longest word is how far the headline's tail travels on every tick.
+ * Measured at 1280px: climate 178, consumers 278, enterprises 280,
+ * frontier tech 300, AI applications 361. Spread 183px.
+ *
+ * That spread is 2.2x what it was before "climate" was added (83px across the four
+ * longer words), because climate is much the shortest. It still glides and still does
+ * not reflow, so this is a movement-feel judgement rather than a defect - but if the
+ * tail travel looks busy, "climate tech" measures ~290px, brings the spread back to
+ * ~83px, and reads more in parallel with "frontier tech" and "AI applications".
+ *
+ * The real constraint is NOT the spread, it is reflow: the headline growing to a
+ * second line on the longest word only would shift every section below it every
+ * 2400ms. That is checked by measuring the h1's height across a full rotation -
+ * sampled at 131px for all FIVE words, eleven consecutive samples, constant.
+ *
+ * Re-measure after changing a word. Note that animcheck.js, referenced in this
+ * file and three other places, DOES NOT EXIST in the repo - so "re-run the
+ * harness" currently means measuring h1 height in a browser by hand. Either write
+ * it or stop citing it.
+ *
+ * A unit test cannot see reflow, so src/test/HomePage.test.tsx pins only the one
+ * thing it can: no word longer than 18 characters, i.e. long enough to still fit
+ * the pill's own line at the narrowest breakpoint.
+ *
+ * The four tint/dot pairs are reused VERBATIM from the Grahak OS hero - no new
+ * colours. Hue maps onto sense the way it does on the other two pages: green for our
+ * own domain, blue for communication, purple for intelligence, amber for service.
+ * Like the channel tints, this per-subject system sits outside the brand palette by
+ * design, which is why lime is absent here.
+ *
+ * The rotating markup MUST stay inline in this return tree. styled-jsx only attaches
+ * its scoping class to elements it can statically see there, so lifting the pill into
+ * a variable or a child component silently drops every style and the words render
+ * stacked with no pill. That has already happened twice on the other two pages.
+ *
+ * Classes stay home- prefixed. The globally imported src/styles/*.css declares
+ * unscoped rules for generic names and styled-jsx does not shield a page from them.
+ */
 
-const HomePage: React.FC = () => (
-  <>
-    <Head>
-      <title>Bharat Stack by WECARE.DIGITAL</title>
-      <meta name="description" content="Bharat Stack by WECARE.DIGITAL." />
-      <link rel="canonical" href="https://wecare.digital/" />
-    </Head>
-    <main className="home-shell" aria-label="Bharat Stack home">
-      {/* Same pill as the Grahak OS hero, with the maker line flipped: this page is
-          the company, that page is one product of it. Sits inside .home-layout so
-          it inherits the canvas measure and the 96px section gap — the body is
-          otherwise still the undecided scaffold, and this does not change that. */}
-      <div className="home-layout">
-        <div className="home-eyebrow">
-          <BrandBadge label="Bharat Stack by WECARE.DIGITAL" />
+import React, { useEffect, useRef, useState } from 'react';
+import Head from 'next/head';
+// next/link, not a bare <a>, for the one internal link on this page. The mega-menu and the
+// product CTAs still use <a> - they escape @next/next/no-html-link-for-pages only because
+// their hrefs are dynamic expressions the rule cannot resolve, which is a lint accident
+// rather than a decision. Link is already the pattern in Layout, PageHeader, Breadcrumbs
+// and the dashboard pages, and on a trailingSlash:true export '/contact/' resolves the
+// same either way - so this side is the one worth being consistent with.
+import Link from 'next/link';
+import BrandBadge from '../components/BrandBadge';
+import WorkflowTerminal from '../components/WorkflowTerminal';
+
+/* The SUITE array that used to live here - the three original products plus the seven from
+   src/content/products.ts - went with the service-directory grid it fed. See the comment on
+   .home-close below for why the home page no longer enumerates services. The products are
+   still linked from the header mega-menu on every route and still in the sitemap, so
+   src/content/products.ts remains the single source for both. */
+
+// Module scope, not inside the component: the rotation effect reads .length, and a
+// literal declared in the body would make that a changing dependency and force an
+// exhaustive-deps suppression the way VayuLok needed one.
+// Lowercase: these sit mid-sentence, not at the head of one.
+//
+// These are the owner's own service domains, from the positioning copy: travel,
+// documentation, dispute resolution, rituals, reflection "and more". Two are
+// shortened for the pill because the pill's width is layout (see the note above) -
+// "documentation" becomes documents and "dispute resolution" becomes disputes. The
+// full phrases are not lost; they belong in body copy, not in a rotating slot.
+//
+// Order is hue rhythm, the consideration VayuLok documents: blue, amber, green,
+// purple, red alternates cool and warm on every step except green -> purple, which
+// is unavoidable with five words across three cool hues and is the most separated
+// of the available cool pairs. Grouping them by meaning instead - the two
+// paperwork ones together - put green beside green and the change stopped reading.
+//
+// Every tint/dot pair is reused VERBATIM from the Grahak OS hero and the VayuLok
+// rotation. No new colours. Hue maps onto sense: blue for journeys, amber for the
+// warmth of ritual, green for paperwork cleared, purple for reflection, red for
+// conflict.
+// Nine words now: the five service domains plus the four the owner added -
+// ai applications, consumer, enterprise, frontier tech.
+//
+// NOTE THE TWO AXES. The first five are service DOMAINS (what we do); the last four
+// are markets and capability tiers (who for, and how far out). Mixing them means the
+// pill answers two different questions on alternate ticks. That is a copy decision
+// rather than a bug and it is what was asked for, so it ships - but the two groups are
+// kept contiguous below, not interleaved, so the rotation reads as two passes rather
+// than as one confused list. Splitting them across two rotating slots, or dropping one
+// axis, are the alternatives if it reads oddly.
+//
+// Length spread is now 6 ("travel") to 15 ("ai applications"), well past the 2-4
+// characters the earlier sets held to. That is only safe because the pill sits on its
+// own line, so the h1's line count cannot change with the active word - the defect
+// that made the page jump 63px every 2400ms when "reflection" was the longest word.
+// The pill's tail still travels ~410px per cycle. animcheck.js re-verifies the h1
+// height across all 21 widths, which is the real gate.
+//
+// Every tint/dot pair is reused VERBATIM from the Grahak OS hero and the VayuLok
+// rotation - nine words across six available pairs, so three repeat. Repeats are
+// placed non-adjacently so no two consecutive ticks share a colour.
+// Four words, and the five that were here before are gone on purpose:
+// travel, rituals, documents, reflection and disputes each named a SERVICE. A
+// service can be repriced, renamed or discontinued, and on the day one is, the
+// headline is simply false. What remains are the two audiences we serve and the
+// two kinds of thing we build - none of which stops being true when a single
+// offering changes.
+//
+// Three words were adjusted from the owner's list for grammar, not meaning:
+//   consumer  -> consumers     "services for consumer" is not English
+//   enterprise -> enterprises  parallel with consumers
+//   ai        -> AI            an initialism, and the rest of the page capitalises it
+// Revert any of those if the original wording was deliberate.
+//
+// Four distinct tints so no two consecutive ticks share a colour - with four
+// words that is automatic, which is why the non-adjacency juggling the nine-word
+// set needed is gone.
+const CYCLE_WORDS = [
+  { word: 'consumers', tint: '#fef3c7', dot: '#f0a818' },
+  { word: 'enterprises', tint: '#ede9fe', dot: '#9849e8' },
+  { word: 'AI applications', tint: '#dbeafe', dot: '#2563eb' },
+  { word: 'climate', tint: '#e0f7c8', dot: '#3da35a' },
+  { word: 'frontier tech', tint: '#fee2e2', dot: '#dc2626' },
+];
+
+const HomePage: React.FC = () => {
+  const [ cycleIndex, setCycleIndex ] = useState( 0 );
+  const [ cycleW, setCycleW ] = useState<number | null>( null );
+  const wordRefs = useRef<( HTMLSpanElement | null )[]>( [] );
+  const [ shown, setShown ] = useState( false );
+
+  // The closing band reveals when it scrolls into view. Unlike the hero's one-shot
+  // timeout, this cannot fire on a timer: the section sits below the fold, so a timed
+  // reveal would play to an empty viewport and be over before anyone scrolled to it.
+  //
+  // NO REACT STATE FOR THIS ONE, deliberately - see the effect below. The reveal is a
+  // visual side-effect with no bearing on what React renders, so it is driven by
+  // classList on the node itself.
+  const closeRef = useRef<HTMLElement | null>( null );
+
+  useEffect( () => {
+    // One-shot entrance, same 60ms beat as VayuLok. No observer: there is a single
+    // block above the fold, so there is nothing to reveal on scroll.
+    const id = window.setTimeout( () => setShown( true ), 60 );
+    return () => window.clearTimeout( id );
+  }, [] );
+
+  useEffect( () => {
+    if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) return;
+    const id = window.setInterval(
+      () => setCycleIndex( i => ( i + 1 ) % CYCLE_WORDS.length ),
+      2400
+    );
+    return () => window.clearInterval( id );
+  }, [] );
+
+  useEffect( () => {
+    const el = closeRef.current;
+    if ( !el ) return;
+
+    // THE ANIMATION IS OPT-IN, NOT OPT-OUT, and that inversion is the important part.
+    //
+    // The first version of this rendered the band hidden (opacity:0) and added an "in"
+    // class to reveal it. That makes JavaScript load-bearing for reading the page: if the
+    // bundle fails, IntersectionObserver is missing, or the effect throws, the closing
+    // section is permanently invisible. An entrance effect must never be the reason
+    // content cannot be read.
+    //
+    // So the CSS now ships the FINAL state - everything visible - and this effect adds
+    // .is-armed to hide the start state only once it knows it can animate. No JS, no
+    // observer, or reduced motion all leave the band fully readable, and the effect is
+    // purely additive.
+    //
+    // It also uses classList rather than setState on purpose. This is a visual
+    // side-effect that does not change what React renders, which is exactly the case the
+    // react-hooks/set-state-in-effect rule exists to steer away from state; driving the
+    // DOM directly is the documented use for an effect, and it avoids a cascading render
+    // on every scroll into view.
+    if ( typeof IntersectionObserver === 'undefined' ) return;
+    if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) return;
+
+    el.classList.add( 'is-armed' );
+
+    const io = new IntersectionObserver(
+      entries => {
+        if ( entries.some( e => e.isIntersecting ) ) {
+          el.classList.add( 'is-in' );
+          io.disconnect(); // One-shot: it is an entrance, not a scroll effect.
+        }
+      },
+      // 18% visible before it plays, so the reveal is not already finished by the time
+      // the section is properly on screen.
+      { threshold: 0.18 }
+    );
+    io.observe( el );
+
+    return () => io.disconnect();
+  }, [] );
+
+  useEffect( () => {
+    // Measured, not guessed: "Intelligence" is more than twice the width of
+    // "Service", and animating to a measured px value is what makes the pill glide
+    // instead of snap.
+    const el = wordRefs.current[ cycleIndex ];
+    if ( el ) setCycleW( el.offsetWidth );
+  }, [ cycleIndex ] );
+
+  return (
+    <>
+      <Head>
+        <title>WECARE.DIGITAL</title>
+        <meta name="description" content="WECARE.DIGITAL." />
+        <link rel="canonical" key="canonical" href="https://wecare.digital/" />
+      </Head>
+      <main className="home-shell" aria-label="WECARE.DIGITAL home">
+        {/* Same pill as the Grahak OS hero, with the maker line flipped: this page is
+            the company, that page is one product of it. */}
+        <div className={ `home-layout ${shown ? 'show' : ''}`.trim() }>
+          <div className="home-hero">
+            <div className="home-eyebrow">
+              <BrandBadge label="WECARE.DIGITAL" />
+            </div>
+
+            {/* The pill sits on its OWN LINE, and that is a correctness fix rather
+                than a layout preference.
+                Inline after the frame text, the headline's line count depended on
+                which word was showing: measured at 1440px, "reflection" pushed the
+                h1 from 75px to 138px while the four shorter words fitted one line,
+                so every 2400ms the whole page below jumped by 63px. Widening
+                max-width only relocates that to a different viewport - with a word
+                whose width varies by 156px inside flowing text, some width will
+                always split the line for the long word and not the short one.
+                Giving the pill its own block makes line count independent of word
+                width, so the glide is free to be as wide as it likes. */}
+            <h1 className="home-head">
+              <span className="home-head-line">Everyday services for</span>
+              <span
+                className="home-mark"
+                style={ { background: CYCLE_WORDS[ cycleIndex ].tint } }
+              >
+                <i
+                  className="home-mark-dot"
+                  style={ { background: CYCLE_WORDS[ cycleIndex ].dot } }
+                  aria-hidden="true"
+                />
+                <span
+                  className="home-cycle"
+                  style={ cycleW ? { width: `${cycleW}px` } : undefined }
+                >
+                  {/* The rotation is visual only, so screen readers get the full list
+                      once and every animated copy is hidden from them. */}
+                  <span className="home-sr-only">{ CYCLE_WORDS.map( c => c.word ).join( ', ' ) }</span>
+                  { CYCLE_WORDS.map( ( c, i ) => (
+                    <span
+                      key={ c.word }
+                      ref={ el => { wordRefs.current[ i ] = el; } }
+                      className={ `home-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
+                      aria-hidden="true"
+                    >{ c.word }</span>
+                  ) ) }
+                </span>
+              </span>
+            </h1>
+
+            {/* The one body level the contract allows: 20px/400/1.4/-.125px at
+                rgba(0,0,0,.898). Carries the half of the positioning the headline
+                cannot - cost and complexity - while the rotation above carries
+                breadth. Deliberately one sentence: a second would put two body
+                blocks on a page that has no section rhythm yet. */}
+            <p className="home-sub">
+              Transparent pricing, guided journeys, and dependable support — on one
+              shared foundation.
+            </p>
+          </div>
+
+          {/* The 96px gap on .home-layout is the section rhythm this was reserved for -
+              it existed with one child specifically so the next block would land on it.
+              WorkflowTerminal styles itself; styled-jsx cannot reach into it from here,
+              which is why it takes no className.
+
+              THE TERMINAL NO LONGER SITS ALONE AT FULL WIDTH. On its own it ran the whole
+              1252px measure with a 650px black panel and nothing to read beside it, which
+              is what made the section feel heavy and left the right-hand side empty. It
+              is now the left column of a two-column band, with the section's heading and
+              a short list of what the workflow is doing in the right column - so the
+              panel is explained rather than just displayed, and the space is used. */}
+          <section className="home-flow" aria-labelledby="home-flow-title">
+            <div className="home-flow-panel">
+              <WorkflowTerminal />
+            </div>
+            { /* THE COPY FOLLOWS THE PANEL'S NEW SUBJECT. It used to describe an agent -
+                 "work that runs itself", plans, low-confidence results - which together
+                 with the old stream positioned this as an agentic AI product. It is not:
+                 many services run here, they run on one shared foundation, and AI is a
+                 feature inside a few of them rather than the thing being sold. */ }
+            <div className="home-flow-copy">
+              {/* WRITTEN FOR A CUSTOMER, NOT FOR AN ENGINEER. The previous version of this
+                  column said "they share one login, one audit trail, one bill and one place
+                  to watch them" and called the terminal "the panel". Audit trails, queues,
+                  identity and monitoring are how the thing is BUILT; nobody arriving at this
+                  page is shopping for those. The old wecare.digital site already had the
+                  right instinct and said so outright - customers may never see the
+                  underlying systems, but they feel simpler access, clearer communication,
+                  prompt follow-ups and more reliable delivery. This column now says that,
+                  and the headline gives the black terminal beside it a reason to exist for
+                  someone non-technical: it is the part you are not meant to have to look at. */}
+              <h2 className="home-flow-title" id="home-flow-title">You won’t see this part. You’ll feel it.</h2>
+              <p className="home-flow-lead">
+                Everything runs on the same AI foundation underneath. You may never need
+                to think about how it works. What you notice is that things feel connected:
+                you don’t keep repeating yourself, updates reach you where you are,
+                follow-ups happen automatically, and every experience feels familiar.
+              </p>
+              { /* THREE BEATS, EACH ONE SOMETHING A CUSTOMER CAN NOTICE HAPPENING TO THEM.
+                   These have now been rewritten twice. First they named components ("Built
+                   once, used everywhere"). Then they named consequences but still in our
+                   own vocabulary - audit trails, carriers, channels leaving in the same
+                   moment, "nobody gets paged". Better, still inward-facing: a carrier
+                   outage and an on-call page are OUR problems, and describing how well we
+                   handle them quietly asks the reader to care about our operations.
+                   Each one is now written from the outside: sign in once, hear from us
+                   where you actually look, and get the message late rather than never. The
+                   mechanism is still there as the reason to believe it, just no longer the
+                   subject of the sentence. */ }
+              {/* FOUR beats, not three, per the owner's copy. The fourth - that it
+                  remembers context - is the one that compounds, so it closes the list.
+                  Channel names are back. An earlier pass stripped them on the reading
+                  that the no-service-names rule covered them; the owner's own draft
+                  names them twice, which settles it. The rule is about SERVICE names,
+                  which change, not delivery channels. */}
+              <ul className="home-flow-list">
+                <li>
+                  <strong>One account. One continuous experience.</strong>
+                  <span>Sign in once, and your context carries forward. What you’ve already shared stays connected, so the next thing you need doesn’t feel like starting over.</span>
+                </li>
+                <li>
+                  <strong>Updates find you.</strong>
+                  <span>Important updates can reach you across WhatsApp, SMS, email or phone, so you’re less likely to miss what matters.</span>
+                </li>
+                <li>
+                  <strong>Follow-ups happen automatically.</strong>
+                  <span>If something doesn’t go through or needs another nudge, it is tracked and followed up without waiting for you to chase it.</span>
+                </li>
+                <li>
+                  <strong>It remembers the context.</strong>
+                  <span>The more you use it, the less you need to repeat — helping each interaction feel faster, simpler and more relevant.</span>
+                </li>
+              </ul>
+            </div>
+          </section>
+
+
+          {/* THE CLOSING BAND, AND WHY IT IS NOT A SERVICE DIRECTORY ANY MORE.
+              This slot held a ten-card grid listing every service by name. The owner's
+              objection was that the list is not a fixed set - it is an internal, moving
+              inventory - so publishing it on the home page made a promise about scope that
+              would be wrong again every time something was added or retired. A closing
+              argument does not go stale; a roster does.
+
+              NOTHING IS ORPHANED BY REMOVING IT. Every product page is still linked from
+              the header mega-menu, which renders on all sixteen public routes, and all of
+              them are still in the sitemap - so the internal linking that made the grid
+              worth having is intact without the home page having to enumerate anything.
+
+              THE ANIMATION IS SCROLL-TRIGGERED, NOT LOOPING, and that is the point. There
+              are already two continuously moving things above this - the rotating headline
+              and the streaming panel - so a third loop would compete with both. This
+              reveals once when it comes into view: the lime rule draws itself across and
+              the three lines stagger in behind it, which lands the argument and then stops. */}
+          <section className="home-close" aria-labelledby="home-close-title" ref={ closeRef }>
+            <div className="home-close-panel">
+              {/* THIS WAS SELLING A PLATFORM TO A CTO. It said "you do not buy a platform
+                  and then wait months to use it", offered "a WhatsApp number that answers, a
+                  queue that holds", and promised "nothing to migrate", "no second support
+                  queue", "no rebuild". Migration, queues and rebuilds are procurement
+                  language: they assume the reader is buying infrastructure and has an
+                  engineering team to point at it.
+                  That is the wrong audience for this page. The headline above is "Everyday
+                  services for travel / rituals / documents", and the old wecare.digital site
+                  is explicit about who it serves - everyday Bharat, individuals as much as
+                  businesses, with the promise that needs get easier to access, understand and
+                  manage. So this now speaks to one person who wants one thing done, and the
+                  three lines are that site's own "Tap. Track. Done." written out. */}
+              <p className="home-close-eyebrow">Everyday Bharat</p>
+              <h2 className="home-close-title" id="home-close-title">
+                Start with what you need today. The rest stays with you.
+              </h2>
+              {/* "We keep", not "We keeps" - the one grammar fix to the owner's draft. */}
+              <p className="home-close-lead">
+                Begin with whatever matters right now. When you come back for something
+                else, you don’t have to start from scratch. We keep the context, remember
+                what you’ve already shared, and help move things forward from there.
+              </p>
+              <span className="home-close-rule" aria-hidden="true" />
+              <ul className="home-close-points">
+                <li>Tell us once. We remember the context.</li>
+                <li>Everything you’ve asked for, in one place.</li>
+                <li>Know the price before you commit.</li>
+              </ul>
+              {/* A PLAIN <a>, AND IT MUST STAY ONE. This was briefly next/link to silence
+                  @next/next/no-html-link-for-pages, and that silently destroyed the button:
+                  styled-jsx only attaches its scoping class to lowercase DOM tags, never to
+                  a capitalised component, because it cannot know whether the component
+                  forwards className to a DOM node. <Link className="home-close-cta"> therefore
+                  rendered class="home-close-cta" with no jsx- scope, the compiled
+                  .jsx-xxx.home-close-cta rule matched nothing, and the lime pill rendered as
+                  bare text under the last bullet. Lint passed the whole time.
+                  Do not "fix" this back. The alternatives are worse: an inner <span> carrying
+                  the class moves the pill off the focusable element and breaks the focus ring,
+                  and :global() would leak this rule out of the component. Every other CTA on
+                  the public pages - ProductPage, ContactLocation, the header logo - is a plain
+                  <a> for the same reason, and on a static export a full page load is the right
+                  behaviour anyway. The cost is one known eslint error, which is accepted here
+                  rather than traded for a broken control. */}
+              <a className="home-close-cta" href="/contact/">Tell us what you need</a>
+            </div>
+          </section>
         </div>
-      </div>
-    </main>
-    <style jsx>{`
-      .home-shell{
-        min-height:calc(100vh - 69px);
-        padding-top:108px;
-        box-sizing:border-box;
-        background:#fff;
-      }
-      .home-layout{
-        width:100%;
-        max-width:1300px;
-        margin:0 auto;
-        padding:80px 24px 96px;
-        box-sizing:border-box;
-        display:flex;
-        flex-direction:column;
-        gap:96px;
-      }
-      /* .home-layout is a flex column, whose default align-items:stretch would
-         pull the pill out to the full 1300px measure. This keeps it at its own
-         width without changing the canvas for whatever sections land here next.
-         It has to be a wrapper rather than a prop or className on the badge:
-         styled-jsx does not scope composite components, so anything passed in
-         from this page would arrive unstyled. */
-      .home-eyebrow{
-        align-self:flex-start;
-      }
-      @media(max-width:767px){
-        .home-shell{min-height:calc(100vh - 85px);padding-top:96px}
-        .home-layout{padding:48px 16px 64px;gap:64px}
-      }
-    `}</style>
-  </>
-);
+      </main>
+      <style jsx>{`
+        /* TWO-COLUMN BAND: terminal left, explanation right.
+           The panel is 1fr and the copy column is a fixed 380px rather than the reverse,
+           because the terminal's content is monospace at a fixed size and reflows badly
+           when squeezed, while prose reflows cleanly at any width.
+           align-items:start keeps the copy at the top of the band instead of centring it
+           against a 650px panel, which would leave a gap above and below it.
+           Collapses to one column at 1024px - below that a 380px sidebar alongside a
+           terminal gives both columns too little, and the copy reads better above the
+           panel where it introduces it. */
+        .home-flow{
+          display:grid;
+          grid-template-columns:minmax(0,1fr) 380px;
+          gap:44px;
+          align-items:start;
+        }
+        .home-flow-panel{min-width:0}
+        /* Sticky so the explanation stays level with the panel while the eye follows the
+           stream. 128px clears the fixed 108px header with room to breathe. */
+        .home-flow-copy{position:sticky;top:128px}
+        /* Section h2 is the contract's 700 rung - HEAVIER than the hero h1's 600. That
+           inversion is deliberate and is the same on every page. */
+        .home-flow-title{
+          font-size:clamp(26px,2.6vw,34px);font-weight:700;line-height:1.1;
+          letter-spacing:-1px;color:rgba(0,0,0,.95);margin:0 0 14px;
+        }
+        /* The one body level: 20px/400/1.4/-.125px. */
+        .home-flow-lead{
+          font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
+          color:rgba(0,0,0,.898);margin:0 0 24px;
+        }
+        .home-flow-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:18px}
+        /* LIME, AND 3px RATHER THAN 1px - both parts are deliberate.
+           This was a 1px #e5e7eb hairline. The owner asked for the separating line to be
+           lime green, and lime simply does not survive at 1px: #d1f470 measures about
+           1.4:1 against white, so a hairline of it reads as almost nothing on a bright
+           screen - the change would have been invisible and the request unmet.
+           3px is not a violation of the 1px-static / 2px-hoverable border rule either.
+           That rule governs BORDERS ON SURFACES, where thickness signals whether a box can
+           be hovered; this is a typographic accent bar beside text, a different role, and
+           at 3px it cannot be mistaken for a hover affordance the way 2px could.
+           padding-left goes 16px -> 18px to keep the optical gap between bar and text the
+           same now that the bar is 2px wider. */
+        .home-flow-list li{padding-left:18px;border-left:3px solid #d1f470}
+        /* Card-heading rung at the small end: 17px/700, a step below .pp-strip-title's
+           22px because these sit inside a sidebar rather than on the page. */
+        .home-flow-list strong{display:block;margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.2px;color:#000}
+        .home-flow-list span{display:block;font-size:16px;line-height:1.5;color:rgba(0,0,0,.54)}
+
+        /* THE CLOSING BAND. NO margin-top - that was a measured bug, not a style choice.
+           .home-layout is a flex column with gap:96px, so every direct child is already
+           96px from its neighbour. This rule used to add margin-top:96px on top of that
+           gap, and the two are additive: the measured distance from .home-flow to
+           .home-close was 192px while hero-to-flow was 96px, so the closing band sat at
+           double the page's rhythm. The gap owns the spacing; sections do not. */
+        /* (no .home-close rule of its own - see above) */
+
+        /* A tinted panel rather than plain page, because this is the one block on the page
+           asking for a decision and it should read as a different surface from the argument
+           above it. Same 14px radius and same rgba(209,244,112,.22) tint the rest of the
+           site uses for own-surface lime - no new colour. */
+        .home-close-panel{
+          padding:clamp(28px,4vw,56px);
+          border:2px solid #d1f470;border-radius:14px;
+          background:rgba(209,244,112,.22);
+        }
+
+        .home-close-eyebrow{
+          margin:0 0 14px;font-size:12px;font-weight:700;
+          letter-spacing:.08em;text-transform:uppercase;color:#1a3a2a;
+        }
+        /* Section h2 on the contract's 700 rung - heavier than the hero h1's 600, which is
+           the inversion the whole site uses. Same clamp as the other section headings so
+           they read as siblings. */
+        .home-close-title{
+          margin:0 0 16px;max-width:19ch;
+          font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;
+          letter-spacing:-1.2px;color:rgba(0,0,0,.95);
+        }
+        /* The one body level: 20px/400/1.4/-.125px. max-width in ch, not px, so the measure
+           stays ~62 characters whatever the clamp does to the heading beside it. */
+        .home-close-lead{
+          margin:0;max-width:62ch;
+          font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
+          color:rgba(0,0,0,.898);
+        }
+
+        /* READ THE .is-armed PATTERN BEFORE CHANGING ANY OF THIS.
+           Every rule below ships its FINAL, visible state as the default. .is-armed is
+           added by JavaScript only when it has confirmed it can animate, and that is what
+           hides the start state; .is-in then plays the reveal. The effect is therefore
+           additive, and no JS / no IntersectionObserver / reduced motion all leave this
+           section fully readable instead of stuck at opacity:0. */
+
+        /* THE RULE DRAWS ITSELF. transform:scaleX is the whole animation - it is
+           compositor-only, so it cannot cause layout on any frame, which animating width
+           would do 60 times a second. transform-origin:left makes it grow from the left
+           edge rather than the centre. */
+        .home-close-rule{
+          display:block;height:3px;margin:30px 0;background:#d1f470;
+          transform-origin:left center;
+          transition:transform .62s cubic-bezier(.22,.61,.36,1);
+        }
+        .home-close.is-armed .home-close-rule{transform:scaleX(0)}
+        .home-close.is-armed.is-in .home-close-rule{transform:scaleX(1)}
+
+        .home-close-points{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+        /* 17px/600 - the card-heading rung at its small end. These are claims, not body
+           copy, so they sit above the 16px secondary level. */
+        .home-close-points li{
+          position:relative;padding-left:26px;
+          font-size:17px;font-weight:600;line-height:1.45;letter-spacing:-.2px;color:#1a3a2a;
+          transition:opacity .5s ease,transform .5s ease;
+        }
+        /* A tick drawn with two borders on a rotated box: no asset, no request, cannot 404 -
+           the same technique as the map pin. */
+        .home-close-points li::before{
+          content:'';position:absolute;left:2px;top:6px;
+          width:11px;height:6px;
+          border-left:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;
+          transform:rotate(-45deg);
+        }
+        .home-close.is-armed .home-close-points li{opacity:0;transform:translateY(8px)}
+        .home-close.is-armed.is-in .home-close-points li{opacity:1;transform:none}
+        /* Staggered behind the rule, which finishes at .62s. Three 90ms steps read as one
+           settling movement rather than three separate events. */
+        .home-close.is-armed.is-in .home-close-points li:nth-child(1){transition-delay:.34s}
+        .home-close.is-armed.is-in .home-close-points li:nth-child(2){transition-delay:.43s}
+        .home-close.is-armed.is-in .home-close-points li:nth-child(3){transition-delay:.52s}
+
+        /* Full-strength lime with #1a3a2a type: the contract's own-surface pairing. Solid
+           lime on the tinted panel still separates because the panel is the same hue at
+           22% - the button is the saturated version of its own background, which is why it
+           needs no shadow at rest. */
+        .home-close-cta{
+          display:inline-flex;align-items:center;min-height:52px;margin-top:32px;
+          padding:0 28px;border:2px solid #d1f470;border-radius:50px;
+          background:#d1f470;color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
+          transition:opacity .5s ease,transform .5s ease,background-color .2s,box-shadow .2s;
+        }
+        .home-close.is-armed .home-close-cta{opacity:0;transform:translateY(8px)}
+        .home-close.is-armed.is-in .home-close-cta{opacity:1;transform:none;transition-delay:.62s}
+        .home-close-cta:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+        .home-close-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+
+        @media(prefers-reduced-motion:reduce){
+          /* Belt and braces. The effect already never arms under reduced motion - the JS
+             returns before adding .is-armed - so these rules are the guard for the case
+             where the preference changes after arming, when the class is already on the
+             node. They kill the movement without hiding anything. */
+          .home-close-rule,.home-close-points li,.home-close-cta{transition:none}
+          .home-close.is-armed .home-close-rule{transform:scaleX(1)}
+          .home-close.is-armed .home-close-points li,
+          .home-close.is-armed .home-close-cta{opacity:1;transform:none}
+          .home-close-cta:hover{transform:none}
+        }
+
+        @media(max-width:767px){
+          /* No margin-top here either. .home-layout's gap drops to 64px at this
+             breakpoint, so the narrow-screen rhythm is already handled by the parent - the
+             margin that used to be here made it 128px. */
+          .home-close-title{max-width:none}
+          .home-close-lead{font-size:18px}
+        }
+
+        @media(max-width:1024px){
+          .home-flow{grid-template-columns:minmax(0,1fr);gap:32px}
+          /* Copy first on a narrow screen: it introduces the panel, and a 650px black
+             box arriving with no context is the thing that felt overwhelming. */
+          .home-flow-copy{position:static;order:-1}
+        }
+
+        /* The font stack is declared here, not inherited. Measured in a browser, this
+           page already rendered in Inter - but only because @aws-amplify/ui-react's
+           styles.css sets a font-family on body that happens to start with Inter. The
+           public pages' typeface was therefore a side effect of an auth library's
+           stylesheet, and would have changed silently if that import moved or the
+           package bumped. This is the same stack .page declares on /grahak-os/.
+           Note --font-sans in Pages.css contains no Inter at all, so that is not a
+           fallback that would have caught it. */
+        .home-shell{
+          min-height:calc(100vh - 69px);
+          padding-top:108px;
+          box-sizing:border-box;
+          background:#fff;
+          font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+          color:#1a1a1a;
+        }
+        /* gap:96px is the SECTION rhythm and stays that even though there is one
+           section today - it is what the next block will sit on. The eyebrow-to-
+           headline distance is deliberately NOT this gap: it is 20px, owned by
+           .home-eyebrow below, matching .hero-eyebrow on Grahak OS and .vl-eyebrow
+           on VayuLok. That is why the badge and the headline are wrapped in
+           .home-hero rather than being two flex children - as siblings they would
+           have been pushed 96px apart. */
+        .home-layout{
+          width:100%;
+          max-width:1300px;
+          margin:0 auto;
+          padding:80px 24px 96px;
+          box-sizing:border-box;
+          display:flex;
+          flex-direction:column;
+          gap:96px;
+        }
+        /* align-items:flex-start replaces the align-self the eyebrow used to carry.
+           Without it the badge is stretched to the full 1300px measure by the flex
+           default. It has to be handled on a wrapper rather than passed to the badge:
+           styled-jsx does not scope composite components, so anything sent in from
+           this page arrives unstyled. */
+        .home-hero{
+          display:flex;
+          flex-direction:column;
+          align-items:flex-start;
+        }
+        .home-eyebrow{
+          margin:0 0 20px;
+        }
+        /* Hero h1 rung from the design contract: 600, which is LIGHTER than the 700
+           section level. That inversion is notion's and is intentional - the same
+           note guards .vl-head and .hero-left h1. Do not "correct" it. */
+        .home-head{
+          font-size:clamp(36px,4.3vw,60px);
+          font-weight:600;
+          line-height:1.04;
+          letter-spacing:-2.2px;
+          color:rgba(0,0,0,.95);
+          margin:0;
+          max-width:900px;
+        }
+        /* The single body rung, matching .hero-left p on Grahak OS exactly. The
+           contract allows ONE body level across a page and this is it.
+           max-width is 560px rather than the headline's 900px: at 20px the 900px
+           measure runs to ~110 characters a line, well past the 45-75 the rest of
+           the site holds to. 24px above it is the hero's paragraph gap. */
+        .home-sub{
+          font-size:20px;
+          font-weight:400;
+          line-height:1.4;
+          letter-spacing:-.125px;
+          color:rgba(0,0,0,.898);
+          margin:24px 0 0;
+          max-width:560px;
+          /* At a flat 560px this sentence broke after "over" and left "scale." alone
+             on the second line. balance evens the two lines instead of filling the
+             first greedily. It is a progressive enhancement - unsupported browsers
+             get the greedy break, which is the current behaviour, not a regression -
+             so it needs no @supports guard. Only safe because this is a short,
+             known-length string; balance is capped at a handful of lines and is the
+             wrong tool for flowing body copy. */
+          text-wrap:balance;
+        }
+
+        /* Rotating pill. Same geometry, easing and timings as .hero-mark on Grahak OS
+           and .vl-mark on VayuLok - em-based so it tracks the clamp() headline at
+           every width. */
+        /* Blocks, so the frame and the pill never share a line. See the note in the
+           markup: this is what stops the h1's height depending on which word is
+           active. margin-top is the optical gap between the two lines - line-height
+           1.04 leaves almost no leading, so without it the pill crowds the text. */
+        .home-head-line{display:block}
+        .home-mark{
+          position:relative;display:inline-block;white-space:nowrap;margin-top:.08em;
+          padding:.02em .3em .02em .22em;
+          border-radius:9999px;
+          background:#e0f7c8;
+          transition:background-color .52s cubic-bezier(.16,1,.3,1);
+        }
+        /* White shutter that wipes off to the left on entrance, so the tint appears
+           to fill in rather than simply switching on. */
+        .home-mark::before{
+          content:'';position:absolute;inset:0;
+          background:#fff;border-radius:9999px;
+          transform:scaleX(1);transform-origin:right center;
+          transition:transform .78s cubic-bezier(.16,1,.3,1) .18s;
+          z-index:0;
+        }
+        .home-layout.show .home-mark::before{transform:scaleX(0)}
+        /* .33em matches the dot-to-headline ratio measured on notion.com; the tight
+           .18em gap keeps it reading as attached to the word. */
+        .home-mark-dot{
+          position:relative;z-index:1;
+          display:inline-block;width:.33em;height:.33em;
+          background:#3da35a;border-radius:50%;
+          margin-right:.18em;vertical-align:.14em;
+          transform:scale(0);
+          transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
+        }
+        .home-layout.show .home-mark-dot{transform:scale(1)}
+        /* Width is animated from the measured word so the pill glides between
+           "Service" and "Intelligence" instead of snapping. overflow:hidden is what
+           clips the outgoing word as it slides. */
+        .home-cycle{
+          position:relative;z-index:1;
+          display:inline-block;
+          height:1.06em;line-height:1.06em;
+          vertical-align:baseline;
+          overflow:hidden;
+          transition:width .52s cubic-bezier(.16,1,.3,1);
+          will-change:width;
+        }
+        .home-cyc-word{
+          position:absolute;left:0;top:0;
+          white-space:nowrap;
+          opacity:0;
+          transform:translateY(.42em);
+          transition:opacity .42s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1);
+        }
+        .home-cyc-word.on{opacity:1;transform:translateY(0)}
+        .home-sr-only{
+          position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+          overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+        }
+
+        @media(max-width:767px){
+          .home-shell{min-height:calc(100vh - 85px);padding-top:96px}
+          .home-layout{padding:48px 16px 64px;gap:64px}
+          .home-head{letter-spacing:-1.2px;line-height:1.1}
+        }
+        @media(max-width:480px){
+          .home-head{letter-spacing:-.8px}
+        }
+
+        /* The rotation itself is already disabled in JS; this settles the pill into
+           its resting state so nothing is mid-transition. */
+        @media(prefers-reduced-motion:reduce){
+          .home-mark::before,.home-mark-dot{transition:none}
+          .home-mark::before{transform:scaleX(1)}
+          .home-mark-dot{transform:scale(1)}
+          .home-cycle{transition:none}
+          .home-cyc-word{transition:none}
+        }
+      `}</style>
+    </>
+  );
+};
 
 export default HomePage;

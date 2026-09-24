@@ -35,12 +35,93 @@ for p in (SHARED, FN):
 import handler as plivo  # noqa: E402
 
 
-class _FakeTable:
+class ConditionalCheckFailed(Exception):
+    """Stands in for botocore's ClientError with that error code.
+
+    Shaped like the real thing - `.response['Error']['Code']` - because
+    `_persist_cdr` branches on the code string rather than importing botocore at
+    module scope.
+    """
+
     def __init__(self):
-        self.items = []
+        super().__init__("ConditionalCheckFailedException")
+        self.response = {"Error": {"Code": "ConditionalCheckFailedException"}}
+
+
+class _FakeTable:
+    """A merging fake, not a recorder.
+
+    `_persist_cdr` writes with `update_item` rather than `put_item`, because
+    `put_item` REPLACES the item: a later non-terminal callback for the same
+    CallUUID stripped `hangupCause`, `durationSec` and the rest off a completed
+    call. A fake that only appends the outgoing payload cannot show that, so this
+    one keeps per-id state and evaluates the rank condition.
+    """
+
+    def __init__(self):
+        self.items = []          # the merged row after each write, newest last
+        self.rows = {}           # id -> merged row
+        self.writes = []         # ('put'|'update', id)
 
     def put_item(self, Item):  # noqa: N803 - boto3 kwarg name
-        self.items.append(Item)
+        self.rows[Item["id"]] = dict(Item)
+        self.items.append(dict(Item))
+        self.writes.append(("put", Item["id"]))
+
+    def update_item(self, Key, UpdateExpression, ExpressionAttributeNames,  # noqa: N803
+                    ExpressionAttributeValues, ConditionExpression=None):
+        row_id = Key["id"]
+        existing = self.rows.get(row_id, {})
+
+        # Resolve `SET #n0 = :v0, #n3 = if_not_exists(#n3, :v3), ...`
+        # Split on top-level commas only: `if_not_exists(a, b)` contains one too.
+        assert UpdateExpression.startswith("SET ")
+        clauses, depth, buf = [], 0, ""
+        for ch in UpdateExpression[4:]:
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+            if ch == "," and depth == 0:
+                clauses.append(buf)
+                buf = ""
+                continue
+            buf += ch
+        if buf.strip():
+            clauses.append(buf)
+
+        merged = dict(existing)
+        for clause in clauses:
+            lhs, rhs = clause.split(" = ", 1)
+            name = ExpressionAttributeNames[lhs.strip()]
+            rhs = rhs.strip()
+            if rhs.startswith("if_not_exists("):
+                inner = rhs[len("if_not_exists("):-1]
+                _existing_ref, default_ref = [p.strip() for p in inner.split(",")]
+                if name not in existing:
+                    merged[name] = ExpressionAttributeValues[default_ref]
+            else:
+                merged[name] = ExpressionAttributeValues[rhs]
+
+        # Enforce the rank condition the same way DynamoDB would. Placeholders are
+        # resolved first: the handler writes `#rank <= :rank`, so looking for the
+        # literal attribute name in the expression finds nothing and silently
+        # skips the check - which is how this fake passed a broken fix once.
+        if ConditionExpression:
+            resolved = ConditionExpression
+            for ph, name in ExpressionAttributeNames.items():
+                resolved = resolved.replace(ph, name)
+            if "cdrRank" in resolved:
+                incoming = ExpressionAttributeValues[":rank"]
+                current = existing.get("cdrRank")
+                if current is not None and \
+                        Decimal(str(incoming)) < Decimal(str(current)):
+                    raise ConditionalCheckFailed()
+
+        merged["id"] = row_id
+        self.rows[row_id] = merged
+        self.items.append(dict(merged))
+        self.writes.append(("update", row_id))
 
 
 @pytest.fixture()
@@ -217,10 +298,138 @@ def test_breadcrumb_failure_does_not_lose_the_cdr(captured, monkeypatch):
 
 
 def test_persist_returns_false_when_the_table_write_fails(captured, monkeypatch):
-    def _boom(Item):  # noqa: N803
+    def _boom(**kwargs):
         raise RuntimeError("throughput exceeded")
 
-    monkeypatch.setattr(captured, "put_item", _boom)
+    monkeypatch.setattr(captured, "update_item", _boom)
     assert plivo._persist_cdr(
         {"CallUUID": "u16", "Direction": "inbound", "CallStatus": "completed"},
         "hangup", "r") is False
+
+
+# --------------------------------------------------------------------------
+# monotonic lifecycle — five routes, one row id
+# --------------------------------------------------------------------------
+# All five call sites write `id = f'plivo#{CallUUID}'`, so they share one row.
+# With `put_item` that means last-writer-wins on the whole item, regardless of
+# where in the call's life the callback belongs.
+#
+# Measured before the fix: 56 of 56 live rows were won by `route='hangup'`, so
+# this had not yet fired in production - `dial-events` has never been invoked
+# because PSTN_BROWSER_ROUTING_ENABLED is false, and `events` is not configured
+# on the Plivo application. It is reachable by design though, not by accident:
+# `_route_dial_events` returns 503 on purpose when the notification store is
+# unreachable so that Plivo REDELIVERS, and a redelivery can land after hangup.
+#
+# The consequence is not a cosmetic field: a mid-call payload carries no
+# Duration, `_plivo_overall_status` downgrades a zero-duration `completed` to
+# 'Missed', and `_calculate_stats` counts answered/missed off exactly that field.
+# An answered call would be reported as missed.
+
+TERMINAL = {"CallUUID": "m1", "From": "+919876543210", "To": "+918031830030",
+            "Direction": "inbound", "CallStatus": "completed", "Duration": "42",
+            "HangupCause": "NORMAL_CLEARING", "HangupSource": "callee",
+            "EndTime": "2026-09-23 06:00:00"}
+
+MIDCALL = {"CallUUID": "m1", "From": "+919876543210", "To": "+918031830030",
+           "Direction": "inbound", "CallStatus": "ringing"}
+
+
+def test_a_late_midcall_callback_does_not_downgrade_a_completed_call(captured):
+    assert plivo._persist_cdr(TERMINAL, "hangup", "r1") is True
+    assert captured.rows["plivo#m1"]["overallCallStatus"] == "Answered"
+
+    # The redelivery, arriving after the terminal state was recorded.
+    assert plivo._persist_cdr(MIDCALL, "dial-events", "r2") is True
+
+    row = captured.rows["plivo#m1"]
+    assert row["overallCallStatus"] == "Answered", \
+        "a mid-call redelivery rewrote a completed call as Missed"
+    assert row["durationSec"] == Decimal("42")
+
+
+def test_a_late_midcall_callback_does_not_strip_the_terminal_fields(captured):
+    """`put_item` replaces the item, so absent fields were DELETED, not preserved."""
+    plivo._persist_cdr(TERMINAL, "hangup", "r1")
+    plivo._persist_cdr(MIDCALL, "events", "r2")
+
+    row = captured.rows["plivo#m1"]
+    for field in ("hangupCause", "hangup_cause", "hangupStatus", "end_time",
+                  "durationSec", "duration_seconds", "billableDurationSec"):
+        assert field in row, f"{field} was stripped by a later non-terminal write"
+    assert row["hangupCause"] == "NORMAL_CLEARING"
+
+
+def test_an_earlier_callback_still_creates_the_row(captured):
+    """Ordering is not guaranteed in the other direction either: a mid-call event
+    may legitimately arrive first, and it must create the row rather than wait."""
+    assert plivo._persist_cdr(MIDCALL, "events", "r1") is True
+    assert "plivo#m1" in captured.rows
+    assert captured.rows["plivo#m1"]["cdrRank"] == Decimal("10")
+
+
+def test_a_terminal_callback_overwrites_an_earlier_midcall_row(captured):
+    plivo._persist_cdr(MIDCALL, "events", "r1")
+    plivo._persist_cdr(TERMINAL, "hangup", "r2")
+    row = captured.rows["plivo#m1"]
+    assert row["overallCallStatus"] == "Answered"
+    assert row["durationSec"] == Decimal("42")
+    assert row["cdrRank"] == Decimal("40")
+
+
+def test_a_retried_hangup_is_allowed_to_refresh_the_row(captured):
+    """Equal rank must pass. Plivo retries callbacks, and a retry carrying a
+    corrected BillDuration should land - refusing it would pin the first value."""
+    plivo._persist_cdr(TERMINAL, "hangup", "r1")
+    corrected = dict(TERMINAL, Duration="47")
+    assert plivo._persist_cdr(corrected, "hangup", "r2") is True
+    assert captured.rows["plivo#m1"]["durationSec"] == Decimal("47")
+
+
+def test_the_two_terminal_routes_share_a_rank(captured):
+    """During the transition the completed pass arrives on /plivo/answer too. It
+    is the same lifecycle position, so it must neither lose to nor be refused by
+    a hangup callback."""
+    assert plivo._CDR_ROUTE_RANK["answer-hangup-pass"] == \
+        plivo._CDR_ROUTE_RANK["hangup"]
+
+
+def test_a_superseded_write_reports_success_not_failure(captured):
+    """The row is already at a higher state, so nothing is wrong. Returning False
+    would make `_route_hangup` log cdrPersisted=false on a healthy call."""
+    plivo._persist_cdr(TERMINAL, "hangup", "r1")
+    assert plivo._persist_cdr(MIDCALL, "events", "r2") is True
+
+
+def test_created_at_is_stamped_once_and_not_restamped(captured, monkeypatch):
+    """createdAt is the sort key for both read paths and the date fallback the
+    renderer uses. A later callback must not move the row's place in history."""
+    monkeypatch.setattr(plivo.time, "time", lambda: 1_000_000)
+    plivo._persist_cdr(MIDCALL, "events", "r1")
+    first = captured.rows["plivo#m1"]["createdAt"]
+
+    monkeypatch.setattr(plivo.time, "time", lambda: 1_000_900)
+    plivo._persist_cdr(TERMINAL, "hangup", "r2")
+    row = captured.rows["plivo#m1"]
+    assert row["createdAt"] == first, "createdAt was restamped by a later callback"
+    assert row["received_at"] == 1_000_900, "received_at should track the latest write"
+
+
+def test_every_persist_call_site_has_a_rank(captured):
+    """A route missing from the table would rank 0 and lose to everything,
+    including the row it is supposed to create."""
+    import inspect
+    src = inspect.getsource(plivo)
+    called = set()
+    for line in src.splitlines():
+        if "_persist_cdr(params, '" in line:
+            called.add(line.split("_persist_cdr(params, '")[1].split("'")[0])
+    assert called, "no _persist_cdr call sites found - has the call shape changed?"
+    assert called <= set(plivo._CDR_ROUTE_RANK), \
+        f"routes with no rank: {sorted(called - set(plivo._CDR_ROUTE_RANK))}"
+
+
+def test_the_write_is_conditional_not_a_blind_put(captured):
+    plivo._persist_cdr(TERMINAL, "hangup", "r1")
+    assert captured.writes == [("update", "plivo#m1")], \
+        "a blind put_item cannot preserve a higher lifecycle state"

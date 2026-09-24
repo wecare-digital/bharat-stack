@@ -7,11 +7,11 @@ const routerState = vi.hoisted( () => ( { pathname: '/' } ) );
 vi.mock( 'next/router', () => ( { useRouter: () => routerState } ) );
 
 describe( 'Header', () => {
-  it( 'shows the shared Bharat Stack brand', () => {
+  it( 'shows the shared WECARE.DIGITAL brand', () => {
     render( <Header /> );
-    expect( screen.getByText( 'Bharat' ) ).toBeInTheDocument();
-    expect( screen.getByText( 'Stack' ) ).toBeInTheDocument();
-    expect( screen.getByRole( 'link', { name: /Bharat Stack home/i } ) ).toHaveAttribute( 'href', '/' );
+    expect( screen.getByText( /WECARE/ ) ).toBeInTheDocument();
+    expect( screen.getByText( 'DIGITAL' ) ).toBeInTheDocument();
+    expect( screen.getByRole( 'link', { name: /WECARE.DIGITAL home/i } ) ).toHaveAttribute( 'href', '/' );
   } );
 
   it( 'uses separate Home and Grahak OS routes', () => {
@@ -35,9 +35,57 @@ describe( 'Header', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
     expect( screen.getByRole( 'link', { name: 'Sign in' } ) ).toHaveAttribute( 'href', '/access' );
-    expect( screen.queryByRole( 'link', { name: 'Contact' } ) ).toBeNull();
+
+    // Contact is BACK, by owner request, and now points at a real local page - so the
+    // assertion that it stays absent is retired rather than failing. It was there to
+    // stop a deleted page creeping back into the menu, which is a decision the owner
+    // has now reversed deliberately. Studio and Sustainability are still retired and
+    // those guards stay.
+    expect( screen.getByRole( 'link', { name: 'Contact' } ) ).toHaveAttribute( 'href', '/contact/' );
     expect( screen.queryByText( 'Studio' ) ).toBeNull();
     expect( screen.queryByText( 'Sustainability' ) ).toBeNull();
+  } );
+
+  it( 'moves Bharat Rx to Products and drops FAQ entirely', () => {
+    render( <Header /> );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
+
+    // FAQ has no entry point left anywhere: the local page was deleted earlier and
+    // this row is now gone too.
+    expect( screen.queryByRole( 'link', { name: 'FAQ' } ) ).toBeNull();
+
+    // Bharat Rx is a product, not one of the Selfservice request actions. Asserted by
+    // column position, because the label alone would pass wherever it sat.
+    const products = screen.getByText( 'Products' ).closest( '.nav-group' );
+    expect( products ).not.toBeNull();
+    expect( products?.textContent ).toContain( 'Bharat Rx' );
+
+    // Selfservice is found by TEXT, not by role=link. It used to be a link, because the
+    // heading doubled as a link to the external landing page; that page is being retired
+    // and the heading is now a plain group label, so getByRole('link') would throw here.
+    const selfservice = screen.getByText( 'Selfservice' ).closest( '.nav-group' );
+    expect( selfservice ).not.toBeNull();
+    expect( selfservice?.textContent ).not.toContain( 'Bharat Rx' );
+
+    // And it must NOT be a link any more - that is the actual requirement, so assert it
+    // rather than leaving it implied by the lookup above happening to work.
+    expect( screen.queryByRole( 'link', { name: 'Selfservice' } ) ).toBeNull();
+  } );
+
+  it( 'lists Terms and Privacy under a Legal Stuff heading', () => {
+    render( <Header /> );
+    fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
+
+    expect( screen.getByRole( 'link', { name: 'Terms' } ) ).toHaveAttribute( 'href', '/terms/' );
+
+    // Privacy is linked now. It was deliberately unlinked while its text was a
+    // placeholder, and the assertion here guarded that; the owner asked for it to be
+    // listed once the real policy landed, so the guard is replaced rather than deleted.
+    expect( screen.getByRole( 'link', { name: 'Privacy' } ) ).toHaveAttribute( 'href', '/privacy/' );
+
+    // The heading matches the published document's own title.
+    expect( screen.getByText( 'Legal Stuff' ) ).toBeInTheDocument();
+    expect( screen.queryByText( /^Legal$/ ) ).toBeNull();
   } );
 
   it( 'uses the approved public header dimensions and brand navigation colors', () => {
@@ -58,7 +106,7 @@ describe( 'Header', () => {
     expect( arrow ).not.toBeNull();
     expect( arrow?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 
-    // Drawn with two 2px Bharat Stack dark-green borders on a 7px border-box,
+    // Drawn with two 2px WECARE.DIGITAL dark-green borders on a 7px border-box,
     // rotated 45deg. margin:0 defeats the global .nav-arrow{margin-left:auto}
     // in Layout.css, which would otherwise push it off centre.
     expect( css ).toContain( '.nav-arrow{width:7px;height:7px;box-sizing:border-box;margin:0' );

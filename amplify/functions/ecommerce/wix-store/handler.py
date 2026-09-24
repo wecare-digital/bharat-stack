@@ -40,17 +40,53 @@ WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', '').strip()
 _wix_api_key_cache = ''
 
 
+def _credentials_disabled() -> bool:
+    """Whether the operator has switched Wix credentials off.
+
+    Read on every call rather than captured at import: this is an incident control, and
+    a value that only takes effect once every warm sandbox recycles is not one.
+
+    This switch did NOTHING until 2026-09-23. `WIX_CREDENTIALS_DISABLED=true` and
+    `CREDENTIAL_PURGE_EPOCH` were both set on the live function and neither name
+    appeared anywhere in the repository — so somebody disabled Wix with a variable the
+    code never read. What actually stopped Wix was the absence of `WIX_API_KEY_SECRET`,
+    which makes the loader below raise: off by accident rather than by the switch.
+
+    A kill switch nobody can trust is worse than no kill switch, because the next
+    person flips it and believes they are safe. Same shape as the dashboard's tool
+    checkboxes, which were toggled, rendered, and never sent to the backend.
+    """
+    return str(os.environ.get('WIX_CREDENTIALS_DISABLED', '')).strip().lower() in (
+        '1', 'true', 'yes', 'on')
+
+
 def _load_wix_api_key() -> str:
-    """Resolve the Wix API key, Secrets Manager first, env as migration fallback.
+    """Resolve the Wix API key from Secrets Manager. No env fallback.
 
     Called on first use and cached for the life of the execution environment —
-    deliberately NOT at import time. This function runs with SnapStart
-    (SnapStart.ApplyOn=PublishedVersions), which snapshots module init, so an
-    import-time read freezes the value into the published version and a
-    rotation in Secrets Manager would not take effect until someone
-    republished. See .kiro/steering/lambda-snapstart-deploy.md.
+    deliberately NOT at import time, so replacing the value in Secrets Manager takes
+    effect when a sandbox recycles instead of being frozen in at module init.
+
+    An earlier version of this docstring claimed the function "runs with SnapStart
+    (SnapStart.ApplyOn=PublishedVersions)". It does not: measured across all 62
+    functions, SnapStart is `None` everywhere. Lazy loading is still correct, for the
+    plainer reason above, but the SnapStart justification was false — and a comment
+    that states a false fact about the runtime is how the wrong mitigation gets
+    applied. See .kiro/steering/lambda-snapstart-deploy.md.
+
+    It also claimed "env as migration fallback". There is no env fallback: the function
+    raises when the secret is absent. The claim invited someone to set a plaintext
+    credential in an environment variable and expect it to work.
     """
     global _wix_api_key_cache
+
+    # Checked FIRST, so a disabled integration performs no credential read at all.
+    if _credentials_disabled():
+        raise RuntimeError(
+            'Wix credentials are disabled by WIX_CREDENTIALS_DISABLED. This is '
+            'deliberate; clear that variable to re-enable rather than working around '
+            'it.')
+
     if _wix_api_key_cache:
         return _wix_api_key_cache
     if WIX_API_KEY_SECRET:
