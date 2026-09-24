@@ -17,7 +17,7 @@ describe( 'WECARE.DIGITAL Home', () => {
     const heading = screen.getByRole( 'heading', { level: 1 } );
 
     // Only the pill rotates; the frame does not.
-    expect( heading.textContent ).toMatch( /^Everyday services for/ );
+    expect( heading.textContent ).toMatch( /^Everyday AI, built for/ );
   } );
 
   it( 'carries the cost and complexity half of the positioning in the body line', () => {

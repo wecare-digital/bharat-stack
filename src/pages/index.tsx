@@ -78,8 +78,22 @@ import WorkflowTerminal from '../components/WorkflowTerminal';
 // exhaustive-deps suppression the way VayuLok needed one.
 // Lowercase: these sit mid-sentence, not at the head of one.
 //
-// THE SET, AND WHY THESE FOUR. Two axes, evenly: `consumers` and `enterprises` are the
-// audiences we serve; `climate tech` and `frontier tech` are the sectors we serve.
+// THE SET, AND WHY THESE FOUR, AND WHY THE FRAME SAYS "BUILT FOR".
+// `consumers` and `enterprises` are audiences; `climate tech` and `frontier tech` are
+// fields. Those are two different axes, and the old frame - "Everyday services for" -
+// only accepted the first: "Everyday services for climate tech" does not parse, because
+// a field is not something you deliver a service to.
+// That is the same test that removed `AI applications`, and it applied just as much to
+// these two; leaving them in was inconsistent. Rather than cut half the set, the FRAME
+// changed. "Everyday AI, built for" is true of all four - you build for consumers and you
+// build for climate tech - and it puts AI back above the fold, which had been lost when
+// `AI applications` came out.
+// Length was deliberate too: 22 characters against the old frame's 21, so the h1's first
+// line keeps its visual weight against the pill below it. "Everyday AI for" was rejected
+// at 15 characters for leaving that line visibly short.
+// DO NOT re-add `AI applications` under this frame: it renders "Everyday AI, built for AI
+// applications", with AI twice, and "applications" is what you build rather than a field
+// you build for.
 // `AI applications` was removed on the owner’s instruction - see the note below. Every entry stays true on the day a single
 // offering changes, which is the property the earlier sets did not have.
 //
@@ -250,7 +264,7 @@ const HomePage: React.FC = () => {
                 Giving the pill its own block makes line count independent of word
                 width, so the glide is free to be as wide as it likes. */}
             <h1 className="home-head">
-              <span className="home-head-line">Everyday services for</span>
+              <span className="home-head-line">Everyday AI, built for</span>
               <span
                 className="home-mark"
                 style={ { background: CYCLE_WORDS[ cycleIndex ].tint } }
