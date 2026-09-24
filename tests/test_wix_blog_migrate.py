@@ -54,8 +54,9 @@ def test_manifest_accepts_reviewable_markdown():
     module = load_module()
     post = module.normalize_manifest_post({
         "title": "Distinction",
-        "slug": "distinction",
-        "firstPublishedDate": "2026-04-25T13:41:04.110Z",
+        "sourceSlug": "distinction",
+        "slug": "distinction-bringing-something-into-presence",
+        "sourcePublishedDate": "2026-04-25T13:41:04.110Z",
         "contentMarkdown": "**A distinction brings something into presence.**",
         "seoTitle": "Distinction | WECARE.DIGITAL",
         "metaDescription": "A concise distinction on how language brings something into presence.",
@@ -71,8 +72,9 @@ def test_manifest_rejects_media_nodes():
     module = load_module()
     post = {
         "title": "Bad",
-        "slug": "bad",
-        "firstPublishedDate": "2026-01-01T00:00:00Z",
+        "sourceSlug": "bad-source",
+        "slug": "bad-new",
+        "sourcePublishedDate": "2026-01-01T00:00:00Z",
         "richContent": {"nodes": [{"type": "IMAGE"}]},
         "seoTitle": "Bad",
         "metaDescription": "Bad media manifest.",
@@ -86,6 +88,35 @@ def test_committed_migration_manifests_validate():
     module = load_module()
     manifest_paths = sorted((ROOT / "migration" / "blog").glob("batch-*.json"))
     assert manifest_paths, "expected at least one migration manifest"
+    all_posts = []
     for path in manifest_paths:
         posts = module.load_manifest(path)
         module.validate_manifest(posts)
+        all_posts.extend(posts)
+
+    assert len(all_posts) == 108
+    assert len({post["slug"] for post in all_posts}) == 108
+    assert len({post["sourceSlug"] for post in all_posts}) == 108
+    assert all(post["slug"] != post["sourceSlug"] for post in all_posts)
+    assert all(post.get("sourcePublishedDate") for post in all_posts)
+
+
+def test_new_posts_do_not_reuse_source_publication_date():
+    module = load_module()
+    post = module.draft_post(
+        {
+            "title": "Fresh Article",
+            "slug": "fresh-article-new",
+            "sourceSlug": "fresh-article-old",
+            "sourcePublishedDate": "2025-01-01T00:00:00Z",
+            "richContent": {"nodes": []},
+            "seoTitle": "Fresh Article | WECARE.DIGITAL",
+            "metaDescription": "Fresh article.",
+            "tags": ["Fresh"],
+        },
+        "member-id",
+        "category-id",
+        {"Fresh": "tag-id"},
+    )
+    assert post["seoSlug"] == "fresh-article-new"
+    assert "firstPublishedDate" not in post
