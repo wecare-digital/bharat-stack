@@ -1,8 +1,8 @@
 {
-  "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - regenerate with scripts/env_manifest.py --export after infrastructure changes.",
+  "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - this is the source of truth to diff against. Regenerate with scripts/env_manifest.py --export; verify with no arguments.",
   "_region": "us-east-1",
-  "_functions": 58,
-  "_variables": 319,
+  "_functions": 62,
+  "_variables": 339,
   "_fingerprinted": 8,
   "functions": {
     "stack-wecare-url-shortener": {
@@ -94,6 +94,11 @@
       "SEND_MODE": "LIVE"
     },
     "wecare-catalog-management": {},
+    "wecare-cognito-custom-message": {
+      "BRAND_NAME": "sha256:d185a0daa945",
+      "SENDER_ADDRESS": "one@wecare.digital",
+      "SIGNIN_URL": "https://wecare.digital/"
+    },
     "wecare-contacts": {
       "AWS_ACCOUNT_ID": "775261844268",
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
@@ -104,6 +109,16 @@
     "wecare-conversation-meta": {
       "CONVERSATION_META_TABLE": "stack-wecare-digital-ConversationMetaTable",
       "LOG_LEVEL": "INFO"
+    },
+    "wecare-crm": {
+      "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
+      "CRM_ACTIVITIES_TABLE": "stack-wecare-digital-CrmActivities",
+      "CRM_LEADS_TABLE": "stack-wecare-digital-CrmLeads",
+      "CRM_OPPORTUNITIES_TABLE": "stack-wecare-digital-CrmOpportunities",
+      "CRM_PIPELINES_TABLE": "stack-wecare-digital-CrmPipelines",
+      "CRM_STAGES_TABLE": "stack-wecare-digital-CrmStages",
+      "INVOICES_TABLE": "stack-wecare-digital-InvoicesTable",
+      "PAYMENTS_TABLE": "stack-wecare-digital-PaymentsTable"
     },
     "wecare-dlq-replay": {
       "DLQ_URL": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-inbound-dlq",
@@ -166,6 +181,9 @@
     },
     "wecare-meta-analytics": {},
     "wecare-meta-business-agent": {},
+    "wecare-notification-worker": {
+      "NOTIF_SWEEP_LIMIT": "25"
+    },
     "wecare-outbound-email": {
       "AWS_ACCOUNT_ID": "775261844268",
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
@@ -242,6 +260,12 @@
       "WIX_CREDENTIALS_DISABLED": "true",
       "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
     },
+    "wecare-pstn-softphone": {
+      "PLIVO_API_SECRET_ID": "wecare/plivo/api",
+      "PLIVO_APPLICATION_ID": "sha256:20c3b20228f6",
+      "PSTN_SESSIONS_TABLE": "stack-wecare-digital-PstnSoftphoneSessions",
+      "PSTN_TOKEN_TTL_SECONDS": "300"
+    },
     "wecare-push-notifications": {},
     "wecare-razorpay-webhook": {
       "AWS_ACCOUNT_ID": "775261844268",
@@ -286,6 +310,8 @@
       "SEO_TOOLS_TABLE": "stack-wecare-digital-SeoToolsTable",
       "WEBHOOK_DEDUP_TABLE": "stack-wecare-digital-WebhookDedup",
       "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
+      "WIX_BLOG_AUTHOR_NAME": "Anew by WECARE.DIGITAL",
+      "WIX_CLIENT_ID": "197cd718-e4ec-4e2e-b380-46c297eb18a2",
       "WIX_CREDENTIALS_DISABLED": "true",
       "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
     },
@@ -294,13 +320,15 @@
       "TABLE_PREFIX": "stack-wecare-digital"
     },
     "wecare-site-language": {
-      "SITE_LANGUAGE_ALLOWED_ORIGINS": "https://www.wecare.digital,https://wecare.digital,https://stack.wecare.digital",
+      "SITE_LANGUAGE_ALLOWED_ORIGINS": "https://wecare.digital,https://www.wecare.digital",
       "SITE_LANGUAGE_CACHE_TABLE": "stack-wecare-digital-SiteLanguageCache",
       "SITE_LANGUAGE_CACHE_TTL_SECONDS": "7776000",
+      "SITE_LANGUAGE_GOOGLE_SECRET": "wecare/google/cloud",
       "SITE_LANGUAGE_MAX_TEXTS": "40",
       "SITE_LANGUAGE_MAX_TEXT_BYTES": "9000",
       "SITE_LANGUAGE_MAX_TOTAL_BYTES": "30000",
-      "SITE_LANGUAGE_MAX_TTS_CHARS": "2800"
+      "SITE_LANGUAGE_MAX_TTS_CHARS": "2800",
+      "SITE_LANGUAGE_TRANSLATE_PROVIDER": "auto"
     },
     "wecare-sla-engine": {
       "DEFAULT_ASSIGNEE": "admin",
@@ -423,13 +451,12 @@
     },
     "wecare-wix-store": {
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
+      "CREDENTIAL_PURGE_EPOCH": "2026-09-23T03:05:00Z",
       "LOG_LEVEL": "INFO",
       "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
       "WIX_API_BASE_URL": "https://www.wixapis.com",
-      "WIX_API_KEY_SECRET": "wecare/wix/headless",
       "WIX_CREDENTIALS_DISABLED": "true",
       "WIX_ORDERS_CACHE_TABLE": "stack-wecare-digital-WixOrdersCache",
-      "WIX_ORDER_IDS_TABLE": "stack-wecare-digital-WixOrderIds",
       "WIX_PRODUCTS_CACHE_TABLE": "stack-wecare-digital-WixProductsCache",
       "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
     }
