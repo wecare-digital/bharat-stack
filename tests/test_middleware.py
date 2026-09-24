@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 class TestRequireAuth:
     """Test auth middleware with mocked Cognito."""
 
-    def _make_event(self, method='POST', path='/test', token='valid-token', origin='https://stack.wecare.digital'):
+    def _make_event(self, method='POST', path='/test', token='valid-token', origin='https://wecare.digital'):
         # Include an API Gateway context (apiId + sourceIp) so require_auth
         # treats the event as an externally-reachable request and enforces
         # auth. Events lacking this context are treated as trusted internal

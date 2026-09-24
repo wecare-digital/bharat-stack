@@ -1832,7 +1832,7 @@ def _process_message(
                 'contactId': contact_id,
                 'requestId': request_id,
             }))
-            _send_cta_button(contact_id, aws_phone_number_id, 'Explore Bharat Stack', 'https://stack.wecare.digital', request_id,
+            _send_cta_button(contact_id, aws_phone_number_id, 'Explore Bharat Stack', 'https://wecare.digital', request_id,
                 body_text="Explore Bharat Stack and discover services designed for everyday Bharat.",
                 footer_text='WECARE.DIGITAL')
             _send_followup_buttons(contact_id, aws_phone_number_id, request_id)
@@ -6498,7 +6498,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         return
 
     if action == '_cta_bharat_stack':
-        _send_cta_button(contact_id, phone_number_id, 'Explore Bharat Stack', 'https://stack.wecare.digital', request_id,
+        _send_cta_button(contact_id, phone_number_id, 'Explore Bharat Stack', 'https://wecare.digital', request_id,
             body_text="Explore Bharat Stack and discover services designed for everyday Bharat.",
             footer_text='WECARE.DIGITAL')
         _send_followup_buttons(contact_id, phone_number_id, request_id)

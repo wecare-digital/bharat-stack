@@ -1,6 +1,6 @@
 /**
  * Access Page - Login entry point
- * URL: https://stack.wecare.digital/access
+ * URL: https://wecare.digital/access
  * 
  * This page shows the login form (via _app.tsx Authenticator).
  * After successful login, redirects to /dashboard.

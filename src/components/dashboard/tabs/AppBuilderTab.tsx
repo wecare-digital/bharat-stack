@@ -69,7 +69,7 @@ const AppBuilderTab: React.FC<Props> = ( { data } ) => {
     statusBarStyle: 'dark-content' as 'dark-content' | 'light-content',
     orientation: 'portrait' as 'portrait' | 'landscape' | 'both',
     deepLinkScheme: 'wecare',
-    universalLinkDomain: 'stack.wecare.digital',
+    universalLinkDomain: 'wecare.digital',
   } );
 
   /* ── Store Connection State ── */
@@ -354,7 +354,7 @@ const AppBuilderTab: React.FC<Props> = ( { data } ) => {
               <ShieldIcon />
               <div>
                 <strong>HTTPS</strong>
-                <p>Site served over HTTPS via stack.wecare.digital — required for PWA.</p>
+                <p>Site served over HTTPS via wecare.digital — required for PWA.</p>
               </div>
               <CheckCircleIcon />
             </div>
@@ -470,7 +470,7 @@ const AppBuilderTab: React.FC<Props> = ( { data } ) => {
               </div>
               <div className="ab-form-field">
                 <label>Universal Link Domain</label>
-                <input type="text" value={ appConfig.universalLinkDomain } onChange={ e => setAppConfig( { ...appConfig, universalLinkDomain: e.target.value } ) } placeholder="stack.wecare.digital" />
+                <input type="text" value={ appConfig.universalLinkDomain } onChange={ e => setAppConfig( { ...appConfig, universalLinkDomain: e.target.value } ) } placeholder="wecare.digital" />
               </div>
             </div>
             <div className="ab-form-actions">

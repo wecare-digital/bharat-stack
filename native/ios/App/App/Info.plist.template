@@ -21,12 +21,15 @@
     </dict>
   </array>
 
-  <!-- Universal Links: stack.wecare.digital + r.wecare.digital -->
+  <!-- Universal Links: wecare.digital + r.wecare.digital.
+       The apex, not the retired stack.wecare.digital: Apple fetches
+       /.well-known/apple-app-site-association directly and does NOT follow a
+       redirect, so an associated domain that 301s can never verify. -->
   <key>com.apple.developer.associated-domains</key>
   <array>
-    <string>applinks:stack.wecare.digital</string>
+    <string>applinks:wecare.digital</string>
     <string>applinks:r.wecare.digital</string>
-    <string>webcredentials:stack.wecare.digital</string>
+    <string>webcredentials:wecare.digital</string>
   </array>
 
   <!-- Push Notifications -->

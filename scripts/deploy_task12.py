@@ -62,7 +62,7 @@ def canary(client, function_name: str, version: str) -> None:
     event = {
         "rawPath": "/__task12_canary__",
         "requestContext": {"http": {"method": "OPTIONS", "path": "/__task12_canary__"}},
-        "headers": {"origin": "https://stack.wecare.digital"},
+        "headers": {"origin": "https://wecare.digital"},
     }
     response = client.invoke(
         FunctionName=function_name,

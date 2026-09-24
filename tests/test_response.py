@@ -10,12 +10,27 @@ from lambda_utils.response import (
 
 class TestCorsHeaders:
     def test_allowed_origin_reflected(self):
-        h = cors_headers('https://stack.wecare.digital')
-        assert h['Access-Control-Allow-Origin'] == 'https://stack.wecare.digital'
+        h = cors_headers('https://wecare.digital')
+        assert h['Access-Control-Allow-Origin'] == 'https://wecare.digital'
 
     def test_unknown_origin_falls_back(self):
         h = cors_headers('https://evil.com')
         assert h['Access-Control-Allow-Origin'] == ALLOWED_ORIGINS[0]
+
+    def test_the_fallback_origin_is_the_apex_not_a_redirecting_host(self):
+        """ALLOWED_ORIGINS[0] is what every disallowed origin gets reflected back.
+        It used to be stack.wecare.digital, which 301s to the apex - and a redirect
+        is useless in Access-Control-Allow-Origin, because the browser compares that
+        header to the literal request origin and never follows it."""
+        assert ALLOWED_ORIGINS[0] == 'https://wecare.digital'
+
+    def test_the_retired_stack_host_is_no_longer_allowed(self):
+        """stack.wecare.digital was retired once Amplify served the apex directly.
+        Re-adding it would reopen CORS to a hostname that no longer resolves."""
+        retired = 'https://' + 'stack.' + 'wecare.digital'
+        assert retired not in ALLOWED_ORIGINS
+        h = cors_headers(retired)
+        assert h['Access-Control-Allow-Origin'] == 'https://wecare.digital'
 
     def test_none_origin_falls_back(self):
         h = cors_headers(None)
@@ -63,8 +78,8 @@ class TestCorsResponse:
         assert r['statusCode'] == 500
 
     def test_origin_passed_through(self):
-        r = cors_response(200, {}, 'https://stack.wecare.digital')
-        assert r['headers']['Access-Control-Allow-Origin'] == 'https://stack.wecare.digital'
+        r = cors_response(200, {}, 'https://wecare.digital')
+        assert r['headers']['Access-Control-Allow-Origin'] == 'https://wecare.digital'
 
     def test_serializes_datetime(self):
         from datetime import datetime
@@ -85,8 +100,8 @@ class TestOptionsResponse:
 
 class TestExtractOrigin:
     def test_lowercase_header(self):
-        event = {'headers': {'origin': 'https://stack.wecare.digital'}}
-        assert extract_origin(event) == 'https://stack.wecare.digital'
+        event = {'headers': {'origin': 'https://wecare.digital'}}
+        assert extract_origin(event) == 'https://wecare.digital'
 
     def test_capitalized_header(self):
         event = {'headers': {'Origin': 'https://wecare.digital'}}

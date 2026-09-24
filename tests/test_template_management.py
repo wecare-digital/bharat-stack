@@ -14,7 +14,7 @@ class TestTemplateManagementRouting:
     def _make_event(self, method='GET', path='/templates', body=None, query=None):
         event = {
             'requestContext': {'http': {'method': method, 'path': path}},
-            'headers': {'origin': 'https://stack.wecare.digital'},
+            'headers': {'origin': 'https://wecare.digital'},
             'queryStringParameters': query or {},
             'pathParameters': {},
             'body': json.dumps(body) if body else None,

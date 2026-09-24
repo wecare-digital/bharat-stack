@@ -50,7 +50,7 @@ def canary(lam) -> None:
         "rawPath": "/docs/sources",
         "routeKey": "GET /docs/sources",
         "requestContext": {"http": {"method": "OPTIONS", "path": "/docs/sources"}},
-        "headers": {"origin": "https://stack.wecare.digital"},
+        "headers": {"origin": "https://wecare.digital"},
     }
     response = lam.invoke(
         FunctionName=FUNCTION, InvocationType="RequestResponse",

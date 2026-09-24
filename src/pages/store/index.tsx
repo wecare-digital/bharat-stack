@@ -1,7 +1,7 @@
 /**
  * Store Page - WECARE.DIGITAL
  * Wix Headless Commerce — Catalog V3, Categories, Inventory, Orders
- * URL: https://stack.wecare.digital/store
+ * URL: https://wecare.digital/store
  */
 
 import React, { useState, useEffect, useCallback } from 'react';

@@ -279,7 +279,7 @@ const IMPROVEMENTS: RiskItem[] = [
   { id: 'I9', title: 'Generate OpenAPI spec for all endpoints', description: 'Document all 30+ API endpoints with OpenAPI 3.0. Include request/response schemas, auth requirements, error codes. Publish at /api/docs for developer self-service.', priority: 'Important', category: 'Documentation' },
   { id: 'I10', title: '✅ DONE — Removed dangerouslySetInnerHTML from PageShell', description: 'Replaced dangerouslySetInnerHTML={{__html: tab.icon}} with safe React text rendering {tab.icon} in src/components/PageShell.tsx. XSS vector eliminated.', priority: 'Important', category: 'Security' },
   { id: 'I11', title: 'Add error handling to all empty catch blocks', description: 'Replace 15+ empty catch blocks with proper error logging. At minimum: console.error for dev, toast.error for user-facing, and structured logging for production monitoring. Files: whatsapp/scripts.tsx, auto-response.tsx, flow-responses.tsx, pay/flow/index.tsx, contacts/index.tsx, dashboard/index.tsx.', priority: 'Important', category: 'Frontend' },
-  { id: 'I12', title: '✅ DONE — Fixed CORS wildcard on URL shortener API', description: 'Replaced allowOrigins: ["*"] with specific origins ["https://stack.wecare.digital", "https://wecare.digital", "https://www.wecare.digital", "http://localhost:3000"] in amplify/link-resources.ts.', priority: 'Important', category: 'Security' },
+  { id: 'I12', title: '✅ DONE — Fixed CORS wildcard on URL shortener API', description: 'Replaced allowOrigins: ["*"] with an explicit origin list in amplify/link-resources.ts. Now ["https://wecare.digital", "https://www.wecare.digital"] — the subdomain in the original fix was dropped when that hostname was retired.', priority: 'Important', category: 'Security' },
   { id: 'I12b', title: '✅ DONE — Added security headers to next.config.js', description: 'Added X-Content-Type-Options: nosniff, X-Frame-Options: DENY, X-XSS-Protection, Referrer-Policy: strict-origin-when-cross-origin, and Permissions-Policy headers to next.config.js.', priority: 'Important', category: 'Security' },
   { id: 'I13', title: 'Add Lambda startup validation for Secrets Manager', description: 'Add a validate_secrets() function that runs on cold start to verify all required Secrets Manager entries exist and have expected keys. Fail fast with clear error messages.', priority: 'Important', category: 'Backend' },
   { id: 'I14', title: 'Add health check endpoint', description: 'Create /health endpoint that validates: DynamoDB connectivity, S3 bucket access, Secrets Manager access, external API reachability (Meta, Razorpay, Airtel). Return structured status for monitoring.', priority: 'Important', category: 'Operations' },
@@ -354,7 +354,7 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID', value: 'us-east-1:471c2c38-5645-4ccd-aea1-7a008e906db5', sensitive: false, category: 'Auth' },
   { key: 'NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN', value: 'signin.wecare.digital', sensitive: false, category: 'Auth' },
   // App
-  { key: 'NEXT_PUBLIC_APP_URL', value: 'https://stack.wecare.digital/', sensitive: false, category: 'App' },
+  { key: 'NEXT_PUBLIC_APP_URL', value: 'https://wecare.digital/', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_API_BASE', value: 'https://api.wecare.digital', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_SEND_MODE', value: 'LIVE', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_ENV', value: 'production', sensitive: false, category: 'App' },
@@ -744,7 +744,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           </div>
           <div>
             <div style={ label }>Domain</div>
-            <div style={ { marginTop: 4 } }>stack.wecare.digital / api.wecare.digital / r.wecare.digital</div>
+            <div style={ { marginTop: 4 } }>wecare.digital / api.wecare.digital / r.wecare.digital</div>
           </div>
           <div>
             <div style={ label }>Authentication</div>
@@ -1126,7 +1126,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
             name: '🌐 Networking', children: [
               {
                 name: 'Route 53 (DNS)', children: [
-                  { name: 'wecare.digital' }, { name: 'api.wecare.digital' }, { name: 'stack.wecare.digital' }, { name: 'r.wecare.digital' }, { name: 'signin.wecare.digital' }, { name: 'app.wecare.digital' },
+                  { name: 'wecare.digital' }, { name: 'api.wecare.digital' }, { name: 'r.wecare.digital' }, { name: 'signin.wecare.digital' }, { name: 'app.wecare.digital' },
                 ]
               },
               { name: 'CloudFront (CDN)' },
@@ -1278,7 +1278,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
     <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
       <div style={ card() }>
         <h3 style={ sectionTitle }>Codebase Structure</h3>
-        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Monorepo: stack.wecare.digital/ — Next.js frontend + Amplify Gen 2 backend</p>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Monorepo: wecare.digital — Next.js frontend + Amplify Gen 2 backend</p>
       </div>
       <div style={ { overflowX: 'auto' } }>
         <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>

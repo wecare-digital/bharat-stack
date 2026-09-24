@@ -16,9 +16,17 @@ from typing import Any, Dict, Optional
 # Allowed origins — production only (use APP_ENV=development for localhost)
 import os as _os
 
+# ORDER MATTERS: cors_headers() falls back to ALLOWED_ORIGINS[0] when the request
+# origin is not allowed, so the first entry is the canonical host. It used to be
+# stack.wecare.digital, which now 301s to the apex - a redirect is not a usable
+# Access-Control-Allow-Origin value, because the browser compares it to the actual
+# request origin and never follows it. The apex is first for that reason.
+#
+# stack.wecare.digital was removed when the hostname was retired: Amplify serves
+# the apex directly, and the subdomain was a 301 to it.
 _PROD_ORIGINS = [
-    'https://stack.wecare.digital',
     'https://wecare.digital',
+    'https://www.wecare.digital',
     'https://app.wecare.digital',
 ]
 

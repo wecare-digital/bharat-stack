@@ -53,13 +53,16 @@
                 <data android:scheme="wecare" />
             </intent-filter>
 
-            <!-- Universal Link: https://stack.wecare.digital -->
+            <!-- Universal Link: https://wecare.digital
+                 The apex, not the retired stack.wecare.digital: autoVerify fetches
+                 /.well-known/assetlinks.json directly and does NOT follow a redirect,
+                 so a host that 301s can never verify. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https"
-                      android:host="stack.wecare.digital" />
+                      android:host="wecare.digital" />
             </intent-filter>
 
             <!-- Short Link: https://r.wecare.digital -->

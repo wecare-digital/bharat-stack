@@ -29,10 +29,10 @@
 #     real call fails. Do not trust it; trust `probe`.
 #
 #   * The CORS allow-list admits exactly https://www.wecare.digital and
-#     https://wecare.digital. Everything else - including
-#     https://stack.wecare.digital - gets 403 with no
-#     Access-Control-Allow-Origin header. The stack site therefore cannot use
-#     the relay at all until its origin is added.
+#     https://wecare.digital. Everything else gets 403 with no
+#     Access-Control-Allow-Origin header. That allow-list is now exactly right:
+#     the site serves from the apex, and stack.wecare.digital - which the relay
+#     rejected and which this file used to flag as a gap - has been retired.
 #
 # Usage:
 #   bash scripts/google-language-relay.sh probe        # what works right now
@@ -41,7 +41,7 @@
 #   bash scripts/google-language-relay.sh grant        # IAM for the runtime SA
 #   bash scripts/google-language-relay.sh logs         # the real error, from logs
 #   bash scripts/google-language-relay.sh origins      # show the CORS allow-list
-#   bash scripts/google-language-relay.sh add-origin https://stack.wecare.digital
+#   bash scripts/google-language-relay.sh add-origin https://example.wecare.digital
 #   bash scripts/google-language-relay.sh keyfix       # repair a broken SA key file
 #   bash scripts/google-language-relay.sh fix          # enable-apis + grant + logs + probe
 #
@@ -56,8 +56,10 @@ RELAY_URL="${RELAY_URL:-https://wecare-translation-relay-hrkl3sncxq-el.a.run.app
 # Origin the relay already trusts, so probes exercise the real allowed path.
 PROBE_ORIGIN="${PROBE_ORIGIN:-https://www.wecare.digital}"
 
-# The origin the stack site serves from, currently rejected.
-STACK_ORIGIN="${STACK_ORIGIN:-https://stack.wecare.digital}"
+# The origin the site serves from. Was stack.wecare.digital, which the relay
+# rejected; that host is retired and the apex is both canonical and already
+# allow-listed, so these checks should now pass rather than warn.
+SITE_ORIGIN="${SITE_ORIGIN:-https://wecare.digital}"
 
 # Cloud Translation needs an explicit role. Cloud Text-to-Speech has no
 # granular role - enabling the API and being an authenticated principal is
@@ -188,7 +190,7 @@ cmd_probe() {
   info ""
 
   info "-- CORS allow-list --"
-  for o in "$PROBE_ORIGIN" "https://wecare.digital" "$STACK_ORIGIN"; do
+  for o in "$PROBE_ORIGIN" "$SITE_ORIGIN"; do
     local code acao
     code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$RELAY_URL" \
       -H 'Content-Type: application/json' -H "Origin: $o" --max-time 20 \
@@ -318,16 +320,16 @@ cmd_origins() {
   info "  variable : $name"
   info "  value    : $value"
   info ""
-  if printf '%s' "$value" | grep -q "$STACK_ORIGIN"; then
-    ok "$STACK_ORIGIN is already listed"
+  if printf '%s' "$value" | grep -q "$SITE_ORIGIN"; then
+    ok "$SITE_ORIGIN is already listed"
   else
-    warn "$STACK_ORIGIN is NOT listed - the stack site will keep getting 403"
-    info "  add it with:  $0 add-origin $STACK_ORIGIN"
+    warn "$SITE_ORIGIN is NOT listed - the site will keep getting 403"
+    info "  add it with:  $0 add-origin $SITE_ORIGIN"
   fi
 }
 
 cmd_add_origin() {
-  local origin="${1:-$STACK_ORIGIN}"
+  local origin="${1:-$SITE_ORIGIN}"
   case "$origin" in
     https://*) ;;
     *) die "origin must start with https:// (got '$origin')" ;;

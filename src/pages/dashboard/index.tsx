@@ -203,7 +203,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'Amazon Route 53': {
     arn: 'arn:aws:route53:::hostedzone/*',
     accountId: AWS_ACCOUNT_ID,
-    details: [ 'wecare.digital', 'stack.wecare.digital', 'app.wecare.digital' ]
+    details: [ 'wecare.digital', 'www.wecare.digital', 'app.wecare.digital' ]
   },
   'Amazon VPC': {
     arn: `arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:vpc/*`,
@@ -373,7 +373,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'AWS Amplify': {
     arn: `arn:aws:amplify:${AWS_REGION}:${AWS_ACCOUNT_ID}:apps/d22dm4b0jn71jw`,
     accountId: AWS_ACCOUNT_ID,
-    details: [ 'App: d22dm4b0jn71jw', 'Branch: stack', 'Domain: stack.wecare.digital' ]
+    details: [ 'App: d22dm4b0jn71jw', 'Branch: stack', 'Domain: wecare.digital' ]
   },
   'AWS CodeBuild': {
     arn: `arn:aws:codebuild:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`,

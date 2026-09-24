@@ -108,8 +108,8 @@ class TestTheGlobalIsCleared:
             return None
 
         monkeypatch.setattr("lambda_utils.middleware.require_auth", capture)
-        mod.handler(an_event("https://stack.wecare.digital"), None)
-        assert seen["origin"] == "https://stack.wecare.digital"
+        mod.handler(an_event("https://wecare.digital"), None)
+        assert seen["origin"] == "https://wecare.digital"
 
 
 class TestTheScheduledPathsAreTheReason:

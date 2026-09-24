@@ -62,7 +62,11 @@ CORS_API_IDS = [s.strip() for s in os.environ.get('CORS_API_IDS', 'zllr9lrg7j').
 # Core origins always kept in the allowlist so the dashboard/native app can never
 # be locked out, even if an admin saves a bad list.
 CORS_CORE_ORIGINS = [
-    'https://stack.wecare.digital',
+    # The apex, not stack.wecare.digital: that subdomain was retired and only ever
+    # 301'd here, and a redirecting host is useless as an allowed origin because the
+    # browser matches the request origin literally.
+    'https://wecare.digital',
+    'https://www.wecare.digital',
     'https://app.wecare.digital',
     'https://d22dm4b0jn71jw.amplifyapp.com',
     'capacitor://localhost',   # iOS native app

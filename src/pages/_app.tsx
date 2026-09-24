@@ -78,16 +78,23 @@ Amplify.configure( {
         oauth: {
           domain: process.env.NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN || '',
           scopes: [ 'openid', 'email', 'profile' ],
-          // stack.wecare.digital, NOT the apex. This is an OAuth redirect URI, which
-          // Cognito validates against a registered allowlist - sending a host that is
-          // not registered fails with redirect_mismatch and sign-in stops working.
-          // The apex is the canonical PUBLIC host (stack's f6c397a5); this app is
-          // served from the subdomain, and the two are not interchangeable here.
+          // The apex. This is an OAuth redirect URI, which Cognito validates against a
+          // registered allowlist - an unregistered host fails with redirect_mismatch and
+          // sign-in stops working - so this fallback must name a REGISTERED URI.
+          // https://wecare.digital/ is registered on the stack-wecare-digital-web client
+          // as both a callback and a logout URL, verified against the live pool.
+          //
+          // This used to say stack.wecare.digital, on the reasoning that the apex was
+          // only the public marketing host while the app was served from the subdomain.
+          // That distinction no longer exists: Amplify maps the apex to this same branch
+          // and 301s stack.wecare.digital to it, so the subdomain served nothing of its
+          // own and has been retired. A redirecting host is a bad OAuth redirect URI in
+          // any case - it works only as long as the 301 preserves the ?code=.
           redirectSignIn: [
-            process.env.NEXT_PUBLIC_APP_URL || 'https://stack.wecare.digital/',
+            process.env.NEXT_PUBLIC_APP_URL || 'https://wecare.digital/',
           ],
           redirectSignOut: [
-            process.env.NEXT_PUBLIC_APP_URL || 'https://stack.wecare.digital/',
+            process.env.NEXT_PUBLIC_APP_URL || 'https://wecare.digital/',
           ],
           responseType: 'code' as const
         },
@@ -545,9 +552,11 @@ const getBreadcrumbSchema = ( pageName: string, pageUrl: string ) => ( {
       "@type": "ListItem",
       "position": 1,
       "name": "Home",
-      // App host: this breadcrumb is rendered on authenticated pages, which are served
-      // from the subdomain. Only the public marketing canonicals moved to the apex.
-      "item": "https://stack.wecare.digital"
+      // The apex, matching the public canonicals. This previously named the subdomain on
+      // the basis that authenticated pages were served from it; they are not - the apex
+      // serves them and the subdomain only 301'd here, so this breadcrumb was pointing
+      // at a redirect from a page already served on the apex.
+      "item": "https://wecare.digital"
     },
     {
       "@type": "ListItem",
@@ -824,9 +833,9 @@ export default function App ( { Component, pageProps }: AppProps ) {
               Rendered only when the env value is set. An empty content="" tag is worse
               than no tag: verification fails either way, but an empty one looks
               configured and stops anyone looking for the cause.
-              Note the Bing property is registered as https://www.wecare.digital/ - the
-              www apex, not stack.wecare.digital - so verifying this host may need a
-              second property added there. */}
+              Note the Bing property is registered as https://www.wecare.digital/, which
+              301s to the apex this site now serves from, so the property may need
+              re-pointing at https://wecare.digital/. */}
           { VERIFICATION.google && (
             <meta name="google-site-verification" content={ VERIFICATION.google } />
           ) }
@@ -993,8 +1002,8 @@ export default function App ( { Component, pageProps }: AppProps ) {
 
   // Get page name for breadcrumb
   const pageName = router.pathname.split( '/' ).filter( Boolean ).map( s => s.charAt( 0 ).toUpperCase() + s.slice( 1 ) ).join( ' > ' ) || 'Dashboard';
-  // App host - authenticated routes are served from the subdomain.
-  const pageUrl = `https://stack.wecare.digital${router.pathname}`;
+  // The apex serves these routes; the old subdomain only 301'd here.
+  const pageUrl = `https://wecare.digital${router.pathname}`;
 
   // Protected pages
   return (

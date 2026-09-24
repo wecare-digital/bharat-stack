@@ -75,7 +75,6 @@ const SEOPages: React.FC<PageProps> = ( { signOut, user } ) => {
             <option value="">All domains</option>
             <option value="wecare.digital">wecare.digital</option>
             <option value="www.wecare.digital">www.wecare.digital (legacy)</option>
-            <option value="stack.wecare.digital">stack.wecare.digital (legacy)</option>
           </select>
           <select value={ pageType } onChange={ e => setPageType( e.target.value ) } className="input" style={ { width: 200 } }>
             <option value="">All types</option>

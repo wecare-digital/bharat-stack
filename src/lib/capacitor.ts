@@ -97,11 +97,12 @@ export function initDeepLinks(navigate: (path: string) => void) {
   if (!isNative()) return;
 
   App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
-    // Handle wecare:// scheme and universal links from both domains
+    // Handle wecare:// scheme and universal links. Rewritten onto the apex, which is
+    // the host Amplify serves; stack.wecare.digital was retired and only 301'd here.
     let url: URL;
     try {
       url = new URL(event.url
-        .replace('wecare://', 'https://stack.wecare.digital/')
+        .replace('wecare://', 'https://wecare.digital/')
       );
     } catch {
       return;
