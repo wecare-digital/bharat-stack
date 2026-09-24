@@ -80,6 +80,68 @@ export interface MfaPreferenceView {
 
 const APP_NAME = 'WECARE.DIGITAL';
 
+/**
+ * The three factors this pool can actually issue, in the order they are worth
+ * trusting for THIS account.
+ *
+ * Email first because it is the only one with no dependency on a mobile network.
+ * SMS last and flagged, because the registered mobile is a WhatsApp Business API
+ * number: per Meta's platform rules a number registered to the Business API can
+ * no longer be used with WhatsApp Business or the consumer app, and while Meta
+ * verifies ownership of such a number BY SMS - so the line does receive text -
+ * that path is the least dependable of the three and is the reason a chooser
+ * exists at all.
+ *
+ * WhatsApp is deliberately absent. Cognito's second factors are SMS, TOTP, email
+ * OTP and passkey; there is no WhatsApp channel. Routing codes over WhatsApp
+ * would need a CustomSMSSender trigger, which receives the code KMS-encrypted and
+ * must decrypt it - a Lambda that handles live one-time codes, unlike the
+ * CustomMessage trigger which only ever sees a placeholder. And it would not help
+ * this number, which cannot receive WhatsApp as a handset user.
+ */
+export const FACTORS: {
+  key: 'email' | 'totp' | 'sms';
+  cognito: string[];
+  label: string;
+  detail: string;
+}[] = [
+  {
+    key: 'email',
+    cognito: [ 'email_otp', 'email' ],
+    label: 'Email',
+    detail: 'A code to your registered address. Needs no mobile signal.',
+  },
+  {
+    key: 'totp',
+    cognito: [ 'totp', 'software_token_mfa' ],
+    label: 'Authenticator app',
+    detail: 'A code generated on your device. Works with no signal and no inbox.',
+  },
+  {
+    key: 'sms',
+    cognito: [ 'sms', 'sms_mfa' ],
+    label: 'Text message',
+    detail: 'A code by SMS. Least dependable here, because the registered mobile '
+      + 'is a WhatsApp Business API number.',
+  },
+];
+
+/** Is this factor in the enabled list, under either spelling? */
+export function factorEnabled (
+  pref: MfaPreferenceView | null, cognito: string[]
+): boolean {
+  if ( !pref?.enabled ) return false;
+  return pref.enabled.some( ( f ) => cognito.includes( String( f ).toLowerCase() ) );
+}
+
+/** Is this factor the default, under either spelling? */
+export function factorPreferred (
+  pref: MfaPreferenceView | null, cognito: string[]
+): boolean {
+  const p = String( pref?.preferred || '' ).toLowerCase();
+  return !!p && cognito.includes( p );
+}
+
 /** Group a base32 secret into 4-character runs so it can be read and typed. */
 export function groupSecret ( secret: string ): string {
   return ( secret || '' ).replace( /\s+/g, '' ).replace( /(.{4})/g, '$1 ' ).trim();
@@ -204,11 +266,52 @@ const TotpSetup: React.FC = () => {
     }
   }, [ secret ] );
 
+  /**
+   * Choose the default factor, or clear it to be asked every time.
+   *
+   * Clearing is the interesting case and it is why this control exists: with no
+   * default set, Cognito returns a selection challenge and sign-in asks where to
+   * send the code. That is the whole point when one of the channels is
+   * unreliable - it turns a dead end into a choice.
+   *
+   * Only ever sets factors that are already enrolled. Passing PREFERRED for a
+   * factor with nothing registered is refused by Cognito ("User does not have
+   * delivery config set to turn on ..."), so the buttons for an unenrolled factor
+   * are disabled rather than allowed to fail.
+   */
+  const setDefaultFactor = useCallback( async (
+    key: 'email' | 'totp' | 'sms' | null
+  ) => {
+    setMessage( '' );
+    const next: Record<string, 'PREFERRED' | 'NOT_PREFERRED'> = {};
+    for ( const f of FACTORS )
+    {
+      if ( !factorEnabled( pref, f.cognito ) ) continue;
+      next[ f.key ] = f.key === key ? 'PREFERRED' : 'NOT_PREFERRED';
+    }
+    try
+    {
+      await updateMFAPreference( next );
+      await refresh();
+      setMessage( key === null
+        ? 'Sign-in will now ask you where to send the code each time.'
+        : `Default set. Sign-in will use ${
+          FACTORS.find( ( f ) => f.key === key )?.label.toLowerCase()} first.` );
+    } catch
+    {
+      setMessage( 'Could not change your default. Nothing was altered.' );
+    }
+  }, [ pref, refresh ] );
+
   const enrolled = hasTotp( pref );
+  const askEveryTime = !pref?.preferred;
 
   return (
     <section className="ts-card" aria-labelledby="ts-heading">
-      <h2 className="ts-h" id="ts-heading">Authenticator app</h2>
+      {/* "Register an authenticator app", not "Authenticator app": the factor
+          list below has a row with that exact name, and two identical headings
+          for different jobs is the duplication this card keeps having to avoid. */}
+      <h2 className="ts-h" id="ts-heading">Register an authenticator app</h2>
       <p className="ts-body">
         A code generated on your own device, with no dependence on a mobile network
         or a mailbox. Works with Google Authenticator, Microsoft Authenticator,
@@ -217,19 +320,11 @@ const TotpSetup: React.FC = () => {
 
       { stage === 'loading' && <p className="ts-body">Checking your sign-in factors…</p> }
 
-      { stage !== 'loading' && (
-        <div className="ts-status" role="status">
-          <span className={ enrolled ? 'ts-mark ts-mark-on' : 'ts-mark ts-mark-off' }>
-            { enrolled ? 'Registered' : 'Not registered' }
-          </span>
-          { pref?.enabled?.length ? (
-            <span className="ts-label ts-label-inline">
-              Active factors: { pref.enabled.join( ', ' ) }
-              { pref.preferred ? ` · default ${pref.preferred}` : '' }
-            </span>
-          ) : null }
-        </div>
-      ) }
+      {/* No status badge here any more. It said "Registered" / "Not registered"
+          about the authenticator app, and the factor list below now reports the
+          state of all three - so the same fact appeared twice, which is exactly
+          the duplication that made the old OTP email hard to read. The state is
+          stated once, in the list. */}
 
       { ( stage === 'idle' || stage === 'error' || stage === 'done' ) && (
         <button className="ts-pill" type="button" data-public-ui
@@ -291,6 +386,62 @@ const TotpSetup: React.FC = () => {
             onClick={ () => void confirm() }
           >
             { stage === 'verifying' ? 'Confirming…' : 'Confirm and turn on' }
+          </button>
+        </div>
+      ) }
+
+      { stage !== 'loading' && stage !== 'enrolling' && stage !== 'verifying' && (
+        <div className="ts-factors">
+          <h3 className="ts-h3">Where your code goes</h3>
+          <p className="ts-body">
+            Pick a default, or leave it unset and sign-in will ask each time.
+            Asking each time is useful when one channel is unreliable.
+          </p>
+
+          { FACTORS.map( ( f ) => {
+            const on = factorEnabled( pref, f.cognito );
+            const isDefault = factorPreferred( pref, f.cognito );
+            return (
+              <div className="ts-factor" key={ f.key }>
+                <div className="ts-factor-text">
+                  <div className="ts-factor-head">
+                    <span className="ts-factor-name">{ f.label }</span>
+                    { isDefault && <span className="ts-mark ts-mark-on">Default</span> }
+                    { !on && (
+                      <span className="ts-mark ts-mark-off">Not registered</span>
+                    ) }
+                  </div>
+                  <p className="ts-label ts-label-inline">{ f.detail }</p>
+                </div>
+                {/* No button when this factor is already the default: the badge
+                    has said so, and a disabled button repeating the same word is
+                    a dead end that reads like something is broken. No button when
+                    the factor is not registered either - Cognito refuses a
+                    preference for a factor with nothing set up, so offering it
+                    would only produce an error. The "Not registered" badge is the
+                    explanation. */}
+                { on && !isDefault && (
+                  <button
+                    className="ts-pill ts-pill-sm"
+                    type="button"
+                    data-public-ui
+                    onClick={ () => void setDefaultFactor( f.key ) }
+                  >
+                    Make default
+                  </button>
+                ) }
+              </div>
+            );
+          } ) }
+
+          <button
+            className="ts-pill ts-pill-sm"
+            type="button"
+            data-public-ui
+            disabled={ askEveryTime }
+            onClick={ () => void setDefaultFactor( null ) }
+          >
+            { askEveryTime ? 'Currently asking each time' : 'Ask me each time' }
           </button>
         </div>
       ) }
@@ -403,6 +554,34 @@ const TotpSetup: React.FC = () => {
         }
         .ts-note-ok{background:#fafafa;border:1px solid #e5e7eb;color:#1a3a2a}
         .ts-note-warn{background:#fffbeb;border:1px solid #b45309;color:#b45309}
+
+        /* ===== factor chooser ===== */
+        /* Separated from the block above by the contract's own hairline rather
+           than by extra whitespace, so the two concerns read as two sections of
+           one card. */
+        .ts-factors{margin-top:30px;padding-top:26px;border-top:1px solid #e5e7eb}
+        .ts-h3{
+          font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;
+          color:#000;margin:0 0 14px;
+        }
+        /* 1px static: the row itself is not hoverable, only the button in it is.
+           Giving the row the 2px hoverable weight would say it was clickable. */
+        .ts-factor{
+          display:flex;align-items:center;justify-content:space-between;gap:18px;
+          flex-wrap:wrap;
+          padding:16px 18px;margin:0 0 10px;
+          border:1px solid #e5e7eb;border-radius:13px;background:#fff;
+        }
+        .ts-factor-text{flex:1 1 260px;min-width:0}
+        .ts-factor-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 4px}
+        .ts-factor-name{
+          font-size:17px;font-weight:600;line-height:1.4;letter-spacing:-.125px;
+          color:rgba(0,0,0,.898);
+        }
+        /* The pill, one rung down. Same border, colour and hover; only the
+           padding and size change, because a row control at full 14px/28px
+           would dominate the row it sits in. */
+        .ts-pill-sm{padding:10px 20px;font-size:15px;margin:0;flex:0 0 auto}
 
         @media(max-width:767px){
           .ts-card{padding:26px 20px;border-radius:16px}

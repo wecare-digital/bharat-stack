@@ -9,6 +9,8 @@ import Script from 'next/script';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
 import { Amplify } from 'aws-amplify';
+// I18n lives in aws-amplify/utils in v6, not on the root export.
+import { I18n } from 'aws-amplify/utils';
 import { Authenticator, ThemeProvider, Theme, useAuthenticator } from '@aws-amplify/ui-react';
 // Brand line above the sign-in form. Lives in its own file and styles itself,
 // because styled-jsx cannot scope a composite component from here.
@@ -30,6 +32,40 @@ import { ToastProvider } from '../contexts/ToastContext';
 import { ConfirmProvider } from '../contexts/ConfirmContext';
 import { initCapacitor, isNative } from '../lib/capacitor';
 import { VERIFICATION } from '../config/analytics';
+
+/**
+ * Plain-English labels for the MFA chooser.
+ *
+ * The user's preferred MFA factor is deliberately UNSET in Cognito, because the
+ * API reference says: "If multiple options are activated and no preference is
+ * set, a challenge to choose an MFA option will be returned during sign-in."
+ * That challenge is what gives a choice of destination at sign-in instead of one
+ * hardcoded channel - which matters here because the registered mobile is a
+ * WhatsApp Business API number and SMS to it is the least dependable of the
+ * three.
+ *
+ * Amplify renders it as a radio group (SelectMfaType), and its stock labels are
+ * "Email Message", "Text Message" and "Authenticator App" - nouns that name a
+ * technology rather than saying what is about to happen. These say what happens.
+ *
+ * They deliberately do NOT include the destination address or number. At this
+ * point in the flow the password has been accepted, so it is not a secret from
+ * the person typing - but it is rendered pre-authentication, and a masked hint
+ * adds nothing a person choosing their own factor does not already know.
+ *
+ * Overridden through I18n rather than by replacing the component, because
+ * getMfaTypeLabelByValue passes every label through translate(); swapping the
+ * component would mean owning its form wiring and losing the state machine's
+ * submit handling.
+ */
+I18n.putVocabularies( {
+  en: {
+    'Select MFA Type': 'How should we send your code?',
+    'Email Message': 'Email me a code',
+    'Text Message': 'Text me a code (SMS)',
+    'Authenticator App': 'Use my authenticator app',
+  },
+} );
 
 // Configure Amplify — all secrets from env vars
 Amplify.configure( {
@@ -542,6 +578,61 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ( { children } ) => {
           border-top:4px solid #d1f470;
           border-radius:16px;
           overflow:hidden;
+        }
+
+        /* ===== The MFA chooser =====
+           Appears because the user's preferred factor is unset, so Cognito
+           returns a selection challenge. Amplify renders it as a radio group
+           inside [data-amplify-authenticator-select-mfa-type] - a documented
+           data attribute, unlike the amplify-* class names, which are internal
+           and would be a private API to depend on.
+
+           Unstyled, the options are bare radios with no hit area, which on a
+           phone means three small circles and no obvious way to pick. Each one
+           becomes a card the whole row of which is tappable.
+
+           Values are the public contract's: 2px #e5e7eb because each row HAS a
+           hover, swapping to lime; rgba(0,0,0,.898) label; #1a3a2a on the
+           checked mark, which is the palette's active-state green. */
+        .ag-shell [data-amplify-authenticator-select-mfa-type] fieldset{
+          gap:10px;
+        }
+        .ag-shell [data-amplify-authenticator-select-mfa-type] .amplify-radio{
+          display:flex;
+          align-items:center;
+          gap:12px;
+          padding:14px 18px;
+          border:2px solid #e5e7eb;
+          border-radius:13px;
+          background:#fff;
+          cursor:pointer;
+          transition:all .25s;
+        }
+        .ag-shell [data-amplify-authenticator-select-mfa-type] .amplify-radio:hover{
+          border-color:#d1f470;
+        }
+        /* :focus-within, not :focus - the focus lands on the input inside the
+           label, so a rule on the row itself would never match. */
+        .ag-shell [data-amplify-authenticator-select-mfa-type] .amplify-radio:focus-within{
+          border-color:#d1f470;
+          box-shadow:0 0 0 3px rgba(26,58,42,.3);
+        }
+        .ag-shell [data-amplify-authenticator-select-mfa-type] .amplify-radio__label{
+          font-size:17px;
+          font-weight:500;
+          line-height:1.4;
+          letter-spacing:-.125px;
+          color:rgba(0,0,0,.898);
+          cursor:pointer;
+        }
+        .ag-shell [data-amplify-authenticator-select-mfa-type] .amplify-radio__button{
+          --amplify-components-radio-button-color:#1a3a2a;
+          --amplify-components-radio-button-border-color:#e5e7eb;
+        }
+        @media(prefers-reduced-motion:reduce){
+          .ag-shell [data-amplify-authenticator-select-mfa-type] .amplify-radio{
+            transition:none;
+          }
         }
       `}</style>
     </>

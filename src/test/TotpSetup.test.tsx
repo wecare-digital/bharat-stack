@@ -88,25 +88,92 @@ describe( 'TotpSetup flow', () => {
     } );
   } );
 
-  it( 'shows the current factors and offers enrolment when TOTP is absent', async () => {
+  it( 'lists all three factors and offers enrolment when TOTP is absent', async () => {
     fetchMFAPreference.mockResolvedValue( {
       enabled: [ 'EMAIL_OTP', 'SMS_MFA' ], preferred: 'EMAIL_OTP',
     } );
     render( <TotpSetup /> );
-    expect( await screen.findByText( 'Not registered' ) ).toBeInTheDocument();
-    expect( screen.getByText( /Active factors: EMAIL_OTP, SMS_MFA/ ) ).toBeInTheDocument();
+    expect( await screen.findByText( 'Email' ) ).toBeInTheDocument();
+    expect( screen.getByText( 'Text message' ) ).toBeInTheDocument();
+    // Exactly once each. The card heading is "Register an authenticator app" so
+    // it cannot collide with this row label, and the old standalone status badge
+    // that repeated the TOTP state a second time was removed.
+    expect( screen.getAllByText( 'Authenticator app' ) ).toHaveLength( 1 );
+    expect( screen.getAllByText( 'Not registered' ) ).toHaveLength( 1 );
     expect( screen.getByRole( 'button', { name: /Add authenticator app/ } ) )
       .toBeInTheDocument();
   } );
 
-  it( 'says Registered, and offers replacement, when TOTP is already on', async () => {
+  it( 'offers replacement, and no "not registered", when TOTP is already on',
+    async () => {
+      fetchMFAPreference.mockResolvedValue( {
+        enabled: [ 'EMAIL_OTP', 'SOFTWARE_TOKEN_MFA' ], preferred: 'EMAIL_OTP',
+      } );
+      render( <TotpSetup /> );
+      expect( await screen.findByRole( 'button', { name: /Replace authenticator app/ } ) )
+        .toBeInTheDocument();
+      // SMS is not in the enabled list here, so it is the only unregistered one.
+      expect( screen.getAllByText( 'Not registered' ) ).toHaveLength( 1 );
+    } );
+
+  it( 'marks the default once, as a badge and not also as a dead button',
+    async () => {
+      fetchMFAPreference.mockResolvedValue( {
+        enabled: [ 'EMAIL_OTP', 'SMS_MFA' ], preferred: 'EMAIL_OTP',
+      } );
+      render( <TotpSetup /> );
+      expect( await screen.findByText( 'Default' ) ).toBeInTheDocument();
+      expect( screen.getAllByText( 'Default' ) ).toHaveLength( 1 );
+      // The default row offers no button. A disabled one repeating the word
+      // reads like something is broken.
+      expect( screen.queryByRole( 'button', { name: /^Default$/ } ) ).toBeNull();
+    } );
+
+  it( 'clears the default so sign-in asks each time', async () => {
     fetchMFAPreference.mockResolvedValue( {
-      enabled: [ 'EMAIL_OTP', 'SOFTWARE_TOKEN_MFA' ], preferred: 'EMAIL_OTP',
+      enabled: [ 'EMAIL_OTP', 'SMS_MFA' ], preferred: 'EMAIL_OTP',
+    } );
+    updateMFAPreference.mockResolvedValue( undefined );
+    render( <TotpSetup /> );
+    fireEvent.click( await screen.findByRole( 'button', { name: /Ask me each time/ } ) );
+    // Every ENROLLED factor is set NOT_PREFERRED. TOTP is absent from the call
+    // because Cognito refuses a preference for a factor with nothing registered.
+    await waitFor( () => expect( updateMFAPreference ).toHaveBeenCalledWith( {
+      email: 'NOT_PREFERRED', sms: 'NOT_PREFERRED',
+    } ) );
+  } );
+
+  it( 'makes a chosen factor the default without touching unenrolled ones',
+    async () => {
+      fetchMFAPreference.mockResolvedValue( {
+        enabled: [ 'EMAIL_OTP', 'SMS_MFA' ], preferred: 'EMAIL_OTP',
+      } );
+      updateMFAPreference.mockResolvedValue( undefined );
+      render( <TotpSetup /> );
+      // Email is already the default so it has no button, and TOTP is not
+      // registered so it has none either - the only "Make default" is SMS.
+      const buttons = await screen.findAllByRole(
+        'button', { name: /Make default/ } );
+      expect( buttons ).toHaveLength( 1 );
+      fireEvent.click( buttons[ 0 ] );
+      await waitFor( () => expect( updateMFAPreference ).toHaveBeenCalledWith( {
+        email: 'NOT_PREFERRED', sms: 'PREFERRED',
+      } ) );
+    } );
+
+  it( 'offers no default button for a factor that is not registered', async () => {
+    fetchMFAPreference.mockResolvedValue( {
+      enabled: [ 'EMAIL_OTP' ], preferred: 'EMAIL_OTP',
     } );
     render( <TotpSetup /> );
-    expect( await screen.findByText( 'Registered' ) ).toBeInTheDocument();
-    expect( screen.getByRole( 'button', { name: /Replace authenticator app/ } ) )
-      .toBeInTheDocument();
+    await screen.findByText( 'Authenticator app' );
+    // TOTP and SMS are both unregistered, and neither may be made the default:
+    // Cognito answers "User does not have delivery config set to turn on ..."
+    // rather than silently accepting it, so the control is absent rather than
+    // present-and-failing.
+    expect( screen.queryAllByRole( 'button', { name: /Make default/ } ) )
+      .toHaveLength( 0 );
+    expect( screen.getAllByText( 'Not registered' ) ).toHaveLength( 2 );
   } );
 
   it( 'renders the grouped seed and a local otpauth:// link, never a remote URL',
