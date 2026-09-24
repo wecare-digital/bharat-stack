@@ -98,6 +98,35 @@ misled every reader so far.
    than lazy.
 5. **Real-device pass.** Everything has been verified in headless Chromium only. iOS
    Safari and the Android WebView shells have not been checked.
+5b. **`KIRO_API_KEY` secret, to switch on automated PR review.**
+   `.github/workflows/kiro-review.yml` is merged and wired but **gated on that secret**,
+   so it currently reports a notice and skips. Add it under Settings → Secrets and
+   variables → Actions and it starts working with no further edit. Two things to decide
+   with it: `konippi/kiro-cli-review-action` is a third-party **personal** action whose
+   `v1.0.1` tag is mutable, and this repo holds AWS deploy credentials in four other
+   workflows — pinning to a full commit SHA is the stronger choice. And leave its `debug`
+   input off; the action's own description warns it prints tool output that may contain
+   sensitive data into build logs.
+
+   **Actions evaluated and deliberately NOT added**, so nobody re-litigates it:
+   - `microsoft/setup-msbuild` — there is **nothing here for MSBuild to build**. No
+     `.sln`, `.csproj`, `.vcxproj` or `.vbproj` anywhere in the tree; this is 269
+     TS/TSX files and 309 Python files. It would also force `runs-on: windows-latest`,
+     billed at 2x Linux minutes, to configure a toolchain with no inputs.
+   - `redhat-actions/try-in-web-ide` — clones a PR into a Che-based IDE on the Red Hat
+     Developer Sandbox. It **requires a devfile**, and this repo has none. It would add
+     a PR comment pointing at an IDE nobody here uses.
+   - `aws-actions/configure-aws-credentials@v6.3.0` — **already in use**, at `@v6`, in
+     `docs-scraper-deploy.yml`, `plivo-drift.yml`, `route-auth.yml` and
+     `seo-tools-deploy.yml`. `@v6` is a floating major tag that already resolves to the
+     newest 6.x, so it is on 6.3.0 today and picks up future patches automatically.
+     Re-pinning to `@v6.3.0` would *freeze* it and stop security patches arriving. If
+     hardening is the goal, SHA-pin instead — that is a different change, and it should
+     be done to all four call sites at once.
+   - Minor drift worth a one-line cleanup while in there: `ui-labels.yml` is on
+     `actions/checkout@v5` and `actions/setup-python@v5` while the rest of the repo is on
+     `v7`, and `blog-migration-validate.yml` / `seo-tools-deploy.yml` are on
+     `setup-python@v6`.
 6. **The contact map's three Google controls are LIVE, not inert — pick a fix.** The
    code claimed the interaction overlay made them inert. Measured, it does not: all three
    sit in the 26px bottom strip the overlay deliberately leaves uncovered for attribution,
@@ -295,23 +324,42 @@ misled every reader so far.
 
 ## Verification gate
 
-Measured at the head of the latest session's work:
+**The first four of these now run in CI** on every pull request, via
+`.github/workflows/build-test.yml`. Until that workflow existed, **no CI job compiled
+the app or ran its tests** — the ten other workflows cover CodeQL, route auth, provider
+policy, UI labels, plivo and the deploys, none of which would notice a repo that does
+not build. A pull request could go green while broken, and it only stayed honest because
+a human ran the commands below by hand. If a check is ever needed that CI does not have,
+assume it is not there rather than assuming it is.
+
+Measured on `stack` at `6141ab2b`, Node 24.19.0:
 
 ```bash
-npx vitest run                       # 73 passed / 8 files
 npm run build                        # exit 0; then:
 npx tsc --noEmit                     # 0 errors
+npx vitest run                       # 95 passed / 9 files
 ./scripts/check-provider-policy.sh   # 8/8 ok
-npx eslint .                         # 230e/63w — red, pre-existing, unchanged by this work
+npx eslint .                         # 231e/64w — red, pre-existing
 node tools/browser/animcheck.js      # 16/20 — 4 known failures, see below
 node tools/browser/contactcheck.js   # 12/13 — 1 known failure, see below
 node tools/browser/typecheck.js      # 1/3   — 2 known failures, the type-ladder decision
 ```
 
-Two things to know about that list. **`npm ci` is not in it** — it is broken, see
-"Needs the owner". And `.venv/bin/python -m pytest -q` is not in it either: there is no
-`.venv` in a fresh sandbox, and the latest session changed no Python, so it was not run.
-Earlier revisions quoted `33 passed / 7 files` and `237e/63w`; both were stale. Re-count.
+Three things to know about that list. **`npm ci` is not in it** — it is broken, see
+"Needs the owner"; the CI workflow therefore installs with `npm install` and carries a
+non-blocking probe step that will announce the day `npm ci` starts working. **eslint is
+reported but not enforced** in CI, because a gate that fails every pull request
+regardless of its contents just teaches people to ignore CI; compare the count against
+the base branch instead. And `.venv/bin/python -m pytest -q` is not in it: there is no
+`.venv` in a fresh sandbox.
+
+The **browser harnesses are not in CI either**, deliberately for now — they need a
+Chromium download and three of their assertions fail by design pending owner decisions,
+so they would land permanently red. Worth adding as a non-blocking job once those
+decisions are made.
+
+Numbers move: earlier revisions of this file quoted `33 passed / 7 files`, `73/8`,
+`237e/63w` and `230e/63w`, each true when written. Re-count rather than trusting these.
 
 Browser harnesses now live **inside the repo**, at **`tools/browser/`**. They used to
 live in `/projects/pwtest`, and a sandbox reset destroys that whole directory — which is

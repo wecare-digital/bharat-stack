@@ -1,0 +1,86 @@
+name: Kiro PR review
+
+# Automated PR review via Kiro CLI.
+#
+# IT IS GATED ON THE SECRET EXISTING, and that is the whole reason this file is safe to
+# merge today. `kiro_api_key` is a REQUIRED input to the action, so without a
+# KIRO_API_KEY repository secret every run would fail - a workflow that is red on every
+# pull request from the moment it lands teaches people to ignore CI, which costs more
+# than the review is worth. Until the secret is added this job reports a notice and
+# skips. Add the secret and it starts working with no further edit.
+#
+# The gate also handles fork pull requests correctly for free: GitHub does not expose
+# secrets to workflows triggered by a fork PR, so HAS_KIRO_KEY is false there and the
+# step skips instead of failing. Do NOT "fix" that by switching to
+# pull_request_target - that runs the base branch's workflow with secrets available to
+# code from the fork, which is the standard way this class of workflow becomes an
+# credential-exfiltration path.
+#
+# TWO TRUST DECISIONS WORTH MAKING CONSCIOUSLY, because this repo is not a low-stakes
+# target - four workflows here hold AWS credentials via
+# aws-actions/configure-aws-credentials and deploy Lambdas:
+#
+#   1. konippi/kiro-cli-review-action is a THIRD-PARTY, personal (non-org) action. It
+#      runs its own compiled JS (dist/main/index.cjs) plus a post step, and installs
+#      github-mcp-server at runtime. A version tag is mutable: whoever controls the repo
+#      can move v1.0.1 to different code at any time. For a personal action guarding a
+#      repo with deploy credentials, pinning to a full commit SHA rather than a tag is
+#      the safer choice. Left on the tag here because that is what was asked for -
+#      switch to a SHA if you want the stronger guarantee.
+#   2. Its `debug` input is left at its default of false ON PURPOSE. The action's own
+#      description warns that enabling it prints tool execution results that may contain
+#      sensitive data into public build logs. Do not turn it on to chase a failure on a
+#      repo whose logs are visible.
+#
+# Permissions are the minimum the job needs: read the code, write PR comments. It gets
+# no `contents: write`, so a review cannot push.
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: kiro-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review the diff
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # `secrets` is not a context available to a job-level or step-level `if`, so the
+    # presence check has to go through env, which CAN read secrets. This is the standard
+    # indirection for optional-secret workflows.
+    env:
+      HAS_KIRO_KEY: ${{ secrets.KIRO_API_KEY != '' }}
+
+    steps:
+      - name: Explain the skip when unconfigured
+        if: env.HAS_KIRO_KEY != 'true'
+        run: |
+          echo "::notice::Skipped - no KIRO_API_KEY secret on this repository (or this is a fork PR, which never receives secrets). Add the secret under Settings > Secrets and variables > Actions to enable automated review."
+
+      - uses: actions/checkout@v7
+        if: env.HAS_KIRO_KEY == 'true'
+        with:
+          # The reviewer needs both sides of the comparison, and a shallow clone of the
+          # head commit alone cannot produce a diff against the base.
+          fetch-depth: 0
+
+      - name: Kiro CLI review
+        if: env.HAS_KIRO_KEY == 'true'
+        uses: konippi/kiro-cli-review-action@v1.0.1
+        with:
+          kiro_api_key: ${{ secrets.KIRO_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Default is 10000 characters. Raised because a normal change here runs well
+          # past that: the last two merged PRs were 376 and 395 lines of diff, and a
+          # reviewer that silently truncates is worse than no reviewer, since its
+          # approval implies it read the whole change.
+          max_diff_size: '40000'

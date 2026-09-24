@@ -404,10 +404,37 @@ const LanguageBar: React.FC = () => {
               overlap means a green WhatsApp circle punches through the language
               list. Stacking this ABOVE the button instead pushed the panel off
               the top of a short viewport.
-           So the whole cluster clears the button horizontally: right:96px leaves a
-           16px gap beside its right:16px..80px column, and the panel width is
-           capped against the same 108px so it can never grow back into it. */
-        .wc-langbar{position:fixed;right:96px;left:auto;bottom:16px;top:auto;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-family:inherit}
+           That z-index fact still holds and still governs the PANEL. What changed is
+           that the trigger no longer hides from the button - the owner asked for the two
+           floating icons to read as one set, so they now share a column and a diameter,
+           and only the panel steps aside.
+
+           MEASURED GEOMETRY OF THE EXTERNAL BUTTON, which is the fixed point everything
+           here is derived from. It is not ours to change: it lives in
+           wecare-wa-widget.js on app.wecare.digital, outside this repo.
+             desktop      box 64x64 at right:16 bottom:120, icon 56x56 centred in it,
+                          so the VISIBLE circle is 56px spanning right 20..76,
+                          centred on right:48
+             <=767px      box 60x60 at right:14 bottom:80, icon 52x52,
+                          visible circle 52px spanning right 18..70, centred on right:44
+
+           So the trigger below is 56px centred on right:48 (20 + 28), and 52px centred
+           on right:44 (18 + 26) on mobile - identical diameter, identical centre line.
+           Its breakpoint is 767px, NOT the 600px this file used to use: between 601 and
+           767px the external button is already on its mobile geometry, so a 600px
+           breakpoint here left the pair mismatched across that whole band.
+
+           Vertical: the external icon's bottom edge sits 124px up (120 + 4) on desktop,
+           so a 56px trigger at bottom:52 leaves a 16px gap between the two circles
+           (52 + 56 = 108, and 124 - 108 = 16). On mobile the icon bottom is at 84, and
+           52 + 52 = 104... which would COLLIDE, so mobile keeps bottom:16 and accepts a
+           16px gap measured the other way: 84 - 68 = 16. Both are 16px gaps.
+
+           THE PANEL STILL MAY NOT TOUCH THAT COLUMN. Nothing can stack above
+           z-index 2147483647, so the panel is absolutely positioned and shifted left
+           until it is clear of the button in x - horizontal clearance alone is enough,
+           which is why the panel may sit at any height. See the .panel rule. */
+        .wc-langbar{position:fixed;right:20px;left:auto;bottom:52px;top:auto;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-family:inherit}
         /* visibility + opacity rather than display:none, so opening can animate -
            display is not an animatable property. visibility:hidden still removes the
            panel from the accessibility tree and from tab order, which display:none
@@ -426,7 +453,16 @@ const LanguageBar: React.FC = () => {
            Hence: 0s with no delay on .open (visible and focusable immediately), and
            0s with a .18s delay on the closed state, so the panel stays visible long
            enough for the opacity fade to finish. */
-        .panel{visibility:hidden;opacity:0;transform:translateY(6px) scale(.98);transform-origin:bottom right;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s linear .18s;width:min(324px,calc(100vw - 108px));background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16),0 2px 8px rgba(16,32,24,.06)}
+        /* position:absolute, and the right offset is the whole point. The trigger now
+           shares the external WhatsApp button's column (right 20..76), and that button
+           cannot be covered - z-index 2147483647. So the panel is taken out of the flex
+           flow and pushed left until its right edge clears x=80: 76px inside a container
+           whose own right edge is 20px from the viewport puts it at 96px, a 16px gap past
+           the button. Once it is clear horizontally it can sit at any height, which is
+           why bottom:0 (level with the trigger) is safe even though the button occupies
+           y 120..184.
+           Width leaves a 20px margin on the left: 100vw - 96 (the right offset) - 20. */
+        .panel{position:absolute;right:76px;bottom:0;visibility:hidden;opacity:0;transform:translateY(6px) scale(.98);transform-origin:bottom right;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s linear .18s;width:min(324px,calc(100vw - 116px));background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16),0 2px 8px rgba(16,32,24,.06)}
         .panel.open{visibility:visible;opacity:1;transform:none;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s}
         /* #e5e7eb at 1px: the contract's hairline value and weight for a STATIC
            edge, replacing rgba(0,0,0,.12). The focus ring is the lime
@@ -475,7 +511,9 @@ const LanguageBar: React.FC = () => {
         .listen-btn{min-height:34px;padding:7px 13px;border:0;border-radius:8px;background:rgba(209,244,112,.22);color:#1a3a2a;font-size:13px;font-weight:500;line-height:1;cursor:pointer;transition:background-color .2s,color .2s}
         .listen-btn:hover{background:#d1f470;color:#1a3a2a}
         .listen-btn.on{background:#1a3a2a;color:#d1f470}
-        .language-trigger{width:48px;height:48px;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 20px rgba(16,32,24,.14)}
+        /* 56px, matching the external WhatsApp icon's visible 56px circle so the two read
+           as one set rather than two unrelated widgets. Was 48px against its 56px. */
+        .language-trigger{width:56px;height:56px;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 20px rgba(16,32,24,.14)}
         .language-trigger:hover{border-color:#1a3a2a;background:#f4f7f5}
         .language-trigger:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
         .language-trigger[aria-expanded='true']{background:#1a3a2a;border-color:#1a3a2a;color:#fff}
@@ -487,12 +525,23 @@ const LanguageBar: React.FC = () => {
         .language-trigger[aria-busy='true']{border-color:#1a3a2a}
         .spin{width:20px;height:20px;border:2px solid rgba(26,58,42,.22);border-top-color:#1a3a2a;border-radius:50%;animation:wc-spin .7s linear infinite}
         @keyframes wc-spin{to{transform:rotate(360deg)}}
-        .language-trigger svg{width:24px;height:24px;display:block}
+        /* 28px keeps the glyph at the same half-of-diameter ratio it had at 24px in a
+           48px circle. Leaving it at 24px inside a 56px circle reads as under-filled. */
+        .language-trigger svg{width:28px;height:28px;display:block}
         .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
         /* Same horizontal clearance on mobile, plus the safe-area inset for the iOS
            home indicator. The panel is capped against 104px for the same reason as
            the desktop rule. */
-        @media(max-width:600px){.wc-langbar{right:92px;left:auto;top:auto;bottom:calc(16px + env(safe-area-inset-bottom))}.panel{width:min(300px,calc(100vw - 104px))}}
+        /* 767px, not 600px - that is the external button's own breakpoint, and matching it
+           is what keeps the pair the same size across 601..767px. Trigger 52px centred on
+           right:44 (18 + 26); panel clears the button's mobile column (x 14..74) by
+           sitting 72px inside a container whose right edge is 18px out, i.e. at 90px. */
+        @media(max-width:767px){
+          .wc-langbar{right:18px;left:auto;top:auto;bottom:calc(16px + env(safe-area-inset-bottom))}
+          .language-trigger{width:52px;height:52px}
+          .language-trigger svg{width:26px;height:26px}
+          .panel{right:72px;width:min(300px,calc(100vw - 110px))}
+        }
         @media print{.wc-langbar{display:none}}
         /* The spinner keeps turning - it is the only signal that work is in flight,
            and freezing it would misreport a live translation as a stalled one. It is
