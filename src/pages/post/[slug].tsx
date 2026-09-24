@@ -193,7 +193,7 @@ export default function BlogPostPage ( { post }: Props ) {
         .content :global(a){color:#1a3a2a;text-underline-offset:3px}
         .content :global(strong){font-weight:700}
         .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:48px;padding-top:24px;border-top:1px solid #e5e7eb}
-        .tags span{font-size:11px;background:#f3f4f6;border-radius:999px;padding:6px 10px;color:#4b5563}
+        .tags span{font-size:11px;background:#f3f4f6;border-radius:999px;padding:6px 10px;color:rgba(0, 0, 0, 0.54)}
         @media(max-width:640px){
           .article-shell{padding:124px 16px 64px}
           .content :global(p),.content :global(li),.content :global(blockquote){font-size:18px;line-height:1.5}

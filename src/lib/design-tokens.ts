@@ -27,7 +27,7 @@ export const colors = {
 
     // Text
     text: '#111827',
-    textSecondary: '#4b5563',
+    textSecondary: 'rgba(0, 0, 0, 0.54)',
     textMuted: '#6b7280',
     textLight: '#9ca3af',
 
@@ -48,7 +48,7 @@ export const colors = {
     grey300: '#d1d5db',
     grey400: '#9ca3af',
     grey500: '#6b7280',
-    grey600: '#4b5563',
+    grey600: 'rgba(0, 0, 0, 0.54)',
     grey700: '#374151',
     grey800: '#1f2937',
     grey900: '#111827',

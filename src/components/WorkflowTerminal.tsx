@@ -10,7 +10,7 @@ import React, { useEffect, useRef, useState } from 'react';
  * COLOURS ARE ALL EXISTING VALUES. The mock shipped its own palette - #17191c panel,
  * #659df5 blue, #57c785 green, #dab25f yellow, #a294ff purple, #d98787 red. None of
  * those are in this site's palette, and the design contract already records that
- * inventing in-between values is how #f2fbf6, #fbfff0 and the whole #1e293b slate ramp
+ * inventing in-between values is how #f2fbf6, #fbfff0 and the whole #000 slate ramp
  * got here and had to be retired. So the mapping is:
  *
  *   panel        #000                     both existing code panels are #000

@@ -397,7 +397,7 @@ const pushStyles = `
 .push-preview-app{display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280;margin-bottom:6px}
 .push-preview-time{margin-left:auto;font-size:10px}
 .push-preview-title{font-size:14px;font-weight:600;color:#111827;margin-bottom:2px}
-.push-preview-body{font-size:13px;color:#4b5563;line-height:1.4}
+.push-preview-body{font-size:13px;color:rgba(0, 0, 0, 0.54);line-height:1.4}
 .push-table-wrap{overflow-x:auto;border:1px solid #e5e7eb;border-radius:10px}
 .push-table{width:100%;border-collapse:collapse;font-size:13px}
 .push-table th{padding:10px 14px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb}

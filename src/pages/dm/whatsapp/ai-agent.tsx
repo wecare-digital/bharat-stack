@@ -351,7 +351,7 @@ export default function AiAgentPage ( { }: PageProps ) {
                             { faqs.map( f => (
                                 <div key={ f.id } style={ { borderBottom: '1px solid #f3f4f6', padding: '10px 0' } }>
                                     <div style={ { fontWeight: 600, color: '#111827' } }>{ f.question }</div>
-                                    <div style={ { fontSize: 13, color: '#4b5563', margin: '4px 0' } }>{ f.answer }</div>
+                                    <div style={ { fontSize: 13, color: 'rgba(0, 0, 0, 0.54)', margin: '4px 0' } }>{ f.answer }</div>
                                     <button onClick={ async () => {
                                         if ( !f.id ) return;
                                         const ok = await api.aiAgentApi.deleteFaq( waba, f.id );
@@ -390,7 +390,7 @@ export default function AiAgentPage ( { }: PageProps ) {
                                 <div key={ s.id } style={ { borderBottom: '1px solid #f3f4f6', padding: '10px 0' } }>
                                     <div style={ { fontWeight: 600, color: '#111827' } }>{ s.title || '(untitled)' }</div>
                                     { s.description && <div style={ { fontSize: 12, color: '#9ca3af' } }>{ s.description }</div> }
-                                    <div style={ { fontSize: 13, color: '#4b5563', margin: '4px 0', whiteSpace: 'pre-wrap' } }>{ s.skill }</div>
+                                    <div style={ { fontSize: 13, color: 'rgba(0, 0, 0, 0.54)', margin: '4px 0', whiteSpace: 'pre-wrap' } }>{ s.skill }</div>
                                     <button onClick={ async () => {
                                         if ( !s.id ) return;
                                         const ok = await api.aiAgentApi.deleteSkill( waba, s.id );

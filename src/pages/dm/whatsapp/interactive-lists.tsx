@@ -251,7 +251,7 @@ const InteractiveListsPage: React.FC<PageProps> = ({ signOut, user, embedded = f
               <button onClick={() => { navigator.clipboard.writeText(JSON.stringify(getPayloadPreview(), null, 2)); toast.success('Copied'); }}
                 style={{ padding: '4px 10px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Copy</button>
             </div>
-            <pre style={{ background: '#1e293b', color: '#e2e8f0', padding: 14, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 300 }}>
+            <pre style={{ background: '#000', color: '#e2e8f0', padding: 14, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 300 }}>
               {JSON.stringify(getPayloadPreview(), null, 2)}
             </pre>
           </div>

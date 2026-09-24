@@ -12,7 +12,7 @@ export const JsonViewer: React.FC<{ data: any; maxHeight?: number }> = ( { data,
                 <CopyToClipboardButton text={ text } />
             </div>
             <pre style={ {
-                background: '#1e1e1e', color: '#d4d4d4', padding: 12, borderRadius: 8,
+                background: '#000', color: '#d4d4d4', padding: 12, borderRadius: 8,
                 fontSize: 12, lineHeight: 1.5, overflow: 'auto', maxHeight, margin: 0,
             } }>{ text }</pre>
         </div>

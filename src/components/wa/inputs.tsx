@@ -49,7 +49,7 @@ export const CurlPreview: React.FC<{ spec: CurlSpec }> = ( { spec } ) => {
     return (
         <div style={ { position: 'relative', marginTop: 8 } }>
             <div style={ { position: 'absolute', top: 6, right: 6 } }><CopyToClipboardButton text={ cmd } /></div>
-            <pre style={ { background: '#1e1e1e', color: '#9cdcfe', padding: 12, borderRadius: 8, fontSize: 12, overflow: 'auto', margin: 0 } }>{ cmd }</pre>
+            <pre style={ { background: '#000', color: '#9cdcfe', padding: 12, borderRadius: 8, fontSize: 12, overflow: 'auto', margin: 0 } }>{ cmd }</pre>
         </div>
     );
 };

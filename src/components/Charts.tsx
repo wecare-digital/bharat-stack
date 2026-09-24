@@ -204,7 +204,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         }
         .progress-bar-label {
           font-size: 13px;
-          color: #4b5563;
+          color: rgba(0, 0, 0, 0.54);
         }
         .progress-bar-percentage {
           font-size: 13px;

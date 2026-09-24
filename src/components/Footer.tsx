@@ -64,7 +64,7 @@ const Footer: React.FC = () => (
          grid edge despite that padding.
          Base colour moved off #6b7280, a legacy Tailwind grey, onto the palette's
          muted value rgba(0,0,0,.54) - the same value the contract already pins for
-         pill labels after #4b5563 was retired for reading cooler than the neutral
+         pill labels after rgba(0, 0, 0, 0.54) was retired for reading cooler than the neutral
          text beside it. */
       .ft-mark{font-size:14px;color:rgba(0,0,0,.54);text-decoration:none;padding:6px 10px;margin:-6px -10px;border-radius:8px;transition:background-color .2s,color .2s}
       .ft-mark:hover{background:rgba(209,244,112,.22);color:#1a3a2a}

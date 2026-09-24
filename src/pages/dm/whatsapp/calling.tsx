@@ -1915,7 +1915,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                   <div style={ { marginTop: '12px', marginLeft: '48px' } }>
                     <div style={ { position: 'relative' } }>
                       <pre style={ {
-                        background: '#1e293b', color: '#e2e8f0', padding: '14px 16px',
+                        background: '#000', color: '#e2e8f0', padding: '14px 16px',
                         borderRadius: '8px', fontSize: '12px', lineHeight: 1.5,
                         overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                       } }>
@@ -1925,7 +1925,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                         onClick={ ( e ) => { e.stopPropagation(); copyCode( step.code! ); } }
                         style={ {
                           position: 'absolute', top: '8px', right: '8px',
-                          background: '#334155', border: 'none', color: '#94a3b8',
+                          background: '#334155', border: 'none', color: 'rgba(255, 255, 255, 0.72)',
                           padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer',
                         } }
                       >
@@ -2142,7 +2142,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
             { callingSettingsResult && (
               <div style={ { ...s.card, marginTop: 12 } }>
                 <h4 style={ { margin: '0 0 8px', fontSize: 14 } }>Current Settings (from Meta API)</h4>
-                <pre style={ { background: '#1e293b', color: '#e2e8f0', padding: 14, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 250 } }>
+                <pre style={ { background: '#000', color: '#e2e8f0', padding: 14, borderRadius: 8, fontSize: 12, overflow: 'auto', maxHeight: 250 } }>
                   { JSON.stringify( callingSettingsResult, null, 2 ) }
                 </pre>
               </div>

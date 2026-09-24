@@ -3228,7 +3228,7 @@
 .code-block,
 .api-example,
 pre {
-  background: #1e1e1e;
+  background: #000;
   color: #d4d4d4;
   border-radius: var(--radius-md);
   padding: 16px;

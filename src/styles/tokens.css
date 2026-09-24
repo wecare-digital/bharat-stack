@@ -18,7 +18,10 @@
   --color-grey-300: #d1d5db;
   --color-grey-400: #9ca3af;
   --color-grey-500: #6b7280;
-  --color-grey-600: #4b5563;
+  /* rgba(0, 0, 0, 0.54) retired by .kiro/steering/grahak-os-design.md: the only blue-tinted
+     grey in the page's own copy, reading cooler than the neutral body text next
+     to it. Replaced with the contract's own label colour. */
+  --color-grey-600: rgba(0, 0, 0, 0.54);
   --color-grey-700: #374151;
   --color-grey-800: #1f2937;
   --color-grey-900: #111827;
@@ -33,7 +36,7 @@
 
   /* Text */
   --text: #1a1a1a;
-  --text-secondary: #4b5563;
+  --text-secondary: rgba(0, 0, 0, 0.54);
   --text-muted: #6b7280;
   --text-light: #9ca3af;
 
@@ -60,12 +63,16 @@
   --danger-light: #fef2f2;
   --danger-bg: #fef2f2;
 
-  --warning: #1a3a2a;
-  --warning-light: #f9fafb;
-  --warning-bg: #f9fafb;
+  /* Was #1a3a2a — identical to --success — so a warning was indistinguishable
+     from a success at all 3 call sites. These are the amber values already in
+     src/lib/design-tokens.ts (status.pending); not a new colour. */
+  --warning: #b45309;
+  --warning-light: #fffbeb;
+  --warning-bg: #fffbeb;
 
-  --info: #1a3a2a;
-  --info-light: #f9fafb;
+  /* Was #1a3a2a, same collision. Blue from design-tokens.ts status.sent. */
+  --info: #1d4ed8;
+  --info-light: #eff6ff;
 
   /* ========================================
    * TYPOGRAPHY - Home Page Style

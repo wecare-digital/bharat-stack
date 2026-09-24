@@ -73,6 +73,15 @@ jobs:
       - name: Check UI labels
         run: python scripts/check_ui_labels.py --gate
 
+      # Design contract: .kiro/steering/grahak-os-design.md, calibrated by
+      # measuring the live public pages. It retires five colours by name, and
+      # this catches them coming back plus any two state tokens collapsing into
+      # the same value - which had already happened: --warning and --info were
+      # both #1a3a2a, identical to --success, so a warning rendered as a success
+      # at every call site.
+      - name: Check design drift
+        run: python scripts/check_design_drift.py --gate
+
       - name: Summarise
         if: always()
         run: |

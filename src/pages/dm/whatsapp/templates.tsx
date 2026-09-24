@@ -861,7 +861,7 @@ const TemplateManagement: React.FC<PageProps> = ( { signOut, user, embedded = fa
 
                 { newTemplate.headerType === 'location' && (
                   <div className="form-group">
-                    <small style={ { color: '#4b5563' } }>
+                    <small style={ { color: 'rgba(0, 0, 0, 0.54)' } }>
                       📍 Location header — no setup needed here. The map pin (latitude, longitude,
                       name, address) is supplied at send time. Category must be UTILITY or MARKETING.
                     </small>

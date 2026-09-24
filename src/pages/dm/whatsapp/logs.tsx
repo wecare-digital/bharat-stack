@@ -195,7 +195,7 @@ const WhatsAppLogsPage: React.FC<PageProps> = ( { signOut, user, embedded = fals
                           <>
                             <div style={ { fontWeight: 700, marginBottom: 4 } }>{ log.errorCode ? `${log.errorCode} · ` : '' }{ info.title }</div>
                             <div style={ { marginBottom: 6 } }>{ info.reason }</div>
-                            <div style={ { color: '#4b5563' } }><strong>Fix:</strong> { info.action }</div>
+                            <div style={ { color: 'rgba(0, 0, 0, 0.54)' } }><strong>Fix:</strong> { info.action }</div>
                           </>
                         ) : 'Message failed.';
                         return (
@@ -238,7 +238,7 @@ const WhatsAppLogsPage: React.FC<PageProps> = ( { signOut, user, embedded = fals
         .report-card { background: var(--bg-secondary, #f9fafb); border: 1.5px solid var(--border, #e5e7eb); border-radius: 12px; padding: 14px 16px; }
         .rc-val { font-size: 26px; font-weight: 700; color: var(--text, #111827); line-height: 1.1; }
         .rc-label { font-size: 12px; color: var(--text-muted, #6b7280); margin-top: 4px; font-weight: 600; }
-        .rc-sub { font-weight: 700; color: var(--text-secondary, #4b5563); }
+        .rc-sub { font-weight: 700; color: var(--text-secondary, rgba(0, 0, 0, 0.54)); }
         .rc-val.st-delivered { color: var(--status-delivered, #14b8a6); }
         .rc-val.st-read { color: var(--status-read, #22c55e); }
         .rc-val.st-failed { color: var(--status-failed, #ef4444); }

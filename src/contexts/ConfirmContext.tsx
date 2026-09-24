@@ -123,7 +123,7 @@ export const ConfirmProvider: React.FC<{ children: ReactNode }> = ({ children })
                 </h3>
               </div>
               <div id="confirm-msg" style={{
-                margin: '0 0 16px', fontSize: '13px', lineHeight: 1.5, color: '#4b5563', paddingLeft: '42px',
+                margin: '0 0 16px', fontSize: '13px', lineHeight: 1.5, color: 'rgba(0, 0, 0, 0.54)', paddingLeft: '42px',
               }}>
                 {dialog.message}
               </div>

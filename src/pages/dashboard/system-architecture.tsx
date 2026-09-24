@@ -868,7 +868,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
     <div style={ { display: 'flex', flexDirection: 'column', gap: 20 } }>
       <div style={ card() }>
         <h3 style={ sectionTitle }>Full System Architecture</h3>
-        <div style={ { background: '#0f172a', borderRadius: C.radiusSm, padding: 20, overflowX: 'auto' } }>
+        <div style={ { background: '#000', borderRadius: C.radiusSm, padding: 20, overflowX: 'auto' } }>
           <pre style={ { color: '#e2e8f0', fontSize: 12, lineHeight: 1.6, fontFamily: 'monospace', margin: 0, whiteSpace: 'pre' } }>{ `
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
 │                              WECARE.DIGITAL ARCHITECTURE                            │

@@ -1155,7 +1155,7 @@ const TemplateSender: React.FC<TemplateSenderProps> = ( {
           font-weight: 600;
         }
         .bulk-progress { font-size: 12px; color: #1a3a2a; font-weight: 600; }
-        .bulk-pers { font-size: 11px; color: #4b5563; font-weight: 500; }
+        .bulk-pers { font-size: 11px; color: rgba(0, 0, 0, 0.54); font-weight: 500; }
         .bulk-failed { font-size: 11px; color: #b91c1c; margin-top: 4px; word-break: break-word; }
         .loc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .place-search { position: relative; margin-bottom: 8px; }

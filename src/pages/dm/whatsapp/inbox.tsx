@@ -1578,7 +1578,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
                                   <>
                                     <div style={ { fontWeight: 700, marginBottom: 4 } }>{ msg.errorCode ? `${msg.errorCode} · ` : '' }{ info.title }</div>
                                     <div style={ { marginBottom: 6 } }>{ info.reason }</div>
-                                    <div style={ { color: '#4b5563' } }><strong>Fix:</strong> { info.action }</div>
+                                    <div style={ { color: 'rgba(0, 0, 0, 0.54)' } }><strong>Fix:</strong> { info.action }</div>
                                   </>
                                 ) : 'Message failed to send.';
                                 return (
