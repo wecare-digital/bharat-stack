@@ -582,6 +582,85 @@ Gate design points that matter:
 Remaining: 20 medium `aws_service_word` hits, and the vocabulary module is defined but not
 yet adopted by every screen — 8.1/8.3 will wire it as those screens are rebuilt.
 
+### 8.3a — Propagate the public design contract to the inner pages · DONE
+
+Owner asked to follow the public home page inward, header and footer included, pixel by
+pixel, inventing nothing. Commit `796ff60e`, Amplify job **798 SUCCEED**, live-verified.
+
+**The shape of the problem.** There were two design languages and the written contract
+only covers one. Public pages use `<style jsx>` with literal hex; the ~103
+`Layout`-wrapped inner pages use global CSS plus inline `style={{}}`. Header and Footer
+are rendered centrally in `_app.tsx` for public routes and **not at all** once
+authenticated — `Layout.tsx` supplies a sidebar shell instead — so there is no shared
+header/footer component to restyle. The alignment has to happen in the stylesheets.
+
+**The hairline rule was inverted.** The contract: 2px means hoverable, 1px means static,
+the colour is always `#e5e7eb`, and a hover swaps the border **to** lime. The stylesheets
+had lime at REST on 53 surfaces with dark green on hover.
+
+| | Before | After |
+|---|---|---|
+| lime resting borders | **53** | 4, all deliberate |
+| resting hairlines rewritten | — | **49** |
+| hover borders swapped to lime | — | **32** |
+| `#111827` in stylesheets | 25 | **0** |
+| `--font-sans` without Inter | 2 of 3 | **0** |
+| content measures | 1400 / 1200 / 1300 | one, **1300** |
+| danger surfaces in the success green | **5** | 0 |
+
+Seven of the 53 were `select`, `input` and `textarea`, so every dashboard form field wore
+a ring that reads as permanently focused — **the same defect already fixed on the sign-in
+form**, whose note in `_app.tsx` explains exactly why. The fix landed on the login card
+and never on the hundred pages behind it. The worst site was `tokens.css`, where
+`input, select, textarea` is **unscoped**, so it painted the public pages too.
+
+2px was applied only where the selector actually has a `:hover` rule. The weight is a
+signal, so over-applying it is the error, not under-applying it.
+
+**Kept deliberately.** The four lime resting borders are the success banners and the
+outbound bubble — contract treatment 1, our own surfaces at full voice. The single heavy
+lime edges on `.inner-header`, `.inner-footer`, `.sidebar` and the panel headers are kept
+for the reason `_app.tsx` defends the sign-in card's 4px lime top edge: one heavy edge on
+our own surface reads as brand and cannot be mistaken for focus. What is **not** that
+pattern is a lime rule repeated under every row of every table, so those 3 went grey.
+
+**The bundle caught me fixing one file out of nine.** After `inner-pages.css` was clean, a
+`rm -rf .next out` rebuild still shipped 36 lime resting borders, byte-identical across two
+builds so not staleness — the same inversion is repeated in eight other stylesheets.
+Measuring the *bundle* rather than the source is what found it.
+
+**Five destructive affordances were painted the success green.** A delete-all button, a
+contact delete, a delete-message button, a danger button's icon and a delete panel's
+warning text were all `#1a3a2a`, which `tokens.css` assigns to `--success`. Third time in
+this run that a state colour proved indistinguishable from another state, and the only one
+where the colour told the user a destructive action was safe.
+
+**The gate.** `check_design_drift.py` gains five rules across all nine stylesheets, each
+verified against a real regression rather than only against a clean tree — 7 cases,
+including two that must *pass*: a lime border inside `:hover`, and proof the danger
+allowlist is load-bearing. Its first run earned its keep twice: it found a **40th** lime
+border the migration's grep missed because it was written `2px` not `1.5px`, and its first
+version flagged 9 danger sites of which **4 were not affordances** (a delete-scope picker,
+and the word DELETE in API docs). Both allowlisted with the reason.
+
+**Verified live.** All three CSS chunks on `https://wecare.digital` are byte-identical to
+the locally gated build: 0 `#111827`, 0 `#4b5563`, 0 `1400px`, 47 × 2px hairlines, 51 × 1px,
+81 lime hovers, Inter leading `--font-sans`, `max-width:1300px` present. Gates: 2794
+pytest · 73 vitest · typecheck clean · build clean at 125 sitemap URLs.
+
+Two measurement mistakes of my own, both caught before they became a report: the minifier
+rewrites `rgba(0,0,0,.898)` to `#000000e5`, so my first "0 occurrences" was my regex being
+wrong; and a `while read` loop silently dropped the last CSS URL for want of a trailing
+newline, which nearly produced a false "not deployed".
+
+**NOT done, not claimed:** pixel-by-pixel rendering. I cannot screenshot, so what is
+verified is that the shipped CSS carries the contract's values, not that two screens were
+compared. The **13px button radius is untouched** — the contract specifies a radius for
+pills (50px) and code panels (14px) and says nothing about compact action buttons, so
+unifying ~1,500 radius declarations is a separate job needing visual sign-off. Inline
+`style={{}}` colours across the pages are also out of scope here; the stylesheets are the
+shared surface and they are clean.
+
 ### 8.3 — Adaptive navigation + design tokens · TODO
 
 Phone bottom bar, foldable recomposition, tablet rail/sidebar, desktop sidebar. Light-only
