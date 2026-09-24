@@ -1,5 +1,5 @@
 import React from 'react';
-import Head from 'next/head';
+import PageMeta from '../components/PageMeta';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 import ContactLocation from '../components/ContactLocation';
 
@@ -39,14 +39,11 @@ const CYCLE_WORDS: CycleWord[] = [
 
 const ContactPage: React.FC = () => (
   <>
-    <Head>
-      <title>Contact — WECARE.DIGITAL</title>
-      <meta
-        name="description"
-        content="Submit a request, amend or track an existing one, drop documents, or leave a review."
-      />
-      <link rel="canonical" key="canonical" href="https://wecare.digital/contact/" />
-    </Head>
+    <PageMeta
+      title="Contact — WECARE.DIGITAL"
+      description="Submit a request, amend or track an existing one, drop documents, or leave a review."
+      path="/contact/"
+    />
     <RotatingHero
       ariaLabel="Contact WECARE.DIGITAL"
       badgeLabel="Selfservice by WECARE.DIGITAL"

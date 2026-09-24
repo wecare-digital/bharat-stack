@@ -131,4 +131,42 @@ async function launch( opts = {} ) {
   } );
 }
 
-module.exports = { resolveChrome, launch };
+/**
+ * Navigate, and wait for the page to be MEASURABLE - which is not the same thing as
+ * waiting for the network to go quiet.
+ *
+ * WHY NOT waitUntil:'networkidle'. Every harness here used it, and it failed in CI:
+ * typecheck.js died on `page.goto: Timeout 30000ms exceeded` after animcheck and seocheck
+ * had already passed on the same runner. networkidle resolves only after 500ms with no
+ * in-flight requests, so anything that keeps a connection warm - an analytics beacon, a
+ * font request that retries, a container that polls - can stop it resolving at all. It is
+ * a proxy for "the page has settled" that depends on conditions unrelated to the page, and
+ * it is flakiest on the harness that navigates most: typecheck visits 15 routes at 2 widths,
+ * so it gets 30 chances to hit it where animcheck gets 4.
+ *
+ * WHAT ACTUALLY MATTERS for these measurements is that web fonts have loaded. Text width,
+ * line count and reflow all change when a fallback face is swapped for Inter, and that is
+ * the one late-arriving resource that can alter a number. document.fonts.ready is the
+ * direct signal for it, so this waits on the real dependency instead of on a correlate.
+ *
+ * The short settle after it absorbs the layout pass that a font swap triggers. Verified to
+ * produce byte-identical output to the networkidle version of typecheck.js locally.
+ */
+async function gotoStable( page, url, opts = {} ) {
+  const res = await page.goto( url, {
+    waitUntil: 'load',
+    // Generous because a cold CI runner compiling a route is legitimately slow, and the
+    // failure this replaces was a timeout rather than a broken page.
+    timeout: opts.timeout || 60000,
+  } );
+  // Never let font detection itself break a run: a page with no webfonts, or a browser
+  // without the FontFaceSet API, should measure fine.
+  await page.evaluate( async () => {
+    if ( document.fonts && document.fonts.ready ) await document.fonts.ready;
+    return true;
+  } ).catch( () => {} );
+  await page.waitForTimeout( opts.settle === undefined ? 250 : opts.settle );
+  return res;
+}
+
+module.exports = { resolveChrome, launch, gotoStable };

@@ -1,5 +1,5 @@
 import React from 'react';
-import Head from 'next/head';
+import PageMeta from '../components/PageMeta';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 
 /**
@@ -37,14 +37,11 @@ const SELFSERVICE = 'https://www.wecare.digital/selfservice';
 
 const MyOrderPage: React.FC = () => (
   <>
-    <Head>
-      <title>My Order — WECARE.DIGITAL</title>
-      <meta
-        name="description"
-        content="Check the status of an order, delivery, request or booking with WECARE.DIGITAL, and find what to do if something needs changing."
-      />
-      <link rel="canonical" key="canonical" href="https://wecare.digital/my-order/" />
-    </Head>
+    <PageMeta
+      title="My Order — WECARE.DIGITAL"
+      description="Check the status of an order, delivery, request or booking with WECARE.DIGITAL, and find what to do if something needs changing."
+      path="/my-order/"
+    />
     <RotatingHero
       ariaLabel="My order"
       badgeLabel="Selfservice — WECARE.DIGITAL"

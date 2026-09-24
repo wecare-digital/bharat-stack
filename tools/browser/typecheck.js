@@ -28,7 +28,7 @@
  *   BASE=http://localhost:3000 node tools/browser/typecheck.js
  */
 
-const { launch } = require( './lib/browser' );
+const { launch, gotoStable } = require( './lib/browser' );
 const { target } = require( './lib/serve' );
 
 /**
@@ -115,12 +115,13 @@ async function main() {
       const context = await browser.newContext( { viewport: { width, height: 900 } } );
       const page = await context.newPage();
       for ( const route of ROUTES ) {
-        const res = await page.goto( t.base + route, { waitUntil: 'networkidle' } );
+        // gotoStable, not waitUntil:'networkidle' - see lib/browser.js. networkidle timed
+        // this suite out in CI at 30 navigations while the shorter suites passed.
+        const res = await gotoStable( page, t.base + route );
         if ( !res || res.status() !== 200 ) {
           record( false, `${route} responds 200 @${width}`, `got ${res ? res.status() : 'no response'}` );
           continue;
         }
-        await page.waitForTimeout( 250 );
         all[ route ] = all[ route ] || {};
         all[ route ][ width ] = await readHeadings( page );
       }

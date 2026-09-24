@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
+import PageMeta from '../../components/PageMeta';
 import BrandBadge from '../../components/BrandBadge';
 
 const GrahakOsPage: React.FC = () => {
@@ -121,32 +122,34 @@ response = requests.post(
 
   return (
     <>
+      {/* TITLE, DESCRIPTION, CANONICAL AND THE SHARE PREVIEW ALL COME FROM ONE PAIR OF
+          STRINGS NOW. Measured on the built export, this page previously carried THREE
+          different titles and THREE different descriptions simultaneously:
+            title                "Grahak OS by WECARE.DIGITAL - Customer Engagement Platform"
+            og:title             "Grahak OS - Customer Engagement Platform | WECARE.DIGITAL"
+            twitter:title        "Grahak OS - Customer Engagement Platform"
+            description          "Grahak OS is the customer engagement product in ..."
+            og:description       "Enterprise WhatsApp Business API platform. Send bulk ..."
+            twitter:description  "Enterprise WhatsApp Business API platform. Multi-channel ..."
+          Nothing chose between them - whichever a crawler or unfurler read first won, so
+          the same page described itself three ways depending on where the link was pasted.
+          The pair kept below is the page's own <title> and <meta description>, which are the
+          best-written of the six and which preserve this page's WhatsApp/SMS/Email/Voice
+          positioning. The og: and twitter: copy that mentioned "Enterprise WhatsApp Business
+          API platform" is gone, not because of the positioning but because it was a third
+          unreconciled variant.
+          PageMeta is a SIBLING of the <Head> below, not nested inside it - a <Head> within a
+          <Head> is invalid. It also owns the canonical, which is why there is no
+          <link rel="canonical"> here any more, and the og:type / og:image / og:site_name /
+          og:locale / twitter:card / twitter:image tags that used to be duplicated here come
+          from _app.tsx with identical values. */}
+      <PageMeta
+        title="Grahak OS by WECARE.DIGITAL - Customer Engagement Platform"
+        description="Grahak OS is the customer engagement product in WECARE.DIGITAL, unifying WhatsApp, SMS, Email, Voice, automation and customer data in one experience."
+        path="/grahak-os/"
+      />
       <Head>
-        <title>Grahak OS by WECARE.DIGITAL - Customer Engagement Platform</title>
-        <meta name="description" content="Grahak OS is the customer engagement product in WECARE.DIGITAL, unifying WhatsApp, SMS, Email, Voice, automation and customer data in one experience." />
         <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications" />
-        {/* THE key ON EACH og: TAG IS WHAT MAKES THIS PAGE OVERRIDE THE SITEWIDE BLOCK
-            rather than add a second tag beside it. next/head de-duplicates meta by `name`,
-            `httpEquiv`, `charSet` and `itemProp` only - `property` is not on that list - so
-            before these keys existed this page shipped TWO of every og tag (type, url,
-            title, description, image, site_name, locale), measured on the built export.
-            A crawler or link unfurler reading the first match got _app.tsx's sitewide copy,
-            which meant this product page previewed as the company page.
-            The keys must stay character-identical to the ones in src/pages/_app.tsx - a
-            mismatch silently restores the duplicate. Verify with:
-              grep -o '"og:title"' out/grahak-os/index.html | wc -l   # must be 1 */}
-        <meta property="og:type" key="og:type" content="website" />
-        <meta property="og:url" key="og:url" content="https://wecare.digital/grahak-os/" />
-        <meta property="og:title" key="og:title" content="Grahak OS - Customer Engagement Platform | WECARE.DIGITAL" />
-        <meta property="og:description" key="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
-        <meta property="og:image" key="og:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
-        <meta property="og:site_name" key="og:site_name" content="WECARE.DIGITAL" />
-        <meta property="og:locale" key="og:locale" content="en_IN" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:url" content="https://wecare.digital/grahak-os/" />
-        <meta name="twitter:title" content="Grahak OS - Customer Engagement Platform" />
-        <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
-        <meta name="twitter:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
         <meta name="googlebot" content="index, follow" />
         <meta name="author" content="WECARE.DIGITAL" />
@@ -155,7 +158,6 @@ response = requests.post(
         <meta name="language" content="English" />
         <meta name="geo.region" content="IN" />
         <meta name="geo.placename" content="India" />
-        <link rel="canonical" key="canonical" href="https://wecare.digital/grahak-os/" />
         <meta name="theme-color" content="#000000" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

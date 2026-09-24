@@ -1,5 +1,5 @@
 import React from 'react';
-import Head from 'next/head';
+import PageMeta from '../components/PageMeta';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 
 /**
@@ -51,14 +51,11 @@ const SELFSERVICE = 'https://www.wecare.digital/selfservice';
 
 const BharatRxPage: React.FC = () => (
   <>
-    <Head>
-      <title>Bharat Rx — WECARE.DIGITAL</title>
-      <meta
-        name="description"
-        content="Bharat Rx by WECARE.DIGITAL — book a consult or appointment with a qualified professional, with reminders and records kept in one place."
-      />
-      <link rel="canonical" key="canonical" href="https://wecare.digital/bharat-rx/" />
-    </Head>
+    <PageMeta
+      title="Bharat Rx — WECARE.DIGITAL"
+      description="Bharat Rx by WECARE.DIGITAL — book a consult or appointment with a qualified professional, with reminders and records kept in one place."
+      path="/bharat-rx/"
+    />
     <RotatingHero
       ariaLabel="Bharat Rx"
       badgeLabel="Bharat Rx by WECARE.DIGITAL"
