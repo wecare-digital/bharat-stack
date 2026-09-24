@@ -78,9 +78,9 @@ import WorkflowTerminal from '../components/WorkflowTerminal';
 // exhaustive-deps suppression the way VayuLok needed one.
 // Lowercase: these sit mid-sentence, not at the head of one.
 //
-// THE SET, AND WHY THESE FIVE. Two axes, deliberately: `consumers` and `enterprises`
-// are the audiences we serve; `AI applications`, `climate tech` and `frontier tech`
-// are the kinds of thing we build. Every entry stays true on the day a single
+// THE SET, AND WHY THESE FOUR. Two axes, evenly: `consumers` and `enterprises` are the
+// audiences we serve; `climate tech` and `frontier tech` are the sectors we serve.
+// `AI applications` was removed on the owner’s instruction - see the note below. Every entry stays true on the day a single
 // offering changes, which is the property the earlier sets did not have.
 //
 // NO SERVICE NAMES HERE, EVER. travel, rituals, documents, reflection and disputes
@@ -96,9 +96,19 @@ import WorkflowTerminal from '../components/WorkflowTerminal';
 //   ai         -> AI           an initialism, and the rest of the page capitalises it
 // Revert any of those if the original wording was deliberate.
 //
-// `climate` BECAME `climate tech`, and that was decided by measurement rather than by
-// feel. Rendered widths at 1280px, from tools/browser/animcheck.js:
-//   climate 178 | consumers 278 | enterprises 280 | frontier tech 300 | AI applications 361
+// `AI applications` WAS DROPPED, and it was the outlier that set the pill’s travel.
+// Rendered widths at 1280px, from tools/browser/animcheck.js:
+//   consumers 278 | enterprises 280 | climate tech 298 | frontier tech 300
+//   (`AI applications` measured 361 and is gone; `climate` measured 178 before it
+//    became `climate tech`)
+// The spread is now about 22px against 83px before, so the pill barely moves per tick.
+//
+// THE CONSEQUENCE WORTH KNOWING: AI is now mentioned NOWHERE in the hero. The sub-line
+// does not name it either, so the only AI claim on this page is "one AI foundation" in
+// the flow section below the fold. That is a positioning decision the owner made
+// knowingly; if the hero should carry AI again, the sub-line is the place for it, not
+// this rotation - the frame is "Everyday services for ___" and every entry has to be
+// something you can serve.
 // Bare "climate" was much the shortest word in the set, so the pill's tail swung 183px
 // every tick against 83px across the other four - 2.2x the movement for one word.
 // `climate tech` measures ~290px, which puts the spread back to ~83px. It also fixes
@@ -126,7 +136,6 @@ import WorkflowTerminal from '../components/WorkflowTerminal';
 const CYCLE_WORDS = [
   { word: 'consumers', tint: '#fef3c7', dot: '#f0a818' },
   { word: 'enterprises', tint: '#ede9fe', dot: '#9849e8' },
-  { word: 'AI applications', tint: '#dbeafe', dot: '#2563eb' },
   { word: 'climate tech', tint: '#e0f7c8', dot: '#3da35a' },
   { word: 'frontier tech', tint: '#fee2e2', dot: '#dc2626' },
 ];
