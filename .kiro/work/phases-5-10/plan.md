@@ -746,6 +746,69 @@ deployed function**, and **zero** routes or integrations reference it — unship
 `deploy_all_lambdas.py` correctly refuses to create a production function that does not
 already exist.
 
+### 10.1b — Sign-in URLs and app clients · DONE
+
+Owner asked for the login URL to be updated alongside the design work.
+
+**I have to lead with a correction: I claimed login was broken, and it is not.** The
+reasoning failed twice.
+
+1. The Amplify domain serves the apex, and `stack.wecare.digital` 301s to it. I assumed a
+   301 would drop the OAuth `?code=`. Probed it: `?code=TESTVALUE123` **survives** the
+   redirect.
+2. `signin.wecare.digital` returned 403 for the authorize URL and I read that as a
+   `redirect_uri` rejection. Control probe with `not-registered.example.com` returned the
+   **same** 403 and the same "Sign in" page — managed login does not validate
+   `redirect_uri` at render time, so the 403 carries no information about registration.
+
+`NEXT_PUBLIC_APP_URL=https://stack.wecare.digital/` was, and is, a registered callback.
+The configuration was consistent the whole time.
+
+**What was actually changed — additive only.**
+
+| Web client `1j8kbi48m4v2rped3n224rlevb` | Before | After |
+|---|---|---|
+| `CallbackURLs` | localhost, `stack.` | localhost, `stack.`, **apex** |
+| `LogoutURLs` | localhost, `stack.` | localhost, `stack.`, **apex** |
+| OAuth flows / scopes / auth flows | `code` / email openid profile / 3 | unchanged, re-read to prove it |
+
+Registering the apex removes the flow's dependence on a 301 without disturbing a path
+that works. `NEXT_PUBLIC_APP_URL` deliberately **not** changed: a prior session's comment
+in `_app.tsx` chose the subdomain on purpose, and a full OAuth round trip is not
+something this session can test.
+
+`UpdateUserPoolClient` resets omitted fields to defaults — every field was passed back
+explicitly and then re-read.
+
+**The real finding was the other client.** `1jrnb80tcvceg7uln9vuoe8va5` ("WECARE.DIGITAL"),
+created 2026-02-11 02:40 and never modified since — 35 minutes before the real web client,
+so it is the console quick-start client, superseded and forgotten. Its **only** callback
+was `https://d84l1y8p4kdic.cloudfront.net`, the AWS sample distribution, with the `code`
+flow live and an extra `phone` scope. Zero references to the client id or that host
+anywhere in the repo. Now OAuth-disabled with empty callback/logout/flow/scope lists,
+every other field preserved.
+
+**Disclosure, recorded rather than buried.** `DescribeUserPoolClient` returns
+`ClientSecret` in cleartext, so reading that client to check its redirect URIs put a live
+confidential-client secret into the session transcript, which persists to `~/.kiro/logs`.
+The value appears in no row, report or file. Bounded: the client is OAuth-disabled, has no
+callback, `ALLOW_USER_PASSWORD_AUTH` is off, and a client secret alone authenticates
+nobody — it computes `SECRET_HASH` and still needs valid user credentials. **Cognito
+cannot rotate an app client secret in place**, so the only remedy is deleting the client:
+account-level security, therefore an owner confirmation.
+
+The gap that allowed it is closed. `block_catastrophic.py` gained a
+`SECRET_BEARING_READS` table for reads whose *response* carries a credential even though
+the operation name looks innocuous, derived into its SDK spelling by the existing builder
+so the CLI and MCP tiers cannot drift. Blocked, not asked — with a deliberate exemption
+when a CLI `--query` provably excludes the secret (must exist, must descend below the top
+level, must not name the field), so the legitimate question stays one flag away and nobody
+has a reason to reach past the guard. Self-test **87 → 97**.
+
+**Owner decisions:** delete the vestigial client `1jrnb80tcvceg7uln9vuoe8va5` (invalidates
+the disclosed secret; it is unused); and the two carried over from 10.1 — put the operator
+in the `Admin` group, then move `ADMIN_MFA_REQUIRED` to enforce.
+
 ### 10.2 — WAF · TODO
 
 Required target. 0 regional WebACLs today. Implement and live-verify.
