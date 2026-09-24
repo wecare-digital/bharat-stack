@@ -330,8 +330,12 @@ const HomePage: React.FC = () => {
                    where you actually look, and get the message late rather than never. The
                    mechanism is still there as the reason to believe it, just no longer the
                    subject of the sentence. */ }
-              {/* FOUR beats, not three, per the owner's copy. The fourth - that it
-                  remembers context - is the one that compounds, so it closes the list.
+              {/* THREE beats. It was four: a fourth read "It remembers the context", which
+                  said the same thing as the closing band's "Tell us once. We remember the
+                  context." about 200px further down the same page, and the same thing again
+                  as the first beat's "your context carries forward". Three claims, one
+                  idea. Removing it also evens the two columns of this section, which the
+                  sticky copy column had been overrunning.
                   Channel names are back. An earlier pass stripped them on the reading
                   that the no-service-names rule covered them; the owner's own draft
                   names them twice, which settles it. The rule is about SERVICE names,
@@ -348,10 +352,6 @@ const HomePage: React.FC = () => {
                 <li>
                   <strong>Follow-ups happen automatically.</strong>
                   <span>If something doesn’t go through or needs another nudge, it is tracked and followed up without waiting for you to chase it.</span>
-                </li>
-                <li>
-                  <strong>It remembers the context.</strong>
-                  <span>The more you use it, the less you need to repeat — helping each interaction feel faster, simpler and more relevant.</span>
                 </li>
               </ul>
             </div>
