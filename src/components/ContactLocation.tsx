@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 /**
  * The map and address block on /contact/.
@@ -133,6 +133,38 @@ const WMO: Record<number, string> = {
  */
 const EMBED_URL = `https://maps.google.com/maps?q=${LAT},${LNG}&z=18&output=embed`;
 
+/**
+ * TWO RENDER PATHS, and the key decides which.
+ *
+ * With NEXT_PUBLIC_GOOGLE_MAPS_KEY set, this uses the Maps JavaScript API, which is
+ * the only way to get what was actually asked for: satellite imagery, and Google's
+ * pan / zoom / fullscreen / Street View controls GONE rather than merely blocked.
+ * Those controls live inside a cross-origin iframe on the keyless path, so no CSS,
+ * JS or URL parameter of ours can reach them - an overlay could stop them working
+ * but could never hide them.
+ *
+ * Without a key it falls back to the keyless iframe plus the interaction overlay.
+ * That matters: a missing key must degrade to a working map, never to a blank panel
+ * or a link out to Google, which is what an unkeyed Embed API url renders.
+ *
+ * ON THE KEY BEING PUBLIC. It ships in the page, and that is correct - a Maps
+ * browser key is public by design and Google's own model is to restrict it by HTTP
+ * referrer rather than hide it. This is NOT the same class of secret as the Google
+ * Translate key, which is why that one sits in Secrets Manager behind a Lambda and
+ * this one does not. Two things are therefore load-bearing in the Cloud console, and
+ * neither is enforceable from this repo:
+ *   Application restrictions  ->  HTTP referrers, *.wecare.digital/*
+ *   API restrictions          ->  Maps JavaScript / Static Maps / Places only
+ * With Application restrictions set to None, anyone who views source can bill the
+ * project without limit.
+ *
+ * ATTRIBUTION IS NOT OPTIONAL ON EITHER PATH. The JS API paints the Google logo and
+ * the data attribution into the map div itself. disableDefaultUI does not remove it
+ * and must not be made to: it is a licence condition of Maps Platform, not a
+ * control. Do not try to cover it.
+ */
+const MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
+
 const ADDRESS_LINES = [
   'The W.B.S.I.D.C. Building',
   'Unit 1/20, 81/2/7 Phears Lane',
@@ -166,6 +198,52 @@ const ContactLocation: React.FC = () => {
   // way either value can be honest.
   const [ istTime, setIstTime ] = useState<string | null>( null );
   const [ weather, setWeather ] = useState<{ temp: number; label: string } | null>( null );
+  const mapHost = useRef<HTMLDivElement | null>( null );
+
+  // Maps JS API, only when a key is configured. Everything in the options block is
+  // the point of taking this path at all:
+  //   mapTypeId 'satellite'   the imagery that was asked for
+  //   disableDefaultUI true   pan, zoom, fullscreen and Street View GONE, not just inert
+  //   gestureHandling 'none'  no drag, no scroll-zoom, natively rather than via an overlay
+  //   keyboardShortcuts false no focus-then-arrow-keys route back into panning
+  //   clickableIcons false    no POI click opening Google's own info card over ours
+  useEffect( () => {
+    if ( !MAPS_KEY || typeof window === 'undefined' ) return;
+    const w = window as unknown as { google?: { maps?: Record<string, unknown> } };
+
+    const init = () => {
+      const maps = w.google?.maps as undefined | {
+        Map: new ( el: HTMLElement, opts: Record<string, unknown> ) => unknown;
+        Marker: new ( opts: Record<string, unknown> ) => unknown;
+      };
+      if ( !mapHost.current || !maps ) return;
+      const map = new maps.Map( mapHost.current, {
+        center: { lat: LAT, lng: LNG },
+        zoom: 18,
+        mapTypeId: 'satellite',
+        disableDefaultUI: true,
+        gestureHandling: 'none',
+        keyboardShortcuts: false,
+        clickableIcons: false,
+      } );
+      new maps.Marker( { position: { lat: LAT, lng: LNG }, map, title: 'WECARE.DIGITAL' } );
+    };
+
+    if ( w.google?.maps ) { init(); return; }
+
+    // One script tag per document, reused across remounts. Appending a second copy makes
+    // the API log a duplicate-loader warning and can re-run callbacks.
+    const ID = 'gmaps-js';
+    const existing = document.getElementById( ID );
+    if ( existing ) { existing.addEventListener( 'load', init ); return; }
+
+    const script = document.createElement( 'script' );
+    script.id = ID;
+    script.async = true;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent( MAPS_KEY )}&loading=async`;
+    script.addEventListener( 'load', init );
+    document.head.appendChild( script );
+  }, [] );
 
   useEffect( () => {
     const format = () => new Intl.DateTimeFormat( 'en-IN', {
@@ -214,17 +292,29 @@ const ContactLocation: React.FC = () => {
       <h2 className="cl-h2" id="cl-title">Where to find us</h2>
 
       <div className="cl-grid">
-        {/* UNCONDITIONAL. There is no key branch and no link-out placeholder any more:
-            the map itself is the thing the owner asked to see on the page, so it renders
-            for every visitor on every load. */}
+        {/* A map renders on every load either way. The branch is about WHICH map, never
+            about whether one appears - the earlier keyed version degraded to a link out
+            to Google when the key was absent, and that is the one outcome ruled out. */}
         <div className="cl-map">
-          <iframe
-            className="cl-frame"
-            src={ EMBED_URL }
-            title="Map showing the WECARE.DIGITAL office on Phears Lane, Kolkata"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
+          { MAPS_KEY ? (
+            /* KEYED PATH. A plain div the JS API draws into. No overlay is needed here -
+               gestureHandling:'none' and disableDefaultUI do natively what the overlay
+               below has to fake, and there are no controls left to block. */
+            <div
+              ref={ mapHost }
+              className="cl-frame"
+              role="img"
+              aria-label="Satellite map showing the WECARE.DIGITAL office on Phears Lane, Kolkata"
+            />
+          ) : (
+            <>
+              <iframe
+                className="cl-frame"
+                src={ EMBED_URL }
+                title="Map showing the WECARE.DIGITAL office on Phears Lane, Kolkata"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
 
           {/* INTERACTION LOCK. The map is a fixed illustration now: no drag, no
               scroll-zoom, no click, no info dialog.
@@ -240,7 +330,9 @@ const ContactLocation: React.FC = () => {
               What this does NOT do is hide those buttons. They are painted inside the
               frame and only a keyed Static Maps image or the Maps JS API with
               disableDefaultUI can remove them - see the note above EMBED_URL. */}
-          <div className="cl-lock" aria-hidden="true" />
+              <div className="cl-lock" aria-hidden="true" />
+            </>
+          ) }
 
           {/* OUR CARD, IN PLACE OF GOOGLE'S. This sits OUTSIDE the iframe and on top of
               it, which is the only way it can be ours - see the note on LAT/LNG for why
@@ -390,7 +482,14 @@ const ContactLocation: React.FC = () => {
            italic postal address reads as a quotation. */
         .cl-address{margin:0;font-style:normal;display:flex;flex-direction:column;gap:2px}
         .cl-address span{font-size:17px;font-weight:400;line-height:1.5;letter-spacing:-.05px;color:rgba(0,0,0,.898)}
-        .cl-value{margin:0;font-size:17px;line-height:1.5;color:rgba(0,0,0,.898)}
+        /* 1.55, not 1.5, to match --line in src/styles/Layout.css. 17px is the site's
+           --base-font, so a value line has no reason to carry its own rhythm. That left
+           17px rendering at three different line-heights across the public pages
+           (24.14 / 25.5 / 26.35) for no design reason.
+           The one remaining exception is deliberate: .msg in the Grahak OS hero runs
+           17px/1.42 because WhatsApp chat bubbles are tight, and loosening them to the
+           body rhythm makes the mockup stop reading as a real conversation. */
+        .cl-value{margin:0;font-size:17px;line-height:1.55;color:rgba(0,0,0,.898)}
 
         /* The plus code is a code, so it is set as one - tabular mono keeps the glyphs
            from shifting and signals that it is meant to be copied verbatim. */
