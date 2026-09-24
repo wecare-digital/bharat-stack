@@ -80,3 +80,12 @@ def test_manifest_rejects_media_nodes():
     }
     errors = module.validate_manifest_post(post)
     assert any("forbidden rich-content media node" in error for error in errors)
+
+
+def test_committed_migration_manifests_validate():
+    module = load_module()
+    manifest_paths = sorted((ROOT / "migration" / "blog").glob("batch-*.json"))
+    assert manifest_paths, "expected at least one migration manifest"
+    for path in manifest_paths:
+        posts = module.load_manifest(path)
+        module.validate_manifest(posts)
