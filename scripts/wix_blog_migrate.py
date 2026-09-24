@@ -13,6 +13,7 @@ Examples:
 import argparse
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -133,6 +134,149 @@ def export_source(output: Path) -> None:
     print(f"Exported {len(posts)} source posts to {output}")
 
 
+def _inline_nodes(text: str) -> List[Dict[str, Any]]:
+    """Convert the small approved Markdown subset to Wix Ricos text nodes."""
+    nodes: List[Dict[str, Any]] = []
+    pattern = re.compile(r"(\*\*.+?\*\*|\*[^*]+?\*)")
+    position = 0
+    for match in pattern.finditer(text):
+        if match.start() > position:
+            nodes.append({
+                "type": "TEXT",
+                "textData": {"text": text[position:match.start()], "decorations": []},
+            })
+        token = match.group(0)
+        if token.startswith("**"):
+            value = token[2:-2]
+            decorations = [{"type": "BOLD", "fontWeightValue": 700}]
+        else:
+            value = token[1:-1]
+            decorations = [{"type": "ITALIC", "italicData": True}]
+        nodes.append({
+            "type": "TEXT",
+            "textData": {"text": value, "decorations": decorations},
+        })
+        position = match.end()
+    if position < len(text):
+        nodes.append({
+            "type": "TEXT",
+            "textData": {"text": text[position:], "decorations": []},
+        })
+    return [node for node in nodes if (node.get("textData") or {}).get("text")]
+
+
+def markdown_to_rich_content(markdown: str) -> Dict[str, Any]:
+    """Compile editorial Markdown into the image-free Ricos subset we render."""
+    lines = str(markdown or "").replace("\r\n", "\n").split("\n")
+    nodes: List[Dict[str, Any]] = []
+    index = 0
+
+    while index < len(lines):
+        line = lines[index].strip()
+        if not line:
+            if nodes and nodes[-1].get("type") != "PARAGRAPH_EMPTY":
+                nodes.append({"type": "PARAGRAPH_EMPTY"})
+            index += 1
+            continue
+
+        if line.startswith("- "):
+            items = []
+            while index < len(lines) and lines[index].strip().startswith("- "):
+                value = lines[index].strip()[2:].strip()
+                items.append({
+                    "type": "LIST_ITEM",
+                    "nodes": [{
+                        "type": "PARAGRAPH",
+                        "nodes": _inline_nodes(value),
+                        "paragraphData": {"textStyle": {"textAlignment": "AUTO"}},
+                    }],
+                })
+                index += 1
+            nodes.append({"type": "BULLETED_LIST", "nodes": items})
+            continue
+
+        if re.match(r"^\d+\.\s+", line):
+            items = []
+            while index < len(lines) and re.match(r"^\d+\.\s+", lines[index].strip()):
+                value = re.sub(r"^\d+\.\s+", "", lines[index].strip()).strip()
+                items.append({
+                    "type": "LIST_ITEM",
+                    "nodes": [{
+                        "type": "PARAGRAPH",
+                        "nodes": _inline_nodes(value),
+                        "paragraphData": {"textStyle": {"textAlignment": "AUTO"}},
+                    }],
+                })
+                index += 1
+            nodes.append({"type": "ORDERED_LIST", "nodes": items})
+            continue
+
+        if line.startswith("> "):
+            value = line[2:].strip()
+            nodes.append({
+                "type": "BLOCKQUOTE",
+                "nodes": [{
+                    "type": "PARAGRAPH",
+                    "nodes": _inline_nodes(value),
+                    "paragraphData": {"textStyle": {"textAlignment": "AUTO"}},
+                }],
+            })
+            index += 1
+            continue
+
+        if line.startswith("### "):
+            nodes.append({
+                "type": "HEADING",
+                "headingData": {"level": 3},
+                "nodes": _inline_nodes(line[4:].strip()),
+            })
+            index += 1
+            continue
+
+        if line.startswith("## "):
+            nodes.append({
+                "type": "HEADING",
+                "headingData": {"level": 2},
+                "nodes": _inline_nodes(line[3:].strip()),
+            })
+            index += 1
+            continue
+
+        nodes.append({
+            "type": "PARAGRAPH",
+            "nodes": _inline_nodes(line),
+            "paragraphData": {"textStyle": {"textAlignment": "AUTO"}},
+        })
+        index += 1
+
+    # Convert editorial blank-line markers to real empty Ricos paragraphs,
+    # collapse duplicates, and trim them from the document edges.
+    cleaned: List[Dict[str, Any]] = []
+    for node in nodes:
+        if node.get("type") == "PARAGRAPH_EMPTY":
+            if not cleaned or cleaned[-1].get("type") == "PARAGRAPH":
+                cleaned.append({"type": "PARAGRAPH"})
+            elif cleaned[-1].get("type") not in {"PARAGRAPH", "PARAGRAPH_EMPTY"}:
+                cleaned.append({"type": "PARAGRAPH"})
+            continue
+        cleaned.append(node)
+    while cleaned and cleaned[0].get("type") == "PARAGRAPH" and not cleaned[0].get("nodes"):
+        cleaned.pop(0)
+    while cleaned and cleaned[-1].get("type") == "PARAGRAPH" and not cleaned[-1].get("nodes"):
+        cleaned.pop()
+
+    return {"nodes": cleaned}
+
+
+def normalize_manifest_post(post: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(post)
+    if not normalized.get("richContent") and normalized.get("contentMarkdown"):
+        normalized["richContent"] = markdown_to_rich_content(
+            str(normalized["contentMarkdown"])
+        )
+    return normalized
+
+
 def walk_nodes(value: Any) -> Iterable[Dict[str, Any]]:
     if isinstance(value, dict):
         yield value
@@ -149,7 +293,6 @@ def validate_manifest_post(post: Dict[str, Any]) -> List[str]:
         "title",
         "slug",
         "firstPublishedDate",
-        "richContent",
         "seoTitle",
         "metaDescription",
         "tags",
@@ -157,6 +300,8 @@ def validate_manifest_post(post: Dict[str, Any]) -> List[str]:
     for key in required:
         if not post.get(key):
             errors.append(f"missing {key}")
+    if not post.get("richContent") and not post.get("contentMarkdown"):
+        errors.append("missing richContent or contentMarkdown")
 
     tags = post.get("tags") or []
     if not isinstance(tags, list) or not 1 <= len(tags) <= 3:
@@ -184,7 +329,7 @@ def load_manifest(path: Path) -> List[Dict[str, Any]]:
     posts = raw.get("posts") if isinstance(raw, dict) else raw
     if not isinstance(posts, list):
         raise ValueError("Manifest must be a JSON array or an object with a posts array")
-    return posts
+    return [normalize_manifest_post(post) for post in posts]
 
 
 def validate_manifest(posts: List[Dict[str, Any]]) -> None:
