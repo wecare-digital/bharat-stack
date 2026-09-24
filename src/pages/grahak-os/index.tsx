@@ -712,11 +712,17 @@ response = requests.post(
              line shouting over the opening one. This is a page-level statement rather than
              a section heading, which is why it takes the h1 rung and its 600 weight
              instead of the heavier 700 section level. */
+          /* WAS WEARING THE HERO H1'S CLAMP: clamp(36px,4.3vw,60px) at weight 600, which
+             resolved to 55.04px/600 - larger than the 54px the contract caps an h2 at, and
+             inverting the contract's one hard rule that a section h2 is 700 and therefore
+             HEAVIER than the h1's 600. It was an h2 dressed as an h1, and it made
+             /grahak-os/ the only page carrying two different section-h2 sizes at once
+             (53.76 and 55.04). Now on the same rung as every other section heading. */
           .gos-closer-head{
-            font-size:clamp(36px,4.3vw,60px);
-            font-weight:600;
-            letter-spacing:-2.2px;
-            line-height:1.04;
+            font-size:clamp(28px,3.2vw,40px);
+            font-weight:700;
+            letter-spacing:-1.2px;
+            line-height:1.08;
             color:rgba(0,0,0,.95);
             text-align:center;
             margin:0;
@@ -834,7 +840,19 @@ response = requests.post(
              .trust-heading - which is three chances for the page to drift out of step
              with itself. Only the per-place differences stay separate below: margins,
              alignment and .section-header's pre-line. */
-          .section-header h2,.api-info h2,.trust-heading{font-size:clamp(32px,4.2vw,54px);font-weight:700;line-height:1.04;letter-spacing:-1.875px;color:rgba(0,0,0,.95)}
+          /* THE SITE SECTION-H2 RUNG, not this page's own. Measured with
+             tools/browser/typecheck.js: 13 headings across 10 public pages render
+             clamp(28px,3.2vw,40px)/700/1.08/-1.2px - .home-flow-title, .home-close-title,
+             .cl-h2, .mo-h2, .brx-h2 and .pdp-h2 on all seven product pages. This page was
+             the ONLY marketing page still on clamp(32px,4.2vw,54px), which resolved to
+             53.76px against everyone else's 40px.
+             The design contract still names 54px, so the contract is now the thing that is
+             out of step rather than the code - 13 headings beat 3. Worth amending
+             .kiro/steering/grahak-os-design.md to match.
+             There was also a real reason to move: at 1280px the hero h1 resolves to 55.04px,
+             so a 53.76px section h2 sat 1.28px below its own h1 and the size hierarchy
+             collapsed - only the 700/600 weight inversion separated them. */
+          .section-header h2,.api-info h2,.trust-heading{font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;letter-spacing:-1.2px;color:rgba(0,0,0,.95)}
           .section-header h2{margin:0 0 14px;text-align:center;width:100%;white-space:pre-line}
           .section-header p{font-size:20px;color:rgba(0,0,0,.898);line-height:1.4;letter-spacing:-.125px;font-weight:400;margin:0;text-align:center;width:100%}
           
@@ -1177,7 +1195,7 @@ response = requests.post(
           /* One responsive type hierarchy, declared after the legacy breakpoint
              rules so a single clamp() governs each size at every width. The hero
              h1 and p are intentionally absent: their base rule is the contract. */
-          .section-header h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
+          .section-header h2{font-size:clamp(28px,3.2vw,40px);line-height:1.08;letter-spacing:-1.2px}
           .section-header p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           /* 15px explicit, not var(--text-base). That token is declared twice —
              tokens.css:83 says 16px, Pages.css:59 says 15px — and only Pages.css is
@@ -1186,7 +1204,7 @@ response = requests.post(
              .pp-pill is listed here too; it was missing from this contract block
              despite being the class the touchpoint section actually renders. */
           .pill,.pp-pill{font-size:17px}
-          .api-info h2{font-size:clamp(32px,4.2vw,54px);line-height:1.04;letter-spacing:-1.875px}
+          .api-info h2{font-size:clamp(28px,3.2vw,40px);line-height:1.08;letter-spacing:-1.2px}
           .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}
           .pp-tab{font-size:15px}
           
