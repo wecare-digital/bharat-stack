@@ -390,7 +390,14 @@ const ContactLocation: React.FC = () => {
            italic postal address reads as a quotation. */
         .cl-address{margin:0;font-style:normal;display:flex;flex-direction:column;gap:2px}
         .cl-address span{font-size:17px;font-weight:400;line-height:1.5;letter-spacing:-.05px;color:rgba(0,0,0,.898)}
-        .cl-value{margin:0;font-size:17px;line-height:1.5;color:rgba(0,0,0,.898)}
+        /* 1.55, not 1.5, to match --line in src/styles/Layout.css. 17px is the site's
+           --base-font, so a value line has no reason to carry its own rhythm. That left
+           17px rendering at three different line-heights across the public pages
+           (24.14 / 25.5 / 26.35) for no design reason.
+           The one remaining exception is deliberate: .msg in the Grahak OS hero runs
+           17px/1.42 because WhatsApp chat bubbles are tight, and loosening them to the
+           body rhythm makes the mockup stop reading as a real conversation. */
+        .cl-value{margin:0;font-size:17px;line-height:1.55;color:rgba(0,0,0,.898)}
 
         /* The plus code is a code, so it is set as one - tabular mono keeps the glyphs
            from shifting and signals that it is meant to be copied verbatim. */
