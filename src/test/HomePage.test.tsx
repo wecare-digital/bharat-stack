@@ -50,9 +50,9 @@ describe( 'WECARE.DIGITAL Home', () => {
     //
     // What replaced it is the actual constraint, measured in a browser: the pill sits
     // on its own line, so the h1's line count is independent of word width, and
-    // animcheck.js asserts the h1's height is identical for every word at all 21
-    // viewports from 320 to 1920. Re-run that after any word change - a unit test
-    // cannot see reflow.
+    // tools/browser/animcheck.js asserts the h1's height is identical for every word at
+    // all 21 viewports from 320 to 1920. Re-run `node tools/browser/animcheck.js` after
+    // any word change - a unit test cannot see reflow.
     //
     // The one thing still worth pinning here is that no word is so long it cannot fit
     // the pill's own line at the narrowest breakpoint.
@@ -66,7 +66,7 @@ describe( 'WECARE.DIGITAL Home', () => {
     // One readable copy of the full list...
     const srOnly = container.querySelector( '.home-sr-only' );
     expect( srOnly ).toBeInTheDocument();
-    expect( srOnly?.textContent ).toBe( 'consumers, enterprises, AI applications, climate, frontier tech' );
+    expect( srOnly?.textContent ).toBe( 'consumers, enterprises, AI applications, climate tech, frontier tech' );
 
     // ...and every visually-rotating copy hidden, so the headline is not read out
     // once per word. Each animated word must carry aria-hidden.
