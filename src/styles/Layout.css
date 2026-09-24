@@ -334,7 +334,7 @@ input, textarea, select {
   top: 100%;
   left: 0;
   background: #fff;
-  border: 2px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 8px 0;
   min-width: 180px;
@@ -460,7 +460,7 @@ input, textarea, select {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   background: #fff;
   border-radius: 8px;
   cursor: pointer;
@@ -470,7 +470,7 @@ input, textarea, select {
 }
 .sidebar-collapse-btn:hover {
   background: #f9fafb;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 .sidebar.collapsed .sidebar-collapse-btn {
   margin: 0 auto;
@@ -492,7 +492,7 @@ input, textarea, select {
   align-items: center;
   width: 100%;
   padding: 0;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 13px;
   background: #fff;
   transition: all 0.15s ease;
@@ -500,7 +500,7 @@ input, textarea, select {
 }
 
 .sidebar-search-input-wrapper:focus-within {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3);
 }
 
@@ -543,7 +543,7 @@ input, textarea, select {
   left: 8px;
   right: 8px;
   background: #fff;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: 13px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 100;
@@ -572,7 +572,7 @@ input, textarea, select {
 .sidebar-search-item-label {
   font-size: 13px;
   font-weight: 500;
-  color: #111827;
+  color: rgba(0,0,0,.898);
 }
 
 .sidebar-search-item-parent {
@@ -909,7 +909,7 @@ input, textarea, select {
 .btn-signout {
   background: var(--bg);
   color: var(--text);
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   padding: 8px 12px;
   border-radius: var(--radius);
   font-size: var(--text-xs);
@@ -921,7 +921,7 @@ input, textarea, select {
 
 .btn-signout:hover {
   background: #f9fafb;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 /* Main Content */
@@ -949,7 +949,7 @@ input, textarea, select {
    ========================= */
 .inner-content-container {
   flex: 1;
-  border: 2px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: 30px;
   margin: 4px 12px 12px;
   padding: 0;
@@ -1545,7 +1545,7 @@ input, textarea, select {
 
 .floating-agent-input input:focus,
 .agent-input-area textarea:focus {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.1);
 }
 
@@ -1794,7 +1794,7 @@ input, textarea, select {
 .tabs {
   display: inline-flex;
   gap: 6px;
-  border: 2px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: var(--radius);
   padding: 6px;
   background: var(--bg);
@@ -1871,7 +1871,7 @@ input[type="checkbox"]:active {
   
   .contact-card {
     background: #fff;
-    border: 1.5px solid #d1f470;
+    border: 1px solid #e5e7eb;
     border-radius: 13px;
     padding: 16px;
     margin-bottom: 12px;
@@ -1893,7 +1893,7 @@ input[type="checkbox"]:active {
   .contact-card-name {
     font-size: 16px;
     font-weight: 600;
-    color: #111827;
+    color: #000;
     margin-bottom: 4px;
   }
   

@@ -1,7 +1,47 @@
 /**
  * Inner Pages Theme - WECARE.DIGITAL
- * Lime + Dark Green color scheme - Clean, Modern, Professional
- * Only affects pages using Layout component (not home page)
+ * Only affects pages using the Layout component (not the public pages).
+ *
+ * ALIGNED TO THE PUBLIC DESIGN CONTRACT, 2026-09-24.
+ * See .kiro/steering/grahak-os-design.md - it is the written contract for
+ * /grahak-os, and these rules now follow its hairline and colour rules rather
+ * than a parallel language.
+ *
+ * What changed, and why it was wrong before:
+ *
+ *   Hairlines. The contract: "2px means hoverable, 1px means static, and the
+ *   colour is always #e5e7eb", with lime reserved for "our own surfaces only
+ *   (sent bubbles, active tab, hero pill)" and a hover that swaps the border TO
+ *   lime. This file had it exactly inverted - 1.5px lime at REST on 39
+ *   surfaces, dark green on hover. Every select, text input and textarea on the
+ *   dashboard therefore carried a lime ring while idle, which is the precise
+ *   defect already fixed once on the sign-in form's inputs (see the note in
+ *   _app.tsx): a lime ring on a resting control reads as permanently focused.
+ *   The fix landed on the login card and never on the pages behind it.
+ *
+ *   The 2px/1px split is by evidence, not by eye: a selector was given 2px only
+ *   if it actually has a :hover rule. The weight is a signal, so a static banner
+ *   must not wear the hoverable weight.
+ *
+ *   Two lime resting borders are deliberately KEPT: .msg-bar.success and
+ *   .success-banner, both lime with #1a3a2a type, which is contract treatment 1
+ *   ("our own surfaces, full voice") rather than a stray hairline.
+ *
+ *   .issue-card.error and .issue-card.warning were IDENTICAL - same background,
+ *   same lime border - so an error and a warning were indistinguishable, the same
+ *   defect as --warning and --info both resolving to --success. They now take
+ *   --danger #dc2626 and --warning #b45309 from tokens.css. Existing tokens, not
+ *   new colours.
+ *
+ *   #111827 is retired here for the reason the contract retires #4b5563: it is a
+ *   blue-tinted grey, and .main-content sets color:#000000, so the two disagreed
+ *   on the same page. Control labels take the contract's body colour
+ *   rgba(0,0,0,.898) (the .pill label), headings take its card-heading #000.
+ *
+ * NOT changed, deliberately: the 13px button radius. The contract specifies a
+ * radius for pills (50px) and code panels (14px) and says nothing about compact
+ * action buttons, so unifying ~1,500 radius declarations is a separate job that
+ * needs visual sign-off rather than a contract citation.
  */
 
 /* ========================================
@@ -50,8 +90,8 @@
 .layout .main-content .tab-btn,
 .layout .main-content .action-btn {
   background: #ffffff !important;
-  color: #111827 !important;
-  border: 1.5px solid #d1f470 !important;
+  color: rgba(0,0,0,.898) !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
   padding: 10px 18px !important;
   font-weight: 500 !important;
@@ -65,7 +105,7 @@
 .layout .main-content .tab-btn:hover,
 .layout .main-content .action-btn:hover {
   background: #f9fafb !important;
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content button:active:not([class*="ct-"]),
@@ -102,15 +142,15 @@
 .layout .main-content .tabs button,
 .layout .main-content .tabs-nav button {
   background: #ffffff !important;
-  color: #111827 !important;
-  border: 1.5px solid #d1f470 !important;
+  color: rgba(0,0,0,.898) !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
 .layout .main-content .tab:hover,
 .layout .main-content .tabs button:hover {
   background: #f9fafb !important;
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content .tab.active,
@@ -126,8 +166,8 @@
    ======================================== */
 .layout .main-content .dialer-key {
   background: #ffffff !important;
-  color: #111827 !important;
-  border: 1.5px solid #d1f470 !important;
+  color: rgba(0,0,0,.898) !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 16px !important;
   padding: 20px !important;
   font-size: 24px !important;
@@ -136,7 +176,7 @@
 
 .layout .main-content .dialer-key:hover {
   background: #f9fafb !important;
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 /* ========================================
@@ -145,18 +185,18 @@
 .layout .main-content select,
 .layout .main-content .filter-select {
   background: #ffffff !important;
-  color: #111827 !important;
-  border: 1.5px solid #d1f470 !important;
+  color: rgba(0,0,0,.898) !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
   padding: 10px 14px !important;
 }
 
 .layout .main-content select:hover {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content select:focus {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
   outline: none !important;
 }
@@ -166,14 +206,14 @@
 .layout .main-content .search-input,
 .layout .main-content textarea {
   background: #ffffff !important;
-  color: #111827 !important;
-  border: 1.5px solid #d1f470 !important;
+  color: rgba(0,0,0,.898) !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
 .layout .main-content input:focus,
 .layout .main-content textarea:focus {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
   outline: none !important;
 }
@@ -183,18 +223,18 @@
    ======================================== */
 .layout .main-content .section {
   background: #ffffff !important;
-  border: 1.5px solid #d1f470 !important;
+  border: 1px solid #e5e7eb !important;
   border-radius: 16px !important;
 }
 
 .layout .main-content .stat-card {
   background: #ffffff !important;
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 12px !important;
 }
 
 .layout .main-content .stat-card:hover {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content .stat-card.accent,
@@ -206,14 +246,14 @@
 .layout .main-content .action-card,
 .layout .main-content .quick-action-card {
   background: #ffffff !important;
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
 .layout .main-content .hub-card:hover,
 .layout .main-content .action-card:hover,
 .layout .main-content .quick-action-card:hover {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
   background: #f9fafb !important;
 }
 
@@ -408,7 +448,8 @@
    ======================================== */
 .layout .inner-content-container > div:not(.inner-header):not(.breadcrumbs):not(.dash):not(.whatsapp-inbox):not(.wa-page):not(.inner-page-container):not([style*="flex"]):not([style*="overflow"]) {
   width: 100%;
-  max-width: 1400px;
+  /* 1300px, the public measure - see the note on .inner-page-container. */
+  max-width: 1300px;
   margin-left: auto;
   margin-right: auto;
   padding-left: 24px;
@@ -419,7 +460,8 @@
 /* Also keep the old selector for backward compat */
 .layout .main-content > div:not(.inner-header):not(.breadcrumbs):not(.inner-content-container):not(.dash):not(.whatsapp-inbox):not(.wa-page):not([style*="flex"]):not([style*="overflow"]) {
   width: 100%;
-  max-width: 1400px;
+  /* 1300px, matching the selector above and the public measure. */
+  max-width: 1300px;
   margin-left: auto;
   margin-right: auto;
   padding-left: 24px;
@@ -446,19 +488,19 @@
    and 13px rounded corners
    ======================================== */
 .layout .main-content button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close) {
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
 .layout .inner-content-container button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close) {
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
 /* Fallback for browsers without :has() support — all buttons get border */
 @supports not selector(:has(svg)) {
   .layout .main-content button:not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.toast-close):not(.shortcuts-close):not(.btn-icon-only):not(.icon-btn):not(.refresh-btn) {
-    border: 1.5px solid #d1f470 !important;
+    border: 2px solid #e5e7eb !important;
     border-radius: 13px !important;
   }
 }
@@ -597,7 +639,7 @@
   text-align: center;
   padding: 3rem;
   margin-top: 1rem;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 .layout .main-content .health-status-card.healthy {
@@ -643,7 +685,7 @@
   padding: 1rem;
   background: #f9fafb;
   border-radius: 8px;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 .layout .main-content .info-banner-blue p {
@@ -666,12 +708,12 @@
 
 .layout .main-content .issue-card.error {
   background: #f9fafb;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #dc2626;
 }
 
 .layout .main-content .issue-card.warning {
   background: #f9fafb;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #b45309;
 }
 
 .layout .main-content .issue-card-header {
@@ -681,7 +723,7 @@
 }
 
 .layout .main-content .issue-card-header strong {
-  color: #111827;
+  color: #000;
 }
 
 .layout .main-content .issue-badge {
@@ -739,7 +781,7 @@
 .layout .main-content .category-card {
   padding: 1rem;
   border-radius: 8px;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
   background: #fff;
   text-align: center;
 }
@@ -861,7 +903,7 @@
   margin: 0;
   font-size: 22px;
   font-weight: 600;
-  color: #111827;
+  color: #000;
 }
 
 /* Campaign Sub-tabs - Match main tab styling */
@@ -926,25 +968,25 @@
 .layout .main-content .campaign-page .form-group textarea {
   width: 100%;
   padding: 10px 14px;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 13px;
   font-size: 14px;
   background: #ffffff;
-  color: #111827;
+  color: rgba(0,0,0,.898);
   transition: all 0.15s ease;
 }
 
 .layout .main-content .campaign-page .form-group input:hover,
 .layout .main-content .campaign-page .form-group select:hover,
 .layout .main-content .campaign-page .form-group textarea:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .layout .main-content .campaign-page .form-group input:focus,
 .layout .main-content .campaign-page .form-group select:focus,
 .layout .main-content .campaign-page .form-group textarea:focus {
   outline: none;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.15);
 }
 
@@ -954,7 +996,7 @@
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 24px;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 .layout .main-content .campaign-page .contacts-header {
@@ -970,7 +1012,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: #000;
 }
 
 .layout .main-content .campaign-page .contacts-actions {
@@ -981,7 +1023,7 @@
 
 .layout .main-content .campaign-page .search-input {
   padding: 10px 14px;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 13px;
   font-size: 14px;
   min-width: 200px;
@@ -990,19 +1032,19 @@
 .layout .main-content .campaign-page .select-all-btn {
   padding: 10px 18px;
   background: #ffffff;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 13px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  color: #111827;
+  color: rgba(0,0,0,.898);
   min-height: 44px;
   transition: all 0.15s ease;
 }
 
 .layout .main-content .campaign-page .select-all-btn:hover {
   background: #f9fafb;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .layout .main-content .campaign-page .contacts-grid {
@@ -1019,14 +1061,14 @@
   gap: 10px;
   padding: 12px 14px;
   background: #ffffff;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .layout .main-content .campaign-page .contact-item:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .layout .main-content .campaign-page .contact-item.selected {
@@ -1044,7 +1086,7 @@
   flex: 1;
   font-size: 14px;
   font-weight: 500;
-  color: #111827;
+  color: #000;
 }
 
 .layout .main-content .campaign-page .contact-phone {
@@ -1123,14 +1165,23 @@
   background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
-  border: 2px solid #d1f470;
+  /* 1px static #e5e7eb: a data table has no :hover of its own. This was the one
+     lime resting border written at 2px rather than 1.5px, which is why a grep for
+     the 1.5px form missed it and check_design_drift.py caught it instead. */
+  border: 1px solid #e5e7eb;
 }
 
 .layout .main-content .campaign-page .logs-table th,
 .layout .main-content .campaign-page .logs-table td {
   padding: 14px 16px;
   text-align: left;
-  border-bottom: 1px solid #d1f470;
+  /* #e5e7eb, not lime. A hairline repeated on every row of every table is a
+     hairline, and the contract fixes hairline colour at #e5e7eb; lime is for
+     our own surfaces and for state. The single heavy lime edges elsewhere
+     (.inner-header, .inner-footer, .sidebar, panel headers) are kept - the
+     sign-in card's note in _app.tsx defends exactly that pattern as brand
+     rather than focus. Dozens of lime row rules is not that pattern. */
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .layout .main-content .campaign-page .logs-table th {
@@ -1252,14 +1303,14 @@
   padding: 24px;
   border-radius: 16px;
   margin-bottom: 24px;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 .layout .main-content .store-page .info-banner h3 {
   margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: #000;
 }
 
 .layout .main-content .store-page .info-banner p {
@@ -1289,12 +1340,12 @@
   background: #ffffff;
   padding: 24px;
   border-radius: 16px;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   transition: all 0.15s ease;
 }
 
 .layout .main-content .store-page .feature-card:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 4px 12px rgba(26, 58, 42, 0.1);
 }
 
@@ -1314,7 +1365,7 @@
   margin: 0 0 8px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: #000;
 }
 
 .layout .main-content .store-page .feature-card p {
@@ -1340,8 +1391,8 @@
 .layout .main-content .store-page .add-btn {
   padding: 10px 20px;
   background: #ffffff;
-  color: #111827;
-  border: 1.5px solid #d1f470;
+  color: rgba(0,0,0,.898);
+  border: 2px solid #e5e7eb;
   border-radius: 13px;
   cursor: pointer;
   font-size: 14px;
@@ -1352,7 +1403,7 @@
 
 .layout .main-content .store-page .add-btn:hover {
   background: #f9fafb;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .layout .main-content .store-page .products-grid {
@@ -1364,13 +1415,13 @@
 .layout .main-content .store-page .product-card {
   background: #ffffff;
   border-radius: 16px;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   overflow: hidden;
   transition: all 0.15s ease;
 }
 
 .layout .main-content .store-page .product-card:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
@@ -1402,7 +1453,7 @@
   margin: 0 0 8px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: #000;
 }
 
 .layout .main-content .store-page .product-info p {
@@ -1420,7 +1471,7 @@
 .layout .main-content .store-page .price {
   font-size: 18px;
   font-weight: 700;
-  color: #111827;
+  color: #000;
 }
 
 .layout .main-content .store-page .stock {
@@ -1460,7 +1511,7 @@
 
 .layout .main-content .store-page .empty-state h3 {
   margin: 0 0 8px 0;
-  color: #111827;
+  color: #000;
   font-size: 18px;
 }
 
@@ -1558,7 +1609,7 @@
   margin: 0 0 0.75rem;
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: #000;
 }
 
 /* Category Card Icons */
@@ -1748,14 +1799,14 @@
 .layout .main-content .sms-sidebar input,
 .layout .main-content .voice-sidebar input,
 .layout .main-content .sidebar-search input {
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
 .layout .main-content .sms-sidebar input:focus,
 .layout .main-content .voice-sidebar input:focus,
 .layout .main-content .sidebar-search input:focus {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
 }
 
@@ -1805,7 +1856,7 @@
 .layout .main-content .pay-page select,
 .layout .main-content .pay-link-page input,
 .layout .main-content .pay-link-page select {
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
@@ -1813,7 +1864,7 @@
 .layout .main-content .pay-page select:focus,
 .layout .main-content .pay-link-page input:focus,
 .layout .main-content .pay-link-page select:focus {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
 }
 
@@ -1821,7 +1872,7 @@
 .layout .main-content .pay-page select:hover,
 .layout .main-content .pay-link-page input:hover,
 .layout .main-content .pay-link-page select:hover {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 /* Pay page buttons - lime + dark green theme */
@@ -1833,10 +1884,10 @@
 .layout .main-content .pay-link-page .generate-btn,
 .layout .main-content .pay-link-page .copy-btn,
 .layout .main-content .pay-link-page .share-btn {
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
   background: #ffffff !important;
-  color: #111827 !important;
+  color: rgba(0,0,0,.898) !important;
 }
 
 .layout .main-content .pay-page .gen-btn:hover,
@@ -1848,12 +1899,12 @@
 .layout .main-content .pay-link-page .copy-btn:hover,
 .layout .main-content .pay-link-page .share-btn:hover {
   background: #f9fafb !important;
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 /* Pay page sender notice - lime + dark green */
 .layout .main-content .sender-notice {
-  border: 1.5px solid #d1f470 !important;
+  border: 1px solid #e5e7eb !important;
   background: #f9fafb !important;
 }
 
@@ -1863,7 +1914,7 @@
 
 /* Pay page preview card - lime + dark green */
 .layout .main-content .preview-card {
-  border: 1.5px solid #d1f470 !important;
+  border: 1px solid #e5e7eb !important;
 }
 
 .layout .main-content .preview-total {
@@ -1872,7 +1923,7 @@
 
 /* Pay page coming soon banner - lime + dark green */
 .layout .main-content .coming-soon-banner {
-  border: 1.5px solid #d1f470 !important;
+  border: 1px solid #e5e7eb !important;
   background: #f9fafb !important;
 }
 
@@ -1889,7 +1940,7 @@
 .layout .main-content .form-group input,
 .layout .main-content .form-group select,
 .layout .main-content .form-group textarea {
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
@@ -1899,7 +1950,7 @@
 .layout .main-content .form-field select:hover,
 .layout .main-content .form-group input:hover,
 .layout .main-content .form-group select:hover {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content .form-section input:focus,
@@ -1911,7 +1962,7 @@
 .layout .main-content .form-group input:focus,
 .layout .main-content .form-group select:focus,
 .layout .main-content .form-group textarea:focus {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
   outline: none !important;
 }
@@ -1919,13 +1970,21 @@
 /* ========================================
    ALL CARDS/SECTIONS - Lime + Dark Green Hover
    ======================================== */
+/* Split by the contract's hairline rule: .order-form, .link-form,
+   .feature-card and .product-card each have a :hover, so they take the 2px
+   weight that lets a border swap register; .preview-card and .info-banner have
+   none, so they take the 1px static weight. One declaration for both was why a
+   non-interactive banner looked as clickable as a card. */
 .layout .main-content .order-form,
 .layout .main-content .link-form,
-.layout .main-content .preview-card,
-.layout .main-content .info-banner,
 .layout .main-content .feature-card,
 .layout .main-content .product-card {
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
+  border-radius: 16px !important;
+}
+.layout .main-content .preview-card,
+.layout .main-content .info-banner {
+  border: 1px solid #e5e7eb !important;
   border-radius: 16px !important;
 }
 
@@ -1933,7 +1992,7 @@
 .layout .main-content .link-form:hover,
 .layout .main-content .feature-card:hover,
 .layout .main-content .product-card:hover {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 /* ========================================
@@ -2075,13 +2134,13 @@
 
 .layout .main-content .btn-secondary {
   background: #ffffff !important;
-  color: #111827 !important;
-  border: 1.5px solid #d1f470 !important;
+  color: rgba(0,0,0,.898) !important;
+  border: 2px solid #e5e7eb !important;
 }
 
 .layout .main-content .btn-secondary:hover {
   background: #f9fafb !important;
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 /* ========================================
@@ -2123,7 +2182,7 @@
 .layout .main-content .modal input:focus,
 .layout .main-content .modal select:focus,
 .layout .main-content .modal textarea:focus {
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3) !important;
 }
 
@@ -2152,13 +2211,13 @@
 
 .layout .main-content .wa-tab-btn {
   padding: 10px 18px !important;
-  border: 1.5px solid #d1f470 !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
   background: #fff !important;
   cursor: pointer !important;
   font-size: 14px !important;
   font-weight: 500 !important;
-  color: #111827 !important;
+  color: rgba(0,0,0,.898) !important;
   white-space: nowrap;
   transition: all 0.15s ease;
   min-height: 44px;
@@ -2168,7 +2227,7 @@
 
 .layout .main-content .wa-tab-btn:hover {
   background: #f9fafb !important;
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content .wa-tab-btn.active {
@@ -2225,7 +2284,7 @@
   cursor: pointer !important;
   border-radius: 13px !important;
   font-size: 14px !important;
-  color: #111827 !important;
+  color: rgba(0,0,0,.898) !important;
   position: relative;
   z-index: 11;
   transition: all 0.15s ease;
@@ -2233,7 +2292,7 @@
 
 .layout .main-content .waba-dashboard .tab:hover {
   background: #f9fafb !important;
-  border-color: #1a3a2a !important;
+  border-color: #d1f470 !important;
 }
 
 .layout .main-content .waba-dashboard .tab.active {
@@ -2259,12 +2318,12 @@
 
 .board-tab {
   background: #fff;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   padding: 10px 20px;
   cursor: pointer;
   border-radius: 13px;
   font-size: 14px;
-  color: #111827;
+  color: rgba(0,0,0,.898);
   font-weight: 500;
   position: relative;
   z-index: 51;
@@ -2273,7 +2332,7 @@
 
 .board-tab:hover {
   background: #f9fafb;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .board-tab.active {
@@ -2327,8 +2386,8 @@
 .layout .main-content .btn-outline,
 .layout .main-content .refresh-btn {
   background: #ffffff !important;
-  color: #111827 !important;
-  border: 1.5px solid #d1f470 !important;
+  color: rgba(0,0,0,.898) !important;
+  border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
