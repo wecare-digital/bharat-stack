@@ -56,7 +56,7 @@
  *   BASE=http://localhost:3000 node tools/browser/animcheck.js
  */
 
-const { launch } = require( './lib/browser' );
+const { launch, gotoStable } = require( './lib/browser' );
 const { target } = require( './lib/serve' );
 
 /**
@@ -230,7 +230,7 @@ async function main() {
       page.on( 'pageerror', err => consoleErrors.push( `pageerror: ${err.message}` ) );
 
       const url = t.base + surface.route;
-      const res = await page.goto( url, { waitUntil: 'networkidle' } );
+      const res = await gotoStable( page, url );
       record( res.status() === 200, `${surface.route} responds 200`, `got ${res.status()}` );
 
       // The pill is client-rendered on some surfaces, so wait for it rather than
@@ -277,7 +277,11 @@ async function main() {
 
       if ( surface.route === '/' ) {
         await page.setViewportSize( { width: LIVE_SAMPLE_VIEWPORT, height: 900 } );
-        await page.reload( { waitUntil: 'networkidle' } );
+        // 'load', not 'networkidle'. The waitForSelector on the next line is the real
+        // readiness signal - it waits for the pill to exist and be active - so networkidle
+        // added nothing here except one more place for a CI run to time out. See the note
+        // on gotoStable in lib/browser.js.
+        await page.reload( { waitUntil: 'load', timeout: 60000 } );
         await page.waitForSelector( `.${surface.prefix}-cyc-word.on`, { timeout: 15000 } );
         const live = await sampleLiveRotation( page, surface.prefix, 6 );
         const liveH = [ ...new Set( live.map( s => s.h1 ) ) ];

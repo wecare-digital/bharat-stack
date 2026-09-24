@@ -190,6 +190,27 @@ the hierarchy inverted and the h2 read as the larger of the two.
 
 An exception with no justification is drift with a comment on it — the default answer is no.
 
+## Navigation: use `gotoStable`, not `waitUntil:'networkidle'`
+
+Every harness here originally navigated with `waitUntil:'networkidle'`, and it failed the
+first time the suite ran in CI: `typecheck.js` died on `page.goto: Timeout 30000ms exceeded`
+**after** `animcheck` and `seocheck` had already passed green on the same runner.
+
+`networkidle` resolves only after 500ms with no in-flight requests, so anything keeping a
+connection warm — an analytics beacon, a font request that retries, a poll — can stop it
+resolving at all. It is a proxy for "the page has settled" whose truth depends on conditions
+that have nothing to do with the page. It is also flakiest on the harness that navigates
+most: `typecheck` visits 15 routes at 2 widths, so it gets 30 chances to hit it where
+`animcheck` gets 4. That is why the failure looked page-specific when it was not.
+
+`gotoStable` in `lib/browser.js` waits for the thing that actually changes a measurement:
+**`document.fonts.ready`**. Text width, line count and reflow all shift when a fallback face
+is swapped for Inter, and that is the one late resource that can alter a number. Waiting on
+the real dependency instead of on a correlate is both more correct and more reliable.
+
+Switching all five suites over produced **byte-identical output** for every one of them,
+which is the check to repeat if you change it again.
+
 ## Writing new checks
 
 - Compare **rects** from `getBoundingClientRect`, not DOM elements. "Is the element

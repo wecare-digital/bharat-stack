@@ -40,7 +40,7 @@
  *   BASE=http://localhost:3000 node tools/browser/uicheck.js
  */
 
-const { launch } = require( './lib/browser' );
+const { launch, gotoStable } = require( './lib/browser' );
 const { target } = require( './lib/serve' );
 
 const ROUTE = '/contact/';
@@ -188,7 +188,7 @@ async function main() {
       const context = await browser.newContext( { viewport: { width: vp.width, height: vp.height } } );
       const page = await context.newPage();
       await stubLanguageApi( page );
-      await page.goto( t.base + ROUTE, { waitUntil: 'networkidle' } );
+      await gotoStable( page, t.base + ROUTE );
 
       console.log( `${vp.label}` );
 

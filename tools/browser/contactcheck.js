@@ -28,7 +28,7 @@
  *   BASE=http://localhost:3000 node tools/browser/contactcheck.js
  */
 
-const { launch } = require( './lib/browser' );
+const { launch, gotoStable } = require( './lib/browser' );
 const { target } = require( './lib/serve' );
 
 const VIEWPORTS = [
@@ -321,7 +321,7 @@ async function main() {
     for ( const vp of VIEWPORTS ) {
       const context = await browser.newContext( { viewport: { width: vp.width, height: vp.height } } );
       const page = await context.newPage();
-      await page.goto( `${t.base}/contact/`, { waitUntil: 'networkidle' } );
+      await gotoStable( page, `${t.base}/contact/` );
       await page.waitForSelector( '.cl-card', { timeout: 15000 } );
       // The live row (IST + weather) changes the card's height once it arrives, and it
       // is the TALLER state that matters, so give it a moment to land.
@@ -349,7 +349,7 @@ async function main() {
     for ( const vp of VIEWPORTS ) {
       const context = await browser.newContext( { viewport: { width: vp.width, height: vp.height } } );
       const page = await context.newPage();
-      await page.goto( `${t.base}/contact/#cl-title`, { waitUntil: 'networkidle' } );
+      await gotoStable( page, `${t.base}/contact/#cl-title` );
       await page.waitForSelector( '.cl-h2', { timeout: 15000 } );
       await page.waitForTimeout( 400 );
 
@@ -375,7 +375,7 @@ async function main() {
     console.log( '\nGoogle controls inside the map frame' );
     const context = await browser.newContext( { viewport: { width: 1440, height: 900 } } );
     const page = await context.newPage();
-    await page.goto( `${t.base}/contact/`, { waitUntil: 'networkidle' } );
+    await gotoStable( page, `${t.base}/contact/` );
     // Google's embed pulls its own tiles and chrome after load; measuring too early
     // reports zero controls and would look like a clean result.
     await page.waitForTimeout( 2500 );

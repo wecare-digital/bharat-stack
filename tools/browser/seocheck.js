@@ -30,7 +30,7 @@
  *   BASE=http://localhost:3000 node tools/browser/seocheck.js
  */
 
-const { launch } = require( './lib/browser' );
+const { launch, gotoStable } = require( './lib/browser' );
 const { target } = require( './lib/serve' );
 
 const SITE = 'https://wecare.digital';
@@ -140,7 +140,7 @@ async function main() {
     const page = await context.newPage();
 
     for ( const route of ROUTES ) {
-      const res = await page.goto( t.base + route, { waitUntil: 'networkidle' } );
+      const res = await gotoStable( page, t.base + route );
       if ( !res || res.status() !== 200 ) {
         record( false, `${route} responds 200`, `got ${res ? res.status() : 'no response'}` );
         continue;
