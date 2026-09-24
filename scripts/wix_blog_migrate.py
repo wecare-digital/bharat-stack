@@ -291,8 +291,9 @@ def validate_manifest_post(post: Dict[str, Any]) -> List[str]:
     errors: List[str] = []
     required = [
         "title",
+        "sourceSlug",
         "slug",
-        "firstPublishedDate",
+        "sourcePublishedDate",
         "seoTitle",
         "metaDescription",
         "tags",
@@ -302,6 +303,9 @@ def validate_manifest_post(post: Dict[str, Any]) -> List[str]:
             errors.append(f"missing {key}")
     if not post.get("richContent") and not post.get("contentMarkdown"):
         errors.append("missing richContent or contentMarkdown")
+
+    if str(post.get("sourceSlug") or "").strip() == str(post.get("slug") or "").strip():
+        errors.append("new slug must differ from sourceSlug")
 
     tags = post.get("tags") or []
     if not isinstance(tags, list) or not 1 <= len(tags) <= 3:
@@ -465,7 +469,8 @@ def draft_post(
         "hashtags": post.get("hashtags", []) or [],
         "language": "en",
         "richContent": post["richContent"],
-        "firstPublishedDate": post["firstPublishedDate"],
+        # Intentionally omit firstPublishedDate: these are fresh Anew posts.
+        # Wix assigns the new publication date when the post is published.
         "seoSlug": str(post["slug"]).strip(),
         "seoData": seo_data(post),
     }
