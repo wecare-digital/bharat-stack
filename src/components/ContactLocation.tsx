@@ -232,6 +232,8 @@ const ContactLocation: React.FC = () => {
       const maps = w.google?.maps as undefined | {
         Map: new ( el: HTMLElement, opts: Record<string, unknown> ) => unknown;
         Marker: new ( opts: Record<string, unknown> ) => unknown;
+        Size: new ( w: number, h: number ) => unknown;
+        Point: new ( x: number, y: number ) => unknown;
       };
       if ( !mapHost.current || !maps ) return;
       const map = new maps.Map( mapHost.current, {
@@ -243,7 +245,38 @@ const ContactLocation: React.FC = () => {
         keyboardShortcuts: false,
         clickableIcons: false,
       } );
-      new maps.Marker( { position: { lat: LAT, lng: LNG }, map, title: 'WECARE.DIGITAL' } );
+
+      /**
+       * OUR PIN, IN OUR PALETTE - and the stroke is not decoration.
+       *
+       * The owner asked for a lime pin. Lime #d1f470 alone will not do the job: it
+       * measures about 1.4:1 against white, which is the measured reason the brand dot in
+       * BrandLockup could not be lime either, and on pale satellite imagery a flat lime
+       * pin disappears. So it is lime FILL with a #1a3a2a stroke - the contract's own
+       * lime-plus-dark-green pairing, the same one used for .cl-cta and BrandBadge. The
+       * stroke is what makes it legible over both bright roofs and dark foliage.
+       *
+       * Drawn as an SVG data URI rather than a PNG so it stays crisp on any DPR and
+       * carries no network request.
+       */
+      const PIN = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="0 0 40 52">
+        <path d="M20 1.5c-10.2 0-18.5 8.3-18.5 18.5 0 13.2 15.6 28.4 17.2 29.9a1.9 1.9 0 0 0 2.6 0C22.9 48.4 38.5 33.2 38.5 20 38.5 9.8 30.2 1.5 20 1.5z"
+              fill="#d1f470" stroke="#1a3a2a" stroke-width="3"/>
+        <circle cx="20" cy="20" r="6.5" fill="#1a3a2a"/>
+      </svg>`;
+
+      new maps.Marker( {
+        position: { lat: LAT, lng: LNG },
+        map,
+        title: 'WECARE.DIGITAL',
+        icon: {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent( PIN )}`,
+          scaledSize: new maps.Size( 40, 52 ),
+          // Anchor at the point of the pin, not its centre, so the tip sits on the
+          // premises rather than the artwork being centred on them.
+          anchor: new maps.Point( 20, 52 ),
+        },
+      } );
     };
 
     if ( w.google?.maps ) { init(); return; }
@@ -317,12 +350,31 @@ const ContactLocation: React.FC = () => {
             /* KEYED PATH. A plain div the JS API draws into. No overlay is needed here -
                gestureHandling:'none' and disableDefaultUI do natively what the overlay
                below has to fake, and there are no controls left to block. */
-            <div
-              ref={ mapHost }
-              className="cl-frame"
-              role="img"
-              aria-label="Satellite map showing the WECARE.DIGITAL office on Phears Lane, Kolkata"
-            />
+            <>
+              <div
+                ref={ mapHost }
+                className="cl-frame"
+                role="img"
+                aria-label="Satellite map showing the WECARE.DIGITAL office on Phears Lane, Kolkata"
+              />
+              {/* THE NAME AT THE PIN, and it is OUR element rather than a Google label.
+                  Google's own options for this are an InfoWindow or Marker.label. The
+                  InfoWindow is the white Roboto bubble with a close cross that the owner
+                  already rejected once and that no CSS of ours can restyle; Marker.label
+                  paints text inside the pin, which is far too small for a 14-character
+                  wordmark. Drawing it ourselves is the only way it lands in this site's
+                  type.
+                  NO PROJECTION MATHS NEEDED, and that is a consequence of the map being a
+                  fixed illustration: center is pinned to LAT/LNG and gestureHandling is
+                  'none', so the marker is permanently at the div's centre. The label is
+                  therefore positioned at 50%/50% and lifted by the pin's own height (52px
+                  anchored at its tip) plus a 6px gap. If the map is ever made pannable or
+                  zoomable this breaks, and it would need a real OverlayView instead.
+                  aria-hidden because the frame above already carries the full accessible
+                  name, and the address is in the column beside it - a screen reader should
+                  not hear the company name three times. */}
+              <p className="cl-pinlabel" aria-hidden="true">WECARE.DIGITAL</p>
+            </>
           ) : (
             <>
               <iframe
@@ -491,6 +543,24 @@ const ContactLocation: React.FC = () => {
         /* bottom:26px leaves Google's attribution strip uncovered and clickable. Raise
            this and you are disabling a licence condition. */
         .cl-lock{position:absolute;inset:0 0 26px 0;z-index:1;background:transparent;cursor:default}
+
+        /* The name beside the pin, keyed path only. Same lime edge and 14px radius as the
+           card and the map frame, so it reads as part of this site rather than as
+           something the map produced.
+           translate(-50%,-100%) puts its bottom-centre on the map's centre; the extra
+           -58px lifts it clear of the 52px pin plus a 6px gap. pointer-events:none so it
+           can never intercept a click meant for the map or its attribution.
+           white-space:nowrap because a wrapped wordmark reads as two labels. */
+        .cl-pinlabel{
+          position:absolute;left:50%;top:50%;z-index:2;
+          transform:translate(-50%,-100%) translateY(-58px);
+          margin:0;padding:5px 11px;
+          border:2px solid #d1f470;border-radius:14px;
+          background:#fff;color:#1a3a2a;
+          font-size:13px;font-weight:700;letter-spacing:-.1px;line-height:1.2;
+          white-space:nowrap;pointer-events:none;
+          box-shadow:0 4px 12px rgba(26,58,42,.12);
+        }
 
         /* THE CARD THAT REPLACED GOOGLE'S. Same 14px radius and 2px lime edge as the map
            frame itself, so it reads as part of this site rather than as a tooltip the map
