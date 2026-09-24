@@ -17,7 +17,7 @@ describe( 'WECARE.DIGITAL Home', () => {
     const heading = screen.getByRole( 'heading', { level: 1 } );
 
     // Only the pill rotates; the frame does not.
-    expect( heading.textContent ).toMatch( /^Everyday services for/ );
+    expect( heading.textContent ).toMatch( /^Everyday AI, built for/ );
   } );
 
   it( 'carries the cost and complexity half of the positioning in the body line', () => {
@@ -66,7 +66,7 @@ describe( 'WECARE.DIGITAL Home', () => {
     // One readable copy of the full list...
     const srOnly = container.querySelector( '.home-sr-only' );
     expect( srOnly ).toBeInTheDocument();
-    expect( srOnly?.textContent ).toBe( 'consumers, enterprises, AI applications, climate tech, frontier tech' );
+    expect( srOnly?.textContent ).toBe( 'consumers, enterprises, climate tech, frontier tech' );
 
     // ...and every visually-rotating copy hidden, so the headline is not read out
     // once per word. Each animated word must carry aria-hidden.

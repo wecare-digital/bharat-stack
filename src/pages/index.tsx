@@ -78,9 +78,23 @@ import WorkflowTerminal from '../components/WorkflowTerminal';
 // exhaustive-deps suppression the way VayuLok needed one.
 // Lowercase: these sit mid-sentence, not at the head of one.
 //
-// THE SET, AND WHY THESE FIVE. Two axes, deliberately: `consumers` and `enterprises`
-// are the audiences we serve; `AI applications`, `climate tech` and `frontier tech`
-// are the kinds of thing we build. Every entry stays true on the day a single
+// THE SET, AND WHY THESE FOUR, AND WHY THE FRAME SAYS "BUILT FOR".
+// `consumers` and `enterprises` are audiences; `climate tech` and `frontier tech` are
+// fields. Those are two different axes, and the old frame - "Everyday services for" -
+// only accepted the first: "Everyday services for climate tech" does not parse, because
+// a field is not something you deliver a service to.
+// That is the same test that removed `AI applications`, and it applied just as much to
+// these two; leaving them in was inconsistent. Rather than cut half the set, the FRAME
+// changed. "Everyday AI, built for" is true of all four - you build for consumers and you
+// build for climate tech - and it puts AI back above the fold, which had been lost when
+// `AI applications` came out.
+// Length was deliberate too: 22 characters against the old frame's 21, so the h1's first
+// line keeps its visual weight against the pill below it. "Everyday AI for" was rejected
+// at 15 characters for leaving that line visibly short.
+// DO NOT re-add `AI applications` under this frame: it renders "Everyday AI, built for AI
+// applications", with AI twice, and "applications" is what you build rather than a field
+// you build for.
+// `AI applications` was removed on the owner’s instruction - see the note below. Every entry stays true on the day a single
 // offering changes, which is the property the earlier sets did not have.
 //
 // NO SERVICE NAMES HERE, EVER. travel, rituals, documents, reflection and disputes
@@ -96,9 +110,19 @@ import WorkflowTerminal from '../components/WorkflowTerminal';
 //   ai         -> AI           an initialism, and the rest of the page capitalises it
 // Revert any of those if the original wording was deliberate.
 //
-// `climate` BECAME `climate tech`, and that was decided by measurement rather than by
-// feel. Rendered widths at 1280px, from tools/browser/animcheck.js:
-//   climate 178 | consumers 278 | enterprises 280 | frontier tech 300 | AI applications 361
+// `AI applications` WAS DROPPED, and it was the outlier that set the pill’s travel.
+// Rendered widths at 1280px, from tools/browser/animcheck.js:
+//   consumers 278 | enterprises 280 | climate tech 298 | frontier tech 300
+//   (`AI applications` measured 361 and is gone; `climate` measured 178 before it
+//    became `climate tech`)
+// The spread is now about 22px against 83px before, so the pill barely moves per tick.
+//
+// THE CONSEQUENCE WORTH KNOWING: AI is now mentioned NOWHERE in the hero. The sub-line
+// does not name it either, so the only AI claim on this page is "one AI foundation" in
+// the flow section below the fold. That is a positioning decision the owner made
+// knowingly; if the hero should carry AI again, the sub-line is the place for it, not
+// this rotation - the frame is "Everyday services for ___" and every entry has to be
+// something you can serve.
 // Bare "climate" was much the shortest word in the set, so the pill's tail swung 183px
 // every tick against 83px across the other four - 2.2x the movement for one word.
 // `climate tech` measures ~290px, which puts the spread back to ~83px. It also fixes
@@ -126,7 +150,6 @@ import WorkflowTerminal from '../components/WorkflowTerminal';
 const CYCLE_WORDS = [
   { word: 'consumers', tint: '#fef3c7', dot: '#f0a818' },
   { word: 'enterprises', tint: '#ede9fe', dot: '#9849e8' },
-  { word: 'AI applications', tint: '#dbeafe', dot: '#2563eb' },
   { word: 'climate tech', tint: '#e0f7c8', dot: '#3da35a' },
   { word: 'frontier tech', tint: '#fee2e2', dot: '#dc2626' },
 ];
@@ -241,7 +264,7 @@ const HomePage: React.FC = () => {
                 Giving the pill its own block makes line count independent of word
                 width, so the glide is free to be as wide as it likes. */}
             <h1 className="home-head">
-              <span className="home-head-line">Everyday services for</span>
+              <span className="home-head-line">Everyday AI, built for</span>
               <span
                 className="home-mark"
                 style={ { background: CYCLE_WORDS[ cycleIndex ].tint } }
@@ -312,12 +335,9 @@ const HomePage: React.FC = () => {
                   prompt follow-ups and more reliable delivery. This column now says that,
                   and the headline gives the black terminal beside it a reason to exist for
                   someone non-technical: it is the part you are not meant to have to look at. */}
-              <h2 className="home-flow-title" id="home-flow-title">You won’t see this part. You’ll feel it.</h2>
+              <h2 className="home-flow-title" id="home-flow-title">The part you don’t have to think about.</h2>
               <p className="home-flow-lead">
-                Everything runs on the same AI foundation underneath. You may never need
-                to think about how it works. What you notice is that things feel connected:
-                you don’t keep repeating yourself, updates reach you where you are,
-                follow-ups happen automatically, and every experience feels familiar.
+                Every service runs on one AI foundation. Nothing falls between them.
               </p>
               { /* THREE BEATS, EACH ONE SOMETHING A CUSTOMER CAN NOTICE HAPPENING TO THEM.
                    These have now been rewritten twice. First they named components ("Built
@@ -330,28 +350,60 @@ const HomePage: React.FC = () => {
                    where you actually look, and get the message late rather than never. The
                    mechanism is still there as the reason to believe it, just no longer the
                    subject of the sentence. */ }
-              {/* FOUR beats, not three, per the owner's copy. The fourth - that it
-                  remembers context - is the one that compounds, so it closes the list.
-                  Channel names are back. An earlier pass stripped them on the reading
-                  that the no-service-names rule covered them; the owner's own draft
-                  names them twice, which settles it. The rule is about SERVICE names,
-                  which change, not delivery channels. */}
+              {/* THE LEAD ABOVE DELIBERATELY DOES NOT LIST THESE THREE. It used to end
+                  "...you don’t keep repeating yourself, updates reach you where you are,
+                  follow-ups happen automatically, and every experience feels familiar" -
+                  which pre-announced all three beats a reader had not reached yet, and
+                  duplicated the third one WORD FOR WORD about 150px above it. It also
+                  promised four things while only three follow, the fourth being the beat
+                  deleted earlier. Do not reintroduce a summary list there.
+                  ON "AI FOUNDATION", WHICH HAS NOW GONE BOTH WAYS. It was cut from this
+                  lead on the reasoning that the three beats below describe single sign-on,
+                  multichannel delivery and automatic retry - none of which is AI - and that
+                  labelling plumbing as AI invites a reader to discount the honest parts.
+                  The owner then confirmed the positioning: WECARE.DIGITAL is an AI company
+                  offering services across the domains the hero rotates, one of which is
+                  literally "AI applications". So the claim is restored. The distinction that
+                  makes it honest: "one AI foundation" describes the PLATFORM the services
+                  share, it does not claim each of the three beats below is itself AI. Keep
+                  it that way - if a beat ever asserts AI, it needs something behind it.
+                  "Nothing falls between them" replaces "You never have to manage the joins
+                  between them", which was awkward and put the reader in charge of plumbing
+                  they were just told not to think about. */}
+              {/* THREE beats. It was four: a fourth read "It remembers the context", which
+                  said the same thing as the closing band's "Tell us once. We remember the
+                  context." about 200px further down the same page, and the same thing again
+                  as the first beat's "your context carries forward". Three claims, one
+                  idea. Removing it also evens the two columns of this section, which the
+                  sticky copy column had been overrunning.
+                  NO CHANNEL NAMES ON THIS PAGE, and that reverses an earlier decision
+                  recorded here. They had been restored on the reasoning that the
+                  no-service-names rule covers services, not delivery channels - which is
+                  still true as a rule. The owner has since scoped it differently: the home
+                  page does not promote WhatsApp. "Updates reach you wherever you already
+                  are" carries the meaning without naming any channel.
+                  Naming SMS, email and phone while omitting WhatsApp was the one option
+                  ruled out - in India that reads as an oversight rather than a choice.
+                  THIS IS SPECIFIC TO THE HOME PAGE. /grahak-os/ is deliberately
+                  WhatsApp-led and its hero still rotates the four channels; do not
+                  propagate this edit there. The floating WhatsApp support button stays on
+                  every public page including this one - it is a way to reach us, not a
+                  claim about what we sell.
+                  Beat 1 names no auth mechanism either: no account, no sign-in, no OTP.
+                  That was "One account. One continuous experience. / Sign in once..." and
+                  promised a login model the owner has not committed to. */}
               <ul className="home-flow-list">
                 <li>
-                  <strong>One account. One continuous experience.</strong>
-                  <span>Sign in once, and your context carries forward. What you’ve already shared stays connected, so the next thing you need doesn’t feel like starting over.</span>
+                  <strong>Pick up where you left off.</strong>
+                  <span>What you’ve already shared stays connected, so the next thing you need isn’t a fresh start.</span>
                 </li>
                 <li>
                   <strong>Updates find you.</strong>
-                  <span>Important updates can reach you across WhatsApp, SMS, email or phone, so you’re less likely to miss what matters.</span>
+                  <span>Updates reach you wherever you already are.</span>
                 </li>
                 <li>
                   <strong>Follow-ups happen automatically.</strong>
-                  <span>If something doesn’t go through or needs another nudge, it is tracked and followed up without waiting for you to chase it.</span>
-                </li>
-                <li>
-                  <strong>It remembers the context.</strong>
-                  <span>The more you use it, the less you need to repeat — helping each interaction feel faster, simpler and more relevant.</span>
+                  <span>If something fails or needs chasing, we chase it. You don’t have to.</span>
                 </li>
               </ul>
             </div>
@@ -391,19 +443,37 @@ const HomePage: React.FC = () => {
                   three lines are that site's own "Tap. Track. Done." written out. */}
               <p className="home-close-eyebrow">Everyday Bharat</p>
               <h2 className="home-close-title" id="home-close-title">
-                Start with what you need today. The rest stays with you.
+                Start with what you need today.
               </h2>
-              {/* "We keep", not "We keeps" - the one grammar fix to the owner's draft. */}
+              {/* THE CONTEXT CLAIM IS DELIBERATELY GONE FROM HERE, and so is the second
+                  sentence of the title above. The page was saying "we remember what you
+                  already told us" FOUR times: the flow section's first beat, this title,
+                  this lead (twice over), and the first point below. Two of those were
+                  near-verbatim - "what you’ve already shared" appeared here and in that
+                  beat, and "start from scratch" here against "starting over" there. A fifth
+                  instance was already deleted in 4d5dcba7. It is now stated twice: once in
+                  the flow beat that owns it, once in the point below.
+                  The replacement says something the page does not say anywhere else - that
+                  you can buy one thing without committing to a bundle - which is what a
+                  closing band is for. It also does NOT summarise the three points beneath
+                  it, which is the mistake just corrected in the flow section's lead. */}
               <p className="home-close-lead">
-                Begin with whatever matters right now. When you come back for something
-                else, you don’t have to start from scratch. We keep the context, remember
-                what you’ve already shared, and help move things forward from there.
+                Pick one thing and see how it goes. There’s no bundle to buy and no
+                minimum to commit to.
               </p>
               <span className="home-close-rule" aria-hidden="true" />
               <ul className="home-close-points">
-                <li>Tell us once. We remember the context.</li>
-                <li>Everything you’ve asked for, in one place.</li>
+                {/* "Know the price before you commit" leads, and that order is the point:
+                    it is the only concrete, falsifiable promise on the page, and it was
+                    sitting last. NOTE it is still a promise with nothing behind it - no
+                    price appears anywhere on this page. Do not hardcode one here: the
+                    catalog floor is ₹599 today (Viveka) and the owner expects ₹49 once
+                    several thousand more products are loaded, so any number typed into this
+                    copy starts drifting immediately. Derive it from src/content/wix-catalog.json
+                    instead, then it cannot lie. */}
                 <li>Know the price before you commit.</li>
+                <li>Tell us once. We remember the context.</li>
+                <li>See where everything stands.</li>
               </ul>
               {/* A PLAIN <a>, AND IT MUST STAY ONE. This was briefly next/link to silence
                   @next/next/no-html-link-for-pages, and that silently destroyed the button:

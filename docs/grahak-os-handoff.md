@@ -56,15 +56,40 @@ misled every reader so far.
 ## Needs the owner, not an agent
 
 1. **Merge.** Nothing above reaches production until this branch lands in `stack`.
-2. **Dependency vulnerabilities are not code-fixable today.** `/store`'s seven findings
-   all come from `@wix/cli`, and **`1.1.247` is the latest published version** — there
-   is nothing to upgrade to. The root critical `tar` comes only from `tar@6.2.1` nested
-   under `plivo-browser-sdk → wasm-pack → binary-install`, all `fixAvailable: false`;
-   the copy we control (`@capacitor/cli`) is already on `7.5.22`, above the whole
-   `<=7.5.20` vulnerable range. The only lever is `overrides`, which means forcing
-   tar 7 under packages written for tar 6 — that risks the Plivo softphone's install,
-   so it is a judgement call, not a patch. Dependabot's alerts API returns 403 to the
-   sandbox token (`security_events` scope), so work from `npm audit`.
+2. ~~**Dependency vulnerabilities are not code-fixable today.**~~ **FIXED — `npm audit`
+   now reports 0 vulnerabilities.** It had been 5 (4 moderate, 1 high).
+
+   Everything earlier revisions of this file said about this was stale, which is worth
+   noting because it was stated with confidence: there was no `@wix/cli` finding and no
+   `tar` finding in the audit at all, and nothing about `plivo-browser-sdk`,
+   `wasm-pack` or `binary-install`. **Re-run `npm audit` rather than trusting any
+   description of it, including this one.**
+
+   What was actually there: all 5 findings traced to the single direct devDependency
+   `@aws-amplify/backend-cli` → `@aws-amplify/schema-generator` →
+   `@aws-amplify/graphql-schema-generator` → `csv-parse` (prototype replacement) and
+   `mysql2` (auth-plugin downgrade, unbounded zlib inflate).
+
+   `npm audit fix` was NOT the answer: its `fixAvailable` proposed dropping
+   `@aws-amplify/backend-cli` from **1.10.0 to 0.11.1**, a major *downgrade* to a 0.x
+   line, because every 1.x release is inside the advisory range. 1.10.0 is the newest
+   published version, so there was nothing to upgrade to — the same shape as the old
+   `@wix/cli` note, and the same trap.
+
+   The fix was to patch the two **leaf** packages instead, via `overrides` in
+   `package.json`: `mysql2` 3.9.9 → **3.24.4** (clears the `<=3.23.0` range) and
+   `csv-parse` 5.6.0 → **7.0.2**. That clears all five, because the other three were
+   only flagged as parents of these two.
+
+   Safe because it is dev-only and unused: both are reached solely through the `ampx`
+   CLI's SQL schema generator, and this project never invokes it — there is no
+   `schema-from-database` call anywhere and `amplify/data/resource.ts` is a
+   DynamoDB-backed `defineData`/`a.model` schema with no SQL data source. Verified after
+   the change: build 0, tsc 0, vitest 99/99, provider policy 8/8.
+
+   Applied **incrementally**, not by regenerating the lockfile: a from-scratch regen
+   touched ~19,700 lines, while `npm install` over the existing lock touched **35
+   insertions / 56 deletions** for the same result. Prefer the small diff.
 3. **`npm ci` IS BROKEN AGAIN, and the usual fix provably does not work.** Earlier
    revisions of this file said "`package-lock.json` resynced — `npm ci` works again".
    That is no longer true. On `stack` at `e4cfbe0e`:
@@ -87,11 +112,27 @@ misled every reader so far.
    install` succeeds because it trusts bundled deps rather than resolving them; `npm ci`
    validates those edges and refuses.
 
-   Consequences: use `npm install` in the sandbox, not `npm ci`. `deps-upgrade.yml` is
-   `workflow_dispatch`-only so nothing fails per-push, but that workflow's `npm ci` gate
-   **will** fail if run — though since it deletes the lockfile and regenerates from
-   scratch on a networked runner first, it is also the most likely thing to fix this.
-   Worth a manual run at `mode=lock-only`.
+   **TWO FIXES HAVE NOW BEEN TRIED AND BOTH FAILED. Do not spend another round on it.**
+
+   *Regenerating the lockfile from scratch does not work.* `rm package-lock.json && npm
+   install` on a networked machine produces a completely fresh tree — 12,404 lines
+   removed, 7,302 added — and `npm ci` then fails with the **identical four errors**.
+   That matters because it is exactly what `deps-upgrade.yml` at `mode=lock-only` does,
+   so **that workflow cannot fix this either**; an earlier revision of this file
+   recommended it as "the most likely thing to fix this", and that advice was wrong.
+
+   *An `overrides` entry does not work either — it crashes npm.* Adding
+   `"@opentelemetry/core": "2.8.0"` to rewrite the bundled requirement made `npm install`
+   abort with a V8 stack trace and exit **134**, and the follow-up `npm ci` then hung
+   until it was killed. The override was removed; do not re-add it.
+
+   Consequences: use `npm install`, never `npm ci`. `.github/workflows/build-test.yml`
+   already does, and carries a non-blocking probe that will announce the day `npm ci`
+   starts working. `deps-upgrade.yml` is `workflow_dispatch`-only, so nothing fails
+   per-push. The realistic resolutions are upstream: Amplify fixing the bundled
+   dependency edge in `data-construct` / `graphql-api-construct`, or `patch-package`
+   rewriting those two bundled manifests locally, which is heavy for a lint-level
+   annoyance that blocks no build.
 4. **`amplify.yml` still deploys with `npm install`.** Switching to `npm ci` would make
    deploys reproducible, but it is blocked outright by the item above — and `npm install`
    is currently the only command that works, so the status quo is load-bearing rather

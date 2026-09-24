@@ -12,7 +12,8 @@ interface NavLink {
   href: string;
   /** router.pathname value that marks this link as the current page. */
   match?: string;
-  /** True for absolute URLs off this app. Same tab either way - see PENDING_HREF. */
+  /** True for absolute URLs off this app. Same tab either way. No nav row uses it now:
+   *  the two that did pointed at www.wecare.digital paths that both 404. */
   external?: boolean;
 }
 
@@ -30,8 +31,14 @@ interface NavColumn {
   sections: NavSection[];
 }
 
-const SELFSERVICE = 'https://www.wecare.digital/selfservice';
-const PARTNERS = 'https://www.wecare.digital/product-page/referral-partner';
+// BOTH OF THESE USED TO BE ABSOLUTE URLS ON www.wecare.digital, AND BOTH RETURNED 404
+// ON EVERY PUBLIC PAGE. Measured: /selfservice -> 404 and /product-page/referral-partner
+// -> 404, on both the apex and the www host. That domain serves THIS Next.js app, which
+// has no /selfservice route and no Wix /product-page/* routes - the Wix storefront those
+// paths assumed is not published there. The referral-partner PRODUCT is real (it exists in
+// the Wix catalog at 999.00); only the URL was wrong.
+// They now point at routes that exist and return 200. /service/ and its three children are
+// real exported pages that were simply never wired into this menu.
 
 // PLACEHOLDER, pending the owner's per-service URLs.
 //
@@ -41,17 +48,32 @@ const PARTNERS = 'https://www.wecare.digital/product-page/referral-partner';
 // on the marketing site. Pointing at the parent means every row in the menu works
 // today and lands the visitor one click from what they wanted.
 //
-// To wire the real links: replace PENDING_HREF on each row below with its URL. The
-// constant is referenced rather than inlined so `grep PENDING_HREF` lists exactly
-// what is still outstanding, and Header.test.tsx asserts all seven rows exist so a
-// typo during that edit cannot silently drop one.
-// STILL A PLACEHOLDER, AND NOW A DIFFERENT KIND OF PROBLEM. These rows point at the
-// external Selfservice landing page, which the owner has said is going away. So they
-// currently aim at a URL that is scheduled to stop existing, rather than at a page that
-// merely looks generic. They need four real destinations - Submit Request, Request
-// Amendment, Drop Docs, Leave Review - or they should be dropped from the menu. Flagged
-// rather than guessed: an invented path like /selfservice/submit-request would 404.
-const PENDING_HREF = SELFSERVICE;
+// ALL SEVEN ROWS NOW POINT AT LOCAL ROUTES THAT RETURN 200, and every one carries
+// `match` so it lights up on its own route. Mapping, for the record:
+//   Submit Request     -> /contact/
+//   Request Amendment  -> /contact/
+//   My Order           -> /my-order/
+//   Drop Docs          -> /contact/
+//   Leave Review       -> /contact/
+//   Contact            -> /contact/
+//
+// WHY THEY ALL POINT AT /contact/ AND *NOT* AT /service/*. The /service/ pages exist and
+// return 200, and an earlier pass wired these rows to them - which was wrong. Those pages
+// are AUTHENTICATED by design: service/index.tsx renders <Layout user onSignOut> (the
+// dashboard chrome, with a sign-out control) and submit-request.tsx identifies the
+// requester from user?.signInDetails?.loginId. None of them is in PUBLIC_PAGE_META, so
+// _app.tsx renders them inside the Authenticator - a public menu row pointing there shows
+// an anonymous visitor a login wall. Measured: out/service/submit-request/index.html is
+// 144,800 bytes of auth shell against 35,738 for the public /contact/ page.
+// /contact/ is the right destination until public equivalents exist: it IS the Selfservice
+// entry point - its badge reads "Selfservice by WECARE.DIGITAL" and its rotation already
+// says submit a request, amend a request, track a request, drop documents, leave a review.
+// To give these rows their own pages, build PUBLIC ones (authenticating with the existing
+// WhatsApp OTP flow, not the dashboard's Cognito session) and register each in
+// PUBLIC_PAGE_META - otherwise they render a blank 200 or a login wall.
+// Header.test.tsx asserts all seven rows exist, so a typo here cannot silently drop one.
+const SELFSERVICE = '/contact/';
+const PARTNERS = '/contact/';
 
 // One structure, rendered as columns, rather than the single flat list this used to
 // be. The Selfservice group is why: seven children under one parent made a
@@ -107,15 +129,15 @@ const COLUMNS: NavColumn[] = [
         links: [
           // FAQ removed on request. The local /faq page was already deleted; this
           // drops the menu row too, so there is no FAQ entry point left anywhere.
-          { label: 'Submit Request', href: PENDING_HREF, external: true },
-          { label: 'Request Amendment', href: PENDING_HREF, external: true },
+          { label: 'Submit Request', href: '/contact/', match: '/contact' },
+          { label: 'Request Amendment', href: '/contact/', match: '/contact' },
           // "My Order" REPLACES the old "Request Tracking" row rather than sitting beside
           // it: the two answer the same question, and offering both sends one visitor to
           // two places for one answer. Unlike its siblings this is a local page, so it
           // carries `match` and lights up on its own route.
           { label: 'My Order', href: '/my-order/', match: '/my-order' },
-          { label: 'Drop Docs', href: PENDING_HREF, external: true },
-          { label: 'Leave Review', href: PENDING_HREF, external: true },
+          { label: 'Drop Docs', href: '/contact/', match: '/contact' },
+          { label: 'Leave Review', href: '/contact/', match: '/contact' },
           // Local pages, so these carry `match` and light up on their own route.
           // Trailing slashes are load-bearing: trailingSlash is set, so /contact
           // would redirect before resolving.
