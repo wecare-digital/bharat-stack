@@ -125,13 +125,23 @@ response = requests.post(
         <title>Grahak OS by WECARE.DIGITAL - Customer Engagement Platform</title>
         <meta name="description" content="Grahak OS is the customer engagement product in WECARE.DIGITAL, unifying WhatsApp, SMS, Email, Voice, automation and customer data in one experience." />
         <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications" />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://wecare.digital/grahak-os/" />
-        <meta property="og:title" content="Grahak OS - Customer Engagement Platform | WECARE.DIGITAL" />
-        <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
-        <meta property="og:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
-        <meta property="og:site_name" content="WECARE.DIGITAL" />
-        <meta property="og:locale" content="en_IN" />
+        {/* THE key ON EACH og: TAG IS WHAT MAKES THIS PAGE OVERRIDE THE SITEWIDE BLOCK
+            rather than add a second tag beside it. next/head de-duplicates meta by `name`,
+            `httpEquiv`, `charSet` and `itemProp` only - `property` is not on that list - so
+            before these keys existed this page shipped TWO of every og tag (type, url,
+            title, description, image, site_name, locale), measured on the built export.
+            A crawler or link unfurler reading the first match got _app.tsx's sitewide copy,
+            which meant this product page previewed as the company page.
+            The keys must stay character-identical to the ones in src/pages/_app.tsx - a
+            mismatch silently restores the duplicate. Verify with:
+              grep -o '"og:title"' out/grahak-os/index.html | wc -l   # must be 1 */}
+        <meta property="og:type" key="og:type" content="website" />
+        <meta property="og:url" key="og:url" content="https://wecare.digital/grahak-os/" />
+        <meta property="og:title" key="og:title" content="Grahak OS - Customer Engagement Platform | WECARE.DIGITAL" />
+        <meta property="og:description" key="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
+        <meta property="og:image" key="og:image" content="https://app.wecare.digital/stream/media/m/wecaredigital.png" />
+        <meta property="og:site_name" key="og:site_name" content="WECARE.DIGITAL" />
+        <meta property="og:locale" key="og:locale" content="en_IN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content="https://wecare.digital/grahak-os/" />
         <meta name="twitter:title" content="Grahak OS - Customer Engagement Platform" />
@@ -641,6 +651,32 @@ response = requests.post(
             .hero-mark-dot{transform:scale(1)}
             .hero-cycle{transition:none}
             .hero-cyc-word{transition:none}
+          }
+
+          /* THE HEADLINE MUST NOT CHANGE HEIGHT WHEN THE PILL CHANGES WORD.
+             The h1 reads "Reach customers / across <pill>", and the pill animates to each
+             word's measured width. Those words run from "SMS" to "WhatsApp" - 116px to
+             262px at 1280, a 146px spread - so on a narrow screen the pill no longer fits
+             beside "across", the line breaks somewhere new, and the h1 grows. Everything
+             below it on the page then jumps by that much on every rotation, every 2.4s.
+             Measured across 18 viewports, the h1 had two different heights at:
+               320px      128 / 168px  (delta 40px)
+               340-360px   87 / 128px  (delta 41px)
+             and one stable height at 375px and above.
+             Giving the pill its own line below 374px fixes it: the text above can no longer
+             be pushed around by the pill's width, so the line count is the same for every
+             word. width:fit-content is required with display:block - a plain block would
+             stretch the tinted pill to the full column width.
+             DELIBERATELY NOT APPLIED ABOVE 374px. From 375px up the headline already
+             measures a constant height for every word, and forcing the break there would
+             turn a correct two-line headline into three lines on every desktop.
+             Re-measure with node tools/browser/animcheck.js if the word list changes - a
+             word longer than "WhatsApp" can push the threshold above 374px.
+             (No backticks in this comment on purpose - it sits inside a style jsx template
+             literal, where one stray backtick ends the literal and fails the build with a
+             misleading "Expected '</', got 'ident'" pointing at the JSX below.) */
+          @media(max-width:374px){
+            .hero-mark{display:block;width:fit-content}
           }
           
           /* Trusted by Meta section */

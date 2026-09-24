@@ -238,9 +238,23 @@ const HomePage: React.FC = () => {
 
   return (
     <>
+      {/* NO title AND NO description HERE - BOTH ARE INHERITED FROM _app.tsx ON PURPOSE.
+          This Head used to declare `<title>WECARE.DIGITAL</title>` and
+          `<meta name="description" content="WECARE.DIGITAL." />`. Because next/head lets a
+          page's Head win over _app's, those two lines were silently overriding the sitewide
+          metadata on the single most important URL on the site: the home page's title was
+          the bare brand name with nothing about what the company does, and its description
+          was the brand name followed by a full stop. The sitewide description had already
+          been rewritten to "WECARE.DIGITAL builds everyday AI for consumers, enterprises,
+          climate tech and frontier tech..." and the home page was the one page never
+          receiving it.
+          The sitewide values are correct for this route without modification - _app.tsx
+          describes the company, and this IS the company page - so the fix is to stop
+          overriding them rather than to restate them here. Every other public page declares
+          its own because it is about something narrower.
+          The canonical stays: it is keyed, so it replaces rather than duplicates _app's,
+          and the root is the one canonical that cannot be derived from a pathname. */}
       <Head>
-        <title>WECARE.DIGITAL</title>
-        <meta name="description" content="WECARE.DIGITAL." />
         <link rel="canonical" key="canonical" href="https://wecare.digital/" />
       </Head>
       <main className="home-shell" aria-label="WECARE.DIGITAL home">
@@ -629,17 +643,37 @@ const HomePage: React.FC = () => {
         .home-close.is-armed.is-in .home-close-rule{transform:scaleX(1)}
 
         .home-close-points{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
-        /* 17px/600 - the card-heading rung at its small end. These are claims, not body
-           copy, so they sit above the 16px secondary level. */
+        /* ON THE SITE'S ONE BODY RUNG: 20px/400/1.4/-.125px, byte for byte the same
+           declaration as .home-sub, .home-flow-lead, .home-close-lead and the flow
+           section's beat bodies - six elements on this page alone.
+           THIS USED TO BE 17px/600 under a comment calling it "the card-heading rung at
+           its small end ... claims, not body copy, so they sit above the 16px secondary
+           level". Both halves of that were wrong once measured: 17px is the site's BASE
+           body size, not a card-heading rung (that rung is 22px/700, which is what the
+           flow beats' titles use), and there is no 16px secondary level on this page to
+           sit above - 17/600 was simply off the ladder, and after the flow beats moved up
+           to 22/700 + 20/400 it became the smallest text in the closing band.
+           WHY 400 AND NOT 700. The flow beats earn 22px/700 because a 20px/400 body line
+           follows each one and supplies the contrast; these points have no body line, so
+           three consecutive bold lines under a 40px/700 h2 would have no internal contrast
+           and would rival the heading. Weight is not what marks them as claims - the tick,
+           the lime rule above them and the #1a3a2a colour are, which is exactly how the
+           flow section separates its own lead (rgba(0,0,0,.898)) from its beat bodies
+           (rgba(0,0,0,.54)) while both sit on this same 20/400 rung.
+           20px/600 was considered and rejected: it exists nowhere on the site, and
+           inventing a rung is the thing the h2 unification was done to stop. */
         .home-close-points li{
           position:relative;padding-left:26px;
-          font-size:17px;font-weight:600;line-height:1.45;letter-spacing:-.2px;color:#1a3a2a;
+          font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:#1a3a2a;
           transition:opacity .5s ease,transform .5s ease;
         }
         /* A tick drawn with two borders on a rotated box: no asset, no request, cannot 404 -
-           the same technique as the map pin. */
+           the same technique as the map pin.
+           top follows the line box, it is not a free parameter. At 17px/1.45 the box was
+           24.65px tall and top:6px centred the tick on the x-height; at 20px/1.4 the box is
+           28px, so the same optical position is 7px. Measured, not scaled by eye. */
         .home-close-points li::before{
-          content:'';position:absolute;left:2px;top:6px;
+          content:'';position:absolute;left:2px;top:7px;
           width:11px;height:6px;
           border-left:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;
           transform:rotate(-45deg);
@@ -684,7 +718,13 @@ const HomePage: React.FC = () => {
              breakpoint, so the narrow-screen rhythm is already handled by the parent - the
              margin that used to be here made it 128px. */
           .home-close-title{max-width:none}
-          .home-close-lead{font-size:18px}
+          /* NO font-size OVERRIDE ON THE LEAD HERE. There was one - font-size:18px - and it
+             applied to .home-close-lead only, so at 390px this section's lead measured 18px
+             while .home-flow-lead directly above it stayed 20px: the same body rung
+             rendering at two sizes on one page, which is the defect the h2 unification
+             fixed at the heading level. The body rung has no mobile step anywhere else on
+             the site (.home-sub and .home-flow-lead both hold 20px down to 320px), so the
+             override was the outlier, not the rule. */
         }
 
         @media(max-width:1024px){

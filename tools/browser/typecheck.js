@@ -4,7 +4,7 @@
  * typecheck - the heading ladder across every public page.
  *
  * WHAT IT IS FOR. `.kiro/steering/grahak-os-design.md` fixes one section-h2 rung for the
- * whole site: clamp(32px,4.2vw,54px) / 700 / lh 1.04 / ls -1.875px. Nothing enforces it,
+ * whole site: clamp(28px,3.2vw,40px) / 700 / lh 1.08 / ls -1.2px. Nothing enforces it,
  * and each public page declares its own h2 rule inside its own <style jsx>, so they drift
  * independently and silently. A unit test cannot catch it either, because the value only
  * exists once a browser has resolved the clamp against a viewport.
@@ -18,8 +18,9 @@
  * So every heading is printed with its class and its text, and the assertions are scoped
  * to the ones that are genuinely section headings.
  *
- * Measured at 1280px by default because that is where the contract's clamp resolves to a
- * memorable number: 4.2vw of 1280 is exactly 53.76px. A second width is sampled to show
+ * Measured at 1280px by default because that is where the contract's clamp is pinned to its
+ * ceiling: 3.2vw of 1280 is 40.96px, so the clamp reports a flat 40px. A second width is
+ * sampled (900px, where it resolves to 28.8px) to show
  * whether a page is on a different clamp or merely at a different point on the same one -
  * two pages can disagree at one width and agree at another, and only the formula matters.
  *
@@ -45,11 +46,24 @@ const ROUTES = [
 
 const WIDTHS = [ 1280, 900 ];
 
-/** The contract's section-h2 rung, resolved per width. */
+/**
+ * The contract's section-h2 rung, resolved per width.
+ *
+ * THIS WAS clamp(32px,4.2vw,54px) AND THAT VALUE EXISTED NOWHERE ON THE SITE. It resolved
+ * to 53.76px at 1280px, matched four headings on /grahak-os/ and nothing else, and made
+ * this harness report 86 headings as "off-ladder" while every one of them agreed with
+ * every other. The steering contract has since been reconciled onto the rung the site
+ * actually ships - see .kiro/steering/grahak-os-design.md, which now records why 40px won:
+ * the hero h1 is clamp(36px,4.3vw,60px), so at 1280px it resolves to 55.04px and a 53.76px
+ * h2 sat 1.28px below it. With the h2 also being the heavier weight, the hierarchy
+ * inverted and the h2 read as the larger of the two.
+ * Keep this in step with the steering file. If they disagree, one of them is lying and
+ * this harness is the only one of the pair that gets measured.
+ */
 const CONTRACT = {
-  clamp: 'clamp(32px,4.2vw,54px)',
+  clamp: 'clamp(28px,3.2vw,40px)',
   weight: '700',
-  at: w => Math.min( 54, Math.max( 32, w * 0.042 ) ),
+  at: w => Math.min( 40, Math.max( 28, w * 0.032 ) ),
 };
 
 const results = [];
@@ -158,13 +172,49 @@ async function main() {
      * rung - a small semantic tidy, not a type-scale question.
      */
     const NON_SECTION = /(-card|-chip|card-|widget|wa-|fa-|sr-only|visually|cl-card|-toc-)/;
+
+    /**
+     * DOCUMENTED EXCEPTIONS: headings that ARE section headings and are deliberately NOT on
+     * the shared rung. This is a different category from NON_SECTION above, and conflating
+     * the two was hiding a real distinction.
+     *
+     * NON_SECTION means "not a section heading at all" - a card title, a widget label, an
+     * eyebrow marked up as an h2. Those are correctly small and scaling them would be a
+     * regression.
+     *
+     * An entry here is a genuine section heading with a deliberate, recorded reason to sit
+     * off the rung. Each one needs a justification, because the default answer is no: an
+     * exception with no reason is just drift with a comment on it.
+     */
+    const RUNG_EXCEPTIONS = [
+      {
+        match: /(^|\.)lgd-h2(\.|$)/,
+        why: '/terms/ and /privacy/ carry 45 numbered legal sections between them. At 40px '
+          + 'each one reads as a page title and the documents become a wall of headings; at '
+          + '28px they read as the clause headings they are. Density, not drift.',
+      },
+    ];
+    const exceptionFor = cls => RUNG_EXCEPTIONS.find( e => e.match.test( cls ) );
+
     console.log( '\nSection-h2 conformance @1280' );
     const expected1280 = Math.round( CONTRACT.at( 1280 ) * 100 ) / 100;
     const offLadder = [];
+    const excepted = new Map();
     for ( const route of ROUTES ) {
       for ( const h of ( ( all[ route ] || {} )[ 1280 ] || [] ).filter( h => h.tag === 'h2' ) ) {
         if ( NON_SECTION.test( h.cls ) ) continue;
         if ( Math.abs( h.size - expected1280 ) > 0.75 || h.weight !== CONTRACT.weight ) {
+          const exc = exceptionFor( h.cls );
+          if ( exc ) {
+            // Grouped by class and size so 45 legal headings report as one line rather
+            // than burying the real failures under themselves.
+            const key = `.${h.cls} = ${h.size}px/${h.weight}`;
+            if ( !excepted.has( key ) ) excepted.set( key, { why: exc.why, routes: new Set(), n: 0 } );
+            const rec = excepted.get( key );
+            rec.routes.add( route );
+            rec.n++;
+            continue;
+          }
           offLadder.push( `${route} .${h.cls || '(no class)'} = ${h.size}px/${h.weight}` );
         }
       }
@@ -209,11 +259,22 @@ async function main() {
       'the 40px rung is one identical declaration wherever it appears',
       rung ? `${rung.size}px/${rung.weight}/lh ${rung.lh}/ls ${rung.ls}` + ( rungPeers.length ? ` - divergent: ${rungPeers.join( '; ' )}` : '' ) : 'reference .cl-h2 not found' );
 
-    // The contract-conformance assertion is LAST and is expected to fail until the owner
-    // reconciles the contract with the site. It is not tuned green: the gap is the point.
+    // Contract conformance. This assertion used to be expected-red: the steering file
+    // specified a rung no page shipped, and tuning the harness green would have hidden a
+    // real disagreement. Both sides are now reconciled onto clamp(28px,3.2vw,40px), so a
+    // failure here is once again a genuine signal - a page has drifted off the rung, or
+    // someone has changed the contract without changing the site.
     record( offLadder.length === 0,
       `every section h2 is on the contract rung (${expected1280}px/700)`,
-      offLadder.length ? `${offLadder.length} off-ladder — OWNER DECISION PENDING, see README` : 'all conform' );
+      offLadder.length ? `${offLadder.length} off-ladder: ${offLadder.slice( 0, 4 ).join( '; ' )}${offLadder.length > 4 ? ` (+${offLadder.length - 4} more)` : ''}` : 'all conform, or covered by a documented exception' );
+
+    if ( excepted.size ) {
+      console.log( '\n  Off the rung by documented exception (reported, not failed):' );
+      for ( const [ key, rec ] of excepted ) {
+        console.log( `    - ${key}  x${rec.n} on ${[ ...rec.routes ].join( ', ' )}` );
+        console.log( `      ${rec.why}` );
+      }
+    }
 
     // Non-section h2s are reported, never failed - they are legitimately smaller.
     const nonSection = [];
