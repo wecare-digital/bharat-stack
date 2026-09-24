@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Button from '../../../components/ui/Button';
 import { useToastContext } from '../../../contexts/ToastContext';
 import * as api from '../../../api/client';
+import MaybeLayout from '../../../components/MaybeLayout';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 interface RcsTemplate { name: string; type: string; botId: string; textMessageContent?: string; createdViaApi?: boolean; }
@@ -16,7 +17,7 @@ const TEMPLATE_TYPES = [
     { id: 'rich_card_carousel', label: 'Carousel', desc: 'Up to 10 Rich Cards in a carousel' },
 ];
 
-const RcsTemplatesPage: React.FC<PageProps> = ( { embedded } ) => {
+const RcsTemplatesPageBody: React.FC<PageProps> = ( { embedded } ) => {
     const [ templates, setTemplates ] = useState<RcsTemplate[]>( [] );
     const [ loading, setLoading ] = useState( true );
     const [ showCreate, setShowCreate ] = useState( false );
@@ -203,5 +204,21 @@ const RcsTemplatesPage: React.FC<PageProps> = ( { embedded } ) => {
         </div>
     );
 };
+/** Shell-only view of the props: not all six pages declare these. */
+type AnyShellProps = { user?: unknown; signOut?: () => void };
+
+
+/**
+ * Standalone shell. This page renders no chrome of its own - it was written as an
+ * embedded tab body - so as a live route it had no sidebar, no breadcrumb and no
+ * back link, and the sidebar was the only way out. MaybeLayout renders children
+ * bare when `embedded`, so every hub that embeds it is unaffected.
+ */
+const RcsTemplatesPage: React.FC<PageProps> = ( props ) => (
+  <MaybeLayout embedded={ props.embedded } user={ ( props as AnyShellProps ).user }
+    onSignOut={ ( props as AnyShellProps ).signOut }>
+    <RcsTemplatesPageBody { ...props } />
+  </MaybeLayout>
+);
 
 export default RcsTemplatesPage;

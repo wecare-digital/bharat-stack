@@ -6,7 +6,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
-import InstructionsContent from './InstructionsContent';
+// Moved out of src/pages/. It is a content COMPONENT, but sitting under pages/
+// meant Next routed it as /seo/InstructionsContent - a 292-line chrome-less page
+// nobody intended to publish.
+import InstructionsContent from '../../components/seo/InstructionsContent';
 import { seoToolsFetch } from '../../api/seo';
 
 interface PageProps { signOut?: () => void; user?: any; }

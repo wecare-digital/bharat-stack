@@ -104,9 +104,24 @@ repointed. The dial button in the inbox stays disabled and labelled — browser 
 off and stays off, so this is see-and-hear, not dial.
 Retire `/dm/calls` (159 lines, same table). Keep the dial button disabled and labelled.
 
-### B1 — Wrap the 15 shell-less routes · TODO
-`MaybeLayout` exists for exactly this. The two that bite are in the nav and substantial:
-`/dm/whatsapp/flow-hub` (664) and `/dm/whatsapp/auto-response` (261).
+### B1 — Wrap the shell-less routes · DONE
+**15 → 3**, and the three that remain are correct: `/access` (the sign-in page, no shell
+by design) and `/admin` + `/forms` (redirects that return `null`). Five of the original 15
+had already gone with the A-item deletions.
+
+Six wrapped in `MaybeLayout` by a mechanical transform — the existing component renamed
+to `<Name>Body`, a thin wrapper added as the new default export — so **not one line of
+JSX** inside 2,121 lines of markup was touched. `MaybeLayout` renders children bare when
+`embedded`, so every hub that embeds them is unaffected.
+
+Three of the six declared an `embedded` prop and then ignored it completely
+(`auto-response`, `scripts`, `ai-agent`), which is the tell that the standalone case was
+never exercised.
+
+`/seo/InstructionsContent` was not wrapped — it is a content **component** that happened
+to sit under `src/pages/`, so Next was publishing it as a 292-line chrome-less route.
+Moved to `src/components/seo/`, both importers repointed, and confirmed absent from the
+export. Wrapping it would have blessed a route that should not exist.
 
 ### C1 — New navigation config + settings gear · TODO
 Sidebar: Inbox · Contacts · Payments · Tasks · Forms · Sign-in & MFA (+ Orders, owner

@@ -13,6 +13,7 @@ import * as api from '../../../api/client';
 import { API_BASE } from '../../../config/constants';
 import { useToastContext } from '../../../contexts/ToastContext';
 import Spinner from '../../../components/ui/Spinner';
+import MaybeLayout from '../../../components/MaybeLayout';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -37,7 +38,7 @@ const Pill = ( { ok, okText, badText }: { ok: boolean; okText: string; badText: 
     <span style={ { ...pillBase, background: ok ? '#ecfdf5' : '#fef2f2', color: ok ? '#047857' : '#b91c1c' } }>{ ok ? okText : badText }</span>
 );
 
-export default function AiAgentPage ( { }: PageProps ) {
+function AiAgentPageBody ( { }: PageProps ) {
     const toast = useToastContext();
     const [ waba, setWaba ] = useState<WabaKey>( 'WABA1' );
     const [ tab, setTab ] = useState<Tab>( 'settings' );
@@ -647,3 +648,21 @@ export default function AiAgentPage ( { }: PageProps ) {
         </div>
     );
 }
+/** Shell-only view of the props: not all six pages declare these. */
+type AnyShellProps = { user?: unknown; signOut?: () => void };
+
+
+/**
+ * Standalone shell. This page renders no chrome of its own - it was written as an
+ * embedded tab body - so as a live route it had no sidebar, no breadcrumb and no
+ * back link, and the sidebar was the only way out. MaybeLayout renders children
+ * bare when `embedded`, so every hub that embeds it is unaffected.
+ */
+const AiAgentPage: React.FC<PageProps> = ( props ) => (
+  <MaybeLayout embedded={ props.embedded } user={ ( props as AnyShellProps ).user }
+    onSignOut={ ( props as AnyShellProps ).signOut }>
+    <AiAgentPageBody { ...props } />
+  </MaybeLayout>
+);
+
+export default AiAgentPage;
