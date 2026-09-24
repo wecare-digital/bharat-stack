@@ -106,16 +106,6 @@ def _send_otp(phone: str, otp: str) -> None:
 
 def _define_auth_challenge(event: dict) -> dict:
     session = event.get("request", {}).get("session") or []
-    # This pool is passwordless CUSTOM_AUTH only. Fail closed if Cognito ever
-    # presents a different challenge type instead of silently ignoring it.
-    if any(
-        item.get("challengeName") != "CUSTOM_CHALLENGE"
-        for item in session
-    ):
-        event["response"]["issueTokens"] = False
-        event["response"]["failAuthentication"] = True
-        return event
-
     attempts = [
         item
         for item in session

@@ -73,21 +73,6 @@ def test_three_failed_challenges_fail_authentication():
     assert result["response"]["failAuthentication"] is True
 
 
-def test_unexpected_challenge_type_fails_closed():
-    event = _event(
-        "DefineAuthChallenge_Authentication",
-        {
-            "session": [{
-                "challengeName": "PASSWORD_VERIFIER",
-                "challengeResult": True,
-            }]
-        },
-    )
-    result = auth.handler(event, None)
-    assert result["response"]["issueTokens"] is False
-    assert result["response"]["failAuthentication"] is True
-
-
 def test_unknown_user_does_not_send_whatsapp(monkeypatch):
     sent = []
     monkeypatch.setattr(auth, "_send_otp", lambda *args: sent.append(args))

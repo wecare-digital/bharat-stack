@@ -124,7 +124,6 @@ SPECS: List[Spec] = [
     Spec("wecare-automation-rules", "core/automation-rules"),
     Spec("wecare-contacts", "core/contacts"),
     Spec("wecare-conversation-meta", "core/conversation-meta"),
-    Spec("wecare-crm", "core/crm"),
     Spec("wecare-faq-handler", "core/faq-handler"),
     Spec("wecare-messages-delete", "core/messages-delete"),
     Spec("wecare-messages-read", "core/messages-read"),
@@ -195,7 +194,6 @@ SPECS: List[Spec] = [
     # separate destructive approval.
     Spec("wecare-notification-worker", "messaging/notification-worker"),
     Spec("wecare-plivo-answer", "messaging/plivo-answer"),
-    Spec("wecare-pstn-softphone", "messaging/pstn-softphone"),
     # --- messaging / rcs, push, scheduling ---
     Spec("wecare-rcs-send", "messaging/rcs-send"),
     Spec("wecare-rcs-dlr", "messaging/rcs-dlr"),

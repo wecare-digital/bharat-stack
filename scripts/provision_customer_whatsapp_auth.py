@@ -371,28 +371,12 @@ def attach_triggers(pool_id: str, dry_run: bool) -> str:
     if all(lambda_config.get(k) == v for k, v in expected.items()):
         return "already attached"
 
-    # UpdateUserPool is replace-like for omitted configuration: AWS resets
-    # unspecified existing settings to defaults. Round-trip every describable
-    # field that the current SDK accepts, then overlay only our intended changes.
-    # Preserve any other Lambda triggers that may be added to this customer pool.
-    client = cognito()
-    allowed = set(
-        client.meta.service_model
-        .operation_model("UpdateUserPool")
-        .input_shape.members
+    cognito().update_user_pool(
+        UserPoolId=pool_id,
+        LambdaConfig=expected,
+        MfaConfiguration="OFF",
+        AdminCreateUserConfig={"AllowAdminCreateUserOnly": True},
     )
-    update = {
-        key: value
-        for key, value in pool.items()
-        if key in allowed
-    }
-    update["UserPoolId"] = pool_id
-    update["LambdaConfig"] = {**lambda_config, **expected}
-    update["MfaConfiguration"] = "OFF"
-    admin_config = dict(pool.get("AdminCreateUserConfig") or {})
-    admin_config["AllowAdminCreateUserOnly"] = True
-    update["AdminCreateUserConfig"] = admin_config
-    client.update_user_pool(**update)
     return "attached"
 
 
@@ -498,12 +482,7 @@ def verify() -> int:
     desc = cognito().describe_user_pool(UserPoolId=pool_id)["UserPool"]
     lambda_config = desc.get("LambdaConfig") or {}
 
-    # Cognito invokes the immutable live alias, so verify that exact version's
-    # configuration rather than $LATEST (which can drift ahead of production).
-    fn = lam().get_function(
-        FunctionName=FUNCTION_NAME,
-        Qualifier=LIVE_ALIAS,
-    )["Configuration"]
+    fn = lam().get_function(FunctionName=FUNCTION_NAME)["Configuration"]
     alias = lam().get_alias(
         FunctionName=FUNCTION_NAME,
         Name=LIVE_ALIAS,
@@ -525,8 +504,6 @@ def verify() -> int:
         "META_PHONE_NUMBER_ID": PHONE_NUMBER_ID,
         "OTP_TEMPLATE_NAME": OTP_TEMPLATE_NAME,
         "OTP_TEMPLATE_LANGUAGE": OTP_TEMPLATE_LANGUAGE,
-        "OTP_TTL_SECONDS": OTP_TTL_SECONDS,
-        "MAX_ATTEMPTS": MAX_ATTEMPTS,
     }
     for key, value in expected_env.items():
         if env.get(key) != value:

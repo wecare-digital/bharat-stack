@@ -66,10 +66,6 @@ CRM/message side effects that authentication traffic does not need.
   WhatsApp sender Lambda and write its own CloudWatch logs.
 - Cognito points to the auth Lambda's `live` alias so normal version/alias
   rollback practices continue to apply.
-- `MAX_ATTEMPTS` limits guesses inside one Cognito session. Before a public
-  customer login surface is exposed, rate-limit creation of new auth sessions
-  per destination as well; otherwise repeated `InitiateAuth` calls can create
-  repeated WhatsApp OTP sends.
 
 ## Provision
 
@@ -115,7 +111,7 @@ unless that is explicitly the customer's own login number.
 
 For each customer login, provision an E.164 phone number, set
 `phone_number_verified=true`, set
-`custom:partner_waba_id=2094615664435155`, confirm the user, and add it to the
+`custom:partner_waba_id=2513394156072604`, confirm the user, and add it to the
 `Partner` group. Keep user provisioning administrative; do not expose
 `SignUp` for this pool.
 
