@@ -94,6 +94,15 @@ Neither script is green, and both are honest about it rather than tuned to pass.
 - **`contactcheck.js` — 1 failure.** Three Google controls on the keyless map embed are
   reachable, not inert. See the long comment above `.cl-lock` in `ContactLocation.tsx`
   for the measurements and the three options.
+  **When `NEXT_PUBLIC_GOOGLE_MAPS_KEY` is set**, `ContactLocation` renders a Maps JS div
+  instead of an iframe and `contactcheck.js` switches to its keyed branch, which asserts
+  four different things: the div has a box, Maps JS actually painted into it, no controls
+  survived `disableDefaultUI`, and Google's attribution is present. That branch exists so
+  the harness does not go silent on the map the moment it changes shape. Exercised once
+  with a deliberately invalid key, which failed it correctly — a rejected key renders a
+  blank grey panel and throws nothing, so "painted" is the assertion that catches a bad
+  key, a referrer restriction that excludes the deploy origin, or billing being off. It
+  has **not** run with a real key; read its printed numbers on the first real run.
 - **`typecheck.js` — 2 failures.** The design contract specifies one section-h2 rung,
   `clamp(32px,4.2vw,54px)` = 53.76px at 1280. It exists on `/grahak-os/` and **nowhere
   else**; `clamp(28px,3.2vw,40px)` = 40px is on 10 pages. Reconciling the two is an owner
