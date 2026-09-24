@@ -344,18 +344,30 @@ const HomePage: React.FC = () => {
                   as the first beat's "your context carries forward". Three claims, one
                   idea. Removing it also evens the two columns of this section, which the
                   sticky copy column had been overrunning.
-                  Channel names are back. An earlier pass stripped them on the reading
-                  that the no-service-names rule covered them; the owner's own draft
-                  names them twice, which settles it. The rule is about SERVICE names,
-                  which change, not delivery channels. */}
+                  NO CHANNEL NAMES ON THIS PAGE, and that reverses an earlier decision
+                  recorded here. They had been restored on the reasoning that the
+                  no-service-names rule covers services, not delivery channels - which is
+                  still true as a rule. The owner has since scoped it differently: the home
+                  page does not promote WhatsApp. "Updates reach you wherever you already
+                  are" carries the meaning without naming any channel.
+                  Naming SMS, email and phone while omitting WhatsApp was the one option
+                  ruled out - in India that reads as an oversight rather than a choice.
+                  THIS IS SPECIFIC TO THE HOME PAGE. /grahak-os/ is deliberately
+                  WhatsApp-led and its hero still rotates the four channels; do not
+                  propagate this edit there. The floating WhatsApp support button stays on
+                  every public page including this one - it is a way to reach us, not a
+                  claim about what we sell.
+                  Beat 1 names no auth mechanism either: no account, no sign-in, no OTP.
+                  That was "One account. One continuous experience. / Sign in once..." and
+                  promised a login model the owner has not committed to. */}
               <ul className="home-flow-list">
                 <li>
-                  <strong>One account. One continuous experience.</strong>
-                  <span>Sign in once, and your context carries forward. What you’ve already shared stays connected, so the next thing you need doesn’t feel like starting over.</span>
+                  <strong>Pick up where you left off.</strong>
+                  <span>What you’ve already shared stays connected, so the next thing you need isn’t a fresh start.</span>
                 </li>
                 <li>
                   <strong>Updates find you.</strong>
-                  <span>Updates reach you on WhatsApp, SMS, email or phone — wherever you already are.</span>
+                  <span>Updates reach you wherever you already are.</span>
                 </li>
                 <li>
                   <strong>Follow-ups happen automatically.</strong>
