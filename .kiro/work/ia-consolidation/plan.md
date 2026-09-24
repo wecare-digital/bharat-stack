@@ -154,10 +154,41 @@ One subtlety the tests caught: the Inbox children are one page with six query st
 active-state matching had to strip `?…` before comparing. Without it the sidebar
 highlighted nothing on the page you were looking at.
 
-### D1 — Plan / approval / receipt path for agent writes · TODO
-The 8 `CLASS_APPLY` tools stay refused until this exists. `plans.py` and `receipts.py`
-already exist from phase 6.2. Needs: plan hash, an operator approval step, a recorded
-receipt, and only then enablement.
+### D1 — Plan / approval / receipt path for agent writes · PARTIAL
+**The approval layer is built and tested. Enablement is deliberately NOT thrown.**
+
+`plans.py` (plan hash, canonical arguments, staleness) and `receipts.py` already existed
+from phase 6.2. The missing third — a human saying yes to *one exact intent* — is now
+`lambda_utils/agent/approvals.py`, with 37 tests.
+
+Properties, each because its absence has a named failure:
+
+| Property | Failure it prevents |
+|---|---|
+| bound to a `plan_hash` | an approval scoped to a *tool* is a standing licence to send |
+| single use, consumed atomically | otherwise one yes is a replay token for a thousand sends |
+| short lived (900s default) | "yes, message this customer" is not true tomorrow |
+| approver must be a named human | `agent`/`model`/`system` rejected — the model must not approve its own send |
+| fails closed on every error | a broken store, an unreadable clock and a hash mismatch all refuse |
+| in-memory default store | a Lambda's memory cannot outlive the request, so an unwired deployment applies **nothing** |
+
+`assert_may_apply` runs the catalog gate **first**, so a disabled tool reports "switched
+off" rather than "unapproved" — otherwise somebody hunts the wrong problem.
+
+**After this an APPLY is refused for two independent reasons: the catalog still disables
+it, AND there is no approval.** Both must change, separately and deliberately. A test
+asserts no APPLY tool became enabled and that no plausible environment variable can
+promote one.
+
+Remaining for D1, each a deliberate step rather than an oversight:
+1. A DynamoDB approvals table + `DynamoApprovalStore`, so an approval survives the
+   invocation that created it.
+2. An Admin-gated route for an operator to approve a plan (Admin now also requires an
+   enrolled second factor).
+3. The approval UI in the chat panel — draft, show, approve, apply.
+4. The enablement decision itself, which is the one that should be taken with the
+   PRODUCTION DEPLOYMENT CHECKPOINT in front of it, because it is the step that lets a
+   model's output reach a customer.
 
 ### D2 — Fix the agent UI truth gap · DONE
 Measured precisely: the internal surface has **30** catalog entries — **12 READ enabled,
