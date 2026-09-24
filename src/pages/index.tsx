@@ -337,7 +337,7 @@ const HomePage: React.FC = () => {
                   someone non-technical: it is the part you are not meant to have to look at. */}
               <h2 className="home-flow-title" id="home-flow-title">The part you don’t have to think about.</h2>
               <p className="home-flow-lead">
-                Every service runs on one AI foundation. Nothing falls between them.
+                Every service runs on the same foundation. Nothing falls between them.
               </p>
               { /* THREE BEATS, EACH ONE SOMETHING A CUSTOMER CAN NOTICE HAPPENING TO THEM.
                    These have now been rewritten twice. First they named components ("Built
@@ -361,11 +361,14 @@ const HomePage: React.FC = () => {
                   lead on the reasoning that the three beats below describe single sign-on,
                   multichannel delivery and automatic retry - none of which is AI - and that
                   labelling plumbing as AI invites a reader to discount the honest parts.
-                  The owner then confirmed the positioning: WECARE.DIGITAL is an AI company
-                  offering services across the domains the hero rotates, one of which is
-                  literally "AI applications". So the claim is restored. The distinction that
-                  makes it honest: "one AI foundation" describes the PLATFORM the services
-                  share, it does not claim each of the three beats below is itself AI. Keep
+                  The owner then confirmed the positioning, so "AI" was restored here - and
+                  has now come out again, because the HERO carries it: the h1 frame reads
+                  "Everyday AI, built for". Saying "one AI foundation" one screen below that
+                  put AI twice in quick succession, which is the same redundancy this section
+                  was cleaned up to remove. The page still says AI once, above the fold, where
+                  positioning belongs. The distinction that
+                  made it honest while it was here: "one AI foundation" described the
+                  PLATFORM the services share, not a claim that each beat below is itself AI. Keep
                   it that way - if a beat ever asserts AI, it needs something behind it.
                   "Nothing falls between them" replaces "You never have to manage the joins
                   between them", which was awkward and put the reader in charge of plumbing
