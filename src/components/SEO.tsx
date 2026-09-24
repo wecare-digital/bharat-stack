@@ -113,14 +113,14 @@ export const PAGE_SEO = {
     keywords: 'WhatsApp templates, message templates, promotional templates, transactional templates, template management'
   },
   billing: {
-    title: 'Billing - AWS Cost Management',
-    description: 'Track AWS resource usage and costs. Monitor Lambda, DynamoDB, S3, API Gateway, and other service billing.',
-    keywords: 'AWS billing, cost management, resource usage, Lambda costs, DynamoDB costs, cloud billing'
+    title: 'Billing - Usage and Costs',
+    description: 'Track messaging and platform usage and costs across every channel.',
+    keywords: 'billing, cost management, usage tracking, messaging costs'
   },
   aiConfig: {
     title: 'AI Configuration - Response Automation',
-    description: 'Configure AI-powered response automation. Set up Amazon Bedrock agents, knowledge bases, and auto-reply settings.',
-    keywords: 'AI automation, Amazon Bedrock, AI responses, chatbot configuration, auto-reply, knowledge base'
+    description: 'Configure AI-assisted response automation, knowledge sources and auto-reply settings.',
+    keywords: 'AI automation, AI responses, chatbot configuration, auto-reply, knowledge base'
   },
   orders: {
     title: 'Orders - Order Management',

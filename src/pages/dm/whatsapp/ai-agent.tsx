@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import * as api from '../../../api/client';
+import { API_BASE } from '../../../config/constants';
 import { useToastContext } from '../../../contexts/ToastContext';
 import Spinner from '../../../components/ui/Spinner';
 
@@ -86,7 +87,11 @@ export default function AiAgentPage ( { }: PageProps ) {
     const [ connLoading, setConnLoading ] = useState( false );
     const [ cName, setCName ] = useState( 'WECARE_API' );
     const [ cDesc, setCDesc ] = useState( 'WECARE.DIGITAL catalog product lookup' );
-    const [ cUrl, setCUrl ] = useState( 'https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod' );
+    // The custom domain, not the raw execute-api host. The previous default hardcoded
+    // the API Gateway id into the browser bundle, and it bypassed api.wecare.digital -
+    // so the connector would have been registered against a URL that skips the custom
+    // domain mapping and every auth behaviour attached to it.
+    const [ cUrl, setCUrl ] = useState( API_BASE );
     const [ cAuth, setCAuth ] = useState<'API_KEY' | 'NONE'>( 'API_KEY' );
     const [ cHeaderName, setCHeaderName ] = useState( 'X-Agent-Token' );
     const [ cHeaderValue, setCHeaderValue ] = useState( '' );

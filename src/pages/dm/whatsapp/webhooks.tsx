@@ -42,7 +42,13 @@ const EXISTING_WEBHOOKS = [
   { name: 'Voice CDR Webhook', url: 'https://api.wecare.digital/voice-cdr-webhook', fields: [ 'CDR', 'ALL' ], lambda: 'wecare-voice-cdr-webhook', status: 'active', verification: 'Server-side' },
   { name: 'Voice C2C', url: 'https://api.wecare.digital/voice-in/c2c', fields: [ 'CDR' ], lambda: 'wecare-voice-in-c2c', status: 'active', verification: 'Server-side' },
   { name: 'Voice OBD', url: 'https://api.wecare.digital/voice-in/obd', fields: [ 'CDR' ], lambda: 'wecare-voice-in-obd', status: 'active', verification: 'Server-side' },
-  { name: 'SMS Airtel', url: 'https://api.wecare.digital/sms-in/airtel', fields: [ 'SMS' ], lambda: 'wecare-sms-in-airtel', status: 'active', verification: 'Server-side' },
+  // The "SMS Airtel" row was removed on 2026-09-23. It listed
+  // lambda 'wecare-sms-in-airtel' with status 'active', and neither the function nor
+  // the route /sms-in/airtel exists: measured against the account, there are zero
+  // retired-provider functions and zero retired-provider routes. Airtel is prohibited
+  // outright. A webhook inventory that reports a deleted endpoint as active is worse
+  // than an incomplete one, because someone will go looking for why it stopped
+  // delivering.
   { name: 'Wix Store', url: 'https://api.wecare.digital/wix-store/*', fields: [ 'orders', 'products', 'inventory', 'collections' ], lambda: 'wecare-wix-store', status: 'active', verification: 'Server-side' },
 ];
 

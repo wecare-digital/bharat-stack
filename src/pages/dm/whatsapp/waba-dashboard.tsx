@@ -474,7 +474,9 @@ const WABADashboard: React.FC<PageProps> = ({ signOut, user, embedded = false })
                         type="text"
                         value={customTopicArn}
                         onChange={(e) => setCustomTopicArn(e.target.value)}
-                        placeholder="arn:aws:sns:us-east-1:775261844268:stack-wecare-digital"
+                        // Generic shape, not our own ARN: the previous placeholder
+                        // carried the real AWS account id into the rendered DOM.
+                        placeholder="arn:aws:sns:<region>:<account>:<topic>"
                       />
                       <span className="field-hint">Leave default to use the stack-wecare-digital topic</span>
                     </div>

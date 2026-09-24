@@ -76,7 +76,7 @@ const CallsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     const content = (
         <>
             <div className="cv-wrap">
-                <PageHeader title="Calls" subtitle="Unified call log — AWS, Airtel & WhatsApp calling in one view" icon="voice" />
+                <PageHeader title="Calls" subtitle="Unified call log — every channel in one view, including historical records" icon="voice" />
 
                 <div className="cv-toolbar">
                     <input className="cv-search" placeholder="Search by contact or number…" value={ search } onChange={ e => setSearch( e.target.value ) } />

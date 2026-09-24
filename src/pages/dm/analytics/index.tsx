@@ -91,7 +91,7 @@ const AnalyticsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     };
     const PROV_META: Record<string, { label: string; fg: string }> = {
         aws: { label: 'AWS', fg: '#1d4ed8' },
-        airtel: { label: 'Airtel', fg: '#b91c1c' },
+        airtel: { label: 'Airtel (historical)', fg: '#b91c1c' },
         whatsapp: { label: 'WhatsApp', fg: '#15803d' },
     };
 

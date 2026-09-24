@@ -119,7 +119,11 @@ const SEOTools: React.FC<PageProps> = ({ signOut, user }) => {
       addLog('⚠️ No Google Indexing API token available.');
       addLog('');
       addLog('To enable direct Google indexing:');
-      addLog('  1. Deploy the SEO platform (wecare-seo-platform)');
+      // Named `wecare-seo-platform` until 2026-09-23. No such function exists - the
+      // only SEO function in the account is wecare-seo-tools. Telling an operator to
+      // deploy something that does not exist sends them hunting a missing deployment
+      // instead of the real blocker, which is the Search Console OAuth grant below.
+      addLog('  1. Deploy the SEO backend');
       addLog('  2. Set NEXT_PUBLIC_SEO_API_URL in .env.local');
       addLog('  3. Connect Google Search Console via OAuth');
       addLog('');

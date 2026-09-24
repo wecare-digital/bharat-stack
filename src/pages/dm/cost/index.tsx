@@ -63,7 +63,7 @@ const CostPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                                 </tbody>
                             </table>
                         </div>
-                        <p className="co-note">Rates are estimates for planning. WhatsApp/Voice are typically billed per-conversation/per-minute; adjust to your provider contracts (Meta · Pinpoint · Airtel · Sinch · SES).</p>
+                        <p className="co-note">Rates are estimates for planning. WhatsApp/Voice are typically billed per-conversation/per-minute; adjust to your provider contracts (Meta · AWS End User Messaging · Sinch RCS · Amazon SES · Plivo).</p>
                     </>
                 ) }
             </div>

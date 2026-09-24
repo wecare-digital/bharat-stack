@@ -539,11 +539,48 @@ Settings. Separately routed, lazy-loaded inner pages.
 
 **Communications exposes exactly three**: Common Inbox, WhatsApp Business, Business Calling.
 
-### 8.2 — productVocabulary + CI label scan · TODO
+### 8.2 — productVocabulary + CI label scan · DONE
 
-Versioned provider-neutral vocabulary across navigation, headings, empty/error states,
-breadcrumbs, search, help. Exact provider/resource names only in authorised Technical
-Details. Add a CI scan that **fails** on prohibited infrastructure labels in ordinary UI.
+`src/lib/productVocabulary.ts` + `scripts/check_ui_labels.py` + `.github/workflows/ui-labels.yml`.
+
+Measured before building it: `src/` carried **454** Lambda function names, **147** DynamoDB
+table names, **46** ARNs and a raw API Gateway id. But the disclosures were the lesser
+problem — the UI was making **false statements about the live system**:
+
+| Claim in the UI | Reality |
+|---|---|
+| SMS runs on "AWS Pinpoint + Airtel IQ" (10 screens) | AWS End User Messaging. Airtel is prohibited and fully retired |
+| webhook inventory: `wecare-sms-in-airtel`, status `active` | **function does not exist**, nor the route |
+| "Deploy the SEO platform (`wecare-seo-platform`)" | **does not exist**; the only SEO function is `wecare-seo-tools` |
+| public `<meta>` advertising Lambda/DynamoDB/S3/API Gateway/Bedrock | internal topology, sent to search engines |
+| empty contact list showed the table name — **twice**, identical lines | — |
+| SNS placeholder carried the **real AWS account id** into the DOM | — |
+| `calling.tsx` shipped unrendered `lambda`/`table` metadata to the browser | dead weight |
+| `ai-agent.tsx` default URL hardcoded the raw execute-api host | bypasses `api.wecare.digital` |
+
+All fixed. **High-severity count 6 resource identifiers + 26 retired-provider claims → 0.**
+
+Gate design points that matter:
+
+- **Allowlist, not denylist.** `system-architecture.tsx`, `InfraTab`, `lambda-functions.tsx`
+  and the WABA/webhook screens *exist* to show topology. A scan that failed on those would
+  be switched off within a day, so each authorised surface is listed with a stated reason
+  and everything else fails.
+- **Line numbers had to be right.** My first version dropped import lines, which shifted
+  every number after them and pointed at an empty-state div 40 lines below the real match.
+  Lines are blanked, never removed, and I verified every reported location against the file.
+- **A retired provider is allowed when marked historical.** An old call record really was
+  carried by Airtel, so `'Airtel (historical)'` passes and bare `'Airtel'` does not.
+- **Comments are stripped.** `SEO.tsx` documents Airtel as retired; reporting that would be
+  reporting the documentation as the defect.
+- **ARNs need a 12-digit account id.** `arn:aws:iam::role/...` as an input placeholder
+  teaches a format and discloses nothing; my first pattern flagged it.
+- **Blocking on HIGH only**, with 20 medium (bare service words) tracked. Same staging as
+  `provider-policy.yml`, which ran `--expect-fail` until its count hit zero. `--strict`
+  fails on the remainder.
+
+Remaining: 20 medium `aws_service_word` hits, and the vocabulary module is defined but not
+yet adopted by every screen — 8.1/8.3 will wire it as those screens are rebuilt.
 
 ### 8.3 — Adaptive navigation + design tokens · TODO
 
@@ -556,10 +593,35 @@ duplicate page.
 
 Every retired route redirects; deep links survive a refresh.
 
-### 9.1 — Retire the old notification/Airtel/Sinch-SMS/AWS-Social paths · TODO
+### 9.1 — Retire the old notification/Airtel/Sinch-SMS/AWS-Social paths · DONE
 
-Exact manifests, rollback evidence, drain/archive/migrate first. Prove zero live
-invocations before deleting anything.
+The live retirement was already complete; this item verified it and closed the last
+surface, which was the UI still *claiming* the retired providers were live.
+
+Measured against account 775261844268:
+
+| | |
+|---|---|
+| Lambda functions matching a retired provider | **0** of 61 |
+| Secrets matching a retired provider | **0** of 25 (the 6 scheduled deletions completed) |
+| API routes for Airtel / PayU / Sinch SMS | **0** of 343 |
+| `AirtelC2C` / `AirtelSMS` tables | **absent**, already deleted |
+| `scripts/check_provider_policy_live.py` | **LIVE PROVIDER POLICY OK — no untracked violations** |
+
+The only `sinch` routes are `GET`/`POST /webhook/sinch-rcs`, which is the **approved**
+India RCS provider and correctly retained.
+
+What remained was a documentation surface, not an infrastructure one: ten screens described
+SMS as "AWS Pinpoint + Airtel IQ", and the webhook inventory listed `wecare-sms-in-airtel`
+as `active` when that function does not exist. Fixed under 8.2, whose CI gate now fails on
+any retired provider presented as current — so this cannot silently come back.
+
+Retained deliberately: `stack-wecare-digital-OBDCampaigns` (**0 rows**, but
+`voice-in/obd/handler.py` still writes to it at 4 sites, so it is not dead), and the empty
+`VoiceCalls` / `VoiceAwsTable` / `SmsOutboundTable`. On-demand tables cost nothing empty,
+and deleting one needs the export/snapshot procedure plus pointwise confirmation — not worth
+spending that for zero benefit. `legacy_history.py` is correctly named and reads historical
+rows.
 
 ### 9.2 — Route/dependency cleanup and bundle optimization · PARTIAL (dependencies triaged)
 

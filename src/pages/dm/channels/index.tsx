@@ -29,7 +29,7 @@ const CHANNELS: ChannelCard[] = [
         links: [ { label: 'Inbox', href: '/dm/whatsapp' }, { label: 'Settings', href: '/dm/whatsapp/settings' }, { label: 'Service Ops', href: '/dm/service-ops' } ],
     },
     {
-        key: 'sms', label: 'SMS', desc: 'AWS Pinpoint + Airtel IQ', fg: '#1d4ed8', bg: '#eff6ff',
+        key: 'sms', label: 'SMS', desc: 'Transactional and promotional SMS, with India DLT templates', fg: '#1d4ed8', bg: '#eff6ff',
         links: [ { label: 'Open', href: '/dm/sms' }, { label: 'Logs', href: '/dm/logs' } ],
     },
     {
@@ -54,7 +54,7 @@ const CROSS: { label: string; desc: string; href: string }[] = [
     { label: 'Unified Inbox', desc: 'All conversations, one thread per contact', href: '/dm/inbox' },
     { label: 'Broadcast', desc: 'Send a campaign across any channel', href: '/dm/broadcast' },
     { label: 'Content Library', desc: 'Templates & content across channels', href: '/dm/content' },
-    { label: 'Calls', desc: 'Unified call log — AWS, Airtel, WhatsApp', href: '/dm/calls' },
+    { label: 'Calls', desc: 'Unified call log across every channel', href: '/dm/calls' },
     { label: 'Contact 360', desc: 'Everything about a contact in one feed', href: '/dm/contact-360' },
     { label: 'Scheduled', desc: 'Upcoming scheduled sends', href: '/dm/scheduled' },
     { label: 'Analytics', desc: 'Cross-channel volume & delivery', href: '/dm/analytics' },

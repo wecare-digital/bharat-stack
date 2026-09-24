@@ -1,0 +1,88 @@
+name: UI labels
+
+# Infrastructure names must not leak into ordinary UI.
+#
+# The brief requires a provider-neutral product vocabulary, with exact provider and
+# resource names confined to authorised Technical Details surfaces. Measured on
+# 2026-09-23 before this gate existed, src/ carried 454 Lambda function names, 147
+# DynamoDB table names, 46 ARNs and a raw API Gateway id — and, worse than the
+# disclosure, a set of statements that were simply false:
+#
+#   * ten screens described the SMS channel as "AWS Pinpoint + Airtel IQ". SMS goes
+#     through AWS End User Messaging, and Airtel is a prohibited provider whose
+#     functions, secrets, routes and tables are all gone from the account.
+#   * the webhook inventory listed lambda `wecare-sms-in-airtel` with status `active`.
+#     That function does not exist.
+#   * the SEO tools page told operators to deploy `wecare-seo-platform`. That function
+#     does not exist either; the only SEO function is `wecare-seo-tools`.
+#   * public <meta> descriptions and keywords advertised our Lambda, DynamoDB, S3,
+#     API Gateway and Bedrock usage to search engines.
+#   * an empty contact list rendered the DynamoDB table name to the user, twice.
+#   * an SNS input placeholder carried the real AWS account id into the DOM.
+#
+# A false statement is worse on a dashboard than anywhere else, because an operator
+# reads it while deciding what to do next.
+#
+# MODE: blocking on HIGH severity only.
+#
+# High severity is a resource identifier, or a retired provider presented as current —
+# a disclosure or a lie. Medium is a bare service word such as "Bedrock" in a tooltip:
+# a vocabulary improvement rather than a defect, and 20 remain.
+#
+# This is the same staging provider-policy.yml used: it ran with --expect-fail until the
+# count reached zero and was only then flipped to blocking. A gate that fails on day one
+# for something nobody intends to fix this week gets switched off, and a switched-off
+# gate protects nothing.
+#
+# To see the medium set fail, run locally:
+#
+#     python scripts/check_ui_labels.py --gate --strict
+#
+# If this job fails on your PR you have put a table name, ARN, function name, execute-api
+# URL or retired provider into ordinary product UI. Either use
+# src/lib/productVocabulary.ts, or — if the screen is genuinely a Technical Details
+# surface for operators — add it to AUTHORISED_SURFACES in the script with a reason.
+#
+# A retired provider MAY be named where it labels historical data: an old call record
+# really was carried by Airtel and the row has to say something. The scan allows it when
+# the same line carries a historical marker, so write 'Airtel (historical)'.
+
+on:
+  push:
+    branches: [stack]
+  pull_request:
+    branches: [stack]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui-labels:
+    name: Product vocabulary gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # No dependencies: the scan is pure standard library, deliberately, so it cannot
+      # be broken by an unrelated dependency change.
+      - name: Check UI labels
+        run: python scripts/check_ui_labels.py --gate
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo '### Product vocabulary'
+            echo ''
+            echo 'Mode: **blocking on HIGH severity**. High means a resource identifier'
+            echo 'or a retired provider presented as current.'
+            echo ''
+            echo '```'
+            python scripts/check_ui_labels.py || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

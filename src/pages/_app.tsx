@@ -239,7 +239,7 @@ const softwareSchema = {
   "featureList": [
     "WhatsApp Business API Integration",
     "Bulk WhatsApp Messaging",
-    "SMS API (AWS Pinpoint, IN SMS)",
+    "SMS API (India DLT templates)",
     "Email Marketing (Amazon SES)",
     "Voice Calls API",
     "Razorpay Payment Integration",
@@ -323,7 +323,7 @@ const faqSchema = {
       "name": "What messaging channels does Stack CRM support?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Stack CRM supports WhatsApp Business API, SMS (via AWS Pinpoint and IN SMS), Email (via Amazon SES), and Voice calls. All channels are unified in a single dashboard."
+        "text": "Stack CRM supports WhatsApp Business API, SMS (with India DLT templates), Email (via Amazon SES), and Voice calls. All channels are unified in a single dashboard."
       }
     }
   ]

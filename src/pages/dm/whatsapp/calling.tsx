@@ -22,8 +22,10 @@ const PHONE_NUMBERS = [
 const WEBHOOK_CONFIG = {
   callbackUrl: 'https://api.wecare.digital/whatsapp',
   subscribedFields: [ 'messages', 'calls' ],
-  lambda: 'wecare-whatsapp-calling',
-  table: 'stack-wecare-digital-WhatsAppCallingTable',
+  // `lambda` and `table` were here until 2026-09-23. Neither was ever rendered —
+  // they were dead metadata shipping a function name and a table name into the
+  // browser bundle. Infrastructure names belong on the Technical Details surfaces,
+  // which are allowlisted in scripts/check_ui_labels.py.
   status: 'verified',
 };
 

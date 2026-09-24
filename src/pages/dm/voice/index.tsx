@@ -26,8 +26,8 @@ interface Campaign { id: string; name: string; recipients: number; connected: nu
 
 const ITEMS_PER_PAGE = 25;
 const TABS: ShellTab[] = [
-  { id: 'aws', label: 'AWS Pinpoint' },
-  { id: 'airtel', label: 'Airtel IN' },
+  { id: 'aws', label: 'AWS' },
+  { id: 'airtel', label: 'Airtel (historical)' },
   { id: 'campaign', label: 'Campaign' },
 ];
 
@@ -174,14 +174,14 @@ const VoicePage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
 
   const shellContent = (
     <>
-      <PageShell title="Voice" subtitle="AWS Pinpoint & Airtel IQ � Calls, OBD, CDR" tabs={ TABS } defaultTab="aws">
+      <PageShell title="Voice" subtitle="Business Calling — calls, campaigns and call records" tabs={ TABS } defaultTab="aws">
         { ( activeTab ) => (
           <>
             {/* ===== AWS PINPOINT TAB ===== */ }
             { activeTab === 'aws' && (
               <div className="voice-tab-content">
                 <div className="tab-header">
-                  <div className="tab-header-left"><span className="provider-badge">AWS Pinpoint</span><span className="region-badge">us-east-1</span></div>
+                  <div className="tab-header-left"><span className="provider-badge">AWS</span><span className="region-badge">us-east-1</span></div>
                   <div className="tab-header-actions">
                     <Button variant="primary" onClick={ () => setShowCallModal( true ) }>Make Call</Button>
                     <Button variant="secondary" onClick={ handleClearLogs } disabled={ clearing } loading={ clearing }>Clear</Button>
@@ -347,7 +347,7 @@ const VoicePage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
 
   return (
     <Layout user={ user } onSignOut={ signOut }>
-      <SEO title="Voice" description="Voice — AWS Pinpoint & Airtel IQ" />
+      <SEO title="Voice" description="Business Calling — calls, campaigns and call records" />
       { shellContent }
     </Layout>
   );
