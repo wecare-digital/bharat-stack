@@ -35,9 +35,36 @@
  * Never pass the key on a shared shell's history, and never commit it - .env* is
  * gitignored and scripts/block_inline_secrets.py rejects credential-shaped strings.
  *
- * ENDPOINT CHOICE IS MEASURED. stores-reader/v1/products/query returns 200;
- * stores/v1/products/query returns 428 (Precondition Required) against this site, so the
- * reader path is the one that works. Do not "modernise" it without re-testing.
+ * ENDPOINT CHOICE IS MEASURED, AND IS A KNOWN INCONSISTENCY TO RESOLVE.
+ * Tested against this site with a real key:
+ *     stores-reader/v1/products/query   200   <- what this script uses
+ *     stores/v3/products/query          200
+ *     stores/v1/products/query          428 (Precondition Required)
+ *     stores/v3/products-search         404
+ * The existing amplify/functions/ecommerce/wix-store/handler.py uses **stores/v3** (17
+ * references), so the repo currently reads the same catalog through two different API
+ * versions. That should be reconciled onto v3, since v3 is the newer surface and the
+ * Lambda is the long-lived consumer. It was NOT done here because v3 returns a different
+ * product shape - prices are ranges rather than a flat priceData, and paging is
+ * cursor-based rather than offset - and mapping those fields without inspecting a real v3
+ * response would be guesswork. Inspect one v3 payload first, then port slim().
+ *
+ * TWO CORRECTIONS THE OWNER HAS ASKED FOR, both still outstanding here:
+ *
+ *   1. THE KEY MUST COME FROM AWS SECRETS MANAGER, not an env var. The pattern already
+ *      exists - wix-store/handler.py reads WIX_API_KEY_SECRET - so the sync Lambda should
+ *      reuse it rather than inventing a second path. This script still takes WIX_API_KEY
+ *      from the environment because it runs on a developer machine or CI runner, where
+ *      Secrets Manager needs AWS credentials that may not be present; if it is kept, it
+ *      should try Secrets Manager first and fall back to the env var.
+ *
+ *   2. "USE THE PROPER API SDK" cannot be satisfied in Python. Wix publishes official
+ *      JavaScript/TypeScript SDKs (@wix/sdk with @wix/stores) and NO Python SDK, while
+ *      every existing Lambda here is Python and therefore calls wixapis over raw HTTP.
+ *      Neither @wix/sdk nor any other wix package is currently in package.json. So the
+ *      instruction is really an architectural choice: either write the new catalog-sync
+ *      Lambda in Node/TS so it can use @wix/sdk, or keep Python and accept raw HTTP. That
+ *      is the owner's call and it should be made before the Lambda is written, not after.
  */
 
 // ESM, because package.json declares "type": "module" - a require() here dies with
