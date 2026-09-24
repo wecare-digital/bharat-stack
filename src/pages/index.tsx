@@ -461,8 +461,7 @@ const HomePage: React.FC = () => {
                   closing band is for. It also does NOT summarise the three points beneath
                   it, which is the mistake just corrected in the flow section's lead. */}
               <p className="home-close-lead">
-                Pick one thing and see how it goes. There’s no bundle to buy and no
-                minimum to commit to.
+                Bring us what’s next. Think it, say it, send it — in your language, your way.
               </p>
               <span className="home-close-rule" aria-hidden="true" />
               <ul className="home-close-points">
@@ -559,8 +558,17 @@ const HomePage: React.FC = () => {
         .home-flow-list li{padding-left:18px;border-left:3px solid #d1f470}
         /* Card-heading rung at the small end: 17px/700, a step below .pp-strip-title's
            22px because these sit inside a sidebar rather than on the page. */
-        .home-flow-list strong{display:block;margin:0 0 4px;font-size:17px;font-weight:700;letter-spacing:-.2px;color:#000}
-        .home-flow-list span{display:block;font-size:16px;line-height:1.5;color:rgba(0,0,0,.54)}
+        /* BOTH RUNGS WERE OFF THE CONTRACT LADDER, measured against every other text
+           element on this page. The title was 17px - the site's BASE body size - where the
+           contract's card-heading rung is 22px/700 (the same rung as .pp-strip-title and
+           .trust-wordmark). The body was 16px, which made it the SMALLEST text on the page,
+           below the 17px base and well below the contract's single body level of 20px/400
+           that .home-sub, .home-flow-lead and .home-close-lead all already use. It also
+           carried no letter-spacing while every other body rung uses -.125px.
+           Both are now on their proper rungs. Everything here is Inter, as it already was -
+           there was never a font-family mismatch, only a size one. */
+        .home-flow-list strong{display:block;margin:0 0 6px;font-size:22px;font-weight:700;letter-spacing:-.25px;line-height:1.27;color:#000}
+        .home-flow-list span{display:block;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.54)}
 
         /* THE CLOSING BAND. NO margin-top - that was a measured bug, not a style choice.
            .home-layout is a flex column with gap:96px, so every direct child is already
