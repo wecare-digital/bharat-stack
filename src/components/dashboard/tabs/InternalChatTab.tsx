@@ -30,37 +30,71 @@ interface ChatLog {
 
 type SubTab = 'chat' | 'logs' | 'controls';
 
-const TOOLS_LIST = [
-  { id: 'search_contacts', name: 'Search Contacts', category: 'Contacts' },
-  { id: 'create_contact', name: 'Create Contact', category: 'Contacts' },
-  { id: 'update_contact', name: 'Update Contact', category: 'Contacts' },
-  { id: 'add_contact_email', name: 'Add Email', category: 'Contacts' },
-  { id: 'send_whatsapp', name: 'Send WhatsApp', category: 'Messaging' },
-  { id: 'send_whatsapp_buttons', name: 'Send Buttons', category: 'Messaging' },
-  { id: 'send_whatsapp_list', name: 'Send List', category: 'Messaging' },
-  { id: 'send_whatsapp_pay', name: 'WhatsApp Pay', category: 'Messaging' },
-  { id: 'send_whatsapp_flow', name: 'Send Flow', category: 'Messaging' },
-  { id: 'make_voice_call', name: 'Voice Call', category: 'Messaging' },
-  { id: 'send_sms', name: 'Send SMS', category: 'Messaging' },
-  { id: 'send_email', name: 'Send Email', category: 'Messaging' },
-  { id: 'get_messages', name: 'Get Messages', category: 'Analytics' },
-  { id: 'get_stats', name: 'Get Stats', category: 'Analytics' },
-  { id: 'schedule_message', name: 'Schedule Message', category: 'Scheduling' },
-  { id: 'list_scheduled_messages', name: 'List Scheduled', category: 'Scheduling' },
-  { id: 'list_templates', name: 'List Templates', category: 'Templates' },
-  { id: 'send_template', name: 'Send Template', category: 'Templates' },
-  { id: 'delete_contact', name: 'Delete Contact', category: 'Data' },
-  { id: 'delete_messages', name: 'Delete Messages', category: 'Data' },
-  { id: 'delete_media_files', name: 'Delete Media', category: 'Data' },
-  { id: 'list_media_files', name: 'List Media', category: 'Data' },
-  { id: 'clear_all_contact_data', name: 'Clear All Data', category: 'Data' },
-  { id: 'get_voice_cdr', name: 'Voice CDR', category: 'Analytics' },
-  { id: 'get_billing_summary', name: 'AWS Billing', category: 'Analytics' },
-  { id: 'get_invoice_list', name: 'List Invoices', category: 'Invoicing' },
-  { id: 'create_invoice', name: 'Create Invoice', category: 'Invoicing' },
-  { id: 'get_wix_products', name: 'Wix Products', category: 'Ecommerce' },
-  { id: 'get_wix_orders', name: 'Wix Orders', category: 'Ecommerce' },
-  { id: 'list_submit_requests', name: 'Flow Submissions', category: 'Flows' },
+/**
+ * The tool catalog, WITH its real authorisation state.
+ *
+ * This list used to be 30 bare names and `enabledTools` was initialised to all 30,
+ * so the panel read "Tool Capabilities (30/30)" and offered an Enable All toggle -
+ * while the backend refuses 18 of them unconditionally. `governance.py` states
+ * there is deliberately NO flag to enable an APPLY tool, because the approval,
+ * plan-hash and receipt machinery that would make one safe does not exist yet. So
+ * the toggle was cosmetic for those 18, and the panel advertised Send WhatsApp,
+ * Delete Contact, Clear All Data and Create Invoice as things the agent could do.
+ *
+ * That is the same defect the UI label gate exists to catch, in the one screen
+ * where being wrong matters most: a person reads this list to decide what to ask
+ * for.
+ *
+ * `cls` and `refused` mirror `lambda_utils/agent/governance.py`. A mirror can
+ * drift, so `tests/test_agent_ui_truth.py` parses this array and asserts it matches
+ * the Python catalog entry for entry - id, class and enablement. Change the catalog
+ * and that test fails until this list follows.
+ *
+ * The refused tools are shown rather than hidden, deliberately. Hiding them loses
+ * the information that the capability exists and is withheld on purpose, which is
+ * exactly what someone needs to know before asking the agent to send something.
+ */
+type ToolRow = {
+  id: string;
+  name: string;
+  category: string;
+  /** READ or APPLY, from the governance catalog. */
+  cls: string;
+  /** True when the backend refuses it regardless of any UI toggle. */
+  refused: boolean;
+};
+
+const TOOLS_LIST: ToolRow[] = [
+  { id: 'search_contacts', name: 'Search Contacts', category: 'Contacts', cls: 'READ', refused: false },
+  { id: 'create_contact', name: 'Create Contact', category: 'Contacts', cls: 'APPLY', refused: true },
+  { id: 'update_contact', name: 'Update Contact', category: 'Contacts', cls: 'APPLY', refused: true },
+  { id: 'add_contact_email', name: 'Add Email', category: 'Contacts', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp', name: 'Send WhatsApp', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp_buttons', name: 'Send Buttons', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp_list', name: 'Send List', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp_pay', name: 'WhatsApp Pay', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_whatsapp_flow', name: 'Send Flow', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'make_voice_call', name: 'Voice Call', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_sms', name: 'Send SMS', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'send_email', name: 'Send Email', category: 'Messaging', cls: 'APPLY', refused: true },
+  { id: 'get_messages', name: 'Get Messages', category: 'Analytics', cls: 'READ', refused: false },
+  { id: 'get_stats', name: 'Get Stats', category: 'Analytics', cls: 'READ', refused: false },
+  { id: 'schedule_message', name: 'Schedule Message', category: 'Scheduling', cls: 'APPLY', refused: true },
+  { id: 'list_scheduled_messages', name: 'List Scheduled', category: 'Scheduling', cls: 'READ', refused: false },
+  { id: 'list_templates', name: 'List Templates', category: 'Templates', cls: 'READ', refused: false },
+  { id: 'send_template', name: 'Send Template', category: 'Templates', cls: 'APPLY', refused: true },
+  { id: 'delete_contact', name: 'Delete Contact', category: 'Data', cls: 'APPLY', refused: true },
+  { id: 'delete_messages', name: 'Delete Messages', category: 'Data', cls: 'APPLY', refused: true },
+  { id: 'delete_media_files', name: 'Delete Media', category: 'Data', cls: 'APPLY', refused: true },
+  { id: 'list_media_files', name: 'List Media', category: 'Data', cls: 'READ', refused: false },
+  { id: 'clear_all_contact_data', name: 'Clear All Data', category: 'Data', cls: 'APPLY', refused: true },
+  { id: 'get_voice_cdr', name: 'Voice CDR', category: 'Analytics', cls: 'READ', refused: false },
+  { id: 'get_billing_summary', name: 'AWS Billing', category: 'Analytics', cls: 'READ', refused: false },
+  { id: 'get_invoice_list', name: 'List Invoices', category: 'Invoicing', cls: 'READ', refused: false },
+  { id: 'create_invoice', name: 'Create Invoice', category: 'Invoicing', cls: 'APPLY', refused: true },
+  { id: 'get_wix_products', name: 'Wix Products', category: 'Ecommerce', cls: 'READ', refused: false },
+  { id: 'get_wix_orders', name: 'Wix Orders', category: 'Ecommerce', cls: 'READ', refused: false },
+  { id: 'list_submit_requests', name: 'Flow Submissions', category: 'Flows', cls: 'READ', refused: false },
 ];
 
 const InternalChatTab: React.FC = () => {
@@ -78,7 +112,11 @@ const InternalChatTab: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [logs, setLogs] = useState<ChatLog[]>([]);
   const [sessionId] = useState(() => `dash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-  const [enabledTools, setEnabledTools] = useState<Set<string>>(new Set(TOOLS_LIST.map(t => t.id)));
+  // Only the tools the backend will actually run. Seeding this with all 30 was
+  // what made the panel claim 30/30.
+  const AVAILABLE = TOOLS_LIST.filter(t => !t.refused);
+  const [enabledTools, setEnabledTools] = useState<Set<string>>(
+    new Set(AVAILABLE.map(t => t.id)));
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(2048);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -437,15 +475,23 @@ const InternalChatTab: React.FC = () => {
           {/* Tool Capabilities */}
           <div style={{ padding: '16px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1f2937' }}>Tool Capabilities ({enabledTools.size}/{TOOLS_LIST.length})</h3>
+              {/* Counted against AVAILABLE, not TOOLS_LIST. The old denominator was
+                  30, which claimed the agent could do 18 things the backend refuses
+                  unconditionally. */}
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1f2937' }}>
+                Tool Capabilities ({enabledTools.size}/{AVAILABLE.length} available
+                {TOOLS_LIST.length - AVAILABLE.length > 0
+                  ? `, ${TOOLS_LIST.length - AVAILABLE.length} refused`
+                  : ''})
+              </h3>
               <button onClick={() => {
-                if (enabledTools.size === TOOLS_LIST.length) setEnabledTools(new Set());
-                else setEnabledTools(new Set(TOOLS_LIST.map(t => t.id)));
+                if (enabledTools.size === AVAILABLE.length) setEnabledTools(new Set());
+                else setEnabledTools(new Set(AVAILABLE.map(t => t.id)));
               }} style={{
                 padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
                 background: 'white', color: '#6b7280', cursor: 'pointer', fontSize: '11px',
               }}>
-                {enabledTools.size === TOOLS_LIST.length ? 'Disable All' : 'Enable All'}
+                {enabledTools.size === AVAILABLE.length ? 'Disable All' : 'Enable All'}
               </button>
             </div>
             {categories.map(cat => (
@@ -453,17 +499,36 @@ const InternalChatTab: React.FC = () => {
                 <div style={{ fontSize: '12px', fontWeight: 600, color: '#1a3a2a', marginBottom: '6px' }}>{cat}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {TOOLS_LIST.filter(t => t.category === cat).map(tool => (
-                    <label key={tool.id} style={{
-                      display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px',
-                      border: `1px solid ${enabledTools.has(tool.id) ? '#e5e7eb' : '#e5e7eb'}`,
-                      borderRadius: '6px', cursor: 'pointer', fontSize: '12px',
-                      background: enabledTools.has(tool.id) ? '#f9fafb' : 'white',
-                      color: enabledTools.has(tool.id) ? '#1a3a2a' : '#9ca3af',
-                    }}>
-                      <input type="checkbox" checked={enabledTools.has(tool.id)} onChange={() => toggleTool(tool.id)}
-                        style={{ accentColor: '#1a3a2a', width: '12px', height: '12px' }} />
-                      {tool.name}
-                    </label>
+                    tool.refused ? (
+                      /* Not a checkbox. A refused tool cannot be switched on from
+                         here or anywhere else - governance.py has no enabling flag
+                         by design - so offering a control would be a lie about who
+                         is in charge. Shown, not hidden, because knowing the
+                         capability exists and is withheld is the useful part. */
+                      <span key={tool.id}
+                        title={`${tool.cls} — refused until the plan/approval/receipt path exists`}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          padding: '4px 8px', border: '1px solid #b45309',
+                          borderRadius: '6px', fontSize: '12px',
+                          background: '#fffbeb', color: '#b45309', cursor: 'help',
+                        }}>
+                        {tool.name}
+                        <span style={{ fontSize: '10px', fontWeight: 600 }}>REFUSED</span>
+                      </span>
+                    ) : (
+                      <label key={tool.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px', cursor: 'pointer', fontSize: '12px',
+                        background: enabledTools.has(tool.id) ? '#f9fafb' : 'white',
+                        color: enabledTools.has(tool.id) ? '#1a3a2a' : '#9ca3af',
+                      }}>
+                        <input type="checkbox" checked={enabledTools.has(tool.id)} onChange={() => toggleTool(tool.id)}
+                          style={{ accentColor: '#1a3a2a', width: '12px', height: '12px' }} />
+                        {tool.name}
+                      </label>
+                    )
                   ))}
                 </div>
               </div>

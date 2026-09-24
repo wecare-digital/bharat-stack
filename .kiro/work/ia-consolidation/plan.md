@@ -159,10 +159,25 @@ The 8 `CLASS_APPLY` tools stay refused until this exists. `plans.py` and `receip
 already exist from phase 6.2. Needs: plan hash, an operator approval step, a recorded
 receipt, and only then enablement.
 
-### D2 — Fix the agent UI truth gap · TODO
-`InternalChatTab`'s `TOOLS_LIST` advertises **30 tools including all 8 the backend always
-refuses** (`Send WhatsApp`, `Delete Contact`, `Clear All Data`, `Create Invoice`). Same
-defect class the label gate exists to catch.
+### D2 — Fix the agent UI truth gap · DONE
+Measured precisely: the internal surface has **30** catalog entries — **12 READ enabled,
+18 APPLY refused** — and the UI listed all 30 with `enabledTools` seeded to all of them,
+so the panel read "Tool Capabilities (30/30)" and offered an **Enable All** toggle that was
+cosmetic for 18 of them. `governance.py` states there is deliberately no flag to enable an
+APPLY tool.
+
+Now: each row carries `cls` and `refused` mirrored from the catalog; the counter is
+denominated in the available set with the refusal count stated; **Enable All** can only
+select available tools; and a refused tool renders as a labelled `REFUSED` chip with no
+checkbox — because a control implies it can be switched on, and it cannot.
+
+Shown rather than hidden, deliberately: knowing a capability exists and is withheld on
+purpose is exactly what someone needs before asking the agent to send something.
+
+`tests/test_agent_ui_truth.py` (27 tests) parses the TSX and compares it to the Python
+catalog entry by entry — ids, class, and `refused` as the exact inverse of `enabled`. It
+also guards the guard: if any APPLY tool is ever enabled without the approval path, that
+test fails too.
 
 ### E1 — Task, Payments, Invoice records, Forms responses · TODO
 `/task` is a 33-line `ComingSoon` stub. The others need record views.
