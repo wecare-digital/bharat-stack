@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
+import { getAllNavItems } from '../config/navigation';
 
 interface SearchResult {
   id: string;
@@ -23,26 +24,55 @@ interface SearchModalProps {
   messages?: { id: string; content: string; contactId: string }[];
 }
 
-const NAVIGATION_ITEMS: SearchResult[] = [
-  { id: 'nav-dashboard', type: 'page', title: 'Dashboard', subtitle: 'Overview & stats', icon: '⊞', path: '/dashboard' },
-  { id: 'nav-messages', type: 'page', title: 'WhatsApp Inbox', subtitle: 'Messages', icon: '◇', path: '/dm/whatsapp' },
-  { id: 'nav-contacts', type: 'page', title: 'Contacts', subtitle: 'Manage contacts', icon: '⊕', path: '/contacts' },
-  { id: 'nav-templates', type: 'page', title: 'Templates', subtitle: 'WhatsApp templates', icon: '⎙', path: '/dm/whatsapp/templates' },
-  { id: 'nav-send-test', type: 'page', title: 'Send Test Console', subtitle: 'Test sends, TTL & template validation', icon: '➤', path: '/dm/whatsapp/send-test' },
-  { id: 'nav-bsuid', type: 'page', title: 'BSUID & Usernames', subtitle: 'BSUID webhooks, contact book, parent BSUID', icon: '◉', path: '/dm/whatsapp/bsuid' },
-  { id: 'nav-template-builder', type: 'page', title: 'Template Builder', subtitle: 'Build & validate WhatsApp templates', icon: '⎙', path: '/dm/whatsapp/template-builder' },
-  { id: 'nav-flow-publish', type: 'page', title: 'Flow Publish Checklist', subtitle: 'Verify flow before publishing', icon: '✓', path: '/dm/whatsapp/flow-publish' },
-  { id: 'nav-cost-controls', type: 'page', title: 'Cost Controls', subtitle: 'AWS feature flags & cost risk', icon: '💰', path: '/dm/whatsapp/cost-controls' },
-  { id: 'nav-campaign', type: 'page', title: 'WhatsApp Campaign', subtitle: 'Send bulk messages', icon: '⫶', path: '/dm/whatsapp/campaign' },
-  { id: 'nav-interactive-lists', type: 'page', title: 'Interactive Lists', subtitle: 'WhatsApp list messages', icon: '☰', path: '/dm/whatsapp/interactive-lists' },
-  { id: 'nav-pay', type: 'page', title: 'Payments', subtitle: 'WhatsApp Pay', icon: '◈', path: '/pay' },
-  { id: 'nav-pay-flow', type: 'page', title: 'Pay Flow', subtitle: 'Customer management for auto-fill', icon: '◈', path: '/pay/flow' },
-  { id: 'nav-store', type: 'page', title: 'Store', subtitle: 'Catalog & products', icon: '⧉', path: '/store' },
-];
+/**
+ * Derived from navigation.ts, NOT a second hand-written list.
+ *
+ * This used to be 14 hardcoded entries and it had drifted badly: 8 of the 14 were
+ * WhatsApp sub-pages, and Ctrl+K could not find /dm/inbox, /dm/sms, /dm/rcs,
+ * /dm/ses, /dm/settings, /access/security or any of the SEO pages - 88 real
+ * destinations exist and it knew about 14. A palette that cannot find the unified
+ * inbox is worse than no palette, because the user stops trying it.
+ *
+ * Deriving it means the palette cannot fall behind the sidebar again: adding a
+ * route to navigation.ts adds it here. `parent` becomes the subtitle, which is
+ * what disambiguates the several pages called "Inbox", "Logs" and "Campaign".
+ */
+const NAVIGATION_ITEMS: SearchResult[] = getAllNavItems().map( ( item, index ) => ( {
+  id: `nav-${index}-${item.path}`,
+  type: 'page' as const,
+  title: item.label,
+  subtitle: item.parent,
+  icon: '⊞',
+  path: item.path,
+} ) );
 
-const DEFAULT_RESULTS = NAVIGATION_ITEMS.slice( 0, 6 );
+/** The handful worth offering before anything is typed. */
+const DEFAULT_PATHS = [ '/dm/inbox', '/contacts', '/dashboard', '/dm/broadcast',
+  '/dm/settings', '/access/security' ];
+const DEFAULT_RESULTS: SearchResult[] = DEFAULT_PATHS
+  .map( ( p ) => NAVIGATION_ITEMS.find( ( i ) => i.path === p ) )
+  .filter( ( i ): i is SearchResult => !!i );
 
-const SearchModal: React.FC<SearchModalProps> = ( { isOpen, onClose, contacts = [], messages = [] } ) => {
+/**
+ * Stable empty defaults, and they are load-bearing rather than tidiness.
+ *
+ * These were inline `contacts = []` / `messages = []` default parameters, which
+ * construct a NEW array on every render. Both appear in the search effect's
+ * dependency list, so the deps compared unequal every render: type one character,
+ * the effect runs, calls setResults with a fresh array, that re-renders, the
+ * defaults are new arrays again, the effect runs again - an unbounded render loop
+ * the moment anyone typed in the palette.
+ *
+ * It stayed hidden because the effect returns early while the query is empty, so
+ * merely OPENING the palette is fine; only typing trips it. Found by a test that
+ * typed into it, which hung.
+ */
+const NO_CONTACTS: NonNullable<SearchModalProps[ 'contacts' ]> = [];
+const NO_MESSAGES: NonNullable<SearchModalProps[ 'messages' ]> = [];
+
+const SearchModal: React.FC<SearchModalProps> = ( {
+  isOpen, onClose, contacts = NO_CONTACTS, messages = NO_MESSAGES,
+} ) => {
   const router = useRouter();
   const [ query, setQuery ] = useState( '' );
   const [ results, setResults ] = useState<SearchResult[]>( DEFAULT_RESULTS );
@@ -147,13 +177,18 @@ const SearchModal: React.FC<SearchModalProps> = ( { isOpen, onClose, contacts = 
       <div className="search-modal" onClick={ e => e.stopPropagation() }>
         <div className="search-input-wrapper">
           <span className="search-icon">Search</span>
+          {/* Placeholder says "pages" only. It said "Search contacts, messages,
+              pages..." but Layout.tsx renders this component with neither the
+              `contacts` nor the `messages` prop, so both default to [] and
+              neither is ever searched - it advertised two capabilities that could
+              not fire. Widen it again when those props are wired. */}
           <input
             ref={ inputRef }
             type="text"
             value={ query }
             onChange={ e => setQuery( e.target.value ) }
             onKeyDown={ handleKeyDown }
-            placeholder="Search contacts, messages, pages..."
+            placeholder="Search pages…"
             role="combobox"
             aria-expanded={ results.length > 0 }
             aria-controls="search-results-list"
