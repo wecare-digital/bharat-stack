@@ -148,6 +148,17 @@ SPECS: List[Spec] = [
         "auth/customer-whatsapp-auth",
         standalone=True,
     ),
+    # Cognito CustomMessage trigger: branded HTML for MFA, verification and
+    # recovery email. First creation is owned by
+    # scripts/provision_cognito_custom_message.py, which also gives it a
+    # least-privilege role of its own rather than the shared secrets-reading one.
+    # Standalone: the handler imports nothing from lambda_utils on purpose, so
+    # the package is one file and a formatting change cannot drag in a layer.
+    Spec(
+        "wecare-cognito-custom-message",
+        "auth/cognito-custom-message",
+        standalone=True,
+    ),
     # Both url-shortener functions build from the same source. The HTTP API's
     # /l/* routes integrate `stack-wecare-url-shortener:live`, NOT
     # `wecare-url-shortener`, so the `stack-`prefixed one is the live shortlink
