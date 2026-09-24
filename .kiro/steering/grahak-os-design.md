@@ -16,9 +16,34 @@ h1** (700 vs 600). That is intentional — do not "fix" it.
 | Role | Selectors | Spec |
 |---|---|---|
 | Hero h1 | `.hero-left h1` | `clamp(36px,4.3vw,60px)` / **600** / lh `1.04` / ls `-2.2px` / `rgba(0,0,0,.95)` |
-| Section h2 | `.section-header h2`, `.api-info h2`, `.trust-heading` | `clamp(32px,4.2vw,54px)` / **700** / lh `1.04` / ls `-1.875px` / `rgba(0,0,0,.95)` |
+| Section h2 | `.section-header h2`, `.api-info h2`, `.trust-heading` | `clamp(28px,3.2vw,40px)` / **700** / lh `1.08` / ls `-1.2px` / `rgba(0,0,0,.95)` |
 | Card heading | `.capability-card h3`, `.why-item strong`, `.trust-caption` | `22px` / **700** / lh `1.27` / ls `-0.25px` / `#000` |
 | Body — one level only | `.hero-left p`, `.section-header p`, `.api-desc`, `.capability-card p`, `.why-item span`, `.trust-subtext` | `20px` / **400** / lh `1.4` / ls `-0.125px` / `rgba(0,0,0,.898)` |
+
+### Why the section h2 is 40px and not 54px
+
+This row used to read `clamp(32px,4.2vw,54px)` / lh `1.04` / ls `-1.875px`, which was
+**not** what any page shipped — it resolved to 53.76px at 1280px and existed nowhere in
+the codebase. Measuring all 15 public routes in a browser found `/grahak-os/` carrying
+`clamp(32px,4.2vw,54px)` on four headings while twelve headings on ten other pages shared
+`clamp(28px,3.2vw,40px)` / 700 / lh `1.08` / ls `-1.2px`. The site was reconciled onto the
+40px formula rather than the 54px one, for a measurable reason: the hero h1 above is
+`clamp(36px,4.3vw,60px)`, which resolves to **55.04px at 1280px**, so a 53.76px h2 sat
+1.28px below the h1 and the hierarchy collapsed — the h2 being the heavier weight, it read
+as the larger of the two. At 40px the gap is unambiguous and the 700-over-600 weight
+inversion still reads as intended.
+
+There are now **17 headings on one declaration**. Verify with the browser harness, which
+measures the resolved clamp rather than the source string:
+
+```
+npm run build && node tools/browser/typecheck.js
+```
+
+`.lgd-h2` on `/terms/` and `/privacy/` stays at 28px — 45 numbered legal sections at 40px
+would read as 45 page titles — and `.lgd-toc-title` (14px, uppercase, letter-spaced) is an
+eyebrow that happens to be marked up as an `h2`, not a section heading. The harness reports
+both rather than failing them.
 
 **There is exactly ONE body level across the whole page.** Verify after any change:
 

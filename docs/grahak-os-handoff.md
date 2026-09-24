@@ -39,19 +39,20 @@ is an instruction that survives a sandbox reset.
 - No PR is open **now**. Owner's standing instruction: push to this one branch, open
   a PR only when explicitly asked, and the **owner merges** — never the agent.
 
-## Shipped in the latest session (branch recreated from `stack` at `e4cfbe0e`)
+## Shipped in the latest session
 
 Deliberately no commit hashes: they are squash-merged away, and hashes in this file have
-misled every reader so far.
+misled every reader so far. Re-verify with the harness, not with this table.
 
 | What | Where |
 |---|---|
-| **`climate` → `climate tech`** in the Home rotation. Measured 178px → 298px, which cuts the pill's tail travel from a 183px spread to 83px, and puts the word on the same axis as `frontier tech` | `src/pages/index.tsx` |
-| **Contact card no longer hides behind the fixed header.** `scroll-margin-top:128px` / `112px` on `.cl`, `.cl-h2`, `.cl-map`, matching `.lgd-section`. Was 90px of a 151px card hidden at 768px | `src/components/ContactLocation.tsx` |
-| **The `X-Frame-Options` meta tag is gone.** It was the console error on every page load of the site; `amplify.yml` already sets the real header | `src/pages/_document.tsx` |
-| **The browser harness now lives in the repo** and `animcheck.js` actually exists | `tools/browser/` |
-| **Corrected the false "controls are inert" claim** on the contact map, and the `mapprobe.js` citation | `src/components/ContactLocation.tsx` |
-| Replaced 53 lines of self-contradicting comment above `CYCLE_WORDS` (it described nine words, then four, while the array held five) | `src/pages/index.tsx` |
+| **The rotating-headline reflow is fixed.** `animcheck.js` went **16/20 → 18/18**. `/grahak-os/` jumped 40–41px at 320–360px and `/vayulok/` 39–40px at 320 and 450–520px, every 2400ms. Fixed with media queries scoped to only the widths that measured broken, so desktop line structure is unchanged | `src/pages/grahak-os/index.tsx`, `src/pages/vayulok/index.tsx` |
+| **The type contract now matches the site.** `typecheck.js` went **1/3 → 3/3**. The contract specified a 53.76px section-h2 rung that existed nowhere; both the steering file and the harness are now on `clamp(28px,3.2vw,40px)` | `.kiro/steering/grahak-os-design.md`, `tools/browser/typecheck.js` |
+| **Home section 3 is on the same rungs as section 2.** `.home-close-points li` 17px/600 → 20px/400 (the site's one body level), tick `top` 6px → 7px to stay on the x-height, and the mobile-only 18px lead override deleted so both section leads hold 20px down to 320px | `src/pages/index.tsx` |
+| **The sitewide SEO no longer advertises one product.** `<title>`, `og:title`, `twitter:title`, `og:description` and `twitter:description` were WhatsApp-product copy inherited by all 15 public routes; `twitter:url` was hardcoded to the site root on every page. The messaging `Service` schema is now scoped to `/grahak-os/` instead of being emitted everywhere | `src/pages/_app.tsx` |
+| **`/grahak-os/` no longer ships two of every `og:` tag.** `next/head` de-duplicates meta by `name`, **not** by `property`, so the page's own og set and `_app`'s coexisted — measured 2× each of type, url, title, description, image, site_name, locale. Fixed with matching `key` props on both sides | `src/pages/_app.tsx`, `src/pages/grahak-os/index.tsx` |
+| **The home page stopped overriding its own metadata.** It declared `<title>WECARE.DIGITAL</title>` and `description="WECARE.DIGITAL."`, which beat the sitewide copy — so the most important URL on the site had a title with no content and a one-word description | `src/pages/index.tsx` |
+| **`/selfservice` and `/product-page/*` answer again.** They 404'd since a8d6a6c2 (#20) while 99 and 27 references stayed live, including the "Start Now" / "Book Slot" / "Upload Now" button URLs on outbound WhatsApp messages | `src/components/RetiredUrl.tsx`, `src/pages/selfservice.tsx`, `src/pages/product-page/*` |
 
 ## Needs the owner, not an agent
 
@@ -229,6 +230,61 @@ misled every reader so far.
 
 ## Open work an agent can pick up
 
+### Needs the owner's wording, not an agent's
+
+These are the three copy items left on the public pages. Each one has been deliberately
+left alone rather than guessed at, because the owner has rewritten every other line on
+these pages personally and rejected several agent drafts on substance:
+
+- **The hero sub-line is the only element on the home page never revised** — "Transparent
+  pricing, guided journeys, and dependable support — on one shared foundation."
+- **The flow section has no call to action**, which is also the last ~136px of the measured
+  panel-vs-copy height gap. There is no action above the fold on the home page.
+- **"say it" in the closing lead implies voice input.** Confirm that is real, or soften the
+  word. The lead is the owner's own wording, so only the owner should change it.
+
+### Still open, and an agent can do these
+
+- **A real 301 for `/selfservice` and `/product-page/*`.** The stubs added this session are
+  the in-repo fix and they work, but `output:'export'` means Next cannot emit a 3xx and
+  Amplify Hosting redirects are console-managed. A CDN-level 301 would make
+  `src/components/RetiredUrl.tsx` obsolete — which is the preferred outcome.
+- **Per-page SEO beyond the sitewide block.** `PUBLIC_PAGE_META` already holds a name, type
+  and description per route; only the JSON-LD consumes them. Titles and descriptions are
+  still hand-written per page, and two are thin: `/vayulok/` is titled "VayuLok by
+  WECARE.DIGITAL" and described as "VayuLok - Bharat Air Intelligence, by WECARE.DIGITAL.",
+  neither of which says what it does.
+- **Product schema from `src/content/wix-catalog.json`**, once the commerce decisions below
+  are made.
+- **Reconcile the two Wix API versions.** `scripts/fetch-wix-catalog.js` uses
+  `stores-reader/v1`; `amplify/functions/ecommerce/wix-store/handler.py` uses `stores/v3`
+  in 17 places. Inspect a real v3 payload before mapping — the field shapes are not mapped,
+  and v3 adds price ranges and cursor paging.
+- **The catalog snapshot will not scale.** 7 products is 9,500 bytes; the owner expects
+  ~4,000, which is 5–6MB of committed JSON. That needs a `ProductsTable`, a scheduled
+  `catalog-sync` Lambda and DynamoDB Streams fan-out, not a bigger file.
+- **No price appears on the home page**, and the closing band promises "Know the price
+  before you commit." When a number is added it must be **derived** from the catalog, not
+  typed: the floor is ₹599 today (Viveka) and the owner expects ₹49 once several thousand
+  more products load.
+
+### Blocked on the owner
+
+- **A Google Maps API key.** Blocks the last red harness assertion, and blocks recolouring
+  the red pin to lime. There is no `AIza` key anywhere in the tree or in
+  `git log --all -S AIza`, and `.env.example:58` has it commented out.
+- **Wix product images.** All 7 products report `mediaCount: 0` on both API versions, which
+  blocks the Meta WhatsApp catalog entirely.
+- **`productType`.** All 7 products are `physical`; 4 of them are services. Google Merchant
+  will reject those.
+- **A join key for commerce.** Every SKU is empty. Recommendation: the Wix `id` UUID, with
+  `slug` used only for URLs.
+- **Turn off "Automatically delete head branches".** The working branch has now been
+  recreated **seven** times, which has cost two near-reverts and one 28-file conflict.
+- **Rotate the Wix API key.** It was pasted into a chat transcript and is account-scoped,
+  so it cannot be referrer-restricted. Move it to Secrets Manager under the existing
+  `WIX_API_KEY_SECRET` pattern.
+
 - ~~`_document.tsx` sets an `X-Frame-Options` meta tag.~~ **Deleted.** It gave zero
   protection, since browsers honour XFO only as a header, and it logged an error on every
   page load of the site — `animcheck.js` now reports **zero** console errors on `/`,
@@ -261,20 +317,28 @@ misled every reader so far.
   - **Rotating word length is a layout constraint.** The pill animates to each word's
     *measured* width, so the spread is how far the headline's tail travels per tick.
     Measured at 1280px: `consumers` 278, `enterprises` 280, `climate tech` 298,
-    `frontier tech` 300, `AI applications` 361 — spread 83px. The real failure mode is
-    the h1 reflowing on the longest word only, which would shift the page every 2400ms;
+    `frontier tech` 300 — spread **22px**. `AI applications` (361px) was dropped from the
+    rotation, which is what cut the spread from 83px to 22px; do **not** re-add it, because
+    the h1 frame now reads "Everyday AI, built for" and it would render as "Everyday AI,
+    built for AI applications". The real failure mode is the h1 reflowing on the longest
+    word only, which would shift the page every 2400ms;
     `.home-head-line` is `display:block` so the pill owns its line and this cannot
     happen. `node tools/browser/animcheck.js` measures h1 height for every word at 21
     viewports from 320 to 1920 **and** through a live rotation: constant, 131px at
-    1280px.
+    1280px. The same check now passes on all four surfaces — `/grahak-os/` and `/vayulok/`
+    were the two that reflowed, and both are fixed with width-scoped media queries rather
+    than by restructuring their headlines.
   - Below the hero there are now two sections — `.home-flow` (the `WorkflowTerminal`)
     and the `.home-close` band, which reveals on scroll via `IntersectionObserver`
     rather than a timer. `.home-layout`'s `gap:96px` is the section rhythm.
 - ~~`/faq` and `/partners` are now in the nav but are visually off-system.~~
-  **Both pages are deleted.** The nav entries are absolute, same-tab links to
-  `www.wecare.digital/selfservice` (relabelled **Selfservice**) and
-  `www.wecare.digital/product-page/referral-partner`, and both routes are out of the
-  `isPublic` allowlist. Consequence worth knowing: `/partners` was the only **public**
+  **Both pages are deleted**, and the nav entries that pointed at
+  `www.wecare.digital/selfservice` and `.../product-page/referral-partner` — both of which
+  **404'd** — now point at `/contact/`. Those two external URLs also answer again: see
+  `src/components/RetiredUrl.tsx`. Note a 200 on a `/service/*` path is **not** evidence a
+  route is public — those render `<Layout user onSignOut>` and are auth-gated, which is why
+  the nav links go to `/contact/` and not there.
+  Consequence worth knowing: `/partners` was the only **public**
   WhatsApp Embedded Signup entry point. `EmbeddedSignupPanel` survives because
   `dm/whatsapp/connected-accounts` and `dm/whatsapp/embedded-signup` still use it, but
   it is now reachable only behind auth. Two backend WhatsApp replies still send
@@ -373,18 +437,28 @@ not build. A pull request could go green while broken, and it only stayed honest
 a human ran the commands below by hand. If a check is ever needed that CI does not have,
 assume it is not there rather than assuming it is.
 
-Measured on `stack` at `6141ab2b`, Node 24.19.0:
+Measured on this branch, based on `stack` at `80a877f9`, Node 24.19.0. The harness reads
+`out/`, so **`npm run build` has to come first** or it measures the previous build:
 
 ```bash
 npm run build                        # exit 0; then:
 npx tsc --noEmit                     # 0 errors
-npx vitest run                       # 95 passed / 9 files
-./scripts/check-provider-policy.sh   # 8/8 ok
-npx eslint .                         # 231e/64w — red, pre-existing
-node tools/browser/animcheck.js      # 16/20 — 4 known failures, see below
+npx vitest run                       # 152 passed / 13 files
+./scripts/check-provider-policy.sh   # no violations
+npx eslint .                         # 225e/63w — red, pre-existing
+node tools/browser/animcheck.js      # 18/18
+node tools/browser/typecheck.js      # 3/3
+node tools/browser/uicheck.js        # 28/28
 node tools/browser/contactcheck.js   # 12/13 — 1 known failure, see below
-node tools/browser/typecheck.js      # 1/3   — 2 known failures, the type-ladder decision
 ```
+
+Only **one** harness assertion is red now, and it is blocked on the owner rather than on
+code: three Google map controls on `/contact/` stay reachable until a Maps API key exists.
+Earlier revisions of this file recorded `animcheck` at 16/20 and `typecheck` at 1/3; both
+are green as of this session, so if you see those numbers you are reading a stale copy.
+The lint count is a **measured baseline, not a target** — `225e/63w` is what `stack`
+carries, and this session's work added none of it (the only error inside the changed files
+is the long-documented `<a>` in `index.tsx`, which must stay an `<a>`).
 
 Three things to know about that list. **`npm ci` is not in it** — it is broken, see
 "Needs the owner"; the CI workflow therefore installs with `npm install` and carries a

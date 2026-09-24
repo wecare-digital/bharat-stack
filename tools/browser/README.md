@@ -80,18 +80,49 @@ see locally.
 | `typecheck.js` | Every visible `h1`/`h2`/`h3` on all 15 public routes at 2 widths; per-page consistency, the de-facto 40px rung, and the gap to the design contract |
 | `uicheck.js` | Header lockup centring, and the two floating widgets: equal diameter, shared centre line, even gap, and that the open language panel clears the un-coverable WhatsApp button — 4 viewports |
 
-## Known failures, and why they are left failing
+## Current state
 
-Neither script is green, and both are honest about it rather than tuned to pass.
+| Script | Result |
+|---|---|
+| `animcheck.js` | **18/18** |
+| `typecheck.js` | **3/3** |
+| `uicheck.js` | **28/28** |
+| `contactcheck.js` | **12/13** — the one failure is blocked on a Google Maps API key |
 
-- **`animcheck.js` — 4 failures.** `/grahak-os/` and `/vayulok/` reflow at narrow
-  widths: their pill sits inline mid-sentence, so the h1's line count depends on the
-  active word and the page shifts every 2400ms. Measured: Grahak OS at 320px is 168px
-  on `WhatsApp` against 128px on the other three; VayuLok at 320px is 126px on
-  `Weather`/`Forecast`/`Heatmap` against 87px on `Air`/`Pollen`/`Solar`. Home and every
-  surface built on `RotatingHero` put the pill on its own line and measure constant.
-  Fixing the two inline copies changes their hero line structure, so it is an owner
-  call, not a patch.
+The single remaining failure is left red deliberately. It is not tuned to pass.
+
+### Fixed: the rotating-headline reflow (was 4 failures in `animcheck.js`)
+
+`/grahak-os/` and `/vayulok/` put their pill inline mid-sentence, so the h1's line count
+depended on which word was showing and the page shifted every 2400ms. Measured before the
+fix, using `heights [...]` per viewport across 18 widths:
+
+| Route | Widths that jumped | Heights | Delta |
+|---|---|---|---|
+| `/grahak-os/` | 320 | 128 / 168px | 40px |
+| `/grahak-os/` | 340–360 | 87 / 128px | 41px |
+| `/vayulok/` | 320 | 87 / 126px | 39px |
+| `/vayulok/` | 450–520 | 47 / 87px | 40px |
+
+Note neither was one contiguous band — `/vayulok/` was already stable at 340–430 and at
+560+, which is why the fix is two narrow media queries per page rather than one breakpoint.
+
+The fix gives the pill, or the word after it, its own line **only at the widths that
+measured broken**, and leaves every other width untouched:
+
+- `/grahak-os/` — `.hero-mark{display:block;width:fit-content}` below 374px.
+- `/vayulok/` — `.vl-head-tail{display:block}` below 559px, plus
+  `.vl-mark{display:block;width:fit-content}` below 339px. The second rule is needed
+  because at 288px of usable width `Bharat <Heatmap>` does not fit on one line while
+  `Bharat <Air>` does.
+
+Desktop line structure on both pages is byte-identical to before — that was the constraint,
+since forcing the break at every width would turn a correct two-line headline into three
+lines on every desktop. `width:fit-content` is required alongside `display:block` or the
+tinted pill stretches to the full column.
+
+Re-run `animcheck.js` after changing either word list: a word longer than `WhatsApp` or
+`Heatmap` moves these thresholds.
 - **`contactcheck.js` — 1 failure.** Three Google controls on the keyless map embed are
   reachable, not inert. See the long comment above `.cl-lock` in `ContactLocation.tsx`
   for the measurements and the three options.
@@ -104,12 +135,29 @@ Neither script is green, and both are honest about it rather than tuned to pass.
   blank grey panel and throws nothing, so "painted" is the assertion that catches a bad
   key, a referrer restriction that excludes the deploy origin, or billing being off. It
   has **not** run with a real key; read its printed numbers on the first real run.
-- **`typecheck.js` — 2 failures.** The design contract specifies one section-h2 rung,
-  `clamp(32px,4.2vw,54px)` = 53.76px at 1280. It exists on `/grahak-os/` and **nowhere
-  else**; `clamp(28px,3.2vw,40px)` = 40px is on 10 pages. Reconciling the two is an owner
-  decision — see "Type ladder" in `docs/grahak-os-handoff.md`. Separately `/grahak-os/`
-  carries two sizes itself, 53.76px and 55.04px, because `.gos-closer-head` wears the hero
-  **h1**'s clamp at weight 600.
+### Fixed: the type contract (was 2 failures in `typecheck.js`)
+
+The design contract specified `clamp(32px,4.2vw,54px)` = 53.76px at 1280, which existed on
+`/grahak-os/` and **nowhere else**, while `clamp(28px,3.2vw,40px)` = 40px was on ten pages.
+Both sides are now reconciled onto the 40px rung — `.kiro/steering/grahak-os-design.md`
+records the reason, and `CONTRACT` in `typecheck.js` matches it. Keep the two in step; if
+they disagree, the harness is the only one of the pair that gets measured.
+
+Why 40px and not 54px: the hero h1 is `clamp(36px,4.3vw,60px)`, which resolves to 55.04px at
+1280, so a 53.76px h2 sat **1.28px** below it. The h2 being the heavier weight (700 vs 600),
+the hierarchy inverted and the h2 read as the larger of the two.
+
+`typecheck.js` now separates two things it used to conflate:
+
+- `NON_SECTION` — not a section heading at all (card titles, widget labels, and
+  `.lgd-toc-title`, which is a 14px uppercase eyebrow that happens to be marked up as an
+  `h2`). Correctly small; scaling them would be a regression.
+- `RUNG_EXCEPTIONS` — genuine section headings deliberately off the rung, each needing a
+  recorded reason. Currently one entry: `.lgd-h2` stays at 28px because `/terms/` and
+  `/privacy/` carry 45 numbered legal sections between them, and at 40px each clause
+  heading reads as a page title. Reported, not failed, with the reason printed.
+
+An exception with no justification is drift with a comment on it — the default answer is no.
 
 ## Writing new checks
 

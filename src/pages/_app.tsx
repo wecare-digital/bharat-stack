@@ -459,6 +459,40 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   '/niji-setu': { name: 'Niji Setu', type: 'WebPage', description: 'A QR code people scan to reach you on a masked call.' },
 };
 
+/**
+ * RETIRED URLS THAT MUST STILL ANSWER.
+ *
+ * These paths were published, sent to customers, and then deleted by a8d6a6c2 (#20).
+ * They 404 today: a request 301s to the trailing-slash form and then finds nothing.
+ * There are 99 references to /selfservice and 27 to /product-page/partner-up still live
+ * in this repo - notably as the "Start Now" / "Book Slot" / "Upload Now" call-to-action
+ * URLs that amplify/functions/ai/ai-generate-response/handler.py puts into outbound
+ * WhatsApp messages. Editing those handlers fixes future sends only; it cannot recall a
+ * message already delivered, so the URL itself has to keep working.
+ *
+ * They are DELIBERATELY NOT in PUBLIC_PAGE_META and not in the allowlist in
+ * scripts/generate-sitemap.js:
+ *   - PUBLIC_PAGE_META would emit a WebPage + BreadcrumbList for them, advertising a
+ *     redirect stub as a destination; and the unlisted fallback in getPublicPageSchema
+ *     is worse still, since it returns the HOME PAGE's @id and url, which would claim
+ *     each stub is the home page.
+ *   - the sitemap must not invite a crawler to a page whose only job is to leave.
+ * They are listed here purely so isPublic is true and they render at all - a route
+ * missing from that gate ships an empty body with HTTP 200, which is a 404 that does not
+ * look like one.
+ *
+ * A REAL 301 AT THE CDN IS STILL THE RIGHT ANSWER and is not available in this repo:
+ * next.config.js sets output:'export', and Next's `redirects` config has no effect on a
+ * static export. Amplify Hosting redirects are console-managed. Until one is added,
+ * these stubs are the fix that ships with the code.
+ */
+const RETIRED_ROUTES = new Set( [
+  '/selfservice',
+  '/product-page',
+  '/product-page/partner-up',
+  '/product-page/referral-partner',
+] );
+
 const SITE = 'https://wecare.digital';
 
 const getPublicPageSchema = ( pathname: string ) => {
@@ -657,9 +691,13 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // page to the menu and the sitemap while forgetting this one - which renders an empty body
   // with HTTP 200 and is invisible until someone loads the route. Deriving the allowlist from
   // the metadata map means a product cannot exist for structured data but not for rendering.
+  // Retired URLs render through the public branch so they are not blank 200s, but they
+  // suppress the sitewide Head below and declare their own - see RETIRED_ROUTES.
+  const isRetired = RETIRED_ROUTES.has( router.pathname );
   const isPublic = router.pathname === '/'
     || router.pathname === '/contact-test'
     || Object.prototype.hasOwnProperty.call( PUBLIC_PAGE_META, router.pathname )
+    || isRetired
     || isContentPublic;
 
   // trailingSlash is set in next.config.js, so the canonical form of every route except
@@ -738,9 +776,15 @@ export default function App ( { Component, pageProps }: AppProps ) {
   {
     return (
       <ErrorBoundary>
-        { !isContentPublic && (
+        { !isContentPublic && !isRetired && (
           <Head>
-          <title>WECARE.DIGITAL - WhatsApp Business API Platform | Multi-Channel Messaging CRM India</title>
+          {/* PRODUCT-NEUTRAL SITEWIDE TITLE. This read "WECARE.DIGITAL - WhatsApp Business
+              API Platform | Multi-Channel Messaging CRM India" - 86 characters, of which
+              Google shows about 60, and every word after the brand described a single
+              product. It was the <title> for all 15 public routes, so the company home page
+              was titled as a WhatsApp CRM. Kept short enough to survive truncation and
+              worded to match the og/twitter/description copy below. */}
+          <title>Everyday AI, built for Bharat | WECARE.DIGITAL</title>
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
@@ -790,22 +834,52 @@ export default function App ( { Component, pageProps }: AppProps ) {
             <meta name="msvalidate.01" content={ VERIFICATION.bing } />
           ) }
 
-          {/* Open Graph */ }
-          <meta property="og:type" content="website" />
+          {/* Open Graph.
+              EVERY og: TAG CARRIES A key, AND THAT IS LOAD-BEARING - not tidiness.
+              next/head only de-duplicates meta by `name`, `httpEquiv`, `charSet` and
+              `itemProp`. `property` is NOT in that list, so two og:title tags coexist
+              happily where two twitter:title tags collapse to one. Measured on the built
+              export, /grahak-os/index.html shipped TWO of every single og tag - type, url,
+              title, description, image, site_name, locale - because that page declares its
+              own set and nothing merged them. A link preview then reads whichever it meets
+              first, which was this sitewide block, so the product page previewed with the
+              sitewide copy.
+              An explicit key is the documented escape hatch, but it only works when BOTH
+              sides use the SAME key: og:url already had key="og:url" here and still
+              duplicated, because /grahak-os/ declared its og:url without one. The keys
+              below are therefore mirrored in src/pages/grahak-os/index.tsx, and any future
+              page that declares og tags must use these same keys or it will double them
+              again. Verify with:
+                grep -o '"og:title"' out/grahak-os/index.html | wc -l   # must be 1 */}
+          <meta property="og:type" key="og:type" content="website" />
           <meta property="og:url" key="og:url" content={ canonicalUrl } />
-          <meta property="og:title" content="WECARE.DIGITAL - WhatsApp Business API Platform | WECARE.DIGITAL" />
-          <meta property="og:description" content="Enterprise WhatsApp Business API platform. Send bulk messages, payments & automate customer engagement with AI. Trusted by businesses across India." />
-          <meta property="og:image" content={ LOGO_URL } />
-          <meta property="og:image:width" content="512" />
-          <meta property="og:image:height" content="512" />
-          <meta property="og:site_name" content="WECARE.DIGITAL" />
-          <meta property="og:locale" content="en_IN" />
+          {/* PRODUCT-NEUTRAL, for the same reason the description above is.
+              These read "WECARE.DIGITAL - WhatsApp Business API Platform | WECARE.DIGITAL"
+              and "Enterprise WhatsApp Business API platform. Send bulk messages, payments &
+              automate customer engagement with AI." That is one product's copy, and because
+              this block is inherited by every public route it was the share preview for all
+              15 of them - including the company home page, which is not a WhatsApp product
+              page. It also printed the brand name TWICE in a single og:title.
+              The wording now mirrors the neutral description already agreed above, so the
+              title, description, og and twitter tags finally describe the same company.
+              /grahak-os/ keeps its WhatsApp positioning in its own Head, which is where a
+              product claim belongs. */}
+          <meta property="og:title" key="og:title" content="Everyday AI, built for Bharat | WECARE.DIGITAL" />
+          <meta property="og:description" key="og:description" content="WECARE.DIGITAL builds everyday AI for consumers, enterprises, climate tech and frontier tech, with transparent pricing and one place to track everything." />
+          <meta property="og:image" key="og:image" content={ LOGO_URL } />
+          <meta property="og:image:width" key="og:image:width" content="512" />
+          <meta property="og:image:height" key="og:image:height" content="512" />
+          <meta property="og:site_name" key="og:site_name" content="WECARE.DIGITAL" />
+          <meta property="og:locale" key="og:locale" content="en_IN" />
 
-          {/* Twitter */ }
+          {/* Twitter. These need no key - next/head dedupes on `name`, which is why only
+              the og: block above was doubling. twitter:url was hardcoded to the site root
+              on every page, the same defect already fixed on canonical and og:url; it is
+              computed now so a shared link resolves to the page that was shared. */ }
           <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:url" content="https://wecare.digital/" />
-          <meta name="twitter:title" content="WECARE.DIGITAL - WhatsApp Business API Platform" />
-          <meta name="twitter:description" content="Enterprise WhatsApp Business API platform. Multi-channel messaging CRM with AI automation." />
+          <meta name="twitter:url" content={ canonicalUrl } />
+          <meta name="twitter:title" content="Everyday AI, built for Bharat | WECARE.DIGITAL" />
+          <meta name="twitter:description" content="WECARE.DIGITAL builds everyday AI for consumers, enterprises, climate tech and frontier tech, with transparent pricing and one place to track everything." />
           <meta name="twitter:image" content={ LOGO_URL } />
 
           {/* SEO */ }
@@ -850,7 +924,21 @@ export default function App ( { Component, pageProps }: AppProps ) {
             <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( softwareSchema ) } } />
           ) }
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( websiteSchema ) } } />
-          <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( serviceSchema ) } } />
+          {/* serviceSchema IS SCOPED TO /grahak-os, the mirror image of the
+              softwareSchema gate just above. It declares serviceType "WhatsApp Business
+              API Platform" and a hasOfferCatalog of WhatsApp / Bulk SMS / Email Marketing
+              / Voice Calls - one product's offering - and it was being emitted on all 15
+              public routes, so /terms, /privacy, /contact, /my-order and the company home
+              page each told Google they offer a WhatsApp messaging catalog.
+              That is the same leak already fixed on description, keywords, title and the
+              og block, and here it is also a guidelines problem rather than just wasted
+              markup: Google requires structured data to represent the page's actual
+              content, which a messaging offer catalog does not do on a privacy policy.
+              On /grahak-os the entity is accurate, so the value needs no rewording - only
+              the scope was wrong. */}
+          { router.pathname === '/grahak-os' && (
+            <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( serviceSchema ) } } />
+          ) }
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( getPublicPageSchema( router.pathname ) ) } } />
         </Head>
         ) }
