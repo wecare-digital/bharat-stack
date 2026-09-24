@@ -30,8 +30,10 @@ and selective emphasis.
 - Author: **Anew by WECARE.DIGITAL**
 - Default category: **Conversations**
 - Tags: **1-3** precise distinctions actually present in the article
-- Preserve the original Wix Editor slug wherever practical
-- Preserve the original first-published date
+- Preserve the original Wix Editor slug only as `sourceSlug` migration history
+- Every new Anew article gets a fresh `slug` that reflects the revised article/SEO framing
+- Preserve the original first-published date only as `sourcePublishedDate` migration history
+- Do not send `sourcePublishedDate` to Wix as the new article's `firstPublishedDate`; Wix assigns the fresh publication date when the new post is published
 - Every post gets a unique, source-faithful SEO title and meta description
 - Canonical frontend URL: `https://wecare.digital/post/[slug]/`
 - No hero image
@@ -56,3 +58,12 @@ The migration pipeline does **not** generate editorial copy. Editorial upgrades 
 reviewed/generated upstream and passed to the script as an approved manifest. This
 keeps "content generation" separate from "content publication" and prevents a batch
 publisher from inventing or broadening an article during migration.
+
+## Old-to-new traceability
+
+`migration/blog/old-to-new-map.json` is the canonical migration crosswalk. It records
+the source post ID, old Wix Editor slug, new Anew slug, historical source publication
+date, and migration status for all 109 source posts.
+
+The source slug and source publication date are retained for auditability and optional
+redirect planning only. They are not reused as the identity/date of the fresh Anew post.
