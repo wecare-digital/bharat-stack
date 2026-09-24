@@ -473,12 +473,58 @@ Design points that earned their place:
 (scheduled sync jobs writing metrics) is still to do and is not blocked — it can be built
 against fixtures.
 
-### 7.2 — Refactor the Meta Ads/attribution and Wix monoliths · TODO
+### 7.2 — Refactor the Meta Ads/attribution and Wix monoliths · PARTIAL (defects fixed)
 
-Into query/plan/apply or adapter/domain/job boundaries. Remove interactive scans, browser
-token/provider calls, and Wix secret env fallbacks. Route Wix-generated communication
-through the shared notification system. **Preserve the existing production Wix site** and
-reconcile Velo source drift without creating or publishing a site.
+The three **named** defects are resolved. The structural split into
+adapter/domain/job is not, and is recorded honestly below rather than half-done.
+
+Measured first: `wix-store` 1707 lines, `marketing-ads` 448, `ad-attribution` 196.
+
+**Interactive scans — fixed.** `ad-attribution` had two, on ordinary HTTP routes:
+
+- `_list_attributions` did `int(params.get('limit', '50'))`, so `?limit=abc` was a
+  **500** and `?limit=999999999` an unbounded read — and it passed **no `Limit` at all**
+  to DynamoDB, so asking for one item still transferred up to 1 MB per page. With a
+  `FilterExpression` that reads the whole table while collecting almost nothing,
+  because filtering happens after the read is paid for.
+- `_get_stats` was a bare `while True` full-table scan **on every call**.
+
+Both now use shared bounded reads and report `truncated` / `partial`, so a page count
+cannot be rendered as a total. Live: `?limit=abc` → 200 with `limit: 25`,
+`?limit=999999999` → clamped to 100, stats → `partial: true`.
+
+**`WIX_CREDENTIALS_DISABLED` was a switch that did nothing.** It and
+`CREDENTIAL_PURGE_EPOCH=2026-09-23T03:05:00Z` are both set on the live function, and
+**neither name appeared anywhere in the repository**. Someone disabled Wix with a
+variable the code never read. What actually stopped Wix was the absence of
+`WIX_API_KEY_SECRET`, making the loader raise — off by accident, not by the switch.
+The same shape as the dashboard's tool checkboxes in 6.3. Now honoured, and checked
+*before* any credential read. Deliberately not load-bearing: with the switch unset and
+no secret configured it still refuses, but for the honest reason.
+
+**Wix env fallbacks — already absent.** The item asked to remove them; the loader was
+already Secrets-Manager-only and fails closed. Two stale docstring claims corrected
+instead: it asserted `SnapStart.ApplyOn=PublishedVersions` (measured `None` on all 62)
+and "env as migration fallback" (there is none). Both corrected rather than deleted —
+the useful part is stating what is actually true, since lazy loading is still right for
+a different reason.
+
+Bonus: the bounded-read helpers moved from `agent/governance.py` to
+`lambda_utils/dynamo_reads.py`, re-exported for compatibility. They were written for
+the agent catalog, but `ad-attribution` had the same defect on a plain HTTP route, and
+two copies of one rule is how the stage-prefix bug returned twice.
+
+**Measured Wix state:** integration is entirely off — no `WIX_API_KEY_SECRET`,
+`WIX_CREDENTIALS_DISABLED=true`, and **0 rows** in all three cache tables
+(`WixProductsCache`, `WixOrdersCache`, `WixOrderIds`). The production site must not be
+recreated or republished.
+
+**Remaining for 7.2:** the adapter/domain/job split of the 1707-line `wix-store`, the
+Meta Ads monolith boundaries, routing Wix-generated communication through the shared
+notification system, and Velo source drift reconciliation. None is blocked; all are
+substantial. `marketing-ads` and `wix-store` have **0** DynamoDB scans, so there is no
+scan debt left in them. `wecare-ad-attribution` has an **empty** live environment — no
+configuration at all — worth resolving with the split.
 
 ### 7.3 — Growth and Commerce module homes behind flags · TODO
 

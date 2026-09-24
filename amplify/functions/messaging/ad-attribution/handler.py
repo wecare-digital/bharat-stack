@@ -19,6 +19,7 @@ import boto3
 from decimal import Decimal
 from typing import Dict, Any
 
+from lambda_utils import dynamo_reads
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, extract_origin
 from lambda_utils.privacy import mask_phone
@@ -136,53 +137,61 @@ def _record_attribution(body: Dict, request_id: str) -> Dict:
 
 
 def _list_attributions(params: Dict, request_id: str) -> Dict:
-    """List ad click attributions with optional filters."""
-    table = dynamodb.Table(AD_ATTRIBUTION_TABLE)
-    max_results = int(params.get('limit', '50'))
+    """List ad click attributions. Bounded, and honest about being bounded.
 
-    # Filter by sourceId (ad ID) if provided
+    Two things were wrong here before 2026-09-23, both reachable from an ordinary
+    HTTP route:
+
+      max_results = int(params.get('limit', '50'))
+
+    is a 500 for `?limit=abc` and an unbounded read for `?limit=999999999`. And the
+    scan passed **no** `Limit` to DynamoDB, so asking for one item still transferred
+    up to 1 MB per page - and with a `FilterExpression` it could read the entire table
+    while collecting almost nothing, because filtering happens after the read is paid
+    for.
+
+    `truncated` is part of the answer: "50 results" and "at least 50 results" are
+    different claims, and whichever the caller is handed is what it renders as a total.
+    """
+    table = dynamodb.Table(AD_ATTRIBUTION_TABLE)
+    limit = dynamo_reads.bounded_limit(params.get('limit'))
+
+    scan_kwargs: Dict[str, Any] = {}
     source_id = params.get('sourceId', '')
-    scan_kwargs = {}
     if source_id:
         scan_kwargs['FilterExpression'] = 'sourceId = :sid'
         scan_kwargs['ExpressionAttributeValues'] = {':sid': source_id}
 
-    # Full pagination to collect up to max_results matching items
-    items = []
-    while len(items) < max_results:
-        response = table.scan(**scan_kwargs)
-        items.extend(response.get('Items', []))
-        if 'LastEvaluatedKey' not in response:
-            break
-        scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+    items, truncated = dynamo_reads.read_page(table, limit=limit, **scan_kwargs)
 
-    items = items[:max_results]
-
-    # Mask phone numbers in response
     for item in items:
         if item.get('phone'):
             item['phone'] = mask_phone(item['phone'])
 
-    return _resp(200, {'attributions': items, 'count': len(items)})
+    return _resp(200, {
+        'attributions': items,
+        'returned': len(items),
+        # `truncated` rather than a bare `count`, which read as a total.
+        'truncated': truncated,
+        'limit': limit,
+    })
 
 
 def _get_stats(params: Dict, request_id: str) -> Dict:
-    """Get aggregated attribution stats."""
+    """Aggregate attribution stats over one bounded page.
+
+    This was a bare `while True` full-table scan on every call. It is now one page,
+    and the response says `partial` so a dashboard cannot render a page count as a
+    total. An exact total needs a maintained counter or an aggregation job, not a scan
+    that grows with the table - the same conclusion reached for `getStats` in the
+    agent tool catalog.
+    """
     table = dynamodb.Table(AD_ATTRIBUTION_TABLE)
+    limit = dynamo_reads.bounded_limit(params.get('limit'))
+    items, truncated = dynamo_reads.read_page(table, limit=limit)
 
-    # Full pagination scan for accurate stats
-    items = []
-    scan_kwargs = {}
-    while True:
-        response = table.scan(**scan_kwargs)
-        items.extend(response.get('Items', []))
-        if 'LastEvaluatedKey' not in response:
-            break
-        scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
-
-    # Aggregate by sourceId
-    by_source = {}
-    by_type = {}
+    by_source: Dict[str, int] = {}
+    by_type: Dict[str, int] = {}
     for item in items:
         sid = item.get('sourceId', 'unknown')
         stype = item.get('sourceType', 'unknown')
@@ -190,7 +199,11 @@ def _get_stats(params: Dict, request_id: str) -> Dict:
         by_type[stype] = by_type.get(stype, 0) + 1
 
     return _resp(200, {
-        'totalAttributions': len(items),
+        'sampled': len(items),
+        # Always true, even when this page happened to exhaust the table: the caller
+        # cannot distinguish the two, so promising a total would be a guess.
+        'partial': True,
+        'moreAvailable': truncated,
         'bySourceId': by_source,
         'bySourceType': by_type,
     })

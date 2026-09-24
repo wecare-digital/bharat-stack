@@ -78,10 +78,8 @@ CATALOG_VERSION = "2"
 ENV_DISABLED_TOOLS = "AGENT_DISABLED_TOOLS"
 ENV_KILL_SWITCH = "AGENT_TOOLS_KILL_SWITCH"
 
-# Read bounds. Small on purpose: a "limit" of ten thousand is an exhaustive scan
-# with extra steps, and an agent answering a question does not need every row.
-DEFAULT_READ_LIMIT = 25
-MAX_READ_LIMIT = 100
+# Read bounds live in lambda_utils.dynamo_reads and are re-exported at the foot of
+# this module, so `gov.DEFAULT_READ_LIMIT` keeps working.
 
 
 class ToolUnknown(KeyError):
@@ -491,64 +489,20 @@ def catalog_summary(surface: str = SURFACE_AGENT) -> Dict[str, Any]:
 # --------------------------------------------------------------------------
 # bounded reads
 # --------------------------------------------------------------------------
-def bounded_limit(requested: Any,
-                  *, default: int = DEFAULT_READ_LIMIT,
-                  maximum: int = MAX_READ_LIMIT) -> int:
-    """Clamp a caller-supplied limit. Anything unusable becomes the default."""
-    try:
-        value = int(requested)
-    except (TypeError, ValueError):
-        return default
-    if value <= 0:
-        return default
-    return min(value, maximum)
-
-
-def read_page(table: Any, *, limit: Any = DEFAULT_READ_LIMIT,
-              **scan_kwargs: Any) -> Tuple[List[Dict[str, Any]], bool]:
-    """One page of a scan, hard-bounded. Returns (items, truncated).
-
-    Deliberately does NOT paginate. The code this replaces looped
-    `while True` on `LastEvaluatedKey`, which on a table of any real size is an
-    exhaustive scan billed per read and chosen by a model rather than by a person.
-
-    `truncated` exists so a caller cannot present a partial answer as a total.
-    "Found 25 contacts" and "found at least 25 contacts" are different claims, and
-    the agent will repeat whichever one it is handed.
-
-    An `ExclusiveStartKey` from a caller is refused: resuming across invocations
-    turns a bounded read back into an unbounded one, one page per model turn.
-    """
-    if "ExclusiveStartKey" in scan_kwargs:
-        raise ValueError(
-            "read_page does not resume a scan; a caller-supplied "
-            "ExclusiveStartKey would make a bounded read unbounded")
-
-    capped = bounded_limit(limit)
-    response = table.scan(Limit=capped, **scan_kwargs) or {}
-    items = list(response.get("Items") or [])
-    truncated = bool(response.get("LastEvaluatedKey")) or len(items) > capped
-    return items[:capped], truncated
-
-
-def query_index(table: Any, *, index_name: str, key_name: str, value: Any,
-                limit: Any = 1) -> List[Dict[str, Any]]:
-    """Exact lookup through a GSI. Never a scan, never a substring match.
-
-    ContactsTable carries `phone-index` and `email-index`, both with ALL
-    projections, so the lookup scans this replaces were never necessary - and the
-    scan they used was wrong twice over: `Limit` applied before the
-    FilterExpression so it usually matched nobody, and `contains` on the last ten
-    digits could match a different number.
-    """
-    from boto3.dynamodb.conditions import Key
-
-    if not str(value or "").strip():
-        raise ValueError(f"{key_name} is required for an index lookup")
-
-    response = table.query(
-        IndexName=index_name,
-        KeyConditionExpression=Key(key_name).eq(value),
-        Limit=bounded_limit(limit, default=1),
-    ) or {}
-    return list(response.get("Items") or [])
+# Moved to lambda_utils/dynamo_reads.py on 2026-09-23 and re-exported here.
+#
+# They were written for this module, to stop a language model paginating a whole
+# table on a whim - but the problem is not agent-specific. `messaging/ad-attribution`
+# had the same shape reached from an ordinary HTTP route, and worse in one respect: it
+# passed no `Limit` to DynamoDB at all. Two copies of one rule is how the
+# stage-prefix bug came back twice before `http_path` was given a shared home.
+#
+# Re-exported rather than relocated outright so every existing caller and test keeps
+# working through `gov.read_page` / `gov.bounded_limit`.
+from lambda_utils.dynamo_reads import (  # noqa: E402,F401
+    DEFAULT_READ_LIMIT,
+    MAX_READ_LIMIT,
+    bounded_limit,
+    query_index,
+    read_page,
+)
