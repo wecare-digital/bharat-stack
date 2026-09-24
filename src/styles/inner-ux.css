@@ -69,7 +69,12 @@
   --color-success-border: #d1f470;
 
   /* Text */
-  --color-text: #111827;
+  /* The contract's single body level. Was #111827, a blue-tinted grey
+     sitting next to .main-content's color:#000000 - the same defect the
+     contract names when it retires #4b5563. 26 rules read this token and
+     only 4 were headings; those now set #000 explicitly, so a generic
+     "text" token can be the body colour it claims to be. */
+  --color-text: rgba(0,0,0,.898);
   --color-text-secondary: #6b7280;
   --color-text-muted: #9ca3af;
 
@@ -384,7 +389,7 @@
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
   background: var(--color-bg-secondary);
-  border: 2px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: 14px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -532,7 +537,7 @@
   font-size: var(--font-body);
   color: var(--color-text);
   background: var(--color-bg);
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: var(--radius-md);
   transition: all 0.15s ease;
   outline: none;
@@ -547,13 +552,13 @@
 .inner-page input:hover:not(:disabled),
 .inner-page select:hover:not(:disabled),
 .inner-page textarea:hover:not(:disabled) {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .inner-page input:focus,
 .inner-page select:focus,
 .inner-page textarea:focus {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3);
 }
 
@@ -588,9 +593,13 @@
   background: #fff;
 }
 
+/* 1300px, the public page's measure (.hero, .api, .pp-inner and Footer's .ft-in
+   all cap at 1300). This was 1400, and --page-max-width in Pages.css is 1200, so
+   the site had three different content measures and an inner page lined up with
+   neither the header above it nor the footer below. */
 .inner-page-container {
   width: 100%;
-  max-width: 1400px;
+  max-width: 1300px;
   margin: 0 auto;
   padding: var(--space-6);
 }
@@ -644,7 +653,7 @@
 /* Card */
 .inner-card {
   background: var(--color-bg);
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: var(--radius-lg);
   padding: var(--space-5);
 }
@@ -656,7 +665,7 @@
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--color-bg);
-  border: 2px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: var(--radius-lg);
 }
 
@@ -671,7 +680,13 @@
 .inner-table td {
   padding: var(--space-3) var(--space-4);
   text-align: left;
-  border-bottom: 1px solid #d1f470;
+  /* #e5e7eb, not lime. A hairline repeated on every row of every table is a
+     hairline, and the contract fixes hairline colour at #e5e7eb; lime is for
+     our own surfaces and for state. The single heavy lime edges elsewhere
+     (.inner-header, .inner-footer, .sidebar, panel headers) are kept - the
+     sign-in card's note in _app.tsx defends exactly that pattern as brand
+     rather than focus. Dozens of lime row rules is not that pattern. */
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .inner-table th {
@@ -731,7 +746,7 @@
   border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   animation: toast-enter 0.2s ease;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 .toast.toast-error {
@@ -900,12 +915,14 @@
 /* ========================================
    RESPONSIVE - WIDE (> 1440px)
    ======================================== */
-@media (min-width: 1441px) {
-  .inner-page-container {
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-}
+/* The >1440px override is GONE, not set to 1300. It widened
+   .inner-page-container to 1400px on large displays, and the public pages hold a
+   flat 1300px at every width - .hero, .api and .pp-inner have no wide
+   breakpoint at all - so on a wide monitor the inner content was 100px wider
+   than the header above it and the footer below it. Setting it to 1300 would
+   have left two declarations that merely happen to agree; deleting it leaves
+   one measure. Per the contract's media-query trap: the base rule on
+   .inner-page-container is intact, so nothing falls back to a default here. */
 
 
 /* ========================================
@@ -930,7 +947,7 @@
   margin: 0;
   font-size: 22px;
   font-weight: 600;
-  color: var(--color-text);
+  color: #000;
 }
 
 /* Form Row */
@@ -965,7 +982,7 @@
   border-radius: var(--radius-lg);
   padding: var(--space-5);
   margin-bottom: var(--space-6);
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 .contacts-header {
@@ -981,7 +998,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-text);
+  color: #000;
 }
 
 .contacts-actions {
@@ -1004,14 +1021,14 @@
   gap: var(--space-2);
   padding: var(--space-3);
   background: var(--color-bg);
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .contact-item:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .contact-item.selected {
@@ -1110,14 +1127,20 @@
   background: var(--color-bg);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 2px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 .logs-table th,
 .logs-table td {
   padding: var(--space-3) var(--space-4);
   text-align: left;
-  border-bottom: 1px solid #d1f470;
+  /* #e5e7eb, not lime. A hairline repeated on every row of every table is a
+     hairline, and the contract fixes hairline colour at #e5e7eb; lime is for
+     our own surfaces and for state. The single heavy lime edges elsewhere
+     (.inner-header, .inner-footer, .sidebar, panel headers) are kept - the
+     sign-in card's note in _app.tsx defends exactly that pattern as brand
+     rather than focus. Dozens of lime row rules is not that pattern. */
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .logs-table th {
@@ -1215,18 +1238,18 @@
   font-size: var(--font-body);
   color: var(--color-text);
   background: var(--color-bg);
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: var(--radius-md);
   transition: all 0.15s ease;
   outline: none;
 }
 
 .search-input:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .search-input:focus {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3);
 }
 
@@ -1242,14 +1265,14 @@
 
 .stat-card {
   background: var(--color-bg);
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: var(--radius-lg);
   padding: var(--space-5);
   text-align: center;
 }
 
 .stat-card:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .stat-card.accent {
@@ -1302,7 +1325,7 @@
   margin-bottom: var(--space-4);
   font-size: var(--font-body);
   color: #1a3a2a;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 @media (max-width: 480px) {
@@ -1322,7 +1345,7 @@
   padding: var(--space-2) var(--space-3);
   background: var(--color-bg-secondary);
   border-radius: 13px;
-  border: 2px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 .breadcrumbs-list {
@@ -1370,7 +1393,7 @@
 }
 
 .breadcrumbs-current {
-  color: #111827;
+  color: rgba(0,0,0,.898);
   font-size: 13px;
   font-weight: 600;
   padding: 2px 6px;
@@ -1438,7 +1461,7 @@
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-text);
+  color: #000;
 }
 
 .shortcuts-close {
@@ -1707,7 +1730,10 @@
   margin: 0;
   font-size: 22px;
   font-weight: 700;
-  color: var(--color-text, #111827);
+  /* #000 outright, not var(--color-text, #000). --color-text IS defined, so the
+     fallback is dead code and this heading would have taken the body colour.
+     22px/700 is the contract's card-heading rung and that rung is #000. */
+  color: #000;
   line-height: 1.3;
 }
 
@@ -1768,7 +1794,7 @@
 }
 
 .ps-tab:hover {
-  color: var(--color-text, #111827);
+  color: var(--color-text, rgba(0,0,0,.898));
   background: var(--color-bg-hover, #f5f5f5);
   border-color: var(--color-border-dark, #d1d5db);
 }
@@ -1982,7 +2008,7 @@
   width: 340px;
   flex-shrink: 0;
   background: #fff;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 20px;
   position: sticky;
@@ -2046,14 +2072,14 @@
   gap: 12px;
   padding: 12px 16px;
   background: #fff;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .pf-cust-card:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 2px 8px rgba(26, 58, 42, 0.1);
 }
 
@@ -2172,7 +2198,7 @@
 }
 
 .pf-close-btn:hover {
-  color: #111827;
+  color: rgba(0,0,0,.898);
 }
 
 /* Remove item button */
@@ -2556,7 +2582,7 @@
 }
 
 .pay-card-row strong {
-  color: var(--color-text);
+  color: #000;
 }
 
 .pay-card-actions {

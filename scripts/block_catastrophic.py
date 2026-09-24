@@ -149,6 +149,30 @@ FORBIDDEN_AWS = {
         "pulls raw secret values into the transcript",
 }
 
+# Reads whose *name* is innocuous but whose *response body* carries a credential.
+#
+# Added 2026-09-24 after a real disclosure. The guard above reasons about
+# operations that are obviously about secrets, so an ordinary-looking `Describe`
+# sailed through: reading a Cognito app client to check its callback URLs also
+# returns `ClientSecret` in cleartext for any confidential client, and that
+# landed the vestigial client's secret in a session transcript, which persists to
+# `~/.kiro/logs`. Cognito cannot rotate an app client secret in place - the only
+# remedy is deleting the client - so the leak is expensive and the read is
+# cheap to narrow.
+#
+# These are blocked rather than asked, but the CLI form is exempt when the
+# command narrows the response with a `--query` that selects a subfield and does
+# not name the secret. That exemption is the whole point: the legitimate need
+# (what are this client's redirect URIs?) stays one flag away, so nobody has a
+# reason to reach past the guard. There is deliberately no SDK-route exemption,
+# because the guard sees the script source and cannot prove what a script chooses
+# to return.
+SECRET_BEARING_READS = {
+    ("cognito-idp", "describe-user-pool-client"):
+        "returns `ClientSecret` in cleartext for a confidential client; narrow "
+        "it, e.g. --query 'UserPoolClient.CallbackURLs'",
+}
+
 
 # --------------------------------------------------------------------------- #
 # SDK-shaped equivalents of the two tables above
@@ -197,6 +221,7 @@ def _build_api_table(cli_table: dict) -> list[tuple[str, str, str, str]]:
 
 API_FORBIDDEN = _build_api_table(FORBIDDEN_AWS)
 API_DESTRUCTIVE = _build_api_table(DESTRUCTIVE_AWS)
+API_SECRET_READS = _build_api_table(SECRET_BEARING_READS)
 
 
 # --------------------------------------------------------------------------- #
@@ -296,6 +321,7 @@ def check_api_shaped(text: str) -> list[tuple[str, str]]:
     """
     out: list[tuple[str, str]] = []
     for table, severity in ((API_FORBIDDEN, "block"),
+                            (API_SECRET_READS, "block"),
                             (API_DESTRUCTIVE, "ask")):
         for label, pascal, snake, reason in table:
             quoted = re.search(rf"""['"]{re.escape(pascal)}['"]""", text)
@@ -306,6 +332,28 @@ def check_api_shaped(text: str) -> list[tuple[str, str]]:
                    else "boto3 client method call")
             out.append((severity, f"`{label}` via {how} - {reason}"))
     return out
+
+def narrows_response(args: list[str]) -> bool:
+    """True when an `aws` command's `--query` provably excludes the secret.
+
+    Three conditions, all required. The query must exist; it must descend below
+    the top level, because `--query 'UserPoolClient'` returns the whole object
+    including the secret; and it must not name the secret field itself, so
+    `--query 'UserPoolClient.ClientSecret'` is not a way round the block.
+    """
+    value: str | None = None
+    for i, a in enumerate(args):
+        if a == "--query" and i + 1 < len(args):
+            value = args[i + 1]
+            break
+        if a.startswith("--query="):
+            value = a.split("=", 1)[1]
+            break
+    if value is None:
+        return False
+    value = value.strip().strip("'\"")
+    return bool(value) and "." in value and "clientsecret" not in value.lower()
+
 
 def check_segment(segment: str) -> list[tuple[str, str]]:
     """Return [(severity, reason)] for one shell segment.
@@ -404,6 +452,9 @@ def check_segment(segment: str) -> list[tuple[str, str]]:
             if pair in FORBIDDEN_AWS:
                 out.append(("block", f"`aws {pair[0]} {pair[1]}` "
                                      f"{FORBIDDEN_AWS[pair]}"))
+            elif pair in SECRET_BEARING_READS and not narrows_response(args):
+                out.append(("block", f"`aws {pair[0]} {pair[1]}` "
+                                     f"{SECRET_BEARING_READS[pair]}"))
             elif pair in DESTRUCTIVE_AWS:
                 out.append(("ask", f"`aws {pair[0]} {pair[1]}` "
                                    f"{DESTRUCTIVE_AWS[pair]}"))
@@ -495,6 +546,22 @@ BLOCK_CASES = [
     "diskutil eraseDisk JHFS+ Blank disk2",
     "aws secretsmanager get-secret-value --secret-id wecare/razorpay-webhook",
     "aws secretsmanager batch-get-secret-value --secret-id-list a b",
+    # Secret-bearing read, unnarrowed: the response carries ClientSecret.
+    "aws cognito-idp describe-user-pool-client "
+    "--user-pool-id us-east-1_cSx0RHCIR --client-id abc123",
+    # A --query that does not descend below the top level still returns it.
+    "aws cognito-idp describe-user-pool-client "
+    "--user-pool-id us-east-1_cSx0RHCIR --client-id abc123 "
+    "--query 'UserPoolClient'",
+    # ... and the exemption is not a way to ask for the secret directly.
+    "aws cognito-idp describe-user-pool-client "
+    "--user-pool-id us-east-1_cSx0RHCIR --client-id abc123 "
+    "--query 'UserPoolClient.ClientSecret'",
+    # The SDK route, which has no exemption because the guard cannot prove what
+    # a script returns.
+    "python3 - <<'PY'\n"
+    "r = client.describe_user_pool_client(UserPoolId=p, ClientId=c)\n"
+    "PY",
 ]
 
 ASK_CASES = [
@@ -549,6 +616,15 @@ PASS_CASES = [
     "aws lambda list-functions",
     "aws lambda update-function-code --function-name wecare-contacts --zip-file x",
     "aws secretsmanager list-secrets",
+    "aws cognito-idp list-user-pool-clients --user-pool-id us-east-1_cSx0RHCIR",
+    # The legitimate need stays one flag away: narrowed past the top level and
+    # not naming the secret.
+    "aws cognito-idp describe-user-pool-client "
+    "--user-pool-id us-east-1_cSx0RHCIR --client-id abc123 "
+    "--query 'UserPoolClient.CallbackURLs'",
+    "aws cognito-idp describe-user-pool-client "
+    "--user-pool-id us-east-1_cSx0RHCIR --client-id abc123 "
+    "--query=UserPoolClient.AllowedOAuthFlows",
     "python scripts/session_map.py",
     "git status --short",
     "echo hello > /tmp/out.txt",

@@ -24,7 +24,12 @@
   --color-grey-600: rgba(0, 0, 0, 0.54);
   --color-grey-700: #374151;
   --color-grey-800: #1f2937;
-  --color-grey-900: #111827;
+  /* rgba(0,0,0,.95), the contract's heading colour. #111827 was the last
+     of the blue-tinted greys this ramp carried; --color-grey-600 lost
+     #4b5563 for the same reason. This token has ZERO consumers, so the
+     change is documentary - it exists so the ramp does not reintroduce the
+     hue the moment someone reaches for its darkest rung. */
+  --color-grey-900: rgba(0, 0, 0, 0.95);
 
   /* Backgrounds */
   --bg: #ffffff;
@@ -378,7 +383,7 @@ textarea {
   font-size: var(--text-md);
   color: var(--text);
   background: var(--bg);
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: var(--radius-md);
   padding: 10px 12px;
   min-height: 44px;
@@ -388,14 +393,14 @@ textarea {
 input:hover,
 select:hover,
 textarea:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3);
 }
 

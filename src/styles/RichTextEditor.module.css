@@ -7,7 +7,7 @@
 .rich-text-editor {
   position: relative;
   background: var(--bg, #fff);
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: 13px;
   overflow: visible;
 }

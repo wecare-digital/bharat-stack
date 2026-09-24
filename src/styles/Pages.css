@@ -51,7 +51,13 @@
   --color-email: #1a3a2a;
   
   /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Inter first, matching tokens.css:83 and the public contract's stack.
+     Without it this token rendered every `font-family: var(--font-sans)` site in
+     the system UI face while `body` (Layout.css:82) rendered Inter - so an inner
+     page mixed two typefaces, and which one you got depended on whether a rule
+     happened to name the token. Dashboard.css declares the same token later in
+     import order, so both had to change or neither did. */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', Monaco, Consolas, monospace;
   --text-xs: 12px;
   --text-sm: 13px;
@@ -871,7 +877,7 @@
   font-family: var(--font-sans);
   font-size: var(--text-md);
   background: var(--color-bg);
-  color: #111827;
+  color: rgba(0,0,0,.898);
   transition: all var(--transition-fast);
   min-height: 44px;
 }
@@ -879,14 +885,14 @@
 .form-group select:hover,
 .form-group input:hover,
 .form-group textarea:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .form-group select:focus, 
 .form-group input:focus, 
 .form-group textarea:focus {
   outline: none;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.15);
 }
 
@@ -1888,9 +1894,10 @@
   height: 38px;
   min-width: 38px;
   background: #ffffff;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 10px;
-  color: #1a3a2a;
+  /* --danger. Was the success green on a DELETE ALL control. */
+  color: #dc2626;
   cursor: pointer;
   transition: all 0.15s ease;
   flex-shrink: 0;
@@ -1905,7 +1912,7 @@
 
 .delete-all-btn:hover {
   background: #e5e7eb;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .delete-all-btn:disabled {
@@ -1916,7 +1923,7 @@
 .contacts-search {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   font-size: 13px;
   background: #fff;
@@ -1925,7 +1932,7 @@
 
 .contacts-search:focus {
   outline: none;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.15);
 }
 
@@ -1947,7 +1954,7 @@
   width: 28px;
   height: 28px;
   background: #ffffff;
-  border: 1px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 6px;
   font-size: 12px;
   color: #1a3a2a;
@@ -1957,7 +1964,7 @@
 
 .contacts-pagination button:hover:not(:disabled) {
   background: #f0fdf4;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   color: #0f2a1d;
 }
 
@@ -2108,7 +2115,8 @@
 .contact-delete-btn {
   background: none;
   border: none;
-  color: #1a3a2a;
+  /* --danger, not the success green - this deletes a contact. */
+  color: #dc2626;
   cursor: pointer;
   font-size: var(--text-xs);
   padding: 4px;
@@ -2171,7 +2179,7 @@
 
 .waba-selector select {
   padding: 6px 10px;
-  border: 1px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: var(--radius-md);
   font-size: var(--text-xs);
   background: var(--bg);
@@ -2179,7 +2187,7 @@
 
 .clear-chat-btn {
   background: none;
-  border: 1px solid #d1f470;
+  border: 2px solid #e5e7eb;
   color: #1a3a2a;
   padding: 6px 8px;
   border-radius: var(--radius-md);
@@ -2190,7 +2198,7 @@
 
 .clear-chat-btn:hover {
   background: #f0fdf4;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   color: #0f2a1d;
 }
 
@@ -2215,7 +2223,7 @@
   background: #ffffff;
   padding: 4px 14px;
   border-radius: 20px;
-  border: 1px solid #d1f470;
+  border: 1px solid #e5e7eb;
   font-size: var(--text-xs);
   color: #1a3a2a;
   font-weight: var(--font-medium);
@@ -2236,7 +2244,7 @@
 
 .load-older-btn {
   background: #ffffff;
-  border: 1px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 16px;
   padding: 6px 18px;
   font-size: 12px;
@@ -2248,7 +2256,7 @@
 
 .load-older-btn:hover:not(:disabled) {
   background: #f0fdf4;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 1px 4px rgba(26, 58, 42, 0.1);
 }
 
@@ -2349,8 +2357,10 @@
   opacity: 1;
 }
 
-.reaction-btn,
-.delete-msg-btn {
+/* Split: .reaction-btn is not destructive and keeps the accent green, while
+   .delete-msg-btn deletes a message and must not share it. One rule for both
+   meant the delete affordance was painted --success. */
+.reaction-btn {
   background: transparent;
   border: none;
   color: #1a3a2a;
@@ -2366,9 +2376,22 @@
   color: #0f2a1d;
 }
 
+/* Same geometry as .reaction-btn, --danger colour. Identical in every respect
+   except the one that matters: this button deletes a message. */
+.delete-msg-btn {
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  transition: all var(--transition-normal);
+}
+
 .delete-msg-btn:hover {
-  background: #f9fafb;
-  color: #0f2a1d;
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 /* Media in messages */
@@ -2446,7 +2469,7 @@
   background: #ffffff;
   border-radius: 12px;
   margin-bottom: 10px;
-  border: 1px solid #d1f470;
+  border: 1px solid #e5e7eb;
 }
 
 .media-preview img {
@@ -2479,7 +2502,7 @@
 .clear-media-btn:hover {
   background: #f9fafb;
   color: #0f2a1d;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .input-wrapper {
@@ -2525,7 +2548,7 @@
   display: flex;
   flex-direction: column;
   background: #ffffff;
-  border: 1px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   margin-top: 6px;
   animation: fadeIn 0.15s ease;
@@ -2541,7 +2564,7 @@
 .emoji-search-input {
   width: 100%;
   padding: 6px 10px;
-  border: 1px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 8px;
   font-size: 13px;
   outline: none;
@@ -2550,7 +2573,7 @@
 }
 
 .emoji-search-input:focus {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 2px rgba(26, 58, 42, 0.12);
 }
 
@@ -2640,7 +2663,7 @@
 .empty-chat h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: #000;
   margin: 0 0 8px 0;
 }
 
@@ -3192,7 +3215,7 @@
 .page-header .page-title {
   font-size: 26px;
   font-weight: var(--font-bold);
-  color: #111827;
+  color: #000;
   margin: 0;
   letter-spacing: -0.5px;
 }
@@ -3518,9 +3541,9 @@ pre code {
   background: #ffffff;
   border-radius: var(--card-radius);
   text-decoration: none;
-  color: #111827;
+  color: rgba(0,0,0,.898);
   transition: all 0.2s ease;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   min-height: 140px;
   position: relative;
   overflow: hidden;
@@ -3546,7 +3569,7 @@ pre code {
 
 .hub-card:hover {
   background: #f9fafb;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(26, 58, 42, 0.15);
 }
@@ -3561,7 +3584,7 @@ pre code {
 
 .hub-card .hub-icon {
   margin-bottom: 14px;
-  color: #111827;
+  color: rgba(0,0,0,.898);
   transition: transform var(--transition-fast);
 }
 
@@ -3667,7 +3690,7 @@ pre code {
 .dash-brand h1 {
   font-size: 28px;
   font-weight: 700;
-  color: #111827;
+  color: #000;
   margin: 0;
 }
 
@@ -3715,7 +3738,7 @@ pre code {
 
 .refresh-btn:hover {
   background: #f9fafb;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   color: #1a3a2a;
 }
 
@@ -4396,20 +4419,20 @@ pre code {
   font-family: var(--font-sans);
   font-size: var(--text-md);
   background: var(--color-bg);
-  color: #111827;
+  color: rgba(0,0,0,.898);
   transition: all var(--transition-fast);
   min-height: 44px;
 }
 
 .search-bar .search-input:hover,
 .search-input:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .search-bar .search-input:focus,
 .search-input:focus {
   outline: none;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(26, 58, 42, 0.15);
 }
 
@@ -4446,7 +4469,7 @@ pre code {
   font-family: var(--font-sans);
   font-size: 20px;
   font-weight: var(--font-semibold);
-  color: #111827;
+  color: #000;
   margin: 0 0 24px 0;
   padding-bottom: 12px;
   border-bottom: 1px solid #f3f4f6;
@@ -4511,8 +4534,10 @@ pre code {
 }
 
 .action-buttons .btn-icon-danger {
-  color: #1a3a2a;
-  border-color: #1a3a2a;
+  /* --danger #dc2626. This was #1a3a2a, the success green, on a destructive icon
+     button - see the note on .delete-options in Dashboard.css. */
+  color: #dc2626;
+  border-color: #dc2626;
 }
 
 .action-buttons .btn-icon-danger:hover {

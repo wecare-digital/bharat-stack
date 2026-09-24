@@ -66,7 +66,7 @@
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   background: #fff;
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
   border-radius: 14px;
 }
 
@@ -97,7 +97,7 @@
   border-bottom: 1px solid rgba(209, 244, 112, 0.3);
   vertical-align: middle;
   font-size: 13px;
-  color: #111827;
+  color: rgba(0,0,0,.898);
 }
 
 .layout .main-content .link-table tbody tr:hover {
@@ -195,7 +195,7 @@
 
 .layout .main-content .name-cell {
   font-weight: 500;
-  color: #111827;
+  color: rgba(0,0,0,.898);
 }
 
 .layout .main-content .success-cell {
@@ -277,7 +277,7 @@
 
 .layout .main-content .link-stat {
   background: #fff;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 14px;
   padding: 16px;
   text-align: center;
@@ -285,7 +285,7 @@
 }
 
 .layout .main-content .link-stat:hover {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .layout .main-content .link-stat-val {
@@ -346,7 +346,7 @@
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  border: 1.5px solid #d1f470;
+  border: 1px solid #e5e7eb;
   animation: linkModalIn 0.15s ease-out;
 }
 
@@ -410,7 +410,7 @@
 
 .link-input {
   padding: 8px 12px;
-  border: 1.5px solid #d1f470;
+  border: 2px solid #e5e7eb;
   border-radius: 10px;
   font-size: 14px;
   outline: none;
@@ -419,7 +419,7 @@
 }
 
 .link-input:focus {
-  border-color: #1a3a2a;
+  border-color: #d1f470;
   box-shadow: 0 0 0 3px rgba(209, 244, 112, 0.3);
 }
 

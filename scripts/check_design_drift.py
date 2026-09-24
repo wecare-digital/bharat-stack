@@ -60,6 +60,70 @@ RETIRED_COLOURS = {
 # State tokens that must stay visually distinct from one another.
 STATE_TOKENS = ("--success", "--warning", "--info", "--danger")
 
+# ---------------------------------------------------------------------------
+# Inner-page alignment, added 2026-09-24
+# ---------------------------------------------------------------------------
+# The contract's hairline rule is "2px means hoverable, 1px means static, and the
+# colour is always #e5e7eb", with lime kept for our own surfaces and a hover that
+# swaps the border TO lime. inner-pages.css had it inverted on 39 surfaces: lime
+# at rest, dark green on hover. Seven of those were selects, text inputs and
+# textareas, so every form field on the dashboard wore a ring that reads as
+# permanently focused - the same defect already fixed on the sign-in form and
+# never propagated to the pages behind it.
+#
+# Two lime resting borders are legitimate: .msg-bar.success and .success-banner
+# are lime with #1a3a2a type, which is contract treatment 1 ("our own surfaces,
+# full voice") rather than a stray hairline.
+#
+# Allowlisted by SELECTOR, not by count. A numeric budget would have been
+# satisfied by any two lime borders in the file, so moving a rule or adding a new
+# offender while deleting an allowed one would pass silently - the allowlist has
+# to name what it permits. This gate found a third site on its first run:
+# `.logs-table` carried `2px solid #d1f470`, which the migration's `1.5px` grep
+# had missed entirely.
+# Scans ALL of src/styles, not one file. Scoping this to inner-pages.css was the
+# first version's mistake and the shipped CSS exposed it: after that file was
+# clean, a rebuilt bundle still carried 36 lime resting borders, because the same
+# inversion is repeated in eight other stylesheets - including tokens.css, where
+# `input, select, textarea` is UNSCOPED and so paints the public pages too.
+STYLE_DIR = SRC / "styles"
+LIME_RESTING_BORDER = re.compile(r"border(?:-color)?:\s*[\d.]+px\s+solid\s+#d1f470",
+                                 re.I)
+LIME_RESTING_ALLOWED = (".msg-bar.success", ".success-banner",
+                        ".message-bar.success", ".message-bubble.outbound")
+
+# The public measure. .hero, .api, .pp-inner and Footer's .ft-in all cap at
+# 1300px; an inner container on a different measure lines up with neither the
+# header above it nor the footer below.
+PUBLIC_MEASURE = "1300px"
+MEASURE_SITES = [
+    (SRC / "styles/inner-ux.css", r"\.inner-page-container\s*\{[^}]*?max-width:\s*([^;]+);"),
+]
+
+# Every --font-sans must lead with Inter. They are declared in three files and
+# resolved by _app.tsx import order, so one without Inter silently wins and the
+# page mixes two typefaces against a body that does use Inter.
+FONT_SANS_FILES = [SRC / "styles/Pages.css", SRC / "styles/Dashboard.css",
+                   SRC / "styles/tokens.css"]
+
+# A destructive affordance must not wear the success colour. Found three: a
+# delete button, a delete panel and a danger icon button, all painted #1a3a2a -
+# which the palette assigns to "active states, accents" and tokens.css assigns to
+# --success. Same defect as --warning and --info both resolving to --success, and
+# worse, because here the colour told the user a delete was safe.
+SUCCESS_GREEN = "#1a3a2a"
+DANGER_SELECTOR = re.compile(r"\.(?:[\w-]*danger[\w-]*|[\w-]*delete[\w-]*)\b", re.I)
+# Narrowed after its first run flagged nine sites, of which four were not
+# affordances at all. High precision matters more than coverage here: a gate that
+# cries about an API-docs label is a gate someone switches off.
+#
+#   .delete-options button   a segmented picker for WHICH scope to delete. The
+#                            destructive trigger is a separate confirm, so the
+#                            picker's selected state is an ordinary active state.
+#   .api-method.delete       the word DELETE in API documentation. A label, not a
+#                            control; nothing happens when you look at it.
+DANGER_ALLOWED = (".delete-options", ".api-method")
+
 
 def strip_comments(text: str, suffix: str) -> str:
     """Blank comments, preserving line numbers so reported locations are usable."""
@@ -118,13 +182,149 @@ def scan_state_collision():
     return violations
 
 
+def scan_lime_resting_borders():
+    """Lime is an interactive-state colour, not a resting hairline."""
+    hits = []
+    for path in sorted(STYLE_DIR.glob("*.css")):
+        rel = path.relative_to(ROOT).as_posix()
+        code = strip_comments(path.read_text(encoding="utf-8"), ".css")
+        lines = code.splitlines()
+        for i, line in enumerate(lines):
+            if not LIME_RESTING_BORDER.search(line):
+                continue
+            # Walk back to the selector this declaration belongs to. A lime border
+            # inside :hover, :focus, :active or on a .selected / .sent surface is
+            # the contract working, not drift.
+            j = i
+            while j > 0 and "{" not in lines[j]:
+                j -= 1
+            k = j
+            while k > 0 and lines[k - 1].strip() and not lines[k - 1].strip().endswith("}"):
+                k -= 1
+            sel = " ".join(x.strip() for x in lines[k:j + 1])
+            if any(s in sel for s in (":hover", ":focus", ":active", ".selected",
+                                      ".active", ".sent", ".outbound")):
+                continue
+            if any(a in sel for a in LIME_RESTING_ALLOWED):
+                continue
+            hits.append({"rule": "lime_resting_border", "file": rel, "line": i + 1,
+                         "match": line.strip(),
+                         "why": ("lime is reserved for interactive state and our own "
+                                 "surfaces; a resting hairline is #e5e7eb, 2px when "
+                                 "the element has a :hover and 1px when it does not")})
+    return hits
+
+
+def scan_retired_in_styles():
+    """#111827 is retired for the same reason #4b5563 was: it is blue-tinted.
+
+    Separate from RETIRED_COLOURS because that set is scanned across all of src/,
+    and #111827 still appears in inline React style objects in dozens of pages.
+    Those are a much larger, separate job; the stylesheets are the shared surface
+    and they are clean now, so this pins them without failing on work that has
+    not been scoped yet.
+    """
+    hits = []
+    for path in sorted(STYLE_DIR.glob("*.css")):
+        rel = path.relative_to(ROOT).as_posix()
+        code = strip_comments(path.read_text(encoding="utf-8"), ".css")
+        for m in re.finditer(r"#111827", code, re.I):
+            hits.append({
+                "rule": "retired_colour_in_stylesheet", "file": rel,
+                "line": code[:m.start()].count("\n") + 1, "match": "#111827",
+                "why": ("blue-tinted grey beside .main-content's #000; use #000 for "
+                        "the heading rung or rgba(0,0,0,.898) for body")})
+    return hits
+
+
+def scan_danger_in_success_green():
+    """A danger or delete surface must not be painted the success green."""
+    hits = []
+    for path in sorted(STYLE_DIR.glob("*.css")):
+        rel = path.relative_to(ROOT).as_posix()
+        code = strip_comments(path.read_text(encoding="utf-8"), ".css")
+        lines = code.splitlines()
+        for i, line in enumerate(lines):
+            if SUCCESS_GREEN not in line:
+                continue
+            if not re.search(r"\b(?:color|border-color|background(?:-color)?|border)\s*:",
+                             line):
+                continue
+            j = i
+            while j > 0 and "{" not in lines[j]:
+                j -= 1
+            k = j
+            while k > 0 and lines[k - 1].strip() and not lines[k - 1].strip().endswith("}"):
+                k -= 1
+            sel = " ".join(x.strip() for x in lines[k:j + 1])
+            if not DANGER_SELECTOR.search(sel):
+                continue
+            if any(a in sel for a in DANGER_ALLOWED):
+                continue
+            hits.append({
+                "rule": "danger_painted_success_green", "file": rel,
+                "line": i + 1, "match": line.strip(),
+                "why": (f"{SUCCESS_GREEN} is --success; a destructive affordance must "
+                        f"use --danger #dc2626 so the colour does not say the action "
+                        f"is safe")})
+    return hits
+
+
+def scan_measure():
+    """The inner content measure must match the public one."""
+    violations = []
+    for path, pattern in MEASURE_SITES:
+        if not path.exists():
+            continue
+        rel = path.relative_to(ROOT).as_posix()
+        code = strip_comments(path.read_text(encoding="utf-8"), ".css")
+        m = re.search(pattern, code, re.S)
+        if not m:
+            violations.append({"rule": "measure_missing", "file": rel, "line": 0,
+                               "match": "", "why": "could not find the container rule"})
+            continue
+        value = m.group(1).strip()
+        if value != PUBLIC_MEASURE:
+            violations.append({
+                "rule": "measure_mismatch", "file": rel,
+                "line": code[:m.start(1)].count("\n") + 1, "match": value,
+                "why": (f"the public pages cap at {PUBLIC_MEASURE}; an inner "
+                        f"container at {value} aligns with neither the header nor "
+                        f"the footer")})
+    return violations
+
+
+def scan_font_sans():
+    """Inter must lead every --font-sans, or import order decides the typeface."""
+    violations = []
+    for path in FONT_SANS_FILES:
+        if not path.exists():
+            continue
+        rel = path.relative_to(ROOT).as_posix()
+        code = strip_comments(path.read_text(encoding="utf-8"), ".css")
+        for m in re.finditer(r"--font-sans:\s*([^;]+);", code):
+            value = m.group(1).strip()
+            if not value.lower().startswith(("'inter'", '"inter"', "inter")):
+                violations.append({
+                    "rule": "font_sans_missing_inter", "file": rel,
+                    "line": code[:m.start()].count("\n") + 1,
+                    "match": value[:60],
+                    "why": ("body renders Inter, so a --font-sans without it makes "
+                            "the page mix two typefaces depending on whether a rule "
+                            "names the token")})
+    return violations
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gate", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    violations = scan_retired() + scan_state_collision()
+    violations = (scan_retired() + scan_state_collision()
+                  + scan_lime_resting_borders() + scan_retired_in_styles()
+                  + scan_danger_in_success_green()
+                  + scan_measure() + scan_font_sans())
 
     if args.json:
         print(json.dumps({"violations": violations}, indent=2))

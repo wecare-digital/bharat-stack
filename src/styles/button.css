@@ -102,13 +102,13 @@
    ======================================== */
 .btn-secondary {
   background: #ffffff;
-  color: #111827;
-  border: 1.5px solid #d1f470;
+  color: rgba(0,0,0,.898);
+  border: 2px solid #e5e7eb;
 }
 
 .btn-secondary:hover:not(:disabled) {
   background: #f9fafb;
-  border-color: #1a3a2a;
+  border-color: #d1f470;
 }
 
 .btn-secondary:active:not(:disabled) {
@@ -225,7 +225,9 @@
 
 /* Danger button icons - lime + dark green */
 .btn-danger svg {
-  color: #1a3a2a;
+  /* --danger. A danger button whose icon is the success green undoes the
+     only signal the button has. */
+  color: #dc2626;
 }
 
 /* ========================================
