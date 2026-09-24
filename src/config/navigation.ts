@@ -160,6 +160,14 @@ export const navigationConfig: NavItem[] = [
     path: '/access',
     label: 'Access',
     icon: 'access',
+    children: [
+      { path: '/access', label: 'Access' },
+      // The operator's own second factors. TOTP enrolment cannot be done from
+      // the admin side - Cognito's AssociateSoftwareToken takes the user's own
+      // access token and does not evaluate IAM - so it needs a route the signed-in
+      // person can reach.
+      { path: '/access/security', label: 'Sign-in & MFA' },
+    ],
   },
   {
     path: '/link',

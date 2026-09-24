@@ -103,6 +103,55 @@ ${entries}
 }
 
 const routes = findHtmlFiles( OUT_DIR );
+const postRoutes = routes.filter( route => route.startsWith( '/post/' ) );
+
+/**
+ * REFUSE to write a sitemap with no blog posts in it.
+ *
+ * Observed on 2026-09-24, twice in a row on this machine: one build emitted 125
+ * URLs with 109 post pages, the next emitted 16 with none, from an unchanged
+ * tree. The blog is not in the repository - `/post/[slug]` calls
+ * listPublicBlogPosts() in getStaticPaths, which fetches
+ * api.wecare.digital/seo-tools/blog-public at build time and, on ANY failure,
+ * returns [] from a bare catch. So a two-second network blip produces zero blog
+ * pages, an empty paths array, a 16-URL sitemap, and `next build` exiting 0.
+ * Amplify would then deploy it and 109 live, indexed pages would vanish with no
+ * error anywhere - and it would present later as an unexplained ranking drop
+ * rather than as a failed build.
+ *
+ * The endpoint was verified healthy at the time (HTTP 200, 109 posts, ~2s, three
+ * consecutive calls), and the live sitemap still had all 125, so nothing bad had
+ * shipped. This guard is so that stays true.
+ *
+ * Checked here rather than by making listPublicBlogPosts() throw, because that
+ * function also runs in the browser, where returning [] for an unreachable API is
+ * the right behaviour - an empty blog list beats a crashed page. The build wants
+ * the opposite. Asserting on the OUTCOME keeps both.
+ *
+ * Deliberately a floor of 1, not a percentage of some remembered total: the
+ * failure mode is all-or-nothing, so 0 is the only value that is always wrong.
+ * ALLOW_EMPTY_BLOG=1 exists for a genuinely offline build, and has to be typed on
+ * purpose.
+ */
+if ( postRoutes.length === 0 && process.env.ALLOW_EMPTY_BLOG !== '1' )
+{
+  console.error(
+    '\nSITEMAP REFUSED: 0 blog post pages were exported.\n' +
+    `  public routes found: ${routes.length}\n` +
+    '  /post/ pages found: 0\n\n' +
+    '  getStaticPaths for /post/[slug] fetches the blog list at build time and\n' +
+    '  swallows failures, so this is almost certainly a transient fetch error\n' +
+    '  rather than an empty blog. Re-run the build. Confirm the API first with:\n' +
+    '    curl -s https://api.wecare.digital/seo-tools/blog-public | head -c 200\n\n' +
+    '  Writing this sitemap would drop every published post from the index.\n' +
+    '  If the blog really is empty, set ALLOW_EMPTY_BLOG=1 deliberately.\n'
+  );
+  process.exit( 1 );
+}
+
 const sitemapXml = generateSitemap( routes );
 fs.writeFileSync( OUTPUT_FILE, sitemapXml, 'utf-8' );
-console.log( `Public sitemap: ${routes.length} URLs -> ${OUTPUT_FILE}` );
+console.log(
+  `Public sitemap: ${routes.length} URLs `
+  + `(${postRoutes.length} blog posts) -> ${OUTPUT_FILE}`
+);

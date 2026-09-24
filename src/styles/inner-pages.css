@@ -42,6 +42,25 @@
  * radius for pills (50px) and code panels (14px) and says nothing about compact
  * action buttons, so unifying ~1,500 radius declarations is a separate job that
  * needs visual sign-off rather than a contract citation.
+ *
+ * ---------------------------------------------------------------------------
+ * [data-public-ui] - opt an element out, so it can wear the PUBLIC design
+ * ---------------------------------------------------------------------------
+ * The button and input rules below force their paint with `!important`, so a
+ * component built on the public contract's values loses every one of them inside
+ * .layout .main-content. Specificity cannot rescue it: those selectors carry up
+ * to twelve class-level :not() arguments, so no practical class selector
+ * outranks them even with !important of its own.
+ *
+ * This file already solves that by naming exceptions - `[class*="ct-"]`,
+ * `.ps-tab`, `.confirm-modal-cancel`. `[data-public-ui]` is the same mechanism
+ * expressed as a NAMED CONCEPT rather than another class: "the public design
+ * contract styles this element, leave it alone". 15 selectors honour it.
+ *
+ * Put the attribute on the element itself, not an ancestor - these selectors
+ * match the control directly. Use it only for elements genuinely styled from
+ * .kiro/steering/grahak-os-design.md; it is an opt-in to a different design
+ * language, not a way to escape review.
  */
 
 /* ========================================
@@ -81,8 +100,8 @@
    CONTENT BUTTONS - Lime + Dark Green theme
    White bg, black text, lime + dark green border
    ======================================== */
-.layout .main-content button:not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm),
-.layout .main-content .btn,
+.layout .main-content button:not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not([data-public-ui]),
+.layout .main-content .btn:not([data-public-ui]),
 .layout .main-content .btn-primary,
 .layout .main-content .btn-secondary,
 .layout .main-content .btn-outline,
@@ -130,7 +149,7 @@
   font-weight: 600 !important;
 }
 
-.layout .main-content button:disabled:not([class*="ct-"]) {
+.layout .main-content button:disabled:not([class*="ct-"]):not([data-public-ui]) {
   opacity: 0.5 !important;
   cursor: not-allowed !important;
 }
@@ -182,8 +201,8 @@
 /* ========================================
    FORM INPUTS
    ======================================== */
-.layout .main-content select,
-.layout .main-content .filter-select {
+.layout .main-content select:not([data-public-ui]),
+.layout .main-content .filter-select:not([data-public-ui]) {
   background: #ffffff !important;
   color: rgba(0,0,0,.898) !important;
   border: 2px solid #e5e7eb !important;
@@ -201,10 +220,10 @@
   outline: none !important;
 }
 
-.layout .main-content input[type="text"],
-.layout .main-content input[type="search"],
-.layout .main-content .search-input,
-.layout .main-content textarea {
+.layout .main-content input[type="text"]:not([data-public-ui]),
+.layout .main-content input[type="search"]:not([data-public-ui]),
+.layout .main-content .search-input:not([data-public-ui]),
+.layout .main-content textarea:not([data-public-ui]) {
   background: #ffffff !important;
   color: rgba(0,0,0,.898) !important;
   border: 2px solid #e5e7eb !important;
@@ -324,15 +343,15 @@
 }
 
 /* Button Font - Larger */
-.layout .main-content button:not([class*="ct-"]),
-.layout .main-content .btn {
+.layout .main-content button:not([class*="ct-"]):not([data-public-ui]),
+.layout .main-content .btn:not([data-public-ui]) {
   font-size: 16px !important;
 }
 
 /* Input Font - Larger */
-.layout .main-content input,
-.layout .main-content textarea,
-.layout .main-content select {
+.layout .main-content input:not([data-public-ui]),
+.layout .main-content textarea:not([data-public-ui]),
+.layout .main-content select:not([data-public-ui]) {
   font-size: 16px !important;
 }
 
@@ -393,8 +412,8 @@
   .layout .main-content .stat-value { font-size: 32px !important; }
   .layout .main-content .stat-label { font-size: 13px !important; }
   .layout .main-content .hub-label { font-size: 16px !important; }
-  .layout .main-content button:not([class*="ct-"]),
-  .layout .main-content .btn { font-size: 17px !important; }
+  .layout .main-content button:not([class*="ct-"]):not([data-public-ui]),
+  .layout .main-content .btn:not([data-public-ui]) { font-size: 17px !important; }
   .layout .main-content .refresh-btn {
     width: 44px !important;
     min-width: 44px !important;
@@ -416,8 +435,8 @@
   .layout .main-content .stat-value { font-size: 28px !important; }
   .layout .main-content .stat-label { font-size: 12px !important; }
   .layout .main-content .hub-label { font-size: 15px !important; }
-  .layout .main-content button:not([class*="ct-"]),
-  .layout .main-content .btn { font-size: 15px !important; }
+  .layout .main-content button:not([class*="ct-"]):not([data-public-ui]),
+  .layout .main-content .btn:not([data-public-ui]) { font-size: 15px !important; }
   .layout .main-content .refresh-btn {
     width: 44px !important;
     min-width: 44px !important;
@@ -487,12 +506,12 @@
    get a visible border with theme color
    and 13px rounded corners
    ======================================== */
-.layout .main-content button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close) {
+.layout .main-content button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close):not([data-public-ui]) {
   border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
 
-.layout .inner-content-container button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close) {
+.layout .inner-content-container button:not(:has(svg)):not([class*="ct-"]):not(.sidebar-collapse-btn):not(.ps-tab):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.tab-btn):not(.sub-tab):not(.pf-close-btn):not(.close-btn):not(.alert button):not(.toast-close):not(.shortcuts-close):not([data-public-ui]) {
   border: 2px solid #e5e7eb !important;
   border-radius: 13px !important;
 }
@@ -2346,7 +2365,7 @@
    DEEP BUTTON ENFORCEMENT
    ALL buttons in inner pages: theme color + 13px rounded corners
    ======================================== */
-.layout .main-content button:not([class*="ct-"]):not(.sidebar-collapse-btn):not(.mobile-menu-toggle):not(.mobile-back-btn):not(.toast-close):not(.shortcuts-close):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.ps-tab):not(.msg-bar button) {
+.layout .main-content button:not([class*="ct-"]):not(.sidebar-collapse-btn):not(.mobile-menu-toggle):not(.mobile-back-btn):not(.toast-close):not(.shortcuts-close):not(.confirm-modal-cancel):not(.confirm-modal-confirm):not(.ps-tab):not(.msg-bar button):not([data-public-ui]) {
   border-radius: 13px !important;
 }
 
