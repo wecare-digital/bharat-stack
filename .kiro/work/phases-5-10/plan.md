@@ -546,13 +546,13 @@ substantial. `marketing-ads` and `wix-store` have **0** DynamoDB scans, so there
 scan debt left in them. `wecare-ad-attribution` has an **empty** live environment — no
 configuration at all — worth resolving with the split.
 
-### 7.3 — Growth and Commerce module homes behind flags · TODO
+### 7.3 — Growth and Commerce module homes behind flags · DONE (both flags OFF)
 
 Separately routed inner pages, real backend state, connected-service tutorials,
 error/stale/quota states. Provider-neutral page names; exact provider labels only inside
 authorised connection details. AI may READ and PLAN; growth/storefront APPLY stays disabled.
 
-### 8.1 — Eight module homes · TODO
+### 8.1 — Eight module homes · DONE
 
 Home, Communications, Customers, Commerce, Growth, Service Operations, Platform Operations,
 Settings. Separately routed, lazy-loaded inner pages.
@@ -681,14 +681,14 @@ unifying ~1,500 radius declarations is a separate job needing visual sign-off. I
 `style={{}}` colours across the pages are also out of scope here; the stylesheets are the
 shared surface and they are clean.
 
-### 8.3 — Adaptive navigation + design tokens · TODO
+### 8.3 — Adaptive navigation + design tokens · DONE
 
 Phone bottom bar, foldable recomposition, tablet rail/sidebar, desktop sidebar. Light-only
 Material 3-derived tokens, exact 13px rectangular radius. Prove desktop/mobile/accessibility,
 role visibility and backend authorization. Preserve working capability before retiring any
 duplicate page.
 
-### 8.4 — Legacy redirects and refresh-safe deep links · TODO
+### 8.4 — Legacy redirects and refresh-safe deep links · DONE
 
 Every retired route redirects; deep links survive a refresh.
 
@@ -722,7 +722,7 @@ and deleting one needs the export/snapshot procedure plus pointwise confirmation
 spending that for zero benefit. `legacy_history.py` is correctly named and reads historical
 rows.
 
-### 9.2 — Route/dependency cleanup and bundle optimization · PARTIAL (dependencies now CLEAN)
+### 9.2 — Route/dependency cleanup and bundle optimization · DONE
 
 **Update 2026-09-24 — the dependency half is finished.** `npm audit` reports **0
 vulnerabilities** and GitHub reports **0 open Dependabot alerts**, down from the 5 advisories
@@ -973,7 +973,11 @@ same query. Real cause: the client had **no managed login branding**, so the cus
 (managed login) 403'd while the default domain fell back to the classic hosted UI. Created
 with Cognito-provided values: **403 → 200**.
 
-### 10.3 — Production deployment checkpoint + closure report · TODO
+### 10.3 — Production deployment checkpoint + closure report · DONE
+
+See `docs/execution/PHASE-10.3-CLOSURE.md`. Final result **⚠️ COMPLETE WITH IMPROVEMENTS** —
+not ALL REQUIRED WORK VERIFIED, because 7.2's boundary refactor was not done and the
+Admin-gated handlers cannot be verified until the owner joins the Admin group.
 
 Exact flags, bindings, recipients, migrations, observation metrics, thresholds, cost impact,
 rollback commands. Monitor callbacks/notifications/receipts/alarms/Actions/Amplify to
