@@ -1,0 +1,94 @@
+name: Build and test
+
+# THE GAP THIS FILLS. Before this workflow, no CI job compiled the app or ran its
+# tests. The ten existing workflows cover CodeQL, route auth, provider policy, UI
+# labels, plivo and the deploy jobs - all valuable, none of which would notice a
+# broken build. A pull request could go green with a repo that does not compile, and
+# the only build verification was whatever a human ran locally. The test suite is 95
+# tests across 9 files and nothing was running it.
+#
+# Deliberately NOT a deploy workflow. It needs no AWS credentials and no secrets at
+# all, which is why it can safely run on pull requests from any source.
+
+on:
+  pull_request:
+  push:
+    branches: [ stack ]
+  workflow_dispatch:
+
+# Least privilege: this job only ever reads the tree.
+permissions:
+  contents: read
+
+# A second push to the same branch makes the first run redundant. Cancelling keeps the
+# queue short without losing signal.
+concurrency:
+  group: build-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build, typecheck and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # package.json sets engines.node >= 24. Reading the version from .nvmrc rather
+      # than hardcoding it keeps this file from drifting away from what developers run.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # `npm install`, NOT `npm ci`, and that is a documented constraint rather than an
+      # oversight. `npm ci` cannot install this repo at all - it fails with four
+      # "Missing: @opentelemetry/core@2.0.0 from lock file" errors, on `stack` as much as
+      # on any branch. The cause is inside published tarballs, not this repo:
+      # @aws-amplify/data-construct and @aws-amplify/graphql-api-construct each bundle
+      # @opentelemetry/resources@2.0.0 and sdk-trace-base@2.0.0, which pin
+      # @opentelemetry/core@2.0.0 exactly, while the @opentelemetry/core bundled beside
+      # them is 2.8.0. `npm install` succeeds because it trusts bundled deps rather than
+      # resolving them. See "Needs the owner" in docs/grahak-os-handoff.md.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      # INFORMATIONAL, never a gate. The day the upstream bundles are fixed, this step
+      # starts passing and the install above can become `npm ci`. Without a probe like
+      # this, that day passes unnoticed and the workaround becomes permanent. It cannot
+      # fail the build: continue-on-error plus an explicit exit 0.
+      - name: Probe whether npm ci works yet (informational)
+        continue-on-error: true
+        run: |
+          if npm ci --dry-run >/tmp/npmci.txt 2>&1; then
+            echo "::notice::npm ci now resolves - the lockfile drift is fixed upstream, switch the install step to 'npm ci'"
+          else
+            echo "npm ci still fails as documented. First error:"
+            grep -m1 'Missing:' /tmp/npmci.txt || true
+          fi
+          exit 0
+
+      - name: Build
+        run: npm run build
+
+      # ORDER MATTERS: tsc must run AFTER the build, because it needs the generated
+      # next-env.d.ts. Running it first produces a wall of errors about missing Next
+      # types that look like real breakage.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npx vitest run
+
+      # INFORMATIONAL, never a gate - lint is red repo-wide and has been for a long
+      # time: 231 errors / 64 warnings at the time of writing, most of them
+      # react-hooks/set-state-in-effect. Making it blocking would fail every pull
+      # request regardless of its contents, which trains people to ignore CI. Printing
+      # the count instead means a reviewer can see whether a change moved the number.
+      - name: Lint (reported, not enforced)
+        continue-on-error: true
+        run: |
+          npx eslint . > /tmp/eslint.txt 2>&1 || true
+          tail -3 /tmp/eslint.txt
+          echo "::notice::eslint is pre-existing red. Compare this count against the base branch rather than expecting zero."
