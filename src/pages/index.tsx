@@ -445,11 +445,26 @@ const HomePage: React.FC = () => {
         /* Sticky so the explanation stays level with the panel while the eye follows the
            stream. 128px clears the fixed 108px header with room to breathe. */
         .home-flow-copy{position:sticky;top:128px}
-        /* Section h2 is the contract's 700 rung - HEAVIER than the hero h1's 600. That
-           inversion is deliberate and is the same on every page. */
+        /* Section h2: 700, HEAVIER than the hero h1's 600. That inversion is deliberate.
+           The SIZE is now clamp(28px,3.2vw,40px) with lh 1.08 and ls -1.2px, which is
+           identical to .home-close-title below - and that is the point of the change.
+           This rule used to read clamp(26px,2.6vw,34px)/1.1/-1px under a comment claiming
+           it was "the contract's rung ... the same on every page". It was neither: it
+           resolved to 33.28px at 1280 while the other section heading on THIS page
+           resolved to 40px, so one page carried two different section-h2 sizes for the
+           same job, and the formula appeared nowhere else on the site.
+           clamp(28px,3.2vw,40px)/700/1.08/-1.2px is the de-facto site rung - byte for byte
+           the same declaration as .home-close-title, .cl-h2, .mo-h2, .brx-h2 and .pdp-h2,
+           i.e. 12 headings across 10 public pages. Measure with
+           node tools/browser/typecheck.js before changing it. (No backticks in this
+           comment on purpose: it sits inside a style jsx template literal, where one
+           stray backtick ends the literal and once produced 520 tsc errors.)
+           NOTE this is not yet what .kiro/steering/grahak-os-design.md says. The contract
+           specifies clamp(32px,4.2vw,54px), which exists on /grahak-os/ and nowhere else;
+           reconciling the two is an owner decision, and typecheck.js reports the gap. */
         .home-flow-title{
-          font-size:clamp(26px,2.6vw,34px);font-weight:700;line-height:1.1;
-          letter-spacing:-1px;color:rgba(0,0,0,.95);margin:0 0 14px;
+          font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;
+          letter-spacing:-1.2px;color:rgba(0,0,0,.95);margin:0 0 14px;
         }
         /* The one body level: 20px/400/1.4/-.125px. */
         .home-flow-lead{

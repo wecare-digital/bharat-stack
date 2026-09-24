@@ -77,6 +77,7 @@ see locally.
 | `lib/serve.js` | Static server over `out/`, resolves `trailingSlash`, or honours `BASE` |
 | `animcheck.js` | Rotating-headline reflow at 21 viewports (320–1920) on all four rotating surfaces, animation-family transition parity, console errors |
 | `contactcheck.js` | Card and `#cl-title` vs the fixed header at 4 viewports, Google's in-frame controls with a click hit-test, keyless-embed tile canary |
+| `typecheck.js` | Every visible `h1`/`h2`/`h3` on all 15 public routes at 2 widths; per-page consistency, the de-facto 40px rung, and the gap to the design contract |
 
 ## Known failures, and why they are left failing
 
@@ -93,6 +94,12 @@ Neither script is green, and both are honest about it rather than tuned to pass.
 - **`contactcheck.js` — 1 failure.** Three Google controls on the keyless map embed are
   reachable, not inert. See the long comment above `.cl-lock` in `ContactLocation.tsx`
   for the measurements and the three options.
+- **`typecheck.js` — 2 failures.** The design contract specifies one section-h2 rung,
+  `clamp(32px,4.2vw,54px)` = 53.76px at 1280. It exists on `/grahak-os/` and **nowhere
+  else**; `clamp(28px,3.2vw,40px)` = 40px is on 10 pages. Reconciling the two is an owner
+  decision — see "Type ladder" in `docs/grahak-os-handoff.md`. Separately `/grahak-os/`
+  carries two sizes itself, 53.76px and 55.04px, because `.gos-closer-head` wears the hero
+  **h1**'s clamp at weight 600.
 
 ## Writing new checks
 
