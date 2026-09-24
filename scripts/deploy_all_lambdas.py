@@ -125,6 +125,16 @@ SPECS: List[Spec] = [
     Spec("wecare-contacts", "core/contacts"),
     Spec("wecare-crm", "core/crm"),
     Spec("wecare-conversation-meta", "core/conversation-meta"),
+    # Absent until now, which meant provision_crm_api.py could stand wecare-crm up
+    # once and nothing could ever redeploy it - the exact failure
+    # tests/test_crm_api.py::test_the_function_is_in_the_deploy_map describes as "the
+    # first provisioning deploy is also the last one". That test has been failing on
+    # stack, and it was right. provision_crm_api.py:115 already documents that deploys
+    # "should go through scripts/deploy_all_lambdas.py wecare-crm".
+    # No standalone flag: core/crm/handler.py imports lambda_utils.logging, .response,
+    # .middleware, .crm.keys and contact_key/payment_status, so it needs the default
+    # packaging that bundles them.
+    Spec("wecare-crm", "core/crm"),
     Spec("wecare-faq-handler", "core/faq-handler"),
     Spec("wecare-messages-delete", "core/messages-delete"),
     Spec("wecare-messages-read", "core/messages-read"),
