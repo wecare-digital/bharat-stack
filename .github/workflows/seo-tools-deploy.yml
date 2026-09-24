@@ -106,7 +106,7 @@ jobs:
           print('Last modified:', value.get('LastModified'))
           PY
 
-      - name: Verify live Wix Integrity post
+      - name: Verify live Wix Integrity post at current Headless slug
         run: |
           cat >/tmp/event.json <<'JSON'
           {
@@ -114,11 +114,11 @@ jobs:
               "apiId": "smoke",
               "http": {
                 "method": "GET",
-                "path": "/seo-tools/blog-public/integrity-and-balance",
+                "path": "/seo-tools/blog-public/integrity-honoring-our-word",
                 "sourceIp": "127.0.0.1"
               }
             },
-            "rawPath": "/seo-tools/blog-public/integrity-and-balance"
+            "rawPath": "/seo-tools/blog-public/integrity-honoring-our-word"
           }
           JSON
 
@@ -139,7 +139,7 @@ jobs:
           post = body.get('post') or {}
 
           assert post.get('title') == 'Integrity', post
-          assert post.get('slug') == 'integrity-and-balance', post
+          assert post.get('slug') == 'integrity-honoring-our-word', post
           assert post.get('authorName') == 'Anew by WECARE.DIGITAL', post
           assert post.get('category') == 'Conversations', post
           assert not post.get('coverImage'), post
@@ -168,5 +168,5 @@ jobs:
           assert 'We can always choose it again.' in text
           assert not ({'IMAGE', 'GALLERY', 'GIF', 'VIDEO', 'AUDIO'} & set(node_types))
 
-          print('Live Integrity smoke test passed')
+          print('Live Integrity Headless smoke test passed')
           PY
