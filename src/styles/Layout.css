@@ -1949,3 +1949,180 @@ input[type="checkbox"]:active {
     display: block !important;
   }
 }
+
+/* ==========================================================================
+   ADAPTIVE NAVIGATION — phase 8.3
+   ==========================================================================
+   Four surfaces, one per form factor, and each one exists because the next size
+   down cannot carry it:
+
+     desktop  >=1025px        full sidebar with labels        (already existed)
+     tablet   769–1024px      permanent 76px icon RAIL        (new)
+     phone    <=768px         bottom bar + drawer for "More"  (new)
+     foldable  see the block at the end                       (new)
+
+   Hidden by default at every width and switched on inside the breakpoints, so the
+   desktop case pays nothing for either.
+   ========================================================================== */
+
+.bottom-nav { display: none; }
+
+/* --------------------------------------------------------------------------
+   TABLET 769–1024px — a rail, not a hidden drawer
+   --------------------------------------------------------------------------
+   The existing rule in this file collapses the sidebar to an off-canvas drawer at
+   1024px, the same treatment as a phone. A tablet has room for a permanent rail,
+   and a drawer there costs a tap to reach navigation that could simply be visible.
+
+   76px is the width: 44px minimum touch target plus 16px either side. The labels go
+   and `title` carries the name, which is what `.sidebar.collapsed` already does on
+   desktop — so this reuses a treatment rather than inventing one.
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .sidebar {
+    width: 76px;
+    /* Overrides the drawer transform in the block above. The rail is always here. */
+    transform: none;
+    box-shadow: none;
+    border-right: 1px solid #e5e7eb;
+  }
+
+  .sidebar .nav-label,
+  .sidebar .section-label,
+  .sidebar .sidebar-search,
+  .sidebar .nav-chevron { display: none; }
+
+  .sidebar .nav-item {
+    justify-content: center;
+    padding: 12px 0;
+  }
+
+  .main-content {
+    /* The rail is in flow, so the content has to clear it. Without this the first
+       76px of every page sits under the rail. */
+    margin-left: 76px;
+    max-width: calc(100vw - 76px);
+  }
+
+  /* The hamburger is for a drawer that is no longer hidden. */
+  .mobile-menu-toggle { display: none; }
+}
+
+/* --------------------------------------------------------------------------
+   PHONE <=768px — bottom bar
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1200;
+    /* 60px of row, plus whatever the home indicator needs. Do NOT grow this past
+       ~120px: #wecarewa-widget sits at bottom:120px with z-index 2147483647 and
+       cannot be stacked under, so the clearance is geometric. */
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: #ffffff;
+    border-top: 1px solid #e5e7eb;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .bn-item {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    /* 44px is the floor for a touch target. Five across a 360px phone gives 72px. */
+    min-height: 44px;
+    padding: 6px 2px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: #6b7280;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .bn-icon { display: flex; align-items: center; justify-content: center; }
+
+  .bn-label {
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Lime is reserved for our own surfaces and interactive state, and an active nav
+     item is exactly that — the same treatment as .tab.active. */
+  .bn-item.active {
+    color: #1a3a2a;
+    font-weight: 600;
+  }
+
+  .bn-item.active .bn-icon {
+    background: rgba(209, 244, 112, 0.22);
+    border-radius: 13px;
+    padding: 3px 12px;
+  }
+
+  .bn-item:focus-visible {
+    outline: 2px solid #1a3a2a;
+    outline-offset: -2px;
+    border-radius: 13px;
+  }
+
+  /* The last row of any page would otherwise sit under the bar. This is the whole
+     reason a fixed bottom bar needs a matching content inset. */
+  .main-content {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* The drawer has to clear the bar too, or its last item is unreachable. */
+  .sidebar {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* --------------------------------------------------------------------------
+   FOLDABLE recomposition
+   --------------------------------------------------------------------------
+   An unfolded inner display is tablet-WIDE but often phone-TALL, and a book-posture
+   fold is the reverse. Two cases the width-only breakpoints above get wrong:
+
+   1. Short and wide (a landscape fold, or a phone in landscape). A bottom bar plus a
+      top header eats most of the vertical space, so the bar goes and the rail comes
+      back — navigation moves to the side where there is room.
+   2. `vertical-viewport-segments: 2` is the real posture signal rather than a guess
+      from width. Where a browser reports it, the hinge is horizontal and the bottom
+      bar would land across the crease, so it goes.
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) and (max-height: 500px) and (orientation: landscape) {
+  .bottom-nav { display: none; }
+
+  .main-content { padding-bottom: 0; }
+
+  .sidebar {
+    width: 76px;
+    transform: none;
+    padding-bottom: 0;
+  }
+
+  .sidebar .nav-label,
+  .sidebar .section-label,
+  .sidebar .sidebar-search { display: none; }
+
+  .main-content { margin-left: 76px; max-width: calc(100vw - 76px); }
+  .mobile-menu-toggle { display: none; }
+}
+
+@media (vertical-viewport-segments: 2) {
+  .bottom-nav { display: none; }
+  .main-content { padding-bottom: 0; }
+}

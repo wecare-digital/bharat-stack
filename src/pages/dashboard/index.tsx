@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '../../components/Layout';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { BarChart, DonutChart, Sparkline, ProgressBar, DateRangePicker } from '../../components/Charts';
 import { SkeletonStat, SkeletonCard } from '../../components/Skeleton';
 import SEO, { PAGE_SEO } from '../../components/SEO';
@@ -23,14 +24,35 @@ import { AWS_ACCOUNT_ID, AWS_REGION, PAYMENT_CONFIG, PAYMENT_DETAILS, API_BASE }
 import { InternalAIConfig, WebhookConfig, DEFAULT_AI_CONFIG, TabType, PageProps } from '../../types/dashboard';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useToastContext } from '../../contexts/ToastContext';
-import OverviewTab from '../../components/dashboard/tabs/OverviewTab';
-import MessagesTab from '../../components/dashboard/tabs/MessagesTab';
-import PayTab from '../../components/dashboard/tabs/PayTab';
-import DataTab from '../../components/dashboard/tabs/DataTab';
-import InternalChatTab from '../../components/dashboard/tabs/InternalChatTab';
 import TabErrorBoundary from '../../components/dashboard/TabErrorBoundary';
-import AppBuilderTab from '../../components/dashboard/tabs/AppBuilderTab';
-import SystemTab from '../../components/dashboard/tabs/SystemTab';
+
+/**
+ * Tab bodies, loaded on demand rather than all at once.
+ *
+ * Static imports meant the dashboard landing page pulled every tab before showing
+ * the first one — `InternalChatTab` 38 KB, `AppBuilderTab` 36 KB, `SystemTab` 26 KB,
+ * `PayTab` 15 KB, `DataTab` 10 KB of source. `OverviewTab` stays EAGER on purpose:
+ * it is the default tab, so lazy-loading it would only add a round trip before the
+ * page can show anything.
+ *
+ * `TabErrorBoundary` also stays eager — it has to be mounted to catch a failure in
+ * the thing it wraps, and it is 1.7 KB.
+ */
+import OverviewTab from '../../components/dashboard/tabs/OverviewTab';
+
+// Generic on purpose. Annotating the loader as `Promise<any>` erased every tab's
+// prop types and typecheck rejected `signOut`/`user`/`embedded` at 17 call sites -
+// the helper has to carry the module's own props through, not flatten them.
+function lazyTab<P> ( loader: () => Promise<{ default: React.ComponentType<P> }> ) {
+  return dynamic( loader, { ssr: false } );
+}
+
+const MessagesTab = lazyTab( () => import( '../../components/dashboard/tabs/MessagesTab' ) );
+const PayTab = lazyTab( () => import( '../../components/dashboard/tabs/PayTab' ) );
+const DataTab = lazyTab( () => import( '../../components/dashboard/tabs/DataTab' ) );
+const InternalChatTab = lazyTab( () => import( '../../components/dashboard/tabs/InternalChatTab' ) );
+const AppBuilderTab = lazyTab( () => import( '../../components/dashboard/tabs/AppBuilderTab' ) );
+const SystemTab = lazyTab( () => import( '../../components/dashboard/tabs/SystemTab' ) );
 import { AppBuilderIcon } from '../../lib/icons';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;

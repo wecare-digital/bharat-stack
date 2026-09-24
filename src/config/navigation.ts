@@ -293,6 +293,93 @@ export const settingsConfig: SettingsGroup[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// THE EIGHT MODULE HOMES (master prompt phase 8.1)
+// ---------------------------------------------------------------------------
+/**
+ * The master prompt asks for eight module homes: Home, Communications, Customers,
+ * Commerce, Growth, Service Operations, Platform Operations and Settings.
+ *
+ * RECONCILING THAT WITH THE SIDEBAR ABOVE
+ * ---------------------------------------
+ * These are not the same question, and conflating them is what made this look like a
+ * contradiction. A **module home** is a route: the landing page for a domain, with its
+ * inner pages separately routed and lazy-loaded. The **sidebar** is which of those are
+ * one click away. The owner overrode the second — "just show main inbox, rest move
+ * under settings" — and said nothing about the first.
+ *
+ * So the eight homes are declared here and every one is a real, reachable route. Six of
+ * the eight were already live under different names; this registry stops that being
+ * implicit, and `tests/test_module_homes.py` asserts each `path` exists as a page and
+ * appears in `getAllNavItems()`.
+ *
+ * Settings is deliberately `null`. A `/settings` page would be one more destination to
+ * navigate to *before* navigating, with its own shell, breadcrumb and a decision about
+ * the page you were on — so it is a panel (`SettingsGear`) over `settingsConfig`, not a
+ * route. That was a C1 decision and it stands; recording it as a home with no path is
+ * more honest than inventing a route to satisfy a count.
+ */
+export interface ModuleHome {
+  /** The master prompt's name for the module. */
+  id: string;
+  label: string;
+  /** The live route, or null when the module is a panel rather than a page. */
+  path: string | null;
+  /** Where its inner pages live, for the lazy-loading requirement. */
+  innerPages: string[];
+  /** Why this route is the home, when the name does not match the master prompt's. */
+  note?: string;
+}
+
+export const moduleHomes: ModuleHome[] = [
+  {
+    id: 'home', label: 'Home', path: '/dashboard',
+    innerPages: ['/dashboard/system-architecture', '/dashboard/lambda-functions',
+      '/dashboard/code-repo', '/dashboard/cors-settings'],
+    note: 'Tab bodies are lazy via next/dynamic; OverviewTab stays eager because it is '
+      + 'the default tab and lazy-loading it would only add a round trip.',
+  },
+  {
+    id: 'communications', label: 'Communications', path: '/dm',
+    // The master prompt is explicit: Communications exposes EXACTLY these three.
+    innerPages: ['/dm/inbox', '/dm/whatsapp', '/dm/voice'],
+    note: 'Common Inbox, WhatsApp Business and Business Calling — exactly three, as '
+      + 'specified. The other channels (SMS, RCS, Email, Push) are filters on the '
+      + 'common inbox plus configuration under the gear, not peers of these three.',
+  },
+  {
+    id: 'customers', label: 'Customers', path: '/contacts',
+    innerPages: ['/dm/contact-360'],
+  },
+  {
+    id: 'commerce', label: 'Commerce', path: '/store',
+    innerPages: ['/dm/commerce', '/pay', '/pay/records'],
+  },
+  {
+    id: 'growth', label: 'Growth', path: '/seo',
+    innerPages: ['/seo/pages', '/seo/analytics', '/seo/tracking', '/seo/schema',
+      '/dm/whatsapp/ctwa-ads', '/dm/whatsapp/conversions-api'],
+    note: 'SEO is the live half. The ads/attribution half is behind flags — see 7.3.',
+  },
+  {
+    id: 'service-operations', label: 'Service Operations', path: '/dm/service-ops',
+    innerPages: ['/service/submit-request', '/service/track-request',
+      '/service/amend-request', '/dm/appointments', '/dm/rx-slots',
+      '/dm/documents', '/dm/enterprise', '/dm/reviews', '/dm/faq'],
+  },
+  {
+    id: 'platform-operations', label: 'Platform Operations',
+    path: '/dashboard/system-architecture',
+    innerPages: ['/dashboard/lambda-functions', '/dashboard/code-repo',
+      '/dashboard/cors-settings', '/dashboard/design-reference'],
+  },
+  {
+    id: 'settings', label: 'Settings', path: null,
+    innerPages: [],
+    note: 'A panel, not a route. See the block comment above.',
+  },
+];
+
 /**
  * Every destination, sidebar AND settings.
  *

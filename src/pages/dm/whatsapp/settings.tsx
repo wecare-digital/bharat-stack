@@ -4,29 +4,54 @@
  */
 
 import React, { Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import Layout from '../../../components/Layout';
 import PageShell, { ShellTab } from '../../../components/PageShell';
 
-import WABADashboard from './waba-dashboard';
-import TemplatesPage from './templates';
-import WelcomePage from './welcome';
-import CampaignPage from './campaign';
+/**
+ * Seventeen tab bodies, loaded one at a time.
+ *
+ * These were static imports, and the `<Suspense>` boundary below has been sitting
+ * around them the whole time doing **nothing** — a static import cannot suspend, so
+ * the fallback was unreachable and every visit to this page downloaded all
+ * seventeen tabs to render one. Measured: **515 KB of source**, of which
+ * `calling` alone is 120 KB and `ai-agent` 47 KB.
+ *
+ * `next/dynamic` is what the Suspense boundary was always waiting for. Nothing else
+ * changes: the component names are identical, so not one line of the JSX below was
+ * touched — the same reason the shell-wrapping transform was safe.
+ *
+ * `ssr: false` because every one of these fetches on mount and sits behind auth, so
+ * there is nothing meaningful to prerender, and it keeps them out of the server
+ * bundle of a statically exported page.
+ */
+// Generic on purpose. Annotating the loader as `Promise<any>` erased every tab's
+// prop types and typecheck rejected `signOut`/`user`/`embedded` at 17 call sites -
+// the helper has to carry the module's own props through, not flatten them.
+function lazyTab<P> ( loader: () => Promise<{ default: React.ComponentType<P> }> ) {
+  return dynamic( loader, { ssr: false } );
+}
+
+const WABADashboard = lazyTab( () => import( './waba-dashboard' ) );
+const TemplatesPage = lazyTab( () => import( './templates' ) );
+const WelcomePage = lazyTab( () => import( './welcome' ) );
+const CampaignPage = lazyTab( () => import( './campaign' ) );
 // Unified logs, preset to WhatsApp. ./logs was 265 lines over the same canonical
 // table as dm/logs; its error decoding, CSV export, pagination and contact-name
 // resolution all moved into dm/logs rather than being dropped.
-import LogsPage from '../logs';
-import InteractiveListsPage from './interactive-lists';
-import FlowsPage from './flows';
-import CallingPage from './calling';
-import GroupsPage from './groups';
-import BusinessProfilePage from './business-profile';
-import WebhooksPage from './webhooks';
-import AutoResponsePage from './auto-response';
-import ScriptsPage from './scripts';
-import FlowResponsesPage from './flow-responses';
-import FlowHubPage from './flow-hub';
-import MigrationPage from './migration';
-import AiAgentPage from './ai-agent';
+const LogsPage = lazyTab( () => import( '../logs' ) );
+const InteractiveListsPage = lazyTab( () => import( './interactive-lists' ) );
+const FlowsPage = lazyTab( () => import( './flows' ) );
+const CallingPage = lazyTab( () => import( './calling' ) );
+const GroupsPage = lazyTab( () => import( './groups' ) );
+const BusinessProfilePage = lazyTab( () => import( './business-profile' ) );
+const WebhooksPage = lazyTab( () => import( './webhooks' ) );
+const AutoResponsePage = lazyTab( () => import( './auto-response' ) );
+const ScriptsPage = lazyTab( () => import( './scripts' ) );
+const FlowResponsesPage = lazyTab( () => import( './flow-responses' ) );
+const FlowHubPage = lazyTab( () => import( './flow-hub' ) );
+const MigrationPage = lazyTab( () => import( './migration' ) );
+const AiAgentPage = lazyTab( () => import( './ai-agent' ) );
 
 interface PageProps {
   signOut?: () => void;

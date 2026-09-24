@@ -1,0 +1,17 @@
+[
+    {
+        "source": "https://www.wecare.digital",
+        "target": "https://wecare.digital",
+        "status": "301"
+    },
+    {
+        "source": "https://stack.wecare.digital",
+        "target": "https://wecare.digital",
+        "status": "301"
+    },
+    {
+        "source": "/<*>",
+        "target": "/index.html",
+        "status": "404-200"
+    }
+]

@@ -3,21 +3,33 @@
  * Uses PageShell for section header + tab bar
  */
 import React from 'react';
+import dynamic from 'next/dynamic';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import PageShell, { ShellTab } from '../../../components/PageShell';
 
+// Loaded per tab. The consolidation made these hubs embed the unified pages rather
+// than ship their own copies, which was the right call - but a static import means
+// opening the RCS hub downloads the inbox, the broadcast composer AND the logs view
+// before showing any of them. `dm/inbox` alone is the largest page in the app.
+// Generic on purpose. Annotating the loader as `Promise<any>` erased every tab's
+// prop types and typecheck rejected `signOut`/`user`/`embedded` at 17 call sites -
+// the helper has to carry the module's own props through, not flatten them.
+function lazyTab<P> ( loader: () => Promise<{ default: React.ComponentType<P> }> ) {
+  return dynamic( loader, { ssr: false } );
+}
+
 // The unified inbox, preset to RCS. ./inbox was 273 lines of which 196 were
 // byte-identical to ses/inbox, and dm/inbox already reads AND writes RCS.
-import UnifiedInbox from '../inbox';
-import RcsSendPage from './send';
-import RcsTemplatesPage from './templates';
+const UnifiedInbox = lazyTab( () => import( '../inbox' ) );
+const RcsSendPage = lazyTab( () => import( './send' ) );
+const RcsTemplatesPage = lazyTab( () => import( './templates' ) );
 // dm/broadcast is the multi-channel superset. ./campaign made no send call at
 // all - it was campaign history synthesised from listMessages.
-import BroadcastPage from '../broadcast';
+const BroadcastPage = lazyTab( () => import( '../broadcast' ) );
 // Unified logs, preset to this channel. ./logs was 119 lines calling the same
 // api.listMessages as dm/logs against the same canonical table.
-import MessageLogsPage from '../logs';
+const MessageLogsPage = lazyTab( () => import( '../logs' ) );
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 

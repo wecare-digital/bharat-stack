@@ -10,6 +10,7 @@ import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { navigationConfig, NavItem, NavSubItem, getAllNavItems } from '../config/navigation';
 import { useUserRole, isPartnerAllowed } from '../hooks/useUserRole';
 import { IconMap, ChevronRightIcon, MenuIcon, CloseIcon } from '../lib/icons';
+import BottomNav from './BottomNav';
 
 // Minimal navigation shown to limited-access partner (customer) users.
 const PARTNER_NAV: NavItem[] = [
@@ -210,6 +211,16 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
         <button className="mobile-menu-toggle" onClick={ () => setIsMobileMenuOpen( !isMobileMenuOpen ) } aria-label="Toggle menu">
           { isMobileMenuOpen ? <CloseIcon size={ 18 } /> : <MenuIcon size={ 18 } /> }
         </button>
+        {/*
+          Phone bottom bar. Rendered unconditionally and hidden by CSS above 768px
+          rather than gated on a JS width check: a width read during render is wrong on
+          the first paint of a statically exported page, and it desynchronises from the
+          media queries that do the rest of the responsive work.
+
+          `onMore` opens the SAME drawer the hamburger opens. The bar is a shortcut to
+          four streams, not a second navigation surface with its own state.
+        */}
+        <BottomNav onMore={ () => setIsMobileMenuOpen( !isMobileMenuOpen ) } moreOpen={ isMobileMenuOpen } />
         <aside className={ `sidebar ${isMobileMenuOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}` }>
           {/* Brand */ }
           <div style={ { padding: '10px 12px 6px', flexShrink: 0, borderBottom: '2px solid #d1f470' } }>

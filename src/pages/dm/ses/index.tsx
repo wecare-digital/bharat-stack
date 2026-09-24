@@ -3,18 +3,28 @@
  * Uses PageShell for section header + tab bar
  */
 import React from 'react';
+import dynamic from 'next/dynamic';
 import Layout from '../../../components/Layout';
 import SEO from '../../../components/SEO';
 import PageShell, { ShellTab } from '../../../components/PageShell';
 
+// Loaded per tab — see the note in dm/rcs/index.tsx. Embedding the unified pages
+// was right; importing all three eagerly was not.
+// Generic on purpose. Annotating the loader as `Promise<any>` erased every tab's
+// prop types and typecheck rejected `signOut`/`user`/`embedded` at 17 call sites -
+// the helper has to carry the module's own props through, not flatten them.
+function lazyTab<P> ( loader: () => Promise<{ default: React.ComponentType<P> }> ) {
+  return dynamic( loader, { ssr: false } );
+}
+
 // The unified inbox, preset to Email. ./inbox was a 263-line twin of rcs/inbox
 // and dm/inbox already reads and writes email.
-import UnifiedInbox from '../inbox';
+const UnifiedInbox = lazyTab( () => import( '../inbox' ) );
 // dm/broadcast is the multi-channel superset and already sends email.
-import BroadcastPage from '../broadcast';
+const BroadcastPage = lazyTab( () => import( '../broadcast' ) );
 // Unified logs, preset to this channel. ./logs was 268 lines over the same table;
 // its one unique feature, row delete, moved into dm/logs.
-import MessageLogsPage from '../logs';
+const MessageLogsPage = lazyTab( () => import( '../logs' ) );
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
