@@ -744,8 +744,22 @@ export default function App ( { Component, pageProps }: AppProps ) {
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
-          <meta name="description" content="Enterprise WhatsApp Business API platform for India. Send bulk WhatsApp messages, SMS, Email & Voice. AI-powered CRM with Razorpay payments. Connect with 2B+ users. Start free today." />
-          <meta name="keywords" content="WhatsApp Business API, WhatsApp CRM, bulk WhatsApp messaging, WhatsApp marketing India, business messaging platform, SMS API India, email marketing, voice calls API, Razorpay WhatsApp payments, customer engagement platform, multi-channel CRM, WhatsApp automation, WhatsApp chatbot, business communication, enterprise messaging, WhatsApp templates, promotional messages, transactional messages, OTP WhatsApp, order notifications, WECARE.DIGITAL, Stack CRM" />
+          {/* SITEWIDE FALLBACK, AND IT MUST STAY PRODUCT-NEUTRAL.
+              This block is inherited by every public route that does not declare its own, so
+              whatever it says becomes the identity of 15 pages. It used to read "Enterprise
+              WhatsApp Business API platform for India..." with 22 WhatsApp keywords - copy
+              written for ONE product - so the company home page was indexed as a WhatsApp
+              product page and competed with /grahak-os/ for the same terms.
+              /grahak-os/ is unaffected by this change: it already declares its own title,
+              description, keywords and OG tags, so its WhatsApp positioning is stated where it
+              belongs rather than leaking sitewide. Any page wanting product-specific terms
+              should do the same.
+              NOTE ON KEYWORDS: Google has ignored meta keywords since 2009 and Bing gives it no
+              weight either, so this tag earns nothing for ranking. It is kept only so the page
+              does not describe a product it is not about; deleting it outright would be equally
+              valid. Do not invest in tuning it. */}
+          <meta name="description" content="WECARE.DIGITAL builds everyday AI for consumers, enterprises, climate tech and frontier tech, with transparent pricing and one place to track everything." />
+          <meta name="keywords" content="WECARE.DIGITAL, everyday AI, AI services India, transparent pricing, consumer services, enterprise services, climate tech, frontier tech" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="icon" href={ FAVICON_URL } />
           <link rel="apple-touch-icon" href={ LOGO_URL } />
