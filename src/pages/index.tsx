@@ -462,6 +462,7 @@ const HomePage: React.FC = () => {
                   it, which is the mistake just corrected in the flow section's lead. */}
               <p className="home-close-lead">
                 Bring us what’s next. Think it, say it, send it — in your language, your way.
+                It starts moving the moment you send it.
               </p>
               <span className="home-close-rule" aria-hidden="true" />
               <ul className="home-close-points">
