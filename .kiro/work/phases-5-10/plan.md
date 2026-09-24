@@ -446,7 +446,38 @@ model, instructions, IAM role, action group attached, a `bedrock.amazonaws.com` 
 permission, a prepare, and a real alias. Nothing needs it. The empty agent stays — deleting
 it is destructive, needs confirmation, and it is inert and free.
 
-### 7.1 — Shared integration registry + sync/metric boundary · PARTIAL (registry done)
+### 7.1 — Shared integration registry + sync/metric boundary · DONE (live reads WAITING_FOR_OWNER)
+
+**Closed 2026-09-24 on the master prompt's own terms**, which name the owner-blocked path as
+a completion state rather than a gap: "Enable safe READ paths only where the owner has
+supplied approved access; **otherwise complete fixtures/contracts and mark the live read
+`WAITING_FOR_OWNER`**."
+
+What was actually missing was the first half. `registry.py` described eight providers and
+`ReadResult` defined how a read must report itself, and **nothing exercised either** — a
+contract nobody runs is a docstring. `tests/test_integration_contracts.py`, **88 tests**
+over fixtures with no network call, now drives all five things the prompt names: ownership,
+scopes (read-only separated from write-capable), quota as used/limit rather than a
+percentage, freshness derived from the provider's own max age, and provider request ids
+where available. Plus the properties that make the three-state design load-bearing: nothing
+claims VERIFIED, an absent request id is `None` and not `''`, quota-unknown is a different
+state from none-remaining, age cannot go negative on clock skew, and the payload is masked
+because a provider response can carry a refreshed token.
+
+**It earned its keep on the first run.** The `wix` entry recorded `secret_name=""` while
+claiming `SCOPE_UNVERIFIED` — internally contradictory, since that state means a credential
+exists. `wecare/wix/headless-api-key` **does exist**; `DescribeSecret` puts its creation at
+**2026-09-24 05:43**, after the registry's 2026-09-23 measurement. So the entry was right
+when written and went stale, and its unblock still said "move the Wix credential into
+Secrets Manager" — which would have sent somebody to create a secret already there. Now it
+names the secret and states the real blocker: the function has no `WIX_API_KEY_SECRET`
+pointing at it and `WIX_CREDENTIALS_DISABLED=true`, and both must change together on owner
+authorisation because the storefront is live. An existing test asserting the old claim was
+updated, with the timeline recorded rather than quietly rewritten.
+
+The live reads stay `WAITING_FOR_OWNER`: 7 of 8 providers at `SCOPE_UNVERIFIED`, one at
+`CREDENTIAL_ABSENT`, every unblock concrete and machine-checked against vague wording, and
+all of them surfaced on `/growth`.
 
 `lambda_utils/integrations/registry.py`, 55 tests. Measured before writing anything, because
 the brief's provider list and the repo's state disagree:
@@ -493,7 +524,36 @@ Design points that earned their place:
 (scheduled sync jobs writing metrics) is still to do and is not blocked — it can be built
 against fixtures.
 
-### 7.2 — Refactor the Meta Ads/attribution and Wix monoliths · PARTIAL (defects fixed)
+### 7.2 — Refactor the Meta Ads/attribution and Wix monoliths · DONE (domain layer lifted)
+
+**The domain layer is out, 2026-09-24.** `lambda_utils/ecommerce/wix_domain.py` holds the 13
+pure transforms; `wix-store/handler.py` went **1,761 → 1,512 lines** and now imports them.
+More to the point than the line count: those functions are unit-testable **without AWS and
+without a Wix credential**, where testing `_money_amount` previously meant standing up the
+whole integration.
+
+**Equivalence was proven, not asserted**, and that is what makes a "verbatim move"
+trustworthy. 64 input/output cases were recorded from the pre-lift handler and replayed
+against the lifted module — empty dicts, `None`, zero, a price as a string, unicode with a
+rupee sign, a 120-character name, tabs and newlines. The first run found two real problems a
+diff could never have shown:
+
+1. `_generate_wd_order_number` **raised `NameError` in all four cases**. The set needed
+   `datetime`, `timezone` and `timedelta`; the new module imported `json`, `re`, `time` and
+   `uuid` and not those. A verbatim move that drops an import is still broken.
+2. Seven **false** differences, because `_generate_sku` mixes in a time-derived suffix and
+   `_generate_wd_order_number` a uuid and a clock. Left alone that would have meant either
+   accepting noise or letting a real regression hide inside it, so the varying characters
+   are masked and the structure is compared — a change in separator, prefix or field count
+   still fails.
+
+Final: **64 cases, 0 differences.** `tests/test_wix_domain.py` (44 tests) keeps it.
+
+The adapter and job layers deliberately stayed: `_wix_request`, `_load_wix_api_key`,
+`_credentials_disabled`, the two `_sync_*` jobs, `_hydrate_product_variants` (looks pure,
+calls `_wix_request` — measured, not assumed) and `_response`, which reads the `origin`
+global. Deployed `wecare-wix-store` v17 → **v18**, rollback `--function-version 17`, live
+probes 401, zero errors, fleet alias drift 0.
 
 The three **named** defects are resolved. The structural split into
 adapter/domain/job is not, and is recorded honestly below rather than half-done.

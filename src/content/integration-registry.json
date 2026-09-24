@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T10:51:34+00:00",
+  "generatedAt": "2026-09-24T13:16:03+00:00",
   "source": "amplify/functions/shared/lambda_utils/integrations/registry.py",
   "note": "Generated. Access is three-state on purpose: a credential existing is not a scope being granted, and VERIFIED means a real authorised read succeeded and was recorded. Nothing here claims VERIFIED.",
   "counts": {
@@ -126,8 +126,8 @@
     {
       "displayName": "Wix storefront",
       "owner": "WECARE.DIGITAL Wix site (owner-held, live)",
-      "secretName": null,
-      "credentialPresent": false,
+      "secretName": "wecare/wix/headless-api-key",
+      "credentialPresent": true,
       "access": "SCOPE_UNVERIFIED",
       "readScopes": [
         "wix-stores.read-products",
@@ -137,8 +137,8 @@
       "writeScopeMitigation": null,
       "maxAgeSeconds": 3600,
       "adapterBuilt": true,
-      "unblock": "Move the Wix credential into Secrets Manager. 31 files reference Wix and no wecare/wix* secret exists, so it is reading env fallbacks - which is both unauditable and the reason this entry cannot be verified.",
-      "notes": "No secret of its own: credentials arrive via env fallback. The storefront is LIVE and must not be recreated or republished.",
+      "unblock": "The secret exists; the function cannot reach it. `wecare-wix-store` has no WIX_API_KEY_SECRET naming wecare/wix/headless-api-key, and WIX_CREDENTIALS_DISABLED=true. Both must change together, and only on owner authorisation: the storefront is LIVE, so enabling reads against it is a deliberate act rather than a deploy. Then record a successful read to move this to VERIFIED.",
+      "notes": "Credential present in Secrets Manager but not wired: the env var that names it is absent and the disable flag is on, so the loader fails closed. The storefront is LIVE and must not be recreated or republished.",
       "key": "wix"
     }
   ]
