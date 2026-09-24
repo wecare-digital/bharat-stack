@@ -18,19 +18,28 @@ alias** that makes it mandatory, not SnapStart.
 ## Key facts
 
 - Runtime: python3.12, x86_64, 62 of 62 functions.
-- **53 of 62 functions have a `live` alias. Only these 9 do not:**
-  `wecare-ad-attribution`, `wecare-docs-scraper`, `wecare-marketing-ads`,
-  `wecare-partner-onboarding`, `wecare-partner-token-refresh`,
-  `wecare-push-notifications`, `wecare-seo-tools`, `wecare-sla-engine`,
+- **56 of 62 functions have a `live` alias. Only these 6 do not:**
+  `wecare-ad-attribution`, `wecare-docs-scraper`,
+  `wecare-partner-token-refresh`, `wecare-seo-tools`, `wecare-sla-engine`,
   `wecare-url-shortener` (the unused twin of `stack-wecare-url-shortener`).
   The HTTP API integrations invoke the alias where one exists (e.g.
-  `...:function:wecare-contacts:live`), so for those 53, `$LATEST` changes do
+  `...:function:wecare-contacts:live`), so for those 56, `$LATEST` changes do
   NOT reach production until a version is published and the alias is moved.
-  For the 9 above, `update-function-code` takes effect immediately.
+  For the 6 above, `update-function-code` takes effect immediately.
   Counted sequentially with retries over `ListFunctions` + `ListAliases`,
   0 errors. An earlier concurrent count reported 34/28 because failed calls
   were silently treated as "no alias" — do not trust a count that does not
   report its error total.
+
+  **Re-measured 2026-09-25: was 53/9.** `wecare-marketing-ads`,
+  `wecare-partner-onboarding` and `wecare-push-notifications` have since gained
+  a `live` alias — `provision_live_alias.py` and `provision_missing_ui_routes.py`
+  create them, and both files note that doing so immediately moves those
+  functions onto the publish-and-move path, because `snapstart_publish.py`
+  discovers its targets by looking for the alias rather than from a list. So the
+  count drifts on its own as aliases are provisioned. Treat the numbers here as a
+  dated snapshot and re-derive them rather than trusting them; the deploy rule
+  below does not depend on the count.
 - `scripts/snapstart_publish.py` already keys membership on the alias rather
   than on `SnapStart.ApplyOn`, so it behaves correctly with SnapStart off.
 - If SnapStart is ever enabled, everything in Gotchas below becomes live again;
