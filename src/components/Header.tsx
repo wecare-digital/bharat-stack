@@ -50,15 +50,29 @@ interface NavColumn {
 //
 // ALL SEVEN ROWS NOW POINT AT LOCAL ROUTES THAT RETURN 200, and every one carries
 // `match` so it lights up on its own route. Mapping, for the record:
-//   Submit Request     -> /service/submit-request/
-//   Request Amendment  -> /service/amend-request/
+//   Submit Request     -> /contact/
+//   Request Amendment  -> /contact/
 //   My Order           -> /my-order/
-//   Drop Docs          -> /contact/   (no dedicated route; /contact/ is the entry point)
-//   Leave Review       -> /contact/   (same)
-// /service/ and its children were already exported and live - they had simply never been
-// wired into this menu, which is why the placeholder survived so long. Header.test.tsx
-// asserts all seven rows exist, so a typo here cannot silently drop one.
-const SELFSERVICE = '/service/';
+//   Drop Docs          -> /contact/
+//   Leave Review       -> /contact/
+//   Contact            -> /contact/
+//
+// WHY THEY ALL POINT AT /contact/ AND *NOT* AT /service/*. The /service/ pages exist and
+// return 200, and an earlier pass wired these rows to them - which was wrong. Those pages
+// are AUTHENTICATED by design: service/index.tsx renders <Layout user onSignOut> (the
+// dashboard chrome, with a sign-out control) and submit-request.tsx identifies the
+// requester from user?.signInDetails?.loginId. None of them is in PUBLIC_PAGE_META, so
+// _app.tsx renders them inside the Authenticator - a public menu row pointing there shows
+// an anonymous visitor a login wall. Measured: out/service/submit-request/index.html is
+// 144,800 bytes of auth shell against 35,738 for the public /contact/ page.
+// /contact/ is the right destination until public equivalents exist: it IS the Selfservice
+// entry point - its badge reads "Selfservice by WECARE.DIGITAL" and its rotation already
+// says submit a request, amend a request, track a request, drop documents, leave a review.
+// To give these rows their own pages, build PUBLIC ones (authenticating with the existing
+// WhatsApp OTP flow, not the dashboard's Cognito session) and register each in
+// PUBLIC_PAGE_META - otherwise they render a blank 200 or a login wall.
+// Header.test.tsx asserts all seven rows exist, so a typo here cannot silently drop one.
+const SELFSERVICE = '/contact/';
 const PARTNERS = '/contact/';
 
 // One structure, rendered as columns, rather than the single flat list this used to
@@ -115,8 +129,8 @@ const COLUMNS: NavColumn[] = [
         links: [
           // FAQ removed on request. The local /faq page was already deleted; this
           // drops the menu row too, so there is no FAQ entry point left anywhere.
-          { label: 'Submit Request', href: '/service/submit-request/', match: '/service/submit-request' },
-          { label: 'Request Amendment', href: '/service/amend-request/', match: '/service/amend-request' },
+          { label: 'Submit Request', href: '/contact/', match: '/contact' },
+          { label: 'Request Amendment', href: '/contact/', match: '/contact' },
           // "My Order" REPLACES the old "Request Tracking" row rather than sitting beside
           // it: the two answer the same question, and offering both sends one visitor to
           // two places for one answer. Unlike its siblings this is a local page, so it
