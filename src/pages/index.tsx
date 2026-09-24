@@ -314,8 +314,7 @@ const HomePage: React.FC = () => {
                   someone non-technical: it is the part you are not meant to have to look at. */}
               <h2 className="home-flow-title" id="home-flow-title">The part you don’t have to think about.</h2>
               <p className="home-flow-lead">
-                Every service runs on one shared system. You never have to manage the
-                joins between them.
+                Every service runs on one AI foundation. Nothing falls between them.
               </p>
               { /* THREE BEATS, EACH ONE SOMETHING A CUSTOMER CAN NOTICE HAPPENING TO THEM.
                    These have now been rewritten twice. First they named components ("Built
@@ -335,9 +334,19 @@ const HomePage: React.FC = () => {
                   duplicated the third one WORD FOR WORD about 150px above it. It also
                   promised four things while only three follow, the fourth being the beat
                   deleted earlier. Do not reintroduce a summary list there.
-                  It also no longer claims an "AI foundation": these three describe single
-                  sign-on, multichannel delivery and automatic retry. None of them is AI, and
-                  labelling plumbing as AI invites a reader to discount the honest parts. */}
+                  ON "AI FOUNDATION", WHICH HAS NOW GONE BOTH WAYS. It was cut from this
+                  lead on the reasoning that the three beats below describe single sign-on,
+                  multichannel delivery and automatic retry - none of which is AI - and that
+                  labelling plumbing as AI invites a reader to discount the honest parts.
+                  The owner then confirmed the positioning: WECARE.DIGITAL is an AI company
+                  offering services across the domains the hero rotates, one of which is
+                  literally "AI applications". So the claim is restored. The distinction that
+                  makes it honest: "one AI foundation" describes the PLATFORM the services
+                  share, it does not claim each of the three beats below is itself AI. Keep
+                  it that way - if a beat ever asserts AI, it needs something behind it.
+                  "Nothing falls between them" replaces "You never have to manage the joins
+                  between them", which was awkward and put the reader in charge of plumbing
+                  they were just told not to think about. */}
               {/* THREE beats. It was four: a fourth read "It remembers the context", which
                   said the same thing as the closing band's "Tell us once. We remember the
                   context." about 200px further down the same page, and the same thing again
@@ -441,7 +450,7 @@ const HomePage: React.FC = () => {
                     instead, then it cannot lie. */}
                 <li>Know the price before you commit.</li>
                 <li>Tell us once. We remember the context.</li>
-                <li>Everything you’ve asked for, in one place.</li>
+                <li>See where everything stands.</li>
               </ul>
               {/* A PLAIN <a>, AND IT MUST STAY ONE. This was briefly next/link to silence
                   @next/next/no-html-link-for-pages, and that silently destroyed the button:
