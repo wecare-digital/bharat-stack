@@ -230,11 +230,23 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded, channel }
     // router.query is EMPTY on first render, so the state initializer above cannot
     // see it - this is not a duplicate of that. The prop wins, because a hub
     // presetting its own channel must not be overridden by a stale URL.
+    //
+    // It MUST reset to 'ALL' when the URL carries no channel. All six sidebar Inbox
+    // entries are the same route `/dm/inbox` differing only by query string, so Next
+    // keeps this component mounted across them and React state survives the
+    // navigation. The first version of this effect only ever *set* the filter, so
+    // going `?channel=email` -> "All channels" left it stuck on `email` - and email
+    // has no rows, so the page that promises everything rendered "No conversations".
+    // `dm/logs` avoided this by deriving its channel with useMemo; the inbox cannot,
+    // because its selector has to stay user-changeable.
+    //
+    // Guarded on `router.isReady` so a deep link to `?channel=rcs` is not reset to
+    // ALL during the pre-hydration pass when `router.query` is still empty.
     useEffect( () => {
-        if ( presetChannel ) return;
+        if ( presetChannel || !router.isReady ) return;
         const q = String( router.query.channel || '' ).toLowerCase();
-        if ( q && q in CHANNEL ) setChannelFilter( q );
-    }, [ router.query.channel, presetChannel ] );
+        setChannelFilter( q && q in CHANNEL ? q : 'ALL' );
+    }, [ router.isReady, router.query.channel, presetChannel ] );
 
     useEffect( () => {
         loadData();
@@ -775,7 +787,31 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded, channel }
                         { loading ? (
                             <div className="ui-empty">Loading…</div>
                         ) : conversations.length === 0 ? (
-                            <div className="ui-empty">No conversations</div>
+                            /*
+                             * "No conversations" on its own is indistinguishable from a
+                             * failed load, and that ambiguity is what made a working
+                             * inbox look broken. When a channel filter is narrowing
+                             * everything away, say which channel, say how much is
+                             * sitting on the others, and offer the way back. Email
+                             * currently has zero rows in the table, so this is the
+                             * expected state there rather than a fault.
+                             */
+                            <div className="ui-empty">
+                                { channelFilter !== 'ALL' ? (
+                                    <>
+                                        No { chMeta( channelFilter ).label } conversations.
+                                        { messages.length > 0 && (
+                                            <>
+                                                <br />{ messages.length } message{ messages.length === 1 ? '' : 's' } on other channels.
+                                                <br />
+                                                <button type="button" className="ui-link-btn" onClick={ () => setChannelFilter( 'ALL' ) }>
+                                                    Show all channels
+                                                </button>
+                                            </>
+                                        ) }
+                                    </>
+                                ) : 'No conversations' }
+                            </div>
                         ) : conversations.map( c => {
                             const m = chMeta( c.lastChannel );
                             return (
@@ -1381,7 +1417,12 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded, channel }
         .ui-reply-btn { background: ${colors.primary}; color: #fff; padding: 8px 18px; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
         .ui-reply-btn:hover:not(:disabled) { background: ${colors.primaryHover}; }
         .ui-reply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .ui-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: ${colors.textMuted}; font-size: 14px; }
+        /* Column, not row: the channel-filtered empty state is three lines and a
+           button, and the original row layout laid them out side by side. Every
+           single-line use of .ui-empty renders identically either way. */
+        .ui-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 100%; padding: 0 16px; text-align: center; line-height: 1.5; color: ${colors.textMuted}; font-size: 14px; }
+        .ui-link-btn { background: none; border: none; padding: 0; font: inherit; color: ${colors.primary}; text-decoration: underline; cursor: pointer; }
+        .ui-link-btn:hover { color: ${colors.primaryHover}; }
         @media (max-width: 800px) {
           .ui-wrap { height: calc(100vh - 56px); padding: 10px 12px; }
           .ui-toolbar { margin: 8px 0; }

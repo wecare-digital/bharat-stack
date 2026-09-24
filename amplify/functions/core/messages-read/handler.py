@@ -96,7 +96,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             filter_parts.append('contactId = :cid')
             expression_values[':cid'] = contact_id
         
-        if channel and channel in ['WHATSAPP', 'SMS', 'EMAIL', 'RCS']:
+        # VOICE included: `message_store.VALID_CHANNELS` has held it since calls began
+        # writing a breadcrumb row, and `/dm/inbox?channel=voice` is now the Calls
+        # destination. Its absence here was invisible because the filter built below is
+        # not what reads the table - `_read_from_messages_table` queries the GSI and
+        # does not consult this whitelist - but a list that silently disagrees with the
+        # canonical channel set is the kind of thing that bites the first time somebody
+        # does start using it.
+        if channel and channel in ['WHATSAPP', 'SMS', 'EMAIL', 'RCS', 'VOICE']:
             filter_parts.append('channel = :ch')
             expression_values[':ch'] = channel.lower()
         
