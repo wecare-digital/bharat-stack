@@ -82,9 +82,11 @@ describe( 'SearchModal behaviour', () => {
     expect( container.firstChild ).toBeNull();
   } );
 
-  it( 'offers the unified inbox before anything is typed', () => {
+  it( 'offers the inbox before anything is typed', () => {
     render( <SearchModal isOpen onClose={ () => undefined } /> );
-    expect( screen.getByText( 'Unified Inbox' ) ).toBeInTheDocument();
+    // Label is 'Inbox' since the nav restructure; it was 'Unified Inbox' when the
+    // sidebar still had a separate page per channel to be unified against.
+    expect( screen.getAllByText( /Inbox/ ).length ).toBeGreaterThan( 0 );
   } );
 
   it( 'finds a page the hardcoded list had no entry for', () => {
@@ -94,14 +96,14 @@ describe( 'SearchModal behaviour', () => {
   } );
 
   it( 'disambiguates same-named pages by their parent section', () => {
-    // Several pages are called "Inbox". Without the parent as a subtitle they are
-    // indistinguishable in a flat result list.
+    // More than one entry is called "Inbox" - the sidebar stream and the WhatsApp
+    // settings page. Without the parent as a subtitle they are indistinguishable in
+    // a flat result list, which is why getAllNavItems carries `parent`.
     const inboxes = getAllNavItems().filter( ( i ) => /inbox/i.test( i.label ) );
     expect( inboxes.length ).toBeGreaterThan( 1 );
-    expect( inboxes.every( ( i ) => typeof i.label === 'string' ) ).toBe( true );
+    expect( inboxes.some( ( i ) => !!i.parent ) ).toBe( true );
     render( <SearchModal isOpen onClose={ () => undefined } /> );
     fireEvent.change( screen.getByRole( 'combobox' ), { target: { value: 'inbox' } } );
-    // At least one result carries a parent label as its subtitle.
-    expect( screen.getByText( 'Unified Inbox' ) ).toBeInTheDocument();
+    expect( screen.getAllByText( /Inbox/ ).length ).toBeGreaterThan( 0 );
   } );
 } );

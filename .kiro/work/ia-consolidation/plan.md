@@ -123,9 +123,36 @@ to sit under `src/pages/`, so Next was publishing it as a 292-line chrome-less r
 Moved to `src/components/seo/`, both importers repointed, and confirmed absent from the
 export. Wrapping it would have blessed a route that should not exist.
 
-### C1 — New navigation config + settings gear · TODO
-Sidebar: Inbox · Contacts · Payments · Tasks · Forms · Sign-in & MFA (+ Orders, owner
-leaning sidebar). Everything else behind the gear, findable by `Ctrl+K`.
+### C1 — New navigation config + settings gear · DONE
+Sidebar is now **8 top-level streams**: Inbox (with six channel-filter children,
+including Calls) · Contacts · Broadcast · Payments · Service Ops · Store · Forms · Tasks.
+The 30-item WhatsApp branch is gone from the sidebar entirely — a test asserts zero
+`/dm/whatsapp*` paths remain in it.
+
+Everything else lives in `settingsConfig`, six labelled and hinted groups opened by a
+gear above the sidebar footer. `SettingsGear` is a panel, not a route: a `/settings` page
+would be one more destination to navigate to before navigating, and would need its own
+shell, breadcrumb and a decision about the page you were on.
+
+**Reachability is the invariant, and it is tested.** `getAllNavItems()` walks BOTH trees
+and is the single source the command palette uses, so:
+
+| | before | after |
+|---|---|---|
+| unique destinations reachable | 87 | **95** |
+| lost | — | **1**, `/dm`, which was re-added once found to be a real 160-line page |
+| newly reachable (were orphaned) | — | **9** incl. `cors-settings`, `ai-agent`, `scripts`, `forms/create` |
+
+Three independent routes to every settings page: the gear panel, `Ctrl+K`, and the
+sidebar search box — deliberate redundancy, because for the 21 orphans navigation is the
+only way in.
+
+`/access/security` is first in the account group, and a test pins that: it cannot be
+reached any other way and Cognito will not let anyone enrol TOTP on the operator's behalf.
+
+One subtlety the tests caught: the Inbox children are one page with six query strings, so
+active-state matching had to strip `?…` before comparing. Without it the sidebar
+highlighted nothing on the page you were looking at.
 
 ### D1 — Plan / approval / receipt path for agent writes · TODO
 The 8 `CLASS_APPLY` tools stay refused until this exists. `plans.py` and `receipts.py`
