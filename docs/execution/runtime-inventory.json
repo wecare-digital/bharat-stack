@@ -9,57 +9,23 @@
       "wecare-pstn-softphone",
       "wecare-seo-tools"
     ],
-    "logsNeverExpire": [
-      "wecare-ad-attribution",
-      "wecare-catalog-management",
-      "wecare-crm",
-      "wecare-meta-analytics",
-      "wecare-notification-worker",
-      "wecare-plivo-answer",
-      "wecare-pstn-softphone",
-      "wecare-push-notifications",
-      "wecare-seo-tools",
-      "wecare-service-api",
-      "wecare-site-language",
-      "wecare-sla-engine"
-    ],
+    "logsNeverExpire": [],
     "noLiveAliasButHasRoutes": [
-      "wecare-marketing-ads",
-      "wecare-partner-onboarding",
+      "wecare-docs-scraper",
       "wecare-seo-tools"
     ],
     "noRoutesNoEventSourceNoTraffic": [],
     "routesTargetingLatest": [
-      "zllr9lrg7j OPTIONS /partners/billing/settings -> wecare-partner-onboarding",
-      "zllr9lrg7j OPTIONS /partners/billing/analytics -> wecare-partner-onboarding",
-      "zllr9lrg7j OPTIONS /partners/send -> wecare-partner-onboarding",
-      "zllr9lrg7j GET /partners/billing/analytics -> wecare-partner-onboarding",
-      "zllr9lrg7j GET /partners/messages -> wecare-partner-onboarding",
-      "zllr9lrg7j GET /partners/tenants -> wecare-partner-onboarding",
-      "zllr9lrg7j POST /partners/billing/topup -> wecare-partner-onboarding",
-      "zllr9lrg7j DELETE /partners/tenants -> wecare-partner-onboarding",
-      "zllr9lrg7j OPTIONS /partners/embedded-signup -> wecare-partner-onboarding",
-      "zllr9lrg7j POST /partners/billing/settings -> wecare-partner-onboarding",
-      "zllr9lrg7j GET /partners/me -> wecare-partner-onboarding",
-      "zllr9lrg7j OPTIONS /partners/messages -> wecare-partner-onboarding",
-      "zllr9lrg7j OPTIONS /marketing-ads -> wecare-marketing-ads",
-      "zllr9lrg7j POST /partners/billing/topup-order -> wecare-partner-onboarding",
-      "zllr9lrg7j POST /partners/send -> wecare-partner-onboarding",
-      "zllr9lrg7j OPTIONS /partners/me -> wecare-partner-onboarding",
+      "zllr9lrg7j POST /docs/scrape -> wecare-docs-scraper",
       "zllr9lrg7j ANY /seo-tools -> wecare-seo-tools",
-      "zllr9lrg7j OPTIONS /partners/billing/topup-order -> wecare-partner-onboarding",
+      "zllr9lrg7j GET /docs/sources -> wecare-docs-scraper",
       "zllr9lrg7j ANY /seo-tools/{proxy+} -> wecare-seo-tools",
-      "zllr9lrg7j OPTIONS /partners/tenants -> wecare-partner-onboarding",
-      "zllr9lrg7j GET /partners/billing -> wecare-partner-onboarding",
-      "zllr9lrg7j OPTIONS /partners/billing -> wecare-partner-onboarding",
-      "zllr9lrg7j POST /partners/embedded-signup -> wecare-partner-onboarding",
-      "zllr9lrg7j OPTIONS /partners/billing/topup -> wecare-partner-onboarding",
-      "zllr9lrg7j ANY /marketing-ads -> wecare-marketing-ads"
+      "zllr9lrg7j GET /docs/changelog -> wecare-docs-scraper",
+      "zllr9lrg7j POST /docs/sources -> wecare-docs-scraper"
     ],
     "routesToAbsentFunction": [],
     "routesWithoutFrontendCaller": [
       "/agent-tool",
-      "/ai/approvals",
       "/ai/approvals/status",
       "/bulk/worker",
       "/contacts/search",
@@ -177,9 +143,9 @@
   "counts": {
     "functions": 62,
     "httpApis": 1,
-    "routes": 345,
+    "routes": 353,
     "tables": 77,
-    "withLiveAlias": 53
+    "withLiveAlias": 56
   },
   "frontendCallersByRoutePath": {
     "/agent-tool": [],
@@ -187,7 +153,10 @@
       "src/pages/dashboard/code-repo.tsx",
       "src/pages/dashboard/system-architecture.tsx"
     ],
-    "/ai/approvals": [],
+    "/ai/approvals": [
+      "src/components/dashboard/tabs/InternalChatTab.tsx",
+      "src/test/InternalChatApproval.test.tsx"
+    ],
     "/ai/approvals/status": [],
     "/ai/botflow": [
       "src/pages/dashboard/index.tsx"
@@ -338,6 +307,15 @@
       "src/components/dashboard/tabs/InfraTab.tsx",
       "src/pages/dashboard/lambda-functions.tsx",
       "src/pages/dashboard/system-architecture.tsx"
+    ],
+    "/docs/changelog": [
+      "src/pages/dm/docs/index.tsx"
+    ],
+    "/docs/scrape": [
+      "src/pages/dm/docs/index.tsx"
+    ],
+    "/docs/sources": [
+      "src/pages/dm/docs/index.tsx"
     ],
     "/email/send": [
       "src/api/client.ts",
@@ -526,6 +504,12 @@
     "/pstn/session/events": [],
     "/pstn/session/presence": [],
     "/pstn/token": [],
+    "/push/devices": [
+      "src/pages/dm/push/index.tsx"
+    ],
+    "/push/send": [
+      "src/pages/dm/push/index.tsx"
+    ],
     "/r/{code}": [
       "src/api/client.ts",
       "src/api/seo.ts",
@@ -584,6 +568,7 @@
       "src/pages/seo/tools.tsx",
       "src/pages/service/index.tsx",
       "src/test/HomePage.test.tsx",
+      "src/test/InternalChatApproval.test.tsx",
       "src/test/Navigation.test.tsx",
       "src/test/SearchModal.test.tsx",
       "src/test/TotpSetup.test.tsx"
@@ -881,6 +866,9 @@
     "/whatsapp-voice/clear-logs": [
       "src/pages/dashboard/index.tsx"
     ],
+    "/whatsapp-voice/language-config": [
+      "src/api/client.ts"
+    ],
     "/whatsapp-voice/logs": [
       "src/api/client.ts"
     ],
@@ -1027,8 +1015,8 @@
       "function": "stack-wecare-url-shortener",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 117.0,
-      "invocations7d": 643.0,
+      "invocations24h": 118.0,
+      "invocations7d": 644.0,
       "lastModified": "2026-09-24T00:43:09.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -1069,7 +1057,7 @@
       "invocations7d": 4.0,
       "lastModified": "2026-09-24T00:44:47.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -1181,12 +1169,12 @@
     },
     {
       "aliases": {
-        "live": "14"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "j3gMZ1FEjLsAAPFLZSVQ4Pl+XdkdTvmLwOTzSKPQHho=",
+      "codeSha256": "GC9WmnNO8leXmF48F082hrlQ0T9cjii5erwfwuTGi4o=",
       "deadLetterArn": null,
       "envNames": [
         "CONTACTS_TABLE",
@@ -1212,9 +1200,9 @@
       "function": "wecare-ai-generate-response",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 20.0,
-      "invocations7d": 42.0,
-      "lastModified": "2026-09-24T06:50:35.000+0000",
+      "invocations24h": 25.0,
+      "invocations7d": 47.0,
+      "lastModified": "2026-09-24T07:01:16.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 1024,
@@ -1372,7 +1360,7 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 8.0,
-      "invocations7d": 65.0,
+      "invocations7d": 45.0,
       "lastModified": "2026-09-24T00:45:09.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -1549,7 +1537,7 @@
       "invocations7d": 1.0,
       "lastModified": "2026-09-24T00:46:22.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -1619,8 +1607,8 @@
       "function": "wecare-contacts",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 685.0,
-      "invocations7d": 1438.0,
+      "invocations24h": 748.0,
+      "invocations7d": 1481.0,
       "lastModified": "2026-09-24T00:42:42.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -1715,7 +1703,7 @@
       "invocations7d": 27.0,
       "lastModified": "2026-09-24T00:42:45.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -1795,16 +1783,21 @@
       "function": "wecare-docs-scraper",
       "hasLiveAlias": false,
       "inDeployMap": false,
-      "invocations24h": 2.0,
-      "invocations7d": 8.0,
+      "invocations24h": 3.0,
+      "invocations7d": 9.0,
       "lastModified": "2026-09-23T22:40:18.000+0000",
       "layers": [],
       "logRetentionDays": 90,
       "memoryMb": 2048,
       "packageType": "Image",
       "role": "wecare-digital-lambda-role",
-      "routeCount": 0,
-      "routes": [],
+      "routeCount": 4,
+      "routes": [
+        "GET /docs/changelog",
+        "GET /docs/sources",
+        "POST /docs/scrape",
+        "POST /docs/sources"
+      ],
       "runtime": null,
       "snapStart": "None",
       "sourcePath": null,
@@ -1869,7 +1862,7 @@
       "function": "wecare-inbound-whatsapp",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 364.0,
+      "invocations24h": 367.0,
       "invocations7d": 960.0,
       "lastModified": "2026-09-24T00:43:12.000+0000",
       "layers": [],
@@ -1950,7 +1943,9 @@
       "timeoutSec": 60
     },
     {
-      "aliases": {},
+      "aliases": {
+        "live": "9"
+      },
       "architectures": [
         "x86_64"
       ],
@@ -1975,10 +1970,10 @@
       "errors7d": 0.0,
       "eventSources": [],
       "function": "wecare-marketing-ads",
-      "hasLiveAlias": false,
+      "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 0.0,
-      "invocations7d": 1.0,
+      "invocations24h": 2.0,
+      "invocations7d": 3.0,
       "lastModified": "2026-09-24T00:44:51.000+0000",
       "layers": [
         "cryptography-python312:1"
@@ -2099,8 +2094,8 @@
       "function": "wecare-messages-read",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 692.0,
-      "invocations7d": 1492.0,
+      "invocations24h": 755.0,
+      "invocations7d": 1516.0,
       "lastModified": "2026-09-24T00:42:57.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -2137,7 +2132,7 @@
       "invocations7d": 1.0,
       "lastModified": "2026-09-24T00:44:44.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -2206,7 +2201,7 @@
       "invocations7d": 4.0,
       "lastModified": "2026-09-24T00:44:25.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 512,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -2333,8 +2328,8 @@
       "function": "wecare-outbound-whatsapp",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 205.0,
-      "invocations7d": 342.0,
+      "invocations24h": 207.0,
+      "invocations7d": 347.0,
       "lastModified": "2026-09-24T00:43:15.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -2351,7 +2346,9 @@
       "timeoutSec": 60
     },
     {
-      "aliases": {},
+      "aliases": {
+        "live": "10"
+      },
       "architectures": [
         "x86_64"
       ],
@@ -2380,10 +2377,10 @@
       "errors7d": 0.0,
       "eventSources": [],
       "function": "wecare-partner-onboarding",
-      "hasLiveAlias": false,
+      "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 0.0,
-      "invocations7d": 2.0,
+      "invocations24h": 2.0,
+      "invocations7d": 4.0,
       "lastModified": "2026-09-24T00:43:49.000+0000",
       "layers": [
         "cryptography-python312:1"
@@ -2527,11 +2524,11 @@
       "function": "wecare-plivo-answer",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 64.0,
-      "invocations7d": 207.0,
+      "invocations24h": 66.0,
+      "invocations7d": 209.0,
       "lastModified": "2026-09-24T00:44:28.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -2623,7 +2620,7 @@
       "invocations7d": 5.0,
       "lastModified": "2026-09-23T11:02:57.087+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -2641,7 +2638,9 @@
       "timeoutSec": 30
     },
     {
-      "aliases": {},
+      "aliases": {
+        "live": "9"
+      },
       "architectures": [
         "x86_64"
       ],
@@ -2653,18 +2652,21 @@
       "errors7d": 0.0,
       "eventSources": [],
       "function": "wecare-push-notifications",
-      "hasLiveAlias": false,
+      "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 0.0,
-      "invocations7d": 1.0,
+      "invocations24h": 1.0,
+      "invocations7d": 2.0,
       "lastModified": "2026-09-24T00:44:39.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
-      "routeCount": 0,
-      "routes": [],
+      "routeCount": 2,
+      "routes": [
+        "GET /push/devices",
+        "POST /push/send"
+      ],
       "runtime": "python3.12",
       "snapStart": "None",
       "sourcePath": "amplify/functions/messaging/push-notifications",
@@ -2739,7 +2741,7 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 256.0,
-      "invocations7d": 605.0,
+      "invocations7d": 609.0,
       "lastModified": "2026-09-24T00:44:36.000+0000",
       "layers": [],
       "logRetentionDays": 90,
@@ -2783,7 +2785,7 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 118.0,
-      "invocations7d": 294.0,
+      "invocations7d": 296.0,
       "lastModified": "2026-09-24T00:44:33.000+0000",
       "layers": [],
       "logRetentionDays": 90,
@@ -2850,7 +2852,7 @@
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "15oKdxd8fG/bkDkbjJuhL4zbOYv3LDd0hKGm4hNqriY=",
+      "codeSha256": "4DXltvBtPnzVAJSWHyZG6A31Sr3mpOhRccGsiHHhV1Y=",
       "deadLetterArn": null,
       "envNames": [
         "BEDROCK_MODEL_ID",
@@ -2873,11 +2875,11 @@
       "function": "wecare-seo-tools",
       "hasLiveAlias": false,
       "inDeployMap": false,
-      "invocations24h": 8374.0,
-      "invocations7d": 8389.0,
-      "lastModified": "2026-09-24T05:32:39.000+0000",
+      "invocations24h": 9259.0,
+      "invocations7d": 9278.0,
+      "lastModified": "2026-09-24T07:05:45.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 512,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -2915,7 +2917,7 @@
       "invocations7d": 1.0,
       "lastModified": "2026-09-24T00:43:00.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -2951,11 +2953,11 @@
       "function": "wecare-site-language",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 3066.0,
-      "invocations7d": 5771.0,
+      "invocations24h": 2971.0,
+      "invocations7d": 5747.0,
       "lastModified": "2026-09-24T00:43:03.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 512,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -2997,7 +2999,7 @@
       "invocations7d": 1.0,
       "lastModified": "2026-09-24T00:45:28.000+0000",
       "layers": [],
-      "logRetentionDays": "never expires",
+      "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
@@ -3029,8 +3031,8 @@
       "function": "wecare-sms-aws",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 20.0,
-      "invocations7d": 120.0,
+      "invocations24h": 21.0,
+      "invocations7d": 121.0,
       "lastModified": "2026-09-24T00:44:10.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -3452,8 +3454,8 @@
       "function": "wecare-whatsapp-business-api",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1214.0,
-      "invocations7d": 8002.0,
+      "invocations24h": 1213.0,
+      "invocations7d": 8000.0,
       "lastModified": "2026-09-24T00:43:36.000+0000",
       "layers": [
         "cryptography-python312:1"
@@ -3603,7 +3605,7 @@
       "function": "wecare-whatsapp-calling",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 325.0,
+      "invocations24h": 328.0,
       "invocations7d": 1501.0,
       "lastModified": "2026-09-24T00:43:23.000+0000",
       "layers": [],
@@ -3741,23 +3743,25 @@
       "function": "wecare-whatsapp-voice",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 2.0,
-      "invocations7d": 17.0,
+      "invocations24h": 3.0,
+      "invocations7d": 18.0,
       "lastModified": "2026-09-24T00:43:20.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
       "packageType": "Zip",
       "role": "wecare-digital-lambda-role",
-      "routeCount": 7,
+      "routeCount": 9,
       "routes": [
         "DELETE /whatsapp-voice/clear-logs",
+        "GET /whatsapp-voice/language-config",
         "GET /whatsapp-voice/logs",
         "GET /whatsapp-voice/voices",
         "GET /whatsapp/voice",
         "POST /whatsapp-voice/send",
         "POST /whatsapp-voice/tts",
-        "POST /whatsapp/voice"
+        "POST /whatsapp/voice",
+        "PUT /whatsapp-voice/language-config"
       ],
       "runtime": "python3.12",
       "snapStart": "None",
@@ -3813,14 +3817,14 @@
       "timeoutSec": 60
     }
   ],
-  "generated": "2026-09-24T06:53:05+00:00",
+  "generated": "2026-09-24T07:19:14+00:00",
   "region": "us-east-1",
   "routes": [
     {
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "xevepwn",
       "routeKey": "ANY /marketing-ads",
       "targetFunction": "wecare-marketing-ads"
@@ -3964,7 +3968,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "94ng0df",
       "routeKey": "DELETE /partners/tenants",
       "targetFunction": "wecare-partner-onboarding"
@@ -4468,6 +4472,24 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
+      "qualifier": "$LATEST",
+      "routeId": "sl7f3uq",
+      "routeKey": "GET /docs/changelog",
+      "targetFunction": "wecare-docs-scraper"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "$LATEST",
+      "routeId": "p5tpymd",
+      "routeKey": "GET /docs/sources",
+      "targetFunction": "wecare-docs-scraper"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "iwvnhhb",
       "routeKey": "GET /faq",
@@ -4549,7 +4571,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "w24mx5m",
       "routeKey": "GET /partners/billing",
       "targetFunction": "wecare-partner-onboarding"
@@ -4558,7 +4580,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "2gjvoef",
       "routeKey": "GET /partners/billing/analytics",
       "targetFunction": "wecare-partner-onboarding"
@@ -4567,7 +4589,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "avbnru8",
       "routeKey": "GET /partners/me",
       "targetFunction": "wecare-partner-onboarding"
@@ -4576,7 +4598,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "3ianwaa",
       "routeKey": "GET /partners/messages",
       "targetFunction": "wecare-partner-onboarding"
@@ -4585,7 +4607,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "5sc9zzm",
       "routeKey": "GET /partners/tenants",
       "targetFunction": "wecare-partner-onboarding"
@@ -4625,6 +4647,15 @@
       "routeId": "2sctd4b",
       "routeKey": "GET /pstn/session",
       "targetFunction": "wecare-pstn-softphone"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "upy3fd8",
+      "routeKey": "GET /push/devices",
+      "targetFunction": "wecare-push-notifications"
     },
     {
       "apiId": "zllr9lrg7j",
@@ -5234,6 +5265,15 @@
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
       "qualifier": "live",
+      "routeId": "6y7taeg",
+      "routeKey": "GET /whatsapp-voice/language-config",
+      "targetFunction": "wecare-whatsapp-voice"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
       "routeId": "df7zha5",
       "routeKey": "GET /whatsapp-voice/logs",
       "targetFunction": "wecare-whatsapp-voice"
@@ -5395,7 +5435,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "gyq7z7m",
       "routeKey": "OPTIONS /marketing-ads",
       "targetFunction": "wecare-marketing-ads"
@@ -5404,7 +5444,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "wbvn8ol",
       "routeKey": "OPTIONS /partners/billing",
       "targetFunction": "wecare-partner-onboarding"
@@ -5413,7 +5453,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "25js2z6",
       "routeKey": "OPTIONS /partners/billing/analytics",
       "targetFunction": "wecare-partner-onboarding"
@@ -5422,7 +5462,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "1emven1",
       "routeKey": "OPTIONS /partners/billing/settings",
       "targetFunction": "wecare-partner-onboarding"
@@ -5431,7 +5471,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "wteflsh",
       "routeKey": "OPTIONS /partners/billing/topup",
       "targetFunction": "wecare-partner-onboarding"
@@ -5440,7 +5480,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "o43lgff",
       "routeKey": "OPTIONS /partners/billing/topup-order",
       "targetFunction": "wecare-partner-onboarding"
@@ -5449,7 +5489,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "a19b4cb",
       "routeKey": "OPTIONS /partners/embedded-signup",
       "targetFunction": "wecare-partner-onboarding"
@@ -5458,7 +5498,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "nnr7fyt",
       "routeKey": "OPTIONS /partners/me",
       "targetFunction": "wecare-partner-onboarding"
@@ -5467,7 +5507,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "ff0a7an",
       "routeKey": "OPTIONS /partners/messages",
       "targetFunction": "wecare-partner-onboarding"
@@ -5476,7 +5516,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "29bobi1",
       "routeKey": "OPTIONS /partners/send",
       "targetFunction": "wecare-partner-onboarding"
@@ -5485,7 +5525,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "rrv8b0r",
       "routeKey": "OPTIONS /partners/tenants",
       "targetFunction": "wecare-partner-onboarding"
@@ -5728,6 +5768,24 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
+      "qualifier": "$LATEST",
+      "routeId": "3tn2bqh",
+      "routeKey": "POST /docs/scrape",
+      "targetFunction": "wecare-docs-scraper"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "$LATEST",
+      "routeId": "wcrznjh",
+      "routeKey": "POST /docs/sources",
+      "targetFunction": "wecare-docs-scraper"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
       "qualifier": "live",
       "routeId": "k0dlvzb",
       "routeKey": "POST /email/send",
@@ -5863,7 +5921,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "a6mojtm",
       "routeKey": "POST /partners/billing/settings",
       "targetFunction": "wecare-partner-onboarding"
@@ -5872,7 +5930,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "8a8qc2i",
       "routeKey": "POST /partners/billing/topup",
       "targetFunction": "wecare-partner-onboarding"
@@ -5881,7 +5939,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "hr13bsn",
       "routeKey": "POST /partners/billing/topup-order",
       "targetFunction": "wecare-partner-onboarding"
@@ -5890,7 +5948,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "wqocae5",
       "routeKey": "POST /partners/embedded-signup",
       "targetFunction": "wecare-partner-onboarding"
@@ -5899,7 +5957,7 @@
       "apiId": "zllr9lrg7j",
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
-      "qualifier": "$LATEST",
+      "qualifier": "live",
       "routeId": "k4t3t1r",
       "routeKey": "POST /partners/send",
       "targetFunction": "wecare-partner-onboarding"
@@ -5984,6 +6042,15 @@
       "routeId": "wdyd6h2",
       "routeKey": "POST /pstn/token",
       "targetFunction": "wecare-pstn-softphone"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "vfpnn7h",
+      "routeKey": "POST /push/send",
+      "targetFunction": "wecare-push-notifications"
     },
     {
       "apiId": "zllr9lrg7j",
@@ -6911,6 +6978,15 @@
       "routeId": "vtc2lwp",
       "routeKey": "PUT /waba/{wabaId}/events",
       "targetFunction": "wecare-waba-management"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "vkh6gaa",
+      "routeKey": "PUT /whatsapp-voice/language-config",
+      "targetFunction": "wecare-whatsapp-voice"
     },
     {
       "apiId": "zllr9lrg7j",

@@ -1,6 +1,6 @@
 # Runtime inventory
 
-Generated 2026-09-24T06:53:05+00:00 · `us-east-1` · regenerate with `python scripts/generate_runtime_inventory.py`
+Generated 2026-09-24T07:19:14+00:00 · `us-east-1` · regenerate with `python scripts/generate_runtime_inventory.py`
 
 Machine-readable companion: `runtime-inventory.json`. Environment variable
 **names** are recorded, values never are.
@@ -8,9 +8,9 @@ Machine-readable companion: `runtime-inventory.json`. Environment variable
 | Count | |
 |---|---:|
 | Lambda functions | 62 |
-| with a `live` alias | 53 |
+| with a `live` alias | 56 |
 | HTTP APIs | 1 |
-| Routes | 345 |
+| Routes | 353 |
 | DynamoDB tables | 77 |
 
 ## Anomalies
@@ -25,37 +25,17 @@ Each list is a question to answer, not automatically a defect.
 
 ### Functions with routes but no `live` alias — `$LATEST` reaches production directly
 
-- `wecare-marketing-ads`
-- `wecare-partner-onboarding`
+- `wecare-docs-scraper`
 - `wecare-seo-tools`
 
 ### Routes whose integration is unqualified — bypasses the version/alias model
 
-- `zllr9lrg7j OPTIONS /partners/billing/settings -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/billing/analytics -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/send -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/billing/analytics -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/messages -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/tenants -> wecare-partner-onboarding`
-- `zllr9lrg7j POST /partners/billing/topup -> wecare-partner-onboarding`
-- `zllr9lrg7j DELETE /partners/tenants -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/embedded-signup -> wecare-partner-onboarding`
-- `zllr9lrg7j POST /partners/billing/settings -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/me -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/messages -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /marketing-ads -> wecare-marketing-ads`
-- `zllr9lrg7j POST /partners/billing/topup-order -> wecare-partner-onboarding`
-- `zllr9lrg7j POST /partners/send -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/me -> wecare-partner-onboarding`
+- `zllr9lrg7j POST /docs/scrape -> wecare-docs-scraper`
 - `zllr9lrg7j ANY /seo-tools -> wecare-seo-tools`
-- `zllr9lrg7j OPTIONS /partners/billing/topup-order -> wecare-partner-onboarding`
+- `zllr9lrg7j GET /docs/sources -> wecare-docs-scraper`
 - `zllr9lrg7j ANY /seo-tools/{proxy+} -> wecare-seo-tools`
-- `zllr9lrg7j OPTIONS /partners/tenants -> wecare-partner-onboarding`
-- `zllr9lrg7j GET /partners/billing -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/billing -> wecare-partner-onboarding`
-- `zllr9lrg7j POST /partners/embedded-signup -> wecare-partner-onboarding`
-- `zllr9lrg7j OPTIONS /partners/billing/topup -> wecare-partner-onboarding`
-- `zllr9lrg7j ANY /marketing-ads -> wecare-marketing-ads`
+- `zllr9lrg7j GET /docs/changelog -> wecare-docs-scraper`
+- `zllr9lrg7j POST /docs/sources -> wecare-docs-scraper`
 
 ### Routes pointing at a function that does not exist
 
@@ -76,23 +56,11 @@ Each list is a question to answer, not automatically a defect.
 
 ### Log groups with no retention — unbounded cost and data retention
 
-- `wecare-ad-attribution`
-- `wecare-catalog-management`
-- `wecare-crm`
-- `wecare-meta-analytics`
-- `wecare-notification-worker`
-- `wecare-plivo-answer`
-- `wecare-pstn-softphone`
-- `wecare-push-notifications`
-- `wecare-seo-tools`
-- `wecare-service-api`
-- `wecare-site-language`
-- `wecare-sla-engine`
+(none)
 
 ### Route paths no frontend file mentions — provider webhook, internal, or dead
 
 - `/agent-tool`
-- `/ai/approvals`
 - `/ai/approvals/status`
 - `/bulk/worker`
 - `/contacts/search`

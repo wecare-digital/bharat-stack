@@ -154,8 +154,11 @@ One subtlety the tests caught: the Inbox children are one page with six query st
 active-state matching had to strip `?…` before comparing. Without it the sidebar
 highlighted nothing on the page you were looking at.
 
-### D1 — Plan / approval / receipt path for agent writes · PARTIAL
-**The approval layer is built and tested. Enablement is deliberately NOT thrown.**
+### D1 — Plan / approval / receipt path for agent writes · DONE (enablement withheld)
+**The approval path is complete end to end. Enablement is deliberately NOT thrown.**
+
+Items 1–3 below are now done; item 4 is a **refusal**, not a pending task — see the
+closing note in this section.
 
 `plans.py` (plan hash, canonical arguments, staleness) and `receipts.py` already existed
 from phase 6.2. The missing third — a human saying yes to *one exact intent* — is now
@@ -180,15 +183,108 @@ it, AND there is no approval.** Both must change, separately and deliberately. A
 asserts no APPLY tool became enabled and that no plausible environment variable can
 promote one.
 
-Remaining for D1, each a deliberate step rather than an oversight:
-1. A DynamoDB approvals table + `DynamoApprovalStore`, so an approval survives the
-   invocation that created it.
-2. An Admin-gated route for an operator to approve a plan (Admin now also requires an
-   enrolled second factor).
-3. The approval UI in the chat panel — draft, show, approve, apply.
-4. The enablement decision itself, which is the one that should be taken with the
-   PRODUCTION DEPLOYMENT CHECKPOINT in front of it, because it is the step that lets a
-   model's output reach a customer.
+#### 1 — Storage, so an approval outlives the request that created it · DONE
+
+`stack-wecare-digital-AgentApprovalsTable`, partition key `planHash`, no sort key — an
+approval is identified by the intent it authorises and the plan hash *is* that intent, so
+one row per intent means the single-use condition has exactly one thing to test.
+`PAY_PER_REQUEST` (approvals come from a human clicking a button; provisioned capacity
+would pay a baseline for an idle table). **PITR on**, because this is the record of who
+authorised a customer-facing send.
+
+`DynamoApprovalStore.consume` is one conditional `update_item`:
+
+    SET consumedAt = :now
+    IF  attribute_not_exists(consumedAt) AND expiresAt > :now
+
+A read-then-write loses the race, and losing it means one approval spending twice — which
+is the whole point of single use. `ConditionalCheckFailedException` is therefore the
+*correct answer*, not an error to log: it becomes `None` and the caller refuses.
+
+**TTL is housekeeping, not the control.** DynamoDB's TTL deletion is documented as taking
+up to 48 hours, so an expired approval would stay spendable for two days if TTL were
+doing the enforcing. `expiresAt > :now` in the condition is what enforces it.
+
+IaC: `scripts/provision_agent_approvals_table.py`, idempotent, `--dry-run` / `--verify`.
+`--verify` also asserts that **zero** APPLY tools are enabled, so the table can never be
+mistaken for a switch. No IAM change was needed — the live role already scopes DynamoDB to
+`table/stack-wecare-digital-*`, confirmed by reading the account rather than the IaC.
+
+#### 1b — `drafts.py`, because the client cannot hold the arguments · DONE
+
+Not in the original list, and necessary: `describe_plan` masks the recipient to `...0044`
+and omits the message body, so the browser never has the real arguments — and a hash over
+masked values would collapse two different recipients into one plan.
+
+Two ways out, one acceptable:
+
+* send the full arguments to the client and have it echo them back on approve — undoes the
+  redaction, and lets a client display one intent while approving another;
+* keep the plan server-side and let the client refer to it **by hash**.
+
+`drafts.py` is the second. Drafts share the approvals table under a `draft#` key prefix; a
+plan hash is hex, so the keyspaces cannot collide and `DynamoApprovalStore` reads the bare
+hash. `load()` rebuilds through `build_plan` and refuses if the row does not hash to its
+own key — so an altered row cannot authorise a different send.
+
+The cost is stated rather than skipped: a draft holds the **full** canonical arguments,
+because that is the only form the hash can be recomputed from. So the table holds a
+recipient and a message body at rest, with PITR on. Bounded by a 3600s TTL (deliberately
+longer than the 900s approval TTL, so a still-valid approval cannot point at a vanished
+draft), by only APPLY tools being drafted, and by nothing reading a draft except the
+approve path.
+
+#### 2 — Admin-gated approve route · DONE
+
+`POST /ai/approvals` and `POST /ai/approvals/status` on `zllr9lrg7j`, both on the existing
+`jkhxmog` integration (same `:live` alias).
+
+Separate route keys rather than another field in the `/ai/generate` body: that route needs
+a signed-in user, this one needs **Admin with an enrolled second factor**, and one handler
+entry point serving two privilege levels means one `require_auth` call trying to express
+both — where the looser one wins by default.
+
+The approver comes from the verified token, never the body. Path matching is on **segment
+boundaries**: `/ai/approvalsX` and `/ai/approvals-anything` do not match, because the
+substring form of that test is what let `/wa-business/webhooks-anything` skip
+authentication entirely.
+
+Code was deployed **before** the routes existed — a route pointing at a handler that
+cannot serve it is a live 4xx. `v13 → v14 → v15`; rollback `--function-version 14`.
+
+Verified live. The ladder matters: `404` route absent · `500` alias invoke permission
+missing (this once produced a silent outage with no Lambda log line at all) · **`401`
+handler reached and refused — the pass** · `200` the gate is broken. Both routes 401,
+`/ai/generate` still 401, and CloudWatch on v15 logs
+`approval_auth_refused` / `AGENT_APPROVAL_UNAUTHORIZED` with no traceback, which is also
+the proof that `use_dynamo_store()` runs at import.
+
+#### 3 — Approval UI in the chat panel · DONE
+
+A refusal previously went back into the conversation as a tool result and **only the
+model's prose escaped** — so an operator saw the agent's narration of what it wanted to do,
+precisely the thing not to trust, and had nothing concrete to act on. `plan_sink` collects
+each refused-and-drafted plan during the loop and `pendingPlans` returns them with
+arguments already redacted.
+
+The panel is **amber**. Green would say "done" and red "something broke"; a withheld action
+is neither. Its heading states in words that approving does not send. `stillDisabled` is
+read from the response and never hardcoded, so it cannot keep claiming "nothing was sent"
+on the day an apply is enabled. Last turn's plans are cleared rather than accumulated. A
+plan whose draft write failed is `approvable: false` and never offered, so no button
+appears that would always refuse.
+
+#### 4 — Enablement · REFUSED, not pending
+
+This is not an item awaiting a checkpoint. `01-standing-authorization.md` lists
+"Enabling `PSTN_BROWSER_ROUTING_ENABLED` or any live-send flag" under **"Still
+prohibited — never done, and never asked about either"**, so it generates no prompt and no
+confirmation queue entry.
+
+What the completed path changes is only this: an apply is now refused for **one** reason
+(the catalog disables every APPLY tool) where before it was refused for two. The
+machinery a future enablement would need exists and is tested, which was the point — the
+worst time to design an approval system is the moment somebody wants a send turned on.
 
 ### D2 — Fix the agent UI truth gap · DONE
 Measured precisely: the internal surface has **30** catalog entries — **12 READ enabled,
