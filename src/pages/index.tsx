@@ -312,12 +312,10 @@ const HomePage: React.FC = () => {
                   prompt follow-ups and more reliable delivery. This column now says that,
                   and the headline gives the black terminal beside it a reason to exist for
                   someone non-technical: it is the part you are not meant to have to look at. */}
-              <h2 className="home-flow-title" id="home-flow-title">You won’t see this part. You’ll feel it.</h2>
+              <h2 className="home-flow-title" id="home-flow-title">The part you don’t have to think about.</h2>
               <p className="home-flow-lead">
-                Everything runs on the same AI foundation underneath. You may never need
-                to think about how it works. What you notice is that things feel connected:
-                you don’t keep repeating yourself, updates reach you where you are,
-                follow-ups happen automatically, and every experience feels familiar.
+                Every service runs on one shared system. You never have to manage the
+                joins between them.
               </p>
               { /* THREE BEATS, EACH ONE SOMETHING A CUSTOMER CAN NOTICE HAPPENING TO THEM.
                    These have now been rewritten twice. First they named components ("Built
@@ -330,6 +328,16 @@ const HomePage: React.FC = () => {
                    where you actually look, and get the message late rather than never. The
                    mechanism is still there as the reason to believe it, just no longer the
                    subject of the sentence. */ }
+              {/* THE LEAD ABOVE DELIBERATELY DOES NOT LIST THESE THREE. It used to end
+                  "...you don’t keep repeating yourself, updates reach you where you are,
+                  follow-ups happen automatically, and every experience feels familiar" -
+                  which pre-announced all three beats a reader had not reached yet, and
+                  duplicated the third one WORD FOR WORD about 150px above it. It also
+                  promised four things while only three follow, the fourth being the beat
+                  deleted earlier. Do not reintroduce a summary list there.
+                  It also no longer claims an "AI foundation": these three describe single
+                  sign-on, multichannel delivery and automatic retry. None of them is AI, and
+                  labelling plumbing as AI invites a reader to discount the honest parts. */}
               {/* THREE beats. It was four: a fourth read "It remembers the context", which
                   said the same thing as the closing band's "Tell us once. We remember the
                   context." about 200px further down the same page, and the same thing again
@@ -347,11 +355,11 @@ const HomePage: React.FC = () => {
                 </li>
                 <li>
                   <strong>Updates find you.</strong>
-                  <span>Important updates can reach you across WhatsApp, SMS, email or phone, so you’re less likely to miss what matters.</span>
+                  <span>Updates reach you on WhatsApp, SMS, email or phone — wherever you already are.</span>
                 </li>
                 <li>
                   <strong>Follow-ups happen automatically.</strong>
-                  <span>If something doesn’t go through or needs another nudge, it is tracked and followed up without waiting for you to chase it.</span>
+                  <span>If something fails or needs chasing, we chase it. You don’t have to.</span>
                 </li>
               </ul>
             </div>
