@@ -583,11 +583,18 @@ def test_a_failed_delivery_copy_downgrades_rather_than_failing_the_upload():
 WA_DELIVERY = FUNC_DIR / "whatsapp_delivery.py"
 
 
-def test_delivery_uses_the_already_approved_templates():
-    """Both templates exist and are APPROVED, so nothing waits on Meta."""
+def test_delivery_uses_approved_templates():
+    """Both defaults must name a template Meta has APPROVED, so a send never depends on
+    an approval that has not landed.
+
+    wd_file_delivery replaced 01_wecare_doc once Meta approved it; 01_wecare_doc remains
+    a valid rollback value for WA_DOC_TEMPLATE.
+    """
     source = WA_DELIVERY.read_text()
     assert '"WA_PAY_TEMPLATE", "wecare_pay"' in source
-    assert '"WA_DOC_TEMPLATE", "01_wecare_doc"' in source
+    assert '"WA_DOC_TEMPLATE", "wd_file_delivery"' in source
+    # and the parameterised template must be declared as such, or Meta rejects the send
+    assert '"wd_file_delivery"' in source.split("TEMPLATES_WITH_BODY_VARS")[1][:80]
 
 
 def test_the_document_goes_by_media_id_not_a_url():
