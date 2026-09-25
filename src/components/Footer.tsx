@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import BrandLockup from './BrandLockup';
 
 /**
@@ -12,75 +12,184 @@ import BrandLockup from './BrandLockup';
  *    imported src/styles/*.css declares unscoped rules for generic names -
  *    including `.layout ~ .ftr{position:fixed}`, which would turn a footer this
  *    tall into an overlay pinned across the viewport.
+ *
+ * WHAT THIS FOOTER DELIBERATELY DOES NOT CONTAIN, all on owner instruction:
+ *  - No Terms / Privacy / Contact links. Those live in the header dropdown, and
+ *    repeating them here would duplicate navigation rather than add anything.
+ *  - No copyright or year line. A dated "(c) 2026" reads as stale the moment the
+ *    year turns, and nothing here needs it.
+ *  - No social icons. The company has no social accounts, so an icon row would
+ *    point at profiles that do not exist.
+ *  - Nothing on the right-hand side at all. It previously held a text link reading
+ *    "WECARE.DIGITAL" pointing at https://wecare.digital - which was both a second
+ *    copy of the name already set in the lockup on the left, and, on this site, a
+ *    link to the page you were already on. Removed rather than replaced.
  */
-const Footer: React.FC = () => (
+const Footer: React.FC = () => {
+  const dashRef = useRef<HTMLElement | null>( null );
+
+  /**
+   * The lime dash draws itself in WHEN IT COMES INTO VIEW, not on page load.
+   *
+   * The footer sits below the fold on every page, so a load-time CSS animation would
+   * play to an empty viewport and be finished before anyone scrolled down to it - the
+   * same trap the home page's closing rule documents.
+   *
+   * THE ANIMATION IS OPT-IN, NOT OPT-OUT, and that inversion is the important part. The
+   * CSS below ships the FINAL state (the dash fully drawn). This effect adds .is-armed to
+   * hide the start state only once it knows it can animate, then .is-in to play it. So no
+   * JS, no IntersectionObserver, or reduced motion all leave the dash simply visible
+   * instead of stuck at scaleX(0) - an entrance effect must never be the reason something
+   * cannot be seen.
+   *
+   * classList rather than state, deliberately: this is a visual side-effect that does not
+   * change what React renders, so driving the node directly avoids a re-render on scroll.
+   */
+  useEffect( () => {
+    const el = dashRef.current;
+    if ( !el ) return undefined;
+    if ( typeof IntersectionObserver === 'undefined' ) return undefined;
+    if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) return undefined;
+
+    el.classList.add( 'is-armed' );
+    const io = new IntersectionObserver(
+      entries => {
+        if ( entries.some( e => e.isIntersecting ) ) {
+          el.classList.add( 'is-in' );
+          io.disconnect(); // One-shot: an entrance, not a scroll effect.
+        }
+      },
+      { threshold: 0.6 }
+    );
+    io.observe( el );
+    return () => io.disconnect();
+  }, [] );
+
+  return (
   <footer className="ft-footer">
     <div className="ft-in">
       <div className="ft-grid">
         <div className="ft-brand">
-          <BrandLockup />
+          {/* THE LOCKUP IS THE LINK HOME, and it is `compact`.
+              Both are corrections. It used to be a bare <BrandLockup /> - not clickable -
+              while the redundant text copy of the name on the right WAS a link, so the
+              footer made the wrong element interactive. And it rendered at the header's
+              full 60px/23px scale, so the footer signature was exactly as large as the
+              page's primary brand; `compact` steps it to 44px/18px, same shape, clear
+              hierarchy.
+              A plain <a> rather than next/link: styled-jsx does not scope capitalised
+              components, and on a trailingSlash export '/' resolves the same either way. */}
+          <a className="ft-home" href="/" aria-label="WECARE.DIGITAL home">
+            <BrandLockup compact />
+          </a>
+          {/* The tagline carries a hover, on owner instruction: the lime underline sweeps
+              in from the left, which is the same gesture the header's menu rows use, so
+              the two surfaces answer to one visual language.
+              IT IS NOT A LINK, deliberately. There is no destination the owner has
+              approved for it, and inventing one would mean a hover that promises a click
+              and lands somewhere arbitrary. cursor stays default for that reason. If it
+              should become a link later, wrap it in an <a> and the sweep still applies. */}
           <p className="ft-tagline">Trusted everyday services for Bharat</p>
         </div>
 
-        {/* Links out to the company site. It was a bare span, so the one place on every
-            public page that names WECARE.DIGITAL was not clickable. External and
-            cross-origin, hence rel="noopener" - and a plain anchor rather than next/link
-            because this leaves the app entirely. */}
-        <a className="ft-mark" href="https://wecare.digital" rel="noopener noreferrer">WECARE.DIGITAL</a>
+        {/* The right-hand brand dash. Purely decorative, hence aria-hidden and a <span>
+            rather than an <hr> - it separates nothing and announcing it would be noise.
+            It is the same motif as .home-close-rule on the home page and .wt-lane-bar in
+            the workflow panel: a short lime rule, drawn with transform so the reveal is
+            compositor-only. Chosen over the alternative of three coloured dots because
+            those would have imported the home page's per-subject hues (which carry
+            meaning there and none here) and read as a status light. */}
+        <span className="ft-dash" ref={ dashRef } aria-hidden="true" />
       </div>
     </div>
 
     <style jsx>{`
-      /* No divider rules anywhere: navigation lives in the header dropdown and
-         contact is handled by the floating widget, so the footer is reduced to a
-         brand signature. The bottom padding keeps the safe-area inset the
-         Capacitor iOS/Android shells depend on. */
-      .ft-footer{background:#fff;padding:64px 0 40px;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+      /* A hairline above the footer. Without it the footer background is the same #fff as
+         the page with nothing between them, so the brand block read as loose content at
+         the bottom of the last section rather than as a footer. #eef0e6 is the faint
+         warm-neutral the nav dividers use, not a grey that would sit colder than the
+         palette.
+         The bottom padding keeps the safe-area inset the Capacitor iOS/Android shells
+         depend on. */
+      .ft-footer{background:#fff;border-top:1px solid #eef0e6;padding:56px 0 40px;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
       .ft-in{max-width:1300px;margin:0 auto;padding:0 24px}
 
+      /* Left-aligned with nothing opposite it, by instruction. Kept as a flex row rather
+         than collapsed to a block so that adding a right-hand element later needs no
+         structural change. */
       .ft-grid{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}
 
-      .ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:16px;min-width:0}
-      .ft-tagline{font-size:15px;line-height:1.6;color:#9ca3af;margin:0;max-width:320px}
+      .ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:14px;min-width:0}
 
-      /* No underline in either state, by request - it previously appeared on hover.
-         That leaves colour as the only hover signal, which is fine for a standalone
-         mark, but colour alone is NOT an adequate keyboard focus indicator. So
-         :focus-visible is split out of the hover rule and gets a real ring rather
-         than inheriting a style that no longer draws anything. The ring reuses the
-         outline the language widget already uses instead of inventing a second one. */
-      /* Hover is the site's lime TRANSIENT tint - rgba(209,244,112,.22) behind
-         #1a3a2a type - not a colour change and not the full-strength #d1f470 fill.
-         The contract defines exactly three lime treatments and assigns that .22 tint
-         to transient state rather than identity; it is what .nav-item and
-         .nav-trigger already do on hover, so this link now answers to the same
-         gesture as the rest of the site instead of inventing a fourth treatment.
-         Full-strength lime is reserved for our own standing surfaces (BrandBadge,
-         .msg.sent, .tab.active) and would have made a hovered footer link look like
-         a permanent badge.
-         Padding and radius exist so the tint has a shape to fill - without them a
-         background on an inline anchor crops tight to the glyphs and reads as a
-         highlighter smear. Negative margin keeps the text optically aligned with the
-         grid edge despite that padding.
-         Base colour moved off #6b7280, a legacy Tailwind grey, onto the palette's
-         muted value rgba(0,0,0,.54) - the same value the contract already pins for
-         pill labels after rgba(0, 0, 0, 0.54) was retired for reading cooler than the neutral
-         text beside it. */
-      .ft-mark{font-size:14px;color:rgba(0,0,0,.54);text-decoration:none;padding:6px 10px;margin:-6px -10px;border-radius:8px;transition:background-color .2s,color .2s}
-      .ft-mark:hover{background:rgba(209,244,112,.22);color:#1a3a2a}
-      .ft-mark:focus-visible{background:rgba(209,244,112,.22);color:#1a3a2a;outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+      /* inline-flex, not block: a block anchor would stretch to the full measure and give
+         the lockup a click target running the width of the page. */
+      .ft-home{display:inline-flex;text-decoration:none;border-radius:10px}
+      .ft-home:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
 
-      /* Account wraps onto the next row before the columns get too narrow. */
+      /* THE TAGLINE'S COLOUR WAS OFF-PALETTE. It was #9ca3af, a legacy Tailwind grey, which
+         rendered the one brand statement on the page as the lightest text in the footer -
+         it read as disabled rather than quiet. rgba(0,0,0,.54) is the palette's muted
+         value, and is what this file's own notes already recorded as the replacement for
+         that family of greys.
+         inline-block so the swept underline can span exactly the text, and position
+         relative so the ::after anchors to it. */
+      .ft-tagline{
+        position:relative;display:inline-block;
+        font-size:15px;line-height:1.6;color:rgba(0,0,0,.54);
+        margin:0;max-width:340px;
+        transition:color .2s;
+      }
+      /* The sweep. transform:scaleX is compositor-only, so it cannot cause layout on any
+         frame the way animating width would; transform-origin:left makes it draw from the
+         left edge. Same .2s and same easing as the header's row sweep. */
+      .ft-tagline::after{
+        content:'';position:absolute;left:0;right:0;bottom:-3px;height:2px;
+        background:#d1f470;
+        transform:scaleX(0);transform-origin:left center;
+        transition:transform .2s cubic-bezier(.16,1,.3,1);
+      }
+      .ft-tagline:hover{color:#1a3a2a}
+      .ft-tagline:hover::after{transform:scaleX(1)}
+
+      /* THE LIME DASH. 56x3px, matching .home-close-rule's 3px lime rule.
+         READ THE .is-armed PATTERN BEFORE CHANGING THIS: the default below is the FINAL,
+         visible state. .is-armed is added by JavaScript only once it has confirmed it can
+         animate, and that is what hides the start state; .is-in then plays the reveal. The
+         effect is therefore additive and the dash is never invisible for lack of JS.
+         transform:scaleX is the whole animation - compositor-only, so it cannot cause
+         layout on any frame the way animating width would. transform-origin:left makes it
+         grow from the left edge. align-self keeps it on the tagline's baseline row rather
+         than stretched by the flex parent. */
+      .ft-dash{
+        display:block;align-self:flex-end;
+        width:56px;height:3px;margin-bottom:6px;
+        background:#d1f470;border-radius:2px;
+        transform-origin:left center;
+        transition:transform .62s cubic-bezier(.22,.61,.36,1);
+      }
+      .ft-dash.is-armed{transform:scaleX(0)}
+      .ft-dash.is-armed.is-in{transform:scaleX(1)}
+
+      @media(prefers-reduced-motion:reduce){
+        .ft-tagline,.ft-tagline::after{transition:none}
+        /* Belt and braces. The effect already never arms under reduced motion, so this is
+           the guard for the case where the preference changes after arming, when the class
+           is already on the node. It kills the movement without hiding the dash. */
+        .ft-dash{transition:none}
+        .ft-dash.is-armed{transform:scaleX(1)}
+      }
+
       @media(max-width:1024px){
-        .ft-footer{padding-top:56px}
+        .ft-footer{padding-top:48px}
       }
       @media(max-width:767px){
-        .ft-footer{padding-top:48px}
+        .ft-footer{padding-top:40px}
         .ft-in{padding:0 20px}
         .ft-grid{flex-direction:column;align-items:flex-start;gap:24px}
       }
     `}</style>
   </footer>
-);
+  );
+};
 
 export default Footer;
