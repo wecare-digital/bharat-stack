@@ -1,0 +1,75 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f4f6;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px}
+h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
+.sub{font-size:13px;color:#555;margin:0 0 20px;max-width:80ch}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.cap{font-size:12px;font-weight:800;letter-spacing:.03em;color:#fff;text-transform:uppercase;padding:7px 12px;border-radius:8px 8px 0 0;display:inline-block}
+.cap-cur{background:#dc2626}.cap-new{background:#3da35a}
+.note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;padding:9px 12px;margin:0 0 10px}
+.note b{color:#111}
+.nav-menu{background:#fff;border-radius:14px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+.nav-search{width:100%;margin:0 0 12px;min-height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:9px 12px;font-size:14px;color:rgba(0,0,0,.42)}
+.nav-cols{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;align-items:start}
+.nav-col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.nav-group{display:flex;flex-direction:column}
+.nav-item{display:flex;align-items:center;min-height:40px;padding:0 12px;font-size:16px;font-weight:600;text-decoration:none;border-radius:8px}
+.cur{border:1px solid #d1f470}
+.cur .nav-group-label{padding:6px 12px 4px;font-size:11px;font-weight:500;letter-spacing:.04em;color:rgba(0,0,0,.42)}
+.cur .nav-item{color:#1a3a2a}
+.cur .nav-item.hov{background:rgba(209,244,112,.22)}
+.cur .nav-item.active{font-weight:800;background:rgba(209,244,112,.22)}
+.new{border:1px solid #d1f470}
+.new .nav-group-label{padding:6px 12px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#3da35a}
+.new .nav-item{color:#1a3a2a}
+.new .nav-item.hov{background:rgba(209,244,112,.38)}
+.new .nav-item.active{font-weight:800;background:#d1f470;color:#0f2a1d}
+</style></head><body>
+<h1>Dropdown — existing vs fixed (same design, colour only)</h1>
+<p class="sub">Look at <b>Home</b> (current page) and <b>VayuLok</b> (hovered). In EXISTING they look identical. In FIXED, the current page is solid lime and hover is a lighter tint — clearly different. Section labels greened + uppercased so they read as headers.</p>
+<div class="two">
+  <div>
+    <div class="cap cap-cur">EXISTING</div>
+    <div class="note"><b>Active = hover = same pale tint</b> (can't tell which page you're on) · labels faint grey.</div>
+    <nav class="nav-menu cur">
+      <input class="nav-search" value="Search" readonly/>
+      <div class="nav-cols">
+        <div class="nav-col">
+          <div class="nav-group"><a class="nav-item active">Home</a></div>
+          <div class="nav-group"><span class="nav-group-label">Products</span>
+            <a class="nav-item">Grahak OS</a><a class="nav-item hov">VayuLok</a><a class="nav-item">Bharat Rx</a>
+          </div>
+        </div>
+        <div class="nav-col">
+          <div class="nav-group"><span class="nav-group-label">Legal Stuff</span>
+            <a class="nav-item">Terms</a><a class="nav-item">Privacy</a>
+          </div>
+          <div class="nav-group"><span class="nav-group-label">Account</span><a class="nav-item">Sign in</a></div>
+        </div>
+      </div>
+    </nav>
+  </div>
+  <div>
+    <div class="cap cap-new">FIXED</div>
+    <div class="note"><b>Active = SOLID lime</b> (clearly "you are here") · hover = lighter tint (distinct) · labels green + uppercase.</div>
+    <nav class="nav-menu new">
+      <input class="nav-search" value="Search" readonly/>
+      <div class="nav-cols">
+        <div class="nav-col">
+          <div class="nav-group"><a class="nav-item active">Home</a></div>
+          <div class="nav-group"><span class="nav-group-label">Products</span>
+            <a class="nav-item">Grahak OS</a><a class="nav-item hov">VayuLok</a><a class="nav-item">Bharat Rx</a>
+          </div>
+        </div>
+        <div class="nav-col">
+          <div class="nav-group"><span class="nav-group-label">Legal Stuff</span>
+            <a class="nav-item">Terms</a><a class="nav-item">Privacy</a>
+          </div>
+          <div class="nav-group"><span class="nav-group-label">Account</span><a class="nav-item">Sign in</a></div>
+        </div>
+      </div>
+    </nav>
+  </div>
+</div>
+</body></html>
