@@ -157,14 +157,13 @@ const COLUMNS: NavColumn[] = [
       // "Refer & Earn", not "Partners", on instruction. It is also the better label: it says
       // what you get rather than what you become, and the destination is the referral-partner
       // product page.
-      // Contact joins this column, under Refer & Earn: both are ways to reach the
-      // company, as opposed to the Selfservice column's request actions. It is a local
-      // page, so it carries `match` and lights up on /contact. The trailing slash is
-      // load-bearing (trailingSlash is set, so /contact would redirect before resolving).
-      { heading: 'Work with us', links: [
-        { label: 'Refer & Earn', href: PARTNERS, external: true },
-        { label: 'Contact', href: '/contact/', match: '/contact' },
-      ] },
+      { heading: 'Work with us', links: [ { label: 'Refer & Earn', href: PARTNERS, external: true } ] },
+      // CONTACT HAS ITS OWN HEADING now, on owner instruction, rather than sitting as a
+      // second row under Work with us. It is its own thing - a way to reach us - so it
+      // gets its own labelled group in this column. Local page, so it carries `match`
+      // and lights up on /contact; the trailing slash is load-bearing (trailingSlash is
+      // set, so /contact would redirect before resolving).
+      { heading: 'Contact', links: [ { label: 'Contact us', href: '/contact/', match: '/contact' } ] },
       // LEGAL STUFF LIVES HERE NOW, under Work with us. It moved out of the middle
       // column (where it sat beneath Selfservice) on owner instruction, so the third
       // column carries the "about the company" rows - Refer & Earn plus the policies -
@@ -499,16 +498,15 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
           /* Contain the scroll chain so flicking the product list to its end does not
              then scroll the page behind the menu. */
           overscroll-behavior:contain;
-          /* The scrollbar hugs the product NAMES, not the far edge of the column.
-             The column is a third of the 760px panel (~240px) but the longest product
-             label is much narrower, so a bar pinned to the column's right edge floated
-             in empty space and read as detached from the list. width:max-content sizes
-             the scroll box to its widest row, so the track sits immediately to the right
-             of the names; max-width stops a very long product name from overflowing the
-             column. A small padding-right gives the bar a little breathing room from the
-             text rather than overlapping the last glyph. */
-          width:max-content;
-          max-width:100%;
+          /* The list fills the column width and the lime scrollbar rides the right edge,
+             with a soft lime DIVIDER LINE just inside it (border-right below) so the bar
+             reads as attached to the list rather than floating in the gutter. Chosen over
+             boxing the list: the sibling columns (Selfservice, Legal) carry no border, so
+             a box around Products alone would make it the odd column out - a line keeps
+             every column looking like the same family while still marking this one as
+             scrollable. padding-right gives the rows breathing room from the divider. */
+          width:100%;
+          border-right:2px solid rgba(209,244,112,.45);
           padding-right:8px;
           /* LIME THEMED SCROLLBAR, not the browser default grey. Firefox uses
              scrollbar-color (thin), WebKit/Blink use the ::-webkit-scrollbar rules below;

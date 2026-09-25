@@ -43,10 +43,11 @@ describe( 'Header', () => {
     expect( screen.queryByRole( 'link', { name: 'Sign in' } ) ).toBeNull();
     expect( screen.queryByText( 'Account' ) ).toBeNull();
 
-    // Contact is BACK, by owner request, and now points at a real local page - so the
-    // assertion that it stays absent is retired rather than failing. Studio and
-    // Sustainability are still retired and those guards stay.
-    expect( screen.getByRole( 'link', { name: 'Contact' } ) ).toHaveAttribute( 'href', '/contact/' );
+    // Contact now has its OWN heading ("Contact") with a single row labelled "Contact
+    // us", both pointing at the real local /contact page. The link name is therefore
+    // "Contact us"; assert that rather than the bare "Contact", which is now the group
+    // heading, not a link. Studio and Sustainability are still retired and those guards stay.
+    expect( screen.getByRole( 'link', { name: 'Contact us' } ) ).toHaveAttribute( 'href', '/contact/' );
     expect( screen.queryByText( 'Studio' ) ).toBeNull();
     expect( screen.queryByText( 'Sustainability' ) ).toBeNull();
   } );
