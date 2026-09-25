@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useCallback, useRef } from 'react';
+import { lockScroll, unlockScroll } from '../../lib/scrollLock';
 
 interface ModalProps {
   isOpen: boolean;
@@ -39,7 +40,9 @@ const Modal: React.FC<ModalProps> = ({
 
     previousFocusRef.current = document.activeElement as HTMLElement;
     document.addEventListener('keydown', handleEsc);
-    document.body.style.overflow = 'hidden';
+    // See src/lib/scrollLock.ts. The page scrolls inside the DOCUMENT, not inside body,
+    // so locking body alone would let the page move behind the modal.
+    lockScroll();
 
     // Focus first focusable element
     const timer = setTimeout(() => {
@@ -54,7 +57,7 @@ const Modal: React.FC<ModalProps> = ({
     return () => {
       clearTimeout(timer);
       document.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = '';
+      unlockScroll();
       previousFocusRef.current?.focus();
     };
   }, [isOpen, handleEsc]);
