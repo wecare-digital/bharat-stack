@@ -584,6 +584,149 @@ def _create_order(file_id: str, identity: Dict[str, Any], origin: str) -> Dict[s
     )
 
 
+def _reconcile_grant(grant_id: str, file_id: str, identity: Dict[str, Any]) -> bool:
+    """Mark an unpaid grant paid if Razorpay says the order was actually captured.
+
+    The safety net for a webhook that never arrives. Returns True only when the grant
+    was genuinely unspent, belongs to this caller and this file, and Razorpay confirms
+    a captured payment.
+
+    Deliberately narrow. It refuses to touch a grant that is already ``consumed``, so
+    it cannot be used to replay a spent download, and it writes ``paid`` through the
+    same conditional guard the webhook uses.
+    """
+    if not _payment_enabled():
+        return False
+
+    table = _table(GRANTS_TABLE)
+    grant = table.get_item(Key={"grantId": grant_id}).get("Item")
+
+    # Every mismatch returns False, so this can never widen who may download what.
+    if not grant:
+        return False
+    if grant.get("fileId") != file_id or grant.get("ownerPhone") != identity["phone"]:
+        return False
+    if grant.get("consumed"):
+        return False
+    if grant.get("paid"):
+        # Already paid but the redeem still failed, so the cause was something else.
+        return False
+
+    order_id = str(grant.get("orderId") or "")
+    if not order_id:
+        return False
+
+    try:
+        from razorpay_orders import order_is_paid
+
+        paid, payment_id, amount_paise = order_is_paid(order_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            json.dumps({"event": "grant_reconcile_failed", "error": type(exc).__name__})
+        )
+        return False
+
+    if not paid:
+        return False
+
+    try:
+        table.update_item(
+            Key={"grantId": grant_id},
+            UpdateExpression=(
+                "SET paid = :true, paymentId = :pid, paidAmountPaise = :amt, "
+                "paidAt = :now, paidVia = :via"
+            ),
+            ConditionExpression="attribute_exists(grantId) AND paid = :false",
+            ExpressionAttributeValues={
+                ":true": True,
+                ":false": False,
+                ":pid": payment_id,
+                ":amt": int(amount_paise),
+                ":now": int(time.time()),
+                # Recorded so it is visible when the webhook is not doing its job.
+                ":via": "reconcile",
+            },
+        )
+    except ClientError:
+        # Lost a race with the webhook. That is a success, not a failure.
+        pass
+
+    logger.info(
+        json.dumps(
+            {
+                "event": "grant_reconciled_from_razorpay",
+                "alert": "WEBHOOK_MAY_NOT_BE_SUBSCRIBED",
+                "fileId": file_id,
+                "amountPaise": int(amount_paise),
+            }
+        )
+    )
+    return True
+
+
+def _redeem_after_reconcile(
+    file_id: str,
+    grant_id: str,
+    identity: Dict[str, Any],
+    item: Dict[str, Any],
+    origin: str,
+):
+    """Spend a grant that reconciliation just marked paid.
+
+    Still a conditional update, still single use - reconciliation changes only whether
+    the grant is payable, never whether it has already been spent.
+    """
+    try:
+        _table(GRANTS_TABLE).update_item(
+            Key={"grantId": grant_id},
+            UpdateExpression="SET consumed = :true, consumedAt = :now",
+            ConditionExpression=(
+                "attribute_exists(grantId) AND fileId = :fid AND ownerPhone = :p "
+                "AND paid = :true AND consumed = :false"
+            ),
+            ExpressionAttributeValues={
+                ":true": True,
+                ":false": False,
+                ":now": int(time.time()),
+                ":fid": file_id,
+                ":p": identity["phone"],
+            },
+        )
+    except ClientError:
+        return cors_response(
+            403,
+            {
+                "error": "GRANT_NOT_REDEEMABLE",
+                "message": "This download link is not valid. Please pay again to download.",
+            },
+            origin,
+        )
+
+    return cors_response(
+        200,
+        {
+            "downloadUrl": _download_url(item),
+            "expiresInSeconds": DOWNLOAD_URL_TTL,
+        },
+        origin,
+    )
+
+
+def _download_url(item: Dict[str, Any]) -> str:
+    """A short-lived presigned GET that downloads under the readable filename."""
+    return _s3_client().generate_presigned_url(
+        "get_object",
+        Params={
+            "Bucket": BUCKET,
+            "Key": item["s3Key"],
+            "ResponseContentDisposition": (
+                f'attachment; filename="{item.get("originalFilename", "download")}"'
+            ),
+        },
+        ExpiresIn=DOWNLOAD_URL_TTL,
+    )
+
+
 def _redeem(file_id: str, event: Dict[str, Any], identity: Dict[str, Any], origin: str):
     """Spend a paid grant for a 60-second presigned URL.
 
@@ -618,30 +761,30 @@ def _redeem(file_id: str, event: Dict[str, Any], identity: Dict[str, Any], origi
             ReturnValues="ALL_NEW",
         )
     except ClientError as exc:
-        if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
-            # unpaid, already spent, expired, or not this caller's - one answer
-            return cors_response(
-                403,
-                {
-                    "error": "GRANT_NOT_REDEEMABLE",
-                    "message": "This download link is not valid. Please pay again to download.",
-                },
-                origin,
-            )
-        raise
+        if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            raise
 
-    url = _s3_client().generate_presigned_url(
-        "get_object",
-        Params={
-            "Bucket": BUCKET,
-            "Key": item["s3Key"],
-            # force a download with the readable name, not the opaque key
-            "ResponseContentDisposition": (
-                f'attachment; filename="{item.get("originalFilename", "download")}"'
-            ),
-        },
-        ExpiresIn=DOWNLOAD_URL_TTL,
-    )
+        # The grant is unpaid, already spent, expired, or not this caller's - the
+        # condition cannot say which. Before refusing, check whether it is merely
+        # unpaid *as far as we know*: the webhook may never have arrived.
+        #
+        # This is the difference between "the customer was charged and gets nothing"
+        # and "the customer waits two seconds". It asks Razorpay directly, which is
+        # the same authority the webhook relays, and never trusts the client.
+        if _reconcile_grant(grant_id, file_id, identity):
+            return _redeem_after_reconcile(file_id, grant_id, identity, item, origin)
+
+        return cors_response(
+            403,
+            {
+                "error": "GRANT_NOT_REDEEMABLE",
+                "message": "This download link is not valid. Please pay again to download.",
+            },
+            origin,
+        )
+
+    # downloads under the readable name, never the opaque key
+    url = _download_url(item)
 
     try:
         _table(FILES_TABLE).update_item(

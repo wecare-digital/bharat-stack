@@ -431,3 +431,47 @@ def test_provisioner_preserves_a_manually_enabled_payment_flag():
     source = (ROOT / "scripts/provision_secure_files_api.py").read_text()
     assert "keep_payment = current_payment_flag() if exists else False" in source
     assert "environment(payment_enabled=keep_payment)" in source
+
+
+# ── webhook-independence, so a missing subscription cannot strand a payment ────
+
+def test_reconcile_only_accepts_a_captured_payment():
+    """`authorized` means held, not taken. Granting on it hands over the file for a
+    payment that can still fail."""
+    source = (FUNC_DIR / "razorpay_orders.py").read_text()
+    assert 'payment.get("status") == "captured"' in source
+    assert '"authorized"' not in source
+
+
+def test_reconcile_cannot_replay_a_spent_grant():
+    """The fallback may only change whether a grant is payable, never unspend it."""
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def _reconcile_grant")[1].split("\ndef ")[0]
+    assert 'grant.get("consumed")' in body
+    assert "return False" in body
+    # it writes paid through the same guard the webhook uses
+    assert 'ConditionExpression="attribute_exists(grantId) AND paid = :false"' in body
+    # and it is inert while payments are off
+    assert "_payment_enabled()" in body
+
+
+def test_reconcile_verifies_ownership_before_paying():
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def _reconcile_grant")[1].split("\ndef ")[0]
+    assert 'grant.get("fileId") != file_id' in body
+    assert 'grant.get("ownerPhone") != identity["phone"]' in body
+
+
+def test_redeem_after_reconcile_is_still_single_use():
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def _redeem_after_reconcile")[1].split("\ndef ")[0]
+    assert "consumed = :false" in body
+    assert "paid = :true" in body
+
+
+def test_reconciliation_is_flagged_in_logs_for_visibility():
+    """If this path ever fires, the webhook is not doing its job and that should be
+    findable rather than silent."""
+    source = (FUNC_DIR / "handler.py").read_text()
+    assert "WEBHOOK_MAY_NOT_BE_SUBSCRIBED" in source
+    assert '":via": "reconcile"' in source

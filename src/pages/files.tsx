@@ -1,24 +1,36 @@
 /**
  * Customer file collection: verify over WhatsApp, pay, download.
  *
+ * Design
+ * ------
+ * Matches the home page's language rather than inventing one: the #d1f470 lime with
+ * #1a3a2a on top of it, 14px-radius panels with 2px borders, the 50px pill CTA, and
+ * the site's section-heading rung clamp(28px,3.2vw,40px)/700/1.08/-1.2px - byte for
+ * byte the declaration used by .home-flow-title, .home-close-title, .cl-h2 and the
+ * rest. Body copy sits on the one body level, 20px/400/1.4/-.125px. If those rungs
+ * are retuned site-wide, retune this too; `node tools/browser/typecheck.js` reports
+ * the gaps.
+ *
  * Why this page is at /files and not under /get
  * ---------------------------------------------
- * `/get/<*>` is an Amplify 200-rewrite onto the CloudFront distribution that serves
- * the file bucket, so nothing under that path ever reaches Next.js. This page has
- * to live on a path Amplify still routes to the app.
+ * `/get/<*>` is an Amplify 200-rewrite onto the CloudFront distribution in front of
+ * the file bucket, so nothing under that path reaches Next.js at all.
+ *
+ * It also has to be in the public allowlist in `_app.tsx`. Without that entry it
+ * renders the staff Authenticator at HTTP 200 - which is how it shipped the first
+ * time.
  *
  * The trust model, which is the whole point
  * -----------------------------------------
  * Razorpay Checkout's success callback fires in the browser and is therefore
  * forgeable - anyone can call it. So it is used only to stop showing the spinner.
- * Entitlement comes from the server: the Razorpay webhook verifies its HMAC
- * signature and sets `paid` on the grant, and only then does the redeem call
- * succeed. That is why this polls after checkout instead of downloading straight
- * from the callback.
+ * Entitlement comes from the server: the redeem call succeeds only once the payment
+ * is confirmed, either by the signature-verified webhook or by the backend asking
+ * Razorpay directly. That is why this polls after checkout instead of downloading
+ * straight from the callback.
  *
- * A grant is single use. The redeem endpoint spends it with a conditional write, so
- * a failed redeem must not be retried blindly - a second call on a spent grant is
- * indistinguishable from an unpaid one, by design.
+ * A grant is single use. A failed redeem must not be retried blindly - a second call
+ * on a spent grant is indistinguishable from an unpaid one, by design.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -35,8 +47,8 @@ declare global {
 
 const CHECKOUT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
 
-/** Load Checkout once, on demand. Not in _document, so the script costs nothing
- *  for the majority of visitors who never reach the payment step. */
+/** Load Checkout once, on demand. Not in _document, so the script costs nothing for
+ *  the majority of visitors who never reach the payment step. */
 function loadCheckout (): Promise<void> {
     return new Promise( ( resolve, reject ) => {
         if ( typeof window === 'undefined' ) { reject( new Error( 'no window' ) ); return; }
@@ -67,10 +79,10 @@ function formatBytes ( bytes: number ): string {
 const rupees = ( paise: number ) => `₹${( ( paise || 0 ) / 100 ).toFixed( 0 )}`;
 
 /**
- * Poll redeem until the webhook has marked the grant paid.
+ * Poll redeem until the payment is confirmed server-side.
  *
  * Razorpay's callback means "the customer submitted payment", not "we have been told
- * it captured". The webhook normally lands within a second or two; this gives it
+ * it captured". Confirmation normally lands within a second or two; this gives it
  * ~40s before admitting defeat.
  *
  * A 403 here means "not payable yet" far more often than "already spent", because
@@ -78,8 +90,7 @@ const rupees = ( paise: number ) => `₹${( ( paise || 0 ) / 100 ).toFixed( 0 )}
  * returns the same answer for both, so waiting is the only sensible reading.
  *
  * Lives at module scope, not in the component: it touches no state, and `Date.now()`
- * inside a function defined in the render body is treated as an impure call during
- * render.
+ * inside a function defined in the render body counts as an impure call during render.
  */
 async function pollForDownload ( fileId: string, grantId: string ): Promise<string> {
     const deadline = Date.now() + 40_000;
@@ -93,7 +104,7 @@ async function pollForDownload ( fileId: string, grantId: string ): Promise<stri
     }
     throw new Error(
         'Payment received but the confirmation has not arrived yet. '
-        + 'Your file will be available shortly - please reload this page.',
+        + 'Your file will be available shortly — please reload this page.',
     );
 }
 
@@ -231,10 +242,10 @@ export default function FilesPage () {
                     name: 'WECARE.DIGITAL',
                     description: file.displayName,
                     // Forgeable, so it only ends the wait. Entitlement is decided
-                    // server-side by the signed webhook.
+                    // server-side.
                     handler: () => resolve(),
                     modal: { ondismiss: () => reject( new Error( 'Payment cancelled' ) ) },
-                    theme: { color: '#0b6' },
+                    theme: { color: '#d1f470' },
                 } );
                 checkout.open();
             } );
@@ -257,68 +268,42 @@ export default function FilesPage () {
         }
     };
 
-    const shell: React.CSSProperties = {
-        minHeight: '100vh', display: 'grid', placeItems: 'center',
-        padding: '24px', background: 'var(--bg, #fafafa)',
-    };
-    const card: React.CSSProperties = {
-        width: '100%', maxWidth: '520px', background: 'var(--surface, #fff)',
-        border: '1px solid var(--border, #e5e5e5)', borderRadius: '14px', padding: '28px',
-    };
-    const input: React.CSSProperties = {
-        width: '100%', padding: '12px 14px', borderRadius: '8px', fontSize: '16px',
-        border: '1px solid var(--border, #d4d4d4)', marginBottom: '14px',
-    };
-    const button: React.CSSProperties = {
-        width: '100%', padding: '12px 16px', borderRadius: '8px', border: 0,
-        background: '#0b6', color: '#fff', fontSize: '16px', fontWeight: 600,
-        cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
-    };
-
     return (
         <>
-            {/* noindex: this is a personal collection point, not a marketing page.
-                There is nothing here for a crawler, and an indexed URL inviting a
-                phone number is a phishing template waiting to be copied. */}
+            {/* noindex: a personal collection point, not a marketing page. There is
+                nothing here for a crawler, and an indexed URL inviting a phone number
+                is a phishing template waiting to be copied. */}
             <SEO
                 title="Your files"
                 description="Collect files shared with you by WECARE.DIGITAL"
                 noindex
             />
-            <main style={ shell }>
-                <div style={ card }>
-                    <h1 style={ { fontSize: '20px', margin: '0 0 6px' } }>Your files</h1>
-                    <p style={ { color: '#666', fontSize: '14px', margin: '0 0 22px' } }>
+
+            <main className="sf-shell" aria-label="Your files">
+                <div className="sf-panel">
+                    <p className="sf-eyebrow">WECARE.DIGITAL</p>
+                    <h1 className="sf-title">
+                        { stage === 'files' ? 'Your files' : 'Collect your files' }
+                    </h1>
+                    <p className="sf-lead">
                         { stage === 'files'
-                            ? 'Files shared with your number.'
+                            ? 'Shared with your number.'
                             : 'Verify your mobile number on WhatsApp to collect files shared with you.' }
                     </p>
 
                     { error && (
-                        <div role="alert" style={ {
-                            background: '#fee2e2', border: '1px solid #ef4444', color: '#991b1b',
-                            borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '14px',
-                        } }>
-                            { error }
-                        </div>
+                        <div className="sf-note sf-note-bad" role="alert">{ error }</div>
                     ) }
                     { message && !error && (
-                        <div role="status" style={ {
-                            background: '#dcfce7', border: '1px solid #16a34a', color: '#166534',
-                            borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '14px',
-                        } }>
-                            { message }
-                        </div>
+                        <div className="sf-note sf-note-ok" role="status">{ message }</div>
                     ) }
 
                     { stage === 'mobile' && (
-                        <>
-                            <label htmlFor="mobile" style={ { fontSize: '14px', color: '#555' } }>
-                                Mobile number
-                            </label>
+                        <div className="sf-form">
+                            <label className="sf-label" htmlFor="mobile">Mobile number</label>
                             <input
                                 id="mobile"
-                                style={ { ...input, marginTop: '6px' } }
+                                className="sf-input"
                                 value={ mobile }
                                 onChange={ e => setMobile( e.target.value ) }
                                 placeholder="8100640044"
@@ -326,73 +311,62 @@ export default function FilesPage () {
                                 autoComplete="tel"
                                 disabled={ busy }
                             />
-                            <button style={ button } onClick={ handleRequestOtp } disabled={ busy }>
+                            <button className="sf-cta" onClick={ handleRequestOtp } disabled={ busy }>
                                 { busy ? 'Sending…' : 'Send code on WhatsApp' }
                             </button>
-                        </>
+                        </div>
                     ) }
 
                     { stage === 'otp' && (
-                        <>
-                            <p style={ { fontSize: '14px', color: '#555', margin: '0 0 12px' } }>
-                                Enter the 6-digit code sent to { destination || 'your number' }.
-                            </p>
-                            <label htmlFor="code" style={ { fontSize: '14px', color: '#555' } }>
-                                Verification code
+                        <div className="sf-form">
+                            <label className="sf-label" htmlFor="code">
+                                Code sent to { destination || 'your number' }
                             </label>
                             <input
                                 id="code"
-                                style={ { ...input, marginTop: '6px', letterSpacing: '0.3em', fontSize: '20px' } }
+                                className="sf-input sf-input-code"
                                 value={ code }
                                 onChange={ e => setCode( e.target.value.replace( /\D/g, '' ).slice( 0, 6 ) ) }
-                                placeholder="------"
+                                placeholder="——————"
                                 inputMode="numeric"
                                 autoComplete="one-time-code"
                                 disabled={ busy }
                             />
                             <button
-                                style={ button }
+                                className="sf-cta"
                                 onClick={ handleSubmitOtp }
                                 disabled={ busy || code.length < 4 }
                             >
                                 { busy ? 'Verifying…' : 'Verify' }
                             </button>
                             <button
-                                style={ {
-                                    width: '100%', marginTop: '10px', padding: '10px', border: 0,
-                                    background: 'transparent', color: '#666', cursor: 'pointer', fontSize: '14px',
-                                } }
+                                className="sf-quiet"
                                 onClick={ () => { setStage( 'mobile' ); setCode( '' ); setMessage( '' ); } }
                                 disabled={ busy }
                             >
                                 Use a different number
                             </button>
-                        </>
+                        </div>
                     ) }
 
                     { stage === 'files' && (
-                        <>
+                        <div className="sf-form">
                             { files.length === 0 && (
-                                <p style={ { color: '#666', fontSize: '14px' } }>
+                                <p className="sf-empty">
                                     There are no files shared with your number right now.
                                 </p>
                             ) }
 
                             { files.map( file => (
-                                <div key={ file.fileId } style={ {
-                                    border: '1px solid var(--border, #e5e5e5)', borderRadius: '10px',
-                                    padding: '16px', marginBottom: '12px',
-                                } }>
-                                    <div style={ { fontWeight: 600, fontSize: '15px' } }>
-                                        { file.displayName }
-                                    </div>
-                                    <div style={ { color: '#777', fontSize: '13px', margin: '4px 0 12px' } }>
+                                <div key={ file.fileId } className="sf-file">
+                                    <div className="sf-file-name">{ file.displayName }</div>
+                                    <div className="sf-file-meta">
                                         { formatBytes( file.sizeBytes ) }
                                         { file.downloadCount > 0
                                             && ` · downloaded ${file.downloadCount} time${file.downloadCount === 1 ? '' : 's'}` }
                                     </div>
                                     <button
-                                        style={ { ...button, opacity: working ? 0.6 : 1 } }
+                                        className="sf-cta"
                                         onClick={ () => handlePayAndDownload( file ) }
                                         disabled={ !!working }
                                     >
@@ -403,22 +377,126 @@ export default function FilesPage () {
                                 </div>
                             ) ) }
 
-                            <p style={ { color: '#888', fontSize: '12px', marginTop: '18px' } }>
-                                Each download is charged separately.
-                            </p>
+                            <p className="sf-fine">Each download is charged separately.</p>
                             <button
-                                style={ {
-                                    width: '100%', marginTop: '6px', padding: '10px', border: 0,
-                                    background: 'transparent', color: '#666', cursor: 'pointer', fontSize: '14px',
-                                } }
+                                className="sf-quiet"
                                 onClick={ () => { clearSession(); setStage( 'mobile' ); setFiles( [] ); } }
                             >
                                 Sign out
                             </button>
-                        </>
+                        </div>
                     ) }
                 </div>
             </main>
+
+            <style jsx>{ `
+                /* Centred single panel. The public header is fixed at 108px, dropping to
+                   96px below 768px, so the shell pads for it rather than sliding under. */
+                .sf-shell{
+                  min-height:100vh;display:grid;place-items:center;
+                  padding:calc(108px + 32px) 20px 64px;
+                }
+                @media(max-width:768px){ .sf-shell{padding:calc(96px + 24px) 16px 48px} }
+
+                /* Same panel treatment as .home-close-panel: 2px lime border, 14px
+                   radius, the tint at .22 alpha. */
+                .sf-panel{
+                  width:100%;max-width:560px;
+                  padding:clamp(28px,4vw,56px);
+                  border:2px solid #d1f470;border-radius:14px;
+                  background:rgba(209,244,112,.22);
+                }
+
+                .sf-eyebrow{
+                  margin:0 0 14px;font-size:12px;font-weight:700;
+                  letter-spacing:.08em;text-transform:uppercase;color:#1a3a2a;
+                }
+                /* The site's section-heading rung, identical to .home-close-title. */
+                .sf-title{
+                  margin:0 0 16px;font-size:clamp(28px,3.2vw,40px);font-weight:700;
+                  line-height:1.08;letter-spacing:-1.2px;color:rgba(0,0,0,.95);
+                }
+                /* The one body level. */
+                .sf-lead{
+                  margin:0 0 28px;font-size:20px;font-weight:400;line-height:1.4;
+                  letter-spacing:-.125px;color:rgba(0,0,0,.898);
+                }
+
+                .sf-form{display:block}
+
+                .sf-label{
+                  display:block;margin:0 0 8px;font-size:14px;font-weight:600;
+                  letter-spacing:-.1px;color:#1a3a2a;
+                }
+                /* 16px minimum: anything smaller makes iOS Safari zoom the viewport on
+                   focus, which on a one-field form looks like the page jumping. */
+                .sf-input{
+                  width:100%;box-sizing:border-box;min-height:52px;padding:0 16px;
+                  margin:0 0 18px;font-size:16px;color:rgba(0,0,0,.95);
+                  background:#fff;border:2px solid rgba(26,58,42,.18);border-radius:12px;
+                  transition:border-color .2s;
+                }
+                .sf-input:focus{outline:none;border-color:#1a3a2a}
+                .sf-input:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+                .sf-input:disabled{opacity:.6}
+                .sf-input-code{
+                  letter-spacing:.34em;font-size:22px;font-weight:600;text-align:center;
+                }
+
+                /* The home page CTA: 52px, 50px pill, lime fill, inverting to white. */
+                .sf-cta{
+                  display:inline-flex;align-items:center;justify-content:center;
+                  width:100%;min-height:52px;padding:0 28px;
+                  border:2px solid #d1f470;border-radius:50px;background:#d1f470;
+                  color:#1a3a2a;font-size:17px;font-weight:600;cursor:pointer;
+                  transition:background-color .2s,transform .2s,box-shadow .2s;
+                }
+                .sf-cta:hover:not(:disabled){
+                  background:#fff;transform:translateY(-2px);
+                  box-shadow:0 4px 12px rgba(26,58,42,.12);
+                }
+                .sf-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+                .sf-cta:disabled{opacity:.55;cursor:default}
+
+                .sf-quiet{
+                  display:block;width:100%;margin-top:12px;padding:10px;
+                  border:0;background:transparent;color:rgba(26,58,42,.72);
+                  font-size:15px;cursor:pointer;
+                }
+                .sf-quiet:hover{color:#1a3a2a;text-decoration:underline}
+                .sf-quiet:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+
+                /* White card on the tinted panel, so each file reads as its own object. */
+                .sf-file{
+                  padding:20px;margin:0 0 14px;background:#fff;
+                  border:2px solid rgba(26,58,42,.12);border-radius:12px;
+                }
+                .sf-file-name{
+                  font-size:17px;font-weight:600;letter-spacing:-.2px;color:rgba(0,0,0,.95);
+                }
+                .sf-file-meta{
+                  margin:6px 0 16px;font-size:14px;color:rgba(26,58,42,.68);
+                }
+
+                .sf-empty,.sf-fine{
+                  font-size:15px;line-height:1.5;color:rgba(26,58,42,.72);margin:0;
+                }
+                .sf-fine{margin-top:18px;font-size:13px}
+
+                /* Status banners. Colour is never the only signal - each carries role
+                   alert or status, so a screen reader announces them regardless. */
+                .sf-note{
+                  margin:0 0 20px;padding:12px 16px;border-radius:12px;
+                  font-size:15px;line-height:1.45;border:2px solid;
+                }
+                .sf-note-bad{background:#fee2e2;border-color:#ef4444;color:#7f1d1d}
+                .sf-note-ok{background:#fff;border-color:#1a3a2a;color:#1a3a2a}
+
+                @media(prefers-reduced-motion:reduce){
+                  .sf-cta,.sf-input{transition:none}
+                  .sf-cta:hover:not(:disabled){transform:none}
+                }
+            ` }</style>
         </>
     );
 }

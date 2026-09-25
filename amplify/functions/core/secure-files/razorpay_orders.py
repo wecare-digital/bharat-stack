@@ -49,6 +49,7 @@ import base64
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any, Dict, Optional
 
@@ -132,3 +133,57 @@ def create_order(*, amount_paise: int, receipt: str, notes: Dict[str, Any]) -> D
 
     order["key_id"] = creds["key_id"]
     return order
+
+
+def order_is_paid(order_id: str) -> tuple[bool, str, int]:
+    """Ask Razorpay directly whether an order has a captured payment.
+
+    Returns ``(paid, payment_id, amount_paise)``.
+
+    Why this exists
+    ---------------
+    The webhook is the primary path and stays authoritative, but it is an external
+    dependency that can be unsubscribed, misconfigured or simply delayed, and the
+    failure mode is the worst one available: the customer is charged and never
+    receives the file.
+
+    Measured on this account 2026-09-25: the Razorpay webhook endpoint is live and
+    delivering (316 events in ~25 hours), but every single one was
+    ``payment.downtime.*``, and no payment has ever been captured here - so whether
+    ``payment.captured`` is subscribed could not be confirmed from our side at all.
+    Rather than depend on a dashboard setting nobody can verify from the code, the
+    redeem path falls back to asking Razorpay.
+
+    This is not a weaker check than the webhook. Both ultimately trust Razorpay; the
+    webhook trusts a signed payload it was sent, this trusts an authenticated
+    response to a request we made. What it must never become is a check against
+    something the *client* said.
+
+    Only ``captured`` counts. ``authorized`` means the money is held but not taken,
+    and granting on it would hand over the file for a payment that can still fail.
+    """
+    creds = _credentials()
+    token = base64.b64encode(
+        f"{creds['key_id']}:{creds['key_secret']}".encode("utf-8")
+    ).decode("ascii")
+
+    request = urllib.request.Request(
+        f"{ORDERS_ENDPOINT}/{urllib.parse.quote(order_id, safe='')}/payments",
+        method="GET",
+        headers={"Authorization": f"Basic {token}"},
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        # Status only: the request carried basic auth, and Razorpay's error bodies
+        # echo request context.
+        raise RuntimeError(f"Razorpay order lookup failed with HTTP {exc.code}") from None
+    except urllib.error.URLError:
+        raise RuntimeError("Razorpay unreachable") from None
+
+    for payment in payload.get("items", []) or []:
+        if payment.get("status") == "captured":
+            return True, str(payment.get("id") or ""), int(payment.get("amount") or 0)
+    return False, "", 0
