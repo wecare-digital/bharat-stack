@@ -44,14 +44,14 @@ const ROUTES = [
 ];
 
 /**
- * The retired URLs from RETIRED_ROUTES in _app.tsx. Asserted separately and with different
- * rules: these SHOULD be noindex and SHOULD point their canonical at somewhere else, which
- * is the opposite of what is required of a marketing page.
+ * Formerly-published URLs whose in-repo redirect stubs were removed on owner instruction.
+ * They no longer exist in the export; the 301 to /contact/ is now expected at the CDN
+ * (Amplify Console) and is not visible to this harness. Asserted only as "must not serve
+ * a 200 page" and "must not appear in the sitemap".
  */
 const RETIRED = [
   '/selfservice/', '/product-page/', '/product-page/partner-up/', '/product-page/referral-partner/',
 ];
-const RETIRED_TARGET = '/contact/';
 
 /**
  * The sitewide fallback og:title from _app.tsx. Correct on '/', which IS the company page,
@@ -149,30 +149,17 @@ async function main() {
     }
 
     /**
-     * THE RETIRED STUBS ARE READ AS RAW HTML, NOT FROM THE RENDERED DOM, and that is not a
-     * shortcut - it is the only way to see them. They carry <meta http-equiv="refresh"
-     * content="0;url=/contact/">, which fires the instant the document parses, so by the
-     * time Playwright can evaluate anything the browser is already on /contact/ and
-     * readHead() returns /contact/'s head. The first run of this harness did exactly that
-     * and reported all four stubs as "not noindex, refresh is null" while the stubs were
-     * completely correct: a redirect working too well looked identical to a broken head.
-     * Raw HTML is also the honest thing to assert here, because it is what a crawler that
-     * does not execute JavaScript receives - which is the audience these tags are for.
+     * THE IN-REPO REDIRECT STUBS WERE REMOVED (owner instruction). /selfservice and
+     * /product-page/* no longer exist in the export, so the origin returns the 404 page
+     * for them. The redirect to /contact/ is now expected to live at the CDN (Amplify
+     * Console: Rewrites and redirects), which this static export cannot express and this
+     * harness - serving out/ or a plain origin - cannot see. So the assertion here is
+     * narrowed to what IS true of the export: the stub routes are gone. Read as raw HTML
+     * over HTTP, which is what a non-JS crawler receives.
      */
     for ( const route of RETIRED ) {
       const res = await fetch( t.base + route, { redirect: 'manual' } );
-      retiredHeads[ route ] = { status: res.status, html: res.status === 200 ? await res.text() : '' };
-    }
-
-    /**
-     * And then prove the redirect actually happens, which the raw HTML cannot tell us.
-     * waitUntil:'load' plus a settle window lets the refresh and the router.replace run;
-     * the assertion is on the FINAL url, so it passes whichever of the two layers won.
-     */
-    for ( const route of RETIRED ) {
-      await page.goto( t.base + route, { waitUntil: 'load' } );
-      await page.waitForTimeout( 1200 );
-      retiredHeads[ route ].landedOn = new URL( page.url() ).pathname;
+      retiredHeads[ route ] = { status: res.status };
     }
     await context.close();
 
@@ -291,33 +278,23 @@ async function main() {
       idClashes.length ? idClashes.join( '; ' ) : 'no conflicting entities' );
 
     // ---- Retired URLs ----------------------------------------------------
-    console.log( '\nRetired URLs (RETIRED_ROUTES in _app.tsx)' );
-    const retiredProblems = [], notLanded = [];
-    const pick = ( html, re ) => { const m = re.exec( html ); return m ? m[ 1 ] : null; };
+    // The in-repo redirect stubs were removed on owner instruction; the CDN 301 to
+    // /contact/ (if configured) is not visible to this harness. So the only thing the
+    // export can be held to is that these routes no longer ship a page: a request for
+    // them must NOT return a 200 with real content. The 404 page returning 404 is correct.
+    console.log( '\nRetired URLs (stubs removed - expect no 200 from the export)' );
+    const stillServed = [];
     for ( const route of RETIRED ) {
       const h = retiredHeads[ route ];
-      if ( !h || h.status !== 200 ) { retiredProblems.push( `${route} responded ${h ? h.status : 'nothing'}` ); continue; }
-      const robots = pick( h.html, /name="robots" content="([^"]*)"/ );
-      const refresh = pick( h.html, /http-equiv="refresh" content="([^"]*)"/ );
-      const canonical = pick( h.html, /rel="canonical" href="([^"]*)"/ );
-      console.log( `  ${route} robots="${robots}" refresh="${refresh}" canonical=${canonical} -> landed on ${h.landedOn}` );
-      // noindex keeps a contentless stub out of the index; follow lets a crawler pass
-      // through to the destination. Both halves matter.
-      if ( !/noindex/.test( robots || '' ) ) retiredProblems.push( `${route} is not noindex` );
-      if ( !/follow/.test( robots || '' ) ) retiredProblems.push( `${route} is not follow` );
-      if ( refresh !== `0;url=${RETIRED_TARGET}` ) retiredProblems.push( `${route} refresh is "${refresh}"` );
-      if ( canonical !== `${SITE}${RETIRED_TARGET}` ) retiredProblems.push( `${route} canonical is ${canonical}` );
-      if ( h.landedOn !== RETIRED_TARGET ) notLanded.push( `${route} landed on ${h.landedOn}` );
+      const status = h ? h.status : 'nothing';
+      console.log( `  ${route} -> ${status}` );
+      if ( h && h.status === 200 ) stillServed.push( `${route} still returns 200` );
     }
-    record( retiredProblems.length === 0,
-      `all ${RETIRED.length} retired URLs are noindex,follow and point at ${RETIRED_TARGET}`,
-      retiredProblems.length ? retiredProblems.join( '; ' ) : 'every stub correct in raw HTML' );
-    record( notLanded.length === 0,
-      `a real browser ends up on ${RETIRED_TARGET} from every retired URL`,
-      notLanded.length ? notLanded.join( '; ' ) : `all ${RETIRED.length} redirect` );
+    record( stillServed.length === 0,
+      `all ${RETIRED.length} retired routes are gone from the export (no 200)`,
+      stillServed.length ? stillServed.join( '; ' ) : 'none serve a page; CDN 301 to /contact/ is console-managed' );
 
-    // The stubs must never be advertised. A sitemap entry for a page whose only job is to
-    // leave is a crawl budget bug, and it would also contradict their own noindex.
+    // They must also never be advertised in the sitemap.
     const smRes = await ( async () => {
       const ctx2 = await browser.newContext();
       const p2 = await ctx2.newPage();
