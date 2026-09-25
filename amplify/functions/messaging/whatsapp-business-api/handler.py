@@ -1873,10 +1873,22 @@ def _meta_resumable_upload(file_bytes: bytes, file_name: str, file_type: str) ->
     """Meta App-level Resumable Upload → returns {h: handle} for template header media."""
     token = _get_meta_token()
     # Step 1: open a session on the app.
-    params = urllib.parse.urlencode({
+    #
+    # appsecret_proof is REQUIRED here and was missing, so this whole path could never
+    # have succeeded - Meta answers:
+    #   "API calls from the server require an appsecret_proof argument" (code 100)
+    # Every other Graph call in this file computes it; this one did not, which is why
+    # no template with a media header could ever be created through this route.
+    open_params = {
         'file_name': file_name, 'file_length': len(file_bytes), 'file_type': file_type,
         'access_token': token,
-    })
+    }
+    app_secret = _get_app_secret()
+    if app_secret:
+        open_params['appsecret_proof'] = hmac.new(
+            app_secret.encode('utf-8'), token.encode('utf-8'), hashlib.sha256
+        ).hexdigest()
+    params = urllib.parse.urlencode(open_params)
     open_url = f'{GRAPH_BASE}/{META_APP_ID}/uploads?{params}'
     try:
         req = urllib.request.Request(open_url, data=b'', method='POST')

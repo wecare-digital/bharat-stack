@@ -108,7 +108,14 @@ META_WABA_ID = os.environ.get("META_WABA_ID", "2094615664435155")
 
 PRICE_PAISE = int(os.environ.get("SECURE_FILE_PRICE_PAISE", "4900"))  # Rs. 49
 UPLOAD_URL_TTL = int(os.environ.get("UPLOAD_URL_TTL_SECONDS", "900"))
+# Web redeem: the browser follows this immediately, so it can be very short.
 DOWNLOAD_URL_TTL = int(os.environ.get("DOWNLOAD_URL_TTL_SECONDS", "60"))
+# WhatsApp link delivery: a person reads a message and taps when they get to it, which
+# is not within 60 seconds. Sending a URL that has already expired by the time it is
+# read is worse than useless - the customer has paid and sees a failure. 24 hours is
+# the ceiling anyway, since SigV4 presigned URLs signed with temporary Lambda
+# credentials cannot outlive the role session.
+WHATSAPP_LINK_TTL = int(os.environ.get("WHATSAPP_LINK_TTL_SECONDS", str(6 * 3600)))
 GRANT_TTL = int(os.environ.get("GRANT_TTL_SECONDS", "1800"))
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(200 * 1024 * 1024)))
 
@@ -800,8 +807,13 @@ def _redeem_after_reconcile(
     )
 
 
-def _download_url(item: Dict[str, Any]) -> str:
-    """A short-lived presigned GET that downloads under the readable filename."""
+def _download_url(item: Dict[str, Any], ttl: Optional[int] = None) -> str:
+    """A presigned GET that downloads under the readable filename.
+
+    ``ttl`` defaults to the short web value. Pass ``WHATSAPP_LINK_TTL`` when the URL is
+    going into a message a human will read later rather than a redirect a browser
+    follows now.
+    """
     return _s3_client().generate_presigned_url(
         "get_object",
         Params={
@@ -811,7 +823,7 @@ def _download_url(item: Dict[str, Any]) -> str:
                 f'attachment; filename="{item.get("originalFilename", "download")}"'
             ),
         },
-        ExpiresIn=DOWNLOAD_URL_TTL,
+        ExpiresIn=int(ttl or DOWNLOAD_URL_TTL),
     )
 
 
@@ -921,12 +933,40 @@ def deliver_over_whatsapp(grant_id: str) -> Tuple[bool, str]:
 
     phone = str(grant["ownerPhone"])
     if item.get("deliverable") in ("pdf", "image"):
-        return send_document(phone=phone, file_row=item)
+        ok, detail = send_document(phone=phone, file_row=item)
+    else:
+        # Not openable inline on WhatsApp, so send a link instead, on the longer TTL - a
+        # person taps when they read the message, not within the web redeem's 60
+        # seconds. Generated here rather than reusing the redeem route so delivery does
+        # not consume the grant the customer may still redeem on the web.
+        ok, detail = send_download_link(
+            phone=phone,
+            file_row=item,
+            url=_download_url(item, ttl=WHATSAPP_LINK_TTL),
+        )
 
-    # Not openable inline on WhatsApp, so send a short-lived link instead. Generated
-    # here rather than reusing the redeem route so delivery does not consume the grant
-    # the customer may still redeem on the web.
-    return send_download_link(phone=phone, file_row=item, url=_download_url(item))
+    # Record the outcome ON THE GRANT. Until this existed a failed send was only a log
+    # line, while the customer had already paid - so nothing could find the people owed
+    # a file. scripts/reconcile_file_deliveries.py sweeps on exactly these attributes.
+    try:
+        _table(GRANTS_TABLE).update_item(
+            Key={"grantId": grant_id},
+            UpdateExpression=(
+                "SET delivered = :d, deliveryDetail = :detail, deliveryAttemptedAt = :now "
+                "ADD deliveryAttempts :one"
+            ),
+            ExpressionAttributeValues={
+                ":d": bool(ok),
+                ":detail": str(detail)[:200],
+                ":now": int(time.time()),
+                ":one": 1,
+            },
+        )
+    except ClientError:
+        # The send already happened; losing the bookkeeping must not undo it.
+        logger.warning(json.dumps({"event": "delivery_state_write_failed"}))
+
+    return ok, detail
 
 
 def _redeem(file_id: str, event: Dict[str, Any], identity: Dict[str, Any], origin: str):

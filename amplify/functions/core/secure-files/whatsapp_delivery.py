@@ -52,7 +52,17 @@ MEDIA_FUNCTION = os.environ.get(
     "WA_MEDIA_FUNCTION", "wecare-whatsapp-business-api:live"
 )
 PAY_TEMPLATE = os.environ.get("WA_PAY_TEMPLATE", "wecare_pay")
+
+# Defaults to the older approved template so delivery never depends on an approval
+# that has not landed. `wd_file_delivery` was submitted to replace it - it has BODY
+# variables for the customer and file name, and no stray "Subscribe" button - and
+# takes over the moment this env var is pointed at it. Nothing else needs changing:
+# the body-parameter shape below is chosen from the template name.
 DOC_TEMPLATE = os.environ.get("WA_DOC_TEMPLATE", "01_wecare_doc")
+# Templates whose BODY carries {{1}} customer name and {{2}} file name. Keyed by name
+# rather than by a flag, so pointing WA_DOC_TEMPLATE at one cannot desynchronise from
+# the parameters it is sent.
+TEMPLATES_WITH_BODY_VARS = {"wd_file_delivery"}
 META_PHONE_NUMBER_ID = os.environ.get("META_PHONE_NUMBER_ID", "1016149501586345")
 BUCKET = os.environ.get("SECURE_FILES_BUCKET", "wecare-digital-get")
 # Reused from the invoice flow so the payment card carries the same branding.
@@ -213,6 +223,18 @@ def send_document(*, phone: str, file_row: Dict[str, Any]) -> Tuple[bool, str]:
     if not media_id:
         return False, detail
 
+    # Only the purpose-built template can say who the customer is and what the file is
+    # called. Sending these to a template without the placeholders is rejected by Meta
+    # as a parameter mismatch, so the two must move together - hence keying off the
+    # template name rather than a separate switch.
+    if DOC_TEMPLATE in TEMPLATES_WITH_BODY_VARS:
+        template_params = [
+            str(file_row.get("ownerName") or "there")[:60],
+            str(file_row.get("displayName") or "your file")[:60],
+        ]
+    else:
+        template_params = []
+
     status, body = _invoke(
         SENDER_FUNCTION,
         {
@@ -222,7 +244,7 @@ def send_document(*, phone: str, file_row: Dict[str, Any]) -> Tuple[bool, str]:
                     "phoneNumberId": META_PHONE_NUMBER_ID,
                     "isTemplate": True,
                     "templateName": DOC_TEMPLATE,
-                    "templateParams": [],  # 01_wecare_doc has no body variables
+                    "templateParams": template_params,
                     "components": [
                         {
                             "type": "header",

@@ -44,6 +44,59 @@ TEMPLATE_LANGUAGE = os.environ.get("OTP_TEMPLATE_LANGUAGE", "en")
 OTP_TTL_SECONDS = int(os.environ.get("OTP_TTL_SECONDS", "600"))
 MAX_ATTEMPTS = int(os.environ.get("MAX_ATTEMPTS", "3"))
 
+# Probe limiting for the unregistered-number reveal.
+#
+# Telling a caller `registered: "false"` is a usability decision that makes this
+# endpoint enumerable - someone holding a list of numbers could learn which are
+# customers. The answer is NOT to go back to silence, which stranded real people on a
+# code screen no code would ever satisfy. It is to make bulk probing expensive.
+#
+# Counted per number, in DynamoDB with a TTL, because that is the only shared state a
+# Cognito trigger has - the trigger receives no source IP, so IP-based limiting is not
+# available here. Per-number is the right axis anyway: it directly bounds how fast one
+# number can be tested, and an attacker enumerating a list gains nothing from spreading
+# across numbers because each one still has to come back here.
+PROBE_TABLE = os.environ.get("OTP_PROBE_TABLE", "stack-wecare-digital-DownloadGrantsTable")
+PROBE_WINDOW_SECONDS = int(os.environ.get("OTP_PROBE_WINDOW_SECONDS", "3600"))
+PROBE_MAX_PER_WINDOW = int(os.environ.get("OTP_PROBE_MAX_PER_WINDOW", "5"))
+
+_ddb = None
+
+
+def _probe_table():
+    global _ddb
+    if _ddb is None:
+        _ddb = boto3.resource(
+            "dynamodb", region_name=os.environ.get("AWS_REGION", "us-east-1")
+        )
+    return _ddb.Table(PROBE_TABLE)
+
+
+def _probe_budget_exhausted(phone_digits: str) -> bool:
+    """Whether this number has been probed too often lately.
+
+    Fails OPEN on any error. A counter that cannot be read must not be able to lock a
+    paying customer out of their own files; the worst case of failing open is that the
+    enumeration budget is not enforced during a DynamoDB problem, which is a far
+    smaller harm than refusing legitimate verification.
+    """
+    now = int(time.time())
+    try:
+        table = _probe_table()
+        # Reuses the grants table with a distinct key prefix rather than standing up a
+        # table for a counter. Same TTL attribute, so expiry is already handled.
+        result = table.update_item(
+            Key={"grantId": f"otpprobe#{phone_digits}"},
+            UpdateExpression="ADD probes :one SET expiresAt = if_not_exists(expiresAt, :exp)",
+            ExpressionAttributeValues={":one": 1, ":exp": now + PROBE_WINDOW_SECONDS},
+            ReturnValues="ALL_NEW",
+        )
+        count = int(result.get("Attributes", {}).get("probes") or 0)
+    except Exception as exc:  # noqa: BLE001
+        print(json.dumps({"event": "otp_probe_check_failed", "error": type(exc).__name__}))
+        return False
+    return count > PROBE_MAX_PER_WINDOW
+
 
 def _normalise_phone(phone: str) -> str:
     """Return WhatsApp's digits-only E.164 destination."""
@@ -176,7 +229,21 @@ def _create_auth_challenge(event: dict) -> dict:
     # going back to silence would restore the dead end.
     if bool(request.get("userNotFound")):
         event["response"]["publicChallengeParameters"]["destination"] = "********"
-        event["response"]["publicChallengeParameters"]["registered"] = "false"
+        # Rate-limited, so the reveal cannot be used to sweep a list of numbers. Past
+        # the budget the answer becomes indistinguishable from a registered number,
+        # which is the same posture as before the reveal existed - but only for a
+        # caller who has already probed this number five times in an hour, not for
+        # someone who simply mistyped once.
+        # `userName` is TOP-LEVEL on a Cognito trigger event, not inside `request`.
+        # Reading it from `request` yielded an empty string, so the budget check was
+        # skipped and eight consecutive probes all got the reveal.
+        username = str(event.get("userName") or "")
+        digits = "".join(ch for ch in username if ch.isdigit())
+        if digits and _probe_budget_exhausted(digits):
+            print(json.dumps({"event": "otp_probe_budget_exhausted"}))
+            event["response"]["publicChallengeParameters"]["registered"] = "unknown"
+        else:
+            event["response"]["publicChallengeParameters"]["registered"] = "false"
         return event
 
     user_waba = attributes.get("custom:partner_waba_id")

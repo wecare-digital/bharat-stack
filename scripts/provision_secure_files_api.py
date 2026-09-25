@@ -271,7 +271,14 @@ def environment(payment_enabled: bool = False) -> dict:
         "WA_SENDER_FUNCTION": WA_SENDER,
         "WA_MEDIA_FUNCTION": f"{WA_MEDIA}:live",
         "SECURE_FILE_PRICE_PAISE": "4900",
+        # Web redeem: a browser follows it instantly.
         "DOWNLOAD_URL_TTL_SECONDS": "60",
+        # WhatsApp link delivery: a person taps when they read the message. 60s
+        # would usually be expired on arrival, and they have already paid.
+        "WHATSAPP_LINK_TTL_SECONDS": "21600",
+        # Enumeration budget for the unregistered-number reveal.
+        "OTP_PROBE_MAX_PER_WINDOW": "5",
+        "OTP_PROBE_WINDOW_SECONDS": "3600",
         "UPLOAD_URL_TTL_SECONDS": "900",
         "GRANT_TTL_SECONDS": "1800",
         # A secret NAME, never a value. See .kiro/steering/secret-handling.md.

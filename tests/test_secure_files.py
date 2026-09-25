@@ -664,3 +664,94 @@ def test_media_source_buckets_are_an_allowlist():
     ).read_text()
     assert "MEDIA_SOURCE_BUCKETS" in source
     assert "s3_bucket not in MEDIA_SOURCE_BUCKETS" in source
+
+
+# ── resolutions for the ranked improvements ───────────────────────────────────
+
+AUTH_HANDLER = ROOT / "amplify/functions/auth/customer-whatsapp-auth/handler.py"
+
+
+def test_otp_probe_limit_reads_username_from_the_event_root():
+    """`userName` is top-level on a Cognito trigger event, not inside `request`.
+
+    Reading it from `request` silently yielded an empty string, the budget check was
+    skipped, and eight consecutive probes all got the reveal. Verified live after the
+    fix: reveal for five, then 'unknown'.
+    """
+    source = AUTH_HANDLER.read_text()
+    body = source.split("def _create_auth_challenge")[1].split("\ndef ")[0]
+    assert 'event.get("userName")' in body
+    assert 'request.get("userName")' not in body
+
+
+def test_otp_probe_limit_fails_open():
+    """A counter that cannot be read must not lock a paying customer out of their files.
+
+    Failing open risks not enforcing the enumeration budget during a DynamoDB problem,
+    which is far smaller harm than refusing legitimate verification.
+    """
+    source = AUTH_HANDLER.read_text()
+    body = source.split("def _probe_budget_exhausted")[1].split("\ndef ")[0]
+    assert "return False" in body
+    assert "except Exception" in body
+
+
+def test_exhausted_probe_budget_stops_revealing(mod=None):
+    """Past the budget the answer must stop distinguishing registered from not."""
+    source = AUTH_HANDLER.read_text()
+    assert '"registered"] = "unknown"' in source
+    assert "_probe_budget_exhausted" in source
+
+
+def test_whatsapp_link_ttl_is_longer_than_the_web_one(mod):
+    """A person taps a message link when they read it, not within 60 seconds. Sending a
+    URL that has already expired is worse than useless once they have paid."""
+    assert mod.WHATSAPP_LINK_TTL > mod.DOWNLOAD_URL_TTL
+    assert mod.DOWNLOAD_URL_TTL <= 120
+    # SigV4 with temporary Lambda credentials cannot outlive the role session
+    assert mod.WHATSAPP_LINK_TTL <= 24 * 3600
+
+
+def test_link_delivery_uses_the_long_ttl(mod):
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def deliver_over_whatsapp")[1].split("\ndef ")[0]
+    assert "ttl=WHATSAPP_LINK_TTL" in body
+
+
+def test_delivery_outcome_is_recorded_on_the_grant():
+    """Without this a failed send was only a log line while the customer had paid, so
+    nothing could answer "who is owed a file"."""
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def deliver_over_whatsapp")[1].split("\ndef ")[0]
+    for attr in ("delivered", "deliveryDetail", "deliveryAttempts", "deliveryAttemptedAt"):
+        assert attr in body
+
+
+def test_reconciliation_ignores_probe_rows_and_web_grants():
+    """The grants table doubles as the OTP probe counter, and web grants are collected
+    by redeem rather than owed a send."""
+    source = (ROOT / "scripts/reconcile_file_deliveries.py").read_text()
+    assert 'startswith("otpprobe#")' in source
+    assert '!= "whatsapp"' in source
+    # consumed must NOT discharge a WhatsApp delivery
+    assert 'item.get("consumed")' not in source
+
+
+def test_delivery_template_body_params_follow_the_template_name():
+    """Sending body params to a template without placeholders is a Meta parameter
+    mismatch, so the two must move together."""
+    source = (FUNC_DIR / "whatsapp_delivery.py").read_text()
+    assert "TEMPLATES_WITH_BODY_VARS" in source
+    assert "DOC_TEMPLATE in TEMPLATES_WITH_BODY_VARS" in source
+    # default stays on the already-approved template
+    assert '"WA_DOC_TEMPLATE", "01_wecare_doc"' in source
+
+
+def test_resumable_upload_sends_appsecret_proof():
+    """Meta refuses server-side calls without it, so template media headers could never
+    be created. Every other Graph call in that file computes it; this one did not."""
+    source = (
+        ROOT / "amplify/functions/messaging/whatsapp-business-api/handler.py"
+    ).read_text()
+    body = source.split("def _meta_resumable_upload")[1].split("\ndef ")[0]
+    assert "appsecret_proof" in body
