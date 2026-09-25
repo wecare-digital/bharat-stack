@@ -6702,11 +6702,93 @@ export async function revokeSecureFile ( fileId: string ): Promise<ApiResult<{
   } );
 }
 
+/**
+ * Customer-token fetch, for the three routes below.
+ *
+ * These must NOT go through `apiCall`/`authFetch`. Those attach the Amplify
+ * session, which belongs to the **staff** pool (us-east-1_cSx0RHCIR). A customer
+ * signs in against a different pool entirely (us-east-1_46ULYuukt) via WhatsApp
+ * OTP, and their token lives in sessionStorage rather than in Amplify.
+ *
+ * Sending a staff token to a customer route does not fail cleanly either: the
+ * backend validates it, sees the wrong issuer, and answers 401 - which looks
+ * exactly like an expired customer session and would send the customer round the
+ * verification loop forever.
+ */
+async function customerApiCall<T> ( url: string, options?: RequestInit ): Promise<ApiResult<T>> {
+  const { getSession } = await import( '../lib/customerAuth' );
+  const session = getSession();
+
+  if ( !session )
+  {
+    return {
+      ok: false,
+      failure: {
+        kind: 'unauthenticated',
+        status: 401,
+        message: 'Verification required',
+        url,
+        retryable: false,
+        at: Date.now(),
+      },
+    };
+  }
+
+  try
+  {
+    const response = await fetch( url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...( options?.headers as Record<string, string> || {} ),
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+    } );
+
+    const text = await response.text();
+    const parsed = text ? JSON.parse( text ) : {};
+
+    if ( !response.ok )
+    {
+      return {
+        ok: false,
+        failure: {
+          // 403 stays `forbidden` rather than collapsing into `http`: it is the
+          // status the backend uses for both "not your file" and "grant not
+          // redeemable", and the page needs to tell those from a transport error.
+          kind: response.status === 401
+            ? 'unauthenticated'
+            : response.status === 403 ? 'forbidden' : 'http',
+          status: response.status,
+          message: parsed.message || parsed.error || `Request failed (${response.status})`,
+          url,
+          retryable: false,
+          at: Date.now(),
+        },
+      };
+    }
+    return { ok: true, data: parsed as T };
+  } catch ( err: any )
+  {
+    return {
+      ok: false,
+      failure: {
+        kind: 'network',
+        status: null,
+        message: err?.message || 'Network error',
+        url,
+        retryable: true,
+        at: Date.now(),
+      },
+    };
+  }
+}
+
 /** The signed-in customer's own files. Requires a customer-pool token. */
 export async function listMySecureFiles (): Promise<ApiResult<{
   files: SecureFile[]; count: number; pricePaise: number;
 }>> {
-  return apiCallResult( `${API_BASE}/secure-files/mine` );
+  return customerApiCall( `${API_BASE}/secure-files/mine` );
 }
 
 /**
@@ -6716,7 +6798,7 @@ export async function listMySecureFiles (): Promise<ApiResult<{
 export async function createSecureFileOrder ( fileId: string ): Promise<ApiResult<{
   grantId: string; orderId: string; amountPaise: number; currency: string; keyId: string;
 }>> {
-  return apiCallResult( `${API_BASE}/secure-files/${encodeURIComponent( fileId )}/order`, {
+  return customerApiCall( `${API_BASE}/secure-files/${encodeURIComponent( fileId )}/order`, {
     method: 'POST',
   } );
 }
@@ -6730,7 +6812,7 @@ export async function createSecureFileOrder ( fileId: string ): Promise<ApiResul
 export async function redeemSecureFileDownload ( fileId: string, grantId: string ): Promise<ApiResult<{
   downloadUrl: string; expiresInSeconds: number;
 }>> {
-  return apiCallResult(
+  return customerApiCall(
     `${API_BASE}/secure-files/${encodeURIComponent( fileId )}/download`
     + `?grant=${encodeURIComponent( grantId )}`,
   );

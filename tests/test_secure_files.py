@@ -298,3 +298,136 @@ def test_otp_is_never_logged():
     ).read_text()
     logged = source.split("customer_whatsapp_otp_sent")[1][:400]
     assert "otp" not in logged.lower().replace("otp_sent", "")
+
+
+# ── the customer loop in the browser ──────────────────────────────────────────
+
+CLIENT_TS = ROOT / "src/api/client.ts"
+FILES_PAGE = ROOT / "src/pages/files.tsx"
+CUSTOMER_AUTH = ROOT / "src/lib/customerAuth.ts"
+
+
+def _strip_comments(source: str) -> str:
+    """Drop TS comments before asserting.
+
+    These files document the shape they deliberately avoid - "sessionStorage, not
+    localStorage", "must NOT go through authFetch" - so a naive substring search
+    matches the explanation and fails on correct code.
+    """
+    out = []
+    in_block = False
+    for line in source.splitlines():
+        stripped = line.strip()
+        if in_block:
+            if "*/" in stripped:
+                in_block = False
+            continue
+        if stripped.startswith("/*"):
+            if "*/" not in stripped:
+                in_block = True
+            continue
+        if stripped.startswith("*") or stripped.startswith("//"):
+            continue
+        out.append(line.split("//")[0] if "://" not in line else line)
+    return "\n".join(out)
+
+
+def _ts_function(source: str, name: str) -> str:
+    """One function's own source, and nothing after it.
+
+    Two approaches that do not work here, both tried:
+
+    * cutting at the next ``\\n}`` - these signatures carry multi-line generic return
+      types like ``Promise<ApiResult<{ ... }>>``, so the first closing brace belongs
+      to the type rather than the body;
+    * cutting at the next ``\\nexport`` - ``customerApiCall`` is an unexported helper
+      sitting between two exported functions, so it got swallowed into the preceding
+      one and every assertion about which fetch path is used became meaningless.
+
+    Cutting at the first column-zero ``}`` ends at the function's own closing brace,
+    since everything nested is indented.
+    """
+    marker = f"export async function {name}"
+    start = source.index(marker)
+    lines = source[start:].splitlines()
+    body = []
+    for index, line in enumerate(lines):
+        body.append(line)
+        if index > 0 and line == "}":
+            break
+    return "\n".join(body)
+
+
+def test_customer_routes_use_the_customer_token_not_the_staff_token():
+    """The three customer routes must not go through apiCall/authFetch.
+
+    authFetch attaches the Amplify session, which belongs to the STAFF pool. A staff
+    token on a customer route does not fail cleanly: the backend validates it, sees
+    the wrong issuer and returns 401, which is indistinguishable from an expired
+    customer session - so the customer would be sent round the verification loop
+    forever with no indication why.
+    """
+    source = _strip_comments(CLIENT_TS.read_text())
+
+    for fn in (
+        "listMySecureFiles",
+        "createSecureFileOrder",
+        "redeemSecureFileDownload",
+    ):
+        body = _ts_function(source, fn)
+        assert "customerApiCall" in body, f"{fn} must use the customer token"
+        assert "apiCallResult(" not in body, f"{fn} must not use the staff token path"
+        assert "authFetch(" not in body, f"{fn} must not use the staff token path"
+
+
+def test_admin_routes_still_use_the_staff_token():
+    source = _strip_comments(CLIENT_TS.read_text())
+    for fn in ("initSecureUpload", "listSecureFiles", "revokeSecureFile", "confirmSecureUpload"):
+        body = _ts_function(source, fn)
+        assert "apiCallResult" in body, f"{fn} is an admin route and needs the staff token"
+        assert "customerApiCall" not in body, f"{fn} must not use a customer token"
+
+
+def test_the_page_does_not_trust_the_razorpay_callback():
+    """Checkout's handler runs in the browser and is forgeable.
+
+    It may only stop the spinner. The download must come from polling the server,
+    which requires the signature-verified webhook to have marked the grant paid.
+    """
+    source = FILES_PAGE.read_text()
+    assert "pollForDownload" in source
+    # the handler must not itself redeem or navigate
+    handler_body = source.split("handler: ()")[1][:200]
+    assert "redeem" not in handler_body
+    assert "location" not in handler_body
+
+
+def test_presigned_upload_does_not_get_a_bearer_header():
+    """A presigned URL carries its own SigV4; adding our bearer makes S3 refuse."""
+    source = CLIENT_TS.read_text()
+    body = source.split("export async function uploadSecureFileBytes")[1].split("\n}")[0]
+    assert "Authorization" not in body
+    assert "authFetch" not in body
+
+
+def test_frontend_phone_normalisation_matches_the_backend():
+    """Drift here means a customer signs in and owns nothing."""
+    source = CUSTOMER_AUTH.read_text()
+    # same rule as normalise_phone: 10 digits starting 6-9 gets 91 prefixed
+    assert "length === 10" in source
+    assert "[6-9]" in source
+    assert "91${digits}" in source
+
+
+def test_customer_token_is_not_in_localstorage():
+    """sessionStorage dies with the tab; localStorage would outlive a shared browser."""
+    source = _strip_comments(CUSTOMER_AUTH.read_text())
+    assert "sessionStorage" in source
+    assert "localStorage" not in source
+
+
+def test_provisioner_preserves_a_manually_enabled_payment_flag():
+    """Re-provisioning must not silently switch live payments back off."""
+    source = (ROOT / "scripts/provision_secure_files_api.py").read_text()
+    assert "keep_payment = current_payment_flag() if exists else False" in source
+    assert "environment(payment_enabled=keep_payment)" in source

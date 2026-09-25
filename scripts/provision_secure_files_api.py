@@ -351,8 +351,20 @@ def ensure_function(zip_bytes: bytes, dry_run: bool) -> str:
     except client.exceptions.ResourceNotFoundException:
         exists = False
 
+    # Preserve whatever the owner set, rather than resetting to the default.
+    #
+    # Without this, re-running the provisioner after payments were deliberately
+    # enabled would quietly turn them back OFF: `environment()` defaults the flag to
+    # false and the update below writes the whole map. Customers would stop being
+    # able to pay, with nothing in the output saying so.
+    #
+    # Read from the live alias, not $LATEST, because the alias is what production
+    # actually serves. A fresh function has nothing to preserve and stays off.
+    keep_payment = current_payment_flag() if exists else False
+
     if dry_run:
-        return "exists (would update)" if exists else "would create"
+        state = "on" if keep_payment else "off"
+        return f"exists (would update, payment stays {state})" if exists else "would create"
 
     if exists:
         client.update_function_code(FunctionName=FUNCTION_NAME, ZipFile=zip_bytes)
@@ -364,10 +376,10 @@ def ensure_function(zip_bytes: bytes, dry_run: bool) -> str:
             Runtime="python3.12",
             Timeout=30,
             MemorySize=512,
-            Environment={"Variables": environment()},
+            Environment={"Variables": environment(payment_enabled=keep_payment)},
         )
         client.get_waiter("function_updated_v2").wait(FunctionName=FUNCTION_NAME)
-        return "updated"
+        return f"updated (payment left {'on' if keep_payment else 'off'})"
 
     client.create_function(
         FunctionName=FUNCTION_NAME,
