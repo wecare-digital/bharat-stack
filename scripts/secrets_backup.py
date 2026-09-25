@@ -2,6 +2,7 @@
 """Create the single encrypted credential recovery artifact, and its S3 copy.
 
     python scripts/secrets_backup.py create     # build + verify + upload
+    python scripts/secrets_backup.py upload     # push existing ciphertext to S3 only
     python scripts/secrets_backup.py verify     # decrypt-check the local file
     python scripts/secrets_backup.py restore    # print field NAMES only
 
@@ -336,6 +337,89 @@ def cmd_create() -> int:
     return 0
 
 
+def cmd_upload() -> int:
+    """Push the EXISTING local ciphertext to S3. No passphrase, no secret read.
+
+    Why this is a separate command
+    ------------------------------
+    The S3 copy used to exist only as the tail of ``create``, which pulls every secret
+    from Secrets Manager, re-derives the artifact and needs an interactive passphrase.
+    That made an absent cloud copy an owner action, and the cloud copy was in fact
+    absent: measured 2026-09-25, the bucket held **0 objects** while the local artifact
+    had existed since 2026-09-20, so ``txt_source_healthcheck.py`` reported
+    ``EncS3 | NO | INCOMPLETE`` for all four providers. A backup step welded to a
+    credential-reading step does not get re-run, so it silently stayed missing.
+
+    This command closes that without touching a credential. The file on disk is already
+    ciphertext: uploading it needs no decryption, so there is no passphrase prompt, no
+    Secrets Manager call, and no plaintext anywhere. S3 then applies SSE-KMS on top.
+
+    It deliberately does NOT refresh the artifact. If the local copy is stale, uploading
+    it unchanged is the honest outcome - a stale backup you can identify by its
+    ``_generated`` date beats a missing one, and silently rebuilding would need the
+    passphrase this command exists to avoid. ``create`` remains the way to refresh.
+    """
+    if not OUT_FILE.exists():
+        raise SystemExit(
+            f"missing {OUT_FILE} - run `secrets_backup.py create` first (needs the "
+            "passphrase, so it is an owner action)"
+        )
+
+    blob = OUT_FILE.read_bytes()
+    sha = hashlib.sha256(blob).hexdigest()
+    print(f"local: {OUT_FILE}")
+    print(f"  {len(blob)} bytes  mode {oct(OUT_FILE.stat().st_mode)[-3:]}  "
+          f"sha256={sha[:16]}…")
+
+    # Refuse to upload anything that is not the expected ciphertext. Two independent
+    # checks, because uploading a plaintext credential file to S3 is the one outcome
+    # this whole mechanism exists to prevent.
+    if not blob.startswith(MAGIC):
+        raise SystemExit(
+            f"refusing to upload: {OUT_FILE} does not start with {MAGIC.decode()}"
+        )
+    leaks = [t.decode() for t in (b"API_KEY=", b"SECRET=", b"PASSWORD=", b"TOKEN=",
+                                  b"rzp_live_", b"rzp_test_", b"sk-svcacct", b"AIza",
+                                  b"-----BEGIN") if t in blob]
+    print(f"  armored header: {MAGIC.decode()}")
+    print(f"  plaintext markers present: {leaks or 'NONE'}")
+    if leaks:
+        raise SystemExit("file appears to contain plaintext; aborting upload")
+
+    print("\n=== S3 copy (same ciphertext, SSE-KMS on top) ===")
+    ensure_bucket()
+    s3 = boto3.client("s3", region_name=REGION)
+
+    try:
+        existing = s3.head_object(Bucket=BUCKET, Key=S3_KEY)
+        if existing["Metadata"].get("sha256") == sha:
+            print(f"  s3://{BUCKET}/{S3_KEY}")
+            print("  already present with an identical sha256 - nothing to do")
+            return 0
+        print(f"  replacing an older object (bucket is versioned, so the previous "
+              f"copy is retained as a version)")
+    except ClientError:
+        print("  no object at that key yet")
+
+    res = s3.put_object(Bucket=BUCKET, Key=S3_KEY, Body=blob,
+                        ServerSideEncryption="aws:kms",
+                        ChecksumAlgorithm="SHA256",
+                        Metadata={"sha256": sha, "format": MAGIC.decode()})
+    print(f"  s3://{BUCKET}/{S3_KEY}")
+    print(f"  SSE={res.get('ServerSideEncryption')}  VersionId={res.get('VersionId')}")
+
+    head_obj = s3.head_object(Bucket=BUCKET, Key=S3_KEY)
+    match = head_obj["Metadata"].get("sha256") == sha
+    print(f"  verified: size={head_obj['ContentLength']} "
+          f"sha256-meta={head_obj['Metadata'].get('sha256', '')[:16]}… match={match}")
+    if not match or head_obj["ContentLength"] != len(blob):
+        raise SystemExit("uploaded object does not match the local file")
+
+    print("\nDONE. Local + S3 encrypted recovery copies exist and match.")
+    print("No credential was read and no passphrase was required.")
+    return 0
+
+
 def cmd_verify() -> int:
     if not OUT_FILE.exists():
         raise SystemExit(f"missing {OUT_FILE}")
@@ -358,5 +442,5 @@ def cmd_verify() -> int:
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "create"
-    sys.exit({"create": cmd_create, "verify": cmd_verify,
+    sys.exit({"create": cmd_create, "upload": cmd_upload, "verify": cmd_verify,
               "restore": cmd_verify}.get(cmd, cmd_create)())
