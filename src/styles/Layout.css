@@ -2044,9 +2044,14 @@ input[type="checkbox"]:active {
     right: 0;
     bottom: 0;
     z-index: 1200;
-    /* 60px of row, plus whatever the home indicator needs. Do NOT grow this past
-       ~120px: #wecarewa-widget sits at bottom:120px with z-index 2147483647 and
-       cannot be stacked under, so the clearance is geometric. */
+    /* 60px of row, plus whatever the home indicator needs.
+       THIS NUMBER IS PAIRED WITH THE SUPPORT PILL. SupportWidget.tsx offsets itself to
+       bottom: calc(72px + env(safe-area-inset-bottom)) on phones specifically to clear
+       this row, so growing the height here pushes the bar into the pill. The pairing
+       used to be with #wecarewa-widget, an external script at z-index 2147483647 that
+       nothing could stack under - that is retired, and the pill sits at 1300 against
+       this 1200, so the ordering is now ordinary. The geometry still has to hold.
+       tools/browser/uicheck.js asserts the pill's mobile offset is 72px. */
     height: calc(60px + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: #ffffff;

@@ -116,16 +116,26 @@ describe( 'support widget wiring', () => {
     expect( widget ).not.toContain( 'setSpeaking' );
   } );
 
-  it( 'mounts on the dashboard as well as the public pages', () => {
-    // The widget is rendered in BOTH branches of _app.tsx - the public branch and the
-    // authenticated one - so contact and language are available on every route, and a new
-    // page of either kind picks it up without being edited.
+  it( 'mounts on every surface a visitor can land on', () => {
+    // THREE MOUNTS, not two. _app.tsx has two route branches - public and authenticated -
+    // but three places a human actually sees a page, and the third is easy to miss because
+    // it is not a route: AuthGate, the sign-in screen. Every visitor without a session who
+    // opens a staff URL lands there, and so does every mistyped path, since anything
+    // outside the allowlist falls through to that branch.
+    //
+    // The gap that was fixed: AuthGate had Header and Footer but no SupportWidget, so the
+    // one screen that tells somebody they cannot get in was also the one screen with no way
+    // to contact us. Counting to 3 is what keeps it mounted there.
     //
     // Counted on the JSX tag. The comments in _app.tsx deliberately refer to "the
     // SupportWidget component" in prose rather than writing the tag, precisely so this
     // count measures mounts and not explanatory text.
     const mounts = app.split( '<SupportWidget />' ).length - 1;
-    expect( mounts, 'SupportWidget must be mounted in both the public and authenticated branches' ).toBe( 2 );
+    expect(
+      mounts,
+      'SupportWidget must be mounted in all three places a visitor can land: the public '
+      + 'branch, the authenticated branch, and AuthGate (the sign-in screen)'
+    ).toBe( 3 );
   } );
 
   it( 'cannot machine-translate customer data on the dashboard', () => {

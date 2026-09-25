@@ -17,14 +17,21 @@
  * opens the same drawer. Four plus More is a deliberate cut, not a truncation: the
  * drawer is one tap away and holds everything.
  *
- * THE Z-INDEX IT MUST NOT FIGHT
- * -----------------------------
- * `#wecarewa-widget` is injected by an external script at `right:16px bottom:120px`,
- * 64x64, with `z-index: 2147483647` — the maximum 32-bit integer, so nothing can ever
- * be stacked above it. This bar is 60px tall at `bottom:0`, so it occupies 0–60px and
- * the widget occupies 120–184px. They clear each other GEOMETRICALLY, which is the only
- * way to win against that z-index. Raising this bar's height past ~120px would put the
- * green circle through it.
+ * THE WIDGET ABOVE IT
+ * -------------------
+ * This note used to describe a fight that no longer exists. `#wecarewa-widget` was
+ * injected by an external script at `z-index: 2147483647` — the maximum 32-bit integer,
+ * so nothing could be stacked above it — and the clearance here had to be GEOMETRIC
+ * because that was the only way to win. That script is retired.
+ *
+ * Its replacement, `SupportWidget`, is a normal element this repo owns at `z-index: 1300`
+ * against this bar's 1200, so stacking is now decided the ordinary way and the pill simply
+ * sits on top. The geometry still matters for a different reason — overlap would put the
+ * pill ON the bar rather than under it — so the widget offsets itself to
+ * `bottom: calc(72px + env(safe-area-inset-bottom))` on phones, clearing this 60px row
+ * plus the inset. Change that height and the widget's mobile offset has to move with it;
+ * `tools/browser/uicheck.js` asserts the pill's anchoring and hit-tests its centre at four
+ * widths, so the two staying in step is checked rather than assumed.
  *
  * SAFE AREA
  * ---------
