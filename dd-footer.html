@@ -1,15 +1,15 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>Footer — final two options</title>
+<title>Footer right side — dots vs lime dash</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px 24px 70px}
 .page{max-width:1180px;margin:0 auto}
 h1{font-size:21px;margin:0 0 4px;letter-spacing:-.5px}
 .sub{font-size:13px;color:#555;margin:0 0 6px;max-width:92ch}
-.try{font-size:13px;color:#0f2a1d;background:#e0f7c8;border:1px solid #c5e866;border-radius:8px;padding:9px 13px;margin:0 0 16px;display:inline-block}
-.cap{font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.03em;padding:7px 12px;border-radius:9px 9px 0 0;display:inline-block;margin-top:20px}
+.try{font-size:13px;color:#0f2a1d;background:#e0f7c8;border:1px solid #c5e866;border-radius:8px;padding:9px 13px;margin:0 0 14px;display:inline-block}
+.cap{font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.03em;padding:7px 12px;border-radius:9px 9px 0 0;display:inline-block;margin-top:18px}
 .cap-rec{background:#3da35a}.cap-opt{background:#1a3a2a}
 .note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 9px 9px;padding:9px 12px;margin:0 0 8px;line-height:1.55}
 .note b{color:#000}
@@ -25,50 +25,93 @@ h1{font-size:21px;margin:0 0 4px;letter-spacing:-.5px}
 .ft-in{max-width:1300px;margin:0 auto;padding:0 24px}
 .ft-grid{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}
 .ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:14px;min-width:0}
-
-/* tagline — SETTLED: lime underline sweep */
-.tagline{position:relative;display:inline-block;font-size:15px;line-height:1.6;margin:0;max-width:340px;color:rgba(0,0,0,.54);text-decoration:none;transition:color .2s}
+.tagline{position:relative;display:inline-block;font-size:15px;line-height:1.6;margin:0;max-width:340px;color:rgba(0,0,0,.54);transition:color .2s}
 .tagline::after{content:'';position:absolute;left:0;right:0;bottom:-3px;height:2px;background:#d1f470;transform:scaleX(0);transform-origin:left center;transition:transform .2s cubic-bezier(.16,1,.3,1)}
 .tagline:hover{color:#1a3a2a}
 .tagline:hover::after{transform:scaleX(1)}
 
-.mailto{font-size:14px;color:rgba(0,0,0,.54);text-decoration:none;padding:7px 11px;margin:-7px -11px;border-radius:8px;transition:background-color .2s,color .2s}
-.mailto:hover{background:rgba(209,244,112,.22);color:#1a3a2a}
+/* ===== A: three colour dots, staggered pulse ===== */
+.dots{display:flex;gap:8px;align-items:center}
+.dots i{width:11px;height:11px;border-radius:50%;display:block;animation:pulse 2.4s ease-in-out infinite}
+.dots i:nth-child(1){background:#2563eb;animation-delay:0s}
+.dots i:nth-child(2){background:#f0a818;animation-delay:.3s}
+.dots i:nth-child(3){background:#3da35a;animation-delay:.6s}
+@keyframes pulse{0%,100%{opacity:.45;transform:scale(.88)}50%{opacity:1;transform:scale(1)}}
+
+/* A2: three dots, lime family only */
+.dots2{display:flex;gap:8px;align-items:center}
+.dots2 i{width:11px;height:11px;border-radius:50%;display:block;animation:pulse 2.4s ease-in-out infinite}
+.dots2 i:nth-child(1){background:rgba(209,244,112,.45);animation-delay:0s}
+.dots2 i:nth-child(2){background:rgba(209,244,112,.75);animation-delay:.3s}
+.dots2 i:nth-child(3){background:#d1f470;animation-delay:.6s}
+
+/* ===== B: lime dash, draws itself in ===== */
+.dash{display:block;width:56px;height:3px;background:#d1f470;border-radius:2px;transform-origin:left center;animation:draw .7s cubic-bezier(.22,.61,.36,1) both}
+@keyframes draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+/* B2: dash that also responds to hover on the footer */
+.ft-hoverable:hover .dash-h{width:84px}
+.dash-h{display:block;width:56px;height:3px;background:#d1f470;border-radius:2px;transition:width .3s cubic-bezier(.16,1,.3,1)}
+/* B3: thicker short dash */
+.dash-thick{display:block;width:40px;height:5px;background:#d1f470;border-radius:3px}
 </style></head><body>
 <div class="page">
-  <h1>Footer — the two remaining options</h1>
-  <p class="sub">Social is out. Everything else is settled: lockup 44/18 (smaller than the header, clickable), no duplicate self-link, no legal links, no copyright/year, tagline on-palette with the lime underline sweep, top divider.</p>
-  <div class="try">👉 <b>Hover the tagline</b> (and the email in option B).</div>
+  <h1>Footer right side — three dots vs lime dash</h1>
+  <p class="sub">Everything else is settled (compact 44/18 lockup, clickable, tagline sweep, top divider). This is only about the right-hand element.</p>
+  <div class="try">👉 The dots <b>pulse on a loop</b>; the dashes <b>draw in on load</b>. Hover the tagline too.</div>
+
+  <!-- A -->
+  <div class="cap cap-opt">● A — THREE COLOUR DOTS (pulsing)</div>
+  <div class="note">Blue / amber / green with a staggered pulse. <b>My concern:</b> these are the home page's <b>per-subject</b> hues — each colour there maps to a domain. In a footer they have no subject, so they look systematic while meaning nothing. Three dots also echo the WorkflowTerminal's window lights, so they can read as <b>status indicators</b> ("all systems green"), which the footer can't back.</div>
+  <div class="box"><div class="ft"><div class="ft-in"><div class="ft-grid">
+    <div class="ft-brand">
+      <a class="brand" href="#"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></a>
+      <p class="tagline">Trusted everyday services for Bharat</p>
+    </div>
+    <div class="dots"><i></i><i></i><i></i></div>
+  </div></div></div></div>
+
+  <!-- A2 -->
+  <div class="cap cap-opt">● A2 — THREE DOTS, LIME ONLY</div>
+  <div class="note">Same shape but all three in the lime family at increasing strength. Stays on-brand and avoids importing the per-subject hues — but the "status light" reading remains.</div>
+  <div class="box"><div class="ft"><div class="ft-in"><div class="ft-grid">
+    <div class="ft-brand">
+      <a class="brand" href="#"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></a>
+      <p class="tagline">Trusted everyday services for Bharat</p>
+    </div>
+    <div class="dots2"><i></i><i></i><i></i></div>
+  </div></div></div></div>
 
   <!-- B -->
-  <div class="cap cap-rec">● OPTION B — EMAIL ✓ recommended</div>
-  <div class="note">The real address <code>one@wecare.digital</code>, already used on Terms, Privacy and My Order. It's a direct contact point, not navigation — so no overlap with the menu — and it gives the right edge a purpose.</div>
+  <div class="cap cap-rec">● B — LIME DASH ✓ recommended</div>
+  <div class="note">A 56&times;3px lime rule that <b>draws itself in from the left</b>. This motif already exists in your design language — <code>.home-close-rule</code> on the home page is the same 3px lime rule with the same scaleX reveal, and <code>.wt-lane-bar</code> is a short lime dash. Brand accent, no new colours, no false meaning.</div>
   <div class="box"><div class="ft"><div class="ft-in"><div class="ft-grid">
     <div class="ft-brand">
       <a class="brand" href="#"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></a>
-      <a class="tagline" href="#">Trusted everyday services for Bharat</a>
+      <p class="tagline">Trusted everyday services for Bharat</p>
     </div>
-    <a class="mailto" href="mailto:one@wecare.digital">one@wecare.digital</a>
+    <span class="dash"></span>
   </div></div></div></div>
 
-  <!-- D -->
-  <div class="cap cap-opt">● OPTION D — NOTHING (pure signature)</div>
-  <div class="note">Right side left empty. Most minimal and nothing can go stale — but on a wide screen the right half of the footer is blank.</div>
+  <!-- B2 -->
+  <div class="cap cap-opt">● B2 — LIME DASH THAT EXTENDS ON HOVER</div>
+  <div class="note">Same dash, but it <b>grows</b> when the footer is hovered — so the footer has one quiet piece of life without anything looping forever.</div>
+  <div class="box"><div class="ft ft-hoverable"><div class="ft-in"><div class="ft-grid">
+    <div class="ft-brand">
+      <a class="brand" href="#"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></a>
+      <p class="tagline">Trusted everyday services for Bharat</p>
+    </div>
+    <span class="dash-h"></span>
+  </div></div></div></div>
+
+  <!-- B3 -->
+  <div class="cap cap-opt">● B3 — SHORTER, THICKER DASH (static)</div>
+  <div class="note">40&times;5px, no animation. Reads as a deliberate brand mark rather than an effect.</div>
   <div class="box"><div class="ft"><div class="ft-in"><div class="ft-grid">
     <div class="ft-brand">
       <a class="brand" href="#"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></a>
-      <a class="tagline" href="#">Trusted everyday services for Bharat</a>
+      <p class="tagline">Trusted everyday services for Bharat</p>
     </div>
-  </div></div></div></div>
-
-  <!-- D centred variant -->
-  <div class="cap cap-opt">● OPTION D2 — NOTHING, but centred</div>
-  <div class="note">If the right side is empty, centring the block removes the lopsided look instead of leaving a blank half.</div>
-  <div class="box"><div class="ft"><div class="ft-in"><div class="ft-grid" style="justify-content:center">
-    <div class="ft-brand" style="align-items:center">
-      <a class="brand" href="#"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></a>
-      <a class="tagline" href="#" style="text-align:center">Trusted everyday services for Bharat</a>
-    </div>
+    <span class="dash-thick"></span>
   </div></div></div></div>
 </div>
 </body></html>

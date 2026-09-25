@@ -8,8 +8,16 @@ interface BrandLockupProps {
   className?: string;
 }
 
-const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
-  <span className={ `brand-lockup full ${className}`.trim() }>
+/**
+ * `compact` IS NOW IMPLEMENTED. It sat in the interface unused, so every consumer got the
+ * header's 60px/23px scale - which is why the footer's signature was exactly as large as
+ * the header's primary brand and the page had no brand hierarchy. Compact steps the lockup
+ * down to 44px/18px for secondary placements (the footer) while keeping the identical
+ * shape: same logo, same two-line split on the dot, same red accent. Size is the only
+ * difference, so the two read as one brand at two levels rather than as two brands.
+ */
+const BrandLockup: React.FC<BrandLockupProps> = ( { className = '', compact = false } ) => (
+  <span className={ `brand-lockup full ${compact ? 'compact' : ''} ${className}`.trim() }>
     <img src={ LOGO_URL } alt="" aria-hidden="true" />
     {/* WECARE.DIGITAL, split across the same two lines the wordmark has always used.
         The owner asked for "WECARE.DIGITAL" to become WECARE.DIGITAL everywhere; this
@@ -74,10 +82,22 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
          wordmark LARGER than the desktop wordmark - the ladder inverted. Scaled by the
          same ~0.88 to 54px/21px, which still clears the mobile header's 68px content box
          (96px height less 14px padding each side). */
+      /* COMPACT: the secondary scale, used by the footer. 44px/18px against the header's
+         60px/23px - a clear step down rather than the near-match that made the footer
+         signature compete with the header. Declared after the base rules so it overrides
+         them without needing !important, and before the media query so the mobile compact
+         values below can step it down again. */
+      .brand-lockup.compact img{height:44px;border-radius:10px}
+      .brand-lockup.compact .brand-copy>span{font-size:18px;letter-spacing:-.4px}
+
       @media(max-width:767px){
         .brand-lockup{gap:8px}
         .brand-lockup img{height:54px;border-radius:10px}
         .brand-copy>span{font-size:21px}
+        /* Compact keeps its step down on mobile too - without this it would inherit the
+           54px/21px above and end up LARGER than it is on desktop. */
+        .brand-lockup.compact img{height:40px;border-radius:9px}
+        .brand-lockup.compact .brand-copy>span{font-size:16px}
       }
     ` }</style>
   </span>
