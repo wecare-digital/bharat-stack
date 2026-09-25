@@ -341,7 +341,20 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
           </div>
         </aside>
         { isMobileMenuOpen && <div className="mobile-overlay" onClick={ () => setIsMobileMenuOpen( false ) } /> }
-        <main id="main-content" className="main-content">
+        {/* data-wc-no-translate IS A DATA-INTEGRITY GUARD, NOT A PREFERENCE.
+            SupportWidget's translator replaces text nodes in place, and on the dashboard
+            those nodes are customer names, phone numbers, message bodies, order lines and
+            invoice amounts. Machine-translating live operational data corrupts what an
+            operator is reading, and afterwards it cannot be told apart from real data.
+            collectTextNodes rejects a node if any ancestor up to its root carries this
+            attribute, so putting it here exempts EVERY dashboard page's content in one
+            place - no per-page opt-in to forget.
+            The sidebar sits outside this element and is deliberately left translatable:
+            SupportWidget starts its walk at `.layout`, so navigation labels DO translate,
+            which is the half an operator who reads Hindi or Tamil actually benefits from.
+            Do not remove this to "make translation work on the dashboard" - that is the
+            defect it prevents. */}
+        <main id="main-content" className="main-content" data-wc-no-translate="true">
           { showBreadcrumbs && <Breadcrumbs /> }
           <div className="inner-content-container">
             { children }

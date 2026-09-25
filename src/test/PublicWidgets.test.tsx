@@ -77,6 +77,42 @@ describe( 'public widgets final wiring', () => {
     expect( widget ).not.toContain( "window.location.pathname === '/' ) return null" );
   } );
 
+  it( 'mounts on the dashboard as well as the public pages', () => {
+    // The widget is rendered in BOTH branches of _app.tsx - the public branch and the
+    // authenticated one - so contact and language are available on every route in the
+    // product, and a new page of either kind picks it up without being edited.
+    // Counted on the JSX tag. Note the comments in _app.tsx deliberately refer to "the
+    // SupportWidget component" in prose rather than writing the tag, precisely so this
+    // count measures mounts and not explanatory text - the same trap that made an earlier
+    // assertion in this file fire on a comment.
+    const mounts = app.split( '<SupportWidget />' ).length - 1;
+    expect( mounts, 'SupportWidget must be mounted in both the public and authenticated branches' ).toBe( 2 );
+  } );
+
+  it( 'cannot machine-translate customer data on the dashboard', () => {
+    // THE HAZARD THIS PINS. The translator replaces text nodes in place. On the dashboard
+    // those nodes are customer names, phone numbers, message bodies and invoice amounts -
+    // translating them corrupts what an operator is reading and afterwards cannot be told
+    // apart from real data. It is why the widget was previously kept off these screens.
+    //
+    // Two things make the mount safe, and BOTH have to hold:
+    //   1. Layout marks the dashboard content container as no-translate. collectTextNodes
+    //      rejects a node if any ancestor up to the root carries the attribute, so this
+    //      exempts every dashboard page's content in one place.
+    //   2. The widget starts its walk at `.layout`, which is above the sidebar, so the
+    //      navigation still translates - the half that actually helps an operator.
+    const layout = readFileSync( resolve( process.cwd(), 'src/components/Layout.tsx' ), 'utf8' );
+    expect(
+      layout,
+      'Layout.tsx must mark .main-content as no-translate, or the dashboard mount lets an '
+      + 'operator machine-translate live customer data'
+    ).toContain( 'className="main-content" data-wc-no-translate="true"' );
+    expect( widget ).toContain( "document.querySelector( '.layout' )" );
+
+    // And the exemption has to be honoured by the walker itself.
+    expect( widget ).toContain( "el.dataset.wcNoTranslate === 'true'" );
+  } );
+
   it( 'keeps the translation panel behaviour it already had', () => {
     expect( widget ).toContain( 'className="language-trigger"' );
     expect( widget ).toContain( 'className="panel-actions"' );

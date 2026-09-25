@@ -113,8 +113,27 @@ const LanguageBar: React.FC = () => {
   // subscribing to its identity - see the restore block in the catalogue effect.
   const applyLanguageRef = useRef<( ( code: string, label?: string ) => Promise<void> ) | null>( null );
 
+  /**
+   * WHAT GETS TRANSLATED, AND THE ONE RULE THAT MAKES IT SAFE ON THE DASHBOARD.
+   *
+   * `.layout` is checked FIRST, and it only exists on the authenticated dashboard. Picking
+   * it means the walk starts above the sidebar, so navigation labels translate - which is
+   * the point for an operator who reads Hindi or Tamil.
+   *
+   * It is safe only because Layout.tsx marks `.main-content` with
+   * data-wc-no-translate="true". collectTextNodes rejects a node if ANY ancestor up to the
+   * root carries that attribute, so every page's content - customer names, phone numbers,
+   * message bodies, invoice lines - is excluded wholesale while the chrome around it is
+   * not. Machine-translating live operational data would corrupt what an operator is
+   * reading and could not be distinguished from real data afterwards; the nav is fixed
+   * product vocabulary and has no such risk.
+   *
+   * Public pages have no `.layout`, so they fall through to `.page` / `main` exactly as
+   * before and translate in full.
+   */
   const contentRoot = useCallback( (): HTMLElement => (
-    document.querySelector( '.page' ) as HTMLElement
+    document.querySelector( '.layout' ) as HTMLElement
+      || document.querySelector( '.page' ) as HTMLElement
       || document.querySelector( 'main' ) as HTMLElement
       || document.getElementById( '__next' ) as HTMLElement
       || document.body

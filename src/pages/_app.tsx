@@ -707,7 +707,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
     : `${SITE}${router.pathname}/`;
   // NO showPublicWhatsApp FLAG ANY MORE. It gated a <Script> tag that injected the
   // external wecare-wa-widget.js, and that script is retired: the WhatsApp button is now
-  // the left half of <SupportWidget />, which this file renders inside the public branch
+  // the left half of the SupportWidget component, which this file renders in the public branch
   // below - so the branch itself is the gate and a separate boolean would be a second
   // source of truth for the same question. A new public page picks the widget up by
   // being public, exactly as it picks up the header and footer.
@@ -1081,6 +1081,19 @@ export default function App ( { Component, pageProps }: AppProps ) {
                     <ConfirmProvider>
                       <Component { ...pageProps } signOut={ () => { signOut?.(); router.push( '/' ); } } user={ user } />
                       <FloatingAgent />
+                      {/* THE SAME COMBINED WIDGET AS THE PUBLIC PAGES, so contact and
+                          language are in one place on every route in the product rather
+                          than only on the marketing side.
+                          IT IS SAFE HERE BECAUSE OF ONE ATTRIBUTE. SupportWidget starts
+                          its translation walk at `.layout`, and Layout.tsx marks
+                          `.main-content` with data-wc-no-translate - so the sidebar's
+                          navigation translates while every page's CONTENT (customer
+                          names, numbers, message bodies) is exempt. Without that
+                          attribute this mount would let an operator machine-translate
+                          live customer data, which is why it was previously excluded.
+                          FloatingAgent above is a different thing and stays: it is the
+                          internal AI task assistant, not customer contact. */}
+                      <SupportWidget />
                     </ConfirmProvider>
                   </ToastProvider>
                 );
