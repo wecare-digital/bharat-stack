@@ -188,6 +188,35 @@ def test_webhook_grant_refuses_to_revive_a_spent_grant():
     assert "attribute_exists(grantId) AND paid = :false" in source
 
 
+def test_order_creation_reads_the_api_secret_not_the_webhook_secret():
+    """The two Razorpay secrets hold different fields and are not interchangeable.
+
+        wecare/razorpay/api        key_id + key_secret
+        wecare/razorpay-webhook    webhook_secret only
+
+    partner-onboarding already shipped this bug once: it read the API pair out of
+    the webhook secret, got two empty strings, and returned 501 on every top-up.
+    This pins the correct one so the same mistake cannot land twice.
+    """
+    source = (FUNC_DIR / "razorpay_orders.py").read_text()
+    assert 'RAZORPAY_SECRET_ID = os.environ.get("RAZORPAY_SECRET_ID", "wecare/razorpay/api")' in source
+
+    provisioner = (ROOT / "scripts/provision_secure_files_api.py").read_text()
+    assert 'RAZORPAY_SECRET_NAME = "wecare/razorpay/api"' in provisioner
+    # and the IAM grant must follow the same secret, or the read 403s at runtime
+    assert "secret:{RAZORPAY_SECRET_NAME}-*" in provisioner
+
+
+def test_no_razorpay_sdk_is_bundled():
+    """razorpay==2.0.1 is dev-only; the Lambda runtime does not have it."""
+    source = (FUNC_DIR / "razorpay_orders.py").read_text()
+    assert "import razorpay" not in source
+    assert "urllib.request" in source
+
+    dev_requirements = (ROOT / "requirements-dev.txt").read_text()
+    assert "razorpay==" in dev_requirements, "expected the SDK pinned for dev use"
+
+
 def test_razorpay_orders_reads_the_secret_lazily_not_at_import():
     """A module-scope secret read is frozen for the sandbox's life."""
     source = (FUNC_DIR / "razorpay_orders.py").read_text()
@@ -214,3 +243,58 @@ def test_generated_password_is_never_logged_or_returned():
     assert "token_urlsafe" in source
     # it must not be returned to the admin or logged anywhere
     assert "password" not in source.split("def _upload_init")[1].lower()
+
+
+# ── the OTP send shape, proven against the live WABA ──────────────────────────
+
+def test_otp_button_is_url_not_copy_code():
+    """`wecare_otp` is an AUTHENTICATION template and its button is type URL.
+
+    Meta materialises the copy-code affordance as a real URL button:
+
+        https://www.whatsapp.com/otp/code/?...&code=otp{{1}}
+
+    so the OTP is a text substitution into that URL. Sending
+    `sub_type: "copy_code"` with a `coupon_code` parameter is refused:
+
+        (#132018) buttons: Button at index 0 must be of type Url
+
+    and the caller sees only "sender returned HTTP 400", which is why this was
+    invisible until a live round trip was run. Verified 2026-09-25: copy_code
+    fails, url succeeds.
+    """
+    source = (
+        ROOT / "amplify/functions/auth/customer-whatsapp-auth/handler.py"
+    ).read_text()
+
+    # Assert on the payload, not on the whole file: the comment above the fix names
+    # the rejected shape, so a bare substring search for "copy_code" matches the
+    # explanation rather than any real code.
+    code_lines = [
+        line for line in source.splitlines() if not line.lstrip().startswith("#")
+    ]
+    code = "\n".join(code_lines)
+
+    assert '"sub_type": "url"' in code
+    assert '"sub_type": "copy_code"' not in code
+    assert '"coupon_code"' not in code
+    # the OTP substitutes {{1}} as text
+    assert '{"type": "text", "text": otp}' in code
+
+
+def test_otp_template_name_and_language_are_not_drifted():
+    """The live template is `wecare_otp` / `en`. A mismatch fails at the Meta call."""
+    source = (
+        ROOT / "amplify/functions/auth/customer-whatsapp-auth/handler.py"
+    ).read_text()
+    assert '"OTP_TEMPLATE_NAME", "wecare_otp"' in source
+    assert '"OTP_TEMPLATE_LANGUAGE", "en"' in source
+
+
+def test_otp_is_never_logged():
+    """The handler prints metadata about a send but must never include the code."""
+    source = (
+        ROOT / "amplify/functions/auth/customer-whatsapp-auth/handler.py"
+    ).read_text()
+    logged = source.split("customer_whatsapp_otp_sent")[1][:400]
+    assert "otp" not in logged.lower().replace("otp_sent", "")

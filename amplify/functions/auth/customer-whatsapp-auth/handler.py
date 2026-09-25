@@ -72,13 +72,24 @@ def _send_otp(phone: str, otp: str) -> None:
                 "type": "body",
                 "parameters": [{"type": "text", "text": otp}],
             },
+            # `url`, not `copy_code`.
+            #
+            # `wecare_otp` is an AUTHENTICATION template, and Meta materialises its
+            # copy-code affordance as a real URL button:
+            #   https://www.whatsapp.com/otp/code/?...&code=otp{{1}}
+            # so the OTP is a text substitution into that URL, not a coupon code.
+            #
+            # Sending `sub_type: "copy_code"` with a `coupon_code` parameter is
+            # rejected outright:
+            #   (#132018) buttons: Button at index 0 must be of type Url
+            # which surfaces here only as "sender returned HTTP 400". Verified
+            # against the live WABA on 2026-09-25 - the round trip failed with
+            # copy_code and succeeds with url.
             {
                 "type": "button",
-                "sub_type": "copy_code",
+                "sub_type": "url",
                 "index": "0",
-                "parameters": [
-                    {"type": "coupon_code", "coupon_code": otp}
-                ],
+                "parameters": [{"type": "text", "text": otp}],
             },
         ],
     }

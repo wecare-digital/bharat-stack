@@ -4,6 +4,23 @@ Imported lazily by ``handler._create_order`` and only when
 ``SECURE_FILES_PAYMENT_ENABLED`` is on, so that with the flag off this module is
 never loaded, no credential is read and no Razorpay endpoint is contacted.
 
+Which secret, and why it matters
+--------------------------------
+There are **two** Razorpay secrets and they hold different fields::
+
+    wecare/razorpay/api        key_id + key_secret    API auth  <- this module
+    wecare/razorpay-webhook    webhook_secret         signature verification
+
+Conflating them has already cost this codebase once: ``partner-onboarding`` read
+the API pair out of ``wecare/razorpay-webhook``, which has only ever contained
+``webhook_secret``, so ``key_id``/``key_secret`` came back empty and every
+self-service top-up returned 501. Verified again 2026-09-25 - both secrets exist,
+and the webhook one still holds exactly one field.
+
+So this module reads ``wecare/razorpay/api`` and nothing else. If order creation
+ever starts failing with a missing-key error, check that the env var was not
+pointed back at the webhook secret.
+
 Credential handling
 -------------------
 The key is fetched from Secrets Manager **inside the function, at request time**,
@@ -11,6 +28,10 @@ and cached only for the life of the sandbox. It is never placed in an environmen
 variable, never logged, never returned to a caller, and never interpolated into a
 command. ``key_id`` is publishable (the browser checkout needs it); ``key_secret``
 is used only as HTTP basic auth here and must not leave this module.
+
+No Razorpay SDK is used. ``razorpay==2.0.1`` is in ``requirements-dev.txt`` only,
+so it is not present in the Lambda runtime, and the Orders API is one POST -
+bundling a dependency to make it would be the larger risk.
 
 The read is lazy rather than at import for the reason recorded in
 ``.kiro/steering/lambda-snapstart-deploy.md``: a module-scope secret read is
@@ -33,7 +54,8 @@ from typing import Any, Dict, Optional
 
 import boto3
 
-RAZORPAY_SECRET_ID = os.environ.get("RAZORPAY_SECRET_ID", "wecare/razorpay-webhook")
+# wecare/razorpay/api, NOT wecare/razorpay-webhook. See the note above.
+RAZORPAY_SECRET_ID = os.environ.get("RAZORPAY_SECRET_ID", "wecare/razorpay/api")
 ORDERS_ENDPOINT = "https://api.razorpay.com/v1/orders"
 TIMEOUT_SECONDS = 10
 
