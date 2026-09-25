@@ -1,111 +1,58 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>Combo widget — WhatsApp + Translate</title>
+<title>Combo widget — real, from SupportWidget.tsx</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px 24px 60px}
 .page{max-width:1180px;margin:0 auto}
-h1{font-size:21px;margin:0 0 4px;letter-spacing:-.5px}
-.sub{font-size:13px;color:#555;margin:0 0 14px;max-width:94ch}
+h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
+.sub{font-size:13px;color:#555;margin:0 0 14px}
 .try{font-size:13px;color:#0f2a1d;background:#e0f7c8;border:1px solid #c5e866;border-radius:8px;padding:9px 13px;margin:0 0 16px;display:inline-block}
-.cap{font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.03em;padding:7px 12px;border-radius:9px 9px 0 0;display:inline-block;margin-top:20px}
-.cap-cur{background:#dc2626}.cap-rec{background:#3da35a}.cap-opt{background:#1a3a2a}
-.note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 9px 9px;padding:9px 12px;margin:0 0 8px;line-height:1.55}
-.note b{color:#000}
-
-/* a fake page corner to show the widget in context */
-.stage{position:relative;height:210px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+.cap{font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;padding:7px 12px;border-radius:9px 9px 0 0;display:inline-block;margin-top:18px;background:#3da35a}
+.note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 9px 9px;padding:9px 12px;margin:0 0 8px;line-height:1.5}
+.stage{position:relative;height:330px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
 .stage::before{content:'page content';position:absolute;left:18px;top:16px;font-size:12px;color:#c3c7cc}
-.corner{position:absolute;right:18px;bottom:18px;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 
-/* ===== shared icon sizing ===== */
-svg{display:block}
-
-/* ===== CURRENT: two unrelated circles ===== */
-.cur-wa{width:56px;height:56px;border-radius:50%;background:#25D366;display:grid;place-items:center;box-shadow:0 6px 20px rgba(16,32,24,.18)}
-.cur-wa svg{width:30px;height:30px;fill:#fff}
-.cur-lang{width:56px;height:56px;border-radius:50%;background:#fff;border:1px solid rgba(0,0,0,.1);display:grid;place-items:center;box-shadow:0 6px 20px rgba(16,32,24,.14);color:#1a3a2a}
-.cur-lang svg{width:28px;height:28px;fill:currentColor}
-
-/* ===== A: ONE WIDE COMBO PILL (recommended) ===== */
-.combo{display:inline-flex;align-items:center;gap:2px;padding:4px;background:#fff;border:1.5px solid #d1f470;border-radius:9999px;box-shadow:0 6px 22px rgba(16,32,24,.14)}
-.combo button{width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;transition:background-color .2s,color .2s}
-.combo button:hover{background:rgba(209,244,112,.38)}
-.combo button svg{width:21px;height:21px;fill:currentColor}
-.combo .sep{width:1px;height:22px;background:#eef0e6;flex:0 0 auto}
-/* the WhatsApp side gets the lime fill so it still reads as the primary action */
-.combo .wa{background:#d1f470}
-.combo .wa:hover{background:#c5e866}
-
-/* ===== B: VERTICAL STACK, small lime circles ===== */
-.stack{display:flex;flex-direction:column;gap:8px}
-.stack button{width:44px;height:44px;border:1.5px solid #d1f470;border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 14px rgba(16,32,24,.12);transition:background-color .2s}
-.stack button:hover{background:rgba(209,244,112,.38)}
-.stack button.primary{background:#d1f470}
-.stack button.primary:hover{background:#c5e866}
-.stack button svg{width:22px;height:22px;fill:currentColor}
-
-/* ===== C: SINGLE FAB THAT EXPANDS ===== */
-.fabwrap{display:inline-flex;align-items:center;gap:8px}
-.fabwrap .kids{display:inline-flex;gap:8px;opacity:0;transform:translateX(10px);transition:opacity .22s,transform .22s;pointer-events:none}
-.fabwrap:hover .kids{opacity:1;transform:none;pointer-events:auto}
-.fabwrap .kids button{width:40px;height:40px;border:1.5px solid #d1f470;border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 4px 14px rgba(16,32,24,.12)}
-.fabwrap .kids button svg{width:21px;height:21px;fill:currentColor}
-.fab{width:48px;height:48px;border:0;border-radius:50%;background:#d1f470;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 20px rgba(16,32,24,.16)}
-.fab svg{width:24px;height:24px;fill:currentColor}
-
-.sizetag{font-size:11px;color:#888;margin-top:8px}
+/* ===== values copied 1:1 from the edited SupportWidget.tsx ===== */
+.wc-langbar{position:absolute;right:20px;bottom:20px;z-index:1300;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.wc-pill{display:inline-flex;align-items:center;gap:2px;padding:4px;background:#fff;border:1.5px solid #d1f470;border-radius:9999px;box-shadow:0 6px 22px rgba(16,32,24,.14)}
+.wc-wa{width:40px;height:40px;border-radius:50%;background:#d1f470;color:#1a3a2a;display:grid;place-items:center;text-decoration:none;transition:background-color .2s}
+.wc-wa:hover{background:#c5e866}
+.wc-wa svg{width:21px;height:21px;display:block}
+.wc-sep{width:1px;height:22px;background:#eef0e6;flex:0 0 auto}
+.language-trigger{width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;padding:0}
+.language-trigger:hover{background:rgba(209,244,112,.38)}
+.language-trigger[aria-expanded='true']{background:#1a3a2a;color:#d1f470}
+.language-trigger svg{width:21px;height:21px;display:block}
+.panel{position:absolute;right:0;bottom:100%;margin-bottom:10px;width:min(324px,calc(100vw - 40px));background:#fff;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16)}
+.search{width:100%;min-height:42px;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:15px;color:rgba(0,0,0,.42)}
+.hint{padding:12px 10px;color:rgba(0,0,0,.5);font-size:14px}
+.panel-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:8px 4px 2px;border-top:1px solid #e5e7eb}
+.current-language{font-size:13px;font-weight:500;color:rgba(0,0,0,.54)}
+.listen-btn{min-height:34px;padding:7px 13px;border:0;border-radius:8px;background:rgba(209,244,112,.22);color:#1a3a2a;font-size:13px;font-weight:500}
 </style></head><body>
 <div class="page">
-  <h1>Combo widget — WhatsApp + Translate</h1>
-  <p class="sub">One widget instead of two unrelated floating circles. All three options use the site lime, new inline SVG icons, and are smaller than today's 56px pair.</p>
-  <div class="try">👉 <b>Hover</b> the widgets — option C expands on hover.</div>
+  <h1>Real combo widget — rendered from the edited SupportWidget.tsx</h1>
+  <p class="sub">One pill, both actions, site lime, 40px controls in a 48px pill. Panel shown open.</p>
+  <div class="try">👉 Hover the WhatsApp side and the translate side.</div>
 
-  <!-- CURRENT -->
-  <div class="cap cap-cur">● CURRENT — two separate widgets</div>
-  <div class="note">A <b>green</b> WhatsApp circle (56px, injected by an external script outside this repo, at <code>z-index 2147483647</code>) and a separate <b>white</b> translate circle (56px). Two different colours, two different shapes, neither in the site lime. The green is WhatsApp's brand, not ours.</div>
-  <div class="stage"><div class="corner">
-    <div class="cur-lang"><svg viewBox="0 -960 960 960"><path d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"/></svg></div>
-    <div class="cur-wa"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></div>
-  </div></div>
-  <div class="sizetag">56px + 56px, stacked separately · green #25D366 + white</div>
-
-  <!-- A -->
-  <div class="cap cap-rec">● A — ONE WIDE COMBO PILL ✓ recommended</div>
-  <div class="note">A single rounded pill holding both actions. Lime border, lime fill on the WhatsApp side so it still reads as the primary action, translate beside it with a hairline divider. <b>40px buttons in a 48px-tall pill</b> — noticeably smaller than the current pair, and reads as <b>one</b> object.</div>
-  <div class="stage"><div class="corner">
-    <div class="combo">
-      <button class="wa" aria-label="Chat on WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></button>
-      <span class="sep"></span>
-      <button aria-label="Choose language"><svg viewBox="0 -960 960 960"><path d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"/></svg></button>
+  <div class="cap">● LIVE VALUES — Option A</div>
+  <div class="note">WhatsApp takes the lime fill (primary action); translate sits behind a hairline. The panel now opens <b>directly above its own control</b> — it no longer has to dodge a foreign button.</div>
+  <div class="stage">
+    <div class="wc-langbar">
+      <div class="panel">
+        <input class="search" value="Search all languages" readonly/>
+        <div class="hint">Type a language name to translate this page.</div>
+        <div class="panel-actions"><span class="current-language">English</span><button class="listen-btn">Listen</button></div>
+      </div>
+      <div class="wc-pill">
+        <a class="wc-wa" href="#" aria-label="Chat with us on WhatsApp"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></a>
+        <span class="wc-sep"></span>
+        <button class="language-trigger" aria-expanded="true" aria-label="Choose language"><svg viewBox="0 -960 960 960"><path fill="currentColor" d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"/></svg></button>
+      </div>
     </div>
-  </div></div>
-  <div class="sizetag">one pill, 48px tall · 40px buttons · lime #d1f470</div>
-
-  <!-- B -->
-  <div class="cap cap-opt">● B — VERTICAL STACK, small lime circles</div>
-  <div class="note">Keeps two separate circles but shrinks them to <b>44px</b>, puts both in the site lime, and gives the WhatsApp one the lime fill. Closest to today's arrangement, so the least change — but still two objects, not one.</div>
-  <div class="stage"><div class="corner">
-    <div class="stack">
-      <button aria-label="Choose language"><svg viewBox="0 -960 960 960"><path d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"/></svg></button>
-      <button class="primary" aria-label="Chat on WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></button>
-    </div>
-  </div></div>
-  <div class="sizetag">2 circles, 44px each · lime</div>
-
-  <!-- C -->
-  <div class="cap cap-opt">● C — SINGLE FAB THAT EXPANDS</div>
-  <div class="note">One 48px lime button at rest; the two actions slide out on hover/tap. Smallest resting footprint — but it hides both actions behind an extra interaction, and a support button people need in a hurry should not be behind a reveal.</div>
-  <div class="stage"><div class="corner">
-    <div class="fabwrap">
-      <span class="kids">
-        <button aria-label="Choose language"><svg viewBox="0 -960 960 960"><path d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"/></svg></button>
-        <button aria-label="Chat on WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></button>
-      </span>
-      <button class="fab" aria-label="Help and language"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 10.9 13 11.5 13 13h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26A1.5 1.5 0 0012 5.5 1.5 1.5 0 0010.5 7h-2A3.5 3.5 0 0112 3.5a3.5 3.5 0 013.07 5.75z"/></svg></button>
-    </div>
-  </div></div>
-  <div class="sizetag">1 button, 48px at rest · expands on hover</div>
+  </div>
+  <p style="font-size:12px;color:#888;margin-top:10px">One pill 48px tall · 40px controls · lime #d1f470 · z-index 1300 (clears BottomNav 1200) · WhatsApp → wa.me/message/APDM5HUWH26SG1</p>
 </div>
 </body></html>

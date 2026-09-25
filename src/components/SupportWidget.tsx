@@ -387,8 +387,21 @@ const LanguageBar: React.FC = () => {
     }
   };
 
-  if ( typeof window !== 'undefined' && window.location.pathname === '/' ) return null;
-  if ( langs.length < 2 ) return null;
+  /**
+   * BOTH OF THE OLD EARLY RETURNS ARE GONE, and that is the point of this widget.
+   *
+   * It used to bail out entirely on two conditions:
+   *   - `window.location.pathname === '/'`, which hid translation from the HOME PAGE,
+   *     the single most visited route on the site.
+   *   - `langs.length < 2`, which returned null whenever the language catalogue failed
+   *     to load - and since this component now also owns the WhatsApp button, that would
+   *     take customer support down with it. The translation API being unreachable is no
+   *     reason to remove the way people contact us.
+   *
+   * So the widget always renders. What varies is whether the TRANSLATE half is offered:
+   * `canTranslate` below gates that button alone, leaving WhatsApp in place.
+   */
+  const canTranslate = langs.length >= 2;
 
   return (
     <div ref={ rootRef } data-wc-no-translate="true" className="wc-langbar">
@@ -434,7 +447,33 @@ const LanguageBar: React.FC = () => {
            z-index 2147483647, so the panel is absolutely positioned and shifted left
            until it is clear of the button in x - horizontal clearance alone is enough,
            which is why the panel may sit at any height. See the .panel rule. */
-        .wc-langbar{position:fixed;right:20px;left:auto;bottom:52px;top:auto;z-index:900;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-family:inherit}
+        /* WE OWN THE STACKING CONTEXT NOW, and that is what simplified this file.
+           Everything above describes working around #wecarewa-widget - an externally
+           injected button at z-index 2147483647, the maximum 32-bit integer, which
+           nothing could be stacked above. Its geometry was a fixed point this component
+           had to derive its own position from, and the panel had to be shoved sideways
+           because overlap could only be avoided in x, never with z-index.
+           That script is retired: the WhatsApp button is now the left half of the pill
+           below, rendered by this component. So there is no foreign element to dodge,
+           the panel can sit directly above the pill, and z-index only has to clear the
+           mobile BottomNav (1200) and the header menu (1002) - 1300 does both.
+           bottom clears the phone bottom bar, which is 60px plus the safe-area inset. */
+        .wc-langbar{position:fixed;right:20px;left:auto;bottom:20px;top:auto;z-index:1300;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-family:inherit}
+
+        /* THE PILL. One container, two actions, reading as a single object. 4px of padding
+           around 40px controls makes it 48px tall; the lime hairline is the same 1.5px
+           edge the editor panels use, and the radius is a full pill so it cannot be
+           confused with the square-ish cards elsewhere. */
+        .wc-pill{display:inline-flex;align-items:center;gap:2px;padding:4px;background:#fff;border:1.5px solid #d1f470;border-radius:9999px;box-shadow:0 6px 22px rgba(16,32,24,.14)}
+        /* Full-strength lime with #1a3a2a type: the palette's own-surface pairing, and
+           correct here because contacting us is the primary action. Deliberately NOT
+           WhatsApp green - that is their brand, not ours, and it was the one off-palette
+           colour on every public page. */
+        .wc-wa{width:40px;height:40px;border-radius:50%;background:#d1f470;color:#1a3a2a;display:grid;place-items:center;text-decoration:none;transition:background-color .2s}
+        .wc-wa:hover{background:#c5e866}
+        .wc-wa:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+        .wc-wa svg{width:21px;height:21px;display:block}
+        .wc-sep{width:1px;height:22px;background:#eef0e6;flex:0 0 auto}
         /* visibility + opacity rather than display:none, so opening can animate -
            display is not an animatable property. visibility:hidden still removes the
            panel from the accessibility tree and from tab order, which display:none
@@ -462,7 +501,12 @@ const LanguageBar: React.FC = () => {
            why bottom:0 (level with the trigger) is safe even though the button occupies
            y 120..184.
            Width leaves a 20px margin on the left: 100vw - 96 (the right offset) - 20. */
-        .panel{position:absolute;right:76px;bottom:0;visibility:hidden;opacity:0;transform:translateY(6px) scale(.98);transform-origin:bottom right;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s linear .18s;width:min(324px,calc(100vw - 116px));background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16),0 2px 8px rgba(16,32,24,.06)}
+        /* DIRECTLY ABOVE THE PILL, which is only possible now that no foreign element
+           outranks us in z-index. It used to be pushed 76px to the left to clear the
+           external WhatsApp button in x; with that button gone the panel opens where the
+           control is, which is where a popover belongs. right:0 aligns it to the pill's
+           right edge, bottom:100% sits it above with a small gap from margin-bottom. */
+        .panel{position:absolute;right:0;bottom:100%;margin-bottom:10px;visibility:hidden;opacity:0;transform:translateY(6px) scale(.98);transform-origin:bottom right;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s linear .18s;width:min(324px,calc(100vw - 40px));background:#fff;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16),0 2px 8px rgba(16,32,24,.06)}
         .panel.open{visibility:visible;opacity:1;transform:none;transition:opacity .18s cubic-bezier(.16,1,.3,1),transform .18s cubic-bezier(.16,1,.3,1),visibility 0s}
         /* #e5e7eb at 1px: the contract's hairline value and weight for a STATIC
            edge, replacing rgba(0,0,0,.12). The focus ring is the lime
@@ -513,10 +557,10 @@ const LanguageBar: React.FC = () => {
         .listen-btn.on{background:#1a3a2a;color:#d1f470}
         /* 56px, matching the external WhatsApp icon's visible 56px circle so the two read
            as one set rather than two unrelated widgets. Was 48px against its 56px. */
-        .language-trigger{width:56px;height:56px;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#fff;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 20px rgba(16,32,24,.14)}
-        .language-trigger:hover{border-color:#1a3a2a;background:#f4f7f5}
+        .language-trigger{width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:#1a3a2a;display:grid;place-items:center;cursor:pointer;padding:0}
+        .language-trigger:hover{background:rgba(209,244,112,.38)}
         .language-trigger:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
-        .language-trigger[aria-expanded='true']{background:#1a3a2a;border-color:#1a3a2a;color:#fff}
+        .language-trigger[aria-expanded='true']{background:#1a3a2a;color:#d1f470}
         /* Translating is the one action here that takes real time - it is a sequence
            of network round trips over every text node on the page. The trigger used
            to only fade to .55 and stop responding, which reads as "broken" rather
@@ -527,7 +571,7 @@ const LanguageBar: React.FC = () => {
         @keyframes wc-spin{to{transform:rotate(360deg)}}
         /* 28px keeps the glyph at the same half-of-diameter ratio it had at 24px in a
            48px circle. Leaving it at 24px inside a 56px circle reads as under-filled. */
-        .language-trigger svg{width:28px;height:28px;display:block}
+        .language-trigger svg{width:21px;height:21px;display:block}
         .sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
         /* Same horizontal clearance on mobile, plus the safe-area inset for the iOS
            home indicator. The panel is capped against 104px for the same reason as
@@ -536,11 +580,16 @@ const LanguageBar: React.FC = () => {
            is what keeps the pair the same size across 601..767px. Trigger 52px centred on
            right:44 (18 + 26); panel clears the button's mobile column (x 14..74) by
            sitting 72px inside a container whose right edge is 18px out, i.e. at 90px. */
+        /* MOBILE. The pill keeps its size - 40px controls are already above the 44px
+           touch-target floor once the 4px padding is counted, and shrinking a support
+           button on the device most likely to need it is the wrong trade.
+           The bottom offset is what changes: the phone BottomNav is 60px plus the
+           safe-area inset, so the pill sits above it rather than on top of it. This is
+           the clearance the old comment could only achieve geometrically against an
+           un-stackable foreign button; now it is simply a margin. */
         @media(max-width:767px){
-          .wc-langbar{right:18px;left:auto;top:auto;bottom:calc(16px + env(safe-area-inset-bottom))}
-          .language-trigger{width:52px;height:52px}
-          .language-trigger svg{width:26px;height:26px}
-          .panel{right:72px;width:min(300px,calc(100vw - 110px))}
+          .wc-langbar{right:16px;left:auto;top:auto;bottom:calc(72px + env(safe-area-inset-bottom))}
+          .panel{width:min(300px,calc(100vw - 32px))}
         }
         @media print{.wc-langbar{display:none}}
         /* The spinner keeps turning - it is the only signal that work is in flight,
@@ -618,6 +667,42 @@ const LanguageBar: React.FC = () => {
         </div>
       </div>
 
+      {/* ONE WIDE PILL HOLDING BOTH ACTIONS.
+          This replaces two unrelated floating circles: a green 56px WhatsApp button
+          injected by an external script, and this component's own white 56px translate
+          circle. They shared no colour, no shape and no container, and the green was
+          WhatsApp's brand rather than ours.
+          WhatsApp takes the lime fill because it is the primary action; translate sits
+          beside it behind a hairline. Both are 40px inside a 48px pill - smaller than
+          the 56px pair they replace, which is what was asked for. */}
+      <div className="wc-pill">
+        {/* A real anchor, not a button with an onClick: this leaves the site, so it must
+            be middle-clickable, long-pressable and copyable like any other link.
+            rel="noopener" because it opens cross-origin.
+            The href is the external widget's own destination, read out of
+            wecare-wa-widget.js rather than guessed, so retiring that script does not
+            change where people land. */}
+        <a
+          className="wc-wa"
+          href="https://wa.me/message/APDM5HUWH26SG1"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Chat with us on WhatsApp"
+          title="Chat with us on WhatsApp"
+        >
+          {/* Official WhatsApp glyph, inlined. Inlined rather than loaded from the asset
+              host for the reason the translate mark below records: a remote SVG carries
+              its own hardcoded fill, which CSS cannot reach, so it cannot follow
+              currentColor through hover and inverted states - and it adds a request that
+              can leave the button empty while in flight. */}
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z" />
+          </svg>
+        </a>
+
+        { canTranslate && <span className="wc-sep" aria-hidden="true" /> }
+
+        { canTranslate && (
       <button
         ref={ triggerRef }
         type="button"
@@ -657,6 +742,8 @@ const LanguageBar: React.FC = () => {
             </svg>
           ) }
       </button>
+        ) }
+      </div>
       <div className="sr" role="status" aria-live="polite">{ status }</div>
     </div>
   );

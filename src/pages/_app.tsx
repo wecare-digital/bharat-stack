@@ -24,7 +24,10 @@ import '../styles/inner-ux.css';
 import '../styles/flex-layout.css';
 import '../styles/button.css';
 import FloatingAgent from '../components/FloatingAgent';
-import LanguageBar from '../components/LanguageBar';
+// Was LanguageBar. Renamed because it no longer only chooses a language: it is the single
+// floating widget holding BOTH the WhatsApp contact button and the translate control. The
+// external wecare-wa-widget.js that used to inject the WhatsApp button is retired with it.
+import SupportWidget from '../components/SupportWidget';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -702,15 +705,12 @@ export default function App ( { Component, pageProps }: AppProps ) {
   const canonicalUrl = router.pathname === '/'
     ? `${SITE}/`
     : `${SITE}${router.pathname}/`;
-  // Every public page, not just / and /grahak-os. A help widget that appears on two
-  // pages and vanishes on the other twelve reads as a bug rather than a choice - a
-  // visitor who sees it on the home page and then needs it on a product or legal page
-  // finds it gone. isPublic is already the gate for the whole public shell below, so
-  // reusing it keeps the widget and the shell in step automatically when a page is
-  // added. Deliberately NOT on the authenticated dashboard: those screens carry
-  // customer names, numbers and message bodies, and a support widget there would be
-  // pointed at the operator rather than the customer.
-  const showPublicWhatsApp = isPublic;
+  // NO showPublicWhatsApp FLAG ANY MORE. It gated a <Script> tag that injected the
+  // external wecare-wa-widget.js, and that script is retired: the WhatsApp button is now
+  // the left half of <SupportWidget />, which this file renders inside the public branch
+  // below - so the branch itself is the gate and a separate boolean would be a second
+  // source of truth for the same question. A new public page picks the widget up by
+  // being public, exactly as it picks up the header and footer.
 
   /**
    * A MISTYPED ADDRESS LANDS ON THE HOME PAGE, and the address bar says so.
@@ -1008,14 +1008,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
           phone numbers and message bodies, and machine-translating live
           operational data would corrupt what an operator is reading.
         */}
-        <LanguageBar />
-        { showPublicWhatsApp && (
-          <Script
-            id="wecare-wa-widget"
-            src="https://app.wecare.digital/stream/code/wecare-wa-widget.js"
-            strategy="lazyOnload"
-          />
-        ) }
+        <SupportWidget />
       </ErrorBoundary>
     );
   }
