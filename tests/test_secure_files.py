@@ -475,3 +475,58 @@ def test_reconciliation_is_flagged_in_logs_for_visibility():
     source = (FUNC_DIR / "handler.py").read_text()
     assert "WEBHOOK_MAY_NOT_BE_SUBSCRIBED" in source
     assert '":via": "reconcile"' in source
+
+
+# ── the u/ and d/ split ───────────────────────────────────────────────────────
+
+def test_upload_and_delivery_prefixes_are_both_under_secure(mod):
+    """Both must sit under secure/, because that is the prefix the edge denies.
+
+    A delivery rendition outside secure/ would be publicly downloadable and would
+    quietly defeat the entire paywall.
+    """
+    assert mod.UPLOAD_PREFIX == "secure/u/"
+    assert mod.DELIVER_PREFIX == "secure/d/"
+    assert mod.UPLOAD_PREFIX.startswith(mod.SECURE_PREFIX)
+    assert mod.DELIVER_PREFIX.startswith(mod.SECURE_PREFIX)
+
+
+def test_uploads_land_in_the_upload_prefix(mod):
+    source = (FUNC_DIR / "handler.py").read_text()
+    assert "key = UPLOAD_PREFIX + basename" in source
+
+
+def test_only_pdf_and_image_are_deliverable(mod):
+    """WhatsApp recipients can open these inline; everything else needs a link."""
+    assert mod._classify_delivery("application/pdf", 1000) == "pdf"
+    assert mod._classify_delivery("image/jpeg", 1000) == "image"
+    assert mod._classify_delivery("image/png", 1000) == "image"
+    # charset suffixes must not defeat the match
+    assert mod._classify_delivery("application/pdf; charset=binary", 1000) == "pdf"
+    # anything else falls back to a link rather than arriving unopenable
+    for ct in ("text/plain", "application/zip", "application/msword", "", "video/mp4"):
+        assert mod._classify_delivery(ct, 1000) == "link"
+
+
+def test_oversize_files_fall_back_to_a_link(mod):
+    """Meta caps images at 5MB and documents at 100MB. Over that, send a link."""
+    assert mod._classify_delivery("image/png", mod.MAX_IMAGE_BYTES + 1) == "link"
+    assert mod._classify_delivery("image/png", mod.MAX_IMAGE_BYTES) == "image"
+    assert mod._classify_delivery("application/pdf", mod.MAX_DOCUMENT_BYTES + 1) == "link"
+    assert mod._classify_delivery("application/pdf", mod.MAX_DOCUMENT_BYTES) == "pdf"
+
+
+def test_delivery_type_is_judged_on_s3_not_the_browser():
+    """The browser's Content-Type is a hint; a wrong one would only surface when a
+    paying customer received something unopenable."""
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def _upload_confirm")[1].split("\ndef ")[0]
+    assert 'head.get("ContentType")' in body
+    assert "_classify_delivery(content_type, size)" in body
+
+
+def test_a_failed_delivery_copy_downgrades_rather_than_failing_the_upload():
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def _upload_confirm")[1].split("\ndef ")[0]
+    assert 'deliverable, delivery_key = "link", ""' in body
+    assert "delivery_copy_failed" in body

@@ -73,7 +73,28 @@ logger = get_logger(__name__)
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 BUCKET = os.environ.get("SECURE_FILES_BUCKET", "wecare-digital-get")
+
+# Everything gated lives under secure/. The edge function denies that whole prefix,
+# so both sub-prefixes below inherit the deny automatically.
 SECURE_PREFIX = "secure/"
+# u/ holds the original exactly as the operator uploaded it, whatever the type.
+UPLOAD_PREFIX = SECURE_PREFIX + "u/"
+# d/ holds the rendition that can actually be delivered over WhatsApp. Only PDF and
+# images render as something a recipient can open inline; anything else has no d/
+# object and falls back to a download link. Recording that at upload time beats
+# discovering it at send time, when a customer is already waiting.
+DELIVER_PREFIX = SECURE_PREFIX + "d/"
+
+# Types WhatsApp recipients can open inline. Documents may be up to 100MB, images
+# 5MB, which is why the two are distinguished rather than lumped together.
+DELIVERABLE_TYPES = {
+    "application/pdf": "pdf",
+    "image/jpeg": "image",
+    "image/jpg": "image",
+    "image/png": "image",
+}
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_DOCUMENT_BYTES = 100 * 1024 * 1024
 FILES_TABLE = os.environ.get("SECURE_FILES_TABLE", "stack-wecare-digital-SecureFilesTable")
 GRANTS_TABLE = os.environ.get("DOWNLOAD_GRANTS_TABLE", "stack-wecare-digital-DownloadGrantsTable")
 
@@ -262,6 +283,8 @@ def _public_file(item: Dict[str, Any], *, admin: bool) -> Dict[str, Any]:
         "status": item.get("status"),
         "createdAt": item.get("createdAt"),
         "downloadCount": item.get("downloadCount", 0),
+        # "pdf" / "image" arrive as a WhatsApp attachment; "link" goes out as a URL.
+        "deliverable": item.get("deliverable", "unknown"),
     }
     if admin:
         out["ownerName"] = item.get("ownerName")
@@ -368,7 +391,8 @@ def _upload_init(event: Dict[str, Any], origin: str) -> Dict[str, Any]:
     username = _ensure_customer_user(phone, name)
 
     file_id = f"{uuid.uuid4().hex}-{uuid.uuid4().hex}"
-    key = f"{SECURE_PREFIX}wecare-digital-{file_id}{_safe_extension(filename)}"
+    basename = f"wecare-digital-{file_id}{_safe_extension(filename)}"
+    key = UPLOAD_PREFIX + basename
     now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
     _table(FILES_TABLE).put_item(
@@ -383,6 +407,10 @@ def _upload_init(event: Dict[str, Any], origin: str) -> Dict[str, Any]:
             "contentType": content_type,
             "sizeBytes": size,
             "pricePaise": PRICE_PAISE,
+            # Decided at confirm time, once the real object is measured rather than
+            # trusted from the browser: "pdf", "image", or "link" when the type
+            # cannot be opened inline on WhatsApp.
+            "deliverable": "unknown",
             # pending until the object is actually in the bucket, so a failed
             # browser upload cannot leave a file the customer can be charged for
             "status": "pending",
@@ -420,28 +448,88 @@ def _upload_init(event: Dict[str, Any], origin: str) -> Dict[str, Any]:
     )
 
 
+def _classify_delivery(content_type: str, size: int) -> str:
+    """Whether this file can be opened inline on WhatsApp: "pdf", "image" or "link".
+
+    Judged on the object S3 actually holds, not on what the browser claimed, because
+    the browser's Content-Type is a hint and a wrong one would only surface when a
+    paying customer received something they could not open.
+    """
+    kind = DELIVERABLE_TYPES.get((content_type or "").split(";")[0].strip().lower())
+    if kind == "image" and size <= MAX_IMAGE_BYTES:
+        return "image"
+    if kind == "pdf" and size <= MAX_DOCUMENT_BYTES:
+        return "pdf"
+    # Too large, or a type that would arrive as an unopenable blob. Still sellable -
+    # it just goes out as a download link rather than an attachment.
+    return "link"
+
+
 def _upload_confirm(file_id: str, origin: str) -> Dict[str, Any]:
-    """Flip pending -> active, but only after proving the object is really there."""
+    """Flip pending -> active, but only after proving the object is really there.
+
+    Also creates the ``d/`` rendition when the file can be delivered over WhatsApp.
+    That copy is server-side, so the bytes never travel through this function.
+    """
     table = _table(FILES_TABLE)
     item = table.get_item(Key={"fileId": file_id}).get("Item")
     if not item:
         return cors_response(404, {"error": "Unknown fileId"}, origin)
 
+    upload_key = item["s3Key"]
     try:
-        head = _s3_client().head_object(Bucket=BUCKET, Key=item["s3Key"])
+        head = _s3_client().head_object(Bucket=BUCKET, Key=upload_key)
     except ClientError:
         return cors_response(
             409, {"error": "Upload not found in storage; retry the upload"}, origin
         )
 
+    size = int(head["ContentLength"])
+    # Prefer what S3 recorded over what the browser asserted at upload-init.
+    content_type = head.get("ContentType") or item.get("contentType") or ""
+    deliverable = _classify_delivery(content_type, size)
+
+    delivery_key = ""
+    if deliverable in ("pdf", "image"):
+        delivery_key = DELIVER_PREFIX + upload_key.split("/")[-1]
+        try:
+            _s3_client().copy_object(
+                Bucket=BUCKET,
+                Key=delivery_key,
+                CopySource={"Bucket": BUCKET, "Key": upload_key},
+                ContentType=content_type,
+                MetadataDirective="REPLACE",
+            )
+        except ClientError as exc:
+            # Not fatal: the file is still sellable as a download link. Record the
+            # downgrade rather than failing an upload that otherwise succeeded.
+            logger.warning(
+                json.dumps({"event": "delivery_copy_failed", "fileId": file_id,
+                            "error": exc.response["Error"]["Code"]})
+            )
+            deliverable, delivery_key = "link", ""
+
     table.update_item(
         Key={"fileId": file_id},
-        UpdateExpression="SET #s = :active, sizeBytes = :size",
+        UpdateExpression=(
+            "SET #s = :active, sizeBytes = :size, contentType = :ct, "
+            "deliverable = :d, deliveryKey = :dk"
+        ),
         ExpressionAttributeNames={"#s": "status"},
-        ExpressionAttributeValues={":active": "active", ":size": int(head["ContentLength"])},
+        ExpressionAttributeValues={
+            ":active": "active", ":size": size, ":ct": content_type,
+            ":d": deliverable, ":dk": delivery_key,
+        },
+    )
+    logger.info(
+        json.dumps({"event": "secure_file_active", "fileId": file_id,
+                    "deliverable": deliverable, "sizeBytes": size})
     )
     return cors_response(
-        200, {"fileId": file_id, "status": "active", "sizeBytes": int(head["ContentLength"])}, origin
+        200,
+        {"fileId": file_id, "status": "active", "sizeBytes": size,
+         "deliverable": deliverable},
+        origin,
     )
 
 
