@@ -369,11 +369,20 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
         .logo{display:flex;align-items:center;text-decoration:none}
         .logo-nav{display:flex;align-items:center;gap:10px}
         .nav-dropdown{position:relative}
-        .nav-trigger{min-width:46px;min-height:46px;background:none;border:0;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center}
+        /* SOFT NEUTRAL CHIP at rest, not a bare invisible button. It was
+           background:none, so the chevron floated with no target - it read as
+           decoration rather than a control. A soft #f4f7ee fill with a #e3ecc9
+           hairline gives it a visible, tappable chip while staying quieter than the
+           lime hover state below it. Hover/focus/expanded still brighten to the lime
+           tint, so the interaction feedback is unchanged. */
+        .nav-trigger{min-width:46px;min-height:46px;background:#f4f7ee;border:1px solid #e3ecc9;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center}
         .nav-trigger:hover,.nav-trigger:focus-visible{background:rgba(209,244,112,.22);outline:none}
         .nav-trigger:focus-visible{box-shadow:0 0 0 3px rgba(26,58,42,.2)}
         .nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}
-        .nav-arrow{width:7px;height:7px;box-sizing:border-box;margin:0;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
+        /* Chunkier chevron: 8px box with 2.5px strokes (was 7px / 2px), at .85 opacity
+           so it reads as a solid arrow rather than a thin hairline that vanished on
+           some displays. */
+        .nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0;border-right:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;opacity:.85;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
         .nav-trigger[aria-expanded='true'] .nav-arrow{transform:translateY(2px) rotate(225deg)}
 
         /* MEGA PANEL.
@@ -419,7 +428,7 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            aria-expanded was false - the arrow unrotated and a screen reader announcing
            it as collapsed. A mega panel appearing on an accidental mouse-over is also
            far more disruptive than a small dropdown was. */
-        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 256px));max-height:calc(100vh - 320px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fff;border:1px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 256px));max-height:calc(100vh - 320px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
         .nav-menu.open{opacity:1;visibility:visible;transform:translateY(0);transition:opacity .2s,transform .2s,visibility 0s}
 
         /* Search field. Sized off the language panel's input rather than a new set of
@@ -440,7 +449,13 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            menu items must read as a category and not as a disabled item, which is why
            it is well below the 19px the items themselves use. */
         .nav-group{display:flex;flex-direction:column}
-        .nav-group-label{display:block;padding:6px 12px 4px;font-size:12px;font-weight:500;letter-spacing:.04em;color:rgba(0,0,0,.42);text-transform:none}
+        /* Section labels read as headers, not as faint disabled rows. They were
+           rgba(0,0,0,.42) grey, weight 500, text-transform:none - so "Products",
+           "Legal Stuff" etc. blended into the item names below them. Now #1a3a2a
+           (the brand's deep green, NOT the grassy #3da35a a first pass used - that
+           bright green clashed with the palette), weight 700, UPPERCASE, with a
+           touch more tracking so the caps stay legible. */
+        .nav-group-label{display:block;padding:6px 12px 4px;font-size:12px;font-weight:700;letter-spacing:.06em;color:#1a3a2a;text-transform:uppercase}
         /* The Selfservice heading is a link, so it needs an affordance the plain
            headings do not have - without one it looks like the same inert label. */
         .nav-group-link{color:#1a3a2a;text-decoration:none;border-radius:8px}
@@ -460,8 +475,15 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            of 19px rows at 54px made the panel taller than the Selfservice list needs,
            and 46px still clears the 44px minimum touch target. */
         .nav-item{display:flex;align-items:center;min-height:46px;padding:0 12px;font-size:19px;font-weight:600;color:#1a3a2a;text-decoration:none;border-radius:8px}
-        .nav-item:hover,.nav-item:focus-visible,.nav-item.active{background:rgba(209,244,112,.22);outline:none}
-        .nav-item.active{font-weight:800}
+        /* ACTIVE AND HOVER MUST READ AS DIFFERENT STATES. They were both the same
+           rgba(209,244,112,.22) pale tint, so the current page ("you are here") looked
+           identical to whatever row the mouse was over - you could not tell which page
+           you were on. Hover/focus is now a stronger-but-still-transparent tint (.38);
+           the active row is SOLID #d1f470 with #0f2a1d type, which is the palette's
+           own-surface treatment (.msg.sent, .tab.active) and unmistakably marks the
+           current page. */
+        .nav-item:hover,.nav-item:focus-visible{background:rgba(209,244,112,.38);outline:none}
+        .nav-item.active{font-weight:800;background:#d1f470;color:#0f2a1d}
         /* Children of a linked heading step down to 17px. Same weight and colour, so
            they read as the same kind of thing at a lower level rather than as a
            different control - and the size difference is what carries the hierarchy

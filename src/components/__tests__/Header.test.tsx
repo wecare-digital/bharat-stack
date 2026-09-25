@@ -106,12 +106,14 @@ describe( 'Header', () => {
     expect( arrow ).not.toBeNull();
     expect( arrow?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 
-    // Drawn with two 2px WECARE.DIGITAL dark-green borders on a 7px border-box,
-    // rotated 45deg. margin:0 defeats the global .nav-arrow{margin-left:auto}
-    // in Layout.css, which would otherwise push it off centre.
-    expect( css ).toContain( '.nav-arrow{width:7px;height:7px;box-sizing:border-box;margin:0' );
-    expect( css ).toContain( 'border-right:2px solid #1a3a2a' );
-    expect( css ).toContain( 'border-bottom:2px solid #1a3a2a' );
+    // Drawn with two 2.5px WECARE.DIGITAL dark-green borders on an 8px border-box,
+    // rotated 45deg, at .85 opacity. margin:0 defeats the global
+    // .nav-arrow{margin-left:auto} in Layout.css, which would otherwise push it off
+    // centre. Sizes were bumped from 7px/2px to 8px/2.5px so the chevron reads as a
+    // solid arrow rather than a thin hairline that vanished on some displays.
+    expect( css ).toContain( '.nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0' );
+    expect( css ).toContain( 'border-right:2.5px solid #1a3a2a' );
+    expect( css ).toContain( 'border-bottom:2.5px solid #1a3a2a' );
     expect( css ).toContain( 'transform:translateY(-2px) rotate(45deg)' );
 
     // Open state is an exact 180deg flip of the shape (45 -> 225), on the same
