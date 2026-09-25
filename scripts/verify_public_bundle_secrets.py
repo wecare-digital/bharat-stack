@@ -39,10 +39,29 @@ read - which is prohibited anyway (``.kiro/steering/aws-agent-rules.md``).
 Values are never printed. Findings are reported as file + fingerprint + length,
 the metadata set sanctioned by ``.kiro/steering/plaintext-source-policy.md``.
 
+WHERE THIS HAS TO RUN, AND WHY CI IS NOT ENOUGH
+-----------------------------------------------
+Scanning ``out/`` only catches the key if the build that produced ``out/`` had the
+variable set. GitHub Actions does **not** set ``NEXT_PUBLIC_GOOGLE_MAPS_KEY``, so
+the CI copy of this check scans an export that never contained a key and passes
+trivially. The build that matters is **Amplify's**, because that is where the
+branch environment variables exist.
+
+So this check is wired in three places, deliberately:
+
+  1. ``amplify.yml`` build phase - the real gate. Runs inside the Amplify build,
+     after ``npm run build``, where the variable is present. Fails the build
+     before anything is deployed.
+  2. ``.github/workflows/build-test.yml`` - a weak backstop. It cannot see Amplify
+     variables, so it only catches a credential committed into the source tree.
+  3. ``--amplify-env`` - reads the Amplify branch variables over the API and
+     fingerprints them, so the answer is available without waiting for a build.
+
 Usage
 -----
     python scripts/verify_public_bundle_secrets.py            # scans out/
     python scripts/verify_public_bundle_secrets.py --dir out
+    python scripts/verify_public_bundle_secrets.py --amplify-env
     python scripts/verify_public_bundle_secrets.py --list-fingerprints
 
 Exit codes: 0 clean, 1 a forbidden credential is present, 2 nothing to scan
@@ -144,14 +163,75 @@ def scan_file(path: Path, rel: str) -> tuple[list[dict], list[dict]]:
     return failures, allowed
 
 
+APP_ID = "d22dm4b0jn71jw"
+BRANCH = "stack"
+
+
+def check_amplify_env() -> int:
+    """Fingerprint the Amplify branch environment variables.
+
+    Catches the mistake at the point it is actually made - someone pasting a value
+    into the Amplify console - rather than one build later. Values are never
+    printed or returned; only a fingerprint comparison happens, and the
+    fingerprints it compares against are already public in the docs.
+
+    Every ``NEXT_PUBLIC_*`` variable is inlined into the client bundle by
+    ``output: 'export'``, so a forbidden value in any of them is published. A
+    non-public variable is reported separately: still wrong to keep in Amplify,
+    but not served to visitors.
+    """
+    try:
+        import boto3
+    except ImportError:
+        print("boto3 unavailable; --amplify-env needs it")
+        return 2
+
+    client = boto3.client("amplify", region_name="us-east-1")
+    env = client.get_branch(appId=APP_ID, branchName=BRANCH)["branch"].get(
+        "environmentVariables", {}) or {}
+
+    published, private = [], []
+    for name, value in sorted(env.items()):
+        fp = fingerprint((value or "").strip())
+        if fp in FORBIDDEN_FINGERPRINTS:
+            (published if name.startswith("NEXT_PUBLIC_") else private).append(
+                {"name": name, "fingerprint": fp, "why": FORBIDDEN_FINGERPRINTS[fp]})
+
+    print(f"Amplify app {APP_ID} branch {BRANCH}: {len(env)} environment variable(s)")
+    print(f"  NEXT_PUBLIC_* (inlined into the public bundle): "
+          f"{sum(1 for k in env if k.startswith('NEXT_PUBLIC_'))}")
+
+    if not published and not private:
+        print("\nPASS: no Amplify variable holds a known server-side credential")
+        return 0
+
+    for row in published:
+        print(f"\nFAIL {row['name']} is NEXT_PUBLIC_* and holds a server-side credential")
+        print(f"  fingerprint sha256:{row['fingerprint']}")
+        print(f"  why         {row['why']}")
+        print("  This value is inlined into a JS chunk and served to every visitor.")
+    for row in private:
+        print(f"\nFAIL {row['name']} holds a server-side credential")
+        print(f"  fingerprint sha256:{row['fingerprint']}")
+        print(f"  why         {row['why']}")
+        print("  Not NEXT_PUBLIC_, so not published - but it belongs in Secrets Manager.")
+    print("\nThe value is NOT printed. Replace it; do not echo it to confirm.")
+    return 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dir", default="out",
                     help="directory to scan, relative to the repo root (default: out)")
+    ap.add_argument("--amplify-env", action="store_true",
+                    help="fingerprint the live Amplify branch environment variables")
     ap.add_argument("--list-fingerprints", action="store_true",
                     help="print the forbidden fingerprints and exit")
     args = ap.parse_args()
+
+    if args.amplify_env:
+        return check_amplify_env()
 
     if args.list_fingerprints:
         print("Server-side key fingerprints that must never reach the export:\n")

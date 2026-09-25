@@ -14,11 +14,29 @@ frontend:
         - nvm use 24 || true
         - node -v
         - npm -v
+        # Proved early and loudly, because the build step below depends on it. If the
+        # Amplify image ever ships without python3, this fails here with an obvious
+        # cause instead of turning the credential gate into a silent skip.
+        - python3 --version
         - rm -rf node_modules/.cache
         - npm install --no-audit --no-fund --legacy-peer-deps
     build:
       commands:
         - npm run build
+        # THE REAL CREDENTIAL GATE, and it has to be here rather than only in CI.
+        # output:'export' inlines every NEXT_PUBLIC_* value into a JS chunk that is
+        # then served to every visitor. GitHub Actions does not have the branch
+        # environment variables, so the copy of this check in build-test.yml scans an
+        # export that never contained a key and passes for free. THIS build is the one
+        # that has them, so this is the only place the check can actually catch a
+        # server-side credential being published.
+        #
+        # Specifically it refuses the unified Google key - one value shared by
+        # wecare/google/cloud, wecare/google-api-key and wecare/google-maps, read
+        # server-side by wecare-whatsapp-templates. A genuine referrer-restricted Maps
+        # browser key passes; that one fails the build before anything deploys.
+        # Compares fingerprints only, so no secret is read or printed.
+        - python3 scripts/verify_public_bundle_secrets.py
   artifacts:
     baseDirectory: out
     files:

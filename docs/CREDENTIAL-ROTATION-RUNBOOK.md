@@ -218,3 +218,84 @@ command runs. See `.kiro/steering/secret-handling.md`.
 Root cause worth fixing beyond rotation: **two of the four credentials had no
 Secrets Manager entry at all.** Until every credential has a home to be
 referenced from, inline passing stays the path of least resistance.
+
+---
+
+## The contact map needs a NEW browser key, not the unified one · CLOSED, owner action
+
+**Decision, 2026-09-25: the unified Google key must never be placed in Amplify.**
+Recorded here so it is not re-litigated, and enforced by a build gate so it cannot
+happen by accident.
+
+### Why not the unified key
+
+`/contact/` renders a keyless `google.com/maps/embed` iframe because
+`NEXT_PUBLIC_GOOGLE_MAPS_KEY` is unset. Setting it switches `ContactLocation` to the
+Maps JavaScript API, which is what removes Google's three embedded controls and
+turns `contactcheck.js` from 12/13 to 13/13.
+
+But the obvious value to reach for is the wrong one. `docs/provider-inventory.md`
+records `wecare/google/cloud`, `wecare/google-api-key` and `wecare/google-maps` as
+**all holding the same unified key**, fingerprint `sha256:0bd4beb6496a`, and
+`wecare-whatsapp-templates` reads it server-side for the Places proxy under a comment
+saying it is never exposed to the browser.
+
+`next.config.js` uses `output: 'export'`, so **every `NEXT_PUBLIC_*` value is inlined
+into a JS chunk and served to every visitor.** Putting the unified key there publishes
+a credential that also authorises Places, Geocoding and PageSpeed — and it is already
+one of the four credentials exposed on 2026-09-19 and still awaiting rotation.
+`.env.local.example` states the rule directly: that key is server-side only, never
+`NEXT_PUBLIC_`.
+
+A Maps **browser** key is different in kind, not degree: Google's own model is that it
+is public and restricted by HTTP referrer. That is the only kind of key that belongs
+in this variable.
+
+### What the owner does
+
+1. **Google Cloud Console → APIs & Services → Credentials → Create credentials → API
+   key.** A brand-new key. Do not reuse the unified key, and do not reuse the Places
+   key from §2 above.
+2. **Application restrictions → Websites (HTTP referrers)**, and add **both**:
+   - `wecare.digital/*`
+   - `*.wecare.digital/*`
+
+   The apex alone misses `www`. Without a referrer restriction, anyone reading the
+   chunk can bill the project — the key is public by design, so the restriction *is*
+   the security control.
+3. **API restrictions → Restrict key → Maps JavaScript API only.** Add Static Maps or
+   Places only if something later needs them.
+4. **Amplify console → app `d22dm4b0jn71jw` → branch `stack` → Environment variables**,
+   set `NEXT_PUBLIC_GOOGLE_MAPS_KEY`. Paste it in the console; do not put it on a
+   command line (`block-inline-secrets` refuses `AIza`-prefixed values in a command,
+   and that rule exists because of the 2026-09-19 incident).
+5. **Redeploy.** The value is read at *build* time, so nothing changes until the next
+   Amplify build.
+
+### How it is verified, and what stops the mistake
+
+```
+python scripts/verify_public_bundle_secrets.py --amplify-env   # before a build
+node tools/browser/contactcheck.js                             # expect 13/13
+```
+
+The gate lives in **`amplify.yml`**, not only in CI, and that placement is the point:
+GitHub Actions has no branch environment variables, so the copy of the check in
+`build-test.yml` scans an export that never contained a key and passes for free. The
+Amplify build is the one that has them. If the unified key is ever pasted in, that
+build **fails before deploying**, naming the chunk and the fingerprint and never
+printing the value. A genuine browser key passes and is reported with its fingerprint,
+so its presence is visible rather than silent.
+
+Proven end to end rather than assumed: a synthetic `AIza`-shaped value was written to
+`.env.local`, built, and found inlined in exactly one chunk — first reported as an
+allowed browser key, then, with its fingerprint declared server-side, failing with
+exit 1. Both the inlining assumption and the refusal are therefore measured.
+
+### Checking a key after it is live
+
+Referrer restrictions are enforced by Google, not by us, so confirm from a browser on
+the real origin rather than with `curl`. A rejected key, a referrer restriction that
+excludes the origin, and billing being off all render a blank grey panel and throw
+nothing — which is why `contactcheck.js` asserts the map was actually *painted* rather
+than merely that a div exists.

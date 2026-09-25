@@ -197,3 +197,100 @@ def test_a_dirty_export_returns_one(export, monkeypatch):
     _write(export, "page-vwx.js", f'var k="{_razorpay_key()}";')
 
     assert vpbs.main() == 1
+
+
+# ── --amplify-env: catching the paste, not the build after it ─────────────────
+#
+# The out/ scan only sees a key if the build that produced out/ had the variable
+# set, and GitHub Actions does not set it. So the Amplify env check is what makes
+# the answer available without a build. boto3 is stubbed; these never touch AWS.
+
+class _FakeAmplify:
+    def __init__(self, env):
+        self._env = env
+
+    def get_branch(self, appId, branchName):
+        assert appId and branchName
+        return {"branch": {"environmentVariables": dict(self._env)}}
+
+
+@pytest.fixture()
+def fake_boto3(monkeypatch):
+    import types
+
+    def install(env):
+        mod = types.ModuleType("boto3")
+        mod.client = lambda service, region_name=None: _FakeAmplify(env)
+        monkeypatch.setitem(__import__("sys").modules, "boto3", mod)
+    return install
+
+
+def test_amplify_env_clean_passes(fake_boto3, capsys):
+    fake_boto3({"NEXT_PUBLIC_API_BASE": "https://api.wecare.digital",
+                "NEXT_PUBLIC_GOOGLE_MAPS_KEY": BENIGN_GOOGLE})
+
+    assert vpbs.check_amplify_env() == 0
+    assert "PASS" in capsys.readouterr().out
+
+
+def test_amplify_env_catches_a_server_side_key_in_a_public_var(
+        fake_boto3, monkeypatch, capsys):
+    """The exact mistake: the unified key pasted into NEXT_PUBLIC_GOOGLE_MAPS_KEY."""
+    monkeypatch.setitem(vpbs.FORBIDDEN_FINGERPRINTS,
+                        vpbs.fingerprint(SERVER_GOOGLE), "synthetic server-side key")
+    fake_boto3({"NEXT_PUBLIC_GOOGLE_MAPS_KEY": SERVER_GOOGLE})
+
+    rc = vpbs.check_amplify_env()
+    out = capsys.readouterr().out
+
+    assert rc == 1
+    assert "NEXT_PUBLIC_GOOGLE_MAPS_KEY" in out
+    assert "every visitor" in out
+    # the value itself must never be printed
+    assert SERVER_GOOGLE not in out
+    assert SERVER_GOOGLE[:20] not in out
+
+
+def test_amplify_env_reports_a_non_public_var_differently(
+        fake_boto3, monkeypatch, capsys):
+    """Still wrong to hold a credential in Amplify, but it is not published - so the
+    report must not claim visitors can read it."""
+    monkeypatch.setitem(vpbs.FORBIDDEN_FINGERPRINTS,
+                        vpbs.fingerprint(SERVER_GOOGLE), "synthetic server-side key")
+    fake_boto3({"GOOGLE_API_KEY": SERVER_GOOGLE})
+
+    rc = vpbs.check_amplify_env()
+    out = capsys.readouterr().out
+
+    assert rc == 1
+    assert "not published" in out
+    assert "every visitor" not in out
+    assert SERVER_GOOGLE not in out
+
+
+def test_amplify_env_whitespace_does_not_defeat_the_fingerprint(
+        fake_boto3, monkeypatch):
+    """A pasted value often carries a trailing newline; it must still match."""
+    monkeypatch.setitem(vpbs.FORBIDDEN_FINGERPRINTS,
+                        vpbs.fingerprint(SERVER_GOOGLE), "synthetic server-side key")
+    fake_boto3({"NEXT_PUBLIC_GOOGLE_MAPS_KEY": f"  {SERVER_GOOGLE}\n"})
+
+    assert vpbs.check_amplify_env() == 1
+
+
+# ── the wiring itself is part of the guarantee ────────────────────────────────
+
+def test_the_gate_runs_in_the_amplify_build_after_the_build():
+    """If this step is removed from amplify.yml the check stops protecting the only
+    build that has the environment variables, and CI would still be green."""
+    import yaml
+
+    spec = yaml.safe_load((ROOT / "amplify.yml").read_text())
+    cmds = spec["frontend"]["phases"]["build"]["commands"]
+    gate = [i for i, c in enumerate(cmds) if "verify_public_bundle_secrets" in c]
+    assert gate, "the credential gate is missing from amplify.yml"
+    assert cmds.index("npm run build") < gate[0], "the gate must run after the build"
+
+    pre = spec["frontend"]["phases"]["preBuild"]["commands"]
+    assert any("python3 --version" in c for c in pre), \
+        "preBuild must prove python3 exists, or the gate can silently skip"

@@ -83,17 +83,20 @@ jobs:
       - name: Build
         run: npm run build
 
-      # A GATE, and it runs here because it inspects out/, which only exists after the
-      # build. next.config.js uses output:'export', so every NEXT_PUBLIC_* value is
-      # inlined into a JS chunk and served to every visitor. That is correct for a Maps
-      # browser key and a disclosure for a server-side one, and the variable name cannot
-      # tell them apart - this repo has three secrets (wecare/google/cloud,
-      # wecare/google-api-key, wecare/google-maps) all holding ONE unified key that is
-      # read server-side, so pasting it into NEXT_PUBLIC_GOOGLE_MAPS_KEY would publish a
-      # live credential. The check compares FINGERPRINTS, never values, against the one
-      # already committed in docs/provider-inventory.md, so it needs no secret read.
-      # A legitimate browser key passes and is reported; the unified key fails the build.
-      - name: No server-side credential in the export
+      # A BACKSTOP, NOT THE REAL GATE, and the distinction matters enough to spell out.
+      # output:'export' inlines every NEXT_PUBLIC_* value into a JS chunk served to
+      # every visitor, so publishing a server-side credential is a real risk - this
+      # repo has three secrets (wecare/google/cloud, wecare/google-api-key,
+      # wecare/google-maps) all holding ONE unified key that is read server-side.
+      #
+      # But THIS workflow has no branch environment variables, so the export it builds
+      # never contains that key and this step passes for free. It only catches a
+      # credential committed into the source tree. The gate that can actually catch the
+      # paste lives in `amplify.yml`, which runs inside the Amplify build where the
+      # variables exist; `--amplify-env` answers the same question without a build.
+      # Kept here anyway because a committed literal is worth catching early and the
+      # step costs a second.
+      - name: No server-side credential in the export (backstop; see amplify.yml)
         run: python scripts/verify_public_bundle_secrets.py
 
       # ORDER MATTERS: tsc must run AFTER the build, because it needs the generated
