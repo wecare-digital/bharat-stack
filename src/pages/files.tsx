@@ -277,7 +277,14 @@ export default function FilesPage () {
 
     return (
         <>
-            <SEO title="Your files" description="Collect files shared with you by WECARE.DIGITAL" />
+            {/* noindex: this is a personal collection point, not a marketing page.
+                There is nothing here for a crawler, and an indexed URL inviting a
+                phone number is a phishing template waiting to be copied. */}
+            <SEO
+                title="Your files"
+                description="Collect files shared with you by WECARE.DIGITAL"
+                noindex
+            />
             <main style={ shell }>
                 <div style={ card }>
                     <h1 style={ { fontSize: '20px', margin: '0 0 6px' } }>Your files</h1>
