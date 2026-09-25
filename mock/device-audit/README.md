@@ -148,6 +148,30 @@ It costs one scroll listener and one transform, so no layout on any frame. **It 
 
 ---
 
+## 6 · Parking above the footer — proved on all seven phone sizes
+
+![All seven phones, before and after](./6-all-phones-parked.png)
+
+Two widths was not proof. This is the full set: every phone size, each a real wheel-scroll to the very end of the home page, captured at **full viewport** so there is no cropping to hide behind. Scroll fix, dash option A and the SLIM size applied in every shot.
+
+| Phone | Footer height | Pill now | Pill parked | Gap above footer | Under header? |
+| --- | --- | --- | --- | --- | --- |
+| Fold closed · 280×653 | **216px** | y537–581 — in footer | y377–421 | 16px | no |
+| iPhone SE 1 · 320×568 | 192px | y452–496 — in footer | y316–360 | 16px | no |
+| iPhone SE 2/3 · 375×667 | 192px | y551–595 — in footer | y415–459 | 16px | no |
+| iPhone 13/14 · 390×844 | 192px | y728–772 — in footer | y592–636 | 16px | no |
+| iPhone 15/16 · 393×852 | 192px | y736–780 — in footer | y600–644 | 16px | no |
+| Pixel 7/8 · 412×915 | 192px | y799–843 — in footer | y663–707 | 16px | no |
+| iPhone 15 Pro Max · 430×932 | 192px | y816–860 — in footer | y680–724 | 16px | no |
+
+**The Fold is the case that justified checking all of them.** At 280px the footer is **216px tall, not 192** — the tagline wraps onto an extra line at that width. So the parked position has to be computed from the footer's *measured* height rather than from a fixed number. It is, which is why the Fold parks with the same 16px as everything else. A hardcoded offset would have been correct on six phones and wrong on the narrowest one.
+
+**There is also a clamp that is not exercised here, and that is deliberate.** A short viewport with a tall footer could push a naively parked pill up behind the fixed header. The rule is: park 16px above the footer, but never higher than 12px below the header. On a 320×568 screen the parked pill sits at y316 and the header ends at y96, so there is 220px of room and nothing clamps today. It exists so a future taller footer, or a landscape phone 320px high, cannot put the pill behind the header instead of above the footer.
+
+All seven also report **`blank-below-footer: 0px`**, because the scroll fix is applied. Without it the footer is shoved upward and the pill parks relative to a footer that is in the wrong place — which is exactly what you were looking at.
+
+---
+
 ## Decisions needed
 
 1. Dash — **A**, **B** or **C**?
