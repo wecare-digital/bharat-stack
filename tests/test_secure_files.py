@@ -11,6 +11,7 @@ These pin the decisions that are easy to undo by accident, not the happy path:
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import os
 import re
 import sys
@@ -29,10 +30,29 @@ for path in (str(FUNC_DIR), str(SHARED)):
 
 @pytest.fixture()
 def mod(monkeypatch):
+    """Load secure-files' handler by PATH, under a name of its own.
+
+    `importlib.import_module("handler")` is what this used to do, and it is unsafe in
+    this repo: there are 64 files called handler.py and seven test modules that import a
+    bare `handler`, so whichever runs first owns sys.modules["handler"] and every later
+    import gets that one back. Running this file alone passed; running the full suite
+    handed these tests messaging/outbound-whatsapp/handler.py and 20 of them failed on
+    AttributeError. CI runs the full suite, so they were failing there and passing here.
+
+    spec_from_file_location with a unique module name removes the shared key entirely,
+    so this file no longer depends on - or affects - collection order.
+    """
     monkeypatch.setenv("AWS_REGION", "us-east-1")
     monkeypatch.delenv("SECURE_FILES_PAYMENT_ENABLED", raising=False)
-    handler = importlib.import_module("handler")
-    return importlib.reload(handler)
+
+    spec = importlib.util.spec_from_file_location(
+        "wecare_secure_files_handler", FUNC_DIR / "handler.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    # Registered before exec so any self-referential import resolves to this instance.
+    sys.modules["wecare_secure_files_handler"] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 # ── the opaque key ────────────────────────────────────────────────────────────

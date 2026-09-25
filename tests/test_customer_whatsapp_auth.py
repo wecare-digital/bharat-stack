@@ -202,4 +202,13 @@ def test_sender_payload_uses_approved_authentication_template(monkeypatch):
     assert body["templateName"] == "wecare_otp"
     assert body["language"] == "en"
     assert body["components"][0]["parameters"][0]["text"] == "123456"
-    assert body["components"][1]["sub_type"] == "copy_code"
+    # `url`, not `copy_code`. This asserted copy_code and was wrong against the live
+    # WABA: wecare_otp is an AUTHENTICATION template whose copy-code affordance Meta
+    # materialises as a real URL button (.../otp/code/?...&code=otp{{1}}), so the OTP is
+    # a text substitution into that URL. Sending copy_code with a coupon_code parameter
+    # is refused outright:
+    #   (#132018) buttons: Button at index 0 must be of type Url
+    # which surfaces to the caller only as "sender returned HTTP 400". Confirmed by a
+    # live round trip 2026-09-25: copy_code fails, url succeeds.
+    assert body["components"][1]["sub_type"] == "url"
+    assert body["components"][1]["parameters"][0] == {"type": "text", "text": "123456"}

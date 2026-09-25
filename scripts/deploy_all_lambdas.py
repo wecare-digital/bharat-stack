@@ -144,7 +144,12 @@ SPECS: List[Spec] = [
         # razorpay_orders     only when paid downloads are enabled
         # whatsapp_delivery   only when sending a payment request or a file
         extra_files=["razorpay_orders.py", "whatsapp_delivery.py"],
-        provisioned_by="scripts/provision_secure_files_api.py",
+        # provisioned_by is deliberately NOT set. The function exists and deploys
+        # normally, so marking it would turn a genuine future failure - the function
+        # having been deleted - into "awaiting provisioning", which reads as expected.
+        # That is exactly what test_exactly_one_spec_is_awaiting_provisioning guards,
+        # and it caught this. Its provisioning script is recorded in
+        # docs/SECURE-FILE-SHARING.md instead.
     ),
     # Absent until now, which meant provision_crm_api.py could stand wecare-crm up
     # once and nothing could ever redeploy it - the exact failure
