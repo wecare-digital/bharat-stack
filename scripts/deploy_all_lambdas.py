@@ -136,6 +136,14 @@ SPECS: List[Spec] = [
     Spec("wecare-contacts", "core/contacts"),
     Spec("wecare-crm", "core/crm"),
     Spec("wecare-conversation-meta", "core/conversation-meta"),
+    Spec(
+        "wecare-secure-files",
+        "core/secure-files",
+        # razorpay_orders is imported lazily, only when paid downloads are enabled,
+        # so it must be in the package even though nothing imports it at module load
+        extra_files=["razorpay_orders.py"],
+        provisioned_by="scripts/provision_secure_files_api.py",
+    ),
     # Absent until now, which meant provision_crm_api.py could stand wecare-crm up
     # once and nothing could ever redeploy it - the exact failure
     # tests/test_crm_api.py::test_the_function_is_in_the_deploy_map describes as "the

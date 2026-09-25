@@ -393,6 +393,73 @@ def _is_duplicate_event(razorpay_event_id: str, request_id: str) -> bool:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# SECURE FILE DOWNLOAD GRANTS
+# ═══════════════════════════════════════════════════════════════════
+
+DOWNLOAD_GRANTS_TABLE = os.environ.get(
+    'DOWNLOAD_GRANTS_TABLE', 'stack-wecare-digital-DownloadGrantsTable')
+
+
+def _mark_download_grant_paid(order_id: str, payment_id: str, amount_paise: int,
+                              request_id: str) -> None:
+    """Flip a pending download grant to paid, found by its Razorpay order id.
+
+    The grant is written at order-creation time with `paid: False`; this is the only
+    writer that sets it True, so `secure-files` can treat `paid` as proof of a
+    signature-verified capture.
+
+    Two deliberate choices:
+
+    * The condition requires `paid = False`, so a replayed webhook cannot revive a
+      grant that was already spent and reset `consumed`. Redemption is a separate
+      conditional update in `secure-files`; this one only ever flips paid.
+    * The amount is recorded but NOT enforced here. Refusing a mismatched amount at
+      this point would leave the customer charged with no entitlement and no way to
+      self-recover. It is stored so a reconciliation job can find underpayments,
+      which is the right place to act on them.
+    """
+    import time as _time
+    try:
+        # reuse the module-level resource rather than building another client
+        table = dynamodb.Table(DOWNLOAD_GRANTS_TABLE)
+        found = table.query(
+            IndexName='order-index',
+            KeyConditionExpression='orderId = :o',
+            ExpressionAttributeValues={':o': order_id},
+            Limit=1,
+        ).get('Items') or []
+
+        if not found:
+            # Not an error worth failing the webhook: the grant may have expired via
+            # TTL before the customer completed payment.
+            logger.warning(json.dumps({
+                'event': 'download_grant_not_found', 'orderId': order_id,
+                'paymentId': payment_id, 'requestId': request_id}))
+            return
+
+        grant_id = found[0]['grantId']
+        table.update_item(
+            Key={'grantId': grant_id},
+            UpdateExpression=('SET paid = :true, paymentId = :pid, '
+                              'paidAmountPaise = :amt, paidAt = :now'),
+            ConditionExpression='attribute_exists(grantId) AND paid = :false',
+            ExpressionAttributeValues={
+                ':true': True, ':false': False, ':pid': payment_id,
+                ':amt': int(amount_paise), ':now': int(_time.time()),
+            },
+        )
+        logger.info(json.dumps({
+            'event': 'download_grant_paid', 'grantId': grant_id, 'orderId': order_id,
+            'paymentId': payment_id, 'amountPaise': int(amount_paise),
+            'requestId': request_id}))
+    except Exception as exc:  # noqa: BLE001
+        # Type only. A ClientError message can echo request content.
+        logger.error(json.dumps({
+            'event': 'download_grant_update_failed', 'orderId': order_id,
+            'error': type(exc).__name__, 'requestId': request_id}))
+
+
+# ═══════════════════════════════════════════════════════════════════
 # PAYMENT EVENT HANDLERS
 # ═══════════════════════════════════════════════════════════════════
 
@@ -423,6 +490,17 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
         except Exception as e:  # noqa: BLE001
             logger.error(json.dumps({'event': 'partner_wallet_topup_error', 'error': str(e),
                                      'paymentId': payment_id, 'requestId': request_id}))
+        return
+
+    # Paid secure-file download (wecare.digital/get/secure): mark the pending grant
+    # paid and stop. Not an invoice payment, so it must not fall through below.
+    #
+    # THIS is the only place a download becomes payable-for. The browser's Razorpay
+    # success callback is never trusted, because anyone can POST one; entitlement
+    # requires arriving here, which requires a valid signature (verified fail-closed
+    # in `handler` before dispatch).
+    if (notes or {}).get('purpose') == 'secure_file_download' and order_id:
+        _mark_download_grant_paid(order_id, payment_id, amount_paise, request_id)
         return
 
     # Try to find referenceId from multiple locations in Razorpay notes

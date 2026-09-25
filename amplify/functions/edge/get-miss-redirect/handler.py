@@ -43,6 +43,19 @@ MAIN_SITE = "https://wecare.digital/"
 # Anything at or above this is treated as "no such file".
 ERROR_THRESHOLD = 400
 
+# Prefixes that must never be served over this public, unauthenticated path.
+#
+# ``o/`` is the open tier and is served here freely. ``secure/`` is the gated tier:
+# it requires a Cognito session (WhatsApp OTP) and a server-verified payment per
+# download, and it is delivered only as a short-lived presigned S3 URL issued by
+# the gated Lambda. It must therefore never be reachable through CloudFront, and
+# this deny is permanent defence in depth rather than a placeholder - even if a
+# routing rule is later misconfigured to point at it, the object does not leak.
+#
+# Matched after normalising away a leading slash, on a segment boundary, so
+# ``secure/x`` is denied but a legitimately public ``secure-notes.pdf`` is not.
+DENIED_PREFIXES = ("secure/",)
+
 
 def _redirect(response: dict) -> dict:
     """Turn the origin's error response into a 302, mutating it in place.
@@ -74,9 +87,21 @@ def _redirect(response: dict) -> dict:
     return response
 
 
+def _is_denied(uri: str) -> bool:
+    """Whether this URI addresses a prefix that must not be served publicly."""
+    normalised = (uri or "").lstrip("/")
+    return any(normalised.startswith(prefix) for prefix in DENIED_PREFIXES)
+
+
 def handler(event: dict, context: object) -> dict:
-    """Pass successful responses through untouched; redirect every error."""
-    response = event["Records"][0]["cf"]["response"]
+    """Redirect denied prefixes and errors; pass real files through untouched."""
+    record = event["Records"][0]["cf"]
+    response = record["response"]
+
+    # Checked before the status, and regardless of it: a gated object that exists
+    # returns 200 from S3, so keying only off errors would serve it.
+    if _is_denied(record.get("request", {}).get("uri", "")):
+        return _redirect(response)
 
     try:
         status = int(response["status"])
