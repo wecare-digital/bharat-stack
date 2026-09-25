@@ -467,39 +467,19 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
 };
 
 /**
- * RETIRED URLS THAT MUST STILL ANSWER.
+ * RETIRED URLS: now handled at the CDN, not in the code.
  *
- * These paths were published, sent to customers, and then deleted by a8d6a6c2 (#20).
- * They 404 today: a request 301s to the trailing-slash form and then finds nothing.
- * There are 99 references to /selfservice and 27 to /product-page/partner-up still live
- * in this repo - notably as the "Start Now" / "Book Slot" / "Upload Now" call-to-action
- * URLs that amplify/functions/ai/ai-generate-response/handler.py puts into outbound
- * WhatsApp messages. Editing those handlers fixes future sends only; it cannot recall a
- * message already delivered, so the URL itself has to keep working.
+ * /selfservice and /product-page/* were previously kept alive by an in-repo client-side
+ * redirect (src/components/RetiredUrl.tsx + these RETIRED_ROUTES entries), because a
+ * static export cannot emit a server 301 and Amplify Hosting redirects are console-managed.
  *
- * They are DELIBERATELY NOT in PUBLIC_PAGE_META and not in the allowlist in
- * scripts/generate-sitemap.js:
- *   - PUBLIC_PAGE_META would emit a WebPage + BreadcrumbList for them, advertising a
- *     redirect stub as a destination; and the unlisted fallback in getPublicPageSchema
- *     is worse still, since it returns the HOME PAGE's @id and url, which would claim
- *     each stub is the home page.
- *   - the sitemap must not invite a crawler to a page whose only job is to leave.
- * They are listed here purely so isPublic is true and they render at all - a route
- * missing from that gate ships an empty body with HTTP 200, which is a 404 that does not
- * look like one.
- *
- * A REAL 301 AT THE CDN IS STILL THE RIGHT ANSWER and is not available in this repo:
- * next.config.js sets output:'export', and Next's `redirects` config has no effect on a
- * static export. Amplify Hosting redirects are console-managed. Until one is added,
- * these stubs are the fix that ships with the code.
+ * On owner instruction those stubs were REMOVED. The routes no longer exist in the export,
+ * so a request for them now 404s at the origin UNLESS a CDN-level 301 is configured in the
+ * Amplify Console (Rewrites and redirects: /selfservice -> /contact/ and /product-page/<*>
+ * -> /contact/). That console redirect is the owner's responsibility and is the correct,
+ * single place for it. NOTE: any /selfservice or /product-page link already delivered in a
+ * WhatsApp message will break until that console 301 exists.
  */
-const RETIRED_ROUTES = new Set( [
-  '/selfservice',
-  '/product-page',
-  '/product-page/partner-up',
-  '/product-page/referral-partner',
-] );
-
 const SITE = 'https://wecare.digital';
 
 const getPublicPageSchema = ( pathname: string ) => {
@@ -700,13 +680,9 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // page to the menu and the sitemap while forgetting this one - which renders an empty body
   // with HTTP 200 and is invisible until someone loads the route. Deriving the allowlist from
   // the metadata map means a product cannot exist for structured data but not for rendering.
-  // Retired URLs render through the public branch so they are not blank 200s, but they
-  // suppress the sitewide Head below and declare their own - see RETIRED_ROUTES.
-  const isRetired = RETIRED_ROUTES.has( router.pathname );
   const isPublic = router.pathname === '/'
     || router.pathname === '/contact-test'
     || Object.prototype.hasOwnProperty.call( PUBLIC_PAGE_META, router.pathname )
-    || isRetired
     || isContentPublic;
 
   // trailingSlash is set in next.config.js, so the canonical form of every route except
@@ -785,7 +761,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
   {
     return (
       <ErrorBoundary>
-        { !isContentPublic && !isRetired && (
+        { !isContentPublic && (
           <Head>
           {/* PRODUCT-NEUTRAL SITEWIDE TITLE. This read "WECARE.DIGITAL - WhatsApp Business
               API Platform | Multi-Channel Messaging CRM India" - 86 characters, of which
