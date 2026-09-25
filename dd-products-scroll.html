@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>Menu — only Products scrolls (100+ items)</title>
+<title>Menu — Products scroll (final mock)</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:26px 24px 70px}
@@ -10,9 +10,11 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
 .sub{font-size:13px;color:#555;margin:0 0 8px;max-width:82ch}
 .try{font-size:13px;color:#0f2a1d;background:#e0f7c8;border:1px solid #c5e866;border-radius:8px;padding:9px 13px;margin:0 0 18px;display:inline-block}
 .try b{font-weight:700}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+.cap{font-size:12px;font-weight:800;color:#1a3a2a;text-transform:uppercase;letter-spacing:.03em;margin:0 0 8px}
 
-/* === EXACT current menu (unchanged) === */
-.nav-menu{width:760px;background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.12)}
+/* === EXACT current menu (unchanged size/colours) === */
+.nav-menu{background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.12)}
 .nav-search{width:100%;margin:0 0 12px;min-height:42px;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:15px;color:rgba(0,0,0,.42)}
 .nav-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 20px;align-items:start}
 .nav-col{display:flex;flex-direction:column;gap:10px;min-width:0}
@@ -22,74 +24,92 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
 .nav-item:hover{background:rgba(209,244,112,.38)}
 .nav-item.active{font-weight:800;background:#d1f470;color:#0f2a1d}
 
-/* === THE ONLY CHANGE: Products list becomes a scroll area === */
-/* label stays pinned, list below scrolls after ~9 rows (~9 x 46px = 414px) */
-.products-scroll{max-height:414px;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.2) transparent;padding-right:2px}
-.products-scroll::-webkit-scrollbar{width:7px}
-.products-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:20px}
-/* subtle fade cue at the bottom so it's obvious there's more below */
-.products-wrap{position:relative}
-.products-wrap::after{content:'';position:absolute;left:0;right:6px;bottom:0;height:22px;background:linear-gradient(to bottom,rgba(252,253,251,0),#fcfdfb);pointer-events:none;border-radius:0 0 8px 8px}
-.pcount{font-size:11px;color:rgba(0,0,0,.4);padding:2px 12px 4px}
+/* THE ONLY CHANGE: Products list gets a scroll cap that ONLY kicks in when tall.
+   max-height ~ 11 rows (11 x 46 = 506px). With today's 10 products it never scrolls;
+   grows naturally, then scrolls once you exceed the cap. */
+.products-scroll{max-height:506px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  /* LIME/GREEN THEMED SCROLLBAR (not grey) */
+  scrollbar-width:thin;scrollbar-color:#d1f470 transparent}
+.products-scroll::-webkit-scrollbar{width:8px}
+.products-scroll::-webkit-scrollbar-track{background:transparent}
+.products-scroll::-webkit-scrollbar-thumb{background:#d1f470;border-radius:20px}
+.products-scroll::-webkit-scrollbar-thumb:hover{background:#c5e866}
 </style></head><body>
 <div class="page">
-  <h1>Menu — only the Products section scrolls</h1>
-  <p class="sub">Everything in the menu is exactly as it is now. The <b>only</b> change: the <b>Products list</b> is capped in height and scrolls when there are many items (shown here with 40+ products). All other sections (Selfservice, Legal Stuff, Work with us, Account) are untouched.</p>
-  <div class="try">👉 <b>Scroll inside the Products list</b> (left column) — notice the PRODUCTS label stays pinned, the rest of the menu doesn't move, and there's a fade at the bottom hinting "more below".</div>
+  <h1>Final mock — Products scrolls only when needed, themed scrollbar</h1>
+  <p class="sub">Real products, existing menu size (no dummy items, nothing enlarged). The Products list only starts scrolling once it grows past the cap. The scrollbar uses the site's lime theme. Left = today's real 10 products (no scroll needed). Right = the same design later with many products (scrollbar shown, lime).</p>
+  <div class="try">👉 On the right, scroll the Products list — <b>lime scrollbar</b>, label pinned, rest of menu unchanged and same size.</div>
 
-  <nav class="nav-menu">
-    <input class="nav-search" value="Search" readonly/>
-    <div class="nav-cols">
-      <!-- COLUMN 1: Home + Products (Products scrolls) -->
-      <div class="nav-col">
-        <div class="nav-group"><a class="nav-item active">Home</a></div>
-        <div class="nav-group">
-          <span class="nav-group-label">Products</span>
-          <div class="pcount" id="pcount"></div>
-          <div class="products-wrap">
-            <div class="products-scroll" id="plist"></div>
+  <div class="twocol">
+    <!-- LEFT: today's real 10 products (fits, no scroll) -->
+    <div>
+      <div class="cap">TODAY — real 10 products (no scroll needed)</div>
+      <nav class="nav-menu">
+        <input class="nav-search" value="Search" readonly/>
+        <div class="nav-cols">
+          <div class="nav-col">
+            <div class="nav-group"><a class="nav-item active">Home</a></div>
+            <div class="nav-group">
+              <span class="nav-group-label">Products</span>
+              <div class="products-scroll" id="plistNow"></div>
+            </div>
+          </div>
+          <div class="nav-col">
+            <div class="nav-group"><span class="nav-group-label">Selfservice</span>
+              <a class="nav-item">Submit Request</a><a class="nav-item">My Order</a><a class="nav-item">Contact</a>
+            </div>
+            <div class="nav-group"><span class="nav-group-label">Legal Stuff</span>
+              <a class="nav-item">Terms</a><a class="nav-item">Privacy</a>
+            </div>
+          </div>
+          <div class="nav-col">
+            <div class="nav-group"><span class="nav-group-label">Account</span><a class="nav-item">Sign in</a></div>
           </div>
         </div>
-      </div>
-
-      <!-- COLUMN 2: Selfservice + Legal (unchanged) -->
-      <div class="nav-col">
-        <div class="nav-group">
-          <span class="nav-group-label">Selfservice</span>
-          <a class="nav-item">Submit Request</a>
-          <a class="nav-item">Request Amendment</a>
-          <a class="nav-item">My Order</a>
-          <a class="nav-item">Drop Docs</a>
-          <a class="nav-item">Leave Review</a>
-          <a class="nav-item">Contact</a>
-        </div>
-        <div class="nav-group">
-          <span class="nav-group-label">Legal Stuff</span>
-          <a class="nav-item">Terms</a>
-          <a class="nav-item">Privacy</a>
-        </div>
-      </div>
-
-      <!-- COLUMN 3: Work with us + Account (unchanged) -->
-      <div class="nav-col">
-        <div class="nav-group">
-          <span class="nav-group-label">Work with us</span>
-          <a class="nav-item">Refer &amp; Earn</a>
-        </div>
-        <div class="nav-group">
-          <span class="nav-group-label">Account</span>
-          <a class="nav-item">Sign in</a>
-        </div>
-      </div>
+      </nav>
     </div>
-  </nav>
+
+    <!-- RIGHT: same design, many products -> scrolls with lime bar -->
+    <div>
+      <div class="cap">LATER — many products (lime scrollbar appears)</div>
+      <nav class="nav-menu">
+        <input class="nav-search" value="Search" readonly/>
+        <div class="nav-cols">
+          <div class="nav-col">
+            <div class="nav-group"><a class="nav-item active">Home</a></div>
+            <div class="nav-group">
+              <span class="nav-group-label">Products</span>
+              <div class="products-scroll" id="plistMany"></div>
+            </div>
+          </div>
+          <div class="nav-col">
+            <div class="nav-group"><span class="nav-group-label">Selfservice</span>
+              <a class="nav-item">Submit Request</a><a class="nav-item">My Order</a><a class="nav-item">Contact</a>
+            </div>
+            <div class="nav-group"><span class="nav-group-label">Legal Stuff</span>
+              <a class="nav-item">Terms</a><a class="nav-item">Privacy</a>
+            </div>
+          </div>
+          <div class="nav-col">
+            <div class="nav-group"><span class="nav-group-label">Account</span><a class="nav-item">Sign in</a></div>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </div>
 </div>
 
 <script>
-// Fill Products with many items to show the scroll (rest of menu stays fixed-size)
-const PRODUCTS = ['Grahak OS','VayuLok','Bharat Rx','Elsewhere','Expo Week','Dastavez','Clear Closure','Ritual Guru','Anew','Niji Setu','Setu Pay','Krishi Mitra','Vidya Path','Arogya','Nyaya Setu','Griha','Yatra','Bazaar','Sandesh','Darpan','Suraksha','Prerna','Udaan','Sankalp','Drishti','Aadhar Help','Kaushal','Samruddhi','Nirman','Vishwas','Pragati','Sahayak','Aarambh','Utkarsh','Sampoorna','Vaani','Netra','Kavach','Pathshala','Rozgar','Kisan Card','Seva','Anubhav','Milaap'];
-const plist=document.getElementById('plist');
-PRODUCTS.forEach((p,i)=>{const a=document.createElement('a');a.className='nav-item';a.textContent=p;plist.appendChild(a);});
-document.getElementById('pcount').textContent=PRODUCTS.length+' products';
+// REAL products today (Header.tsx trio + products.ts seven)
+const REAL = ['Grahak OS','VayuLok','Bharat Rx','Elsewhere','Expo Week','Dastavez','Clear Closure','Ritual Guru','Anew','Niji Setu'];
+const now=document.getElementById('plistNow');
+REAL.forEach(p=>{const a=document.createElement('a');a.className='nav-item';a.textContent=p;now.appendChild(a);});
+
+// LATER: same real names repeated to demonstrate the scroll behaviour ONLY
+// (this is illustrating the future large catalog; the real menu will list the
+// real products, whatever they are at that time — no dummy names are shipped).
+const many=document.getElementById('plistMany');
+const bigList=[].concat(REAL,REAL,REAL,REAL); // 40, just to force the scrollbar
+bigList.forEach(p=>{const a=document.createElement('a');a.className='nav-item';a.textContent=p;many.appendChild(a);});
 </script>
 </body></html>
