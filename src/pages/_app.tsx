@@ -24,7 +24,10 @@ import '../styles/inner-ux.css';
 import '../styles/flex-layout.css';
 import '../styles/button.css';
 import FloatingAgent from '../components/FloatingAgent';
-import LanguageBar from '../components/LanguageBar';
+// Was LanguageBar. Renamed because it no longer only chooses a language: it is the single
+// floating widget holding BOTH the WhatsApp contact button and the translate control. The
+// external wecare-wa-widget.js that used to inject the WhatsApp button is retired with it.
+import SupportWidget from '../components/SupportWidget';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -548,8 +551,22 @@ const getBreadcrumbSchema = ( pageName: string, pageUrl: string ) => ( {
 } );
 
 /**
- * AuthGate — shows Header + Footer around the login form only when unauthenticated.
- * Once authenticated, renders children directly (Layout handles its own Header/Footer).
+ * AuthGate — the public chrome around the sign-in card.
+ *
+ * This is the THIRD place chrome is mounted, and it is easy to forget because it is not
+ * a route: any visitor who opens a staff URL without a session lands here, including
+ * every mistyped path that does not match the allowlist. So it is a page the public
+ * genuinely sees, and it gets the same three pieces as a public page - Header, Footer and
+ * SupportWidget.
+ *
+ * SupportWidget was missing here until now, and the gap mattered in exactly the situation
+ * this screen exists for: someone who cannot get in had no way to reach us from the screen
+ * telling them they cannot get in. It is mounted below, outside .ag-shell, because the
+ * widget is position:fixed and does not belong in a flex column.
+ *
+ * Once authenticated this returns children directly. Header and Footer are deliberately
+ * NOT carried into the dashboard: Layout.tsx has its own top bar and sidebar and no footer
+ * at all, and adding a second fixed header would collide with both.
  */
 const AuthGate: React.FC<{ children: React.ReactNode }> = ( { children } ) => {
   const { authStatus } = useAuthenticator( ( ctx ) => [ ctx.authStatus ] );
@@ -566,6 +583,7 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ( { children } ) => {
         </div>
         <Footer />
       </div>
+      <SupportWidget />
       <style jsx>{`
         /* 108px, not the flat 96px this used to inline.
            The public header is position:fixed and 108px tall, dropping to 96px only
@@ -690,8 +708,20 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // Without this line the page renders the staff sign-in screen at HTTP 200, which
   // is precisely the "404 that does not look like one" the comment above warns
   // about. Found exactly that way on the live site when this page was at /files.
+  // '/contact-test' WAS LISTED HERE AND HAD TO COME OFF. It was the only route that was
+  // both in this allowlist AND wrapped in the authenticated <Layout> by its own page file,
+  // and the combination leaked the dashboard into public HTML: because the export is
+  // prerendered with no session, Layout rendered in full, so
+  // https://wecare.digital/contact-test/ returned HTTP 200 carrying the entire staff
+  // sidebar - Inbox, Contacts, Broadcast, Payments, Service Ops, Store, Forms, Tasks - the
+  // page search box and the BottomNav, to anyone who asked. Verified live before removal;
+  // /dm/inbox/ and /store/ were clean, so this page was the whole of the exposure.
+  //
+  // It was also a duplicate: /contact is the real public contact page, and this one's form
+  // resolved a setTimeout and threw the message away. De-listed rather than deleted so the
+  // removal is one reversible line; PublicRouteRegistration.test.ts now fails any public
+  // route that imports Layout, so this shape cannot return.
   const isPublic = router.pathname === '/'
-    || router.pathname === '/contact-test'
     || router.pathname === '/get'
     || Object.prototype.hasOwnProperty.call( PUBLIC_PAGE_META, router.pathname )
     || isContentPublic;
@@ -702,15 +732,12 @@ export default function App ( { Component, pageProps }: AppProps ) {
   const canonicalUrl = router.pathname === '/'
     ? `${SITE}/`
     : `${SITE}${router.pathname}/`;
-  // Every public page, not just / and /grahak-os. A help widget that appears on two
-  // pages and vanishes on the other twelve reads as a bug rather than a choice - a
-  // visitor who sees it on the home page and then needs it on a product or legal page
-  // finds it gone. isPublic is already the gate for the whole public shell below, so
-  // reusing it keeps the widget and the shell in step automatically when a page is
-  // added. Deliberately NOT on the authenticated dashboard: those screens carry
-  // customer names, numbers and message bodies, and a support widget there would be
-  // pointed at the operator rather than the customer.
-  const showPublicWhatsApp = isPublic;
+  // NO showPublicWhatsApp FLAG ANY MORE. It gated a <Script> tag that injected the
+  // external wecare-wa-widget.js, and that script is retired: the WhatsApp button is now
+  // the left half of the SupportWidget component, which this file renders in the public branch
+  // below - so the branch itself is the gate and a separate boolean would be a second
+  // source of truth for the same question. A new public page picks the widget up by
+  // being public, exactly as it picks up the header and footer.
 
   /**
    * A MISTYPED ADDRESS LANDS ON THE HOME PAGE, and the address bar says so.
@@ -842,7 +869,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
               canonical tags - this root one first, then the page's own correct one -
               which is ambiguous, and the most likely reading is that every page is a
               duplicate of the homepage. That alone would keep those URLs from ranking,
-              and sitelinks with them. /contact-test had no canonical at all.
+              and sitelinks with them.
               key="canonical" is what makes this safe to keep here: next/head dedupes by
               key and a page's Head is processed after _app's, so a page that sets its
               own canonical overrides this one instead of adding a second. Routes that
@@ -1002,20 +1029,16 @@ export default function App ( { Component, pageProps }: AppProps ) {
         <Header homeBrand={ router.pathname === '/' } />
         <Component { ...pageProps } />
         <Footer />
-        {/*
-          Translation + read-aloud, public pages only, and deliberately not on
-          the authenticated dashboard: those screens render customer names,
-          phone numbers and message bodies, and machine-translating live
-          operational data would corrupt what an operator is reading.
-        */}
-        <LanguageBar />
-        { showPublicWhatsApp && (
-          <Script
-            id="wecare-wa-widget"
-            src="https://app.wecare.digital/stream/code/wecare-wa-widget.js"
-            strategy="lazyOnload"
-          />
-        ) }
+        {/* WhatsApp contact + page translation. This comment used to read "translation +
+            read-aloud, public pages only, and deliberately not on the authenticated
+            dashboard" and both halves are now wrong, which is why it is rewritten rather
+            than trimmed: read-aloud was removed (Amazon Polly has no voice for Tamil,
+            Telugu, Bengali or most other Indic languages, so the button was hidden for
+            nearly every language this serves), and the widget IS on the dashboard now -
+            see the mount in the authenticated branch below for the one attribute that
+            makes that safe. Three mounts total, all in this file: here, AuthGate, and the
+            authenticated branch. PublicWidgets.test.tsx counts them. */}
+        <SupportWidget />
       </ErrorBoundary>
     );
   }
@@ -1088,6 +1111,19 @@ export default function App ( { Component, pageProps }: AppProps ) {
                     <ConfirmProvider>
                       <Component { ...pageProps } signOut={ () => { signOut?.(); router.push( '/' ); } } user={ user } />
                       <FloatingAgent />
+                      {/* THE SAME COMBINED WIDGET AS THE PUBLIC PAGES, so contact and
+                          language are in one place on every route in the product rather
+                          than only on the marketing side.
+                          IT IS SAFE HERE BECAUSE OF ONE ATTRIBUTE. SupportWidget starts
+                          its translation walk at `.layout`, and Layout.tsx marks
+                          `.main-content` with data-wc-no-translate - so the sidebar's
+                          navigation translates while every page's CONTENT (customer
+                          names, numbers, message bodies) is exempt. Without that
+                          attribute this mount would let an operator machine-translate
+                          live customer data, which is why it was previously excluded.
+                          FloatingAgent above is a different thing and stays: it is the
+                          internal AI task assistant, not customer contact. */}
+                      <SupportWidget />
                     </ConfirmProvider>
                   </ToastProvider>
                 );

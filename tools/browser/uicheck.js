@@ -1,9 +1,24 @@
 'use strict';
 
 /**
- * uicheck - the header lockup, and the pair of floating widgets.
+ * uicheck - the header lockup, and the floating support pill.
  *
- * THREE THINGS THAT ONLY RENDERED GEOMETRY CAN ANSWER.
+ * WHAT CHANGED, AND WHY THIS FILE WAS REWRITTEN. This harness used to measure TWO
+ * floating widgets: `.wc-langbar` from this repo, and `#wecarewa-widget`, injected by
+ * wecare-wa-widget.js from app.wecare.digital at `z-index: 2147483647` - the maximum
+ * 32-bit integer, so nothing could ever be stacked above it. Every assertion here was
+ * shaped by that constraint: it stubbed the external button when the script did not
+ * load, checked the two circles were the same size and shared a centre line, measured
+ * the gap between them, and proved the language panel could not be punched through by
+ * a circle it was forbidden from covering.
+ *
+ * That script is retired. WhatsApp is now the left half of a single pill this repo owns
+ * (src/components/SupportWidget.tsx), so all of the above is either meaningless or
+ * unmeasurable: there is no second widget to align to, no gap, and no panel - the
+ * language control is a native <select>, so the platform owns its popup and the page
+ * cannot measure it. Keeping those assertions is what turned this file red.
+ *
+ * WHAT ONLY RENDERED GEOMETRY CAN STILL ANSWER.
  *
  * 1. THE BRAND LOCKUP. The logo is an <img> with a fixed height; the wordmark beside it
  *    is two lines whose height is font-size x line-height x 2. Two unrelated formulas,
@@ -12,57 +27,71 @@
  *    a deliberate choice. What IS asserted is that the wordmark is optically centred
  *    against the logo, because an off-centre lockup is a defect under any sizing.
  *
- * 2. THE TWO FLOATING WIDGETS, which live in different places entirely:
- *      .wc-langbar        this repo, src/components/LanguageBar.tsx
- *      #wecarewa-widget   NOT in this repo - injected by wecare-wa-widget.js, served
- *                         from app.wecare.digital, loaded via next/script lazyOnload
- *    Neither file can see the other, so "are they the same size and lined up" is
- *    unanswerable from source. This measures both.
+ * 2. THE TWO CONTROLS INSIDE THE PILL. `.wc-wa` is a 40px circle; `.wc-chip` is a text
+ *    chip whose height comes from font metrics and padding. Those are different
+ *    formulas again, so "do they sit on one centre line inside the pill" cannot be read
+ *    off the stylesheet - and a chip half a pixel low is visible at this size.
  *
- * 3. THE PANEL MAY NOT OVERLAP THE EXTERNAL BUTTON IN X. That button carries
- *    z-index 2147483647, the maximum 32-bit integer, so nothing can ever be stacked
- *    above it - an overlapping panel gets a WhatsApp circle punched through it. Since
- *    the trigger now deliberately shares the button's column, this is the assertion
- *    that stops that alignment from breaking the panel.
+ * 3. IS THE PILL ACTUALLY CLICKABLE. The retired external button won its stacking war
+ *    by brute force. This one is a normal element at `z-index: 1300`, which has to clear
+ *    the phone BottomNav (`z-index: 1200`, Layout.css) and the header menu (1002). Those
+ *    numbers live in three files that cannot see each other, so the check here is not a
+ *    number comparison but a hit test: `elementFromPoint` at the centre of each control
+ *    must land inside that control. If anything is painted over the pill, that fails -
+ *    whatever the reason, and regardless of which stylesheet caused it.
  *
- * WHY NOT THE HOME PAGE. LanguageBar returns null when the path is '/', and also when
- * fewer than two languages load. So on '/' there is exactly one floating widget and
- * nothing to align. This runs against /contact/ instead.
+ * 4. THE TRANSLATING STATE STAYS LIGHT. The busy signal was a dark #1a3a2a inversion of
+ *    the chip and is now a lime pulse ring plus a lime sweep along the pill's bottom
+ *    edge. "Not dark" is asserted on the COMPUTED background, because the requirement is
+ *    about what renders, and a styled-jsx rule can be overridden by a later cascade
+ *    without anyone editing SupportWidget.tsx. The pill's width is measured mid-flight
+ *    too: the sweep is absolutely positioned precisely so a translation cannot resize
+ *    the widget, and a regression there would make the corner of every page twitch.
  *
- * THE LANGUAGE API IS STUBBED. LanguageBar fetches api.wecare.digital, which sends no
- * Access-Control-Allow-Origin for 127.0.0.1, so against a local origin the fetch fails,
- * langs stays empty and the component renders NOTHING. Measuring without the stub
- * reports zero widgets, which is indistinguishable from a bug - and an earlier revision
- * of this file quietly skipped the assertion in that case, which is the kind of silent
- * pass this suite exists to prevent. Absence is now a FAILURE.
+ * WHY NOT THE HOME PAGE. Only the lockup differs there (`homeBrand`); the pill is
+ * identical, and /contact/ additionally carries the header variant most pages use. This
+ * runs against /contact/ for continuity with the measurements this file has always taken.
+ *
+ * THE LANGUAGE API IS STUBBED. SupportWidget fetches api.wecare.digital, which sends no
+ * Access-Control-Allow-Origin for 127.0.0.1, so against a local origin the fetch fails
+ * and the language chip never appears. Note what that does NOT do any more: the widget
+ * no longer returns null when the catalogue fails, so the WhatsApp half still renders.
+ * The chip's absence is therefore a real failure rather than an ambiguous one, and it is
+ * reported as such - an earlier revision of this file quietly skipped the assertion in
+ * that case, which is the kind of silent pass this suite exists to prevent.
  *
  *   node tools/browser/uicheck.js
  *   BASE=http://localhost:3000 node tools/browser/uicheck.js
  */
 
+const fs = require( 'fs' );
+const path = require( 'path' );
 const { launch, gotoStable } = require( './lib/browser' );
 const { target } = require( './lib/serve' );
 
 const ROUTE = '/contact/';
 
 /**
- * The external button's geometry, read directly out of wecare-wa-widget.js rather than
- * guessed. Used for two purposes: to stub the widget when the external script does not
- * load, and as a canary - if the real script loads and disagrees with these numbers, the
- * alignment in LanguageBar.tsx was derived from a stale reading and needs redoing.
+ * The pill's anchoring, taken from SupportWidget.tsx rather than guessed. Desktop is
+ * `right:20px; bottom:20px`. Under 768px the right inset tightens and the bottom offset
+ * jumps to clear the 60px BottomNav - `calc(72px + env(safe-area-inset-bottom))`, and
+ * env() resolves to 0 in a headless viewport with no inset, so 72 is the number to expect
+ * here. The breakpoint is max-width:767px, so 700 is mobile and 1024 is not.
  */
-const WA = {
-  desktop: { box: 64, icon: 56, right: 16, bottom: 120 },
-  mobile: { box: 60, icon: 52, right: 14, bottom: 80 },
-  breakpoint: 767,
+const PILL = {
+  desktop: { right: 20, bottom: 20 },
+  mobile: { right: 16, bottom: 72 },
 };
 
 const VIEWPORTS = [
-  { width: 1440, height: 900, label: 'desktop 1440', wa: WA.desktop },
-  { width: 1024, height: 800, label: 'tablet 1024', wa: WA.desktop },
-  { width: 700, height: 900, label: 'narrow 700', wa: WA.mobile },
-  { width: 390, height: 844, label: 'phone 390', wa: WA.mobile },
+  { width: 1440, height: 900, label: 'desktop 1440', pill: PILL.desktop },
+  { width: 1024, height: 800, label: 'tablet 1024', pill: PILL.desktop },
+  { width: 700, height: 900, label: 'narrow 700', pill: PILL.mobile },
+  { width: 390, height: 844, label: 'phone 390', pill: PILL.mobile },
 ];
+
+/** The minimum comfortable touch target. The pill is 40px of control inside 4px padding. */
+const TOUCH_MIN = 44;
 
 const results = [];
 let failures = 0;
@@ -74,57 +103,68 @@ function record( ok, name, detail ) {
 }
 
 /**
- * The exact shapes LanguageBar parses, taken from the component rather than invented:
- * /languages yields `{ languages: [{ code, name }] }` and /voices yields
- * `{ voices: [{ languageCode, additionalLanguageCodes }] }`. An earlier version of this
+ * The BottomNav's z-index, READ OUT OF THE STYLESHEET rather than duplicated here. The
+ * pill has to outrank it, and the two values live in files that never import each other -
+ * src/styles/Layout.css and the styled-jsx block in SupportWidget.tsx - so a hardcoded
+ * 1200 in this harness would keep passing after someone raised the bar's stacking. The
+ * hit test below is the real protection; this is the diagnostic that names the culprit.
+ */
+function bottomNavZIndex() {
+  try {
+    const css = fs.readFileSync( path.join( __dirname, '..', '..', 'src', 'styles', 'Layout.css' ), 'utf8' );
+    const m = /\.bottom-nav\s*\{[^}]*?z-index:\s*(\d+)/.exec( css );
+    return m ? Number( m[ 1 ] ) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The exact shapes SupportWidget parses, taken from the component rather than invented:
+ * /languages yields `{ languages: [{ code, name }] }` and /translate yields
+ * `{ translations: [{ translatedText }] }`, one row per input text - the component throws
+ * on a length mismatch, so the stub must echo the batch size. An earlier version of this
  * stub returned `{ label, native }` keys, which produced a valid 200 the component then
- * discarded - the widget stayed absent and the harness blamed the page.
+ * discarded: the widget stayed absent and the harness blamed the page.
+ *
+ * /voices is gone. Read-aloud was removed with the external script (Amazon Polly has no
+ * voice for Tamil, Telugu, Bengali and most other Indic languages), so there is no second
+ * catalogue request left to stub.
  */
 const LANGS = [
   { code: 'en', name: 'English' },
   { code: 'hi', name: 'Hindi' },
   { code: 'bn', name: 'Bengali' },
 ];
-const VOICES = [
-  { languageCode: 'en-IN', additionalLanguageCodes: [ 'en-US' ] },
-  { languageCode: 'hi-IN' },
-];
+
+/**
+ * Slowing the FIRST translate batch, and only the first, is what makes the busy state
+ * observable at all. Translation walks the page in batches of 30 text nodes, so on an
+ * instant stub the whole run can finish inside one frame and the sweep would never be
+ * catchable - a test that passes only because it never looked.
+ */
+const FIRST_BATCH_DELAY = 900;
 
 async function stubLanguageApi( page ) {
-  await page.route( /api\.wecare\.digital\/site-language\/(languages|voices)/, route => {
-    const isVoices = /\/voices/.test( route.request().url() );
-    route.fulfill( {
-      status: 200,
-      contentType: 'application/json',
-      headers: { 'access-control-allow-origin': '*' },
-      body: JSON.stringify( isVoices ? { voices: VOICES } : { languages: LANGS } ),
+  let translateCalls = 0;
+  await page.route( /api\.wecare\.digital\/site-language\/(languages|translate)/, async route => {
+    const headers = { 'access-control-allow-origin': '*' };
+    if ( /\/translate/.test( route.request().url() ) ) {
+      const body = route.request().postDataJSON() || {};
+      const texts = Array.isArray( body.texts ) ? body.texts : [];
+      if ( translateCalls++ === 0 ) await new Promise( resolve => setTimeout( resolve, FIRST_BATCH_DELAY ) );
+      // A marker prefix rather than real Hindi: this proves the node was rewritten with
+      // whatever came back, without pretending the stub can translate.
+      return route.fulfill( {
+        status: 200, contentType: 'application/json', headers,
+        body: JSON.stringify( { translations: texts.map( text => ( { translatedText: `\u00b7${text}` } ) ) } ),
+      } );
+    }
+    return route.fulfill( {
+      status: 200, contentType: 'application/json', headers,
+      body: JSON.stringify( { languages: LANGS } ),
     } );
   } );
-}
-
-/** Ensure the external button exists, stubbing it if its script did not load. */
-async function ensureWaWidget( page, geo ) {
-  const present = await page.$( '#wecarewa-widget' );
-  if ( present ) return 'real';
-  await page.evaluate( g => {
-    const style = document.createElement( 'style' );
-    style.textContent = `
-      #wecarewa-widget{position:fixed;right:${g.right}px;bottom:${g.bottom}px;z-index:2147483647;
-        width:${g.box}px;height:${g.box}px;display:flex;align-items:center;justify-content:center}
-      #wecarewa-widget img{width:${g.icon}px;height:${g.icon}px;display:block}`;
-    document.head.appendChild( style );
-    const d = document.createElement( 'div' );
-    d.id = 'wecarewa-widget';
-    d.setAttribute( 'data-stubbed', 'true' );
-    const a = document.createElement( 'a' );
-    a.href = 'https://wa.me/message/APDM5HUWH26SG1';
-    a.setAttribute( 'aria-label', 'Chat with us on WhatsApp' );
-    const img = document.createElement( 'img' );
-    // 1x1 transparent gif, so nothing is fetched over the network.
-    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-    a.appendChild( img ); d.appendChild( a ); document.body.appendChild( d );
-  }, geo );
-  return 'stubbed';
 }
 
 async function measureLockup( page ) {
@@ -149,39 +189,97 @@ async function measureLockup( page ) {
   } );
 }
 
-/** Visible circle of each widget, plus the panel box once opened. */
-async function measureWidgets( page ) {
+/**
+ * The pill and the two controls inside it, plus the hit test at each control's centre.
+ *
+ * The hit test is the assertion that matters most in here. It answers "can a thumb
+ * actually reach this" rather than "is the z-index numerically larger", and it catches
+ * every cause of the same defect - a raised BottomNav, an overlay that forgot to unmount,
+ * a sticky CTA, a cookie bar - without this file having to know any of them exist.
+ */
+async function measurePill( page ) {
   return page.evaluate( () => {
     const vw = window.innerWidth, vh = window.innerHeight;
     const box = el => { const b = el.getBoundingClientRect(); return {
       w: Math.round( b.width ), h: Math.round( b.height ),
       left: Math.round( b.left ), right: Math.round( b.right ),
-      fromRight: Math.round( vw - b.right ), fromBottom: Math.round( vh - b.bottom ),
-      centerX: Math.round( b.left + b.width / 2 ),
-      centerXFromRight: Math.round( vw - ( b.left + b.width / 2 ) ),
       top: Math.round( b.top ), bottomEdge: Math.round( b.bottom ),
+      fromRight: Math.round( vw - b.right ), fromBottom: Math.round( vh - b.bottom ),
+      // Unrounded centres: rounding first would hide a sub-pixel misalignment, which at
+      // 40px is exactly the size of error that is visible but hard to explain.
+      centerX: Math.round( ( b.left + b.width / 2 ) * 100 ) / 100,
+      centerY: Math.round( ( b.top + b.height / 2 ) * 100 ) / 100,
     }; };
 
-    const trigger = document.querySelector( '.language-trigger' );
-    const waWrap = document.querySelector( '#wecarewa-widget' );
-    const waIcon = waWrap && waWrap.querySelector( 'img' );
-    const panel = document.querySelector( '.wc-langbar .panel' );
+    const bar = document.querySelector( '.wc-langbar' );
+    const pill = document.querySelector( '.wc-pill' );
+    const wa = document.querySelector( '.wc-pill .wc-wa' );
+    const chip = document.querySelector( '.wc-pill .wc-chip' );
+    const sweep = document.querySelector( '.wc-pill .wc-sweep' );
+    const status = document.querySelector( '.wc-langbar .wc-sr' );
+
+    /**
+     * The chip's OWN text, not textContent. The chip contains the native <select>, and
+     * textContent happily concatenates every <option> label into the result - the first
+     * run of this assertion read "HIEnglishবাংলা — Bengaliहिन्दी — Hindi" and reported a
+     * defect that did not exist. Direct child text nodes only.
+     */
+    const ownText = el => Array.from( el.childNodes )
+      .filter( node => node.nodeType === Node.TEXT_NODE )
+      .map( node => node.textContent )
+      .join( '' ).trim();
+
+    /** Does elementFromPoint at this element's centre land inside it? */
+    const reachable = el => {
+      if ( !el ) return null;
+      const b = el.getBoundingClientRect();
+      const hit = document.elementFromPoint( b.left + b.width / 2, b.top + b.height / 2 );
+      if ( !hit ) return { ok: false, hit: '(nothing - outside the viewport?)' };
+      const name = `${hit.tagName.toLowerCase()}${hit.className && typeof hit.className === 'string' ? `.${hit.className.trim().split( /\s+/ ).join( '.' )}` : ''}`;
+      return { ok: el.contains( hit ), hit: name };
+    };
 
     return {
-      trigger: trigger ? box( trigger ) : null,
-      waIcon: waIcon ? box( waIcon ) : null,
-      waWrap: waWrap ? box( waWrap ) : null,
-      panel: panel ? box( panel ) : null,
-      stubbed: waWrap ? waWrap.getAttribute( 'data-stubbed' ) === 'true' : null,
+      zIndex: bar ? getComputedStyle( bar ).zIndex : null,
+      pill: pill ? box( pill ) : null,
+      wa: wa ? box( wa ) : null,
+      chip: chip ? box( chip ) : null,
+      chipText: chip ? ownText( chip ) : null,
+      chipBg: chip ? getComputedStyle( chip ).backgroundColor : null,
+      chipBusy: chip ? chip.classList.contains( 'is-busy' ) : null,
+      sweep: !!sweep,
+      status: status ? status.textContent.trim() : null,
+      waReach: reachable( wa ),
+      chipReach: reachable( chip ),
     };
   } );
+}
+
+/**
+ * Relative luminance of a computed colour string, used for one thing only: proving the
+ * chip does not go dark while translating. Asserting "is not rgb(26, 58, 42)" would pass
+ * for any other dark fill, which is not the requirement - the requirement is that the
+ * corner of the page stays light while work is in flight.
+ */
+function luminance( colour ) {
+  const m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec( colour || '' );
+  if ( !m ) return null;
+  const [ r, g, b ] = m.slice( 1, 4 ).map( Number ).map( channel => {
+    const c = channel / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow( ( c + 0.055 ) / 1.055, 2.4 );
+  } );
+  return Math.round( ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) * 1000 ) / 1000;
 }
 
 async function main() {
   const t = await target();
   const browser = await launch();
+  const navZ = bottomNavZIndex();
   console.log( `uicheck - ${t.mode === 'BASE' ? `BASE ${t.base}` : `static export (out/) on ${t.base}`}` );
-  console.log( `route ${ROUTE} (LanguageBar returns null on '/', so the pair cannot be measured there)\n` );
+  console.log( `route ${ROUTE}` );
+  console.log( navZ === null
+    ? 'could not read .bottom-nav z-index from src/styles/Layout.css'
+    : `.bottom-nav z-index is ${navZ} (read from src/styles/Layout.css); the pill must outrank it\n` );
 
   try {
     for ( const vp of VIEWPORTS ) {
@@ -202,60 +300,128 @@ async function main() {
           `${lk.spaceAbove}px above / ${lk.spaceBelow}px below` );
       }
 
-      // The trigger is client-rendered after the (stubbed) fetch resolves.
-      let haveTrigger = true;
+      // The pill is client-rendered, and the chip appears only once the (stubbed)
+      // catalogue resolves - so wait for the chip, which implies the pill.
+      let haveChip = true;
       try {
-        await page.waitForSelector( '.language-trigger', { timeout: 15000 } );
+        await page.waitForSelector( '.wc-pill .wc-chip', { timeout: 15000 } );
       } catch {
-        haveTrigger = false;
-        record( false, `${vp.label}: language widget rendered`,
-          'no .language-trigger - the API stub did not satisfy LanguageBar, or fewer than 2 languages parsed' );
+        haveChip = false;
+        const pillOnly = await page.$( '.wc-pill' );
+        record( false, `${vp.label}: support pill rendered with its language chip`,
+          pillOnly
+            ? 'the pill is there but .wc-chip is missing - the language catalogue stub did not satisfy SupportWidget, or fewer than 2 languages parsed'
+            : 'no .wc-pill at all - SupportWidget did not mount on this route' );
       }
 
-      if ( haveTrigger ) {
-        const source = await ensureWaWidget( page, vp.wa );
-        await page.waitForTimeout( 200 );
-        const m = await measureWidgets( page );
+      if ( haveChip ) {
+        const m = await measurePill( page );
 
-        if ( source === 'stubbed' ) {
-          console.log( `  (external #wecarewa-widget did not load here; stubbed from wecare-wa-widget.js geometry: ${vp.wa.box}px box / ${vp.wa.icon}px icon at right:${vp.wa.right} bottom:${vp.wa.bottom})` );
-        } else {
-          // Canary: the real script loaded, so check it still matches what the CSS assumed.
-          record( m.waIcon.w === vp.wa.icon,
-            `${vp.label}: external button still ${vp.wa.icon}px as LanguageBar assumes`,
-            `measured ${m.waIcon.w}px - if this changed, redo the offsets in LanguageBar.tsx` );
+        console.log( `  pill   ${m.pill.w}x${m.pill.h} at right:${m.pill.fromRight} bottom:${m.pill.fromBottom}, z-index ${m.zIndex}` );
+        console.log( `  wa     ${m.wa.w}x${m.wa.h} centre y ${m.wa.centerY}   chip ${m.chip.w}x${m.chip.h} centre y ${m.chip.centerY}  label "${m.chipText}"` );
+
+        record( Math.abs( m.wa.centerY - m.chip.centerY ) <= 0.5,
+          `${vp.label}: WhatsApp button and language chip share one centre line`,
+          `${m.wa.centerY} vs ${m.chip.centerY}` );
+
+        /**
+         * THE WHATSAPP BUTTON IS A CIRCLE, AND THIS IS NOT A TAUTOLOGY. It carries
+         * `border-radius: 50%`, which draws a circle only while the box is square - on a
+         * 44x40 box it draws an ellipse. This assertion is here because it FAILED on first
+         * run at 700px and 390px, and the cause was invisible from SupportWidget.tsx:
+         * tokens.css raises `min-width`/`min-height` to 44px for every button, a and select
+         * under 768px (a reasonable touch-target floor), and then Layout.css:94 resets
+         * `min-height` to 32px unconditionally for the same selector list - later in the
+         * cascade, same specificity, so it wins. It never resets `min-width`. The floor
+         * therefore applied to ONE axis, stretching a 40px circle into a 44x40 oval on
+         * exactly the devices the widget matters most on. Neither file mentions the widget
+         * and the widget mentions neither file, so only rendered geometry could find it.
+         */
+        record( m.wa.w === m.wa.h, `${vp.label}: WhatsApp button is round, not an oval`,
+          `${m.wa.w}x${m.wa.h}${m.wa.w === m.wa.h ? '' : ' - border-radius:50% on a non-square box draws an ellipse; check the min-width floor in tokens.css'}` );
+
+        // Containment, not a padding number: whatever the padding is, neither control may
+        // poke out of the rounded pill, and overflow:hidden would clip it if it did.
+        const contained = m.wa.left >= m.pill.left && m.chip.right <= m.pill.right
+          && m.wa.top >= m.pill.top && m.chip.top >= m.pill.top
+          && m.wa.bottomEdge <= m.pill.bottomEdge && m.chip.bottomEdge <= m.pill.bottomEdge;
+        record( contained, `${vp.label}: both controls sit inside the pill`,
+          `pill x ${m.pill.left}..${m.pill.right} y ${m.pill.top}..${m.pill.bottomEdge}; wa x ${m.wa.left}..${m.wa.right}; chip x ${m.chip.left}..${m.chip.right}` );
+
+        record( m.pill.fromRight === vp.pill.right && m.pill.fromBottom === vp.pill.bottom,
+          `${vp.label}: pill anchored where SupportWidget.tsx says`,
+          `right:${m.pill.fromRight} bottom:${m.pill.fromBottom} (expected right:${vp.pill.right} bottom:${vp.pill.bottom})` );
+
+        record( m.pill.left >= 8 && m.pill.top >= 0,
+          `${vp.label}: pill stays fully on screen`,
+          `left edge ${m.pill.left}px, top ${m.pill.top}px` );
+
+        record( m.pill.h >= TOUCH_MIN, `${vp.label}: pill clears the ${TOUCH_MIN}px touch target`, `${m.pill.h}px tall` );
+
+        // The two hit tests. See measurePill's note on why these beat comparing z-indexes.
+        record( m.waReach.ok, `${vp.label}: nothing is painted over the WhatsApp button`,
+          m.waReach.ok ? `centre hits ${m.waReach.hit}` : `centre hits ${m.waReach.hit}${navZ !== null ? ` - the pill is z-index ${m.zIndex}, .bottom-nav is ${navZ}` : ''}` );
+        record( m.chipReach.ok, `${vp.label}: nothing is painted over the language chip`,
+          `centre hits ${m.chipReach.hit}` );
+
+        // ===== TRANSLATING =====
+        // Switch to Hindi and look at the pill WHILE the first batch is in flight.
+        let switched = true;
+        try {
+          await page.selectOption( '.wc-pill .wc-chip select', 'hi' );
+        } catch ( err ) {
+          switched = false;
+          record( false, `${vp.label}: language chip is operable`, `selectOption failed: ${err.message.split( '\n' )[ 0 ]}` );
         }
 
-        console.log( `  lang trigger  ${m.trigger.w}x${m.trigger.h}  centre ${m.trigger.centerXFromRight}px from right  bottom ${m.trigger.fromBottom}px` );
-        console.log( `  wa icon       ${m.waIcon.w}x${m.waIcon.h}  centre ${m.waIcon.centerXFromRight}px from right  bottom ${m.waIcon.fromBottom}px` );
+        if ( switched ) {
+          let busy = null;
+          try {
+            await page.waitForSelector( '.wc-pill .wc-sweep', { timeout: 8000 } );
+            busy = await measurePill( page );
+          } catch {
+            record( false, `${vp.label}: progress sweep shows while translating`,
+              'no .wc-sweep appeared - the only signal that batches are in flight' );
+          }
 
-        record( m.trigger.w === m.waIcon.w && m.trigger.h === m.waIcon.h,
-          `${vp.label}: both widgets are the same visible size`,
-          `${m.trigger.w}x${m.trigger.h} vs ${m.waIcon.w}x${m.waIcon.h}` );
+          if ( busy ) {
+            const lum = luminance( busy.chipBg );
+            console.log( `  translating: chip background ${busy.chipBg} (luminance ${lum}), is-busy ${busy.chipBusy}, pill ${busy.pill.w}px wide` );
 
-        record( m.trigger.centerXFromRight === m.waIcon.centerXFromRight,
-          `${vp.label}: both widgets share a vertical centre line`,
-          `${m.trigger.centerXFromRight}px vs ${m.waIcon.centerXFromRight}px from the right edge` );
+            record( busy.sweep && busy.chipBusy === true,
+              `${vp.label}: progress sweep and pulse ring both show while translating`,
+              `sweep ${busy.sweep}, chip .is-busy ${busy.chipBusy}` );
 
-        // Gap between the two circles, measured on whichever sits higher.
-        const gap = m.trigger.top > m.waIcon.bottomEdge
-          ? m.trigger.top - m.waIcon.bottomEdge
-          : m.waIcon.top - m.trigger.bottomEdge;
-        record( gap >= 12 && gap <= 20, `${vp.label}: even gap between the two circles`, `${gap}px` );
+            record( lum !== null && lum > 0.5,
+              `${vp.label}: translating state stays light, no dark inversion`,
+              `${busy.chipBg} -> luminance ${lum}${lum !== null && lum <= 0.5 ? ' - this is the #1a3a2a inversion that was removed' : ''}` );
 
-        // Open the panel and prove it cannot collide with the un-coverable button.
-        await page.click( '.language-trigger' );
-        await page.waitForTimeout( 300 );
-        const open = await measureWidgets( page );
-        if ( !open.panel ) {
-          record( false, `${vp.label}: panel measurable when open`, 'no .panel found' );
-        } else {
-          const xOverlap = Math.min( open.panel.right, open.waWrap.right ) - Math.max( open.panel.left, open.waWrap.left );
-          console.log( `  panel ${open.panel.w}px wide, right edge ${open.panel.fromRight}px from viewport; wa box x ${open.waWrap.left}..${open.waWrap.right}` );
-          record( xOverlap <= 0,
-            `${vp.label}: open panel clears the external button in x (it cannot be covered)`,
-            xOverlap <= 0 ? `${Math.abs( xOverlap )}px clearance` : `OVERLAPS by ${xOverlap}px - the WhatsApp circle will punch through` );
-          record( open.panel.left >= 8, `${vp.label}: open panel stays on screen`, `left edge at ${open.panel.left}px` );
+            record( Math.abs( busy.pill.w - m.pill.w ) <= 2,
+              `${vp.label}: pill does not resize while translating`,
+              `${m.pill.w}px idle vs ${busy.pill.w}px busy` );
+          }
+
+          // Now let it finish. The status line is the honest end-to-end signal: the catch
+          // in applyLanguage writes "Translation is unavailable right now." and restores
+          // the English text, so a successful-looking run with a broken response shape
+          // would still be caught here.
+          let done = null;
+          try {
+            await page.waitForSelector( '.wc-pill .wc-sweep', { state: 'detached', timeout: 30000 } );
+            done = await measurePill( page );
+          } catch {
+            record( false, `${vp.label}: translation finishes and the sweep clears`, 'the sweep was still running after 30s' );
+          }
+
+          if ( done ) {
+            record( done.chipText === 'HI', `${vp.label}: chip reports the language now showing`, `reads "${done.chipText}"` );
+            record( /Page translated to Hindi/.test( done.status || '' ),
+              `${vp.label}: screen reader status announces the finished translation`,
+              `"${done.status}"` );
+            record( Math.abs( done.pill.w - m.pill.w ) <= 2,
+              `${vp.label}: pill width unchanged after switching language`,
+              `${m.pill.w}px as EN vs ${done.pill.w}px as HI` );
+          }
         }
       }
 
