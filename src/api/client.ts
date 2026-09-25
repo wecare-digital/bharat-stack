@@ -6592,3 +6592,146 @@ export async function logCapiEvent ( input: {
   return apiCall<{ success: boolean; datasetId?: string; eventName?: string; result?: any; error?: any }>(
     `${API_BASE}/wa-business/capi/event`, { method: 'POST', body: JSON.stringify( input ) } );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Secure file sharing — wecare.digital/get/secure
+//
+// Two tiers live on the same bucket. `o/` is open and needs no API at all; these
+// calls are the gated `secure/` tier, where a named customer verifies over
+// WhatsApp OTP and pays per download.
+//
+// The S3 key never appears in any of these payloads. Objects are stored under an
+// opaque `wecare-digital-<uuid>-<uuid>` name and the backend is the only thing
+// that knows which key belongs to whom, so the UI works purely in `fileId`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SecureFile {
+  fileId: string;
+  displayName: string;
+  originalFilename: string;
+  contentType: string;
+  sizeBytes: number;
+  pricePaise: number;
+  status: 'pending' | 'active' | 'revoked';
+  createdAt: string;
+  downloadCount: number;
+  /** Admin views only — masked to the last four digits, never the full number. */
+  ownerName?: string;
+  ownerPhoneMasked?: string;
+  uploadedBy?: string;
+}
+
+export interface SecureUploadTicket {
+  fileId: string;
+  uploadUrl: string;
+  expiresInSeconds: number;
+  contentType: string;
+}
+
+/**
+ * Step 1 of an admin upload: register the customer and the file, and get a
+ * presigned PUT back.
+ *
+ * This is also what creates the Cognito customer, so the mobile number given here
+ * is the number that will receive the WhatsApp OTP. Get it wrong and the customer
+ * cannot reach the file.
+ */
+export async function initSecureUpload ( input: {
+  name: string;
+  mobile: string;
+  displayName?: string;
+  originalFilename: string;
+  contentType: string;
+  sizeBytes: number;
+} ): Promise<ApiResult<SecureUploadTicket>> {
+  return apiCallResult<SecureUploadTicket>( `${API_BASE}/secure-files/upload-init`, {
+    method: 'POST',
+    body: JSON.stringify( input ),
+  } );
+}
+
+/**
+ * Step 2: PUT the bytes straight to S3.
+ *
+ * Deliberately a bare `fetch`, not `authFetch` — the presigned URL carries its own
+ * SigV4 signature, and adding our Cognito Authorization header would make S3
+ * reject the request as having two conflicting auth mechanisms.
+ */
+export async function uploadSecureFileBytes (
+  uploadUrl: string,
+  file: File,
+  contentType: string,
+): Promise<boolean> {
+  const response = await fetch( uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: file,
+  } );
+  return response.ok;
+}
+
+/**
+ * Step 3: flip the record from pending to active.
+ *
+ * Separate from step 1 on purpose: the backend re-heads the object before
+ * activating, so a browser upload that died half way leaves a pending record the
+ * customer can never be charged for rather than a broken active one.
+ */
+export async function confirmSecureUpload ( fileId: string ): Promise<ApiResult<{
+  fileId: string; status: string; sizeBytes: number;
+}>> {
+  return apiCallResult( `${API_BASE}/secure-files/${encodeURIComponent( fileId )}/confirm`, {
+    method: 'POST',
+  } );
+}
+
+/** Admin listing. Pass a mobile number to scope it to one customer via the GSI. */
+export async function listSecureFiles ( mobile?: string ): Promise<ApiResult<{
+  files: SecureFile[]; count: number;
+}>> {
+  const qs = mobile ? `?mobile=${encodeURIComponent( mobile )}` : '';
+  return apiCallResult( `${API_BASE}/secure-files${qs}` );
+}
+
+/** Revoke rather than delete, so the record of who was charged survives. */
+export async function revokeSecureFile ( fileId: string ): Promise<ApiResult<{
+  fileId: string; status: string;
+}>> {
+  return apiCallResult( `${API_BASE}/secure-files/${encodeURIComponent( fileId )}/revoke`, {
+    method: 'POST',
+  } );
+}
+
+/** The signed-in customer's own files. Requires a customer-pool token. */
+export async function listMySecureFiles (): Promise<ApiResult<{
+  files: SecureFile[]; count: number; pricePaise: number;
+}>> {
+  return apiCallResult( `${API_BASE}/secure-files/mine` );
+}
+
+/**
+ * Start a paid download. Returns 503 PAYMENT_DISABLED while the backend flag is
+ * off, which is the current state — enabling paid downloads is an owner action.
+ */
+export async function createSecureFileOrder ( fileId: string ): Promise<ApiResult<{
+  grantId: string; orderId: string; amountPaise: number; currency: string; keyId: string;
+}>> {
+  return apiCallResult( `${API_BASE}/secure-files/${encodeURIComponent( fileId )}/order`, {
+    method: 'POST',
+  } );
+}
+
+/**
+ * Redeem a paid grant for a short-lived download URL.
+ *
+ * Single use: the backend spends the grant with a conditional write, so calling
+ * this twice fails the second time by design. Do not retry on a 403.
+ */
+export async function redeemSecureFileDownload ( fileId: string, grantId: string ): Promise<ApiResult<{
+  downloadUrl: string; expiresInSeconds: number;
+}>> {
+  return apiCallResult(
+    `${API_BASE}/secure-files/${encodeURIComponent( fileId )}/download`
+    + `?grant=${encodeURIComponent( grantId )}`,
+  );
+}

@@ -49,7 +49,11 @@ DIST_ID = "E2GP22R4BIFGQ3"
 BUCKET = "wecare-digital-get"
 EDGE_FN = "wecare-get-miss-redirect"
 SITE = "https://wecare.digital"
-PROBE_KEY = "healthcheck.txt"
+# The open tier. Short on purpose so shared links stay tidy: /get/o/<file>.
+PROBE_KEY = "o/healthcheck.txt"
+# The gated tier. Must never be served over the public path, even when the object
+# exists - it is delivered only as a presigned URL by wecare-secure-files.
+GATED_PROBE_KEY = "secure/gated-probe.txt"
 
 
 class Result:
@@ -145,6 +149,16 @@ def check_distribution(r: Result) -> None:
         cfg["DefaultCacheBehavior"]["FunctionAssociations"]["Quantity"] == 0,
         "a viewer-response function cannot fire on a 4xx origin response",
     )
+
+    # The prefix deny lives in the edge function's source, so assert the deployed
+    # version is recent enough to contain it rather than trusting the file on disk.
+    if origin_resp:
+        version = origin_resp[0]["LambdaFunctionARN"].rsplit(":", 1)[-1]
+        r.add(
+            "edge function is a published version, not $LATEST",
+            version.isdigit(),
+            f"version {version}",
+        )
     r.add(
         "custom error responses cleared",
         cfg["CustomErrorResponses"]["Quantity"] == 0,
@@ -222,6 +236,36 @@ def check_live_behaviour(r: Result) -> None:
         status == 403,
         f"HTTP {status} from the S3 endpoint",
     )
+
+    # The gated tier. This object EXISTS, so a 302 here proves the edge function
+    # checks the prefix before the status rather than only rewriting errors - which
+    # is the distinction that would otherwise have served it.
+    status, headers = _fetch(f"{SITE}/get/{GATED_PROBE_KEY}")
+    r.add(
+        "existing gated object is refused over the public path",
+        status == 302 and headers.get("Location", "").rstrip("/") == SITE,
+        f"HTTP {status} Location={headers.get('Location', 'absent')}",
+    )
+
+    # and refused at the distribution too, not just through the Amplify hop
+    dist = boto3.client("cloudfront", region_name=REGION).get_distribution(Id=DIST_ID)
+    status, headers = _fetch(
+        f"https://{dist['Distribution']['DomainName']}/{GATED_PROBE_KEY}"
+    )
+    r.add(
+        "gated object refused at the distribution directly",
+        status == 302,
+        f"HTTP {status}",
+    )
+
+    # the gated API must reject an unauthenticated caller
+    for path, expect in (
+        ("/secure-files", 401),
+        ("/secure-files/mine", 401),
+        ("/secure-files/nonexistent/download?grant=x", 401),
+    ):
+        status, _ = _fetch(f"https://api.wecare.digital{path}")
+        r.add(f"gated API rejects anonymous: {path}", status == expect, f"HTTP {status}")
 
     # the rest of the site must be untouched
     for path in ("/", "/dm/inbox/", "/link/"):
