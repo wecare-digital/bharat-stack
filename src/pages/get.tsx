@@ -328,13 +328,19 @@ export default function FilesPage () {
             </main>
 
             <style jsx>{ `
-                /* Centred single panel. The public header is fixed at 108px, dropping to
-                   96px below 768px, so the shell pads for it rather than sliding under. */
+                /* Centred single panel, inside the shared public shell.
+                
+                   _app.tsx wraps every isPublic route in <Header/> + page + <Footer/>,
+                   so this page is NOT the whole viewport. It used to claim
+                   min-height:100vh, which pushed the shared footer a full screen down
+                   and left a dead scroll on every visit. The header is position:fixed
+                   and 108px tall (96px below 768px) so it takes no flow space and must
+                   be padded for; the footer follows in flow and needs nothing. */
                 .sf-shell{
-                  min-height:100vh;display:grid;place-items:center;
-                  padding:calc(108px + 32px) 20px 64px;
+                  display:grid;place-items:center;
+                  padding:calc(108px + 48px) 20px 72px;
                 }
-                @media(max-width:768px){ .sf-shell{padding:calc(96px + 24px) 16px 48px} }
+                @media(max-width:768px){ .sf-shell{padding:calc(96px + 32px) 16px 56px} }
 
                 /* Same panel treatment as .home-close-panel: 2px lime border, 14px
                    radius, the tint at .22 alpha. */
