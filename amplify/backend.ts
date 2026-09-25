@@ -40,8 +40,16 @@ const backend = defineBackend( {
 // Amplify Gen 2 doesn't support TTL natively, so we use CDK overrides.
 // NOTE: TTL is also enforced directly on the physical tables via
 // scripts/_fix_ddb_ttl.py (the CDK override below historically failed silently).
-// RateLimitTracker is intentionally OMITTED: its only time field is 'lastUpdatedAt',
-// which is NOT an expiry — enabling TTL on it would purge the entire table.
+// RateLimitTracker is omitted here, but NOT for the reason this comment used to
+// give. It claimed 'lastUpdatedAt' is "NOT an expiry" and that enabling TTL on it
+// "would purge the entire table". Both halves are wrong, and were wrong when
+// written: every writer (lambda_utils/rate_limit.py and
+// outbound-whatsapp._check_rate_limit) sets it to windowStart + 86400, an absolute
+// future expiry, and DescribeTimeToLive on 2026-09-25 shows TTL already ENABLED on
+// lastUpdatedAt on the live table — with 143 rows present, so nothing was purged.
+// It stays omitted only because the physical table already has the TTL it needs and
+// this CDK override historically failed silently; the live table, not this file, is
+// the thing that is right.
 const TTL_CONFIG: Record<string, string> = {
   Message: 'expiresAt',
   DLQMessage: 'expiresAt',

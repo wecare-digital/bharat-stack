@@ -24,8 +24,11 @@ What it checks
 --------------
 1. RETIRED PROVIDERS    no live Lambda, route, table or secret belongs to a
                         retired provider (PayU, Airtel, Sinch SMS).
-2. ORPHANED FUNCTIONS   every live Lambda is either in the portable deploy map
+2. UNPATCHABLE FUNCTIONS
+                        every live Lambda is either in the portable deploy map
                         or on the short list of externally-deployed functions.
+                        The question is whether a fix can REACH production, not
+                        whether source exists somewhere in the tree.
 
 Approved exceptions are Sinch RCS for India only - the RCS send path, its DLR
 handler, its routes and its secret. See .kiro/steering/ for the provider matrix.
@@ -76,6 +79,14 @@ SINCH_APPROVED_RCS = ("rcs",)
 EXTERNALLY_DEPLOYED = {
     "wecare-seo-tools",      # scripts/deploy_seo_tools.py owns it
     "wecare-docs-scraper",   # PackageType=Image, GitHub Actions
+    # Lambda@Edge, source at amplify/functions/edge/get-miss-redirect. It cannot
+    # go in the deploy map: CloudFront associates Lambda@Edge by published
+    # VERSION, and the deploy map's contract is publish-then-move-the-`live`-alias.
+    # An alias is not a valid Lambda@Edge association target, so deploying it that
+    # way would publish a version CloudFront never picks up and then report
+    # success. It has no `live` alias for the same reason. Owned by its own
+    # deployer; see docs/SECURE-FILE-SHARING.md.
+    "wecare-get-miss-redirect",
 }
 
 # Residue still present. This list only ever shrinks; anything NOT in it fails.
@@ -154,8 +165,16 @@ def collect(report_only: bool) -> tuple[list, list]:
             [sys.executable, "scripts/deploy_all_lambdas.py", "--list"],
             capture_output=True, text=True).stdout
         mapped = set(re.findall(r"\b(?:stack-)?wecare[a-z0-9-]*", out))
+    # The label says "not in the deploy map", not "no source", because those are
+    # different findings and the distinction is the whole value of the check.
+    # wecare-pstn-softphone and wecare-get-miss-redirect were both reported as
+    # `orphan-no-source` while their source sat in amplify/functions - so the
+    # message sent a reader hunting for code that was already there, and the real
+    # defect (five live routes that no supported deploy path could reach) read as
+    # a bookkeeping miss. What makes a function unpatchable here is the absence of
+    # a deploy route, whether or not the source exists.
     for fn in sorted(live_fns - mapped - EXTERNALLY_DEPLOYED):
-        record("lambda", fn, "orphan-no-source")
+        record("lambda", fn, "orphan-not-in-deploy-map")
 
     api = boto3.client("apigatewayv2", region_name=REGION)
     try:

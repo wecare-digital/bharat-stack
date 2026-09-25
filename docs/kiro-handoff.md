@@ -1,113 +1,186 @@
 # Kiro handoff
 
-Updated: **2026-09-21**
+Updated: **2026-09-25**
 
 ## Position
 
 | Field | Value |
 |---|---|
 | Mode | **Unattended.** `.kiro/steering/01-standing-authorization.md` governs; no confirmation queue |
-| Phase | Phase 0 complete. Security remediation complete and live. Phase 1 **in progress** |
+| Phase | **All 11 phases closed.** See `docs/execution/PHASE-10.3-CLOSURE.md`. This session was a verification pass over that closure at a later HEAD |
 | Branch | `stack` |
-| HEAD | `4095cc68`, pushed |
-| HTTP APIs / routes | **1 / 326** (was 2 / 332) |
-| Routes OPEN at both layers | **0** (was 30) |
-| Lambda errors, 7 days | **0** |
-| Gates | 1245 python tests · provider policy 8/8 · route audit 0 OPEN / 0 DANGLING / 0 UNRESOLVED · live probes 12/12 |
+| HEAD at session start | `d39227ca`, local == `origin/stack` |
+| Verdict | **⚠️ COMPLETE WITH IMPROVEMENTS** — unchanged, and for the same narrow reason: the most useful remaining verification needs one owner action |
 
-## What was done, in order
+The previous version of this file was four days stale. It reported Phase 1 in
+progress at `4095cc68` with 1245 tests, while phases 2–10 had since closed and the
+suite had grown to 3424. Treat the numbers below as measured on 2026-09-25 and
+re-derive them rather than trusting them, per
+`.kiro/steering/00-current-owner-overrides.md`.
 
-**The approval problem.** Prompts were not coming from the project policy — that
-was already fully wildcarded, and every deny hook passes silently on the command
-shapes in use, verified directly against `block_catastrophic.py` including
-`delete-route` and `update-function-code`. There are **two** permissions files, and
-only the per-workspace one was managed. Scratch output in `/tmp` and reads of
-`~/.kiro` fall outside the workspace root, so each new filename prompted, and 23
-literal path entries had accumulated in the user-level file. Fixed both halves:
-`apply_unattended_permissions.py --user` writes directory scopes, and scratch now
-lives in `.scratch/` inside the workspace. `$HOME` is deliberately not wildcarded
-for writes, because `block-catastrophic` guards `~/.aws` and `~/.ssh` on the shell
-and MCP routes but its matcher does not cover file-write tools.
+## Gates, measured this session
 
-**Two unauthenticated provider ingresses, closed and live-verified.**
-`/webhook/sinch-rcs` verified nothing at all while writing to the canonical message
-store and invoking `wecare-rcs-send` with a phone number from the unauthenticated
-body. `POST /whatsapp/inbound` accepted unsigned Meta envelopes and honoured
-`action=create_invoice` before any authorization. Both now enforce raw-body
-signatures through shared verifiers, neither fails open.
+```
+pytest                                  3429 passed   (3424 before this session)
+vitest                                   224 passed
+tsc --noEmit                             clean
+npm run build                            ok, 536 sitemap URLs (520 blog posts)
+check-provider-policy.sh                 OK 8/8
+check_provider_policy_live.py            OK          <- was FAILING at HEAD
+check_data_model_drift.py --gate          PASSED     <- was FAILING at HEAD
+audit_data_model_drift.py --gate          OK, 0 missing
+audit_route_auth.py --gate               0 OPEN / 0 DANGLING / 0 UNRESOLVED
+verify_public_webhook_auth.py --gate      17/17 live probes
+check_design_drift.py --gate             OK
+check_ui_labels.py --gate                OK at every severity
+verify_no_secrets_in_tree.py             PASS
+verify_secret_hook.py                    26/26
+block_catastrophic.py --self-test         97/97
+GitHub Actions on d39227ca               5/5 success
+Dependabot open alerts                   0     (recorded as 40–48 earlier; now clear)
+npm audit                                0 vulnerabilities
+```
 
-**Thirty more open routes.** The route audit's "0 findings" was untrustworthy: it
-scanned one of two APIs, mis-mapped handler directories, and accepted
-`Authorization`, `api_key`, `verify_token` and `appsecret_proof` as proof of
-authentication. Every one of those matches turned out to be a CORS string or an
-outbound provider credential, and all seven affected handlers contained zero
-`require_auth`. Anonymous callers could delete media from Meta, wipe call and
-campaign logs, upload recipient lists, spend model tokens, and mint short links on
-a `wecare.digital` host. All now behind `require_auth`, with five routes
-allowlisted where authentication is impossible or circular.
+## What this session changed
 
-**Dead surface removed.** Five dangling routes plus two integrations pointing at
-deleted Lambdas, and then the entire second HTTP API: no domain mapped to it, zero
-requests in 30 days against 84,301 for the live API, one route duplicating a
-correctly-aliased route while pointing at `$LATEST`, and `AllowOrigins ["*"]`.
+**Two gates were red at HEAD.** Both are now green, and neither failure was
+cosmetic.
 
-**Audits that did not exist.** Three now do, each proven against a seeded failure
-rather than assumed: route authentication, table-name drift, and the joined runtime
-inventory. The full 1245-test suite also runs in CI for the first time.
+**1. A rate limiter that was dead in production.**
+`stack-wecare-digital-RateLimitTable` has a single partition key, `id`. But
+`amplify/data/resource.ts` declared `identifier([ 'channel', 'windowStart' ])`, and
+`lambda_utils/rate_limit.py` followed the declaration — calling `update_item` with a
+composite key. DynamoDB answers that with `ValidationException`, the module's bare
+`except Exception` caught it, and the function returned `True`. So every caller was
+told it was under its limit and **no rate limit was applied at all**.
 
-## Open findings, highest value first
+Proven, not inferred: a read-only `GetItem` with the composite key is rejected with
+*"The provided key element does not match the schema"*; `{'id': ...}` is accepted.
 
-| ID | Finding |
+The two real consumers were `operations/bulk-worker` and
+`messaging/partner-onboarding` — a bulk sender and the partner control plane, which
+are the two places a throughput limit matters most.
+`messaging/outbound-whatsapp._check_rate_limit` already wrote the correct `id` shape
+and is what produced the 143 rows in the table.
+
+Five unit tests passed throughout, because they mock `dynamodb` wholesale so
+`update_item` accepts any key. `TestKeySchemaMatchesTheLiveTable` now pins the shape;
+4 of its 5 cases fail against the pre-fix file, verified by restoring it from git.
+
+Fail-open is deliberate and was kept. What changed is that a permanent failure
+(`ValidationException`, `ResourceNotFoundException`) now logs at ERROR as
+`rate_limit_disabled_permanent_error`, so "rate limiting is off" is greppable instead
+of looking identical to a transient blip. Exception *text* is no longer logged, only
+the type — `.kiro/steering/secret-handling.md`.
+
+**2. Two Lambdas that no supported deploy path could reach.**
+`check_provider_policy_live.py` reported `wecare-pstn-softphone` and
+`wecare-get-miss-redirect` as `orphan-no-source`. Both had source in
+`amplify/functions`, so the label sent a reader hunting for code that was already
+there — and hid the real defect.
+
+`wecare-pstn-softphone` serves five live production routes through its `live` alias
+(`GET /pstn/session`, `POST /pstn/session/events`, `POST /pstn/session/presence`,
+`GET /pstn/diagnostics`, `POST /pstn/token`). `provision_pstn_softphone.py` only
+calls `create_function`, `publish_version` and `create_alias` — there is no update
+path — so the first provisioning deploy was also the last one. It is now in the
+deploy map. That is the same failure already found and fixed for `wecare-crm`.
+
+`wecare-get-miss-redirect` is genuinely externally deployed: CloudFront associates
+Lambda@Edge by published **version**, and an alias is not a valid association
+target, so the deploy map's publish-then-move-the-alias contract cannot ship it. It
+is recorded in `EXTERNALLY_DEPLOYED` with that reason. The finding is now labelled
+`orphan-not-in-deploy-map`, which is what it actually detects.
+
+**Also corrected**
+
+- `amplify/backend.ts` claimed `lastUpdatedAt` "is NOT an expiry" and that enabling
+  TTL on it "would purge the entire table". Both halves were wrong: every writer sets
+  `windowStart + 86400`, and `DescribeTimeToLive` shows TTL already **ENABLED** on
+  that attribute with 143 rows intact.
+- A true duplicate `Spec("wecare-crm", "core/crm")` at two places in the deploy map;
+  the documented one was kept. The adjacent `url-shortener` pair is *not* a
+  duplicate — `wecare-url-shortener` and `stack-wecare-url-shortener` are two
+  distinct functions.
+- `SecureFilesTable` and `DownloadGrantsTable` arrived live with the secure-file work
+  without being declared, which is what failed the data-model gate. Both are now
+  recorded in `UNDECLARED_ALLOWED` with their measured keys, GSIs and TTL state.
+
+Nothing was deployed. `deploy_all_lambdas.py --dry-run wecare-pstn-softphone`
+packages 83 files and reports `unchanged=1`, i.e. the packaged code already matches
+what is live, so adding it to the map implies no pending release.
+
+## Recorded gaps that were already closed
+
+The gap list in `.kiro/work/phases-5-10/plan.md` is partly stale. Re-verified closed:
+
+| Gap | State at 2026-09-25 |
 |---|---|
-| `DEPLOY-003` | 3 functions serve routes with **no `live` alias** — `partner-onboarding` (21 routes, the partner/tenant control plane including billing top-up), `marketing-ads`, `seo-tools`. All 25 unqualified integrations trace to these. `update-function-code` reaches production instantly with nothing to roll back to |
-| `SEC-ROUTE-008` | Destructive routes accept **any** signed-in user, not `Admin`: `clear-logs` ×2, `media-cleanup`, `DELETE /links/{code}`. Needs Cognito group membership read first so tightening cannot lock out the operator |
-| `SEC-ROUTE-006` | RCS delivery receipts are still processed unverified, because no `webhook_secret` exists at Sinch. Justified by measurement — 313 of 313 callbacks in 7 days were `MESSAGE_DELIVERY`, zero inbound — and it self-heals the moment the secret exists |
-| `NOTIF-STORE-003` | The 65 declared Amplify models and the 66 live tables are two disjoint naming worlds. Until settled, `resource.ts` is not a description of production |
-| `SEC-ROUTE-007` | `voice-in/obd` still holds an executable Airtel CDR-callback branch, now behind auth |
-| `PROV-AIRTEL-002` | `wecare-voice-in-c2c` still carries `AIRTEL_C2C_TABLE` and `AIRTEL_C2C_SECRET_NAME` in its deployed env |
-| `OPS-001` | 9 log groups with no retention |
-| `OPS-002` | 95 route paths no frontend file mentions — webhook, internal, or dead |
-| new | GitHub reports **48 Dependabot alerts** (1 critical, 26 high, 19 moderate, 2 low). The brief recorded Dependabot as unavailable, so this is a change |
+| `payment_verified` defaulted `True` | Closed. Four distinct outcomes plus a `PAYMENT_LOOKUP_REQUIRED` flag; the accept/reject decision is deliberately unchanged |
+| Invoice sequence injected `WD-PAY-TEMP-` into the GST series | Closed |
+| `_save_flow_submission`, the 4th Flow writer | Removed 2026-09-24 after it was shown to have zero callers |
+| `invoice-engine` imported `qrcode`, absent from the package | Closed |
+| 7 phantom models | `PHANTOM MODELS` now reports **0**. `RateLimitTracker` was never one — the physical table drops the "Tracker" and `EXPLICIT_TABLE` maps it |
+| `_money_amount` passed a non-numeric price through | Closed — validates via `Decimal` and returns `''`, which also repairs the caller's fallback chain |
+| 40–48 Dependabot alerts | 0 open |
+| `origin` cross-request leak in `wix-store` | Genuinely closed. `global origin` at 241 and the reset at 337 are both inside `handler` (next `def` at 339), so the reset does hit the global |
+
+## Open, and honest about it
+
+| Item | Severity | Note |
+|---|---|---|
+| `apiCall` collapses every non-ok response to `null` | MEDIUM | Real and large: **304** `apiCall<T>()` wrappers inside `src/api/client.ts`. An auth failure, a timeout and an empty table still render the same screen through those. The non-lossy `apiCallResult` exists and `collectApiFailures` is used by 3 surfaces, so the escape hatch is there — but migrating 304 wrappers is a deliberate refactor and was **not** attempted here |
+| `origin` still reaches `_response` via a module global | MEDIUM | Leak fixed; only the signature boundary remains. 36 call sites, 2 with an origin to pass, in a handler whose integration is switched off |
+| `calling.tsx` falls back to a 0 Hz oscillator when the mic fails | MEDIUM | Left alone deliberately — changing it changes what a caller hears |
+| `VoiceCDRTable` has no GSI; readers scan then filter | LOW | Fine at 56 rows, not at 56,000 |
+| `amplify/data/resource.ts` is a document, not infrastructure | HIGH (as a claim) | 0 AppSync APIs; 58 models declared vs 79 live tables. Both drift gates now pass, so the divergence is at least *recorded* rather than implied. It still reads like infrastructure |
+| `route-auth.yml` live-AWS job has never run | MEDIUM | Gated on `vars.ROUTE_AUTH_ROLE_ARN`, which is unset, so it reports `skipped`. The source half runs and is blocking; the console-drift half is the missing one |
+| `AIInteractionsTable` has no writer | LOW | Readers only; the architecture page's claim is unsupported |
+| Cognito `VdmOptions.EngagementMetrics` | LOW | Still unverified whether it injects a tracking pixel into OTP mail |
 
 ## Waiting on the owner
 
-| Item | Exact unblock action |
+Each is one action, and none is engineering hiding behind a label.
+
+| Item | Exact unblock |
 |---|---|
-| Full RCS verification | Set a webhook secret on the Sinch Conversation API webhook, then store it as `webhook_secret` in `wecare/sinch/rcs`. No code change needed |
-| Exposed credentials | Replace the Razorpay / Google Ads / Google OAuth / Google API key / Bing credentials. Kiro will not touch credential values |
+| **Admin group membership** — the highest-value item | `aws cognito-idp admin-add-user-to-group --user-pool-id us-east-1_cSx0RHCIR --username wecare.digital --group-name Admin`. Re-confirmed live: the pool has `Admin`/`Operator`/`Partner`/`Viewer`, and its only user is in **none** of them. So 16 handlers can be proven to refuse anonymous callers but **not** to return data to a signed-in Admin |
+| `ADMIN_MFA_REQUIRED` stays at `warn` | Correct, not an oversight. Flipping it before an Admin exists would refuse the first one. Precondition is the row above |
+| Disclosed Cognito client | Delete client `1jrnb80tcvceg7uln9vuoe8va5` (`WECARE.DIGITAL`); it still exists beside `stack-wecare-digital-web`. Not done here: it modifies authentication and cannot be undone with the same client id |
+| Provider credential rotation | Razorpay / Google Ads / Google OAuth / Google API key / Bing. `MANUAL_OWNER_ACTION`; Kiro does not touch credential values |
+| Full RCS verification | Set a webhook secret on the Sinch Conversation API webhook and store it as `webhook_secret` in `wecare/sinch/rcs`. No code change needed |
+| 7 of 8 integrations at `SCOPE_UNVERIFIED` | Provider access. Every unblock is listed on `/growth` |
 | Meta MCP servers | Add `http://localhost:7778/oauth/callback` (DevTools) and `http://localhost:7779/oauth/callback` (WhatsApp Business Tools) to app `2238810740192680` |
 | Razorpay MCP | Blocked on the provider: its token endpoint advertises only `client_secret_post` |
-| Live QA sends and calls | Nominate a QA recipient. Nothing goes to a real customer without one |
-| CI live gate | Set repository variable `ROUTE_AUTH_ROLE_ARN` to a read-only OIDC role. Until then that job skips rather than fails |
+| Live QA sends and calls | QA recipient `+918100640044` is nominated (`.kiro/steering/02-qa-recipient.md`), but every live-send flag is still absent by design. Enabling one is a separate decision |
+| CI live route-auth gate | Set repo variable `ROUTE_AUTH_ROLE_ARN` to a read-only OIDC role |
+| Native Android/iOS packaging | POST-PROJECT by owner override; cannot block closure |
 
 ## Re-verify anything here
 
 ```bash
-python scripts/audit_route_auth.py --gate            # 0 OPEN across every HTTP API
-python scripts/audit_data_model_drift.py             # table names code uses vs exist
-python scripts/generate_runtime_inventory.py         # regenerate the joined inventory
-python scripts/verify_public_webhook_auth.py --gate  # 12 live probes
-python scripts/apply_unattended_permissions.py --list
-.venv/bin/python -m pytest -q                        # 1245
-bash scripts/check-provider-policy.sh                # 8/8
+.venv/bin/python -m pytest -q                          # 3429
+npm test && npm run typecheck && npm run build
+bash scripts/check-provider-policy.sh                  # 8/8
+.venv/bin/python scripts/check_provider_policy_live.py  # live estate
+.venv/bin/python scripts/check_data_model_drift.py --gate
+.venv/bin/python scripts/audit_data_model_drift.py --gate
+.venv/bin/python scripts/audit_route_auth.py --gate
+.venv/bin/python scripts/verify_public_webhook_auth.py --gate
+.venv/bin/python scripts/check_ui_labels.py --gate
+.venv/bin/python scripts/deploy_all_lambdas.py --dry-run   # packages, uploads nothing
 ```
 
 ## Rollback
 
-```bash
-aws lambda update-alias --function-name wecare-rcs-dlr            --name live --function-version 7
-aws lambda update-alias --function-name wecare-inbound-whatsapp   --name live --function-version 37
-aws lambda update-alias --function-name wecare-media-cleanup      --name live --function-version 7
-aws lambda update-alias --function-name wecare-voice-in-c2c       --name live --function-version 7
-aws lambda update-alias --function-name wecare-voice-in-obd       --name live --function-version 7
-aws lambda update-alias --function-name wecare-ai-generate-response --name live --function-version 7
-aws lambda update-alias --function-name wecare-bulk-worker        --name live --function-version 7
-aws lambda update-alias --function-name wecare-product-image-gen  --name live --function-version 8
-aws lambda update-alias --function-name stack-wecare-url-shortener --name live --function-version 3
-aws lambda update-alias --function-name wecare-waba-management    --name live --function-version 9
-aws lambda update-alias --function-name wecare-rcs-send           --name live --function-version 7
-aws lambda update-alias --function-name wecare-messages-read      --name live --function-version 8
-```
+This session changed no cloud resource, so there is nothing to roll back in AWS.
+The code changes revert with `git revert` of the commit named in
+`docs/execution/change-authority-matrix.md`.
 
-Route, integration and API restore commands: `docs/prohibited-provider-retirement.md`.
+Lambda alias rollback for the fleet remains
+`docs/execution/snapshots/lambda-aliases-before-full-deploy.txt`; any one function
+reverts with
+`aws lambda update-alias --function-name <n> --name live --function-version <v>`.
+Route, integration and API restore commands:
+`docs/prohibited-provider-retirement.md`.
 Permissions: `python scripts/apply_unattended_permissions.py --user --restore`.

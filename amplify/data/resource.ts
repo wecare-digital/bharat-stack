@@ -288,15 +288,31 @@ const schema = a.schema( {
     .secondaryIndexes( ( index ) => [ index( 'messageId' ) ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
-  // Table 10: RateLimitTrackers - Rate limiting counters (TTL: 24 hours)
+  // Table 10: Rate limiting counters. Physical table is `RateLimitTable` - the
+  // model name keeps the "Tracker" suffix the physical table drops, and that
+  // mapping is recorded in scripts/check_data_model_drift.py EXPLICIT_TABLE.
+  //
+  // The identifier below was `[ 'channel', 'windowStart' ]` until 2026-09-25. The
+  // live table has a SINGLE partition key, `id`, and no sort key. That is not a
+  // cosmetic difference: lambda_utils/rate_limit.py followed this declaration,
+  // called update_item with a composite key, got ValidationException on every
+  // call, swallowed it and failed open - so bulk-worker and partner-onboarding
+  // ran with no rate limit while their tests passed. Corrected here so the
+  // declaration stops teaching the wrong schema. Verified by DescribeTable and a
+  // read-only GetItem against both key shapes.
   RateLimitTracker: a
     .model( {
-      channel: a.string().required(),
-      windowStart: a.string().required(),
+      // `{channel}:{resourceId}:{windowStart}` - see rate_limit.py and
+      // outbound-whatsapp._check_rate_limit, which both write this shape.
+      id: a.string().required(),
+      channel: a.string(),
+      windowStart: a.string(),
       messageCount: a.integer().default( 0 ),
-      lastUpdatedAt: a.integer(), // TTL: Unix epoch seconds (24 hours)
+      // TTL is ENABLED on this attribute on the live table, so it holds an
+      // absolute expiry (windowStart + 24h), not a "last touched" stamp.
+      lastUpdatedAt: a.integer(),
     } )
-    .identifier( [ 'channel', 'windowStart' ] )
+    .identifier( [ 'id' ] )
     .authorization( ( allow ) => [ allow.authenticated() ] ),
 
   // Table 11: SystemConfig - System configuration key-value store

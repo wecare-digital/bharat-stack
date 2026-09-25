@@ -180,6 +180,20 @@ UNDECLARED_ALLOWED: dict[str, str] = {
         "messaging/inbound-whatsapp-handler/handler.py, keyed on displayPhoneNumber. "
         "Deliberately not modelled - it is a per-number lookup cache the handler "
         "populates and tolerates being empty, not a CRM entity. Measured 2026-09-24.",
+    # Both arrived with the secure file sharing work and were provisioned live
+    # without being recorded here, so this gate was failing at HEAD. Measured
+    # 2026-09-25: keys, GSIs and TTL read from DescribeTable/DescribeTimeToLive.
+    "SecureFilesTable":
+        "Provisioned by scripts/provision_secure_files_api.py for the secure file "
+        "sharing feature (docs/SECURE-FILE-SHARING.md). HASH `fileId`, GSI "
+        "`owner-created-index`, TTL DISABLED - a shared file outlives any session "
+        "and must not be swept. Owned by core/secure-files, not the CRM model.",
+    "DownloadGrantsTable":
+        "Provisioned by scripts/provision_secure_files_api.py alongside "
+        "SecureFilesTable. HASH `grantId`, GSI `order-index`, TTL ENABLED on "
+        "`expiresAt` - a download grant is deliberately short-lived, so expiry is "
+        "the point of the record rather than a cache detail. Not modelled here for "
+        "the same reason as PstnSoftphoneSessions: Amplify does not own that clock.",
 }
 
 

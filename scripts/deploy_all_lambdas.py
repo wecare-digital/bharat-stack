@@ -134,7 +134,6 @@ SPECS: List[Spec] = [
     Spec("wecare-auth-middleware", "core/auth-middleware"),
     Spec("wecare-automation-rules", "core/automation-rules"),
     Spec("wecare-contacts", "core/contacts"),
-    Spec("wecare-crm", "core/crm"),
     Spec("wecare-conversation-meta", "core/conversation-meta"),
     Spec(
         "wecare-secure-files",
@@ -243,6 +242,23 @@ SPECS: List[Spec] = [
     # separate destructive approval.
     Spec("wecare-notification-worker", "messaging/notification-worker"),
     Spec("wecare-plivo-answer", "messaging/plivo-answer"),
+    # Absent until now, and it serves five live production routes through its
+    # `live` alias: GET /pstn/session, POST /pstn/session/events, POST
+    # /pstn/session/presence, GET /pstn/diagnostics and POST /pstn/token.
+    # scripts/provision_pstn_softphone.py only calls create_function,
+    # publish_version and create_alias - there is no update path in it - so
+    # without this entry the first provisioning deploy was also the last one,
+    # and a fix to the browser-token service could not reach production by any
+    # supported route. The same failure was found and fixed for wecare-crm.
+    # Not standalone: the handler imports lambda_utils.logging, .response,
+    # .middleware and .pstn (browser_token, softphone), so it needs the default
+    # packaging that bundles them. No extra_files - there are no lazy imports.
+    #
+    # provisioned_by is deliberately NOT set, for the same reason it is not set on
+    # wecare-secure-files: the function already exists in the account, so marking
+    # it would report a future deletion as "awaiting provisioning" instead of as
+    # the failure it would be.
+    Spec("wecare-pstn-softphone", "messaging/pstn-softphone"),
     # --- messaging / rcs, push, scheduling ---
     Spec("wecare-rcs-send", "messaging/rcs-send"),
     Spec("wecare-rcs-dlr", "messaging/rcs-dlr"),
