@@ -99,9 +99,60 @@ The fix is two lines and is measured green at all three widths above. But `html,
 
 ---
 
+## 5 · The mobile widget — size, and parking above the footer
+
+![Mobile widget size and parking](./5-mobile-widget.png)
+
+Your two observations, both confirmed. Every shot on this board has the scroll fix and dash option A already applied, so the footer sits flush and this is the real geometry rather than the blank-gap artefact.
+
+### It takes too much space
+
+The pill is 108px wide at every width, which on a phone is a quarter to well over a third of the screen.
+
+| Phone | % of screen width | Where it lands at the end of the page |
+| --- | --- | --- |
+| Fold closed · 280 | **38.6%** | in the blank below the footer |
+| iPhone SE 1 · 320 | **33.7%** | in the blank below the footer |
+| iPhone SE 2/3 · 375 | **28.7%** | in the blank below the footer |
+| iPhone 13/14 · 390 | **27.6%** | in the blank below the footer |
+| Pixel 7/8 · 412 | **26.2%** | on top of the footer |
+| iPhone 15 Pro Max · 430 | **25.1%** | on top of the footer |
+
+Four sizes are rendered on the board at 320px and 390px:
+
+| | Size | 320px screen | Trade |
+| --- | --- | --- | --- |
+| **NOW** | 108 × 50 | 33.7% | — |
+| **SLIM** | 87 × 44 | 27.2% | 36px icon, chevron dropped. Tap targets stay ≥ 44px. |
+| **COMPACT** | 77 × 40 | 24.1% | 32px icon — under the 44px touch guideline. |
+| **STACKED** | 50 × 91 | 15.6% | Narrowest, but 91px tall and reads as two buttons again. |
+
+**Recommended: SLIM.** It loses 21px of width and 6px of height by shrinking the icon to 36px and dropping the chevron. The chevron earns its place on desktop, where a mouse needs the hint; on a phone, tapping the chip opens the OS language picker regardless, so the arrow is decoration.
+
+**COMPACT** is smaller but takes the tap targets to 32px on the device where that matters most. **STACKED** is narrowest but splits back into two objects, which is what the single pill was built to stop.
+
+### Above the footer, not below it
+
+| Phone | Footer | Pill now | Pill parked | Gap above footer |
+| --- | --- | --- | --- | --- |
+| 320 × 568 | y 376–568 | y 452–496 — **inside the footer** | y 316–360 | **16px** |
+| 390 × 844 | y 652–844 | y 728–772 — **inside the footer** | y 592–636 | **16px** |
+
+The pill stays 20px off the bottom right for the whole page. The moment the footer's top edge comes into view it stops descending and holds 16px above it, riding up with the footer instead of sliding over it. Scroll back and it returns to the corner.
+
+Nothing fades and nothing disappears — contact stays reachable at every scroll position including the very end of the page, which is the objection to hiding it.
+
+It costs one scroll listener and one transform, so no layout on any frame. **It needs the scroll fix first**, otherwise it would park above a footer that has itself been pushed into a blank gap. That ordering is why every shot on this board has the scroll fix applied.
+
+**Desktop is untouched.** There the footer is 179px tall and the pill clears it at 20px once the dash moves left, so parking applies below 768px only.
+
+---
+
 ## Decisions needed
 
 1. Dash — **A**, **B** or **C**?
 2. Phone offset 72px → 20px — **yes / no**?
 3. Scroll fix — **now**, on its own branch, or **park it**?
-4. Still open from the last round: delete `src/pages/contact-test/index.tsx`? It is de-listed so it is no longer public, but the file is still in the tree.
+4. Mobile pill size — **SLIM**, **COMPACT**, **STACKED** or leave as is?
+5. Park above the footer on phones — **yes / no**?
+6. Still open from the last round: delete `src/pages/contact-test/index.tsx`? It is de-listed so it is no longer public, but the file is still in the tree.
