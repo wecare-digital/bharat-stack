@@ -56,9 +56,24 @@ that exists returns 200 from S3, so keying only off errors would serve it.
 
 ## Paid download flow
 
-    GET /secure-files/mine                  customer's own files
-    POST /secure-files/{fileId}/order       creates a Razorpay order + unpaid grant
-    GET  /secure-files/{fileId}/download    redeems a paid grant -> 60s presigned URL
+    GET  /secure-files/mine                  customer's own files
+    POST /secure-files/{fileId}/whatsapp-pay PRIMARY: sends the wecare_pay template
+    POST /secure-files/{fileId}/order        FALLBACK: Razorpay Checkout on the web
+    GET  /secure-files/{fileId}/download     FALLBACK: redeems a grant -> presigned URL
+
+### Why the web payment path is kept
+
+`/order` and `/download` are live and tested, and **nothing in the UI calls them** — the
+page uses `/whatsapp-pay`. That looks like dead code and is not.
+
+They are the only route by which a customer who has already paid can obtain a file when
+WhatsApp delivery keeps failing. `reconcile_file_deliveries.py` retries the send, but if
+a number is permanently unreachable — blocked, ported away, WhatsApp uninstalled — retry
+cannot help and the customer is owed a file with no way to collect it. Deleting these
+would mean the only recovery path is a manual S3 presign by an operator.
+
+So they stay, deliberately, as a documented fallback rather than an accident. If they are
+ever removed, a replacement recovery path has to exist first.
 
 Entitlement is never taken from the browser. Razorpay Checkout's success callback is
 forgeable, so it only stops the spinner. `paid` is set by one of two server paths:
@@ -149,6 +164,97 @@ safe too. A brand-new function still starts off.
 
 Rollback: `--disable-payment`, or the alias move the enable step prints.
 
+## WhatsApp delivery
+
+Payment request and file both go out as approved templates.
+
+| Template | Components | Role |
+|---|---|---|
+| `wecare_pay` | IMAGE, BODY, FOOTER, BUTTONS(`ORDER_DETAILS`) | ₹49 request |
+| `01_wecare_doc` | DOCUMENT, BODY, FOOTER, BUTTONS(`FLOW`) | delivery, **current default** |
+| `wd_file_delivery` | DOCUMENT, BODY({{1}} name, {{2}} file), FOOTER, no buttons | delivery, **PENDING approval** |
+
+`wecare_pay`'s button is `ORDER_DETAILS`, i.e. WhatsApp Pay's native checkout, not a URL
+button — which is why a Razorpay payment link was never an option for it. The amount
+travels in the `order_details` payload rather than the message text, because that BODY
+has no variables.
+
+`wd_file_delivery` was submitted to replace the reuse of `01_wecare_doc`, which cannot
+name the file or the customer and carries a leftover `FLOW` button labelled "Subscribe" —
+an upsell attached to something already paid for. `WA_DOC_TEMPLATE` still defaults to the
+older template so delivery never depends on an approval that has not landed. Flip it once
+Meta approves:
+
+    python scripts/provision_file_delivery_template.py --verify   # check approval
+    # then set WA_DOC_TEMPLATE=wd_file_delivery
+
+Body parameters are keyed on the template **name** (`TEMPLATES_WITH_BODY_VARS`), not a
+separate flag, because sending parameters to a template without placeholders is a Meta
+parameter mismatch — the two must move together.
+
+`wecare_pay` is deliberately not recreated. Its gap is cosmetic, and its `ORDER_DETAILS`
+button is coupled to the account payment configuration, so hand-rolling a replacement
+risks breaking a working checkout to fix wording.
+
+### The document travels as a media id
+
+Meta must be able to fetch what it attaches, and the whole `secure/` prefix is refused at
+the edge, so there is no URL to hand it. Bytes go to `/wa-business/media` with `s3Key` +
+`s3Bucket` and the returned media id becomes the template header.
+
+Passing bytes inline as base64 was the obvious alternative and is wrong: a synchronous
+Lambda invoke payload caps at 6MB and base64 adds about a third, so anything over roughly
+4.4MB fails — well under the 100MB Meta accepts for documents.
+
+`s3Bucket` is guarded by `MEDIA_SOURCE_BUCKETS`, an allowlist. `whatsapp-business-api` is
+invoked by several other Lambdas, and an open bucket parameter would have handed every one
+of them a read-any-object primitive.
+
+### Delivery is findable when it fails
+
+A failed send used to be a log line while the customer had already been charged, so
+nothing could answer "who is owed a file". Delivery now writes `delivered`,
+`deliveryDetail`, `deliveryAttempts` and `deliveryAttemptedAt` onto the grant:
+
+    python scripts/reconcile_file_deliveries.py --report
+    python scripts/reconcile_file_deliveries.py --retry
+
+It ignores `consumed` on purpose — a web redeem does not discharge a WhatsApp delivery the
+customer also paid for — and skips the `otpprobe#` rows that share the grants table.
+
+### Two TTLs, not one
+
+    DOWNLOAD_URL_TTL_SECONDS   60      web redeem; a browser follows it instantly
+    WHATSAPP_LINK_TTL_SECONDS  21600   link delivery; a person taps when they read it
+
+A `deliverable=link` file goes out as a message containing a URL. At 60 seconds that URL
+is usually expired before it is read, after the customer has paid. Capped below 24h
+because a SigV4 URL signed with temporary Lambda credentials cannot outlive the role
+session.
+
+## OTP enumeration budget
+
+Telling an unregistered caller `registered: "false"` fixed a real dead end — a mistyped
+number produced a code screen and permanent silence, because Cognito issues a challenge
+for an unknown user too. It also made the endpoint enumerable.
+
+Bulk probing is capped at 5 reveals per number per hour, after which the answer becomes
+`"unknown"` and stops distinguishing registered from not:
+
+    OTP_PROBE_MAX_PER_WINDOW   5
+    OTP_PROBE_WINDOW_SECONDS   3600
+
+Counted per **number**, not per IP, because a Cognito trigger receives no source IP. Per
+number is the right axis anyway: it bounds how fast one number can be tested, and
+spreading across a list gains nothing since each number still comes back here.
+
+It **fails open**. A counter that cannot be read must not lock a paying customer out of
+their own files; not enforcing the budget during a DynamoDB problem is far smaller harm
+than refusing legitimate verification.
+
+Do not "fix" enumeration by re-hiding the flag — that restores the dead end. Tighten the
+budget instead.
+
 ## Pending
 
 | Item | Status | Note |
@@ -158,7 +264,7 @@ Rollback: `--disable-payment`, or the alias move the enable step prints.
 | `payment.captured` subscription | ⏳ **UNCONFIRMED** | Dashboard-only. Materially de-risked: the reconcile fallback turns a missing subscription into a delay rather than a stranded payment. 316 webhook events were received 2026-09-24/25 and every one was `payment.downtime.*`, but `PaymentsTable` is empty, so no payment has ever been captured here and the absence proves nothing either way |
 | Test leftovers | ➖ **INTENTIONAL** | A QA Cognito customer (`+918100640044`) and two seeded files. Harmless, useful for testing, removable on request |
 
-## Two things that are easy to misread
+## Four things that are easy to misread
 
 `deploy_all_lambdas.py --dry-run` **always** reports `unchanged`, regardless of what
 would change — the dry-run branch increments that tally unconditionally without
@@ -167,6 +273,12 @@ comparing shas. A dry run tells you packaging succeeded, not what would deploy.
 `wecare-get-miss-redirect` has **no `live` alias**, and that is correct. Lambda@Edge
 associations must name a published version; an alias is not permitted. Do not "fix"
 it by adding one.
+
+`userName` on a Cognito trigger event is **top-level**, not inside `request`. Reading it
+from `request` yields an empty string silently — which is how the probe budget shipped
+doing nothing at all and eight consecutive probes got the reveal.
+
+`/order` and `/download` look like dead routes and are not. See the fallback note above.
 
 ## Test links
 

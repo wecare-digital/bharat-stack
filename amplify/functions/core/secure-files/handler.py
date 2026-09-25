@@ -625,6 +625,19 @@ def _owned_active_file(file_id: str, identity: Dict[str, Any]) -> Optional[Dict[
 
 
 def _create_order(file_id: str, identity: Dict[str, Any], origin: str) -> Dict[str, Any]:
+    """Razorpay Checkout on the web. FALLBACK, not the primary path.
+
+    Nothing in the UI calls this - the page uses ``/whatsapp-pay``. It is kept
+    deliberately rather than left behind as an oversight: it is the only route by which
+    a customer who has already paid can collect a file when WhatsApp delivery keeps
+    failing. ``scripts/reconcile_file_deliveries.py`` retries the send, but a
+    permanently unreachable number - blocked, ported away, WhatsApp removed - cannot be
+    retried into working, and without this the only recovery is an operator presigning
+    an object by hand.
+
+    See docs/SECURE-FILE-SHARING.md. If it is ever removed, a replacement recovery path
+    has to exist first.
+    """
     item = _owned_active_file(file_id, identity)
     if not item:
         return _not_registered(origin)
