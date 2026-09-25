@@ -35,6 +35,11 @@ Disallow: /dm/
 Disallow: /docs/
 Disallow: /forms/
 Disallow: /link/
+# /mock-home/ arrived in ef1abc5b, a design mock of the home page. Added within minutes of
+# the audit below reaching zero gaps, which is the whole argument for re-running it rather
+# than trusting the number: a mock of the home page is the worst possible thing to leave
+# indexable, because it competes with the real home page for the same query.
+Disallow: /mock-home/
 Disallow: /pay/
 Disallow: /seo/
 Disallow: /service/
