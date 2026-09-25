@@ -11,6 +11,10 @@ import { navigationConfig, NavItem, NavSubItem, getAllNavItems } from '../config
 import { useUserRole, isPartnerAllowed } from '../hooks/useUserRole';
 import { IconMap, ChevronRightIcon, MenuIcon, CloseIcon } from '../lib/icons';
 import BottomNav from './BottomNav';
+// The SAME lockup the public header and footer render. The sidebar used to carry its own
+// inline "Bharat" / "Stack" wordmark, which meant the dashboard shipped a different brand
+// from the public site; "Bharat Stack" is retired and this is the single source for it.
+import BrandLockup from './BrandLockup';
 
 // Minimal navigation shown to limited-access partner (customer) users.
 const PARTNER_NAV: NavItem[] = [
@@ -225,29 +229,55 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
           {/* Brand */ }
           <div style={ { padding: '10px 12px 6px', flexShrink: 0, borderBottom: '2px solid #d1f470' } }>
             { !sidebarCollapsed ? (
-              <div style={ { display: 'flex', alignItems: 'center', gap: 8, minHeight: 46 } }>
-                <img src={ LOGO_URL } alt="" style={ { height: 44, width: 'auto', borderRadius: 10, flexShrink: 0 } } onError={ ( e ) => { ( e.target as HTMLImageElement ).style.display = 'none'; } } />
-                <div style={ { display: 'flex', flexDirection: 'column', lineHeight: 1.15 } }>
-                  <span style={ { fontSize: 19, fontWeight: 800, color: '#1a3a2a', letterSpacing: '-0.3px' } }>Bharat</span>
-                  <div style={ { display: 'flex', alignItems: 'center', gap: 2 } }>
-                    <span style={ { fontSize: 19, fontWeight: 800, color: '#1a3a2a', letterSpacing: '-0.3px' } }>Stack</span>
-                    <span style={ { position: 'relative', display: 'inline-flex' } }>
-                      <span onClick={ () => setBrandDropdownOpen( !brandDropdownOpen ) } style={ { fontSize: 10, color: '#666', cursor: 'pointer', padding: '0 4px', userSelect: 'none' } }>▼</span>
-                      { brandDropdownOpen && (
-                        <>
-                          <div onClick={ () => setBrandDropdownOpen( false ) } style={ { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 } } />
-                          <div style={ { position: 'absolute', top: 'calc(100% + 4px)', left: 0, background: '#fff', border: '2px solid #d1f470', borderRadius: 12, padding: '8px 0', minWidth: 170, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 9999, display: 'flex', flexDirection: 'column' } }>
-                            <Link href="/" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Home</Link>
-                            <Link href="/dashboard" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>CRM</Link>
-                            <a href="/studio" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Studio</a>
-                            <a href="/sustainability" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Sustainability</a>
-                            <Link href="/access" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Sign in</Link>
-                          </div>
-                        </>
-                      ) }
-                    </span>
-                  </div>
-                </div>
+              /* ONE BRAND, SHARED WITH THE PUBLIC HEADER.
+                 This used to be a hand-rolled inline lockup reading "Bharat" / "Stack" at
+                 19px/800 beside a 44px logo - a second, divergent brand that shipped only
+                 inside the dashboard. "Bharat Stack" is retired on owner instruction: the
+                 product is WECARE.DIGITAL everywhere, so this now renders the SAME
+                 BrandLockup component the public header and footer use, which owns the
+                 logo, the two-line WECARE. / DIGITAL wordmark and the red accent dot.
+                 BrandLockup is self-styling (styled-jsx cannot be reached into from here),
+                 so it deliberately takes no size props - the sidebar gets the same 60px /
+                 23px scale as the public header, which fits the 226px content box. */
+              <div style={ { display: 'flex', alignItems: 'center', gap: 4, minHeight: 46 } }>
+                <BrandLockup />
+                <span style={ { position: 'relative', display: 'inline-flex' } }>
+                  {/* DRAWN CHEVRON IN A CHIP, not a literal "▼". The glyph rendered at a
+                      different weight on every platform and read as text rather than a
+                      control; this is the public header's treatment - two borders on a
+                      rotated box inside a lime chip - so both surfaces have the same
+                      affordance. It rotates 180deg when the dropdown is open. */}
+                  <button
+                    type="button"
+                    onClick={ () => setBrandDropdownOpen( !brandDropdownOpen ) }
+                    aria-label="Open brand menu"
+                    aria-expanded={ brandDropdownOpen }
+                    style={ {
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 22, height: 22, padding: 0, cursor: 'pointer',
+                      borderRadius: 7, border: '1px solid #e3ecc9',
+                      background: 'rgba(209,244,112,.22)',
+                    } }
+                  >
+                    <span style={ {
+                      width: 6, height: 6, boxSizing: 'border-box',
+                      borderRight: '2px solid #1a3a2a', borderBottom: '2px solid #1a3a2a',
+                      opacity: .85,
+                      transform: brandDropdownOpen ? 'translateY(1px) rotate(225deg)' : 'translateY(-1px) rotate(45deg)',
+                      transition: 'transform .2s',
+                    } } />
+                  </button>
+                  { brandDropdownOpen && (
+                    <>
+                      <div onClick={ () => setBrandDropdownOpen( false ) } style={ { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 } } />
+                      <div style={ { position: 'absolute', top: 'calc(100% + 4px)', left: 0, background: '#fcfdfb', border: '1px solid #e5e7eb', borderTop: '3px solid #d1f470', borderRadius: 14, padding: '8px 0', minWidth: 170, boxShadow: '0 8px 28px rgba(0,0,0,0.12)', zIndex: 9999, display: 'flex', flexDirection: 'column' } }>
+                        <Link href="/" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Home</Link>
+                        <Link href="/dashboard" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>CRM</Link>
+                        <Link href="/access" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Sign in</Link>
+                      </div>
+                    </>
+                  ) }
+                </span>
               </div>
             ) : (
               <div style={ { display: 'flex', justifyContent: 'center' } }>

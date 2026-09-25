@@ -445,7 +445,10 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   // and SystemConfig table are unchanged and are driven from the dashboard route.
   { path: '/dm/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
   { path: '/grahak-os', label: 'Grahak OS', backend: '(public product page)', tables: '-' },
-  { path: '/studio', label: 'Studio', backend: '(planned)', tables: '-' },
+  // '/studio' REMOVED on owner instruction. The slug is retired and no page exists for it
+  // in src/pages, so listing it here described a route that 404s - and this table is read
+  // as the map of what the system actually serves. Header.test.tsx separately guards
+  // "Studio" out of the public menu.
   { path: '/task', label: 'Task', backend: '(coming soon)', tables: '-' },
 ];
 
@@ -625,7 +628,10 @@ const BOT_MENU: BotMenuItem[] = [
   { row: 5, section: 'Explore WECARE', icon: '🛍️', title: 'Explore Store', description: 'Browse services, brands, and offers', action: 'CTA link → wecare.digital' },
   { row: 6, section: 'Explore WECARE', icon: '🎁', title: 'Gift Cards', description: 'Send a digital gift card', action: 'CTA link → wecare.digital/gift-card' },
   { row: 7, section: 'Explore WECARE', icon: '🇮🇳', title: 'WECARE.DIGITAL', description: 'Discover WECARE.DIGITAL and services', action: 'Info text + evolving services' },
-  { row: 8, section: 'Help & Answers', icon: '❓', title: 'FAQs', description: 'Find answers to common questions', action: 'CTA link → wecare.digital/faq' },
+  // The action was 'CTA link → wecare.digital/faq' until the public /faq page was deleted;
+  // that URL now 404s, so the row would have sent a WhatsApp user to a dead link. The answer
+  // is delivered in chat by faq-handler from SystemConfig instead.
+  { row: 8, section: 'Help & Answers', icon: '❓', title: 'FAQs', description: 'Find answers to common questions', action: 'Answered in chat by faq-handler' },
   { row: 9, section: 'Help & Answers', icon: '💛', title: 'About WECARE.DIGITAL', description: 'Learn more about WECARE.DIGITAL', action: 'CTA link → wecare.digital' },
 ];
 

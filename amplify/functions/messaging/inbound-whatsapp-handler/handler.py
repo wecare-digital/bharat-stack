@@ -1823,17 +1823,24 @@ def _process_message(
             }))
             return  # Skip AI automation  -  welcome flow handled
 
-        # ── Ice breaker: "Try Bharat Stack" / "/bharatstack" ──
+        # ── Ice breaker: "explore WECARE.DIGITAL" ──
+        # THE REPLY COPY NO LONGER SAYS "BHARAT STACK". That name is retired - the product
+        # is WECARE.DIGITAL everywhere - so the button label and body text now use it.
+        # THE TRIGGER KEYWORDS ARE DELIBERATELY UNCHANGED, including 'bharat stack' and
+        # '/bharatstack'. They are what people have already been told to send, and some are
+        # printed in delivered WhatsApp messages and the ice-breaker config on the Meta side;
+        # dropping them would silently stop answering a message a customer was invited to
+        # send. They are inbound aliases now, not a brand claim.
         BHARAT_KEYWORDS = {'try bharat stack', 'bharat stack', '/bharatstack', 'bharat', 'aadhaar', 'upi', 'digilocker'}
         if content_lower in BHARAT_KEYWORDS:
             logger.info(json.dumps({
-                'event': 'bharat_stack_triggered',
+                'event': 'explore_wecare_triggered',
                 'content': content_lower,
                 'contactId': contact_id,
                 'requestId': request_id,
             }))
-            _send_cta_button(contact_id, aws_phone_number_id, 'Explore Bharat Stack', 'https://wecare.digital', request_id,
-                body_text="Explore Bharat Stack and discover services designed for everyday Bharat.",
+            _send_cta_button(contact_id, aws_phone_number_id, 'Explore WECARE.DIGITAL', 'https://wecare.digital', request_id,
+                body_text="Explore WECARE.DIGITAL and discover services designed for everyday Bharat.",
                 footer_text='WECARE.DIGITAL')
             _send_followup_buttons(contact_id, aws_phone_number_id, request_id)
             return

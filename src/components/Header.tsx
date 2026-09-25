@@ -127,36 +127,21 @@ const COLUMNS: NavColumn[] = [
         // both a category and a link and gave a visitor two things to click for one idea.
         heading: 'Selfservice',
         links: [
+          // MY ORDER IS FIRST, on owner instruction - it is the row customers reach for
+          // most, and it is the one real local page in this group (the others land on
+          // /contact for now), so it leads. It carries `match` and lights up on its own
+          // route. "My Order" REPLACES the old "Request Tracking" row - the two answer the
+          // same question, and offering both sends one visitor to two places for one answer.
+          { label: 'My Order', href: '/my-order/', match: '/my-order' },
           // FAQ removed on request. The local /faq page was already deleted; this
           // drops the menu row too, so there is no FAQ entry point left anywhere.
           { label: 'Submit Request', href: '/contact/', match: '/contact' },
           { label: 'Request Amendment', href: '/contact/', match: '/contact' },
-          // "My Order" REPLACES the old "Request Tracking" row rather than sitting beside
-          // it: the two answer the same question, and offering both sends one visitor to
-          // two places for one answer. Unlike its siblings this is a local page, so it
-          // carries `match` and lights up on its own route.
-          { label: 'My Order', href: '/my-order/', match: '/my-order' },
           { label: 'Drop Docs', href: '/contact/', match: '/contact' },
           { label: 'Leave Review', href: '/contact/', match: '/contact' },
-          // Local pages, so these carry `match` and light up on their own route.
-          // Trailing slashes are load-bearing: trailingSlash is set, so /contact
-          // would redirect before resolving.
-          { label: 'Contact', href: '/contact/', match: '/contact' },
-        ],
-      },
-      {
-        // "Legal Stuff", matching the heading on the published document this content
-        // came from, rather than the shorter "Legal" used while it was a placeholder.
-        //
-        // Privacy IS listed now. It was deliberately absent while its text was a
-        // placeholder - an unfindable page was preferable to advertising an empty
-        // policy - and the owner asked for it once the real policy landed. Header.test
-        // asserts both rows, so the earlier guard against adding Privacy is retired
-        // rather than silently broken.
-        heading: 'Legal Stuff',
-        links: [
-          { label: 'Terms', href: '/terms/', match: '/terms' },
-          { label: 'Privacy', href: '/privacy/', match: '/privacy' },
+          // CONTACT MOVED OUT of Selfservice into the third column (Work with us), on
+          // owner instruction - the Selfservice column is now the request ACTIONS only,
+          // and Contact sits with Refer & Earn as a way to reach the company.
         ],
       },
     ],
@@ -173,7 +158,28 @@ const COLUMNS: NavColumn[] = [
       // what you get rather than what you become, and the destination is the referral-partner
       // product page.
       { heading: 'Work with us', links: [ { label: 'Refer & Earn', href: PARTNERS, external: true } ] },
-      { heading: 'Account', links: [ { label: 'Sign in', href: '/access', match: '/access' } ] },
+      // CONTACT HAS ITS OWN HEADING now, on owner instruction, rather than sitting as a
+      // second row under Work with us. It is its own thing - a way to reach us - so it
+      // gets its own labelled group in this column. Local page, so it carries `match`
+      // and lights up on /contact; the trailing slash is load-bearing (trailingSlash is
+      // set, so /contact would redirect before resolving).
+      { heading: 'Contact', links: [ { label: 'Contact us', href: '/contact/', match: '/contact' } ] },
+      // LEGAL STUFF LIVES HERE NOW, under Work with us. It moved out of the middle
+      // column (where it sat beneath Selfservice) on owner instruction, so the third
+      // column carries the "about the company" rows - Refer & Earn plus the policies -
+      // and the middle column is purely the Selfservice actions.
+      {
+        heading: 'Legal Stuff',
+        links: [
+          { label: 'Terms', href: '/terms/', match: '/terms' },
+          { label: 'Privacy', href: '/privacy/', match: '/privacy' },
+        ],
+      },
+      // ACCOUNT / SIGN IN REMOVED from the public menu on owner instruction. That "Sign
+      // in" pointed at /access, which is the INTERNAL staff dashboard login (Cognito) -
+      // it does not belong in the public navigation. A fresh, customer-facing login
+      // (WhatsApp OTP, SMS/email fallback) will live on the /my-order page instead, so
+      // there is deliberately no sign-in row here now.
     ],
   },
 ];
@@ -203,21 +209,50 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
 
   const close = () => { setOpen( false ); setQuery( '' ); };
 
-  // Escape closes from anywhere, and an outside pointerdown dismisses. Neither
-  // existed before: the menu could only be closed by clicking the trigger again or
-  // following a link, so Escape did nothing and a click elsewhere left it open over
-  // the page. Matches the language widget, so both menus answer to the same keys.
+  // Escape closes from anywhere, an outside pointerdown dismisses, AND the menu closes
+  // when the mouse LEAVES it (hover-out), on owner request. None of these existed
+  // originally: the menu could only be closed by clicking the trigger again or following
+  // a link. Matches the language widget, so both menus answer to the same keys.
   useEffect( () => {
     if ( !open ) return undefined;
     const onKeyDown = ( event: KeyboardEvent ) => { if ( event.key === 'Escape' ) close(); };
     const onPointerDown = ( event: PointerEvent ) => {
       if ( rootRef.current && !rootRef.current.contains( event.target as Node ) ) close();
     };
+
+    // HOVER-OUT CLOSE, mouse only. When the pointer leaves the dropdown the menu closes
+    // after a short grace period. The grace (180ms) forgives a pointer that clips a
+    // corner or crosses the 8px gap between the trigger and the panel - without it the
+    // menu snaps shut on the smallest wobble and feels twitchy. A re-entry cancels the
+    // pending close.
+    // GUARDED TO FINE POINTERS (mouse/trackpad). On a touch screen there is no hover, and
+    // a synthetic mouseleave fires on the tap that dismisses the on-screen keyboard or on
+    // a scroll fling - closing the menu then would fight the user. matchMedia('(hover:hover)
+    // and (pointer:fine)') is the standard capability query for "has a real hovering
+    // pointer", and it is read at event time so a hybrid device that switches input modes
+    // is handled correctly.
+    let hoverCloseTimer = 0;
+    const canHover = () =>
+      typeof window.matchMedia === 'function'
+      && window.matchMedia( '(hover: hover) and (pointer: fine)' ).matches;
+    const onMouseLeave = () => {
+      if ( !canHover() ) return;
+      window.clearTimeout( hoverCloseTimer );
+      hoverCloseTimer = window.setTimeout( close, 180 );
+    };
+    const onMouseEnter = () => window.clearTimeout( hoverCloseTimer );
+    const root = rootRef.current;
+
     document.addEventListener( 'keydown', onKeyDown );
     document.addEventListener( 'pointerdown', onPointerDown );
+    root?.addEventListener( 'mouseleave', onMouseLeave );
+    root?.addEventListener( 'mouseenter', onMouseEnter );
     return () => {
+      window.clearTimeout( hoverCloseTimer );
       document.removeEventListener( 'keydown', onKeyDown );
       document.removeEventListener( 'pointerdown', onPointerDown );
+      root?.removeEventListener( 'mouseleave', onMouseLeave );
+      root?.removeEventListener( 'mouseenter', onMouseEnter );
     };
   }, [ open ] );
 
@@ -316,32 +351,45 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
                 <div className="nav-cols">
                   { COLUMNS.map( ( column, columnIndex ) => (
                     <div key={ columnIndex } className="nav-col">
-                      { column.sections.map( ( section, sectionIndex ) => (
-                        <div key={ section.heading || sectionIndex } className="nav-group">
-                          { section.heading && ( section.headingHref
-                            ? (
-                              // The heading is the parent destination as well as a
-                              // label, so it is a link. Styled as a heading rather
-                              // than as a row so the hierarchy still reads.
-                              <a
-                                href={ section.headingHref }
-                                className="nav-group-label nav-group-link"
-                                onClick={ close }
-                              >{ section.heading }</a>
-                            )
-                            : <span className="nav-group-label">{ section.heading }</span>
-                          ) }
-                          { section.links.map( link => (
+                      { column.sections.map( ( section, sectionIndex ) => {
+                        // The PRODUCTS section is the one that grows without bound - it is
+                        // generated from src/content/products.ts and is meant to hold 100+
+                        // entries eventually. So ONLY this section gets a capped, scrollable
+                        // list with a pinned heading; every other section renders exactly as
+                        // before. Matched by heading text rather than index so reordering the
+                        // columns cannot silently move the scroll onto the wrong group.
+                        const isProducts = section.heading === 'Products';
+                        const label = section.heading && ( section.headingHref
+                          ? (
+                            // The heading is the parent destination as well as a label, so
+                            // it is a link. Styled as a heading rather than as a row so the
+                            // hierarchy still reads.
                             <a
-                              key={ link.label + link.href }
-                              href={ link.href }
-                              className={ `nav-item ${section.headingHref ? 'nav-sub' : ''} ${isActive( link ) ? 'active' : ''}`.trim() }
-                              aria-current={ isActive( link ) ? 'page' : undefined }
+                              href={ section.headingHref }
+                              className="nav-group-label nav-group-link"
                               onClick={ close }
-                            >{ link.label }</a>
-                          ) ) }
-                        </div>
-                      ) ) }
+                            >{ section.heading }</a>
+                          )
+                          : <span className="nav-group-label">{ section.heading }</span>
+                        );
+                        const items = section.links.map( link => (
+                          <a
+                            key={ link.label + link.href }
+                            href={ link.href }
+                            className={ `nav-item ${section.headingHref ? 'nav-sub' : ''} ${isActive( link ) ? 'active' : ''}`.trim() }
+                            aria-current={ isActive( link ) ? 'page' : undefined }
+                            onClick={ close }
+                          >{ link.label }</a>
+                        ) );
+                        return (
+                          <div key={ section.heading || sectionIndex } className={ `nav-group ${isProducts ? 'nav-group-products' : ''}`.trim() }>
+                            { label }
+                            { isProducts
+                              ? <div className="nav-products-scroll">{ items }</div>
+                              : items }
+                          </div>
+                        );
+                      } ) }
                     </div>
                   ) ) }
                 </div>
@@ -369,11 +417,20 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
         .logo{display:flex;align-items:center;text-decoration:none}
         .logo-nav{display:flex;align-items:center;gap:10px}
         .nav-dropdown{position:relative}
-        .nav-trigger{min-width:46px;min-height:46px;background:none;border:0;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center}
+        /* SOFT NEUTRAL CHIP at rest, not a bare invisible button. It was
+           background:none, so the chevron floated with no target - it read as
+           decoration rather than a control. A soft #f4f7ee fill with a #e3ecc9
+           hairline gives it a visible, tappable chip while staying quieter than the
+           lime hover state below it. Hover/focus/expanded still brighten to the lime
+           tint, so the interaction feedback is unchanged. */
+        .nav-trigger{min-width:46px;min-height:46px;background:#f4f7ee;border:1px solid #e3ecc9;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center}
         .nav-trigger:hover,.nav-trigger:focus-visible{background:rgba(209,244,112,.22);outline:none}
         .nav-trigger:focus-visible{box-shadow:0 0 0 3px rgba(26,58,42,.2)}
         .nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}
-        .nav-arrow{width:7px;height:7px;box-sizing:border-box;margin:0;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
+        /* Chunkier chevron: 8px box with 2.5px strokes (was 7px / 2px), at .85 opacity
+           so it reads as a solid arrow rather than a thin hairline that vanished on
+           some displays. */
+        .nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0;border-right:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;opacity:.85;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
         .nav-trigger[aria-expanded='true'] .nav-arrow{transform:translateY(2px) rotate(225deg)}
 
         /* MEGA PANEL.
@@ -419,7 +476,7 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            aria-expanded was false - the arrow unrotated and a screen reader announcing
            it as collapsed. A mega panel appearing on an accidental mouse-over is also
            far more disruptive than a small dropdown was. */
-        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 256px));max-height:calc(100vh - 320px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fff;border:1px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 256px));max-height:calc(100vh - 320px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
         .nav-menu.open{opacity:1;visibility:visible;transform:translateY(0);transition:opacity .2s,transform .2s,visibility 0s}
 
         /* Search field. Sized off the language panel's input rather than a new set of
@@ -440,7 +497,58 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            menu items must read as a category and not as a disabled item, which is why
            it is well below the 19px the items themselves use. */
         .nav-group{display:flex;flex-direction:column}
-        .nav-group-label{display:block;padding:6px 12px 4px;font-size:12px;font-weight:500;letter-spacing:.04em;color:rgba(0,0,0,.42);text-transform:none}
+        /* Section labels read as headers, not as faint disabled rows. They were
+           rgba(0,0,0,.42) grey, weight 500, text-transform:none - so "Products",
+           "Legal Stuff" etc. blended into the item names below them. Now #1a3a2a
+           (the brand's deep green, NOT the grassy #3da35a a first pass used - that
+           bright green clashed with the palette), weight 700, UPPERCASE, with a
+           touch more tracking so the caps stay legible. */
+        .nav-group-label{display:block;padding:6px 12px 4px;font-size:12px;font-weight:700;letter-spacing:.06em;color:#1a3a2a;text-transform:uppercase}
+
+        /* PRODUCTS SCROLL. Only the Products group. The catalogue is meant to reach 100+
+           entries, so its list is capped and scrolls rather than making the whole panel
+           grow past the viewport. With today's ~10 products it never scrolls - max-height
+           is a ceiling, not a fixed height - so nothing changes until the list is long.
+           Cap is ~6 rows (6 x 46px = 276px), kept deliberately short so the open menu
+           stays compact. */
+        .nav-group-products{min-height:0}
+        /* The heading stays PINNED above its own scrolling list. Sticky against the
+           scroll container's top; the #fcfdfb backer stops list rows showing through the
+           label as they pass under it. z-index clears the rows. */
+        .nav-group-products .nav-group-label{position:sticky;top:0;z-index:2;background:#fcfdfb}
+        .nav-products-scroll{
+          /* 5 rows. 5 x 46px = 230px, on owner instruction to keep the open menu short.
+             This is a CEILING, not a fixed height: with fewer than 5 products the group
+             is only as tall as its list and does not scroll. With today's ten products it
+             does scroll, which is the accepted trade-off for a compact menu. */
+          max-height:230px;
+          overflow-y:auto;
+          -webkit-overflow-scrolling:touch;
+          /* Contain the scroll chain so flicking the product list to its end does not
+             then scroll the page behind the menu. */
+          overscroll-behavior:contain;
+          /* FULL COLUMN WIDTH so the lime scrollbar aligns with the right edge of the
+             Home tab above it, plus a FAINT LIME TINT BOX so the bar reads as anchored to
+             this list rather than floating in the empty space right of the short product
+             names. The product labels are much narrower than the column, so a bare
+             full-width bar looked detached; the tint (rgba(209,244,112,.08)) and the 10px
+             radius give the scroll area a subtle surface the bar belongs to. This is the
+             one place a background is used - it earns it because this is the only
+             scrolling group; the static columns stay plain. */
+          width:100%;
+          padding:4px 8px 4px 0;
+          background:rgba(209,244,112,.08);
+          border-radius:10px;
+          /* LIME THEMED SCROLLBAR, not the browser default grey. Firefox uses
+             scrollbar-color (thin), WebKit/Blink use the ::-webkit-scrollbar rules below;
+             both are declared so every engine shows the brand colour. */
+          scrollbar-width:thin;
+          scrollbar-color:#d1f470 transparent;
+        }
+        .nav-products-scroll::-webkit-scrollbar{width:8px}
+        .nav-products-scroll::-webkit-scrollbar-track{background:transparent}
+        .nav-products-scroll::-webkit-scrollbar-thumb{background:#d1f470;border-radius:20px}
+        .nav-products-scroll::-webkit-scrollbar-thumb:hover{background:#c5e866}
         /* The Selfservice heading is a link, so it needs an affordance the plain
            headings do not have - without one it looks like the same inert label. */
         .nav-group-link{color:#1a3a2a;text-decoration:none;border-radius:8px}
@@ -459,9 +567,30 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            The row is 46px here, not the 54px of the old single column: three columns
            of 19px rows at 54px made the panel taller than the Selfservice list needs,
            and 46px still clears the 44px minimum touch target. */
-        .nav-item{display:flex;align-items:center;min-height:46px;padding:0 12px;font-size:19px;font-weight:600;color:#1a3a2a;text-decoration:none;border-radius:8px}
-        .nav-item:hover,.nav-item:focus-visible,.nav-item.active{background:rgba(209,244,112,.22);outline:none}
-        .nav-item.active{font-weight:800}
+        /* position:relative so the divider hairline and the animated sweep (::after /
+           ::before below) can be absolutely positioned within each row. */
+        .nav-item{position:relative;display:flex;align-items:center;min-height:46px;padding:0 12px;font-size:19px;font-weight:600;color:#1a3a2a;text-decoration:none;border-radius:8px}
+        /* ACTIVE AND HOVER MUST READ AS DIFFERENT STATES. They were both the same
+           rgba(209,244,112,.22) pale tint, so the current page ("you are here") looked
+           identical to whatever row the mouse was over - you could not tell which page
+           you were on. Hover/focus is now a stronger-but-still-transparent tint (.38);
+           the active row is SOLID #d1f470 with #0f2a1d type, which is the palette's
+           own-surface treatment (.msg.sent, .tab.active) and unmistakably marks the
+           current page. */
+        .nav-item:hover,.nav-item:focus-visible{background:rgba(209,244,112,.38);outline:none}
+        .nav-item.active{font-weight:800;background:#d1f470;color:#0f2a1d}
+        /* DIVIDER LINE AFTER EACH ROW + a lime SWEEP on hover.
+           ::after is the faint resting hairline (#f1f3ec - deliberately very light, so it
+           separates rows without drawing attention). ::before is the lime accent that
+           SWEEPS in on hover: scaleX(0)->(1) from the left, 0.2s, so a thin lime line
+           draws left-to-right under the row. Inset 12px each side to line up with the row
+           padding. Reduced-motion users get the end state with no transition. */
+        .nav-item::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:1px;background:#f1f3ec}
+        .nav-item::before{content:'';position:absolute;left:12px;right:12px;bottom:0;height:2px;background:#d1f470;transform:scaleX(0);transform-origin:left center;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+        .nav-item:hover::before,.nav-item:focus-visible::before{transform:scaleX(1)}
+        /* The last row in a group has nothing after it, so no divider. */
+        .nav-group .nav-item:last-child::after,.nav-products-scroll .nav-item:last-child::after{display:none}
+        @media(prefers-reduced-motion:reduce){.nav-item::before{transition:none}}
         /* Children of a linked heading step down to 17px. Same weight and colour, so
            they read as the same kind of thing at a lower level rather than as a
            different control - and the size difference is what carries the hierarchy

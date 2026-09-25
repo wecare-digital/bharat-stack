@@ -1940,13 +1940,19 @@
 /* ========================================
    SIDEBAR SECTION LABELS & BADGES
    ======================================== */
+/* Section headings read as headings, not as disabled rows. This was 10px/600 in #9ca3af -
+   a neutral grey light enough that the labels blended into the nav items beneath them, so
+   the sidebar read as one long undifferentiated list. Now the brand's deep green at 700,
+   matching the public header's group labels (Header.tsx .nav-group-label), so both
+   navigation surfaces label their sections the same way. Size goes 10 -> 11px because 10px
+   uppercase in a dark colour is legible but unnecessarily cramped. */
 .nav-section-label {
   padding: 16px 16px 4px;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #9ca3af;
+  letter-spacing: 0.06em;
+  color: #1a3a2a;
   user-select: none;
 }
 

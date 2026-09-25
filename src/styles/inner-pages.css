@@ -79,21 +79,67 @@
   box-shadow: none !important;
 }
 
+/* HOVER. Raised from .2 to .38 so it is clearly readable, and so it cannot be confused
+   with the active row - which is now a SOLID fill rather than a slightly darker tint.
+   Same value as the public header's nav hover, so both surfaces feel identical. */
 .layout .sidebar .nav-item:hover,
 .layout .sidebar .nav-subitem:hover,
 .layout .nav-item:hover,
 .layout .nav-subitem:hover {
-  background: rgba(209,244,112,0.2) !important;
+  background: rgba(209,244,112,0.38) !important;
   border: none !important;
 }
 
+/* ACTIVE - "you are here" - AND THIS NOW ACTUALLY APPLIES TO EVERY KIND OF ROW.
+   Two defects were fixed here.
+   1. Active was rgba(209,244,112,0.3) against a 0.2 hover: two tints four percent apart,
+      so the page you were on looked the same as whatever row the mouse was over. Active is
+      now SOLID #d1f470 with #0f2a1d type - the palette's own-surface pairing, and the same
+      treatment the public header uses for its current-page row.
+   2. Active was INVISIBLE on expandable rows and on sub-items. The reset block above sets
+      `background: transparent !important` on .nav-item-expandable, .nav-subitem-expandable
+      and .nav-subitem, and there was no active rule at matching specificity to beat it - so
+      on /payments (an expandable parent) or /dm/logs (a sub-item) nothing was highlighted at
+      all and there was no way to tell which page was open. Every active variant is listed
+      explicitly below, including the expandable and sub-item forms.
+   The 3px lime left border is dropped: it was there to help a weak tint read as selected,
+   and against a solid fill it just clips the rounded corner. */
 .layout .sidebar .nav-item-active,
 .layout .sidebar .nav-item.active,
 .layout .nav-item-active,
-.layout .nav-item--active {
-  background: rgba(209,244,112,0.3) !important;
+.layout .nav-item--active,
+.layout .nav-item-expandable.nav-item-active,
+.layout .sidebar .nav-item-expandable.nav-item-active,
+.layout .nav-subitem-active,
+.layout .sidebar .nav-subitem-active,
+.layout .nav-subitem-expandable.nav-subitem-active,
+.layout .sidebar .nav-subitem-expandable.nav-subitem-active {
+  background: #d1f470 !important;
   border: none !important;
-  border-left: 3px solid #d1f470 !important;
+  color: #0f2a1d !important;
+  font-weight: 700 !important;
+}
+
+/* The row's own label and icon sit in child spans with their own colours (.nav-label is
+   #000, .nav-icon is #1a3a2a), so they have to be pulled onto the active colour too or the
+   text stays black on lime while the row around it changes. */
+.layout .nav-item-active .nav-label,
+.layout .nav-item-active .nav-icon,
+.layout .nav-item-active .nav-arrow,
+.layout .nav-subitem-active .nav-label,
+.layout .nav-subitem-active .nav-icon,
+.layout .nav-subitem-active .nav-arrow {
+  color: #0f2a1d !important;
+}
+
+/* Hover must not erase the active fill. Without this, moving the mouse over the current
+   page replaced its solid lime with the .38 hover tint, so the row appeared to de-select
+   under the cursor. */
+.layout .nav-item-active:hover,
+.layout .nav-subitem-active:hover,
+.layout .sidebar .nav-item-active:hover,
+.layout .sidebar .nav-subitem-active:hover {
+  background: #d1f470 !important;
 }
 
 /* ========================================

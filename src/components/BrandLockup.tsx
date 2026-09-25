@@ -54,9 +54,12 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
          Type went 24 -> 26px desktop and 22 -> 24px mobile, keeping the step down from
          the logo rather than growing to match it. */
       .brand-lockup{display:inline-flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0}
-      .brand-lockup img{height:68px;width:auto;border-radius:12px;flex-shrink:0;display:block;object-fit:contain}
+      /* Logo 60px (was 68px) and wordmark 23px (was 26px). The header content box is
+         72px tall, so 60px keeps clear breathing room, and 23px keeps the step down
+         from the logo while feeling less oversized against the rest of the bar. */
+      .brand-lockup img{height:60px;width:auto;border-radius:12px;flex-shrink:0;display:block;object-fit:contain}
       .brand-copy{display:flex;flex-direction:column;justify-content:center;line-height:1.08}
-      .brand-copy>span{font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-.4px}
+      .brand-copy>span{font-size:23px;font-weight:800;color:#1a1a1a;letter-spacing:-.5px}
       /* The accent is on the dot only, and it is the one place this site uses red. Kept to
          a single glyph so it never competes with lime for meaning: lime marks interaction
          and state, this marks the brand.
@@ -65,10 +68,16 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
          crisp - the saturation is doing the work instead. */
       .brand-dot{color:#ff0040}
       .brand-stack{display:flex;align-items:center;gap:2px}
+      /* Mobile steps DOWN from desktop, and it has to move whenever desktop does.
+         Desktop went 68 -> 60px logo and 26 -> 23px type; mobile was 60px/24px, which
+         would have left the phone logo identical to the desktop one and the phone
+         wordmark LARGER than the desktop wordmark - the ladder inverted. Scaled by the
+         same ~0.88 to 54px/21px, which still clears the mobile header's 68px content box
+         (96px height less 14px padding each side). */
       @media(max-width:767px){
         .brand-lockup{gap:8px}
-        .brand-lockup img{height:60px;border-radius:10px}
-        .brand-copy>span{font-size:24px}
+        .brand-lockup img{height:54px;border-radius:10px}
+        .brand-copy>span{font-size:21px}
       }
     ` }</style>
   </span>
