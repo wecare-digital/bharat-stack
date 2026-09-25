@@ -11,21 +11,28 @@ describe( 'BrandLockup', () => {
     expect( container.querySelector( '.brand-lockup.full' ) ).toBeTruthy();
   } );
 
-  it( 'uses the approved larger shared logo and wordmark scale', () => {
+  it( 'uses the approved shared logo and wordmark scale, stepping down on mobile', () => {
     const { container } = render( <BrandLockup /> );
     const css = Array.from( container.querySelectorAll( 'style' ) ).map( node => node.textContent || '' ).join( '\n' );
 
-    // Sized up on request: 60 -> 68px logo and 24 -> 26px type on desktop,
-    // 50 -> 60px and 22 -> 24px on mobile.
+    // Sized DOWN on request: 68 -> 60px logo and 26 -> 23px type on desktop, with mobile
+    // scaled by the same ~0.88 to 54px/21px.
     //
-    // 68px is not a round number by accident - it is the ceiling. .hdr-in is
-    // height:108px with 18px padding and box-sizing:border-box, so the content box is
-    // exactly 72px; a 72px logo touches both edges. Mobile is 96px with 14px padding,
-    // a 68px box, so 60px there. Both header heights are pinned by Header.test.tsx,
-    // so the logo is what gives, not the header.
-    expect( css ).toContain( 'height:68px' );
-    expect( css ).toContain( 'font-size:26px' );
+    // The header still bounds the desktop value: .hdr-in is height:108px with 18px
+    // padding and box-sizing:border-box, so the content box is exactly 72px and 68px was
+    // the old ceiling; 60px simply sits further inside it. Mobile is 96px with 14px
+    // padding, a 68px box, so 54px clears comfortably. Both header heights are pinned by
+    // Header.test.tsx, so the logo is what gives, not the header.
     expect( css ).toContain( 'height:60px' );
-    expect( css ).toContain( 'font-size:24px' );
+    expect( css ).toContain( 'font-size:23px' );
+    expect( css ).toContain( 'height:54px' );
+    expect( css ).toContain( 'font-size:21px' );
+
+    // THE LADDER MUST NOT INVERT. An earlier pass shrank desktop to 60px/23px and left
+    // mobile at 60px/24px, which made the phone logo identical to the desktop one and the
+    // phone wordmark LARGER than the desktop wordmark. Assert the old mobile values are
+    // gone so that cannot silently come back.
+    expect( css ).not.toContain( 'font-size:24px' );
+    expect( css ).not.toContain( 'height:68px' );
   } );
 } );

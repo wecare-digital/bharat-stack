@@ -68,10 +68,16 @@ const BrandLockup: React.FC<BrandLockupProps> = ( { className = '' } ) => (
          crisp - the saturation is doing the work instead. */
       .brand-dot{color:#ff0040}
       .brand-stack{display:flex;align-items:center;gap:2px}
+      /* Mobile steps DOWN from desktop, and it has to move whenever desktop does.
+         Desktop went 68 -> 60px logo and 26 -> 23px type; mobile was 60px/24px, which
+         would have left the phone logo identical to the desktop one and the phone
+         wordmark LARGER than the desktop wordmark - the ladder inverted. Scaled by the
+         same ~0.88 to 54px/21px, which still clears the mobile header's 68px content box
+         (96px height less 14px padding each side). */
       @media(max-width:767px){
         .brand-lockup{gap:8px}
-        .brand-lockup img{height:60px;border-radius:10px}
-        .brand-copy>span{font-size:24px}
+        .brand-lockup img{height:54px;border-radius:10px}
+        .brand-copy>span{font-size:21px}
       }
     ` }</style>
   </span>
