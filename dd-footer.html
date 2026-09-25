@@ -1,0 +1,143 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Footer — current vs options</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px 24px 70px}
+.page{max-width:1180px;margin:0 auto}
+h1{font-size:21px;margin:0 0 4px;letter-spacing:-.5px}
+.sub{font-size:13px;color:#555;margin:0 0 20px;max-width:88ch}
+
+.cap{font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.03em;padding:7px 12px;border-radius:9px 9px 0 0;display:inline-block;margin-top:24px}
+.cap-cur{background:#dc2626}.cap-opt{background:#1a3a2a}.cap-rec{background:#3da35a}
+.note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 9px 9px;padding:9px 12px;margin:0 0 10px;line-height:1.55}
+.note b{color:#000}
+.box{background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+
+/* header strip for size reference */
+.hdr{border-bottom:1px solid #e5e7eb;padding:14px 24px;display:flex;align-items:center;height:84px;background:#fbfbfb}
+.hdr .tagref{margin-left:auto;font-size:11px;font-weight:700;color:#3da35a;background:#e0f7c8;padding:4px 9px;border-radius:20px}
+
+/* brand lockup, size-variable */
+.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none}
+.lg{border-radius:12px;background:linear-gradient(135deg,#1a3a2a,#3da35a);display:flex;align-items:center;justify-content:center;color:#d1f470;font-weight:800;flex-shrink:0}
+.copy{display:flex;flex-direction:column;justify-content:center;line-height:1.08}
+.copy>span{font-weight:800;color:#1a1a1a;letter-spacing:-.5px}
+.dot{color:#ff0040}
+/* header scale */
+.s-hdr .lg{height:60px;width:60px;font-size:22px}
+.s-hdr .copy>span{font-size:23px}
+/* footer scale (smaller) */
+.s-ft .lg{height:44px;width:44px;font-size:17px;border-radius:10px}
+.s-ft .copy>span{font-size:18px;letter-spacing:-.4px}
+
+/* footer shell */
+.ft{padding:40px 0 32px}
+.ft-in{max-width:1300px;margin:0 auto;padding:0 24px}
+.ft-grid{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}
+.ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:14px;min-width:0}
+.tagline{font-size:15px;line-height:1.6;margin:0;max-width:340px}
+.grey-old{color:#9ca3af}
+.grey-new{color:rgba(0,0,0,.54)}
+.mark{font-size:14px;color:rgba(0,0,0,.54);text-decoration:none;padding:6px 10px;margin:-6px -10px;border-radius:8px}
+.links{display:flex;gap:4px;flex-wrap:wrap}
+.links a{font-size:14px;color:rgba(0,0,0,.54);text-decoration:none;padding:7px 11px;border-radius:8px;transition:background-color .2s,color .2s}
+.links a:hover{background:rgba(209,244,112,.22);color:#1a3a2a}
+.divider{border-top:1px solid #eef0e6}
+
+/* tagline hover treatments */
+.tl-b:hover{color:#1a3a2a}
+.tl-c{position:relative;display:inline-block;text-decoration:none;color:rgba(0,0,0,.54)}
+.tl-c::after{content:'';position:absolute;left:0;right:0;bottom:-3px;height:2px;background:#d1f470;transform:scaleX(0);transform-origin:left center;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+.tl-c:hover::after{transform:scaleX(1)}
+.tl-c:hover{color:#1a3a2a}
+</style></head><body>
+<div class="page">
+  <h1>Footer — current vs options</h1>
+  <p class="sub">Each block shows the footer with a header strip above it for size comparison. Pick one overall layout (A/B/C) and one tagline treatment (1/2/3).</p>
+
+  <!-- ============ CURRENT ============ -->
+  <div class="cap cap-cur">● CURRENT (live today)</div>
+  <div class="note"><b>Flaws:</b> footer lockup is the SAME size as the header · "WECARE.DIGITAL" appears twice (lockup + right link) · that right link points to wecare.digital, the site you're already on (self-link) · the lockup itself is NOT clickable · tagline is off-palette #9ca3af · no Terms/Privacy · no top divider.</div>
+  <div class="box">
+    <div class="hdr"><span class="brand s-hdr"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></span><span class="tagref">HEADER 60px / 23px</span></div>
+    <div class="ft">
+      <div class="ft-in"><div class="ft-grid">
+        <div class="ft-brand">
+          <span class="brand s-hdr"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></span>
+          <p class="tagline grey-old">Trusted everyday services for Bharat</p>
+        </div>
+        <a class="mark" href="#">WECARE.DIGITAL</a>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ============ OPTION A ============ -->
+  <div class="cap cap-rec">● OPTION A — smaller lockup + legal links ✓ recommended</div>
+  <div class="note">Lockup stepped down to <b>44px / 18px</b> (same style, clearly smaller than the header). Redundant self-link <b>removed</b>. Right side now carries <b>Terms · Privacy · Contact</b> with lime hover. Lockup is clickable (→ home). Tagline on-palette. Top divider added.</div>
+  <div class="box">
+    <div class="hdr"><span class="brand s-hdr"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></span><span class="tagref">HEADER 60px / 23px</span></div>
+    <div class="ft divider">
+      <div class="ft-in"><div class="ft-grid">
+        <div class="ft-brand">
+          <a class="brand s-ft" href="#"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></a>
+          <p class="tagline grey-new">Trusted everyday services for Bharat</p>
+        </div>
+        <div class="links"><a href="#">Terms</a><a href="#">Privacy</a><a href="#">Contact</a></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ============ OPTION B ============ -->
+  <div class="cap cap-opt">● OPTION B — smaller lockup, links only (no tagline)</div>
+  <div class="note">Same as A but the tagline is <b>dropped</b> — the footer becomes a pure signature line. Cleanest/most minimal, but loses the brand statement.</div>
+  <div class="box">
+    <div class="hdr"><span class="brand s-hdr"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></span><span class="tagref">HEADER 60px / 23px</span></div>
+    <div class="ft divider">
+      <div class="ft-in"><div class="ft-grid" style="align-items:center">
+        <a class="brand s-ft" href="#"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></a>
+        <div class="links"><a href="#">Terms</a><a href="#">Privacy</a><a href="#">Contact</a></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ============ OPTION C ============ -->
+  <div class="cap cap-opt">● OPTION C — keep a right-hand mark, but make it useful</div>
+  <div class="note">Keeps a right-hand element but replaces the self-link with a real destination — <b>a "Talk to us" pill</b> — and puts legal links under the tagline instead.</div>
+  <div class="box">
+    <div class="hdr"><span class="brand s-hdr"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></span><span class="tagref">HEADER 60px / 23px</span></div>
+    <div class="ft divider">
+      <div class="ft-in"><div class="ft-grid">
+        <div class="ft-brand">
+          <a class="brand s-ft" href="#"><span class="lg">W</span><span class="copy"><span>WECARE<span class="dot">.</span></span><span>DIGITAL</span></span></a>
+          <p class="tagline grey-new">Trusted everyday services for Bharat</p>
+          <div class="links" style="margin-left:-11px"><a href="#">Terms</a><a href="#">Privacy</a></div>
+        </div>
+        <a href="#" style="display:inline-flex;align-items:center;height:44px;padding:0 22px;background:#d1f470;border:2px solid #d1f470;border-radius:50px;font-size:15px;font-weight:700;color:#1a3a2a;text-decoration:none">Talk to us</a>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ============ TAGLINE HOVER OPTIONS ============ -->
+  <div class="cap cap-opt">● TAGLINE TREATMENT — 1, 2 or 3</div>
+  <div class="note">You asked about a hover effect on <b>"Trusted everyday services for Bharat"</b>. Note: a hover effect implies clickability — option 1 is honest for plain text, 2 and 3 only make sense if it becomes a real link.</div>
+  <div class="box" style="padding:22px 24px;display:flex;flex-direction:column;gap:18px">
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#1a3a2a;margin-bottom:6px">1 — STATIC, on-palette (recommended for plain text)</div>
+      <p class="tagline grey-new" style="max-width:none">Trusted everyday services for Bharat</p>
+      <div style="font-size:11px;color:#888;margin-top:4px">No hover. Just fixes the washed-out grey. Honest — it isn't clickable.</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#1a3a2a;margin-bottom:6px">2 — COLOUR LIFT on hover</div>
+      <p class="tagline grey-new tl-b" style="max-width:none;cursor:default">Trusted everyday services for Bharat <span style="font-size:11px;color:#888">← hover me</span></p>
+      <div style="font-size:11px;color:#888;margin-top:4px">Darkens to brand green on hover. Subtle, but hints at clickability.</div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#1a3a2a;margin-bottom:6px">3 — LIME UNDERLINE SWEEP (same as the header menu) — becomes a real link</div>
+      <a class="tagline tl-c" href="#" style="max-width:none">Trusted everyday services for Bharat</a>
+      <div style="font-size:11px;color:#888;margin-top:4px">Lime line sweeps in on hover, matching the header rows. Must point somewhere real.</div>
+    </div>
+  </div>
+</div>
+</body></html>
