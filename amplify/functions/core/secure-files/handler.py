@@ -815,6 +815,120 @@ def _download_url(item: Dict[str, Any]) -> str:
     )
 
 
+def _send_whatsapp_payment(file_id: str, identity: Dict[str, Any], origin: str):
+    """Send the ₹49 request to the customer's WhatsApp as an approved template.
+
+    The customer has already proved they own this number by completing the OTP, so the
+    template goes to the verified number from their token - never to a number supplied
+    in the request body, which would turn this route into a way to send WhatsApp
+    messages to arbitrary people.
+    """
+    item = _owned_active_file(file_id, identity)
+    if not item:
+        return _not_registered(origin)
+
+    if not _payment_enabled():
+        return cors_response(
+            503,
+            {
+                "error": "PAYMENT_DISABLED",
+                "message": "Paid downloads are not enabled yet.",
+                "pricePaise": int(item.get("pricePaise", PRICE_PAISE)),
+            },
+            origin,
+        )
+
+    from whatsapp_delivery import reference_id, send_payment_request
+
+    reference = reference_id()
+    now = int(time.time())
+    grant_id = uuid.uuid4().hex
+
+    # The grant is written BEFORE the send. If the send fails the grant simply expires
+    # unredeemed via TTL; if the order were written after a successful send, a customer
+    # could pay against a grant that does not exist yet.
+    _table(GRANTS_TABLE).put_item(
+        Item={
+            "grantId": grant_id,
+            "fileId": file_id,
+            "ownerPhone": identity["phone"],
+            # The webhook correlates on this. WhatsApp Pay reports the reference, so
+            # the reference IS the order id as far as the order-index GSI is concerned.
+            "orderId": reference,
+            "amountPaise": int(item.get("pricePaise", PRICE_PAISE)),
+            "channel": "whatsapp",
+            "paid": False,
+            "consumed": False,
+            "createdAt": now,
+            "expiresAt": now + GRANT_TTL,
+        }
+    )
+
+    ok, detail = send_payment_request(
+        phone=identity["phone"],
+        file_row=item,
+        grant_id=grant_id,
+        order_id=reference,
+        reference=reference,
+    )
+    logger.info(
+        json.dumps(
+            {
+                "event": "whatsapp_payment_request",
+                "fileId": file_id,
+                "ownerPhone": mask_phone(identity["phone"]),
+                "ok": ok,
+                "detail": detail if ok else "send failed",
+            }
+        )
+    )
+    if not ok:
+        return cors_response(
+            502, {"error": "SEND_FAILED", "message": "Could not send the payment request."}, origin
+        )
+
+    return cors_response(
+        202,
+        {
+            "grantId": grant_id,
+            "reference": reference,
+            "amountPaise": int(item.get("pricePaise", PRICE_PAISE)),
+            "sentTo": mask_phone(identity["phone"]),
+            "message": "Payment request sent on WhatsApp.",
+        },
+        origin,
+    )
+
+
+def deliver_over_whatsapp(grant_id: str) -> Tuple[bool, str]:
+    """Send the paid file to the customer on WhatsApp. Called only after payment.
+
+    Lives here rather than in the webhook so the ownership and deliverability rules sit
+    next to the data that defines them. The webhook calls it by grant id and nothing
+    else, so there is no path by which a caller can name a file directly.
+    """
+    grant = _table(GRANTS_TABLE).get_item(Key={"grantId": grant_id}).get("Item")
+    if not grant or not grant.get("paid"):
+        return False, "grant is not paid"
+
+    item = _table(FILES_TABLE).get_item(Key={"fileId": grant["fileId"]}).get("Item")
+    if not item or item.get("status") != "active":
+        return False, "file is not active"
+    if item.get("ownerPhone") != grant.get("ownerPhone"):
+        return False, "grant and file disagree on owner"
+
+    from whatsapp_delivery import send_document, send_download_link
+
+    phone = str(grant["ownerPhone"])
+    if item.get("deliverable") in ("pdf", "image"):
+        return send_document(phone=phone, file_row=item)
+
+    # Not openable inline on WhatsApp, so send a short-lived link instead. Generated
+    # here rather than reusing the redeem route so delivery does not consume the grant
+    # the customer may still redeem on the web.
+    return send_download_link(phone=phone, file_row=item, url=_download_url(item))
+
+
 def _redeem(file_id: str, event: Dict[str, Any], identity: Dict[str, Any], origin: str):
     """Spend a paid grant for a 60-second presigned URL.
 
@@ -913,6 +1027,18 @@ def _path_parts(event: Dict[str, Any]) -> Tuple[str, list]:
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    # Internal async dispatch from the Razorpay webhook. Deliberately checked before
+    # anything else and keyed on a field API Gateway cannot produce, so no HTTP caller
+    # can reach it: an event arriving through the API always carries a requestContext,
+    # and this branch requires its absence.
+    if event.get("internalAction") == "deliverOverWhatsApp" and not event.get("requestContext"):
+        grant_id = str(event.get("grantId") or "")
+        ok, detail = deliver_over_whatsapp(grant_id) if grant_id else (False, "no grantId")
+        logger.info(
+            json.dumps({"event": "whatsapp_delivery_result", "ok": ok, "detail": detail})
+        )
+        return {"ok": ok, "detail": detail}
+
     origin = extract_origin(event)
     rc = event.get("requestContext", {})
     method = (
@@ -933,12 +1059,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return cors_response(401, {"error": "Verification required"}, origin)
             return _customer_list(identity, origin)
 
-        if len(tail) == 2 and tail[1] in ("order", "download"):
+        if len(tail) == 2 and tail[1] in ("order", "download", "whatsapp-pay"):
             identity = _customer_identity(event)
             if not identity:
                 return cors_response(401, {"error": "Verification required"}, origin)
             if tail[1] == "order" and method == "POST":
                 return _create_order(tail[0], identity, origin)
+            if tail[1] == "whatsapp-pay" and method == "POST":
+                return _send_whatsapp_payment(tail[0], identity, origin)
             if tail[1] == "download" and method == "GET":
                 return _redeem(tail[0], event, identity, origin)
             return cors_response(405, {"error": "Method not allowed"}, origin)

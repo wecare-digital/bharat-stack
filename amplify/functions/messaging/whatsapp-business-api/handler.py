@@ -1698,19 +1698,41 @@ def _graph_media_multipart(phone_id: str, file_bytes: bytes, content_type: str, 
             return {'error': {'message': error_body, 'code': e.code}}
 
 
+# Buckets `_upload_media` may read from, by name. An ALLOWLIST rather than an open
+# `s3Bucket` parameter on purpose: this function is invoked by several other Lambdas,
+# so honouring an arbitrary caller-supplied bucket would hand every one of them a
+# read-any-object primitive. Adding a bucket here is a deliberate act; passing one is
+# not enough.
+MEDIA_SOURCE_BUCKETS = {
+    MEDIA_BUCKET,
+    os.environ.get('SECURE_FILES_BUCKET', 'wecare-digital-get'),
+}
+
+
 def _upload_media(body: Dict) -> Dict:
-    """Upload media for sending. Body: { phoneId, fileData(base64) | s3Key, contentType, filename }."""
+    """Upload media for sending.
+
+    Body: { phoneId, fileData(base64) | s3Key [+ s3Bucket], contentType, filename }
+
+    Prefer `s3Key`. `fileData` has to fit inside a synchronous Lambda invoke payload
+    and base64 inflates bytes by about a third, so it caps out near 4.4MB - which
+    would make the 100MB document limit in MEDIA_LIMITS a fiction for any caller
+    whose file is already in S3.
+    """
     phone_id = body.get('phoneId') or PHONE1_META_ID
     content_type = body.get('contentType', 'application/octet-stream')
     filename = body.get('filename', 'upload.bin')
     file_data_b64 = body.get('fileData')
     s3_key = body.get('s3Key')
+    s3_bucket = body.get('s3Bucket') or MEDIA_BUCKET
 
     if not file_data_b64 and not s3_key:
         return _resp(400, {'error': 'fileData (base64) or s3Key required'})
+    if s3_key and s3_bucket not in MEDIA_SOURCE_BUCKETS:
+        return _resp(400, {'error': 's3Bucket is not an allowed media source'})
     try:
         if s3_key:
-            obj = s3_client.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
+            obj = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
             file_bytes = obj['Body'].read()
             content_type = obj.get('ContentType', content_type)
         else:

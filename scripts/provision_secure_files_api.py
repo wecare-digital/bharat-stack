@@ -79,8 +79,13 @@ ROUTES = [
     # customer surface (customer-pool token, checked inside the handler)
     ("GET", "/secure-files/mine"),
     ("POST", "/secure-files/{fileId}/order"),
+    ("POST", "/secure-files/{fileId}/whatsapp-pay"),
     ("GET", "/secure-files/{fileId}/download"),
 ]
+
+# Lambdas secure-files invokes for WhatsApp delivery.
+WA_SENDER = "wecare-outbound-whatsapp"
+WA_MEDIA = "wecare-whatsapp-business-api"
 
 EXCLUDE_DIRS = {"__pycache__", "tests", ".pytest_cache"}
 
@@ -167,6 +172,19 @@ def policy_document() -> dict:
                 ),
             },
             {
+                "Sid": "WhatsAppDelivery",
+                "Effect": "Allow",
+                "Action": ["lambda:InvokeFunction"],
+                # Named individually rather than a wildcard: this role should be able
+                # to send WhatsApp messages and upload media, not invoke the fleet.
+                "Resource": [
+                    f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{WA_SENDER}",
+                    f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{WA_SENDER}:*",
+                    f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{WA_MEDIA}",
+                    f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{WA_MEDIA}:*",
+                ],
+            },
+            {
                 "Sid": "Logs",
                 "Effect": "Allow",
                 "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
@@ -243,7 +261,15 @@ def environment(payment_enabled: bool = False) -> dict:
         "CUSTOMER_USER_POOL_ID": CUSTOMER_POOL_ID,
         "COGNITO_USER_POOL_ID": ADMIN_POOL_ID,  # require_auth resolves admins here
         "META_WABA_ID": META_WABA_ID,
+        "META_PHONE_NUMBER_ID": "1016149501586345",
         "PARTNER_GROUP": "Partner",
+        # Both templates are already APPROVED; nothing here waits on Meta.
+        # wecare_pay    [IMAGE, BODY, FOOTER, BUTTONS(ORDER_DETAILS)]
+        # 01_wecare_doc [DOCUMENT, BODY, FOOTER, BUTTONS(FLOW)]
+        "WA_PAY_TEMPLATE": "wecare_pay",
+        "WA_DOC_TEMPLATE": "01_wecare_doc",
+        "WA_SENDER_FUNCTION": WA_SENDER,
+        "WA_MEDIA_FUNCTION": f"{WA_MEDIA}:live",
         "SECURE_FILE_PRICE_PAISE": "4900",
         "DOWNLOAD_URL_TTL_SECONDS": "60",
         "UPLOAD_URL_TTL_SECONDS": "900",

@@ -452,6 +452,32 @@ def _mark_download_grant_paid(order_id: str, payment_id: str, amount_paise: int,
             'event': 'download_grant_paid', 'grantId': grant_id, 'orderId': order_id,
             'paymentId': payment_id, 'amountPaise': int(amount_paise),
             'requestId': request_id}))
+
+        # Deliver on WhatsApp if the grant was created from that channel. This is the
+        # ONLY place delivery is triggered, and it is downstream of the signature
+        # check, so a forged callback cannot cause a send.
+        #
+        # Failure here must not fail the webhook: the payment is real and already
+        # recorded, and Razorpay retries on a non-2xx, which would re-run everything
+        # above. The customer can still collect on the web, so a failed send is logged
+        # for follow-up rather than escalated.
+        if found[0].get('channel') == 'whatsapp':
+            try:
+                lambda_client.invoke(
+                    FunctionName='wecare-secure-files:live',
+                    InvocationType='Event',  # fire and forget; the webhook must return fast
+                    Payload=json.dumps({
+                        'internalAction': 'deliverOverWhatsApp',
+                        'grantId': grant_id,
+                    }).encode('utf-8'),
+                )
+                logger.info(json.dumps({
+                    'event': 'whatsapp_delivery_dispatched', 'grantId': grant_id,
+                    'requestId': request_id}))
+            except Exception as exc:  # noqa: BLE001
+                logger.error(json.dumps({
+                    'event': 'whatsapp_delivery_dispatch_failed', 'grantId': grant_id,
+                    'error': type(exc).__name__, 'requestId': request_id}))
     except Exception as exc:  # noqa: BLE001
         # Type only. A ClientError message can echo request content.
         logger.error(json.dumps({

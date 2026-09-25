@@ -530,3 +530,111 @@ def test_a_failed_delivery_copy_downgrades_rather_than_failing_the_upload():
     body = source.split("def _upload_confirm")[1].split("\ndef ")[0]
     assert 'deliverable, delivery_key = "link", ""' in body
     assert "delivery_copy_failed" in body
+
+
+# ── WhatsApp template delivery ────────────────────────────────────────────────
+
+WA_DELIVERY = FUNC_DIR / "whatsapp_delivery.py"
+
+
+def test_delivery_uses_the_already_approved_templates():
+    """Both templates exist and are APPROVED, so nothing waits on Meta."""
+    source = WA_DELIVERY.read_text()
+    assert '"WA_PAY_TEMPLATE", "wecare_pay"' in source
+    assert '"WA_DOC_TEMPLATE", "01_wecare_doc"' in source
+
+
+def test_the_document_goes_by_media_id_not_a_url():
+    """The secure/ prefix is refused at the edge, so there is no URL to give Meta.
+
+    Passing bytes inline as base64 would also cap near 4.4MB inside a synchronous
+    invoke payload, well under the 100MB Meta accepts.
+    """
+    source = WA_DELIVERY.read_text()
+    body = source.split("def upload_to_meta")[1].split("\ndef ")[0]
+    assert '"s3Key": delivery_key' in body
+    assert '"s3Bucket": BUCKET' in body
+    assert "fileData" not in body
+    # the header carries the media id
+    send = source.split("def send_document")[1].split("\ndef ")[0]
+    assert '"id": media_id' in send
+
+
+def test_delivery_reads_the_d_rendition_not_the_original():
+    """s3Key is the original of any type; deliveryKey is the openable rendition."""
+    source = WA_DELIVERY.read_text()
+    body = source.split("def upload_to_meta")[1].split("\ndef ")[0]
+    assert 'file_row.get("deliveryKey")' in body
+    assert 'file_row.get("s3Key")' not in body
+
+
+def test_payment_request_is_digital_goods_so_no_address_is_collected():
+    """physical-goods makes WhatsApp demand a delivery address, which is nonsense for
+    a file and was a real bug in the invoice flow."""
+    source = WA_DELIVERY.read_text()
+    assert '"type": "digital-goods"' in source
+    # the dict KEY, not the word: the comment above it explains why the key is absent
+    assert '"shipping_info"' not in source
+    assert "'shipping_info'" not in source
+
+
+def test_payment_configuration_is_not_hardcoded():
+    """outbound-whatsapp resolves it per phone number; hardcoding would silently
+    diverge when that mapping changes."""
+    source = WA_DELIVERY.read_text()
+    assert "WECAREDIGITAL" not in source
+
+
+def test_whatsapp_pay_sends_only_to_the_verified_number():
+    """Taking a number from the request body would turn this route into a way to send
+    WhatsApp messages to arbitrary people."""
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def _send_whatsapp_payment")[1].split("\ndef ")[0]
+    assert 'phone=identity["phone"]' in body
+    # never from the request
+    assert "json.loads(event" not in body
+    assert "_owned_active_file" in body
+    assert "_payment_enabled()" in body
+
+
+def test_grant_is_written_before_the_send():
+    """If the send fails the grant just expires; the reverse order would let a customer
+    pay against a grant that does not exist."""
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def _send_whatsapp_payment")[1].split("\ndef ")[0]
+    assert body.index("put_item") < body.index("send_payment_request(")
+
+
+def test_delivery_requires_a_paid_grant_and_matching_owner():
+    source = (FUNC_DIR / "handler.py").read_text()
+    body = source.split("def deliver_over_whatsapp")[1].split("\ndef ")[0]
+    assert 'not grant.get("paid")' in body
+    assert 'item.get("ownerPhone") != grant.get("ownerPhone")' in body
+    assert 'item.get("status") != "active"' in body
+
+
+def test_internal_dispatch_is_unreachable_over_http():
+    """It requires the ABSENCE of requestContext, which API Gateway always supplies."""
+    source = (FUNC_DIR / "handler.py").read_text()
+    assert 'not event.get("requestContext")' in source
+    assert '"deliverOverWhatsApp"' in source
+
+
+def test_only_the_verified_webhook_triggers_delivery():
+    source = (
+        ROOT / "amplify/functions/payments/razorpay-webhook/handler.py"
+    ).read_text()
+    assert "deliverOverWhatsApp" in source
+    assert "'channel') == 'whatsapp'" in source
+    # async so a slow send cannot make Razorpay retry the whole webhook
+    assert "'Event'" in source
+
+
+def test_media_source_buckets_are_an_allowlist():
+    """A free s3Bucket parameter would hand every caller of this widely-invoked
+    function a read-any-object primitive."""
+    source = (
+        ROOT / "amplify/functions/messaging/whatsapp-business-api/handler.py"
+    ).read_text()
+    assert "MEDIA_SOURCE_BUCKETS" in source
+    assert "s3_bucket not in MEDIA_SOURCE_BUCKETS" in source

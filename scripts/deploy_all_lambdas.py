@@ -139,9 +139,11 @@ SPECS: List[Spec] = [
     Spec(
         "wecare-secure-files",
         "core/secure-files",
-        # razorpay_orders is imported lazily, only when paid downloads are enabled,
-        # so it must be in the package even though nothing imports it at module load
-        extra_files=["razorpay_orders.py"],
+        # Both are imported lazily inside functions rather than at module load, so
+        # they must be listed explicitly - nothing at import time reveals them.
+        # razorpay_orders     only when paid downloads are enabled
+        # whatsapp_delivery   only when sending a payment request or a file
+        extra_files=["razorpay_orders.py", "whatsapp_delivery.py"],
         provisioned_by="scripts/provision_secure_files_api.py",
     ),
     # Absent until now, which meant provision_crm_api.py could stand wecare-crm up
