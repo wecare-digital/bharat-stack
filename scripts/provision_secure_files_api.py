@@ -234,7 +234,7 @@ def package() -> bytes:
     return buffer.getvalue()
 
 
-def environment() -> dict:
+def environment(payment_enabled: bool = False) -> dict:
     # AWS_REGION is deliberately absent: Lambda reserves it and rejects it.
     return {
         "SECURE_FILES_BUCKET": BUCKET,
@@ -250,10 +250,97 @@ def environment() -> dict:
         "GRANT_TTL_SECONDS": "1800",
         # A secret NAME, never a value. See .kiro/steering/secret-handling.md.
         "RAZORPAY_SECRET_ID": RAZORPAY_SECRET_NAME,
-        # OFF. Enabling paid downloads is an owner action; while this is off the
-        # order route refuses and Razorpay is never contacted.
-        "SECURE_FILES_PAYMENT_ENABLED": "false",
+        # Enabling paid downloads is an owner action. While off, the order route
+        # refuses and razorpay_orders is never even imported, so no Razorpay
+        # endpoint is contacted and no credential is read.
+        #
+        # Defaults to off, and a plain re-provision therefore never silently turns
+        # payments on: only --enable-payment does that.
+        "SECURE_FILES_PAYMENT_ENABLED": "true" if payment_enabled else "false",
     }
+
+
+def current_payment_flag() -> bool:
+    variables = (
+        lam().get_function_configuration(FunctionName=f"{FUNCTION_NAME}:{LIVE_ALIAS}")
+        .get("Environment", {})
+        .get("Variables", {})
+    )
+    return str(variables.get("SECURE_FILES_PAYMENT_ENABLED", "")).strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def set_payment_flag(enabled: bool) -> int:
+    """Turn paid downloads on or off, and actually make it reach production.
+
+    Three steps, not one, and skipping any of them leaves a misleading state:
+
+    1. ``update_function_configuration`` with the **whole** variable map. Passing a
+       partial map would delete every variable not mentioned - the function would
+       come back up with no bucket, no table and no pool id.
+    2. Publish a version. A version freezes its environment, so the flag has to be
+       captured into a new one.
+    3. Move the ``live`` alias. The HTTP API invokes the alias, so until this runs
+       the change is real on ``$LATEST`` and invisible to every request.
+
+    Written out because doing only step 1 by hand looks like it worked.
+    """
+    client = lam()
+
+    # Preflight: confirm the key secret exists. Metadata only - this deliberately
+    # does not read the secret's value, so nothing lands in a log or a terminal.
+    # It catches a typo'd secret name, which would otherwise surface much later as
+    # an opaque order-creation failure.
+    if enabled:
+        try:
+            boto3.client("secretsmanager", region_name=REGION).describe_secret(
+                SecretId=RAZORPAY_SECRET_NAME
+            )
+            print(f"preflight: secret {RAZORPAY_SECRET_NAME} exists")
+        except ClientError as exc:
+            print(f"ABORT: cannot find secret {RAZORPAY_SECRET_NAME}: "
+                  f"{exc.response['Error']['Code']}")
+            return 1
+        print("preflight: this script cannot verify the secret's key_id/key_secret "
+              "values, and deliberately does not read them.")
+        print("           If order creation fails after this, check those two fields "
+              "in the Razorpay dashboard.")
+
+    was = current_payment_flag()
+    print(f"payment flag: {was} -> {enabled}")
+    if was == enabled:
+        print("already in the requested state; nothing to do")
+        return 0
+
+    rollback_version = client.get_alias(
+        FunctionName=FUNCTION_NAME, Name=LIVE_ALIAS
+    )["FunctionVersion"]
+
+    client.update_function_configuration(
+        FunctionName=FUNCTION_NAME,
+        Environment={"Variables": environment(payment_enabled=enabled)},
+    )
+    client.get_waiter("function_updated_v2").wait(FunctionName=FUNCTION_NAME)
+
+    version = client.publish_version(
+        FunctionName=FUNCTION_NAME,
+        Description=f"payment {'enabled' if enabled else 'disabled'}",
+    )["Version"]
+    client.update_alias(
+        FunctionName=FUNCTION_NAME, Name=LIVE_ALIAS, FunctionVersion=version
+    )
+
+    print(f"live: v{rollback_version} -> v{version}")
+    print(f"rollback: aws lambda update-alias --function-name {FUNCTION_NAME} "
+          f"--name {LIVE_ALIAS} --function-version {rollback_version} --region {REGION}")
+
+    now = current_payment_flag()
+    if now != enabled:
+        print(f"FAIL read-back says {now}, expected {enabled}")
+        return 1
+    print(f"read-back: payment enabled = {now}")
+    return 0
 
 
 def ensure_function(zip_bytes: bytes, dry_run: bool) -> str:
@@ -445,11 +532,12 @@ def verify() -> int:
         print(f"PASS {FUNCTION_NAME}:{LIVE_ALIAS} {config['Runtime']} {config['State']}")
         variables = (config.get("Environment") or {}).get("Variables") or {}
 
+        # Reported, not judged. Once the owner enables payments deliberately, a
+        # verifier that fails because of it is a verifier people learn to ignore.
         if variables.get("SECURE_FILES_PAYMENT_ENABLED", "").lower() in ("1", "true", "yes", "on"):
-            print("FAIL payment flag is ON - paid downloads were not meant to be enabled")
-            failures += 1
+            print("INFO payment flag is ON - paid downloads are live, real money moves")
         else:
-            print("PASS payment flag off")
+            print("PASS payment flag off - the order route refuses")
 
         for key in ("SECURE_FILES_BUCKET", "SECURE_FILES_TABLE", "DOWNLOAD_GRANTS_TABLE",
                     "CUSTOMER_USER_POOL_ID", "RAZORPAY_SECRET_ID"):
@@ -509,10 +597,26 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--verify", action="store_true")
+    group = ap.add_mutually_exclusive_group()
+    group.add_argument(
+        "--enable-payment",
+        action="store_true",
+        help="turn paid downloads ON: sets the flag, publishes a version and moves "
+             "the live alias. Real money starts moving.",
+    )
+    group.add_argument(
+        "--disable-payment",
+        action="store_true",
+        help="turn paid downloads OFF again (the safe direction).",
+    )
     args = ap.parse_args(argv)
 
     if args.verify:
         return verify()
+    if args.enable_payment:
+        return set_payment_flag(True)
+    if args.disable_payment:
+        return set_payment_flag(False)
 
     print(f"region: {REGION}  api: {API_ID}")
     print(f"dry run: {args.dry_run}\n")
