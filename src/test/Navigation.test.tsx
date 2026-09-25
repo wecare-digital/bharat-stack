@@ -100,8 +100,11 @@ describe( 'nothing became unreachable', () => {
 
   it( 'picked up routes that were orphaned before the restructure', () => {
     const all = getAllNavItems().map( ( i ) => i.path );
+    // '/forms/create' was in this list until 2026-09-25. It was deleted as a ComingSoon
+    // stub, so asserting the nav still reaches it would now assert the opposite of what
+    // this file is for. FeatureFlags.test.tsx carries the inverse check for it.
     for ( const p of [ '/dashboard/cors-settings', '/dm/whatsapp/ai-agent',
-      '/dm/whatsapp/scripts', '/forms/create' ] )
+      '/dm/whatsapp/scripts', '/forms/responses' ] )
     {
       expect( all ).toContain( p );
     }

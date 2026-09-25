@@ -436,10 +436,14 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/store', label: 'Store', backend: 'wix-store, catalog-management, product-image-gen', tables: 'WixProductsCache, WixOrdersCache, CatalogCache, WixOrderId' },
   { path: '/access', label: 'Access Control', backend: 'auth-middleware', tables: 'User' },
   { path: '/link', label: 'URL Shortener', backend: 'url-shortener', tables: '-' },
-  { path: '/link/create', label: 'Create Link', backend: 'url-shortener', tables: '-' },
-    { path: '/forms', label: 'Forms', backend: 'whatsapp-business-api', tables: 'FlowRegistry' },
+  // '/link/create' ("Create Link") was listed here. Removed 2026-09-25 with the page: a
+  // ComingSoon stub naming four features, never in the nav, and this row was its only
+  // reference in the repo.
+  { path: '/forms', label: 'Forms', backend: 'whatsapp-business-api', tables: 'FlowRegistry' },
   { path: '/forms/selfservice', label: 'Self-Service Hub', backend: 'whatsapp-business-api, inbound-whatsapp-handler', tables: 'FlowRegistry, FlowSubmission, FlowLog, SubmitRequest' },
-  { path: '/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
+  // Was '/faq'. The public page was deleted on owner instruction; the faq-handler backend
+  // and SystemConfig table are unchanged and are driven from the dashboard route.
+  { path: '/dm/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
   { path: '/grahak-os', label: 'Grahak OS', backend: '(public product page)', tables: '-' },
   { path: '/studio', label: 'Studio', backend: '(planned)', tables: '-' },
   { path: '/task', label: 'Task', backend: '(coming soon)', tables: '-' },
@@ -545,7 +549,11 @@ const CODE_ASSETS: CodeAsset[] = [
   { id: 'ss-docs', category: 'Selfservice Flows', name: '📄 Drop Docs', description: 'Send supporting documents for a request.', path: 'Flow ID: 1737801600902350', type: 'WA Flow', status: 'Draft' },
   { id: 'ss-enterprise', category: 'Selfservice Flows', name: '🏢 Enterprise Assist', description: 'Corporate, B2B, and bulk enquiries.', path: 'Flow ID: 2132515287534606', type: 'WA Flow', status: 'Draft' },
   { id: 'ss-review', category: 'Selfservice Flows', name: '⭐ Leave Review', description: 'Share experience and feedback.', path: 'Flow ID: 963443293213262', type: 'WA Flow', status: 'Draft' },
-  { id: 'ss-faq', category: 'Selfservice Flows', name: '❓ FAQ', description: 'View frequently asked questions.', path: '/faq', type: 'Page Link', status: 'Active' },
+  // path was '/faq' with status 'Active' until 2026-09-25. The public /faq page was
+  // deleted on owner instruction, so that link 404'd and "Active" was a false claim in
+  // the one table this project treats as its source of truth. The live FAQ surface is the
+  // dashboard route below; the customer-facing answer arrives over WhatsApp, not as a page.
+  { id: 'ss-faq', category: 'Selfservice Flows', name: '❓ FAQ', description: 'View frequently asked questions.', path: '/dm/faq', type: 'Page Link', status: 'Active' },
   // Frontend Pages
   { id: 'p-dashboard', category: 'Frontend Pages', name: 'Dashboard Overview', description: 'Main analytics dashboard with billing, conversation metrics.', path: 'src/pages/dashboard/index.tsx', type: 'Page' },
   { id: 'p-control', category: 'Frontend Pages', name: 'Project Control Center', description: '18-tab system architecture dashboard — single source of truth.', path: 'src/pages/dashboard/system-architecture.tsx', type: 'Page' },

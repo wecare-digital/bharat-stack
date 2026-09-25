@@ -11,8 +11,13 @@
 # THE RULE: a top-level segment in the export belongs in exactly one of two places —
 # the sitemap allowlist (PUBLIC_EXACT in scripts/generate-sitemap.js) or a Disallow
 # below. Audited 2026-09-25 against the built export, which found five authenticated
-# segments in neither: /commerce/, /docs/, /growth/, /nocode/ and /service/. They are
-# added below. Re-run that audit after adding any top-level route.
+# segments in neither: /commerce/, /docs/, /growth/, /nocode/ and /service/.
+#
+# /growth/ and /nocode/ were then DELETED outright later the same day, along with
+# /carbon/, /forms/create/ and /link/create/, so their rules came back out again — a
+# Disallow for a route that no longer exists is noise that implies the route does. The
+# three that remain are real: /commerce/, /docs/, /service/.
+# Re-run that audit after adding any top-level route.
 #
 # Deliberately NOT disallowed: /images/ holds public assets referenced by the marketing
 # pages, and blocking it would stop those images being indexed.
@@ -29,9 +34,7 @@ Disallow: /dashboard/
 Disallow: /dm/
 Disallow: /docs/
 Disallow: /forms/
-Disallow: /growth/
 Disallow: /link/
-Disallow: /nocode/
 Disallow: /pay/
 Disallow: /seo/
 Disallow: /service/

@@ -37,13 +37,10 @@ function flag ( raw: string | undefined ): boolean {
 }
 
 export const featureFlags = {
-  /**
-   * The Growth module home: search presence, ads and attribution read state.
-   * OFF until the owner has supplied provider access — 7 of 8 providers currently sit
-   * at SCOPE_UNVERIFIED and one has no credential at all, so the page's honest content
-   * today is "here is what is not connected and the exact unblock for each".
-   */
-  growthModule: flag( process.env.NEXT_PUBLIC_ENABLE_GROWTH_MODULE ),
+  // `growthModule` (NEXT_PUBLIC_ENABLE_GROWTH_MODULE) was here. Removed 2026-09-25 along
+  // with /growth/index.tsx, its only consumer. A flag with no reader is dead config that
+  // still looks like a control, which is worse than no flag: someone sets the env var,
+  // nothing changes, and they go looking for the bug in the wrong place.
 
   /**
    * The Commerce module home: catalog, storefront and order surfaces in one place.

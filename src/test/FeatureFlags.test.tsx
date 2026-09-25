@@ -18,11 +18,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 vi.mock( 'next/router', () => ( {
-  useRouter: () => ( { pathname: '/growth', query: {}, push: vi.fn(), isReady: true } ),
+  useRouter: () => ( { pathname: '/commerce', query: {}, push: vi.fn(), isReady: true } ),
 } ) );
 
 import { featureFlags, allFlags } from '../config/featureFlags';
-import GrowthPage from '../pages/growth/index';
 import CommercePage from '../pages/commerce/index';
 import inventory from '../content/integration-registry.json';
 import { moduleHomes, getAllNavItems } from '../config/navigation';
@@ -56,46 +55,46 @@ describe( 'flags default OFF', () => {
   } );
 } );
 
-describe( 'the Growth home with the flag off', () => {
-  it( 'explains why it is off instead of showing empty panels', () => {
-    expect( featureFlags.growthModule ).toBe( false );
-    render( <GrowthPage embedded /> );
-    expect( screen.getByText( /Growth module is switched off/i ) ).toBeTruthy();
-    // The reason, not just the state.
-    expect( screen.getByText( /no recorded authorised read/i ) ).toBeTruthy();
-    expect( screen.getByText( /NEXT_PUBLIC_ENABLE_GROWTH_MODULE/ ) ).toBeTruthy();
-  } );
-
-  it( 'still shows the real connection state, which is the useful part', () => {
-    render( <GrowthPage embedded /> );
-    // Three-state, from the generated registry snapshot — not a tick.
-    expect( screen.getAllByText( /Not verified|Not connected/ ).length ).toBeGreaterThan( 0 );
-  } );
-
-  it( 'keeps provider names out of the page name and the tab labels', () => {
-    render( <GrowthPage embedded /> );
-    // The master prompt: "Use provider-neutral page names and confine exact provider
-    // labels/IDs to authorized connection details." So the page is "Growth" and the tabs
-    // are "Search presence" / "Advertising" — and "Google Ads" DOES appear, inside the
-    // connection table, which is the authorised place. The first version of this test
-    // asserted the name never appears anywhere and was simply wrong about the rule.
-    expect( screen.getByText( 'Growth' ) ).toBeTruthy();
-    for ( const tab of [ 'Connections', 'Search presence', 'Advertising' ] ) {
-      expect( screen.getByText( tab ) ).toBeTruthy();
-    }
-    for ( const provider of [ 'Google Ads', 'Meta', 'Bing', 'Wix' ] ) {
-      expect( screen.queryByRole( 'tab', { name: new RegExp( provider, 'i' ) } ) ).toBeNull();
-    }
-  } );
-} );
+// The three 'Growth home with the flag off' tests that sat here were removed on
+// 2026-09-25 with /growth/index.tsx and the `growthModule` flag, on owner instruction.
+// They asserted that the page explained why it was off, that it still showed real
+// three-state connection data, and that provider names stayed out of the page name and
+// tab labels. Every one of those properties is still asserted below against Commerce,
+// which is the same shape and is still shipped — so the behaviour these tests protected
+// is not now unguarded. What is gone is the page, not the rule.
 
 describe( 'the Commerce home with the flag off', () => {
-  it( 'gives a different reason from Growth, because it is a different reason', () => {
+  it( 'explains why it is off instead of showing empty panels', () => {
     expect( featureFlags.commerceModule ).toBe( false );
     render( <CommercePage embedded /> );
     expect( screen.getByText( /Commerce module is switched off/i ) ).toBeTruthy();
     // Off because the storefront is LIVE, not because it is unfinished.
     expect( screen.getByText( /Not because it is unfinished/i ) ).toBeTruthy();
+  } );
+
+  // Moved here from the deleted Growth block rather than dropped with it. Both module
+  // homes render the same shell over the same IntegrationAccessTable, so these two
+  // properties were never really about Growth — they are about how a flagged-off module
+  // home is allowed to behave, and that rule outlived the page.
+  it( 'still shows the real connection state, which is the useful part', () => {
+    render( <CommercePage embedded /> );
+    // Three-state, from the generated registry snapshot — not a tick.
+    expect( screen.getAllByText( /Not verified|Not connected/ ).length ).toBeGreaterThan( 0 );
+  } );
+
+  it( 'keeps provider names out of the page name and the tab labels', () => {
+    render( <CommercePage embedded /> );
+    // The master prompt: "Use provider-neutral page names and confine exact provider
+    // labels/IDs to authorized connection details." So the page is "Commerce" and the
+    // tabs are neutral — while "Wix" DOES appear inside the connection table, which is
+    // the authorised place for it.
+    expect( screen.getByText( 'Commerce' ) ).toBeTruthy();
+    for ( const tab of [ 'Connections', 'Catalog & orders', 'Payments' ] ) {
+      expect( screen.getByText( tab ) ).toBeTruthy();
+    }
+    for ( const provider of [ 'Wix', 'Razorpay', 'Google Ads', 'Meta' ] ) {
+      expect( screen.queryByRole( 'tab', { name: new RegExp( provider, 'i' ) } ) ).toBeNull();
+    }
   } );
 } );
 
@@ -128,18 +127,27 @@ describe( 'the registry snapshot is real and honest', () => {
   } );
 } );
 
-describe( 'both homes are reachable', () => {
-  it( 'are declared as module homes at their own routes', () => {
-    const growth = moduleHomes.find( ( m ) => m.id === 'growth' );
+describe( 'the Commerce home is reachable', () => {
+  // Was 'both homes are reachable' and asserted on Growth alongside Commerce. /growth was
+  // deleted 2026-09-25 on owner instruction, so the assertions that named it are gone.
+  it( 'is declared as a module home at its own route', () => {
     const commerce = moduleHomes.find( ( m ) => m.id === 'commerce' );
-    expect( growth?.path ).toBe( '/growth' );
     expect( commerce?.path ).toBe( '/commerce' );
   } );
 
-  it( 'appear in the navigation the command palette is built from', () => {
+  it( 'appears in the navigation the command palette is built from', () => {
     const paths = getAllNavItems().map( ( i ) => i.path );
     // A flagged-off page that explains itself beats a 404, so it stays findable.
-    expect( paths ).toContain( '/growth' );
     expect( paths ).toContain( '/commerce' );
+  } );
+
+  // The other half of the same property, and the reason this file did not just lose a
+  // test: a route that no longer exists must not still be advertised in the nav, or the
+  // command palette offers an entry that lands on the home-page fallback.
+  it( 'no longer advertises the routes whose pages were deleted', () => {
+    const paths = getAllNavItems().map( ( i ) => i.path );
+    for ( const gone of [ '/growth', '/carbon', '/nocode', '/forms/create', '/link/create' ] ) {
+      expect( paths, `${gone} was deleted but is still in the nav` ).not.toContain( gone );
+    }
   } );
 } );

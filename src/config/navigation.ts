@@ -144,9 +144,12 @@ export const navigationConfig: NavItem[] = [
     icon: 'form',
     children: [
       // Responses first: a submitted request nobody actioned is a customer who paid
-      // and heard nothing, so the queue matters more than the builder.
+      // and heard nothing, so the queue matters more than a builder would.
       { path: '/forms/responses', label: 'Responses' },
-      { path: '/forms/create', label: 'Forms Builder' },
+      // '/forms/create' ("Forms Builder") was here. Removed 2026-09-25 with the page: it
+      // was a ComingSoon stub listing six features with no backend behind any of them,
+      // and /forms/index.tsx redirected straight to it, so the whole /forms landing was a
+      // redirect into a list of promises. /forms now goes to Responses.
       { path: '/forms/selfservice', label: 'Self-service Hub' },
     ],
   },
@@ -259,10 +262,12 @@ export const settingsConfig: SettingsGroup[] = [
     icon: 'dashboard',
     hint: 'Growth and Commerce — read-only, behind flags',
     items: [
-      // Both are flag-gated and currently OFF. They are listed anyway: the whole point
-      // of `getAllNavItems()` is that nothing is unreachable, and a flagged-off page
-      // that explains WHY it is off is more use than a 404.
-      { path: '/growth', label: 'Growth' },
+      // Flag-gated and currently OFF. Listed anyway: the whole point of
+      // `getAllNavItems()` is that nothing is unreachable, and a flagged-off page that
+      // explains WHY it is off is more use than a 404.
+      //
+      // '/growth' sat beside Commerce until 2026-09-25 and was removed with its page on
+      // owner instruction. Commerce is the same shape and stays.
       { path: '/commerce', label: 'Commerce' },
     ],
   },
@@ -299,13 +304,12 @@ export const settingsConfig: SettingsGroup[] = [
       { path: '/dashboard/wa-graph-tools', label: 'WA Graph Tools' },
       { path: '/dashboard/cors-settings', label: 'CORS Settings' },
       { path: '/dashboard/design-reference', label: 'Design Reference' },
-      // '/carbon' was here. Removed 2026-09-25 with the page: it was a 15-line
-      // EmptyState reading "Sustainability and carbon tracking features coming soon"
-      // with nothing behind it and no other reference anywhere in the repo. A menu
-      // entry leading to a promise is the failure mode this nav comment set out to
-      // avoid — '/growth' below stays because a flagged-off page that explains why it
-      // is off is real content; "coming soon" is not.
-      { path: '/nocode', label: 'No-code' },
+      // '/carbon' and '/nocode' were here. Both removed 2026-09-25 with their pages:
+      // each was a 15-line EmptyState reading "... coming soon" with nothing behind it
+      // ("Sustainability and carbon tracking", "Visual workflow and form builder"). A
+      // menu entry leading to a promise is exactly the failure mode the Growth/Commerce
+      // comment above set out to avoid — a flagged-off page that explains itself is real
+      // content, "coming soon" is not.
       { path: '/docs', label: 'Docs' },
     ],
   },
@@ -377,14 +381,12 @@ export const moduleHomes: ModuleHome[] = [
       + 'production store opens deliberately. With the flag off it links to the working '
       + 'pages rather than shadowing them.',
   },
-  {
-    id: 'growth', label: 'Growth', path: '/growth',
-    innerPages: ['/seo', '/seo/pages', '/seo/analytics', '/seo/tracking', '/seo/schema',
-      '/dm/whatsapp/ctwa-ads', '/dm/whatsapp/conversions-api'],
-    note: 'Behind NEXT_PUBLIC_ENABLE_GROWTH_MODULE, and OFF while 7 of 8 providers sit '
-      + 'at SCOPE_UNVERIFIED and one has no credential. The connection state it shows '
-      + 'is real and is the useful content at this stage.',
-  },
+  // The 'growth' module home was here, gated on NEXT_PUBLIC_ENABLE_GROWTH_MODULE.
+  // Removed 2026-09-25 with /growth/index.tsx on owner instruction. The pages it listed
+  // as innerPages are all still reachable in their own right — /seo, /seo/pages,
+  // /seo/analytics, /seo/tracking, /seo/schema, /dm/whatsapp/ctwa-ads and
+  // /dm/whatsapp/conversions-api each have their own nav entry — so nothing became
+  // unreachable, only the grouping page went.
   {
     id: 'service-operations', label: 'Service Operations', path: '/dm/service-ops',
     innerPages: ['/service/submit-request', '/service/track-request',
