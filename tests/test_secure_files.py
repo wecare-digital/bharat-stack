@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -303,7 +304,9 @@ def test_otp_is_never_logged():
 # ── the customer loop in the browser ──────────────────────────────────────────
 
 CLIENT_TS = ROOT / "src/api/client.ts"
-FILES_PAGE = ROOT / "src/pages/files.tsx"
+# The collection page lives at /get, the URL originally specified. It was briefly at
+# /files while working around /get/<*> being rewritten to CloudFront.
+FILES_PAGE = ROOT / "src/pages/get.tsx"
 CUSTOMER_AUTH = ROOT / "src/lib/customerAuth.ts"
 
 
@@ -347,8 +350,15 @@ def _ts_function(source: str, name: str) -> str:
     Cutting at the first column-zero ``}`` ends at the function's own closing brace,
     since everything nested is indented.
     """
-    marker = f"export async function {name}"
-    start = source.index(marker)
+    # The name must end at a non-identifier character, or a prefix match wins: looking
+    # for `sendWhatsAppPayment` found the pre-existing `sendWhatsAppPaymentMessage`
+    # further up the file and asserted against the wrong function entirely.
+    match = re.search(
+        rf"export async function {re.escape(name)}(?![A-Za-z0-9_])", source
+    )
+    if not match:
+        raise AssertionError(f"no exported function named exactly {name}")
+    start = match.start()
     lines = source[start:].splitlines()
     body = []
     for index, line in enumerate(lines):
@@ -388,18 +398,34 @@ def test_admin_routes_still_use_the_staff_token():
         assert "customerApiCall" not in body, f"{fn} must not use a customer token"
 
 
-def test_the_page_does_not_trust_the_razorpay_callback():
-    """Checkout's handler runs in the browser and is forgeable.
+def test_the_page_never_handles_payment_itself():
+    """Payment and delivery both happen on WhatsApp, so the browser is out of the loop.
 
-    It may only stop the spinner. The download must come from polling the server,
-    which requires the signature-verified webhook to have marked the grant paid.
+    The page asks the backend to send the approved wecare_pay template and stops. The
+    customer pays through the template's ORDER_DETAILS button and the file arrives as a
+    WhatsApp document, so nothing here can grant anything.
     """
     source = FILES_PAGE.read_text()
-    assert "pollForDownload" in source
-    # the handler must not itself redeem or navigate
-    handler_body = source.split("handler: ()")[1][:200]
-    assert "redeem" not in handler_body
-    assert "location" not in handler_body
+    assert "requestFilePaymentOnWhatsApp" in source
+
+    # No Razorpay Checkout machinery on the page at all. This is a stronger guarantee
+    # than the earlier "do not trust the success callback": there is no callback,
+    # because the browser is no longer in the payment path.
+    for gone in ("checkout.razorpay.com", "window.Razorpay", "loadCheckout", "order_id"):
+        assert gone not in source, f"{gone} should have left with Checkout"
+
+    # and nothing polls for or triggers a download
+    assert "pollForDownload" not in source
+    assert "downloadUrl" not in source
+
+
+def test_the_page_does_not_choose_the_recipient():
+    """Accepting a phone number from the client would make this a way to send WhatsApp
+    messages to arbitrary people. The backend uses the verified token's number."""
+    body = _ts_function(_strip_comments(CLIENT_TS.read_text()), "requestFilePaymentOnWhatsApp")
+    assert "whatsapp-pay" in body
+    assert "customerApiCall" in body
+    assert "phone" not in body.lower()
 
 
 def test_presigned_upload_does_not_get_a_bearer_header():

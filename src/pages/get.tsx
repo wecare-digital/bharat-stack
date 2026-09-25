@@ -180,7 +180,7 @@ export default function FilesPage () {
         setWorking( file.fileId );
         try
         {
-            const sent = await api.sendWhatsAppPayment( file.fileId );
+            const sent = await api.requestFilePaymentOnWhatsApp( file.fileId );
             if ( !sent.ok )
             {
                 setError(

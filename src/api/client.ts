@@ -6829,7 +6829,7 @@ export async function redeemSecureFileDownload ( fileId: string, grantId: string
  * token; accepting one here would make this a way to send WhatsApp messages to
  * arbitrary people.
  */
-export async function sendWhatsAppPayment ( fileId: string ): Promise<ApiResult<{
+export async function requestFilePaymentOnWhatsApp ( fileId: string ): Promise<ApiResult<{
   grantId: string; reference: string; amountPaise: number; sentTo: string; message: string;
 }>> {
   return customerApiCall( `${API_BASE}/secure-files/${encodeURIComponent( fileId )}/whatsapp-pay`, {
