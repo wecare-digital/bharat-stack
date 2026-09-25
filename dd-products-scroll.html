@@ -1,20 +1,31 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>Menu — Products scroll (final mock)</title>
+<title>Header + menu — final full mock</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:26px 24px 70px}
-.page{max-width:900px;margin:0 auto}
+body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:26px 24px 90px}
+.page{max-width:1000px;margin:0 auto}
 h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
-.sub{font-size:13px;color:#555;margin:0 0 8px;max-width:82ch}
+.sub{font-size:13px;color:#555;margin:0 0 8px;max-width:84ch}
 .try{font-size:13px;color:#0f2a1d;background:#e0f7c8;border:1px solid #c5e866;border-radius:8px;padding:9px 13px;margin:0 0 18px;display:inline-block}
 .try b{font-weight:700}
-.twocol{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
-.cap{font-size:12px;font-weight:800;color:#1a3a2a;text-transform:uppercase;letter-spacing:.03em;margin:0 0 8px}
 
-/* === EXACT current menu (unchanged size/colours) === */
-.nav-menu{background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.12)}
+/* ===== FULL HEADER BAR (real edited values) ===== */
+.hdr{background:#fff;border:1px solid #e5e7eb;border-radius:14px;position:relative}
+.hdr-in{padding:18px 24px;display:flex;align-items:center;height:108px}
+.logo-nav{display:flex;align-items:center;gap:10px}
+.brand-lockup{display:inline-flex;align-items:center;gap:10px}
+.logo-box{height:60px;width:60px;border-radius:12px;background:linear-gradient(135deg,#1a3a2a,#3da35a);display:flex;align-items:center;justify-content:center;color:#d1f470;font-weight:800;font-size:22px;flex-shrink:0}
+.brand-copy{display:flex;flex-direction:column;justify-content:center;line-height:1.08}
+.brand-copy>span{font-size:23px;font-weight:800;color:#1a1a1a;letter-spacing:-.5px}
+.brand-dot{color:#ff0040}
+.nav-dropdown{position:relative}
+.nav-trigger{min-width:46px;min-height:46px;background:rgba(209,244,112,.22);border:1px solid #e3ecc9;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center}
+.nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0;border-right:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;opacity:.85;transform:translateY(2px) rotate(225deg)}
+
+/* ===== MEGA MENU (open) ===== */
+.nav-menu{position:absolute;top:calc(100% + 8px);left:0;width:760px;background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.12);z-index:5}
 .nav-search{width:100%;margin:0 0 12px;min-height:42px;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:15px;color:rgba(0,0,0,.42)}
 .nav-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 20px;align-items:start}
 .nav-col{display:flex;flex-direction:column;gap:10px;min-width:0}
@@ -24,11 +35,11 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
 .nav-item:hover{background:rgba(209,244,112,.38)}
 .nav-item.active{font-weight:800;background:#d1f470;color:#0f2a1d}
 
-/* THE ONLY CHANGE: Products list gets a scroll cap that ONLY kicks in when tall.
-   max-height ~ 11 rows (11 x 46 = 506px). With today's 10 products it never scrolls;
-   grows naturally, then scrolls once you exceed the cap. */
-.products-scroll{max-height:506px;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  /* LIME/GREEN THEMED SCROLLBAR (not grey) */
+/* THE CHANGE: Products list scrolls when tall, PRODUCTS label PINNED above it */
+.products-group{display:flex;flex-direction:column}
+/* pinned label: stays put while the list below scrolls */
+.products-group .nav-group-label{position:sticky;top:0;background:#fcfdfb;z-index:2}
+.products-scroll{max-height:460px;overflow-y:auto;-webkit-overflow-scrolling:touch;
   scrollbar-width:thin;scrollbar-color:#d1f470 transparent}
 .products-scroll::-webkit-scrollbar{width:8px}
 .products-scroll::-webkit-scrollbar-track{background:transparent}
@@ -36,80 +47,67 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
 .products-scroll::-webkit-scrollbar-thumb:hover{background:#c5e866}
 </style></head><body>
 <div class="page">
-  <h1>Final mock — Products scrolls only when needed, themed scrollbar</h1>
-  <p class="sub">Real products, existing menu size (no dummy items, nothing enlarged). The Products list only starts scrolling once it grows past the cap. The scrollbar uses the site's lime theme. Left = today's real 10 products (no scroll needed). Right = the same design later with many products (scrollbar shown, lime).</p>
-  <div class="try">👉 On the right, scroll the Products list — <b>lime scrollbar</b>, label pinned, rest of menu unchanged and same size.</div>
+  <h1>Final full mock — header + open menu, Products pinned &amp; scrollable</h1>
+  <p class="sub">The complete header (logo + arrow) with the mega-menu open. Real products only, existing size. The <b>PRODUCTS label is pinned</b> — scroll the products and the label stays; the lime scrollbar appears only when the list is long. Everything else in the menu is unchanged.</p>
+  <div class="try">👉 <b>Scroll inside the Products column</b> — the PRODUCTS heading stays pinned at the top, lime scrollbar on the right, rest of the menu doesn't move.</div>
 
-  <div class="twocol">
-    <!-- LEFT: today's real 10 products (fits, no scroll) -->
-    <div>
-      <div class="cap">TODAY — real 10 products (no scroll needed)</div>
-      <nav class="nav-menu">
-        <input class="nav-search" value="Search" readonly/>
-        <div class="nav-cols">
-          <div class="nav-col">
-            <div class="nav-group"><a class="nav-item active">Home</a></div>
-            <div class="nav-group">
-              <span class="nav-group-label">Products</span>
-              <div class="products-scroll" id="plistNow"></div>
+  <div class="hdr">
+    <div class="hdr-in">
+      <div class="logo-nav">
+        <span class="brand-lockup">
+          <span class="logo-box">W</span>
+          <span class="brand-copy"><span>WECARE<span class="brand-dot">.</span></span><span>DIGITAL</span></span>
+        </span>
+        <div class="nav-dropdown">
+          <button class="nav-trigger"><span class="nav-arrow"></span></button>
+          <nav class="nav-menu">
+            <input class="nav-search" value="Search" readonly/>
+            <div class="nav-cols">
+              <!-- COL 1: Home + Products (pinned label + scroll) -->
+              <div class="nav-col">
+                <div class="nav-group"><a class="nav-item active">Home</a></div>
+                <div class="products-group">
+                  <span class="nav-group-label">Products</span>
+                  <div class="products-scroll" id="plist"></div>
+                </div>
+              </div>
+              <!-- COL 2: Selfservice + Legal -->
+              <div class="nav-col">
+                <div class="nav-group"><span class="nav-group-label">Selfservice</span>
+                  <a class="nav-item">Submit Request</a>
+                  <a class="nav-item">Request Amendment</a>
+                  <a class="nav-item">My Order</a>
+                  <a class="nav-item">Drop Docs</a>
+                  <a class="nav-item">Leave Review</a>
+                  <a class="nav-item">Contact</a>
+                </div>
+                <div class="nav-group"><span class="nav-group-label">Legal Stuff</span>
+                  <a class="nav-item">Terms</a>
+                  <a class="nav-item">Privacy</a>
+                </div>
+              </div>
+              <!-- COL 3: Work with us + Account -->
+              <div class="nav-col">
+                <div class="nav-group"><span class="nav-group-label">Work with us</span>
+                  <a class="nav-item">Refer &amp; Earn</a>
+                </div>
+                <div class="nav-group"><span class="nav-group-label">Account</span>
+                  <a class="nav-item">Sign in</a>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="nav-col">
-            <div class="nav-group"><span class="nav-group-label">Selfservice</span>
-              <a class="nav-item">Submit Request</a><a class="nav-item">My Order</a><a class="nav-item">Contact</a>
-            </div>
-            <div class="nav-group"><span class="nav-group-label">Legal Stuff</span>
-              <a class="nav-item">Terms</a><a class="nav-item">Privacy</a>
-            </div>
-          </div>
-          <div class="nav-col">
-            <div class="nav-group"><span class="nav-group-label">Account</span><a class="nav-item">Sign in</a></div>
-          </div>
+          </nav>
         </div>
-      </nav>
-    </div>
-
-    <!-- RIGHT: same design, many products -> scrolls with lime bar -->
-    <div>
-      <div class="cap">LATER — many products (lime scrollbar appears)</div>
-      <nav class="nav-menu">
-        <input class="nav-search" value="Search" readonly/>
-        <div class="nav-cols">
-          <div class="nav-col">
-            <div class="nav-group"><a class="nav-item active">Home</a></div>
-            <div class="nav-group">
-              <span class="nav-group-label">Products</span>
-              <div class="products-scroll" id="plistMany"></div>
-            </div>
-          </div>
-          <div class="nav-col">
-            <div class="nav-group"><span class="nav-group-label">Selfservice</span>
-              <a class="nav-item">Submit Request</a><a class="nav-item">My Order</a><a class="nav-item">Contact</a>
-            </div>
-            <div class="nav-group"><span class="nav-group-label">Legal Stuff</span>
-              <a class="nav-item">Terms</a><a class="nav-item">Privacy</a>
-            </div>
-          </div>
-          <div class="nav-col">
-            <div class="nav-group"><span class="nav-group-label">Account</span><a class="nav-item">Sign in</a></div>
-          </div>
-        </div>
-      </nav>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-// REAL products today (Header.tsx trio + products.ts seven)
+// Real products (Header trio + products.ts seven), repeated to force the scroll so
+// you can see the pinned label + lime bar. The real menu lists the real products only.
 const REAL = ['Grahak OS','VayuLok','Bharat Rx','Elsewhere','Expo Week','Dastavez','Clear Closure','Ritual Guru','Anew','Niji Setu'];
-const now=document.getElementById('plistNow');
-REAL.forEach(p=>{const a=document.createElement('a');a.className='nav-item';a.textContent=p;now.appendChild(a);});
-
-// LATER: same real names repeated to demonstrate the scroll behaviour ONLY
-// (this is illustrating the future large catalog; the real menu will list the
-// real products, whatever they are at that time — no dummy names are shipped).
-const many=document.getElementById('plistMany');
-const bigList=[].concat(REAL,REAL,REAL,REAL); // 40, just to force the scrollbar
-bigList.forEach(p=>{const a=document.createElement('a');a.className='nav-item';a.textContent=p;many.appendChild(a);});
+const plist=document.getElementById('plist');
+[].concat(REAL,REAL,REAL).forEach(p=>{const a=document.createElement('a');a.className='nav-item';a.textContent=p;plist.appendChild(a);});
 </script>
 </body></html>
