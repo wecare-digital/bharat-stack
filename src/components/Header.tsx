@@ -498,15 +498,18 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
           /* Contain the scroll chain so flicking the product list to its end does not
              then scroll the page behind the menu. */
           overscroll-behavior:contain;
-          /* The list fills the column width and the lime scrollbar rides the right edge,
-             with a soft lime DIVIDER LINE just inside it (border-right below) so the bar
-             reads as attached to the list rather than floating in the gutter. Chosen over
-             boxing the list: the sibling columns (Selfservice, Legal) carry no border, so
-             a box around Products alone would make it the odd column out - a line keeps
-             every column looking like the same family while still marking this one as
-             scrollable. padding-right gives the rows breathing room from the divider. */
-          width:100%;
-          border-right:2px solid rgba(209,244,112,.45);
+          /* The scrollbar HUGS THE PRODUCT NAMES rather than riding the far edge of the
+             column. The column is a third of the 760px panel (~240px) but the longest
+             product label is much narrower, so a full-width list put the bar out in the
+             gutter between columns, reading as detached (and as if it belonged to the
+             Selfservice column beside it). width:max-content sizes the scroll box to its
+             widest row, so the lime track sits immediately to the right of the names;
+             max-width stops an unusually long product name from overflowing the column,
+             and padding-right keeps the bar just off the last glyph. No divider line and
+             no box - the sibling columns carry neither, so this keeps Products looking
+             like the same family while still marking it scrollable via the lime bar. */
+          width:max-content;
+          max-width:100%;
           padding-right:8px;
           /* LIME THEMED SCROLLBAR, not the browser default grey. Firefox uses
              scrollbar-color (thin), WebKit/Blink use the ::-webkit-scrollbar rules below;
