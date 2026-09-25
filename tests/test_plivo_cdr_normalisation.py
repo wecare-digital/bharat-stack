@@ -20,6 +20,7 @@ was broken.
 
 from __future__ import annotations
 
+import importlib.util
 import pathlib
 import sys
 from decimal import Decimal
@@ -32,7 +33,31 @@ for p in (SHARED, FN):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
-import handler as plivo  # noqa: E402
+
+def _load_plivo_answer():
+    """Load plivo-answer's handler by path, under a name of its own.
+
+    This was `import handler as plivo` at module scope, and it was the one binding in
+    tests/ that `conftest.isolate_handler_imports` could not protect. That fixture is
+    function-scoped, so it clears `sys.modules["handler"]` between tests - but a
+    module-level import runs at COLLECTION time, before any fixture, and binds whichever
+    of this repo's 64 `handler.py` files happened to get there first. The name it resolved
+    to therefore depended on pytest's collection order, and nothing would have reported
+    the mistake: the tests would simply have exercised a different Lambda.
+
+    A unique module name removes the shared `sys.modules` key entirely, so this file
+    neither depends on nor affects collection order.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "wecare_plivo_answer_handler", FN / "handler.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["wecare_plivo_answer_handler"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+plivo = _load_plivo_answer()
 
 
 class ConditionalCheckFailed(Exception):

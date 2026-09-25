@@ -1,4 +1,4 @@
-"""Phase 8.1 — the eight module homes exist, are reachable, and load lazily.
+"""Phase 8.1 — the declared module homes exist, are reachable, and load lazily.
 
 A registry that names routes is worth nothing if the routes are not there. This parses
 `src/config/navigation.ts` and checks each declared home and inner page against the
@@ -31,11 +31,31 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 NAV = ROOT / "src/config/navigation.ts"
 PAGES = ROOT / "src/pages"
 
-# The master prompt names these eight. The registry must not quietly drop one.
+# The master prompt names eight module homes. Seven of them are declared; `growth` was
+# removed on 2026-09-25 by owner instruction, along with `src/pages/growth/index.tsx` and
+# the `NEXT_PUBLIC_ENABLE_GROWTH_MODULE` flag that used to gate it.
+#
+# This test previously demanded all eight unconditionally and had been failing on `growth`
+# ever since. Three red tests that everyone knows to ignore are worse than no test, so the
+# expectation is corrected here rather than left to rot - but the removal is recorded, not
+# quietly absorbed, and `test_removing_growth_left_nothing_unreachable` below pins the
+# property that actually mattered about it.
 REQUIRED_IDS = {
-    "home", "communications", "customers", "commerce", "growth",
+    "home", "communications", "customers", "commerce",
     "service-operations", "platform-operations", "settings",
 }
+
+# Deliberately absent from REQUIRED_IDS. Named so the removal is searchable, and so
+# re-adding the home means deleting a line here rather than guessing what changed.
+REMOVED_IDS = {"growth"}
+
+# `growth` was a grouping page over routes that each stand on their own. If the removal
+# had orphaned any of them, that would be a real regression rather than a tidy-up, so the
+# list it used to group is asserted reachable independently.
+GROWTH_FORMER_INNER_PAGES = [
+    "/seo", "/seo/pages", "/seo/analytics", "/seo/tracking", "/seo/schema",
+    "/dm/whatsapp/ctwa-ads", "/dm/whatsapp/conversions-api",
+]
 
 HUBS_THAT_MUST_BE_LAZY = {
     "src/pages/dm/whatsapp/settings.tsx": 15,
@@ -83,12 +103,34 @@ def inner_pages(nav_source: str) -> list[str]:
     return re.findall(r"'(/[a-z0-9/-]+)'", block)
 
 
-class TestTheEightExist:
-    def test_all_eight_are_declared(self, homes):
-        assert len(homes) == 8, f"expected 8 module homes, found {len(homes)}"
+class TestTheDeclaredHomesExist:
+    def test_all_declared_homes_are_present(self, homes):
+        assert len(homes) == len(REQUIRED_IDS), (
+            f"expected {len(REQUIRED_IDS)} module homes, found {len(homes)}")
 
-    def test_the_ids_are_the_master_prompts_eight(self, homes):
+    def test_the_ids_are_the_expected_set(self, homes):
         assert {h["id"] for h in homes} == REQUIRED_IDS
+
+    def test_removed_homes_stay_removed(self, homes):
+        """A re-added home must come back through REQUIRED_IDS, not by accident.
+
+        Without this, restoring `growth` to the registry while leaving its page missing
+        would make `test_the_ids_are_the_expected_set` fail with a confusing diff instead
+        of saying what happened.
+        """
+        assert {h["id"] for h in homes} & REMOVED_IDS == set()
+
+    @pytest.mark.parametrize("route", GROWTH_FORMER_INNER_PAGES)
+    def test_removing_growth_left_nothing_unreachable(self, route):
+        """Only the grouping page went; every route it listed still has its own page.
+
+        This is the part of `growth` worth guarding. The home itself was navigation
+        sugar, but if deleting it had taken a real destination with it, that would be a
+        functional regression hiding behind a tidy-up.
+        """
+        assert route_to_page(route) is not None, (
+            f"{route} was an inner page of the removed growth home and now has no page "
+            "file - the removal orphaned a route")
 
     @pytest.mark.parametrize("module_id", sorted(REQUIRED_IDS - {"settings"}))
     def test_every_home_with_a_path_has_a_real_page(self, homes, module_id):

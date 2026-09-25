@@ -6,8 +6,9 @@ Creates or updates, idempotently:
 * IAM role ``wecare-secure-files-role`` with a least-privilege inline policy
 * Lambda ``wecare-secure-files`` (python3.12) + published version + ``live`` alias
 * Seven routes on HTTP API ``zllr9lrg7j``, all pointing at the alias
-* The ``DOWNLOAD_GRANTS_TABLE`` env var and grants-table permission on
-  ``wecare-razorpay-webhook``, so the webhook can mark a grant paid
+* Revocation of ``wecare-razorpay-webhook``'s grants-table access. The webhook used to
+  mark grants paid; it no longer may, so the permission is removed rather than granted.
+  See ``ensure_webhook_access``.
 
 Two policy choices worth stating, because a wildcard here would be invisible and
 wrong:
@@ -281,9 +282,9 @@ def environment(payment_enabled: bool = False) -> dict:
         # WhatsApp link delivery: a person taps when they read the message. 60s
         # would usually be expired on arrival, and they have already paid.
         "WHATSAPP_LINK_TTL_SECONDS": "21600",
-        # Enumeration budget for the unregistered-number reveal.
-        "OTP_PROBE_MAX_PER_WINDOW": "5",
-        "OTP_PROBE_WINDOW_SECONDS": "3600",
+        # OTP_PROBE_* deliberately absent. The enumeration budget is enforced in
+        # wecare-customer-whatsapp-auth, which is the only function that reads those
+        # keys; they are provisioned there by provision_customer_whatsapp_auth.py.
         "UPLOAD_URL_TTL_SECONDS": "900",
         "GRANT_TTL_SECONDS": "1800",
         # A secret NAME, never a value. See .kiro/steering/secret-handling.md.
@@ -519,10 +520,27 @@ def ensure_routes(dry_run: bool) -> list:
     return results
 
 
-# ── webhook needs the grants table ────────────────────────────────────────────
+# ── revoke the webhook's grants-table access ──────────────────────────────────
 
 def ensure_webhook_access(dry_run: bool) -> str:
-    """Give wecare-razorpay-webhook the env var and permission to mark grants paid."""
+    """Take the grants table away from wecare-razorpay-webhook.
+
+    This used to do the opposite: it granted the webhook ``dynamodb:Query`` and
+    ``dynamodb:UpdateItem`` on the grants table plus a ``DOWNLOAD_GRANTS_TABLE`` env var,
+    because the webhook itself flipped a grant to ``paid``.
+
+    It no longer does. A valid webhook signature is no longer proof of payment - the
+    webhook only forwards an order id, and ``secure-files`` asks Razorpay's API whether
+    money actually moved. So this permission is not merely unused, it is the permission a
+    forged callback would have needed. Removing it makes the code change enforceable at
+    the IAM layer: even if a future edit reintroduced the write, the role could not
+    perform it.
+
+    Proven safe before removal, because ``wecare-digital-lambda-role`` is shared by 61
+    functions: the webhook was the only consumer of this policy on that role.
+    ``wecare-secure-files`` and ``wecare-customer-whatsapp-auth`` each have their own
+    role, each with its own narrower grants-table policy, and neither is touched here.
+    """
     client = lam()
     try:
         config = client.get_function_configuration(FunctionName=WEBHOOK_FUNCTION)
@@ -531,42 +549,57 @@ def ensure_webhook_access(dry_run: bool) -> str:
 
     variables = dict((config.get("Environment") or {}).get("Variables") or {})
     role_name = config["Role"].rsplit("/", 1)[-1]
+    actions = []
 
-    if variables.get("DOWNLOAD_GRANTS_TABLE") == GRANTS_TABLE:
-        env_state = "env already set"
-    elif dry_run:
-        env_state = "would set env"
+    if "DOWNLOAD_GRANTS_TABLE" in variables:
+        if dry_run:
+            actions.append("would drop DOWNLOAD_GRANTS_TABLE env")
+        else:
+            variables.pop("DOWNLOAD_GRANTS_TABLE")
+            client.update_function_configuration(
+                FunctionName=WEBHOOK_FUNCTION, Environment={"Variables": variables}
+            )
+            client.get_waiter("function_updated_v2").wait(FunctionName=WEBHOOK_FUNCTION)
+            actions.append("dropped DOWNLOAD_GRANTS_TABLE env")
     else:
-        variables["DOWNLOAD_GRANTS_TABLE"] = GRANTS_TABLE
-        client.update_function_configuration(
-            FunctionName=WEBHOOK_FUNCTION, Environment={"Variables": variables}
-        )
-        client.get_waiter("function_updated_v2").wait(FunctionName=WEBHOOK_FUNCTION)
-        env_state = "env set"
+        actions.append("env already clean")
 
     if dry_run:
-        return f"{env_state}; would add grants-table policy to {role_name}"
+        actions.append(f"would delete wecare-download-grants from {role_name}")
+        return "; ".join(actions)
 
+    try:
+        iam().delete_role_policy(
+            RoleName=role_name, PolicyName="wecare-download-grants"
+        )
+        actions.append(f"revoked grants policy on {role_name}")
+    except iam().exceptions.NoSuchEntityException:
+        actions.append("grants policy already absent")
+
+    # The webhook still needs to reach secure-files to forward the order id. That grant
+    # is separate and stays.
     iam().put_role_policy(
         RoleName=role_name,
-        PolicyName="wecare-download-grants",
+        PolicyName="wecare-invoke-secure-files",
         PolicyDocument=json.dumps(
             {
                 "Version": "2012-10-17",
                 "Statement": [
                     {
+                        "Sid": "InvokeSecureFiles",
                         "Effect": "Allow",
-                        "Action": ["dynamodb:Query", "dynamodb:UpdateItem"],
+                        "Action": ["lambda:InvokeFunction"],
                         "Resource": [
-                            f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/{GRANTS_TABLE}",
-                            f"arn:aws:dynamodb:{REGION}:{ACCOUNT}:table/{GRANTS_TABLE}/index/*",
+                            f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{FUNCTION_NAME}",
+                            f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{FUNCTION_NAME}:*",
                         ],
                     }
                 ],
             }
         ),
     )
-    return f"{env_state}; grants policy on {role_name}"
+    actions.append("invoke-secure-files policy confirmed")
+    return "; ".join(actions)
 
 
 # ── verify ────────────────────────────────────────────────────────────────────
@@ -626,13 +659,36 @@ def verify() -> int:
             print(f"FAIL route {key} missing")
             failures += 1
 
+    # The webhook must NOT be able to write a grant. This assertion is inverted from what
+    # it used to be, on purpose: a valid signature is no longer proof of payment, so the
+    # ability to mark a grant paid is precisely what a forged callback would need.
     try:
         webhook = client.get_function_configuration(FunctionName=WEBHOOK_FUNCTION)
         variables = (webhook.get("Environment") or {}).get("Variables") or {}
-        if variables.get("DOWNLOAD_GRANTS_TABLE") == GRANTS_TABLE:
-            print("PASS webhook knows the grants table")
+        if "DOWNLOAD_GRANTS_TABLE" in variables:
+            print("FAIL webhook still carries DOWNLOAD_GRANTS_TABLE")
+            failures += 1
         else:
-            print("FAIL webhook DOWNLOAD_GRANTS_TABLE not set")
+            print("PASS webhook has no grants-table env var")
+
+        role_name = webhook["Role"].rsplit("/", 1)[-1]
+        try:
+            iam().get_role_policy(
+                RoleName=role_name, PolicyName="wecare-download-grants"
+            )
+            print(f"FAIL {role_name} still grants the webhook grants-table write access")
+            failures += 1
+        except iam().exceptions.NoSuchEntityException:
+            print(f"PASS {role_name} cannot write grants")
+
+        # It does still need to forward the order id.
+        try:
+            iam().get_role_policy(
+                RoleName=role_name, PolicyName="wecare-invoke-secure-files"
+            )
+            print("PASS webhook may invoke secure-files")
+        except iam().exceptions.NoSuchEntityException:
+            print("FAIL webhook cannot invoke secure-files - confirmations will not land")
             failures += 1
     except client.exceptions.ResourceNotFoundException:
         print(f"FAIL {WEBHOOK_FUNCTION} missing")

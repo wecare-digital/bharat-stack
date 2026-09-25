@@ -76,22 +76,48 @@ So they stay, deliberately, as a documented fallback rather than an accident. If
 ever removed, a replacement recovery path has to exist first.
 
 Entitlement is never taken from the browser. Razorpay Checkout's success callback is
-forgeable, so it only stops the spinner. `paid` is set by one of two server paths:
+forgeable, so it only stops the spinner.
 
-1. the webhook at `POST /razorpay-webhook`, after fail-closed HMAC verification;
-2. a fallback that asks Razorpay directly (`GET /v1/orders/{id}/payments`) when a
-   redeem finds the grant unpaid.
+### Razorpay's API is the only thing that can set `paid`
+
+Changed 2026-09-25. Previously the webhook set `paid` itself, treating a valid HMAC
+signature as proof of payment. That was sound in principle and unsound here: the webhook
+secret is present in this repository's **public** git history, so anyone who read it could
+forge a `payment.captured` event and mint a free download.
+
+Rotating the secret would close that. Taking the secret out of the decision closes it
+without depending on a rotation, and does not reopen if the secret leaks again. So:
+
+| Component | May assert | May write `paid` |
+|---|---|---|
+| Browser / Checkout callback | nothing | no |
+| Webhook (`POST /razorpay-webhook`) | "order X changed" | **no** |
+| `secure-files._confirm_with_razorpay` | — | **yes, only here** |
+
+The webhook forwards **only** an `orderId` to `wecare-secure-files:live` as
+`internalAction: confirmAndDeliver`. It cannot name a file, a recipient or an amount;
+those are read from the grant this system wrote at order-creation time.
+`_confirm_with_razorpay` then calls `GET /v1/orders/{id}/payments` and writes `paid` only
+if Razorpay reports a captured payment. A forged event gets the same answer as not paying.
+
+Enforced at the IAM layer too: `wecare-digital-lambda-role` no longer has
+`dynamodb:UpdateItem` on the grants table, so even a future code regression could not
+perform the write. `provision_secure_files_api.py --verify` asserts that absence.
 
 Only `captured` counts. `authorized` means the money is held but not taken, and
 granting on it would hand over the file for a payment that can still fail.
 
+**The trade is availability for integrity.** If Razorpay's API is unreachable, a real
+payment is not granted immediately. That is recoverable — `reconcile_file_deliveries.py`
+re-runs the same path — whereas a forged grant is not, because the file has already left.
+
 Redemption is a conditional write on `paid = true AND consumed = false`, so a
 forwarded link is dead on second use and two concurrent requests cannot both win. The
-webhook's own write requires `paid = false`, so a replayed webhook cannot revive a
-spent grant.
+grant write requires `paid = false`, so a replayed capture cannot revive a spent grant.
 
-If the fallback ever fires, it records `paidVia=reconcile` and logs
-`WEBHOOK_MAY_NOT_BE_SUBSCRIBED`. That is the signal the webhook is not doing its job.
+Both callers of the single writer record provenance: `paidVia=webhook` when the hint
+arrived, `paidVia=reconcile` when the sweep got there first. The latter also logs
+`WEBHOOK_MAY_NOT_BE_SUBSCRIBED`, which is the signal the webhook is not doing its job.
 
 ## Two Cognito pools, deliberately separate
 
@@ -130,9 +156,9 @@ it is absent from the Lambda runtime, and the Orders API is a single POST.
 
 | Resource | Value |
 |---|---|
-| `wecare-secure-files` | live **v4**, python3.12 |
-| `wecare-customer-whatsapp-auth` | live **v3** |
-| `wecare-razorpay-webhook` | live **v33** |
+| `wecare-secure-files` | live **v13**, python3.12 |
+| `wecare-customer-whatsapp-auth` | live **v9** |
+| `wecare-razorpay-webhook` | live **v36** |
 | `wecare-get-miss-redirect` | **v4**, origin-response. No `live` alias — Lambda@Edge associates by version |
 | `SecureFilesTable` | ACTIVE, GSI `owner-created-index` |
 | `DownloadGrantsTable` | ACTIVE, GSI `order-index`, TTL on `expiresAt` |
@@ -145,7 +171,12 @@ it is absent from the Lambda runtime, and the Orders API is a single POST.
     python scripts/provision_secure_files_api.py --verify        # lambda, routes, flag
     python scripts/provision_secure_file_sharing.py --verify     # tables, GSIs, TTL
     python scripts/provision_customer_whatsapp_auth.py --verify  # pool, client, triggers
-    python -m pytest tests/test_secure_files.py                  # 34 invariants
+    python -m pytest tests/test_secure_files.py                  # 72 invariants
+
+`provision_customer_whatsapp_auth.py --verify` checks the env on the **`live` alias**, not
+`$LATEST`. The three Cognito triggers invoke the alias, so a published version freezes the
+config a caller actually sees and `update_function_configuration` alone changes nothing.
+It reported "verified" once against a stale alias; it now fails and names the fix.
 
 ## Enabling paid downloads
 
@@ -261,7 +292,8 @@ budget instead.
 |---|---|---|
 | Paid downloads | ⚠️ **DISABLED** | `SECURE_FILES_PAYMENT_ENABLED=false`. Owner action; enabling payment capture is outside agent authority, and so is making it default-on |
 | `verified -> list files` hop | ⏳ **UNPROVEN** | Needs a customer token, which needs the OTP from the handset. The handler deliberately never logs the code, so this cannot be closed from the code side |
-| `payment.captured` subscription | ⏳ **UNCONFIRMED** | Dashboard-only. Materially de-risked: the reconcile fallback turns a missing subscription into a delay rather than a stranded payment. 316 webhook events were received 2026-09-24/25 and every one was `payment.downtime.*`, but `PaymentsTable` is empty, so no payment has ever been captured here and the absence proves nothing either way |
+| `payment.captured` subscription | ➖ **NO LONGER LOAD-BEARING** | Was ⏳ UNCONFIRMED. The webhook is now only a hint, so whether the subscription exists changes *latency*, not *entitlement* — a missing subscription means the reconcile sweep grants instead of the webhook. 316 webhook events were received 2026-09-24/25 and every one was `payment.downtime.*` |
+| Webhook secret in public git history | ➖ **NEUTRALISED, not removed** | Still in history (69 blobs). It can no longer grant anything: signature verification is not entitlement. The history itself is unchanged — that needs a rewrite, which the owner has deferred |
 | Test leftovers | ➖ **INTENTIONAL** | A QA Cognito customer (`+918100640044`) and two seeded files. Harmless, useful for testing, removable on request |
 
 ## Four things that are easy to misread

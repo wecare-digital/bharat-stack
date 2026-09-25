@@ -199,14 +199,251 @@ def test_redeem_requires_paid_and_unconsumed():
     assert "ConditionalCheckFailedException" in source
 
 
-def test_webhook_grant_refuses_to_revive_a_spent_grant():
-    source = (
-        ROOT / "amplify/functions/payments/razorpay-webhook/handler.py"
-    ).read_text()
-    assert "_mark_download_grant_paid" in source
-    assert "secure_file_download" in source
-    # replay protection: only flips a grant that is still unpaid
-    assert "attribute_exists(grantId) AND paid = :false" in source
+WEBHOOK_SOURCE = (
+    ROOT / "amplify/functions/payments/razorpay-webhook/handler.py"
+).read_text()
+
+
+def test_webhook_cannot_grant_anything():
+    """A valid webhook signature must not be proof of payment.
+
+    The webhook secret that authenticates these callbacks is in this repository's public
+    git history. While the webhook could flip a grant to ``paid`` itself, anyone who read
+    that history could forge a ``payment.captured`` event and mint a free download.
+
+    Rotation would close that hole. Removing the secret from the decision closes it
+    without depending on a rotation ever happening, which is why the webhook now writes
+    nothing: it forwards an order id and `secure-files` asks Razorpay.
+
+    So this asserts an absence, and absences are what regress silently.
+    """
+    assert "secure_file_download" in WEBHOOK_SOURCE
+    assert "_dispatch_download_grant_confirmation" in WEBHOOK_SOURCE
+
+    # The old writer is gone, not merely unreferenced.
+    assert "_mark_download_grant_paid" not in WEBHOOK_SOURCE
+
+    # No write to the grants table survives anywhere in the webhook.
+    assert "DOWNLOAD_GRANTS_TABLE" not in WEBHOOK_SOURCE
+    assert "paid = :true" not in WEBHOOK_SOURCE
+    assert "'paid': True" not in WEBHOOK_SOURCE
+    assert '"paid": True' not in WEBHOOK_SOURCE
+
+
+def test_webhook_forwards_only_the_order_id():
+    """The webhook may not name a file, a recipient, or an amount.
+
+    Everything else is re-derived from the grant this system wrote, so there is no field
+    an attacker can populate to influence what gets sent or to whom. Pinning the payload
+    shape is the cheap way to keep it that way: adding `amount` here "for convenience"
+    would hand a forger a way to set the price.
+    """
+    body = WEBHOOK_SOURCE.split("def _dispatch_download_grant_confirmation", 1)[1]
+    body = body.split("\ndef ", 1)[0]
+
+    assert "'internalAction': 'confirmAndDeliver'" in body
+    assert "'orderId': order_id" in body
+    for forbidden in ("payment_id", "amount_paise", "notes", "contact", "grantId"):
+        assert forbidden not in body, f"{forbidden} must not travel with the hint"
+
+
+def test_redeem_replay_protection_lives_in_secure_files():
+    """The condition that stops a replayed payment reviving a spent grant moved here.
+
+    It used to sit in the webhook. It has to still exist somewhere, or removing it from
+    the webhook would have quietly deleted the replay protection along with the write.
+    """
+    source = (FUNC_DIR / "handler.py").read_text()
+    assert source.count("attribute_exists(grantId) AND paid = :false") >= 1
+
+
+# ── Razorpay's API is the only thing that can grant ───────────────────────────
+
+class _RecordingTable:
+    """Minimal grants table that records writes instead of performing them."""
+
+    def __init__(self, item=None, by_order=None):
+        self._item = item
+        self._by_order = by_order if by_order is not None else ([item] if item else [])
+        self.updates = []
+
+    def get_item(self, Key):  # noqa: N803 - boto3 casing
+        return {"Item": self._item} if self._item else {}
+
+    def query(self, **_kwargs):
+        return {"Items": list(self._by_order)}
+
+    def update_item(self, **kwargs):
+        self.updates.append(kwargs)
+        return {}
+
+
+def _grant(**over):
+    base = {
+        "grantId": "g1",
+        "orderId": "order_ABC",
+        "fileId": "f1",
+        "ownerPhone": "918100640044",
+        "paid": False,
+        "consumed": False,
+        "channel": "web",
+    }
+    base.update(over)
+    return base
+
+
+def _stub_razorpay(monkeypatch, *, paid, payment_id="pay_1", amount=4900):
+    fake = type(sys)("razorpay_orders")
+    fake.order_is_paid = lambda order_id: (paid, payment_id, amount)
+    monkeypatch.setitem(sys.modules, "razorpay_orders", fake)
+    return fake
+
+
+def test_forged_webhook_grants_nothing(mod, monkeypatch):
+    """The whole point of the redesign.
+
+    An attacker holding the leaked webhook secret can produce a perfectly signed
+    `payment.captured` for a real order id. They reach exactly here, Razorpay is asked,
+    Razorpay says no captured payment, and no grant is written.
+    """
+    monkeypatch.setenv("SECURE_FILES_PAYMENT_ENABLED", "true")
+    table = _RecordingTable(_grant())
+    monkeypatch.setattr(mod, "_table", lambda _name: table)
+    _stub_razorpay(monkeypatch, paid=False)
+
+    ok, detail = mod.confirm_and_deliver("order_ABC")
+
+    assert ok is False
+    assert "no captured payment" in detail
+    assert table.updates == [], "a forged event must not write to the grants table"
+
+
+def test_real_payment_grants_and_records_the_amount_razorpay_reported(mod, monkeypatch):
+    """The amount written is Razorpay's, never the caller's."""
+    monkeypatch.setenv("SECURE_FILES_PAYMENT_ENABLED", "true")
+    table = _RecordingTable(_grant())
+    monkeypatch.setattr(mod, "_table", lambda _name: table)
+    _stub_razorpay(monkeypatch, paid=True, payment_id="pay_real", amount=4900)
+
+    ok, detail = mod.confirm_and_deliver("order_ABC")
+
+    assert ok is True
+    assert detail == "confirmed; web channel collects by redeem"
+    assert len(table.updates) == 1
+    values = table.updates[0]["ExpressionAttributeValues"]
+    assert values[":pid"] == "pay_real"
+    assert values[":amt"] == 4900
+    assert values[":via"] == "webhook"
+    # replay protection travels with the write
+    assert "paid = :false" in table.updates[0]["ConditionExpression"]
+
+
+def test_confirmation_is_inert_while_payments_are_disabled(mod, monkeypatch):
+    monkeypatch.delenv("SECURE_FILES_PAYMENT_ENABLED", raising=False)
+    table = _RecordingTable(_grant())
+    monkeypatch.setattr(mod, "_table", lambda _name: table)
+
+    def explode(*_a, **_k):  # pragma: no cover - must not be reached
+        raise AssertionError("Razorpay must not be contacted while payment is disabled")
+
+    fake = type(sys)("razorpay_orders")
+    fake.order_is_paid = explode
+    monkeypatch.setitem(sys.modules, "razorpay_orders", fake)
+
+    ok, detail = mod.confirm_and_deliver("order_ABC")
+    assert ok is False
+    assert detail == "payments disabled"
+    assert table.updates == []
+
+
+def test_a_consumed_grant_cannot_be_reconfirmed(mod, monkeypatch):
+    """Single-use means single-use. Replaying a real capture must not re-arm a spent
+    grant, because the file has already been delivered once."""
+    monkeypatch.setenv("SECURE_FILES_PAYMENT_ENABLED", "true")
+    table = _RecordingTable(_grant(consumed=True))
+    monkeypatch.setattr(mod, "_table", lambda _name: table)
+    _stub_razorpay(monkeypatch, paid=True)
+
+    ok, detail = mod.confirm_and_deliver("order_ABC")
+    assert ok is False
+    assert "consumed" in detail
+    assert table.updates == []
+
+
+def test_an_unknown_order_grants_nothing(mod, monkeypatch):
+    """What a forged event for an invented order id looks like."""
+    monkeypatch.setenv("SECURE_FILES_PAYMENT_ENABLED", "true")
+    table = _RecordingTable(None, by_order=[])
+    monkeypatch.setattr(mod, "_table", lambda _name: table)
+    _stub_razorpay(monkeypatch, paid=True)
+
+    ok, detail = mod.confirm_and_deliver("order_NOPE")
+    assert ok is False
+    assert "no grant for that order" in detail
+    assert table.updates == []
+
+
+def test_unreachable_razorpay_fails_closed(mod, monkeypatch):
+    """Integrity over availability. A real payment is recoverable by the reconcile
+    sweep; a grant handed out on an unverified claim is not, because the file is gone."""
+    monkeypatch.setenv("SECURE_FILES_PAYMENT_ENABLED", "true")
+    table = _RecordingTable(_grant())
+    monkeypatch.setattr(mod, "_table", lambda _name: table)
+
+    fake = type(sys)("razorpay_orders")
+
+    def boom(_order_id):
+        raise RuntimeError("connection reset")
+
+    fake.order_is_paid = boom
+    monkeypatch.setitem(sys.modules, "razorpay_orders", fake)
+
+    ok, detail = mod.confirm_and_deliver("order_ABC")
+    assert ok is False
+    assert "could not reach Razorpay" in detail
+    assert table.updates == []
+
+
+def test_confirm_with_razorpay_is_the_only_writer_of_paid(mod):
+    """If a second writer appears, the guarantee is gone and nothing else would notice.
+
+    `paid = :true` may appear exactly once in the whole function, inside
+    `_confirm_with_razorpay`. The reconcile path deliberately delegates here rather than
+    keeping its own copy, which is what this catches if someone re-inlines it.
+    """
+    source = (FUNC_DIR / "handler.py").read_text()
+    assert source.count("paid = :true, paymentId") == 1
+
+    body = source.split("def _confirm_with_razorpay", 1)[1].split("\ndef ", 1)[0]
+    assert "paid = :true, paymentId" in body, "the one writer must be _confirm_with_razorpay"
+
+    # the reconcile path delegates rather than duplicating
+    reconcile = source.split("def _reconcile_grant", 1)[1].split("\ndef ", 1)[0]
+    assert "_confirm_with_razorpay(grant, via=\"reconcile\")" in reconcile
+    assert "paid = :true" not in reconcile
+
+
+def test_internal_actions_are_unreachable_over_http(mod):
+    """Both internal branches must require the absence of requestContext.
+
+    API Gateway always supplies one, so this is what keeps `confirmAndDeliver` off the
+    public internet. Without it, anyone could POST a confirmation for any order.
+    """
+    source = (FUNC_DIR / "handler.py").read_text()
+    for action in ("deliverOverWhatsApp", "confirmAndDeliver"):
+        needle = (
+            f'if event.get("internalAction") == "{action}" '
+            'and not event.get("requestContext"):'
+        )
+        assert needle in source, f"{action} branch must be gated on requestContext"
+
+
+def test_confirm_and_deliver_takes_no_recipient_or_file(mod):
+    """Its whole signature is the security argument: one order id, nothing else."""
+    import inspect
+
+    params = list(inspect.signature(mod.confirm_and_deliver).parameters)
+    assert params == ["order_id"]
 
 
 def test_order_creation_reads_the_api_secret_not_the_webhook_secret():
@@ -495,10 +732,14 @@ def test_reconcile_cannot_replay_a_spent_grant():
     body = source.split("def _reconcile_grant")[1].split("\ndef ")[0]
     assert 'grant.get("consumed")' in body
     assert "return False" in body
-    # it writes paid through the same guard the webhook uses
-    assert 'ConditionExpression="attribute_exists(grantId) AND paid = :false"' in body
-    # and it is inert while payments are off
+    # it is inert while payments are off
     assert "_payment_enabled()" in body
+    # It no longer writes `paid` itself. It delegates to the single writer, which carries
+    # the conditional guard - asserted in
+    # test_confirm_with_razorpay_is_the_only_writer_of_paid. Keeping a second copy of the
+    # write here is exactly what that test forbids.
+    assert "_confirm_with_razorpay(" in body
+    assert "paid = :true" not in body
 
 
 def test_reconcile_verifies_ownership_before_paying():
@@ -520,7 +761,11 @@ def test_reconciliation_is_flagged_in_logs_for_visibility():
     findable rather than silent."""
     source = (FUNC_DIR / "handler.py").read_text()
     assert "WEBHOOK_MAY_NOT_BE_SUBSCRIBED" in source
-    assert '":via": "reconcile"' in source
+    # provenance is now an argument to the shared writer rather than an inline literal,
+    # so both callers record which path granted without duplicating the write
+    assert 'via="reconcile"' in source
+    assert 'via: str = "webhook"' in source
+    assert '":via": via' in source
 
 
 # ── the u/ and d/ split ───────────────────────────────────────────────────────
@@ -673,14 +918,21 @@ def test_internal_dispatch_is_unreachable_over_http():
     assert '"deliverOverWhatsApp"' in source
 
 
-def test_only_the_verified_webhook_triggers_delivery():
-    source = (
-        ROOT / "amplify/functions/payments/razorpay-webhook/handler.py"
-    ).read_text()
-    assert "deliverOverWhatsApp" in source
-    assert "'channel') == 'whatsapp'" in source
-    # async so a slow send cannot make Razorpay retry the whole webhook
-    assert "'Event'" in source
+def test_the_webhook_cannot_trigger_a_send_directly():
+    """Delivery is no longer the webhook's decision.
+
+    It used to read the grant, see `channel == 'whatsapp'`, and dispatch the send itself.
+    That put two trusted judgements in the webhook: whether payment happened, and who to
+    send to. Both now live in `secure-files`, downstream of a Razorpay API confirmation,
+    so the webhook cannot cause a file to be sent to anyone.
+    """
+    assert "deliverOverWhatsApp" not in WEBHOOK_SOURCE
+    assert "channel" not in WEBHOOK_SOURCE.split(
+        "def _dispatch_download_grant_confirmation", 1
+    )[1].split("\ndef ", 1)[0]
+    # still async, so a slow confirmation cannot make Razorpay retry the whole webhook
+    assert "'confirmAndDeliver'" in WEBHOOK_SOURCE
+    assert "'Event'" in WEBHOOK_SOURCE
 
 
 def test_media_source_buckets_are_an_allowlist():

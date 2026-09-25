@@ -692,6 +692,118 @@ def _create_order(file_id: str, identity: Dict[str, Any], origin: str) -> Dict[s
     )
 
 
+def _confirm_with_razorpay(grant: Dict[str, Any], via: str = "webhook") -> Tuple[bool, str]:
+    """Ask Razorpay whether this grant's order really has a captured payment.
+
+    THIS is what makes the webhook secret worthless to an attacker.
+
+    Previously a signature-verified webhook set ``paid`` directly, so anyone holding the
+    webhook secret - which is readable from this repository's public git history - could
+    forge a ``payment.captured`` event and mint themselves a free download. Rotating the
+    secret would fix that; so does removing the secret from the decision entirely, and
+    that fix does not expire.
+
+    Razorpay's API is now the only thing that can mark a grant paid. A forged webhook
+    reaches this function and is answered "no captured payment", which is the same answer
+    an attacker gets by not paying at all.
+
+    The trade is availability for integrity: if Razorpay's API is unreachable a real
+    payment is not granted immediately. That is recoverable -
+    ``scripts/reconcile_file_deliveries.py`` re-runs this path - whereas a forged grant
+    is not recoverable, because the file has already left.
+
+    Only ``captured`` counts. ``authorized`` is money held, not taken.
+
+    ``via`` is recorded on the grant purely as an operational signal. ``reconcile`` means
+    the sweep got there before the webhook did, which is worth noticing because it
+    usually means the webhook subscription is broken.
+    """
+    if not _payment_enabled():
+        return False, "payments disabled"
+
+    order_id = str(grant.get("orderId") or "")
+    if not order_id:
+        return False, "grant has no orderId"
+    if grant.get("consumed"):
+        return False, "grant already consumed"
+
+    try:
+        from razorpay_orders import order_is_paid
+
+        paid, payment_id, amount_paise = order_is_paid(order_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            json.dumps({"event": "razorpay_confirm_failed", "error": type(exc).__name__})
+        )
+        return False, "could not reach Razorpay"
+
+    if not paid:
+        # Either not paid yet, or a forged event. Indistinguishable here, and it does not
+        # matter: both mean "do not grant".
+        return False, "no captured payment for this order"
+
+    try:
+        _table(GRANTS_TABLE).update_item(
+            Key={"grantId": grant["grantId"]},
+            UpdateExpression=(
+                "SET paid = :true, paymentId = :pid, paidAmountPaise = :amt, "
+                "paidAt = :now, paidVia = :via"
+            ),
+            ConditionExpression="attribute_exists(grantId) AND paid = :false",
+            ExpressionAttributeValues={
+                ":true": True,
+                ":false": False,
+                ":pid": payment_id,
+                ":amt": int(amount_paise),
+                ":now": int(time.time()),
+                ":via": via,
+            },
+        )
+    except ClientError:
+        # Already paid by a concurrent run. That is success, not failure.
+        pass
+    return True, payment_id
+
+
+def confirm_and_deliver(order_id: str) -> Tuple[bool, str]:
+    """Confirm a payment with Razorpay and, if real, deliver the file.
+
+    Entry point for the webhook. It is given only an order id, so there is no way for a
+    caller to name a file or a recipient - everything else is looked up from the grant
+    that this system wrote when it created the order.
+    """
+    found = _table(GRANTS_TABLE).query(
+        IndexName="order-index",
+        KeyConditionExpression="orderId = :o",
+        ExpressionAttributeValues={":o": order_id},
+        Limit=1,
+    ).get("Items") or []
+    if not found:
+        # Expected when a grant expired via TTL before payment completed, and also what a
+        # forged event for an unknown order looks like.
+        return False, "no grant for that order"
+
+    grant = found[0]
+    if not grant.get("paid"):
+        ok, detail = _confirm_with_razorpay(grant)
+        if not ok:
+            logger.warning(
+                json.dumps(
+                    {
+                        "event": "payment_not_confirmed",
+                        "alert": "WEBHOOK_CLAIM_UNVERIFIED",
+                        "orderId": order_id,
+                        "detail": detail,
+                    }
+                )
+            )
+            return False, detail
+
+    if grant.get("channel") != "whatsapp":
+        return True, "confirmed; web channel collects by redeem"
+    return deliver_over_whatsapp(str(grant["grantId"]))
+
+
 def _reconcile_grant(grant_id: str, file_id: str, identity: Dict[str, Any]) -> bool:
     """Mark an unpaid grant paid if Razorpay says the order was actually captured.
 
@@ -700,8 +812,9 @@ def _reconcile_grant(grant_id: str, file_id: str, identity: Dict[str, Any]) -> b
     a captured payment.
 
     Deliberately narrow. It refuses to touch a grant that is already ``consumed``, so
-    it cannot be used to replay a spent download, and it writes ``paid`` through the
-    same conditional guard the webhook uses.
+    it cannot be used to replay a spent download. The ownership checks live here; the
+    actual payment decision and the write are delegated to ``_confirm_with_razorpay``,
+    which is the only function in this system that may set ``paid``.
     """
     if not _payment_enabled():
         return False
@@ -720,44 +833,9 @@ def _reconcile_grant(grant_id: str, file_id: str, identity: Dict[str, Any]) -> b
         # Already paid but the redeem still failed, so the cause was something else.
         return False
 
-    order_id = str(grant.get("orderId") or "")
-    if not order_id:
+    ok, _detail = _confirm_with_razorpay(grant, via="reconcile")
+    if not ok:
         return False
-
-    try:
-        from razorpay_orders import order_is_paid
-
-        paid, payment_id, amount_paise = order_is_paid(order_id)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(
-            json.dumps({"event": "grant_reconcile_failed", "error": type(exc).__name__})
-        )
-        return False
-
-    if not paid:
-        return False
-
-    try:
-        table.update_item(
-            Key={"grantId": grant_id},
-            UpdateExpression=(
-                "SET paid = :true, paymentId = :pid, paidAmountPaise = :amt, "
-                "paidAt = :now, paidVia = :via"
-            ),
-            ConditionExpression="attribute_exists(grantId) AND paid = :false",
-            ExpressionAttributeValues={
-                ":true": True,
-                ":false": False,
-                ":pid": payment_id,
-                ":amt": int(amount_paise),
-                ":now": int(time.time()),
-                # Recorded so it is visible when the webhook is not doing its job.
-                ":via": "reconcile",
-            },
-        )
-    except ClientError:
-        # Lost a race with the webhook. That is a success, not a failure.
-        pass
 
     logger.info(
         json.dumps(
@@ -765,7 +843,6 @@ def _reconcile_grant(grant_id: str, file_id: str, identity: Dict[str, Any]) -> b
                 "event": "grant_reconciled_from_razorpay",
                 "alert": "WEBHOOK_MAY_NOT_BE_SUBSCRIBED",
                 "fileId": file_id,
-                "amountPaise": int(amount_paise),
             }
         )
     )
@@ -1089,6 +1166,19 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         ok, detail = deliver_over_whatsapp(grant_id) if grant_id else (False, "no grantId")
         logger.info(
             json.dumps({"event": "whatsapp_delivery_result", "ok": ok, "detail": detail})
+        )
+        return {"ok": ok, "detail": detail}
+
+    # The webhook's only route in. It may assert that an order changed, and nothing more:
+    # it cannot say who paid, how much, or which file to send. Those all come from the
+    # grant this system wrote, and whether money actually moved comes from Razorpay's API.
+    # So a forged event - including one signed with the webhook secret that sits in this
+    # repository's public git history - ends at "no captured payment".
+    if event.get("internalAction") == "confirmAndDeliver" and not event.get("requestContext"):
+        order_id = str(event.get("orderId") or "")
+        ok, detail = confirm_and_deliver(order_id) if order_id else (False, "no orderId")
+        logger.info(
+            json.dumps({"event": "confirm_and_deliver_result", "ok": ok, "detail": detail})
         )
         return {"ok": ok, "detail": detail}
 

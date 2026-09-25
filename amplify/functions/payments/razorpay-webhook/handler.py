@@ -396,92 +396,48 @@ def _is_duplicate_event(razorpay_event_id: str, request_id: str) -> bool:
 # SECURE FILE DOWNLOAD GRANTS
 # ═══════════════════════════════════════════════════════════════════
 
-DOWNLOAD_GRANTS_TABLE = os.environ.get(
-    'DOWNLOAD_GRANTS_TABLE', 'stack-wecare-digital-DownloadGrantsTable')
+def _dispatch_download_grant_confirmation(order_id: str, request_id: str) -> None:
+    """Tell `secure-files` that an order may have been paid. Grant nothing.
 
+    This function used to flip the grant to `paid` itself, treating a valid webhook
+    signature as proof of payment. It no longer writes to the grants table at all, and
+    that is the entire point.
 
-def _mark_download_grant_paid(order_id: str, payment_id: str, amount_paise: int,
-                              request_id: str) -> None:
-    """Flip a pending download grant to paid, found by its Razorpay order id.
+    The webhook secret used to verify these callbacks is present in this repository's
+    public git history. While a signature was proof of payment, anyone who read that
+    history could forge a `payment.captured` event and mint a free download. Rotating
+    the secret would close that; taking the secret out of the decision closes it
+    permanently, and does not depend on a rotation ever happening.
 
-    The grant is written at order-creation time with `paid: False`; this is the only
-    writer that sets it True, so `secure-files` can treat `paid` as proof of a
-    signature-verified capture.
+    So the webhook is demoted to a hint. All it may assert is "order X changed" - it
+    cannot name a file, a recipient, or an amount, because those are read from the grant
+    this system wrote at order-creation time. Whether money actually moved is then
+    answered by Razorpay's own API inside `secure-files._confirm_with_razorpay`, which
+    is now the only writer of `paid` anywhere in the system.
 
-    Two deliberate choices:
+    A forged event therefore produces exactly one outcome: an API call to Razorpay that
+    reports no captured payment, and no grant.
 
-    * The condition requires `paid = False`, so a replayed webhook cannot revive a
-      grant that was already spent and reset `consumed`. Redemption is a separate
-      conditional update in `secure-files`; this one only ever flips paid.
-    * The amount is recorded but NOT enforced here. Refusing a mismatched amount at
-      this point would leave the customer charged with no entitlement and no way to
-      self-recover. It is stored so a reconciliation job can find underpayments,
-      which is the right place to act on them.
+    Fire-and-forget on purpose. Razorpay retries on a non-2xx, and this webhook has
+    other work to do; a dispatch failure is recoverable by
+    `scripts/reconcile_file_deliveries.py`, which re-runs the same confirmation path.
     """
-    import time as _time
     try:
-        # reuse the module-level resource rather than building another client
-        table = dynamodb.Table(DOWNLOAD_GRANTS_TABLE)
-        found = table.query(
-            IndexName='order-index',
-            KeyConditionExpression='orderId = :o',
-            ExpressionAttributeValues={':o': order_id},
-            Limit=1,
-        ).get('Items') or []
-
-        if not found:
-            # Not an error worth failing the webhook: the grant may have expired via
-            # TTL before the customer completed payment.
-            logger.warning(json.dumps({
-                'event': 'download_grant_not_found', 'orderId': order_id,
-                'paymentId': payment_id, 'requestId': request_id}))
-            return
-
-        grant_id = found[0]['grantId']
-        table.update_item(
-            Key={'grantId': grant_id},
-            UpdateExpression=('SET paid = :true, paymentId = :pid, '
-                              'paidAmountPaise = :amt, paidAt = :now'),
-            ConditionExpression='attribute_exists(grantId) AND paid = :false',
-            ExpressionAttributeValues={
-                ':true': True, ':false': False, ':pid': payment_id,
-                ':amt': int(amount_paise), ':now': int(_time.time()),
-            },
+        lambda_client.invoke(
+            FunctionName='wecare-secure-files:live',
+            InvocationType='Event',
+            Payload=json.dumps({
+                'internalAction': 'confirmAndDeliver',
+                'orderId': order_id,
+            }).encode('utf-8'),
         )
         logger.info(json.dumps({
-            'event': 'download_grant_paid', 'grantId': grant_id, 'orderId': order_id,
-            'paymentId': payment_id, 'amountPaise': int(amount_paise),
+            'event': 'download_grant_confirmation_dispatched', 'orderId': order_id,
             'requestId': request_id}))
-
-        # Deliver on WhatsApp if the grant was created from that channel. This is the
-        # ONLY place delivery is triggered, and it is downstream of the signature
-        # check, so a forged callback cannot cause a send.
-        #
-        # Failure here must not fail the webhook: the payment is real and already
-        # recorded, and Razorpay retries on a non-2xx, which would re-run everything
-        # above. The customer can still collect on the web, so a failed send is logged
-        # for follow-up rather than escalated.
-        if found[0].get('channel') == 'whatsapp':
-            try:
-                lambda_client.invoke(
-                    FunctionName='wecare-secure-files:live',
-                    InvocationType='Event',  # fire and forget; the webhook must return fast
-                    Payload=json.dumps({
-                        'internalAction': 'deliverOverWhatsApp',
-                        'grantId': grant_id,
-                    }).encode('utf-8'),
-                )
-                logger.info(json.dumps({
-                    'event': 'whatsapp_delivery_dispatched', 'grantId': grant_id,
-                    'requestId': request_id}))
-            except Exception as exc:  # noqa: BLE001
-                logger.error(json.dumps({
-                    'event': 'whatsapp_delivery_dispatch_failed', 'grantId': grant_id,
-                    'error': type(exc).__name__, 'requestId': request_id}))
     except Exception as exc:  # noqa: BLE001
         # Type only. A ClientError message can echo request content.
         logger.error(json.dumps({
-            'event': 'download_grant_update_failed', 'orderId': order_id,
+            'event': 'download_grant_confirmation_dispatch_failed', 'orderId': order_id,
             'error': type(exc).__name__, 'requestId': request_id}))
 
 
@@ -518,15 +474,15 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                                      'paymentId': payment_id, 'requestId': request_id}))
         return
 
-    # Paid secure-file download (wecare.digital/get/secure): mark the pending grant
-    # paid and stop. Not an invoice payment, so it must not fall through below.
+    # Paid secure-file download (wecare.digital/get): hand the order id to secure-files
+    # and stop. Not an invoice payment, so it must not fall through below.
     #
-    # THIS is the only place a download becomes payable-for. The browser's Razorpay
-    # success callback is never trusted, because anyone can POST one; entitlement
-    # requires arriving here, which requires a valid signature (verified fail-closed
-    # in `handler` before dispatch).
+    # Note what is NOT passed: payment_id, amount, contact, notes. Nothing this event
+    # claims is carried forward, because nothing this event claims is trusted. Only the
+    # order id travels, and secure-files re-derives everything else from the grant and
+    # from Razorpay's API.
     if (notes or {}).get('purpose') == 'secure_file_download' and order_id:
-        _mark_download_grant_paid(order_id, payment_id, amount_paise, request_id)
+        _dispatch_download_grant_confirmation(order_id, request_id)
         return
 
     # Try to find referenceId from multiple locations in Razorpay notes

@@ -48,6 +48,17 @@ OTP_TEMPLATE_LANGUAGE = "en"
 OTP_TTL_SECONDS = "600"
 MAX_ATTEMPTS = "3"
 
+# Enumeration budget for the unregistered-number reveal. This function answers an
+# unknown number with registered="false" so the caller is not left at a dead end, which
+# makes the pool enumerable; the budget is what bounds that.
+#
+# These two keys were originally provisioned onto wecare-secure-files, which reads
+# neither of them - the code that does is in this function. Behaviour was correct anyway
+# because the values matched the in-code defaults exactly, so the mistake was invisible:
+# tuning the numbers on secure-files would have changed nothing at all.
+OTP_PROBE_MAX_PER_WINDOW = "5"
+OTP_PROBE_WINDOW_SECONDS = "3600"
+
 EXPECTED_ADMIN_POOL_ID = "us-east-1_cSx0RHCIR"
 
 
@@ -210,6 +221,54 @@ def ensure_log_group(dry_run: bool) -> str:
     return "exists; retention verified" if exists else "created"
 
 
+def expected_environment() -> dict:
+    """The env this function must have. One definition, used by create, reconcile and
+    verify, so the three cannot drift apart."""
+    return {
+        "SENDER_FUNCTION": SENDER_FUNCTION,
+        "META_WABA_ID": WABA_ID,
+        "META_PHONE_NUMBER_ID": PHONE_NUMBER_ID,
+        "OTP_TEMPLATE_NAME": OTP_TEMPLATE_NAME,
+        "OTP_TEMPLATE_LANGUAGE": OTP_TEMPLATE_LANGUAGE,
+        "OTP_TTL_SECONDS": OTP_TTL_SECONDS,
+        "MAX_ATTEMPTS": MAX_ATTEMPTS,
+        "OTP_PROBE_MAX_PER_WINDOW": OTP_PROBE_MAX_PER_WINDOW,
+        "OTP_PROBE_WINDOW_SECONDS": OTP_PROBE_WINDOW_SECONDS,
+    }
+
+
+def reconcile_environment(dry_run: bool) -> str:
+    """Apply any missing or stale env keys to an already-created function.
+
+    ``ensure_function`` returns early when the function exists, so it sets env only on
+    first creation. Without this step a key added to ``expected_environment`` after the
+    function was created would ship in the source, pass review, and never reach the live
+    function - which is exactly how the two probe keys came to be absent here while
+    sitting unused on wecare-secure-files.
+
+    Additive only. Keys present on the function but absent from the expected set are left
+    alone, because this function's env is also touched by deploy tooling.
+    """
+    if not function_exists():
+        return "function absent - nothing to reconcile"
+
+    config = lam().get_function_configuration(FunctionName=FUNCTION_NAME)
+    current = dict((config.get("Environment") or {}).get("Variables") or {})
+    wanted = expected_environment()
+    drifted = {k: v for k, v in wanted.items() if current.get(k) != v}
+    if not drifted:
+        return "env already correct"
+    if dry_run:
+        return f"would set {', '.join(sorted(drifted))}"
+
+    current.update(drifted)
+    lam().update_function_configuration(
+        FunctionName=FUNCTION_NAME, Environment={"Variables": current}
+    )
+    lam().get_waiter("function_updated_v2").wait(FunctionName=FUNCTION_NAME)
+    return f"set {', '.join(sorted(drifted))}"
+
+
 def ensure_function(dry_run: bool) -> str:
     if function_exists():
         return "exists"
@@ -241,6 +300,8 @@ def ensure_function(dry_run: bool) -> str:
                         "OTP_TEMPLATE_LANGUAGE": OTP_TEMPLATE_LANGUAGE,
                         "OTP_TTL_SECONDS": OTP_TTL_SECONDS,
                         "MAX_ATTEMPTS": MAX_ATTEMPTS,
+                        "OTP_PROBE_MAX_PER_WINDOW": OTP_PROBE_MAX_PER_WINDOW,
+                        "OTP_PROBE_WINDOW_SECONDS": OTP_PROBE_WINDOW_SECONDS,
                     }
                 },
                 Tags={
@@ -497,17 +558,42 @@ def verify() -> int:
         if lambda_config.get(key) != fn_arn:
             problems.append(f"{key} trigger mismatch")
 
-    env = fn.get("Environment", {}).get("Variables", {})
-    expected_env = {
-        "SENDER_FUNCTION": SENDER_FUNCTION,
-        "META_WABA_ID": WABA_ID,
-        "META_PHONE_NUMBER_ID": PHONE_NUMBER_ID,
-        "OTP_TEMPLATE_NAME": OTP_TEMPLATE_NAME,
-        "OTP_TEMPLATE_LANGUAGE": OTP_TEMPLATE_LANGUAGE,
-    }
-    for key, value in expected_env.items():
-        if env.get(key) != value:
-            problems.append(f"Lambda env {key} mismatch")
+    # Verify the env on the ALIAS, not on $LATEST.
+    #
+    # The three Cognito triggers invoke `...:live`, so the alias is production and
+    # $LATEST is a staging slot nothing calls. A published version freezes its
+    # configuration, env included, which means `update_function_configuration` alone
+    # changes nothing a caller can observe.
+    #
+    # Reading $LATEST here is what this function used to do, and it reported
+    # "customer WhatsApp Cognito auth verified" immediately after a run that set two env
+    # vars the live alias did not have. A verifier that passes while production is stale
+    # is worse than no verifier, because it is the thing you trust instead of looking.
+    alias_version = alias["FunctionVersion"]
+    live_config = lam().get_function_configuration(
+        FunctionName=FUNCTION_NAME, Qualifier=alias_version
+    )
+    live_env = (live_config.get("Environment") or {}).get("Variables") or {}
+    latest_env = fn.get("Environment", {}).get("Variables", {})
+
+    for key, value in expected_environment().items():
+        if live_env.get(key) != value:
+            problems.append(
+                f"Lambda env {key} mismatch on live (v{alias_version}) - "
+                f"publish a version and move the alias"
+            )
+
+    # Called out separately: this is the specific state where the config edit landed but
+    # was never published, which is otherwise invisible.
+    pending = [
+        key for key in expected_environment()
+        if latest_env.get(key) != live_env.get(key)
+    ]
+    if pending:
+        problems.append(
+            f"$LATEST and live (v{alias_version}) disagree on {', '.join(sorted(pending))} "
+            "- an unpublished configuration change"
+        )
 
     client_status, client_id = ensure_client(pool_id, True)
     if client_status == "would create":
@@ -550,16 +636,30 @@ def main(argv=None) -> int:
     print(f"role: {ensure_role(args.dry_run)}")
     print(f"log group: {ensure_log_group(args.dry_run)}")
     print(f"Lambda: {ensure_function(args.dry_run)}")
+    print(f"env: {reconcile_environment(args.dry_run)}")
     print(f"live alias: {ensure_live_alias(args.dry_run)}")
 
     pool_status, pool_id = ensure_pool(args.dry_run)
     print(f"customer pool: {pool_status}")
 
     if args.dry_run:
-        print("triggers: would attach")
-        print("invoke permission: would ensure")
-        print("app client: would create")
-        print("Partner group: would create")
+        # These used to be four hardcoded strings, which made a dry run against a fully
+        # provisioned account report "app client: would create" and "Partner group: would
+        # create". Both already existed. A dry run whose output does not depend on the
+        # account is worse than no dry run: it is the thing you read to decide whether the
+        # real run is safe, and this one said it was about to duplicate a Cognito client.
+        #
+        # The underlying calls are all read-then-act and take a dry_run flag, so they can
+        # report the truth. pool_id is None only when the pool itself is absent, in which
+        # case nothing downstream can be inspected yet.
+        if pool_id:
+            print(f"invoke permission: {ensure_invoke_permission(pool_id, True)}")
+            print(f"triggers: {attach_triggers(pool_id, True)}")
+            client_status, _ = ensure_client(pool_id, True)
+            print(f"app client: {client_status}")
+            print(f"Partner group: {ensure_group(pool_id, True)}")
+        else:
+            print("triggers / client / group: pool absent, cannot inspect yet")
         print("\ndry run: nothing changed")
         return 0
 
