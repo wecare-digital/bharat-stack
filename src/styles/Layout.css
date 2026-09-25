@@ -28,18 +28,67 @@
   padding: 0;
 }
 
-html, body {
-  height: 100%;
+/*
+ * ONE SCROLL CONTAINER, NOT TWO.
+ *
+ * This block used to read `html, body { height: 100%; overflow-y: auto }`, and that pair
+ * of declarations on BOTH elements created two nested scrollers. body was capped at one
+ * viewport by `height: 100%` while its content was two or three times that, so the page
+ * scrolled INSIDE body - and html kept a separate leftover scroll range stacked on top of
+ * it. That leftover range contains nothing.
+ *
+ * WHAT IT DID, MEASURED ON THE HOME PAGE. Scroll to the end and you travel through body's
+ * range, then through html's, and html's range is empty space:
+ *
+ *   320x568   html scrolled 623px past the end  ->  footer pushed off the TOP of the
+ *                                                   screen, 623px of blank white below it
+ *   390x844   html scrolled 196px past the end  ->  196px of blank white below the footer
+ *   1440x900  html range happened to be 0px     ->  correct, by luck of the height
+ *
+ * Desktop escaped it only because html's leftover range computes to 0 at 900px tall, which
+ * is why this survived review: the widths people develop at were the widths it worked on.
+ *
+ * TWO SIDE EFFECTS, both now fixed by the same change. The End and Home keys did nothing
+ * on any device, because they scroll the document and the document was not where the
+ * content lived. And `window.scrollY` was permanently 0 on desktop, so any scroll-driven
+ * behaviour added later would have silently never fired - a trap for the next person
+ * rather than a bug for this one.
+ *
+ * DO NOT PUT `overflow-x: hidden` BACK ON body. Per spec, when one axis is `hidden` the
+ * other computes from `visible` to `auto` - so that single declaration is enough to make
+ * body a scroll container again all by itself, and the two-scroller bug returns with no
+ * mention of `height` anywhere. The horizontal guard belongs on html alone, where the same
+ * computation is what correctly makes the DOCUMENT the scroller.
+ *
+ * tools/browser/uicheck.js asserts there is exactly one scroll container and that the
+ * footer lands flush with the bottom of the viewport at the end of the page.
+ */
+html {
+  /* The horizontal guard. Also, by the computation described above, what makes the
+     document the one scroller. */
   overflow-x: hidden;
-  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: auto;
+  overscroll-behavior-x: none;
+  max-width: 100vw;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(26, 58, 42, 0.15) transparent;
+}
+
+body {
+  /* min-height, NOT height. `height: 100%` is the declaration that capped the body box at
+     one viewport and sent the rest of the page into a nested scroller. min-height keeps
+     the original intent - a short page still fills the screen so the footer sits at the
+     bottom - without constraining a long one. */
+  min-height: 100vh;
   max-width: 100vw;
   overscroll-behavior-y: auto;
   overscroll-behavior-x: none;
+  /* Safe-area insets on body ONLY. They were on html AND body, which DOUBLED them: on a
+     notched device inside the Capacitor shell the content was pushed down by twice the
+     top inset. Invisible in a desktop browser, where every inset resolves to 0. */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(26, 58, 42, 0.15) transparent;
 }
 
 /* Global scrollbar — lime + dark green theme, no arrows */

@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { lockScroll, unlockScroll } from '../../lib/scrollLock';
 
 interface Shortcut {
   keys: string[];
@@ -43,14 +44,16 @@ const KeyboardShortcuts: React.FC<KeyboardShortcutsProps> = ({ isOpen, onClose }
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
   
-  // Prevent body scroll when open
+  // Prevent page scroll when open. See src/lib/scrollLock.ts for why this is not
+  // `document.body.style.overflow` any more: the page scrolls inside the DOCUMENT, not
+  // inside body, so locking body alone would fail silently.
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      lockScroll();
     } else {
-      document.body.style.overflow = '';
+      unlockScroll();
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => { unlockScroll(); };
   }, [isOpen]);
   
   if (!isOpen) return null;

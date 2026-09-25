@@ -72,6 +72,69 @@ const { target } = require( './lib/serve' );
 const ROUTE = '/contact/';
 
 /**
+ * ONE SCROLL CONTAINER, AND A FOOTER THAT LANDS FLUSH.
+ *
+ * Layout.css used to put `height: 100%` and `overflow-y: auto` on html AND body, which made
+ * two nested scrollers: the page scrolled inside body while html kept a separate leftover
+ * range stacked on top, containing nothing. Scroll to the end and you travelled through
+ * body's range and then through html's, and html's range was empty space - 196px of blank
+ * white below the footer on a 390px phone, 623px on a 320px one with the footer pushed off
+ * the top of the screen entirely.
+ *
+ * WHY THIS BELONGS IN A BROWSER HARNESS AND NOT ONLY IN A UNIT TEST. ScrollContainer.test.ts
+ * pins the declarations, which catches the edit. It cannot catch the effect: the bug is a
+ * product of viewport height against content height against a computed overflow value, and
+ * the reason it survived review is that at 1440x900 html's leftover range happens to
+ * compute to 0 - the widths people develop at were the widths it worked on. Only a real
+ * layout at a real phone size answers it, so this asserts at every viewport in the matrix.
+ */
+async function measureScroll( page ) {
+  return page.evaluate( () => {
+    const de = document.documentElement, body = document.body;
+    const range = el => el.scrollHeight - el.clientHeight;
+    return {
+      docRange: range( de ),
+      bodyRange: range( body ),
+      // Which elements could scroll at all. Anything beyond the document is a second
+      // container, and the bug was body being one.
+      bodyOverflowY: getComputedStyle( body ).overflowY,
+      bodyHeight: getComputedStyle( body ).height,
+      vh: window.innerHeight,
+    };
+  } );
+}
+
+/**
+ * Scroll to the very end WITH REAL WHEEL INPUT, and report what sits below the footer.
+ *
+ * The wheel matters. A scripted `window.scrollTo` plus `body.scrollTop` drives both
+ * containers to their own ends and therefore lands on the true bottom even when the bug is
+ * present - which is precisely how a scripted version of this assertion passed against the
+ * broken CSS while the page was visibly wrong. A wheel event goes to whichever container is
+ * under the pointer and then chains, which is what a person does and what produced the
+ * blank gap. Driving the real input is the difference between measuring the page and
+ * measuring the harness.
+ */
+async function scrollToEnd( page, vp ) {
+  await page.mouse.move( Math.round( vp.width / 2 ), Math.round( vp.height * 0.6 ) );
+  for ( let i = 0; i < 70; i++ ) {
+    await page.mouse.wheel( 0, 600 );
+    await page.waitForTimeout( 35 );
+  }
+  await page.waitForTimeout( 600 );
+  return page.evaluate( () => {
+    const footer = document.querySelector( 'footer.ft-footer' );
+    if ( !footer ) return { error: 'no footer.ft-footer' };
+    const b = footer.getBoundingClientRect();
+    return {
+      footerTop: Math.round( b.top ), footerBottom: Math.round( b.bottom ),
+      blankBelow: Math.round( window.innerHeight - b.bottom ),
+      footerOffTop: b.bottom <= 0,
+    };
+  } );
+}
+
+/**
  * The pill's anchoring, taken from SupportWidget.tsx rather than guessed. Desktop is
  * `right:20px; bottom:20px`. Under 768px the right inset tightens and the bottom offset
  * jumps to clear the 60px BottomNav - `calc(72px + env(safe-area-inset-bottom))`, and
@@ -423,6 +486,32 @@ async function main() {
               `${m.pill.w}px as EN vs ${done.pill.w}px as HI` );
           }
         }
+      }
+
+      // ===== SCROLL CONTAINER =====
+      const sc = await measureScroll( page );
+      console.log( `  scroll: document range ${sc.docRange}px, body range ${sc.bodyRange}px (body overflow-y ${sc.bodyOverflowY}, height ${sc.bodyHeight})` );
+
+      record( sc.bodyRange === 0,
+        `${vp.label}: body is not a second scroll container`,
+        sc.bodyRange === 0
+          ? 'the document is the only scroller'
+          : `body can scroll ${sc.bodyRange}px of its own - this is the two-scroller bug; check html/body in Layout.css` );
+
+      record( sc.docRange > 0,
+        `${vp.label}: the document is the scroller`,
+        `${sc.docRange}px of range${sc.docRange > 0 ? '' : ' - nothing can scroll the page, so End/Home and window.scrollTo do nothing'}` );
+
+      const end = await scrollToEnd( page, vp );
+      if ( end.error ) {
+        record( false, `${vp.label}: footer measurable at the end of the page`, end.error );
+      } else {
+        console.log( `  page end: footer y ${end.footerTop}..${end.footerBottom}, ${end.blankBelow}px below it` );
+        record( !end.footerOffTop && end.blankBelow <= 1,
+          `${vp.label}: footer lands flush at the end of the page`,
+          end.footerOffTop
+            ? 'the footer scrolled off the TOP of the screen - the page scrolls past its own end'
+            : `${end.blankBelow}px of blank space below the footer` );
       }
 
       await context.close();
