@@ -223,8 +223,12 @@ input, textarea, select {
 }
 
 /* =========================
-   Sidebar Top Brand — Logo + "BharatStack ▼" inline
-   ▼ opens dropdown on hover (same as home page Header)
+   Sidebar Top Brand — DEAD CSS, kept only to avoid a risky bulk delete.
+   NOTHING BELOW IS RENDERED. Layout.tsx builds the sidebar brand inline and now renders
+   the shared <BrandLockup /> (WECARE.DIGITAL), so these .sidebar-header / .sidebar-brand-*
+   / .sidebar .nav-menu rules match no element. They described the retired "Bharat Stack"
+   wordmark and a hover-opened dropdown; the live control is click-driven off React state.
+   Do not style against these selectors - edit Layout.tsx instead.
    ========================= */
 .sidebar-header {
   display: flex;
@@ -267,7 +271,7 @@ input, textarea, select {
   align-items: center;
 }
 
-/* Two-line text block: "Bharat" / "Stack ▼" */
+/* Two-line text block (dead - see the note above) */
 .sidebar-brand-text-block {
   display: flex;
   flex-direction: column;
@@ -646,9 +650,30 @@ input, textarea, select {
   flex-direction: column;
   gap: 4px;
   min-height: 0;
+  /* Lime scroll thumb, matching the public header's scrollable nav group. This was
+     rgba(26,58,42,0.1) - a grey so faint it was effectively invisible, so a sidebar taller
+     than the viewport gave no hint that it scrolled. */
   scrollbar-width: thin;
-  scrollbar-color: rgba(26, 58, 42, 0.1) transparent;
+  scrollbar-color: #d1f470 transparent;
   clip-path: none;
+}
+
+/* WebKit/Blink half of the lime scrollbar. scrollbar-color above only lands in Firefox.
+   These need !important and a class in the selector to beat the global
+   ::-webkit-scrollbar-thumb rules near the top of this file, which are themselves
+   !important and paint a faint grey thumb. */
+.sidebar-nav::-webkit-scrollbar {
+  width: 8px !important;
+}
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #d1f470 !important;
+  border-radius: 20px !important;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: #c5e866 !important;
 }
 
 /* Navigation Items - Notion Style */

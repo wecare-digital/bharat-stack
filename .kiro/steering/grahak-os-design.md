@@ -61,7 +61,7 @@ Eyebrows/labels are **not uppercase and not letter-spaced** — notion uses plai
 
 | Token | Use |
 |---|---|
-| `#1a1a1a` | Brand lockup ("Bharat Stack"), header + footer |
+| `#1a1a1a` | Brand lockup (WECARE.DIGITAL), header + footer + dashboard sidebar |
 | `#1a3a2a` | Dark green — icons, phone header, active states, accents |
 | `#d1f470` | Lime — **our own surfaces only** (sent bubbles, active tab, hero pill) |
 | `#ece5dd` | WhatsApp chat beige |
