@@ -1,0 +1,91 @@
+"""Lambda@Edge origin-response: send non-matching /get links to the main domain.
+
+Why this exists as Lambda@Edge and not a CloudFront Function
+------------------------------------------------------------
+``wecare.digital/get/<key>`` is an Amplify 200-rewrite onto CloudFront
+distribution ``E2GP22R4BIFGQ3``, whose origin is the private S3 bucket
+``wecare-digital-get`` behind OAC. Because the bucket policy grants only
+``s3:GetObject`` and never ``s3:ListBucket``, S3 answers **403 AccessDenied**
+for a key that does not exist - it deliberately will not confirm absence.
+
+Two cheaper mechanisms were tried first and both are structurally incapable:
+
+1. **CloudFront custom error responses** can map 403 to a page, but the allowed
+   ``ResponseCode`` values are 200/4xx/5xx only. They cannot emit a 3xx, so they
+   cannot redirect.
+2. **A CloudFront Function on viewer-response** cannot run at all here:
+   "CloudFront doesn't invoke edge functions for viewer response events when the
+   origin returns HTTP status code 400 or higher."
+   https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/edge-function-restrictions-all.html
+   Verified empirically - routing the 403 through a custom error response with
+   ``ResponseCode 200`` still did not invoke it, because the restriction keys off
+   the *origin's* status, not the status CloudFront finally returns.
+
+Lambda@Edge **origin-response** is the one trigger that fires for origin
+responses of 400 and above, so it is the only place a true 302 can be produced.
+
+It runs on cache misses only. CloudFront then caches the 302 we return, so the
+steady-state cost of a bad link is a cache hit, not an invocation.
+
+Constraints this file must respect
+----------------------------------
+* No environment variables - Lambda@Edge forbids them. The redirect target is
+  therefore a module constant.
+* Must be published as a numbered version; ``$LATEST`` cannot be associated.
+* Deployed only to ``us-east-1``.
+"""
+
+from __future__ import annotations
+
+# Lambda@Edge cannot read environment variables, so this is a constant.
+MAIN_SITE = "https://wecare.digital/"
+
+# Anything at or above this is treated as "no such file".
+ERROR_THRESHOLD = 400
+
+
+def _redirect(response: dict) -> dict:
+    """Turn the origin's error response into a 302, mutating it in place.
+
+    **Do not build a fresh response dict here.** ``Via`` and ``Transfer-Encoding``
+    are read-only in origin-response events, and returning a new object *deletes*
+    them - which counts as changing a read-only header. CloudFront then rejects
+    the result with ``x-cache: LambdaValidationError`` and serves the viewer a
+    502, while the Lambda logs stay completely clean because the function itself
+    succeeded. That combination is very hard to read backwards, hence this note.
+
+    So: keep the origin's header dict and add to it.
+
+    The origin's error body (S3's ``AccessDenied`` XML) is left attached, along
+    with its matching ``Content-Length`` and ``Content-Type``. Clients follow the
+    ``Location`` and discard the body, and leaving the three consistent avoids a
+    length mismatch.
+
+    ``Cache-Control: no-store`` targets the browser, not CloudFront: a visitor
+    should not hold this redirect if the file is later uploaded under the same key.
+    """
+    headers = response.setdefault("headers", {})
+    headers["location"] = [{"key": "Location", "value": MAIN_SITE}]
+    headers["cache-control"] = [
+        {"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}
+    ]
+    response["status"] = "302"
+    response["statusDescription"] = "Found"
+    return response
+
+
+def handler(event: dict, context: object) -> dict:
+    """Pass successful responses through untouched; redirect every error."""
+    response = event["Records"][0]["cf"]["response"]
+
+    try:
+        status = int(response["status"])
+    except (KeyError, TypeError, ValueError):
+        # An unreadable status is not something to guess about - serve it as-is
+        # rather than redirecting a response that may have been a real file.
+        return response
+
+    if status >= ERROR_THRESHOLD:
+        return _redirect(response)
+
+    return response
