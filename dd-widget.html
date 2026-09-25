@@ -1,140 +1,185 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>Combo widget + how translation works</title>
+<title>Translation control — all options</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px 24px 60px}
+body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px 24px 70px}
 .page{max-width:1180px;margin:0 auto}
-h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
-h2{font-size:15px;margin:26px 0 8px;letter-spacing:-.3px}
-.sub{font-size:13px;color:#555;margin:0 0 14px;max-width:92ch}
-.cap{font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;padding:7px 12px;border-radius:9px 9px 0 0;display:inline-block;background:#3da35a}
-.cap-warn{background:#dc2626}
-.note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 9px 9px;padding:9px 12px;margin:0 0 8px;line-height:1.5}
+h1{font-size:21px;margin:0 0 4px;letter-spacing:-.5px}
+h2{font-size:15px;margin:28px 0 10px;letter-spacing:-.3px;color:#111}
+.sub{font-size:13px;color:#555;margin:0 0 12px;max-width:94ch}
+.try{font-size:13px;color:#0f2a1d;background:#e0f7c8;border:1px solid #c5e866;border-radius:8px;padding:9px 13px;margin:0 0 16px;display:inline-block}
+.cap{font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.03em;padding:7px 12px;border-radius:9px 9px 0 0;display:inline-block}
+.c-cur{background:#dc2626}.c-rec{background:#3da35a}.c-opt{background:#1a3a2a}
+.note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 9px 9px;padding:9px 12px;margin:0 0 10px;line-height:1.55}
 .note b{color:#000}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-
-/* stage */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .stage{position:relative;height:250px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
 .lbl{position:absolute;left:14px;top:12px;font-size:10px;font-weight:700;letter-spacing:.05em;color:#9aa0a6;text-transform:uppercase}
+.wc{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 
-/* ===== widget, real values ===== */
-.wc{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;z-index:5}
+/* pill */
 .pill{display:inline-flex;align-items:center;gap:2px;padding:4px;background:#fff;border:1.5px solid #d1f470;border-radius:9999px;box-shadow:0 6px 22px rgba(16,32,24,.14)}
 .pill a,.pill button{width:40px;height:40px;border:0;border-radius:50%;display:grid;place-items:center;cursor:pointer;text-decoration:none;color:#1a3a2a;background:transparent;padding:0}
 .pill .wa{background:#d1f470}
-.pill .wa:hover{background:#c5e866}
 .pill button:hover{background:rgba(209,244,112,.38)}
 .pill button.on{background:#1a3a2a;color:#d1f470}
 .pill svg{width:21px;height:21px;display:block;fill:currentColor}
 .sep{width:1px;height:22px;background:#eef0e6}
+
+/* CURRENT panel */
 .panel{position:absolute;right:0;bottom:100%;margin-bottom:10px;width:280px;background:#fff;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:8px;box-shadow:0 16px 48px rgba(16,32,24,.16)}
 .search{width:100%;min-height:38px;border:1px solid #e5e7eb;border-radius:10px;padding:9px 11px;font-size:14px;color:rgba(0,0,0,.42)}
-.opt{display:flex;align-items:baseline;gap:8px;padding:8px 10px;border-radius:9px;font-size:14px;color:rgba(0,0,0,.898)}
-.opt.sel{background:rgba(209,244,112,.22)}
+.opt{display:flex;align-items:baseline;gap:8px;padding:8px 10px;border-radius:9px;font-size:14px}
 .opt.cur{background:#1a3a2a;color:#d1f470}
 .opt .eng{font-size:12px;color:rgba(0,0,0,.54)}
-.opt.cur .eng{color:rgba(209,244,112,.72)}
 .pa{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:8px 4px 2px;border-top:1px solid #e5e7eb;font-size:12px;color:rgba(0,0,0,.54)}
 .listen{padding:6px 11px;border:0;border-radius:8px;background:rgba(209,244,112,.22);color:#1a3a2a;font-size:12px;font-weight:500;width:auto;height:auto}
 
-/* fake page text for the translate demo */
-.copy{padding:40px 18px 18px;max-width:60%}
-.copy h3{font-size:17px;margin:0 0 6px;color:rgba(0,0,0,.95)}
+/* A — native select chip */
+.selchip{position:relative;display:inline-flex;align-items:center;height:40px;padding:0 10px 0 12px;border-radius:9999px;background:transparent;color:#1a3a2a;font-size:14px;font-weight:700;letter-spacing:.02em;cursor:pointer}
+.selchip:hover{background:rgba(209,244,112,.38)}
+.selchip select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px}
+.selchip .arw{width:6px;height:6px;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);margin-left:7px;opacity:.7}
+
+/* B — code chip that opens a tiny list */
+.mini{position:absolute;right:0;bottom:100%;margin-bottom:10px;width:150px;background:#fff;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:12px;padding:6px;box-shadow:0 12px 32px rgba(16,32,24,.16)}
+.mini div{padding:8px 10px;border-radius:8px;font-size:14px;color:rgba(0,0,0,.898);display:flex;justify-content:space-between}
+.mini div.cur{background:#1a3a2a;color:#d1f470}
+.mini div:hover:not(.cur){background:rgba(209,244,112,.38)}
+.mini .code{font-size:11px;opacity:.6;font-weight:600}
+
+/* C — inline top languages */
+.inline-langs{display:inline-flex;align-items:center;gap:2px;padding:4px;background:#fff;border:1.5px solid #d1f470;border-radius:9999px;box-shadow:0 6px 22px rgba(16,32,24,.14)}
+.inline-langs a{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;text-decoration:none;background:#d1f470;color:#1a3a2a}
+.inline-langs svg{width:21px;height:21px;fill:currentColor}
+.inline-langs .lg{min-width:34px;height:40px;display:grid;place-items:center;border-radius:9999px;font-size:13px;font-weight:700;color:#1a3a2a;cursor:pointer;padding:0 6px}
+.inline-langs .lg:hover{background:rgba(209,244,112,.38)}
+.inline-langs .lg.on{background:#1a3a2a;color:#d1f470}
+.inline-langs .more{font-size:16px;color:rgba(0,0,0,.42);padding:0 8px;cursor:pointer}
+
+/* D — browser native */
+.bnbar{position:absolute;left:0;right:0;top:0;background:#f1f3f4;border-bottom:1px solid #dadce0;padding:9px 12px;display:flex;align-items:center;gap:10px;font-size:12px;color:#3c4043}
+.bnbar b{font-weight:600}
+.bnbar .btns{margin-left:auto;display:flex;gap:6px}
+.bnbar .btns span{padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600}
+.bnbar .p{background:#1a73e8;color:#fff}
+.bnbar .s{background:#fff;border:1px solid #dadce0;color:#3c4043}
+.copy{padding:56px 18px 18px;max-width:64%}
+.copy h3{font-size:16px;margin:0 0 6px;color:rgba(0,0,0,.95)}
 .copy p{font-size:13px;line-height:1.6;color:rgba(0,0,0,.6);margin:0}
 
-/* dashboard demo */
-.dash{display:flex;height:250px}
-.side{width:120px;background:#fcfdfb;border-right:2px solid #d1f470;padding:10px 8px;flex:0 0 auto}
-.side .s-lbl{font-size:9px;font-weight:700;color:#1a3a2a;text-transform:uppercase;letter-spacing:.06em;padding:6px 6px 3px}
-.side .s-it{font-size:12px;font-weight:600;color:#000;padding:7px 8px;border-radius:8px}
-.side .s-it.act{background:#d1f470;color:#0f2a1d}
-.body{flex:1;padding:12px 14px;min-width:0;position:relative}
-.shield{position:absolute;inset:6px;border:1.5px dashed #dc2626;border-radius:10px;pointer-events:none}
-.shield-tag{position:absolute;right:8px;top:-9px;background:#dc2626;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px}
-.row{display:flex;justify-content:space-between;font-size:12px;padding:7px 8px;border-bottom:1px solid #f3f4f6;color:#111}
-.row .num{color:rgba(0,0,0,.54)}
-.h{font-size:12px;font-weight:700;color:rgba(0,0,0,.95);padding:4px 8px 8px}
-
-.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px}
-.steps li{counter-increment:s;position:relative;padding-left:32px;font-size:13px;line-height:1.55;color:#333;background:#fff;border:1px solid #e5e7eb;border-radius:9px;padding:10px 12px 10px 34px}
-.steps li::before{content:counter(s);position:absolute;left:10px;top:10px;width:18px;height:18px;border-radius:50%;background:#d1f470;color:#0f2a1d;font-size:11px;font-weight:800;display:grid;place-items:center}
-.steps b{color:#000}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;font-size:12.5px}
+th,td{text-align:left;padding:9px 11px;border-bottom:1px solid #f1f3f4}
+th{background:#fafbfa;font-weight:700;color:#1a3a2a;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td b{color:#000}
+.yes{color:#3da35a;font-weight:700}.no{color:#dc2626;font-weight:700}
 </style></head><body>
 <div class="page">
-  <h1>Combo widget — live on every page, and how translation works</h1>
-  <p class="sub">One lime pill: WhatsApp (left, primary) + translate (right). 40px controls in a 48px pill. Mounted in both branches of <code>_app.tsx</code>, so it appears on every public page, every dashboard page, and any new page automatically.</p>
+  <h1>Translation control — every option</h1>
+  <p class="sub">You asked for a compact control instead of the panel. Below: the current panel for reference, three compact replacements, and the browser-native route (which costs nothing and has no abuse surface).</p>
+  <div class="try">👉 <b>Option A's dropdown is live</b> — click it. On a phone it opens the OS language picker.</div>
 
-  <h2>1 · Where it appears</h2>
-  <div class="grid2">
-    <div>
-      <div class="cap">PUBLIC PAGE — full translation</div>
-      <div class="note">Everything on the page translates: headings, body copy, buttons.</div>
-      <div class="stage">
-        <span class="lbl">public page</span>
-        <div class="copy"><h3>Trusted everyday services</h3><p>Transparent pricing, guided journeys, and dependable support — on one shared foundation.</p></div>
-        <div class="wc"><div class="pill">
-          <a class="wa" href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></a>
-          <span class="sep"></span>
-          <button aria-label="Language"><svg viewBox="0 -960 960 960"><path d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"/></svg></button>
-        </div></div>
-      </div>
-    </div>
-    <div>
-      <div class="cap cap-warn">DASHBOARD — nav translates, DATA IS PROTECTED</div>
-      <div class="note">The sidebar translates. Everything inside the red boundary is <b>exempt</b> — customer names, numbers, message bodies are never rewritten.</div>
-      <div class="stage"><div class="dash">
-        <div class="side">
-          <div class="s-lbl">Engage</div>
-          <div class="s-it act">Inbox</div><div class="s-it">Contacts</div><div class="s-it">Broadcast</div>
-          <div class="s-lbl">Money</div><div class="s-it">Payments</div>
-        </div>
-        <div class="body">
-          <div class="shield"><span class="shield-tag">data-wc-no-translate</span></div>
-          <div class="h">Contacts</div>
-          <div class="row"><span>Ramesh Kumar</span><span class="num">+91 98200 11223</span></div>
-          <div class="row"><span>Priya Sharma</span><span class="num">+91 99300 44556</span></div>
-          <div class="row"><span>Anil Mehta</span><span class="num">+91 90040 77889</span></div>
-        </div>
-      </div>
-        <div class="wc"><div class="pill">
-          <a class="wa" href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></a>
-          <span class="sep"></span>
-          <button aria-label="Language"><svg viewBox="0 -960 960 960"><path d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"/></svg></button>
-        </div></div>
-      </div>
-    </div>
-  </div>
-
-  <h2>2 · The translate panel</h2>
-  <div class="cap">PANEL OPEN — search, pick, listen</div>
-  <div class="note">Opens directly above the pill. Search by language name in English or native script; the applied language is filled dark green; <b>Listen</b> reads the page aloud where a voice exists.</div>
+  <h2>Current, for reference</h2>
+  <div class="cap c-cur">● CURRENT — 324px panel</div>
+  <div class="note">Search field, scrolling results list, Listen button. ~150 lines of combobox and panel code, and it covers a third of a phone screen.</div>
   <div class="stage" style="height:300px">
     <span class="lbl">panel open</span>
-    <div class="wc"><div class="panel">
-      <input class="search" value="hin" readonly/>
-      <div class="opt cur">हिन्दी <span class="eng">Hindi</span></div>
-      <div class="opt sel">தமிழ் <span class="eng">Tamil</span></div>
-      <div class="opt">বাংলা <span class="eng">Bengali</span></div>
-      <div class="pa"><span>हिन्दी</span><button class="listen">Listen</button></div>
+    <div class="wc">
+      <div class="panel">
+        <input class="search" value="hin" readonly/>
+        <div class="opt cur">हिन्दी <span class="eng" style="color:rgba(209,244,112,.72)">Hindi</span></div>
+        <div class="opt">தமிழ் <span class="eng">Tamil</span></div>
+        <div class="opt">বাংলা <span class="eng">Bengali</span></div>
+        <div class="pa"><span>हिन्दी</span><button class="listen">Listen</button></div>
+      </div>
+      <div class="pill">
+        <a class="wa" href="#"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></a>
+        <span class="sep"></span>
+        <button class="on"><svg viewBox="0 -960 960 960"><path d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"/></svg></button>
+      </div>
     </div>
-    <div class="pill">
-      <a class="wa" href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></a>
-      <span class="sep"></span>
-      <button class="on" aria-label="Language"><svg viewBox="0 -960 960 960"><path d="m475-80 185-480h79L924-80h-65l-45-117H584L539-80h-64Zm130-172h188l-94-248-94 248Zm-358-88q-63 0-110-35.5T63-470l54-27q21 42 52.5 69.5T247-400q46 0 74.5-26.5T350-491q0-37-26-63t-64-26h-50v-60h50q29 0 49.5-21t20.5-53q0-26-16.5-46T265-780q-26 0-44.5 13.5T188-735l-47-37q23-28 53.5-48t72.5-20q57 0 90 37.5t33 88.5q0 31-14 55.5T332-616q20 12 34 26t24 30h140v-220h-80v-60h220v60h-80v235l-18 45H410v12q0 61-45.5 104.5T247-340Z"/></svg></button>
-    </div></div>
   </div>
 
-  <h2>3 · How translation actually works</h2>
-  <ol class="steps">
-    <li>Visitor types a language and picks it. The choice is saved to <b>localStorage</b>, so it persists across pages and visits.</li>
-    <li>The widget <b>walks the page's text</b> and collects every readable text node. It skips code, inputs, SVG, and anything marked <b>data-wc-no-translate</b> — which is how dashboard customer data is protected.</li>
-    <li>Text is sent in <b>batches</b> (max 30 items / 20KB each) to <code>api.wecare.digital/site-language/translate</code>.</li>
-    <li>The Lambda translates and <b>caches</b> the result in DynamoDB. The API key stays server-side in Secrets Manager — a browser widget can never hold one. If Google fails it falls back to <b>Amazon Translate</b> automatically.</li>
-    <li>Each translated string is written back <b>in place</b>. The originals are kept in memory, so switching back to English restores the exact text — nothing is re-fetched and nothing is lost.</li>
-    <li><b>Listen</b> sends the page text to <code>/tts</code>, which returns audio from <b>Amazon Polly</b> and plays it. Only offered for languages that actually have a voice.</li>
-  </ol>
-  <p class="sub" style="margin-top:12px">If the translation service is unavailable, the translate button simply hides — the <b>WhatsApp button still works</b>. That was a real bug before: the old component returned nothing at all when the language list failed, which would have taken customer support down with it.</p>
+  <h2>Compact replacements</h2>
+  <div class="grid2">
+    <div>
+      <div class="cap c-rec">● A — NATIVE SELECT CHIP ✓ recommended</div>
+      <div class="note">The translate button becomes a <b>language-code chip</b> ("EN ▾") wrapping a real <code>&lt;select&gt;</code>. No custom panel at all. On mobile it opens the <b>OS picker</b> — familiar, searchable, accessible for free. Deletes ~150 lines.</div>
+      <div class="stage">
+        <span class="lbl">native select — click it</span>
+        <div class="wc"><div class="pill">
+          <a class="wa" href="#"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></a>
+          <span class="sep"></span>
+          <span class="selchip">EN<span class="arw"></span>
+            <select aria-label="Choose language">
+              <option>English</option><option>हिन्दी — Hindi</option><option>தமிழ் — Tamil</option>
+              <option>বাংলা — Bengali</option><option>తెలుగు — Telugu</option><option>मराठी — Marathi</option>
+              <option>ગુજરાતી — Gujarati</option><option>ಕನ್ನಡ — Kannada</option><option>മലയാളം — Malayalam</option>
+            </select>
+          </span>
+        </div></div>
+      </div>
+    </div>
+    <div>
+      <div class="cap c-opt">● B — CODE CHIP + TINY LIST</div>
+      <div class="note">Same chip, but opens a <b>150px list</b> of the main Indic languages instead of the OS picker. More control over styling; still custom code, and a long list needs scrolling.</div>
+      <div class="stage">
+        <span class="lbl">tiny list</span>
+        <div class="wc">
+          <div class="mini">
+            <div class="cur">हिन्दी <span class="code">HI</span></div>
+            <div>தமிழ் <span class="code">TA</span></div>
+            <div>বাংলা <span class="code">BN</span></div>
+            <div>English <span class="code">EN</span></div>
+          </div>
+          <div class="pill">
+            <a class="wa" href="#"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></a>
+            <span class="sep"></span>
+            <span class="selchip on" style="background:#1a3a2a;color:#d1f470">HI<span class="arw" style="border-color:#d1f470"></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:20px">
+    <div>
+      <div class="cap c-opt">● C — TOP LANGUAGES INLINE</div>
+      <div class="note">No dropdown at all: the three most-used languages sit <b>in the pill</b> as codes, with "…" for the rest. Fastest for the common case — but the pill gets wide, and it hard-codes which languages matter.</div>
+      <div class="stage">
+        <span class="lbl">inline codes</span>
+        <div class="wc"><div class="inline-langs">
+          <a href="#"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></a>
+          <span class="sep"></span>
+          <span class="lg on">EN</span><span class="lg">हि</span><span class="lg">த</span><span class="more">…</span>
+        </div></div>
+      </div>
+    </div>
+    <div>
+      <div class="cap c-rec">● D — BROWSER NATIVE ✓ cheapest &amp; safest</div>
+      <div class="note"><b>No translate control at all.</b> Every major browser already offers this bar, free, including on mobile. <b>$0 cost, zero abuse surface, no code.</b> Google deprecated its own widget for exactly this reason — it shuts down 1 Oct 2026.</div>
+      <div class="stage">
+        <div class="bnbar">🌐 Translate this page to <b>हिन्दी</b>?<span class="btns"><span class="p">Translate</span><span class="s">No thanks</span></span></div>
+        <div class="copy"><h3>Trusted everyday services</h3><p>Transparent pricing, guided journeys, and dependable support — on one shared foundation.</p></div>
+        <div class="wc"><div class="pill">
+          <a class="wa" href="#"><svg viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.91-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.03 1.02-1.03 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.7.25-1.29.18-1.42-.08-.12-.28-.2-.57-.35M12.05 21.79h-.01a9.87 9.87 0 01-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 01-1.51-5.26C2.16 6.45 6.6 2.01 12.05 2.01c2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 012.89 6.99c0 5.45-4.44 9.89-9.88 9.89M20.46 3.49A11.82 11.82 0 0012.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 005.69 1.45c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.17-3.48-8.42z"/></svg></a>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Side by side</h2>
+  <table>
+    <tr><th>Option</th><th>Cost</th><th>Abuse surface</th><th>Mobile</th><th>SEO</th><th>Code</th></tr>
+    <tr><td><b>Current panel</b></td><td>$20/M chars + TTS</td><td class="no">Open proxy</td><td>Panel covers ⅓ screen</td><td class="no">None</td><td>~150 lines</td></tr>
+    <tr><td><b>A — native select</b></td><td>$20/M chars + TTS</td><td class="no">Same (needs controls)</td><td class="yes">OS picker</td><td class="no">None</td><td class="yes">~150 lines deleted</td></tr>
+    <tr><td><b>B — tiny list</b></td><td>$20/M chars + TTS</td><td class="no">Same</td><td>OK</td><td class="no">None</td><td>Some custom</td></tr>
+    <tr><td><b>C — inline codes</b></td><td>$20/M chars + TTS</td><td class="no">Same</td><td>Pill gets wide</td><td class="no">None</td><td>Least</td></tr>
+    <tr><td><b>D — browser native</b></td><td class="yes">$0</td><td class="yes">None</td><td class="yes">Works</td><td class="no">None</td><td class="yes">Zero</td></tr>
+    <tr><td><b>E — real localised routes</b><br><span style="color:#888">/hi/grahak-os</span></td><td>One-off translation</td><td class="yes">None</td><td class="yes">Works</td><td class="yes">Ranks in Hindi</td><td>Build-time i18n</td></tr>
+  </table>
+  <p class="sub" style="margin-top:12px"><b>Note on SEO:</b> every client-side option (current, A, B, C, D) is invisible to search engines — Google indexes the English DOM. Only <b>E</b> earns Hindi/Tamil search traffic.</p>
 </div>
 </body></html>
