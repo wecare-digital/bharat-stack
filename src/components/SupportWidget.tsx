@@ -92,11 +92,21 @@ function buildBatches ( nodes: Text[] ): Array<Array<{ node: Text; text: string 
   return batches;
 }
 
+/** Below this width the pill goes slim and parks above the footer. Matches the CSS. */
+const MOBILE_MAX = 767;
+/** Clear air left between the parked pill and the footer's top edge. */
+const PARK_GAP = 16;
+/** The pill may never park closer than this to the fixed header's bottom edge. */
+const HEADER_GAP = 12;
+
 const SupportWidget: React.FC = () => {
   const [ langs, setLangs ] = useState<Lang[]>( [] );
   const [ current, setCurrent ] = useState( 'en' );
   const [ busy, setBusy ] = useState( false );
   const [ status, setStatus ] = useState( '' );
+  const [ appShell, setAppShell ] = useState( false );
+  const [ parkedBottom, setParkedBottom ] = useState<number | null>( null );
+  const barRef = useRef<HTMLDivElement | null>( null );
   const originals = useRef<Map<Text, string> | null>( null );
   const applyLanguageRef = useRef<( ( code: string, label?: string ) => Promise<void> ) | null>( null );
 
@@ -215,6 +225,77 @@ const SupportWidget: React.FC = () => {
   useEffect( () => { applyLanguageRef.current = applyLanguage; }, [ applyLanguage ] );
 
   /**
+   * THE PILL PARKS ABOVE THE FOOTER INSTEAD OF SLIDING OVER IT.
+   *
+   * The problem, measured at the end of the home page on every phone size: the pill landed
+   * INSIDE the footer at all seven of them, covering the brand lockup or the tagline. A
+   * fixed element and a footer both want the bottom of the screen, and the footer is the
+   * one that has content in it.
+   *
+   * WHY NOT JUST HIDE IT THERE. That was the obvious alternative and it is the wrong one:
+   * somebody who has read to the end of the page is the most likely person in the session
+   * to want to talk to us, and hiding the contact button at that exact moment is the
+   * opposite of what it is for. So it moves instead of disappearing - it stops descending
+   * when the footer's top edge arrives and rides up with it.
+   *
+   * WHY THE FOOTER IS MEASURED RATHER THAN ASSUMED. A hardcoded offset would have been
+   * right on six phones and wrong on the narrowest: at 280px the footer is 216px tall, not
+   * 192, because the tagline wraps onto an extra line. Reading the live rectangle also means
+   * a future change to the footer's own height needs no edit here.
+   *
+   * THE CEILING IS NOT DECORATION. A short viewport with a tall footer - a landscape phone,
+   * or a footer that grows - would push a naively parked pill up behind the fixed header,
+   * turning one collision into another. No current device triggers it (on a 320x568 screen
+   * the parked pill sits at y316 and the header ends at y96), which is exactly why it has to
+   * be written down rather than discovered later.
+   *
+   * MOBILE ONLY. Above 767px the footer is 179px tall and the pill clears it at its resting
+   * 20px now that the lime dash has moved out of that corner, so there is nothing to solve
+   * and no listener worth paying for.
+   */
+  useEffect( () => {
+    // The dashboard is the one surface with a real BottomNav to clear, and the one with no
+    // footer to park above. Detected once - a page does not change shell without remounting.
+    setAppShell( !!document.querySelector( '.layout' ) );
+
+    let frame = 0;
+    const compute = () => {
+      frame = 0;
+      const bar = barRef.current;
+      if ( !bar ) return;
+      if ( window.innerWidth > MOBILE_MAX ) { setParkedBottom( null ); return; }
+
+      const footer = document.querySelector( 'footer.ft-footer' );
+      if ( !footer ) { setParkedBottom( null ); return; }
+
+      const viewportHeight = window.innerHeight;
+      // How far the footer reaches up into the viewport. Negative while it is still below.
+      const intrusion = viewportHeight - footer.getBoundingClientRect().top;
+      const wanted = intrusion + PARK_GAP;
+      if ( wanted <= 0 ) { setParkedBottom( null ); return; }
+
+      const header = document.querySelector( 'header.hdr' );
+      const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+      const pillHeight = bar.getBoundingClientRect().height || 44;
+      const ceiling = viewportHeight - ( headerBottom + HEADER_GAP ) - pillHeight;
+      setParkedBottom( Math.min( wanted, Math.max( ceiling, 0 ) ) );
+    };
+
+    // Coalesced to one computation per frame. A scroll listener that writes state on every
+    // event would set state dozens of times per frame on a trackpad or a momentum flick.
+    const onScroll = () => { if ( !frame ) frame = requestAnimationFrame( compute ); };
+
+    compute();
+    window.addEventListener( 'scroll', onScroll, { passive: true } );
+    window.addEventListener( 'resize', onScroll );
+    return () => {
+      if ( frame ) cancelAnimationFrame( frame );
+      window.removeEventListener( 'scroll', onScroll );
+      window.removeEventListener( 'resize', onScroll );
+    };
+  }, [] );
+
+  /**
    * The widget ALWAYS renders. Two early returns used to sit here and both were bugs:
    *  - `pathname === '/'` hid translation from the home page, the most visited route
    *  - `langs.length < 2` returned null when the catalogue failed to load, which would now
@@ -227,7 +308,16 @@ const SupportWidget: React.FC = () => {
   const chipLabel = ( current.split( '-' )[ 0 ] || 'en' ).toUpperCase();
 
   return (
-    <div data-wc-no-translate="true" className="wc-langbar">
+    <div
+      ref={ barRef }
+      data-wc-no-translate="true"
+      className={ `wc-langbar ${appShell ? 'is-appshell' : ''}`.trim() }
+      /* The parked offset has to be inline: it is a measured pixel value that changes on
+         every scroll frame, so there is no stylesheet form of it. null leaves the CSS
+         resting value in charge, which is what keeps desktop and the un-scrolled state
+         entirely declarative. */
+      style={ parkedBottom === null ? undefined : { bottom: `${parkedBottom}px` } }
+    >
       <style jsx>{`
         /* WE OWN THE STACKING CONTEXT. The WhatsApp button used to be injected by an
            external script at z-index 2147483647 - the maximum 32-bit integer - which
@@ -308,12 +398,39 @@ const SupportWidget: React.FC = () => {
 
         .wc-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
-        /* MOBILE. The pill keeps its size - shrinking a support control on the device most
-           likely to need it is the wrong trade, and 40px inside 4px padding already clears
-           the 44px touch-target floor. What changes is the bottom offset: the phone
-           BottomNav is 60px plus the safe-area inset, so the pill sits above it. */
+        /* ===== MOBILE =====
+           TWO THINGS CHANGE BELOW 768px, AND THE OLD NOTE HERE WAS WRONG ON BOTH.
+           It read: "the pill keeps its size - shrinking a support control on the device most
+           likely to need it is the wrong trade... What changes is the bottom offset: the
+           phone BottomNav is 60px plus the safe-area inset, so the pill sits above it."
+
+           1. THE SIZE. 108px is 27% of a 390px screen, 33.7% of a 320px one and 38.6% of a
+              folded 280px one - a quarter to well over a third of the width, permanently, for
+              a control most visitors never touch. The chevron is what goes: it earns its
+              place on desktop, where a pointer needs the hint that the chip opens something,
+              but a tap on a phone opens the OS language picker whether or not an arrow is
+              drawn. With it gone and the chip tightened the pill is ~90px, about 18px back.
+              THE CONTROLS STAY 40px. The mockup for this shrank them to 36px, which would
+              have taken the tap target below the 44px floor on the device where that matters
+              most - and 40px is already a compromise held in place by the roundness fix
+              above. Width was the complaint; width is what is spent.
+
+           2. THE BOTTOM OFFSET WAS CLEARING A BAR THAT IS NOT THERE. 72px existed for the
+              dashboard BottomNav, and BottomNav is rendered by Layout.tsx, which no public
+              page uses. Checked at fourteen widths: absent at every one. So every public
+              phone page floated the pill 72px above empty space while desktop sat at 20px.
+              Public pages now match desktop at 20px; .is-appshell keeps the 72px for the
+              dashboard, where the bar is real. */
         @media(max-width:767px){
-          .wc-langbar{right:16px;left:auto;top:auto;bottom:calc(72px + env(safe-area-inset-bottom))}
+          .wc-langbar{right:16px;left:auto;top:auto;bottom:calc(20px + env(safe-area-inset-bottom))}
+          .wc-langbar.is-appshell{bottom:calc(72px + env(safe-area-inset-bottom))}
+          .wc-pill{padding:3px;gap:0}
+          /* The label alone, no arrow. min-width drops with it - "EN" at 13px needs about
+             35px including padding, so 40px is the floor that keeps every language code the
+             same width without reserving room for a glyph that is no longer drawn. */
+          .wc-chip{min-width:40px;padding:0 8px;font-size:13px}
+          .wc-arw{display:none}
+          .wc-sep{height:20px}
         }
         @media print{.wc-langbar{display:none}}
         /* The sweep and the ring keep moving under reduced motion, slowed rather than

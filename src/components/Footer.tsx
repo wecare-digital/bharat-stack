@@ -90,16 +90,29 @@ const Footer: React.FC = () => {
               and lands somewhere arbitrary. cursor stays default for that reason. If it
               should become a link later, wrap it in an <a> and the sweep still applies. */}
           <p className="ft-tagline">Trusted everyday services for Bharat</p>
-        </div>
 
-        {/* The right-hand brand dash. Purely decorative, hence aria-hidden and a <span>
-            rather than an <hr> - it separates nothing and announcing it would be noise.
-            It is the same motif as .home-close-rule on the home page and .wt-lane-bar in
-            the workflow panel: a short lime rule, drawn with transform so the reveal is
-            compositor-only. Chosen over the alternative of three coloured dots because
-            those would have imported the home page's per-subject hues (which carry
-            meaning there and none here) and read as a status light. */}
-        <span className="ft-dash" ref={ dashRef } aria-hidden="true" />
+          {/* The brand dash. Purely decorative, hence aria-hidden and a <span> rather than
+              an <hr> - it separates nothing and announcing it would be noise. It is the
+              same motif as .home-close-rule on the home page and .wt-lane-bar in the
+              workflow panel: a short lime rule, drawn with transform so the reveal is
+              compositor-only. Chosen over the alternative of three coloured dots because
+              those would have imported the home page's per-subject hues (which carry
+              meaning there and none here) and read as a status light.
+
+              IT USED TO SIT IN THE RIGHT-HAND COLUMN, and that was wrong twice over.
+              The instruction for this footer was that the right side be blank, and the
+              dash was the only thing in it - so the right side was not blank, it held the
+              one decorative element on the page. And the bottom-right corner is where the
+              fixed support pill lives, so the two shared a space: measured at the end of
+              the page, the pill covered 34px of the 56px dash at 1440 and hid it
+              ENTIRELY at 768. On phones it cleared by as little as 8px, which flipped to
+              an overlap on a taller device.
+
+              Moved inside .ft-brand it closes the brand block it belongs to, the right
+              side is genuinely empty, and the collision cannot recur at any width because
+              the two objects no longer share a column. */}
+          <span className="ft-dash" ref={ dashRef } aria-hidden="true" />
+        </div>
       </div>
     </div>
 
@@ -116,8 +129,13 @@ const Footer: React.FC = () => {
 
       /* Left-aligned with nothing opposite it, by instruction. Kept as a flex row rather
          than collapsed to a block so that adding a right-hand element later needs no
-         structural change. */
-      .ft-grid{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}
+         structural change.
+         justify-content is flex-start, NOT space-between. With space-between and a single
+         child nothing moves, but the moment a second element is added it would be flung to
+         the right edge - which is the bottom-right corner the fixed support pill occupies,
+         and exactly how the dash came to be hidden behind it. Anything added opposite the
+         brand needs to clear that corner deliberately rather than inherit a collision. */
+      .ft-grid{display:flex;align-items:flex-end;justify-content:flex-start;gap:32px;flex-wrap:wrap}
 
       .ft-brand{display:flex;flex-direction:column;align-items:flex-start;gap:14px;min-width:0}
 
@@ -160,9 +178,19 @@ const Footer: React.FC = () => {
          layout on any frame the way animating width would. transform-origin:left makes it
          grow from the left edge. align-self keeps it on the tagline's baseline row rather
          than stretched by the flex parent. */
+      /* align-self is gone, and its absence is the fix. It was flex-end, which in the old
+         right-hand position pinned the dash to the right edge - and below 768px, where
+         .ft-grid becomes a column with align-items:flex-start, align-self OVERRODE that and
+         kept the dash on the right anyway. That is why the collision with the pill was not
+         a desktop-only problem: the dash shared the pill's column at all fourteen widths
+         and only vertical distance saved the smaller phones. Inside .ft-brand, with no
+         align-self, it simply starts where the lockup and tagline start.
+         margin-top sits on top of .ft-brand's 14px gap, so the dash closes the block 18px
+         under the tagline - far enough not to be mistaken for the tagline's own hover
+         underline, which is lime too and only 2px tall. */
       .ft-dash{
-        display:block;align-self:flex-end;
-        width:56px;height:3px;margin-bottom:6px;
+        display:block;
+        width:56px;height:3px;margin-top:4px;
         background:#d1f470;border-radius:2px;
         transform-origin:left center;
         transition:transform .62s cubic-bezier(.22,.61,.36,1);
