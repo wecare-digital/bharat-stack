@@ -1,0 +1,73 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Final choice — scrollbar placement (3 ways)</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:26px 24px 80px}
+.page{max-width:1120px;margin:0 auto}
+h1{font-size:21px;margin:0 0 4px}
+.sub{font-size:13px;color:#555;margin:0 0 22px;max-width:86ch}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;align-items:start}
+.cap{font-size:12px;font-weight:800;color:#fff;background:#1a3a2a;text-transform:uppercase;letter-spacing:.03em;padding:7px 12px;border-radius:9px 9px 0 0;display:inline-block}
+.rec{background:#3da35a}
+.note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 9px 9px;padding:9px 12px;margin:0 0 12px;line-height:1.5}
+.note b{color:#000}
+
+/* shared column chrome */
+.col{background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:12px;padding:14px}
+.home{display:flex;align-items:center;min-height:44px;padding:0 12px;font-size:18px;font-weight:800;color:#0f2a1d;background:#d1f470;border-radius:8px;margin-bottom:10px;width:100%}
+.lbl{padding:6px 12px 6px;font-size:11px;font-weight:700;letter-spacing:.06em;color:#1a3a2a;text-transform:uppercase}
+.item{position:relative;display:flex;align-items:center;min-height:42px;padding:0 12px;font-size:16px;font-weight:600;color:#1a3a2a;border-radius:8px}
+.item::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:1px;background:#f1f3ec}
+.item:last-child::after{display:none}
+.scroll{max-height:210px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#d1f470 transparent}
+.scroll::-webkit-scrollbar{width:8px}
+.scroll::-webkit-scrollbar-track{background:transparent}
+.scroll::-webkit-scrollbar-thumb{background:#d1f470;border-radius:20px}
+
+/* CHOICE 1: 230px full width + faint tint box (Option B) */
+.c1 .scroll{width:100%;padding:4px 8px 4px 0;background:rgba(209,244,112,.08);border-radius:10px}
+/* CHOICE 2: hug names (~185px), no box  <-- recommended */
+.c2 .scroll{width:max-content;max-width:100%;padding-right:12px}
+/* CHOICE 3: 230px full width, plain (bar floats right, no tint) */
+.c3 .scroll{width:100%;padding-right:10px}
+</style></head><body>
+<div class="page">
+  <h1>Final choice — where the lime scrollbar sits (pick 1, 2 or 3)</h1>
+  <p class="sub">The "Home" tab is full column width (green bar on top of each). The product names are short, so a full-width scrollbar always leaves a gap. These are the 3 honest choices — pick the one you like and it ships.</p>
+  <div class="row">
+    <div class="c1">
+      <div class="cap">CHOICE 1 — 230px + tint box</div>
+      <div class="note"><b>Bar aligns with Home edge</b> (230px) and the products sit in a faint tinted box. Bar looks anchored, but Products looks different from other columns.</div>
+      <div class="col">
+        <div class="home">Home</div>
+        <div class="lbl">Products</div>
+        <div class="scroll" id="a"></div>
+      </div>
+    </div>
+    <div class="c2">
+      <div class="cap rec">CHOICE 2 — hug names ✓ recommended</div>
+      <div class="note"><b>Bar sits right after the names</b> (~185px). Cleanest, no box, matches other columns. Doesn't reach the Home edge, but that's barely noticeable.</div>
+      <div class="col">
+        <div class="home">Home</div>
+        <div class="lbl">Products</div>
+        <div class="scroll" id="b"></div>
+      </div>
+    </div>
+    <div class="c3">
+      <div class="cap">CHOICE 3 — 230px plain</div>
+      <div class="note"><b>Bar aligns with Home edge</b> (230px), no tint. Bar floats in the empty space right of the short names.</div>
+      <div class="col">
+        <div class="home">Home</div>
+        <div class="lbl">Products</div>
+        <div class="scroll" id="c"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const REAL=['Grahak OS','VayuLok','Bharat Rx','Elsewhere','Expo Week','Dastavez','Clear Closure','Ritual Guru','Anew','Niji Setu'];
+['a','b','c'].forEach(id=>{const el=document.getElementById(id);REAL.forEach((p,i)=>{const d=document.createElement('div');d.className='item';d.textContent=p;el.appendChild(d);});});
+</script>
+</body></html>
