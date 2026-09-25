@@ -4,121 +4,133 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex,nofollow" />
-<title>Header — current vs 4 upgrade options</title>
+<title>Header — logo check + dropdown colour: existing vs new</title>
 <style>
   *{box-sizing:border-box}
   body{margin:0;background:#f3f4f6;color:#1a1a1a;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-  .page{max-width:1240px;margin:0 auto;padding:28px 24px 60px}
-  .title{margin:0 0 6px;font-size:26px;font-weight:800;letter-spacing:-.6px}
-  .intro{margin:0 0 8px;font-size:15px;line-height:1.5;color:#555;max-width:80ch}
+  .page{max-width:1200px;margin:0 auto;padding:28px 24px 60px}
+  .title{margin:0 0 6px;font-size:24px;font-weight:800;letter-spacing:-.5px}
+  .intro{margin:0 0 22px;font-size:14px;line-height:1.5;color:#555;max-width:80ch}
 
-  .caption{font-size:13px;font-weight:800;letter-spacing:.03em;color:#fff;text-transform:uppercase;margin:30px 0 0;padding:8px 14px;border-radius:10px 10px 0 0;display:inline-block}
-  .c-cur{background:#dc2626}
-  .c-opt{background:#1a3a2a}
-  .desc{margin:0 0 10px;font-size:13px;color:#555;background:#fff;border:1px solid #e5e7eb;border-top:0;padding:10px 14px;border-radius:0 0 10px 10px}
-  .desc b{color:#111}
+  .cap{font-size:12px;font-weight:800;letter-spacing:.03em;color:#fff;text-transform:uppercase;padding:7px 13px;border-radius:9px 9px 0 0;display:inline-block;margin-top:26px}
+  .cap-cur{background:#dc2626}
+  .cap-new{background:#3da35a}
+  .note{margin:0 0 0;font-size:12px;color:#555;background:#fff;border:1px solid #e5e7eb;border-top:0;padding:9px 13px;border-radius:0 0 9px 9px}
+  .note b{color:#111}
 
-  /* shared header chrome */
-  .hdr{background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:visible}
-  .hdr-in{padding:16px 22px;display:flex;align-items:center;height:96px}
-  .brand{display:inline-flex;align-items:center;gap:9px;flex-wrap:nowrap}
-  .logo-box{height:56px;width:56px;border-radius:11px;background:linear-gradient(135deg,#1a3a2a,#3da35a);display:flex;align-items:center;justify-content:center;color:#d1f470;font-weight:800;font-size:22px;flex-shrink:0}
-  .logo-sm{height:44px;width:44px;font-size:18px;border-radius:9px}
-  .brand-copy{display:flex;flex-direction:column;justify-content:center;line-height:1.06}
-  .brand-copy>span{font-size:22px;font-weight:800;color:#1a1a1a;letter-spacing:-.4px}
-  .brand-copy.sm>span{font-size:18px}
+  /* ---- LOGO + TEXT (1:1 with BrandLockup.tsx) ---- */
+  .logo-strip{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px 24px;margin-top:8px}
+  .brand{display:inline-flex;align-items:center;gap:10px}
+  .logo-box{height:68px;width:68px;border-radius:12px;background:linear-gradient(135deg,#1a3a2a,#3da35a);display:flex;align-items:center;justify-content:center;color:#d1f470;font-weight:800;font-size:26px;flex-shrink:0}
+  .brand-copy{display:flex;flex-direction:column;justify-content:center;line-height:1.08}
+  .brand-copy>span{font-size:26px;font-weight:800;color:#1a1a1a;letter-spacing:-.4px}
   .brand-dot{color:#ff0040}
 
-  .arrow{display:inline-block;width:6px;height:6px;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);margin-left:5px}
-  .trigger{min-width:44px;min-height:44px;background:rgba(209,244,112,.22);border:0;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer}
-  .menu-btn{display:inline-flex;align-items:center;gap:2px;padding:0 16px;height:44px;background:rgba(209,244,112,.22);border:0;border-radius:10px;font-size:16px;font-weight:600;color:#1a3a2a;cursor:pointer}
-  .navlink{font-size:16px;font-weight:600;color:#1a3a2a;text-decoration:none;padding:8px 12px;border-radius:8px}
-  .navlink:hover{background:rgba(209,244,112,.22)}
-  .navlink .arrow{margin-left:6px}
-  .signin{display:inline-flex;align-items:center;height:44px;padding:0 22px;background:#d1f470;border:2px solid #d1f470;border-radius:50px;font-size:15px;font-weight:700;color:#1a3a2a;text-decoration:none}
-  .signin.ghost{background:#fff;border:1.5px solid #d1f470}
-  .spacer{flex:1}
-  .row{display:flex;align-items:center;gap:6px}
-  .center{display:flex;align-items:center;gap:4px;margin:0 auto}
+  /* ---- DROPDOWN, shared shape ---- */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .menu{background:#fff;border-radius:14px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+  .menu-cur{border:1px solid #d1f470}
+  .search{width:100%;margin:0 0 12px;height:40px;border:1px solid #e5e7eb;border-radius:10px;padding:9px 12px;font-size:14px;color:rgba(0,0,0,.42)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;align-items:start}
+  .grp{display:flex;flex-direction:column}
+  .lbl{padding:6px 12px 4px;font-size:11px;font-weight:500;letter-spacing:.04em}
+  .it{display:flex;align-items:center;min-height:38px;padding:0 12px;font-size:16px;font-weight:600;text-decoration:none;border-radius:8px}
+
+  /* EXISTING colours (from Header.tsx today) */
+  .menu-cur .lbl{color:rgba(0,0,0,.42)}
+  .menu-cur .it{color:#1a3a2a}
+  .menu-cur .it.hov{background:rgba(209,244,112,.22)}
+  .menu-cur .it.active{font-weight:800;background:rgba(209,244,112,.22)}
+
+  /* NEW colours (proposed improvement) */
+  .menu-new{border:1px solid #e5e7eb;border-top:4px solid #d1f470}
+  .menu-new .lbl{color:#3da35a;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+  .menu-new .it{color:#1a3a2a}
+  .menu-new .it.hov{background:rgba(209,244,112,.35);color:#0f2a1d}
+  .menu-new .it.active{font-weight:800;background:#d1f470;color:#0f2a1d}
+  .menu-new .search{border-color:#e5e7eb}
+  .menu-new .search:focus{border-color:#3da35a}
 </style>
 </head>
 <body>
 <div class="page">
-  <h1 class="title">Header — current, then 4 upgrade options</h1>
-  <p class="intro">Below is the header exactly as it is today, then four ways to improve it. Pick a number (1–4) and I'll build the real version. Look at: where the logo sits, whether nav is visible, and where "Sign in" lives.</p>
+  <h1 class="title">Header — logo/text check + dropdown colour (existing vs new)</h1>
+  <p class="intro">You're keeping the current header layout. Two things below: <b>(1)</b> the logo + text as it is now — tell me if it's fine. <b>(2)</b> the dropdown menu, existing colours vs a proposed colour upgrade.</p>
 
-  <!-- CURRENT -->
-  <div class="caption c-cur">● CURRENT (live today)</div>
-  <div class="desc"><b>Logo + a lone chevron.</b> No visible links, no Sign in button — everything is hidden behind the tiny arrow, and the whole right side is empty.</div>
-  <div class="hdr"><div class="hdr-in">
+  <!-- LOGO + TEXT -->
+  <div class="cap cap-cur">① LOGO + TEXT (current — is this fine?)</div>
+  <div class="note"><b>68px logo</b> + wordmark <b>WECARE.</b> / <b>DIGITAL</b> at 26px/800, red dot <span style="color:#ff0040">●</span>. (Box is a placeholder — real one is your uploaded logo image.)</div>
+  <div class="logo-strip">
     <div class="brand">
       <span class="logo-box">W</span>
       <span class="brand-copy"><span>WECARE<span class="brand-dot">.</span></span><span>DIGITAL</span></span>
     </div>
-    <button class="trigger"><span class="arrow"></span></button>
-  </div></div>
+  </div>
 
-  <!-- OPTION 1 -->
-  <div class="caption c-opt">● OPTION 1 — visible top-level links</div>
-  <div class="desc"><b>Logo left, real links in the bar, Sign in on the right.</b> "Products ▾" still opens the full mega-menu; the rest go straight to a page. Users can see where to go.</div>
-  <div class="hdr"><div class="hdr-in">
-    <div class="brand">
-      <span class="logo-box sm">W</span>
-      <span class="brand-copy sm"><span>WECARE<span class="brand-dot">.</span></span><span>DIGITAL</span></span>
+  <!-- DROPDOWN -->
+  <div class="cap cap-cur" style="margin-top:34px">② DROPDOWN MENU</div>
+  <div class="note">Same menu, two colour treatments. Look at the <b>group labels</b>, the <b>hover row</b> (highlighted), and the <b>active row</b> ("Home").</div>
+  <div class="two">
+    <!-- EXISTING -->
+    <div>
+      <div class="cap cap-cur">EXISTING</div>
+      <div class="menu menu-cur">
+        <input class="search" value="Search" readonly />
+        <div class="cols">
+          <div class="grp">
+            <a class="it active">Home</a>
+          </div>
+          <div class="grp">
+            <div class="lbl">Account</div>
+            <a class="it">Sign in</a>
+          </div>
+          <div class="grp">
+            <div class="lbl">Products</div>
+            <a class="it">Grahak OS</a>
+            <a class="it hov">VayuLok</a>
+            <a class="it">Bharat Rx</a>
+            <a class="it">Elsewhere</a>
+          </div>
+          <div class="grp">
+            <div class="lbl">Legal Stuff</div>
+            <a class="it">Terms</a>
+            <a class="it">Privacy</a>
+          </div>
+        </div>
+      </div>
+      <div class="note" style="border-radius:9px;border-top:1px solid #e5e7eb;margin-top:8px">Labels faint grey · hover &amp; active both the same pale lime tint (hard to tell apart) · full lime border ring.</div>
     </div>
-    <div class="row" style="margin-left:26px">
-      <a class="navlink">Products<span class="arrow"></span></a>
-      <a class="navlink">Selfservice</a>
-      <a class="navlink">Refer &amp; Earn</a>
-      <a class="navlink">Contact</a>
-    </div>
-    <div class="spacer"></div>
-    <a class="signin">Sign in</a>
-  </div></div>
 
-  <!-- OPTION 2 -->
-  <div class="caption c-opt">● OPTION 2 — logo left, actions right (labelled menu)</div>
-  <div class="desc"><b>Minimal but balanced.</b> Keeps the single dropdown, but moves it to the right and labels it "Menu ▾" (a word, not a bare arrow) with a Sign in button beside it.</div>
-  <div class="hdr"><div class="hdr-in">
-    <div class="brand">
-      <span class="logo-box">W</span>
-      <span class="brand-copy"><span>WECARE<span class="brand-dot">.</span></span><span>DIGITAL</span></span>
+    <!-- NEW -->
+    <div>
+      <div class="cap cap-new">NEW (proposed)</div>
+      <div class="menu menu-new">
+        <input class="search" value="Search" readonly />
+        <div class="cols">
+          <div class="grp">
+            <a class="it active">Home</a>
+          </div>
+          <div class="grp">
+            <div class="lbl">Account</div>
+            <a class="it">Sign in</a>
+          </div>
+          <div class="grp">
+            <div class="lbl">Products</div>
+            <a class="it">Grahak OS</a>
+            <a class="it hov">VayuLok</a>
+            <a class="it">Bharat Rx</a>
+            <a class="it">Elsewhere</a>
+          </div>
+          <div class="grp">
+            <div class="lbl">Legal Stuff</div>
+            <a class="it">Terms</a>
+            <a class="it">Privacy</a>
+          </div>
+        </div>
+      </div>
+      <div class="note" style="border-radius:9px;border-top:1px solid #e5e7eb;margin-top:8px">Labels green + uppercase (clear section headers) · <b>active = solid lime</b>, hover = stronger tint (now distinct) · clean grey border with one lime top edge.</div>
     </div>
-    <div class="spacer"></div>
-    <div class="row">
-      <button class="menu-btn">Menu<span class="arrow"></span></button>
-      <a class="signin ghost">Sign in</a>
-    </div>
-  </div></div>
-
-  <!-- OPTION 3 -->
-  <div class="caption c-opt">● OPTION 3 — full modern nav bar (centered links)</div>
-  <div class="desc"><b>Most polished / SaaS-style.</b> Logo left, links centered, Sign in button right. "Products ▾" reveals the mega-menu on hover.</div>
-  <div class="hdr"><div class="hdr-in">
-    <div class="brand">
-      <span class="logo-box sm">W</span>
-      <span class="brand-copy sm"><span>WECARE<span class="brand-dot">.</span></span><span>DIGITAL</span></span>
-    </div>
-    <div class="center">
-      <a class="navlink">Products<span class="arrow"></span></a>
-      <a class="navlink">Company</a>
-      <a class="navlink">Legal</a>
-      <a class="navlink">Contact</a>
-    </div>
-    <a class="signin">Sign in</a>
-  </div></div>
-
-  <!-- OPTION 4 -->
-  <div class="caption c-opt">● OPTION 4 — minimal cleanup (lowest risk)</div>
-  <div class="desc"><b>Same structure, tidied.</b> Trigger says "Menu" instead of a bare arrow, moved to the right, wordmark slightly smaller. Everything else unchanged.</div>
-  <div class="hdr"><div class="hdr-in">
-    <div class="brand">
-      <span class="logo-box">W</span>
-      <span class="brand-copy sm"><span>WECARE<span class="brand-dot">.</span></span><span>DIGITAL</span></span>
-    </div>
-    <div class="spacer"></div>
-    <button class="menu-btn">Menu<span class="arrow"></span></button>
-  </div></div>
+  </div>
 </div>
 </body>
 </html>
