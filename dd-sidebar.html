@@ -1,0 +1,142 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Dashboard sidebar — existing vs fixed</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:26px 24px 80px}
+.page{max-width:1000px;margin:0 auto}
+h1{font-size:21px;margin:0 0 4px;letter-spacing:-.5px}
+.sub{font-size:13px;color:#555;margin:0 0 8px;max-width:88ch}
+.flag{font-size:13px;color:#7a2e2e;background:#fdecec;border:1px solid #f5c2c2;border-radius:8px;padding:10px 13px;margin:0 0 18px}
+.flag b{font-weight:700}.flag ul{margin:6px 0 0;padding-left:18px}.flag li{margin:2px 0}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.cap{font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.03em;padding:7px 12px;border-radius:9px 9px 0 0;display:inline-block}
+.cap-cur{background:#dc2626}.cap-new{background:#3da35a}
+.note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 9px 9px;padding:9px 12px;margin:0 0 12px;line-height:1.5}
+.note b{color:#000}
+
+/* ===== sidebar shell (matches .sidebar) ===== */
+.sidebar{width:250px;background:#fff;border-right:2px solid #d1f470;border-radius:12px 0 0 12px;display:flex;flex-direction:column;height:430px;overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.brand{padding:10px 12px 6px;flex-shrink:0;border-bottom:2px solid #d1f470;display:flex;align-items:center;gap:8px;min-height:46px}
+.logo{height:44px;width:44px;border-radius:10px;background:linear-gradient(135deg,#1a3a2a,#3da35a);display:flex;align-items:center;justify-content:center;color:#d1f470;font-weight:800;font-size:17px;flex-shrink:0}
+.wm{display:flex;flex-direction:column;line-height:1.15}
+.wm span{font-size:19px;font-weight:800;color:#1a3a2a;letter-spacing:-.3px}
+.wmrow{display:flex;align-items:center;gap:2px}
+/* existing: literal glyph */
+.caret-old{font-size:10px;color:#666;cursor:pointer;padding:0 4px;user-select:none}
+/* fixed: drawn chevron in a chip, same as public header */
+.caret-new{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-left:2px;border-radius:7px;background:rgba(209,244,112,.22);border:1px solid #e3ecc9;cursor:pointer}
+.caret-new i{width:6px;height:6px;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-1px) rotate(45deg);opacity:.85}
+
+.search{padding:10px 12px;flex-shrink:0}
+.search-in{display:flex;align-items:center;gap:8px;border:2px solid #e5e7eb;border-radius:13px;padding:7px 10px;font-size:13px;color:#9ca3af}
+.nav{flex:1;padding:0 12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;min-height:0}
+
+.seclbl{padding:16px 16px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;user-select:none}
+.item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;font-weight:560;font-size:15px;cursor:pointer;color:#000}
+.icon{width:18px;height:18px;flex:0 0 18px;border-radius:4px;background:rgba(26,58,42,.12)}
+.arrow{margin-left:auto;width:5px;height:5px;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:rotate(-45deg);opacity:.6}
+.subs{padding-left:12px;margin-top:2px;display:flex;flex-direction:column;gap:1px}
+.sub{padding:8px 10px;border-radius:12px;font-size:14px;font-weight:500;color:#000;cursor:pointer}
+
+/* ================= EXISTING ================= */
+.cur .seclbl{color:#9ca3af}                                  /* grey label */
+.cur .nav{scrollbar-width:thin;scrollbar-color:rgba(26,58,42,.1) transparent}  /* grey bar */
+.cur .nav::-webkit-scrollbar{width:5px}
+.cur .nav::-webkit-scrollbar-thumb{background:rgba(26,58,42,.15);border-radius:10px}
+.cur .item:hover{background:rgba(209,244,112,.2)}
+.cur .item.active{background:rgba(209,244,112,.3);border-left:3px solid #d1f470}
+/* the BUG: expandable active gets transparent !important, and sub-active has no rule */
+.cur .item.expandable.active{background:transparent;border-left:none}
+.cur .sub.active{background:transparent}
+
+/* ================= FIXED ================= */
+.new .seclbl{color:#1a3a2a;font-weight:700;letter-spacing:.06em}   /* deep green label */
+.new .nav{scrollbar-width:thin;scrollbar-color:#d1f470 transparent} /* lime bar */
+.new .nav::-webkit-scrollbar{width:8px}
+.new .nav::-webkit-scrollbar-track{background:transparent}
+.new .nav::-webkit-scrollbar-thumb{background:#d1f470;border-radius:20px}
+.new .item:hover,.new .sub:hover{background:rgba(209,244,112,.38)}
+/* active is unmistakable: solid lime + deep green text, like the public header */
+.new .item.active{background:#d1f470;color:#0f2a1d;font-weight:700}
+.new .item.expandable.active{background:#d1f470;color:#0f2a1d;font-weight:700}
+.new .sub.active{background:#d1f470;color:#0f2a1d;font-weight:700}
+</style></head><body>
+<div class="page">
+  <h1>Dashboard sidebar — existing vs fixed</h1>
+  <p class="sub">There is no separate dashboard "header" — the dashboard chrome <b>is the sidebar</b>. It has the same defects we just fixed on the public header, plus one worse one.</p>
+  <div class="flag"><b>Real bugs found in the dashboard sidebar:</b>
+    <ul>
+      <li><b>Active vs hover nearly identical</b> — hover is <code>rgba(209,244,112,.2)</code>, active <code>.3</code>. Almost indistinguishable.</li>
+      <li><b>Active state is INVISIBLE on expandable rows and sub-items</b> — an <code>!important</code> transparent rule kills it, so the page you're on shows no highlight at all (see "Payments" and "Message logs" on the left).</li>
+      <li><b>Section labels</b> are faint grey <code>#9ca3af</code>, unlike the public header's deep-green headers.</li>
+      <li><b>Sidebar scrollbar is grey</b>, not the lime theme.</li>
+      <li><b>Brand chevron is a literal <code>▼</code> text glyph</b> — the public header uses a drawn chevron.</li>
+    </ul>
+  </div>
+
+  <div class="row">
+    <!-- EXISTING -->
+    <div class="cur">
+      <div class="cap cap-cur">EXISTING</div>
+      <div class="note">Look at <b>Inbox</b> (active, faint) vs <b>Contacts</b> (hover) — nearly the same. <b>Payments</b> and <b>Message logs</b> are the current page but show <b>no highlight at all</b>.</div>
+      <div class="sidebar">
+        <div class="brand">
+          <span class="logo">W</span>
+          <span class="wm"><span>Bharat</span><span class="wmrow"><span>Stack</span><span class="caret-old">▼</span></span></span>
+        </div>
+        <div class="search"><div class="search-in">Search…</div></div>
+        <div class="nav">
+          <div class="seclbl">Engage</div>
+          <div class="item active"><span class="icon"></span>Inbox</div>
+          <div class="item" style="background:rgba(209,244,112,.2)"><span class="icon"></span>Contacts</div>
+          <div class="item expandable"><span class="icon"></span>Broadcast<span class="arrow"></span></div>
+          <div class="subs">
+            <div class="sub">Send a broadcast</div>
+            <div class="sub">Scheduled</div>
+            <div class="sub active">Message logs</div>
+          </div>
+          <div class="seclbl">Money</div>
+          <div class="item expandable active"><span class="icon"></span>Payments<span class="arrow"></span></div>
+          <div class="item"><span class="icon"></span>Service Ops</div>
+          <div class="item"><span class="icon"></span>Store</div>
+          <div class="item"><span class="icon"></span>Forms</div>
+          <div class="item"><span class="icon"></span>Tasks</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIXED -->
+    <div class="new">
+      <div class="cap cap-new">FIXED</div>
+      <div class="note"><b>Inbox</b> (active) is solid lime — unmistakable. <b>Contacts</b> (hover) is a lighter tint. <b>Payments</b> and <b>Message logs</b> now <b>actually show</b> as the current page. Labels deep green, lime scrollbar, drawn chevron.</div>
+      <div class="sidebar">
+        <div class="brand">
+          <span class="logo">W</span>
+          <span class="wm"><span>Bharat</span><span class="wmrow"><span>Stack</span><span class="caret-new"><i></i></span></span></span>
+        </div>
+        <div class="search"><div class="search-in">Search…</div></div>
+        <div class="nav">
+          <div class="seclbl">Engage</div>
+          <div class="item active"><span class="icon"></span>Inbox</div>
+          <div class="item" style="background:rgba(209,244,112,.38)"><span class="icon"></span>Contacts</div>
+          <div class="item expandable"><span class="icon"></span>Broadcast<span class="arrow"></span></div>
+          <div class="subs">
+            <div class="sub">Send a broadcast</div>
+            <div class="sub">Scheduled</div>
+            <div class="sub active">Message logs</div>
+          </div>
+          <div class="seclbl">Money</div>
+          <div class="item expandable active"><span class="icon"></span>Payments<span class="arrow"></span></div>
+          <div class="item"><span class="icon"></span>Service Ops</div>
+          <div class="item"><span class="icon"></span>Store</div>
+          <div class="item"><span class="icon"></span>Forms</div>
+          <div class="item"><span class="icon"></span>Tasks</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>
