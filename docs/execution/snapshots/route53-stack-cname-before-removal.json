@@ -1,0 +1,12 @@
+[
+    {
+        "Name": "stack.wecare.digital.",
+        "Type": "CNAME",
+        "TTL": 500,
+        "ResourceRecords": [
+            {
+                "Value": "d2av2go6w170k.cloudfront.net"
+            }
+        ]
+    }
+]

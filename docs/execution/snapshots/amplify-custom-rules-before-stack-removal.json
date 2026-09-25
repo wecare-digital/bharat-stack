@@ -1,0 +1,117 @@
+[
+    {
+        "source": "https://www.wecare.digital",
+        "target": "https://wecare.digital",
+        "status": "301"
+    },
+    {
+        "source": "https://stack.wecare.digital",
+        "target": "https://wecare.digital",
+        "status": "301"
+    },
+    {
+        "source": "/dm/calls",
+        "target": "/dm/inbox/?channel=voice",
+        "status": "301"
+    },
+    {
+        "source": "/dm/calls/",
+        "target": "/dm/inbox/?channel=voice",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/inbox",
+        "target": "/dm/inbox/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/inbox/",
+        "target": "/dm/inbox/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/inbox",
+        "target": "/dm/inbox/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/inbox/",
+        "target": "/dm/inbox/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/dm/whatsapp/logs",
+        "target": "/dm/logs/?channel=whatsapp",
+        "status": "301"
+    },
+    {
+        "source": "/dm/whatsapp/logs/",
+        "target": "/dm/logs/?channel=whatsapp",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/logs",
+        "target": "/dm/logs/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/logs/",
+        "target": "/dm/logs/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/logs",
+        "target": "/dm/logs/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/logs/",
+        "target": "/dm/logs/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/campaign",
+        "target": "/dm/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/campaign/",
+        "target": "/dm/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/campaign",
+        "target": "/dm/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/campaign/",
+        "target": "/dm/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/forms/logs",
+        "target": "/forms/responses/",
+        "status": "301"
+    },
+    {
+        "source": "/forms/logs/",
+        "target": "/forms/responses/",
+        "status": "301"
+    },
+    {
+        "source": "/link/logs",
+        "target": "/link/",
+        "status": "301"
+    },
+    {
+        "source": "/link/logs/",
+        "target": "/link/",
+        "status": "301"
+    },
+    {
+        "source": "/<*>",
+        "target": "/index.html",
+        "status": "404-200"
+    }
+]
