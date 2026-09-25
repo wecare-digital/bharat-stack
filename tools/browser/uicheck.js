@@ -126,10 +126,39 @@ async function scrollToEnd( page, vp ) {
     const footer = document.querySelector( 'footer.ft-footer' );
     if ( !footer ) return { error: 'no footer.ft-footer' };
     const b = footer.getBoundingClientRect();
+    const pill = document.querySelector( '.wc-pill' );
+    const header = document.querySelector( 'header.hdr' );
+    const p = pill ? pill.getBoundingClientRect() : null;
+
+    /**
+     * Overlap against footer CONTENT, not the footer box.
+     *
+     * The box spans the full width, so any bottom-right element overlaps it by definition -
+     * an assertion on the box would fail forever and mean nothing. What matters is whether
+     * anything a visitor reads or clicks is underneath: the lockup, the tagline, the lime
+     * dash. The dash is named explicitly because it is the element that was being covered.
+     */
+    const covered = [];
+    if ( p ) {
+      for ( const el of document.querySelectorAll( '.ft-footer a, .ft-footer p, .ft-footer img, .ft-footer .ft-dash, .ft-footer .brand-copy' ) ) {
+        const r = el.getBoundingClientRect();
+        if ( !r.width || !r.height ) continue;
+        if ( Math.min( p.right, r.right ) - Math.max( p.left, r.left ) > 0
+          && Math.min( p.bottom, r.bottom ) - Math.max( p.top, r.top ) > 0 ) {
+          covered.push( `${el.tagName.toLowerCase()}.${( el.className || '' ).toString().replace( /jsx-\w+/g, '' ).trim().split( /\s+/ ).join( '.' )}` );
+        }
+      }
+    }
+
     return {
       footerTop: Math.round( b.top ), footerBottom: Math.round( b.bottom ),
       blankBelow: Math.round( window.innerHeight - b.bottom ),
       footerOffTop: b.bottom <= 0,
+      pillBottom: p ? Math.round( p.bottom ) : null,
+      pillTop: p ? Math.round( p.top ) : null,
+      gapAboveFooter: p ? Math.round( b.top - p.bottom ) : null,
+      underHeader: p && header ? p.top < header.getBoundingClientRect().bottom : null,
+      covered: Array.from( new Set( covered ) ),
     };
   } );
 }
@@ -142,8 +171,12 @@ async function scrollToEnd( page, vp ) {
  * here. The breakpoint is max-width:767px, so 700 is mobile and 1024 is not.
  */
 const PILL = {
-  desktop: { right: 20, bottom: 20 },
-  mobile: { right: 16, bottom: 72 },
+  desktop: { right: 20, bottom: 20, slim: false },
+  // bottom WAS 72, to clear the dashboard BottomNav - which no public page renders. Checked
+  // at fourteen widths and absent at every one, so the pill floated above empty space here
+  // while desktop sat at 20. Public pages now match desktop; the dashboard keeps 72 through
+  // .is-appshell, which this harness never sees because it only loads public routes.
+  mobile: { right: 16, bottom: 20, slim: true },
 };
 
 const VIEWPORTS = [
@@ -310,6 +343,10 @@ async function measurePill( page ) {
       chipText: chip ? ownText( chip ) : null,
       chipBg: chip ? getComputedStyle( chip ).backgroundColor : null,
       chipBusy: chip ? chip.classList.contains( 'is-busy' ) : null,
+      arrowShown: ( () => {
+        const arw = document.querySelector( '.wc-pill .wc-arw' );
+        return arw ? getComputedStyle( arw ).display !== 'none' : false;
+      } )(),
       sweep: !!sweep,
       status: status ? status.textContent.trim() : null,
       waReach: reachable( wa ),
@@ -421,6 +458,29 @@ async function main() {
 
         record( m.pill.h >= TOUCH_MIN, `${vp.label}: pill clears the ${TOUCH_MIN}px touch target`, `${m.pill.h}px tall` );
 
+        /**
+         * SLIM ON PHONES. 108px is 27% of a 390px screen and 32% of a folded 280px one, so
+         * the chevron goes below 768px and the chip tightens - about 19px back. The chevron
+         * earns its place on a pointer device, where it is the only hint that the chip opens
+         * something; a tap opens the OS language picker regardless.
+         *
+         * THE 40px CONTROLS ARE ASSERTED SEPARATELY AND DELIBERATELY. The mockup for this
+         * shrank them to 36px, which would have put the tap target below the 44px floor on
+         * the device where that matters most. Width was the complaint, so width is what was
+         * spent; the controls did not move.
+         */
+        record( m.arrowShown === !vp.pill.slim,
+          `${vp.label}: language chevron ${vp.pill.slim ? 'hidden on phones' : 'shown on pointer widths'}`,
+          `arrow ${m.arrowShown ? 'shown' : 'hidden'}` );
+
+        record( vp.pill.slim ? m.pill.w <= 95 : m.pill.w >= 100,
+          `${vp.label}: pill is ${vp.pill.slim ? 'slim' : 'full width'}`,
+          `${m.pill.w}px wide, ${Math.round( m.pill.w / vp.width * 1000 ) / 10}% of the screen` );
+
+        record( m.wa.w === 40 && m.wa.h === 40,
+          `${vp.label}: WhatsApp control stays 40px at every width`,
+          `${m.wa.w}x${m.wa.h} - going smaller would drop the tap target below ${TOUCH_MIN}px` );
+
         // The two hit tests. See measurePill's note on why these beat comparing z-indexes.
         record( m.waReach.ok, `${vp.label}: nothing is painted over the WhatsApp button`,
           m.waReach.ok ? `centre hits ${m.waReach.hit}` : `centre hits ${m.waReach.hit}${navZ !== null ? ` - the pill is z-index ${m.zIndex}, .bottom-nav is ${navZ}` : ''}` );
@@ -506,12 +566,34 @@ async function main() {
       if ( end.error ) {
         record( false, `${vp.label}: footer measurable at the end of the page`, end.error );
       } else {
-        console.log( `  page end: footer y ${end.footerTop}..${end.footerBottom}, ${end.blankBelow}px below it` );
+        console.log( `  page end: footer y ${end.footerTop}..${end.footerBottom}, ${end.blankBelow}px below it; pill y ${end.pillTop}..${end.pillBottom}, ${end.gapAboveFooter}px above the footer` );
         record( !end.footerOffTop && end.blankBelow <= 1,
           `${vp.label}: footer lands flush at the end of the page`,
           end.footerOffTop
             ? 'the footer scrolled off the TOP of the screen - the page scrolls past its own end'
             : `${end.blankBelow}px of blank space below the footer` );
+
+        /**
+         * THE ASSERTION THE WHOLE FOOTER CHANGE EXISTS FOR. Before it, the pill covered
+         * 34px of the 56px lime dash at 1440 and hid it ENTIRELY at 768, and on phones it
+         * landed inside the footer at all seven sizes. Two fixes answer it: the dash moved
+         * out of the bottom-right column into the brand block, and below 768px the pill
+         * parks above the footer instead of descending into it.
+         */
+        record( end.covered.length === 0,
+          `${vp.label}: pill covers no footer content at the end of the page`,
+          end.covered.length ? `covers ${end.covered.join( ', ' )}` : 'nothing underneath it' );
+
+        if ( vp.pill.slim ) {
+          // Parking is mobile-only: above 768px the footer is short enough that the pill
+          // clears it at its resting offset now the dash has moved out of that corner.
+          record( end.gapAboveFooter >= 12,
+            `${vp.label}: pill parks above the footer rather than sliding into it`,
+            `${end.gapAboveFooter}px of clear air` );
+          record( end.underHeader === false,
+            `${vp.label}: parked pill stays clear of the fixed header`,
+            end.underHeader ? 'it parked BEHIND the header - the ceiling clamp is not working' : 'below the header' );
+        }
       }
 
       await context.close();
