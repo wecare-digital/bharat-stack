@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import BrandLockup from './BrandLockup';
 
 /**
@@ -25,7 +25,47 @@ import BrandLockup from './BrandLockup';
  *    copy of the name already set in the lockup on the left, and, on this site, a
  *    link to the page you were already on. Removed rather than replaced.
  */
-const Footer: React.FC = () => (
+const Footer: React.FC = () => {
+  const dashRef = useRef<HTMLElement | null>( null );
+
+  /**
+   * The lime dash draws itself in WHEN IT COMES INTO VIEW, not on page load.
+   *
+   * The footer sits below the fold on every page, so a load-time CSS animation would
+   * play to an empty viewport and be finished before anyone scrolled down to it - the
+   * same trap the home page's closing rule documents.
+   *
+   * THE ANIMATION IS OPT-IN, NOT OPT-OUT, and that inversion is the important part. The
+   * CSS below ships the FINAL state (the dash fully drawn). This effect adds .is-armed to
+   * hide the start state only once it knows it can animate, then .is-in to play it. So no
+   * JS, no IntersectionObserver, or reduced motion all leave the dash simply visible
+   * instead of stuck at scaleX(0) - an entrance effect must never be the reason something
+   * cannot be seen.
+   *
+   * classList rather than state, deliberately: this is a visual side-effect that does not
+   * change what React renders, so driving the node directly avoids a re-render on scroll.
+   */
+  useEffect( () => {
+    const el = dashRef.current;
+    if ( !el ) return undefined;
+    if ( typeof IntersectionObserver === 'undefined' ) return undefined;
+    if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) return undefined;
+
+    el.classList.add( 'is-armed' );
+    const io = new IntersectionObserver(
+      entries => {
+        if ( entries.some( e => e.isIntersecting ) ) {
+          el.classList.add( 'is-in' );
+          io.disconnect(); // One-shot: an entrance, not a scroll effect.
+        }
+      },
+      { threshold: 0.6 }
+    );
+    io.observe( el );
+    return () => io.disconnect();
+  }, [] );
+
+  return (
   <footer className="ft-footer">
     <div className="ft-in">
       <div className="ft-grid">
@@ -51,6 +91,15 @@ const Footer: React.FC = () => (
               should become a link later, wrap it in an <a> and the sweep still applies. */}
           <p className="ft-tagline">Trusted everyday services for Bharat</p>
         </div>
+
+        {/* The right-hand brand dash. Purely decorative, hence aria-hidden and a <span>
+            rather than an <hr> - it separates nothing and announcing it would be noise.
+            It is the same motif as .home-close-rule on the home page and .wt-lane-bar in
+            the workflow panel: a short lime rule, drawn with transform so the reveal is
+            compositor-only. Chosen over the alternative of three coloured dots because
+            those would have imported the home page's per-subject hues (which carry
+            meaning there and none here) and read as a status light. */}
+        <span className="ft-dash" ref={ dashRef } aria-hidden="true" />
       </div>
     </div>
 
@@ -102,8 +151,32 @@ const Footer: React.FC = () => (
       .ft-tagline:hover{color:#1a3a2a}
       .ft-tagline:hover::after{transform:scaleX(1)}
 
+      /* THE LIME DASH. 56x3px, matching .home-close-rule's 3px lime rule.
+         READ THE .is-armed PATTERN BEFORE CHANGING THIS: the default below is the FINAL,
+         visible state. .is-armed is added by JavaScript only once it has confirmed it can
+         animate, and that is what hides the start state; .is-in then plays the reveal. The
+         effect is therefore additive and the dash is never invisible for lack of JS.
+         transform:scaleX is the whole animation - compositor-only, so it cannot cause
+         layout on any frame the way animating width would. transform-origin:left makes it
+         grow from the left edge. align-self keeps it on the tagline's baseline row rather
+         than stretched by the flex parent. */
+      .ft-dash{
+        display:block;align-self:flex-end;
+        width:56px;height:3px;margin-bottom:6px;
+        background:#d1f470;border-radius:2px;
+        transform-origin:left center;
+        transition:transform .62s cubic-bezier(.22,.61,.36,1);
+      }
+      .ft-dash.is-armed{transform:scaleX(0)}
+      .ft-dash.is-armed.is-in{transform:scaleX(1)}
+
       @media(prefers-reduced-motion:reduce){
         .ft-tagline,.ft-tagline::after{transition:none}
+        /* Belt and braces. The effect already never arms under reduced motion, so this is
+           the guard for the case where the preference changes after arming, when the class
+           is already on the node. It kills the movement without hiding the dash. */
+        .ft-dash{transition:none}
+        .ft-dash.is-armed{transform:scaleX(1)}
       }
 
       @media(max-width:1024px){
@@ -116,6 +189,7 @@ const Footer: React.FC = () => (
       }
     `}</style>
   </footer>
-);
+  );
+};
 
 export default Footer;
