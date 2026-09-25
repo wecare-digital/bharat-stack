@@ -248,7 +248,20 @@ const SupportWidget: React.FC = () => {
            here because contacting us is the primary action. Deliberately NOT WhatsApp
            green - that is their brand, not ours, and it was the one off-palette colour on
            every public page. */
-        .wc-wa{width:40px;height:40px;border-radius:50%;background:#d1f470;color:#1a3a2a;display:grid;place-items:center;text-decoration:none;transition:background-color .2s}
+        /* min-width/min-height ARE LOAD-BEARING, not belt-and-braces. Two global rules
+           fight over every <a> on this site and the widget loses the fight silently:
+           tokens.css raises min-width AND min-height to 44px below 768px (a fair
+           touch-target floor), then Layout.css:94 resets min-height to 32px for the same
+           selector list with no media query - later in the cascade, same specificity, so
+           it wins - and never touches min-width. The floor thus applied to width only,
+           and this 40px circle rendered as a 44x40 OVAL on every phone, because
+           border-radius:50% follows the box. Pinning both axes here (two classes, so it
+           outranks the bare element selector) is what keeps it round. uicheck.js asserts
+           width === height at 4 widths so it cannot come back.
+           NOTE for future edits in this block: no backticks in these comments. This file
+           is a template literal, so a backtick ends the CSS early and the build fails with
+           "Expected '</', got 'ident'" pointing at the comment rather than the cause. */
+        .wc-wa{width:40px;height:40px;min-width:40px;min-height:40px;border-radius:50%;background:#d1f470;color:#1a3a2a;display:grid;place-items:center;text-decoration:none;transition:background-color .2s}
         .wc-wa:hover{background:#c5e866}
         .wc-wa:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
         .wc-wa svg{width:21px;height:21px;display:block}
