@@ -680,7 +680,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // page to the menu and the sitemap while forgetting this one - which renders an empty body
   // with HTTP 200 and is invisible until someone loads the route. Deriving the allowlist from
   // the metadata map means a product cannot exist for structured data but not for rendering.
-  // /files is public but NOT marketing, so it is listed here rather than added to
+  // /get is public but NOT marketing, so it is listed here rather than added to
   // PUBLIC_PAGE_META: it must render without a staff sign-in, but it should not
   // acquire WebPage/BreadcrumbList structured data or appear in the sitemap. It is
   // the customer file-collection page - a visitor verifies their own number over
@@ -689,10 +689,10 @@ export default function App ( { Component, pageProps }: AppProps ) {
   //
   // Without this line the page renders the staff sign-in screen at HTTP 200, which
   // is precisely the "404 that does not look like one" the comment above warns
-  // about. Found that way on the live site before this was added.
+  // about. Found exactly that way on the live site when this page was at /files.
   const isPublic = router.pathname === '/'
     || router.pathname === '/contact-test'
-    || router.pathname === '/files'
+    || router.pathname === '/get'
     || Object.prototype.hasOwnProperty.call( PUBLIC_PAGE_META, router.pathname )
     || isContentPublic;
 

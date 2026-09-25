@@ -41,34 +41,6 @@ import {
     requestOtp, submitOtp, getSession, clearSession, normaliseMobile,
 } from '../lib/customerAuth';
 
-declare global {
-    interface Window { Razorpay?: new ( options: Record<string, unknown> ) => { open: () => void }; }
-}
-
-const CHECKOUT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
-
-/** Load Checkout once, on demand. Not in _document, so the script costs nothing for
- *  the majority of visitors who never reach the payment step. */
-function loadCheckout (): Promise<void> {
-    return new Promise( ( resolve, reject ) => {
-        if ( typeof window === 'undefined' ) { reject( new Error( 'no window' ) ); return; }
-        if ( window.Razorpay ) { resolve(); return; }
-        const existing = document.querySelector<HTMLScriptElement>( `script[src="${CHECKOUT_SRC}"]` );
-        if ( existing )
-        {
-            existing.addEventListener( 'load', () => resolve() );
-            existing.addEventListener( 'error', () => reject( new Error( 'Checkout failed to load' ) ) );
-            return;
-        }
-        const script = document.createElement( 'script' );
-        script.src = CHECKOUT_SRC;
-        script.async = true;
-        script.onload = () => resolve();
-        script.onerror = () => reject( new Error( 'Checkout failed to load' ) );
-        document.body.appendChild( script );
-    } );
-}
-
 function formatBytes ( bytes: number ): string {
     if ( !bytes ) return '0 B';
     const units = [ 'B', 'KB', 'MB', 'GB' ];
@@ -77,36 +49,6 @@ function formatBytes ( bytes: number ): string {
 }
 
 const rupees = ( paise: number ) => `₹${( ( paise || 0 ) / 100 ).toFixed( 0 )}`;
-
-/**
- * Poll redeem until the payment is confirmed server-side.
- *
- * Razorpay's callback means "the customer submitted payment", not "we have been told
- * it captured". Confirmation normally lands within a second or two; this gives it
- * ~40s before admitting defeat.
- *
- * A 403 here means "not payable yet" far more often than "already spent", because
- * this is the first redeem attempt on a fresh grant - the backend deliberately
- * returns the same answer for both, so waiting is the only sensible reading.
- *
- * Lives at module scope, not in the component: it touches no state, and `Date.now()`
- * inside a function defined in the render body counts as an impure call during render.
- */
-async function pollForDownload ( fileId: string, grantId: string ): Promise<string> {
-    const deadline = Date.now() + 40_000;
-    let wait = 1500;
-    while ( Date.now() < deadline )
-    {
-        const result = await api.redeemSecureFileDownload( fileId, grantId );
-        if ( result.ok ) return result.data.downloadUrl;
-        await new Promise( resolve => setTimeout( resolve, wait ) );
-        wait = Math.min( wait * 1.4, 5000 );
-    }
-    throw new Error(
-        'Payment received but the confirmation has not arrived yet. '
-        + 'Your file will be available shortly — please reload this page.',
-    );
-}
 
 type Stage = 'mobile' | 'otp' | 'files';
 
@@ -223,55 +165,38 @@ export default function FilesPage () {
         }
     };
 
-    const handlePayAndDownload = async ( file: SecureFile ) => {
+    /**
+     * Hand the payment off to WhatsApp and stop.
+     *
+     * Everything after this happens on the handset: the customer pays through the
+     * `wecare_pay` template's ORDER_DETAILS button, the Razorpay webhook verifies the
+     * signature, and the file is delivered as a WhatsApp document. So this page has
+     * nothing to poll for and no download to trigger — which is why there is no
+     * Razorpay Checkout script here any more.
+     */
+    const handlePayOnWhatsApp = async ( file: SecureFile ) => {
         setError( '' );
+        setMessage( '' );
         setWorking( file.fileId );
         try
         {
-            const order = await api.createSecureFileOrder( file.fileId );
-            if ( !order.ok )
+            const sent = await api.sendWhatsAppPayment( file.fileId );
+            if ( !sent.ok )
             {
                 setError(
-                    order.failure.status === 503
+                    sent.failure.status === 503
                         ? 'Paid downloads are not switched on yet. Please contact us.'
-                        : order.failure.message || 'Could not start the payment',
+                        : sent.failure.message || 'Could not send the payment request',
                 );
                 return;
             }
-
-            await loadCheckout();
-            const RazorpayCtor = window.Razorpay;
-            if ( !RazorpayCtor ) throw new Error( 'Checkout unavailable' );
-
-            await new Promise<void>( ( resolve, reject ) => {
-                const checkout = new RazorpayCtor( {
-                    key: order.data.keyId,
-                    amount: order.data.amountPaise,
-                    currency: order.data.currency || 'INR',
-                    order_id: order.data.orderId,
-                    name: 'WECARE.DIGITAL',
-                    description: file.displayName,
-                    // Forgeable, so it only ends the wait. Entitlement is decided
-                    // server-side.
-                    handler: () => resolve(),
-                    modal: { ondismiss: () => reject( new Error( 'Payment cancelled' ) ) },
-                    theme: { color: '#d1f470' },
-                } );
-                checkout.open();
-            } );
-
-            setMessage( 'Payment received. Preparing your download…' );
-            const url = await pollForDownload( file.fileId, order.data.grantId );
-            setMessage( '' );
-            // assign(), not `location.href = url`: the presigned URL responds with
-            // Content-Disposition: attachment, so the browser downloads it and stays
-            // on this page rather than navigating away.
-            window.location.assign( url );
-            await loadFiles();
+            setMessage(
+                `Payment request sent to ${sent.data.sentTo} on WhatsApp. `
+                + 'Pay there and your file will arrive in the same chat.',
+            );
         } catch ( err: any )
         {
-            setMessage( '' );
-            setError( err?.message || 'Payment could not be completed' );
+            setError( err?.message || 'Could not send the payment request' );
         } finally
         {
             setWorking( '' );
@@ -377,17 +302,20 @@ export default function FilesPage () {
                                     </div>
                                     <button
                                         className="sf-cta"
-                                        onClick={ () => handlePayAndDownload( file ) }
+                                        onClick={ () => handlePayOnWhatsApp( file ) }
                                         disabled={ !!working }
                                     >
                                         { working === file.fileId
-                                            ? 'Processing…'
-                                            : `Pay ${rupees( file.pricePaise || price )} and download` }
+                                            ? 'Sending…'
+                                            : `Pay ${rupees( file.pricePaise || price )} on WhatsApp` }
                                     </button>
                                 </div>
                             ) ) }
 
-                            <p className="sf-fine">Each download is charged separately.</p>
+                            <p className="sf-fine">
+                                Each download is charged separately. Payment and the file
+                                both happen on WhatsApp, on the number you verified.
+                            </p>
                             <button
                                 className="sf-quiet"
                                 onClick={ () => { clearSession(); setStage( 'mobile' ); setFiles( [] ); } }
