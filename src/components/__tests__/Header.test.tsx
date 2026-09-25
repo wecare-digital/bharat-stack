@@ -31,16 +31,21 @@ describe( 'Header', () => {
     expect( screen.getByRole( 'link', { name: 'Grahak OS' } ) ).toHaveAttribute( 'aria-current', 'page' );
   } );
 
-  it( 'keeps Sign in and removes Contact and retired pages', () => {
+  it( 'removes internal Sign in, and removes retired pages', () => {
     render( <Header /> );
     fireEvent.click( screen.getByRole( 'button', { name: 'Open navigation' } ) );
-    expect( screen.getByRole( 'link', { name: 'Sign in' } ) ).toHaveAttribute( 'href', '/access' );
+
+    // SIGN IN IS GONE from the public menu, on owner instruction. The old row pointed at
+    // /access, the INTERNAL staff dashboard login (Cognito), which does not belong in
+    // public navigation. A fresh customer login (WhatsApp OTP with SMS/email fallback)
+    // will live on the /my-order page instead. So there must be no "Sign in" link, and
+    // no "Account" heading, anywhere in this menu.
+    expect( screen.queryByRole( 'link', { name: 'Sign in' } ) ).toBeNull();
+    expect( screen.queryByText( 'Account' ) ).toBeNull();
 
     // Contact is BACK, by owner request, and now points at a real local page - so the
-    // assertion that it stays absent is retired rather than failing. It was there to
-    // stop a deleted page creeping back into the menu, which is a decision the owner
-    // has now reversed deliberately. Studio and Sustainability are still retired and
-    // those guards stay.
+    // assertion that it stays absent is retired rather than failing. Studio and
+    // Sustainability are still retired and those guards stay.
     expect( screen.getByRole( 'link', { name: 'Contact' } ) ).toHaveAttribute( 'href', '/contact/' );
     expect( screen.queryByText( 'Studio' ) ).toBeNull();
     expect( screen.queryByText( 'Sustainability' ) ).toBeNull();
@@ -86,6 +91,16 @@ describe( 'Header', () => {
     // The heading matches the published document's own title.
     expect( screen.getByText( 'Legal Stuff' ) ).toBeInTheDocument();
     expect( screen.queryByText( /^Legal$/ ) ).toBeNull();
+
+    // Legal Stuff now sits in the SAME column as "Refer & Earn" (the Work with us
+    // column), not under Selfservice where it used to be. Asserted by shared column
+    // ancestor so a future reorder that splits them is caught.
+    const legalCol = screen.getByText( 'Legal Stuff' ).closest( '.nav-col' );
+    expect( legalCol ).not.toBeNull();
+    expect( legalCol?.textContent ).toContain( 'Refer & Earn' );
+    // And it is no longer beside the Selfservice actions.
+    const selfCol = screen.getByText( 'Selfservice' ).closest( '.nav-col' );
+    expect( selfCol?.textContent ).not.toContain( 'Legal Stuff' );
   } );
 
   it( 'uses the approved public header dimensions and brand navigation colors', () => {

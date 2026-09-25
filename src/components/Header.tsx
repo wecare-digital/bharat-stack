@@ -127,36 +127,21 @@ const COLUMNS: NavColumn[] = [
         // both a category and a link and gave a visitor two things to click for one idea.
         heading: 'Selfservice',
         links: [
+          // MY ORDER IS FIRST, on owner instruction - it is the row customers reach for
+          // most, and it is the one real local page in this group (the others land on
+          // /contact for now), so it leads. It carries `match` and lights up on its own
+          // route. "My Order" REPLACES the old "Request Tracking" row - the two answer the
+          // same question, and offering both sends one visitor to two places for one answer.
+          { label: 'My Order', href: '/my-order/', match: '/my-order' },
           // FAQ removed on request. The local /faq page was already deleted; this
           // drops the menu row too, so there is no FAQ entry point left anywhere.
           { label: 'Submit Request', href: '/contact/', match: '/contact' },
           { label: 'Request Amendment', href: '/contact/', match: '/contact' },
-          // "My Order" REPLACES the old "Request Tracking" row rather than sitting beside
-          // it: the two answer the same question, and offering both sends one visitor to
-          // two places for one answer. Unlike its siblings this is a local page, so it
-          // carries `match` and lights up on its own route.
-          { label: 'My Order', href: '/my-order/', match: '/my-order' },
           { label: 'Drop Docs', href: '/contact/', match: '/contact' },
           { label: 'Leave Review', href: '/contact/', match: '/contact' },
-          // Local pages, so these carry `match` and light up on their own route.
-          // Trailing slashes are load-bearing: trailingSlash is set, so /contact
-          // would redirect before resolving.
-          { label: 'Contact', href: '/contact/', match: '/contact' },
-        ],
-      },
-      {
-        // "Legal Stuff", matching the heading on the published document this content
-        // came from, rather than the shorter "Legal" used while it was a placeholder.
-        //
-        // Privacy IS listed now. It was deliberately absent while its text was a
-        // placeholder - an unfindable page was preferable to advertising an empty
-        // policy - and the owner asked for it once the real policy landed. Header.test
-        // asserts both rows, so the earlier guard against adding Privacy is retired
-        // rather than silently broken.
-        heading: 'Legal Stuff',
-        links: [
-          { label: 'Terms', href: '/terms/', match: '/terms' },
-          { label: 'Privacy', href: '/privacy/', match: '/privacy' },
+          // CONTACT MOVED OUT of Selfservice into the third column (Work with us), on
+          // owner instruction - the Selfservice column is now the request ACTIONS only,
+          // and Contact sits with Refer & Earn as a way to reach the company.
         ],
       },
     ],
@@ -172,8 +157,30 @@ const COLUMNS: NavColumn[] = [
       // "Refer & Earn", not "Partners", on instruction. It is also the better label: it says
       // what you get rather than what you become, and the destination is the referral-partner
       // product page.
-      { heading: 'Work with us', links: [ { label: 'Refer & Earn', href: PARTNERS, external: true } ] },
-      { heading: 'Account', links: [ { label: 'Sign in', href: '/access', match: '/access' } ] },
+      // Contact joins this column, under Refer & Earn: both are ways to reach the
+      // company, as opposed to the Selfservice column's request actions. It is a local
+      // page, so it carries `match` and lights up on /contact. The trailing slash is
+      // load-bearing (trailingSlash is set, so /contact would redirect before resolving).
+      { heading: 'Work with us', links: [
+        { label: 'Refer & Earn', href: PARTNERS, external: true },
+        { label: 'Contact', href: '/contact/', match: '/contact' },
+      ] },
+      // LEGAL STUFF LIVES HERE NOW, under Work with us. It moved out of the middle
+      // column (where it sat beneath Selfservice) on owner instruction, so the third
+      // column carries the "about the company" rows - Refer & Earn plus the policies -
+      // and the middle column is purely the Selfservice actions.
+      {
+        heading: 'Legal Stuff',
+        links: [
+          { label: 'Terms', href: '/terms/', match: '/terms' },
+          { label: 'Privacy', href: '/privacy/', match: '/privacy' },
+        ],
+      },
+      // ACCOUNT / SIGN IN REMOVED from the public menu on owner instruction. That "Sign
+      // in" pointed at /access, which is the INTERNAL staff dashboard login (Cognito) -
+      // it does not belong in the public navigation. A fresh, customer-facing login
+      // (WhatsApp OTP, SMS/email fallback) will live on the /my-order page instead, so
+      // there is deliberately no sign-in row here now.
     ],
   },
 ];
@@ -316,32 +323,45 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
                 <div className="nav-cols">
                   { COLUMNS.map( ( column, columnIndex ) => (
                     <div key={ columnIndex } className="nav-col">
-                      { column.sections.map( ( section, sectionIndex ) => (
-                        <div key={ section.heading || sectionIndex } className="nav-group">
-                          { section.heading && ( section.headingHref
-                            ? (
-                              // The heading is the parent destination as well as a
-                              // label, so it is a link. Styled as a heading rather
-                              // than as a row so the hierarchy still reads.
-                              <a
-                                href={ section.headingHref }
-                                className="nav-group-label nav-group-link"
-                                onClick={ close }
-                              >{ section.heading }</a>
-                            )
-                            : <span className="nav-group-label">{ section.heading }</span>
-                          ) }
-                          { section.links.map( link => (
+                      { column.sections.map( ( section, sectionIndex ) => {
+                        // The PRODUCTS section is the one that grows without bound - it is
+                        // generated from src/content/products.ts and is meant to hold 100+
+                        // entries eventually. So ONLY this section gets a capped, scrollable
+                        // list with a pinned heading; every other section renders exactly as
+                        // before. Matched by heading text rather than index so reordering the
+                        // columns cannot silently move the scroll onto the wrong group.
+                        const isProducts = section.heading === 'Products';
+                        const label = section.heading && ( section.headingHref
+                          ? (
+                            // The heading is the parent destination as well as a label, so
+                            // it is a link. Styled as a heading rather than as a row so the
+                            // hierarchy still reads.
                             <a
-                              key={ link.label + link.href }
-                              href={ link.href }
-                              className={ `nav-item ${section.headingHref ? 'nav-sub' : ''} ${isActive( link ) ? 'active' : ''}`.trim() }
-                              aria-current={ isActive( link ) ? 'page' : undefined }
+                              href={ section.headingHref }
+                              className="nav-group-label nav-group-link"
                               onClick={ close }
-                            >{ link.label }</a>
-                          ) ) }
-                        </div>
-                      ) ) }
+                            >{ section.heading }</a>
+                          )
+                          : <span className="nav-group-label">{ section.heading }</span>
+                        );
+                        const items = section.links.map( link => (
+                          <a
+                            key={ link.label + link.href }
+                            href={ link.href }
+                            className={ `nav-item ${section.headingHref ? 'nav-sub' : ''} ${isActive( link ) ? 'active' : ''}`.trim() }
+                            aria-current={ isActive( link ) ? 'page' : undefined }
+                            onClick={ close }
+                          >{ link.label }</a>
+                        ) );
+                        return (
+                          <div key={ section.heading || sectionIndex } className={ `nav-group ${isProducts ? 'nav-group-products' : ''}`.trim() }>
+                            { label }
+                            { isProducts
+                              ? <div className="nav-products-scroll">{ items }</div>
+                              : items }
+                          </div>
+                        );
+                      } ) }
                     </div>
                   ) ) }
                 </div>
@@ -456,6 +476,50 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            bright green clashed with the palette), weight 700, UPPERCASE, with a
            touch more tracking so the caps stay legible. */
         .nav-group-label{display:block;padding:6px 12px 4px;font-size:12px;font-weight:700;letter-spacing:.06em;color:#1a3a2a;text-transform:uppercase}
+
+        /* PRODUCTS SCROLL. Only the Products group. The catalogue is meant to reach 100+
+           entries, so its list is capped and scrolls rather than making the whole panel
+           grow past the viewport. With today's ~10 products it never scrolls - max-height
+           is a ceiling, not a fixed height - so nothing changes until the list is long.
+           Cap is ~6 rows (6 x 46px = 276px), kept deliberately short so the open menu
+           stays compact. */
+        .nav-group-products{min-height:0}
+        /* The heading stays PINNED above its own scrolling list. Sticky against the
+           scroll container's top; the #fcfdfb backer stops list rows showing through the
+           label as they pass under it. z-index clears the rows. */
+        .nav-group-products .nav-group-label{position:sticky;top:0;z-index:2;background:#fcfdfb}
+        .nav-products-scroll{
+          /* 5 rows. 5 x 46px = 230px, on owner instruction to keep the open menu short.
+             This is a CEILING, not a fixed height: with fewer than 5 products the group
+             is only as tall as its list and does not scroll. With today's ten products it
+             does scroll, which is the accepted trade-off for a compact menu. */
+          max-height:230px;
+          overflow-y:auto;
+          -webkit-overflow-scrolling:touch;
+          /* Contain the scroll chain so flicking the product list to its end does not
+             then scroll the page behind the menu. */
+          overscroll-behavior:contain;
+          /* The scrollbar hugs the product NAMES, not the far edge of the column.
+             The column is a third of the 760px panel (~240px) but the longest product
+             label is much narrower, so a bar pinned to the column's right edge floated
+             in empty space and read as detached from the list. width:max-content sizes
+             the scroll box to its widest row, so the track sits immediately to the right
+             of the names; max-width stops a very long product name from overflowing the
+             column. A small padding-right gives the bar a little breathing room from the
+             text rather than overlapping the last glyph. */
+          width:max-content;
+          max-width:100%;
+          padding-right:8px;
+          /* LIME THEMED SCROLLBAR, not the browser default grey. Firefox uses
+             scrollbar-color (thin), WebKit/Blink use the ::-webkit-scrollbar rules below;
+             both are declared so every engine shows the brand colour. */
+          scrollbar-width:thin;
+          scrollbar-color:#d1f470 transparent;
+        }
+        .nav-products-scroll::-webkit-scrollbar{width:8px}
+        .nav-products-scroll::-webkit-scrollbar-track{background:transparent}
+        .nav-products-scroll::-webkit-scrollbar-thumb{background:#d1f470;border-radius:20px}
+        .nav-products-scroll::-webkit-scrollbar-thumb:hover{background:#c5e866}
         /* The Selfservice heading is a link, so it needs an affordance the plain
            headings do not have - without one it looks like the same inert label. */
         .nav-group-link{color:#1a3a2a;text-decoration:none;border-radius:8px}

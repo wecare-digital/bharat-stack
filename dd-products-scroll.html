@@ -1,35 +1,29 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>Header + menu — final interactive mock</title>
+<title>Header + menu — final mock (shorter, contact moved)</title>
 <style>
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
 body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:26px 24px 120px}
 .page{max-width:1000px;margin:0 auto}
 h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
 .chg{font-size:13px;color:#0f2a1d;background:#e0f7c8;border:1px solid #c5e866;border-radius:8px;padding:10px 13px;margin:0 0 18px}
 .chg b{font-weight:700}.chg ul{margin:6px 0 0;padding-left:18px}.chg li{margin:2px 0}
 
-/* ===== HEADER BAR ===== */
 .hdr{background:#fff;border:1px solid #e5e7eb;border-radius:14px;position:relative}
 .hdr-in{padding:18px 24px;display:flex;align-items:center;height:108px}
 .logo-nav{display:flex;align-items:center;gap:10px}
 .brand-lockup{display:inline-flex;align-items:center;gap:10px}
-.logo-box{height:60px;width:60px;border-radius:12px;background:linear-gradient(135deg,#1a3a2a,#3da35a);display:flex;align-items:center;justify-content:center;color:#d1f470;font-weight:800;font-size:22px;flex-shrink:0}
+.logo-box{height:60px;width:60px;border-radius:12px;background:linear-gradient(135deg,#1a3a2a,#3da35a);display:flex;align-items:center;justify-content:center;color:#d1f470;font-weight:800;font-size:22px}
 .brand-copy{display:flex;flex-direction:column;justify-content:center;line-height:1.08}
 .brand-copy>span{font-size:23px;font-weight:800;color:#1a1a1a;letter-spacing:-.5px}
 .brand-dot{color:#ff0040}
 .nav-dropdown{position:relative}
 .nav-trigger{min-width:46px;min-height:46px;background:rgba(209,244,112,.22);border:1px solid #e3ecc9;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center}
-.nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0;border-right:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;opacity:.85;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
-.nav-trigger[aria-expanded='true'] .nav-arrow{transform:translateY(2px) rotate(225deg)}
+.nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0;border-right:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;opacity:.85;transform:translateY(2px) rotate(225deg)}
 
-/* ===== MEGA MENU ===== */
-.nav-menu{position:absolute;top:calc(100% + 8px);left:0;width:min(760px,calc(100vw - 48px));background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.12);z-index:5;
-  opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s}
-.nav-menu.open{opacity:1;visibility:visible;transform:translateY(0);transition:opacity .2s,transform .2s,visibility 0s}
-.nav-search{width:100%;margin:0 0 12px;min-height:42px;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit;color:rgba(0,0,0,.42)}
+.nav-menu{position:absolute;top:calc(100% + 8px);left:0;width:min(760px,calc(100vw - 48px));background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.12);z-index:5}
+.nav-search{width:100%;margin:0 0 12px;min-height:42px;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:15px;color:rgba(0,0,0,.42)}
 .nav-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 20px;align-items:start}
 .nav-col{display:flex;flex-direction:column;gap:10px;min-width:0}
 .nav-group{display:flex;flex-direction:column}
@@ -38,34 +32,23 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
 .nav-item:hover{background:rgba(209,244,112,.38)}
 .nav-item.active{font-weight:800;background:#d1f470;color:#0f2a1d}
 
-/* Products: pinned label + SHORTER scroll (~6 rows x 46 = 276px). Scrollbar hugs the
-   list edge via negative right margin + matching padding. */
-.products-group{display:flex;flex-direction:column}
-.products-group .nav-group-label{position:sticky;top:0;background:#fcfdfb;z-index:2}
-.products-scroll{max-height:276px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
-  margin-right:-6px;padding-right:6px;
-  scrollbar-width:thin;scrollbar-color:#d1f470 transparent}
-.products-scroll::-webkit-scrollbar{width:8px}
-.products-scroll::-webkit-scrollbar-track{background:transparent}
-.products-scroll::-webkit-scrollbar-thumb{background:#d1f470;border-radius:20px}
-.products-scroll::-webkit-scrollbar-thumb:hover{background:#c5e866}
-
-/* cross-device: single column on phones */
-@media(max-width:767px){
-  .nav-menu{position:fixed;left:16px;right:16px;top:132px;width:auto}
-  .nav-cols{grid-template-columns:1fr}
-}
+/* Products: pinned label + 5-ROW cap (5 x 46 = 230px). Shorter menu. */
+.nav-group-products{min-height:0}
+.nav-group-products .nav-group-label{position:sticky;top:0;z-index:2;background:#fcfdfb}
+.nav-products-scroll{max-height:230px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  margin-right:-6px;padding-right:6px;scrollbar-width:thin;scrollbar-color:#d1f470 transparent}
+.nav-products-scroll::-webkit-scrollbar{width:8px}
+.nav-products-scroll::-webkit-scrollbar-track{background:transparent}
+.nav-products-scroll::-webkit-scrollbar-thumb{background:#d1f470;border-radius:20px}
+.nav-products-scroll::-webkit-scrollbar-thumb:hover{background:#c5e866}
 </style></head><body>
 <div class="page">
-  <h1>Final interactive mock — click arrow to open, click outside to close</h1>
-  <div class="chg"><b>All changes in this mock:</b>
+  <h1>Final mock — shorter menu, Contact moved to third column</h1>
+  <div class="chg"><b>Changes in this mock:</b>
     <ul>
-      <li>❌ Account / Sign in removed from menu</li>
-      <li>↓ Legal Stuff moved under Refer &amp; Earn</li>
-      <li>▤ Shorter menu (Products cap ~6 rows)</li>
-      <li>▉ Lime scrollbar, now hugging the product list edge</li>
-      <li>🖱️ <b>Click outside the menu → it closes</b> (also Esc). Try it.</li>
-      <li>📱 Responsive: collapses to one column on phones; standard scrollbar CSS for all browsers</li>
+      <li>▤ <b>Shorter menu</b> — Products cap now 5 rows (230px)</li>
+      <li>↔ <b>Contact moved</b> out of Selfservice into the third column (with Work with us / Legal)</li>
+      <li>Kept: no Account/Sign in, Legal Stuff in third column, pinned label, lime scrollbar</li>
     </ul>
   </div>
 
@@ -76,18 +59,20 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
           <span class="logo-box">W</span>
           <span class="brand-copy"><span>WECARE<span class="brand-dot">.</span></span><span>DIGITAL</span></span>
         </span>
-        <div class="nav-dropdown" id="dropdown">
-          <button class="nav-trigger" id="trigger" aria-expanded="true" aria-label="Open navigation"><span class="nav-arrow"></span></button>
-          <nav class="nav-menu open" id="menu" aria-label="Public navigation">
-            <input class="nav-search" value="" placeholder="Search"/>
+        <div class="nav-dropdown">
+          <button class="nav-trigger"><span class="nav-arrow"></span></button>
+          <nav class="nav-menu">
+            <input class="nav-search" value="Search" readonly/>
             <div class="nav-cols">
+              <!-- COL 1: Home + Products (5-row scroll) -->
               <div class="nav-col">
                 <div class="nav-group"><a class="nav-item active">Home</a></div>
-                <div class="products-group">
+                <div class="nav-group nav-group-products">
                   <span class="nav-group-label">Products</span>
-                  <div class="products-scroll" id="plist"></div>
+                  <div class="nav-products-scroll" id="plist"></div>
                 </div>
               </div>
+              <!-- COL 2: Selfservice (Contact removed) -->
               <div class="nav-col">
                 <div class="nav-group"><span class="nav-group-label">Selfservice</span>
                   <a class="nav-item">Submit Request</a>
@@ -95,12 +80,13 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
                   <a class="nav-item">My Order</a>
                   <a class="nav-item">Drop Docs</a>
                   <a class="nav-item">Leave Review</a>
-                  <a class="nav-item">Contact</a>
                 </div>
               </div>
+              <!-- COL 3: Work with us + Contact + Legal Stuff -->
               <div class="nav-col">
                 <div class="nav-group"><span class="nav-group-label">Work with us</span>
                   <a class="nav-item">Refer &amp; Earn</a>
+                  <a class="nav-item">Contact</a>
                 </div>
                 <div class="nav-group"><span class="nav-group-label">Legal Stuff</span>
                   <a class="nav-item">Terms</a>
@@ -113,22 +99,10 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
       </div>
     </div>
   </div>
-  <p style="margin-top:30px;color:#888;font-size:13px">↑ This grey area is "outside". Click here (or anywhere off the menu) and the menu closes. Click the arrow to reopen.</p>
 </div>
-
 <script>
 const REAL=['Grahak OS','VayuLok','Bharat Rx','Elsewhere','Expo Week','Dastavez','Clear Closure','Ritual Guru','Anew','Niji Setu'];
 const plist=document.getElementById('plist');
-[].concat(REAL,REAL).forEach(p=>{const a=document.createElement('a');a.className='nav-item';a.textContent=p;plist.appendChild(a);});
-
-// open / close behaviour (mirrors the real Header.tsx)
-const dd=document.getElementById('dropdown'), menu=document.getElementById('menu'), trigger=document.getElementById('trigger');
-function open(){menu.classList.add('open');trigger.setAttribute('aria-expanded','true');}
-function close(){menu.classList.remove('open');trigger.setAttribute('aria-expanded','false');}
-trigger.addEventListener('click',e=>{e.stopPropagation();menu.classList.contains('open')?close():open();});
-// CLICK OUTSIDE closes
-document.addEventListener('pointerdown',e=>{if(!dd.contains(e.target))close();});
-// ESC closes
-document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+REAL.forEach(p=>{const a=document.createElement('a');a.className='nav-item';a.textContent=p;plist.appendChild(a);});
 </script>
 </body></html>
