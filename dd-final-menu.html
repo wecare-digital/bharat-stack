@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/>
-<title>Final menu — 230px scroll width, center-out divider</title>
+<title>Final menu — Choice 1 scrollbar + Sweep divider</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:26px 24px 120px}
@@ -35,16 +35,15 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
 /* lighter divider hairline */
 .nav-item::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:1px;background:#f1f3ec}
 .nav-group .nav-item:last-child::after,.nav-products-scroll .nav-item:last-child::after{display:none}
-/* DIVIDER ANIMATION = OPTION 2 (center-out), 0.22s */
-.nav-item::before{content:'';position:absolute;left:12px;right:12px;bottom:0;height:2px;background:#d1f470;transform:scaleX(0);transform-origin:center center;transition:transform .22s cubic-bezier(.16,1,.3,1)}
+/* DIVIDER ANIMATION = OPTION 1 (sweep left->right), 0.2s */
+.nav-item::before{content:'';position:absolute;left:12px;right:12px;bottom:0;height:2px;background:#d1f470;transform:scaleX(0);transform-origin:left center;transition:transform .2s cubic-bezier(.16,1,.3,1)}
 .nav-item:hover::before{transform:scaleX(1)}
 @media(prefers-reduced-motion:reduce){.nav-item::before{transition:none}}
 
 .nav-group-products{min-height:0}
 .nav-group-products .nav-group-label{position:sticky;top:0;z-index:2;background:#fcfdfb}
-/* OPTION B: SCROLL BOX = full column width (230px, matches the Home tab) AND carries a
-   faint tinted background + rounded corners, so the full-width lime bar reads as belonging
-   to this box instead of floating in the empty space right of the short product names. */
+/* CHOICE 1: full column width (230px, matches Home) + faint tint box so the lime bar
+   reads as anchored to the products box rather than floating. */
 .nav-products-scroll{max-height:230px;overflow-y:auto;overscroll-behavior:contain;width:100%;padding:4px 8px 4px 0;
   background:rgba(209,244,112,.08);border-radius:10px;
   scrollbar-width:thin;scrollbar-color:#d1f470 transparent}
@@ -53,12 +52,12 @@ h1{font-size:20px;margin:0 0 4px;letter-spacing:-.5px}
 .nav-products-scroll::-webkit-scrollbar-thumb{background:#d1f470;border-radius:20px}
 </style></head><body>
 <div class="page">
-  <h1>Final menu — scrollbar width matches Home tab (230px), center-out divider</h1>
-  <div class="chg"><b>This mock:</b>
+  <h1>FINAL menu — everything combined</h1>
+  <div class="chg"><b>Final combo:</b>
     <ul>
-      <li>↔ Products scroll box = <b>full column width (230px)</b>, aligned with the Home tab's right edge</li>
-      <li>▧ <b>Option B:</b> the products box now has a <b>faint tinted background + rounded corners</b>, so the full-width lime bar reads as anchored to the box, not floating</li>
-      <li>➖ Lighter divider hairline · ✨ center-out divider animation (0.22s)</li>
+      <li>▧ <b>Scrollbar Choice 1</b> — 230px (matches Home tab width) + faint tint box so the bar is anchored</li>
+      <li>✨ <b>Divider animation Option 1</b> — lime line sweeps left&rarr;right on hover (see "Submit Request"). 0.2s</li>
+      <li>➖ Lighter divider hairline &middot; pinned Products label &middot; My Order first &middot; Contact own heading &middot; no Account/Sign in</li>
     </ul>
   </div>
 
@@ -114,9 +113,9 @@ const REAL=['Grahak OS','VayuLok','Bharat Rx','Elsewhere','Expo Week','Dastavez'
 const plist=document.getElementById('plist');
 REAL.forEach(p=>{const a=document.createElement('a');a.className='nav-item';a.textContent=p;plist.appendChild(a);});
 </script>
-<style>/* show hover row + a product row's center-out divider drawn for the screenshot */
+<style>/* show the hover sweep + a product-row sweep drawn for the static screenshot */
 #hovered{background:rgba(209,244,112,.38)}#hovered::before{transform:scaleX(1)!important}
-.nav-products-scroll .nav-item:nth-child(2)::before{transform:scaleX(1)!important}
-.nav-products-scroll .nav-item:nth-child(2){background:rgba(209,244,112,.38)}
+.nav-products-scroll .nav-item:nth-child(1){background:rgba(209,244,112,.38)}
+.nav-products-scroll .nav-item:nth-child(1)::before{transform:scaleX(1)!important}
 </style>
 </body></html>

@@ -498,19 +498,18 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
           /* Contain the scroll chain so flicking the product list to its end does not
              then scroll the page behind the menu. */
           overscroll-behavior:contain;
-          /* The scrollbar HUGS THE PRODUCT NAMES rather than riding the far edge of the
-             column. The column is a third of the 760px panel (~240px) but the longest
-             product label is much narrower, so a full-width list put the bar out in the
-             gutter between columns, reading as detached (and as if it belonged to the
-             Selfservice column beside it). width:max-content sizes the scroll box to its
-             widest row, so the lime track sits immediately to the right of the names;
-             max-width stops an unusually long product name from overflowing the column,
-             and padding-right keeps the bar just off the last glyph. No divider line and
-             no box - the sibling columns carry neither, so this keeps Products looking
-             like the same family while still marking it scrollable via the lime bar. */
-          width:max-content;
-          max-width:100%;
-          padding-right:8px;
+          /* FULL COLUMN WIDTH so the lime scrollbar aligns with the right edge of the
+             Home tab above it, plus a FAINT LIME TINT BOX so the bar reads as anchored to
+             this list rather than floating in the empty space right of the short product
+             names. The product labels are much narrower than the column, so a bare
+             full-width bar looked detached; the tint (rgba(209,244,112,.08)) and the 10px
+             radius give the scroll area a subtle surface the bar belongs to. This is the
+             one place a background is used - it earns it because this is the only
+             scrolling group; the static columns stay plain. */
+          width:100%;
+          padding:4px 8px 4px 0;
+          background:rgba(209,244,112,.08);
+          border-radius:10px;
           /* LIME THEMED SCROLLBAR, not the browser default grey. Firefox uses
              scrollbar-color (thin), WebKit/Blink use the ::-webkit-scrollbar rules below;
              both are declared so every engine shows the brand colour. */
@@ -539,7 +538,9 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            The row is 46px here, not the 54px of the old single column: three columns
            of 19px rows at 54px made the panel taller than the Selfservice list needs,
            and 46px still clears the 44px minimum touch target. */
-        .nav-item{display:flex;align-items:center;min-height:46px;padding:0 12px;font-size:19px;font-weight:600;color:#1a3a2a;text-decoration:none;border-radius:8px}
+        /* position:relative so the divider hairline and the animated sweep (::after /
+           ::before below) can be absolutely positioned within each row. */
+        .nav-item{position:relative;display:flex;align-items:center;min-height:46px;padding:0 12px;font-size:19px;font-weight:600;color:#1a3a2a;text-decoration:none;border-radius:8px}
         /* ACTIVE AND HOVER MUST READ AS DIFFERENT STATES. They were both the same
            rgba(209,244,112,.22) pale tint, so the current page ("you are here") looked
            identical to whatever row the mouse was over - you could not tell which page
@@ -549,6 +550,18 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
            current page. */
         .nav-item:hover,.nav-item:focus-visible{background:rgba(209,244,112,.38);outline:none}
         .nav-item.active{font-weight:800;background:#d1f470;color:#0f2a1d}
+        /* DIVIDER LINE AFTER EACH ROW + a lime SWEEP on hover.
+           ::after is the faint resting hairline (#f1f3ec - deliberately very light, so it
+           separates rows without drawing attention). ::before is the lime accent that
+           SWEEPS in on hover: scaleX(0)->(1) from the left, 0.2s, so a thin lime line
+           draws left-to-right under the row. Inset 12px each side to line up with the row
+           padding. Reduced-motion users get the end state with no transition. */
+        .nav-item::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:1px;background:#f1f3ec}
+        .nav-item::before{content:'';position:absolute;left:12px;right:12px;bottom:0;height:2px;background:#d1f470;transform:scaleX(0);transform-origin:left center;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+        .nav-item:hover::before,.nav-item:focus-visible::before{transform:scaleX(1)}
+        /* The last row in a group has nothing after it, so no divider. */
+        .nav-group .nav-item:last-child::after,.nav-products-scroll .nav-item:last-child::after{display:none}
+        @media(prefers-reduced-motion:reduce){.nav-item::before{transition:none}}
         /* Children of a linked heading step down to 17px. Same weight and colour, so
            they read as the same kind of thing at a lower level rather than as a
            different control - and the size difference is what carries the hierarchy
