@@ -209,21 +209,50 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
 
   const close = () => { setOpen( false ); setQuery( '' ); };
 
-  // Escape closes from anywhere, and an outside pointerdown dismisses. Neither
-  // existed before: the menu could only be closed by clicking the trigger again or
-  // following a link, so Escape did nothing and a click elsewhere left it open over
-  // the page. Matches the language widget, so both menus answer to the same keys.
+  // Escape closes from anywhere, an outside pointerdown dismisses, AND the menu closes
+  // when the mouse LEAVES it (hover-out), on owner request. None of these existed
+  // originally: the menu could only be closed by clicking the trigger again or following
+  // a link. Matches the language widget, so both menus answer to the same keys.
   useEffect( () => {
     if ( !open ) return undefined;
     const onKeyDown = ( event: KeyboardEvent ) => { if ( event.key === 'Escape' ) close(); };
     const onPointerDown = ( event: PointerEvent ) => {
       if ( rootRef.current && !rootRef.current.contains( event.target as Node ) ) close();
     };
+
+    // HOVER-OUT CLOSE, mouse only. When the pointer leaves the dropdown the menu closes
+    // after a short grace period. The grace (180ms) forgives a pointer that clips a
+    // corner or crosses the 8px gap between the trigger and the panel - without it the
+    // menu snaps shut on the smallest wobble and feels twitchy. A re-entry cancels the
+    // pending close.
+    // GUARDED TO FINE POINTERS (mouse/trackpad). On a touch screen there is no hover, and
+    // a synthetic mouseleave fires on the tap that dismisses the on-screen keyboard or on
+    // a scroll fling - closing the menu then would fight the user. matchMedia('(hover:hover)
+    // and (pointer:fine)') is the standard capability query for "has a real hovering
+    // pointer", and it is read at event time so a hybrid device that switches input modes
+    // is handled correctly.
+    let hoverCloseTimer = 0;
+    const canHover = () =>
+      typeof window.matchMedia === 'function'
+      && window.matchMedia( '(hover: hover) and (pointer: fine)' ).matches;
+    const onMouseLeave = () => {
+      if ( !canHover() ) return;
+      window.clearTimeout( hoverCloseTimer );
+      hoverCloseTimer = window.setTimeout( close, 180 );
+    };
+    const onMouseEnter = () => window.clearTimeout( hoverCloseTimer );
+    const root = rootRef.current;
+
     document.addEventListener( 'keydown', onKeyDown );
     document.addEventListener( 'pointerdown', onPointerDown );
+    root?.addEventListener( 'mouseleave', onMouseLeave );
+    root?.addEventListener( 'mouseenter', onMouseEnter );
     return () => {
+      window.clearTimeout( hoverCloseTimer );
       document.removeEventListener( 'keydown', onKeyDown );
       document.removeEventListener( 'pointerdown', onPointerDown );
+      root?.removeEventListener( 'mouseleave', onMouseLeave );
+      root?.removeEventListener( 'mouseenter', onMouseEnter );
     };
   }, [ open ] );
 
