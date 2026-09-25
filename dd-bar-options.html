@@ -1,0 +1,65 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>Scrollbar placement — 3 options</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eef0f3;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:26px 24px 80px}
+.page{max-width:1080px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.sub{font-size:13px;color:#555;margin:0 0 20px;max-width:80ch}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+.cap{font-size:12px;font-weight:800;color:#fff;background:#1a3a2a;text-transform:uppercase;letter-spacing:.03em;padding:7px 12px;border-radius:8px 8px 0 0;display:inline-block}
+.note{font-size:12px;color:#444;background:#fff;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;padding:9px 12px;margin:0 0 10px}
+
+.box{background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:12px;padding:12px}
+.lbl{padding:6px 10px 4px;font-size:11px;font-weight:700;letter-spacing:.06em;color:#1a3a2a;text-transform:uppercase}
+.item{display:flex;align-items:center;min-height:40px;padding:0 10px;font-size:16px;font-weight:600;color:#1a3a2a;border-radius:8px}
+.item.active{background:#d1f470;color:#0f2a1d;font-weight:800}
+.scroll{max-height:200px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#d1f470 transparent}
+.scroll::-webkit-scrollbar{width:8px}
+.scroll::-webkit-scrollbar-track{background:transparent}
+.scroll::-webkit-scrollbar-thumb{background:#d1f470;border-radius:20px}
+
+/* OPT 1: list width = content, bar right next to names */
+.o1 .scroll{width:max-content;max-width:100%;padding-right:8px}
+/* OPT 2: full width + a soft divider line on the left of the bar so it reads as attached */
+.o2 .scroll{width:100%;border-right:2px solid rgba(209,244,112,.35);padding-right:6px}
+/* OPT 3: boxed list — a bordered container so the bar clearly belongs to it */
+.o3 .scroll{width:100%;background:#fff;border:1px solid #eef0e6;border-radius:10px;padding:4px 6px 4px 4px}
+</style></head><body>
+<div class="page">
+  <h1>Where should the lime scrollbar sit? — pick 1, 2 or 3</h1>
+  <p class="sub">Each shows the Products list (compact, ~5 rows) with a different scrollbar placement. Tell me which reads best — the goal is the bar clearly belongs to the products, not floating.</p>
+  <div class="row">
+    <div class="o1">
+      <div class="cap">OPTION 1 — bar hugs the names</div>
+      <div class="note">List is only as wide as the longest product; bar sits right after the names.</div>
+      <div class="box">
+        <div class="lbl">Products</div>
+        <div class="scroll" id="s1"></div>
+      </div>
+    </div>
+    <div class="o2">
+      <div class="cap">OPTION 2 — bar at right + divider</div>
+      <div class="note">List fills the column; a soft lime divider line sits left of the bar so it reads as attached.</div>
+      <div class="box">
+        <div class="lbl">Products</div>
+        <div class="scroll" id="s2"></div>
+      </div>
+    </div>
+    <div class="o3">
+      <div class="cap">OPTION 3 — boxed list</div>
+      <div class="note">Products sit in their own bordered box, so the bar clearly belongs to that box.</div>
+      <div class="box">
+        <div class="lbl">Products</div>
+        <div class="scroll" id="s3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const REAL=['Grahak OS','VayuLok','Bharat Rx','Elsewhere','Expo Week','Dastavez','Clear Closure','Ritual Guru','Anew','Niji Setu'];
+['s1','s2','s3'].forEach(id=>{const c=document.getElementById(id);REAL.forEach((p,i)=>{const a=document.createElement('a');a.className='item'+(i===0?' active':'');a.textContent=p;c.appendChild(a);});});
+</script>
+</body></html>
