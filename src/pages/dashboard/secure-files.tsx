@@ -1,27 +1,38 @@
 /**
- * Secure Files — wecare.digital/get/secure
+ * Secure Files — upload and register a file to one customer.
  *
  * One form does three things, because they are one intention: naming a customer,
  * registering a file to them, and creating the login that lets them fetch it.
- * Entering a mobile number here CREATES a Cognito customer if none exists, and
- * that number is the one that will receive the WhatsApp OTP - so a typo does not
- * fail loudly, it silently registers the file to someone who will never ask for it.
- * The form says so next to the field.
+ * Entering a mobile number here CREATES a Cognito customer if none exists, and that
+ * number is the one that receives the WhatsApp OTP - so a typo does not fail loudly,
+ * it silently registers the file to someone who will never ask for it. The form says
+ * so next to the field.
  *
  * Upload is three calls, not one: register, PUT to S3, confirm. The confirm step
  * re-checks the object really landed, so an upload that dies half way leaves a
- * `pending` row rather than an `active` file a customer could be charged for and
- * not receive.
+ * `pending` row rather than an `active` file a customer could be charged for and not
+ * receive.
  *
  * The S3 key is deliberately absent from this page. Objects are stored as
- * `wecare-digital-<uuid>-<uuid>`, and the readable name lives only in the table,
- * so everything here is keyed on `fileId`.
+ * `wecare-digital-<uuid>-<uuid>`, and the readable name lives only in the table, so
+ * everything here is keyed on `fileId`. Owner numbers arrive already masked to the
+ * last four digits; the full number is never sent to the browser.
+ *
+ * Design
+ * ------
+ * Carries the home page's language, matching the customer-facing /files page: the
+ * #d1f470 lime with #1a3a2a on it, 14px-radius panels with 2px borders, the 52px
+ * 50px-radius pill CTA, and the site heading rung
+ * clamp(28px,3.2vw,40px)/700/1.08/-1.2px. This is deliberately NOT the other
+ * dashboard pages' var(--surface)/var(--border) treatment - the two secure-file
+ * screens are a pair and should read as one feature, since an operator moves between
+ * this page and the customer's view of the same file. It still sits inside the
+ * dashboard Layout, so the shell, nav and auth are unchanged.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
 import SEO from '../../components/SEO';
-import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
 import { useToastContext } from '../../contexts/ToastContext';
 import * as api from '../../api/client';
@@ -38,14 +49,13 @@ function formatBytes ( bytes: number ): string {
     return `${( bytes / Math.pow( 1024, exponent ) ).toFixed( exponent === 0 ? 0 : 1 )} ${units[ exponent ]}`;
 }
 
-function formatRupees ( paise: number ): string {
-    return `₹${( ( paise || 0 ) / 100 ).toFixed( 2 )}`;
-}
+const rupees = ( paise: number ) => `₹${( ( paise || 0 ) / 100 ).toFixed( 0 )}`;
 
-const STATUS_COLOURS: Record<string, { bg: string; fg: string }> = {
-    active: { bg: '#dcfce7', fg: '#166534' },
-    pending: { bg: '#fef3c7', fg: '#92400e' },
-    revoked: { bg: '#fee2e2', fg: '#991b1b' },
+/** Status pill colours. Lime is reserved for actions, so status uses its own set. */
+const STATUS_COLOURS: Record<string, { bg: string; fg: string; border: string }> = {
+    active: { bg: '#dcfce7', fg: '#166534', border: '#16a34a' },
+    pending: { bg: '#fef3c7', fg: '#92400e', border: '#d97706' },
+    revoked: { bg: '#fee2e2', fg: '#991b1b', border: '#ef4444' },
 };
 
 export default function SecureFilesPage ( { signOut, user }: PageProps ) {
@@ -86,9 +96,9 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
     }, [ fetchInto ] );
 
     useEffect( () => {
-        // Subscribe-then-settle: state is updated from the promise callback rather
-        // than the effect body, and `cancelled` stops a late response writing to an
-        // unmounted component.
+        // Settled from the promise callback rather than the effect body: `loading`
+        // already starts true, and calling a state-setting helper directly here trips
+        // react-hooks/set-state-in-effect even when every write is after an await.
         let cancelled = false;
         api.listSecureFiles().then( result => {
             if ( cancelled ) return;
@@ -191,54 +201,34 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
         }
     };
 
-    const label: React.CSSProperties = {
-        fontSize: 'var(--text-sm)', color: 'var(--text-muted)',
-        display: 'block', marginBottom: '6px',
-    };
-    const input: React.CSSProperties = {
-        width: '100%', padding: '10px 12px', borderRadius: '8px',
-        border: '1px solid var(--border)', background: 'var(--surface)',
-        color: 'var(--text-primary)', fontSize: 'var(--text-md)',
-    };
-    const cell: React.CSSProperties = {
-        padding: '10px 12px', borderBottom: '1px solid var(--border)',
-        fontSize: 'var(--text-sm)', textAlign: 'left',
-    };
-
     return (
         <Layout onSignOut={ signOut } user={ user }>
-            <SEO title="Secure Files" description="Share files with a verified customer" />
+            <SEO title="Secure Files" description="Share a file with a verified customer" />
 
-            <div style={ { padding: '24px', maxWidth: '1100px' } }>
-                <div style={ { marginBottom: '24px' } }>
-                    <h1 style={ { fontSize: 'var(--h2)', fontWeight: 600, margin: 0 } }>Secure Files</h1>
-                    <p style={ { color: 'var(--text-secondary)', marginTop: '8px', fontSize: 'var(--text-md)' } }>
-                        Files registered to one customer, who verifies over WhatsApp before downloading.
-                        Stored under an unguessable name, and never reachable from a public link.
+            <div className="sf-wrap">
+                <header className="sf-head">
+                    <p className="sf-eyebrow">Secure sharing</p>
+                    <h1 className="sf-title">Secure files</h1>
+                    <p className="sf-lead">
+                        Files registered to one customer, who verifies on WhatsApp before
+                        downloading. Stored under an unguessable name and never reachable
+                        from a public link.
                     </p>
-                </div>
+                </header>
 
-                {/* ── upload + register ─────────────────────────────────────── */ }
-                <div style={ {
-                    border: '1px solid var(--border)', borderRadius: '12px',
-                    padding: '24px', marginBottom: '28px', background: 'var(--surface)',
-                } }>
-                    <h2 style={ { fontSize: 'var(--text-lg)', fontWeight: 600, margin: '0 0 4px' } }>
-                        Add a file
-                    </h2>
-                    <p style={ { color: 'var(--text-muted)', fontSize: 'var(--text-sm)', margin: '0 0 20px' } }>
+                {/* ── upload + register ─────────────────────────────────────────── */ }
+                <section className="sf-panel" aria-labelledby="sf-add">
+                    <h2 className="sf-h2" id="sf-add">Add a file</h2>
+                    <p className="sf-note">
                         The customer login is created automatically from the mobile number.
                     </p>
 
-                    <div style={ {
-                        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                        gap: '16px', marginBottom: '16px',
-                    } }>
-                        <div>
-                            <label style={ label } htmlFor="sf-name">Customer name</label>
+                    <div className="sf-grid">
+                        <div className="sf-field">
+                            <label className="sf-label" htmlFor="sf-name">Customer name</label>
                             <input
                                 id="sf-name"
-                                style={ input }
+                                className="sf-input"
                                 value={ name }
                                 onChange={ e => setName( e.target.value ) }
                                 placeholder="Ramesh Kumar"
@@ -246,11 +236,11 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
                             />
                         </div>
 
-                        <div>
-                            <label style={ label } htmlFor="sf-mobile">Customer mobile</label>
+                        <div className="sf-field">
+                            <label className="sf-label" htmlFor="sf-mobile">Customer mobile</label>
                             <input
                                 id="sf-mobile"
-                                style={ input }
+                                className="sf-input"
                                 value={ mobile }
                                 onChange={ e => setMobile( e.target.value ) }
                                 placeholder="8100640044"
@@ -258,20 +248,20 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
                                 disabled={ uploading }
                             />
                             {/* The consequence of a typo is silent, so say it here. */ }
-                            <p style={ { color: 'var(--text-muted)', fontSize: 'var(--text-xs)', margin: '6px 0 0' } }>
-                                This number receives the WhatsApp OTP. A 10-digit Indian number
-                                gets +91 automatically. Check it — the file is registered to
-                                whoever this is.
+                            <p className="sf-hint">
+                                This number receives the WhatsApp OTP. A 10-digit Indian
+                                number gets +91 automatically. Check it — the file is
+                                registered to whoever this is.
                             </p>
                         </div>
 
-                        <div>
-                            <label style={ label } htmlFor="sf-display">
+                        <div className="sf-field">
+                            <label className="sf-label" htmlFor="sf-display">
                                 File name shown to the customer
                             </label>
                             <input
                                 id="sf-display"
-                                style={ input }
+                                className="sf-input"
                                 value={ displayName }
                                 onChange={ e => setDisplayName( e.target.value ) }
                                 placeholder={ file?.name || 'Trade Licence 2026' }
@@ -279,110 +269,86 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
                             />
                         </div>
 
-                        <div>
-                            <label style={ label } htmlFor="sf-file">File</label>
+                        <div className="sf-field">
+                            <label className="sf-label" htmlFor="sf-file">File</label>
                             <input
                                 id="sf-file"
-                                style={ { ...input, padding: '8px' } }
+                                className="sf-input sf-input-file"
                                 type="file"
                                 onChange={ e => setFile( e.target.files?.[ 0 ] || null ) }
                                 disabled={ uploading }
                             />
                             { file && (
-                                <p style={ { color: 'var(--text-muted)', fontSize: 'var(--text-xs)', margin: '6px 0 0' } }>
+                                <p className="sf-hint">
                                     { formatBytes( file.size ) } · { file.type || 'unknown type' }
                                 </p>
                             ) }
                         </div>
                     </div>
 
-                    <div style={ { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' } }>
-                        <Button variant="primary" onClick={ handleUpload } disabled={ uploading }>
-                            { uploading ? <Spinner /> : 'Register and upload' }
-                        </Button>
-                        { uploading && step && (
-                            <span style={ { color: 'var(--text-muted)', fontSize: 'var(--text-sm)' } }>
-                                { step }
-                            </span>
-                        ) }
-                        { !uploading && (
-                            <span style={ { color: 'var(--text-muted)', fontSize: 'var(--text-sm)' } }>
-                                Customer pays { formatRupees( 4900 ) } per download.
-                            </span>
-                        ) }
+                    <div className="sf-actions">
+                        <button className="sf-cta" onClick={ handleUpload } disabled={ uploading }>
+                            { uploading ? 'Working…' : 'Register and upload' }
+                        </button>
+                        <span className="sf-aside">
+                            { uploading && step
+                                ? step
+                                : `Customer pays ${rupees( 4900 )} per download.` }
+                        </span>
                     </div>
-                </div>
+                </section>
 
-                {/* ── registered files ──────────────────────────────────────── */ }
-                <div style={ {
-                    border: '1px solid var(--border)', borderRadius: '12px',
-                    padding: '24px', background: 'var(--surface)',
-                } }>
-                    <div style={ {
-                        display: 'flex', justifyContent: 'space-between',
-                        alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', marginBottom: '16px',
-                    } }>
+                {/* ── registered files ──────────────────────────────────────────── */ }
+                <section className="sf-panel" aria-labelledby="sf-list">
+                    <div className="sf-listhead">
                         <div>
-                            <h2 style={ { fontSize: 'var(--text-lg)', fontWeight: 600, margin: 0 } }>
-                                Registered files
-                            </h2>
-                            <p style={ { color: 'var(--text-muted)', fontSize: 'var(--text-sm)', margin: '4px 0 0' } }>
+                            <h2 className="sf-h2" id="sf-list">Registered files</h2>
+                            <p className="sf-note">
                                 { loading ? 'Loading…' : `${files.length} file${files.length === 1 ? '' : 's'}` }
                             </p>
                         </div>
-                        <div style={ { display: 'flex', gap: '8px', alignItems: 'flex-end' } }>
-                            <div>
-                                <label style={ label } htmlFor="sf-filter">Filter by mobile</label>
+                        <div className="sf-filter">
+                            <div className="sf-field">
+                                <label className="sf-label" htmlFor="sf-filter">Filter by mobile</label>
                                 <input
                                     id="sf-filter"
-                                    style={ { ...input, width: '190px' } }
+                                    className="sf-input"
                                     value={ filterMobile }
                                     onChange={ e => setFilterMobile( e.target.value ) }
                                     placeholder="8100640044"
                                     inputMode="tel"
                                 />
                             </div>
-                            <Button variant="ghost" size="sm" onClick={ () => load( filterMobile || undefined ) }>
+                            <button
+                                className="sf-cta sf-cta-quiet"
+                                onClick={ () => load( filterMobile || undefined ) }
+                            >
                                 Apply
-                            </Button>
+                            </button>
                         </div>
                     </div>
 
                     { loadError && (
-                        <div style={ {
-                            background: 'var(--danger-light)', border: '1px solid var(--danger)',
-                            borderRadius: '8px', padding: '12px 16px', marginBottom: '12px',
-                            fontSize: 'var(--text-sm)', color: 'var(--danger)',
-                        } }>
-                            ⚠️ { loadError }
-                        </div>
+                        <div className="sf-alert" role="alert">{ loadError }</div>
                     ) }
 
                     { loading && (
-                        <div style={ { display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 0' } }>
-                            <Spinner /> <span style={ { color: 'var(--text-muted)' } }>Loading files…</span>
-                        </div>
-                    ) }
-
-                    { !loading && !loadError && files.length === 0 && (
-                        <p style={ { color: 'var(--text-muted)', fontSize: 'var(--text-sm)', padding: '16px 0', margin: 0 } }>
-                            No files registered yet.
+                        <p className="sf-note sf-note-pad">
+                            <Spinner /> Loading files…
                         </p>
                     ) }
 
+                    { !loading && !loadError && files.length === 0 && (
+                        <p className="sf-note sf-note-pad">No files registered yet.</p>
+                    ) }
+
                     { !loading && files.length > 0 && (
-                        <div style={ { overflowX: 'auto' } }>
-                            <table style={ { width: '100%', borderCollapse: 'collapse' } }>
+                        <div className="sf-tablewrap">
+                            <table className="sf-table">
                                 <thead>
                                     <tr>
                                         { [ 'File', 'Customer', 'Mobile', 'Size', 'Downloads', 'Status', '' ].map( heading => (
-                                            <th key={ heading } style={ {
-                                                ...cell, color: 'var(--text-muted)',
-                                                fontWeight: 500, fontSize: 'var(--text-xs)',
-                                                textTransform: 'uppercase', letterSpacing: '0.04em',
-                                            } } scope="col">
-                                                { heading }
-                                            </th>
+                                            <th key={ heading } scope="col">{ heading }</th>
                                         ) ) }
                                     </tr>
                                 </thead>
@@ -391,37 +357,35 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
                                         const colour = STATUS_COLOURS[ row.status ] || STATUS_COLOURS.pending;
                                         return (
                                             <tr key={ row.fileId }>
-                                                <td style={ cell }>
-                                                    <div style={ { fontWeight: 500 } }>{ row.displayName }</div>
-                                                    <div style={ { color: 'var(--text-muted)', fontSize: 'var(--text-xs)' } }>
-                                                        { row.originalFilename }
-                                                    </div>
+                                                <td>
+                                                    <span className="sf-filename">{ row.displayName }</span>
+                                                    <span className="sf-fileorig">{ row.originalFilename }</span>
                                                 </td>
-                                                <td style={ cell }>{ row.ownerName || '—' }</td>
-                                                {/* masked at the API; the full number is never sent here */ }
-                                                <td style={ { ...cell, fontFamily: 'var(--font-mono)' } }>
-                                                    { row.ownerPhoneMasked || '—' }
-                                                </td>
-                                                <td style={ cell }>{ formatBytes( row.sizeBytes ) }</td>
-                                                <td style={ cell }>{ row.downloadCount ?? 0 }</td>
-                                                <td style={ cell }>
-                                                    <span style={ {
-                                                        fontSize: 'var(--text-xs)', padding: '2px 8px',
-                                                        borderRadius: '4px', fontWeight: 500,
-                                                        background: colour.bg, color: colour.fg,
-                                                    } }>
+                                                <td>{ row.ownerName || '—' }</td>
+                                                {/* masked at the API; the full number never reaches the browser */ }
+                                                <td className="sf-mono">{ row.ownerPhoneMasked || '—' }</td>
+                                                <td>{ formatBytes( row.sizeBytes ) }</td>
+                                                <td>{ row.downloadCount ?? 0 }</td>
+                                                <td>
+                                                    <span
+                                                        className="sf-status"
+                                                        style={ {
+                                                            background: colour.bg,
+                                                            color: colour.fg,
+                                                            borderColor: colour.border,
+                                                        } }
+                                                    >
                                                         { row.status }
                                                     </span>
                                                 </td>
-                                                <td style={ cell }>
+                                                <td>
                                                     { row.status !== 'revoked' && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
+                                                        <button
+                                                            className="sf-revoke"
                                                             onClick={ () => handleRevoke( row ) }
                                                         >
                                                             Revoke
-                                                        </Button>
+                                                        </button>
                                                     ) }
                                                 </td>
                                             </tr>
@@ -431,8 +395,141 @@ export default function SecureFilesPage ( { signOut, user }: PageProps ) {
                             </table>
                         </div>
                     ) }
-                </div>
+                </section>
             </div>
+
+            <style jsx>{ `
+                .sf-wrap{padding:24px;max-width:1100px}
+
+                .sf-head{margin:0 0 28px}
+                .sf-eyebrow{
+                  margin:0 0 14px;font-size:12px;font-weight:700;
+                  letter-spacing:.08em;text-transform:uppercase;color:#1a3a2a;
+                }
+                /* The site's section-heading rung, identical to .home-close-title. */
+                .sf-title{
+                  margin:0 0 16px;font-size:clamp(28px,3.2vw,40px);font-weight:700;
+                  line-height:1.08;letter-spacing:-1.2px;color:rgba(0,0,0,.95);
+                }
+                /* The one body level. */
+                .sf-lead{
+                  margin:0;max-width:62ch;font-size:20px;font-weight:400;line-height:1.4;
+                  letter-spacing:-.125px;color:rgba(0,0,0,.898);
+                }
+
+                /* Same panel treatment as .home-close-panel and the /files page. */
+                .sf-panel{
+                  padding:clamp(24px,3vw,40px);margin:0 0 24px;
+                  border:2px solid #d1f470;border-radius:14px;
+                  background:rgba(209,244,112,.22);
+                }
+                .sf-h2{
+                  margin:0 0 6px;font-size:22px;font-weight:700;
+                  letter-spacing:-.4px;color:rgba(0,0,0,.95);
+                }
+                .sf-note{margin:0 0 20px;font-size:15px;color:rgba(26,58,42,.72)}
+                .sf-note-pad{display:flex;align-items:center;gap:8px;padding:12px 0;margin:0}
+
+                .sf-grid{
+                  display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+                  gap:20px;margin:0 0 20px;
+                }
+                .sf-field{min-width:0}
+                .sf-label{
+                  display:block;margin:0 0 8px;font-size:14px;font-weight:600;
+                  letter-spacing:-.1px;color:#1a3a2a;
+                }
+                /* 16px minimum: smaller makes iOS Safari zoom the viewport on focus. */
+                .sf-input{
+                  width:100%;box-sizing:border-box;min-height:48px;padding:0 14px;
+                  font-size:16px;color:rgba(0,0,0,.95);background:#fff;
+                  border:2px solid rgba(26,58,42,.18);border-radius:12px;
+                  transition:border-color .2s;
+                }
+                .sf-input:focus{outline:none;border-color:#1a3a2a}
+                .sf-input:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+                .sf-input:disabled{opacity:.6}
+                .sf-input-file{padding:11px 12px;min-height:48px}
+                .sf-hint{margin:8px 0 0;font-size:13px;line-height:1.45;color:rgba(26,58,42,.72)}
+
+                .sf-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+                .sf-aside{font-size:15px;color:rgba(26,58,42,.72)}
+
+                /* The home page CTA: 52px, 50px pill, lime inverting to white. */
+                .sf-cta{
+                  display:inline-flex;align-items:center;justify-content:center;
+                  min-height:52px;padding:0 28px;
+                  border:2px solid #d1f470;border-radius:50px;background:#d1f470;
+                  color:#1a3a2a;font-size:17px;font-weight:600;cursor:pointer;
+                  transition:background-color .2s,transform .2s,box-shadow .2s;
+                }
+                .sf-cta:hover:not(:disabled){
+                  background:#fff;transform:translateY(-2px);
+                  box-shadow:0 4px 12px rgba(26,58,42,.12);
+                }
+                .sf-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+                .sf-cta:disabled{opacity:.55;cursor:default}
+                /* Secondary: same geometry, white by default, so it reads as the lesser
+                   of the two without introducing a third shape. */
+                .sf-cta-quiet{
+                  min-height:48px;padding:0 22px;font-size:15px;
+                  background:#fff;border-color:rgba(26,58,42,.18);
+                }
+                .sf-cta-quiet:hover:not(:disabled){background:#d1f470;border-color:#d1f470}
+
+                .sf-listhead{
+                  display:flex;justify-content:space-between;align-items:flex-end;
+                  gap:20px;flex-wrap:wrap;margin:0 0 8px;
+                }
+                .sf-filter{display:flex;align-items:flex-end;gap:10px}
+                .sf-filter .sf-input{width:190px}
+
+                .sf-alert{
+                  margin:0 0 16px;padding:12px 16px;border-radius:12px;
+                  border:2px solid #ef4444;background:#fee2e2;color:#7f1d1d;
+                  font-size:15px;line-height:1.45;
+                }
+
+                /* White table on the tinted panel, so rows stay legible. */
+                .sf-tablewrap{
+                  overflow-x:auto;background:#fff;
+                  border:2px solid rgba(26,58,42,.12);border-radius:12px;
+                }
+                .sf-table{width:100%;border-collapse:collapse}
+                .sf-table th{
+                  padding:12px 14px;text-align:left;font-size:12px;font-weight:700;
+                  letter-spacing:.06em;text-transform:uppercase;color:rgba(26,58,42,.6);
+                  border-bottom:2px solid rgba(26,58,42,.12);white-space:nowrap;
+                }
+                .sf-table td{
+                  padding:12px 14px;font-size:15px;color:rgba(0,0,0,.9);
+                  border-bottom:1px solid rgba(26,58,42,.08);vertical-align:top;
+                }
+                .sf-table tr:last-child td{border-bottom:0}
+                .sf-filename{display:block;font-weight:600;letter-spacing:-.2px}
+                .sf-fileorig{
+                  display:block;margin-top:3px;font-size:13px;color:rgba(26,58,42,.6);
+                }
+                .sf-mono{font-family:var(--font-mono,ui-monospace,monospace)}
+
+                .sf-status{
+                  display:inline-block;padding:3px 10px;border-radius:50px;
+                  border:1px solid;font-size:12px;font-weight:600;text-transform:capitalize;
+                }
+
+                .sf-revoke{
+                  border:2px solid rgba(26,58,42,.18);border-radius:50px;
+                  background:#fff;color:#1a3a2a;padding:6px 16px;
+                  font-size:14px;font-weight:600;cursor:pointer;transition:background-color .2s;
+                }
+                .sf-revoke:hover{background:#fee2e2;border-color:#ef4444;color:#991b1b}
+                .sf-revoke:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+
+                @media(prefers-reduced-motion:reduce){
+                  .sf-cta,.sf-input,.sf-revoke{transition:none}
+                  .sf-cta:hover:not(:disabled){transform:none}
+                }
+            ` }</style>
         </Layout>
     );
 }
