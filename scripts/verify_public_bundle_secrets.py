@@ -85,14 +85,41 @@ def fingerprint(value: str) -> str:
 
 
 # Server-side keys that must never appear in the export. Fingerprints only - these
-# are one-way and already public in the docs cited above, so this list discloses
-# nothing. Add to it whenever another server-side key is recorded.
-FORBIDDEN_FINGERPRINTS = {
-    "0bd4beb6496a": (
-        "the unified Google API key - one value shared by wecare/google/cloud, "
-        "wecare/google-api-key and wecare/google-maps; read server-side by "
-        "wecare-whatsapp-templates (docs/provider-inventory.md)"
-    ),
+# are one-way, so this list discloses nothing. Add a key here when it is known to
+# lack browser restrictions.
+#
+# CORRECTED 2026-09-25, and the correction matters more than the original entry.
+# `0bd4beb6496a` - the unified Google key - was listed here on the assumption that
+# it was a server-side credential. It is not. Measured against the live project:
+#
+#     gcloud services api-keys list --project=wecaredigitalbw
+#     -> ONE key, "WECARE Unified Google API Key", with
+#        browserKeyRestrictions.allowedReferrers =
+#          https://wecare.digital/*, https://*.wecare.digital/*
+#
+# It is a BROWSER key, already restricted to exactly the referrers this repo's own
+# .env.local.example asks for. A referrer-restricted browser key is public by
+# Google's design, so publishing it in a chunk is legitimate and blocking it here
+# would have failed the Amplify build on the CORRECT action.
+#
+# The same measurement found the real defect, in the opposite direction: the key
+# cannot be used server-side at all. `scripts/check_secrets_live.py` gets
+# `REQUEST_DENIED: API keys with referer restrictions cannot be used with this API`
+# for fingerprint sha256:0bd4beb6 on both `wecare/google-api-key` and
+# `wecare/google/cloud`. So `whatsapp-templates`' Places proxy and
+# `site-language`'s Translate call are the things that are broken - not the
+# browser path.
+#
+# The invariant worth enforcing is therefore NOT "this fingerprint must not ship".
+# It is "anything published must be browser-restricted", which cannot be decided
+# from the bundle alone - matching a bundle fingerprint back to a GCP key would
+# require reading key strings. So a Google key found in the export is REPORTED with
+# its fingerprint, and the restriction check belongs in the Cloud console review
+# recorded in docs/CREDENTIAL-ROTATION-RUNBOOK.md.
+FORBIDDEN_FINGERPRINTS: dict[str, str] = {
+    # Populate when a key is known to lack browser restrictions - e.g. the
+    # IP-restricted server key that the Places proxy and Translate need, once it
+    # exists. That one genuinely must never reach the export.
 }
 
 # Issuer-anchored and long-tailed, so prose and placeholders do not register.
@@ -268,8 +295,14 @@ def main() -> int:
         print("\nPublic Google keys present (allowed - a browser key is public by design):")
         for fp, fs in by_fp.items():
             print(f"  sha256:{fp}  in {len(fs)} file(s): {', '.join(sorted(set(fs))[:3])}")
-        print("  Restrict each in the Cloud console: HTTP referrers wecare.digital/* and")
-        print("  *.wecare.digital/*, API restrictions Maps JavaScript API only.")
+        print("  This check CANNOT confirm the key is referrer-restricted - that would")
+        print("  need the key string to match it back to a GCP key. Confirm out of band:")
+        print("    gcloud services api-keys list --project=wecaredigitalbw")
+        print("  Every published key needs browserKeyRestrictions.allowedReferrers set to")
+        print("  wecare.digital/* AND *.wecare.digital/*, and its apiTargets narrowed to")
+        print("  the Maps APIs the browser actually calls - a published key also carrying")
+        print("  Vision, Translate, YouTube and Custom Search is a wide billing surface,")
+        print("  because a Referer header is trivially forged.")
 
     if failures:
         print(f"\nFAIL: {len(failures)} forbidden credential occurrence(s) in the export\n")

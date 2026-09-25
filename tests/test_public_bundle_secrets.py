@@ -79,13 +79,30 @@ def test_fingerprint_matches_the_repo_wide_convention():
     assert len(vpbs.fingerprint(value)) == 12
 
 
-def test_the_unified_google_key_fingerprint_is_still_listed():
-    """docs/provider-inventory.md records the unified key as sha256:0bd4beb6496a.
-    Removing it from the forbidden set would silently reopen the hole, so the
-    presence of that exact entry is itself asserted."""
-    assert "0bd4beb6496a" in vpbs.FORBIDDEN_FINGERPRINTS
-    why = vpbs.FORBIDDEN_FINGERPRINTS["0bd4beb6496a"]
-    assert "unified" in why.lower()
+def test_the_unified_google_key_is_NOT_forbidden():
+    """Reversed on 2026-09-25, and the reason is the point of the test.
+
+    This originally asserted that sha256:0bd4beb6496a MUST be in the forbidden set,
+    on the assumption it was a server-side credential. Measuring the live project
+    showed the opposite: `gcloud services api-keys list --project=wecaredigitalbw`
+    returns ONE key whose restrictions are
+    browserKeyRestrictions.allowedReferrers = https://wecare.digital/*,
+    https://*.wecare.digital/* - a browser key, already restricted to exactly the
+    referrers this repo asks for.
+
+    A referrer-restricted browser key is public by design, so blocking it would
+    have failed the Amplify build on the CORRECT action - the owner pasting the
+    right key. Keeping this as an assertion stops the entry being re-added by
+    someone reading the old reasoning."""
+    assert "0bd4beb6496a" not in vpbs.FORBIDDEN_FINGERPRINTS
+
+
+def test_a_browser_key_is_never_blocked_by_default():
+    """With no forbidden fingerprints configured, any Google key in the export is
+    reported rather than refused. The shapes with no public form at all are still
+    refused - that is asserted separately below."""
+    assert vpbs.FORBIDDEN_FINGERPRINTS == {} or all(
+        isinstance(v, str) for v in vpbs.FORBIDDEN_FINGERPRINTS.values())
 
 
 # ── the two sides of the Google distinction ──────────────────────────────────

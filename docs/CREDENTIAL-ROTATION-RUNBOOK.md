@@ -221,81 +221,102 @@ referenced from, inline passing stays the path of least resistance.
 
 ---
 
-## The contact map needs a NEW browser key, not the unified one · CLOSED, owner action
+## The single Google key is a BROWSER key — and that breaks the server side
 
-**Decision, 2026-09-25: the unified Google key must never be placed in Amplify.**
-Recorded here so it is not re-litigated, and enforced by a build gate so it cannot
-happen by accident.
+**Measured 2026-09-25 against the live project. This supersedes an earlier note in
+this file that said the unified key must never go into Amplify; that note was wrong
+and is deleted rather than left to be found.**
 
-### Why not the unified key
-
-`/contact/` renders a keyless `google.com/maps/embed` iframe because
-`NEXT_PUBLIC_GOOGLE_MAPS_KEY` is unset. Setting it switches `ContactLocation` to the
-Maps JavaScript API, which is what removes Google's three embedded controls and
-turns `contactcheck.js` from 12/13 to 13/13.
-
-But the obvious value to reach for is the wrong one. `docs/provider-inventory.md`
-records `wecare/google/cloud`, `wecare/google-api-key` and `wecare/google-maps` as
-**all holding the same unified key**, fingerprint `sha256:0bd4beb6496a`, and
-`wecare-whatsapp-templates` reads it server-side for the Places proxy under a comment
-saying it is never exposed to the browser.
-
-`next.config.js` uses `output: 'export'`, so **every `NEXT_PUBLIC_*` value is inlined
-into a JS chunk and served to every visitor.** Putting the unified key there publishes
-a credential that also authorises Places, Geocoding and PageSpeed — and it is already
-one of the four credentials exposed on 2026-09-19 and still awaiting rotation.
-`.env.local.example` states the rule directly: that key is server-side only, never
-`NEXT_PUBLIC_`.
-
-A Maps **browser** key is different in kind, not degree: Google's own model is that it
-is public and restricted by HTTP referrer. That is the only kind of key that belongs
-in this variable.
-
-### What the owner does
-
-1. **Google Cloud Console → APIs & Services → Credentials → Create credentials → API
-   key.** A brand-new key. Do not reuse the unified key, and do not reuse the Places
-   key from §2 above.
-2. **Application restrictions → Websites (HTTP referrers)**, and add **both**:
-   - `wecare.digital/*`
-   - `*.wecare.digital/*`
-
-   The apex alone misses `www`. Without a referrer restriction, anyone reading the
-   chunk can bill the project — the key is public by design, so the restriction *is*
-   the security control.
-3. **API restrictions → Restrict key → Maps JavaScript API only.** Add Static Maps or
-   Places only if something later needs them.
-4. **Amplify console → app `d22dm4b0jn71jw` → branch `stack` → Environment variables**,
-   set `NEXT_PUBLIC_GOOGLE_MAPS_KEY`. Paste it in the console; do not put it on a
-   command line (`block-inline-secrets` refuses `AIza`-prefixed values in a command,
-   and that rule exists because of the 2026-09-19 incident).
-5. **Redeploy.** The value is read at *build* time, so nothing changes until the next
-   Amplify build.
-
-### How it is verified, and what stops the mistake
+### What is actually there
 
 ```
-python scripts/verify_public_bundle_secrets.py --amplify-env   # before a build
-node tools/browser/contactcheck.js                             # expect 13/13
+gcloud services api-keys list --project=wecaredigitalbw
 ```
 
-The gate lives in **`amplify.yml`**, not only in CI, and that placement is the point:
-GitHub Actions has no branch environment variables, so the copy of the check in
-`build-test.yml` scans an export that never contained a key and passes for free. The
-Amplify build is the one that has them. If the unified key is ever pasted in, that
-build **fails before deploying**, naming the chunk and the fingerprint and never
-printing the value. A genuine browser key passes and is reported with its fingerprint,
-so its presence is visible rather than silent.
+**One** key — `WECARE Unified Google API Key`, created 2026-08-17 — with:
 
-Proven end to end rather than assumed: a synthetic `AIza`-shaped value was written to
-`.env.local`, built, and found inlined in exactly one chunk — first reported as an
-allowed browser key, then, with its fingerprint declared server-side, failing with
-exit 1. Both the inlining assumption and the refusal are therefore measured.
+| | |
+|---|---|
+| Restriction type | `browserKeyRestrictions` |
+| Allowed referrers | `https://wecare.digital/*`, `https://*.wecare.digital/*`, `places.googleapis.com`, `*.googleapis.com/*` |
+| `apiTargets` | **49 services** |
+| Fingerprint | `sha256:0bd4beb6…` (same value in `wecare/google/cloud`, `wecare/google-api-key`, `wecare/google-maps`) |
 
-### Checking a key after it is live
+So it is a **browser key**, already restricted to exactly the two referrers
+`.env.local.example` asks for. A referrer-restricted browser key is public by
+Google's own design — restriction, not secrecy, is the control. It is therefore a
+**legitimate** `NEXT_PUBLIC_GOOGLE_MAPS_KEY` value.
 
-Referrer restrictions are enforced by Google, not by us, so confirm from a browser on
-the real origin rather than with `curl`. A rejected key, a referrer restriction that
-excludes the origin, and billing being off all render a blank grey panel and throw
-nothing — which is why `contactcheck.js` asserts the map was actually *painted* rather
-than merely that a div exists.
+### The real defect, which runs the other way
+
+A key with referrer restrictions **cannot be used server-side at all**:
+
+```
+python scripts/check_secrets_live.py --only google
+
+  wecare/google-api-key   INVALID  REQUEST_DENIED: API keys with referer
+                                   restrictions cannot be used with this API.
+  wecare/google/cloud     INVALID  REQUEST_DENIED: (same)
+```
+
+Two consumers call it from Lambda with **no `Referer` header**, so both are being
+refused by Google right now:
+
+| Consumer | Call | Consequence |
+|---|---|---|
+| `wecare-whatsapp-templates` | Places Autocomplete + Place Details (`handler.py:113-175`) | **Broken.** No fallback — location-template address lookup cannot work |
+| `wecare-site-language` | Translate v2 (`handler.py:69-77`) | **Silently degraded.** `SITE_LANGUAGE_TRANSLATE_PROVIDER=auto` falls back to AWS Translate, which is why nobody noticed |
+
+`whatsapp-templates`' own comment says the key is "never exposed to the browser" —
+an intent the key's restrictions defeat. One key is being asked to serve two
+incompatible purposes, and the browser restriction already silently disabled the
+server half.
+
+### What to do
+
+**1. The map (safe now).** Set `NEXT_PUBLIC_GOOGLE_MAPS_KEY` to this key in the
+Amplify console — app `d22dm4b0jn71jw`, branch `stack` — then redeploy, because the
+value is read at build time. Paste it in the console, never on a command line
+(`block-inline-secrets` refuses `AIza`-prefixed values in a command, and that rule
+exists because of the 2026-09-19 incident). Verify with
+`node tools/browser/contactcheck.js`, expecting 13/13.
+
+**2. Narrow it before publishing, and this is the part that matters.** 49 API
+targets on a key that will sit in a public JS chunk is a wide billing surface.
+Referrer restrictions stop casual reuse from another website; they do **not** stop
+deliberate abuse, because a `Referer` header is trivially forged with `curl`. The
+browser needs Maps JavaScript API (`maps-backend`) and little else. These are on the
+key today and a web map does not need any of them:
+
+`translate` · `language` · `vision` · `youtube` · `customsearch` ·
+`pagespeedonline` · `webrisk` · `factchecktools` · `kgsearch` ·
+`streetviewpublish` · `routeoptimization` · `mapsplatformdatasets`
+
+**3. Create a second, server key** — IP-restricted or unrestricted, **not** referrer
+restricted — and point `wecare/google-maps` (Places) and `wecare/google/cloud`
+(Translate) at it. This is not tidiness; it is the fix for a feature that is
+currently failing. Having done that, add the server key's fingerprint to
+`FORBIDDEN_FINGERPRINTS` in `scripts/verify_public_bundle_secrets.py`, because
+*that* key genuinely must never reach the export. Remember both Lambdas cache the
+key at first use, so publish a new version and move the `live` alias:
+`python scripts/refresh_secret_consumers.py wecare/google-maps`.
+
+**4. Drop the two meaningless referrer entries.** `places.googleapis.com` and
+`*.googleapis.com/*` are in `allowedReferrers`. Referrer matching applies to the
+`Referer` header a *client* sends, so naming Google's own API hosts there achieves
+nothing — it looks like a previous attempt to make the server-side calls work, and
+it did not.
+
+### What the build gate can and cannot do
+
+`scripts/verify_public_bundle_secrets.py` runs in the **`amplify.yml`** build, which
+is the only build with the branch environment variables — GitHub Actions has none,
+so the copy in `build-test.yml` is a backstop that only catches a credential
+committed into the tree.
+
+It reports any Google key found in the export with its fingerprint, and refuses
+shapes with no public form at all (Razorpay live, OpenAI, AWS, GitHub, Slack, Stripe
+live, PEM). It **cannot** verify that a published key is referrer-restricted:
+matching a bundle fingerprint back to a GCP key would require reading key strings.
+That check is step 2 above, done in the console — treat it as part of the procedure,
+not something the gate will catch for you.
