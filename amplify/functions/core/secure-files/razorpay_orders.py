@@ -39,8 +39,31 @@ cached for the life of the execution environment, so a rotated value would not
 take effect until every warm sandbox recycled.
 
 Granting access is NOT this module's job. An order is only an intent to pay.
-Entitlement is written by ``payments/razorpay-webhook`` after it verifies the
-webhook signature, because a client-side success callback is trivially forged.
+Entitlement is written by ``handler._confirm_with_razorpay``, which is the only writer
+of ``paid`` in this system, using ``order_is_paid`` below. A client-side success callback
+is trivially forged, and as of 2026-09-25 so is a webhook callback - the webhook secret
+is in this repository's public git history - so neither is trusted. Only an authenticated
+response to a request *we* made counts.
+
+Validating the loop without live money
+--------------------------------------
+Razorpay test mode uses a separate ``rzp_test_`` key pair against the same API, and
+``RAZORPAY_SECRET_ID`` is an environment variable, so exercising the full order ->
+confirm -> deliver path against test mode needs **no code change**: point that variable at
+a secret holding the test pair.
+
+Two consequences of the redesign make this genuinely cheap:
+
+* The webhook secret is no longer part of entitlement, so a test-mode run does not need a
+  matching test-mode webhook secret, and does not need ``payment.captured`` to be
+  subscribed in the test dashboard either. ``confirmAndDeliver`` and the reconcile sweep
+  both work off this API key alone.
+* ``SECURE_FILES_PAYMENT_ENABLED`` still gates everything, so enabling the loop in test
+  mode is one flag plus one secret id - and turning it on does not move real money.
+
+Obtaining the test pair is an owner action (it comes from the Razorpay dashboard) and
+storing it is a credential write, so neither is done here. The point is that the code is
+already shaped for it and nothing needs to be built first.
 """
 
 from __future__ import annotations
