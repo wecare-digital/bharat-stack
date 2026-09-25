@@ -583,7 +583,12 @@ const HomePage: React.FC = () => {
            Both are now on their proper rungs. Everything here is Inter, as it already was -
            there was never a font-family mismatch, only a size one. */
         .home-flow-list strong{display:block;margin:0 0 6px;font-size:22px;font-weight:700;letter-spacing:-.25px;line-height:1.27;color:#000}
-        .home-flow-list span{display:block;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.54)}
+        /* Body rung at the neutral colour rgba(0,0,0,.898), matching .home-flow-lead,
+           .home-sub and .home-close-lead. It was rgba(0,0,0,.54) (muted grey), which made
+           this the only body copy on the page at that colour and read as a different, lighter
+           treatment than the closing-band list beside it (which was #1a3a2a green). Both
+           lists are now on the one neutral body colour so the two sections read as siblings. */
+        .home-flow-list span{display:block;font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898)}
 
         /* THE CLOSING BAND. NO margin-top - that was a measured bug, not a style choice.
            .home-layout is a flex column with gap:96px, so every direct child is already
@@ -664,7 +669,14 @@ const HomePage: React.FC = () => {
            inventing a rung is the thing the h2 unification was done to stop. */
         .home-close-points li{
           position:relative;padding-left:26px;
-          font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:#1a3a2a;
+          /* Body rung at the neutral colour rgba(0,0,0,.898), matching .home-close-lead,
+             .home-flow-lead, .home-sub and the flow-beat bodies. It was #1a3a2a (brand
+             green), which made this list a different treatment from the flow list in
+             section 2 (that list was grey .54). Both lists are now unified on the one
+             neutral body colour so the two sections read as the same kind of thing. The
+             lime tick, the lime rule above and the tinted panel still mark these as
+             claims - colour is no longer what does that work. */
+          font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898);
           transition:opacity .5s ease,transform .5s ease;
         }
         /* A tick drawn with two borders on a rotated box: no asset, no request, cannot 404 -
