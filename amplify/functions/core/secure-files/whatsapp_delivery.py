@@ -58,7 +58,7 @@ PAY_TEMPLATE = os.environ.get("WA_PAY_TEMPLATE", "wecare_pay")
 # variables for the customer and file name, and no stray "Subscribe" button - and
 # takes over the moment this env var is pointed at it. Nothing else needs changing:
 # the body-parameter shape below is chosen from the template name.
-DOC_TEMPLATE = os.environ.get("WA_DOC_TEMPLATE", "01_wecare_doc")
+DOC_TEMPLATE = os.environ.get("WA_DOC_TEMPLATE", "wd_file_delivery")
 # Templates whose BODY carries {{1}} customer name and {{2}} file name. Keyed by name
 # rather than by a flag, so pointing WA_DOC_TEMPLATE at one cannot desynchronise from
 # the parameters it is sent.

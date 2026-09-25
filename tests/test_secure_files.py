@@ -763,8 +763,9 @@ def test_delivery_template_body_params_follow_the_template_name():
     source = (FUNC_DIR / "whatsapp_delivery.py").read_text()
     assert "TEMPLATES_WITH_BODY_VARS" in source
     assert "DOC_TEMPLATE in TEMPLATES_WITH_BODY_VARS" in source
-    # default stays on the already-approved template
-    assert '"WA_DOC_TEMPLATE", "01_wecare_doc"' in source
+    # wd_file_delivery was APPROVED 2026-09-25 and is now the default; 01_wecare_doc
+    # remains a safe rollback because the parameter shape follows the template name.
+    assert '"WA_DOC_TEMPLATE", "wd_file_delivery"' in source
 
 
 def test_resumable_upload_sends_appsecret_proof():

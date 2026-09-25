@@ -171,8 +171,8 @@ Payment request and file both go out as approved templates.
 | Template | Components | Role |
 |---|---|---|
 | `wecare_pay` | IMAGE, BODY, FOOTER, BUTTONS(`ORDER_DETAILS`) | ₹49 request |
-| `01_wecare_doc` | DOCUMENT, BODY, FOOTER, BUTTONS(`FLOW`) | delivery, **current default** |
-| `wd_file_delivery` | DOCUMENT, BODY({{1}} name, {{2}} file), FOOTER, no buttons | delivery, **PENDING approval** |
+| `wd_file_delivery` | DOCUMENT, BODY({{1}} name, {{2}} file), FOOTER, no buttons | delivery, **current default, APPROVED** |
+| `01_wecare_doc` | DOCUMENT, BODY, FOOTER, BUTTONS(`FLOW`) | delivery, rollback only |
 
 `wecare_pay`'s button is `ORDER_DETAILS`, i.e. WhatsApp Pay's native checkout, not a URL
 button — which is why a Razorpay payment link was never an option for it. The amount

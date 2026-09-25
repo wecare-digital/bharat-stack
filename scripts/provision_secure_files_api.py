@@ -267,7 +267,12 @@ def environment(payment_enabled: bool = False) -> dict:
         # wecare_pay    [IMAGE, BODY, FOOTER, BUTTONS(ORDER_DETAILS)]
         # 01_wecare_doc [DOCUMENT, BODY, FOOTER, BUTTONS(FLOW)]
         "WA_PAY_TEMPLATE": "wecare_pay",
-        "WA_DOC_TEMPLATE": "01_wecare_doc",
+        # wd_file_delivery: APPROVED 2026-09-25. DOCUMENT header, BODY variables for
+        # customer and file name, and no buttons. Replaced 01_wecare_doc, which could
+        # name neither and carried a stray FLOW button labelled "Subscribe".
+        # Reverting to "01_wecare_doc" is a safe rollback; the body-parameter shape
+        # follows the template NAME so the two cannot desynchronise.
+        "WA_DOC_TEMPLATE": "wd_file_delivery",
         "WA_SENDER_FUNCTION": WA_SENDER,
         "WA_MEDIA_FUNCTION": f"{WA_MEDIA}:live",
         "SECURE_FILE_PRICE_PAISE": "4900",
