@@ -102,8 +102,71 @@ ${entries}
 </urlset>`;
 }
 
+/**
+ * Two consistency checks the allowlist cannot make on its own.
+ *
+ * 1. AN ALLOWLIST ENTRY THAT DOES NOT EXIST IN THE EXPORT IS DROPPED SILENTLY.
+ *    findHtmlFiles only emits routes it actually finds, which is the safe direction —
+ *    but it means renaming or deleting a public page leaves a dead entry here and the
+ *    sitemap just gets quietly shorter. '/swdhya' -> '/open-possibility' -> '/anew'
+ *    already happened once. Warn, do not fail: a legitimately removed page should not
+ *    block a deploy, it should be noticed.
+ *
+ * 2. A URL CANNOT BE IN THE SITEMAP AND DISALLOWED IN robots.txt AT THE SAME TIME.
+ *    That pair tells a crawler to index a page and not to fetch it, and Search Console
+ *    reports it as "Indexed, though blocked by robots.txt". The dashboard lives in the
+ *    same static export as the marketing pages and is held out of the index by robots
+ *    alone, so a single wrong allowlist entry is all it takes to advertise an
+ *    authenticated route. This one FAILS the build, because it can only be a mistake.
+ */
+function robotsDisallows () {
+  // Next copies public/robots.txt into the export; prefer the built copy, since that is
+  // what will actually be served.
+  for ( const candidate of [ path.join( OUT_DIR, 'robots.txt' ),
+                             path.join( __dirname, '..', 'public', 'robots.txt' ) ] )
+  {
+    if ( !fs.existsSync( candidate ) ) continue;
+    return fs.readFileSync( candidate, 'utf-8' )
+      .split( '\n' )
+      .filter( line => /^\s*disallow\s*:/i.test( line ) )
+      .map( line => line.split( ':' ).slice( 1 ).join( ':' ).trim() )
+      .filter( Boolean );
+  }
+  return [];
+}
+
 const routes = findHtmlFiles( OUT_DIR );
 const postRoutes = routes.filter( route => route.startsWith( '/post/' ) );
+
+const missing = [ ...PUBLIC_EXACT ].filter( route => !routes.includes( route ) );
+if ( missing.length > 0 )
+{
+  console.warn(
+    `\nSITEMAP WARNING: ${missing.length} allowlisted route(s) were not found in the export:\n`
+    + missing.map( route => `    ${route}` ).join( '\n' )
+    + '\n  Either the page was removed (delete it from PUBLIC_EXACT) or the build did not\n'
+    + '  emit it (which is the serious case, and silent until now).\n'
+  );
+}
+
+const disallows = robotsDisallows();
+const contradicted = routes
+  .map( route => ( { route, pathname: route === '/' ? '/' : route + '/' } ) )
+  .filter( ( { pathname } ) => disallows.some(
+    rule => rule !== '/' && pathname.startsWith( rule )
+  ) );
+if ( contradicted.length > 0 )
+{
+  console.error(
+    `\nSITEMAP REFUSED: ${contradicted.length} URL(s) are both allowlisted here and`
+    + ' Disallowed in robots.txt:\n'
+    + contradicted.map( ( { route, pathname } ) => `    ${route}  (blocked by a rule matching ${pathname})` ).join( '\n' )
+    + '\n\n  A crawler told to index a page it may not fetch reports it as "Indexed,\n'
+    + '  though blocked by robots.txt". Remove the route from PUBLIC_EXACT if it is\n'
+    + '  authenticated, or remove the Disallow if it is genuinely public.\n'
+  );
+  process.exit( 1 );
+}
 
 /**
  * REFUSE to write a sitemap with no blog posts in it.

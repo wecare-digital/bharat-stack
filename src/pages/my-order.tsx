@@ -33,7 +33,10 @@ const CYCLE_WORDS: CycleWord[] = [
   { word: 'booking', tint: '#ede9fe', dot: '#9849e8' },
 ];
 
-const SELFSERVICE = 'https://www.wecare.digital/selfservice';
+// Was 'https://www.wecare.digital/selfservice' until 2026-09-25: `www` 301s to the apex
+// and /selfservice was deleted in commit 6bc44a35, so every button here ran
+// 301 -> 301 -> 404. /contact/ is a real 200 page on the canonical host.
+const SELFSERVICE = 'https://wecare.digital/contact/';
 
 const MyOrderPage: React.FC = () => (
   <>

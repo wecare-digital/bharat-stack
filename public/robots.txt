@@ -1,17 +1,42 @@
+# robots.txt for wecare.digital
+#
+# WHY THIS FILE CARRIES SO MANY Disallow LINES.
+# next.config.js sets output:'export', so the authenticated dashboard is exported as
+# static HTML into the SAME bucket as the public marketing pages. Every dashboard route
+# is therefore fetchable by a crawler that guesses the path. Those pages render an empty
+# shell for an unauthenticated visitor, so indexing them adds nothing and publishes the
+# internal route map. Authentication gates the DATA, not the HTML; this file is what
+# keeps the routes out of the index.
+#
+# THE RULE: a top-level segment in the export belongs in exactly one of two places —
+# the sitemap allowlist (PUBLIC_EXACT in scripts/generate-sitemap.js) or a Disallow
+# below. Audited 2026-09-25 against the built export, which found five authenticated
+# segments in neither: /commerce/, /docs/, /growth/, /nocode/ and /service/. They are
+# added below. Re-run that audit after adding any top-level route.
+#
+# Deliberately NOT disallowed: /images/ holds public assets referenced by the marketing
+# pages, and blocking it would stop those images being indexed.
+
 User-agent: *
 Allow: /
+
 Disallow: /access/
 Disallow: /admin/
+Disallow: /api/
+Disallow: /commerce/
 Disallow: /contacts/
 Disallow: /dashboard/
 Disallow: /dm/
+Disallow: /docs/
 Disallow: /forms/
+Disallow: /growth/
 Disallow: /link/
+Disallow: /nocode/
 Disallow: /pay/
 Disallow: /seo/
+Disallow: /service/
 Disallow: /settings/
 Disallow: /store/
 Disallow: /task/
-Disallow: /api/
 
 Sitemap: https://wecare.digital/sitemap.xml

@@ -18,6 +18,25 @@ a runbook, hits a dead end instead of the page that replaced it — and for the 
 channel-filtered destinations the replacement is a query string they would have to know
 to type.
 
+Nine, since 2026-09-25 — see the note under RETIRED for the one that was withdrawn.
+
+What the catch-all actually does, because the name misleads
+----------------------------------------------------------
+`404-200` is NOT "rewrite and return 200". The Amplify CDK enum names it
+`NOT_FOUND_REWRITE` and documents it as **"Not found rewrite (404)"**, and that is what
+the live app does — measured 2026-09-25: an unknown path returns HTTP **404** with a body
+byte-identical to `/index.html`.
+
+So an unknown path already serves the home page's HTML, and because the export's
+`index.html` carries `"page":"/"`, it hydrates as the home route and the real home page
+renders. What it does not do is return 200 or clean up the address bar.
+
+Do NOT "fix" that by switching the catch-all to plain `200`. A `200` rewrite matches
+unconditionally rather than only on a miss, so `/<*>` -> `/index.html` at `200` would
+shadow all ~123 exported pages and serve the home page for the entire site. The same
+applies to `301`/`302` on `/<*>`. Only the 404-family statuses are evaluated after the
+file lookup fails, which is exactly why this rule uses one.
+
 Order matters
 -------------
 Amplify evaluates custom rules top-down, and the app already ends with a
@@ -63,9 +82,19 @@ RETIRED = {
     "/dm/ses/logs": "/dm/logs/?channel=email",
     "/dm/rcs/campaign": "/dm/broadcast/",
     "/dm/ses/campaign": "/dm/broadcast/",
-    "/forms/logs": "/forms/responses/",
     "/link/logs": "/link/",
 }
+
+# REMOVED 2026-09-25 on owner instruction: "/forms/logs": "/forms/responses/".
+#
+# Deleted from the live app too (rules 22 -> 20; snapshot in
+# docs/execution/snapshots/amplify-custom-rules-before-forms-logs-removal.json).
+# It has to come out of this dict as well, not just out of the app, or the next
+# --apply run silently puts it back and the removal looks like it did not stick.
+#
+# /forms/logs is now covered by the /<*> catch-all like any other unknown path: the
+# home page's HTML is served in its place. That is a weaker answer than the 301 was,
+# and it was still the owner's call to make.
 
 
 def amplify():

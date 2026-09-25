@@ -299,7 +299,12 @@ export const settingsConfig: SettingsGroup[] = [
       { path: '/dashboard/wa-graph-tools', label: 'WA Graph Tools' },
       { path: '/dashboard/cors-settings', label: 'CORS Settings' },
       { path: '/dashboard/design-reference', label: 'Design Reference' },
-      { path: '/carbon', label: 'Carbon' },
+      // '/carbon' was here. Removed 2026-09-25 with the page: it was a 15-line
+      // EmptyState reading "Sustainability and carbon tracking features coming soon"
+      // with nothing behind it and no other reference anywhere in the repo. A menu
+      // entry leading to a promise is the failure mode this nav comment set out to
+      // avoid — '/growth' below stays because a flagged-off page that explains why it
+      // is off is real content; "coming soon" is not.
       { path: '/nocode', label: 'No-code' },
       { path: '/docs', label: 'Docs' },
     ],

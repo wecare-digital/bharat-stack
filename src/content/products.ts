@@ -78,9 +78,15 @@ export interface ProductDef {
   ctaHref: string;
 }
 
-// Every product's call to action lands on Selfservice until the real per-product
-// destinations exist. Referenced through a constant so `grep PRODUCT_CTA` lists them all.
-const PRODUCT_CTA = 'https://www.wecare.digital/selfservice';
+// Every product's call to action lands here until the real per-product destinations
+// exist. Referenced through a constant so `grep PRODUCT_CTA` lists them all.
+//
+// Was 'https://www.wecare.digital/selfservice' until 2026-09-25, which was broken twice
+// over: `www` 301s to the apex, and `/selfservice` was deleted with the retired-URL stubs
+// in commit 6bc44a35, so the chain ran 301 -> 301 -> 404. Now the apex directly, and
+// /contact/ because it is a real 200 page and is the destination the retirement note in
+// _app.tsx nominated for /selfservice.
+const PRODUCT_CTA = 'https://wecare.digital/contact/';
 
 export const PRODUCTS: ProductDef[] = [
   {

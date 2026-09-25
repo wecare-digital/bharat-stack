@@ -701,6 +701,39 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // pointed at the operator rather than the customer.
   const showPublicWhatsApp = isPublic;
 
+  /**
+   * A MISTYPED ADDRESS LANDS ON THE HOME PAGE, and the address bar says so.
+   *
+   * Amplify's last custom rule is `/<*>` -> `/index.html` with status `404-200`. Despite
+   * the name that is NOT "rewrite to 200" — the CDK enum calls it `NOT_FOUND_REWRITE`,
+   * "Not found rewrite (404)". Measured on the live site: an unknown path returns HTTP
+   * 404 with a body byte-identical to `/index.html`.
+   *
+   * Because the exported `index.html` carries `"page":"/"`, Next hydrates it as the home
+   * route, so `router.pathname` is already `/` and the real home page renders. The only
+   * thing left wrong is the address bar, which still shows whatever was typed. This
+   * corrects it.
+   *
+   * WHY NOT DO IT AT THE CDN. A `200`/`301`/`302` rule on `/<*>` matches unconditionally
+   * rather than only after the file lookup misses, so it would shadow all ~123 exported
+   * pages and serve the home page for the whole site. Only the 404-family statuses are
+   * conditional. The status therefore stays 404, which is also the honest answer: a URL
+   * that was never published should not report 200, or anyone can mint unlimited
+   * indexable addresses on the domain and Google records it as a soft 404.
+   *
+   * replaceState, not router.replace: this is a cosmetic correction of an address that
+   * was never a route, so it must not add a history entry (Back would re-enter the typo)
+   * and must not re-run the router. Guarded on the PATH ONLY, so `/?utm_source=x` and
+   * `/#pricing` on the real home page are left alone.
+   */
+  useEffect( () => {
+    if ( router.pathname !== '/' ) return;
+    const typedPath = router.asPath.split( '?' )[ 0 ].split( '#' )[ 0 ];
+    if ( typedPath === '/' || typedPath === '' ) return;
+    const suffix = router.asPath.slice( typedPath.length );
+    window.history.replaceState( window.history.state, '', '/' + suffix );
+  }, [ router.pathname, router.asPath ] );
+
   useEffect( () => {
 
     // Register service worker for PWA + offline — production only.
