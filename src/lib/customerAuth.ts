@@ -44,6 +44,16 @@ export interface OtpChallenge {
   /** Masked by the Cognito trigger, e.g. `********0044`. Never the full number. */
   destination: string;
   expiresInSeconds: number;
+  /**
+   * Whether this number is a registered customer.
+   *
+   * Cognito returns a challenge either way, so without this the caller cannot tell
+   * "wrong number" from "message is slow" — and for an unregistered number no code
+   * is ever sent, so they wait forever. The trigger sets this explicitly.
+   *
+   * It does make the endpoint enumerable; see the note in the Cognito trigger.
+   */
+  registered: boolean;
 }
 
 export interface CustomerSession {
@@ -99,6 +109,9 @@ export async function requestOtp ( mobile: string ): Promise<OtpChallenge> {
     session: result.Session || '',
     destination: result.ChallengeParameters?.destination || '',
     expiresInSeconds: Number( result.ChallengeParameters?.expiresInSeconds || 600 ),
+    // Absent means an older deployed trigger; treat that as registered so the flow
+    // still works rather than wrongly telling a real customer they are unknown.
+    registered: result.ChallengeParameters?.registered !== 'false',
   };
 }
 

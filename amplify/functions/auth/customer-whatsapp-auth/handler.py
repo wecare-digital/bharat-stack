@@ -155,8 +155,28 @@ def _create_auth_challenge(event: dict) -> dict:
 
     # PreventUserExistenceErrors can present a synthetic unknown-user event.
     # Do not send a message in that case.
+    #
+    # `registered: "false"` is returned to the caller deliberately, and it is a
+    # considered trade rather than an oversight.
+    #
+    # Hiding it makes this endpoint non-enumerable: a prober cannot learn which
+    # numbers are customers. The cost is that a mistyped digit produces a code
+    # screen and then total silence, with no way for the person to tell "wrong
+    # number" from "message is slow" - and no code will ever arrive, so they wait
+    # forever. That dead end was reached within a minute of the first real test.
+    #
+    # Revealing it is defensible HERE specifically because every recipient is
+    # registered by hand by an operator, there is no self-sign-up, and the fact
+    # being disclosed is only "this number is a customer" to someone who already
+    # knows the number. That is a low-value disclosure against a high-frequency
+    # usability failure.
+    #
+    # It does mean the endpoint is enumerable. If that becomes a concern, the fix
+    # is a rate limit on this trigger keyed on source IP, not re-hiding the flag -
+    # going back to silence would restore the dead end.
     if bool(request.get("userNotFound")):
         event["response"]["publicChallengeParameters"]["destination"] = "********"
+        event["response"]["publicChallengeParameters"]["registered"] = "false"
         return event
 
     user_waba = attributes.get("custom:partner_waba_id")
@@ -170,6 +190,7 @@ def _create_auth_challenge(event: dict) -> dict:
     event["response"]["publicChallengeParameters"]["destination"] = _mask_phone(
         phone
     )
+    event["response"]["publicChallengeParameters"]["registered"] = "true"
     _send_otp(phone, otp)
 
     # Metadata only. Do not log the OTP or unmasked number.

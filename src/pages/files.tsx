@@ -166,13 +166,23 @@ export default function FilesPage () {
         {
             normaliseMobile( mobile ); // fail fast on an obviously bad number
             const challenge = await requestOtp( mobile );
+
+            // Stop here rather than showing a code screen no code will ever satisfy.
+            // Cognito issues a challenge for an unknown number too, so without this
+            // the person waits indefinitely for a message that was never sent.
+            if ( !challenge.registered )
+            {
+                setError(
+                    'No files are registered to this number. '
+                    + 'Check the number, or contact us if you were expecting a file.',
+                );
+                return;
+            }
+
             setSession( challenge.session );
             setDestination( challenge.destination );
             setStage( 'otp' );
-            // Deliberately hedged. PreventUserExistenceErrors is on, so an unknown
-            // number returns a challenge too - promising "we sent a code" would be a
-            // lie for anyone not registered.
-            setMessage( 'If this number is registered, a code has been sent on WhatsApp.' );
+            setMessage( 'Code sent on WhatsApp.' );
         } catch ( err: any )
         {
             setError( err?.message || 'Could not start verification' );
