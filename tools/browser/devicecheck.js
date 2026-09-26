@@ -23,6 +23,28 @@
 const { target } = require( './lib/serve' );
 const { launch, gotoStable } = require( './lib/browser' );
 
+/**
+ * ENGINE SELECTION. Chromium is the default; `--firefox` and `--webkit` run the same matrix on
+ * Gecko and WebKit.
+ *
+ * WEBKIT DOES NOT RUN IN THIS SANDBOX, and the reason is worth recording because it is not
+ * something more installing fixes. The host is Amazon Linux 2023, which ships ICU 67; the
+ * Playwright WebKit build links libicudata.so.74 / libicui18n.so.74 / libicuuc.so.74, and also
+ * wants GTK4, a full GStreamer stack, libgraphene, libxslt, libopus and flite. `playwright
+ * install-deps` only knows apt-get, and AL2023 has no flite package at all. WebKit needs an
+ * Ubuntu-based image - mcr.microsoft.com/playwright - not a longer dnf line.
+ *
+ * That gap matters more than the other two: WebKit is Safari's engine AND the engine behind
+ * every browser and WebView on iOS. Until it runs, iOS is unverified. Named here so it is a
+ * task with a known answer rather than a vague caveat.
+ */
+const ENGINE = process.argv.includes( '--firefox' ) ? 'firefox'
+  : process.argv.includes( '--webkit' ) ? 'webkit' : 'chromium';
+const launchEngine = async () => {
+  if ( ENGINE === 'chromium' ) return launch();
+  return require( 'playwright-core' )[ ENGINE ].launch();
+};
+
 const ROUTES = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/my-order/',
   '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
   '/expo-week/', '/niji-setu/', '/ritual-guru/', '/404/', '/blog/', '/get/' ];
@@ -76,12 +98,12 @@ const PROBE = () => {
   const args = process.argv.slice( 2 ).filter( a => a.startsWith( '/' ) );
   const routes = args.length ? args : ROUTES;
   const t = await target();
-  const browser = await launch();
+  const browser = await launchEngine();
   let fail = 0, checks = 0;
   const failures = [];
 
   try {
-    console.log( `devicecheck - ${routes.length} routes × ${DEVICES.length} postures = ${routes.length * DEVICES.length} combinations\n` );
+    console.log( `devicecheck [${ENGINE}] - ${routes.length} routes × ${DEVICES.length} postures = ${routes.length * DEVICES.length} combinations\n` );
     for ( const d of DEVICES ) {
       const ctx = await browser.newContext( { viewport: { width: d.w, height: d.h } } );
       const page = await ctx.newPage();

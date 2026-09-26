@@ -133,10 +133,11 @@ Run each of these. They are ordered by how many defects they have actually caugh
 
 ## 4. Device matrix — foldables are not optional
 
-Run `node tools/browser/devicecheck.js` and require 100%. It exists separately from
-`pageaudit.js` because pageaudit sweeps every route at three *widths*, which is the right
-trade for a census and structurally cannot see a viewport that is wide **and** short. Add new
-routes to its `ROUTES` array by hand.
+Run `node tools/browser/devicecheck.js` and require 100% — **18 routes × 15 postures = 270
+combinations**, on at least two engines (see §7). It exists separately from `pageaudit.js`
+because pageaudit sweeps every route at three *widths*, which is the right trade for a census
+and structurally cannot see a viewport that is wide **and** short. Add new routes to its
+`ROUTES` array by hand.
 
 The failure mode that width-only testing cannot see is **wide AND short**. It is rare on a
 phone and normal on a folded-landscape device.
@@ -181,9 +182,13 @@ across 124 routes:
   carries `aria-hidden` for an equally correct reason (so a screen reader does not read the
   headline once per word). The two combine into a **mixed-language headline**: the frame line
   translates, the word inside the pill does not. 78 nodes sitewide.
-- **`data-wc-no-translate` is doing double duty.** It is meant to protect customer data in the
-  dashboard, and it is also sitting on public eyebrow labels — "Legal Stuff — WECARE.DIGITAL",
-  "Selfservice by WECARE.DIGITAL" — which then never translate. Check before adding it.
+- **`data-wc-no-translate` on a brand lockup is correct — do not "fix" it.** `BrandBadge.tsx:56`
+  sets it deliberately so the **brand name** survives translation, and says so in a comment. An
+  earlier version of this skill called it a misapplied dashboard flag; that was wrong. The real
+  and much smaller problem is that the descriptor shares the label — "Legal Stuff —
+  WECARE.DIGITAL", "Selfservice by WECARE.DIGITAL" — so the words around the brand name are
+  collateral. If you need the descriptor translated, split it into its own element rather than
+  removing the flag.
 - **A translated word is wider.** "consumers" 278px → "उपभोक्ताओं" 317px, and Devanagari is
   taller at the same size. Any box with `overflow:hidden` and a JS-measured width will clip.
   `width:max-content` plus a `ResizeObserver` **on the text element, not its container**, is
@@ -222,7 +227,8 @@ npx vitest run
 node tools/browser/animcheck.js        # rotating-headline reflow, 21 viewports
 node tools/browser/homeprobe.js        # the degradation states from §3
 node tools/browser/pageaudit.js        # structure + translation census + overflow
-node tools/browser/devicecheck.js      # the device matrix from §4 — require 100%
+node tools/browser/devicecheck.js      # 18 routes × 15 postures, incl. foldables
+node tools/browser/devicecheck.js --firefox   # same matrix on Gecko
 node tools/browser/uicheck.js
 node tools/browser/typecheck.js
 node tools/browser/seocheck.js
@@ -230,15 +236,25 @@ python3 scripts/check_design_drift.py
 python3 -m pytest tests/test_design_drift_tokens.py -q
 ```
 
-`devicecheck.js` was missing from this list while §4 devoted a whole section to the matrix it
-enforces — the gate existed on disk and the checklist did not name it, so a full pass of §7
-came back green having never tested a foldable posture. That is this skill's own failure mode
-turned on itself: the suite that cannot see the defect gets cited as evidence. It is listed
-now; keep it listed.
+**Run at least two engines.** Chromium and Firefox both pass 270/270 today. `--webkit` is wired
+up but **cannot run on this host**: Amazon Linux 2023 ships ICU 67 while the Playwright WebKit
+build links ICU 74, and it also wants GTK4, GStreamer, libgraphene, libxslt, libopus and flite —
+`playwright install-deps` only knows apt-get, and AL2023 has no flite package. It needs an
+Ubuntu-based image (`mcr.microsoft.com/playwright`). **Until it runs, iOS is unverified**, because
+WebKit is Safari's engine and the engine behind every browser and WebView on iOS. Treat that as a
+known task, not a caveat.
+
+**`devicecheck.js` was absent from this list until two sessions added it independently**, while
+§4 devoted a whole section to the matrix it enforces. The gate sat on disk and the checklist did
+not name it, so a full pass of §7 returned green having never loaded a foldable posture — this
+skill's own failure mode turned on itself. Two people finding the same omission separately is the
+argument for keeping it listed.
 
 A new page adds a route to `pageaudit.js`'s discovery automatically, but **`devicecheck.js`
-carries a hardcoded `ROUTES` array** — a new public route is invisible to it until you add it
-there. If the page introduces a state the matrix in §3 does not cover, add the assertion.
+carries a hardcoded `ROUTES` array** — 18 routes against 126 page files, and a new public route
+is invisible to it until you add it there by hand. If the page introduces a state the matrix in
+§3 does not cover, add the assertion — a green suite that cannot see a defect is worse than no
+suite, because it is cited as evidence.
 
 ## 8. What to commit
 
