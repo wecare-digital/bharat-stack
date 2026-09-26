@@ -60,4 +60,9 @@
 
 19. **No Booking schema** — Appointment page has no Booking/Service structured data via Wix.
 
-20. **Stack app (stack.wecare.digital) has no robots.txt** — Admin tool should have `Disallow: /`.
+20. ~~**Stack app (stack.wecare.digital) has no robots.txt** — Admin tool should have `Disallow: /`.~~
+    **OBSOLETE 2026-09-26.** The host was retired on 2026-09-25 with its Route 53 CNAME and is
+    NXDOMAIN, so there is nothing left to serve a `robots.txt` from. Kept rather than deleted so
+    the item is not silently re-raised against the apex, which is a public site and must stay
+    crawlable. The admin surface now lives on paths under `wecare.digital`; if those need to be
+    excluded, that belongs in the apex `robots.txt`, not a per-host one.

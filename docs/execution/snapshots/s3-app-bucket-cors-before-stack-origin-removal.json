@@ -1,0 +1,27 @@
+{
+    "CORSRules": [
+        {
+            "AllowedHeaders": [
+                "*"
+            ],
+            "AllowedMethods": [
+                "PUT",
+                "POST",
+                "GET",
+                "HEAD"
+            ],
+            "AllowedOrigins": [
+                "https://stack.wecare.digital",
+                "https://app.wecare.digital",
+                "https://wecare.digital",
+                "http://localhost:3000",
+                "capacitor://localhost",
+                "http://localhost"
+            ],
+            "ExposeHeaders": [
+                "ETag"
+            ],
+            "MaxAgeSeconds": 3000
+        }
+    ]
+}

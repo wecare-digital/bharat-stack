@@ -36,7 +36,7 @@ latest versions, accepting breaking changes, with a safe verify/rollback path.
 
 ## Phase 1 — Frontend npm upgrade (automated)
 ```bash
-# from stack.wecare.digital/
+# from the repository root
 ./upgrade-latest.sh
 # to also force-fix transitive vulns into new majors:
 FORCE=1 ./upgrade-latest.sh
