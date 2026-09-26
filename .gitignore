@@ -127,3 +127,8 @@ next-env.d.ts
 # /tmp falls through to the user-level file and prompts for approval once per new
 # filename. Never tracked.
 .scratch/
+
+# Partial output of `aws_account_inventory.py --only ...`. The full inventory at
+# docs/execution/aws-inventory.{json,md} is committed; a single-collector run is
+# a local debugging artifact where every other family reads null.
+docs/execution/aws-inventory.partial.*

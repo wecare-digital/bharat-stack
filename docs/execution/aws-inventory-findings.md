@@ -265,3 +265,9 @@ count marks the inventory PARTIAL. This is deliberate — an earlier alias censu
 read 34/28 instead of 53/9 because failed API calls were silently treated as
 "resource absent". Treat any run with `error_count > 0` as unusable for
 decisions.
+
+`--only` writes to `aws-inventory.partial.{json,md}` (gitignored) and leaves the
+committed full inventory alone. That separation matters for the same reason: in a
+single-collector run every other family serialises as `null`, which is
+indistinguishable from "this account has no queues" once the file is read back a
+week later.

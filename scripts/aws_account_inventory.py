@@ -1072,10 +1072,29 @@ def main() -> int:
         (datetime.now(timezone.utc) - started).total_seconds(), 1
     )
 
-    OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
-    OUT_JSON.write_text(json.dumps(data, indent=2, default=str))
+    # A partial run must never clobber the full inventory. `--only` is for
+    # iterating on one collector, and letting it overwrite the committed
+    # artifacts would leave every other family reading `null` - which looks
+    # exactly like "resource absent", the failure mode this script exists to
+    # avoid.
+    partial = bool(args.only)
+    out_json = (
+        OUT_JSON.with_name(f"{OUT_JSON.stem}.partial.json") if partial else OUT_JSON
+    )
+    out_md = OUT_MD.with_name(f"{OUT_MD.stem}.partial.md") if partial else OUT_MD
+    data["partial_run"] = partial
+    data["collectors_run"] = sorted(selected)
+
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_json.write_text(json.dumps(data, indent=2, default=str))
     if not args.json_only:
-        OUT_MD.write_text(render_md(data))
+        out_md.write_text(render_md(data))
+    if partial:
+        print(
+            f"partial run ({', '.join(sorted(selected))}) -> {out_json.name}; "
+            f"the full inventory was left untouched",
+            file=sys.stderr,
+        )
     print(json.dumps(summary(data), indent=2))
     return 0 if not ERRORS else 1
 
