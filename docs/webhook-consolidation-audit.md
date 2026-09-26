@@ -20,7 +20,49 @@ ingresses:
 | Razorpay | `POST /razorpay-webhook` **and** `POST /payments/webhook` | `wecare-razorpay-webhook:live` | 2 routes, **1** function |
 | Browser SDK | `POST /pstn/session/events` | `wecare-pstn-softphone:live` | 1 (internal, not a provider) |
 
-## WhatsApp: there are two live Meta ingresses, and that is the real finding
+## CORRECTION 2026-09-26: there is ONE Meta ingress, not two
+
+**This section originally concluded there were two live Meta ingresses. That was
+wrong, and the reasoning below shows how the evidence misled me.** Corrected after a
+live test send to both WABAs proved the actual topology:
+
+    Meta -> POST /whatsapp -> wecare-whatsapp-calling        the only Meta callback
+                                    |
+                                    | async lambda_client.invoke
+                                    v
+                              wecare-inbound-whatsapp        messages + statuses
+
+`whatsapp-calling` forwards to `INBOUND_HANDLER_FUNCTION=wecare-inbound-whatsapp`
+(handler.py:649). So `inbound-whatsapp`'s invocations are the **internal** async
+invoke, not Meta. The route `POST /whatsapp/inbound` exists but Meta never calls it.
+
+**How the original evidence fooled me:** both functions showed heavy traffic, and I
+treated "receives traffic" as "is a Meta ingress". Invocation counts cannot tell an
+external callback apart from an internal invoke — only the call chain can, and the
+test send made it visible in the timestamps: `whatsapp-calling` logged
+`webhook_received` at 16:58:09.696, `inbound-whatsapp` started at 16:58:09.821.
+
+Confirmed directly against Meta via `GET /{app-id}/subscriptions`, which the original
+audit could not do because no code path existed for it. App `2238810740192680` carries
+**two subscriptions and both name one URL**:
+
+| object | fields | callback |
+|---|---:|---|
+| `whatsapp_business_account` | 32 | `/whatsapp` |
+| `catalog` | 2 | `/whatsapp` |
+
+**So the WhatsApp consolidation this document was written to assess is already done.**
+There is one callback URL. Nothing to merge. What the original analysis got right is
+the dual app-secret detail — that matters for signature verification, not for ingress
+count.
+
+Still open: app `1143680903703001` (Business Agent) could not be read, because an app
+access token is `{app_id}|{app_secret}` and neither `app_secret` nor
+`app_secret_waba2` matches that app. Whether it has its own callback is unknown.
+
+The superseded analysis follows, kept because the method error is instructive.
+
+## SUPERSEDED: "there are two live Meta ingresses"
 
 Not one, and not one dead plus one live. Both receive traffic:
 
