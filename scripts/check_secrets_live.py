@@ -129,19 +129,129 @@ def check_plivo(s: dict) -> list[tuple[str, str, str, str]]:
 
 
 def check_google_key(s: dict, field: str) -> list[tuple[str, str, str, str]]:
+    """Probe the key against BOTH a legacy Maps API and Places API (New).
+
+    Two endpoints, not one, because they are gated by different entries in the key's
+    `apiTargets` restriction and a key can pass one while being unable to call the other.
+
+    That is not hypothetical. Until 2026-09-26 the unified key allowlisted
+    `places-backend.googleapis.com` (legacy Places) and **not** `places.googleapis.com`
+    (Places New), while `places.googleapis.com` was enabled on the project. A
+    Geocoding-only check reported VALID throughout, so the one restriction that blocked
+    the address-capture migration was invisible to the checker that existed to catch
+    exactly this.
+
+    Legacy Places Autocomplete is deprecated, so the New probe is the one that matters
+    going forward; the legacy probe stays because the live Places proxy in
+    `whatsapp-templates/handler.py` still calls the legacy web service.
+    """
     key = s.get(field)
     if not key:
         return []
+
+    rows: list[tuple[str, str, str, str]] = []
+
+    # 1. Legacy Maps, via Geocoding.
     code, body = http("https://maps.googleapis.com/maps/api/geocode/json?" +
                       urllib.parse.urlencode({"address": "New Delhi", "key": key}))
     status = body.get("status") if isinstance(body, dict) else "?"
     if code == 200 and status in ("OK", "ZERO_RESULTS"):
-        return [(field, "VALID", f"Geocoding answered status={status}", fp(key))]
-    if status == "REQUEST_DENIED":
-        msg = str(body.get("error_message", ""))[:90] if isinstance(body, dict) else ""
-        verdict = "INVALID" if "api key" in msg.lower() or "expired" in msg.lower() else "UNTESTABLE"
-        return [(field, verdict, f"REQUEST_DENIED: {msg}", fp(key))]
-    return [(field, "ERROR", f"HTTP {code} status={status}", fp(key))]
+        rows.append((f"{field} [legacy Geocoding]", "VALID",
+                     f"Geocoding answered status={status}", fp(key)))
+    elif status == "REQUEST_DENIED":
+        msg = str(body.get("error_message", ""))[:120] if isinstance(body, dict) else ""
+        lowered = msg.lower()
+        if "referer restrictions" in lowered or "referrer restrictions" in lowered:
+            # Same reasoning as the Places probe: a statement about the test, not the key.
+            verdict = "UNTESTABLE"
+        elif "api key" in lowered or "expired" in lowered:
+            verdict = "INVALID"
+        else:
+            verdict = "UNTESTABLE"
+        rows.append((f"{field} [legacy Geocoding]", verdict, f"REQUEST_DENIED: {msg}", fp(key)))
+    else:
+        rows.append((f"{field} [legacy Geocoding]", "ERROR",
+                     f"HTTP {code} status={status}", fp(key)))
+
+    rows.append(_check_places_new(key, field))
+    return rows
+
+
+def _check_places_new(key: str, field: str) -> tuple[str, str, str, str]:
+    """Does this key answer on Places API (New) Autocomplete?
+
+    Verdicts are kept distinct rather than collapsed into pass/fail, because the useful
+    information is *why* a refusal happened and they call for opposite responses:
+
+      API_KEY_SERVICE_BLOCKED   the key's apiTargets omit places.googleapis.com
+                                -> fix the key restriction
+      API_KEY_HTTP_REFERRER_BLOCKED
+                                the key is browser-restricted and this is a server call
+                                with no Referer -> the key needs a server-side sibling,
+                                which is the split this repo still owes
+      SERVICE_DISABLED          places.googleapis.com is off on the project
+      INVALID_ARGUMENT          key accepted, request shape wrong -> our bug, not the key
+
+    Collapsing these to INVALID would send someone to rotate a perfectly good key, which
+    is the same mistake the OpenAI check below documents at length.
+    """
+    code, body = http(
+        "https://places.googleapis.com/v1/places:autocomplete",
+        method="POST",
+        headers={"Content-Type": "application/json",
+                 "X-Goog-Api-Key": key,
+                 # Ask for the smallest possible response.
+                 "X-Goog-FieldMask": "suggestions.placePrediction.placeId"},
+        data=json.dumps({"input": "New Delhi", "regionCode": "IN"}).encode(),
+    )
+    label = f"{field} [Places API New]"
+
+    if code == 200:
+        n = len((body or {}).get("suggestions", [])) if isinstance(body, dict) else 0
+        return (label, "VALID", f"Autocomplete answered with {n} suggestion(s)", fp(key))
+
+    reason, message = "", ""
+    if isinstance(body, dict):
+        err = body.get("error") or {}
+        message = str(err.get("message", ""))[:120]
+        for detail in err.get("details") or []:
+            if detail.get("reason"):
+                reason = str(detail["reason"])
+                break
+
+    # ORDER MATTERS, and getting it wrong is how this check lied on its first run.
+    # A referrer refusal also contains the word "blocked", so a generic
+    # `"blocked" in message` test placed first swallows it and reports a *service*
+    # restriction instead - sending someone to edit apiTargets when the entry is already
+    # there and the real problem is that a browser key cannot be used server-side at all.
+    # Specific reason codes are therefore matched before any substring fallback, and the
+    # raw reason is always carried into the detail so the next reader can see it.
+    if reason == "API_KEY_HTTP_REFERRER_BLOCKED":
+        # UNTESTABLE, not INVALID, and the distinction is the whole point of this file's
+        # verdict vocabulary. A referrer-restricted key may be perfectly valid; this script
+        # simply cannot exercise it, because it is not a browser and sends no Referer.
+        # Calling it INVALID makes the run report "a rotation is incomplete" when no
+        # rotation is owed, which is the same misleading collapse the OpenAI check below
+        # documents. The genuine defect - a browser key wired into a server-side code path
+        # - is named in the detail so it does not become invisible.
+        return (label, "UNTESTABLE",
+                "browser-key referrer restriction: cannot be validated server-side. If a "
+                "Lambda reads this secret, that is a defect - it needs the server-restricted "
+                "sibling wecare/google-maps-server; adding apiTargets will NOT fix it",
+                fp(key))
+    if reason == "API_KEY_SERVICE_BLOCKED":
+        return (label, "INVALID",
+                "key restriction does not allow places.googleapis.com - add it to apiTargets",
+                fp(key))
+    if reason == "SERVICE_DISABLED":
+        return (label, "INVALID", "places.googleapis.com is not enabled on the project", fp(key))
+    if code == 403:
+        return (label, "INVALID", f"403 reason={reason or 'unknown'}: {message}", fp(key))
+    if code == 400:
+        return (label, "UNTESTABLE", f"key accepted, request rejected: {message}", fp(key))
+    if code == 429:
+        return (label, "UNTESTABLE", "quota exhausted - key not proven either way", fp(key))
+    return (label, "ERROR", f"HTTP {code} {reason or message}", fp(key))
 
 
 def check_openai(s: dict) -> list[tuple[str, str, str, str]]:
@@ -252,6 +362,22 @@ CHECKS = {
     "wecare/openai/api": check_openai,
     "wecare/google-api-key": lambda s: check_google_key(s, "api_key"),
     "wecare/google/cloud": lambda s: check_google_key(s, "unified_google_api_key"),
+    # Registered 2026-09-26, same defect as check_wix before it: this is the secret the
+    # live Places proxy actually reads (whatsapp-templates/handler.py, SecretId
+    # 'wecare/google-maps', field 'api_key'), and it was the one Google secret NOT in this
+    # table. So the credential that address capture depends on was the credential nothing
+    # checked, while two adjacent Google secrets were checked diligently.
+    #
+    # It is EXPECTED to report INVALID on both probes, and that is the finding rather than
+    # a fault in the check: it holds the browser key, and Google refuses referrer-restricted
+    # keys for server-side calls. Fixed by wecare/google-maps-server below, not by editing
+    # this key. Left registered so the day someone points a browser key at a server path
+    # again, this says so.
+    "wecare/google-maps": lambda s: check_google_key(s, "api_key"),
+    # The server-restricted sibling, minted 2026-09-26 by
+    # scripts/provision_maps_server_key.py. No application restriction by design - Lambda
+    # has no stable egress IP - scoped instead to 4 apiTargets against the unified key's 49.
+    "wecare/google-maps-server": lambda s: check_google_key(s, "api_key"),
     "wecare/razorpay-webhook": lambda s: check_shared_secret(
         s, "webhook_secret",
         "shared HMAC secret - no endpoint validates it; proven only when Razorpay "

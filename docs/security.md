@@ -220,20 +220,42 @@ code; the new `AddressService` resolves by reference.
 
 **Threat.** The unified key is usable from anywhere, for ~50 APIs, by anyone who obtains it.
 
-**Measured.** One key, `WECARE Unified Google API Key`, with `browserKeyRestrictions` whose
-referrer list includes `places.googleapis.com` and `*.googleapis.com/*`. Those are not
-referrers any browser sends; they read as an attempt to make a server-side call satisfy a
-browser restriction. The result is a restriction that does not restrict.
+**Measured.** One key, `WECARE Unified Google API Key`, 49 `apiTargets`, with
+`browserKeyRestrictions` whose referrer list includes `places.googleapis.com` and
+`*.googleapis.com/*`. Those are not referrers any browser sends; they read as an attempt to
+make a server-side call satisfy a browser restriction. The result is a restriction that does
+not restrict.
+
+**The first diagnosis here was wrong, and the correction is the useful part.** This section
+originally said the fix was to add `places.googleapis.com` to `apiTargets`. That target was
+missing, it was added on 2026-09-26 — verified purely additive, 48 → 49, nothing lost — and
+**the call still failed**, with `API_KEY_HTTP_REFERRER_BLOCKED`. Google refuses
+referrer-restricted keys for server-side calls on both legacy Maps web services
+(`REQUEST_DENIED: API keys with referer restrictions cannot be used with this API`) and
+Places (New). The refusal is about the key's *type*, not its API list, so no edit to a browser
+key could ever have fixed it. A configuration change is verified when the call succeeds, not
+when the configuration reads as intended.
 
 **Controls.**
 
-- Split into two keys: a browser key restricted to `https://wecare.digital/*` and
-  `https://*.wecare.digital/*` with only the Maps APIs the frontend needs, and a backend key
-  with server-side restrictions.
-- Remove the pseudo-referrer entries.
-- Reduce `apiTargets` to what is actually called. Add `places.googleapis.com` — without it the
-  migration off the deprecated legacy Places API fails on key restriction, and legacy being
-  deprecated means the current state has an expiry.
+- ✅ **A separate server key exists.** `wecare/google-maps-server`, minted by
+  `scripts/provision_maps_server_key.py --create`, 4 `apiTargets` against the unified key's
+  49. Proven live: Places (New) Autocomplete returns suggestions, legacy Geocoding returns
+  `OK`. The value never entered argv, a log, or an agent's context — the script captures it
+  from `gcloud` in memory and writes it straight to Secrets Manager.
+- **It deliberately carries no application restriction**, and that is a considered trade, not
+  an oversight. Lambda has no stable egress IP, so `--allowed-ips` is unavailable. A key with
+  no application restriction is usable by anyone who holds it, which is exactly why it is
+  narrow (4 services), separate from the browser key, and in Secrets Manager. Tightening it
+  further needs a NAT gateway with an Elastic IP — a real cost decision, recorded rather than
+  assumed away.
+- ⏳ Still owed on the browser half: drop the pseudo-referrer entries and cut `apiTargets`
+  from 49 to what the frontend actually needs.
+- ⏳ Repoint `whatsapp-templates/handler.py` off `wecare/google-maps`. It reads the **browser**
+  key server-side, so that path cannot work. Latent rather than harmful — zero invocations of
+  `places-autocomplete` or `place-details` in the retained log window.
+- Both keys are registered in `scripts/check_secrets_live.py`, so a browser key pointed at a
+  server path says so on the next run instead of failing silently.
 - Quota alerting, so a leaked key shows up as spend before it shows up as a bill.
 
 ## T10 — Abuse of the public verification endpoints
@@ -361,7 +383,9 @@ Honest list. Each is tracked in [`docs/tasks.md`](tasks.md).
 | Admin MFA not enforced | `HIGH` | owner overrides make it a required target while removing its blocking semantics |
 | Staff password minimum 8 | `MEDIUM` | weak for production access |
 | Customer pool deletion protection `INACTIVE` | `MEDIUM` | one delete removes every customer login |
-| Google key split and `places.googleapis.com` | `HIGH` | Google-console work; blocks the Places migration |
+| Google server key | ✅ CLOSED | `wecare/google-maps-server` minted and proven live against Places (New) and Geocoding. The Places migration is no longer credential-blocked |
+| Browser key still over-broad | `MEDIUM` | 49 `apiTargets` and two pseudo-referrer entries. No longer blocking anything, so downgraded from `HIGH`, but a browser key usable for 49 services is a wide blast radius if it leaks |
+| Places proxy reads the browser key server-side | `MEDIUM` | `whatsapp-templates/handler.py` cannot work as written. Latent: zero invocations in the retained log window |
 | ~~Wix credential absent~~ | ✅ CLOSED | Owner supplied it; stored 2026-09-26 via the staging-file path so the value never reached argv, staging file shredded, encrypted local and S3 recovery copies refreshed and verified |
 | Legacy Places still in use | `HIGH` | deprecated, so this has an expiry rather than an indefinite pass |
 | `get_secret_value` in the Places proxy | `LOW` | pre-existing; superseded by `AddressService` |

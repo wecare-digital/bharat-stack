@@ -76,8 +76,10 @@ Nothing in these is workaroundable. Each names the exact action and who must tak
 |---|---|---|---|---|
 | 1.1 | Mint and store the Wix Headless credential | ✅ COMPLETE | owner + agent | Commit `82fa0d5a`. Value never entered argv, staging file shredded, encrypted local and S3 recovery copies refreshed and verified. Catalog V3 measured live: 7 products |
 | 1.2 | Confirm the target Wix site against the published/draft pair | 🟡 IN PROGRESS | agent | **Narrowed, not closed.** A visitor token from the committed `WIX_CLIENT_ID` returns live catalog and blog data, and Wix's own scope error names `fcd82f0c-…` — so the public client and the committed site id provably belong together. Still open: which of the owner's two sites is the *published* one. `https://xout.wecare.digital/` returned **404** during discovery, so the brief's "Published" claim does not hold at the URL it supplies. Settle with `POST /site-list/v2/sites/query` |
-| 1.3 | Add `places.googleapis.com` to the API key's `apiTargets` | ⏳ PENDING | agent, gcloud | Without it every Places API (New) call fails on key restriction. Enabling the service on the project — already done — is not sufficient |
-| 1.4 | Split the unified key into browser and backend keys | ⏳ PENDING | agent, gcloud | Remove the pseudo-referrers `places.googleapis.com` and `*.googleapis.com/*`, which no browser sends. Store as `wecare/google-maps-browser` and `wecare/google-maps-server` |
+| 1.3 | Add `places.googleapis.com` to the unified key's `apiTargets` | ✅ COMPLETE, and **insufficient** | agent, gcloud | Added 2026-09-26 with `--append`, verified purely additive: 48 → 49 targets, nothing lost, referrers unchanged. The call still failed afterwards with `API_KEY_HTTP_REFERRER_BLOCKED` — see 1.3b. Necessary, not sufficient |
+| 1.3b | Mint a server-restricted key for address capture | ✅ COMPLETE | agent | **This was the actual blocker.** The unified key is a *browser* key, and Google refuses referrer-restricted keys for server-side calls on both legacy Maps and Places (New); no edit to it could work. `scripts/provision_maps_server_key.py --create` minted `wecare/google-maps-server`, 4 apiTargets, value never in argv or context. Proven live: Places (New) returns suggestions, legacy Geocoding returns `OK` |
+| 1.4 | Finish the key split — narrow the browser key | ⏳ PENDING | agent, gcloud | Server half done in 1.3b. Still owed on the browser half: drop the pseudo-referrers `places.googleapis.com` and `*.googleapis.com/*`, which no browser sends, and cut `apiTargets` from 49 to what the frontend actually needs |
+| 1.4b | Point the Places proxy at the server key | ⏳ PENDING | agent | `whatsapp-templates/handler.py` reads `wecare/google-maps`, the **browser** key, server-side — so that code path cannot work. Latent rather than harmful: `FilterLogEvents` found **zero** invocations of `places-autocomplete` or `place-details` in the retained window, so no user has hit it |
 | 1.5 | Provision the three new secrets | ⏳ PENDING | agent | `wecare/otp/pepper`, `wecare/session/signing`, `wecare/tracking/token-pepper`. Values generated in-process, never on a command line |
 | 1.6 | ~~Attach a WebACL to `zllr9lrg7j`~~ → per-route throttling plus handler limits | ➖ NOT REQUIRED as written | agent | **WAFv2 cannot attach to an HTTP API.** Measured: `GetWebACLForResource` on the stage ARN returns `WAFInvalidParameterException`. Superseded by 10.1 |
 | 1.7 | Confirm which SES DKIM selector is in use | ⏳ PENDING | owner | Read `s=` from a real SES-sent message's `DKIM-Signature`. Three tokens are listed as current, AWS publishes a key for one. Do not rotate while `p=reject` is live |
@@ -135,7 +137,7 @@ Depends on 1.3 and 1.4.
 | # | Task | Requirement | Status | Acceptance |
 |---|---|---|---|---|
 | 4.1 | `CustomerAddress` entity | ADR-1 | ⏳ PENDING | 15 fields; no single free-form string as the only representation |
-| 4.2 | `AddressService` on Places API (New) | ADR-2 | ⛔ BLOCKED by 1.3 | session tokens bundle keystrokes plus details into one billable session; 3-character minimum |
+| 4.2 | `AddressService` on Places API (New) | ADR-2 | ⏳ PENDING — **unblocked** | Credential path proven by 1.3b. Read `wecare/google-maps-server`, by reference and lazily. Session tokens bundle keystrokes plus details into one billable session; 3-character minimum |
 | 4.3 | Manual-entry fallback | ADR-2.5 | ⏳ PENDING | a Places outage must not block registration; test with Places forced to fail |
 | 4.4 | Confirmation step with delivery detail | ADR-3 | ⏳ PENDING | flat, floor, landmark and instructions stored **without** altering the canonical place reference |
 | 4.5 | Address Validation as advisory | ADR-3.4 | ⏳ PENDING | the verdict informs; the customer's confirmation decides |
@@ -266,7 +268,7 @@ flowchart LR
     P0[Phase 0 version source - DONE] --> P2[Phase 2 identity and OTP]
     P2 --> P3[Phase 3 sessions]
     P3 --> P7[Phase 7 account area]
-    K[1.3 add places.googleapis.com to the key] --> P4[Phase 4 address]
+    K[1.3b server key minted - CLOSED] --> P4[Phase 4 address]
     P2 --> P4
     P4 --> P7
     W[1.1 Wix credential - CLOSED] --> P6[Phase 6 adapters and composition]
@@ -279,13 +281,18 @@ flowchart LR
     P10[Phase 10 hardening] --> P11
 ```
 
-Phases 2, 3, 5, 6, 8 and 10 have **no external blocker** now that `R0` is closed. Phase 4 is
-the only track still gated, and it is gated on one `gcloud` change: `places.googleapis.com`
-must be added to the API key's `apiTargets` before any Places API (New) call can succeed.
-Enabling the service on the project — already done — is not sufficient.
+**Every phase is now unblocked.** `R0` closed the Wix credential; 1.3b closed the Google one.
+No task on this plan is waiting on an external party.
 
 The single remaining owner-only item is 1.7, confirming which SES DKIM selector is in use, and
-it blocks nothing on this plan.
+it blocks nothing here.
+
+One correction worth carrying, because it cost a wrong diagnosis: the Google blocker was
+stated as "`places.googleapis.com` is missing from the key's `apiTargets`". That was true and
+it was not the blocker. Adding it changed nothing, because the refusal was
+`API_KEY_HTTP_REFERRER_BLOCKED` — a browser key cannot be used server-side at all, whatever
+its API list says. The lesson is the general one: a configuration change is verified when the
+call succeeds, not when the configuration reads as intended.
 
 ## Standing constraints for every task above
 

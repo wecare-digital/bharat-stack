@@ -199,26 +199,39 @@ export const WIX_BLOG: VendorVersion = {
 /**
  * Google Places.
  *
- * `configured` is the LEGACY web service (`maps/api/place/autocomplete/json`), which
- * Google has deprecated. The migration target is Places API (New). Note the key
- * restriction problem recorded in `docs/current-environment.md` §6: the unified API key's
- * apiTargets include `places-backend.googleapis.com` but NOT `places.googleapis.com`, so
- * changing this value alone will fail with a key-restriction error until that target is
- * added to the key.
+ * `configured` is the LEGACY web service (`maps/api/place/autocomplete/json`), which Google
+ * has deprecated. The migration target is Places API (New).
+ *
+ * The credential blocker is CLOSED, and how it closed is worth recording because the first
+ * diagnosis was wrong. The stated blocker was that the unified key's `apiTargets` omitted
+ * `places.googleapis.com`. That was true, and adding it was **necessary but not
+ * sufficient** — after the target was added the call still failed, with
+ * `API_KEY_HTTP_REFERRER_BLOCKED`. The real refusal was about the key *type*: the unified
+ * key is a browser key (`browserKeyRestrictions.allowedReferrers`), and Google rejects
+ * referrer-restricted keys for server-side calls on both legacy Maps web services and
+ * Places (New). No edit to a browser key can fix that.
+ *
+ * Fixed by minting a separate server key — `wecare/google-maps-server`, 4 apiTargets, no
+ * application restriction because Lambda has no stable egress IP. Proven live: Places (New)
+ * Autocomplete returns suggestions and legacy Geocoding returns `OK`.
+ *
+ * What remains is a **code** migration, not a credential one.
  */
 export const GOOGLE_PLACES: VendorVersion = {
   name: 'Google Places',
   configured: 'legacy-web-service',
   verifiedLatest: 'places-api-new',
   verifiedOn: '2026-09-26',
-  evidence: 'DOC',
+  evidence: 'LIVE',
   drift: 'lag-allowed-with-reason',
   upgradeBlockedReason:
-    'Migration blocked on the API key: places.googleapis.com is enabled on project ' +
-    'wecaredigitalbw but is absent from the unified key apiTargets. Adding it is a ' +
-    'prerequisite. Legacy is deprecated, so this lag has an expiry, not an indefinite pass.',
+    'Code migration pending, credential blocker CLOSED. The server key ' +
+    'wecare/google-maps-server answers on Places API (New), verified live. The remaining ' +
+    'work is porting whatsapp-templates/handler.py off the deprecated legacy endpoints and ' +
+    'building AddressService on the new ones. Legacy is deprecated, so this lag has an ' +
+    'expiry rather than an indefinite pass.',
   rederive:
-    "gcloud services api-keys list --format='json(displayName,restrictions)' and " +
+    '.venv/bin/python scripts/provision_maps_server_key.py --verify, and ' +
     'https://developers.google.com/maps/documentation/places/web-service/op-overview',
 } as const;
 

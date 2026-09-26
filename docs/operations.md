@@ -132,10 +132,19 @@ New secrets this build needs:
 | `wecare/otp/pepper` | HMAC pepper for OTP challenges | `OtpService` |
 | `wecare/session/signing` | session and CSRF signing material | customer API functions |
 | `wecare/tracking/token-pepper` | tracking-token hashing pepper | tracking and billing readers |
-| `wecare/google-maps-browser` | restricted **browser** Maps key | frontend build injection |
-| `wecare/google-maps-server` | restricted **backend** Maps key | `AddressService` |
+| `wecare/google-maps-server` | ✅ **exists** — server-restricted Maps key, 4 `apiTargets` | `AddressService`, and the Places proxy once repointed |
+| `wecare/google-maps-browser` | ⏳ restricted **browser** Maps key | frontend build injection |
 
-The last two replace the single unified key. Do not extend the existing one.
+`wecare/google-maps-server` was minted on 2026-09-26 by
+`scripts/provision_maps_server_key.py --create` and is proven live. Do **not** extend the
+existing unified key to cover server use — it is a browser key, and Google refuses
+referrer-restricted keys for server-side calls whatever their `apiTargets` say. That was tried
+first and it does not work.
+
+```bash
+.venv/bin/python scripts/provision_maps_server_key.py --status   # key + secret + live probe
+.venv/bin/python scripts/provision_maps_server_key.py --verify   # live probe only
+```
 
 ## Alarms
 
@@ -194,14 +203,27 @@ matters only if the number has to be re-registered, which is owner-only work.
 
 ### Address autocomplete returning nothing
 
-1. Is `places.googleapis.com` in the key's `apiTargets`?
-   `gcloud services api-keys list --format='json(displayName,restrictions)'`
-   Being enabled on the project is **not** sufficient; the key restriction is separate, and
-   this is the most likely cause.
-2. Is the query at least 3 characters?
-3. Backend key resolving from Secrets Manager?
-4. Quota or billing on project `wecaredigitalbw`.
-5. Autocomplete must degrade to manual structured entry, never block registration. If a
+Check in this order. The first item is first because it is the failure that already happened
+and it masquerades as every other cause.
+
+1. **Which key is the caller reading?** A server-side caller must read
+   `wecare/google-maps-server`. If it reads `wecare/google-maps` it is holding the **browser**
+   key, and Google refuses it outright — `API_KEY_HTTP_REFERRER_BLOCKED` on Places (New), and
+   `REQUEST_DENIED: API keys with referer restrictions cannot be used with this API` on legacy
+   Maps. No `apiTargets` edit fixes this; the key type is the problem.
+   ```bash
+   .venv/bin/python scripts/check_secrets_live.py --only google-maps
+   ```
+   Expect `wecare/google-maps-server` VALID on both probes, and `wecare/google-maps`
+   UNTESTABLE — a browser key genuinely cannot be validated from a server, which is a
+   statement about the test, not a fault in the key.
+2. Is `places.googleapis.com` in that key's `apiTargets`?
+   `gcloud services api-keys list --format='json(displayName,restrictions)'`. Being enabled on
+   the project is **not** sufficient; the key restriction is separate.
+3. Is the query at least 3 characters?
+4. Is the key resolving from Secrets Manager at all — lazily, at request time?
+5. Quota or billing on project `wecaredigitalbw`.
+6. Autocomplete must degrade to manual structured entry, never block registration. If a
    Places outage is blocking signups, that is a bug in the fallback, not in Google.
 
 ### A customer has two accounts
