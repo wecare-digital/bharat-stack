@@ -112,8 +112,16 @@ Both had been reported as `orphan-no-source` while their source sat in
 `amplify/functions`, which is why the real defect read as bookkeeping. The label is
 now `orphan-not-in-deploy-map`.
 
-No cloud resource was changed. `--dry-run` reports `unchanged=1` for
-`wecare-pstn-softphone`, so its packaged code already matches production.
+**Correction to an earlier claim in this file.** It read: "`--dry-run` reports
+`unchanged=1` for `wecare-pstn-softphone`, so its packaged code already matches
+production." The dry run could not establish that. Its branch did
+`tally["unchanged"] += 1` **unconditionally**, comparing nothing, so every target was
+reported unchanged whatever the packaged bytes were. Now fixed to compute
+`base64(sha256(zip))` and compare it to the live `CodeSha256`, reporting
+`would_update` separately so a dry run cannot be read as a deployment result. Re-run
+truthfully, `wecare-pstn-softphone` **would** update: its live v1 was packaged by its
+provisioner, not by the deploy script, so the bytes differ. Nothing about it is
+pending — the equivalence claim was just unfounded.
 
 ---
 

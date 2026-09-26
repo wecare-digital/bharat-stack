@@ -106,9 +106,43 @@ is recorded in `EXTERNALLY_DEPLOYED` with that reason. The finding is now labell
   without being declared, which is what failed the data-model gate. Both are now
   recorded in `UNDECLARED_ALLOWED` with their measured keys, GSIs and TTL state.
 
-Nothing was deployed. `deploy_all_lambdas.py --dry-run wecare-pstn-softphone`
-packages 83 files and reports `unchanged=1`, i.e. the packaged code already matches
-what is live, so adding it to the map implies no pending release.
+**Correction.** An earlier version of this file said `--dry-run wecare-pstn-softphone`
+reported `unchanged=1` and that this proved its packaged code already matched
+production. **That was wrong, and the dry run could not establish it.** The dry-run
+branch did `tally["unchanged"] += 1` unconditionally, without comparing anything, so
+every target was reported unchanged whatever the bytes were. Fixed: dry run now
+computes `base64(sha256(zip))` and compares it to the live `CodeSha256`, reporting
+`would_update` separately. Re-run truthfully, `wecare-pstn-softphone` **would**
+update — its live v1 was packaged by its provisioner, not by this script, so the
+bytes differ. No release of it is pending or implied; the claim of equivalence was
+simply unfounded.
+
+**3. A live crash on the WhatsApp inbound path — found, fixed, deployed.**
+The regenerated inventory flagged 3 functions with errors in 7 days.
+`wecare-inbound-whatsapp` had 9, all identical:
+`AttributeError: 'str' object has no attribute 'get'` at `wa_internal_event.py:80`.
+
+`json.loads` succeeding does not mean it returned an *object*. A double-encoded SNS
+`Message` decodes one level to a `str`, and `.get()` on a `str` raises. The count
+understates the impact: `parse` documents that it "is never an exception, because
+this sits at the top of an async worker where raising would send a poison event to
+the DLQ on every retry" — so each event was retried and re-crashed rather than
+skipped. The existing rejection tests covered non-dict *events* but never a non-dict
+decoded *Message*.
+
+Deployed: `wecare-inbound-whatsapp` v50→**v51**, `wecare-whatsapp-calling` v23→**v24**
+(both bundle the shared module). Rollback versions captured first, read back
+independently as `Active`/`Successful`, and 17/17 live webhook probes still pass.
+
+**4. Log retention had regressed, and the guard was blind to it.**
+Closure recorded 0 groups without retention; it was 3. The guard scanned one prefix in
+one region, and Lambda@Edge defeats that twice: the group is named
+`/aws/lambda/us-east-1.<fn>`, and CloudFront writes it **in the region nearest the
+viewer**. A 34-region sweep found never-expiring groups in `us-east-1` *and*
+`ap-south-1`. All 5 set to 30 days after confirming each held 0 bytes.
+
+**5. 19 registry rows advanced.** `DISCOVERED` went 19 → 4, each of the 4 verified
+genuinely open. See `requirement-registry.md` §2026-09-25.
 
 ## Recorded gaps that were already closed
 

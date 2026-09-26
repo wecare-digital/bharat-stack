@@ -1,12 +1,13 @@
 {
   "anomalies": {
     "errors7d": {
+      "wecare-customer-whatsapp-auth": 1.0,
       "wecare-inbound-whatsapp": 9.0,
       "wecare-seo-tools": 2.0
     },
     "liveButNotInDeployMap": [
       "wecare-docs-scraper",
-      "wecare-pstn-softphone",
+      "wecare-get-miss-redirect",
       "wecare-seo-tools"
     ],
     "logsNeverExpire": [],
@@ -14,7 +15,14 @@
       "wecare-docs-scraper",
       "wecare-seo-tools"
     ],
-    "noRoutesNoEventSourceNoTraffic": [],
+    "noRoutesNoEventSourceNoTraffic": [
+      "wecare-catalog-management",
+      "wecare-get-miss-redirect",
+      "wecare-meta-analytics",
+      "wecare-service-api",
+      "wecare-sla-engine",
+      "wecare-url-shortener"
+    ],
     "routesTargetingLatest": [
       "zllr9lrg7j POST /docs/scrape -> wecare-docs-scraper",
       "zllr9lrg7j ANY /seo-tools -> wecare-seo-tools",
@@ -60,6 +68,11 @@
       "/pstn/session/events",
       "/pstn/session/presence",
       "/pstn/token",
+      "/secure-files/{fileId}/confirm",
+      "/secure-files/{fileId}/download",
+      "/secure-files/{fileId}/order",
+      "/secure-files/{fileId}/revoke",
+      "/secure-files/{fileId}/whatsapp-pay",
       "/site-language/languages",
       "/site-language/translate",
       "/site-language/tts",
@@ -138,14 +151,31 @@
       "/whatsapp/voice",
       "/{code}"
     ],
-    "zeroInvocations7d": []
+    "zeroInvocations7d": [
+      "wecare-ai-query-kb",
+      "wecare-auth-middleware",
+      "wecare-bulk-job-control",
+      "wecare-bulk-job-create",
+      "wecare-catalog-management",
+      "wecare-dlq-replay",
+      "wecare-faq-handler",
+      "wecare-get-miss-redirect",
+      "wecare-messages-delete",
+      "wecare-meta-analytics",
+      "wecare-payments-read",
+      "wecare-service-api",
+      "wecare-sla-engine",
+      "wecare-template-analytics",
+      "wecare-url-shortener",
+      "wecare-whatsapp-template-management"
+    ]
   },
   "counts": {
-    "functions": 62,
+    "functions": 65,
     "httpApis": 1,
-    "routes": 353,
-    "tables": 77,
-    "withLiveAlias": 56
+    "routes": 361,
+    "tables": 79,
+    "withLiveAlias": 58
   },
   "frontendCallersByRoutePath": {
     "/agent-tool": [],
@@ -263,6 +293,7 @@
       "src/pages/dashboard/system-architecture.tsx",
       "src/pages/dm/channels/index.tsx",
       "src/pages/dm/index.tsx",
+      "src/test/InboxLoadFailure.test.tsx",
       "src/test/Navigation.test.tsx",
       "src/test/SearchModal.test.tsx"
     ],
@@ -285,6 +316,7 @@
       "src/pages/dashboard/system-architecture.tsx",
       "src/pages/dm/channels/index.tsx",
       "src/pages/dm/index.tsx",
+      "src/test/InboxLoadFailure.test.tsx",
       "src/test/Navigation.test.tsx",
       "src/test/SearchModal.test.tsx"
     ],
@@ -330,7 +362,6 @@
       "src/config/navigation.ts",
       "src/lib/seo-page-prompt.ts",
       "src/pages/_app.tsx",
-      "src/pages/contact-test/index.tsx",
       "src/pages/dashboard/code-repo.tsx",
       "src/pages/dashboard/lambda-functions.tsx",
       "src/pages/dashboard/system-architecture.tsx",
@@ -339,7 +370,8 @@
       "src/pages/dm/whatsapp/scripts.tsx",
       "src/pages/dm/whatsapp/settings.tsx",
       "src/pages/seo/tools.tsx",
-      "src/test/Navigation.test.tsx"
+      "src/test/Navigation.test.tsx",
+      "src/test/PublicRouteRegistration.test.ts"
     ],
     "/inbox/meta": [
       "src/api/client.ts",
@@ -411,6 +443,8 @@
       "src/pages/dm/whatsapp/my-account.tsx",
       "src/pages/dm/whatsapp/send-test.tsx",
       "src/pages/grahak-os/index.tsx",
+      "src/test/ApiFailureChannel.test.ts",
+      "src/test/InboxLoadFailure.test.tsx",
       "src/test/SearchModal.test.tsx"
     ],
     "/messages/clear-all": [
@@ -435,6 +469,8 @@
       "src/pages/dm/whatsapp/my-account.tsx",
       "src/pages/dm/whatsapp/send-test.tsx",
       "src/pages/grahak-os/index.tsx",
+      "src/test/ApiFailureChannel.test.ts",
+      "src/test/InboxLoadFailure.test.tsx",
       "src/test/SearchModal.test.tsx"
     ],
     "/meta-agent": [
@@ -513,6 +549,7 @@
     "/r/{code}": [
       "src/api/client.ts",
       "src/api/seo.ts",
+      "src/components/BottomNav.tsx",
       "src/components/Header.tsx",
       "src/components/Layout.tsx",
       "src/components/SearchModal.tsx",
@@ -535,6 +572,7 @@
       "src/pages/_app.tsx",
       "src/pages/access/index.tsx",
       "src/pages/admin/index.tsx",
+      "src/pages/commerce/index.tsx",
       "src/pages/dashboard/code-repo.tsx",
       "src/pages/dashboard/design-reference.tsx",
       "src/pages/dashboard/index.tsx",
@@ -550,6 +588,7 @@
       "src/pages/dm/reviews/index.tsx",
       "src/pages/dm/rx-slots/index.tsx",
       "src/pages/dm/service-ops/index.tsx",
+      "src/pages/dm/ses/index.tsx",
       "src/pages/dm/settings/index.tsx",
       "src/pages/dm/whatsapp/calling.tsx",
       "src/pages/dm/whatsapp/flows.tsx",
@@ -567,9 +606,14 @@
       "src/pages/seo/pages.tsx",
       "src/pages/seo/tools.tsx",
       "src/pages/service/index.tsx",
+      "src/test/BottomNav.test.tsx",
+      "src/test/FeatureFlags.test.tsx",
       "src/test/HomePage.test.tsx",
+      "src/test/InboxChannelFilter.test.tsx",
+      "src/test/InboxLoadFailure.test.tsx",
       "src/test/InternalChatApproval.test.tsx",
       "src/test/Navigation.test.tsx",
+      "src/test/PublicRouteRegistration.test.ts",
       "src/test/SearchModal.test.tsx",
       "src/test/TotpSetup.test.tsx"
     ],
@@ -591,6 +635,20 @@
       "src/pages/dashboard/system-architecture.tsx",
       "src/pages/dm/channels/index.tsx"
     ],
+    "/secure-files": [
+      "src/api/client.ts"
+    ],
+    "/secure-files/mine": [
+      "src/api/client.ts"
+    ],
+    "/secure-files/upload-init": [
+      "src/api/client.ts"
+    ],
+    "/secure-files/{fileId}/confirm": [],
+    "/secure-files/{fileId}/download": [],
+    "/secure-files/{fileId}/order": [],
+    "/secure-files/{fileId}/revoke": [],
+    "/secure-files/{fileId}/whatsapp-pay": [],
     "/seo-tools": [
       "src/api/seo.ts",
       "src/components/seo/InstructionsContent.tsx",
@@ -610,7 +668,7 @@
     "/site-language/tts": [],
     "/site-language/voices": [],
     "/site-language/{proxy+}": [
-      "src/components/LanguageBar.tsx"
+      "src/components/SupportWidget.tsx"
     ],
     "/sms-aws/clear-logs": [
       "src/pages/dashboard/index.tsx",
@@ -856,7 +914,8 @@
       "src/pages/dm/whatsapp/waba-dashboard.tsx",
       "src/pages/dm/whatsapp/webhooks.tsx",
       "src/pages/service/index.tsx",
-      "src/test/Navigation.test.tsx"
+      "src/test/Navigation.test.tsx",
+      "src/test/PublicRouteRegistration.test.ts"
     ],
     "/whatsapp-calling": [
       "src/pages/dashboard/code-repo.tsx",
@@ -981,7 +1040,8 @@
       "src/pages/dm/whatsapp/waba-dashboard.tsx",
       "src/pages/dm/whatsapp/webhooks.tsx",
       "src/pages/service/index.tsx",
-      "src/test/Navigation.test.tsx"
+      "src/test/Navigation.test.tsx",
+      "src/test/PublicRouteRegistration.test.ts"
     ],
     "/wix-store/{proxy+}": [
       "src/api/client.ts",
@@ -996,12 +1056,12 @@
   "functions": [
     {
       "aliases": {
-        "live": "7"
+        "live": "12"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "4p2hEqJ/VEYtGGkckn+XMYfewf8ROcFzwpIH7RoDIXU=",
+      "codeSha256": "M936s3rY3Bjs52P614LH7Nk9X2fTvb8O1m8i5R8gCdo=",
       "deadLetterArn": null,
       "envNames": [
         "LINK_CLICKS_TABLE",
@@ -1015,9 +1075,9 @@
       "function": "stack-wecare-url-shortener",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 118.0,
-      "invocations7d": 644.0,
-      "lastModified": "2026-09-24T00:43:09.000+0000",
+      "invocations24h": 96.0,
+      "invocations7d": 604.0,
+      "lastModified": "2026-09-25T11:01:51.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1043,7 +1103,7 @@
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "4JGBhPPXWJ7lDzs98xJVi/uQURFa7bH0vngqX70GhwM=",
+      "codeSha256": "WJTvd/68uJ2DaWuXdedlXiktIc9zUHB07kBqtOaCzI8=",
       "deadLetterArn": null,
       "envNames": [],
       "envSensitiveNames": [],
@@ -1053,9 +1113,9 @@
       "function": "wecare-ad-attribution",
       "hasLiveAlias": false,
       "inDeployMap": true,
-      "invocations24h": 3.0,
-      "invocations7d": 4.0,
-      "lastModified": "2026-09-24T00:44:47.000+0000",
+      "invocations24h": 0.0,
+      "invocations7d": 3.0,
+      "lastModified": "2026-09-25T11:04:08.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1070,12 +1130,12 @@
     },
     {
       "aliases": {
-        "live": "14"
+        "live": "19"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "yMiLap7PvtsCP/ad6VSXSJrHeD01VD8AxRYFv9tLXWQ=",
+      "codeSha256": "9BVuQA+NnAL2+SG1ee1NsgzqR6waU/7CWReBhgAW0z4=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -1093,9 +1153,9 @@
       "function": "wecare-agent-action-group",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 10.0,
-      "invocations7d": 14.0,
-      "lastModified": "2026-09-24T00:45:06.000+0000",
+      "invocations24h": 0.0,
+      "invocations7d": 13.0,
+      "lastModified": "2026-09-25T11:04:30.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -1112,12 +1172,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "VE1n9NdJjyMD05dRHWF8cTEevqg22aLylslszG2cu8o=",
+      "codeSha256": "8f9nUyCWtTMmanoCmOYBpfJ6gphuwTqr0yIYGPcWr04=",
       "deadLetterArn": null,
       "envNames": [
         "AI_INTERACTIONS_TABLE",
@@ -1135,8 +1195,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 2.0,
-      "lastModified": "2026-09-24T00:45:02.000+0000",
+      "invocations7d": 1.0,
+      "lastModified": "2026-09-25T11:04:27.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1169,12 +1229,12 @@
     },
     {
       "aliases": {
-        "live": "15"
+        "live": "19"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "GC9WmnNO8leXmF48F082hrlQ0T9cjii5erwfwuTGi4o=",
+      "codeSha256": "hRhunXvNEzZPenL488GjnL3VMSBH7Oiu8QM7dzekgsQ=",
       "deadLetterArn": null,
       "envNames": [
         "CONTACTS_TABLE",
@@ -1200,9 +1260,9 @@
       "function": "wecare-ai-generate-response",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 25.0,
-      "invocations7d": 47.0,
-      "lastModified": "2026-09-24T07:01:16.000+0000",
+      "invocations24h": 1.0,
+      "invocations7d": 51.0,
+      "lastModified": "2026-09-25T11:04:24.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 1024,
@@ -1221,12 +1281,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "8kZbdap3vt2w9tHsJNBcU1RRM3u9J2NDJ+FvuG7/PoU=",
+      "codeSha256": "l9Qhpr4SqgbCLw9yWZokqxFA6oJvBzIi78WRNhE5xxI=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -1243,8 +1303,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:44:56.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:04:21.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1261,12 +1321,12 @@
     },
     {
       "aliases": {
-        "live": "9"
+        "live": "14"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "cRg1AmqDur9WERBQ5R1sDFtm1LqEglKBVw4pMVJUlHI=",
+      "codeSha256": "SNVYyrBSUMtOJSdwAnamqI57VYN3YTNPwY9/Df/yPps=",
       "deadLetterArn": null,
       "envNames": [
         "COGNITO_USER_POOL_ID",
@@ -1280,8 +1340,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:42:33.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:00:54.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1298,12 +1358,12 @@
     },
     {
       "aliases": {
-        "live": "7"
+        "live": "12"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "8pqSZZtvvgkzg0u8oW14XvgB/B0UwZrSxYyw3yLnEbA=",
+      "codeSha256": "SiwOBRCJYJxI9cOqQe7h0kFXeAhrgkPFdbWnWXjkmsA=",
       "deadLetterArn": "arn:aws:sqs:us-east-1:775261844268:wecare-lambda-async-dlq",
       "envNames": [
         "AUTOMATION_RULES_TABLE",
@@ -1316,9 +1376,9 @@
       "function": "wecare-automation-rules",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 4.0,
-      "invocations7d": 28.0,
-      "lastModified": "2026-09-24T00:42:36.000+0000",
+      "invocations24h": 15.0,
+      "invocations7d": 55.0,
+      "lastModified": "2026-09-25T11:00:59.000+0000",
       "layers": [],
       "logRetentionDays": 90,
       "memoryMb": 256,
@@ -1340,12 +1400,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "VoZrxXN8NmYfw5nOuVkbp3jafTgNhIUzetkNTKFkuDk=",
+      "codeSha256": "t4naCrUj1aOIj9Hu/l99hGyXYDnIK3mcQQGE7Y5DhlM=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -1359,9 +1419,9 @@
       "function": "wecare-billing",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 8.0,
-      "invocations7d": 45.0,
-      "lastModified": "2026-09-24T00:45:09.000+0000",
+      "invocations24h": 9.0,
+      "invocations7d": 43.0,
+      "lastModified": "2026-09-25T11:04:33.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1379,12 +1439,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "d5TcKyTMh3OeWjO9iUPYZpboJUf+/FvvC/oUx0o1/ZM=",
+      "codeSha256": "1pqQBHJeHj1RHCk7yz5fZubkRIkBmwXLIdmB+fM0CI4=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -1404,8 +1464,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:45:15.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:04:42.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1423,12 +1483,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "zq4Akv6XvCMpzXNYmUOz0/vFb1KXJGSOjsTWFwvGDQk=",
+      "codeSha256": "fhgyr71/ex5hJjkVlm27h3KXz2lDZGCh3GRvgvIXZ9M=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -1447,8 +1507,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:45:12.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:04:36.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -1469,12 +1529,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "Zl19KxwjWL2jPtHm8SyL4urQP0kceQiN4gofnnbrOPs=",
+      "codeSha256": "CGBR/7sELsRGhEOZHGfgHPAhA5XanvpB/a1peVz97WI=",
       "deadLetterArn": "arn:aws:sqs:us-east-1:775261844268:wecare-lambda-async-dlq",
       "envNames": [
         "BULK_JOBS_TABLE",
@@ -1499,9 +1559,9 @@
       "function": "wecare-bulk-worker",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 14.0,
+      "invocations24h": 1.0,
       "invocations7d": 35.0,
-      "lastModified": "2026-09-24T00:45:18.000+0000",
+      "lastModified": "2026-09-25T11:04:45.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -1518,12 +1578,12 @@
     },
     {
       "aliases": {
-        "live": "7"
+        "live": "12"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "SEnVZcYz/Yz4WDbP8i1ubti773FFUofIlsWN4EMnPFk=",
+      "codeSha256": "1e0y3QKfad2V/hli6OqOF3MeZP8W0N17ei4Z1Ecf9ec=",
       "deadLetterArn": null,
       "envNames": [],
       "envSensitiveNames": [],
@@ -1534,8 +1594,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:46:22.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:05:49.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1550,12 +1610,12 @@
     },
     {
       "aliases": {
-        "live": "1"
+        "live": "2"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "fLybfDA8yng6A8xXTL8URKi2WeqywbwyZJK8fLx+hQE=",
+      "codeSha256": "jP9uNBTpWwqBKn+Uc9tXPlzGFTLJznjv5MMlXZC/bfQ=",
       "deadLetterArn": null,
       "envNames": [
         "BRAND_NAME",
@@ -1570,8 +1630,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 2.0,
-      "invocations7d": 2.0,
-      "lastModified": "2026-09-24T02:47:58.100+0000",
+      "invocations7d": 6.0,
+      "lastModified": "2026-09-25T11:01:44.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1586,12 +1646,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "M/0IGTtjjAxd+sBp372omGOdW6461XCzLxfQsNA2bT0=",
+      "codeSha256": "WFnIdzYQC6UY/xtIwrd3aYv4LlZk5JxAm/dg9ObuqBA=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -1607,9 +1667,9 @@
       "function": "wecare-contacts",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 748.0,
-      "invocations7d": 1481.0,
-      "lastModified": "2026-09-24T00:42:42.000+0000",
+      "invocations24h": 323.0,
+      "invocations7d": 2283.0,
+      "lastModified": "2026-09-25T11:01:03.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1632,12 +1692,12 @@
     },
     {
       "aliases": {
-        "live": "7"
+        "live": "12"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "o8lEzh7XodrdREqiLEfPh9kyKngZIsy8XnX3MLjOlo0=",
+      "codeSha256": "htXs8Nzi5xWrYRTmR0u2hOVi/1PNMp18wnGYMlEvjrg=",
       "deadLetterArn": null,
       "envNames": [
         "CONVERSATION_META_TABLE",
@@ -1650,9 +1710,9 @@
       "function": "wecare-conversation-meta",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 6.0,
-      "invocations7d": 84.0,
-      "lastModified": "2026-09-24T00:42:48.000+0000",
+      "invocations24h": 50.0,
+      "invocations7d": 227.0,
+      "lastModified": "2026-09-25T11:01:11.000+0000",
       "layers": [],
       "logRetentionDays": 90,
       "memoryMb": 256,
@@ -1675,12 +1735,12 @@
     },
     {
       "aliases": {
-        "live": "3"
+        "live": "8"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "64u4QINcGzSWGpfpyP3QoHc69lp3I2cILloHbOllur8=",
+      "codeSha256": "CuQSQNYvsN0fUjdjz7xEmWO3gOYtMhe5CjW5n7gSIz8=",
       "deadLetterArn": null,
       "envNames": [
         "CONTACTS_TABLE",
@@ -1699,9 +1759,9 @@
       "function": "wecare-crm",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 27.0,
+      "invocations24h": 0.0,
       "invocations7d": 27.0,
-      "lastModified": "2026-09-24T00:42:45.000+0000",
+      "lastModified": "2026-09-25T11:01:18.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1729,12 +1789,54 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "9"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "MllSDODH4Y6LtvNxcGeHe7a+U7VFRVlu9e8of363haw=",
+      "codeSha256": "KB3Jr131Ndmq7+J1CR/M46DtTysWrZB5kHqF+Lutrng=",
+      "deadLetterArn": null,
+      "envNames": [
+        "MAX_ATTEMPTS",
+        "META_PHONE_NUMBER_ID",
+        "META_WABA_ID",
+        "OTP_PROBE_MAX_PER_WINDOW",
+        "OTP_PROBE_WINDOW_SECONDS",
+        "OTP_TEMPLATE_LANGUAGE",
+        "OTP_TEMPLATE_NAME",
+        "OTP_TTL_SECONDS",
+        "SENDER_FUNCTION"
+      ],
+      "envSensitiveNames": [],
+      "errors24h": 1.0,
+      "errors7d": 1.0,
+      "eventSources": [],
+      "function": "wecare-customer-whatsapp-auth",
+      "hasLiveAlias": true,
+      "inDeployMap": true,
+      "invocations24h": 58.0,
+      "invocations7d": 58.0,
+      "lastModified": "2026-09-25T11:33:42.000+0000",
+      "layers": [],
+      "logRetentionDays": 30,
+      "memoryMb": 256,
+      "packageType": "Zip",
+      "role": "wecare-customer-whatsapp-auth-role",
+      "routeCount": 0,
+      "routes": [],
+      "runtime": "python3.12",
+      "snapStart": "None",
+      "sourcePath": "amplify/functions/auth/customer-whatsapp-auth",
+      "timeoutSec": 15
+    },
+    {
+      "aliases": {
+        "live": "15"
+      },
+      "architectures": [
+        "x86_64"
+      ],
+      "codeSha256": "HMQRSfCesc1yDKL7StayyNIJ+sIdUqmaIniYcwhFDvg=",
       "deadLetterArn": null,
       "envNames": [
         "DLQ_URL",
@@ -1750,8 +1852,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:45:22.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:04:51.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1783,8 +1885,8 @@
       "function": "wecare-docs-scraper",
       "hasLiveAlias": false,
       "inDeployMap": false,
-      "invocations24h": 3.0,
-      "invocations7d": 9.0,
+      "invocations24h": 1.0,
+      "invocations7d": 14.0,
       "lastModified": "2026-09-23T22:40:18.000+0000",
       "layers": [],
       "logRetentionDays": 90,
@@ -1805,12 +1907,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "TFDJiRMw7d9yzxSOaTEosG09GYk38H3zJBowkUdQKGo=",
+      "codeSha256": "jE0YO9gj46jnIvesprpN3wowt7YNQ3EgVAHBserBji8=",
       "deadLetterArn": null,
       "envNames": [],
       "envSensitiveNames": [],
@@ -1821,8 +1923,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:42:51.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:01:22.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -1838,13 +1940,43 @@
       "timeoutSec": 30
     },
     {
+      "aliases": {},
+      "architectures": [
+        "x86_64"
+      ],
+      "codeSha256": "+UvlzSu6Nf62r30jRd4xJk7Gy+w9ySFey6+vfZg8vt8=",
+      "deadLetterArn": null,
+      "envNames": [],
+      "envSensitiveNames": [],
+      "errors24h": 0.0,
+      "errors7d": 0.0,
+      "eventSources": [],
+      "function": "wecare-get-miss-redirect",
+      "hasLiveAlias": false,
+      "inDeployMap": false,
+      "invocations24h": 0.0,
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T03:25:21.000+0000",
+      "layers": [],
+      "logRetentionDays": null,
+      "memoryMb": 128,
+      "packageType": "Zip",
+      "role": "wecare-get-miss-redirect-edge-role",
+      "routeCount": 0,
+      "routes": [],
+      "runtime": "python3.12",
+      "snapStart": "None",
+      "sourcePath": null,
+      "timeoutSec": 5
+    },
+    {
       "aliases": {
-        "live": "45"
+        "live": "50"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "vPd5+EqlVd4I5od4e1JVqAZpdmMZFcdvElmlKW81rQs=",
+      "codeSha256": "spuAefCIO76sit/FErqUH3hAy/YdNWJGbqmjSJ2hpho=",
       "deadLetterArn": null,
       "envNames": [
         "CONTACTS_TABLE",
@@ -1862,9 +1994,9 @@
       "function": "wecare-inbound-whatsapp",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 367.0,
-      "invocations7d": 960.0,
-      "lastModified": "2026-09-24T00:43:12.000+0000",
+      "invocations24h": 104.0,
+      "invocations7d": 1107.0,
+      "lastModified": "2026-09-25T11:01:57.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -1881,12 +2013,12 @@
     },
     {
       "aliases": {
-        "live": "20"
+        "live": "25"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "U+Ps/7/axXvCIQNzXunuXxI0sOqNhBQ6GZgYZPYjctI=",
+      "codeSha256": "zVuJLDjoKRic30+akTMAmtBjlKDHh5kdQjVsL4NM7HI=",
       "deadLetterArn": null,
       "envNames": [
         "CDN_DOMAIN",
@@ -1907,9 +2039,9 @@
       "function": "wecare-invoice-engine",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:45:56.000+0000",
+      "invocations24h": 1.0,
+      "invocations7d": 2.0,
+      "lastModified": "2026-09-25T11:05:30.000+0000",
       "layers": [
         "pillow-python312:2"
       ],
@@ -1944,12 +2076,12 @@
     },
     {
       "aliases": {
-        "live": "9"
+        "live": "14"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "EKL7Xv5MdciUwSdWBBgMld4iGXoUuMIffe0225bAaZo=",
+      "codeSha256": "rSgrjl5uLRdQyn/E9w/cwOKupXTVdHe61rCpYmhx6GI=",
       "deadLetterArn": null,
       "envNames": [
         "COGNITO_USER_POOL_ID",
@@ -1972,9 +2104,9 @@
       "function": "wecare-marketing-ads",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 2.0,
-      "invocations7d": 3.0,
-      "lastModified": "2026-09-24T00:44:51.000+0000",
+      "invocations24h": 0.0,
+      "invocations7d": 2.0,
+      "lastModified": "2026-09-25T11:04:12.000+0000",
       "layers": [
         "cryptography-python312:1"
       ],
@@ -1994,12 +2126,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "6S03ujzCnDbDCP+TiiQrHdrVeT0LY3ekP4OPk3Xru0U=",
+      "codeSha256": "cB8QzC4OfGafFiVvtyRnoEr2Pt25N6i5Ou2aFHj79U4=",
       "deadLetterArn": "arn:aws:sqs:us-east-1:775261844268:wecare-lambda-async-dlq",
       "envNames": [
         "CLEANUP_AGE_DAYS",
@@ -2016,8 +2148,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 1.0,
-      "invocations7d": 8.0,
-      "lastModified": "2026-09-24T00:43:43.000+0000",
+      "invocations7d": 7.0,
+      "lastModified": "2026-09-25T11:02:46.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2034,12 +2166,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "GXyl9gHK81Ca9xNE+bvAqRNLL7dbhfDVqkhZc+rK/RU=",
+      "codeSha256": "c4XK8zRZC4AqC9M833wSTXg3azvcW8A0JgTA1de0yYU=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -2055,8 +2187,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:42:54.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:01:27.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2075,12 +2207,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "L3s+7A+8MCIStIS+z2xR3x9ORVZlXCssp8U7rAR4q0M=",
+      "codeSha256": "QJ5PcPzIzO1i8lUclQ7iSuwskihLt2SSeGbimr2uDdw=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -2094,9 +2226,9 @@
       "function": "wecare-messages-read",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 755.0,
-      "invocations7d": 1516.0,
-      "lastModified": "2026-09-24T00:42:57.000+0000",
+      "invocations24h": 330.0,
+      "invocations7d": 2321.0,
+      "lastModified": "2026-09-25T11:01:30.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -2113,12 +2245,12 @@
     },
     {
       "aliases": {
-        "live": "7"
+        "live": "12"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "tXpJ5dHTkKwd4WDPU9d4j9HfvLx1fYPyq0eEF8Oy5yc=",
+      "codeSha256": "xgFFjovQs3gv20OUR/swj0scZxuJftZxcr4yGMqHqec=",
       "deadLetterArn": null,
       "envNames": [],
       "envSensitiveNames": [],
@@ -2129,8 +2261,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:44:44.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:04:04.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2145,12 +2277,12 @@
     },
     {
       "aliases": {
-        "live": "22"
+        "live": "27"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "Las2BZ55oU61N7XwlERl1vysQA54jtT6yn4/k/O8nEg=",
+      "codeSha256": "VzfXF0P8ZOvL1+8PIJ6gKE9XzbL1REbSoMpVmaW3e9k=",
       "deadLetterArn": null,
       "envNames": [],
       "envSensitiveNames": [],
@@ -2161,8 +2293,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 2.0,
-      "lastModified": "2026-09-24T00:44:53.000+0000",
+      "invocations7d": 1.0,
+      "lastModified": "2026-09-25T11:04:18.000+0000",
       "layers": [],
       "logRetentionDays": 90,
       "memoryMb": 256,
@@ -2180,12 +2312,12 @@
     },
     {
       "aliases": {
-        "live": "4"
+        "live": "9"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "XsNxK3kikBQoM564D6tH4DHr2qi9zkOsc/4M8BjSQ7A=",
+      "codeSha256": "PpnNY64678jyFroCEes2VLUHuJTBUf3aaNmz+F9ZGEk=",
       "deadLetterArn": null,
       "envNames": [
         "NOTIF_SWEEP_LIMIT"
@@ -2199,7 +2331,7 @@
       "inDeployMap": true,
       "invocations24h": 0.0,
       "invocations7d": 4.0,
-      "lastModified": "2026-09-24T00:44:25.000+0000",
+      "lastModified": "2026-09-25T11:03:38.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -2214,12 +2346,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "WMoFLU9ZJMRJi+jk9zeZztHu4UF2z+37Kauo/GApEIg=",
+      "codeSha256": "AsgmPod0868e2Zwd5mMcuZfztWLKkmPC3RECRmNjY2U=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -2239,8 +2371,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 2.0,
-      "lastModified": "2026-09-24T00:44:05.000+0000",
+      "invocations7d": 1.0,
+      "lastModified": "2026-09-25T11:03:10.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2257,12 +2389,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "4cyw88zysg0wZM19Vo5QkOFqA39QbUOVSfw8O1hqaqU=",
+      "codeSha256": "BAPYWpjd8i7+6BpiHw5LePBs2qlmhprOtIx1wSLu2gk=",
       "deadLetterArn": null,
       "envNames": [
         "AIRTEL_IQ_ENTITY_ID",
@@ -2282,8 +2414,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 2.0,
-      "lastModified": "2026-09-24T00:44:01.000+0000",
+      "invocations7d": 1.0,
+      "lastModified": "2026-09-25T11:03:06.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2300,12 +2432,12 @@
     },
     {
       "aliases": {
-        "live": "23"
+        "live": "28"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "7ELdkjYX4jz1+giG6SvIaVS0uiBXlXJ4lm9vhK2+rCc=",
+      "codeSha256": "/EVTbkbkUkhxLNNsZwEAy1Ai4ktEhtdrEOpgIMtOKEg=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -2328,9 +2460,9 @@
       "function": "wecare-outbound-whatsapp",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 207.0,
-      "invocations7d": 347.0,
-      "lastModified": "2026-09-24T00:43:15.000+0000",
+      "invocations24h": 94.0,
+      "invocations7d": 605.0,
+      "lastModified": "2026-09-25T11:02:00.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -2347,12 +2479,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "BkTHC3v/++IZ33rpn3SN+UTn6p34sOjI0PCxk2D/85I=",
+      "codeSha256": "tLjTSg6vA/AO4T15f+zYS+7XJK03PKt2kf22RfdA/sU=",
       "deadLetterArn": null,
       "envNames": [
         "COGNITO_USER_POOL_ID",
@@ -2379,9 +2511,9 @@
       "function": "wecare-partner-onboarding",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 2.0,
-      "invocations7d": 4.0,
-      "lastModified": "2026-09-24T00:43:49.000+0000",
+      "invocations24h": 0.0,
+      "invocations7d": 3.0,
+      "lastModified": "2026-09-25T11:02:52.000+0000",
       "layers": [
         "cryptography-python312:1"
       ],
@@ -2423,7 +2555,7 @@
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "WsFWACUEheSZbXq18Pz/2tMod7i6mB3Sghq1Kr7Pz+Q=",
+      "codeSha256": "j6alVxgsNNCilkvy+Dz1tnV+YaumImZHvOLmOjkQVgA=",
       "deadLetterArn": null,
       "envNames": [
         "LOG_LEVEL",
@@ -2445,8 +2577,8 @@
       "hasLiveAlias": false,
       "inDeployMap": true,
       "invocations24h": 1.0,
-      "invocations7d": 8.0,
-      "lastModified": "2026-09-24T00:43:55.000+0000",
+      "invocations7d": 7.0,
+      "lastModified": "2026-09-25T11:02:58.000+0000",
       "layers": [
         "cryptography-python312:1"
       ],
@@ -2463,12 +2595,12 @@
     },
     {
       "aliases": {
-        "live": "12"
+        "live": "17"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "Aw8m0AFdBY5J7BTlZBYGtJr29cSZ3KOb9a3AaNPVpxs=",
+      "codeSha256": "c+FZhIIFaWQSUDZbuMryooQHqqbpkfs1InZoNGCReP4=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -2483,8 +2615,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:45:37.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:05:08.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2502,12 +2634,12 @@
     },
     {
       "aliases": {
-        "live": "16"
+        "live": "21"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "KRQkmQ9vsZs+71OBB/HFap6AqCA57JsC3cvAmJ3prIQ=",
+      "codeSha256": "TGZeFNSIWYX5EIs7416b5zRzbXNo3enO4gUFZHDKWUw=",
       "deadLetterArn": null,
       "envNames": [
         "DLT_TEMPLATE_KEY",
@@ -2524,9 +2656,9 @@
       "function": "wecare-plivo-answer",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 66.0,
-      "invocations7d": 209.0,
-      "lastModified": "2026-09-24T00:44:28.000+0000",
+      "invocations24h": 8.0,
+      "invocations7d": 217.0,
+      "lastModified": "2026-09-25T11:03:41.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2547,12 +2679,12 @@
     },
     {
       "aliases": {
-        "live": "12"
+        "live": "17"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "J8qGlD1BlA+XB00pyf2hFZlxF+FN6iu8WcvVhqtMMF4=",
+      "codeSha256": "HlJ+vj6VJkxQ5umFlPeX8m7kRGNAhGMSQDtCOD5XZW4=",
       "deadLetterArn": null,
       "envNames": [
         "CREDENTIAL_PURGE_EPOCH",
@@ -2570,9 +2702,9 @@
       "function": "wecare-product-image-gen",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 14.0,
+      "invocations24h": 1.0,
       "invocations7d": 35.0,
-      "lastModified": "2026-09-24T00:46:18.000+0000",
+      "lastModified": "2026-09-25T11:05:43.000+0000",
       "layers": [
         "Klayers-p312-Pillow:10"
       ],
@@ -2615,8 +2747,8 @@
       "eventSources": [],
       "function": "wecare-pstn-softphone",
       "hasLiveAlias": true,
-      "inDeployMap": false,
-      "invocations24h": 5.0,
+      "inDeployMap": true,
+      "invocations24h": 0.0,
       "invocations7d": 5.0,
       "lastModified": "2026-09-23T11:02:57.087+0000",
       "layers": [],
@@ -2634,17 +2766,17 @@
       ],
       "runtime": "python3.12",
       "snapStart": "None",
-      "sourcePath": null,
+      "sourcePath": "amplify/functions/messaging/pstn-softphone",
       "timeoutSec": 30
     },
     {
       "aliases": {
-        "live": "9"
+        "live": "14"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "CxHA9ZUOgaXWDJZBsYUz7TIkFsjm74BEtDgbQrwNdto=",
+      "codeSha256": "6Y+EbHPEWSHdwhC9h9a4e18VX5bzc0B4IPJ52F1BAJw=",
       "deadLetterArn": "arn:aws:sqs:us-east-1:775261844268:wecare-lambda-async-dlq",
       "envNames": [],
       "envSensitiveNames": [],
@@ -2654,9 +2786,9 @@
       "function": "wecare-push-notifications",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1.0,
-      "invocations7d": 2.0,
-      "lastModified": "2026-09-24T00:44:39.000+0000",
+      "invocations24h": 0.0,
+      "invocations7d": 3.0,
+      "lastModified": "2026-09-25T11:03:53.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2674,12 +2806,12 @@
     },
     {
       "aliases": {
-        "live": "28"
+        "live": "36"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "h6p8LCpXND3JOX6ZvTJlguMHvhP4QQEvpJeiy2aN3Wc=",
+      "codeSha256": "dw+tEvyJC/kIvFEdHAVhf2ErqeHjPDyBfraMMyY8bMc=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -2701,9 +2833,9 @@
       "function": "wecare-razorpay-webhook",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 749.0,
-      "invocations7d": 5072.0,
-      "lastModified": "2026-09-24T00:45:34.000+0000",
+      "invocations24h": 742.0,
+      "invocations7d": 5135.0,
+      "lastModified": "2026-09-25T11:33:08.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2721,12 +2853,12 @@
     },
     {
       "aliases": {
-        "live": "13"
+        "live": "18"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "fduSDzlCU9/3b+3PmtyRFiTrQ0eoU58sApAD4aRITJM=",
+      "codeSha256": "lUVL9b6R/C0ZL25C9ejYHrv49DrXzSejTrOz/T37c9I=",
       "deadLetterArn": null,
       "envNames": [
         "CONTACTS_TABLE",
@@ -2740,9 +2872,9 @@
       "function": "wecare-rcs-dlr",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 256.0,
-      "invocations7d": 609.0,
-      "lastModified": "2026-09-24T00:44:36.000+0000",
+      "invocations24h": 122.0,
+      "invocations7d": 766.0,
+      "lastModified": "2026-09-25T11:03:50.000+0000",
       "layers": [],
       "logRetentionDays": 90,
       "memoryMb": 256,
@@ -2760,12 +2892,12 @@
     },
     {
       "aliases": {
-        "live": "14"
+        "live": "19"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "n9regsMqUkt8wnRzw/SPomSQquv0EYhLARpGORLBb7I=",
+      "codeSha256": "KVnGe7GcaY89X++K6Meao7goLHJ/+d/CDDnOGb2NLXo=",
       "deadLetterArn": null,
       "envNames": [
         "CONTACTS_TABLE",
@@ -2784,9 +2916,9 @@
       "function": "wecare-rcs-send",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 118.0,
-      "invocations7d": 296.0,
-      "lastModified": "2026-09-24T00:44:33.000+0000",
+      "invocations24h": 78.0,
+      "invocations7d": 408.0,
+      "lastModified": "2026-09-25T11:03:44.000+0000",
       "layers": [],
       "logRetentionDays": 90,
       "memoryMb": 256,
@@ -2805,12 +2937,12 @@
     },
     {
       "aliases": {
-        "live": "9"
+        "live": "14"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "8hEDRKVKnrn6xg+JsORcUKhZOKBUsA9u5dWm1Wy4b0U=",
+      "codeSha256": "id73zxqYx8Su/7NBnn4RxZ6Nkw7dBMfzqeOtlqSTUhI=",
       "deadLetterArn": "arn:aws:sqs:us-east-1:775261844268:wecare-lambda-async-dlq",
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -2829,8 +2961,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 288.0,
-      "invocations7d": 2017.0,
-      "lastModified": "2026-09-24T00:44:41.000+0000",
+      "invocations7d": 2018.0,
+      "lastModified": "2026-09-25T11:03:59.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2848,11 +2980,74 @@
       "timeoutSec": 60
     },
     {
+      "aliases": {
+        "live": "14"
+      },
+      "architectures": [
+        "x86_64"
+      ],
+      "codeSha256": "TmS2yF/v0lsKaQEi4Cf7nVzHklDjVk2WKTZop1C2RqM=",
+      "deadLetterArn": null,
+      "envNames": [
+        "COGNITO_USER_POOL_ID",
+        "CUSTOMER_USER_POOL_ID",
+        "DOWNLOAD_GRANTS_TABLE",
+        "DOWNLOAD_URL_TTL_SECONDS",
+        "GRANT_TTL_SECONDS",
+        "META_PHONE_NUMBER_ID",
+        "META_WABA_ID",
+        "PARTNER_GROUP",
+        "RAZORPAY_SECRET_ID",
+        "SECURE_FILES_BUCKET",
+        "SECURE_FILES_PAYMENT_ENABLED",
+        "SECURE_FILES_TABLE",
+        "SECURE_FILE_PRICE_PAISE",
+        "UPLOAD_URL_TTL_SECONDS",
+        "WA_DOC_TEMPLATE",
+        "WA_MEDIA_FUNCTION",
+        "WA_PAY_TEMPLATE",
+        "WA_SENDER_FUNCTION",
+        "WHATSAPP_LINK_TTL_SECONDS"
+      ],
+      "envSensitiveNames": [
+        "RAZORPAY_SECRET_ID"
+      ],
+      "errors24h": 0.0,
+      "errors7d": 0.0,
+      "eventSources": [],
+      "function": "wecare-secure-files",
+      "hasLiveAlias": true,
+      "inDeployMap": true,
+      "invocations24h": 63.0,
+      "invocations7d": 63.0,
+      "lastModified": "2026-09-25T11:42:59.000+0000",
+      "layers": [],
+      "logRetentionDays": 30,
+      "memoryMb": 512,
+      "packageType": "Zip",
+      "role": "wecare-secure-files-role",
+      "routeCount": 8,
+      "routes": [
+        "GET /secure-files",
+        "GET /secure-files/mine",
+        "GET /secure-files/{fileId}/download",
+        "POST /secure-files/upload-init",
+        "POST /secure-files/{fileId}/confirm",
+        "POST /secure-files/{fileId}/order",
+        "POST /secure-files/{fileId}/revoke",
+        "POST /secure-files/{fileId}/whatsapp-pay"
+      ],
+      "runtime": "python3.12",
+      "snapStart": "None",
+      "sourcePath": "amplify/functions/core/secure-files",
+      "timeoutSec": 30
+    },
+    {
       "aliases": {},
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "4DXltvBtPnzVAJSWHyZG6A31Sr3mpOhRccGsiHHhV1Y=",
+      "codeSha256": "+dBGBU4bL7ELPK02245wE+8NheJuu6ryp4eDHxRQvZQ=",
       "deadLetterArn": null,
       "envNames": [
         "BEDROCK_MODEL_ID",
@@ -2862,6 +3057,8 @@
         "SEO_TOOLS_TABLE",
         "WEBHOOK_DEDUP_TABLE",
         "WIX_ACCOUNT_ID",
+        "WIX_BLOG_AUTHOR_NAME",
+        "WIX_CLIENT_ID",
         "WIX_CREDENTIALS_DISABLED",
         "WIX_SITE_ID"
       ],
@@ -2869,15 +3066,15 @@
         "CREDENTIAL_PURGE_EPOCH",
         "WIX_CREDENTIALS_DISABLED"
       ],
-      "errors24h": 2.0,
+      "errors24h": 0.0,
       "errors7d": 2.0,
       "eventSources": [],
       "function": "wecare-seo-tools",
       "hasLiveAlias": false,
       "inDeployMap": false,
-      "invocations24h": 9259.0,
-      "invocations7d": 9278.0,
-      "lastModified": "2026-09-24T07:05:45.000+0000",
+      "invocations24h": 23187.0,
+      "invocations7d": 45010.0,
+      "lastModified": "2026-09-25T14:05:43.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -2895,12 +3092,12 @@
     },
     {
       "aliases": {
-        "live": "6"
+        "live": "11"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "1waDjKZwlelg2ah7C9i5kr4jhfsnWNxI9K+ndG2Ci0w=",
+      "codeSha256": "XW+rDOqCGjIGR3P7jhBpjVvCzVgc2JFNQzAjM+VMYXw=",
       "deadLetterArn": null,
       "envNames": [
         "DOCS_S3_BUCKET",
@@ -2914,8 +3111,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:43:00.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:01:33.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -2930,7 +3127,7 @@
     },
     {
       "aliases": {
-        "live": "4"
+        "live": "6"
       },
       "architectures": [
         "x86_64"
@@ -2941,21 +3138,25 @@
         "SITE_LANGUAGE_ALLOWED_ORIGINS",
         "SITE_LANGUAGE_CACHE_TABLE",
         "SITE_LANGUAGE_CACHE_TTL_SECONDS",
+        "SITE_LANGUAGE_GOOGLE_SECRET",
         "SITE_LANGUAGE_MAX_TEXTS",
         "SITE_LANGUAGE_MAX_TEXT_BYTES",
         "SITE_LANGUAGE_MAX_TOTAL_BYTES",
-        "SITE_LANGUAGE_MAX_TTS_CHARS"
+        "SITE_LANGUAGE_MAX_TTS_CHARS",
+        "SITE_LANGUAGE_TRANSLATE_PROVIDER"
       ],
-      "envSensitiveNames": [],
+      "envSensitiveNames": [
+        "SITE_LANGUAGE_GOOGLE_SECRET"
+      ],
       "errors24h": 0.0,
       "errors7d": 0.0,
       "eventSources": [],
       "function": "wecare-site-language",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 2971.0,
-      "invocations7d": 5747.0,
-      "lastModified": "2026-09-24T00:43:03.000+0000",
+      "invocations24h": 3437.0,
+      "invocations7d": 11481.0,
+      "lastModified": "2026-09-25T11:01:37.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -2979,7 +3180,7 @@
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "IzbHUIjHxYztM7yEQr4XEW/tcLCSbV2dSMRkMJTTRqg=",
+      "codeSha256": "m8AtxTx8lo0WXAV5AwkZo4ZY+L/Db0hTZYvZYPqY6SE=",
       "deadLetterArn": "arn:aws:sqs:us-east-1:775261844268:wecare-lambda-async-dlq",
       "envNames": [
         "DEFAULT_ASSIGNEE",
@@ -2996,8 +3197,8 @@
       "hasLiveAlias": false,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:45:28.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:04:56.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3012,12 +3213,12 @@
     },
     {
       "aliases": {
-        "live": "14"
+        "live": "19"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "WHpNa/xjLMmYE28UInoE/ODcDbyx9rgPU5lyNR7uMJc=",
+      "codeSha256": "iSU9lW6FwavW6nnrq+gMr78pzqTmJN+3P74hZ7v2FDs=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -3031,9 +3232,9 @@
       "function": "wecare-sms-aws",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 21.0,
-      "invocations7d": 121.0,
-      "lastModified": "2026-09-24T00:44:10.000+0000",
+      "invocations24h": 4.0,
+      "invocations7d": 95.0,
+      "lastModified": "2026-09-25T11:03:14.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3058,12 +3259,12 @@
     },
     {
       "aliases": {
-        "live": "12"
+        "live": "17"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "WLsxtybHwxUEobTAj6i0soMP660JWNGs0hXmuno1UmU=",
+      "codeSha256": "I8GV1789OGRbzITWTLr7fKf5IeMfxf8L7BhERjzNruI=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_REGION_OVERRIDE",
@@ -3078,8 +3279,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 4.0,
-      "invocations7d": 13.0,
-      "lastModified": "2026-09-24T00:45:31.000+0000",
+      "invocations7d": 16.0,
+      "lastModified": "2026-09-25T11:05:00.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -3098,12 +3299,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "8O0qEf1uN23JqHODlp57ilZ6tBml5jgMfUwfYFj76ZM=",
+      "codeSha256": "UlPuVlM8Px7ZdbeTSYeHl5OsS6gyKIlF7PMOBvT5YKI=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -3118,8 +3319,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:43:47.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:02:49.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3141,7 +3342,7 @@
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "4p2hEqJ/VEYtGGkckn+XMYfewf8ROcFzwpIH7RoDIXU=",
+      "codeSha256": "M936s3rY3Bjs52P614LH7Nk9X2fTvb8O1m8i5R8gCdo=",
       "deadLetterArn": null,
       "envNames": [],
       "envSensitiveNames": [],
@@ -3152,8 +3353,8 @@
       "hasLiveAlias": false,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:43:06.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:01:47.000+0000",
       "layers": [],
       "logRetentionDays": 90,
       "memoryMb": 256,
@@ -3168,12 +3369,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "XsH0YlLL3wXZLoVkgGPQy3owGeNWSqvVRKwzCGa4SaA=",
+      "codeSha256": "MKupxrAbQgcW8LR/GI6pMmUGjEfiHUS1gU/ZQnNlDuk=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -3193,8 +3394,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 4.0,
-      "lastModified": "2026-09-24T00:44:13.000+0000",
+      "invocations7d": 3.0,
+      "lastModified": "2026-09-25T11:03:19.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3218,12 +3419,12 @@
     },
     {
       "aliases": {
-        "live": "10"
+        "live": "15"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "qVaNTNrXwUG47k8oiIu1eJpNRpXbsn6zZHvm/lnPXVY=",
+      "codeSha256": "khkUv8wrAT8ZI6aiTsQs4MeWtpDSwiKFguWBcotugmg=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -3238,8 +3439,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 3.0,
-      "lastModified": "2026-09-24T00:44:22.000+0000",
+      "invocations7d": 2.0,
+      "lastModified": "2026-09-25T11:03:35.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3257,12 +3458,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "f+uMMPkcROF2b6HDRWLmQkUY7U1PMIUKfDHKwowuZjo=",
+      "codeSha256": "ddqSgioIZ2NBuaLQJJDn4yAh5NwlTzGytn+wWpZyJRc=",
       "deadLetterArn": null,
       "envNames": [
         "AIRTEL_C2C_SECRET_NAME",
@@ -3284,9 +3485,9 @@
       "function": "wecare-voice-in-c2c",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 15.0,
-      "invocations7d": 38.0,
-      "lastModified": "2026-09-24T00:44:16.000+0000",
+      "invocations24h": 1.0,
+      "invocations7d": 39.0,
+      "lastModified": "2026-09-25T11:03:25.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3306,12 +3507,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "45G1nLTNF/Yz4XEeF6naDVHDOOoNHMbpjDPDRSGgeMo=",
+      "codeSha256": "IIow8k60W2Ft/9DL7PsXV9zu6Yny4K/E/PC/KvULjhs=",
       "deadLetterArn": null,
       "envNames": [
         "AIRTEL_OBD_SECRET_NAME",
@@ -3332,9 +3533,9 @@
       "function": "wecare-voice-in-obd",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 15.0,
+      "invocations24h": 1.0,
       "invocations7d": 38.0,
-      "lastModified": "2026-09-24T00:44:19.000+0000",
+      "lastModified": "2026-09-25T11:03:31.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -3362,12 +3563,12 @@
     },
     {
       "aliases": {
-        "live": "13"
+        "live": "18"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "ka7A1yADUKx7rwrX6J9h/LWlqagiCLXNb60z6wP/YXM=",
+      "codeSha256": "g50OUTYploimd8cZ4PxqP3ZnyqbK0nr53k36ujtOK3s=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -3384,9 +3585,9 @@
       "function": "wecare-waba-management",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1.0,
-      "invocations7d": 9.0,
-      "lastModified": "2026-09-24T00:43:40.000+0000",
+      "invocations24h": 0.0,
+      "invocations7d": 8.0,
+      "lastModified": "2026-09-25T11:02:40.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3416,12 +3617,12 @@
     },
     {
       "aliases": {
-        "live": "35"
+        "live": "41"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "5ZA7Z67RwNcX6l684LMJrg5sOj9BzY4N7WpKVa7L4tI=",
+      "codeSha256": "awFhkrrSlqI7ONycabiuj/rYKp4h7HjRTaN9xd6o85c=",
       "deadLetterArn": null,
       "envNames": [
         "AUTH_SKIP_PATHS",
@@ -3454,9 +3655,9 @@
       "function": "wecare-whatsapp-business-api",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1213.0,
-      "invocations7d": 8000.0,
-      "lastModified": "2026-09-24T00:43:36.000+0000",
+      "invocations24h": 1209.0,
+      "invocations7d": 8073.0,
+      "lastModified": "2026-09-25T11:02:34.000+0000",
       "layers": [
         "cryptography-python312:1"
       ],
@@ -3568,12 +3769,12 @@
     },
     {
       "aliases": {
-        "live": "18"
+        "live": "23"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "ld7OCOI3cUl0jZjW96U7u7jYVKgCw4oEyPRWvcRKn24=",
+      "codeSha256": "KVH+wdbO7cueakpK7SiFHgRBIFVkTd4H6W5Nv8bEutM=",
       "deadLetterArn": null,
       "envNames": [
         "AI_LANGUAGE",
@@ -3605,9 +3806,9 @@
       "function": "wecare-whatsapp-calling",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 328.0,
-      "invocations7d": 1501.0,
-      "lastModified": "2026-09-24T00:43:23.000+0000",
+      "invocations24h": 103.0,
+      "invocations7d": 1655.0,
+      "lastModified": "2026-09-25T11:02:07.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3634,12 +3835,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "FyiKw5Pj+1i16riLxpfXhvv/xgWLrahsplHkSguWoV0=",
+      "codeSha256": "v+cLgnKhljYLGXnHCZN6uB5ZXEyaMmltF9NBuMv47xI=",
       "deadLetterArn": null,
       "envNames": [
         "LOG_LEVEL",
@@ -3653,8 +3854,8 @@
       "hasLiveAlias": true,
       "inDeployMap": true,
       "invocations24h": 0.0,
-      "invocations7d": 1.0,
-      "lastModified": "2026-09-24T00:43:29.000+0000",
+      "invocations7d": 0.0,
+      "lastModified": "2026-09-25T11:02:13.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -3675,12 +3876,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "JqZTgFagsOZ9mepqFSJPBAoxSTP+aG9SaPEIiZWTIoo=",
+      "codeSha256": "zw3I0BakCE6Id+k8OsYjZRHQsnRO8aNcbeS3Nj7Cp8M=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -3694,9 +3895,9 @@
       "function": "wecare-whatsapp-templates",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 5.0,
-      "invocations7d": 15.0,
-      "lastModified": "2026-09-24T00:43:26.000+0000",
+      "invocations24h": 9.0,
+      "invocations7d": 24.0,
+      "lastModified": "2026-09-25T11:02:10.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3724,12 +3925,12 @@
     },
     {
       "aliases": {
-        "live": "11"
+        "live": "16"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "0NKtgl+3bx7T7Yk1Pk2iGsHeRkvcpNvORNFIGVTM0JE=",
+      "codeSha256": "fBY3KFDZvelAOGqhgzrCq+3PnrLqJF0NHFFxWvFiVhw=",
       "deadLetterArn": null,
       "envNames": [
         "AWS_ACCOUNT_ID",
@@ -3743,9 +3944,9 @@
       "function": "wecare-whatsapp-voice",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 3.0,
-      "invocations7d": 18.0,
-      "lastModified": "2026-09-24T00:43:20.000+0000",
+      "invocations24h": 8.0,
+      "invocations7d": 35.0,
+      "lastModified": "2026-09-25T11:02:04.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3770,12 +3971,12 @@
     },
     {
       "aliases": {
-        "live": "15"
+        "live": "21"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "QFVQ78MSgiVT4pa7YcQoDPxipws5EpYgB1abSp1/dck=",
+      "codeSha256": "2HeLHQzcLhqNQCPT4bL7Z+P3sOSNhNqud+bByQWgbuM=",
       "deadLetterArn": null,
       "envNames": [
         "CONTACTS_TABLE",
@@ -3798,9 +3999,9 @@
       "function": "wecare-wix-store",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1.0,
-      "invocations7d": 3.0,
-      "lastModified": "2026-09-24T00:46:00.000+0000",
+      "invocations24h": 0.0,
+      "invocations7d": 7.0,
+      "lastModified": "2026-09-25T11:05:36.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -3817,7 +4018,7 @@
       "timeoutSec": 60
     }
   ],
-  "generated": "2026-09-24T07:19:14+00:00",
+  "generated": "2026-09-26T00:35:45+00:00",
   "region": "us-east-1",
   "routes": [
     {
@@ -4683,6 +4884,33 @@
       "routeId": "jcyflnh",
       "routeKey": "GET /scheduled",
       "targetFunction": "wecare-scheduled-messages"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "khjd3ru",
+      "routeKey": "GET /secure-files",
+      "targetFunction": "wecare-secure-files"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "o7nojpq",
+      "routeKey": "GET /secure-files/mine",
+      "targetFunction": "wecare-secure-files"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "pb72s24",
+      "routeKey": "GET /secure-files/{fileId}/download",
+      "targetFunction": "wecare-secure-files"
     },
     {
       "apiId": "zllr9lrg7j",
@@ -6084,6 +6312,51 @@
       "apiName": "wecare-digital-api",
       "authorizationType": "NONE",
       "qualifier": "live",
+      "routeId": "8rnv4ei",
+      "routeKey": "POST /secure-files/upload-init",
+      "targetFunction": "wecare-secure-files"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "mjvv0af",
+      "routeKey": "POST /secure-files/{fileId}/confirm",
+      "targetFunction": "wecare-secure-files"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "uhpxyck",
+      "routeKey": "POST /secure-files/{fileId}/order",
+      "targetFunction": "wecare-secure-files"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "lruxco1",
+      "routeKey": "POST /secure-files/{fileId}/revoke",
+      "targetFunction": "wecare-secure-files"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
+      "routeId": "vfx28ev",
+      "routeKey": "POST /secure-files/{fileId}/whatsapp-pay",
+      "targetFunction": "wecare-secure-files"
+    },
+    {
+      "apiId": "zllr9lrg7j",
+      "apiName": "wecare-digital-api",
+      "authorizationType": "NONE",
+      "qualifier": "live",
       "routeId": "iz4dv4t",
       "routeKey": "POST /site-language/translate",
       "targetFunction": "wecare-site-language"
@@ -7023,6 +7296,7 @@
     "stack-wecare-digital-DLTTemplates",
     "stack-wecare-digital-DocumentHistoryTable",
     "stack-wecare-digital-DocumentTable",
+    "stack-wecare-digital-DownloadGrantsTable",
     "stack-wecare-digital-EnterpriseAssistTable",
     "stack-wecare-digital-FaqTable",
     "stack-wecare-digital-FlowDraftTable",
@@ -7054,6 +7328,7 @@
     "stack-wecare-digital-ReviewTable",
     "stack-wecare-digital-RxSlotTable",
     "stack-wecare-digital-ScheduledMessagesTable",
+    "stack-wecare-digital-SecureFilesTable",
     "stack-wecare-digital-SeoToolsTable",
     "stack-wecare-digital-ShortLinksTable",
     "stack-wecare-digital-SiteLanguageCache",

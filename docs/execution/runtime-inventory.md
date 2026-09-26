@@ -1,17 +1,17 @@
 # Runtime inventory
 
-Generated 2026-09-24T07:19:14+00:00 · `us-east-1` · regenerate with `python scripts/generate_runtime_inventory.py`
+Generated 2026-09-26T00:35:45+00:00 · `us-east-1` · regenerate with `python scripts/generate_runtime_inventory.py`
 
 Machine-readable companion: `runtime-inventory.json`. Environment variable
 **names** are recorded, values never are.
 
 | Count | |
 |---|---:|
-| Lambda functions | 62 |
-| with a `live` alias | 56 |
+| Lambda functions | 65 |
+| with a `live` alias | 58 |
 | HTTP APIs | 1 |
-| Routes | 353 |
-| DynamoDB tables | 77 |
+| Routes | 361 |
+| DynamoDB tables | 79 |
 
 ## Anomalies
 
@@ -20,13 +20,17 @@ Each list is a question to answer, not automatically a defect.
 ### Live functions absent from the deploy map — cannot be patched by the standard path
 
 - `wecare-docs-scraper` — **expected**: PackageType=Image; ships via .github/workflows/docs-scraper-deploy.yml
-- `wecare-pstn-softphone`
+- `wecare-get-miss-redirect` — **expected**: Lambda@Edge. CloudFront associates it by published VERSION, and an alias is not a valid association target, so the deploy map's publish-then-move-the-alias contract would publish a version CloudFront never picks up and then report success. Source at amplify/functions/edge/get-miss-redirect; see docs/SECURE-FILE-SHARING.md
 - `wecare-seo-tools` — **expected**: different in-zip layout; scripts/deploy_seo_tools.py owns it with its table and IAM policy
+
+Every entry above is a documented exception.
 
 ### Functions with routes but no `live` alias — `$LATEST` reaches production directly
 
-- `wecare-docs-scraper`
-- `wecare-seo-tools`
+- `wecare-docs-scraper` — **expected**: same shape: its GitHub Actions deploy only calls update-function-code, so an alias would silently stop reaching production
+- `wecare-seo-tools` — **expected**: deploy_seo_tools.py has no alias handling, so an alias would leave the alias pinned to an old version while every deploy reported success
+
+Every entry above is a documented exception.
 
 ### Routes whose integration is unqualified — bypasses the version/alias model
 
@@ -43,16 +47,37 @@ Each list is a question to answer, not automatically a defect.
 
 ### Functions with errors in 7 days
 
+- `wecare-customer-whatsapp-auth`: 1
 - `wecare-inbound-whatsapp`: 9
 - `wecare-seo-tools`: 2
 
 ### Zero invocations in 7 days — candidates for retirement review
 
-(none)
+- `wecare-ai-query-kb`
+- `wecare-auth-middleware`
+- `wecare-bulk-job-control`
+- `wecare-bulk-job-create`
+- `wecare-catalog-management`
+- `wecare-dlq-replay`
+- `wecare-faq-handler`
+- `wecare-get-miss-redirect`
+- `wecare-messages-delete`
+- `wecare-meta-analytics`
+- `wecare-payments-read`
+- `wecare-service-api`
+- `wecare-sla-engine`
+- `wecare-template-analytics`
+- `wecare-url-shortener`
+- `wecare-whatsapp-template-management`
 
 ### No route, no event source, no traffic — strongest retirement candidates
 
-(none)
+- `wecare-catalog-management`
+- `wecare-get-miss-redirect`
+- `wecare-meta-analytics`
+- `wecare-service-api`
+- `wecare-sla-engine`
+- `wecare-url-shortener`
 
 ### Log groups with no retention — unbounded cost and data retention
 
@@ -95,6 +120,11 @@ Each list is a question to answer, not automatically a defect.
 - `/pstn/session/events`
 - `/pstn/session/presence`
 - `/pstn/token`
+- `/secure-files/{fileId}/confirm`
+- `/secure-files/{fileId}/download`
+- `/secure-files/{fileId}/order`
+- `/secure-files/{fileId}/revoke`
+- `/secure-files/{fileId}/whatsapp-pay`
 - `/site-language/languages`
 - `/site-language/translate`
 - `/site-language/tts`

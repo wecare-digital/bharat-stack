@@ -56,6 +56,8 @@ from __future__ import annotations
 
 import argparse
 import ast
+import base64
+import hashlib
 import io
 import subprocess
 import sys
@@ -623,7 +625,9 @@ def main() -> int:
     print(f"region={REGION} targets={len(selected)} dry_run={args.dry_run}")
     print()
 
-    tally = {"updated": 0, "unchanged": 0, "failed": 0, "awaiting_provisioning": 0}
+    tally = {"updated": 0, "unchanged": 0, "failed": 0, "awaiting_provisioning": 0,
+             # dry-run only: packaged bytes differ from what is live
+             "would_update": 0}
     failures: List[str] = []
     deployed: List[str] = []
     awaiting: List[str] = []
@@ -677,7 +681,25 @@ def main() -> int:
         print(f"    packaged {len(members)} files, {len(zip_bytes)} bytes")
 
         if args.dry_run:
-            tally["unchanged"] += 1
+            # Compare, rather than assume. This branch used to do
+            # `tally["unchanged"] += 1` unconditionally, so a dry run always
+            # reported every target as unchanged whatever the packaged bytes
+            # were - and that number was then quoted as evidence that a
+            # function already matched production. It never established that.
+            #
+            # The comparison is sound because the zip is built deterministically
+            # (fixed timestamps, see the packaging note at the top), and
+            # CodeSha256 is exactly base64(sha256(zip)).
+            packaged_sha = base64.b64encode(
+                hashlib.sha256(zip_bytes).digest()).decode()
+            if packaged_sha == current.get("CodeSha256"):
+                print(f"    would not update: sha matches live "
+                      f"({packaged_sha[:12]}...)")
+                tally["unchanged"] += 1
+            else:
+                print(f"    WOULD UPDATE: {current.get('CodeSha256', '?')[:12]}..."
+                      f" -> {packaged_sha[:12]}...")
+                tally["would_update"] += 1
             continue
 
         outcome = deploy(lam, spec, zip_bytes, current)
@@ -688,9 +710,13 @@ def main() -> int:
             deployed.append(spec.name)
 
     print()
-    print(f"updated={tally['updated']} unchanged={tally['unchanged']} "
-          f"failed={tally['failed']} "
-          f"awaiting_provisioning={tally['awaiting_provisioning']}")
+    summary = (f"updated={tally['updated']} unchanged={tally['unchanged']} "
+               f"failed={tally['failed']} "
+               f"awaiting_provisioning={tally['awaiting_provisioning']}")
+    if args.dry_run:
+        # Named separately so a dry run cannot be read as a deployment result.
+        summary += f" would_update={tally['would_update']}"
+    print(summary)
     if failures:
         print(f"failed: {', '.join(failures)}")
     if awaiting:

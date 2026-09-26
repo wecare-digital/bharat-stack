@@ -68,20 +68,62 @@ def build(*, entry: Dict[str, Any], waba_id: str,
     }
 
 
+def _try_dict(value: Any, *, depth: int = 2) -> Dict[str, Any] | None:
+    """Decode to a dict, or `None` when it cannot be one. Never raises.
+
+    `None` and `{}` are deliberately different answers. A record whose inner entry
+    is unparsable is skipped entirely, while one whose entry is merely absent is
+    kept with an empty entry - behaviour `test_an_unparsable_inner_entry_is_skipped`
+    pins, and which collapsing both to `{}` would quietly break.
+    """
+    for _ in range(max(1, depth)):
+        if isinstance(value, dict):
+            return value
+        if not isinstance(value, (str, bytes, bytearray)):
+            return None
+        try:
+            value = json.loads(value)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return None
+    return value if isinstance(value, dict) else None
+
+
+def _as_dict(value: Any, *, depth: int = 2) -> Dict[str, Any]:
+    """Decode to a dict, or give back an empty one. Never raises.
+
+    `json.loads` returning successfully does not mean it returned an object. A
+    double-encoded SNS `Message` - a JSON string whose content is itself JSON -
+    decodes one level to a `str`, and the previous code went straight to
+    `message.get("context")` on it. That is the live crash this fixes:
+
+        AttributeError: 'str' object has no attribute 'get'
+        wa_internal_event.py:80 in _from_legacy_sns
+
+    Nine of them in 7 days on `wecare-inbound-whatsapp`, and they mattered more than
+    their count: `parse` documents that it "is never an exception, because this sits
+    at the top of an async worker where raising would send a poison event to the DLQ
+    on every retry". An AttributeError from a helper broke that promise, so the event
+    was retried and re-crashed rather than being skipped.
+
+    `depth` allows the second decode the module docstring already claimed to
+    tolerate. Anything that is still not a dict is not guessed at.
+    """
+    return _try_dict(value, depth=depth) or {}
+
+
 def _from_legacy_sns(event: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Unwrap the synthetic SNS envelope. Tolerates the double encoding."""
     items: List[Dict[str, Any]] = []
     for record in event.get("Records") or []:
         raw = ((record or {}).get("Sns") or {}).get("Message") or "{}"
-        try:
-            message = json.loads(raw) if isinstance(raw, str) else (raw or {})
-        except (json.JSONDecodeError, TypeError, ValueError):
+        message = _try_dict(raw)
+        if message is None:
+            # Unparsable, or valid JSON that is not an object - the crash this
+            # replaces. Skip the record rather than raise, per `parse`'s contract.
             continue
-        ctx = message.get("context") or {}
-        entry_raw = message.get("whatsAppWebhookEntry") or "{}"
-        try:
-            entry = json.loads(entry_raw) if isinstance(entry_raw, str) else (entry_raw or {})
-        except (json.JSONDecodeError, TypeError, ValueError):
+        ctx = _as_dict(message.get("context"))
+        entry = _try_dict(message.get("whatsAppWebhookEntry") or "{}")
+        if entry is None:
             continue
         waba_ids = ctx.get("MetaWabaIds") or []
         items.append({
@@ -96,13 +138,10 @@ def _from_legacy_sns(event: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def _from_typed(event: Dict[str, Any]) -> List[Dict[str, Any]]:
-    entry = event.get("entry") or {}
-    if isinstance(entry, str):
-        # Defensive: a producer that stringified it anyway.
-        try:
-            entry = json.loads(entry)
-        except (json.JSONDecodeError, TypeError, ValueError):
-            entry = {}
+    # Defensive against a producer that stringified `entry` anyway. Uses the same
+    # helper as the legacy arm so a JSON string encoding a non-object cannot travel
+    # onward as a `str` and crash a downstream `.get()` instead of here.
+    entry = _as_dict(event.get("entry"))
     waba_id = event.get("wabaId") or ""
     return [{
         "shape": "typed",

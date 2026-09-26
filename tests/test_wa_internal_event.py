@@ -229,3 +229,78 @@ class TestWiring:
         idx = self.CONSUMER.index("record_processing_error")
         window = self.CONSUMER[idx:idx + 700]
         assert "_send_to_dlq(record," not in window
+
+
+class TestTheLiveCrash:
+    """The production AttributeError, reproduced.
+
+    `wecare-inbound-whatsapp` raised this 9 times in 7 days, measured 2026-09-25:
+
+        [ERROR] AttributeError: 'str' object has no attribute 'get'
+          File "/var/task/handler.py", line 629, in handler
+            _work_items = wa_internal_event.parse(event)
+          File "/var/task/lambda_utils/wa_internal_event.py", line 134, in parse
+            return _from_legacy_sns(event)
+          File "/var/task/lambda_utils/wa_internal_event.py", line 80, in _from_legacy_sns
+            ctx = message.get("context") or {}
+
+    The cause is that `json.loads` succeeding does not mean it returned an object.
+    A double-encoded SNS `Message` - a JSON string whose content is itself JSON -
+    decodes one level to a `str`, and `.get()` on a `str` raises.
+
+    The count understates it. `parse` documents that it "is never an exception,
+    because this sits at the top of an async worker where raising would send a
+    poison event to the DLQ on every retry", so each of these was retried and
+    re-crashed instead of being skipped. `TestParseRejections` asserted that
+    contract for non-dict *events* but never for a non-dict decoded *Message*.
+    """
+
+    def test_a_double_encoded_message_does_not_raise(self):
+        """The exact shape from production: Message decodes to a str."""
+        inner = json.dumps({"context": {}, "whatsAppWebhookEntry": json.dumps(ENTRY),
+                            "messageId": "r"})
+        env = {"Records": [{"Sns": {"Message": json.dumps(inner)}}]}
+        items = wie.parse(env)  # must not raise
+        # Double encoding is tolerated, which the module docstring already claimed.
+        assert len(items) == 1
+        assert items[0]["entry"] == ENTRY
+
+    @pytest.mark.parametrize("payload", [
+        '"just a json string"',   # valid JSON, decodes to str -> the live crash
+        "123",                    # valid JSON, decodes to int
+        "true",                   # valid JSON, decodes to bool
+        "null",                   # valid JSON, decodes to None
+        '["a", "list"]',          # valid JSON, decodes to list
+    ])
+    def test_valid_json_that_is_not_an_object_is_skipped_not_fatal(self, payload):
+        env = {"Records": [{"Sns": {"Message": payload}}]}
+        assert wie.parse(env) == []
+
+    def test_one_bad_record_does_not_lose_the_good_one(self):
+        """A poison record in a batch must not discard its siblings."""
+        env = legacy_envelope()
+        env["Records"].insert(0, {"Sns": {"Message": '"a json string"'}})
+        items = wie.parse(env)
+        assert len(items) == 1
+        assert items[0]["entry"] == ENTRY
+
+    def test_a_stringified_entry_on_the_typed_arm_does_not_leak_a_str(self):
+        """`entry` must always be a dict, whatever the producer sent.
+
+        Otherwise the `str` travels onward and crashes a downstream `.get()`
+        instead, which is the same bug one frame later.
+        """
+        event = {"source": "meta-direct", "wabaId": "w", "entry": '"not an object"'}
+        items = wie.parse(event)
+        assert len(items) == 1
+        assert isinstance(items[0]["entry"], dict)
+
+    def test_context_that_is_not_an_object_does_not_raise(self):
+        env = {"Records": [{"Sns": {"Message": json.dumps({
+            "context": "not-an-object",
+            "whatsAppWebhookEntry": json.dumps(ENTRY),
+            "messageId": "r"})}}]}
+        items = wie.parse(env)
+        assert len(items) == 1
+        assert items[0]["waba_ids"] == []
+        assert items[0]["phone_number_ids"] == []

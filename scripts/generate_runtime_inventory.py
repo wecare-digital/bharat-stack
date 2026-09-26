@@ -67,10 +67,29 @@ EXPECTED = {
         "wecare-seo-tools":
             "different in-zip layout; scripts/deploy_seo_tools.py owns it with its "
             "table and IAM policy",
+        "wecare-get-miss-redirect":
+            "Lambda@Edge. CloudFront associates it by published VERSION, and an alias "
+            "is not a valid association target, so the deploy map's "
+            "publish-then-move-the-alias contract would publish a version CloudFront "
+            "never picks up and then report success. Source at "
+            "amplify/functions/edge/get-miss-redirect; see docs/SECURE-FILE-SHARING.md",
+        # wecare-pstn-softphone was here until 2026-09-25. It was not an expected
+        # exclusion at all: it served 5 live routes through its `live` alias while
+        # its provisioner only created, so the first deploy was also the last. Now
+        # in the deploy map.
     },
     "noLiveAliasButHasRoutes": {
-        # No justification recorded for these three. Left deliberately empty so
-        # they keep showing up until someone decides.
+        # Was "no justification recorded for these three", left empty so they kept
+        # showing up until someone decided. Two remain and the decision is now
+        # recorded in scripts/provision_live_alias.py EXCLUDED; partner-onboarding
+        # and marketing-ads have since been given aliases, which is why the count
+        # fell from three.
+        "wecare-seo-tools":
+            "deploy_seo_tools.py has no alias handling, so an alias would leave the "
+            "alias pinned to an old version while every deploy reported success",
+        "wecare-docs-scraper":
+            "same shape: its GitHub Actions deploy only calls update-function-code, "
+            "so an alias would silently stop reaching production",
     },
 }
 
