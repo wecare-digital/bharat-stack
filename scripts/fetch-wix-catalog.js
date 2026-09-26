@@ -4,67 +4,90 @@
  * src/content/wix-catalog.json.
  *
  * WHY A SNAPSHOT AND NOT A RUNTIME FETCH. next.config.js sets output:'export', so the
- * public site is pre-generated HTML with no server of ours at runtime. That rules out
- * the two obvious alternatives:
- *
- *   - Fetching from the BROWSER would need the credential in the bundle. A Wix API key
- *     is NOT like a Maps browser key - it is account-scoped (tenant: account) and cannot
- *     be referrer-restricted, so shipping it would hand over the whole Wix account. It
- *     would also be a cross-origin call to wixapis.com with no CORS grant.
- *   - Fetching through our own Lambda at runtime works and already exists
- *     (api.wecare.digital/wix-store/products), but it is authenticated - it answers 401
- *     to the public - and it puts a network hop and a spinner in front of a product list
- *     that changes a few times a month.
- *
- * So the credential stays here, on a developer machine or a CI runner, and the OUTPUT -
- * names, prices, descriptions, which are public information by definition - is committed.
- * The site then renders the catalog with no network call at all.
+ * public site is pre-generated HTML with no server of ours at runtime. Fetching through
+ * our own Lambda at runtime works and already exists
+ * (api.wecare.digital/wix-store/products), but it is authenticated - it answers 401 to
+ * the public - and it puts a network hop and a spinner in front of a product list that
+ * changes a few times a month. So the OUTPUT - names, prices, descriptions, which are
+ * public information by definition - is committed, and the site renders it with no
+ * network call at all.
  *
  * THE SNAPSHOT GOES STALE, and that is the trade-off being accepted. Re-run this after
  * any catalog edit in Wix. It is deliberately NOT wired into `npm run build`: a build
- * that reaches the network is a build that fails when the network or the token does,
- * and nobody wants a deploy blocked by an expired Wix key. A CI job can call it if that
- * changes.
+ * that reaches the network is a build that fails when the network does.
  *
- * IMAGES ARE NOT PULLED. The owner asked for data only, and at the time of writing all
- * seven products carry zero media items anyway.
+ * USAGE - and note what is no longer required
+ *   node scripts/fetch-wix-catalog.js
  *
- * USAGE
- *   WIX_API_KEY='IST...' WIX_SITE_ID='fcd8...' node scripts/fetch-wix-catalog.js
+ * NO CREDENTIAL. THIS IS THE POINT OF THE 2026-09-26 REWRITE.
+ * ----------------------------------------------------------
+ * This script used to demand `WIX_API_KEY` - an account-scoped admin bearer token - to
+ * read seven public product names and prices. That was both unusable and unnecessary:
  *
- * Never pass the key on a shared shell's history, and never commit it - .env* is
- * gitignored and scripts/block_inline_secrets.py rejects credential-shaped strings.
+ *   - UNUSABLE: `wecare/wix/headless-api-key` holds **0 versions**. The credential does
+ *     not exist, so the old script could not run at all. Its own header carried a TODO
+ *     saying the key "must come from AWS Secrets Manager" - but the better answer is to
+ *     remove the credential from the problem, not to relocate it.
+ *   - UNNECESSARY: WIX_CLIENT_ID is the PUBLIC half of the headless OAuth client. Wix
+ *     exchanges it for an anonymous VISITOR token, which is exactly the scope a
+ *     storefront page has, and a storefront can read the catalog. Least privilege, and
+ *     it works today with nothing to provision.
  *
- * ENDPOINT CHOICE IS MEASURED, AND IS A KNOWN INCONSISTENCY TO RESOLVE.
- * Tested against this site with a real key:
- *     stores-reader/v1/products/query   200   <- what this script uses
- *     stores/v3/products/query          200
- *     stores/v1/products/query          428 (Precondition Required)
- *     stores/v3/products-search         404
- * The existing amplify/functions/ecommerce/wix-store/handler.py uses **stores/v3** (17
- * references), so the repo currently reads the same catalog through two different API
- * versions. That should be reconciled onto v3, since v3 is the newer surface and the
- * Lambda is the long-lived consumer. It was NOT done here because v3 returns a different
- * product shape - prices are ranges rather than a flat priceData, and paging is
- * cursor-based rather than offset - and mapping those fields without inspecting a real v3
- * response would be guesswork. Inspect one v3 payload first, then port slim().
+ * CONSEQUENCE, stated because it is a real behavioural change: a visitor token sees only
+ * PUBLICLY VISIBLE products. An admin key would also return `visible: false` products.
+ * All seven products are currently `visible: true`, so this makes no difference to the
+ * present snapshot - but a product hidden in Wix will now simply be absent rather than
+ * present-and-flagged. That is correct for a snapshot that feeds the public site, and it
+ * is why `visible` is still emitted per product: if it is ever anything but `true`, the
+ * scope assumption has changed.
  *
- * TWO CORRECTIONS THE OWNER HAS ASKED FOR, both still outstanding here:
+ * CATALOG V3, AND THE INCONSISTENCY THIS CLOSES
+ * ---------------------------------------------
+ * The old script used `stores-reader/v1/products/query` and its header recorded the
+ * problem: `amplify/functions/ecommerce/wix-store/handler.py` uses `stores/v3` (17
+ * references), so the repo read one catalog through two API versions. The old header
+ * said porting was deferred because "mapping those fields without inspecting a real v3
+ * response would be guesswork. Inspect one v3 payload first, then port slim()."
  *
- *   1. THE KEY MUST COME FROM AWS SECRETS MANAGER, not an env var. The pattern already
- *      exists - wix-store/handler.py reads WIX_API_KEY_SECRET - so the sync Lambda should
- *      reuse it rather than inventing a second path. This script still takes WIX_API_KEY
- *      from the environment because it runs on a developer machine or CI runner, where
- *      Secrets Manager needs AWS credentials that may not be present; if it is kept, it
- *      should try Secrets Manager first and fall back to the env var.
+ * Done. A real v3 payload for all seven products was inspected on 2026-09-26 via a
+ * visitor token, and slim() below is mapped against it rather than against the docs.
  *
- *   2. "USE THE PROPER API SDK" cannot be satisfied in Python. Wix publishes official
- *      JavaScript/TypeScript SDKs (@wix/sdk with @wix/stores) and NO Python SDK, while
- *      every existing Lambda here is Python and therefore calls wixapis over raw HTTP.
- *      Neither @wix/sdk nor any other wix package is currently in package.json. So the
- *      instruction is really an architectural choice: either write the new catalog-sync
- *      Lambda in Node/TS so it can use @wix/sdk, or keep Python and accept raw HTTP. That
- *      is the owner's call and it should be made before the Lambda is written, not after.
+ * The site is on CATALOG_V3, confirmed by Wix itself rather than inferred:
+ * `POST /stores/v1/products/query` returns HTTP 428 with
+ * `applicationError.code = CATALOG_V3_CALLING_CATALOG_V1_API`. `stores-reader/v1` keeps
+ * returning 200 on a V3 site, which is why the old endpoint choice looked fine - it is a
+ * compatibility shim, so it failed silently rather than loudly. See
+ * `scripts/probe_wix_capabilities.py`.
+ *
+ * WHAT CHANGED IN THE OUTPUT SCHEMA, because it is not a drop-in
+ * -------------------------------------------------------------
+ *   price            number -> DECIMAL STRING ("599.00"). V3 returns money as a string
+ *                    on purpose. Keeping it a string preserves it exactly; anything
+ *                    doing arithmetic must parse deliberately rather than inheriting a
+ *                    float nobody chose.
+ *   currency         moved from priceData.currency to a top-level `currency`
+ *   formattedPrice   from actualPriceRange.minValue.formattedAmount ("Rs599.00")
+ *   priceMax         NEW. V3 prices are a RANGE. min === max for all seven today, but a
+ *                    product with variant pricing will differ and a single `price` would
+ *                    quietly misreport it.
+ *   discountedPrice  GONE. V3 has no equivalent. Its `compareAtPriceRange` is the
+ *                    opposite idea - the higher struck-through "was" price - so mapping
+ *                    one to the other would invert the meaning. Emitted as
+ *                    `compareAtPrice` when Wix sends it; absent on all seven today.
+ *   inStock          from inventory.availabilityStatus === 'IN_STOCK'
+ *   descriptionHtml  from plainDescription. In V3 `description` is Ricos rich-content
+ *                    NODES, not HTML, and `plainDescription` is the HTML string. Reading
+ *                    `description` here would have produced a JSON blob in the UI.
+ *   collectionIds    -> categoryIds, from directCategoriesInfo. V3 renamed collections
+ *                    to categories and they live behind /categories/v1.
+ *   sku              GONE. V3 has no product-level SKU; it is per variant.
+ *   productType      now UPPERCASE ('PHYSICAL'), where V1 was lowercase ('physical').
+ *   variantCount     from variantSummary.variantCount, not variants.length
+ *   mediaCount       from media.itemsInfo.items, not media.items
+ *   infoSectionCount NEW. V3 info sections carry the real product copy.
+ *   productUrl       NEW. Wix's own canonical URL for the product.
+ *
+ * IMAGES ARE NOT PULLED. Data only, and all seven products carry zero media items.
  */
 
 // ESM, because package.json declares "type": "module" - a require() here dies with
@@ -77,8 +100,25 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname( fileURLToPath( import.meta.url ) );
 const OUT = path.resolve( HERE, '..', 'src', 'content', 'wix-catalog.json' );
-const ENDPOINT = 'https://www.wixapis.com/stores-reader/v1/products/query';
+const CONFIG = path.resolve( HERE, '..', 'src', 'config', 'wix.ts' );
+
+const API = 'https://www.wixapis.com';
 const PAGE_SIZE = 100;
+
+// Field projections. V3 omits description, currency, url and category info unless asked,
+// so a search without these returns a product with no price currency and no description
+// and looks like an empty catalog. Mirrors CATALOG_PRODUCT_FIELDS in
+// amplify/functions/ecommerce/wix-store/handler.py so the two consumers of this catalog
+// ask for the same shape.
+const FIELDS = [
+  'URL',
+  'CURRENCY',
+  'MEDIA_ITEMS_INFO',
+  'PLAIN_DESCRIPTION',
+  'DIRECT_CATEGORIES_INFO',
+  'VARIANT_OPTION_CHOICE_NAMES',
+  'INFO_SECTION',
+];
 
 function die( msg ) {
   console.error( `fetch-wix-catalog: ${msg}` );
@@ -86,82 +126,130 @@ function die( msg ) {
 }
 
 /**
+ * Read the public client id out of the committed config rather than hardcoding it.
+ *
+ * Parsed with a regex instead of imported because this is plain Node ESM and wix.ts is
+ * TypeScript - importing it would need a loader for one string. Reading the real file
+ * means this script cannot drift away from the id the application uses, which a second
+ * copy of the constant would eventually do.
+ */
+function publicClientId() {
+  let text;
+  try {
+    text = fs.readFileSync( CONFIG, 'utf-8' );
+  } catch {
+    die( `cannot read ${path.relative( process.cwd(), CONFIG )}` );
+  }
+  const match = /export const WIX_CLIENT_ID = '([^']+)'/.exec( text );
+  if ( !match ) die( `WIX_CLIENT_ID not found in ${path.relative( process.cwd(), CONFIG )}` );
+  return match[ 1 ];
+}
+
+/** Anonymous visitor token. Held in memory, never logged, never written to the output. */
+async function visitorToken( clientId ) {
+  const res = await fetch( `${API}/oauth2/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify( { clientId, grantType: 'anonymous' } ),
+  } );
+  if ( !res.ok ) {
+    const body = await res.text().catch( () => '' );
+    die( `could not mint a visitor token: HTTP ${res.status}. ${body.slice( 0, 200 )}\n` +
+      '  This needs no secret - it uses the PUBLIC client id from src/config/wix.ts.\n' +
+      '  A failure here means the headless OAuth client was changed or removed in Wix.' );
+  }
+  const data = await res.json();
+  if ( !data.access_token ) die( 'token response carried no access_token' );
+  return data.access_token;
+}
+
+const money = range => ( range && range.minValue ) || {};
+
+/**
  * Keep only the fields the site actually renders. Two reasons beyond tidiness: the raw
- * payload is ~68 KB of mostly media and inventory internals for 7 products, and a
- * snapshot that mirrors every upstream field turns every unrelated Wix change into a
- * diff in this repo.
+ * payload is mostly media and inventory internals, and a snapshot that mirrors every
+ * upstream field turns every unrelated Wix change into a diff in this repo.
  */
 function slim( p ) {
-  const priceData = p.priceData || {};
-  const formatted = priceData.formatted || {};
-  const stock = p.stock || {};
+  const min = money( p.actualPriceRange );
+  const max = ( p.actualPriceRange && p.actualPriceRange.maxValue ) || {};
+  const compareAt = money( p.compareAtPriceRange );
+  const categories = ( ( p.directCategoriesInfo || {} ).categories || [] )
+    .map( c => c.id )
+    .filter( Boolean );
+
   return {
     id: p.id,
     name: p.name || '',
     slug: p.slug || '',
-    // productType is 'physical' for all seven today, which is wrong for the service
+    // productType is 'PHYSICAL' for all seven today, which is wrong for the service
     // ones - it makes Wix demand a shipping address at checkout. Recorded as-is rather
     // than corrected here, because the fix belongs in Wix, not in a mirror of Wix.
     productType: p.productType || '',
+    // Should always be true: a visitor token cannot see hidden products. If this is ever
+    // false, the auth scope changed.
     visible: p.visible !== false,
-    sku: p.sku || '',
     ribbon: p.ribbon || '',
-    // Numeric price for arithmetic, formatted for display. Keeping only one of them
-    // means either re-deriving currency symbols in the UI or parsing money out of a
-    // string, and both go wrong.
-    price: typeof priceData.price === 'number' ? priceData.price : null,
-    currency: priceData.currency || '',
-    formattedPrice: formatted.price || '',
-    discountedPrice: typeof priceData.discountedPrice === 'number' ? priceData.discountedPrice : null,
-    inStock: stock.inStock !== false,
-    // Wix returns description as HTML. It is stored raw and MUST be treated as
-    // untrusted when rendered - it is authored in Wix, outside this repo's review.
-    descriptionHtml: p.description || '',
-    collectionIds: p.collectionIds || [],
-    optionCount: ( p.productOptions || [] ).length,
-    variantCount: ( p.variants || [] ).length,
-    mediaCount: ( ( p.media && p.media.items ) || [] ).length,
+    // DECIMAL STRINGS, exactly as Wix sends them. Do not coerce to a float here - see
+    // the schema note in the header.
+    price: min.amount || null,
+    priceMax: max.amount || null,
+    currency: p.currency || '',
+    formattedPrice: min.formattedAmount || '',
+    compareAtPrice: compareAt.amount || null,
+    inStock: ( p.inventory || {} ).availabilityStatus === 'IN_STOCK',
+    // Wix returns this as HTML. It is stored raw and MUST be treated as untrusted when
+    // rendered - it is authored in Wix, outside this repo's review.
+    descriptionHtml: p.plainDescription || '',
+    categoryIds: categories,
+    mainCategoryId: p.mainCategoryId || '',
+    optionCount: ( p.options || [] ).length,
+    modifierCount: ( p.modifiers || [] ).length,
+    variantCount: ( p.variantSummary || {} ).variantCount || 0,
+    mediaCount: ( ( ( p.media || {} ).itemsInfo || {} ).items || [] ).length,
+    infoSectionCount: ( p.infoSections || [] ).length,
+    productUrl: ( p.url || {} ).url || '',
   };
 }
 
 async function main() {
-  const key = process.env.WIX_API_KEY;
-  const site = process.env.WIX_SITE_ID;
-  if ( !key || !site ) {
-    die( 'WIX_API_KEY and WIX_SITE_ID must both be set.\n' +
-      '  The existing snapshot is left untouched, so this is safe to skip.' );
-  }
+  const token = await visitorToken( publicClientId() );
 
   const products = [];
-  let offset = 0;
-  let total = null;
+  let cursor = null;
 
-  // Paginate rather than assuming one page. Seven products fit in one request today;
-  // hardcoding that assumption is how a catalog silently truncates at 101.
+  // Cursor paging, not offset. V3 dropped offset paging, and an offset loop against V3
+  // silently returns page 1 forever. Seven products fit in one request today; hardcoding
+  // that assumption is how a catalog truncates at 101.
   for ( let guard = 0; guard < 50; guard++ ) {
-    const res = await fetch( ENDPOINT, {
+    const cursorPaging = cursor ? { limit: PAGE_SIZE, cursor } : { limit: PAGE_SIZE };
+    const res = await fetch( `${API}/stores/v3/products/search`, {
       method: 'POST',
-      headers: {
-        'Authorization': key,
-        'wix-site-id': site,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify( { query: { paging: { limit: PAGE_SIZE, offset } } } ),
+      headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+      body: JSON.stringify( { search: { cursorPaging }, fields: FIELDS } ),
     } );
 
     if ( !res.ok ) {
       const body = await res.text().catch( () => '' );
-      die( `HTTP ${res.status} from Wix. ${body.slice( 0, 200 )}\n` +
-        '  401/403 means the key is wrong, expired or lacks Stores read scope.\n' +
-        '  428 means you are on stores/v1 - this script uses stores-reader/v1 on purpose.' );
+      die( `HTTP ${res.status} from Wix. ${body.slice( 0, 300 )}\n` +
+        '  428 CATALOG_V1_CALLING_CATALOG_V3_API would mean the site moved back to\n' +
+        '  Catalog V1, which would make this whole script the wrong shape.\n' +
+        '  Re-check with: python scripts/probe_wix_capabilities.py' );
     }
 
     const data = await res.json();
     const page = data.products || [];
-    total = data.totalResults != null ? data.totalResults : total;
     products.push( ...page );
-    offset += page.length;
-    if ( !page.length || ( total != null && products.length >= total ) ) break;
+
+    const meta = data.pagingMetadata || {};
+    cursor = ( meta.cursors || {} ).next || null;
+    if ( !page.length || !cursor ) break;
+  }
+
+  if ( !products.length ) {
+    die( 'Wix returned 0 products.\n' +
+      '  The existing snapshot is left untouched rather than emptied, because an empty\n' +
+      '  catalog is far more likely to be a scope or query problem than a real change.' );
   }
 
   const slimmed = products
@@ -172,7 +260,8 @@ async function main() {
   const snapshot = {
     // No token, no account id, no site id in the output. The site id is a tenant
     // identifier and there is no reason for it to sit in a public bundle.
-    source: 'wix stores-reader/v1',
+    source: 'wix stores/v3 products/search (anonymous visitor token)',
+    catalogVersion: 'V3',
     fetchedAt: new Date().toISOString(),
     productCount: slimmed.length,
     products: slimmed,
@@ -183,8 +272,10 @@ async function main() {
 
   console.log( `fetch-wix-catalog: wrote ${slimmed.length} product(s) to ${path.relative( process.cwd(), OUT )}` );
   for ( const p of slimmed ) {
-    console.log( `  ${p.slug.padEnd( 20 )} ${p.formattedPrice.padStart( 11 )}  ${p.productType.padEnd( 9 )} ` +
-      `opts=${p.optionCount} variants=${p.variantCount} media=${p.mediaCount}${p.visible ? '' : '  (HIDDEN)'}` );
+    const range = p.price !== p.priceMax ? `${p.formattedPrice}+` : p.formattedPrice;
+    console.log( `  ${p.slug.padEnd( 20 )} ${range.padStart( 11 )}  ${p.productType.padEnd( 9 )} ` +
+      `opts=${p.optionCount} variants=${p.variantCount} media=${p.mediaCount} ` +
+      `info=${p.infoSectionCount}${p.visible ? '' : '  (HIDDEN)'}` );
   }
 }
 

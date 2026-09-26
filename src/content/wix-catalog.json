@@ -1,154 +1,183 @@
 {
-  "source": "wix stores-reader/v1",
-  "fetchedAt": "2026-09-24T05:22:02.428Z",
+  "source": "wix stores/v3 products/search (anonymous visitor token)",
+  "catalogVersion": "V3",
+  "fetchedAt": "2026-09-26T02:02:44.271Z",
   "productCount": 7,
   "products": [
     {
       "id": "8c4d4a7d-18c8-44f4-8eb0-78b9844a2365",
       "name": "File Assist",
       "slug": "file-assist",
-      "productType": "physical",
+      "productType": "PHYSICAL",
       "visible": true,
-      "sku": "",
       "ribbon": "",
-      "price": 6999,
+      "price": "6999.00",
+      "priceMax": "6999.00",
       "currency": "INR",
       "formattedPrice": "₹6,999.00",
-      "discountedPrice": 6999,
+      "compareAtPrice": null,
       "inStock": true,
       "descriptionHtml": "<p><span style=\"font-weight: 700\">Documents prepared. Next steps coordinated.</span></p><p>You’ve already agreed on the important terms.</p><p>File Assist helps turn those decisions into organised documents — and gives you a dedicated coordinator to help keep the next steps moving.</p><p>Complete the guided questionnaire and tell us what both of you have agreed. CLEAR CLOSURE prepares the applicable documents for your review.</p><p>Your case coordinator then helps keep the practical side organised — from missing information and signatures to filing preparation and administrative follow-up.</p><p><span style=\"font-weight: 700\">File Assist helps coordinate what comes next, so you do not have to manage every practical step alone.</span></p>",
-      "collectionIds": [
+      "categoryIds": [
         "30c68f9b-685f-40ab-825f-a9858c1932bd"
       ],
+      "mainCategoryId": "30c68f9b-685f-40ab-825f-a9858c1932bd",
       "optionCount": 0,
-      "variantCount": 0,
-      "mediaCount": 0
+      "modifierCount": 0,
+      "variantCount": 1,
+      "mediaCount": 0,
+      "infoSectionCount": 10,
+      "productUrl": "https://xout.wecare.digital/product-page/file-assist"
     },
     {
       "id": "73976258-93e4-4048-88d3-541bdc29e81e",
       "name": "Guided Resolution",
       "slug": "guided-resolution",
-      "productType": "physical",
+      "productType": "PHYSICAL",
       "visible": true,
-      "sku": "",
       "ribbon": "",
-      "price": 13999,
+      "price": "13999.00",
+      "priceMax": "13999.00",
       "currency": "INR",
       "formattedPrice": "₹13,999.00",
-      "discountedPrice": 13999,
+      "compareAtPrice": null,
       "inStock": true,
       "descriptionHtml": "<p><span style=\"font-weight: 700\">Work through what is unresolved. Document what you agree.</span></p><p>You both want to move forward peacefully, but there are still a few important things to work through.</p><p>Guided Resolution gives you a structured way to discuss those issues, find common ground, and turn what you agree into clear documentation.</p><p>You receive the documentation and coordination included with File Assist, together with <span style=\"font-weight: 700\">up to 4 guided-resolution sessions</span> to help both of you work through unresolved terms.</p><p>If agreement is reached, CLEAR CLOSURE helps carry those agreed decisions forward into document preparation, review, signatures, and filing coordination.</p><p><span style=\"font-weight: 700\">The goal is to help you find a workable path forward — not to force either person to accept a settlement.</span></p>",
-      "collectionIds": [
+      "categoryIds": [
         "30c68f9b-685f-40ab-825f-a9858c1932bd"
       ],
+      "mainCategoryId": "30c68f9b-685f-40ab-825f-a9858c1932bd",
       "optionCount": 0,
-      "variantCount": 0,
-      "mediaCount": 0
+      "modifierCount": 0,
+      "variantCount": 1,
+      "mediaCount": 0,
+      "infoSectionCount": 11,
+      "productUrl": "https://xout.wecare.digital/product-page/guided-resolution"
     },
     {
       "id": "00d4c72b-f694-441a-a192-e16f4b192440",
       "name": "Kiosk",
       "slug": "kiosk",
-      "productType": "physical",
+      "productType": "PHYSICAL",
       "visible": true,
-      "sku": "",
       "ribbon": "",
-      "price": 24999,
+      "price": "24999.00",
+      "priceMax": "24999.00",
       "currency": "INR",
       "formattedPrice": "₹24,999.00",
-      "discountedPrice": 24999,
+      "compareAtPrice": null,
       "inStock": true,
       "descriptionHtml": "<p><span style=\"font-weight: 700\">Put your location to work.</span></p><p>You already have the place.</p><p>A shop. An office. A store. A reception. Somewhere people already walk in, wait, ask questions, or look for something useful.</p><p>Kiosk turns that location into a WECARE.DIGITAL digital touchpoint.</p><p>Install the Android kiosk where visitors can comfortably use it to explore available WECARE.DIGITAL products and services.</p><p>When genuine eligible business is generated through your Kiosk and qualifies under the applicable Kiosk terms, you can earn commission.</p><p><span style=\"font-weight: 700\">You do not need to personally make every introduction.</span></p><p>Your location stays there. Your Kiosk can too.</p>",
-      "collectionIds": [
+      "categoryIds": [
         "30c68f9b-685f-40ab-825f-a9858c1932bd"
       ],
+      "mainCategoryId": "30c68f9b-685f-40ab-825f-a9858c1932bd",
       "optionCount": 0,
-      "variantCount": 0,
-      "mediaCount": 0
+      "modifierCount": 0,
+      "variantCount": 1,
+      "mediaCount": 0,
+      "infoSectionCount": 10,
+      "productUrl": "https://xout.wecare.digital/product-page/kiosk"
     },
     {
       "id": "f05c3a28-0d2f-4cae-ab6c-c0b68635b951",
       "name": "Merchandise",
       "slug": "merchandise",
-      "productType": "physical",
+      "productType": "PHYSICAL",
       "visible": true,
-      "sku": "",
       "ribbon": "",
-      "price": 1199,
+      "price": "1199.00",
+      "priceMax": "1199.00",
       "currency": "INR",
       "formattedPrice": "₹1,199.00",
-      "discountedPrice": 1199,
+      "compareAtPrice": null,
       "inStock": true,
       "descriptionHtml": "<p><span style=\"font-weight: 700\">Show up. Stay remembered.</span></p><p>Some connections begin online. The good ones often continue in the real world.</p><p>At work, at a meeting, at an event, or during a conversation with someone who wants to know more about WECARE.DIGITAL, this essentials set gives you practical things you can actually use.</p><p>You receive a <span style=\"font-weight: 700\">WECARE.DIGITAL branded T-shirt, branded pen, and 50 standard company business cards</span>.</p><p>Wear the brand. Keep the pen close. Leave the right company details behind when a conversation should continue.</p><p><span style=\"font-weight: 700\">Simple, practical, and made to be used.</span></p>",
-      "collectionIds": [
+      "categoryIds": [
         "30c68f9b-685f-40ab-825f-a9858c1932bd"
       ],
+      "mainCategoryId": "30c68f9b-685f-40ab-825f-a9858c1932bd",
       "optionCount": 2,
-      "variantCount": 0,
-      "mediaCount": 0
+      "modifierCount": 0,
+      "variantCount": 10,
+      "mediaCount": 0,
+      "infoSectionCount": 8,
+      "productUrl": "https://xout.wecare.digital/product-page/merchandise"
     },
     {
       "id": "5dc936ba-2f6a-4f44-afb0-4ddc345e5ff8",
       "name": "Paperwork",
       "slug": "paperwork",
-      "productType": "physical",
+      "productType": "PHYSICAL",
       "visible": true,
-      "sku": "",
       "ribbon": "",
-      "price": 3499,
+      "price": "3499.00",
+      "priceMax": "3499.00",
       "currency": "INR",
       "formattedPrice": "₹3,499.00",
-      "discountedPrice": 3499,
+      "compareAtPrice": null,
       "inStock": true,
       "descriptionHtml": "<p><span style=\"font-weight: 700\">Turn what you’ve agreed into clear, organised documentation.</span></p><p>When the important decisions are already substantially agreed, Paperwork helps you turn those decisions into clear, organised divorce documentation — one step at a time.</p><p>Answer a guided set of questions and tell us what both of you have agreed.</p><p>CLEAR CLOSURE prepares the applicable documents for your review. You check the details carefully, complete the required signatures, and then manage filing yourself or through an independent advocate.</p><p><span style=\"font-weight: 700\">Paperwork helps with documentation. It does not negotiate disagreements or represent you in court.</span></p>",
-      "collectionIds": [
+      "categoryIds": [
         "30c68f9b-685f-40ab-825f-a9858c1932bd"
       ],
+      "mainCategoryId": "30c68f9b-685f-40ab-825f-a9858c1932bd",
       "optionCount": 0,
-      "variantCount": 0,
-      "mediaCount": 0
+      "modifierCount": 0,
+      "variantCount": 1,
+      "mediaCount": 0,
+      "infoSectionCount": 9,
+      "productUrl": "https://xout.wecare.digital/product-page/paperwork"
     },
     {
       "id": "bdd1a107-90ad-42cd-9f8f-516e14dda7dc",
       "name": "Referral Partner",
       "slug": "referral-partner",
-      "productType": "physical",
+      "productType": "PHYSICAL",
       "visible": true,
-      "sku": "",
       "ribbon": "",
-      "price": 999,
+      "price": "999.00",
+      "priceMax": "999.00",
       "currency": "INR",
       "formattedPrice": "₹999.00",
-      "discountedPrice": 999,
+      "compareAtPrice": null,
       "inStock": true,
       "descriptionHtml": "<p><span style=\"font-weight: 700\">Make the introductions you already make count.</span></p><p>Someone asks you:</p><p><span style=\"font-weight: 700\">“Do you know someone who can help with this?”</span></p><p>You probably already have these conversations with clients, customers, businesses, friends, or people in your network.</p><p>Usually, you make the introduction and your part ends there.</p><p>Referral Partner gives the right introductions a way to create value for you too.</p><p>Join for a one-time <span style=\"font-weight: 700\">₹999 enrollment</span>. We activate your Referral Partner account and send your unique referral code and getting-started details to you on WhatsApp.</p><p>When you meet someone who could genuinely benefit from a WECARE.DIGITAL product or service, introduce them to us.</p><p>If that referral becomes qualifying business, you earn according to the applicable Referral Partner terms.</p><p><span style=\"font-weight: 700\">You bring the customer. WECARE.DIGITAL takes it from there.</span></p>",
-      "collectionIds": [
+      "categoryIds": [
         "30c68f9b-685f-40ab-825f-a9858c1932bd"
       ],
+      "mainCategoryId": "30c68f9b-685f-40ab-825f-a9858c1932bd",
       "optionCount": 0,
-      "variantCount": 0,
-      "mediaCount": 0
+      "modifierCount": 0,
+      "variantCount": 1,
+      "mediaCount": 0,
+      "infoSectionCount": 7,
+      "productUrl": "https://xout.wecare.digital/product-page/referral-partner"
     },
     {
       "id": "21dbe8bf-4c43-4f3d-9f13-b421215ebf07",
       "name": "Viveka",
       "slug": "viveka",
-      "productType": "physical",
+      "productType": "PHYSICAL",
       "visible": true,
-      "sku": "",
       "ribbon": "",
-      "price": 599,
+      "price": "599.00",
+      "priceMax": "599.00",
       "currency": "INR",
       "formattedPrice": "₹599.00",
-      "discountedPrice": 599,
+      "compareAtPrice": null,
       "inStock": true,
       "descriptionHtml": "<p><span style=\"font-weight: 700\">Think it through before you decide.</span></p><p>You’ve already thought about it.</p><p>You may have compared the options, spoken to people you trust, and gone over the same possibilities more than once. Yet something still feels unsettled.</p><p>Viveka gives you a thoughtful written reflection on a decision that matters to you.</p><p>Share what is happening in your own words. We read it carefully and reflect back what appears important, what may be shaping your thinking, where the real tension may be, and what could deserve another look before you act.</p><p><span style=\"font-weight: 700\">No calls. No meetings. Just a considered written reflection you can read in your own time and return to whenever you need another look.</span></p>",
-      "collectionIds": [
+      "categoryIds": [
         "30c68f9b-685f-40ab-825f-a9858c1932bd"
       ],
+      "mainCategoryId": "30c68f9b-685f-40ab-825f-a9858c1932bd",
       "optionCount": 0,
-      "variantCount": 0,
-      "mediaCount": 0
+      "modifierCount": 0,
+      "variantCount": 1,
+      "mediaCount": 0,
+      "infoSectionCount": 7,
+      "productUrl": "https://xout.wecare.digital/product-page/viveka"
     }
   ]
 }
