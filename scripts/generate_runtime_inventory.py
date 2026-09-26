@@ -275,15 +275,29 @@ def main() -> int:
              if " " in (r["routeKey"] or "")}
     callers = frontend_route_callers(paths)
 
-    # log retention per function, best effort
+    # Log retention per function.
+    #
+    # Two names are tried, because a Lambda@Edge replica's log group is
+    # `/aws/lambda/us-east-1.<fn>` - the region is inside the name, so the plain
+    # `/aws/lambda/<fn>` prefix can never match it. Without the fallback,
+    # `wecare-get-miss-redirect` reported retention `None`, which is not the same as
+    # "no retention" and was therefore excluded from the anomaly count: an unknown
+    # read as fine. Note CloudFront also writes Edge logs in the region nearest the
+    # viewer, so a us-east-1 lookup can still miss a replica elsewhere -
+    # `scripts/provision_log_retention.py` is the multi-region check.
     retention: dict[str, object] = {}
     for fn in names:
-        try:
-            lg = logs.describe_log_groups(
-                logGroupNamePrefix=f"/aws/lambda/{fn}", limit=1).get("logGroups", [])
-            retention[fn] = lg[0].get("retentionInDays", "never expires") if lg else None
-        except (ClientError, BotoCoreError):
-            retention[fn] = None
+        retention[fn] = "no log group"
+        for candidate in (f"/aws/lambda/{fn}", f"/aws/lambda/{REGION}.{fn}"):
+            try:
+                lg = logs.describe_log_groups(
+                    logGroupNamePrefix=candidate, limit=1).get("logGroups", [])
+            except (ClientError, BotoCoreError):
+                retention[fn] = None
+                break
+            if lg:
+                retention[fn] = lg[0].get("retentionInDays", "never expires")
+                break
 
     rows = []
     for f in sorted(funcs, key=lambda x: x["FunctionName"]):
@@ -338,8 +352,14 @@ def main() -> int:
             if not r["routeCount"] and not r["eventSources"]
             and r["invocations7d"] == 0
         ],
+        # `None` means the lookup itself failed, and "no log group" means the function
+        # has never written one. Neither is "has a retention policy", so neither is
+        # counted as clean - the previous check compared only against "never expires",
+        # so an unreadable or unmatched group silently passed.
         "logsNeverExpire": [r["function"] for r in rows
                             if r["logRetentionDays"] == "never expires"],
+        "logRetentionUnknown": [r["function"] for r in rows
+                                if r["logRetentionDays"] is None],
         "routesWithoutFrontendCaller": sorted(
             p for p, c in callers.items() if not c),
     }

@@ -1,0 +1,119 @@
+# Frontend route retirement
+
+Measured **2026-09-25** against Amplify app `d22dm4b0jn71jw` (`GetApp.customRules`) and
+`docs/execution/runtime-inventory.json`.
+
+`bw-crm.md` requires that no page is deleted from static-reference counts alone, and
+that every retirement records owner, dependencies, replacement, redirect, tests and
+rollback. This file is the register. It is **not** a deletion authority: a row here
+with no redirect and no replacement is a candidate, not a decision.
+
+## Why redirects live in Amplify, not in Next
+
+Production is a Next.js **static export** (`output: export`). Next `redirects()` and
+`headers()` do not apply — the build says so explicitly. So every redirect below is an
+Amplify `customRules` entry, which is the hosting layer that actually serves them, and
+the app-level rules **override** anything the repository implies. Verify against
+`GetApp`, never against `next.config.js`.
+
+## Live redirect rules — 23 total
+
+Measured, in the order Amplify evaluates them. Order matters: the catch-all must stay
+last or it shadows everything after it.
+
+| # | Source | Target | Status | Purpose |
+|--:|---|---|:-:|---|
+| 1 | `https://www.wecare.digital` | `https://wecare.digital` | 301 | apex canonicalisation |
+| 2 | `/get` | `/get/index.html` | 200 | rewrite, not a retirement |
+| 3 | `/get/` | `/get/index.html` | 200 | trailing-slash form |
+| 4 | `/get/<*>` | `d1kf2rchz7yras.cloudfront.net/<*>` | 200 | secure-file delivery origin |
+| 5 | `/dm/calls` | `/dm/inbox/?channel=voice` | **301** | provider inbox → Common Inbox filter |
+| 6 | `/dm/calls/` | `/dm/inbox/?channel=voice` | **301** | trailing-slash form |
+| 7 | `/dm/rcs/inbox` | `/dm/inbox/?channel=rcs` | **301** | provider inbox → filter |
+| 8 | `/dm/rcs/inbox/` | `/dm/inbox/?channel=rcs` | **301** | trailing-slash form |
+| 9 | `/dm/ses/inbox` | `/dm/inbox/?channel=email` | **301** | provider inbox → filter |
+| 10 | `/dm/ses/inbox/` | `/dm/inbox/?channel=email` | **301** | trailing-slash form |
+| 11 | `/dm/whatsapp/logs` | `/dm/logs/?channel=whatsapp` | **301** | per-provider log page → one log page |
+| 12 | `/dm/whatsapp/logs/` | `/dm/logs/?channel=whatsapp` | **301** | trailing-slash form |
+| 13 | `/dm/rcs/logs` | `/dm/logs/?channel=rcs` | **301** | per-provider log page → one log page |
+| 14 | `/dm/rcs/logs/` | `/dm/logs/?channel=rcs` | **301** | trailing-slash form |
+| 15 | `/dm/ses/logs` | `/dm/logs/?channel=email` | **301** | per-provider log page → one log page |
+| 16 | `/dm/ses/logs/` | `/dm/logs/?channel=email` | **301** | trailing-slash form |
+| 17 | `/dm/rcs/campaign` | `/dm/broadcast/` | **301** | per-provider campaign → one broadcast |
+| 18 | `/dm/rcs/campaign/` | `/dm/broadcast/` | **301** | trailing-slash form |
+| 19 | `/dm/ses/campaign` | `/dm/broadcast/` | **301** | per-provider campaign → one broadcast |
+| 20 | `/dm/ses/campaign/` | `/dm/broadcast/` | **301** | trailing-slash form |
+| 21 | `/link/logs` | `/link/` | **301** | sub-page folded into its parent |
+| 22 | `/link/logs/` | `/link/` | **301** | trailing-slash form |
+| 23 | `/<*>` | `/index.html` | 404-200 | SPA catch-all. **Must stay last** |
+
+**18 of the 23 are 301 retirements**, covering 9 distinct retired paths in both their
+bare and trailing-slash forms. Both forms are required: a static host does not treat
+`/dm/calls` and `/dm/calls/` as the same key, so a single rule leaves one of them 404.
+
+Every retired path preserves intent rather than dumping the user at a hub: the channel
+becomes a query parameter (`?channel=voice|rcs|email`) on the surviving page. That is
+the difference between a redirect and a dead end.
+
+### What these rules replaced
+
+Per-provider inboxes, per-provider log pages and per-provider campaign pages. The
+consolidation target is the three-entry communications rule: **Common Inbox**,
+**WhatsApp Business**, **Business Calling** — so a provider-specific inbox cannot
+survive as a fourth entry. It survives as a filter.
+
+## Rollback
+
+`docs/execution/snapshots/amplify-custom-rules-before-8.4.json` holds the pre-8.4 rule
+set. Restore with `aws amplify update-app --app-id d22dm4b0jn71jw --custom-rules ...`.
+Amplify also retains every build, so the frontend itself rolls back by redeploying an
+earlier job.
+
+Removing a rule is not free: the source path 404s again for anyone holding a bookmark
+or an indexed link. Prefer leaving a 301 in place indefinitely over reclaiming the
+tidiness.
+
+## Candidates, not decisions
+
+`117` route **API** paths are mentioned by no frontend file
+(`anomalies.routesWithoutFrontendCaller` in the runtime inventory, re-derived
+2026-09-25; the earlier figure of 95 was stale against 361 live routes).
+
+That number is **not** a deletion list, for three reasons measured rather than assumed:
+
+1. Most are provider webhooks — Meta, Razorpay, Plivo and Sinch callbacks — which by
+   definition no frontend calls.
+2. Some are invoked Lambda-to-Lambda, where the caller is Python, not `src/**`.
+3. The join is textual. A path assembled by string concatenation is missed, so absence
+   from the list is weaker evidence than presence on it.
+
+Before any route is deleted it needs: the integration and caller resolved, traffic
+evidence over a stated window, a signed-webhook-versus-unintended-public
+classification, and an exported route + integration JSON for rollback — the same gate
+`docs/prohibited-provider-retirement.md` applies to provider surfaces. Two dangling
+routes were removed that way in September, and the deletions are recorded in
+`docs/deleted-routes-*.json`.
+
+## Verify
+
+```bash
+aws amplify get-app --app-id d22dm4b0jn71jw --query 'app.customRules'
+python scripts/generate_runtime_inventory.py   # re-derives the 117
+curl -sI https://wecare.digital/dm/calls       # expect 301
+```
+
+Use **`wecare.digital`**, not `stack.wecare.digital`. The `stack` CNAME
+(`d2av2go6w170k.cloudfront.net`) was removed on 2026-09-25 and no longer resolves;
+the snapshot is at
+`docs/execution/snapshots/route53-stack-cname-before-removal.json`. Older documents,
+including `bw-crm.md` itself, still name `stack.wecare.digital` as the live host.
+
+Probed on 2026-09-25 against `wecare.digital`, all four confirmed **301** with the
+filter intent intact:
+
+| Probe | Result |
+|---|---|
+| `/dm/calls` | `301 → /dm/inbox/?channel=voice` |
+| `/dm/rcs/inbox` | `301 → /dm/inbox/?channel=rcs` |
+| `/dm/ses/logs` | `301 → /dm/logs/?channel=email` |
+| `/link/logs` | `301 → /link/` |

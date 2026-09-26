@@ -10,6 +10,7 @@
       "wecare-get-miss-redirect",
       "wecare-seo-tools"
     ],
+    "logRetentionUnknown": [],
     "logsNeverExpire": [],
     "noLiveAliasButHasRoutes": [
       "wecare-docs-scraper",
@@ -1075,8 +1076,8 @@
       "function": "stack-wecare-url-shortener",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 96.0,
-      "invocations7d": 604.0,
+      "invocations24h": 98.0,
+      "invocations7d": 607.0,
       "lastModified": "2026-09-25T11:01:51.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -1260,8 +1261,8 @@
       "function": "wecare-ai-generate-response",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1.0,
-      "invocations7d": 51.0,
+      "invocations24h": 2.0,
+      "invocations7d": 52.0,
       "lastModified": "2026-09-25T11:04:24.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -1559,8 +1560,8 @@
       "function": "wecare-bulk-worker",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1.0,
-      "invocations7d": 35.0,
+      "invocations24h": 2.0,
+      "invocations7d": 36.0,
       "lastModified": "2026-09-25T11:04:45.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -1958,7 +1959,7 @@
       "invocations7d": 0.0,
       "lastModified": "2026-09-25T03:25:21.000+0000",
       "layers": [],
-      "logRetentionDays": null,
+      "logRetentionDays": 30,
       "memoryMb": 128,
       "packageType": "Zip",
       "role": "wecare-get-miss-redirect-edge-role",
@@ -1971,12 +1972,12 @@
     },
     {
       "aliases": {
-        "live": "50"
+        "live": "51"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "spuAefCIO76sit/FErqUH3hAy/YdNWJGbqmjSJ2hpho=",
+      "codeSha256": "5h9Jp6OHbB8QeQo2rU1NBB82HQ19Mb9TTkxQ3uiEVcU=",
       "deadLetterArn": null,
       "envNames": [
         "CONTACTS_TABLE",
@@ -1994,9 +1995,9 @@
       "function": "wecare-inbound-whatsapp",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 104.0,
-      "invocations7d": 1107.0,
-      "lastModified": "2026-09-25T11:01:57.000+0000",
+      "invocations24h": 106.0,
+      "invocations7d": 1109.0,
+      "lastModified": "2026-09-26T00:42:21.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -2460,8 +2461,8 @@
       "function": "wecare-outbound-whatsapp",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 94.0,
-      "invocations7d": 605.0,
+      "invocations24h": 100.0,
+      "invocations7d": 617.0,
       "lastModified": "2026-09-25T11:02:00.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -2702,8 +2703,8 @@
       "function": "wecare-product-image-gen",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1.0,
-      "invocations7d": 35.0,
+      "invocations24h": 2.0,
+      "invocations7d": 36.0,
       "lastModified": "2026-09-25T11:05:43.000+0000",
       "layers": [
         "Klayers-p312-Pillow:10"
@@ -2833,8 +2834,8 @@
       "function": "wecare-razorpay-webhook",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 742.0,
-      "invocations7d": 5135.0,
+      "invocations24h": 740.0,
+      "invocations7d": 5143.0,
       "lastModified": "2026-09-25T11:33:08.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -2872,8 +2873,8 @@
       "function": "wecare-rcs-dlr",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 122.0,
-      "invocations7d": 766.0,
+      "invocations24h": 135.0,
+      "invocations7d": 791.0,
       "lastModified": "2026-09-25T11:03:50.000+0000",
       "layers": [],
       "logRetentionDays": 90,
@@ -2916,8 +2917,8 @@
       "function": "wecare-rcs-send",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 78.0,
-      "invocations7d": 408.0,
+      "invocations24h": 84.0,
+      "invocations7d": 420.0,
       "lastModified": "2026-09-25T11:03:44.000+0000",
       "layers": [],
       "logRetentionDays": 90,
@@ -3047,7 +3048,7 @@
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "+dBGBU4bL7ELPK02245wE+8NheJuu6ryp4eDHxRQvZQ=",
+      "codeSha256": "cjV0C/hk/yyvtohbcB92BNOfSk4sYyGEAEN3fYWhqNs=",
       "deadLetterArn": null,
       "envNames": [
         "BEDROCK_MODEL_ID",
@@ -3072,9 +3073,9 @@
       "function": "wecare-seo-tools",
       "hasLiveAlias": false,
       "inDeployMap": false,
-      "invocations24h": 23187.0,
-      "invocations7d": 45010.0,
-      "lastModified": "2026-09-25T14:05:43.000+0000",
+      "invocations24h": 25165.0,
+      "invocations7d": 47876.0,
+      "lastModified": "2026-09-26T00:49:13.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 512,
@@ -3154,8 +3155,8 @@
       "function": "wecare-site-language",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 3437.0,
-      "invocations7d": 11481.0,
+      "invocations24h": 3282.0,
+      "invocations7d": 11658.0,
       "lastModified": "2026-09-25T11:01:37.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -3485,8 +3486,8 @@
       "function": "wecare-voice-in-c2c",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1.0,
-      "invocations7d": 39.0,
+      "invocations24h": 2.0,
+      "invocations7d": 40.0,
       "lastModified": "2026-09-25T11:03:25.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -3533,8 +3534,8 @@
       "function": "wecare-voice-in-obd",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1.0,
-      "invocations7d": 38.0,
+      "invocations24h": 2.0,
+      "invocations7d": 39.0,
       "lastModified": "2026-09-25T11:03:31.000+0000",
       "layers": [],
       "logRetentionDays": 30,
@@ -3655,8 +3656,8 @@
       "function": "wecare-whatsapp-business-api",
       "hasLiveAlias": true,
       "inDeployMap": true,
-      "invocations24h": 1209.0,
-      "invocations7d": 8073.0,
+      "invocations24h": 1216.0,
+      "invocations7d": 8080.0,
       "lastModified": "2026-09-25T11:02:34.000+0000",
       "layers": [
         "cryptography-python312:1"
@@ -3769,12 +3770,12 @@
     },
     {
       "aliases": {
-        "live": "23"
+        "live": "24"
       },
       "architectures": [
         "x86_64"
       ],
-      "codeSha256": "KVH+wdbO7cueakpK7SiFHgRBIFVkTd4H6W5Nv8bEutM=",
+      "codeSha256": "QA1VvuVXCe5/MDLIZfAx5A7m2PPmdyjgj6ggqVR8EtA=",
       "deadLetterArn": null,
       "envNames": [
         "AI_LANGUAGE",
@@ -3808,7 +3809,7 @@
       "inDeployMap": true,
       "invocations24h": 103.0,
       "invocations7d": 1655.0,
-      "lastModified": "2026-09-25T11:02:07.000+0000",
+      "lastModified": "2026-09-26T00:42:24.000+0000",
       "layers": [],
       "logRetentionDays": 30,
       "memoryMb": 256,
@@ -4018,7 +4019,7 @@
       "timeoutSec": 60
     }
   ],
-  "generated": "2026-09-26T00:35:45+00:00",
+  "generated": "2026-09-26T01:13:09+00:00",
   "region": "us-east-1",
   "routes": [
     {
