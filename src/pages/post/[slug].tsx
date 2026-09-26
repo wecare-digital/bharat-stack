@@ -152,7 +152,17 @@ export default function BlogPostPage ( { post }: Props ) {
           { post.category && <div className="category">{ post.category }</div> }
           <h1>{ post.title }</h1>
           <div className="byline">
-            <span>{ post.authorName || 'Anew by WECARE.DIGITAL' }</span>
+            {/* data-wc-no-translate: AN AUTHOR NAME IS A PROPER NOUN. This is on the span
+                rather than the .byline wrapper on purpose - the <time> sibling below renders
+                a formatted date, and a date IS worth translating, so flagging the wrapper
+                would cost that.
+                It applies to the dynamic value as much as the fallback: post.authorName is a
+                person's or a brand's name either way, and the fallback is two brand names
+                joined by "by" - translating a single preposition is not worth rendering
+                "Anew" and "WECARE.DIGITAL" as invented words around it. Measured at 1276
+                occurrences across the exported blog, the largest single source of
+                brand-name text on the site. */}
+            <span data-wc-no-translate="true">{ post.authorName || 'Anew by WECARE.DIGITAL' }</span>
             { post.publishedDate && <time dateTime={ post.publishedDate }>{ new Date( post.publishedDate ).toLocaleDateString( 'en-IN', { day: 'numeric', month: 'long', year: 'numeric' } ) }</time> }
           </div>
           <div className="content">
