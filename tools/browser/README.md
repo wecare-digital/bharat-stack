@@ -196,7 +196,7 @@ the hierarchy inverted and the h2 read as the larger of the two.
   `h2`). Correctly small; scaling them would be a regression.
 - `RUNG_EXCEPTIONS` — genuine section headings deliberately off the rung, each needing a
   recorded reason. Currently one entry: `.lgd-h2` stays at 28px because `/terms/` and
-  `/privacy/` carry 45 numbered legal sections between them, and at 40px each clause
+  `/privacy/` carry 71 numbered legal sections between them (47 and 24), and at 40px each clause
   heading reads as a page title. Reported, not failed, with the reason printed.
 
 An exception with no justification is drift with a comment on it — the default answer is no.

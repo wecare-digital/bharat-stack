@@ -40,7 +40,7 @@ measures the resolved clamp rather than the source string:
 npm run build && node tools/browser/typecheck.js
 ```
 
-`.lgd-h2` on `/terms/` and `/privacy/` stays at 28px — 45 numbered legal sections at 40px
+`.lgd-h2` on `/terms/` and `/privacy/` stays at 28px — 71 numbered legal sections at 40px
 would read as 45 page titles — and `.lgd-toc-title` (14px, uppercase, letter-spaced) is an
 eyebrow that happens to be marked up as an `h2`, not a section heading. The harness reports
 both rather than failing them.
