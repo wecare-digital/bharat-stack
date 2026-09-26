@@ -42,36 +42,69 @@ and shipment.
 
 ---
 
-## R0 — Unblock the Wix credential (blocking, owner-only)
+## R0 — Wix credential ✅ RESOLVED 2026-09-26
 
-**User story.** As the owner, I need the Wix Headless credential to exist in AWS Secrets
-Manager so that every downstream requirement can be built and verified against the real
-site rather than against assumptions.
+**Closed.** The owner supplied an admin API key and it is stored, verified and live.
 
-Wix is currently off four independent ways: the secret holds no value, the Lambda has no
-pointer to it, the kill switch is on, and the provisioning script pointed at a name that
-never existed (that fourth one is fixed). No credential is recoverable from any authorized
-location — the maintenance source contains zero `IST.`-prefixed tokens.
+| Step | Evidence |
+|---|---|
+| Key stored | `sync_pasted_credentials.py`, staging file shredded; `versionCount: 1`, `holdsValue: true` |
+| Provider accepts it | `check_secrets_live.py --only wix` → `VALID`, Catalog V3 answered |
+| Function pointed at it | `WIX_API_KEY_SECRET` added to `wecare-wix-store` |
+| Kill switch cleared | `WIX_CREDENTIALS_DISABLED` removed (`wasDisabled: true` → `false`) |
+| Reached production | v22 published, `live` alias moved from v21; rollback `update-alias … --function-version 21` |
+| End-to-end proof | Direct invoke of `wecare-wix-store:live` returned 3 real products (Viveka ₹599, Paperwork ₹3499, File Assist ₹6999), all in stock |
+| Recovery copies | `secrets_backup.py` refreshed local + S3 SSE-KMS, both verified |
 
-**Acceptance criteria**
+**Catalog V3 is now `LIVE`-verified, not inferred** — 7 products, 1 category via
+`/stores/v3/products/query`. This closes the prompt's §0.6.
 
-1. WHEN the owner mints a Wix Headless OAuth client secret in the Wix dashboard THEN it
-   SHALL be stored by `python scripts/set_wix_credential.py --client-secret --verify-oauth`,
-   which takes the value at a hidden prompt, never in argv.
-2. WHEN `--verify-oauth` runs THEN the `client_credentials` exchange SHALL return an
-   access token, and the report SHALL contain a token length and expiry but no token.
-3. WHEN the credential is stored THEN `python scripts/set_wix_credential.py --status` SHALL
-   report `holdsValue: true` and a non-zero `versionCount`.
-4. WHEN the credential is verified THEN `--set-env` SHALL write only the secret's **name**
-   into `wecare-wix-store`'s environment.
-5. WHEN all of the above pass THEN clearing `WIX_CREDENTIALS_DISABLED` SHALL be presented
-   as a separate, explicit decision, because it is the step that makes Wix live.
-6. The system SHALL NOT be reported as capability-verified while this requirement is open.
-   Catalog version, installed apps and Invoices availability are `BLOCKED`, not `V3` and
-   not `available`.
+### ⚠️ Carried forward: this key must be rotated
 
-**Why it cannot be worked around.** Wix displays an API key or client secret exactly once,
-at creation. There is no read-back API.
+It was pasted into a chat transcript, so it is in `~/.kiro/logs` and the session history.
+`docs/wix-headless.md` records the previous key being burned the same way. Rotation is
+owner-only and is the one remaining credential action:
+
+```
+python scripts/set_wix_credential.py --verify        # mint new key, store, prove
+# then revoke the old key in the Wix dashboard, second, so there is no keyless window
+```
+
+### ⚠️ Unresolved: site-id discrepancy
+
+`/site-list/v2/sites/query` reports **exactly one** site on the account:
+
+| Site id | Name | Published | Configured here |
+|---|---|---|---|
+| `c17b0e20-d96d-4fa1-b05c-bc97c04b4ac5` | WECARE.DIGITAL | `false` | no |
+| `fcd82f0c-9572-49c7-acfb-88fb05042ece` | — | — | **yes** (owner-supplied Headless Site ID) |
+
+Both ids return the same 7 products, but category counts differ (1 vs 4), so the
+`wix-site-id` header is honoured rather than ignored. The reading consistent with
+`docs/wix-headless.md` is that `c17b0e20` is the retired Editor site — unpublished, more
+legacy categories — and `fcd82f0c` is the headless project, which `site-list` does not
+enumerate.
+
+`fcd82f0c` is retained: the owner named it, the repo and live env agree, and it serves the
+catalog. **The owner SHALL confirm in the Wix dashboard which id is the live headless
+project before Phase 8 (cart/checkout) writes any order.** Reading a catalog from the wrong
+site is recoverable; creating orders against it is not.
+
+### Remaining acceptance criteria (R0 successor work)
+
+1. ✅ The credential SHALL be stored without ever appearing in argv. Met via the staging
+   file path, which takes a PATH as its only argument.
+2. ⏳ The permanent API key SHALL be replaced by the OAuth `client_credentials` grant via
+   `python scripts/set_wix_credential.py --client-secret --verify-oauth`. The API key is
+   preserved alongside it so the new mechanism can be proven before the old is dropped.
+3. ⚠️ The current key SHALL be rotated, because it was disclosed in a chat transcript.
+4. ⚠️ The site id SHALL be confirmed against the Wix dashboard before any order is written.
+5. ⏳ Installed apps and Invoices/Receipts availability remain unverified and SHALL NOT be
+   reported as available until probed.
+
+**Note for future credential work.** Wix displays an API key or client secret exactly once,
+at creation, and there is no read-back API — so a lost value is unrecoverable and a
+disclosed value is unfixable except by rotation.
 
 ---
 

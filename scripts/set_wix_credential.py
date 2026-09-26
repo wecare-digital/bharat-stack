@@ -282,9 +282,14 @@ def verify() -> dict:
         SecretId=SECRET_NAME)["SecretString"]
     key = json.loads(raw)["api_key"]
 
+    # Ask for a full page, not one row. This used to send `limit: 1` and then report
+    # `matchesConfiguredSiteId` from that single row - an assertion that could only ever
+    # be true by luck. On 2026-09-26 it reported `false` against a correctly configured
+    # site simply because a different site sorted first, which reads as "wrong site
+    # configured" and would send someone to change a correct value.
     request = urllib.request.Request(
         f"{WIX_API_BASE}/site-list/v2/sites/query",
-        data=json.dumps({"query": {"paging": {"limit": 1}}}).encode(),
+        data=json.dumps({"query": {"paging": {"limit": 100}}}).encode(),
         headers={
             "Authorization": key,
             "Content-Type": "application/json",
@@ -296,14 +301,25 @@ def verify() -> dict:
         with urllib.request.urlopen(request, timeout=20) as response:
             body = json.loads(response.read().decode() or "{}")
         sites = body.get("sites") or []
+        # Site ids and display names are not credentials. Listing them is what makes the
+        # "is the configured site the right one?" question answerable instead of guessed.
+        inventory = [
+            {
+                "id": s.get("id"),
+                "name": s.get("displayName", ""),
+                "published": s.get("published", False),
+                "isConfigured": s.get("id") == WIX_SITE_ID,
+            }
+            for s in sites
+        ]
         return {
             "accepted": True,
             "httpStatus": 200,
             "sitesVisible": len(sites),
-            # Confirms the key is scoped to the account we think it is.
-            "firstSiteId": (sites[0].get("id") if sites else None),
-            "matchesConfiguredSiteId": any(
-                s.get("id") == WIX_SITE_ID for s in sites),
+            "totalResults": body.get("totalResults"),
+            "configuredSiteId": WIX_SITE_ID,
+            "matchesConfiguredSiteId": any(s["isConfigured"] for s in inventory),
+            "sites": inventory,
         }
     except urllib.error.HTTPError as exc:
         detail = ""
@@ -438,11 +454,21 @@ def main() -> int:
         print(json.dumps(status(), indent=2))
         return 0
 
-    # --verify-oauth on its own verifies what is already stored, without prompting for a
-    # new value. Re-prompting would invite the operator to paste a credential they did
-    # not need to touch.
-    if args.verify_oauth and not args.client_secret:
-        print("oauth verification:", json.dumps(verify_client_credentials(), indent=2))
+    # Operational flags run standalone against whatever is already stored. Originally all
+    # of these were reachable only AFTER read_key_hidden(), so pointing the Lambda at an
+    # already-stored secret, or clearing the kill switch, forced the operator to re-paste
+    # a credential they had no reason to touch. Re-pasting a secret to perform an
+    # operation that does not need it is how a secret ends up somewhere new.
+    standalone = (args.verify_oauth or args.verify or args.set_env or args.enable)
+    if standalone and not args.client_secret:
+        if args.set_env:
+            print("env pointer:", json.dumps(set_env_pointer(), indent=2))
+        if args.enable:
+            print("kill switch:", json.dumps(enable(), indent=2))
+        if args.verify:
+            print("provider verification:", json.dumps(verify(), indent=2))
+        if args.verify_oauth:
+            print("oauth verification:", json.dumps(verify_client_credentials(), indent=2))
         return 0
 
     if args.client_secret:

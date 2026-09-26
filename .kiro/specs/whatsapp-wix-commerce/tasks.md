@@ -102,17 +102,20 @@ exiting zero is not verification.
 
 ---
 
-## ⛔ R0 GATE — owner action required
+## ✅ R0 GATE — CLEARED 2026-09-26
 
-- [ ] R0.1 Owner mints a Wix Headless OAuth client secret in the Wix dashboard
-- [ ] R0.2 `python scripts/set_wix_credential.py --client-secret --verify-oauth`
-  - _Verify: `accepted: true` with a token expiry and no token value printed_
-- [ ] R0.3 `python scripts/set_wix_credential.py --status` → `holdsValue: true`
-- [ ] R0.4 `--set-env` to write the secret **name** into `wecare-wix-store`
-- [ ] R0.5 Separate explicit decision on clearing `WIX_CREDENTIALS_DISABLED`
-- [ ] R0.6 Re-measure and update `docs/compatibility.md` §3: catalog version, installed
-      apps, Invoices/Receipts availability, cart/checkout contract
-  - These are currently `BLOCKED`, not `V3` and not `available`
+- [x] R0.1 Owner supplied the Wix Headless admin API key
+- [x] R0.2 Stored without argv exposure; staging file shredded
+- [x] R0.3 `--status` → `holdsValue: true`, `versionCount: 1`
+- [x] R0.4 `WIX_API_KEY_SECRET` pointer set on `wecare-wix-store`
+- [x] R0.5 `WIX_CREDENTIALS_DISABLED` cleared; v22 published, `live` alias moved from v21
+- [x] R0.6 Catalog version re-measured: **V3 confirmed live**, 7 products, 1 category
+- [x] R0.7 Live proof: `wecare-wix-store:live` returned real products
+- [x] R0.8 Encrypted local + S3 recovery copies refreshed and verified
+- [ ] R0.9 **Rotate the key** — it was pasted into a chat transcript
+- [ ] R0.10 **Confirm the site id** in the Wix dashboard before Phase 8 writes an order
+- [ ] R0.11 Probe installed apps and Invoices/Receipts availability
+- [ ] R0.12 Migrate to the `client_credentials` grant, then drop the API key field
 
 Everything below requires R0 closed.
 

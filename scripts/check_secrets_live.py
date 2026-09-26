@@ -179,19 +179,59 @@ def check_openai(s: dict) -> list[tuple[str, str, str, str]]:
 
 
 def check_wix(s: dict) -> list[tuple[str, str, str, str]]:
+    """Prove the Wix key works, and report which catalog version answered.
+
+    This function existed for months and was never registered in CHECKS below, so it
+    never ran. That is not a cosmetic oversight: it is why Wix was absent from the
+    synchronization matrix, and why `wecare/wix/headless-api-key` sat as an EMPTY
+    container from 2026-09-24 to 2026-09-26 with nothing reporting it. A checker that
+    is defined but unregistered is worse than no checker, because the matrix looks
+    complete.
+
+    It also probed `/stores-reader/v1/products/query` only - the legacy Stores V1
+    surface. The Lambda uses Catalog V3 throughout, so a V1-only probe could pass while
+    every call the code actually makes fails, or fail on a V3-only site and be written
+    off as "scoped elsewhere". Both versions are now probed and the answer is reported.
+    """
     key, site = s.get("api_key"), s.get("site_id")
     if not key:
         return []
+
     headers = {"Authorization": key, "Content-Type": "application/json"}
     if site:
         headers["wix-site-id"] = site
-    code, body = http("https://www.wixapis.com/stores-reader/v1/products/query",
-                      headers=headers, data=b'{"query":{"paging":{"limit":1}}}', method="POST")
-    if code == 200:
-        return [("api_key", "VALID", "Wix stores API answered", fp(key))]
-    if code in (401, 403):
-        return [("api_key", "INVALID", f"HTTP {code}", fp(key))]
-    return [("api_key", "UNTESTABLE", f"HTTP {code} - key may be scoped elsewhere", fp(key))]
+
+    # Catalog V3 first: it is what amplify/functions/ecommerce/wix-store/handler.py calls.
+    probes = (
+        ("v3", "https://www.wixapis.com/stores/v3/products/query",
+         b'{"query":{"cursorPaging":{"limit":1}}}'),
+        ("v1", "https://www.wixapis.com/stores-reader/v1/products/query",
+         b'{"query":{"paging":{"limit":1}}}'),
+    )
+
+    results = []
+    for version, url, payload in probes:
+        code, body = http(url, headers=headers, data=payload, method="POST")
+        if code == 200:
+            # Report the count, not just the status. Wix answers 200 with an empty
+            # result set for a site id that holds nothing, so a bare status check
+            # cannot distinguish "key works against the right site" from "key works
+            # and the site is wrong or empty". The count makes that visible.
+            items = body.get("products") if isinstance(body, dict) else None
+            count = len(items) if isinstance(items, list) else "?"
+            return [("api_key", "VALID",
+                     f"Wix Stores Catalog {version.upper()} answered, "
+                     f"{count} product(s) visible", fp(key))]
+        results.append((version, code))
+
+    codes = ", ".join(f"{v}=HTTP {c}" for v, c in results)
+    # An auth failure on BOTH surfaces is the key's fault. A non-auth failure on both is
+    # not - the key may be valid and simply not scoped to Stores, which is a different
+    # remediation and must not be reported as INVALID.
+    if all(code in (401, 403) for _, code in results):
+        return [("api_key", "INVALID", codes, fp(key))]
+    return [("api_key", "UNTESTABLE",
+             f"{codes} - key may be valid but not scoped to Stores", fp(key))]
 
 
 def check_shared_secret(s: dict, field: str, what: str) -> list[tuple[str, str, str, str]]:
@@ -203,6 +243,10 @@ def check_shared_secret(s: dict, field: str, what: str) -> list[tuple[str, str, 
 
 CHECKS = {
     "wecare/meta-system-user-token": check_meta,
+    # Registered 2026-09-26. check_wix was written and left unwired, so the one secret
+    # whose absence broke the whole commerce integration was the one secret nothing
+    # checked. Adding a checker without adding this line is a no-op.
+    "wecare/wix/headless-api-key": check_wix,
     "wecare/razorpay/api": check_razorpay,
     "wecare/plivo/api": check_plivo,
     "wecare/openai/api": check_openai,
