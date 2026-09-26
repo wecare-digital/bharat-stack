@@ -80,18 +80,29 @@ see locally.
 | `seocheck.js` | The document head of all 15 public routes plus the 4 retired stubs: singleton tags, og/twitter derived from the page's own title and description, uniqueness, lengths, canonical and `og:url`, JSON-LD parse and `@id` conflicts, and that a real browser actually lands on `/contact/` from every retired URL |
 | `typecheck.js` | Every visible `h1`/`h2`/`h3` on all 15 public routes at 2 widths; per-page consistency, the de-facto 40px rung, and the gap to the design contract |
 | `uicheck.js` | Header lockup centring, and the two floating widgets: equal diameter, shared centre line, even gap, and that the open language panel clears the un-coverable WhatsApp button — 4 viewports |
+| `homeprobe.js` | The home hero **off** the happy path: no-JS degradation, a viewport that changes after paint under reduced motion, the reduced-motion resting state, Tab stops that land on invisible controls, and whether anything above the fold is actionable |
 
 ## Current state
+
+Re-measured 2026-09-26 against `out/`. The `seocheck` and `uicheck` figures previously
+recorded here (12/12 and 28/28) were stale — both suites have grown since.
 
 | Script | Result |
 |---|---|
 | `animcheck.js` | **18/18** |
-| `seocheck.js` | **12/12** |
+| `seocheck.js` | **11/11** |
 | `typecheck.js` | **3/3** |
-| `uicheck.js` | **28/28** |
+| `uicheck.js` | **96/96** |
 | `contactcheck.js` | **12/13** — the one failure is blocked on a Google Maps API key |
+| `homeprobe.js` | **5/11** — six open defects, see `docs/home-design-audit-20260926.md` |
 
-The single remaining failure is left red deliberately. It is not tuned to pass.
+Those failures are left red deliberately. They are not tuned to pass.
+
+`homeprobe.js` exists because everything else here passed while six defects shipped. The
+other suites all measure one settled state: JS running, motion allowed, viewport fixed at
+load. Every `homeprobe` failure lives in a state none of them enters — JavaScript off,
+`prefers-reduced-motion`, or a resize after first paint. A suite that only tests the happy
+path has not tested the page.
 
 ### What `seocheck.js` found on its first run, and what it got wrong
 

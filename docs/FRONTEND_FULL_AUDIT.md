@@ -4,15 +4,31 @@ Supersedes the structural-only `FRONTEND_DUPLICATION_AUDIT.md`. Covers the home/
 per-page completeness (real vs stub vs mock), reachability, accessibility, and improvements.
 ~120 route pages under `src/pages`.
 
-## A. Home / public landing (`src/pages/index.tsx`) — was skipped before
-Substantial, SEO-rich, mobile-optimized marketing page. But real gaps:
-1. **No functional CTAs** — the hero and `.cta-section` are headings only; there is **no Get Started / Login / Sign Up / Book Demo button anywhere**. A landing page with zero conversion action.
-2. **No header nav and no footer** on the public page — no logo bar, no login link, no company/legal/privacy/contact links. Users can't navigate or reach the app.
-3. **Fake review schema** — hardcoded `aggregateRating 4.8 / ratingCount 150` in JSON-LD. Google can penalize/ignore fake review markup. Remove or make real.
-4. **`foundingDate: 2020`** in Organization schema, but the business/account is 2026. Inaccurate structured data.
-5. **Marketing API examples** reference `api.wecare.digital/v1/...` — verify that public API exists, else it's misleading.
-6. **Vague stat placeholders** — "B+ Users reachable", "Fast", "Secure" (not real numbers).
-7. **Fake interactivity** — usecase "pills" are `<button>` with `cursor:default` and no handler; should be real filters or `<span>`.
+## A. Home / public landing (`src/pages/index.tsx`) — RE-CHECKED 2026-09-26, mostly obsolete
+
+> **Do not work from this section.** It was written against a version of the home page that
+> no longer exists — the page has since been rewritten around a rotating headline, a
+> two-column workflow band and a closing band. Five of the seven items below are gone, and
+> the two that survive were **filed against the wrong file**, which is why they read as
+> fixed: the JSON-LD moved to `src/pages/_app.tsx` and is now on 17 and 123 built pages
+> rather than one. Current findings, measured:
+> **`docs/home-design-audit-20260926.md`**, with a re-runnable gate at
+> `tools/browser/homeprobe.js`.
+
+| # | Original claim | Status 2026-09-26 |
+|---|---|---|
+| 1 | **No functional CTAs** — zero conversion action | **STILL TRUE.** Measured: 0 visible interactive elements inside `<main>` above the fold at 1280×900, 1440×800 and 390×844. The only CTA is `.home-close-cta` at the very bottom. Blocked on owner decisions (wording, destination, price) |
+| 2 | No header nav and no footer | **OBSOLETE.** Both mount sitewide — `_app.tsx:579`, `:584`, `:1044`, `:1046` |
+| 3 | **Fake review schema** `aggregateRating 4.8 / ratingCount 150` | **STILL TRUE, WRONG FILE.** Not in `index.tsx` — `_app.tsx:306-312`, shipping on **17** built pages |
+| 4 | **`foundingDate: 2020`** | **STILL TRUE, WRONG FILE.** `_app.tsx:252`, shipping on **123** built pages |
+| 5 | `api.wecare.digital/v1/...` examples | **OBSOLETE.** No such example remains on this page |
+| 6 | Vague stat placeholders ("B+ Users reachable") | **OBSOLETE.** None on this page |
+| 7 | Fake interactivity — `<button>` pills with `cursor:default` | **OBSOLETE.** Zero `<button>` elements in `index.tsx` |
+
+Items 3 and 4 remain **P0**, and two more were found alongside them: the same schema
+declares `offers.price: "0"` while the page promises "Know the price before you commit",
+and the `Organization` description still reads "Enterprise WhatsApp Business API platform"
+— the positioning the hero was deliberately rewritten away from.
 
 Other public pages: `faq.tsx` (root, not in nav), `studio`, `carbon`, `sustainability`, `nocode` — see stubs below.
 
@@ -57,8 +73,8 @@ Target ~120 → ~70–80 pages.
 
 ## G. Prioritized action list
 ### P0 (quick, high value)
-1. **Home page CTAs + header/footer** — add Login/Get-Started buttons, a top nav, and a footer with legal links. Biggest conversion + navigation gap.
-2. **Remove fake review schema** + fix `foundingDate` on the landing (SEO risk).
+1. **Home page CTA above the fold** — still open; header and footer already ship. Blocked on the owner's wording/destination/price calls (see `docs/home-design-audit-20260926.md` M5).
+2. **Remove fake review schema** + fix `foundingDate` — in **`src/pages/_app.tsx`**, not the landing page, so the fix is sitewide (17 and 123 built pages). Still open.
 3. **De-list / remove stub pages** (`task`, `nocode`, `studio`, `carbon`, `sustainability`, `contact-test`) or feature-flag them.
 4. **Fix status-color bug** in `store` (PAID/NOT_PAID rendered same color).
 
