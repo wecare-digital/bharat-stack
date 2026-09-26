@@ -203,7 +203,11 @@ response = requests.post(
         })}} />
       </Head>
       
-      <div className="page">
+      {/* <main>, NOT <div>. This page shipped with no main landmark at all:
+          document.querySelector('main') returned null, so assistive tech had no way to skip
+          to content, and SupportWidget's contentRoot() fell through to `.page` here while
+          every other public page resolved `main`. The class is unchanged, so no CSS moves. */}
+      <main className="page">
 
         <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="hero-content">
@@ -238,6 +242,7 @@ response = requests.post(
                         key={ c.word }
                         ref={ el => { heroRefs.current[i] = el; } }
                         className={ `hero-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
+                      data-wc-translate="true"
                         aria-hidden="true"
                       >{ c.word }</span>
                     )) }
@@ -571,7 +576,13 @@ response = requests.post(
              cannot style a composite component from here, so anything visual added
              to this rule would silently do nothing. */
           .hero-eyebrow{margin:0 0 20px}
-          .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;margin:0 0 24px;letter-spacing:-2.2px;color:rgba(0,0,0,.95)}
+          .hero-left h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;margin:0 0 24px;/* TRACKING IN em, NOT px. A fixed px value against a fluid clamp() font means the
+             OPTICAL tightness changes with the viewport: measured across the breakpoints it ran
+             -2.22% to -6.11% of the font size, a 2.75x spread, worst at 768-820px where the font
+             is still on its 36px floor while the tracking was chosen for 60px. -0.04em is -4% at
+             every size, and it lets both media-query overrides go - restating it per breakpoint
+             is what caused the spread. index.tsx fixed this; these three copies had not. */
+          letter-spacing:-0.04em;color:rgba(0,0,0,.95)}
           /* Lede plus a muted supporting line. Two paragraphs rather than one long
              run-on: it reads better and gives the left column enough vertical mass
              to sit against the mockup opposite (which was 221px taller). Measures
@@ -626,7 +637,16 @@ response = requests.post(
             transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
           }
           .hero.show .hero-mark-dot{transform:scale(1)}
-          .hero-cycle{
+          /* PORTED FROM THE HOME BAND. Four implementations of this hero exist and every one
+           carried the same defects; see docs/home-design-audit-20260926.md.
+
+           width:max-content is the RESTING width. cycleW starts null, so the first render
+           writes no inline width - and with every word absolutely positioned this box had no
+           intrinsic width at all. It computed to 0px and overflow:hidden clipped the word
+           away: ~200ms on every load, permanently with no JavaScript. JS still writes an
+           explicit px width over this, which is what animates, so the glide is unchanged. */
+        .hero-cycle{
+          width:max-content;
             position:relative;z-index:1;
             display:inline-block;
             height:1.06em;line-height:1.06em;
@@ -642,14 +662,24 @@ response = requests.post(
             transform:translateY(.42em);
             transition:opacity .42s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1);
           }
-          .hero-cyc-word.on{opacity:1;transform:translateY(0)}
+          /* The ACTIVE word returns to flow, which is what gives the box above a real
+           intrinsic width. The inactive words stay absolute and keep stacking.
+
+           display:inline-block IS LOAD-BEARING: position:static alone makes this a
+           non-replaced inline box whose offsetWidth is 0, so the measuring effect would
+           write width:0px over max-content and the pill would collapse on every load WITH
+           JavaScript - a 200ms flash turned permanent. */
+        .hero-cyc-word.on{opacity:1;transform:translateY(0);position:static;display:inline-block}
           .sr-only{
             position:absolute;width:1px;height:1px;padding:0;margin:-1px;
             overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
           }
           @media(prefers-reduced-motion:reduce){
             .hero-mark::before,.hero-mark-dot{transition:none}
-            .hero-mark::before{transform:scaleX(1)}
+            /* scaleX(0) is the RESTING state. scaleX(1) is the START state - a white
+             shutter covering the tint - which is what this used to set. It never bit only
+             because .hero-layout.show out-specifies it (0,2,1 vs 0,1,1). */
+          .hero-mark::before{transform:scaleX(0)}
             .hero-mark-dot{transform:scale(1)}
             .hero-cycle{transition:none}
             .hero-cyc-word{transition:none}
@@ -1338,7 +1368,7 @@ response = requests.post(
             .pp-pill{transition:none}
           }
         `}</style>
-      </div>
+      </main>
     </>
   );
 };
