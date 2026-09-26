@@ -50,24 +50,40 @@ Before each phase, rediscover current:
 
 ## Current security baseline
 
-Latest read-only verification (a snapshot, not a standing truth — rediscover per
-the execution rule above):
+**Do not quote counts from this file.** Per the execution rule above, run
 
-| Item | Observed |
-|---|---|
-| Lambda functions | 58 |
-| HTTP APIs | 2 |
-| HTTP API routes | 332 |
-| API Gateway authorizers | 0 |
-| Routes reporting `AuthorizationType=NONE` | 332 |
-| Regional WAF WebACLs | 0 |
-| Cognito pool | WECARE.DIGITAL |
-| Cognito MFA | OFF |
-| GuardDuty detectors | 0 |
-| Security Hub | not subscribed |
+    python scripts/aws_account_inventory.py
+
+which enumerates fourteen service families in ~150s and writes
+`docs/execution/aws-inventory.json` and `.md`, plus the judgement in
+`docs/execution/aws-inventory-findings.md`. It reports its own `error_count`; a
+non-zero count means the inventory is PARTIAL and must not be used for
+decisions.
+
+Last full enumeration **2026-09-26, 0 collector errors**. What moved against the
+previous snapshot, as a record of drift rather than a value to reuse:
+
+| Item | Earlier snapshot | 2026-09-26 |
+|---|---:|---:|
+| Lambda functions | 58 | 65 |
+| — with a `live` alias | — | 58 |
+| HTTP APIs | 2 | 1 (`zllr9lrg7j`) |
+| HTTP API routes | 332 | 361 |
+| API Gateway authorizers | 0 | 0 |
+| Routes reporting `AuthorizationType=NONE` | 332 | 361 |
+| Regional WAF WebACLs | 0 | 1 (`wecare-cognito-waf`, **associated with nothing**) |
+| CloudFront-scope WAF WebACLs | — | 1 (`wecare-amplify-waf`, `ASSOCIATION_SUCCESS`) |
+| Cognito pools | WECARE.DIGITAL | 2 (+ WECARE.DIGITAL-CUSTOMERS) |
+| Cognito MFA (admin pool) | OFF | OPTIONAL |
+| GuardDuty detectors | 0 | not re-measured |
+| Security Hub | not subscribed | excluded by owner |
+
+The route surface grew by 29 while authorization stayed at zero, so the gap
+widened rather than closed.
 
 Interpret `AuthorizationType=NONE` carefully: handler-level authentication and
-signature checks may still exist.
+signature checks may still exist. Gateway configuration alone cannot distinguish
+an intentionally public signed webhook from an accidentally public API.
 
 ## Required target
 
