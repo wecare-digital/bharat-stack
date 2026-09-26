@@ -8,6 +8,14 @@ Tree at start `1efd670c`; remote had moved to `5653a12a` and then `6ffcbcef`
 while this ran, because two other warm sessions share this working tree. Work
 committed from this session: `5ab9fc66`.
 
+**Amended after `df67e7f3`.** Three gap-register rows added — `SEC-POLLY-001`,
+`SEC-DOMAIN-001`, `SEO-404-001` — and `OBS-DLQ-001` closed, since `df67e7f3`
+repaired the alarms it describes. The three additions are `A0_READ` findings drawn
+from evidence already committed (entries 182, 225, 234, 249, 254 of the
+change-authority matrix, and `runtime-inventory.json`); **no new live measurement
+was taken for them**, and each names the live read it still needs. They are logged
+here rather than left in conversation.
+
 Everything below was measured in this session. Dated counts from the master
 prompt and from steering were **not** carried forward — where they disagree with
 a measurement, the measurement is recorded and the stale figure is named.
@@ -167,6 +175,46 @@ routes. It greps **local handler source** for auth markers. Local source had
 already deleted these routes, so the audit could not see that the deployed
 artifact still served them. Route-auth proof is only as current as the artifact.
 
+### The Polly grant is three declarations, and one of them has live consumers
+
+Recorded because the obvious follow-up to `SEC-SITELANG-001` — "revoke the Polly
+grant" — is wrong in three separate ways, and each was checked rather than assumed.
+
+**It is not in the Amplify backend definition.** The site-language grant is
+`scripts/deploy_site_language.py:104-106`, an inline policy named
+`wecare-site-language` put on role `wecare-digital-lambda-role`. That is an edit in
+this repo plus a re-run of the script, not a backend deploy.
+
+**Polly is declared three times, and two of the three are load-bearing:**
+
+| Where | Grants | Consumer |
+|---|---|---|
+| `scripts/deploy_site_language.py:104` | `DescribeVoices` + `SynthesizeSpeech` | none — this is the dead one |
+| `amplify/iam-policies.ts:316-328`, mapped at `:363` via the `polly` group | both | `wecare-whatsapp-voice` — live |
+| `scripts/iam-policy-update.json:145` | `SynthesizeSpeech` | third declaration, unattributed |
+
+`whatsapp-voice/handler.py:42` builds a Polly client at module scope and serves
+`GET /whatsapp-voice/voices`; `whatsapp-calling/handler.py:1429` does the same and
+`voice-in/obd/handler.py:392` calls `synthesize_speech` directly;
+`voice-aws/handler.py:39` carries a Polly voice id. Revoking Polly account-wide
+breaks WhatsApp voice notes and the IVR prompt path. **"Revoke" is the wrong verb.**
+
+**And narrowing the site-language policy may not reduce site-language's effective
+permissions at all.** Permissions attach to the role, not the function, and
+`runtime-inventory.json` confirms `wecare-site-language` and
+`wecare-whatsapp-voice` both run as `wecare-digital-lambda-role` — the script's own
+comment calls that role "shared with every other Lambda in the account". So
+deleting the two Polly actions from one inline policy leaves the `polly` group
+still granting them on the same role. Genuinely denying Polly to site-language
+means a least-privilege role of its own, which is the pattern entry 142 already
+established for the Cognito trigger.
+
+The narrowing edit is worth doing as **cleanup**, and must not be written up as
+closing the exposure. Per entry 182 — read the live policy document, because IaC
+and account can disagree — the effective-permission claim needs
+`list-role-policies` + `list-attached-role-policies` on the live role before anyone
+records it as fixed. Not done in this session.
+
 ### Deployments made
 
 Rollback baseline captured before each; all four then read back with all 83 files
@@ -311,7 +359,10 @@ QA round trip. Enabling a live-send path is outside the standing grant.
 | `RET-ELEVENLABS-001` | MEDIUM | 6 CFN stacks can recreate retired-provider infrastructure | Resources deleted outside CloudFormation | stacks are inert unless updated | `A4` gate: delete 6 stacks + `wecare-elevenlabs-postcall-role`; templates already exported | 1 h |
 | `SEC-SITELANG-002` | MEDIUM | `/voices` and `/tts` routes still exist, now 404 | Routes were never deleted with the code | handler 404s them | `A4` gate: delete both routes; target Lambda exists so this is outside the standing grant | 30 m |
 | `WIX-INVOICE-001` | MEDIUM | Billing requirements 104–106 assume an unavailable API | `wixInvoices` not installed on this site | none | Decide: install Wix Invoices, or record the paid-order receipt through the supported order-linked mechanism | 4–8 h to re-plan |
-| `OBS-DLQ-001` | MEDIUM | 3 DLQs unmonitored; 2 alarms can never fire | Alarms point at `base-wecare-digital-*`, queues are `stack-wecare-digital-*` | none | Repoint the 2 alarms, add 1 for the notification DLQ | 1 h |
+| `OBS-DLQ-001` | MEDIUM | 3 DLQs unmonitored; 2 alarms can never fire | Alarms point at `base-wecare-digital-*`, queues are `stack-wecare-digital-*` | none | **Closed in `df67e7f3`** — 2 alarms repointed, notification DLQ alarm added, statistic corrected to `Maximum > 0`; 33 alarms also given a human subscriber | done |
+| `SEC-POLLY-001` | LOW | Dead Polly grant persists on the shared Lambda role; the grant cannot be revoked account-wide because it has live consumers | 3 separate declarations; `deploy_site_language.py:104-106` writes the dead one onto a role shared account-wide | none needed — no route reaches it since v7 | Narrow `deploy_site_language.py` and re-run (**cleanup, not closure**). Real fix is a least-privilege role for site-language, per entry 142. Confirm effective permissions with a live `list-role-policies` read before recording as fixed | 30 m edit; 2 h for the role |
+| `SEC-DOMAIN-001` | MEDIUM | The Amplify app is configured to answer **every** `*.wecare.digital` name, bound to branch `stack` | Domain association carries a wildcard subdomain entry: `* CNAME d2av2go6w170k.cloudfront.net` with `prefix` absent and `branchName: stack` | Latent, not live: entry 234 verified **no** wildcard CNAME in Route 53, so an unconfigured name NXDOMAINs rather than reaching the app | Decide whether the wildcard entry should exist. First a live read — Amplify `GetDomainAssociation` plus the zone — since the only evidence today is a pre-teardown snapshot. `A3` if removed | 1 h |
+| `SEO-404-001` | MEDIUM | Every unknown **path** serves the full home page under an HTTP 404 — wrong for crawlers, and the address bar keeps the bad URL | `/<*> -> /index.html` at `NOT_FOUND_REWRITE`, the last of the 20 Amplify custom rules | none | Add a real 404 page, or accept and document. Note `/forms/logs` now lands here too (entry 256) | 2 h |
 | `DEP-STALE-004` | LOW | 51 artifacts carry a stale unused `wa_internal_event.py` | Shared module changed after their last deploy | none needed — not loaded | Let ordinary deploys clear it; do not fleet-deploy for this | 0 |
 | `SEC-TLS-001` | LOW | `E2GP22R4BIFGQ3` accepts TLSv1 | Distribution predates the policy | none | Raise to `TLSv1.2_2021` | 15 m |
 | `META-SUB-001` | LOW | Cannot enumerate WABA3 subscription or the app callback URL | Token lacks the scope | — | Owner/provider: token with `whatsapp_business_management` over WABA3 | blocked |
@@ -328,7 +379,8 @@ and live · Wix production site identity, Catalog V3 and Blog · Plivo voice-onl
 with protected binding intact · Razorpay secret path.
 
 **`ENGINEERING REMAINING`** — 206 HIGH CodeQL findings · CloudTrail trail ·
-DLQ alarm repair · TLS floor on one distribution · unified notification cutover
+TLS floor on one distribution · the wildcard subdomain decision · a real 404
+page · least-privilege role for site-language · unified notification cutover
 (code done, flags off) · duplicate producer retirement · Web Phone completion ·
 customer identity and OTP · Wix adapters and page composer · commerce, order,
 billing and tracking · frontend consolidation · CRM, growth, MCP · native shells.
