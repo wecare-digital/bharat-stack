@@ -10,7 +10,7 @@
   *{box-sizing:border-box}
   body{margin:0;background:#fafafa;color:var(--ink);font-size:15px;line-height:1.55;
     font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-  .wrap{max-width:1210px;margin:0 auto;padding:36px 22px 110px}
+  .wrap{max-width:1560px;margin:0 auto;padding:30px 22px 110px}
   h1{font-size:clamp(28px,3.2vw,40px);font-weight:700;line-height:1.08;letter-spacing:-1.2px;margin:0 0 10px}
   h2{font-size:24px;font-weight:700;letter-spacing:-.4px;margin:0}
   h3{font-size:16.5px;font-weight:700;letter-spacing:-.2px;margin:0}
@@ -49,127 +49,110 @@
   .ctl{display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:14px;margin:12px 0 0}
   .ctl label{display:inline-flex;gap:7px;align-items:center;cursor:pointer}
   footer.pg{color:var(--mut);font-size:13px;border-top:1px solid var(--line);padding-top:18px;margin-top:34px}
+  /* ---- design-first comparison layout ---- */
+  .cmp{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin:0 0 14px}
+  .cmpcol{flex:none}
+  .cap{font-size:14px;color:var(--mut);margin:0 0 14px;max-width:110ch}
+  .cap b{color:var(--ink)}
+  details.why{border:1px solid var(--line);border-radius:9px;background:#fcfcfc;margin:14px 0 0}
+  details.why>summary{cursor:pointer;padding:10px 14px;font-size:13px;font-weight:700;color:#44546a;
+    list-style:none;display:flex;gap:8px;align-items:center}
+  details.why>summary::-webkit-details-marker{display:none}
+  details.why>summary::before{content:'▸';font-size:11px}
+  details.why[open]>summary::before{content:'▾'}
+  details.why>summary:hover{color:var(--ink)}
+  details.why .inner{padding:0 14px 14px;border-top:1px solid var(--line);margin-top:0;padding-top:12px}
+  .bar{position:sticky;top:0;z-index:5;background:rgba(250,250,250,.94);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);padding:10px 0;margin:0 0 20px}
+  .bar .in{display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-size:14px}
 </style>
 <div class="wrap">
 
-<h1>Home page — top section only</h1>
-<p class="lede">One band, three defect fixes, nothing else. Each has a <strong>live before and
-after</strong> at 1280 and 390. The panels are real documents at those widths, only visually
-scaled, so the headline clamps exactly as it would on a real screen. No images.</p>
-<p class="mut sm">Generated 2026-09-26 by
-<code>tools/browser/homereview.js</code> from the real static export. Every number was measured
-during generation. <strong>No source file has been changed.</strong></p>
+<h1>Home page — top band</h1>
+<p class="cap" style="font-size:16px"><b>Three defects, each shown before and after.</b> Every
+panel is the real page at a real width — 1280 and 390 — running live. Written notes are folded
+away behind “why / the code” so the design is what you see first.</p>
 
-<div class="card brief">
-  <h3>The brief, as confirmed</h3>
-  <p style="margin:8px 0 0">The top band says <strong>what the page is about</strong>. No call to
-  action, no price, no conversion furniture — the action stays in the closing band where it already
-  is. The band is <strong>chrome shared by every public page</strong>; only the words, the rotation
-  and the sub-line change per page.</p>
-  <p style="margin:8px 0 0"><strong>So the CTA and price options I put up earlier are withdrawn,</strong>
-  and “nothing actionable above the fold” is recorded as a decision rather than a defect. What is
-  left below are three things that are simply broken.</p>
-</div>
-
-<div class="card scope">
-  <h3>What is in this mock, and what is not</h3>
-  <p style="margin:8px 0 6px"><strong>In:</strong> the three top-band defects that need no design
-  decision from you — A, B and C. All three are repairs. In the settled, normal state they change
-  <em>nothing a visitor sees</em>, which the last panel on this page proves.</p>
-  <p style="margin:0 0 6px"><strong>Deliberately not in, pending your call:</strong> the
-  9.6s rotation that cannot be paused, and the 80px of
-  blank above the first word. Both are judgements, not defects, so they are not mocked here.</p>
-  <p style="margin:0"><strong>Deferred until this band is signed off:</strong> the other three
-  bands, the sitewide schema problems, and propagating this band to the other public pages.</p>
-  <p class="ctl"><label><input type="checkbox" id="tRotate" checked> run the rotation in the
-  panels</label></p>
-</div>
+<div class="bar"><div class="in">
+  <label><input type="checkbox" id="tRotate" checked> run the rotation</label>
+  <label><input type="checkbox" id="tNotes"> show all written notes</label>
+  <span class="mut sm">scope: top band only · no CTA, no price — this band says what the page is
+  about · nothing has been changed in the source</span>
+</div></div>
 
 <!-- ===================== ORIGINAL ===================== -->
 <section class="band">
-  <div class="bhead"><span class="tag">ORIGINAL</span><h2>As it ships today</h2>
-    <span class="sel">header + .home-hero (h1.home-head + p.home-sub)</span></div>
+  <div class="bhead"><span class="tag">NOW</span><h2>As it ships today</h2>
+    <span class="sel">header + .home-hero</span></div>
   <div class="step">
-    <div class="ba" data-panel="orig"></div>
-    <table>
-      <tr><th>What</th><th class="n">1280×900</th><th class="n">390×844</th><th>Notes</th></tr>
-      <tr><td>Fixed header — shared chrome</td><td class="n">108px</td><td class="n">96px</td><td><code>position:fixed</code></td></tr>
-      <tr><td>Blank above the first word</td><td class="n">80px</td><td class="n">48px</td><td><code>.home-layout</code> padding-top 80px</td></tr>
-      <tr><td>h1 — frame line + pill line</td><td class="n">506×131</td><td class="n">331×90</td><td>55.04px / 600 / lh 57.2416px / ls -2.2016px</td></tr>
-      <tr><td>Frame line</td><td class="n">506×57</td><td class="n">331×40</td><td>“Everyday AI, built for”</td></tr>
-      <tr><td>Rotating pill</td><td class="n">335×70</td><td class="n">219×47</td><td>dot 18px, word box 278px / 182px</td></tr>
-      <tr><td>Sub-line — the per-page sentence</td><td class="n">560×56</td><td class="n">358×84</td><td>20px / lh 28px, 88 chars, max 560px</td></tr>
-      <tr><td>Whole band</td><td class="n">1232×211</td><td class="n">358×198</td><td>measure 1232px; next band at y=495</td></tr>
-      <tr><td>Actions in the band</td><td class="n">0</td><td class="n">0</td><td><strong>by design</strong> — this band states what the page is about</td></tr>
-    </table>
-    <p class="sm mut" style="margin-top:10px">The rotation is 4 words —
-    <code>consumers</code> · <code>enterprises</code> · <code>climate tech</code> · <code>frontier tech</code> — each with its own tint and dot,
-    every 2400ms.</p>
+    <div data-panel="orig"></div>
+    <details class="why" data-note><summary>measurements</summary><div class="inner">
+      <table>
+        <tr><th>What</th><th class="n">1280×900</th><th class="n">390×844</th><th>Notes</th></tr>
+        <tr><td>Fixed header — shared chrome</td><td class="n">108 px</td><td class="n">96 px</td><td><code>position:fixed</code></td></tr>
+        <tr><td>Blank above the first word</td><td class="n">80 px</td><td class="n">48 px</td><td><code>.home-layout</code> padding-top 80px</td></tr>
+        <tr><td>h1 — frame line + pill line</td><td class="n">506×131</td><td class="n">331×90</td><td>55.04px / 600 / lh 57.2416px / ls -2.2016px</td></tr>
+        <tr><td>Rotating pill</td><td class="n">335×70</td><td class="n">219×47</td><td>dot 18 px, word box 278 / 182 px</td></tr>
+        <tr><td>Sub-line — the per-page sentence</td><td class="n">560×56</td><td class="n">358×84</td><td>20px, 88 chars, max 560px</td></tr>
+        <tr><td>Whole band</td><td class="n">1232×211</td><td class="n">358×198</td><td>measure 1232 px; next band at y=495</td></tr>
+        <tr><td>Actions in the band</td><td class="n">0</td><td class="n">0</td><td><strong>by design</strong></td></tr>
+      </table>
+      <p class="sm mut" style="margin-top:10px">Rotation: <code>consumers</code> · <code>enterprises</code> · <code>climate tech</code> · <code>frontier tech</code>, every 2400ms.</p>
+    </div></details>
   </div>
 </section>
 
 <!-- ===================== FIX A ===================== -->
 <section class="band">
-  <div class="bhead"><span class="tag">FIX A</span><span class="sev s-h">HIGH</span>
-    <h2>The pill is empty on every load, and permanently without JavaScript</h2></div>
-  <div class="step"><span class="steplab l-orig">what is wrong</span>
-    <p><code>cycleW</code> starts <code>null</code>, so the first render writes no inline width.
-    <code>.home-cycle</code> is <code>overflow:hidden</code> and all four words inside it are
-    <code>position:absolute</code>, so they contribute nothing to its intrinsic width — it computes
-    to <strong>0px</strong> and clips the word away completely. The headline reads
-    <em>“Everyday AI, built for”</em> with nothing after it.</p>
-    <p>Measured on a normal load with JavaScript working, local server, no network:
-    <strong>4 painted frames, ~200ms</strong>. Behind real hydration it is longer. Without
-    JavaScript it never resolves at all. Both panels below have the boot script omitted, which is
-    the real condition rather than a simulation of it.</p>
-  </div>
-  <div class="step"><span class="steplab l-fix">before / after — no JavaScript</span>
-    <div class="ba" data-panel="fixA"></div>
-  </div>
-  <div class="step"><span class="steplab l-fix">the change</span>
-    <p>Make CSS responsible for the resting width. The active word returns to normal flow so the
-    pill has a real intrinsic width; the inactive words stay absolute and keep stacking in the same
-    place. JavaScript still writes an explicit px width over it, so <strong>the glide is
-    unchanged</strong>.</p>
-    <pre><code>.home-cycle{width:max-content}   /* resting width, needs no JS */
+  <div class="bhead"><span class="tag">A</span><span class="sev s-h">HIGH</span>
+    <h2>The word is missing on every load</h2></div>
+  <div class="step">
+    <p class="cap">The pill renders <b>empty</b> — the headline reads “Everyday AI, built for” with
+    nothing after it. ~200ms on every normal load, and <b>permanently without JavaScript</b>, which
+    is the state shown here.</p>
+    <div data-panel="fixA"></div>
+    <details class="why" data-note><summary>why / the code</summary><div class="inner">
+      <p><code>cycleW</code> starts <code>null</code>, so the first render writes no inline width.
+      <code>.home-cycle</code> is <code>overflow:hidden</code> and all four words inside are
+      <code>position:absolute</code>, so they add nothing to its intrinsic width — it computes to
+      <strong>0px</strong> and clips the word away. Measured on a normal load with JS working, local
+      server, no network: <strong>4 painted frames, ~200ms</strong>. Behind real hydration, longer.</p>
+      <p>Fix — make CSS responsible for the resting width. The active word returns to flow so the
+      pill has an intrinsic width; the others stay absolute and keep stacking. JS still writes a px
+      width over it, so <strong>the glide is unchanged</strong>.</p>
+      <pre><code>.home-cycle{width:max-content}   /* resting width, needs no JS */
 .home-cyc-word.on{
   position:static;      /* the visible word sits in flow, so the pill has a width */
   display:inline-block; /* NOT optional - see below */
 }</code></pre>
-    <p class="sm" style="margin-top:10px"><strong><code>display:inline-block</code> is
-    load-bearing, and measuring the mock is what caught it.</strong>
-    <code>position:static</code> alone turns the span back into a non-replaced <em>inline</em>
-    box, and <code>offsetWidth</code> is 0 for those — so the existing measuring effect would
-    write <code>width:0px</code> over <code>max-content</code> and the pill would collapse on
-    every load <em>with</em> JavaScript, turning a 200ms flash into a permanent one.
-    <code>inline-block</code> keeps it in flow and keeps it measurable.</p>
-    <p class="sm mut" style="margin-top:8px">Two declarations. No timing, easing, colour or
-    geometry is touched, so <code>animcheck.js</code>'s animation-family assertions are unaffected.</p>
+      <p class="sm" style="margin-top:10px"><strong><code>display:inline-block</code> is
+      load-bearing, and measuring this mock is what caught it.</strong> <code>position:static</code>
+      alone turns the span back into a non-replaced <em>inline</em> box, and <code>offsetWidth</code>
+      is 0 for those — so the existing measuring effect would write <code>width:0px</code> over
+      <code>max-content</code> and the pill would collapse on every load <em>with</em> JavaScript,
+      turning a 200ms flash into a permanent one.</p>
+    </div></details>
   </div>
 </section>
 
 <!-- ===================== FIX B ===================== -->
 <section class="band">
-  <div class="bhead"><span class="tag">FIX B</span><span class="sev s-h">HIGH</span>
-    <h2>Reduced motion plus any resize clips the word, permanently</h2></div>
-  <div class="step"><span class="steplab l-orig">what is wrong</span>
-    <p>The width is measured in an effect keyed on the word index alone — there is no resize
-    listener. The font size is <code>clamp(36px,4.3vw,60px)</code>, so every word's width is a
-    function of viewport width. On a normal load a stale width self-heals at the next 2400ms tick;
-    under <code>prefers-reduced-motion</code> the interval never starts, so
-    <strong>nothing ever re-measures</strong> and the stale width is final.</p>
-    <p>Reproduced below deterministically: the <strong>182px</strong> width measured at 390 is
-    written onto a 1280-wide frame, where the word needs <strong>278px</strong>.
-    <code>overflow:hidden</code> eats the difference — <strong>96px,
-    35%</strong> of the word. Rotating a phone is the everyday
-    trigger, and iOS “Reduce Motion” is widely enabled.</p>
-  </div>
-  <div class="step"><span class="steplab l-fix">before / after — the stale width, on a wide frame</span>
-    <div class="ba" data-panel="fixB"></div>
-  </div>
-  <div class="step"><span class="steplab l-fix">the change</span>
-    <p>Re-measure when the box changes, not only when the word changes.</p>
-    <pre><code>useEffect( () =&gt; {
+  <div class="bhead"><span class="tag">B</span><span class="sev s-h">HIGH</span>
+    <h2>Resize with reduced motion, and the word stays cut</h2></div>
+  <div class="step">
+    <p class="cap">The pill keeps the width it measured at the old viewport, so
+    <code>overflow:hidden</code> cuts the word — <b>96 px, 35% of “consumers”</b> — and under
+    <code>prefers-reduced-motion</code> nothing ever re-measures, so it never recovers. Rotating a
+    phone is the everyday trigger.</p>
+    <div data-panel="fixB"></div>
+    <details class="why" data-note><summary>why / the code</summary><div class="inner">
+      <p>Width is measured in an effect keyed on the word index alone — there is no resize listener.
+      The font is <code>clamp(36px,4.3vw,60px)</code>, so every word's width is a function of
+      viewport width. On a normal load a stale width self-heals at the next 2400ms tick; under
+      reduced motion the interval never starts, so the stale value is final. Reproduced here
+      deterministically: the <strong>182 px</strong> width measured at 390 written onto a
+      1280-wide frame, where the word needs <strong>278 px</strong>.</p>
+      <pre><code>useEffect( () =&gt; {
   const measure = () =&gt; {
     const el = wordRefs.current[ cycleIndex ];
     if ( el ) setCycleW( el.offsetWidth );
@@ -182,107 +165,89 @@ during generation. <strong>No source file has been changed.</strong></p>
   if ( markRef.current ) ro.observe( markRef.current );
   return () =&gt; ro.disconnect();
 }, [ cycleIndex ] );</code></pre>
-    <p class="sm mut" style="margin-top:8px">Fix A alone already improves this case, because
-    <code>max-content</code> is correct at any width — but only until JavaScript writes a px value
-    over it. The observer is what keeps that value honest afterwards, so the two belong together.</p>
+    </div></details>
   </div>
 </section>
 
 <!-- ===================== FIX C ===================== -->
 <section class="band">
-  <div class="bhead"><span class="tag">FIX C</span><span class="sev s-m">MED</span>
-    <h2>The reduced-motion resting state is inverted</h2></div>
-  <div class="step"><span class="steplab l-orig">what is wrong</span>
-    <p>The reduced-motion block sets the entrance shutter to <code>scaleX(1)</code> — the
-    <em>start</em> state, a white panel covering the tint — under a comment saying it settles the
-    pill into its resting state. The resting state is <code>scaleX(0)</code>. The sibling rule for
-    the dot is correct, which is what makes this a slip rather than a misunderstanding.</p>
-    <p>It does not bite today, and the reason is worth knowing:
-    <code>.home-layout.show .home-mark::before</code> scores <strong>(0,2,1)</strong> against this
-    rule's <strong>(0,1,1)</strong>, and a media query adds no specificity. So the correct value
-    wins by accident. Touch the <code>.show</code> rule and every reduced-motion visitor gets a
-    white pill. The panels apply the reduced-motion rules directly, since a preference cannot be
-    set inside a preview frame.</p>
-  </div>
-  <div class="step"><span class="steplab l-fix">before / after — reduced motion, with the .show rule removed to expose the latent state</span>
-    <div class="ba" data-panel="fixC"></div>
-  </div>
-  <div class="step"><span class="steplab l-fix">the change</span>
-    <pre><code>@media(prefers-reduced-motion:reduce){
+  <div class="bhead"><span class="tag">C</span><span class="sev s-m">MED</span>
+    <h2>Reduced motion can leave a white pill</h2></div>
+  <div class="step">
+    <p class="cap">The reduced-motion rule parks the entrance shutter <b>covering</b> the tint
+    instead of clear of it. It does not bite today — but only by an accident of specificity, so any
+    edit to the neighbouring rule exposes it. Shown here with that accident removed.</p>
+    <div data-panel="fixC"></div>
+    <details class="why" data-note><summary>why / the code</summary><div class="inner">
+      <p>The block sets the shutter to <code>scaleX(1)</code> — the <em>start</em> state, a white
+      panel over the tint — under a comment saying it settles the pill into its resting state. The
+      resting state is <code>scaleX(0)</code>, and the sibling rule for the dot is correct, which
+      makes this a slip rather than a misunderstanding. It is currently overridden because
+      <code>.home-layout.show .home-mark::before</code> scores <strong>(0,2,1)</strong> against this
+      rule's <strong>(0,1,1)</strong>, and a media query adds no specificity.</p>
+      <pre><code>@media(prefers-reduced-motion:reduce){
   .home-mark::before{transform:scaleX(0)}   /* was scaleX(1) */
 }</code></pre>
-    <p class="sm mut" style="margin-top:8px">One value.
-    <code>HomePage.test.tsx</code> currently asserts only that the media block exists, under a
-    comment claiming reduced motion “settles the pill” — so it passes today either way. Worth
-    tightening to assert the value, not the block.</p>
+      <p class="sm" style="margin-top:8px"><code>HomePage.test.tsx</code> asserts only that the media
+      block exists, so it passes either way. Worth tightening to assert the value.</p>
+    </div></details>
   </div>
 </section>
 
 <!-- ===================== PROOF ===================== -->
 <section class="band">
-  <div class="bhead"><span class="tag">PROOF</span><h2>All three together, on a normal load</h2></div>
-  <div class="step"><span class="steplab l-proof">the settled state must be identical</span>
-    <p>This is the panel that matters for sign-off. With JavaScript running and motion allowed —
-    how almost everyone sees the page — <strong>the fixes must change nothing.</strong> Same
-    headline, same tracking, same pill geometry, same glide, same dot pop, same sub-line.</p>
-    <div class="ba" data-panel="proof"></div>
-    <p class="sm mut" style="margin-top:10px">Measured alongside this page: the h1 stays
-    <strong>131px</strong> at 1280 and <strong>90px</strong> at 390, so
-    <code>animcheck.js</code>'s reflow pin across 21 viewports and a live rotation is untouched, and
-    the 2400ms page-jump guard still holds. The gate
-    <code>homeprobe.js</code> goes from <strong>5/12</strong> to <strong>9/12</strong>; the three
-    that stay red are the closing band's invisible tab stop and the two items you have not yet
-    ruled on.</p>
+  <div class="bhead"><span class="tag">PROOF</span><h2>Normal load — the design must not change</h2></div>
+  <div class="step">
+    <p class="cap">All three fixes applied, JavaScript running, motion allowed — how almost everyone
+    sees the page. <b>These two must be indistinguishable.</b> Measured: pill 280px both, h1 131 px
+    both at 1280 and 90 px both at 390.</p>
+    <div data-panel="proof"></div>
+    <details class="why" data-note><summary>what this protects</summary><div class="inner">
+      <p>The h1 height is what <code>animcheck.js</code> pins across 21 viewports and a live
+      rotation — it is the 2400ms page-jump guard. Unchanged, so that gate still holds. The gate
+      <code>homeprobe.js</code> goes from <strong>5/12</strong> to <strong>9/12</strong>; the three
+      still red are the closing band's invisible tab stop and the two calls below.</p>
+    </div></details>
   </div>
 </section>
 
-<!-- ===================== HOUSEKEEPING ===================== -->
+<!-- ===================== REST ===================== -->
 <section class="band">
-  <div class="bhead"><span class="tag">ALSO</span><h2>Three with nothing to look at</h2></div>
-  <div class="step"><span class="steplab l-fix">no visual change, same commit</span>
-    <ul style="margin-top:0">
-      <li><strong><code>will-change:width</code> is permanent</strong> on <code>.home-cycle</code>.
-      It is meant to be set shortly before a transition and released after; left on, it holds
-      compositing resources for the life of the page, and under reduced motion there is no
-      transition to hint at. <span class="mut">Not applied in the panels above — it is a
-      performance judgement, so it is listed rather than assumed.</span></li>
-      <li><strong><code>max-width:900px</code> on the h1 never binds.</strong>
-      <code>.home-hero</code> is <code>align-items:flex-start</code>, so the h1 shrink-wraps to
-      506px at 1280. A dead declaration that reads like a live constraint.</li>
-      <li><strong>The h1's raw text repeats the word set five times</strong>, with no space after
-      “for”. Screen readers are correct — the four animated copies carry <code>aria-hidden</code>
-      and the sr-only span supplies one clean list — but a naive text extractor reads this:
-      <div class="readout">Everyday AI, built forconsumers, enterprises, climate tech, frontier techconsumersenterprisesclimate techfrontier tech</div></li>
-    </ul>
-  </div>
-  <div class="step"><span class="steplab l-fix">and the comments</span>
-    <p>The band's own documentation contradicts the band in nine places, two of them measurable:
-    the file header says <code>climate tech</code> is 290px and lists a fifth word with an 83px
-    spread, where <code>animcheck</code> measures <strong>298px</strong> across four words with a
-    <strong>22px</strong> spread; and “Five words, five distinct tints” describes four. Full list in
-    <code>docs/home-design-audit-20260926.md</code>. Comments are what the next change will be based
-    on, so they are worth correcting in the same commit.</p>
-  </div>
-</section>
-
-<!-- ===================== OPEN ===================== -->
-<section class="band">
-  <div class="bhead"><span class="tag">OPEN</span><h2>Two calls for you — not mocked, on purpose</h2></div>
-  <div class="step"><span class="steplab l-open">judgements, not defects</span>
-    <ol>
-      <li><strong>The rotation runs 9.6s and cannot be
-      paused.</strong> 4 words × 2400ms, looping forever, so the positioning can
-      change mid-read. WCAG 2.2.2 applies to content that moves automatically for more than five
-      seconds. Pausing on hover and focus covers pointer and keyboard and adds no furniture; a
-      strict reading wants a user-operable control, which <em>is</em> furniture in a band that is
-      meant to carry none. Your call which way.</li>
-      <li><strong>80px of blank above the first word.</strong> 80px of padding tuned
-      around the lime brand badge that used to sit first here and has since been deleted — the
-      source notes the headline already moved 58px up when it went, and this value was never
-      revisited. Purely cosmetic.</li>
-    </ol>
-    <p class="sm mut">Say the word on either and I will mock it the same way. Nothing on this page
-    depends on them.</p>
+  <div class="bhead"><span class="tag">REST</span><h2>Nothing to look at, and two calls for you</h2></div>
+  <div class="step">
+    <details class="why" data-note><summary>three with no visual change — same commit</summary><div class="inner">
+      <ul style="margin-top:0">
+        <li><strong><code>will-change:width</code> is permanent</strong> on <code>.home-cycle</code>.
+        It should be set shortly before a transition and released after; left on it holds compositing
+        resources for the life of the page, and under reduced motion there is no transition to hint
+        at. <span class="mut">Not applied in the panels — a performance judgement, so listed rather
+        than assumed.</span></li>
+        <li><strong><code>max-width:900px</code> on the h1 never binds.</strong>
+        <code>.home-hero</code> is <code>align-items:flex-start</code>, so the h1 shrink-wraps to
+        506 px at 1280. A dead declaration that reads like a live constraint.</li>
+        <li><strong>The h1's raw text repeats the word set five times</strong>, with no space after
+        “for”. Screen readers are correct — the animated copies carry <code>aria-hidden</code> and
+        the sr-only span supplies one clean list — but a naive extractor reads:
+        <div class="readout">Everyday AI, built forconsumers, enterprises, climate tech, frontier techconsumersenterprisesclimate techfrontier tech</div></li>
+      </ul>
+      <p>The band's comments also contradict the band in nine places, two measurable: the header says
+      <code>climate tech</code> is 290px and lists a fifth word with an 83px spread, where
+      <code>animcheck</code> measures <strong>298px</strong> across four words with a
+      <strong>22px</strong> spread. Full list in <code>docs/home-design-audit-20260926.md</code>.</p>
+    </div></details>
+    <details class="why" data-note><summary>two judgements — deliberately not mocked</summary><div class="inner">
+      <ol style="margin-top:0">
+        <li><strong>The rotation runs 9.6s and cannot be paused.</strong> WCAG 2.2.2 applies to
+        content moving automatically for over five seconds. Pausing on hover and focus covers pointer
+        and keyboard and adds no furniture; a strict reading wants a user-operable control, which
+        <em>is</em> furniture in a band meant to carry none.</li>
+        <li><strong>80 px of blank above the first word</strong> — padding tuned around the lime
+        brand badge that used to sit here and has been deleted. Purely cosmetic.</li>
+      </ol>
+      <p class="sm mut">Say the word on either and I will mock it the same way.</p>
+    </div></details>
+    <p class="sm mut" style="margin-top:12px">Deferred until this band is signed off: the other three
+    bands, the sitewide schema problems, and propagating this band to the remaining public pages.</p>
   </div>
 </section>
 
@@ -290,8 +255,6 @@ during generation. <strong>No source file has been changed.</strong></p>
   Re-generate: <code>node tools/browser/homereview.js</code> ·
   Gate: <code>node tools/browser/homeprobe.js</code> ·
   Findings: <code>docs/home-design-audit-20260926.md</code><br>
-  Scope: home page, top band. Other bands, the sitewide schema and propagation to the remaining
-  public pages are all deferred until this one is signed off.<br>
   Fonts load from Google; everything else here is self-contained. No images.
 </footer>
 </div>
@@ -320,7 +283,7 @@ function boot( o ){
     + 'if(!it.length)return;'
     + 'function p(){for(var k=0;k<it.length;k++)it[k].classList.toggle("on",k===i);'
     + (o.stale ? 'if(c)c.style.width=' + STALE + '+"px";'
-               : 'if(c&&it[i])c.style.width=it[i].scrollWidth+"px";')
+               : 'if(c&&it[i])c.style.width=it[i].offsetWidth+"px";')
     + 'if(m)m.style.background=w[i].tint;if(d)d.style.background=w[i].dot;}'
     + 'p();'
     + (o.noShow ? '' : 'var L=document.querySelector(".home-layout");if(L)L.classList.add("show");')
@@ -343,7 +306,7 @@ function frameDoc( body, o ){
 
 function hero(){ return '<div class="' + HEROC + '">' + H1 + SUB + '</div>'; }
 
-var W = { d:{label:'desktop 1280', w:1280, scale:0.565}, m:{label:'phone 390', w:390, scale:0.74} };
+var W = { d:{label:'desktop 1280', w:1280, scale:0.56}, m:{label:'phone 390', w:390, scale:0.82} };
 
 function shot( o, size, h ){
   var s = W[size], vw = Math.round(s.w*s.scale), vh = Math.round(h*s.scale);
@@ -352,38 +315,44 @@ function shot( o, size, h ){
     + 'srcdoc="' + frameDoc(hero(), o).replace(/"/g,'&quot;') + '"></iframe></div>';
 }
 
-function pair( lab, cls, o, h ){
-  return '<div class="col"><span class="collab '+cls+'">'+lab+'</span>'
-    + '<div style="display:flex;gap:12px;flex-wrap:wrap">' + shot(o,'d',h) + shot(o,'m',h) + '</div></div>';
+// One labelled column.
+function col( lab, cls, o, size, h ){
+  return '<div class="cmpcol"><span class="collab '+cls+'">'+lab+'</span>' + shot(o,size,h) + '</div>';
+}
+// Before and after, side by side, at both widths. Desktop row then phone row.
+function compare( ob, oa, labB, labA, hd, hm ){
+  return '<div class="cmp">' + col(labB,'c-b',ob,'d',hd) + col(labA,'c-a',oa,'d',hd) + '</div>'
+       + '<div class="cmp">' + col(labB,'c-b',ob,'m',hm) + col(labA,'c-a',oa,'m',hm) + '</div>';
+}
+// A single state, at both widths.
+function single( o, hd, hm ){
+  return '<div class="cmp">' + col('desktop 1280','c-a',o,'d',hd)
+       + col('phone 390','c-a',o,'m',hm) + '</div>';
 }
 
 function build(){
   var rot = document.getElementById('tRotate').checked;
 
-  document.querySelector('[data-panel="orig"]').innerHTML =
-    pair('as it ships', 'c-a', { rotate:rot }, 600).replace('c-a','collab-plain');
+  document.querySelector('[data-panel="orig"]').innerHTML = single({ rotate:rot }, 560, 660);
 
-  // A - the boot script omitted in both, which is the real no-JS condition.
   document.querySelector('[data-panel="fixA"]').innerHTML =
-    pair('before — the word is clipped away', 'c-b', { noJs:true }, 420)
-    + pair('after — CSS gives the pill its width', 'c-a', { noJs:true, fix:true }, 420);
+    compare({ noJs:true }, { noJs:true, fix:true }, 'before — no word', 'after — word present', 430, 520);
 
-  // B - the 390px width written onto a 1280 frame: the stale state, exactly.
   document.querySelector('[data-panel="fixB"]').innerHTML =
-    pair('before — ' + STALE + 'px width, word needs more', 'c-b', { rotate:false, stale:true }, 420)
-    + pair('after — the width follows the box', 'c-a', { rotate:false, fix:true }, 420);
+    compare({ rotate:false, stale:true }, { rotate:false, fix:true },
+            'before — cut off', 'after — full word', 430, 520);
 
-  // C - .show withheld so the latent rule is what paints, which is the state the fix protects.
   document.querySelector('[data-panel="fixC"]').innerHTML =
-    pair('before — shutter covers the tint', 'c-b', { rotate:false, reduced:'before', noShow:true }, 420)
-    + pair('after — tint visible, nothing mid-transition', 'c-a', { rotate:false, reduced:'after', fix:true, noShow:true }, 420);
+    compare({ rotate:false, reduced:'before', noShow:true }, { rotate:false, reduced:'after', fix:true, noShow:true },
+            'before — white pill', 'after — tint visible', 430, 520);
 
-  // PROOF - normal load, both. These must look identical.
   document.querySelector('[data-panel="proof"]').innerHTML =
-    pair('before — today', 'c-b', { rotate:rot }, 600)
-    + pair('after — all three fixes applied', 'c-a', { rotate:rot, fix:true }, 600);
+    compare({ rotate:rot }, { rotate:rot, fix:true }, 'before — today', 'after — fixed', 560, 660);
 }
 
 document.getElementById('tRotate').addEventListener('change', build);
+document.getElementById('tNotes').addEventListener('change', function(e){
+  document.querySelectorAll('details[data-note]').forEach(function(d){ d.open = e.target.checked; });
+});
 build();
 </script>
