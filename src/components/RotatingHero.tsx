@@ -262,6 +262,15 @@ const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, 
         @media(max-width:400px){
           .rh-head{font-size:32px}
         }
+        /* 280px - Galaxy Fold, folded - still overflowed 7px at 32px, so the step needed a
+           second rung rather than a bigger guess. Derived instead of tried: the widest phrase
+           on /contact/ is "amend a request" at 279px on the 36px floor, and the pill adds
+           ~0.52em of padding, so required width is 279*(F/36) + 0.52F = 8.27F. A 280px
+           viewport leaves 248px of measure, giving F <= 30.0px. 28px carries margin for a
+           longer phrase being added later, and 280px is the narrowest device that ships. */
+        @media(max-width:340px){
+          .rh-head{font-size:28px}
+        }
         @media(max-width:480px){
         }
 
