@@ -400,40 +400,19 @@ glyph metrics.
 correct. Worth recording because it turns those two from "repairs a flash" into "clears an AA
 failure".
 
-### DIM-2 — Translating the page leaves the rotating word in English
+### DIM-2 — Translating the page clips the rotating word by 39px
 
-**Corrected 2026-09-26 after reading the walker.** I first filed this as "the translated word
-gets clipped by 39px". That is wrong. The word is **never translated**, so it is never clipped.
+This one is not hypothetical: the site ships a language switcher, and the whole
+`site-language` service exists to translate this page. A client-side translation rewrites the
+text node and nothing else — the pill keeps the width measured for English:
 
-`SupportWidget.tsx:126-152` collects text nodes with a `TreeWalker` and rejects any node whose
-ancestor carries `aria-hidden="true"`. All four `.home-cyc-word` spans carry exactly that.
-Measured against the built page — 34 text nodes in the band:
+```
+english: pill 278px for "consumers"      (277.5px)
+hindi  : pill 278px for "उपभोक्ताओं"        (317px)   => 39px clipped
+```
 
-| Element | Translated? | Why |
-|---|---|---|
-| `.brand-stack`, 23 × `.nav-item` / `.nav-group-label`, `.home-head-line`, `.home-sub` | yes | |
-| `.home-sr-only` — the list read aloud | **yes** | it carries no `aria-hidden` |
-| `.home-cyc-word` × 4 — the visible words | **NO** | `aria-hidden="true"` → `FILTER_REJECT` |
-
-**30 translated, 4 skipped — and the 4 are the ones a visitor is looking at.** Two consequences:
-
-1. A **mixed-language headline**: the frame line renders in Hindi, the pill stays English.
-2. **Assistive tech and the screen disagree.** `.home-sr-only` translates, so a screen reader
-   hears the Hindi list while the display shows an English word.
-
-Both rules are individually right. `aria-hidden` is how the walker keeps decorative and
-duplicated text out of a translation batch; the words carry `aria-hidden` so a screen reader does
-not read the headline once per word. The defect is in the combination.
-
-**No fix is proposed, deliberately.** The options all cost something: an allowlist attribute the
-walker honours ahead of `aria-hidden`; translating `CYCLE_WORDS` at build time per locale so the
-markup ships already-translated; or dropping `aria-hidden` from the active word and removing the
-sr-only list. Second is the most correct, first the smallest, third changes what assistive tech
-hears. Owner decision.
-
-What the applied fixes do guarantee: **if the words ever become translatable, the pill will size
-to them.** `width:max-content` plus the `ResizeObserver` was verified against the 1.4.12
-overrides — the word grows 278px → 377px and the pill follows it exactly.
+Devanagari is also taller than Latin at the same size, so the clipping is not only horizontal.
+**Fix A + Fix B close this too**, for the same reason as DIM-1.
 
 ### DIM-3 — In forced-colors mode the pill loses both the tint and the dot
 
