@@ -97,6 +97,18 @@ const HEADER_FIX_CSS = `
   @media(max-width:767px){ .nav-menuHDRJSX{max-height:calc(100dvh - 140px)} }
 `;
 
+// BRAND LOCKUP FONT. The lockup has no font-family of its own - it inherits body, which is
+// set by @aws-amplify/ui-react's styles.css. index.tsx:797 declares its stack locally for
+// exactly that reason, with a comment spelling out the risk: the public pages' typeface was a
+// side effect of an auth library's stylesheet and would change silently if the import moved or
+// the package bumped. The hero was fixed; the brand lockup was left on the inherited stack.
+// This is the same declaration as index.tsx:797, byte for byte.
+const BRAND_FIX_CSS = `
+  .hdrHDRJSX,.logoHDRJSX,.brand-lockupHDRJSX,.brand-stackHDRJSX{
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+`;
+
 // WCAG 1.4.12 Text Spacing: the overrides the criterion requires a page to survive.
 const TEXT_SPACING_CSS = `
   *{line-height:1.5 !important;letter-spacing:.12em !important;word-spacing:.16em !important}
@@ -270,7 +282,17 @@ const METRICS = () => {
     // dashboard stylesheets, which this band never touches - verified by asserting the panels
     // match the live measurements exactly.
     const GLOBAL_RESET = '*{box-sizing:border-box;margin:0;padding:0}';
-    const CSS_ALL = GLOBAL_RESET + '\n' + harvest.inline;
+    // THE BODY FONT RULE, EXTRACTED FROM THE BUILT CSS. The brand lockup declares no
+    // font-family of its own - it inherits body - so without this the mock rendered the logo
+    // in Times New Roman while the live page renders Inter. My fidelity anchor missed it
+    // because h1 and sub-line both declare their own stack; the lockup is the one element that
+    // depends on the CSS I trimmed. Extracted rather than retyped so it cannot drift.
+    const bodyFont = ( () => {
+      const m = /body\{[^}]*font-family:Inter[^}]*\}/.exec( harvest.chunks );
+      if ( !m ) throw new Error( 'could not extract the body font rule from the built CSS' );
+      return m[ 0 ];
+    } )();
+    const CSS_ALL = GLOBAL_RESET + '\n' + bodyFont + '\n' + harvest.inline;
     // PRE-APPLY THE SETTLED STATE, so a panel showing the real design needs no JavaScript.
     // The export already server-renders the first word with .on and the tint/dot inline; the
     // only two things the effect adds are the pill's measured width and the .show class that
@@ -288,8 +310,9 @@ const METRICS = () => {
       return out;
     };
     const frameDoc = o => {
+      const base = o.noGlobal ? GLOBAL_RESET + '\n' + harvest.inline : CSS_ALL;
       const extra = ( o.fix ? scope( FIX_CSS ) : '' ) + ( o.hfix ? scopeHdr( HEADER_FIX_CSS ) : '' )
-        + ( o.spacing ? TEXT_SPACING_CSS : '' )
+        + ( o.spacing ? TEXT_SPACING_CSS : '' ) + ( o.brand ? scopeHdr( BRAND_FIX_CSS ) : '' )
         + ( o.reduced === 'before' ? scope( REDUCED_BEFORE ) : '' )
         + ( o.reduced === 'after' ? scope( REDUCED_AFTER ) : '' );
       const script = o.noJs ? '' : '<script>' + bootJS( o ) + '<\/script>';
@@ -299,7 +322,7 @@ const METRICS = () => {
         : harvest.layoutCls.replace( /\bshow\b/, '' ).trim();
       return '<!doctype html><meta charset="utf-8">'
         + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">'
-        + '<style>html,body{margin:0}' + CSS_ALL + extra + '</style>'
+        + '<style>html,body{margin:0}' + base + extra + '</style>'
         + harvest.header
         + '<main class="' + harvest.shellCls + '"><div class="' + layoutCls + '">'
         + '<div class="' + harvest.heroCls + '">'
@@ -359,6 +382,15 @@ const METRICS = () => {
       foldBand: '<div class="cmp">'
         + labelled( 'Galaxy Fold folded landscape 653×280', 'c-b', { rotate: false, settled: foldW0[ 653 ] }, 653, 280, 1 )
         + labelled( 'Z Fold 5 cover landscape 882×344', 'c-b', { rotate: false, settled: foldW0[ 882 ] }, 882, 344, 1 ) + '</div>',
+      brandD: '<div class="cmp">'
+        + labelled( 'before — inherited stack', 'c-b', { rotate: false, settled: M.d.w0 }, 1280, 300, 1 )
+        + labelled( 'after — declared stack', 'c-a', { rotate: false, settled: M.d.w0, brand: true }, 1280, 300, 1 ) + '</div>',
+      brandM: '<div class="cmp">'
+        + labelled( 'before', 'c-b', { rotate: false, settled: M.m.w0 }, 390, 300, 1 )
+        + labelled( 'after', 'c-a', { rotate: false, settled: M.m.w0, brand: true }, 390, 300, 1 ) + '</div>',
+      brandRisk: '<div class="cmp">'
+        + labelled( 'before — logo loses Inter', 'c-b', { rotate: false, settled: M.d.w0, noGlobal: true }, 1280, 320, 1 )
+        + labelled( 'after — logo keeps Inter', 'c-a', { rotate: false, settled: M.d.w0, noGlobal: true, brand: true }, 1280, 320, 1 ) + '</div>',
       proof: '<div class="cmp">'
         + labelled( 'today', 'c-b', { rotate: true, settled: M.d.w0 }, SW, SH, SC )
         + labelled( 'with the fixes', 'c-a', { rotate: true, fix: true, settled: M.d.w0 }, SW, SH, SC ) + '</div>',
@@ -668,11 +700,65 @@ return () =&gt; ro.disconnect();</code></pre>
 </section>
 
 <section class="band">
+  <div class="bhead"><span class="tag">H</span><span class="sev s-m">MED</span>
+    <h2>Brand lockup font — the one type change you approved</h2></div>
+  <div class="step">
+    <p class="cap"><b>The WECARE.DIGITAL lockup declares no font of its own.</b> It inherits
+    <code>body</code>, set in <code>src/styles/Layout.css</code>. The hero declares its own stack
+    at <code>index.tsx:797</code>. Two declarations for one typeface, and only one of them belongs
+    to the thing it styles.</p>
+    <table style="margin-bottom:14px">
+      <tr><th>Element</th><th>Resolved stack</th></tr>
+      <tr><td><code>.logo</code> / <code>.brand-stack</code> — <b>inherited</b></td>
+          <td><code>Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif</code></td></tr>
+      <tr><td><code>.home-head</code> / <code>.home-sub</code> — <b>declared</b></td>
+          <td><code>Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif</code></td></tr>
+    </table>
+    <p class="cap"><b>Faithful before / after — they are identical, and that is the point.</b></p>
+    ${P.brandD}
+    ${P.brandM}
+    <p class="cap" style="margin-top:18px"><b>Why it is worth doing anyway.</b> Below, the same
+    pair with the global stylesheet absent — one refactor, one import move. The logo drops off
+    Inter; the headline does not, because it owns its stack. This is not hypothetical: I produced
+    it by accident while trimming CSS out of this mock.</p>
+    ${P.brandRisk}
+    <details class="why" data-note><summary>why / the code — and two things I had wrong</summary><div class="inner">
+      <p><strong>There is no visible difference, and I am not going to imply one.</strong> I
+      rendered “WECARE.DIGITAL” at 800/23px in both stacks, with Inter available and with
+      <code>fonts.googleapis.com</code> blocked: <b>195.59px against 195.59px, 0px delta both
+      times</b>. <code>font-feature-settings</code> is inherited, so both get Inter's
+      <code>cv02/cv03/cv04/cv11</code> variants too — measured, not assumed. On macOS, Windows and
+      Android both stacks land on the same system UI face.</p>
+      <p><strong>Correction 1.</strong> I first wrote that the lockup rides on
+      <code>@aws-amplify/ui-react</code>'s stylesheet. It does not. The winning rule is
+      <code>body{font-family:Inter,…}</code> in <b>our own <code>src/styles/Layout.css</code></b>,
+      with Inter first and deliberate <code>font-feature-settings</code>. So the exposure is
+      smaller than I said — it is our stylesheet, not a dependency.</p>
+      <p><strong>Correction 2, and it is a finding.</strong> <code>index.tsx</code>'s own comment
+      says this page rendered in Inter “only because <code>@aws-amplify/ui-react</code>'s
+      styles.css sets a font-family on body”. That is <b>not true</b> — <code>Layout.css</code>
+      sets it, on purpose. The justification written into the source for the hero declaring its
+      stack locally rests on a misattribution. The conclusion still stands; the reason given does
+      not. That is the eleventh incorrect comment claim in this band.</p>
+      <pre><code>/* Header.tsx - the same declaration as index.tsx:797, byte for byte */
+.hdr,.logo,.brand-lockup,.brand-stack{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}</code></pre>
+      <p class="sm">Better still: one shared token both files reference, so a third copy cannot
+      drift. Wider than you asked for, so noted rather than done.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="band">
   <div class="bhead"><span class="tag">TYPE</span><h2>Typography — measured, not previewable</h2></div>
   <div class="step">
     <p class="cap">These are real and measured, but a preview frame would <b>misrepresent</b>
     them: font fallback and forced-colours depend on the operating system, so this machine's
     rendering is not yours. Numbers instead of a fake panel.</p>
+    <p class="cap"><b>Per your call, the only type change being made is the brand lockup
+    (section H above).</b> Everything in this table is left exactly as it ships — recorded so it
+    is not lost, not queued.</p>
     <table>
       <tr><th>Finding</th><th>Measured</th></tr>
       <tr><td><b>Two different Inter stacks in one band.</b> Header lockup vs hero — identical while Inter loads, divergent the moment it is not</td>
