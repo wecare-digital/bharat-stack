@@ -278,102 +278,44 @@ DEFAULT_BOT_FLOW = {
         'text': "Welcome back! ?? What can we help with today? ??",
     },
 
-    # -- Main Menu (10 rows, 2 sections) --
-    'mainMenu': {
-        'header': 'WECARE.DIGITAL',
-        'body': "Pick what you need ??",
-        'footer': 'wecare.digital',
-        'buttonText': 'Menu',
-        'sections': [
-            {
-                'title': 'Explore',
-                'rows': [
-                    {'id': 'menu_store', 'title': '?? Store', 'description': 'Shop our brand marketplaces'},
-                    {'id': 'menu_self_service', 'title': '?? Self Service', 'description': 'Submit, track & manage requests'},
-                    {'id': 'menu_pay', 'title': '?? Pay', 'description': 'Make a payment via WhatsApp'},
-                    {'id': 'menu_subscribe', 'title': '?? Subscribe', 'description': 'Sign up with name, email & phone'},
-                ]
-            },
-            {
-                'title': 'More',
-                'rows': [
-                    {'id': 'menu_app', 'title': '?? Download App', 'description': 'Get the WECARE.DIGITAL app'},
-                    {'id': 'menu_about', 'title': '?? About Us', 'description': 'Our mission & brands'},
-                    {'id': 'menu_audio', 'title': '?? Audio Response', 'description': 'Get replies as voice messages'},
-                    {'id': 'menu_language', 'title': '?? Change Language', 'description': 'Choose your response language'},
-                    {'id': 'menu_notifications', 'title': '?? Notifications', 'description': 'Manage your alert preferences'},
-                    {'id': 'menu_human', 'title': '?? Talk to Human', 'description': 'Connect with a live agent'},
-                ]
-            }
-        ]
-    },
-
-    # -- Sub-Menus --
-    'subMenus': {
-        'menu_store': {
-            'header': 'Our Store',
-            'body': "Explore our brands & gifting ??",
-            'footer': 'wecare.digital/store',
-            'buttonText': 'Browse',
-            'sections': [
-                {
-                    'title': 'Brands',
-                    'rows': [
-                        {'id': 'store_bnb_club', 'title': '?? BNB Club', 'description': 'Travel, visas, corporate & FIT'},
-                        {'id': 'store_no_fault', 'title': '?? No Fault', 'description': 'Faster online dispute resolution'},
-                        {'id': 'store_expo_week', 'title': '?? Expo Week', 'description': 'Virtual fairs & digital events'},
-                        {'id': 'store_ritual_guru', 'title': '?? Ritual Guru', 'description': 'Puja kits & step-by-step guides'},
-                        {'id': 'store_legal_champ', 'title': '?? Legal Champ', 'description': 'Business docs & registrations'},
-                        {'id': 'store_swdhya', 'title': '\U0001f9d8 Swdhya', 'description': 'Samvad - self-inquiry chats'},
-                    ]
-                },
-                {
-                    'title': 'Gifting',
-                    'rows': [
-                        {'id': 'store_gift_card', 'title': '?? Gift Card', 'description': 'Send a WECARE.DIGITAL gift card'},
-                        {'id': 'menu_back', 'title': '?? Back to Menu', 'description': 'Return to main menu'},
-                    ]
-                }
-            ]
-        },
-        'menu_self_service': {
-            'header': 'Self Service',
-            'body': "What do you need help with? ??",
-            'footer': 'wecare.digital/selfservice',
-            'buttonText': 'Options',
-            'sections': [
-                {
-                    'title': 'Requests',
-                    'rows': [
-                        {'id': 'menu_submit_request', 'title': '?? Submit a Request', 'description': 'Start a new service request'},
-                        {'id': 'menu_amend_request', 'title': '?? Amend a Request', 'description': 'Modify a previous request'},
-                        {'id': 'menu_track_request', 'title': '?? Track a Request', 'description': 'Check your request status'},
-                    ]
-                },
-                {
-                    'title': 'Services',
-                    'rows': [
-                        {'id': 'menu_rx_slot', 'title': '??? RX Slot', 'description': 'Schedule a medical appointment'},
-                        {'id': 'menu_drop_docs', 'title': '?? Drop Docs', 'description': 'Upload supporting documents'},
-                        {'id': 'menu_hours', 'title': '? Business Hours', 'description': 'When we are available'},
-                        {'id': 'menu_enterprise', 'title': '?? Enterprise Assist', 'description': 'Business & technical support'},
-                        {'id': 'menu_back', 'title': '?? Back to Menu', 'description': 'Return to main menu'},
-                    ]
-                }
-            ]
-        },
-    },
+    # ── DELETED 2026-09-26: 'mainMenu' and 'subMenus' ────────────────────────
+    # This file used to define a SECOND, rival main menu here (10 rows: Store /
+    # Self Service / Pay / Subscribe / Download App / About / Audio Response /
+    # Change Language / Notifications / Talk to Human) plus two sub-menus. It
+    # was not the menu customers see, and it could never become one:
+    #
+    #   * 'mainMenu' was read by exactly one line anywhere in the repo,
+    #     inbound-whatsapp-handler `flow_config.get('mainMenu')`, where
+    #     flow_config = ai_response.get('flowConfig'). This function never
+    #     returned a 'flowConfig' key, so that lookup was always None.
+    #   * 'subMenus' was returned as `subMenuConfig` with flowAction
+    #     'showSubMenu', which only `_process_ai_automation` renders — and that
+    #     function has no caller.
+    #
+    # Their real cost was the row ids. 19 of them were absent from the inbound
+    # handler's MENU_TO_KEYWORD, and three more mapped to None, so any handset
+    # still holding one of these lists got silence on a tap. Those ids are now
+    # all registered in MENU_TO_KEYWORD and point at real actions.
+    #
+    # There is ONE menu, it lives in inbound-whatsapp-handler as
+    # DEFAULT_ONE_MENU, and it is overridable from SystemConfigTable
+    # 'welcome_message_config'. Do not reintroduce a menu definition here.
+    # 'showMainMenu' below is still the correct signal — the inbound handler
+    # resolves it to the one menu.
 
     # -- Menu Responses --
     'menuResponses': {
-        # Sub-menu openers
+        # These two used to open sub-menus. With one menu there is nothing to
+        # open, so they return to it. The 'show_sub_menu' branch in
+        # _handle_bot_flow is retained for a config-supplied 'subMenus', but no
+        # default reaches it.
         'menu_store': {
             'text': '',
-            'action': 'show_sub_menu',
+            'action': 'show_main_menu',
         },
         'menu_self_service': {
             'text': '',
-            'action': 'show_sub_menu',
+            'action': 'show_main_menu',
         },
         # Conversational flows
         'menu_pay': {

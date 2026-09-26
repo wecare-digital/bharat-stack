@@ -1639,9 +1639,15 @@ def _process_message(
             'senderPhone': sender_phone,
             'requestId': request_id,
         }))
-        # Map common button texts to menu trigger
+        # Map common button texts to menu trigger.
+        # `selfservice` is here because the `Selfservice` ice breaker is live on
+        # both numbers and can arrive as `button` rather than `text`. The text
+        # branch below is skipped entirely for a button message, so before this
+        # it was a silent tap. It opens the one menu, same as every other
+        # entry — which is the whole point of having one menu.
         BUTTON_MENU_TRIGGERS = {'get started', 'start', 'menu', 'hi', 'hello', 'hey',
-                                'main menu', 'need help!', 'get help'}
+                                'main menu', 'need help!', 'get help',
+                                'selfservice', 'self service', 'self-service'}
         if (button_text_lower in BUTTON_MENU_TRIGGERS
                 or strip_decorative_edges(button_text_lower) in BUTTON_MENU_TRIGGERS
                 or button_text_lower.startswith('get started')):
@@ -1776,6 +1782,7 @@ def _process_message(
         PAY_KEYWORDS = {
             # English  -  core
             'pay', 'payment', 'pay now', 'pay bill', 'bill pay', '/pay',
+            'pay a bill',  # row title in the one menu
             'pay due', 'pay dues', 'pay invoice', 'invoice',
             'pending payment', 'pending due', 'pending dues',
             'send payment', 'make payment', 'make a payment',
@@ -1946,7 +1953,14 @@ def _process_message(
             _send_followup_buttons(contact_id, aws_phone_number_id, request_id)
             return
 
-        # ── Ice breaker: "Self-service" / "/selfservice" ──
+        # ── Ice breaker: "Selfservice" / "/selfservice" ──
+        # THE KEYWORDS STAY, THE SECOND MENU GOES. `Selfservice` is a live ice
+        # breaker and `selfservice` a live slash command on BOTH numbers (read
+        # off Meta's conversational_automation on 2026-09-26), so dropping the
+        # trigger would stop answering something customers are actively invited
+        # to tap. It opens the one menu now. This was the last reachable second
+        # menu: the self-service list was the only other interactive list a
+        # customer could actually get to.
         SELFSERVICE_KEYWORDS = {'self-service', 'selfservice', 'self service', '/selfservice', '/service'}
         if content_lower in SELFSERVICE_KEYWORDS or _content_plain in SELFSERVICE_KEYWORDS:
             logger.info(json.dumps({
@@ -1958,21 +1972,38 @@ def _process_message(
             _send_interactive_list(
                 contact_id=contact_id,
                 phone_number_id=aws_phone_number_id,
-                list_config=_get_selfservice_menu(),
+                list_config=_get_welcome_config(),
                 request_id=request_id
             )
+            return
+
+        # ── The one menu's Help row, typed rather than tapped ──
+        # Must sit ABOVE COMMANDS_KEYWORDS, which owns bare 'help'. Bare 'help'
+        # is deliberately left on the commands list: it is long-established, and
+        # the commands reply names itself in its own text. See defect #6 in
+        # docs/whatsapp-experience-structure.md — 'help' is contested by three
+        # keyword sets and first match wins.
+        HELP_ABOUT_KEYWORDS = {'help & about', 'help and about', 'help about',
+                               '\u2753 help & about'}
+        if content_lower in HELP_ABOUT_KEYWORDS or _content_plain in HELP_ABOUT_KEYWORDS:
+            _send_help_about(contact_id, aws_phone_number_id, request_id)
             return
 
         # ── Ice breaker: "Commands" / "/commands" / "/help" ──
         COMMANDS_KEYWORDS = {'commands', '/commands', '/help', 'help'}
         if content_lower in COMMANDS_KEYWORDS or _content_plain in COMMANDS_KEYWORDS:
+            # Only `menu`, `subscribe`, `selfservice` and `pay` are registered as
+            # tappable commands on Meta (both numbers, verified 2026-09-26).
+            # `/bharatstack` and `/help` work when typed but cannot be tapped,
+            # so they are listed last. `/selfservice` no longer opens a second
+            # menu — say so rather than implying there are two.
             commands_text = (
                 "*Available Commands*\n\n"
-                "/menu - Browse the main menu\n"
+                "/menu - Open the menu\n"
+                "/selfservice - Opens the same menu\n"
                 "/subscribe - Register for updates and orders\n"
-                "/bharatstack - Explore Bharat Stack services\n"
-                "/selfservice - Self-service options\n"
                 "/pay - Make a payment or check dues\n"
+                "/bharatstack - Explore WECARE.DIGITAL services\n"
                 "/help - Show this list"
             )
             _send_ai_auto_reply(contact_id, commands_text, aws_phone_number_id, request_id)
@@ -5073,6 +5104,37 @@ def _send_followup_buttons(contact_id: str, phone_number_id: str, request_id: st
     )
 
 
+def _send_help_about(contact_id: str, phone_number_id: str, request_id: str) -> None:
+    """The one menu's single Help row, and the `help & about` keyword.
+
+    This reply carries the weight of the 10-row cap. Meta allows 10 rows in a
+    list; the previous main menu plus the self-service submenu held 18 between
+    them. The 8 that did not make the cut were not deleted — they moved to
+    keyword access — and this is the only place a customer is told they exist.
+    Do not trim the "just type" list without moving those entries onto the menu.
+    """
+    help_text = (
+        "*Help & About*\n\n"
+        "WECARE.DIGITAL builds Everyday AI and everyday services for Bharat "
+        "\u2014 for people, businesses, climate tech, and emerging technology.\n\n"
+        "Type *menu* anytime for everything in one place.\n\n"
+        "*Not on the menu? Just type:*\n"
+        "\u2022 *my id* \u2014 find your profile or subscription ID\n"
+        "\u2022 *store* \u2014 browse services, brands, and offers\n"
+        "\u2022 *gift card* \u2014 send a digital gift card\n"
+        "\u2022 *order notes* \u2014 add notes to an existing order\n"
+        "\u2022 *review* \u2014 share your experience with us\n"
+        "\u2022 *bharat stack* \u2014 Aadhaar, UPI, DigiLocker, and more\n\n"
+        "We are available 24/7 for online orders and support. "
+        "Prefer to talk? Call +91 9330994400 or email one@wecare.digital.\n\n"
+        "Tap below for the full FAQ page. \U0001f447"
+    )
+    _send_cta_button(contact_id, phone_number_id, 'Open FAQs', 'https://wecare.digital/faq', request_id,
+        body_text=help_text,
+        footer_text='WECARE.DIGITAL')
+    _send_followup_buttons(contact_id, phone_number_id, request_id)
+
+
 def _send_audio_response(contact_id: str, phone_number_id: str, text: str, language: str, request_id: str,
                          sender_phone: str = '', sender_bsuid: str = '') -> None:
     """
@@ -6148,6 +6210,8 @@ DEFAULT_FLOW_TRIGGERS = {
             'submit request', 'sr', 'raise request', 'submit', 'request',
             'new request', 'start a new support request', 'support request',
             '\U0001f4cb submit request',
+            # Row title in the one menu
+            '\U0001f4cb new request',
         ],
         # Flow ID: 1469093721293830 = v3 (PUBLISHED on WABA 1)
         # Phone 2 (WABA 2) cannot send WABA 1 flows — it uses CTA URL fallback automatically
@@ -6164,6 +6228,10 @@ DEFAULT_FLOW_TRIGGERS = {
             'track request', 'track', 'status', 'where is my request', 'check status',
             'request status', 'track order', 'check the status',
             '\U0001f50d track request',
+            # Row title in the one menu. Every row title must be typeable:
+            # the menu invites the phrase, and these sets are exact-match with
+            # no decoration stripping (deliberately — see strip_decorative_edges).
+            'track a request', '\U0001f50d track a request',
         ],
         # DRAFT on WABA 1 — publish before enabling
         'flowId': '1486454129852338',
@@ -6180,6 +6248,8 @@ DEFAULT_FLOW_TRIGGERS = {
             'update request', 'edit request', 'correct request',
             'edit or correct', 'existing request',
             '\u270f\ufe0f amend request',
+            # Row title in the one menu
+            'change a request', '\u270f\ufe0f change a request',
         ],
         'flowId': '3678132465672138',
         'message': {
@@ -6195,6 +6265,12 @@ DEFAULT_FLOW_TRIGGERS = {
             'meeting', 'book meeting', 'schedule meeting', 'consultation',
             'schedule a consultation', 'service visit',
             '\U0001f4c5 appointment',
+            # "Visit" is the customer-facing word now (the one menu says
+            # "Book a Visit"), but every `appointment` keyword above STAYS. They
+            # are printed in already-delivered messages and in the Meta-side ice
+            # breaker config; dropping one would silently stop answering a
+            # message a customer was invited to send.
+            'book a visit', 'book visit', 'visit', '\U0001f4c5 book a visit',
         ],
         'flowId': '26575380852083467',
         'message': {
@@ -6209,6 +6285,8 @@ DEFAULT_FLOW_TRIGGERS = {
             'rx slot', 'rx', 'prescription', 'book rx', 'medicine', 'pharmacy',
             'chemist', 'book medical visit', 'medical visit', 'medical tourism',
             '\U0001fa7a rx slot',
+            # Row title in the one menu
+            'book an rx slot', 'book rx slot', '\U0001fa7a book an rx slot',
         ],
         'flowId': '895208030185211',
         'message': {
@@ -6223,6 +6301,8 @@ DEFAULT_FLOW_TRIGGERS = {
             'drop docs', 'drop documents', 'upload docs', 'send docs', 'documents',
             'upload documents', 'share docs', 'supporting documents',
             '\U0001f4c4 drop docs',
+            # Row title in the one menu
+            'send documents', '\U0001f4c4 send documents',
         ],
         'flowId': '1211063631104445',
         'message': {
@@ -6238,6 +6318,8 @@ DEFAULT_FLOW_TRIGGERS = {
             'b2b', 'enterprise help', 'enterprise support', 'business support',
             'bulk enquiries', 'bulk',
             '\U0001f3e2 enterprise assist',
+            # Row title in the one menu
+            'business enquiry', 'business enquiries', '\U0001f3e2 business enquiry',
         ],
         'flowId': '1707170524029465',
         'message': {
@@ -6266,6 +6348,8 @@ DEFAULT_FLOW_TRIGGERS = {
             'subscribe', 'signup', 'sign up', 'register', 'join', 'membership',
             'enroll', 'enrol', 'subscribe for updates', 'updates', '/subscribe',
             '\U0001f514 subscribe for updates',
+            # Row title in the one menu
+            'get updates', '\U0001f514 get updates',
         ],
         'flowId': '1262971692700761',
         'flowId2': '951987930811295',
@@ -6495,28 +6579,42 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         'requestId': request_id,
     }))
 
-    # ── Main menu row IDs → actions ──
+    # ── Row id → action ──────────────────────────────────────────────────────
+    # There is ONE menu now (DEFAULT_ONE_MENU), but every id this business has
+    # EVER rendered has to stay in this table. An interactive list already
+    # delivered to a handset stays tappable in the customer's chat history for
+    # months, so ids are only ever ADDED or RETARGETED here — never removed.
+    # A missing id logs `list_reply_unhandled` and the customer gets silence.
+    #
+    # Nothing below maps to None. Three ids used to (`menu_audio`,
+    # `menu_notifications`, `menu_human`) plus the six Bharat Stack rows, and a
+    # tap on any of them produced no reply at all.
     MENU_TO_KEYWORD = {
-        # Main menu  -  Start Here
-        'menu_selfservice': '_selfservice_menu',
-        'menu_self_service': '_selfservice_menu',  # legacy
-        'menu_subscribe': 'subscribe',
-        'menu_find_id': 'find id',
+        # ── The one menu ─────────────────────────────────────────────────────
+        # Requests
+        'menu_request_new': 'submit request',
+        'menu_request_track': 'track request',
+        'menu_request_change': 'amend request',
+        # Visits
+        'menu_visit_book': 'schedule appointment',
+        'menu_visit_rx': 'rx slot',
+        # Documents & Payment
+        'menu_docs_send': 'drop docs',
         'menu_pay': 'pay',
-        # Main menu  -  Explore WECARE
-        'menu_store': '_cta_store',
-        'menu_gift_card': '_cta_gift_card',
-        'menu_bharat_stack': '_cta_bharat_stack',
-        # Main menu  -  Help & Answers
-        'menu_faq': '_cta_faq',
-        'menu_about': '_cta_about',
-        # Legacy main menu IDs (old menu, may be cached)
-        'menu_app': '_cta_about',
-        'menu_audio': None,
-        'menu_language': '_language_menu',
-        'menu_notifications': None,
-        'menu_human': None,
-        # Self-service menu
+        # Business & Account
+        'menu_business': 'enterprise assist',
+        'menu_subscribe': 'subscribe',
+        # Help
+        'menu_help': '_cta_help',
+
+        # ── Retired rows, still live on handsets ─────────────────────────────
+        # The self-service submenu is gone. Its openers reopen the one menu
+        # instead of a second list; its nine rows keep their original actions,
+        # so a cached self-service menu still works row for row.
+        'menu_selfservice': '_main_menu',
+        'menu_self_service': '_main_menu',
+        'ss_main_menu': '_main_menu',
+        'menu_back': '_main_menu',
         'ss_submit_request': 'submit request',
         'ss_amend_request': 'amend request',
         'ss_track_request': 'track request',
@@ -6527,24 +6625,63 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         'ss_schedule_appointment': 'schedule appointment',
         'ss_enterprise_assist': 'enterprise assist',
         'ss_leave_review': 'leave review',
-        'ss_faq': '_cta_faq',
-        'ss_main_menu': '_main_menu',
-        # Legacy self-service IDs
+        'ss_faq': '_cta_help',
+        # Older self-service ids
         'ss_orders': 'track request',
         'ss_payments': 'pay',
         'ss_support': 'submit request',
-        # Bharat Stack
-        'bs_aadhaar': None,
-        'bs_upi': None,
-        'bs_digilocker': None,
-        'bs_esign': None,
-        'bs_ondc': None,
-        'bs_account_aggregator': None,
+        # Previous main menu (9 rows) — dropped from the menu, still reachable
+        # by keyword, and these rows keep doing exactly what they did.
+        'menu_find_id': 'find id',
+        'menu_store': '_cta_store',
+        'menu_gift_card': '_cta_gift_card',
+        'menu_bharat_stack': '_cta_bharat_stack',
+        'menu_faq': '_cta_faq',
+        'menu_about': '_cta_about',
+        # Bharat Stack submenu. Never sent (nothing maps to _bharat_stack_menu)
+        # but all six ids answered with silence, so they answer for real now.
+        'bs_aadhaar': '_cta_bharat_stack',
+        'bs_upi': '_cta_bharat_stack',
+        'bs_digilocker': '_cta_bharat_stack',
+        'bs_esign': '_cta_bharat_stack',
+        'bs_ondc': '_cta_bharat_stack',
+        'bs_account_aggregator': '_cta_bharat_stack',
+        # AI-era menu (ai-generate-response DEFAULT_BOT_FLOW, now deleted). Its
+        # delivery path was dead code, but a handset that received one of those
+        # lists can still tap it, and 19 of its ids resolved to nothing here.
+        'menu_app': '_cta_about',
+        'menu_audio': '_main_menu',
+        'menu_notifications': '_main_menu',
+        'menu_human': '_cta_help',
+        'menu_hours': '_cta_help',
+        'menu_submit_request': 'submit request',
+        'menu_amend_request': 'amend request',
+        'menu_track_request': 'track request',
+        'menu_rx_slot': 'rx slot',
+        'menu_drop_docs': 'drop docs',
+        'menu_enterprise': 'enterprise assist',
+        'store_gift_card': '_cta_gift_card',
+        'store_bnb_club': '_cta_store',
+        'store_no_fault': '_cta_store',
+        'store_expo_week': '_cta_store',
+        'store_ritual_guru': '_cta_store',
+        'store_legal_champ': '_cta_store',
+        'store_swdhya': '_cta_store',
+        # `menu_language` used to open the region picker. The picker's own four
+        # region rows resolve to nothing in this table, so tapping it produced a
+        # list where every option was silent — a worse outcome than not offering
+        # it. It reopens the one menu until language switching is decided on
+        # (see docs/whatsapp-experience-structure.md §9 #13). The picker code and
+        # its config key are untouched, so this is a one-line reversal.
+        'menu_language': '_main_menu',
     }
 
     action = MENU_TO_KEYWORD.get(list_id)
 
-    # Sub-menu triggers
+    # RETIRED submenu branches. No row id maps to `_selfservice_menu` or
+    # `_bharat_stack_menu` any more, so neither of these can fire. They are kept
+    # so that reverting to the two-menu shape is a one-line change in
+    # MENU_TO_KEYWORD above, and they go in step 6 of the build order.
     if action == '_selfservice_menu':
         _send_interactive_list(
             contact_id=contact_id,
@@ -6624,6 +6761,11 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         )
         _send_ai_auto_reply(contact_id, about_text, phone_number_id, request_id)
         _send_followup_buttons(contact_id, phone_number_id, request_id)
+        return
+
+    # Help & About  -  the one menu's single help row
+    if action == '_cta_help':
+        _send_help_about(contact_id, phone_number_id, request_id)
         return
 
     # Keyword-triggered flows
@@ -6727,6 +6869,66 @@ def _get_flow_triggers_config() -> Dict:
     except Exception:
         return {k: v.copy() for k, v in DEFAULT_FLOW_TRIGGERS.items()}
 
+# ── THE one menu ────────────────────────────────────────────────────────────
+# Meta caps an interactive list at 10 rows across all sections, so "one menu"
+# is a choice of 10, not a merge. The previous main menu (9 rows) plus the
+# self-service submenu (9 rows) came to 18; the 8 that did not make the cut are
+# reachable by keyword and are named in the `_cta_help` reply so they stay
+# discoverable. Row titles are capped at 24 chars and descriptions at 72 by
+# Meta; tests/test_one_menu.py asserts every limit.
+#
+# `menu_pay` and `menu_subscribe` deliberately keep their old ids — they are
+# already sitting in menus on customers' handsets, and reusing the id means
+# those taps land on the same action instead of on nothing.
+DEFAULT_ONE_MENU = {
+    'header': 'WECARE.DIGITAL',
+    'body': "What would you like to do? Everything is in this one menu \u2014 or just type what you need.",
+    'footer': 'Tap an option to continue.',
+    'buttonText': 'Open Menu',
+    'sections': [
+        {
+            'title': 'Requests',
+            'rows': [
+                {'id': 'menu_request_new', 'title': '\U0001f4cb New Request', 'description': 'Start a request. \u20b949 processing fee'},
+                {'id': 'menu_request_track', 'title': '\U0001f50d Track a Request', 'description': 'Check status with your reference id'},
+                {'id': 'menu_request_change', 'title': '\u270f\ufe0f Change a Request', 'description': 'Edit or correct a submitted request'},
+            ]
+        },
+        {
+            'title': 'Visits',
+            'rows': [
+                {'id': 'menu_visit_book', 'title': '\U0001f4c5 Book a Visit', 'description': 'Consultation or service visit, at your time'},
+                {'id': 'menu_visit_rx', 'title': '\U0001fa7a Book an RX Slot', 'description': 'Prescription, pharmacy or medical travel visit'},
+            ]
+        },
+        {
+            'title': 'Documents & Payment',
+            'rows': [
+                {'id': 'menu_docs_send', 'title': '\U0001f4c4 Send Documents', 'description': 'Share files for an open request'},
+                {'id': 'menu_pay', 'title': '\U0001f4b3 Pay a Bill', 'description': 'Pay an invoice or clear a pending due'},
+            ]
+        },
+        {
+            'title': 'Business & Account',
+            'rows': [
+                {'id': 'menu_business', 'title': '\U0001f3e2 Business Enquiry', 'description': 'Corporate, B2B and bulk enquiries'},
+                {'id': 'menu_subscribe', 'title': '\U0001f514 Get Updates', 'description': 'Offers, service news and order updates'},
+            ]
+        },
+        {
+            'title': 'Help',
+            'rows': [
+                {'id': 'menu_help', 'title': '\u2753 Help & About', 'description': 'FAQs, business info and what we do'},
+            ]
+        },
+    ]
+}
+
+# ── RETIRED: the previous main menu ─────────────────────────────────────────
+# Superseded by DEFAULT_ONE_MENU. Kept only so that reverting is a one-line
+# change in _get_welcome_config() if the QA send looks wrong; it is scheduled
+# for deletion in step 6 of the build order in
+# docs/whatsapp-experience-structure.md §11. Nothing sends it.
 DEFAULT_MAIN_MENU = {
     'header': 'Welcome to WECARE.DIGITAL',
     'body': "Choose what you\u2019d like to do \u2014 get started, explore our services, or find quick answers.",
@@ -6841,19 +7043,34 @@ REGION_LANGUAGE_LISTS = {
 
 
 def _get_welcome_config() -> Dict:
-    """Load main menu config from SystemConfigTable (id: 'welcome_message_config')."""
+    """The one menu, overridable from SystemConfigTable (id: 'welcome_message_config').
+
+    Every path that shows a menu calls this — greeting keywords, `/menu`, the
+    ice-breaker taps, the brand-new-contact welcome, `request_welcome`,
+    `followup_explore`, and the retired self-service openers. There is
+    deliberately no second menu getter.
+
+    Takes no phone argument, so WABA1 and WABA2 render the identical menu. What
+    differs between the numbers is what happens after a tap: 9 of the 10 flows
+    have no `flowId2`, so WABA2 degrades to a CTA URL, and `menu_pay` routes to
+    r.wecare.digital/pay instead of native WhatsApp Pay.
+
+    The config key is unchanged so the dashboard editor at
+    /dm/whatsapp/auto-response keeps working. Note it is a shallow merge: an
+    override that carries `sections` replaces all of them.
+    """
     try:
         config_table = dynamodb.Table(SYSTEM_CONFIG_TABLE)
         response = config_table.get_item(Key={'id': 'welcome_message_config'})
         if 'Item' in response:
             config_value = response['Item'].get('configValue', '{}')
             config = json.loads(config_value) if isinstance(config_value, str) else config_value
-            merged = DEFAULT_MAIN_MENU.copy()
+            merged = DEFAULT_ONE_MENU.copy()
             merged.update(config)
             return merged
-        return DEFAULT_MAIN_MENU.copy()
+        return DEFAULT_ONE_MENU.copy()
     except Exception:
-        return DEFAULT_MAIN_MENU.copy()
+        return DEFAULT_ONE_MENU.copy()
 
 
 # ── Bharat Stack sub-menu ──
@@ -6894,7 +7111,10 @@ def _get_bharat_stack_menu() -> Dict:
         return DEFAULT_BHARAT_STACK_MENU.copy()
 
 
-# ── Self-service sub-menu ──
+# ── RETIRED: the self-service sub-menu ─────────────────────────────────────
+# Folded into DEFAULT_ONE_MENU. Nothing sends this: `/selfservice`, the
+# `Selfservice` ice breaker and the `menu_selfservice` row all open the one menu
+# now. Kept for the one-line revert only; deleted in step 6 of the build order.
 DEFAULT_SELFSERVICE_MENU = {
     'header': 'Selfservice',
     'body': "Choose what you'd like to do. You can submit or track a request, book a visit, upload documents, or get business support.",

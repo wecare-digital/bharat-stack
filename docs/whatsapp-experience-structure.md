@@ -9,6 +9,58 @@ Two owner instructions drive the redesign:
 1. **There will be only ONE menu.** Today there are five interactive lists.
 2. **The word "appointment" comes out of customer-facing copy.**
 
+---
+
+## STATUS — the one menu is BUILT (2026-09-26)
+
+Build-order steps 1, 2 and 3 in §11 are done, plus the copy half of step 4. The
+CURRENT STATE sections below describe the state **before** this change and are kept
+because the retired ids in them are still tappable on handsets; read §11 for what
+customers see now.
+
+| What | Before | After |
+|---|---:|---:|
+| Interactive lists a customer can reach | 2 | **1** |
+| List configs defined in the inbound handler | 5 | 5 (3 unreachable, 2 retired-in-place) |
+| Rival menu in `ai-generate-response` | 1 | **0 — deleted** |
+| `MENU_TO_KEYWORD` entries | 40 | 59 |
+| Row ids mapping to `None` (silent tap) | 9 | **0** |
+| Rendered row ids absent from the table | 19 | **0** |
+
+What moved:
+
+- `DEFAULT_ONE_MENU` (10 rows, 5 sections) is served by `_get_welcome_config()`,
+  still overridable from `welcome_message_config`, still with no phone argument —
+  so both WABAs render the identical menu.
+- `/selfservice`, `/service`, the `Selfservice` ice breaker and the
+  `menu_selfservice` row all open **that** menu. The keywords stayed; only the
+  second list went. `selfservice` also joined `BUTTON_MENU_TRIGGERS`, because an
+  ice-breaker tap can arrive as `button`, which skips the text block entirely —
+  that was a silent tap before.
+- `_send_help_about()` is the `menu_help` row and the `help & about` keyword. It is
+  the only place the eight rows that came off the menu are named, so it is
+  load-bearing, not decoration.
+- Every row title is typeable: `book a visit`, `track a request`,
+  `change a request`, `book an rx slot`, `send documents`, `business enquiry`,
+  `get updates`, `pay a bill`, `help & about` were **added** to the existing sets.
+  No `appointment` keyword was removed — same precedent as Bharat Stack in §10.
+- `DEFAULT_BOT_FLOW['mainMenu']` and `['subMenus']` are deleted from
+  `ai-generate-response`. Both were unreachable (`flowConfig` was never returned,
+  and `_process_ai_automation` has no caller), but 22 of their row ids answered
+  with silence. Those ids are now all registered.
+- `menu_language` reopens the one menu instead of the region picker. The picker's
+  own four rows resolved to nothing, so tapping it produced a list where every
+  option was silent. One line to reverse once §9 #13 is settled.
+
+Pinned by `tests/test_one_menu.py` (29 cases): 10-row cap and every Meta character
+limit, no id mapping to `None`, no id opening a second list, every retired and
+AI-era id still resolving, every row title typeable, and the Help reply naming each
+dropped row. Full suite 3525 passed.
+
+`DEFAULT_MAIN_MENU`, `DEFAULT_SELFSERVICE_MENU` and their getters are still in the
+tree, unreferenced by any row id, so reverting to two menus is a one-line change in
+`MENU_TO_KEYWORD`. Step 6 deletes them.
+
 Two supporting changes already applied and verified in production.
 
 **1. Business-profile `description`, both numbers** (346/512 chars, no "appointment",
@@ -409,9 +461,9 @@ Ordered by customer impact. None of these are introduced by the redesign; they a
 |---|---|---|
 | 1 | ~~HIGH~~ **FIXED 2026-09-26** | Both numbers' QR prefills matched no keyword set: WABA1 sends `Get Help`, WABA2 sends `Hi 👋`. First-time contacts got the menu from the brand-new-contact path, so it looked fine; **returning** visitors tapping the same widget got silence. The root cause is that every keyword set is exact-match, so the two literals were added *and* `strip_decorative_edges()` was introduced so future variants cannot fail the same way (see §0 preamble). Fixed on the inbound side rather than by editing the QRs, because the QRs are printed and the links shared — only the inbound side reaches messages already in the wild. `wecare-inbound-whatsapp` v51→v52→v53, `wecare-whatsapp-business-api` v42→v43. Live-verified on the QA handset: `Get Help`, `Hi 👋`, and the never-listed variants `Hi 👋🏽` and `menu 🙏` all log `hi_keyword_triggered` → `interactive_list_sent` (Meta 202) → `delivered` |
 | 2 | **HIGH** | 11 of the 12 `wa.me/message/*` codes in `src/pages/forms/selfservice.tsx` do not exist on either number. Meta's `message_qrdls` returns exactly one code per number (`APDM5HUWH26SG1`, `DPESCFW7U4FXO1`), no paging. Not verified by opening each link, but they are not registered Cloud API QRs |
-| 3 | MEDIUM | Bharat Stack submenu is unreachable, and all six of its rows map to `None` → silent no-reply if ever sent |
-| 4 | MEDIUM | `order_notes` flow has no row in any menu — keyword-only |
-| 5 | MEDIUM | `ss_main_menu` is in `MENU_TO_KEYWORD` but no menu renders that row, so there is no "back" affordance out of the self-service menu |
+| 3 | ~~MEDIUM~~ **FIXED 2026-09-26** | Bharat Stack submenu is unreachable, and all six of its rows mapped to `None` → silent no-reply if ever sent. All six now answer with the WECARE.DIGITAL CTA. The menu itself is still unreachable, which is now correct rather than accidental |
+| 4 | MEDIUM | `order_notes` flow has no row in any menu — keyword-only. Unchanged by the redesign: it lost the 10-row cut, and the Help reply names `order notes` so it is at least discoverable |
+| 5 | ~~MEDIUM~~ **MOOT 2026-09-26** | `ss_main_menu` had no row rendering it, so there was no "back" out of the self-service menu. There is no submenu to come back from now. `ss_main_menu`, `menu_back` and the two `menu_selfservice` spellings all reopen the one menu |
 | 6 | MEDIUM | `FAQ_KEYWORDS` contains `help`, but `COMMANDS_KEYWORDS` (evaluated first) also contains `help`. The FAQ entry is dead |
 | 7 | MEDIUM | `enable_welcome_message: false` on both numbers, so `request_welcome` never arrives and the handler branch at `:1534` is dead. A new visitor arriving from a prefilled link sees no ice breakers *and* no greeting until they type |
 | 8 | MEDIUM | `wa_auto_response.fallbackMessage` is loadable but the unmatched-text path sends nothing, so the configured fallback can never appear |
@@ -419,7 +471,9 @@ Ordered by customer impact. None of these are introduced by the redesign; they a
 | 10 | LOW | `selfservice.tsx:110` hardcodes `flow.key === 'submit_request' ? 'Published' : 'Draft'`, ignoring the `status` field two lines above |
 | 11 | LOW | `code-repo.tsx` and `system-architecture.tsx` still name `submit-request-flow.json` v1 and `subscribe-flow.json`; runtime uses v3 and `profile-flow.json` |
 | 12 | LOW | Two functions named `_is_deterministic_trigger` are defined in the same module (`:170` and `:206`); the second shadows the first, so the `ai_hybrid_routing` config the first one reads is ignored |
-| 13 | UNVERIFIED | `region_*` / `lang_*` list ids appear in no dispatch table. Language switching may be dead. Confirm before keeping it |
+| 13 | **CONFIRMED 2026-09-26** | `region_*` / `lang_*` list ids appear in no dispatch table — measured, 4 region ids and 25 language ids all absent from `MENU_TO_KEYWORD`. Language switching via the picker was dead: the picker opened and every row was silent. `menu_language` now reopens the one menu instead of that trap. The picker code and `bot_language_picker_config` are untouched, so restoring it is one line **plus** registering the 29 ids |
+| 14 | MEDIUM | `menu_find_id` → `'find id'`, but `_handle_list_reply` has no subscriber-lookup branch, so a tap falls through to the generic `"You selected: Find Id. Processing..."` and nothing follows. Pre-existing; the row is off the one menu but stays tappable on handsets. Fixing it means extracting the my-id lookup out of the text path into a function both paths call |
+| 15 | LOW | Only `menu`, `subscribe`, `selfservice` and `pay` are registered as tappable commands on Meta (both numbers). `/bharatstack` and `/help` are normalised by `_KNOWN_SLASH_COMMANDS` and advertised in the commands reply, but cannot be tapped. The reply now lists them last and says so |
 
 ---
 
@@ -470,7 +524,9 @@ field label live on Meta, not in our tree.
 
 ---
 
-## 11. TARGET — the single menu
+## 11. THE single menu — BUILT 2026-09-26
+
+This section is no longer a proposal. It is what `DEFAULT_ONE_MENU` contains.
 
 Header `WECARE.DIGITAL` · Button `Open Menu` · Footer `Tap an option to continue.`
 Body: *What would you like to do? Everything is in this one menu — or just type what you need.*
@@ -532,16 +588,19 @@ Nothing is deleted; these move to keyword, slash command and web access. State t
 
 ### Build order
 
-| Step | Change | Risk | Verify |
+| Step | Change | Risk | Status |
 |---|---|---|---|
-| 1 | Add the 10 new row ids to `MENU_TO_KEYWORD`, keep all legacy ids | none — additive | unit test every id resolves |
-| 2 | Add `DEFAULT_ONE_MENU`, keep old menus in place | none | send to QA number |
-| 3 | Point `HI_KEYWORDS` + `SELFSERVICE_KEYWORDS` + `followup_explore` + welcome paths at the one menu | medium | `/menu`, `/selfservice`, `hi`, new contact |
-| 4 | Copy changes for "appointment"; add `book a visit` aliases | low | keyword test both old and new |
-| 5 | Upload + publish the revised `appointment-flow-v1` asset to Meta | medium — Meta publish | open the flow on the QA handset |
-| 6 | Delete the dead menus and their config keys | low | grep for callers first |
-| 7 | Set `enable_welcome_message: true` (widget prefill already fixed) | low | clear chat, reopen, confirm menu |
-| 8 | Publish the nine missing flows on WABA2, or accept link degradation | **high** — Meta publish ×9 | test every row on both numbers |
+| 1 | Add the 10 new row ids to `MENU_TO_KEYWORD`, keep all legacy ids | none — additive | ✅ done — 59 entries, 0 map to `None` |
+| 2 | Add `DEFAULT_ONE_MENU`, keep old menus in place | none | ✅ done — served by `_get_welcome_config()` |
+| 3 | Point `HI_KEYWORDS` + `SELFSERVICE_KEYWORDS` + `followup_explore` + welcome paths at the one menu | medium | ✅ done — all six live send sites resolve to one config |
+| 4 | Copy changes for "appointment"; add `book a visit` aliases | low | 🟡 aliases + menu copy done; `selfservice.tsx` label and the FAQ body still say "appointment" |
+| 5 | Upload + publish the revised `appointment-flow-v1` asset to Meta | medium — Meta publish | ⏳ not started — the flow screen still reads "Book Appointment" on Meta while the menu row says "Book a Visit" |
+| 6 | Delete the dead menus and their config keys | low | ⏳ deliberately deferred — they are the one-line revert for step 3 |
+| 7 | Set `enable_welcome_message: true` (widget prefill already fixed) | low | ⏳ not started — still `false` on both numbers (re-verified 2026-09-26) |
+| 8 | Publish the nine missing flows on WABA2, or accept link degradation | **high** — Meta publish ×9 | ⏳ owner decision 2 below |
+
+Steps 1–4 changed no Meta-side asset, so they carry no Meta publish risk. Steps 5
+and 8 do, which is why they are separate.
 
 Every step is verifiable against the QA recipient `+918100640044` (see
 `.kiro/steering/02-qa-recipient.md`). Nothing here requires a customer send.
