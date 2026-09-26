@@ -125,8 +125,16 @@ class TestTranslateOriginGate:
     def test_both_configured_origins_are_present(self, handler_module):
         # A gate against an empty allowlist would refuse the real site too, and the failure
         # would look like an outage rather than a misconfiguration.
-        assert "https://wecare.digital" in handler_module.ALLOWED_ORIGINS
-        assert "https://www.wecare.digital" in handler_module.ALLOWED_ORIGINS
+        #
+        # WRITTEN AS A SET SUPERSET, NOT TWO `"https://..." in ...` CHECKS. The readable form
+        # tripped CodeQL's "Incomplete URL substring sanitization" rule at high severity, twice,
+        # and failed the security gate. It was a false positive - ALLOWED_ORIGINS is a set, so
+        # `in` is exact membership and not the substring match the rule warns about - but the
+        # rule cannot tell those apart from a URL literal on the left of `in`, and an assertion
+        # is not worth arguing with a scanner over. Comparing sets says the same thing and
+        # carries no URL literal into an `in` expression. Do not "simplify" this back.
+        expected = {"https://wecare.digital", "https://www.wecare.digital"}
+        assert set(handler_module.ALLOWED_ORIGINS).issuperset(expected)
 
 
 class TestCatalogueStaysOpen:
