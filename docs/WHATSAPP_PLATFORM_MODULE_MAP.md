@@ -4,7 +4,12 @@
 > No business logic was modified to produce this map. This is an **upgrade map** for the existing
 > repository — no NestJS/Prisma/PostgreSQL migration is proposed.
 >
-> Generated 2026-06-26 · Repo `wecaredigital/stack.wecare.digital` (branch `stack`).
+> Generated 2026-06-26 · Repo `wecare-digital/bharat-stack` (branch `stack`).
+>
+> The repo was recorded here as `wecaredigital/stack.wecare.digital`, which is neither
+> the current remote nor a host that resolves — `git remote -v` reports
+> `wecare-digital/bharat-stack`, and `stack.wecare.digital` is NXDOMAIN. Corrected
+> 2026-09-26; the branch name `stack` is unchanged and is the only long-lived branch.
 
 ## Stack confirmed (preserve as-is)
 Next.js + React/TypeScript frontend · AWS Amplify Gen 2 · Cognito auth ·

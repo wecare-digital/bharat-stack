@@ -273,7 +273,7 @@ export default function InstructionsContent () {
 
       {/* Architecture */ }
       <Card title="Architecture">
-        <pre style={ { ...pre, lineHeight: 1.8 } }>{ `Dashboard → authenticated api.wecare.digital/seo-tools/*
+        <pre style={ { ...pre, lineHeight: 1.8 } }>{ `Dashboard → authenticated wecare.digital/api/seo-tools/*
          → SEO Lambda → AWS-native BlogPost records in SeoToolsTable
          → AWS Bedrock (Claude Sonnet 4.6, fallback models)
          → retained DynamoDB audit + AI log records (PITR)

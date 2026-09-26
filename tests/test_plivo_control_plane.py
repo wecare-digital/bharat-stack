@@ -22,14 +22,26 @@ if str(SCRIPTS) not in sys.path:
 
 import plivo_control_plane as pcp  # noqa: E402
 
+# Derived from the module's own API_BASE rather than hardcoded. These three lines
+# used to spell out `https://api.wecare.digital/...`, and when the base moved to
+# `wecare.digital/api` on 2026-09-26 two tests failed for the wrong reason: the plan
+# was correct and the fixture was stale. Deriving it keeps the fixture honest through
+# the next move as well.
+#
+# The DEFECT this fixture encodes is unchanged and is the point of it: `answer_url` is
+# right, while `fallback_answer_url` and `hangup_url` both wrongly point at the ANSWER
+# path. That is the real misconfiguration shape, so exactly two fields should plan a
+# change and `answer_url` should plan none.
+_ANSWER = f"{pcp.API_BASE}/plivo/answer?token=abc123secret"
+
 APP_BEFORE = {
     "app_id": pcp.APP_ID,
     "app_name": pcp.APP_NAME,
-    "answer_url": "https://api.wecare.digital/plivo/answer?token=abc123secret",
+    "answer_url": _ANSWER,
     "answer_method": "POST",
-    "fallback_answer_url": "https://api.wecare.digital/plivo/answer?token=abc123secret",
+    "fallback_answer_url": _ANSWER,        # wrong on purpose: should be /plivo/fallback
     "fallback_method": "POST",
-    "hangup_url": "https://api.wecare.digital/plivo/answer?token=abc123secret",
+    "hangup_url": _ANSWER,                 # wrong on purpose: should be /plivo/hangup
     "hangup_method": "POST",
     "message_url": "",
     "message_method": "POST",
@@ -290,7 +302,7 @@ def test_http_202_alone_is_not_treated_as_success(svc):
     """The provider returns 202 and applies asynchronously; only the persisted
     object counts."""
     def lie(app, payload):
-        app["hangup_url"] = "https://api.wecare.digital/plivo/answer"
+        app["hangup_url"] = f"{pcp.API_BASE}/plivo/answer"
     svc.apply_post_effect = lie
     result = svc.apply_application_update(svc.plan_application_update())
     assert result["http_status"] == 202

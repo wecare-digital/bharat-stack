@@ -85,6 +85,26 @@ jobs:
       - name: Check design drift
         run: python scripts/check_design_drift.py --gate
 
+      # Retired hostnames must not be allowed by a CORS list. `stack.wecare.digital`
+      # is NXDOMAIN since its CNAME was removed on 2026-09-25, and the retirement
+      # cleanup reached the API, Amplify, Cognito and every source allow-list but
+      # missed the S3 bucket `app.wecare.digital` — the live media CDN — which kept
+      # the dead origin until 2026-09-26. It survived because nothing in this repo
+      # configured it, so there was no diff for anyone to review.
+      #
+      # SCOPE, and the same caveat provider-policy.yml carries: `--repo` scans SOURCE
+      # ONLY and needs no credentials, which is why it runs here. A clean tree is not
+      # a clean account — the defect above lived entirely in the account. The estate
+      # sweep over S3, API Gateway, Lambda env and CloudFront needs AWS credentials:
+      #
+      #     python scripts/check_retired_origins.py
+      #
+      # Comments are stripped first, so the thirteen files that document the
+      # retirement pass. That is deliberate: reporting the record of the fix as the
+      # defect is a mistake this repository has had to correct three times.
+      - name: Check retired CORS origins
+        run: python scripts/check_retired_origins.py --repo
+
       - name: Summarise
         if: always()
         run: |

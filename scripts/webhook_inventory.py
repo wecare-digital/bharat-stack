@@ -20,7 +20,7 @@ import boto3
 
 REGION = "us-east-1"
 API_ID = "zllr9lrg7j"
-BASE = "https://api.wecare.digital"
+BASE = "https://wecare.digital/api"
 ROOT = Path(__file__).resolve().parents[1]
 HANDLER = ROOT / "amplify/functions/payments/razorpay-webhook/handler.py"
 

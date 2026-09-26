@@ -145,7 +145,7 @@ never a cold-open surface.
 | Quality / status | GREEN · CONNECTED · OBA | GREEN · CONNECTED · OBA |
 | Throughput | STANDARD, 80 mps | STANDARD, 80 mps |
 | Template language for `wecare_pay` | `en` | `en_US` |
-| Native WhatsApp Pay | **yes** | **no** — sends a CTA to `r.wecare.digital/pay` |
+| Native WhatsApp Pay | **yes** | **no** — sends a CTA to `wecare.digital/r/pay` |
 | WhatsApp Flows | 10 of 10 | **1 of 10** (`subscribe` only, via `flowId2`) |
 | QR deep link | `wa.me/message/APDM5HUWH26SG1` → "Get Help" | `wa.me/message/DPESCFW7U4FXO1` → "Hi 👋" |
 
@@ -153,7 +153,7 @@ Two asymmetries matter more than anything else in this document:
 
 - **Flows are WABA-scoped.** `_send_generic_flow` (`inbound-whatsapp-handler/handler.py:4692`)
   checks for `flowId2`; only `subscribe` has one. For the other nine, WABA2 customers get
-  a **CTA URL button instead of a form** — a link out to `r.wecare.digital/{sr,tr,ar,sa,rx,dd,ea,lr,on}`.
+  a **CTA URL button instead of a form** — a link out to `wecare.digital/r/{sr,tr,ar,sa,rx,dd,ea,lr,on}`.
   So a menu row that opens a form on WABA1 opens a web link on WABA2.
 - **Payment is WABA1-only in practice.** `PAY_MSG`, `PAYMENT_PHONE_NUMBER_ID` and both pay
   branches (`handler.py:1741` and `:6551`) route WABA2 to a web link. The invoice engine and
@@ -348,7 +348,7 @@ Four entry points converge on one pipeline:
 ```
 /pay · "pay" keyword · menu_pay row · catalog cart · dashboard
    └─► inbound-whatsapp-handler
-         ├─ WABA2 → CTA button "Pay Now" → r.wecare.digital/pay   [no native pay]
+         ├─ WABA2 → CTA button "Pay Now" → wecare.digital/r/pay   [no native pay]
          └─ WABA1 → "👀 Pulling your pending invoice..."
                └─► wecare-invoice-engine  /invoices/send-pending-by-phone
                      • scans InvoicesTable for created|pending_payment|sent

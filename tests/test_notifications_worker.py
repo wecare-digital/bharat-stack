@@ -382,7 +382,7 @@ class TestBodyIsNotEdited:
         body = worker_mod.notification_body()
         assert body.startswith("Thanks for contacting WECARE.DIGITAL!")
         assert "https://wecare.digital/selfservice" in body
-        assert "https://r.wecare.digital/wa" in body
+        assert "https://wecare.digital/r/wa" in body
         assert body.endswith("We'll review it and follow up if needed.")
 
     def test_it_is_overridable_only_by_environment(self, monkeypatch):

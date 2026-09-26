@@ -3,7 +3,7 @@
     "richCard": {
       "standaloneCard": {
         "cardContent": {
-          "description": "Submit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.\n``````\nWECARE.DIGITAL",
+          "description": "Submit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://wecare.digital/r/wa.\n\nWe'll review it and follow up if needed.\n``````\nWECARE.DIGITAL",
           "media": {
             "contentInfo": {
               "fileUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
@@ -17,7 +17,7 @@
               "action": {
                 "openUrlAction": {
                   "application": "BROWSER",
-                  "url": "https://r.wecare.digital/getstarted"
+                  "url": "https://wecare.digital/r/getstarted"
                 },
                 "postbackData": "wecaremenu",
                 "text": "Get Started"

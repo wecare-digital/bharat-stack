@@ -23,7 +23,8 @@ import * as iam from 'aws-cdk-lib/aws-iam';
  * - SQS Queues (4): inbound-dlq, bulk-queue, bulk-dlq, outbound-dlq
  * - CloudWatch Alarms, Dashboard, Log Retention
  * - WAF Web ACL for webhook endpoints
- * - URL Shortener (r.wecare.digital): API Gateway + Lambda + DynamoDB + Route53
+ * - URL Shortener (wecare.digital/r, plus the r.wecare.digital alias):
+ *   API Gateway + Lambda + DynamoDB + Route53
  * - Durable Admin SEO audit/log storage and Lambda
  *
  * Lambda functions (42+ Python functions) are deployed separately
@@ -133,7 +134,8 @@ const dataStack = backend.data.resources.stacks[ 'data' ];
 
 /**
  * URL Shortener Resources
- * Creates Route53 CNAME for r.wecare.digital -> API Gateway,
+ * Creates Route53 CNAME for r.wecare.digital -> API Gateway (retained: it still
+ * resolves every short code ever issued),
  * DynamoDB tables, ACM cert, and Lambda integration.
  */
 addLinkResources( dataStack );

@@ -109,7 +109,7 @@ def main() -> int:
 
     if have_route and have_perm:
         print("\nnothing to do. Probe should return 401 (signature required):")
-        print(f"  curl -X POST https://api.wecare.digital/plivo/dial-events "
+        print(f"  curl -X POST https://wecare.digital/api/plivo/dial-events "
               "-d 'CallUUID=probe'")
         return 0
 
@@ -140,7 +140,7 @@ def main() -> int:
 
     print("\nconverged. Verify (expect 401, NOT 404 or 500):")
     print("  curl -o /dev/null -w '%{http_code}\\n' -X POST "
-          "https://api.wecare.digital/plivo/dial-events -d 'CallUUID=probe'")
+          "https://wecare.digital/api/plivo/dial-events -d 'CallUUID=probe'")
     return 0
 
 

@@ -21,7 +21,7 @@ export interface PublicBlogPost {
   robots?: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 const PUBLIC_BLOG_API = `${API_BASE}/seo-tools/blog-public`;
 
 export async function listPublicBlogPosts (): Promise<PublicBlogPost[]> {

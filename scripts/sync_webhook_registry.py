@@ -36,7 +36,7 @@ TXT = Path.home() / "aws-new-keys-SAVE-THEN-DELETE.txt"
 BEGIN = "# >>> BEGIN WEBHOOK REGISTRY (managed by scripts/sync_webhook_registry.py) >>>"
 END = "# <<< END WEBHOOK REGISTRY <<<"
 CONFIG_SECRET = "wecare/config/webhook-registry"
-BASE = "https://api.wecare.digital"
+BASE = "https://wecare.digital/api"
 
 WEBHOOKS = [
     ("Razorpay", "POST", "/razorpay-webhook", "wecare-razorpay-webhook",

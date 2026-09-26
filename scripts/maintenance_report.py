@@ -279,7 +279,7 @@ The Plivo integration is INBOUND ONLY. Plivo authenticates TO us; we never
 authenticate to Plivo at runtime.
 
     Meta WhatsApp Calling -> SIP -> Plivo Voice Application
-      -> POST https://api.wecare.digital/plivo/answer   (wecare-plivo-answer)
+      -> POST https://wecare.digital/api/plivo/answer   (wecare-plivo-answer)
       -> returns static XML: <Play> S3 audio + <Hangup/>
       -> on CallStatus=completed, invokes wecare-sms-aws:live for the follow-up SMS
 
