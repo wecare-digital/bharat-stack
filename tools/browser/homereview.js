@@ -228,6 +228,7 @@ const METRICS = () => {
     if ( !hdrHash ) throw new Error( 'could not read the styled-jsx scoping class from the harvested header' );
     const scopeHdr = css => css.replace( /HDRJSX/g, `.${hdrHash}` );
 
+    const STAMP = new Date().toISOString().replace( 'T', ' ' ).slice( 0, 16 ) + 'Z';
     const J = o => JSON.stringify( o );
     const d = M.d, m = M.m;
     const staleW = m.cycle.w, needW = d.cycle.w;
@@ -474,7 +475,11 @@ meant to look identical:</b> the fixes only repair states you cannot see in a no
 <div class="bar"><div class="in">
   <span class="mut sm"><b>No JavaScript needed to view this page.</b> Every panel is in the
   markup; the notes are native <code>&lt;details&gt;</code> — click “why / the code” to open one.
-  no CTA, no price — this band says what the page is about · source unchanged</span>
+  no CTA, no price — this band says what the page is about · source unchanged<br>
+  <b>Build ${STAMP}.</b> If this stamp is older than the commit you expect, you are looking at a
+  cached copy — reload with a query string appended. Exactly one panel in this page renders the
+  logo in a serif, and it is labelled “before — logo loses Inter” in section H; a serif logo
+  anywhere else means a stale render.</span>
 </div></div>
 
 <!-- ============== ORIGINAL, 1:1 ============== -->
