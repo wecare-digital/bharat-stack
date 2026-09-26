@@ -108,22 +108,33 @@ const HANDLERS: HandlerInfo[] = [
         config: [],
     },
     {
-        name: 'wecare-voice-in-cdr',
-        displayName: 'Voice CDR (Inbound Calls)',
+        // Corrected 2026-09-25. Every field in this entry was wrong, measured against
+        // the live account: the function was `wecare-voice-in-cdr` (does not exist —
+        // it is `wecare-voice-cdr-read`), the endpoint was `POST /webhook/voice-cdr`
+        // (does not exist — only `GET`/`DELETE /voice-cdr-read`), the table was
+        // `VoiceInCDRTable` (does not exist — it is `VoiceCDRTable`), and the
+        // description said it "Processes Airtel IQ CDR webhooks". Airtel is retired and
+        // its CDR write path was removed on 2026-09-25.
+        //
+        // The old `flow` also claimed this function sends SMS, WhatsApp and RCS
+        // notifications. It does not: connected-call notifications are owned by the
+        // notification domain and `PSTN_CONNECTED_NOTIFICATIONS_ENABLED` is absent, so
+        // nothing is dispatched. Listing sends that cannot happen is the same defect
+        // class as a hard-coded `status: 'active'`.
+        name: 'wecare-voice-cdr-read',
+        displayName: 'Call Records (read)',
         category: 'Voice',
-        endpoint: 'POST /webhook/voice-cdr',
-        description: 'Processes Airtel IQ CDR webhooks for inbound voice calls',
+        endpoint: 'GET /voice-cdr-read',
+        description: 'Reads call detail records for the call history UI. Read-only: '
+            + 'nothing in this function writes a CDR.',
         flow: [
-            'Receive CDR webhook from Airtel IQ',
-            'Parse call details (caller, duration, recording URL)',
-            'Store CDR → VoiceInCDRTable',
-            'Send SMS notification (AWS End User Messaging, DLT template)',
-            'Send WhatsApp wd_menu template (WABA1)',
-            'Send RCS notification (Sinch rcsmenu)',
-            'Update CDR with notification status',
+            'Authenticated GET from the call history UI',
+            'Query VoiceCDRTable and shape rows for display',
+            'DELETE /voice-cdr-read clears records, subject to retention policy',
+            'CDRs are WRITTEN by plivo-answer for the live PSTN provider, not here',
         ],
-        tables: [ 'VoiceInCDRTable', 'ContactsTable', 'WhatsAppOutboundTable', 'SystemConfigTable' ],
-        config: [ 'voice_cdr_sms_enabled', 'voice_cdr_rcs_enabled' ],
+        tables: [ 'VoiceCDRTable' ],
+        config: [],
     },
     {
         name: 'wecare-rcs-send',

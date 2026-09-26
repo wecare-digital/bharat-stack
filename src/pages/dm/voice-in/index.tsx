@@ -157,15 +157,20 @@ const VoiceInPage: React.FC<PageProps> = ( { signOut, user, embedded = false } )
       const resp = await fetch( `${API_BASE}/voice-in/obd/audio-library`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify( { audioData, fileName: file.name, uploadToAirtel: true } )
+        // `uploadToAirtel: true` was sent here until 2026-09-25. Airtel is retired
+        // and no handler code ever read the field - it survived only in a docstring -
+        // so every audio upload carried a flag asking a dead provider to receive it.
+        body: JSON.stringify( { audioData, fileName: file.name } )
       } );
       const result = await resp.json();
       if ( result.success )
       {
         const convMsg = result.converted ? ` (converted: ${result.conversionReport})` : '';
-        { /* airtelAudioUrl is the handler's wire field name and is left as-is;
-             only the operator-visible wording is neutral. */ }
-        toast.success( `Audio "${file.name}" saved to library${result.airtelAudioUrl ? ' + prompt upload' : ''}${convMsg}` );
+        // The message used to append ' + prompt upload' when `result.airtelAudioUrl`
+        // was set. The handler stopped returning that field when the audio URL moved
+        // to storage we control, so the branch could never fire and the suffix never
+        // appeared. Removed rather than left as a condition that is always false.
+        toast.success( `Audio "${file.name}" saved to library${convMsg}` );
         await loadAudioLibrary();
       } else
       {

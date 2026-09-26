@@ -516,9 +516,14 @@ const LAMBDA_DETAILED: LambdaDetailed[] = [
   { name: 'wecare-whatsapp-business-api', displayName: 'WhatsApp Business API', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Meta Graph API wrapper — flows, payments, checkout', apiRoute: '/whatsapp/api', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-waba-management', displayName: 'WABA Management', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'WABA config, phone management, groups', apiRoute: '/waba', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-sms-aws', displayName: 'SMS AWS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS Pinpoint SMS handler', apiRoute: '/sms-aws', envVars: { SMS_TABLE: 'stack-wecare-digital-SmsAwsTable' }, triggers: [ 'API Gateway', 'SNS' ], status: 'active' },
-  { name: 'wecare-sms-in', displayName: 'SMS In (Airtel)', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Airtel inbound SMS webhook', apiRoute: '/webhook/sms-in', envVars: {}, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  // `wecare-sms-in` REMOVED 2026-09-25. Listed with `status: 'active'` and route
+  // `/webhook/sms-in`; measured against the account, neither the function nor the
+  // route exists, and Airtel is a retired provider. Inbound SMS is not received.
   { name: 'wecare-voice-aws', displayName: 'Voice AWS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS voice call handler', apiRoute: '/voice-aws', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceAwsTable' }, triggers: [ 'API Gateway' ], status: 'active' },
-  { name: 'wecare-voice-in', displayName: 'Voice In (Airtel)', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Airtel voice webhooks — C2C, OBD, CDR', apiRoute: '/webhook/voice-*', envVars: {}, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  // `wecare-voice-in` REMOVED 2026-09-25. Listed with `status: 'active'` and route
+  // `/webhook/voice-*`; no such function or route exists. The live functions are
+  // `wecare-voice-in-c2c` and `wecare-voice-in-obd`, and their Airtel CDR write path
+  // was removed on 2026-09-25 — they serve the operations UI, not a provider webhook.
   { name: 'wecare-voice-cdr-read', displayName: 'Voice CDR Read', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Read voice CDR records', apiRoute: '/voice-cdr', envVars: { CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-template-analytics', displayName: 'Template Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Template performance metrics', apiRoute: '/whatsapp/template-analytics', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-meta-analytics', displayName: 'Meta Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Meta conversation analytics', apiRoute: '/meta-analytics', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
@@ -590,8 +595,13 @@ const CODE_ASSETS: CodeAsset[] = [
   { id: 'l-sms-out', category: 'Messaging Lambdas', name: 'Outbound SMS', description: 'Send SMS via AWS End User Messaging.', path: 'amplify/functions/messaging/outbound-sms/handler.py', type: 'Lambda' },
   { id: 'l-email', category: 'Messaging Lambdas', name: 'Outbound Email', description: 'Send email via Amazon SES.', path: 'amplify/functions/messaging/outbound-email/handler.py', type: 'Lambda' },
   { id: 'l-voice-out', category: 'Messaging Lambdas', name: 'Outbound Voice', description: 'Initiate voice calls. Retired-provider backing; PSTN voice moves to Plivo.', path: 'amplify/functions/messaging/outbound-voice/handler.py', type: 'Lambda' },
-  { id: 'l-sms-in', category: 'Messaging Lambdas', name: 'SMS In (Airtel)', description: 'Airtel inbound SMS webhook handler.', path: 'amplify/functions/messaging/sms-in/handler.py', type: 'Lambda' },
-  { id: 'l-voice-in', category: 'Messaging Lambdas', name: 'Voice In (Airtel)', description: 'Airtel voice webhooks — C2C, OBD, CDR.', path: 'amplify/functions/messaging/voice-in/handler.py', type: 'Lambda' },
+  // `l-sms-in` REMOVED 2026-09-25: pointed at
+  // `amplify/functions/messaging/sms-in/handler.py`, a path that does not exist.
+  // `l-voice-in` REMOVED 2026-09-25: pointed at
+  // `amplify/functions/messaging/voice-in/handler.py`, which does not exist. The real
+  // sources are `voice-in/c2c/handler.py` and `voice-in/obd/handler.py`.
+  { id: 'l-voice-in-c2c', category: 'Messaging Lambdas', name: 'Voice In (C2C)', description: 'Click-to-call operations UI; historical call reads. Airtel CDR write path removed 2026-09-25.', path: 'amplify/functions/messaging/voice-in/c2c/handler.py', type: 'Lambda' },
+  { id: 'l-voice-in-obd', category: 'Messaging Lambdas', name: 'Voice In (OBD)', description: 'Outbound-campaign operations UI: text-to-speech and audio library. Campaign creation is retired and answers explicitly.', path: 'amplify/functions/messaging/voice-in/obd/handler.py', type: 'Lambda' },
   { id: 'l-scheduled', category: 'Messaging Lambdas', name: 'Scheduled Messages', description: 'Schedule and send messages at specific times.', path: 'amplify/functions/messaging/scheduled-messages/handler.py', type: 'Lambda' },
   { id: 'l-push', category: 'Messaging Lambdas', name: 'Push Notifications', description: 'Web push notification delivery.', path: 'amplify/functions/messaging/push-notifications/handler.py', type: 'Lambda' },
   // AI
@@ -934,7 +944,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
 │  │ (AI/KB)  │  │ (Email)  │  │ (SMS)    │  │ (TTS)    │  │ (Cron)   │             │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘             │
 │                                                                                     │
-│  External: Meta WhatsApp API │ Razorpay │ PayU │ Airtel Voice/SMS │ Wix Store      │
+│  External: Meta WhatsApp API │ Razorpay │ Plivo Voice │ AWS SMS │ Wix Store       │
 └─────────────────────────────────────────────────────────────────────────────────────┘
           `}</pre>
         </div>

@@ -656,7 +656,11 @@ def _upload_to_audio_library(body: Dict, request_id: str) -> Dict[str, Any]:
     Request body:
     - audioData: base64-encoded WAV file content (required)
     - fileName: custom filename (optional, default: obd_lib_{timestamp}.wav)
-    - uploadToAirtel: whether to also upload to Airtel (default: true)
+
+    `uploadToAirtel` was documented here until 2026-09-25 as "whether to also upload
+    to Airtel (default: true)". No code ever read it - the docstring was the only
+    place it existed - but the frontend was sending it on every upload because of
+    this line. Both are gone; the audio goes to storage we control.
     """
     try:
         audio_data = body.get('audioData')

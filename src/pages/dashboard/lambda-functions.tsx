@@ -45,7 +45,14 @@ const LAMBDA_FUNCTIONS: LambdaFunction[] = [
   { name: 'wecare-outbound-email', displayName: 'Outbound Email', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send email via Amazon SES', apiRoute: '/email/send', envVars: { EMAIL_TABLE: 'stack-wecare-digital-EmailTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-outbound-voice', displayName: 'Outbound Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Initiate voice calls via Connect/Airtel', apiRoute: '/voice/call', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceCallTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-sms-aws', displayName: 'SMS AWS (Pinpoint)', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS Pinpoint SMS handler', apiRoute: '/sms-aws', envVars: { SMS_TABLE: 'stack-wecare-digital-SmsAwsTable' }, triggers: [ 'API Gateway', 'SNS' ], status: 'active' },
-  { name: 'wecare-sms-in-airtel', displayName: 'SMS IN (Airtel)', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Airtel inbound SMS webhook', apiRoute: '/webhook/sms-in', envVars: { SMS_IN_TABLE: 'stack-wecare-digital-AirtelSMSTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  // `wecare-sms-in-airtel` REMOVED 2026-09-25. It was listed here with
+  // `status: 'active'` and route `/webhook/sms-in`, and none of that was true: the
+  // function does not exist in the account, the route does not exist on the API, and
+  // Airtel is a retired provider. A hard-coded `active` for a function that cannot be
+  // invoked is worse than an omission, because an operator reading this page would
+  // conclude inbound SMS was being received.
+  // `wecare-outbound-voice` is also gone from the account; it is left in the list
+  // below only where its row does not claim a provider, and should be re-measured.
   { name: 'wecare-voice-aws', displayName: 'Voice AWS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'AWS voice call handler', apiRoute: '/voice-aws', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceAwsTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-voice-in-c2c', displayName: 'Voice IN (C2C)', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Airtel Click-to-Call webhook', apiRoute: '/webhook/voice-c2c', envVars: { C2C_TABLE: 'stack-wecare-digital-AirtelC2CTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
   { name: 'wecare-voice-in-obd', displayName: 'Voice IN (OBD)', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Airtel OBD campaign webhook', apiRoute: '/webhook/voice-obd', envVars: { OBD_TABLE: 'stack-wecare-digital-OBDCampaignTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
