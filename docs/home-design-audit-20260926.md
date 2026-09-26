@@ -224,6 +224,164 @@ Screen readers are correct — the four animated copies carry `aria-hidden` and
 generators, some crawlers) reads the set five times, with no space after "for". Cheap to
 improve, and the sr-only span is the natural place.
 
+## TYPE — Typography findings, measured with the font harnesses
+
+Prompted by the fair observation that everything above is a runtime state and none of it is
+type. Run with `measure-fonts-sitewide.js`, `measure-fonts-detail.js` and a computed-style
+sweep of the top band at 1280.
+
+### TYPE-1 — The top band renders in **two different Inter stacks**
+
+| Element | Resolved family |
+|---|---|
+| header lockup — `span`, `.brand-dot`, `.brand-stack` | `Inter, ui-sans-serif, …` |
+| hero — `.home-head-line`, `.home-sub` | `Inter, -apple-system, …` |
+
+Both start with Inter, so on a warm load they are indistinguishable — which is exactly why
+this has survived. They diverge the moment Inter is unavailable: the header falls to
+`ui-sans-serif`, the hero to `-apple-system`. Two different faces in one lockup, 108px apart.
+
+Sitewide the same split is `Inter, -apple-system` ×1135 against `Inter, ui-sans-serif` ×105,
+plus `SF Mono, Monaco` ×9 which is the terminal and legitimate. `index.tsx:~800` carries a
+long, correct comment about why the hero declares its stack locally rather than inheriting
+Amplify's; the header was never brought in line.
+
+### TYPE-2 — The webfont swap moves the band on every cold load
+
+`Inter` loads from Google with `display=swap`, so the fallback paints first. Measured with
+`fonts.googleapis.com` blocked, then allowed:
+
+| | frame line | h1 | hero band |
+|---|---:|---:|---:|
+| fallback face | 513.1px wide | 129.4px tall | 209.4px |
+| Inter arrives | **506px** | **131.4px** | **211.4px** |
+| delta | **−7.1px** | **+2px** | **+2px** |
+
+So the headline narrows 7px and the band grows 2px taller when the font lands — a real layout
+shift on every uncached visit. **`animcheck.js` can never catch this**, because `gotoStable`
+waits on `document.fonts.ready` by design, which is the right call for reflow measurement and
+the reason this was invisible. Fix is a metrics-matched fallback (`size-adjust` /
+`ascent-override` on a local face) or preloading the woff2 to shrink the window; 2px may also
+be acceptable, but it should be a decision.
+
+### TYPE-3 — `.brand-dot` is the weakest text on the page at 3.94:1
+
+Contrast of every top-band element against its actual background: `17.4`–`19.47` for
+everything except `.brand-dot` at **3.94:1**. That **passes** AA, but only because 23px/800
+qualifies as large text (≥18.66px bold, 3:1). It has no margin: shrink it below 18.66px or drop
+the weight and it becomes a failure. Worth a note in the source so it is not "tidied" later.
+
+### TYPE-4 — A source comment says a rung does not exist. It does.
+
+`index.tsx` states that `20px/600` "was considered and rejected: it exists nowhere on the
+site, and inventing a rung is the thing the h2 unification was done to stop."
+`measure-fonts-detail.js` finds it: **`/my-order` `.mo-link` "Terms of Service"**, 20px/600.
+The reasoning stands, the factual claim does not — and it is the tenth stale comment, on top
+of the nine in L7.
+
+### TYPE-5 — `15.5px` exists, ×71
+
+`.lgd-disclaimer` and `.lgd-short` on `/terms` and `/privacy` resolve to **15.5px/400**. A
+half-pixel size is almost always arithmetic rather than intent. Not the home page, but it is
+in the shared legal layout, and 27 distinct size/weight pairs sitewide is the context.
+
+### TYPE-6 — Tracking drift across the four hero copies
+
+Already noted under propagation, but it belongs here too: `index.tsx` is on `-0.04em`
+(correct, scales with the clamp) while `grahak-os`, `vayulok` and **`RotatingHero`** are all
+still on `-2.2px` with `-1.2px`/`-0.8px` media overrides — the 2.75× optical swing. Since
+`RotatingHero` is reached by 13 public routes, most of the site's headlines still carry the
+bug the home page fixed.
+
+---
+
+## DIM — Other design dimensions: spacing overrides, colour modes, i18n, layering
+
+Everything above is either a runtime state or type. These are the remaining axes, measured.
+
+### DIM-1 — WCAG 1.4.12 Text Spacing **fails**, and it is the same root cause
+
+1.4.12 is Level **AA** and normative: a user stylesheet setting `line-height:1.5`,
+`letter-spacing:.12em`, `word-spacing:.16em` must not clip content. Applied:
+
+```
+before: pill 278px, word needs 277.5px
+after : pill 278px, word needs 356.8px
+=> 78.8px clipped — 22% of "consumers" — by overflow:hidden
+```
+
+No horizontal overflow is introduced and the h1 grows 131.4 → 171.7px as expected; the only
+damage is the pill. This is the **same defect as H2/H3** seen from a third angle: a
+JavaScript-measured width on an `overflow:hidden` box cannot survive anything that changes
+glyph metrics.
+
+**Fix A + Fix B close this.** `width:max-content` is correct under any spacing, and the
+`ResizeObserver` refires when the word's box changes, so the px value JavaScript writes stays
+correct. Worth recording because it turns those two from "repairs a flash" into "clears an AA
+failure".
+
+### DIM-2 — Translating the page clips the rotating word by 39px
+
+This one is not hypothetical: the site ships a language switcher, and the whole
+`site-language` service exists to translate this page. A client-side translation rewrites the
+text node and nothing else — the pill keeps the width measured for English:
+
+```
+english: pill 278px for "consumers"      (277.5px)
+hindi  : pill 278px for "उपभोक्ताओं"        (317px)   => 39px clipped
+```
+
+Devanagari is also taller than Latin at the same size, so the clipping is not only horizontal.
+**Fix A + Fix B close this too**, for the same reason as DIM-1.
+
+### DIM-3 — In forced-colors mode the pill loses both the tint and the dot
+
+`forced-colors: active` (Windows High Contrast). Measured: `.home-mark` background →
+`rgb(255,255,255)` and `.home-mark-dot` → `rgb(255,255,255)`. There are **no
+`@media (forced-colors)` rules anywhere on the site**. So the pill stops being a pill: no
+tint, no dot, and the rotating word reads as ordinary headline text.
+
+That matters more here than it would elsewhere, because the source argues the rotation is
+doing "argumentative work rather than decoration" — the four tints *are* the message. My own
+prediction that an inline background would survive was **wrong**; forced colors overrides
+inline styles too, which is why this was measured rather than reasoned.
+
+```css
+@media (forced-colors: active){
+  /* keep the pill readable as a shape when its colour is taken away */
+  .home-mark{border:1px solid CanvasText}
+  .home-mark-dot{forced-color-adjust:none}
+}
+```
+
+### DIM-4 — No dark-mode support, and nothing declares that
+
+No `prefers-color-scheme` rule exists anywhere on the page, and there is no
+`<meta name="color-scheme">`. Under `colorScheme: dark` the band renders unchanged: shell
+`rgb(255,255,255)`, h1 `rgba(0,0,0,.95)`, header `rgba(255,255,255,.97)`.
+
+Rendering light-only is a legitimate brand decision. Leaving it **undeclared** is not: without
+`<meta name="color-scheme" content="light">` the browser may still apply dark heuristics to
+form controls and scrollbars, so the page gets a partial dark treatment it never asked for.
+One line, and it makes the decision explicit.
+
+### DIM-5 — Clean: layering and reflow
+
+Reported so they are not re-investigated.
+
+- **Layering.** Header `z-index 1001`, menu `1002`, support widget `1300`. The widget would
+  paint over an open menu, but measured at 1280×900, 844×390 and 390×844 the two boxes
+  **never intersect**. No defect; the z-order is simply never exercised.
+- **Reflow at 320px.** `0px` of horizontal overflow, furthest-right element at exactly 320px.
+  Clean.
+
+### Not checked
+
+Print stylesheet, RTL (`dir="rtl"`), and real browser zoom at 200/400% as distinct from a
+narrow viewport. Named so the gap is visible rather than implied.
+
+---
+
 ## M-HDR — The shared header's mega-menu collapses to a sliver on a short viewport
 
 Found while extending the 1:1 review treatment to the header. Measured across nine viewports
