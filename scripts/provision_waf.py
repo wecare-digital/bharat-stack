@@ -14,10 +14,33 @@ be met on the surfaces that support it:
 | Surface | Scope | Why it is worth protecting |
 |---|---|---|
 | Amplify app `d22dm4b0jn71jw` | `CLOUDFRONT` | the dashboard and the public site |
-| Cognito pool `us-east-1_cSx0RHCIR` | `REGIONAL` | managed login + the pool's API endpoints |
+| Cognito pool `us-east-1_cSx0RHCIR` (staff) | `REGIONAL` | managed login + the pool's API endpoints |
+| Cognito pool `us-east-1_46ULYuukt` (customers) | `REGIONAL` | public passwordless WhatsApp/email OTP sign-in |
 
 Two web ACLs, because the scopes are incompatible: Amplify requires a CloudFront-scope
 ACL created in us-east-1, and a regional ACL is explicitly not usable with Amplify.
+
+The customer pool was added on 2026-09-26. It had **no web ACL at all** while the staff
+pool had one, which is the wrong way round: `WECARE.DIGITAL-CUSTOMERS` is the
+internet-facing pool behind public OTP registration, and the staff pool is not. Measured
+with `get_web_acl_for_resource` on both pool ARNs - the staff pool returned
+`wecare-cognito-waf`, the customer pool returned nothing.
+
+**One regional ACL protects both pools rather than two ACLs**, deliberately. A web ACL
+can be associated with many resources, the rule posture both pools want is identical
+(rate limiting blocks, managed groups count), and it avoids a second $5/month ACL plus
+its rules. The cost is coupling: the rate-based rule aggregates per IP across both
+pools, and tuning one tunes the other. When OTP economics eventually demand a tighter,
+blocking limit on the customer pool alone, split it into its own ACL then - that is a
+cheap change, and guessing at it now would be speculative.
+
+**A per-IP rate limit is a backstop here, not the control.** Indian mobile carriers
+CGNAT heavily, so thousands of legitimate users share one address and a per-IP limit
+tight enough to stop OTP abuse would refuse real customers. The real control for
+OTP-send abuse is per-phone-number and per-identity, in the handler, with the send
+counter persisted - tracked separately as an application gap. This ACL stops the crude
+single-host flood and nothing subtler, and says so rather than implying coverage it
+does not have.
 
 The API's own protection is unchanged and is not WAF's job here: handler-level
 `require_auth`, provider signature verification on webhooks, and per-route Lambda
@@ -89,8 +112,19 @@ ACCOUNT = "775261844268"
 
 AMPLIFY_APP_ID = "d22dm4b0jn71jw"
 AMPLIFY_APP_ARN = f"arn:aws:amplify:{REGION}:{ACCOUNT}:apps/{AMPLIFY_APP_ID}"
-USER_POOL_ID = "us-east-1_cSx0RHCIR"
-USER_POOL_ARN = f"arn:aws:cognito-idp:{REGION}:{ACCOUNT}:userpool/{USER_POOL_ID}"
+
+# Both Cognito pools. The staff pool carries the dashboard's managed login; the customer
+# pool carries public passwordless OTP sign-in and is the one that faces the internet.
+STAFF_POOL_ID = "us-east-1_cSx0RHCIR"
+CUSTOMER_POOL_ID = "us-east-1_46ULYuukt"
+
+
+def pool_arn(pool_id: str) -> str:
+    return f"arn:aws:cognito-idp:{REGION}:{ACCOUNT}:userpool/{pool_id}"
+
+
+STAFF_POOL_ARN = pool_arn(STAFF_POOL_ID)
+CUSTOMER_POOL_ARN = pool_arn(CUSTOMER_POOL_ID)
 
 AMPLIFY_ACL = "wecare-amplify-waf"
 COGNITO_ACL = "wecare-cognito-waf"
@@ -161,14 +195,15 @@ PLAN = {
     AMPLIFY_ACL: {
         "scope": "CLOUDFRONT",
         "rules": AMPLIFY_RULES,
-        "resource": AMPLIFY_APP_ARN,
+        "resources": [AMPLIFY_APP_ARN],
         "logGroup": AMPLIFY_LOG_GROUP,
         "description": "Blocking web ACL for the Amplify-hosted dashboard and site",
     },
     COGNITO_ACL: {
         "scope": "REGIONAL",
         "rules": COGNITO_RULES,
-        "resource": USER_POOL_ARN,
+        # Both pools. Order matters only for readability.
+        "resources": [STAFF_POOL_ARN, CUSTOMER_POOL_ARN],
         "logGroup": COGNITO_LOG_GROUP,
         # WAF restricts this field to [\w+=:#@/\-,\.] plus spaces - no semicolons,
         # no parentheses. The first attempt was rejected for a semicolon.
@@ -223,6 +258,14 @@ def associated_acl_arn(client, resource_arn: str, scope: str) -> str:
     `get_web_acl_for_resource` is the only honest answer here: an ACL can exist and
     protect nothing, which is the state this script was written to leave behind never
     again.
+
+    Do NOT reach for `list_resources_for_web_acl` instead. It enumerates only ALBs, API
+    Gateway REST APIs, AppSync APIs, App Runner services and Verified Access instances -
+    **not Cognito user pools, not Amplify apps, not CloudFront**. Called on
+    `wecare-cognito-waf` it returns an empty list even with both user pools associated,
+    which reads exactly like "this ACL protects nothing" and is wrong. Verified
+    2026-09-26: empty list from that call, while `get_web_acl_for_resource` returned
+    `wecare-cognito-waf` for both pool ARNs.
     """
     try:
         got = client.get_web_acl_for_resource(ResourceArn=resource_arn)
@@ -236,13 +279,20 @@ def report(client) -> dict:
     for name, spec in PLAN.items():
         acl = find_acl(client, name, spec["scope"])
         arn = acl["ARN"] if acl else ""
+        # Per resource, so a partially-associated ACL cannot read as protected. The
+        # customer pool was unprotected for exactly as long as this only looked at one
+        # resource.
+        protecting = {
+            res: bool(arn) and associated_acl_arn(client, res, spec["scope"]) == arn
+            for res in spec["resources"]
+        }
         state[name] = {
             "arn": arn,
             "id": acl["Id"] if acl else "",
             "lockToken": acl["LockToken"] if acl else "",
             "logging": logging_enabled(client, arn) if arn else False,
-            "protecting": associated_acl_arn(client, spec["resource"],
-                                             spec["scope"]) == arn and bool(arn),
+            "protecting": all(protecting.values()),
+            "protectingByResource": protecting,
         }
         blocking = [r["Name"] for r in spec["rules"]
                     if r.get("Action", {}).get("Block") is not None
@@ -251,8 +301,8 @@ def report(client) -> dict:
                     if r.get("OverrideAction", {}).get("Count") is not None]
         print(f"{name} ({spec['scope']})")
         print(f"  web ACL: {'present' if arn else 'MISSING'}")
-        print(f"  associated with {spec['resource'].split('/')[-1]}: "
-              f"{'yes' if state[name]['protecting'] else 'NO'}")
+        for res, ok in protecting.items():
+            print(f"  associated with {res.split('/')[-1]}: {'yes' if ok else 'NO'}")
         print(f"  logging: {'on' if state[name]['logging'] else 'OFF'}")
         print(f"  blocking rules: {blocking}")
         print(f"  counting rules: {counting or '[]'}")
@@ -303,7 +353,11 @@ def apply(client, state) -> int:
         else:
             print("  logging already configured")
 
-        if not info["protecting"]:
+        for resource in spec["resources"]:
+            label = resource.split("/")[-1]
+            if info["protectingByResource"].get(resource):
+                print(f"  already associated with {label}")
+                continue
             # A freshly created web ACL is not immediately associable and WAF answers
             # `WAFUnavailableEntityException` while it propagates. Observed on the
             # regional ACL with an 8 second wait, so this retries rather than treating
@@ -312,18 +366,16 @@ def apply(client, state) -> int:
             for attempt in range(10):
                 try:
                     client.associate_web_acl(WebACLArn=info["arn"],
-                                             ResourceArn=spec["resource"])
-                    print(f"  associated with {spec['resource'].split('/')[-1]}")
+                                             ResourceArn=resource)
+                    print(f"  associated with {label}")
                     break
                 except ClientError as exc:
                     code = exc.response.get("Error", {}).get("Code")
                     if code == "WAFUnavailableEntityException" and attempt < 9:
                         time.sleep(10)
                         continue
-                    print(f"  association FAILED: {code}", file=sys.stderr)
+                    print(f"  association FAILED on {label}: {code}", file=sys.stderr)
                     return 2
-        else:
-            print("  already associated")
     return 0
 
 
@@ -351,9 +403,10 @@ def verify() -> int:
         if not info["arn"]:
             problems.append(f"{name} does not exist")
             continue
-        if not info["protecting"]:
-            problems.append(f"{name} exists but protects nothing - "
-                            f"{spec['resource']} has no web ACL")
+        for resource, ok in info["protectingByResource"].items():
+            if not ok:
+                problems.append(f"{name} is not associated with {resource} - "
+                                f"that resource has no web ACL")
         if not info["logging"]:
             problems.append(f"{name} has no logging, so its COUNT rules record "
                             f"into nothing anybody reads")
