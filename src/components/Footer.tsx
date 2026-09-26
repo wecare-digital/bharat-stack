@@ -89,25 +89,32 @@ const Footer: React.FC = () => {
               approved for it, and inventing one would mean a hover that promises a click
               and lands somewhere arbitrary. cursor stays default for that reason. If it
               should become a link later, wrap it in an <a> and the sweep still applies. */}
-          {/* "BHARAT" IS PINNED, THE SENTENCE AROUND IT IS NOT, and the split is the point.
-              The whole line was being sent for translation and the provider returned
-              "خدمات يومية موثوقة لشركة Bharat" - it translated the sentence and passed the
-              name through, because it reads Bharat as a proper noun. That is defensible on
-              its own; what is not defensible is that it is the PROVIDER's judgement, made
-              per language, so the same word can come back transliterated in one language,
-              translated to a local exonym in another, and untouched in a third. The visible
-              result is inconsistency with no rule behind it.
-              Wrapping the word rather than flagging the <p> keeps "Trusted everyday services
-              for" translatable, which is the pattern BrandBadge.tsx argues for: split the
-              element, do not widen the exclusion. The exclusion is now ours and it is
-              deterministic across all 71 languages.
-              THIS IS A VOICE DECISION AND IT IS REVERSIBLE. Bharat is used here as the
-              brand's own name for the country, which is why it is held constant. If the
-              owner would rather it localise - "India", or a local exonym - delete this span
-              and the sentence translates whole again. */}
-          <p className="ft-tagline">
-            Trusted everyday services for <span data-wc-no-translate="true">Bharat</span>
-          </p>
+          {/* THE WHOLE LINE IS ONE TRANSLATABLE NODE, AND "Bharat" IS DELIBERATELY NOT PINNED.
+              An earlier pass wrapped the word in data-wc-no-translate to stop the provider
+              deciding its fate per language. Measured against the live endpoint, that was
+              WRONG, and wrong in the worst place - it broke grammar in every Indic language
+              this product is built for. Splitting a sentence around a pinned word assumes the
+              word keeps its position through translation. It does not.
+              English is subject-verb-object with a preposition BEFORE the noun. Hindi, Bengali,
+              Tamil, Telugu, Marathi, Gujarati and Urdu all put the object FIRST and use a
+              POSTposition after it. So the whole line translates correctly:
+                hi  भारत के लिए विश्वसनीय रोजमर्रा की सेवाएं
+                ur  بھارت کے لئے روزمرہ کی قابل اعتماد خدمات
+              while the split fragment leaves the postposition stranded at the front and the
+              pinned word orphaned at the end, in source order:
+                hi  के लिए विश्वसनीय रोजमर्रा की सेवाएं Bharat
+              Seven languages checked, seven broken. Arabic produced a dangling bound prefix
+              for the same reason: خدمات يومية موثوقة لـ + Bharat.
+              The whole line also TRANSLITERATES the name into the reader's own script - भारत,
+              ভারতের, భారత్, ભારત, بھارت - which is better than holding it in Latin, not worse.
+              The inconsistency the earlier pass worried about turns out to be the provider
+              doing the right thing per language.
+              What remains is an Arabic-specific artefact: the full sentence comes back as
+              "خدمات يومية موثوقة لشركة Bharat", inserting "the company" and keeping Bharat in
+              Latin. That is one language's MT quirk, not a reason to break grammar in seven.
+              translatecheck.js reports this line under "brand embedded in a translatable
+              sentence", which is the correct category for it: reported, never failed. */}
+          <p className="ft-tagline">Trusted everyday services for Bharat</p>
 
           {/* The brand dash. Purely decorative, hence aria-hidden and a <span> rather than
               an <hr> - it separates nothing and announcing it would be noise. It is the

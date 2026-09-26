@@ -304,7 +304,7 @@
 
 .layout .main-content .stat-card.accent,
 .layout .main-content .stat-card.success {
-  border-left: 4px solid #d1f470 !important;
+  border-inline-start: 4px solid #d1f470 !important;
 }
 
 .layout .main-content .hub-card,
@@ -342,7 +342,7 @@
 .layout .main-content .contact-row.active,
 .layout .main-content .contact-item.active {
   background: #e5e7eb !important;
-  border-left: 3px solid #1a3a2a !important;
+  border-inline-start: 3px solid #1a3a2a !important;
 }
 
 /* ========================================
@@ -515,10 +515,10 @@
   width: 100%;
   /* 1300px, the public measure - see the note on .inner-page-container. */
   max-width: 1300px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 24px;
-  padding-right: 24px;
+  margin-inline-start: auto;
+  margin-inline-end: auto;
+  padding-inline-start: 24px;
+  padding-inline-end: 24px;
   box-sizing: border-box;
 }
 
@@ -527,10 +527,10 @@
   width: 100%;
   /* 1300px, matching the selector above and the public measure. */
   max-width: 1300px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 24px;
-  padding-right: 24px;
+  margin-inline-start: auto;
+  margin-inline-end: auto;
+  padding-inline-start: 24px;
+  padding-inline-end: 24px;
   box-sizing: border-box;
 }
 
@@ -542,8 +542,8 @@
 .layout .inner-content-container > div.wa-page,
 .layout .inner-content-container > div[style*="overflow: hidden"] {
   max-width: none !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+  padding-inline-start: 0 !important;
+  padding-inline-end: 0 !important;
 }
 
 /* ========================================
@@ -760,7 +760,7 @@
 }
 
 .layout .main-content .info-banner-blue a {
-  margin-left: 8px;
+  margin-inline-start: 8px;
   color: #1a3a2a;
 }
 
@@ -1239,7 +1239,7 @@
 .layout .main-content .campaign-page .logs-table th,
 .layout .main-content .campaign-page .logs-table td {
   padding: 14px 16px;
-  text-align: left;
+  text-align: start;
   /* #e5e7eb, not lime. A hairline repeated on every row of every table is a
      hairline, and the contract fixes hairline colour at #e5e7eb; lime is for
      our own surfaces and for state. The single heavy lime edges elsewhere
@@ -1603,7 +1603,7 @@
    ======================================== */
 .layout .main-content .stat-card.error {
   background: #f9fafb !important;
-  border-left: 4px solid #1a3a2a !important;
+  border-inline-start: 4px solid #1a3a2a !important;
 }
 
 .layout .main-content .stat-card.error .stat-value {
@@ -1612,7 +1612,7 @@
 
 .layout .main-content .stat-card.warning {
   background: #f9fafb !important;
-  border-left: 4px solid #1a3a2a !important;
+  border-inline-start: 4px solid #1a3a2a !important;
 }
 
 .layout .main-content .stat-card.warning .stat-value {
@@ -1629,7 +1629,7 @@
 
 .layout .main-content .stat-card.accent {
   background: #f9fafb !important;
-  border-left: 4px solid #1a3a2a !important;
+  border-inline-start: 4px solid #1a3a2a !important;
 }
 
 .layout .main-content .stat-card .status-icon {
@@ -1834,7 +1834,7 @@
     min-width: 100% !important;
     max-height: 35vh;
     min-height: 200px;
-    border-right: none;
+    border-inline-end: none;
     border-bottom: 1px solid #e5e7eb;
   }
   
@@ -1879,7 +1879,7 @@
 .layout .main-content .contact-row.active,
 .layout .main-content .contact-item.active {
   background: #e5e7eb !important;
-  border-left: 3px solid #1a3a2a !important;
+  border-inline-start: 3px solid #1a3a2a !important;
 }
 
 .layout .main-content .contact-row:hover,

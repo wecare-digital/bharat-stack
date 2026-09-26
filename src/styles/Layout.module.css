@@ -14,12 +14,12 @@
 .sidebar {
   width: 240px;
   background: #ffffff;
-  border-right: 1px solid var(--border);
+  border-inline-end: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   position: fixed;
   height: 100vh;
-  left: 0;
+  inset-inline-start: 0;
   top: 0;
   z-index: 100;
 }
@@ -92,7 +92,7 @@
   background: none;
   border: none;
   width: 100%;
-  text-align: left;
+  text-align: start;
   font-family: inherit;
 }
 
@@ -109,7 +109,7 @@
 }
 
 .navIcon {
-  margin-right: 8px;
+  margin-inline-end: 8px;
   font-size: 16px;
   width: 20px;
   text-align: center;
@@ -128,7 +128,7 @@
 }
 
 .navArrow {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: var(--text-xs);
   color: #666666;
   transition: transform var(--transition-normal);
@@ -142,7 +142,7 @@
 
 /* Sub-items */
 .navSubitems {
-  padding-left: 12px;
+  padding-inline-start: 12px;
   margin-top: 2px;
 }
 
@@ -162,7 +162,7 @@
   width: 100%;
   background: none;
   border: none;
-  text-align: left;
+  text-align: start;
   font-family: inherit;
 }
 
@@ -186,7 +186,7 @@
 
 .navNestedItems {
   margin-top: 2px;
-  padding-left: 8px;
+  padding-inline-start: 8px;
 }
 
 /* Sidebar Footer */
@@ -244,7 +244,7 @@
 /* Main Content */
 .mainContent {
   flex: 1;
-  margin-left: 240px;
+  margin-inline-start: 240px;
   padding: 24px;
   background: var(--bg);
   min-height: 100vh;
@@ -255,7 +255,7 @@
   display: none;
   position: fixed;
   top: 10px;
-  left: 10px;
+  inset-inline-start: 10px;
   z-index: 1001;
   width: 36px;
   height: 36px;
@@ -278,8 +278,8 @@
   display: none;
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: 0;
   background: rgba(55, 53, 47, 0.6);
   z-index: 99;
@@ -296,7 +296,7 @@
   }
   
   .mainContent {
-    margin-left: 220px;
+    margin-inline-start: 220px;
     padding: 20px;
   }
 }
@@ -319,7 +319,7 @@
   }
   
   .mainContent {
-    margin-left: 0;
+    margin-inline-start: 0;
     padding: 70px 24px 24px 24px;
   }
   
@@ -343,7 +343,7 @@
     width: 44px;
     height: 44px;
     top: 8px;
-    left: 8px;
+    inset-inline-start: 8px;
     border-radius: 10px;
   }
   
@@ -361,7 +361,7 @@
   }
   
   .mainContent {
-    margin-left: 0;
+    margin-inline-start: 0;
     padding: 64px 16px 80px 16px;
     width: 100%;
     overflow-x: hidden;
@@ -430,7 +430,7 @@
 @media (max-width: 480px) {
   .mobileMenuToggle {
     top: 6px;
-    left: 6px;
+    inset-inline-start: 6px;
   }
   
   .sidebar {

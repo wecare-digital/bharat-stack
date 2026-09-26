@@ -161,8 +161,8 @@ input, textarea, select {
 .inner-header {
   position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   z-index: 99;
   height: 4px;
   min-height: 4px;
@@ -229,8 +229,8 @@ input, textarea, select {
 .inner-footer {
   position: sticky;
   bottom: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   z-index: 99;
   background: rgba(255,255,255,0.97);
   backdrop-filter: blur(20px);
@@ -263,8 +263,8 @@ input, textarea, select {
 .layout ~ .ftr {
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   z-index: 1001;
   background: rgba(255,255,255,0.97);
   backdrop-filter: blur(20px);
@@ -385,7 +385,7 @@ input, textarea, select {
 .sidebar .nav-menu {
   position: absolute;
   top: 100%;
-  left: 0;
+  inset-inline-start: 0;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
@@ -445,13 +445,13 @@ input, textarea, select {
 .sidebar {
   width: var(--sidebar-w);
   background: #ffffff;
-  border-right: 2px solid #d1f470;
+  border-inline-end: 2px solid #d1f470;
   padding: 0;
   display: flex;
   flex-direction: column;
   position: fixed;
   top: 0;
-  left: 0;
+  inset-inline-start: 0;
   bottom: 0;
   height: 100vh;
   transition: width 0.2s ease;
@@ -500,7 +500,7 @@ input, textarea, select {
   padding: 8px 4px;
 }
 .sidebar-collapsed .main-content {
-  margin-left: 60px;
+  margin-inline-start: 60px;
   max-width: calc(100vw - 60px);
   width: calc(100vw - 60px);
   box-sizing: border-box;
@@ -593,8 +593,8 @@ input, textarea, select {
 .sidebar-search-results {
   position: absolute;
   top: 100%;
-  left: 8px;
-  right: 8px;
+  inset-inline-start: 8px;
+  inset-inline-end: 8px;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 13px;
@@ -745,7 +745,7 @@ input, textarea, select {
   border: none;
   background: none;
   width: 100%;
-  text-align: left;
+  text-align: start;
   font-family: inherit;
 }
 
@@ -779,7 +779,7 @@ input, textarea, select {
   font-family: inherit;
   font-size: 15px;
   font-weight: 560;
-  text-align: left;
+  text-align: start;
   gap: 10px;
 }
 
@@ -796,7 +796,7 @@ input, textarea, select {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
-  margin-right: 0;
+  margin-inline-end: 0;
   font-size: 16px;
   text-align: center;
   color: #1a3a2a;
@@ -809,7 +809,7 @@ input, textarea, select {
 }
 
 .nav-arrow {
-  margin-left: auto;
+  margin-inline-start: auto;
   font-size: var(--text-xs);
   color: var(--muted);
   transition: transform var(--transition-normal);
@@ -821,7 +821,7 @@ input, textarea, select {
 
 /* Sub-items - Notion Style */
 .nav-subitems {
-  padding-left: 12px;
+  padding-inline-start: 12px;
   margin-top: 2px;
 }
 
@@ -841,7 +841,7 @@ input, textarea, select {
   width: 100%;
   background: none;
   border: none;
-  text-align: left;
+  text-align: start;
   font-family: inherit;
 }
 
@@ -873,7 +873,7 @@ input, textarea, select {
   width: 100%;
   background: none;
   border: none;
-  text-align: left;
+  text-align: start;
   font-family: inherit;
 }
 
@@ -887,9 +887,9 @@ input, textarea, select {
 }
 
 /* Nested levels indentation */
-.nav-level-1 { padding-left: 20px; }
-.nav-level-2 { padding-left: 32px; }
-.nav-level-3 { padding-left: 44px; }
+.nav-level-1 { padding-inline-start: 20px; }
+.nav-level-2 { padding-inline-start: 32px; }
+.nav-level-3 { padding-inline-start: 44px; }
 
 .nav-nested-group {
   margin-bottom: 1px;
@@ -897,7 +897,7 @@ input, textarea, select {
 
 .nav-nested-items {
   margin-top: 2px;
-  padding-left: 12px;
+  padding-inline-start: 12px;
 }
 
 /* 3rd level nav items (e.g., WhatsApp sub-pages) */
@@ -920,8 +920,8 @@ input, textarea, select {
   font-weight: 500;
 }
 
-.nav-nested-level-1 { padding-left: 8px; }
-.nav-nested-level-2 { padding-left: 16px; }
+.nav-nested-level-1 { padding-inline-start: 8px; }
+.nav-nested-level-2 { padding-inline-start: 16px; }
 
 /* Sidebar Footer */
 /* The settings gear. Above the footer and below the daily streams: it is the
@@ -1011,7 +1011,7 @@ input, textarea, select {
 /* Main Content */
 .main-content {
   flex: 1;
-  margin-left: var(--sidebar-w);
+  margin-inline-start: var(--sidebar-w);
   padding: 0;
   background: #ffffff;
   min-height: 100vh;
@@ -1114,7 +1114,7 @@ input, textarea, select {
   display: none;
   position: fixed;
   top: 10px;
-  left: 10px;
+  inset-inline-start: 10px;
   z-index: 1001;
   width: 36px;
   height: 36px;
@@ -1137,8 +1137,8 @@ input, textarea, select {
   display: none;
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: 0;
   background: rgba(55, 53, 47, 0.6);
   z-index: 999;
@@ -1167,7 +1167,7 @@ input, textarea, select {
   }
   
   .main-content {
-    margin-left: 0;
+    margin-inline-start: 0;
     padding: 0;
     max-width: 100vw;
     width: 100%;
@@ -1197,7 +1197,7 @@ input, textarea, select {
     width: 44px;
     height: 44px;
     top: 8px;
-    left: 8px;
+    inset-inline-start: 8px;
     border-radius: 10px;
   }
   
@@ -1219,7 +1219,7 @@ input, textarea, select {
   
   /* Main content - full width with proper spacing */
   .main-content {
-    margin-left: 0;
+    margin-inline-start: 0;
     padding: 0;
     min-height: 100vh;
     width: 100%;
@@ -1304,12 +1304,12 @@ input, textarea, select {
   }
   
   .nav-subitems {
-    padding-left: 8px;
+    padding-inline-start: 8px;
   }
   
   /* 3rd level nested items - mobile */
   .nav-nested-items {
-    padding-left: 8px;
+    padding-inline-start: 8px;
   }
   
   .nav-nested-items .nav-subitem {
@@ -1336,7 +1336,7 @@ input, textarea, select {
 @media (max-width: 480px) {
   .mobile-menu-toggle {
     top: 6px;
-    left: 6px;
+    inset-inline-start: 6px;
   }
   
   .sidebar {
@@ -1353,7 +1353,7 @@ input, textarea, select {
   }
   
   .main-content {
-    margin-left: 0;
+    margin-inline-start: 0;
     padding: 0;
   }
 
@@ -1397,7 +1397,7 @@ input, textarea, select {
 .agent-fab {
   position: fixed;
   bottom: 20px;
-  right: 20px;
+  inset-inline-end: 20px;
   width: 68px;
   height: 68px;
   border-radius: 50%;
@@ -1446,7 +1446,7 @@ input, textarea, select {
 .agent-panel {
   position: fixed;
   bottom: 20px;
-  right: 20px;
+  inset-inline-end: 20px;
   width: 380px;
   max-width: calc(100vw - 40px);
   height: 500px;
@@ -1494,7 +1494,7 @@ input, textarea, select {
   flex-direction: column;
   justify-content: center;
   height: 56px;
-  text-align: left;
+  text-align: start;
 }
 
 .agent-avatar {
@@ -1648,8 +1648,8 @@ input, textarea, select {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: -38px;
-  margin-right: 6px;
+  margin-inline-start: -38px;
+  margin-inline-end: 6px;
   margin-bottom: 0;
   position: relative;
   z-index: 1;
@@ -1677,8 +1677,8 @@ input, textarea, select {
 .overlay {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: 0;
   background: rgba(55, 53, 47, 0.6);
   z-index: 10000;
@@ -1692,7 +1692,7 @@ input, textarea, select {
 .dialog {
   position: fixed;
   top: 50%;
-  left: 50%;
+  inset-inline-start: 50%;
   transform: translate(-50%, -50%);
   z-index: 10001;
   max-width: calc(100vw - 48px);
@@ -1708,7 +1708,7 @@ input, textarea, select {
 .toast-container {
   position: fixed;
   top: 20px;
-  right: 20px;
+  inset-inline-end: 20px;
   z-index: 10002;
   max-width: calc(100vw - 40px);
 }
@@ -1761,7 +1761,7 @@ input, textarea, select {
   .floating-agent-button,
   .agent-fab {
     bottom: 20px;
-    right: 20px;
+    inset-inline-end: 20px;
     width: 60px;
     height: 60px;
     padding: 8px;
@@ -1783,7 +1783,7 @@ input, textarea, select {
   .floating-agent-button,
   .agent-fab {
     bottom: 16px;
-    right: 16px;
+    inset-inline-end: 16px;
     width: 56px;
     height: 56px;
     padding: 8px;
@@ -1797,8 +1797,8 @@ input, textarea, select {
   .floating-agent-container,
   .agent-panel {
     bottom: 0;
-    right: 0;
-    left: 0;
+    inset-inline-end: 0;
+    inset-inline-start: 0;
     width: 100%;
     max-width: 100%;
     height: 85vh;
@@ -1854,8 +1854,8 @@ input, textarea, select {
   
   .toast-container {
     top: 12px;
-    right: 12px;
-    left: 12px;
+    inset-inline-end: 12px;
+    inset-inline-start: 12px;
     max-width: none;
   }
 }
@@ -2058,7 +2058,7 @@ input[type="checkbox"]:active {
     /* Overrides the drawer transform in the block above. The rail is always here. */
     transform: none;
     box-shadow: none;
-    border-right: 1px solid #e5e7eb;
+    border-inline-end: 1px solid #e5e7eb;
   }
 
   .sidebar .nav-label,
@@ -2074,7 +2074,12 @@ input[type="checkbox"]:active {
   .main-content {
     /* The rail is in flow, so the content has to clear it. Without this the first
        76px of every page sits under the rail. */
-    margin-left: 76px;
+    /* LOGICAL, and it has to match the base rule's form rather than merely look tidy. The
+       base .main-content rule uses margin-inline-start, which Lightning CSS compiles into a
+       :not(:is(:lang(...))) pair - a pseudo-class, so it scores a specificity class higher
+       than this media-query rule would as plain margin-left. Left physical, this override
+       LOSES to the base rule and the collapsed rail overlaps the first 76px of the page. */
+    margin-inline-start: 76px;
     max-width: calc(100vw - 76px);
   }
 
@@ -2089,8 +2094,8 @@ input[type="checkbox"]:active {
   .bottom-nav {
     display: flex;
     position: fixed;
-    left: 0;
-    right: 0;
+    inset-inline-start: 0;
+    inset-inline-end: 0;
     bottom: 0;
     z-index: 1200;
     /* 60px of row, plus whatever the home indicator needs.
@@ -2197,7 +2202,7 @@ input[type="checkbox"]:active {
   .sidebar .section-label,
   .sidebar .sidebar-search { display: none; }
 
-  .main-content { margin-left: 76px; max-width: calc(100vw - 76px); }
+  .main-content { margin-inline-start: 76px; max-width: calc(100vw - 76px); }
   .mobile-menu-toggle { display: none; }
 }
 
