@@ -17,6 +17,50 @@ states nobody looks at have been measured.**
 
 ---
 
+## 0. Preconditions, and when to stop before starting
+
+### If the brief still has brackets, stop and ask
+
+`docs/NEW-PAGE-PROMPT.md` is a template. It has arrived pasted verbatim, brackets intact —
+`Build [PAGE NAME] at [/route/]`, `What it is: [one sentence a visitor would understand]`.
+The numbered process survives the paste; the brief does not. Page name, route, sub-line and
+rotating words are product decisions and none of them is inferable from the repo.
+
+Do not pick plausible values and proceed. §3 is an explicit *wait for approval*, so inventing
+a brief spends the whole mock-and-assert cycle on the wrong page and the gate that exists to
+catch it cannot — the reviewer is handed a faithful mock of something nobody asked for. Ask
+for the five fields and stop.
+
+### The toolchain the mock needs
+
+Verified on a clean clone. Each of these blocked a real run, in this order:
+
+```bash
+npm install                      # root deps
+npm run build                    # produces out/ — needed by §1, not only by §7
+cd tools/browser && npm install  # separate manifest: playwright-core lives here
+```
+
+**`out/` is a precondition of §1, not a pre-commit gate.** §7 lists `npm run build` under
+"gates to run before committing", which reads as *afterwards*. It is also the first step:
+`lib/serve.js` resolves `OUT_DIR` to `<repo>/out` and **throws** `No export found at …` when
+it is absent, so mock generation and every harness stop dead. `next.config.js` sets
+`output:'export'` only when `NODE_ENV === 'production'`, so `next dev` never writes `out/`;
+a build is the only way to get one. On this repo it emits 763 HTML files.
+
+**`tools/browser` carries its own `package.json`.** A root `npm install` does not install
+`playwright-core`, and the failure arrives as `Cannot find module 'playwright-core'` from
+inside a harness rather than as an obviously missing install.
+
+**Chromium is never downloaded.** `playwright-core` does not fetch browsers, by design.
+`lib/browser.js` resolves one, preferring `/opt/playwright/chromium-<rev>` — `chromium-1232`
+on this sandbox, and **the revision changes across sandbox resets, so never hardcode it**.
+There is no system Chrome on this box. `CHROME=/path/to/chrome` overrides everything.
+
+**Harnesses take an origin.** `BASE=http://localhost:3000 node tools/browser/pageaudit.js`
+skips the static server, which matters because `out/` and `next dev` are two different
+renders and a suite that only ever ran against `out/` has not tested what a developer sees.
+
 ## 1. Mock before you apply. Always.
 
 Do not edit source to show someone a proposal. Generate a review page instead.
@@ -24,7 +68,11 @@ Do not edit source to show someone a proposal. Generate a review page instead.
 - **Harvest, never paste.** Extract CSS and markup from the real built export at generation
   time (`out/`), not by copying rules into a mock file. A hand-pasted mock is true exactly
   once; the day either source changes it shows the old design and says nothing. There is a
-  working generator at `tools/browser/homereview.js` — copy its approach.
+  working generator at `tools/browser/homereview.js` — copy its harvesting approach, but not
+  its panels. Its own header states the frames are *live* ("the pill rotates and focus rings
+  appear"); it predates the static-markup rule below and now contradicts it. Take the
+  extract-from-`out/` machinery and emit static markup instead. It is also scoped to the top
+  band alone, so a whole-page review means extending it section by section.
 - **Panels are iframes at real widths**, only visually scaled. The frame must genuinely be
   1280 or 390 wide so `clamp()`, `vw` units, media queries and `position:fixed` all resolve
   as they would on a real screen. Rendering variants as divs in one document makes every
@@ -84,6 +132,11 @@ Run each of these. They are ordered by how many defects they have actually caugh
 | **Keyboard** | walk `Tab` from load | focusable-but-invisible controls (`opacity:0` stays in the tab order) |
 
 ## 4. Device matrix — foldables are not optional
+
+Run `node tools/browser/devicecheck.js` and require 100%. It exists separately from
+`pageaudit.js` because pageaudit sweeps every route at three *widths*, which is the right
+trade for a census and structurally cannot see a viewport that is wide **and** short. Add new
+routes to its `ROUTES` array by hand.
 
 The failure mode that width-only testing cannot see is **wide AND short**. It is rare on a
 phone and normal on a folded-landscape device.
@@ -169,6 +222,7 @@ npx vitest run
 node tools/browser/animcheck.js        # rotating-headline reflow, 21 viewports
 node tools/browser/homeprobe.js        # the degradation states from §3
 node tools/browser/pageaudit.js        # structure + translation census + overflow
+node tools/browser/devicecheck.js      # the device matrix from §4 — require 100%
 node tools/browser/uicheck.js
 node tools/browser/typecheck.js
 node tools/browser/seocheck.js
@@ -176,9 +230,15 @@ python3 scripts/check_design_drift.py
 python3 -m pytest tests/test_design_drift_tokens.py -q
 ```
 
-A new page adds a route to `pageaudit.js`'s discovery automatically. If it introduces a state
-the matrix in §3 does not cover, add the assertion — a green suite that cannot see a defect is
-worse than no suite, because it is cited as evidence.
+`devicecheck.js` was missing from this list while §4 devoted a whole section to the matrix it
+enforces — the gate existed on disk and the checklist did not name it, so a full pass of §7
+came back green having never tested a foldable posture. That is this skill's own failure mode
+turned on itself: the suite that cannot see the defect gets cited as evidence. It is listed
+now; keep it listed.
+
+A new page adds a route to `pageaudit.js`'s discovery automatically, but **`devicecheck.js`
+carries a hardcoded `ROUTES` array** — a new public route is invisible to it until you add it
+there. If the page introduces a state the matrix in §3 does not cover, add the assertion.
 
 ## 8. What to commit
 
@@ -189,7 +249,12 @@ worse than no suite, because it is cited as evidence.
   four, a rung described as nonexistent that existed, and an attribution to the wrong
   stylesheet. Re-measure anything a comment asserts, in the same commit.
 - **Never commit to the default branch.** Push a feature branch and open a PR into it
-  (`gh api repos/{owner}/{repo}/pulls -f head=... -f base=...`).
+  (`gh api repos/{owner}/{repo}/pulls -f head=... -f base=...`). **This repo's default branch
+  is `stack`, not `main`** — confirmed against the remote, and it is what a fresh clone checks
+  out. So `base=stack`, and the branch you must not commit to is the one you are already on.
+  Verify rather than assume: `gh api repos/{owner}/{repo} --jq .default_branch`.
+- `gh pr create` and the other `gh pr` / `gh issue` subcommands are GraphQL-backed and fail in
+  this sandbox. Use `gh api` REST endpoints.
 - **State what is not fixed.** Name the defects left open and why, and name what you did not
   check — print, RTL, real browser zoom — so the gap is visible rather than implied.
 - **Regenerating a mock after applying its fixes invalidates it.** It harvests the built
