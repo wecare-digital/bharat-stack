@@ -121,6 +121,9 @@ const METRICS = () => {
     h1: { ...box( h1 ), font: st( h1, 'fontSize' ), weight: st( h1, 'fontWeight' ), lh: st( h1, 'lineHeight' ),
       ls: st( h1, 'letterSpacing' ), max: st( h1, 'maxWidth' ), text: h1 ? h1.textContent.replace( /\s+/g, ' ' ).trim() : '' },
     line: box( line ), mark: box( mark ), dot: box( dot ), cycle: box( cyc ),
+    // The FIRST word specifically - that is the one server-rendered with .on, so it is the
+    // width a settled, JS-free panel must be given.
+    w0: ( () => { const f = document.querySelectorAll( '.home-cyc-word' )[ 0 ]; return f ? f.offsetWidth : null; } )(),
     sub: { ...box( sub ), font: st( sub, 'fontSize' ), lh: st( sub, 'lineHeight' ), max: st( sub, 'maxWidth' ),
       chars: sub ? sub.textContent.trim().length : 0, text: sub ? sub.textContent.replace( /\s+/g, ' ' ).trim() : '' },
     flowTop: flow ? box( flow ).t : null,
@@ -190,6 +193,104 @@ const METRICS = () => {
     const staleW = m.cycle.w, needW = d.cycle.w;
     const clipped = needW - staleW;
     const esc = s => String( s ).replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' );
+
+
+    // ---------------------------------------------------------------------------
+    // PANELS ARE BUILT HERE, IN NODE, AND EMITTED AS STATIC HTML.
+    //
+    // They used to be assembled by a script in the page. That made the entire design
+    // JavaScript-dependent: any viewer that does not run scripts - a read-only file
+    // preview, a sanitising proxy - showed the headings and captions with nothing
+    // between them. Which is precisely the defect this page exists to document, built
+    // into the page documenting it. Now the iframes are in the markup, so the design
+    // renders with no JavaScript at all. The notes use native <details>, also no JS.
+    //
+    // Each frame is still self-contained srcdoc: media queries, vw units and
+    // position:fixed all resolve against the frame's own box, which is the only way a
+    // 390-wide panel behaves like a 390-wide phone.
+    // ---------------------------------------------------------------------------
+    const bootJS = o => {
+      const set = o.stale
+        ? `if(c)c.style.width=${staleW}+"px";`
+        : 'if(c&&it[i])c.style.width=it[i].offsetWidth+"px";';
+      return '(function(){var w=' + JSON.stringify( WORDS ) + ';var i=0;'
+        + 'var c=document.querySelector(".home-cycle"),m=document.querySelector(".home-mark"),'
+        + 'd=document.querySelector(".home-mark-dot"),it=document.querySelectorAll(".home-cyc-word");'
+        + 'if(it.length){'
+        + 'function p(){for(var k=0;k<it.length;k++)it[k].classList.toggle("on",k===i);'
+        + set
+        + 'if(m)m.style.background=w[i].tint;if(d)d.style.background=w[i].dot;}'
+        + 'p();'
+        + ( o.noShow ? '' : 'var L=document.querySelector(".home-layout");if(L)L.classList.add("show");' )
+        + ( o.rotate && !o.stale ? 'setInterval(function(){i=(i+1)%w.length;p();},2400);' : '' )
+        + '}'
+        + ( o.menuOpen ? 'var nm=document.querySelector(".nav-menu");if(nm)nm.classList.add("open");'
+            + 'var tg=document.querySelector(".nav-trigger");if(tg)tg.setAttribute("aria-expanded","true");' : '' )
+        + '})();';
+    };
+
+    const CSS_ALL = harvest.inline + '\n' + harvest.chunks;
+    // PRE-APPLY THE SETTLED STATE, so a panel showing the real design needs no JavaScript.
+    // The export already server-renders the first word with .on and the tint/dot inline; the
+    // only two things the effect adds are the pill's measured width and the .show class that
+    // lifts the entrance shutter. Baking those in is what makes the ORIGINAL panel show the
+    // actual design rather than the un-hydrated one - without it, a viewer with scripts off
+    // sees the defect in the panel labelled "as it ships today", which would be a lie.
+    const settle = ( h1, width ) =>
+      h1.replace( /(<span class="[^"]*home-cycle[^"]*")/, `$1 style="width:${width}px"` );
+    const frameDoc = o => {
+      const extra = ( o.fix ? scope( FIX_CSS ) : '' ) + ( o.hfix ? scopeHdr( HEADER_FIX_CSS ) : '' )
+        + ( o.reduced === 'before' ? scope( REDUCED_BEFORE ) : '' )
+        + ( o.reduced === 'after' ? scope( REDUCED_AFTER ) : '' );
+      const script = o.noJs ? '' : '<script>' + bootJS( o ) + '<\/script>';
+      // .show baked in for settled panels, so the shutter is lifted with no script.
+      const layoutCls = o.settled
+        ? harvest.layoutCls
+        : harvest.layoutCls.replace( /\bshow\b/, '' ).trim();
+      return '<!doctype html><meta charset="utf-8">'
+        + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">'
+        + '<style>html,body{margin:0}' + CSS_ALL + extra + '</style>'
+        + harvest.header
+        + '<main class="' + harvest.shellCls + '"><div class="' + layoutCls + '">'
+        + '<div class="' + harvest.heroCls + '">'
+        + ( o.settled ? settle( harvest.h1, o.settled ) : harvest.h1 ) + harvest.sub + '</div>'
+        + '</div></main>'
+        + script;
+    };
+    const shot = ( o, w, h, sc ) =>
+      `<div class="shot" style="width:${Math.round( w * sc )}px;height:${Math.round( h * sc )}px">`
+      + `<iframe loading="lazy" scrolling="no" title="preview" `
+      + `style="width:${w}px;height:${h}px;transform:scale(${sc})" `
+      + `srcdoc="${frameDoc( o ).replace( /"/g, '&quot;' )}"></iframe></div>`;
+    const labelled = ( lab, cls, o, w, h, sc ) =>
+      `<div class="cmpcol"><span class="collab ${cls}">${lab}</span>${shot( o, w, h, sc )}</div>`;
+
+    const SW = 1280, SH = 340, SC = 0.55;
+    const P = {
+      origD: shot( { rotate: true, settled: M.d.w0 }, 1280, 470, 1 ),
+      origM: shot( { rotate: true, settled: M.m.w0 }, 390, 420, 1 ),
+      fixedD: shot( { rotate: true, fix: true, settled: M.d.w0 }, 1280, 470, 1 ),
+      fixedM: shot( { rotate: true, fix: true, settled: M.m.w0 }, 390, 420, 1 ),
+      // 900 is a real viewport height, not a crop: the iframe's height IS 100vh inside it,
+      // and the menu is max-height:calc(100vh - 320px). A short panel would misreport it.
+      hdrOpenD: shot( { rotate: false, menuOpen: true, settled: M.d.w0 }, 1280, 900, 1 ),
+      hdrLand: '<div class="cmp">'
+        + labelled( 'before — 70px of menu', 'c-b', { rotate: false, menuOpen: true, settled: M.d.w0 }, 844, 390, 1 )
+        + labelled( 'after — anchored to the header', 'c-a', { rotate: false, menuOpen: true, hfix: true, settled: M.d.w0 }, 844, 390, 1 )
+        + '</div>',
+      fixA: '<div class="cmp">'
+        + labelled( 'before — no word', 'c-b', { noJs: true }, SW, SH, SC )
+        + labelled( 'after', 'c-a', { noJs: true, fix: true }, SW, SH, SC ) + '</div>',
+      fixB: '<div class="cmp">'
+        + labelled( 'before — cut off', 'c-b', { rotate: false, stale: true }, SW, SH, SC )
+        + labelled( 'after', 'c-a', { rotate: false, fix: true, settled: M.d.w0 }, SW, SH, SC ) + '</div>',
+      fixC: '<div class="cmp">'
+        + labelled( 'before — white pill', 'c-b', { rotate: false, reduced: 'before', noShow: true }, SW, SH, SC )
+        + labelled( 'after', 'c-a', { rotate: false, reduced: 'after', fix: true, noShow: true }, SW, SH, SC ) + '</div>',
+      proof: '<div class="cmp">'
+        + labelled( 'today', 'c-b', { rotate: true, settled: M.d.w0 }, SW, SH, SC )
+        + labelled( 'with the fixes', 'c-a', { rotate: true, fix: true, settled: M.d.w0 }, SW, SH, SC ) + '</div>',
+    };
 
     const html = `<!doctype html>
 <meta charset="utf-8">
@@ -267,9 +368,9 @@ the three fixes — both at <b>actual size</b>, 1280 and 390, nothing scaled dow
 meant to look identical:</b> the fixes only repair states you cannot see in a normal screenshot.</p>
 
 <div class="bar"><div class="in">
-  <label><input type="checkbox" id="tRotate" checked> run the rotation</label>
-  <label><input type="checkbox" id="tNotes"> show written notes</label>
-  <span class="mut sm">no CTA, no price — this band says what the page is about · source unchanged</span>
+  <span class="mut sm"><b>No JavaScript needed to view this page.</b> Every panel is in the
+  markup; the notes are native <code>&lt;details&gt;</code> — click “why / the code” to open one.
+  no CTA, no price — this band says what the page is about · source unchanged</span>
 </div></div>
 
 <!-- ============== ORIGINAL, 1:1 ============== -->
@@ -277,38 +378,38 @@ meant to look identical:</b> the fixes only repair states you cannot see in a no
   <div class="bhead"><span class="tag" style="background:#44546a;color:#fff">ORIGINAL</span>
     <h2>As it ships today — desktop 1280, actual size</h2>
     <span class="sel">unmodified: no fixes applied</span></div>
-  <div class="step"><div data-panel="origD"></div></div>
+  <div class="step">${P.origD}</div>
 </section>
 
 <section class="band">
   <div class="bhead"><span class="tag" style="background:#44546a;color:#fff">ORIGINAL</span>
     <h2>As it ships today — phone 390, actual size</h2>
     <span class="sel">unmodified: no fixes applied</span></div>
-  <div class="step"><div data-panel="origM"></div></div>
+  <div class="step">${P.origM}</div>
 </section>
 
 <!-- ============== WITH THE FIXES, 1:1 ============== -->
 <section class="band">
   <div class="bhead"><span class="tag">FIXED</span><h2>With the three fixes — desktop 1280, actual size</h2></div>
-  <div class="step"><div data-panel="finalD"></div></div>
+  <div class="step">${P.fixedD}</div>
 </section>
 
 <section class="band">
   <div class="bhead"><span class="tag">FIXED</span><h2>With the three fixes — phone 390, actual size</h2></div>
-  <div class="step"><div data-panel="finalM"></div></div>
+  <div class="step">${P.fixedM}</div>
 </section>
 
 <!-- ============== HEADER / MENU ============== -->
 <section class="band">
-  <div class="bhead"><span class="tag" style="background:#44546a;color:#fff">ORIGINAL</span>
-    <h2>Header menu open — desktop 1280, actual size</h2>
+  <div class="bhead"><span class="tag" style="background:#44546a;color:#fff">HEADER</span>
+    <h2>Menu open — desktop 1280, actual size</h2>
     <span class="sel">shared chrome, every public page · unmodified</span></div>
   <div class="step">
     <p class="cap">This is fine. The header's keyboard and screen-reader wiring is already
     correct — <code>aria-expanded</code> on the trigger, Escape closes from anywhere, an outside
     click dismisses, focus returns to the trigger, and the closed menu is
     <code>visibility:hidden</code> so its 20 links are not in the tab order.</p>
-    <div data-panel="hdrOpenD"></div>
+    ${P.hdrOpenD}
   </div>
 </section>
 
@@ -318,7 +419,7 @@ meant to look identical:</b> the fixes only repair states you cannot see in a no
   <div class="step">
     <p class="cap"><b>At 844×390 the menu is 70 px tall and holds 700 px of content — 10.6x
     its own height.</b> Twenty links in a sliver. Both panels are 1:1 at 844×390.</p>
-    <div data-panel="hdrLand"></div>
+    ${P.hdrLand}
     <details class="why" data-note><summary>why / the code</summary><div class="inner">
       <p>The menu is <code>max-height:calc(100vh - 320px)</code>, and the mobile override that
       repositions it is gated on <code>@media(max-width:767px)</code>. So any window
@@ -347,7 +448,7 @@ meant to look identical:</b> the fixes only repair states you cannot see in a no
   <div class="step">
     <p class="cap"><span class="sev s-h">A</span> &nbsp;<b>The word is missing entirely without
     JavaScript, and for ~200ms on every single load.</b></p>
-    <div data-panel="fixA"></div>
+    ${P.fixA}
     <details class="why" data-note><summary>why / the code</summary><div class="inner">
       <p><code>cycleW</code> starts <code>null</code>, so the first render writes no inline width.
       <code>.home-cycle</code> is <code>overflow:hidden</code> and all four words are
@@ -371,7 +472,7 @@ meant to look identical:</b> the fixes only repair states you cannot see in a no
   <div class="step">
     <p class="cap"><span class="sev s-h">B</span> &nbsp;<b>Resize with reduced motion on and the word
     stays cut — ${clipped} px, ${Math.round( 100 * clipped / needW )}% of it — for good.</b></p>
-    <div data-panel="fixB"></div>
+    ${P.fixB}
     <details class="why" data-note><summary>why / the code</summary><div class="inner">
       <p>Width is measured in an effect keyed on the word index alone; there is no resize listener.
       The font is <code>clamp(36px,4.3vw,60px)</code>, so width is a function of viewport width. On a
@@ -387,7 +488,7 @@ return () =&gt; ro.disconnect();</code></pre>
   <div class="step">
     <p class="cap"><span class="sev s-m">C</span> &nbsp;<b>Reduced motion can park a white shutter
     over the tint — latent today, one edit away from live.</b></p>
-    <div data-panel="fixC"></div>
+    ${P.fixC}
     <details class="why" data-note><summary>why / the code</summary><div class="inner">
       <p>The reduced-motion block sets the shutter to <code>scaleX(1)</code> — the <em>start</em>
       state — under a comment saying it settles the pill into its resting state, which is
@@ -407,7 +508,7 @@ return () =&gt; ro.disconnect();</code></pre>
   <div class="step">
     <p class="cap">Normal load, side by side. Measured: pill 280px both, h1 ${d.h1.h} px both at 1280 and
     ${m.h1.h} px both at 390 — so the reflow pin and the 2400ms page-jump guard still hold.</p>
-    <div data-panel="proof"></div>
+    ${P.proof}
   </div>
 </section>
 
@@ -451,118 +552,6 @@ return () =&gt; ro.disconnect();</code></pre>
 </footer>
 </div>
 
-<script>
-const CSS   = ${J( harvest.inline + '\n' + harvest.chunks )};
-const FIX   = ${J( scope( FIX_CSS ) )};
-const RED_B = ${J( scope( REDUCED_BEFORE ) )};
-const RED_A = ${J( scope( REDUCED_AFTER ) )};
-const HFIX  = ${J( scopeHdr( HEADER_FIX_CSS ) )};
-const HEADER= ${J( harvest.header )};
-const H1    = ${J( harvest.h1 )};
-const SUB   = ${J( harvest.sub )};
-const HEROC = ${J( harvest.heroCls )};
-const LAYC  = ${J( harvest.layoutCls )};
-const SHELLC= ${J( harvest.shellCls )};
-const WORDS = ${J( WORDS )};
-const STALE = ${staleW};
-
-// The rotation on index.tsx's own constants - 2400ms, an inline px width on .home-cycle via
-// offsetWidth (the same property the real effect reads), the .on class moving between words.
-// Reimplemented rather than taken from the bundle: a static panel has no React to hydrate.
-function boot( o ){
-  return '(function(){var w=' + JSON.stringify(WORDS) + ';var i=0;'
-    + 'var c=document.querySelector(".home-cycle"),m=document.querySelector(".home-mark"),'
-    + 'd=document.querySelector(".home-mark-dot"),it=document.querySelectorAll(".home-cyc-word");'
-    + 'if(!it.length)return;'
-    + 'function p(){for(var k=0;k<it.length;k++)it[k].classList.toggle("on",k===i);'
-    + (o.stale ? 'if(c)c.style.width=' + STALE + '+"px";'
-               : 'if(c&&it[i])c.style.width=it[i].offsetWidth+"px";')
-    + 'if(m)m.style.background=w[i].tint;if(d)d.style.background=w[i].dot;}'
-    + 'p();'
-    + (o.noShow ? '' : 'var L=document.querySelector(".home-layout");if(L)L.classList.add("show");')
-    + (o.rotate && !o.stale ? 'setInterval(function(){i=(i+1)%w.length;p();},2400);' : '')
-    + (o.menuOpen ? 'var nm=document.querySelector(".nav-menu");if(nm)nm.classList.add("open");'
-        + 'var tg=document.querySelector(".nav-trigger");if(tg)tg.setAttribute("aria-expanded","true");' : '')
-    + '})();';
-}
-
-function frameDoc( o ){
-  var extra = (o.fix ? FIX : '') + (o.hfix ? HFIX : '')
-    + (o.reduced === 'before' ? RED_B : '') + (o.reduced === 'after' ? RED_A : '');
-  var script = o.noJs ? '' : '<scr' + 'ipt>' + boot(o) + '</scr' + 'ipt>';
-  return '<!doctype html><meta charset="utf-8">'
-    + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">'
-    + '<style>html,body{margin:0}' + CSS + extra + '</style>'
-    + HEADER
-    + '<main class="' + SHELLC + '"><div class="' + LAYC.replace(/\\bshow\\b/,'').trim() + '">'
-    + '<div class="' + HEROC + '">' + H1 + SUB + '</div>'
-    + '</div></main>'
-    + script;
-}
-
-// scale 1 = actual size. Anything smaller is only used for the small comparison strips.
-function shot( o, w, h, scale ){
-  var vw = Math.round(w*scale), vh = Math.round(h*scale);
-  return '<div class="shot" style="width:'+vw+'px;height:'+vh+'px">'
-    + '<iframe scrolling="no" title="preview" style="width:'+w+'px;height:'+h+'px;transform:scale('+scale+')" '
-    + 'srcdoc="' + frameDoc(o).replace(/"/g,'&quot;') + '"></iframe></div>';
-}
-function labelled( lab, cls, o, w, h, scale ){
-  return '<div class="cmpcol"><span class="collab '+cls+'">'+lab+'</span>' + shot(o,w,h,scale) + '</div>';
-}
-
-function build(){
-  var rot = document.getElementById('tRotate').checked;
-
-  // The original, actual size, nothing applied.
-  document.querySelector('[data-panel="origD"]').innerHTML =
-    shot({ rotate:rot }, 1280, 470, 1);
-  document.querySelector('[data-panel="origM"]').innerHTML =
-    shot({ rotate:rot }, 390, 420, 1);
-
-  // The same band with the three fixes, actual size.
-  document.querySelector('[data-panel="finalD"]').innerHTML =
-    shot({ rotate:rot, fix:true }, 1280, 470, 1);   // 470 = the band's real extent (hero ends at 399) plus air
-  document.querySelector('[data-panel="finalM"]').innerHTML =
-    shot({ rotate:rot, fix:true }, 390, 420, 1);    // hero ends at 342 on a phone
-
-  // Header: the menu open, at actual size.
-  document.querySelector('[data-panel="hdrOpenD"]').innerHTML =
-    // 900, a real viewport height, NOT a crop: the iframe's height IS 100vh inside it, and
-    // the menu is sized max-height:calc(100vh - 320px). A 640px panel would have shown a
-    // 320px menu where the live page shows 580px - the panel would misreport the design.
-    shot({ rotate:false, menuOpen:true }, 1280, 900, 1);
-  // The landscape-phone failure, before and after, both 1:1 at 844x390.
-  document.querySelector('[data-panel="hdrLand"]').innerHTML = '<div class="cmp">'
-    + labelled('before — 70px of menu','c-b',{ rotate:false, menuOpen:true }, 844, 390, 1)
-    + labelled('after — anchored to the header','c-a',{ rotate:false, menuOpen:true, hfix:true }, 844, 390, 1)
-    + '</div>';
-
-  // Small comparison strips - desktop only, enough to read the pill.
-  var SW = 1280, SH = 340, SC = 0.55;
-  document.querySelector('[data-panel="fixA"]').innerHTML = '<div class="cmp">'
-    + labelled('before — no word','c-b',{ noJs:true }, SW,SH,SC)
-    + labelled('after','c-a',{ noJs:true, fix:true }, SW,SH,SC) + '</div>';
-
-  document.querySelector('[data-panel="fixB"]').innerHTML = '<div class="cmp">'
-    + labelled('before — cut off','c-b',{ rotate:false, stale:true }, SW,SH,SC)
-    + labelled('after','c-a',{ rotate:false, fix:true }, SW,SH,SC) + '</div>';
-
-  document.querySelector('[data-panel="fixC"]').innerHTML = '<div class="cmp">'
-    + labelled('before — white pill','c-b',{ rotate:false, reduced:'before', noShow:true }, SW,SH,SC)
-    + labelled('after','c-a',{ rotate:false, reduced:'after', fix:true, noShow:true }, SW,SH,SC) + '</div>';
-
-  document.querySelector('[data-panel="proof"]').innerHTML = '<div class="cmp">'
-    + labelled('today','c-b',{ rotate:rot }, SW,SH,SC)
-    + labelled('with the fixes','c-a',{ rotate:rot, fix:true }, SW,SH,SC) + '</div>';
-}
-
-document.getElementById('tRotate').addEventListener('change', build);
-document.getElementById('tNotes').addEventListener('change', function(e){
-  document.querySelectorAll('details[data-note]').forEach(function(d){ d.open = e.target.checked; });
-});
-build();
-</script>
 `;
 
     fs.mkdirSync( path.dirname( OUT_FILE ), { recursive: true } );
