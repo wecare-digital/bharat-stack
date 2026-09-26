@@ -87,8 +87,19 @@ const FIX_CSS = `
 const HEADER_FIX_CSS = `
   /* Anchor to the header instead of a magic 320, and use dvh so mobile browser chrome is
      accounted for - the same unit fix index.tsx already made for .home-shell. 140 = the
-     108px header plus 32px of air, both nameable. */
+     108px header plus 32px of air, both nameable.
+
+     BOTH RULES, NOT ONE. My first version only replaced the desktop 320. The folded-landscape
+     case at 653x280 is BELOW 767px wide, so it takes the mobile override instead -
+     calc(100vh - 308px) - and 308 exceeds a 280px viewport, so it resolves negative and clamps
+     to zero. Fixing one left the worst case untouched. */
   .nav-menuHDRJSX{max-height:calc(100dvh - 140px)}
+  @media(max-width:767px){ .nav-menuHDRJSX{max-height:calc(100dvh - 140px)} }
+`;
+
+// WCAG 1.4.12 Text Spacing: the overrides the criterion requires a page to survive.
+const TEXT_SPACING_CSS = `
+  *{line-height:1.5 !important;letter-spacing:.12em !important;word-spacing:.16em !important}
 `;
 
 // Simulates what @media(prefers-reduced-motion:reduce) does, since a preference cannot
@@ -173,6 +184,23 @@ const METRICS = () => {
       }
       await ctx.close();
     }
+    // The pill's resting width depends on the viewport, because font-size is a clamp on vw.
+    // A settled panel at 653 or 880 needs ITS width, not the 1280 one, or the mock would show
+    // a mis-sized pill and invent a defect.
+    const FOLD_VPS = [ { w: 653, h: 280 }, { w: 882, h: 344 }, { w: 880, h: 360 } ];
+    const foldW0 = {};
+    for ( const v of FOLD_VPS ) {
+      const c = await browser.newContext( { viewport: { width: v.w, height: v.h } } );
+      const pg = await c.newPage();
+      await gotoStable( pg, `${t.base}/` );
+      await pg.waitForTimeout( 800 );
+      foldW0[ v.w ] = await pg.evaluate( () => {
+        const f = document.querySelectorAll( '.home-cyc-word' )[ 0 ];
+        return f ? f.offsetWidth : null;
+      } );
+      await c.close();
+    }
+
     if ( !harvest || !harvest.h1 ) throw new Error( 'failed to harvest from out/' );
 
     // The styled-jsx scoping class, read off the harvested markup. Injected rules must
@@ -229,7 +257,20 @@ const METRICS = () => {
         + '})();';
     };
 
-    const CSS_ALL = harvest.inline + '\n' + harvest.chunks;
+    // ONLY THE styled-jsx BLOCKS, NOT THE 514KB OF GLOBAL CHUNKS.
+    // Every frame inlines this, so including the chunks put the page at 15MB. The chunks are
+    // Amplify UI plus the dashboard stylesheets; the header and hero are entirely styled by
+    // their own styled-jsx blocks. Dropping them is verified rather than assumed: the check
+    // asserts the band still measures header 108, h1 506x131, sub 560x56, pill 278 - identical
+    // to the live page. If a global rule ever does matter, those numbers move and the check fails.
+    // The ONE global rule that matters, taken verbatim from the built chunks. Dropping the
+    // chunks wholesale was wrong: they carry `*{box-sizing:border-box;margin:0;padding:0}`,
+    // and without it the menu's max-height stops including its padding, so the panels reported
+    // a 72px menu where the live page gives 40px. The rest of the 514KB is Amplify UI and the
+    // dashboard stylesheets, which this band never touches - verified by asserting the panels
+    // match the live measurements exactly.
+    const GLOBAL_RESET = '*{box-sizing:border-box;margin:0;padding:0}';
+    const CSS_ALL = GLOBAL_RESET + '\n' + harvest.inline;
     // PRE-APPLY THE SETTLED STATE, so a panel showing the real design needs no JavaScript.
     // The export already server-renders the first word with .on and the tint/dot inline; the
     // only two things the effect adds are the pill's measured width and the .show class that
@@ -238,8 +279,17 @@ const METRICS = () => {
     // sees the defect in the panel labelled "as it ships today", which would be a lie.
     const settle = ( h1, width ) =>
       h1.replace( /(<span class="[^"]*home-cycle[^"]*")/, `$1 style="width:${width}px"` );
+    // What a client-side translation does: rewrite the text node and nothing else. The pill
+    // keeps the width JavaScript measured for the English word, which is the whole finding.
+    const HINDI = 'उपभोक्ताओं';
+    const translate = h1 => {
+      const out = h1.replace( `>${WORDS[ 0 ].word}<`, `>${HINDI}<` );
+      if ( out === h1 ) throw new Error( `translate(): could not find "${WORDS[ 0 ].word}" in the harvested h1` );
+      return out;
+    };
     const frameDoc = o => {
       const extra = ( o.fix ? scope( FIX_CSS ) : '' ) + ( o.hfix ? scopeHdr( HEADER_FIX_CSS ) : '' )
+        + ( o.spacing ? TEXT_SPACING_CSS : '' )
         + ( o.reduced === 'before' ? scope( REDUCED_BEFORE ) : '' )
         + ( o.reduced === 'after' ? scope( REDUCED_AFTER ) : '' );
       const script = o.noJs ? '' : '<script>' + bootJS( o ) + '<\/script>';
@@ -253,7 +303,11 @@ const METRICS = () => {
         + harvest.header
         + '<main class="' + harvest.shellCls + '"><div class="' + layoutCls + '">'
         + '<div class="' + harvest.heroCls + '">'
-        + ( o.settled ? settle( harvest.h1, o.settled ) : harvest.h1 ) + harvest.sub + '</div>'
+        + ( () => {
+          let h = o.settled ? settle( harvest.h1, o.settled ) : harvest.h1;
+          if ( o.hindi ) h = translate( h );
+          return h;
+        } )() + harvest.sub + '</div>'
         + '</div></main>'
         + script;
     };
@@ -287,6 +341,24 @@ const METRICS = () => {
       fixC: '<div class="cmp">'
         + labelled( 'before — white pill', 'c-b', { rotate: false, reduced: 'before', noShow: true }, SW, SH, SC )
         + labelled( 'after', 'c-a', { rotate: false, reduced: 'after', fix: true, noShow: true }, SW, SH, SC ) + '</div>',
+      spacing: '<div class="cmp">'
+        + labelled( 'before — 22% cut', 'c-b', { rotate: false, settled: M.d.w0, spacing: true }, SW, 420, SC )
+        + labelled( 'after', 'c-a', { rotate: false, settled: M.d.w0, spacing: true, fix: true }, SW, 420, SC ) + '</div>',
+      hindi: '<div class="cmp">'
+        + labelled( 'before — clipped', 'c-b', { rotate: false, settled: M.d.w0, hindi: true }, SW, SH, SC )
+        + labelled( 'after', 'c-a', { rotate: false, settled: M.d.w0, hindi: true, fix: true }, SW, SH, SC ) + '</div>',
+      fold653: '<div class="cmp">'
+        + labelled( 'before — 0px of menu', 'c-b', { rotate: false, menuOpen: true, settled: foldW0[ 653 ] }, 653, 280, 1 )
+        + labelled( 'after', 'c-a', { rotate: false, menuOpen: true, hfix: true, settled: foldW0[ 653 ] }, 653, 280, 1 ) + '</div>',
+      fold882: '<div class="cmp">'
+        + labelled( 'before — 24px', 'c-b', { rotate: false, menuOpen: true, settled: foldW0[ 882 ] }, 882, 344, 1 )
+        + labelled( 'after', 'c-a', { rotate: false, menuOpen: true, hfix: true, settled: foldW0[ 882 ] }, 882, 344, 1 ) + '</div>',
+      fold880: '<div class="cmp">'
+        + labelled( 'before — 40px', 'c-b', { rotate: false, menuOpen: true, settled: foldW0[ 880 ] }, 880, 360, 1 )
+        + labelled( 'after', 'c-a', { rotate: false, menuOpen: true, hfix: true, settled: foldW0[ 880 ] }, 880, 360, 1 ) + '</div>',
+      foldBand: '<div class="cmp">'
+        + labelled( 'Galaxy Fold folded landscape 653×280', 'c-b', { rotate: false, settled: foldW0[ 653 ] }, 653, 280, 1 )
+        + labelled( 'Z Fold 5 cover landscape 882×344', 'c-b', { rotate: false, settled: foldW0[ 882 ] }, 882, 344, 1 ) + '</div>',
       proof: '<div class="cmp">'
         + labelled( 'today', 'c-b', { rotate: true, settled: M.d.w0 }, SW, SH, SC )
         + labelled( 'with the fixes', 'c-a', { rotate: true, fix: true, settled: M.d.w0 }, SW, SH, SC ) + '</div>',
@@ -499,6 +571,127 @@ return () =&gt; ro.disconnect();</code></pre>
   .home-mark::before{transform:scaleX(0)}   /* was scaleX(1) */
 }</code></pre>
     </div></details>
+  </div>
+</section>
+
+<!-- ============== MORE FLAWS ============== -->
+<section class="band">
+  <div class="bhead"><span class="tag">D</span><span class="sev s-h">HIGH</span>
+    <h2>WCAG 1.4.12 fails — user text spacing cuts 22% of the word</h2></div>
+  <div class="step">
+    <p class="cap"><b>1.4.12 is Level AA and normative:</b> a reader's own stylesheet setting
+    line-height 1.5, letter-spacing .12em and word-spacing .16em must not clip anything. The word
+    needs 356.8px; the pill stays at 278px. Both panels have those overrides applied.</p>
+    ${P.spacing}
+    <details class="why" data-note><summary>why / the code</summary><div class="inner">
+      <p>Same root cause as A and B from a third angle: a JavaScript-measured width on an
+      <code>overflow:hidden</code> box cannot survive anything that changes glyph metrics.
+      <strong>Fixes A + B close this</strong> — <code>max-content</code> is right under any
+      spacing, and the <code>ResizeObserver</code> refires when the word's box changes. No extra
+      code. It promotes those two from “repairs a flash” to “clears an AA failure”.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="band">
+  <div class="bhead"><span class="tag">E</span><span class="sev s-h">HIGH</span>
+    <h2>Translating the page clips the word by 39px</h2></div>
+  <div class="step">
+    <p class="cap">Not hypothetical — the site ships a language switcher, and the whole
+    <code>site-language</code> service exists to translate this page. A translation rewrites the
+    text and nothing else, so the pill keeps the width measured for English: “consumers” 278px,
+    “उपभोक्ताओं” needs <b>317px</b>.</p>
+    ${P.hindi}
+    <details class="why" data-note><summary>why / the code</summary><div class="inner">
+      <p>Devanagari is also taller than Latin at the same size, so the clipping is not only
+      horizontal. <strong>Fixes A + B close this too</strong>, for the same reason as D.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="band">
+  <div class="bhead"><span class="tag">F</span><span class="sev s-h">HIGH</span>
+    <h2>Foldables — the menu reaches zero height</h2></div>
+  <div class="step">
+    <p class="cap">The menu failure needs a viewport that is <b>wide and short</b> — rare on a
+    phone or laptop, and the normal shape of a folded-landscape device. All six panels are
+    <b>1:1 at real foldable viewports</b>. 844×390 was the mild case.</p>
+    <p class="cap" style="margin-top:14px"><b>Galaxy Fold, folded, landscape — 653×280.</b>
+    Computed <code>max-height</code> is <b>0px</b>; the 32px left is padding and border, holding
+    20 links and 1028px of content.</p>
+    ${P.fold653}
+    <p class="cap" style="margin-top:16px"><b>Z Fold 5 cover, landscape — 882×344.</b> 24px.</p>
+    ${P.fold882}
+    <p class="cap" style="margin-top:16px"><b>Z Flip 5, landscape — 880×360.</b> 40px. Z Flip and
+    Z Fold are the two best-selling foldables, so this is not an exotic posture.</p>
+    ${P.fold880}
+    <details class="why" data-note><summary>why / the code — and a gap in my first fix</summary><div class="inner">
+      <p><strong>My earlier fix would not have worked.</strong> I replaced only the desktop
+      <code>calc(100vh - 320px)</code>. At 653px wide the <em>mobile</em> override applies instead
+      — <code>calc(100vh - 308px)</code> — and 308 exceeds a 280px viewport, so it resolves
+      negative and clamps to zero. Both rules have to change:</p>
+      <pre><code>/* 140 = the 108px header + 32px of air. dvh for mobile browser chrome. */
+.nav-menu{max-height:calc(100dvh - 140px)}
+@media(max-width:767px){ .nav-menu{max-height:calc(100dvh - 140px)} }</code></pre>
+      <p>Resulting heights: 280 → 140px, 344 → 204px, 360 → 220px, 390 → 250px.</p>
+      <p><strong>The reasoning already exists in this repo.</strong>
+      <code>src/styles/Layout.css:2185</code> and <code>:2204</code> handle exactly this for the
+      dashboard's bottom nav, with a comment naming the trap — <em>“an unfolded inner display is
+      tablet-WIDE but often phone-TALL … short and wide (a landscape fold…)”</em> — plus
+      <code>vertical-viewport-segments: 2</code> as the real posture signal, asserted by
+      <code>BottomNav.test.tsx:140</code>. The dashboard learned it; the public chrome never did.
+      Note that rule carries a <code>max-width:768px</code> ceiling which would <em>not</em> cover
+      the 880 and 882 cases, so the header needs the height condition without it.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="band">
+  <div class="bhead"><span class="tag">G</span><span class="sev s-m">MED</span>
+    <h2>Foldables — the band's own sentence falls below the fold</h2></div>
+  <div class="step">
+    <p class="cap">This band exists to say what the page is about, and on two folded-landscape
+    postures the sentence does not fit: it ends at <b>314px on a 280px viewport</b> and
+    <b>359px on a 344px one</b>. Both 1:1 — scroll is disabled in the panels, so what you see is
+    what fits.</p>
+    ${P.foldBand}
+    <details class="why" data-note><summary>why</summary><div class="inner">
+      <p>Every other posture in the sixteen measured fits. A 280px-tall viewport is genuinely
+      hostile, so this is a judgement rather than a defect — but it interacts with the
+      ${d.blank}px of blank above the headline that is already an open question: on these two
+      postures, that padding is the difference.</p>
+      <p><strong>Clean across all sixteen</strong>, and worth recording so it is not re-checked:
+      zero horizontal overflow, and the pill never crosses the viewport edge — including at
+      280px, narrower than the 320px floor <code>animcheck</code> tests.</p>
+    </div></details>
+  </div>
+</section>
+
+<section class="band">
+  <div class="bhead"><span class="tag">TYPE</span><h2>Typography — measured, not previewable</h2></div>
+  <div class="step">
+    <p class="cap">These are real and measured, but a preview frame would <b>misrepresent</b>
+    them: font fallback and forced-colours depend on the operating system, so this machine's
+    rendering is not yours. Numbers instead of a fake panel.</p>
+    <table>
+      <tr><th>Finding</th><th>Measured</th></tr>
+      <tr><td><b>Two different Inter stacks in one band.</b> Header lockup vs hero — identical while Inter loads, divergent the moment it is not</td>
+          <td><code>Inter, ui-sans-serif</code> vs <code>Inter, -apple-system</code>; sitewide 105 vs 1135</td></tr>
+      <tr><td><b>The webfont swap moves the band</b> on every cold load. <code>animcheck</code> cannot see it — <code>gotoStable</code> waits on <code>fonts.ready</code> by design</td>
+          <td>frame line 513.1 → 506px · band 209.4 → <b>211.4px</b></td></tr>
+      <tr><td><b><code>.brand-dot</code> has no contrast margin</b> — passes AA only because 23px/800 counts as large text</td>
+          <td><b>3.94:1</b> (needs 3:1 large, 4.5:1 normal)</td></tr>
+      <tr><td><b>forced-colors strips the tint and the dot.</b> No <code>forced-colors</code> rules anywhere, and the source argues the four tints are the message</td>
+          <td>both → <code>rgb(255,255,255)</code></td></tr>
+      <tr><td><b>No dark-mode support and no <code>&lt;meta name="color-scheme"&gt;</code>.</b> Light-only is a fine decision; undeclared is not</td>
+          <td>0 <code>prefers-color-scheme</code> rules</td></tr>
+      <tr><td><b>A comment claims <code>20px/600</code> “exists nowhere on the site”.</b> It does</td>
+          <td><code>/my-order</code> <code>.mo-link</code></td></tr>
+      <tr><td><b><code>15.5px</code> exists</b> — a half-pixel size is arithmetic, not intent</td>
+          <td>×71, <code>/terms</code> and <code>/privacy</code></td></tr>
+      <tr><td><b>Tracking drift:</b> the home page is on <code>-0.04em</code>; the other three hero copies are still on <code>-2.2px</code> with media overrides — the 2.75× optical swing</td>
+          <td><code>RotatingHero</code> alone is 13 public routes</td></tr>
+    </table>
   </div>
 </section>
 
