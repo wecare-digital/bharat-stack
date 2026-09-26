@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-26T04:47:19.648825+00:00",
+  "generated": "2026-09-26T05:12:06.125886+00:00",
   "account": "775261844268",
   "identity_arn": "arn:aws:iam::775261844268:user/wecare-admin",
   "region": "us-east-1",
@@ -587,9 +587,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T00:42:21.000+0000",
-        "code_sha256": "5h9Jp6OHbB8QeQo2rU1NBB82HQ19Mb9TTkxQ3uiEVcU=",
-        "code_size": 347063,
+        "last_modified": "2026-09-26T05:11:05.000+0000",
+        "code_sha256": "w5tW4PVAqVS2G0dAN0CBcCGJIJiYIgm+t1XCUIUAmW8=",
+        "code_size": 347672,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
@@ -604,7 +604,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "51"
+        "live_alias_version": "52"
       },
       {
         "name": "wecare-invoice-engine",
@@ -1578,9 +1578,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:02:34.000+0000",
-        "code_sha256": "awFhkrrSlqI7ONycabiuj/rYKp4h7HjRTaN9xd6o85c=",
-        "code_size": 733714,
+        "last_modified": "2026-09-26T05:11:21.000+0000",
+        "code_sha256": "AvlooTtlRfrcFWq6Pi7+EH/KxGTB+bhhPPnM0eSeVgU=",
+        "code_size": 735779,
         "layers": [
           "cryptography-python312:1"
         ],
@@ -1595,8 +1595,6 @@
           "META_API_VERSION",
           "META_TOKEN_SECRET",
           "PAYMENT_WABA_ID",
-          "PAYU_MID",
-          "PAYU_UPI_ID",
           "RAZORPAY_MID",
           "RAZORPAY_UPI_ID",
           "SUBMIT_REQUESTS_TABLE",
@@ -1608,7 +1606,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "41"
+        "live_alias_version": "43"
       },
       {
         "name": "wecare-whatsapp-calling",
@@ -4723,13 +4721,11 @@
       "stack-wecare-digital-ScheduledMessagesTable",
       "stack-wecare-digital-SecureFilesTable",
       "stack-wecare-digital-SeoToolsTable",
-      "stack-wecare-digital-SiteLanguageCache",
       "stack-wecare-digital-SmsOutboundTable",
       "stack-wecare-digital-SubmitRequestsTable",
       "stack-wecare-digital-TemplateAnalyticsTable",
       "stack-wecare-digital-UsersTable",
       "stack-wecare-digital-VoiceAwsTable",
-      "stack-wecare-digital-VoiceCDRTable",
       "stack-wecare-digital-VoiceCalls",
       "stack-wecare-digital-WhatsAppCallingTable",
       "stack-wecare-digital-WhatsAppGroupTable",
@@ -4850,8 +4846,8 @@
       {
         "name": "stack-wecare-digital-AuditLogsTable",
         "status": "ACTIVE",
-        "item_count": 39,
-        "size_bytes": 29817,
+        "item_count": 234,
+        "size_bytes": 178902,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -4940,8 +4936,8 @@
       {
         "name": "stack-wecare-digital-ContactsTable",
         "status": "ACTIVE",
-        "item_count": 3,
-        "size_bytes": 769,
+        "item_count": 5,
+        "size_bytes": 1457,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5303,8 +5299,8 @@
       {
         "name": "stack-wecare-digital-LinkClicksTable",
         "status": "ACTIVE",
-        "item_count": 715,
-        "size_bytes": 143189,
+        "item_count": 717,
+        "size_bytes": 143697,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "shortCode(HASH)",
@@ -5334,8 +5330,8 @@
       {
         "name": "stack-wecare-digital-MessagesTable",
         "status": "ACTIVE",
-        "item_count": 25,
-        "size_bytes": 6851,
+        "item_count": 147,
+        "size_bytes": 42331,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5515,8 +5511,8 @@
       {
         "name": "stack-wecare-digital-RateLimitTable",
         "status": "ACTIVE",
-        "item_count": 12,
-        "size_bytes": 1145,
+        "item_count": 80,
+        "size_bytes": 8346,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5530,8 +5526,8 @@
       {
         "name": "stack-wecare-digital-RazorpayWebhookLogTable",
         "status": "ACTIVE",
-        "item_count": 239,
-        "size_bytes": 142750,
+        "item_count": 344,
+        "size_bytes": 205332,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5650,8 +5646,8 @@
       {
         "name": "stack-wecare-digital-SiteLanguageCache",
         "status": "ACTIVE",
-        "item_count": 0,
-        "size_bytes": 0,
+        "item_count": 76,
+        "size_bytes": 27451,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "cacheKey(HASH)"
@@ -5710,8 +5706,8 @@
       {
         "name": "stack-wecare-digital-SystemEventTable",
         "status": "ACTIVE",
-        "item_count": 3,
-        "size_bytes": 747,
+        "item_count": 18,
+        "size_bytes": 4482,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5770,8 +5766,8 @@
       {
         "name": "stack-wecare-digital-VoiceCDRTable",
         "status": "ACTIVE",
-        "item_count": 0,
-        "size_bytes": 0,
+        "item_count": 1,
+        "size_bytes": 693,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5800,8 +5796,8 @@
       {
         "name": "stack-wecare-digital-WebhookDedup",
         "status": "ACTIVE",
-        "item_count": 241,
-        "size_bytes": 24499,
+        "item_count": 354,
+        "size_bytes": 36160,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "eventId(HASH)"
@@ -5845,8 +5841,8 @@
       {
         "name": "stack-wecare-digital-WhatsAppInboundTable",
         "status": "ACTIVE",
-        "item_count": 2,
-        "size_bytes": 1041,
+        "item_count": 9,
+        "size_bytes": 4569,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5860,8 +5856,8 @@
       {
         "name": "stack-wecare-digital-WhatsAppOutboundTable",
         "status": "ACTIVE",
-        "item_count": 12,
-        "size_bytes": 4698,
+        "item_count": 80,
+        "size_bytes": 32429,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -6593,21 +6589,11 @@
   },
   "ses": {
     "us-east-1": {
-      "identity_count": 3,
+      "identity_count": 2,
       "identities": [
         {
           "identity": "one@wecare.digital",
           "type": "EMAIL_ADDRESS",
-          "sending_enabled": true,
-          "verified": true,
-          "dkim_status": "SUCCESS",
-          "dkim_signing": true,
-          "mail_from": null,
-          "mail_from_status": null
-        },
-        {
-          "identity": "wecare-digital.awsapps.com",
-          "type": "DOMAIN",
           "sending_enabled": true,
           "verified": true,
           "dkim_status": "SUCCESS",
@@ -6809,9 +6795,9 @@
         "id": "Z03939753QJGZ6ZD6BXO8",
         "name": "wecare.digital.",
         "private": false,
-        "record_count": 42,
+        "record_count": 41,
         "record_types": {
-          "CNAME": 22,
+          "CNAME": 21,
           "A": 7,
           "TXT": 7,
           "AAAA": 3,
@@ -7403,22 +7389,22 @@
             "enable_auto_build": true,
             "recent_jobs": [
               {
+                "id": "903",
+                "status": "SUCCEED",
+                "commit": "4bc9f6db4a8b",
+                "end": "2026-09-26T05:05:18.691000+00:00"
+              },
+              {
+                "id": "902",
+                "status": "SUCCEED",
+                "commit": "df67e7f3d6c2",
+                "end": "2026-09-26T04:58:11.104000+00:00"
+              },
+              {
                 "id": "901",
                 "status": "SUCCEED",
                 "commit": "933d5d73fd69",
                 "end": "2026-09-26T04:14:50.660000+00:00"
-              },
-              {
-                "id": "900",
-                "status": "SUCCEED",
-                "commit": "a70c7b69a2b2",
-                "end": "2026-09-26T04:09:16.877000+00:00"
-              },
-              {
-                "id": "899",
-                "status": "SUCCEED",
-                "commit": "cd37748d9083",
-                "end": "2026-09-26T03:57:05.945000+00:00"
               }
             ]
           }
@@ -7443,7 +7429,7 @@
   },
   "errors": [],
   "error_count": 0,
-  "duration_seconds": 154.3,
+  "duration_seconds": 152.7,
   "partial_run": false,
   "collectors_run": [
     "api_gateway",

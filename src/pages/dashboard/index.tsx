@@ -143,7 +143,6 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
       'stack-wecare-digital-InvoiceSequenceTable',
       'stack-wecare-digital-PaymentsTable',
       'stack-wecare-digital-RazorpayWebhookLogTable',
-      'stack-wecare-digital-PayUWebhookLogTable',
       'stack-wecare-digital-SubmitRequestsTable',
       'stack-wecare-digital-ConversationHistoryTable',
       'stack-wecare-digital-AIInteractionsTable',
@@ -270,8 +269,8 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     arn: `arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:wecare/meta-system-user-token*`,
     accountId: AWS_ACCOUNT_ID,
     details: [
-      '+91 93309 94400 (WECARE.DIGITAL) - Direct API, Razorpay + PayU + UPI',
-      '+91 99033 00044 (Manish Agarwal) - Direct API, Razorpay + PayU + UPI',
+      '+91 93309 94400 (WECARE.DIGITAL) - Direct API, Razorpay + UPI',
+      '+91 99033 00044 (Manish Agarwal) - Direct API, Razorpay + UPI',
       'WABA1: 2094615664435155 (WECARE.DIGITAL, Direct API)',
       'WABA2: 2513394156072604 (Manish Agarwal, Direct API)',
       'App: WECARE.DIGITAL (2238810740192680)',
@@ -701,7 +700,6 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
     { id: 'invoice_sequence', label: 'Invoice Sequence Counter', category: 'Invoices & Payments', type: 'dynamodb', table: 'InvoiceSequenceTable', count: -1 },
     { id: 'payments', label: 'Payments', category: 'Invoices & Payments', type: 'dynamodb', table: 'PaymentsTable', count: -1 },
     { id: 'razorpay_webhook_log', label: 'Razorpay Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'RazorpayWebhookLogTable', count: -1 },
-    { id: 'payu_webhook_log', label: 'PayU Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'PayUWebhookLogTable', count: -1 },
     { id: 'bulk_jobs', label: 'Bulk Jobs', category: 'Bulk', type: 'dynamodb', table: 'BulkJobsTable', count: -1 },
     { id: 'bulk_recipients', label: 'Bulk Recipients', category: 'Bulk', type: 'dynamodb', table: 'BulkRecipientsTable', count: -1 },
     { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'stack/invoices/', count: -1 },
@@ -965,9 +963,9 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
           {
             results.push( { id, label, deleted: 0, error: 'API route not deployed — redeploy voice-cdr Lambda' } ); continue;
           }
-        } else if ( id === 'invoices' || id === 'invoice_items' || id === 'invoice_assets' || id === 'invoice_delivery_log' || id === 'invoice_sequence' || id === 'payments' || id === 'razorpay_webhook_log' || id === 'payu_webhook_log' || id === 's3_invoices' )
+        } else if ( id === 'invoices' || id === 'invoice_items' || id === 'invoice_assets' || id === 'invoice_delivery_log' || id === 'invoice_sequence' || id === 'payments' || id === 'razorpay_webhook_log' || id === 's3_invoices' )
         {
-          const invoiceIds = [ 'invoices', 'invoice_items', 'invoice_assets', 'invoice_delivery_log', 'invoice_sequence', 'payments', 'razorpay_webhook_log', 'payu_webhook_log', 's3_invoices' ];
+          const invoiceIds = [ 'invoices', 'invoice_items', 'invoice_assets', 'invoice_delivery_log', 'invoice_sequence', 'payments', 'razorpay_webhook_log', 's3_invoices' ];
           const alreadyDone = results.some( r => invoiceIds.includes( r.id ) && !r.error );
           if ( alreadyDone ) { results.push( { id, label, deleted: 0, elapsed: 0 } ); continue; }
           // Try bulk clear-all, fall back to one-by-one for invoices only
@@ -2338,296 +2336,16 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                   </div>
                 </div>
 
-                {/* PayU Webhook Section */ }
-                <div className="section" style={ { background: '#ffffff', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1rem', color: '#1a1a1a', border: '1px solid #1a3a2a' } }>
-                  <div style={ { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' } }>
-                    <div style={ { width: '40px', height: '40px', background: '#f9fafb', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e5e7eb' } }>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#1a3a2a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 style={ { margin: 0, fontSize: '1.25rem', color: '#1a1a1a' } }>PayU Webhook</h3>
-                      <span className="badge" style={ { background: '#f9fafb', color: '#1a3a2a', marginTop: '4px' } }>Active — credentials managed server-side</span>
-                    </div>
-                  </div>
-
-                  <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' } }>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Webhook URL</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#1a1a1a' } }>https://api.wecare.digital/payu-webhook</code>
-                    </div>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>HTTP Method</label>
-                      <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>POST (form-encoded or JSON)</code>
-                    </div>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Hash Verification</label>
-                      <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>SHA-512 reverse hash (SALT|status|...|key)</code>
-                    </div>
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Credential Status</label>
-                      <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>Managed server-side; values are never displayed in the browser</code>
-                    </div>
-                    <div>
-                      <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Lambda Function</label>
-                      <code style={ { fontSize: '0.85rem', color: '#1a1a1a' } }>wecare-payu-webhook</code>
-                    </div>
-                  </div>
-
-                  {/* PayU API Reference */ }
-                  <div style={ { background: '#E8F5E9', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #C8E6C9' } }>
-                    <h4 style={ { margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#2E7D32' } }>PayU API Reference</h4>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <div style={ { fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' } }>1. Payment Gateway APIs (key + salt hash)</div>
-                      <div style={ { fontSize: '0.75rem', color: '#6b7280', marginBottom: '2px' } }>No OAuth needed. Use merchant key as param + SHA-512 hash.</div>
-                      <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Hash: <code style={ { fontSize: '0.7rem' } }>sha512(key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5||||||SALT)</code></div>
-                      <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>General APIs: <code style={ { fontSize: '0.7rem' } }>sha512(key|command|var1|salt)</code></div>
-                      <div style={ { display: 'flex', gap: '0.5rem', marginTop: '4px', flexWrap: 'wrap' } }>
-                        <code style={ { fontSize: '0.7rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' } }>Production: info.payu.in/merchant/postservice.php</code>
-                        <code style={ { fontSize: '0.7rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' } }>Test: test.payu.in/merchant/postservice.php</code>
-                      </div>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <div style={ { fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' } }>2. Payment Links / Payouts APIs (OAuth 2.0 client_credentials)</div>
-                      <div style={ { fontSize: '0.75rem', color: '#6b7280', marginBottom: '2px' } }>Uses Client ID + Client Secret to get Bearer token.</div>
-                      <pre style={ { fontSize: '0.7rem', color: '#1a1a1a', background: '#fff', padding: '0.5rem', borderRadius: '4px', overflow: 'auto', margin: '4px 0' } }>{ `# Get OAuth Token (Production)
-POST https://accounts.payu.in/oauth/token
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=client_credentials
-&client_id=YOUR_PAYU_CLIENT_ID
-&client_secret=YOUR_PAYU_CLIENT_SECRET
-&scope=create_payment_links
-
-# Response: { "access_token": "...", "token_type": "Bearer", "expires_in": 7200 }
-
-# Create Payment Link (Production)
-POST https://oneapi.payu.in/payment-links
-Authorization: Bearer {access_token}
-merchantId: YOUR_PAYU_MID
-Content-Type: application/json`}</pre>
-                      <div style={ { display: 'flex', gap: '0.5rem', marginTop: '4px', flexWrap: 'wrap' } }>
-                        <code style={ { fontSize: '0.7rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' } }>Token: accounts.payu.in/oauth/token</code>
-                        <code style={ { fontSize: '0.7rem', background: '#fff', padding: '2px 6px', borderRadius: '4px' } }>Links: oneapi.payu.in/payment-links</code>
-                        <code style={ { fontSize: '0.7rem', background: '#FFF9C4', padding: '2px 6px', borderRadius: '4px' } }>Test Token: uat-accounts.payu.in/oauth/token</code>
-                        <code style={ { fontSize: '0.7rem', background: '#FFF9C4', padding: '2px 6px', borderRadius: '4px' } }>Test Links: uatoneapi.payu.in/payment-links</code>
-                      </div>
-                    </div>
-
-                    <div style={ { marginBottom: '0.75rem' } }>
-                      <div style={ { fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' } }>3. Webhook (S2S Callback)</div>
-                      <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>PayU sends form-encoded POST to your webhook URL. Verify with reverse hash:</div>
-                      <div style={ { fontSize: '0.75rem', color: '#6b7280' } }><code style={ { fontSize: '0.7rem' } }>sha512(SALT|status||||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key)</code></div>
-                      <div style={ { fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' } }>PayU retries 3x for 200 OK. Content-Type: FormData or application/x-www-form-urlencoded.</div>
-                      <div style={ { fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' } }>Configure at: <a href="https://onboarding.payu.in/app/account" target="_blank" rel="noopener noreferrer" style={ { color: '#1a3a2a' } }>PayU Dashboard → Developer → Webhooks</a></div>
-                    </div>
-
-                    <div>
-                      <div style={ { fontWeight: 600, fontSize: '0.8rem', color: '#2E7D32', marginBottom: '4px' } }>PayU Whitelist IPs (for webhook delivery)</div>
-                      <div style={ { display: 'flex', flexWrap: 'wrap', gap: '0.25rem', fontSize: '0.7rem' } }>
-                        { [ '52.140.8.88', '3.7.89.15', '52.140.8.89', '3.7.89.21', '80.179.174.2', '3.7.89.3', '80.179.165.250', '3.7.89.8', '52.140.8.64', '3.7.89.9', '52.140.8.65', '3.7.89.10', '3.6.73.183', '3.6.83.44' ].map( ip => (
-                          <code key={ ip } style={ { background: '#fff', padding: '1px 4px', borderRadius: '3px' } }>{ ip }</code>
-                        ) ) }
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* PayU WABA Configuration */ }
-                  <div style={ { background: '#FFF3E0', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #FFE0B2' } }>
-                    <h4 style={ { margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#E65100' } }>WhatsApp Payment Configuration (Meta WABA)</h4>
-                    <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' } }>
-                      <div style={ { background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
-                        <div style={ { fontWeight: 600, fontSize: '0.85rem', color: '#1a1a1a', marginBottom: '4px' } }>+91 9330994400</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Config: <code style={ { color: '#1a3a2a' } }>WECAREDIGITAL</code> + <code style={ { color: '#1a3a2a' } }>WECAREUPI</code></div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>WABA: <code>2094615664435155</code> (Active, Direct API)</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Provider: <code>Razorpay</code></div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>MCC: <code>{ PAYMENT_DETAILS.mcc }</code> (Management, consulting and PR services)</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Purpose: <code>{ PAYMENT_DETAILS.purposeCode }</code></div>
-                        <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' } }>Verified via Graph API 2026-08-25</span>
-                      </div>
-                      <div style={ { background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e5e7eb' } }>
-                        <div style={ { fontWeight: 600, fontSize: '0.85rem', color: '#1a1a1a', marginBottom: '4px' } }>+91 9903300044</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Config: <code style={ { color: '#1a3a2a' } }>WECAREDIGITAL</code> + <code style={ { color: '#1a3a2a' } }>WECAREUPI</code></div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>WABA: <code>2513394156072604</code></div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Provider: <code>Razorpay</code></div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>MCC: <code>{ PAYMENT_DETAILS.mcc }</code> (Management, consulting and PR services)</div>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280' } }>Purpose: <code>{ PAYMENT_DETAILS.purposeCode }</code></div>
-                        <span className="badge" style={ { background: '#f3f4f6', color: '#0f2a1d', marginTop: '4px', fontSize: '0.7rem' } }>Verified via Graph API 2026-08-25</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Supported Events */ }
-                  <div>
-                    <label style={ { fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.5rem', display: 'block', color: '#1a1a1a' } }>Supported Events</label>
-                    <div style={ { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' } }>
-                      { [
-                        { event: 'payment.success', desc: 'Payment captured', color: '#1a3a2a' },
-                        { event: 'payment.failed', desc: 'Payment failed', color: '#1a3a2a' },
-                        { event: 'payment.pending', desc: 'Awaiting bank', color: '#1a3a2a' },
-                        { event: 'refund.success', desc: 'Refund processed', color: '#1a3a2a' },
-                        { event: 'refund.failed', desc: 'Refund failed', color: '#1a3a2a' },
-                      ].map( ( { event, desc, color } ) => (
-                        <div key={ event } style={ { background: '#f9fafb', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', fontSize: '0.8rem', border: '1px solid #e5e7eb' } }>
-                          <div style={ { display: 'flex', alignItems: 'center', gap: '0.5rem' } }>
-                            <span style={ { width: '8px', height: '8px', borderRadius: '50%', background: color } } />
-                            <span style={ { fontFamily: 'monospace', color: '#1a1a1a' } }>{ event }</span>
-                          </div>
-                          <div style={ { fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' } }>{ desc }</div>
-                        </div>
-                      ) ) }
-                    </div>
-                  </div>
-                </div>
-
-                {/* PayU Data Captured */ }
-                <div className="section" style={ { background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' } }>
-                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1a1a1a' } }>
-                    <DataIcon size={ 18 } />
-                    Data Captured for PayU Payments
-                  </h4>
-                  <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' } }>
-                    { [
-                      { field: 'mihpayid', desc: 'PayU Transaction ID' },
-                      { field: 'txnid', desc: 'Merchant Transaction ID' },
-                      { field: 'amount', desc: 'Amount in rupees' },
-                      { field: 'mode', desc: 'CC, DC, NB, UPI, WALLET' },
-                      { field: 'status', desc: 'success, failure, pending' },
-                      { field: 'phone', desc: 'Customer phone' },
-                      { field: 'email', desc: 'Customer email' },
-                      { field: 'productinfo', desc: 'Product description' },
-                      { field: 'bank_ref_num', desc: 'Bank reference number' },
-                      { field: 'error_Message', desc: 'Error details (if failed)' },
-                      { field: 'firstname', desc: 'Customer name' },
-                      { field: 'hash', desc: 'SHA-512 verification hash' },
-                    ].map( ( { field, desc } ) => (
-                      <div key={ field } style={ { padding: '0.75rem', background: '#f9fafb', borderRadius: '0.375rem', borderLeft: '3px solid #1a3a2a' } }>
-                        <code style={ { fontSize: '0.85rem', color: '#1a3a2a' } }>{ field }</code>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' } }>{ desc }</div>
-                      </div>
-                    ) ) }
-                  </div>
-                </div>
-
-                {/* Note: Default Gateway */ }
-                <div style={ { background: '#FFF9C4', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #FFF176', fontSize: '0.8rem', color: '#F57F17', marginBottom: '1.5rem' } }>
-                  Note: Razorpay is the only payment gateway. Both WABA numbers expose exactly two
-                  active Meta payment configurations &mdash; <code>WECAREDIGITAL</code> (Razorpay provider)
-                  and <code>WECAREUPI</code> (UPI VPA) &mdash; on MCC { PAYMENT_DETAILS.mcc } and purpose
-                  code { PAYMENT_DETAILS.purposeCode }. PayU was retired: no PayU payment configuration
-                  exists on either WABA, and the PayU webhook route plus its public function URL were
-                  removed from the production API on 2026-08-25.
-                </div>
-
-                {/* Retired India voice provider — section removed 2026-09-19.
-                    It documented click-to-call, OBD and CDR webhook endpoints for
-                    a provider no longer in use. PSTN voice is Plivo; see
-                    scripts/plivo-reconcile for the live, read-only control-plane
-                    state. Historical CDR records are retained: VoiceCDRTable is
-                    still live and is now also written by the Plivo callbacks. */ }
-
-                {/* Overall Call Status Matrix — legacy CDR status derivation, retained for historical records */ }
-                <div className="section" style={ { background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' } }>
-                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1a1a1a' } }>
-                    <DataIcon size={ 18 } />
-                    Overall Call Status Matrix
-                  </h4>
-                  <table style={ { width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse', marginBottom: '1rem' } }>
-                    <thead>
-                      <tr style={ { background: '#f9fafb' } }>
-                        <th style={ { padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid #1a3a2a' } }>Caller Status</th>
-                        <th style={ { padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid #1a3a2a' } }>Destination Status</th>
-                        <th style={ { padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid #1a3a2a' } }>Overall</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      { [
-                        [ 'Answer', 'Answered', 'Answered', '#2E7D32' ],
-                        [ 'Answer', 'Busy', 'Missed', '#C62828' ],
-                        [ 'Answer', 'Missed', 'Missed', '#C62828' ],
-                        [ 'Busy', '—', 'Missed', '#C62828' ],
-                        [ 'Missed', '—', 'Missed', '#C62828' ],
-                      ].map( ( [ caller, dest, overall, color ], i ) => (
-                        <tr key={ i }>
-                          <td style={ { padding: '0.4rem 0.5rem', borderBottom: '1px solid #f3f4f6' } }>{ caller }</td>
-                          <td style={ { padding: '0.4rem 0.5rem', borderBottom: '1px solid #f3f4f6' } }>{ dest }</td>
-                          <td style={ { padding: '0.4rem 0.5rem', borderBottom: '1px solid #f3f4f6', color: color as string, fontWeight: 600 } }>{ overall }</td>
-                        </tr>
-                      ) ) }
-                    </tbody>
-                  </table>
-
-                  <h4 style={ { margin: '1rem 0 0.5rem 0', fontSize: '0.9rem', color: '#1a1a1a' } }>Number Status Values</h4>
-                  <div style={ { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' } }>
-                    { [
-                      { status: 'Answer', desc: 'Call answered', color: '#2E7D32' },
-                      { status: 'Disconnected', desc: 'Disconnected by either party', color: '#E65100' },
-                      { status: 'Busy', desc: 'Number was busy', color: '#C62828' },
-                      { status: 'Noanswer', desc: 'No answer within ring time', color: '#C62828' },
-                      { status: 'NotReachable', desc: 'Number not reachable', color: '#C62828' },
-                      { status: 'NetworkError', desc: 'Network error (also SIP 500)', color: '#C62828' },
-                      { status: 'Removed', desc: 'System removed (ring timeout)', color: '#6b7280' },
-                    ].map( ( { status, desc, color } ) => (
-                      <div key={ status } style={ { background: '#f9fafb', padding: '0.4rem 0.6rem', borderRadius: '4px', border: '1px solid #e5e7eb', fontSize: '0.8rem' } }>
-                        <code style={ { color, fontWeight: 600 } }>{ status }</code>
-                        <span style={ { color: '#6b7280', marginLeft: '0.3rem' } }>— { desc }</span>
-                      </div>
-                    ) ) }
-                  </div>
-                </div>
-
-                {/* Voice CDR Data Captured */ }
-                <div className="section" style={ { background: 'white', padding: '1.5rem', borderRadius: '0.75rem', marginBottom: '1.5rem', border: '1px solid #1a3a2a' } }>
-                  <h4 style={ { marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1a1a1a' } }>
-                    <DataIcon size={ 18 } />
-                    Data Captured for Voice CDR
-                  </h4>
-                  <div style={ { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' } }>
-                    { [
-                      { field: 'vmSessionId', desc: 'Unique session ID' },
-                      { field: 'clientCorrelationId', desc: 'Correlation / Xchange ID (legacy provider search key)' },
-                      { field: 'customerId', desc: 'Customer identifier' },
-                      { field: 'callType', desc: 'INBOUND or OUTBOUND' },
-                      { field: 'overallCallStatus', desc: 'Answered / Missed / Busy' },
-                      { field: 'callerId', desc: 'Fixed line CLI used for call' },
-                      { field: 'callerNumber', desc: 'Party A (From) number' },
-                      { field: 'destinationNumber', desc: 'Party B (To) number' },
-                      { field: 'calledNumber', desc: 'Virtual number dialled (inbound only)' },
-                      { field: 'displayCliDestination', desc: 'CLI shown to destination' },
-                      { field: 'durationSec', desc: 'Total duration (waitTime + network)' },
-                      { field: 'fromWaitingTimeSec', desc: 'IVR/wait time before answer' },
-                      { field: 'conversationDurationSec', desc: 'Talk time (answer → hangup)' },
-                      { field: 'billableDurationSec', desc: 'Billable duration' },
-                      { field: 'callerDurationSec', desc: 'Caller total (wait + talk)' },
-                      { field: 'callSetupTimeCaller', desc: 'Call setup time (ms)' },
-                      { field: 'hangupStatus', desc: 'Party A / Party B / SYSTEM' },
-                      { field: 'hangupCause', desc: 'USER / SYSTEM_INITIATED' },
-                      { field: 'callerNumberStatus', desc: 'Answer / Busy / Noanswer / etc.' },
-                      { field: 'callerNumberStatusDetails', desc: 'SIP code | cause | description' },
-                      { field: 'destinationNumberStatus', desc: 'Answer / Busy / NotReachable / etc.' },
-                      { field: 'destinationNumberStatusDetails', desc: 'SIP code | cause | description' },
-                      { field: 'circleNameCaller', desc: 'Caller state/circle' },
-                      { field: 'circleNameDestination', desc: 'Destination state/circle' },
-                      { field: 'operatorNameCaller', desc: 'Caller telecom operator' },
-                      { field: 'operatorNameDestination', desc: 'Destination telecom operator' },
-                      { field: 'recordingURL', desc: 'Call recording URL' },
-                      { field: 'retryCountCaller', desc: 'Retries on caller side' },
-                      { field: 'retryCountDestination', desc: 'Retries on destination side' },
-                      { field: 'pulseCount', desc: 'Pulse count for billing' },
-                      { field: 'campaignId', desc: 'OBD campaign ID' },
-                      { field: 'campaignName', desc: 'OBD campaign name' },
-                      { field: 'dtmfCapture', desc: 'DTMF keypad input captured' },
-                    ].map( ( { field, desc } ) => (
-                      <div key={ field } style={ { padding: '0.75rem', background: '#f9fafb', borderRadius: '0.375rem', borderLeft: '3px solid #1a3a2a' } }>
-                        <code style={ { fontSize: '0.85rem', color: '#1a3a2a' } }>{ field }</code>
-                        <div style={ { fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' } }>{ desc }</div>
-                      </div>
-                    ) ) }
-                  </div>
-                </div>
+                {/* Retired payment gateway — section removed 2026-09-26.
+                    It documented PayU's live OAuth and payment-link endpoints
+                    (accounts.payu.in, oneapi.payu.in), its webhook URL and its
+                    Lambda name. All of that is gone: the function, route, table
+                    and secret were deleted, the secret's 30-day recovery window
+                    expired 2026-09-25, and Razorpay is the only gateway. Leaving
+                    it would tell an operator to call an API this platform no
+                    longer has credentials for.
+                    See docs/execution/aws-inventory-findings.md and
+                    docs/provider-retirement-inventory.md. */ }
 
                 {/* Retired India SMS provider — section removed 2026-09-19.
                     It documented a retired provider's live send endpoints, DLT

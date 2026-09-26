@@ -67,7 +67,6 @@ const CODE_ASSETS: CodeAsset[] = [
 
   // ── Payments ──
   { id: 'lambda-razorpay', category: 'Payments', name: 'Razorpay Webhook', description: 'Razorpay payment webhook — capture, refund, dispute events.', path: 'amplify/functions/payments/razorpay-webhook/handler.py', type: 'lambda' },
-  { id: 'lambda-payu', category: 'Payments', name: 'PayU Webhook', description: 'PayU payment webhook handler.', path: 'amplify/functions/payments/payu-webhook/handler.py', type: 'lambda' },
   { id: 'lambda-payments-read', category: 'Payments', name: 'Payments Read', description: 'Read payment records from DynamoDB.', path: 'amplify/functions/payments/payments-read/handler.py', type: 'lambda' },
   { id: 'lambda-invoice', category: 'Payments', name: 'Invoice Engine', description: 'Invoice creation, PDF generation, WhatsApp delivery, payment link generation.', path: 'amplify/functions/payments/invoice-engine/handler.py', type: 'lambda' },
 

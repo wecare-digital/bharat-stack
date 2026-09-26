@@ -79,7 +79,6 @@ const LAMBDA_FUNCTIONS: LambdaFunction[] = [
 
   // Payments
   { name: 'wecare-razorpay-webhook', displayName: 'Razorpay Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Razorpay payment webhook handler', apiRoute: '/webhook/razorpay', envVars: { WEBHOOK_SECRET: '***', PAYMENTS_TABLE: 'stack-wecare-digital-RazorpayWebhookLogTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
-  { name: 'wecare-payu-webhook', displayName: 'PayU Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'PayU payment webhook handler', apiRoute: '/webhook/payu', envVars: { PAYMENTS_TABLE: 'stack-wecare-digital-PayUWebhookLogTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
   { name: 'wecare-payments-read', displayName: 'Payments Read', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Read payment records', apiRoute: '/payments', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-invoice-engine', displayName: 'Invoice Engine', category: 'Payments', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Invoice creation, PDF generation, payment links', apiRoute: '/invoices', envVars: { INVOICE_TABLE: 'stack-wecare-digital-InvoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
 

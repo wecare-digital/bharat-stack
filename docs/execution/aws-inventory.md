@@ -1,6 +1,6 @@
 # AWS account inventory
 
-Generated 2026-09-26T04:47:19.648825+00:00 · account `775261844268` · `us-east-1` (+ ap-south-1) · regenerate with `python scripts/aws_account_inventory.py`
+Generated 2026-09-26T05:12:06.125886+00:00 · account `775261844268` · `us-east-1` (+ ap-south-1) · regenerate with `python scripts/aws_account_inventory.py`
 
 This file supersedes every dated resource count in the steering files. Machine-readable companion: `aws-inventory.json`. Secret **names** and metadata are recorded; no secret value is ever read. Lambda environment variable **names** are recorded, values never are.
 
@@ -60,7 +60,7 @@ Routes with an authorizer attached: **0**
 
 ## DynamoDB
 
-Empty tables (67): `stack-wecare-digital-AIInteractionsTable`, `stack-wecare-digital-AIProviderPolicyTable`, `stack-wecare-digital-AdClickAttributionTable`, `stack-wecare-digital-AgentApprovalsTable`, `stack-wecare-digital-AmendmentHistoryTable`, `stack-wecare-digital-AppointmentTable`, `stack-wecare-digital-AutomationRulesTable`, `stack-wecare-digital-BulkJobsTable`, `stack-wecare-digital-BulkRecipientsTable`, `stack-wecare-digital-CallNotificationsTable`, `stack-wecare-digital-CatalogCacheTable`, `stack-wecare-digital-ConversationHistoryTable`, `stack-wecare-digital-ConversationMetaTable`, `stack-wecare-digital-CrmActivities`, `stack-wecare-digital-CrmLeads`, `stack-wecare-digital-CrmOpportunities`, `stack-wecare-digital-CrmPipelines`, `stack-wecare-digital-CrmStages`, `stack-wecare-digital-DLQMessagesTable`, `stack-wecare-digital-DLTTemplates`, `stack-wecare-digital-DocumentHistoryTable`, `stack-wecare-digital-DocumentTable`, `stack-wecare-digital-DownloadGrantsTable`, `stack-wecare-digital-EnterpriseAssistTable`, `stack-wecare-digital-FaqTable`, `stack-wecare-digital-FlowDraftTable`, `stack-wecare-digital-FlowLogTable`, `stack-wecare-digital-FlowRegistryTable`, `stack-wecare-digital-FlowSubmissionTable`, `stack-wecare-digital-InvoiceAssetsTable`, `stack-wecare-digital-InvoiceDeliveryLogTable`, `stack-wecare-digital-InvoiceItemsTable`, `stack-wecare-digital-InvoiceSequenceTable`, `stack-wecare-digital-InvoicesTable`, `stack-wecare-digital-MediaFilesTable`, `stack-wecare-digital-NotificationAttempts`, `stack-wecare-digital-NotificationDeliveries`, `stack-wecare-digital-NotificationEvents`, `stack-wecare-digital-NotificationOutbox`, `stack-wecare-digital-OBDCampaigns`, `stack-wecare-digital-OrderTable`, `stack-wecare-digital-PartnerLedger`, `stack-wecare-digital-PartnerWallet`, `stack-wecare-digital-PaymentsTable`, `stack-wecare-digital-PstnSoftphoneSessions`, `stack-wecare-digital-PushTokensTable`, `stack-wecare-digital-RequestStatusHistoryTable`, `stack-wecare-digital-ReviewTable`, `stack-wecare-digital-RxSlotTable`, `stack-wecare-digital-ScheduledMessagesTable`, `stack-wecare-digital-SecureFilesTable`, `stack-wecare-digital-SeoToolsTable`, `stack-wecare-digital-SiteLanguageCache`, `stack-wecare-digital-SmsOutboundTable`, `stack-wecare-digital-SubmitRequestsTable`, `stack-wecare-digital-TemplateAnalyticsTable`, `stack-wecare-digital-UsersTable`, `stack-wecare-digital-VoiceAwsTable`, `stack-wecare-digital-VoiceCDRTable`, `stack-wecare-digital-VoiceCalls`, `stack-wecare-digital-WhatsAppCallingTable`, `stack-wecare-digital-WhatsAppGroupTable`, `stack-wecare-digital-WhatsAppPhonesTable`, `stack-wecare-digital-WhatsAppVoiceTable`, `stack-wecare-digital-WixOrderIds`, `stack-wecare-digital-WixOrdersCache`, `stack-wecare-digital-WixProductsCache`
+Empty tables (65): `stack-wecare-digital-AIInteractionsTable`, `stack-wecare-digital-AIProviderPolicyTable`, `stack-wecare-digital-AdClickAttributionTable`, `stack-wecare-digital-AgentApprovalsTable`, `stack-wecare-digital-AmendmentHistoryTable`, `stack-wecare-digital-AppointmentTable`, `stack-wecare-digital-AutomationRulesTable`, `stack-wecare-digital-BulkJobsTable`, `stack-wecare-digital-BulkRecipientsTable`, `stack-wecare-digital-CallNotificationsTable`, `stack-wecare-digital-CatalogCacheTable`, `stack-wecare-digital-ConversationHistoryTable`, `stack-wecare-digital-ConversationMetaTable`, `stack-wecare-digital-CrmActivities`, `stack-wecare-digital-CrmLeads`, `stack-wecare-digital-CrmOpportunities`, `stack-wecare-digital-CrmPipelines`, `stack-wecare-digital-CrmStages`, `stack-wecare-digital-DLQMessagesTable`, `stack-wecare-digital-DLTTemplates`, `stack-wecare-digital-DocumentHistoryTable`, `stack-wecare-digital-DocumentTable`, `stack-wecare-digital-DownloadGrantsTable`, `stack-wecare-digital-EnterpriseAssistTable`, `stack-wecare-digital-FaqTable`, `stack-wecare-digital-FlowDraftTable`, `stack-wecare-digital-FlowLogTable`, `stack-wecare-digital-FlowRegistryTable`, `stack-wecare-digital-FlowSubmissionTable`, `stack-wecare-digital-InvoiceAssetsTable`, `stack-wecare-digital-InvoiceDeliveryLogTable`, `stack-wecare-digital-InvoiceItemsTable`, `stack-wecare-digital-InvoiceSequenceTable`, `stack-wecare-digital-InvoicesTable`, `stack-wecare-digital-MediaFilesTable`, `stack-wecare-digital-NotificationAttempts`, `stack-wecare-digital-NotificationDeliveries`, `stack-wecare-digital-NotificationEvents`, `stack-wecare-digital-NotificationOutbox`, `stack-wecare-digital-OBDCampaigns`, `stack-wecare-digital-OrderTable`, `stack-wecare-digital-PartnerLedger`, `stack-wecare-digital-PartnerWallet`, `stack-wecare-digital-PaymentsTable`, `stack-wecare-digital-PstnSoftphoneSessions`, `stack-wecare-digital-PushTokensTable`, `stack-wecare-digital-RequestStatusHistoryTable`, `stack-wecare-digital-ReviewTable`, `stack-wecare-digital-RxSlotTable`, `stack-wecare-digital-ScheduledMessagesTable`, `stack-wecare-digital-SecureFilesTable`, `stack-wecare-digital-SeoToolsTable`, `stack-wecare-digital-SmsOutboundTable`, `stack-wecare-digital-SubmitRequestsTable`, `stack-wecare-digital-TemplateAnalyticsTable`, `stack-wecare-digital-UsersTable`, `stack-wecare-digital-VoiceAwsTable`, `stack-wecare-digital-VoiceCalls`, `stack-wecare-digital-WhatsAppCallingTable`, `stack-wecare-digital-WhatsAppGroupTable`, `stack-wecare-digital-WhatsAppPhonesTable`, `stack-wecare-digital-WhatsAppVoiceTable`, `stack-wecare-digital-WixOrderIds`, `stack-wecare-digital-WixOrdersCache`, `stack-wecare-digital-WixProductsCache`
 
 Without point-in-time recovery (12): `stack-wecare-digital-CatalogCacheTable`, `stack-wecare-digital-DLQMessagesTable`, `stack-wecare-digital-DownloadGrantsTable`, `stack-wecare-digital-FlowDraftTable`, `stack-wecare-digital-PstnSoftphoneSessions`, `stack-wecare-digital-RateLimitTable`, `stack-wecare-digital-SecureFilesTable`, `stack-wecare-digital-SiteLanguageCache`, `stack-wecare-digital-WebhookDedup`, `stack-wecare-digital-WhatsAppPhonesTable`, `stack-wecare-digital-WixOrdersCache`, `stack-wecare-digital-WixProductsCache`
 
@@ -151,7 +151,6 @@ Identity pools: 1
 ### us-east-1 — production_access=True, sending=True, quota={'Max24HourSend': 50000.0, 'MaxSendRate': 14.0, 'SentLast24Hours': 0.0}
 
 - `one@wecare.digital` (EMAIL_ADDRESS) verified=True dkim=SUCCESS/True mail_from=None/None
-- `wecare-digital.awsapps.com` (DOMAIN) verified=True dkim=SUCCESS/True mail_from=None/None
 - `wecare.digital` (DOMAIN) verified=True dkim=SUCCESS/True mail_from=None/None
 
 Configuration sets: ['wecare-digital']
@@ -190,7 +189,7 @@ Configuration sets: []
 
 ## Route 53
 
-- `wecare.digital.` (Z03939753QJGZ6ZD6BXO8) — 42 records, MX=True, types={'CNAME': 22, 'A': 7, 'TXT': 7, 'AAAA': 3, 'MX': 1, 'NS': 1, 'SOA': 1}
+- `wecare.digital.` (Z03939753QJGZ6ZD6BXO8) — 41 records, MX=True, types={'CNAME': 21, 'A': 7, 'TXT': 7, 'AAAA': 3, 'MX': 1, 'NS': 1, 'SOA': 1}
 
 ## CloudWatch
 
@@ -243,9 +242,9 @@ Amplify:
   - branch `chatgpt/meta-icon-s3-latest-20260918` stage=DEVELOPMENT auto_build=False
     - job 1 SUCCEED commit `HEAD` 2026-09-18T10:25:29
   - branch `stack` stage=PRODUCTION auto_build=True
+    - job 903 SUCCEED commit `4bc9f6db4a8b` 2026-09-26T05:05:18
+    - job 902 SUCCEED commit `df67e7f3d6c2` 2026-09-26T04:58:11
     - job 901 SUCCEED commit `933d5d73fd69` 2026-09-26T04:14:50
-    - job 900 SUCCEED commit `a70c7b69a2b2` 2026-09-26T04:09:16
-    - job 899 SUCCEED commit `cd37748d9083` 2026-09-26T03:57:05
 
 ## Cross-service checks
 

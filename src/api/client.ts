@@ -4792,7 +4792,7 @@ export interface CreateInvoiceEngineRequest {
   paymentId?: string;
   gstin?: string;
   currency?: string;
-  /** Preferred PG: 'razorpay' or 'payu' — used when customer triggers payment via keyword */
+  /** Preferred PG. Razorpay is the only gateway; PayU was retired 2026-08-23. */
   preferredGateway?: string;
   /** Exact Meta PG config name (e.g. 'WECAREDIGITAL') — stored on invoice for keyword-triggered payments */
   paymentConfiguration?: string;

@@ -128,7 +128,6 @@ const DB_TABLES: TableDef[] = [
   { name: 'AdClickAttribution', purpose: 'Click-to-WhatsApp ad tracking', keyFields: 'id', ttl: '180d', indexes: 'adId, contactId', usedBy: 'ad-attribution', category: 'Analytics' },
   { name: 'MetaAnalyticsLog', purpose: 'Meta conversation analytics logs', keyFields: 'id', indexes: '-', usedBy: 'meta-analytics', category: 'Analytics' },
   { name: 'RazorpayWebhookLog', purpose: 'Razorpay webhook event log', keyFields: 'id', ttl: '180d', indexes: 'paymentId, eventType', usedBy: 'razorpay-webhook', category: 'Payments' },
-  { name: 'PayUWebhookLog', purpose: 'PayU webhook event log', keyFields: 'id', ttl: '180d', indexes: 'paymentId, txnId, eventType', usedBy: 'payu-webhook', category: 'Payments' },
   { name: 'WebhookDedup', purpose: 'Webhook idempotency tracking', keyFields: 'eventId', ttl: '7d', indexes: '-', usedBy: 'inbound-whatsapp-handler', category: 'Core' },
   { name: 'SystemEvent', purpose: 'Persistent system event log', keyFields: 'id', ttl: '180d', indexes: 'eventType, wabaId', usedBy: 'system-cleanup', category: 'Core' },
   { name: 'CatalogCache', purpose: 'WhatsApp Commerce catalog cache', keyFields: 'id', ttl: '7d', indexes: 'catalogId, retailerId', usedBy: 'catalog-management', category: 'Ecommerce' },
@@ -170,7 +169,6 @@ const LAMBDAS: LambdaDef[] = [
   { name: 'ai-config-management', category: 'AI', trigger: 'API Gateway', tables: 'SystemConfig', description: 'Manage AI/bot configuration', apiRoute: '/ai/config' },
   { name: 'agent-action-group', category: 'AI', trigger: 'Bedrock Agent', tables: '-', description: 'Bedrock Agent action group handler', apiRoute: '-' },
   { name: 'razorpay-webhook', category: 'Payments', trigger: 'API GW Webhook', tables: 'RazorpayWebhookLog, Payment, InvoicePayment', description: 'Razorpay payment webhook', apiRoute: '/webhook/razorpay' },
-  { name: 'payu-webhook', category: 'Payments', trigger: 'API GW Webhook', tables: 'PayUWebhookLog', description: 'PayU payment webhook', apiRoute: '/webhook/payu' },
   { name: 'payments-read', category: 'Payments', trigger: 'API Gateway', tables: 'Payment', description: 'Read payment records', apiRoute: '/payments' },
   { name: 'invoice-engine', category: 'Payments', trigger: 'API Gateway', tables: 'Invoice, InvoiceItem, InvoiceAsset, InvoicePayment, InvoiceDeliveryLog, InvoiceSequence', description: 'Invoice creation & PDF generation', apiRoute: '/invoices' },
   { name: 'bulk-job-create', category: 'Operations', trigger: 'API Gateway', tables: 'BulkJob, BulkRecipient', description: 'Create bulk messaging jobs', apiRoute: '/bulk/create' },
@@ -372,14 +370,8 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_GA_MEASUREMENT_ID', value: 'G-S3G6REP6Q7', sensitive: false, category: 'Analytics' },
   { key: 'NEXT_PUBLIC_FB_APP_ID', value: '(empty — SDK still loads)', sensitive: false, category: 'Analytics', risk: 'FB SDK loads but sends no data' },
   // ⚠️ SECRETS IN SOURCE CODE (not env vars — hardcoded)
-  { key: 'PAYU_CLIENT_ID (hardcoded)', value: '(64-char hex in payu-webhook source)', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU client ID committed to git' },
-  { key: 'PAYU_CLIENT_SECRET (hardcoded)', value: '(64-char hex in payu-webhook source)', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU client secret committed to git' },
-  { key: 'PAYU_MERCHANT_KEY (hardcoded)', value: '(in payu-webhook resource.ts)', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU merchant key committed to git' },
-  { key: 'PAYU_MERCHANT_SALT (hardcoded)', value: '(in payu-webhook resource.ts)', sensitive: true, category: 'Payments — Hardcoded', risk: 'CRITICAL: PayU merchant salt committed to git' },
-  { key: 'PAYU_MID (hardcoded)', value: '8629516 (in 5+ files)', sensitive: true, category: 'Payments — Hardcoded', risk: 'PayU Merchant ID duplicated across files' },
   { key: 'Razorpay MID (hardcoded)', value: 'acc_HDfub6wOfQybuH', sensitive: true, category: 'Payments — Hardcoded', risk: 'Razorpay account ID in whatsapp-business-api handler' },
   { key: 'Razorpay UPI VPA (hardcoded)', value: '(retired @icici address; see git history)', sensitive: true, category: 'Payments — Hardcoded', risk: 'UPI VPA in source code' },
-  { key: 'PayU UPI VPA (hardcoded)', value: '(in whatsapp-business-api handler)', sensitive: true, category: 'Payments — Hardcoded', risk: 'PayU UPI VPA in source code' },
   { key: 'Airtel API Key (in comment)', value: '(visible in c2c/handler.py comment)', sensitive: true, category: 'Voice — Hardcoded', risk: 'CRITICAL: Airtel HMAC key in code comment' },
   { key: 'Airtel App ID (hardcoded)', value: '(in c2c handler + data schema)', sensitive: true, category: 'Voice — Hardcoded', risk: 'Airtel App ID in multiple files' },
   { key: 'WIX_ACCOUNT_ID (current Headless account)', value: '15f02319-40ff-4288-b8e6-69c791adae5e', sensitive: false, category: 'Ecommerce — Identifier', risk: 'Current non-secret Wix Headless account identifier' },
@@ -428,7 +420,7 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/dm/push', label: 'Push', backend: 'push-notifications', tables: '-' },
   { path: '/dm/logs', label: 'Message Logs', backend: 'messages-read', tables: 'WhatsAppInbound, WhatsAppOutbound, SmsAws' },
   // Pay
-  { path: '/pay', label: 'Payments', backend: 'payments-read, razorpay-webhook, payu-webhook, invoice-engine', tables: 'Payment, Invoice, InvoiceItem, RazorpayWebhookLog, PayUWebhookLog' },
+  { path: '/pay', label: 'Payments', backend: 'payments-read, razorpay-webhook, invoice-engine', tables: 'Payment, Invoice, InvoiceItem, RazorpayWebhookLog' },
   { path: '/pay/flow', label: 'Pay Flow', backend: 'invoice-engine, razorpay-webhook', tables: 'Invoice, InvoiceItem, InvoicePayment, InvoiceDeliveryLog' },
   { path: '/pay/link', label: 'Pay Link', backend: 'invoice-engine', tables: 'Invoice, InvoiceSequence' },
   // Other
@@ -480,7 +472,7 @@ const CODE_MAP: CodeFolder[] = [
   { path: 'amplify/functions/ai/', purpose: 'AI Lambda functions (4)', files: '4 dirs', linkedTo: 'Bedrock, DynamoDB' },
   { path: 'amplify/functions/core/', purpose: 'Core Lambda functions (6)', files: '6 dirs', linkedTo: 'DynamoDB, S3' },
   { path: 'amplify/functions/messaging/', purpose: 'Messaging Lambda functions (22)', files: '22 dirs', linkedTo: 'DynamoDB, S3, SQS, SES, Pinpoint' },
-  { path: 'amplify/functions/payments/', purpose: 'Payment Lambda functions (4)', files: '4 dirs', linkedTo: 'DynamoDB, Razorpay, PayU' },
+  { path: 'amplify/functions/payments/', purpose: 'Payment Lambda functions (3)', files: '3 dirs', linkedTo: 'DynamoDB, Razorpay' },
   { path: 'amplify/functions/operations/', purpose: 'Operations Lambda functions (6)', files: '6 dirs', linkedTo: 'DynamoDB, SQS, EventBridge' },
   { path: 'amplify/functions/ecommerce/', purpose: 'Ecommerce Lambda functions (3)', files: '3 dirs', linkedTo: 'DynamoDB, S3, Wix API' },
   { path: 'amplify/functions/shared/', purpose: 'Shared utilities and config', files: '3 files', linkedTo: 'All Lambda functions' },
@@ -505,7 +497,6 @@ const LAMBDA_DETAILED: LambdaDetailed[] = [
   { name: 'wecare-bulk-worker', displayName: 'Bulk Worker', category: 'Operations', runtime: 'Python 3.12', timeout: 300, memory: 512, description: 'Process bulk message queue items', apiRoute: '-', envVars: { QUEUE_URL: 'stack-wecare-digital-bulk-queue' }, triggers: [ 'SQS' ], status: 'active' },
   { name: 'wecare-ai-generate-response', displayName: 'AI Generate Response', category: 'AI', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Generate AI responses via Bedrock', apiRoute: '/ai/generate', envVars: { BEDROCK_MODEL_ID: 'anthropic.claude-3-sonnet' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-razorpay-webhook', displayName: 'Razorpay Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Razorpay payment webhook handler', apiRoute: '/webhook/razorpay', envVars: { WEBHOOK_SECRET: '(env var)', PAYMENTS_TABLE: 'stack-wecare-digital-RazorpayWebhookLogTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
-  { name: 'wecare-payu-webhook', displayName: 'PayU Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'PayU payment webhook handler', apiRoute: '/webhook/payu', envVars: { PAYMENTS_TABLE: 'stack-wecare-digital-PayUWebhookLogTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
   { name: 'wecare-invoice-engine', displayName: 'Invoice Engine', category: 'Payments', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Invoice creation, PDF generation, payment links', apiRoute: '/invoices', envVars: { INVOICE_TABLE: 'stack-wecare-digital-InvoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-wix-store', displayName: 'Wix Store', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Wix ecommerce integration', apiRoute: '/store/wix', envVars: { WIX_API_KEY: '(env var)', WIX_SITE_ID: '(env var)' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-catalog-management', displayName: 'Catalog Management', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'WhatsApp Commerce catalog sync', apiRoute: '/catalog', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
@@ -571,7 +562,7 @@ const CODE_ASSETS: CodeAsset[] = [
   { id: 'p-wa-flowhub', category: 'Frontend Pages', name: 'Flow Hub', description: 'Centralized flow registry, submissions, and analytics.', path: 'src/pages/dm/whatsapp/flow-hub.tsx', type: 'Page' },
   { id: 'p-wa-calling', category: 'Frontend Pages', name: 'WhatsApp Calling', description: 'Voice/video call logs and WebRTC integration.', path: 'src/pages/dm/whatsapp/calling.tsx', type: 'Page' },
   { id: 'p-wa-groups', category: 'Frontend Pages', name: 'WhatsApp Groups', description: 'Group management — create, participants, messaging.', path: 'src/pages/dm/whatsapp/groups.tsx', type: 'Page' },
-  { id: 'p-pay', category: 'Frontend Pages', name: 'Payments', description: 'Payment dashboard — Razorpay + PayU transactions.', path: 'src/pages/pay/index.tsx', type: 'Page' },
+  { id: 'p-pay', category: 'Frontend Pages', name: 'Payments', description: 'Payment dashboard — Razorpay transactions.', path: 'src/pages/pay/index.tsx', type: 'Page' },
   { id: 'p-pay-flow', category: 'Frontend Pages', name: 'Pay Flow', description: 'WhatsApp payment flow — invoice + collect via chat.', path: 'src/pages/pay/flow/index.tsx', type: 'Page' },
   { id: 'p-contacts', category: 'Frontend Pages', name: 'Contacts', description: 'Contact management with opt-in, addresses, BSUID.', path: 'src/pages/contacts/index.tsx', type: 'Page' },
   { id: 'p-store', category: 'Frontend Pages', name: 'Store', description: 'Wix store integration — products, orders, catalog.', path: 'src/pages/store/index.tsx', type: 'Page' },
@@ -611,7 +602,6 @@ const CODE_ASSETS: CodeAsset[] = [
   { id: 'l-ai-agent', category: 'AI', name: 'Agent Action Group', description: 'Bedrock Agent action group handler for autonomous tasks.', path: 'amplify/functions/ai/agent-action-group/handler.py', type: 'Lambda' },
   // Payments
   { id: 'l-razorpay', category: 'Payments', name: 'Razorpay Webhook', description: 'Razorpay payment webhook — capture, refund, dispute events.', path: 'amplify/functions/payments/razorpay-webhook/handler.py', type: 'Lambda' },
-  { id: 'l-payu', category: 'Payments', name: 'PayU Webhook', description: 'PayU payment webhook — UPI, card, netbanking events.', path: 'amplify/functions/payments/payu-webhook/handler.py', type: 'Lambda' },
   { id: 'l-payments-read', category: 'Payments', name: 'Payments Read', description: 'Read payment records and transaction history.', path: 'amplify/functions/payments/payments-read/handler.py', type: 'Lambda' },
   { id: 'l-invoice', category: 'Payments', name: 'Invoice Engine', description: 'Invoice creation, PDF generation, WhatsApp delivery.', path: 'amplify/functions/payments/invoice-engine/handler.py', type: 'Lambda' },
   // Operations
@@ -792,7 +782,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           </div>
           <div>
             <div style={ label }>Payments</div>
-            <div style={ { marginTop: 4 } }>Razorpay + PayU (WhatsApp Payments)</div>
+            <div style={ { marginTop: 4 } }>Razorpay (WhatsApp Payments)</div>
           </div>
           <div>
             <div style={ label }>AI</div>
@@ -956,7 +946,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           { title: 'Core Services', count: 6, items: [ 'contacts', 'auth-middleware', 'messages-read', 'messages-delete', 'faq-handler', 'url-shortener' ], color: C.green },
           { title: 'Messaging', count: 22, items: [ 'inbound-whatsapp', 'outbound-whatsapp', 'outbound-sms', 'outbound-email', 'outbound-voice', 'whatsapp-calling', '...+16 more' ], color: C.blue },
           { title: 'AI / ML', count: 4, items: [ 'ai-generate-response', 'ai-query-kb', 'ai-config-management', 'agent-action-group' ], color: '#7c3aed' },
-          { title: 'Payments', count: 4, items: [ 'razorpay-webhook', 'payu-webhook', 'payments-read', 'invoice-engine' ], color: C.amber },
+          { title: 'Payments', count: 3, items: [ 'razorpay-webhook', 'payments-read', 'invoice-engine' ], color: C.amber },
           { title: 'Operations', count: 6, items: [ 'bulk-job-create', 'bulk-job-control', 'bulk-worker', 'dlq-replay', 'system-cleanup', 'billing' ], color: '#ec4899' },
           { title: 'Ecommerce', count: 3, items: [ 'wix-store', 'catalog-management', 'product-image-gen' ], color: '#06b6d4' },
         ].map( cat => (
@@ -1163,7 +1153,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
               { name: 'Core (6): contacts, auth, messages, faq, url-shortener' },
               { name: 'Messaging (22): whatsapp, sms, voice, email, push' },
               { name: 'AI (4): generate-response, query-kb, config, agent' },
-              { name: 'Payments (4): razorpay, payu, payments-read, invoice' },
+              { name: 'Payments (3): razorpay, payments-read, invoice' },
               { name: 'Operations (6): bulk-jobs, dlq, cleanup, billing' },
               { name: 'Ecommerce (3): wix-store, catalog, image-gen' },
             ]
@@ -1173,7 +1163,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
               { name: 'Core: Contact, Message, User, MediaFile, AuditLog, SystemConfig, WebhookDedup, ...' },
               { name: 'WhatsApp: WhatsAppInbound, WhatsAppOutbound, WhatsAppVoice, WhatsAppCalling, WhatsAppGroup, ...' },
               { name: 'SMS/Voice: SmsAws, AirtelSMS, VoiceCall, VoiceAws, AirtelC2C, VoiceCDR, OBDCampaign, DLTTemplates' },
-              { name: 'Payments: Payment, Invoice, InvoiceItem, InvoiceAsset, InvoiceDeliveryLog, InvoiceSequence, RazorpayWebhookLog, PayUWebhookLog' },
+              { name: 'Payments: Payment, Invoice, InvoiceItem, InvoiceAsset, InvoiceDeliveryLog, InvoiceSequence, RazorpayWebhookLog' },
               { name: 'Ecommerce: WixProductsCache, WixOrdersCache, WixOrderId, WixOrderMapping, CatalogCache' },
               { name: 'AI: AIInteraction, ConversationHistory' },
               { name: 'Flows: FlowRegistry, FlowSubmission, FlowLog' },
@@ -1448,7 +1438,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           { title: 'CloudWatch Logs', source: '42 Lambda log groups', retention: '90 days', status: 'Active', detail: 'All Lambda function execution logs. Access via AWS Console → CloudWatch → Log Groups → /aws/lambda/wecare-*' },
           { title: 'DynamoDB AuditLog', source: 'AuditLog table', retention: '180 days (TTL)', status: 'Active', detail: 'System audit trail: user actions, resource changes, API calls. Fields: userId, action, resourceType, resourceId, details.' },
           { title: 'DLQ Messages', source: 'DLQMessage table', retention: '7 days (TTL)', status: 'Active', detail: 'Failed message processing records. Includes original payload, retry count, error details.' },
-          { title: 'Webhook Logs', source: 'RazorpayWebhookLog, PayUWebhookLog', retention: '180 days (TTL)', status: 'Active', detail: 'Payment webhook event logs for debugging payment flows.' },
+          { title: 'Webhook Logs', source: 'RazorpayWebhookLog', retention: '180 days (TTL)', status: 'Active', detail: 'Payment webhook event logs for debugging payment flows.' },
           { title: 'System Events', source: 'SystemEvent table', retention: 'Short TTL', status: 'Active', detail: 'System-level events: cleanup runs, billing updates, scheduled task completions.' },
           { title: 'Meta Analytics', source: 'MetaAnalyticsLog table', retention: 'Permanent', status: 'Active', detail: 'WhatsApp conversation analytics from Meta Business API.' },
           { title: 'CloudWatch Alarms', source: 'CloudWatch Alarms', retention: 'Permanent', status: 'Active', detail: 'Alerts for Lambda error rates, DLQ depth, and per-function error tracking.' },

@@ -2,7 +2,7 @@
 Shared webhook idempotency helper.
 
 Backed by the existing `WebhookDedup` DynamoDB model (PK: eventId; fields: source,
-processedAt, expiresAt, ttl). Lets every webhook consumer (WhatsApp, Razorpay, PayU)
+processedAt, expiresAt, ttl). Lets every webhook consumer (WhatsApp, Razorpay)
 atomically claim an event id so retries / duplicate deliveries are processed once.
 
 Usage:

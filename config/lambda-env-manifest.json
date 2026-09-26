@@ -1,9 +1,9 @@
 {
   "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - this is the source of truth to diff against. Regenerate with scripts/env_manifest.py --export; verify with no arguments.",
   "_region": "us-east-1",
-  "_functions": 62,
-  "_variables": 339,
-  "_fingerprinted": 8,
+  "_functions": 65,
+  "_variables": 361,
+  "_fingerprinted": 15,
   "functions": {
     "stack-wecare-url-shortener": {
       "LINK_CLICKS_TABLE": "stack-wecare-digital-LinkClicksTable",
@@ -120,6 +120,17 @@
       "INVOICES_TABLE": "stack-wecare-digital-InvoicesTable",
       "PAYMENTS_TABLE": "stack-wecare-digital-PaymentsTable"
     },
+    "wecare-customer-whatsapp-auth": {
+      "MAX_ATTEMPTS": "3",
+      "META_PHONE_NUMBER_ID": "1016149501586345",
+      "META_WABA_ID": "2094615664435155",
+      "OTP_PROBE_MAX_PER_WINDOW": "5",
+      "OTP_PROBE_WINDOW_SECONDS": "3600",
+      "OTP_TEMPLATE_LANGUAGE": "en",
+      "OTP_TEMPLATE_NAME": "wecare_otp",
+      "OTP_TTL_SECONDS": "600",
+      "SENDER_FUNCTION": "wecare-whatsapp-business-api:live"
+    },
     "wecare-dlq-replay": {
       "DLQ_URL": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-inbound-dlq",
       "LOG_LEVEL": "INFO",
@@ -128,6 +139,7 @@
     },
     "wecare-docs-scraper": {},
     "wecare-faq-handler": {},
+    "wecare-get-miss-redirect": {},
     "wecare-inbound-whatsapp": {
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "IAM_REFRESH": "1772814879",
@@ -256,9 +268,9 @@
     },
     "wecare-product-image-gen": {
       "CREDENTIAL_PURGE_EPOCH": "2026-09-23T03:05:00Z",
-      "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
+      "WIX_ACCOUNT_ID": "sha256:9139bb2fe801",
       "WIX_CREDENTIALS_DISABLED": "true",
-      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
+      "WIX_SITE_ID": "sha256:0bfb241a3e34"
     },
     "wecare-pstn-softphone": {
       "PLIVO_API_SECRET_ID": "wecare/plivo/api",
@@ -302,6 +314,27 @@
       "S3_BUCKET": "app.wecare.digital",
       "SCHEDULED_TABLE": "stack-wecare-digital-ScheduledMessagesTable"
     },
+    "wecare-secure-files": {
+      "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
+      "CUSTOMER_USER_POOL_ID": "us-east-1_46ULYuukt",
+      "DOWNLOAD_GRANTS_TABLE": "stack-wecare-digital-DownloadGrantsTable",
+      "DOWNLOAD_URL_TTL_SECONDS": "60",
+      "GRANT_TTL_SECONDS": "1800",
+      "META_PHONE_NUMBER_ID": "1016149501586345",
+      "META_WABA_ID": "2094615664435155",
+      "PARTNER_GROUP": "Partner",
+      "RAZORPAY_SECRET_ID": "wecare/razorpay/api",
+      "SECURE_FILES_BUCKET": "wecare-digital-get",
+      "SECURE_FILES_PAYMENT_ENABLED": "false",
+      "SECURE_FILES_TABLE": "stack-wecare-digital-SecureFilesTable",
+      "SECURE_FILE_PRICE_PAISE": "4900",
+      "UPLOAD_URL_TTL_SECONDS": "900",
+      "WA_DOC_TEMPLATE": "wd_file_delivery",
+      "WA_MEDIA_FUNCTION": "wecare-whatsapp-business-api:live",
+      "WA_PAY_TEMPLATE": "wecare_pay",
+      "WA_SENDER_FUNCTION": "wecare-outbound-whatsapp",
+      "WHATSAPP_LINK_TTL_SECONDS": "21600"
+    },
     "wecare-seo-tools": {
       "BEDROCK_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
       "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
@@ -309,11 +342,11 @@
       "LOG_LEVEL": "INFO",
       "SEO_TOOLS_TABLE": "stack-wecare-digital-SeoToolsTable",
       "WEBHOOK_DEDUP_TABLE": "stack-wecare-digital-WebhookDedup",
-      "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
+      "WIX_ACCOUNT_ID": "sha256:9139bb2fe801",
       "WIX_BLOG_AUTHOR_NAME": "Anew by WECARE.DIGITAL",
-      "WIX_CLIENT_ID": "197cd718-e4ec-4e2e-b380-46c297eb18a2",
+      "WIX_CLIENT_ID": "sha256:a85b79091ed2",
       "WIX_CREDENTIALS_DISABLED": "true",
-      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
+      "WIX_SITE_ID": "sha256:0bfb241a3e34"
     },
     "wecare-service-api": {
       "DOCS_S3_BUCKET": "wecare-digital-media",
@@ -369,9 +402,6 @@
       "S3_BUCKET": "app.wecare.digital"
     },
     "wecare-voice-in-c2c": {
-      "AIRTEL_C2C_SECRET_NAME": "wecare/airtel/c2c",
-      "AIRTEL_C2C_TABLE": "stack-wecare-digital-AirtelC2CTable",
-      "AIRTEL_KONG_HOST": "iqvoice.airtel.in",
       "AWS_ACCOUNT_ID": "775261844268",
       "LOG_LEVEL": "INFO",
       "REGION": "us-east-1",
@@ -380,7 +410,6 @@
       "VOICE_CDR_TABLE": "stack-wecare-digital-VoiceCDRTable"
     },
     "wecare-voice-in-obd": {
-      "AIRTEL_OBD_SECRET_NAME": "wecare/airtel/obd",
       "AWS_ACCOUNT_ID": "775261844268",
       "LOG_LEVEL": "INFO",
       "OBD_CAMPAIGNS_TABLE": "stack-wecare-digital-OBDCampaigns",
@@ -408,8 +437,6 @@
       "META_API_VERSION": "v25.0",
       "META_TOKEN_SECRET": "wecare/meta-system-user-token",
       "PAYMENT_WABA_ID": "2094615664435155",
-      "PAYU_MID": "8629516",
-      "PAYU_UPI_ID": "wecareqr.payu@indus",
       "RAZORPAY_MID": "acc_HDfub6wOfQybuH",
       "RAZORPAY_UPI_ID": "wecaredigital83.rzp@icici",
       "SUBMIT_REQUESTS_TABLE": "stack-wecare-digital-SubmitRequestsTable",
@@ -451,14 +478,14 @@
     },
     "wecare-wix-store": {
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
-      "CREDENTIAL_PURGE_EPOCH": "2026-09-23T03:05:00Z",
       "LOG_LEVEL": "INFO",
-      "WIX_ACCOUNT_ID": "15f02319-40ff-4288-b8e6-69c791adae5e",
+      "WIX_ACCOUNT_ID": "sha256:9139bb2fe801",
       "WIX_API_BASE_URL": "https://www.wixapis.com",
-      "WIX_CREDENTIALS_DISABLED": "true",
+      "WIX_API_KEY_SECRET": "wecare/wix/headless-api-key",
       "WIX_ORDERS_CACHE_TABLE": "stack-wecare-digital-WixOrdersCache",
+      "WIX_ORDER_IDS_TABLE": "stack-wecare-digital-WixOrderIds",
       "WIX_PRODUCTS_CACHE_TABLE": "stack-wecare-digital-WixProductsCache",
-      "WIX_SITE_ID": "fcd82f0c-9572-49c7-acfb-88fb05042ece"
+      "WIX_SITE_ID": "sha256:0bfb241a3e34"
     }
   }
 }

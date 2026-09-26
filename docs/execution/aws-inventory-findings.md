@@ -256,27 +256,31 @@ The generalised check now also confirms the 15 `wecare-ddb-throttle-*` alarms al
 name live tables — a concern worth checking rather than assuming, since they use
 short table names while every table is prefixed `stack-wecare-digital-`.
 
-### D9 · PayU environment variables survive on a live function — open
+### D9 · PayU environment variables survive on a live function — ✅ RESOLVED 2026-09-26
 
-`LOW`, item 8 and item 230. `wecare-whatsapp-business-api` (live alias v41) still
-carries `PAYU_MID` and `PAYU_UPI_ID` in its deployed environment. The handler
-reads neither — `handler.py:3131` is a comment recording their removal on
-2026-08-23 — so this is dead configuration, not a live dependency.
+`LOW`, item 8 and item 230. `wecare-whatsapp-business-api` carried `PAYU_MID` and
+`PAYU_UPI_ID` in its deployed environment. No code read either — verified across
+the function package and the whole repository, with no `os.environ`/`getenv`
+reference to either name anywhere. Dead configuration, not a live dependency.
 
-**There is no recreation path.** `config/lambda-env-manifest.json` also lists both
-keys, but `scripts/env_manifest.py` explicitly does not deploy: it records live
-state so drift becomes visible in a diff. The manifest is a mirror, so the
-correct order is remove-from-AWS-then-re-export, never the reverse.
+Removed: 18 env vars → 16, `live` alias v41 → v42, `CodeSha256` **identical**
+before and after, so this was configuration-only and nothing about message
+handling moved. Version published and alias moved per the deploy rule.
 
-Not resolved in this pass on purpose. Removing them needs
-`update-function-configuration` plus a version publish and alias move on a
-production WhatsApp function, and another session is concurrently doing deployed-
-code read-back against Lambda versions and hashes (item 3). Moving that alias
-mid-audit would invalidate their evidence. Sequence it after.
+`config/lambda-env-manifest.json` also listed both keys, and my first reading of
+that was wrong: it is not a recreation path. `scripts/env_manifest.py` never
+deploys — it records live state so drift shows in a diff. The manifest is a
+mirror, so the order is remove-from-AWS-then-re-export. Re-exported; the drift
+check reports `IN SYNC`, 0 differences across 65 functions.
 
-Also present in the repository and out of scope here: `PAYU_MID` appears in
-`src/pages/dashboard/index.tsx` and `src/pages/dashboard/system-architecture.tsx`
-as displayed text. Those are item 8's UI scan.
+Full retirement evidence, including the recovery-window proof and every retained
+reference with its justification: `docs/payu-retirement-manifest.md`.
+
+The remaining PayU artifact in AWS is the log group
+`/aws/lambda/wecare-payu-webhook` — 8 KB, 90-day retention, last event
+2026-07-17, auto-expires ~2026-10-15. Left to expire rather than deleted:
+discarding payment-gateway logs early is a worse default than letting retention
+do it, and it needs no action.
 
 ### D3 · No declarative source reproduces production infrastructure
 
@@ -398,7 +402,7 @@ rescheduled. `wecare/sinch/rcs` is present and untouched, which is correct: item
 | 4 | Re-scoped from "build the notification service" to "write the code against four already-correct tables and an existing queue/DLQ pair". |
 | 5 | Migration source identified: `CallNotificationsTable` (`callId`, 0 items). |
 | 6 | Quantified: 361/361 `NONE`, 0 authorizers. Gateway config alone cannot classify the routes; needs the handler audit. |
-| 8 | Secret layer **closed** with exact expiry evidence. AWS surface now clean of PayU: no route, no Lambda, no table, no alarm (D8). Two dead env vars (D9) and two dashboard UI strings remain. |
+| 8 | **Closed.** No PayU Lambda, route, table, secret, alarm or env var; secret's recovery window expired 2026-09-25; all live source and UI references removed; no recreation path. Guards, tombstones and remediation history retained on purpose. Manifest: `docs/payu-retirement-manifest.md`. |
 | 9–12 | Blocked on the 2026-10-20 window expiry, by design. Exact ARNs and dates now recorded. |
 | 39 | SES layer satisfied in `us-east-1`; `ap-south-1` is sandboxed and must not be used for customer email. |
 | 113/114 | Admin MFA is `OPTIONAL` not `OFF`; RBAC groups already exist. |

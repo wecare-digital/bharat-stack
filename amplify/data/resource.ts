@@ -1014,7 +1014,7 @@ const schema = a.schema( {
   WebhookDedup: a
     .model( {
       eventId: a.string().required(), // Unique event identifier
-      source: a.string().required(), // whatsapp, razorpay, payu
+      source: a.string().required(), // whatsapp, razorpay
       processedAt: a.integer(),
       expiresAt: a.integer(), // TTL: 7 days
       ttl: a.integer(), // TTL attribute for backend.ts override
