@@ -133,7 +133,11 @@ AI_ROUTING_ID = 'ai_hybrid_routing'  # SystemConfigTable key for AI-vs-bot routi
 DEFAULT_AI_ROUTING = {
     'enabled': True,
     'keywords': ['hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'browse menu',
-                 '/menu', 'start', 'get started', 'need help!', 'subscribe', 'help'],
+                 '/menu', 'start', 'get started', 'need help!', 'subscribe', 'help',
+                 # Our own QR / widget prefills. Must stay in step with
+                 # inbound-whatsapp-handler's _DETERMINISTIC_KEYWORDS, or a dashboard
+                 # save of this config would silently drop them again.
+                 'get help', 'hi 👋'],
     'contains': ['get started', 'main menu', 'subscribe', 'track request', 'track',
                  'submit request', 'amend request', 'appointment', 'rx slot', 'drop docs',
                  'enterprise', 'leave review', 'catalog', 'catalogue', 'pay', 'payment',

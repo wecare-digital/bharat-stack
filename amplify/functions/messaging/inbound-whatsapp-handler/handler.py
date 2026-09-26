@@ -126,6 +126,9 @@ DEFAULT_FALLBACK_MESSAGE = "Thanks for your message! Type 'menu' to see availabl
 _DETERMINISTIC_KEYWORDS = {
     'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'browse menu', '/menu',
     'start', 'get started', 'need help!', 'subscribe', 'help',
+    # Our own QR / widget prefills — see the HI_KEYWORDS comment. These must take
+    # control from the Meta AI agent, not be treated as free-form questions.
+    'get help', 'hi 👋',
 }
 _DETERMINISTIC_CONTAINS = (
     'get started', 'main menu', 'subscribe', 'track request', 'track', 'submit request',
@@ -185,7 +188,7 @@ def _is_deterministic_trigger(message: Dict) -> bool:
         if prefix and body.startswith(prefix):
             return True  # slash commands
         kws = {k.lower() for k in (cfg.get('keywords') or [])}
-        if body in kws:
+        if body in kws or strip_decorative_edges(body) in kws:
             return True
         return any(kw.lower() in body for kw in (cfg.get('contains') or []))
     return False
@@ -200,12 +203,20 @@ _STANDBY_TEXT_TRIGGERS = {
     'browse menu', '/menu', 'need help!', 'subscribe', 'pay', '/pay', 'catalog',
     'view catalog', 'submit request', 'track request', 'track', 'amend request',
     'appointment', 'rx slot', 'drop docs', 'enterprise', 'leave review', 'faq',
+    # Our own QR / widget prefills — see the HI_KEYWORDS comment.
+    'get help', 'hi 👋',
 }
 
 
 def _is_deterministic_trigger(message: dict) -> bool:
     """True if this message should be handled by our deterministic bot (menu/flow/
-    catalog/command), rather than left to the Meta AI."""
+    catalog/command), rather than left to the Meta AI.
+
+    NOTE: this is the SECOND definition of this name in the module and it shadows the
+    config-driven one above, which is a separate known defect. It is the one actually
+    in effect, so the decoration fallback has to be here to work at all; it is added
+    to both so the two cannot diverge in behaviour when that defect is resolved.
+    """
     t = (message or {}).get('type', '')
     if t in ('interactive', 'order', 'button', 'nfm_reply'):
         return True
@@ -215,8 +226,68 @@ def _is_deterministic_trigger(message: dict) -> bool:
             return False
         if txt.startswith('/'):
             return True
-        return txt in _STANDBY_TEXT_TRIGGERS
+        # Decoration fallback: a standby "Hi 👋" must be taken by our menu rather
+        # than handed to the Meta AI as a free-form question.
+        return txt in _STANDBY_TEXT_TRIGGERS or \
+            strip_decorative_edges(txt) in _STANDBY_TEXT_TRIGGERS
     return False
+
+
+# ── Decorative-edge stripping for menu keyword matching ────────────────────
+# Every keyword set in this file is EXACT-MATCH, which is why two of our own QR
+# prefills reached production matching nothing at all:
+#
+#   "Get Help"  (WABA1 QR APDM5HUWH26SG1)  -> not 'get help' in any set
+#   "Hi 👋"     (WABA2 QR DPESCFW7U4FXO1)  -> not 'hi', because of the emoji
+#
+# Adding those two literals fixed those two strings and nothing else. The failure
+# mode is the exact-match itself: "Hi 👋🏽", "menu 🙏", "❓ FAQs" and the next
+# prefill somebody sets on Meta all miss for the identical reason. So the edges
+# are normalised instead, and the MENU-ish sets are matched against the stripped
+# form as a FALLBACK after the raw form misses.
+#
+# Deliberately narrow, on three counts:
+#
+#  * Explicit codepoint ranges, not Unicode categories. `So`/`Mn` would have been
+#    shorter and would also strip Devanagari combining marks off the edges of
+#    Hindi input - PAY_KEYWORDS carries 'भुगतान', 'बिल', 'पेमेंट' and 'बाकी', and
+#    silently truncating those would be a worse bug than the one being fixed.
+#  * ASCII punctuation is NOT stripped, because '/menu' must survive intact.
+#  * Applied ONLY to the greeting / self-service / commands sets, where a false
+#    positive shows a menu. NOT to PAY_KEYWORDS (money), DEFAULT_FLOW_TRIGGERS
+#    (creates records) or MY_ID_KEYWORDS (discloses subscriber details).
+#
+# The ranges cover every emoji this codebase actually puts in a menu row or a
+# keyword: 🚀🔔🆔💳🛍️🎁🇮🇳❓💛📋🔍✏️📅🩺📄🏢⭐👋🧭🫶 plus VS16 and ZWJ.
+_DECORATIVE_RANGES = (
+    (0x1F000, 0x1FAFF),  # emoji, pictographs, flags, enclosed alphanumerics
+    (0x2600, 0x27BF),    # misc symbols + dingbats (❓ ✏ ✂ ✅)
+    (0x2B00, 0x2BFF),    # misc symbols and arrows (⭐)
+    (0xFE00, 0xFE0F),    # variation selectors
+    (0x200D, 0x200D),    # zero-width joiner
+)
+
+
+def _is_decorative(ch: str) -> bool:
+    cp = ord(ch)
+    return ch.isspace() or any(lo <= cp <= hi for lo, hi in _DECORATIVE_RANGES)
+
+
+def strip_decorative_edges(text: str) -> str:
+    """Trim emoji, variation selectors, ZWJ and whitespace off both ends.
+
+    'Hi 👋' -> 'hi' style normalisation for keyword matching. Leaves the interior
+    untouched and leaves ASCII punctuation alone, so '/menu' and 'need help!' are
+    unchanged. Returns '' for input that is nothing but decoration.
+    """
+    if not text:
+        return ''
+    start, end = 0, len(text)
+    while start < end and _is_decorative(text[start]):
+        start += 1
+    while end > start and _is_decorative(text[end - 1]):
+        end -= 1
+    return text[start:end]
 
 
 def _load_fallback_message(phone_number_id: str) -> str:
@@ -1569,8 +1640,11 @@ def _process_message(
             'requestId': request_id,
         }))
         # Map common button texts to menu trigger
-        BUTTON_MENU_TRIGGERS = {'get started', 'start', 'menu', 'hi', 'hello', 'hey', 'main menu', 'need help!'}
-        if button_text_lower in BUTTON_MENU_TRIGGERS or button_text_lower.startswith('get started'):
+        BUTTON_MENU_TRIGGERS = {'get started', 'start', 'menu', 'hi', 'hello', 'hey',
+                                'main menu', 'need help!', 'get help'}
+        if (button_text_lower in BUTTON_MENU_TRIGGERS
+                or strip_decorative_edges(button_text_lower) in BUTTON_MENU_TRIGGERS
+                or button_text_lower.startswith('get started')):
             _send_interactive_list(
                 contact_id=contact_id,
                 phone_number_id=aws_phone_number_id,
@@ -1608,6 +1682,13 @@ def _process_message(
                     'contactId': contact_id, 'requestId': request_id,
                 }))
                 content_lower = _cmd_token
+
+        # Decoration-stripped alias, used as a FALLBACK by the greeting /
+        # self-service / commands checks below so "Hi 👋", "menu 🙏" and "❓ FAQs"
+        # route the same as their bare forms. Computed after slash normalisation so
+        # '/menu' is already collapsed. See strip_decorative_edges() for why this is
+        # deliberately not applied to the pay, flow-trigger or subscriber-id sets.
+        _content_plain = strip_decorative_edges(content_lower)
 
         # ── "Get my ID" / "my id" / "sub id" — fetch subscriber details ──
         MY_ID_KEYWORDS = {
@@ -1799,8 +1880,28 @@ def _process_message(
             return  # Skip AI automation  -  payment flow handled
 
         # ── Direct "Hi" / greeting keyword trigger (LLM-independent) ──
-        HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start', 'browse menu', '/menu', 'need help!', 'get started'}
-        if content_lower in HI_KEYWORDS:
+        # 'get help' and 'hi 👋' are here because they are OUR OWN prefilled QR
+        # messages, and neither matched anything until 2026-09-26:
+        #
+        #   WABA1 QR APDM5HUWH26SG1 -> prefilled "Get Help"
+        #   WABA2 QR DPESCFW7U4FXO1 -> prefilled "Hi 👋"
+        #
+        # Both are what SupportWidget.tsx, wecare-wa-widget.js and every printed
+        # QR send as the customer's first message. A brand-new contact still got
+        # the menu via the brand-new-contact path further down, which is why this
+        # looked like it worked - but a RETURNING visitor tapping the same widget
+        # matched no keyword set at all and got silence, because the unmatched-text
+        # path deliberately sends nothing.
+        #
+        # Matched as literal variants rather than by stripping the emoji, which is
+        # the existing convention in this file ('📋 submit request', '🚀 selfservice',
+        # '❓ faqs'). Fixing the keyword rather than editing the QR is deliberate:
+        # the QR codes are already printed and the links are already shared, so the
+        # inbound side is the only place a fix reaches messages already in the wild.
+        HI_KEYWORDS = {'hi', 'hello', 'hey', 'menu', 'main menu', 'show menu', 'start',
+                       'browse menu', '/menu', 'need help!', 'get started',
+                       'get help', 'hi 👋'}
+        if content_lower in HI_KEYWORDS or _content_plain in HI_KEYWORDS:
             logger.info(json.dumps({
                 'event': 'hi_keyword_triggered',
                 'content': content_lower,
@@ -1847,7 +1948,7 @@ def _process_message(
 
         # ── Ice breaker: "Self-service" / "/selfservice" ──
         SELFSERVICE_KEYWORDS = {'self-service', 'selfservice', 'self service', '/selfservice', '/service'}
-        if content_lower in SELFSERVICE_KEYWORDS:
+        if content_lower in SELFSERVICE_KEYWORDS or _content_plain in SELFSERVICE_KEYWORDS:
             logger.info(json.dumps({
                 'event': 'selfservice_triggered',
                 'content': content_lower,
@@ -1864,7 +1965,7 @@ def _process_message(
 
         # ── Ice breaker: "Commands" / "/commands" / "/help" ──
         COMMANDS_KEYWORDS = {'commands', '/commands', '/help', 'help'}
-        if content_lower in COMMANDS_KEYWORDS:
+        if content_lower in COMMANDS_KEYWORDS or _content_plain in COMMANDS_KEYWORDS:
             commands_text = (
                 "*Available Commands*\n\n"
                 "/menu - Browse the main menu\n"
