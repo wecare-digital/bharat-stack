@@ -169,14 +169,55 @@ def test_obd_audio_url_now_points_at_storage_we_control():
 
 
 @pytest.mark.parametrize("path,keeps", [
-    (C2C, ("_list_calls", "_delete_call", "_clear_logs", "_handle_cdr_callback")),
-    (OBD, ("_list_campaigns", "_delete_campaign", "_clear_logs",
-           "_handle_cdr_callback")),
+    (C2C, ("_list_calls", "_delete_call", "_clear_logs")),
+    (OBD, ("_list_campaigns", "_delete_campaign", "_clear_logs")),
 ])
-def test_historical_reads_and_cdr_ingestion_survive(path, keeps):
+def test_historical_reads_survive(path, keeps):
     functions = _functions(path)
     for kept in keeps:
         assert kept in functions, f"{kept} removed from {path.name} - history must stay readable"
+
+
+@pytest.mark.parametrize("path", [C2C, OBD])
+def test_the_airtel_cdr_write_path_is_gone(path):
+    """Renamed from `..._and_cdr_ingestion_survive`, which protected the wrong thing.
+
+    That test required `_handle_cdr_callback` to survive, justified as "history must
+    stay readable". But `_handle_cdr_callback` is a **write** path, and readability of
+    history does not depend on it - `_list_calls`, `_list_campaigns` and
+    `wecare-voice-cdr-read` all still read `VoiceCDRTable`, which the test above
+    pins.
+
+    What it actually preserved was an **Airtel** ingestion branch: a POST shaped like
+    an Airtel CDR (`Session_ID`, `Overall_Call_Status`, `participants[]`) was accepted
+    and written to `VoiceCDRTable`. Airtel is a retired provider, so nothing sends
+    those, and `bw-crm.md` requires zero Airtel executable surface.
+
+    Checked before removing it, 2026-09-25:
+
+    * **Zero** `cdr_callback_received` events in either log group across the full
+      30-day retention window, against a control pattern (`REPORT`) that matched in
+      the same query - so the absence is a measurement, not an empty result.
+    * CDR **ingestion is not lost**: `plivo-answer` writes final call state into
+      `VoiceCDRTable` for the live PSTN provider. There is no `/voice-cdr-webhook`
+      route any more; only `GET`/`DELETE /voice-cdr-read`.
+    * Both functions are live (40 and 41 invocations in that window, 16 routes), so
+      this removed a branch, not a dead function.
+
+    This now guards the opposite direction: the branch must not come back.
+    """
+    body = path.read_text()
+    functions = _functions(path)
+    for gone in ("_is_cdr_callback", "_handle_cdr_callback", "_normalize_cdr_payload"):
+        assert gone not in functions, (
+            f"{gone} is back in {path.name}. Airtel is retired; an Airtel-shaped POST "
+            "must not be accepted and written to VoiceCDRTable."
+        )
+    # The table itself stays readable - that is the point of the split.
+    assert "VOICE_CDR_TABLE" in body, (
+        f"{path.name} no longer references VOICE_CDR_TABLE; historical CDR reads "
+        "were supposed to survive"
+    )
 
 
 def test_physical_table_names_are_unchanged():

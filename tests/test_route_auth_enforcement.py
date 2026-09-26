@@ -44,7 +44,11 @@ if str(SHARED) not in sys.path:
 GUARDED = {
     "core/url-shortener": "create_link(",
     "messaging/voice-in/c2c": "json.loads(event.get('body'",
-    "messaging/voice-in/obd": "_is_cdr_callback(body)",
+    # Was `_is_cdr_callback(body)` until 2026-09-25. That branch was the Airtel CDR
+    # write path and has been removed, so the marker had to move to a side effect
+    # that still exists. `_text_to_audio` is a good one: it synthesises speech, which
+    # costs money, so an anonymous caller reaching it would be a real finding.
+    "messaging/voice-in/obd": "_text_to_audio(body, request_id)",
     "ecommerce/product-image-gen": "_generate_and_upload(",
     "messaging/media-cleanup": "cutoff =",
     "operations/bulk-worker": "'status': 'bulk-worker-active'",
