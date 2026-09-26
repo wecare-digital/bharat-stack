@@ -724,13 +724,17 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // '/404' IS PUBLIC, and it has to be listed here rather than in PUBLIC_PAGE_META.
   // Header, Footer and SupportWidget are mounted once, below, inside `if ( isPublic )` - so
   // a page receives the three common pieces by being on this list and by no other means.
-  // Before src/pages/404.tsx existed the export shipped Next's built-in page: 6.8KB reading
-  // "404 This page could not be found.", with no header, no footer, no widget and no link
-  // anywhere. It was the only exported page in the build with none of the three, so a
-  // mistyped URL was a dead end with no way back and no way to reach us.
+  //
+  // THERE IS NO 404 PAGE: src/pages/404.tsx redirects to the home page. The file exists
+  // because deleting it does not remove a 404 page, it restores Next's built-in one - 6.8KB
+  // reading "404 This page could not be found", with no header, no footer, no widget and
+  // ZERO links, which is what shipped before. Amplify's `/<*>` -> `/index.html` 404-200 rule
+  // already sends mistyped PATHS to the home page; this covers a direct request for /404/
+  // and any shell that resolves its own not-found document.
+  //
   // NOT in PUBLIC_PAGE_META, because entries there acquire WebPage structured data and a
-  // sitemap entry, and advertising a 404 to a crawler is the opposite of the intent. The
-  // page sets its own robots noindex.
+  // sitemap entry, and advertising a redirect stub to a crawler is the opposite of the
+  // intent. The page sets its own robots noindex and canonicals to the destination.
   const isPublic = router.pathname === '/'
     || router.pathname === '/404'
     || router.pathname === '/get'

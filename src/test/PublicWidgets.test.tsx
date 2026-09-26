@@ -161,6 +161,44 @@ describe( 'support widget wiring', () => {
     expect( widget ).toContain( 'const MAX_ROWS = 5' );
   } );
 
+  it( 'labels every row in English, while still matching native script', () => {
+    // Changed on instruction from native script for eleven languages plus English for the
+    // other sixty, to one uniform English list. Asserted because it is a decision, not a
+    // default: the argument for native script is that a reader scans for their own script,
+    // and the argument against is a list that reads two ways at once.
+    expect( widget ).toContain( '<span className="wc-row-name">{ lang.name }</span>' );
+    // The native names are unrendered, NOT deleted: search still matches them, so a reader on
+    // an Indic keyboard typing தம finds Tamil. Dropping the data would remove that route in
+    // for no visible saving.
+    expect( widget ).toContain( 'const NATIVE' );
+    expect( widget ).toMatch( /native\.startsWith\( q \)/ );
+  } );
+
+  it( 'never re-translates a page nobody asked it to translate', () => {
+    /**
+     * THE LARGEST COST REDUCTION AVAILABLE ON THE CLIENT, and it is an absence.
+     *
+     * The chosen language used to be written to localStorage and re-applied on load, so a
+     * visitor who once chose Hindi had every subsequent page re-translated in full, silently,
+     * with nothing on screen to say it was happening. Translation is billed per character and
+     * the DynamoDB cache only helps where the same strings recur, so each new page was paid
+     * for again.
+     *
+     * The page now always arrives in English and translates only on request. The cost of that
+     * is real - a Hindi reader must choose Hindi on each page - and it is the right trade
+     * while the endpoint is billed per character.
+     */
+    expect(
+      /localStorage/.test( widgetCode ),
+      'the widget must not persist the chosen language. Restoring it re-translated every '
+      + 'later page load unasked, and translation is billed per character.'
+    ).toBe( false );
+    // The ref that existed only to let the restore call applyLanguage should be gone with it.
+    expect( widgetCode ).not.toContain( 'applyLanguageRef' );
+    // And nothing should auto-apply a language during the catalogue fetch.
+    expect( widgetCode ).not.toContain( 'savedLang' );
+  } );
+
   it( 'has no hover tint on the chip', () => {
     // Removed on instruction, and correct for a reason worth keeping: the same tint marks the
     // ACTIVE ROW inside the panel, so using it on the trigger meant one colour saying two
