@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-26T03:48:54.871742+00:00",
+  "generated": "2026-09-26T04:47:19.648825+00:00",
   "account": "775261844268",
   "identity_arn": "arn:aws:iam::775261844268:user/wecare-admin",
   "region": "us-east-1",
@@ -326,9 +326,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-25T11:04:45.000+0000",
-        "code_sha256": "CGBR/7sELsRGhEOZHGfgHPAhA5XanvpB/a1peVz97WI=",
-        "code_size": 265589,
+        "last_modified": "2026-09-26T03:52:32.000+0000",
+        "code_sha256": "cYP0Sh/jj/RNSBgZb7Nn2/x8jJR7Vo5dtuEBHmpcunw=",
+        "code_size": 267525,
         "layers": [],
         "env_var_names": [
           "BULK_JOBS_TABLE",
@@ -343,7 +343,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-catalog-management",
@@ -909,9 +909,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:02:52.000+0000",
-        "code_sha256": "tLjTSg6vA/AO4T15f+zYS+7XJK03PKt2kf22RfdA/sU=",
-        "code_size": 270619,
+        "last_modified": "2026-09-26T03:52:18.000+0000",
+        "code_sha256": "BrXGaZtFMKnre7tj5fPK0iPMAp3wiGReW4dwdpFWmuU=",
+        "code_size": 272555,
         "layers": [
           "cryptography-python312:1"
         ],
@@ -935,7 +935,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-partner-token-refresh",
@@ -1050,9 +1050,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-23T11:02:57.087+0000",
-        "code_sha256": "o2PBfbyV5fuStEd5e/SNVAf5PR6zMSkyIFB4JwLbcG0=",
-        "code_size": 216747,
+        "last_modified": "2026-09-26T03:52:27.000+0000",
+        "code_sha256": "6UkNir/Vt2Ye4fo4VmUdzXjRJMLwnUXqqSvmAITWzz4=",
+        "code_size": 269027,
         "layers": [],
         "env_var_names": [
           "PLIVO_API_SECRET_ID",
@@ -1064,7 +1064,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "1"
+        "live_alias_version": "2"
       },
       {
         "name": "wecare-push-notifications",
@@ -1299,9 +1299,9 @@
         ],
         "memory": 512,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:01:37.000+0000",
-        "code_sha256": "kfh6kvI9RishF2r8M5hvqT8oFUy39TYeQ7INFnv1yqo=",
-        "code_size": 9117,
+        "last_modified": "2026-09-26T03:50:49.000+0000",
+        "code_sha256": "AcEg3tIiWBi1ayYLQ4xN5rCVH+Zbs1hV8/H5L8StzKk=",
+        "code_size": 9762,
         "layers": [],
         "env_var_names": [
           "SITE_LANGUAGE_ALLOWED_ORIGINS",
@@ -1318,7 +1318,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "6"
+        "live_alias_version": "7"
       },
       {
         "name": "wecare-sla-engine",
@@ -1523,9 +1523,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T01:33:17.000+0000",
-        "code_sha256": "/fIRmw58JK3QWI+ayzLUPEFVWLHSUBgczIJCvOzhdKM=",
-        "code_size": 275634,
+        "last_modified": "2026-09-26T03:52:22.000+0000",
+        "code_sha256": "XUtaYEf1Bkv/S/8qViC14jWAkuapua1fyKsTdX5Qt8s=",
+        "code_size": 275753,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1540,7 +1540,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "18"
       },
       {
         "name": "wecare-waba-management",
@@ -6833,7 +6833,7 @@
     ]
   },
   "cloudwatch": {
-    "alarm_count": 42,
+    "alarm_count": 41,
     "composite_alarm_count": 0,
     "alarms_in_alarm": [],
     "alarms_insufficient_data": [],
@@ -6851,7 +6851,7 @@
         "state": "OK",
         "metric": "5xx",
         "namespace": "AWS/ApiGateway",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6859,7 +6859,7 @@
         "state": "OK",
         "metric": "5xx",
         "namespace": "AWS/ApiGateway",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6867,7 +6867,7 @@
         "state": "OK",
         "metric": "Latency",
         "namespace": "AWS/ApiGateway",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6875,7 +6875,7 @@
         "state": "OK",
         "metric": null,
         "namespace": null,
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6883,7 +6883,7 @@
         "state": "OK",
         "metric": "ApproximateNumberOfMessagesVisible",
         "namespace": "AWS/SQS",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6891,7 +6891,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6899,7 +6899,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6907,7 +6907,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6915,7 +6915,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6923,7 +6923,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6931,7 +6931,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6939,7 +6939,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6947,7 +6947,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6955,7 +6955,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6963,7 +6963,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6971,7 +6971,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6979,7 +6979,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6987,7 +6987,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -6995,7 +6995,7 @@
         "state": "OK",
         "metric": "ThrottledRequests",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7003,7 +7003,7 @@
         "state": "OK",
         "metric": "UserErrors",
         "namespace": "AWS/DynamoDB",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7011,7 +7011,7 @@
         "state": "OK",
         "metric": "ApproximateNumberOfMessagesVisible",
         "namespace": "AWS/SQS",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7019,7 +7019,7 @@
         "state": "OK",
         "metric": "FailedInvocations",
         "namespace": "AWS/Events",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7027,7 +7027,7 @@
         "state": "OK",
         "metric": "FailedInvocations",
         "namespace": "AWS/Events",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7051,7 +7051,7 @@
         "state": "OK",
         "metric": "ApproximateNumberOfMessagesVisible",
         "namespace": "AWS/SQS",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7059,7 +7059,7 @@
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7067,7 +7067,7 @@
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7075,15 +7075,7 @@
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
-      },
-      {
-        "name": "wecare-lambda-errors-wecare-payu-webhook",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7091,7 +7083,7 @@
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7099,7 +7091,7 @@
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7107,7 +7099,7 @@
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7115,7 +7107,7 @@
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7123,6 +7115,14 @@
         "state": "OK",
         "metric": "Throttles",
         "namespace": "AWS/Lambda",
+        "actions": 2,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-notification-dlq-depth",
+        "state": "OK",
+        "metric": "ApproximateNumberOfMessagesVisible",
+        "namespace": "AWS/SQS",
         "actions": 1,
         "actions_enabled": true
       },
@@ -7147,7 +7147,7 @@
         "state": "OK",
         "metric": "ApproximateAgeOfOldestMessage",
         "namespace": "AWS/SQS",
-        "actions": 1,
+        "actions": 2,
         "actions_enabled": true
       },
       {
@@ -7163,14 +7163,6 @@
         "state": "OK",
         "metric": "NumberOfNotificationsFailed",
         "namespace": "AWS/SNS",
-        "actions": 1,
-        "actions_enabled": true
-      },
-      {
-        "name": "wecare-url-hit-wecare-payu-webhook",
-        "state": "OK",
-        "metric": "UrlRequestCount",
-        "namespace": "AWS/Lambda",
         "actions": 1,
         "actions_enabled": true
       },
@@ -7411,22 +7403,22 @@
             "enable_auto_build": true,
             "recent_jobs": [
               {
-                "id": "898",
+                "id": "901",
                 "status": "SUCCEED",
-                "commit": "6ffcbcefa3b7",
-                "end": "2026-09-26T03:46:53.226000+00:00"
+                "commit": "933d5d73fd69",
+                "end": "2026-09-26T04:14:50.660000+00:00"
               },
               {
-                "id": "897",
+                "id": "900",
                 "status": "SUCCEED",
-                "commit": "5df910792e25",
-                "end": "2026-09-26T03:41:38.678000+00:00"
+                "commit": "a70c7b69a2b2",
+                "end": "2026-09-26T04:09:16.877000+00:00"
               },
               {
-                "id": "896",
+                "id": "899",
                 "status": "SUCCEED",
-                "commit": "5653a12a0f5a",
-                "end": "2026-09-26T03:05:24.531000+00:00"
+                "commit": "cd37748d9083",
+                "end": "2026-09-26T03:57:05.945000+00:00"
               }
             ]
           }
@@ -7435,19 +7427,9 @@
     ]
   },
   "crosschecks": {
-    "dlqs_without_alarm": [
-      "stack-wecare-digital-inbound-dlq",
-      "stack-wecare-digital-notification-dlq",
-      "stack-wecare-digital-outbound-dlq"
-    ],
-    "alarms_watching_nonexistent_queue": {
-      "base-wecare-digital-inbound-dlq": [
-        "wecare-inbound-dlq-depth"
-      ],
-      "base-wecare-digital-outbound-dlq": [
-        "wecare-outbound-dlq-depth"
-      ]
-    },
+    "dlqs_without_alarm": [],
+    "alarms_watching_nonexistent_queue": {},
+    "alarms_with_dangling_dimension": {},
     "regional_web_acls_with_zero_associations": [],
     "amplify_waf": {
       "d22dm4b0jn71jw": {
@@ -7461,7 +7443,7 @@
   },
   "errors": [],
   "error_count": 0,
-  "duration_seconds": 152.3,
+  "duration_seconds": 154.3,
   "partial_run": false,
   "collectors_run": [
     "api_gateway",

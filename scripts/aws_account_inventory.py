@@ -937,7 +937,15 @@ def collect_crosschecks() -> dict:
         so they could never fire
       * the notification DLQ - the one the unified notification service depends
         on - had no alarm at all
-      * a regional WAF web ACL with three rules attached to nothing
+      * two PayU alarms still naming a Lambda deleted with the provider
+
+    A fourth entry used to be listed here - "a regional WAF web ACL attached to
+    nothing" - and it was this collector's own bug, not an account defect.
+    `ListResourcesForWebACL` defaults `ResourceType` to
+    `APPLICATION_LOAD_BALANCER` and this account has none, so every regional ACL
+    read as unassociated while `wecare-cognito-waf` was in fact attached to both
+    user pools. It is kept in the docstring as a warning: a cross-check that
+    reports a defect which does not exist costs more than no check at all.
     """
     sqs = client("sqs")
     cw = client("cloudwatch")
@@ -960,6 +968,63 @@ def collect_crosschecks() -> dict:
     orphan_alarms = {
         q: names for q, names in watched.items() if q not in queues
     }
+
+    # Generalised from QueueName to every dimension whose value names a resource
+    # we can enumerate. Restricting it to queues found two broken alarms and
+    # missed two more: both PayU alarms still name a Lambda that was deleted with
+    # the provider, including a `UrlRequestCount > 0` tripwire meant to catch
+    # anyone calling the retired webhook. A tripwire on an absent resource never
+    # reports, so it reads OK forever - the same false comfort, one service over.
+    ddb_c = client("dynamodb")
+    lam_c = client("lambda")
+    apig_c = client("apigatewayv2")
+    ev_c = client("events")
+    pools = {
+        "QueueName": queues,
+        "TableName": set(
+            guard("crosscheck.tables", lambda: paged(ddb_c, "list_tables", "TableNames"), default=None)
+            or []
+        )
+        or None,
+        "FunctionName": {
+            f["FunctionName"]
+            for f in (
+                guard(
+                    "crosscheck.functions",
+                    lambda: paged(lam_c, "list_functions", "Functions"),
+                    default=None,
+                )
+                or []
+            )
+        }
+        or None,
+        "ApiName": {
+            a["Name"]
+            for a in (
+                guard("crosscheck.apis", lambda: paged(apig_c, "get_apis", "Items"), default=None)
+                or []
+            )
+        }
+        or None,
+        "RuleName": {
+            r["Name"]
+            for r in (
+                guard("crosscheck.rules", lambda: paged(ev_c, "list_rules", "Rules"), default=None)
+                or []
+            )
+        }
+        or None,
+    }
+    # A pool that failed to load is None, not empty, so a failed enumeration can
+    # never be mistaken for "every resource is missing".
+    dangling: dict[str, list[str]] = {}
+    for a in alarms:
+        for d in a.get("Dimensions", []):
+            pool = pools.get(d["Name"])
+            if pool and d["Value"] not in pool:
+                dangling.setdefault(
+                    f"{d['Name']}={d['Value']}", []
+                ).append(a["AlarmName"])
 
     # Regional ACL associations are readable; CLOUDFRONT-scope ones are not, so
     # the Amplify app is asked directly rather than assumed unprotected.
@@ -1014,6 +1079,7 @@ def collect_crosschecks() -> dict:
     return {
         "dlqs_without_alarm": sorted(dlqs - set(watched)),
         "alarms_watching_nonexistent_queue": orphan_alarms,
+        "alarms_with_dangling_dimension": {k: sorted(v) for k, v in sorted(dangling.items())},
         "regional_web_acls_with_zero_associations": sorted(unassociated),
         "amplify_waf": amplify_waf,
     }
@@ -1462,6 +1528,15 @@ def render_md(d: dict) -> str:
     L.append("")
     for q, names in (orphan or {"(none)": []}).items():
         L.append(f"- queue `{q}` watched by {names}")
+    L.append("")
+    dang = xc.get("alarms_with_dangling_dimension", {})
+    L.append(
+        f"**Alarms whose dimension names a resource that does not exist "
+        f"({len(dang)})** — same class, across every enumerable dimension:"
+    )
+    L.append("")
+    for k, names in (dang or {"(none)": []}).items():
+        L.append(f"- `{k}` watched by {names}")
     L.append("")
     L.append(
         f"**Regional WAF web ACLs associated with nothing "

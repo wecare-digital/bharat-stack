@@ -71,8 +71,9 @@ previous snapshot, as a record of drift rather than a value to reuse:
 | HTTP API routes | 332 | 361 |
 | API Gateway authorizers | 0 | 0 |
 | Routes reporting `AuthorizationType=NONE` | 332 | 361 |
-| Regional WAF WebACLs | 0 | 1 (`wecare-cognito-waf`, **associated with nothing**) |
+| Regional WAF WebACLs | 0 | 1 (`wecare-cognito-waf`, attached to **both** user pools) |
 | CloudFront-scope WAF WebACLs | — | 1 (`wecare-amplify-waf`, `ASSOCIATION_SUCCESS`) |
+| CloudWatch alarms | — | 41, all routable to a human |
 | Cognito pools | WECARE.DIGITAL | 2 (+ WECARE.DIGITAL-CUSTOMERS) |
 | Cognito MFA (admin pool) | OFF | OPTIONAL |
 | GuardDuty detectors | 0 | not re-measured |
@@ -80,6 +81,14 @@ previous snapshot, as a record of drift rather than a value to reuse:
 
 The route surface grew by 29 while authorization stayed at zero, so the gap
 widened rather than closed.
+
+**Never read a WAF association with `list_resources_for_web_acl` alone.** It
+defaults `ResourceType` to `APPLICATION_LOAD_BALANCER`, this account has none, and
+it does not enumerate Cognito pools, Amplify apps or CloudFront at all — so a
+correctly protected ACL reads as protecting nothing. That false reading has now
+been produced twice by two different sessions. Use
+`get_web_acl_for_resource(<resource arn>)` per resource, or the app's own
+`wafConfiguration` for Amplify.
 
 Interpret `AuthorizationType=NONE` carefully: handler-level authentication and
 signature checks may still exist. Gateway configuration alone cannot distinguish

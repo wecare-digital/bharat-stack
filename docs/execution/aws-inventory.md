@@ -1,6 +1,6 @@
 # AWS account inventory
 
-Generated 2026-09-26T03:46:21.645700+00:00 · account `775261844268` · `us-east-1` (+ ap-south-1) · regenerate with `python scripts/aws_account_inventory.py`
+Generated 2026-09-26T04:47:19.648825+00:00 · account `775261844268` · `us-east-1` (+ ap-south-1) · regenerate with `python scripts/aws_account_inventory.py`
 
 This file supersedes every dated resource count in the steering files. Machine-readable companion: `aws-inventory.json`. Secret **names** and metadata are recorded; no secret value is ever read. Lambda environment variable **names** are recorded, values never are.
 
@@ -29,7 +29,7 @@ Collector errors: **0** (a non-zero count makes this inventory PARTIAL, not auth
 | WAF web ACLs (regional) | 1 |
 | WAF web ACLs (CloudFront) | 1 |
 | Route 53 hosted zones | 1 |
-| CloudWatch alarms | 42 |
+| CloudWatch alarms | 41 |
 | CloudWatch log groups | 81 |
 | CloudFormation stacks | 7 |
 | Amplify apps | 1 |
@@ -194,7 +194,7 @@ Configuration sets: []
 
 ## CloudWatch
 
-- alarms: 42 (composite 0)
+- alarms: 41 (composite 0)
 - in ALARM: (none)
 - INSUFFICIENT_DATA: 0
 - alarms with no action: 0
@@ -243,24 +243,25 @@ Amplify:
   - branch `chatgpt/meta-icon-s3-latest-20260918` stage=DEVELOPMENT auto_build=False
     - job 1 SUCCEED commit `HEAD` 2026-09-18T10:25:29
   - branch `stack` stage=PRODUCTION auto_build=True
-    - job 898 RUNNING commit `6ffcbcefa3b7` 
-    - job 897 SUCCEED commit `5df910792e25` 2026-09-26T03:41:38
-    - job 896 SUCCEED commit `5653a12a0f5a` 2026-09-26T03:05:24
+    - job 901 SUCCEED commit `933d5d73fd69` 2026-09-26T04:14:50
+    - job 900 SUCCEED commit `a70c7b69a2b2` 2026-09-26T04:09:16
+    - job 899 SUCCEED commit `cd37748d9083` 2026-09-26T03:57:05
 
 ## Cross-service checks
 
 Defects that are invisible in any single service listing.
 
-**DLQs with no CloudWatch alarm (3)** — messages can pile up unobserved:
+**DLQs with no CloudWatch alarm (0)** — messages can pile up unobserved:
 
-- `stack-wecare-digital-inbound-dlq`
-- `stack-wecare-digital-notification-dlq`
-- `stack-wecare-digital-outbound-dlq`
+- `(none)`
 
-**Alarms watching a queue that does not exist (2)** — these can never fire:
+**Alarms watching a queue that does not exist (0)** — these can never fire:
 
-- queue `base-wecare-digital-inbound-dlq` watched by ['wecare-inbound-dlq-depth']
-- queue `base-wecare-digital-outbound-dlq` watched by ['wecare-outbound-dlq-depth']
+- queue `(none)` watched by []
+
+**Alarms whose dimension names a resource that does not exist (0)** — same class, across every enumerable dimension:
+
+- `(none)` watched by []
 
 **Regional WAF web ACLs associated with nothing (0)**:
 

@@ -86,7 +86,7 @@ items, is the older single-table shape the canonical domain replaces.
 
 ## Defects found by measurement
 
-### D1 · Two DLQ alarms can never fire, and the notification DLQ has none
+### D1 · Two DLQ alarms can never fire, and the notification DLQ has none — ✅ RESOLVED 2026-09-26
 
 `HIGH`. The alarms reference a `base-wecare-digital-` queue-name prefix that no
 longer exists; the real queues use `stack-wecare-digital-`:
@@ -107,24 +107,176 @@ This is why the alarm count looked healthy: 42 alarms, 0 in `ALARM`, 0
 `INSUFFICIENT_DATA`, 0 without an action. A stale dimension produces a
 permanently green alarm, which reads as success. Directly relevant to item 214.
 
-### D2 · `wecare-cognito-waf` protects nothing
+**Resolution.** `scripts/provision_alarm_coverage.py --apply` repointed both
+alarms and created `wecare-notification-dlq-depth`. Two defects were fixed
+together, because repointing an alarm that is also statistically wrong just moves
+the wrongness:
 
-`MEDIUM`. Regional ACL, default action `Allow`, three real rules
-(`auth-rate-limit-per-ip`, `AWSManagedRulesAmazonIpReputationList`,
-`AWSManagedRulesCommonRuleSet`) — and `list_resources_for_web_acl` returns an
-empty list. It is associated with no resource.
+| | before | after |
+|---|---|---|
+| dimension | `base-wecare-digital-*` | `stack-wecare-digital-*` |
+| statistic | `Sum` | `Maximum` |
+| condition | `>= 1` | `> 0` |
 
-The CloudFront-scope ACL is the opposite, and the distinction matters because
-CloudFront-scope associations cannot be read from the WAF API. Asked directly,
-the Amplify app reports `wafStatus: ASSOCIATION_SUCCESS` for
-`wecare-amplify-waf` (4 rules, adds `AWSManagedRulesKnownBadInputsRuleSet`).
-**So the public web app is protected and the Cognito/API surface is not.** The
-owner-override target "WAF must be implemented and live-verified" is half met.
+`ApproximateNumberOfMessagesVisible` is a gauge, not a counter. SQS emits it
+several times per period, so `Sum` over 300s adds unrelated samples together and
+the threshold stops meaning "messages present". `Maximum` is the correct
+reduction, and it is what `wecare-bulk-dlq-depth` already used.
+
+Proof the old configuration was broken, and the new one is not — datapoints over
+a 6-hour window:
+
+    base-wecare-digital-inbound-dlq        0 datapoints   <- could never evaluate
+    base-wecare-digital-outbound-dlq       0 datapoints   <- could never evaluate
+    stack-wecare-digital-inbound-dlq      15 datapoints
+    stack-wecare-digital-outbound-dlq     14 datapoints
+    stack-wecare-digital-notification-dlq 15 datapoints
+
+Independently confirmed through the inventory collector's separate code path:
+`dlqs_without_alarm` and `alarms_watching_nonexistent_queue` are both now empty.
+Re-check any time with `--verify`, which exits 1 on drift.
+
+**Not proven:** no message was injected to watch an alarm actually transition to
+`ALARM` and deliver an email. The metric-datapoint evidence above shows the
+alarms can now evaluate, which is what was broken; end-to-end firing remains
+unverified by choice, to keep the probe inert.
+
+### ~~D2 · `wecare-cognito-waf` protects nothing~~ — WITHDRAWN 2026-09-26
+
+**This finding was wrong, and it was my collector's bug rather than an account
+defect.** WAF is live on both surfaces.
+
+`ListResourcesForWebACL` defaults `ResourceType` to
+`APPLICATION_LOAD_BALANCER`. This account has no load balancers, so a single
+unparameterised call returns `[]` for every regional web ACL — which reads as
+"associated with nothing". Asked the correct way, per resource:
+
+    get_web_acl_for_resource(us-east-1_cSx0RHCIR) -> wecare-cognito-waf   # staff
+    get_web_acl_for_resource(us-east-1_46ULYuukt) -> wecare-cognito-waf   # customers
+
+`wecare-cognito-waf` (3 rules: `auth-rate-limit-per-ip`,
+`AWSManagedRulesAmazonIpReputationList`, `AWSManagedRulesCommonRuleSet`) is
+attached to **both** Cognito user pools. `wecare-amplify-waf` (4 rules, adding
+`AWSManagedRulesKnownBadInputsRuleSet`) reports `ASSOCIATION_SUCCESS` on the
+Amplify app. The owner-override target "WAF must be implemented and
+live-verified" is met on both surfaces, not half met.
+
+The trap was already documented by another session in change-authority entry
+282, which recorded that `list_resources_for_web_acl` does not enumerate Cognito
+pools, Amplify apps or CloudFront and returns an empty list for a correctly
+associated ACL. The collector has since been corrected to iterate
+`ResourceType`, and its docstring keeps this as a warning: a cross-check that
+reports a defect which does not exist costs more than no check at all.
 
 The three CloudFront distributions in this account
 (`E1SZBXLQ4XNLJ7` mta-sts, `E2GP22R4BIFGQ3` wecare-digital-get,
-`ERCXSFDL0VM8X` app.wecare.digital) all report no web ACL; the Amplify-managed
-distribution is not among them, which is why the app-side query was necessary.
+`ERCXSFDL0VM8X` app.wecare.digital) genuinely have no web ACL. That is accurate
+and unchanged — they serve the MTA-STS policy document, the secure-file download
+origin, and an S3 origin. The Amplify-managed distribution is AWS-owned and not
+among them, which is why the app-side query is the only readable proof.
+
+### D7 · 33 of 41 alarms could not reach a human — ✅ RESOLVED 2026-09-26
+
+`HIGH`, found while resolving D1, and larger than D1.
+
+SNS topic `stack-wecare-digital` has exactly one subscriber: the
+`wecare-inbound-whatsapp` Lambda. **33 of 41 alarms published only to that
+topic**, and no topic subscription anywhere reaches a person for them. Among
+them: `wecare-lambda-errors-wecare-razorpay-webhook`,
+`wecare-ddb-throttle-PaymentsTable`, both `wecare-apigw-5xx-*`,
+`wecare-bulk-dlq-depth`, `wecare-lambda-async-dlq-depth`,
+`wecare-eventbridge-failed-*` and `wecare-lambda-throttles`.
+
+Only `wecare-alarm-notifications` has a confirmed human subscription (one email
+to the owner), and just 8 alarms used it.
+
+The chain is worth stating because each link looks fine alone:
+
+1. 33 alarms → topic `stack-wecare-digital`
+2. that topic's only subscriber is `wecare-inbound-whatsapp`, a Meta webhook
+   handler
+3. it used to **crash** on those deliveries — `AttributeError: 'str' object has
+   no attribute 'get'` at `wa_internal_event.py:80` in `_from_legacy_sns`, nine
+   times in seven days, all on 2026-09-23 between 01:36 and 02:00, confirmed from
+   the function's own logs
+4. that crash was fixed in `wa_internal_event.py`, which made the handler
+   **skip** unparsable records instead of raising
+5. so the alarm notifications stopped crashing and started being silently
+   discarded
+
+Step 4 is correct on its own terms — `parse` promises never to raise, because
+raising at the top of an async worker sends a poison event to the DLQ on every
+retry. But it converted a noisy failure into a silent one, and the noise was the
+only evidence the wiring was wrong.
+
+The fix is deployed: `scripts/check_deployed_source.py wecare-inbound-whatsapp
+--file wa_internal_event.py` reports v51 byte-identical to the tree. The alias was
+published 00:42 UTC and the commit landed 00:48 UTC, so this was a
+deploy-then-commit, not an undeployed fix.
+
+**Resolution.** `wecare-alarm-notifications` was **added** to the `AlarmActions`
+and `OKActions` of all 33, so every alarm in the account now has at least one path
+to a person. The Lambda subscription was deliberately left in place — it may be
+intentional, and removing it is a separate decision from making sure a human also
+finds out.
+
+`PutMetricAlarm` rewrites an alarm wholesale, so the change was verified by
+diffing all 41 alarms before and after across 16 non-action fields: **0 changed**,
+41 before and 41 after with none added or removed, and the one metric-math alarm
+(`wecare-apigw-latency-wecare-digital-api`) retained all 3 of its `Metrics`
+entries. All 41 remained `OK`, so no alert storm followed.
+
+**Still open:** why an alarm topic is subscribed to a message handler at all.
+Nothing documents it, and the handler now discards the payloads. Either give that
+topic a real consumer or remove the subscription — but that is a design question,
+not drift.
+
+### D8 · PayU alarms outlived the provider — ✅ RESOLVED 2026-09-26
+
+`MEDIUM`, item 8. Two alarms named `FunctionName=wecare-payu-webhook`, a Lambda
+that does not exist:
+
+| Alarm | Metric | State |
+|---|---|---|
+| `wecare-lambda-errors-wecare-payu-webhook` | `Errors` Sum > 3 | `OK` |
+| `wecare-url-hit-wecare-payu-webhook` | `UrlRequestCount` Sum > 0 | `OK` |
+
+The second is the more interesting one: a deliberate tripwire meant to catch
+anyone still calling the retired PayU webhook. Because its target is absent the
+metric never reports, so it read `OK` — the same false comfort as D1, one service
+over. A tripwire on a deleted resource is not a tripwire.
+
+Both deleted after exporting their definitions
+(`.scratch/payu-alarms-before-20260926.json`). Alarm count 42 → 41 (−2 PayU,
++1 notification DLQ). No `payu`-named alarm remains.
+
+Found by generalising the D1 cross-check from `QueueName` to every enumerable
+dimension. Restricting it to queues found two broken alarms and missed two more.
+The generalised check now also confirms the 15 `wecare-ddb-throttle-*` alarms all
+name live tables — a concern worth checking rather than assuming, since they use
+short table names while every table is prefixed `stack-wecare-digital-`.
+
+### D9 · PayU environment variables survive on a live function — open
+
+`LOW`, item 8 and item 230. `wecare-whatsapp-business-api` (live alias v41) still
+carries `PAYU_MID` and `PAYU_UPI_ID` in its deployed environment. The handler
+reads neither — `handler.py:3131` is a comment recording their removal on
+2026-08-23 — so this is dead configuration, not a live dependency.
+
+**There is no recreation path.** `config/lambda-env-manifest.json` also lists both
+keys, but `scripts/env_manifest.py` explicitly does not deploy: it records live
+state so drift becomes visible in a diff. The manifest is a mirror, so the
+correct order is remove-from-AWS-then-re-export, never the reverse.
+
+Not resolved in this pass on purpose. Removing them needs
+`update-function-configuration` plus a version publish and alias move on a
+production WhatsApp function, and another session is concurrently doing deployed-
+code read-back against Lambda versions and hashes (item 3). Moving that alias
+mid-audit would invalidate their evidence. Sequence it after.
+
+Also present in the repository and out of scope here: `PAYU_MID` appears in
+`src/pages/dashboard/index.tsx` and `src/pages/dashboard/system-architecture.tsx`
+as displayed text. Those are item 8's UI scan.
 
 ### D3 · No declarative source reproduces production infrastructure
 
@@ -246,12 +398,12 @@ rescheduled. `wecare/sinch/rcs` is present and untouched, which is correct: item
 | 4 | Re-scoped from "build the notification service" to "write the code against four already-correct tables and an existing queue/DLQ pair". |
 | 5 | Migration source identified: `CallNotificationsTable` (`callId`, 0 items). |
 | 6 | Quantified: 361/361 `NONE`, 0 authorizers. Gateway config alone cannot classify the routes; needs the handler audit. |
-| 8 | Secret layer **closed** with exact expiry evidence. Source/IaC/UI scan still outstanding. |
+| 8 | Secret layer **closed** with exact expiry evidence. AWS surface now clean of PayU: no route, no Lambda, no table, no alarm (D8). Two dead env vars (D9) and two dashboard UI strings remain. |
 | 9–12 | Blocked on the 2026-10-20 window expiry, by design. Exact ARNs and dates now recorded. |
 | 39 | SES layer satisfied in `us-east-1`; `ap-south-1` is sandboxed and must not be used for customer email. |
 | 113/114 | Admin MFA is `OPTIONAL` not `OFF`; RBAC groups already exist. |
 | 196/218–225 | Must be designed against imperative scripts — no stack reproduces production. |
-| 214 | Three unmonitored DLQs and two permanently-green stale alarms (D1). |
+| 213/214 | **Resolved.** Every DLQ alarmed on the correct dimension and statistic (D1), every alarm routable to a human (D7), no alarm naming an absent resource (D8). Re-checkable with `provision_alarm_coverage.py --verify` and the inventory cross-checks. |
 | 226/227/234 | Baseline captured: 7 stacks (6 stale), 67 empty tables. |
 
 ## Reproducing this
