@@ -94,6 +94,26 @@ classification, and an exported route + integration JSON for rollback — the sa
 routes were removed that way in September, and the deletions are recorded in
 `docs/deleted-routes-*.json`.
 
+### The 117, classified (OPS-002, 2026-09-25)
+
+Classified by evidence rather than by name. **42**, not 117, are even candidates.
+
+| Class | Count | What it means |
+|---|--:|---|
+| Provider webhook | 13 | Meta, Razorpay, Plivo, Sinch callbacks and DLRs. No frontend calls these **by definition** |
+| Referenced in Python | 41 | The path appears in `amplify/functions/**/*.py` — Lambda-to-Lambda invocation or handler self-reference. The caller is Python, not `src/**` |
+| Parameterised, textually unmatchable | 21 | Contains `{invoiceId}`, `{fileId}`, `{documentId}` and similar. The frontend builds these as template literals, so the literal form **can never** match. For **12** of the 21 the path prefix *is* present in `src/**`, which is positive evidence they are live — `/secure-files/{fileId}/download` is the obvious one |
+| Literal, unreferenced | **42** | The only genuine candidates |
+
+And even that 42 is not a deletion list:
+
+* **34** are `/wa-business/*` on `wecare-whatsapp-business-api` — appointments, reviews, FAQ, flow tooling, username management. A block that uniform points at one of two causes, and they need opposite actions: either the WhatsApp Business admin UI reaches them through a path-building helper the textual join cannot see, or those capabilities are backend-only and never had a UI. Resolve which before touching any of them.
+* **4** are `/voice-in/obd/{create,upload-audio,upload-csv,clear-logs}`, which **deliberately answer** `_retired_campaign_endpoint` — an explicit "this capability was retired" response rather than a 404, so an operator sees why it vanished. Present on purpose.
+* **3** are `/store/*` on `wecare-product-image-gen`, and `/voice-aws/send` is a send path.
+
+So the honest count is: **0 proven dead**, 42 needing a caller resolved, and a method that structurally cannot see template-literal or Python callers. Reproduce with the classifier logic against
+`anomalies.routesWithoutFrontendCaller` in `docs/execution/runtime-inventory.json`.
+
 ## Verify
 
 ```bash
