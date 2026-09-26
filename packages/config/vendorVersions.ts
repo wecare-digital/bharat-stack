@@ -62,6 +62,19 @@ export interface VendorVersion {
    * stated reason is indistinguishable from neglect.
    */
   readonly upgradeBlockedReason?: string;
+  /**
+   * ISO date after which the reason above stops being accepted.
+   *
+   * Exists because a *false* reason is worse than a missing one, and a true reason can
+   * expire. The v26.0 pin is the case that motivated this: its recorded justification
+   * turned out to be unsubstantiated, and the surfaces it claimed to protect are removed
+   * from every remaining Graph version on a fixed date anyway — after which the pin
+   * protects nothing while still reading as deliberate.
+   *
+   * Once this date passes, `checkVersions` escalates the finding from `warn` to `error`,
+   * so the gate fails rather than a stale justification carrying indefinitely.
+   */
+  readonly lagExpiresOn?: string;
   /** How to re-measure `verifiedLatest`. Kept next to the number it produces. */
   readonly rederive: string;
 }
@@ -69,10 +82,26 @@ export interface VendorVersion {
 /**
  * Meta Graph API version.
  *
- * `v26.0` is NOT adopted. `amplify/functions/messaging/meta-business-agent/handler.py`
- * records that it blocked a batch of commerce calls, and this fleet moved 22 -> 25
- * deliberately. Adopting a newer version because a brief named it would regress a
- * known-good payment path. The upgrade is gated on a passing contract test, not on a date.
+ * `v26.0` is not adopted yet, but NOT for the reason this repo previously recorded.
+ *
+ * `meta-business-agent/handler.py:231-234` pins away from v26.0 on the grounds that it
+ * "blocked a batch of commerce endpoints" and that `_tool_product_lookup` reads
+ * `/{catalog_id}/products`. Checked against Meta's v26.0 changelog, that does not hold:
+ * v26.0 deprecates the **Commerce Order Management API** — 47 endpoints shaped
+ * `/{commerce-order-id}/…`, `/{page-id}/commerce_orders`, `/{commerce-merchant-settings-id}/…`
+ * — because checkout on Facebook and Instagram Shops was sunset. `/{catalog_id}/products` is
+ * the Product Catalog API and is not among them. This repository calls none of the 47, and
+ * none of the five legacy protocol features v26.0 removes.
+ *
+ * So the documented blocker is **unsubstantiated**. That is grounds to test, not clearance:
+ * whether `/{catalog_id}/products` actually answers on v26.0 still needs one live Graph
+ * call, which has not been made.
+ *
+ * `lagExpiresOn` is 2026-10-27, the date the changelog gives for those surfaces being
+ * removed from *all* remaining Graph versions. Past that date the pin protects nothing,
+ * so the gate stops accepting it as a reason.
+ *
+ * v25.0 itself is supported until 2028-07-29, so there is no urgency from its own lifecycle.
  */
 export const META_GRAPH: VendorVersion = {
   name: 'Meta Graph API / WhatsApp Cloud API',
@@ -82,9 +111,12 @@ export const META_GRAPH: VendorVersion = {
   evidence: 'DOC',
   drift: 'lag-allowed-with-reason',
   upgradeBlockedReason:
-    'v26.0 blocked a batch of commerce calls when last attempted; upgrade is gated on a ' +
-    'passing Meta contract test covering order_details, payment lookup and the ' +
-    'AUTHENTICATION template round trip.',
+    'Upgrade gated on a Meta contract test covering order_details, payment lookup and the ' +
+    'AUTHENTICATION template round trip. NOTE the previously recorded blocker — "v26.0 ' +
+    'blocked a batch of commerce calls" — is unsubstantiated: v26.0 deprecates the Commerce ' +
+    'Order Management API, which this repo does not call. The pin also protects nothing ' +
+    'after 2026-10-27, when those surfaces are removed from every remaining version.',
+  lagExpiresOn: '2026-10-27',
   rederive: 'https://developers.facebook.com/docs/graph-api/changelog/versions/',
 } as const;
 
@@ -112,19 +144,25 @@ export const META_AUTH_TEMPLATE: VendorVersion = {
     '"queryStringParameters":{"wabaId":"2094615664435155"}}\'',
 } as const;
 
-/** Wix Stores catalog family. The site's own catalog version is unverified; see below. */
+/**
+ * Wix Stores catalog family.
+ *
+ * Was `BLOCKED` on the theory that confirming the site's catalog version needed the admin
+ * credential. It did not, and the distinction is worth keeping: the code calling
+ * `/stores/v3/*` proves what the code intends and nothing about the site, but Wix states the
+ * site's version itself in an error. `POST /stores/v1/products/query` returns **HTTP 428**
+ * with `applicationError.code = CATALOG_V3_CALLING_CATALOG_V1_API`. A visitor token minted
+ * from the public `WIX_CLIENT_ID` is enough to elicit that — no secret involved.
+ * Corroborated by 7 products returned through `/stores/v3/products/query`.
+ */
 export const WIX_CATALOG: VendorVersion = {
   name: 'Wix Stores Catalog',
   configured: 'V3',
-  verifiedLatest: null,
+  verifiedLatest: 'V3',
   verifiedOn: '2026-09-26',
-  evidence: 'BLOCKED',
-  drift: 'manual-review',
-  upgradeBlockedReason:
-    'The code calls /stores/v3/*, which proves what the code calls, not what the site ' +
-    'runs. Confirming the site is V3 needs a credential that does not exist: secret ' +
-    'wecare/wix/headless-api-key holds 0 versions. See docs/current-environment.md §7.',
-  rederive: '.venv/bin/python scripts/set_wix_credential.py --status, then query the site',
+  evidence: 'LIVE',
+  drift: 'must-be-latest',
+  rederive: '.venv/bin/python scripts/probe_wix_capabilities.py',
 } as const;
 
 export const WIX_ECOM: VendorVersion = {
@@ -138,20 +176,24 @@ export const WIX_ECOM: VendorVersion = {
 } as const;
 
 /**
- * Wix Blog. Declared because the brief requires a Blog adapter; the API is not called
- * anywhere in this repo today, so `configured` describes the target, not the present.
+ * Wix Blog.
+ *
+ * The API is still not called anywhere in this repo — the adapter is new work — but
+ * availability is no longer unknown. `/blog/v3/posts/query` answers with
+ * `metaData.total = 571` and `/blog/v3/categories` returns 200, both against a visitor
+ * token. So `configured` describes the target *and* the site's actual version.
+ *
+ * "Absent by grep" was the right statement about this repository and the wrong statement
+ * about the site. Worth keeping the two apart.
  */
 export const WIX_BLOG: VendorVersion = {
   name: 'Wix Blog',
   configured: 'V3',
-  verifiedLatest: null,
+  verifiedLatest: 'V3',
   verifiedOn: '2026-09-26',
-  evidence: 'BLOCKED',
-  drift: 'manual-review',
-  upgradeBlockedReason:
-    'No Wix Blog API call exists in this repo yet, and availability on the site cannot ' +
-    'be probed without the missing credential.',
-  rederive: 'https://dev.wix.com/docs/api-reference/business-solutions/blog',
+  evidence: 'LIVE',
+  drift: 'must-be-latest',
+  rederive: '.venv/bin/python scripts/probe_wix_capabilities.py',
 } as const;
 
 /**
@@ -363,6 +405,7 @@ export interface DriftFinding {
  */
 export function checkVersions(
   versions: Readonly<Record<string, VendorVersion>> = VENDOR_VERSIONS,
+  now: Date = new Date(),
 ): readonly DriftFinding[] {
   const findings: DriftFinding[] = [];
 
@@ -399,8 +442,22 @@ export function checkVersions(
           severity: 'error',
           message: 'lags latest with no upgradeBlockedReason recorded',
         });
+      } else if (entry.lagExpiresOn && new Date(entry.lagExpiresOn).getTime() <= now.getTime()) {
+        // The reason had a deadline and the deadline passed. Keeping it at `warn` would let
+        // an expired justification carry indefinitely, which is the failure this field exists
+        // to catch.
+        findings.push({
+          ...base,
+          severity: 'error',
+          message: `justification expired on ${entry.lagExpiresOn}: ${entry.upgradeBlockedReason}`,
+        });
       } else {
-        findings.push({ ...base, severity: 'warn', message: entry.upgradeBlockedReason });
+        const suffix = entry.lagExpiresOn ? ` [justification expires ${entry.lagExpiresOn}]` : '';
+        findings.push({
+          ...base,
+          severity: 'warn',
+          message: entry.upgradeBlockedReason + suffix,
+        });
       }
       continue;
     }

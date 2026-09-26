@@ -23,7 +23,7 @@ than restating the requirement.
 | Customer pool deletion protection | `INACTIVE` | one accidental delete removes every customer login |
 | Staff pool MFA | `OPTIONAL` | owner overrides make admin MFA a required target |
 | Staff password minimum | **8** | weak for an account that can reach production data |
-| Secrets | 25, in Secrets Manager, KMS-backed | `wecare/wix/headless-api-key` holds **0 versions** |
+| Secrets | 25, in Secrets Manager, KMS-backed | `wecare/wix/headless-api-key` was empty at discovery and was **populated on 2026-09-26** (commit `82fa0d5a`), without the value entering argv |
 | Email authentication | `DMARC p=reject; sp=reject`, MTA-STS `enforce`, DKIM `SUCCESS` | fail-closed: a misconfiguration bounces mail, it does not spam-folder it |
 | OTP at rest | **none** | the only OTP lives unhashed inside a Cognito auth session |
 | Tracking authorisation | **order id only** | guessable-adjacent; no token concept exists |
@@ -362,7 +362,7 @@ Honest list. Each is tracked in [`docs/tasks.md`](tasks.md).
 | Staff password minimum 8 | `MEDIUM` | weak for production access |
 | Customer pool deletion protection `INACTIVE` | `MEDIUM` | one delete removes every customer login |
 | Google key split and `places.googleapis.com` | `HIGH` | Google-console work; blocks the Places migration |
-| Wix credential absent | `CRITICAL` | owner-only; Wix shows a secret once, with no read-back |
+| ~~Wix credential absent~~ | ✅ CLOSED | Owner supplied it; stored 2026-09-26 via the staging-file path so the value never reached argv, staging file shredded, encrypted local and S3 recovery copies refreshed and verified |
 | Legacy Places still in use | `HIGH` | deprecated, so this has an expiry rather than an indefinite pass |
 | `get_secret_value` in the Places proxy | `LOW` | pre-existing; superseded by `AddressService` |
 | `/plivo/answer` unauthenticated and can send SMS | `HIGH` | pre-existing, outside this build; ordering matters — add `?token=` at Plivo **first**, set the Lambda variable **second**, or every inbound WhatsApp call 403s in between |

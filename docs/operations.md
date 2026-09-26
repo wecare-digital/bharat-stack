@@ -296,7 +296,12 @@ Inherited, outside this build's scope, and recorded so they are not rediscovered
   else. Rate limiting for the API therefore comes from per-route throttling plus the
   handler-level `RateLimitTable`, unless the API is moved behind CloudFront. Do not raise a
   ticket to "attach a WebACL to the HTTP API" — it will not succeed.
-- **Wix is off four ways** and only the owner can mint a new credential.
+- **Wix is live as of 2026-09-26.** The credential is stored, Catalog V3 is measured rather
+  than inferred (`/stores/v1/*` returns HTTP 428 `CATALOG_V3_CALLING_CATALOG_V1_API`), and the
+  site holds 7 products and 571 blog posts. Two things follow. **Wix Invoices is NOT
+  available** — `/invoices/v2/invoices` returns 404, which corroborates keeping the homegrown
+  engine. And the catalog is **thin**: 7 products, 1 category, 0 brands. A commerce launch
+  needs that populated, which is content work, not engineering.
 - **SES DKIM anomaly:** three Easy DKIM tokens are listed as current but AWS publishes a key
   for only one. SES signs with one selector per message, so one published key is sufficient
   and status is `SUCCESS`. Unverified: which selector SES actually uses. Confirm by reading
