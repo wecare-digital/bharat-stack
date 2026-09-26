@@ -94,11 +94,11 @@ recorded here (12/12 and 28/28) were stale — both suites have grown since.
 | `typecheck.js` | **3/3** |
 | `uicheck.js` | **96/96** |
 | `contactcheck.js` | **12/13** — the one failure is blocked on a Google Maps API key |
-| `homeprobe.js` | **5/11** — six open defects, see `docs/home-design-audit-20260926.md` |
+| `homeprobe.js` | **5/12** — seven open defects, see `docs/home-design-audit-20260926.md` |
 
 Those failures are left red deliberately. They are not tuned to pass.
 
-`homeprobe.js` exists because everything else here passed while six defects shipped. The
+`homeprobe.js` exists because everything else here passed while seven defects shipped. The
 other suites all measure one settled state: JS running, motion allowed, viewport fixed at
 load. Every `homeprobe` failure lives in a state none of them enters — JavaScript off,
 `prefers-reduced-motion`, or a resize after first paint. A suite that only tests the happy

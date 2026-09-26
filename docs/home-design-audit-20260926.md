@@ -6,10 +6,10 @@ from a harness run in this session against `out/` from `npm run build`, not from
 **The suites that already existed all pass, and none of them sees anything below.**
 `animcheck.js` 18/18 · `typecheck.js` 3/3 · `seocheck.js` 11/11 · `uicheck.js` 96/96 ·
 `check_design_drift.py` OK · `tests/test_design_drift_tokens.py` 33/33 ·
-`HomePage.test.tsx` 11/11. New gate `tools/browser/homeprobe.js`: **5/11**.
+`HomePage.test.tsx` 11/11. New gate `tools/browser/homeprobe.js`: **5/12**.
 
 That gap is the finding behind the findings. The existing suites all measure the happy
-path — JS running, motion allowed, viewport fixed at one width. Six of the defects below
+path — JS running, motion allowed, viewport fixed at one width. Seven of the defects below
 live in states none of them enters.
 
 ---
@@ -55,7 +55,26 @@ Three separate problems, not one:
 Fix is deletion for (1), a date for (2), and one string for (3) — but it is sitewide, so
 it wants its own commit and a re-run of `seocheck.js`.
 
-## H2 — With JavaScript off, the h1 is a sentence with no object
+## H2 — The pill paints empty, and not only without JavaScript
+
+**Amended after commit `869760f7`.** A parallel session found the same root cause (its F2)
+and one consequence this section originally missed: the empty pill is on the **happy path
+too**. `cycleW` starts `null`, so the first React render writes no inline width, and the
+measuring effect only runs after mount. Sampled per animation frame from document start:
+
+```
+170 frames sampled; 4 with .home-cycle width 0
+empty for ~194-206ms across 4 painted frames  (two runs: 206ms, 194ms)
+first painted width t=263ms w=278 inline=278px
+```
+
+So **every visitor**, with JavaScript working and on a fast local server, sees the headline
+as `Everyday AI, built for` with an empty pill for about 200ms. On a real network, behind
+hydration, it is longer. That is a flash of incomplete positioning on the site's most
+important h1, and it is the same single root cause as the no-JS case below — worth fixing
+once, not twice.
+
+### With JavaScript off, it never resolves at all
 
 Measured, JS disabled, 1280×900:
 
@@ -232,10 +251,48 @@ above) is filed against the wrong file. Checked against current source:
 
 1. **H1** — sitewide schema; own commit, re-run `seocheck.js`. Deletion plus two strings.
 2. **H3** then **H2** — one resize listener and one `.is-armed`-style inversion fix the
-   two together; `homeprobe.js` goes 5/11 → 10/11 with M4.
+   two together; `homeprobe.js` goes 5/12 → 10/12 with M4.
 3. **M4** — `visibility`/`inert` instead of bare `opacity:0`.
 4. **M6**, **L7**, **L8**, **L9** — one cleanup commit; no behaviour change except M6.
 5. **M5** — blocked on the owner: CTA wording, CTA destination, price above the fold.
 
 `homeprobe.js` is committed alongside this so each claim is re-runnable rather than
-re-argued. It fails 6 assertions today by design — it is the record of what is still open.
+re-argued. It fails 7 assertions today by design — it is the record of what is still open.
+
+---
+
+## Reconciliation with the parallel audit in `869760f7`
+
+Another session audited the same band while this ran. The two overlap on exactly two
+findings and are otherwise complementary, so **neither supersedes the other**.
+
+**Agreed, found independently:** its F1 = M5 here (no action, no focusable element above
+the fold) · its F2 = H2 here (the pill ships 0-width). F2 also caught the first-paint
+window, which is why H2 above is amended rather than left as a no-JS-only defect.
+
+**Only in `869760f7`** — all five are real and not covered here:
+
+| | Finding |
+|---|---|
+| F3 | 188px of blank white above the first word (108px header + 80px layout padding); the 80px was tuned around the deleted badge |
+| F4 | The positioning takes 9.6s to read (4 words × 2400ms) and cannot be paused — WCAG 2.2.2 territory, since it moves automatically for over 5s |
+| F5 | All-text fold; ~40% of the 1300px measure is empty and the first visual on the site is below it |
+| F6 | Header height `108`/`96` is a magic number in four files, while `design-tokens.ts` `layout.headerHeight` is `60` (the dashboard bar) |
+| F7 | `.btn` omits `'Inter'` from its font stack, so buttons render in the system face sitewide; `transition:all` also delays the focus ring |
+
+**Only here** — H1 (fake schema sitewide in `_app.tsx`), H3 (reduced-motion resize clip),
+M4 (invisible Tab stop), M6 (inverted reduced-motion rule), L7–L9.
+
+### Two mock directories now exist, and one should go
+
+- `docs/mocks/home-hero/index.html` — `869760f7`. Self-contained HTML, header and hero CSS
+  copied verbatim, three frames. **Interactive**, so the rotation and focus can be driven
+  by hand; **copied CSS**, so it can drift from `index.tsx` silently.
+- `docs/mockups/home-hero-20260926/` — this session. Screenshots taken by injecting into
+  the real static export, so fidelity cannot drift; **static**, so nothing can be clicked.
+
+The fidelity/interactivity trade is genuine and the duplication is not worth keeping.
+`docs/FRONTEND_DUPLICATION_AUDIT.md` exists because of exactly this pattern. Suggest
+keeping the injection approach (it cannot go stale) and folding the interactive frames into
+it as a `--serve` mode, then deleting the copied-CSS mock — but that is a call to make, not
+one to take quietly.

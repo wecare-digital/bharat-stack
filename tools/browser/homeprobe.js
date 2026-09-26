@@ -164,6 +164,41 @@ const pillState = () => {
       await ctx.close();
     }
 
+    // ---------------- 3b. the empty pill is on the HAPPY path too ----------------
+    // Independently found by commit 869760f7 (F2) while this audit was running, and worth
+    // its own assertion because it changes who is affected: not just no-JS visitors.
+    // cycleW starts null, so the first React render writes no inline width, and
+    // .home-cycle is inline-block with absolutely positioned children - intrinsic width 0.
+    // The measuring effect runs after mount, so there is a real window where every visitor
+    // sees an empty pill. Sampled per animation frame from document start.
+    console.log( '\nFirst paint, JS on - how long the pill is empty for everyone' );
+    {
+      const ctx = await browser.newContext( { viewport: { width: 1280, height: 900 } } );
+      await ctx.addInitScript( () => {
+        window.__w = [];
+        const tick = () => {
+          const el = document.querySelector( '.home-cycle' );
+          if ( el ) window.__w.push( { t: +performance.now().toFixed( 1 ), w: +el.getBoundingClientRect().width.toFixed( 1 ) } );
+          if ( window.__w.length < 240 ) requestAnimationFrame( tick );
+        };
+        requestAnimationFrame( tick );
+      } );
+      const page = await ctx.newPage();
+      await page.goto( url, { waitUntil: 'load' } );
+      await page.waitForTimeout( 2500 );
+      const s = await page.evaluate( () => window.__w );
+      const zero = s.filter( x => x.w === 0 );
+      const firstPainted = s.find( x => x.w > 0 );
+      const ms = firstPainted && s.length ? firstPainted.t - s[ 0 ].t : null;
+      console.log( `       ${s.length} frames sampled; ${zero.length} with width 0` );
+      check( zero.length === 0, 'the pill never paints empty on a normal load',
+        zero.length
+          ? `empty for ~${ms.toFixed( 0 )}ms across ${zero.length} frame(s) - cycleW starts null, `
+            + 'so the first render has no width and the effect only runs after mount'
+          : 'width present from the first sampled frame' );
+      await ctx.close();
+    }
+
     // ---------------- 4 & 5. focus order and action above the fold ----------------
     console.log( '\nFocus order and action above the fold @1280x900' );
     {
