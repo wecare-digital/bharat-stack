@@ -243,6 +243,6 @@ behaviour for the India call-notification path. Phase 2 adds that coverage
 
 `outbound-sms/handler.py:66-96` carries a docstring claiming
 `SnapStart.ApplyOn=PublishedVersions`. Measured live: SnapStart is `None`/`Off`
-on all 62 functions. The lazy-load behaviour it describes is still correct and
+on all 65 functions (re-measured 2026-09-26). The lazy-load behaviour it describes is still correct and
 still required — for warm-sandbox caching rather than snapshotting — so the code
 stays and the comment is corrected where the file survives.

@@ -21,12 +21,12 @@ evidence — it must be re-read from the provider before any mutation.
 | SnapStart | `ApplyOn=None` on 58 of 58 | Matches `lambda-snapstart-deploy` steering. |
 | Functions with `live` alias | **49** | The alias, not SnapStart, is what makes publish-and-move mandatory. |
 | Functions with no alias | **9**: `wecare-ad-attribution`, `wecare-docs-scraper`, `wecare-marketing-ads`, `wecare-partner-onboarding`, `wecare-partner-token-refresh`, `wecare-push-notifications`, `wecare-seo-tools`, `wecare-sla-engine`, `wecare-url-shortener` | `update-function-code` reaches production immediately for these. |
-| HTTP APIs | **2**: `zllr9lrg7j` (`wecare-digital-api`, 329 routes), `79g3bbufdh` (`wecare-api`, 3 routes) | The brief and prior audits only ever describe `zllr9lrg7j`. |
+| HTTP APIs | **1**: `zllr9lrg7j` (`wecare-digital-api`, 361 routes) | `79g3bbufdh` (`wecare-api`) was deleted 2026-09-21; see `prohibited-provider-retirement.md`. |
 | REST APIs (v1) | 0 | |
 | Stages | `prod` on both APIs, `AutoDeploy=true` | Route edits take effect immediately. |
-| API Gateway authorizers | **0 on both APIs** | All 332 routes are `AuthorizationType=NONE`. |
+| API Gateway authorizers | **0** | All **361** routes are `AuthorizationType=NONE` (re-measured 2026-09-26; the surface grew by 29 while authorization stayed at zero). |
 | Integrations | 102 on `zllr9lrg7j`, 2 on `79g3bbufdh` | |
-| DynamoDB tables | **66** | Brief said 67. Recount before any table action. |
+| DynamoDB tables | **79** | Re-measured 2026-09-26; 67 of them are empty. Recount before any table action. |
 | Secrets Manager entries | **31** — 25 active, 6 scheduled for deletion | Values never read. |
 | Cognito user pool | `us-east-1_cSx0RHCIR` / `WECARE.DIGITAL`; clients `stack-wecare-digital-web`, `WECARE.DIGITAL` | |
 | Cognito MFA | `MfaConfiguration=OFF`; SMS MFA config present but inactive; TOTP not reported enabled | Owner overrides require admin MFA implemented and verified. |

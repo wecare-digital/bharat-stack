@@ -6,32 +6,38 @@ inclusion: always
 
 **Corrected 2026-09-19 against the live account.** This file previously stated
 that all ~49 Python functions behind the main HTTP API (`zllr9lrg7j`) run with
-`SnapStart.ApplyOn = PublishedVersions`. That is not true. Measured across all
-62 functions in `us-east-1` (account 775261844268) via
+`SnapStart.ApplyOn = PublishedVersions`. That is not true. Measured across every
+function in `us-east-1` (account 775261844268) via
 `GetFunctionConfiguration`, at both `$LATEST` and every published version:
 
-    SnapStart.ApplyOn = None,  OptimizationStatus = Off      62 of 62
+    SnapStart.ApplyOn = None,  OptimizationStatus = Off      every function
+
+Re-confirmed 2026-09-26 across all **65** functions: still `None` on every one.
 
 The deploy rule below is unchanged and still mandatory — but it is the **`live`
 alias** that makes it mandatory, not SnapStart.
 
 ## Key facts
 
-- Runtime: python3.12, x86_64, 62 of 62 functions.
-- **56 of 62 functions have a `live` alias. Only these 6 do not:**
-  `wecare-ad-attribution`, `wecare-docs-scraper`,
+- Runtime: python3.12 on 64 of 65; `wecare-docs-scraper` is `PackageType=Image`.
+- **58 of 65 functions have a `live` alias. Only these 7 do not** (re-measured
+  2026-09-26):
+  `wecare-ad-attribution`, `wecare-docs-scraper`, `wecare-get-miss-redirect`,
   `wecare-partner-token-refresh`, `wecare-seo-tools`, `wecare-sla-engine`,
   `wecare-url-shortener` (the unused twin of `stack-wecare-url-shortener`).
+  `wecare-get-miss-redirect` is a Lambda@Edge function: CloudFront associates it
+  by published VERSION and an alias is not a valid association target, so it must
+  not gain one.
   The HTTP API integrations invoke the alias where one exists (e.g.
-  `...:function:wecare-contacts:live`), so for those 56, `$LATEST` changes do
+  `...:function:wecare-contacts:live`), so for those 58, `$LATEST` changes do
   NOT reach production until a version is published and the alias is moved.
-  For the 6 above, `update-function-code` takes effect immediately.
+  For the 7 above, `update-function-code` takes effect immediately.
   Counted sequentially with retries over `ListFunctions` + `ListAliases`,
   0 errors. An earlier concurrent count reported 34/28 because failed calls
   were silently treated as "no alias" — do not trust a count that does not
   report its error total.
 
-  **Re-measured 2026-09-25: was 53/9.** `wecare-marketing-ads`,
+  **Drift history: 56/6 -> 53/9 (2026-09-25) -> 58/7 (2026-09-26).** `wecare-marketing-ads`,
   `wecare-partner-onboarding` and `wecare-push-notifications` have since gained
   a `live` alias — `provision_live_alias.py` and `provision_missing_ui_routes.py`
   create them, and both files note that doing so immediately moves those

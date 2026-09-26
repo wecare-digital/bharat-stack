@@ -373,13 +373,15 @@ Routes on HTTP API `zllr9lrg7j` (stage `prod`, AutoDeploy, custom domain
 canonical pattern is `scripts/register_task12_routes.py` with full rollback.
 
 **Route capacity:** `meta-business-agent/SETUP.md:31-33` records being blocked on
-a 300-route cap. Measured live on 2026-09-19: **342 routes exist**, so the cap
-has since been raised. New Plivo routes are not blocked.
+a 300-route cap. Measured live on 2026-09-19: **342 routes**; re-measured
+2026-09-26: **361 routes**. So the cap has since been raised and new Plivo
+routes are not blocked.
 
 Aliases matter: integrations target `function:live`, so `$LATEST` changes do not
 reach production until a version is published and the alias moved
-(`.kiro/steering/lambda-snapstart-deploy.md`). 53 of 62 functions have a `live`
-alias.
+(`.kiro/steering/lambda-snapstart-deploy.md`). **58 of 65** functions have a `live`
+alias, re-measured 2026-09-26. The ratio drifts as aliases are provisioned, so
+re-derive it rather than quoting this line.
 
 ---
 

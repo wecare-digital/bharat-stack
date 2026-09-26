@@ -221,7 +221,7 @@ sign callbacks — and the hangup pass is a callback and is the one with the SMS
 side effect. So `/plivo/hangup` and `/plivo/events` get signature validation;
 `/plivo/answer` keeps the `?token=` gate.
 
-Route capacity is fine: 342 routes exist and the old 300 cap has been raised.
+Route capacity is fine: 361 routes exist as of 2026-09-26 and the old 300 cap has been raised.
 
 **7b — choose one owner for the post-call SMS.** Recommended: the media leg
 (`plivo-answer`), because it is the leg that will own the call once Plivo serves

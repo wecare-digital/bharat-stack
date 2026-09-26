@@ -78,7 +78,7 @@ highest *proven* state, with the evidence that proves it.
 | Wix commerce / site | `DEPLOYED` | Existing site preserved, no duplicate created. Domain layer lifted; equivalence proven over 64 golden cases, 0 differences |
 | Security / compliance | `DEPLOYED` | Raw-body signatures, 0 open routes, WAF enforcing on both carrying surfaces, MFA staged. Admin *data-path* proof blocked — §4 |
 | Cleanup / storage | `DEPLOYED` | Route, dependency and bundle cleanup with manifests and rollback |
-| Deployment / operations | `DEPLOYED` | 62 functions, 0 alias drift, snapshots for rollback, 5/5 CI green |
+| Deployment / operations | `DEPLOYED` | 65 functions, 0 alias drift (re-measured 2026-09-26), snapshots for rollback, 5/5 CI green |
 | Final reporting | `LIVE_VERIFIED` | `PHASE-10.3-CLOSURE.md` plus this document |
 
 ### 2.1 What this session actually changed

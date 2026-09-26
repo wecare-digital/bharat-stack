@@ -11,7 +11,7 @@ integration whose target Lambda does not exist", conditional on this export.
 
 ## Why these are safe to remove
 
-Both target Lambdas are **absent from the live fleet** (58 functions measured, and
+Both target Lambdas are **absent from the live fleet** (65 functions measured 2026-09-26, and
 `targetFunctionExists` is `false` for both). An API Gateway route whose
 `AWS_PROXY` integration points at a deleted function cannot execute anything — it
 can only return an error. So there is no traffic to drain and no behaviour to

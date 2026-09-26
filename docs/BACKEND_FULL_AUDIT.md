@@ -4,9 +4,11 @@ Companion to `FRONTEND_FULL_AUDIT.md`. Account `775261844268` · `us-east-1` · 
 Covers every Lambda, table, AWS resource, and secret, with gaps + a phased plan (autopilot-safe vs gated).
 
 ## 0. Snapshot
-- **54 Lambdas** (`python3.12`), deployed via `scripts/_deploy_everything.py` (**outside IaC**).
-- **~61 DynamoDB tables** · **4 SQS** · **1 Cognito pool** · **3 EventBridge rules** · **11 secrets** · **2 S3** · HTTP API Gateways.
-- Alarms + DLQs + dashboard + 90-day logs exist (CDK). **PITR ON**, **TTL now ON (19 tables)**, **email alert confirmed**.
+- **65 Lambdas** (64 `python3.12` Zip + 1 Image), deployed via `scripts/deploy_all_lambdas.py` (**outside IaC** — no CloudFormation stack owns them; `stack-wecare-digital-` is a name prefix, not a stack).
+- **79 DynamoDB tables** · **8 SQS** · **2 Cognito pools** · **6 EventBridge rules** · **31 secrets** · **6 S3** · **1** HTTP API (`zllr9lrg7j`, 361 routes).
+- 41 alarms + 6 DLQs + 1 dashboard + retention on all 81 log groups. **PITR ON** (67 of 79), **TTL ON**, **email alert confirmed**.
+
+> Counts re-measured **2026-09-26** with `python scripts/aws_account_inventory.py` (0 collector errors). Do not hand-edit them — regenerate `docs/execution/aws-inventory.md` and read it there.
 
 ## 1. Lambda functions (by domain)
 **Core (5):** contacts (`/contacts`), messages-read (`/messages`), messages-delete, faq-handler (`/faq`), url-shortener (`/link`).
@@ -49,11 +51,12 @@ Status: **TTL enabled on 19** (fixed this cycle); **PITR ON** (key tables); most
 Per-table risks: single-table GSIs mostly fine; verify **PAY_PER_REQUEST** billing on all (throttle-free).
 
 ## 4. Other AWS resources
-- **SQS (4):** bulk-queue → bulk-dlq (maxReceive 3), inbound-dlq, outbound-dlq. Good. DLQ-depth + stuck-queue alarms exist.
-- **EventBridge (3):** media-cleanup-daily, scheduled-messages (5-min), + AWS-managed health. **Gap: no target DLQ / FailedInvocations alarm** → silent scheduler misses.
-- **Cognito (1):** `WECARE.DIGITAL`. **Gap: verify Advanced Security + MFA + deletion protection; no user-export DR.**
+- **SQS (8):** bulk-queue → bulk-dlq and notification-queue → notification-dlq (both maxReceive 3), plus inbound-dlq, outbound-dlq, wecare-eventbridge-dlq, wecare-lambda-async-dlq.
+  **Corrected 2026-09-26:** the claim that DLQ-depth alarms "exist. Good." was false. Two named a `base-wecare-digital-` queue prefix that no longer existed and returned **zero datapoints over 6 hours**, and the notification DLQ had no alarm at all. All six now alarm on `Maximum > 0` against a real queue — see `scripts/provision_alarm_coverage.py --verify`.
+- **EventBridge (6):** media-cleanup-daily, scheduled-messages (5-min), docs-scraper-daily, partner-token-refresh-daily, amplify-build-failed, + AWS-managed notifications. `FailedInvocations` alarms now exist for media-cleanup and scheduled-messages; docs-scraper-daily and partner-token-refresh-daily still have **no target DLQ**.
+- **Cognito (2):** `WECARE.DIGITAL` (staff, MFA `OPTIONAL`, deletion protection ACTIVE, groups Admin/Operator/Partner/Viewer) and `WECARE.DIGITAL-CUSTOMERS` (public passwordless WhatsApp OTP, MFA OFF, deletion protection INACTIVE). Both are behind the `wecare-cognito-waf` web ACL. **Gap: Advanced Security is `None` on both; no user-export DR.**
 - **API Gateway:** HTTP APIs for wa-business / service / url-shortener. **Gap: no 5xx/latency alarms.**
-- **S3 (2):** `app.wecare.digital` (media) + CDK assets. (Versioning de-scoped by owner.)
+- **S3 (6):** `app.wecare.digital`, CDK assets, `wecare-digital-get`, `wecare-digital-mta-sts`, `wecare-credential-backups-*`, `wecare-maintenance-reports-*`. All encrypted, all with a full public-access block, versioning on 5 of 6.
 - **SNS:** `stack-wecare-digital` alarm topic — email `one@wecare.digital` **confirmed**.
 - **KMS:** keys present. (Rotation de-scoped by owner.)
 
