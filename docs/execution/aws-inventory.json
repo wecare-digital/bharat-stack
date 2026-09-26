@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-26T05:12:06.125886+00:00",
+  "generated": "2026-09-26T06:08:00.092204+00:00",
   "account": "775261844268",
   "identity_arn": "arn:aws:iam::775261844268:user/wecare-admin",
   "region": "us-east-1",
@@ -40,9 +40,9 @@
         ],
         "memory": 256,
         "timeout": 10,
-        "last_modified": "2026-09-25T11:01:51.000+0000",
-        "code_sha256": "M936s3rY3Bjs52P614LH7Nk9X2fTvb8O1m8i5R8gCdo=",
-        "code_size": 266070,
+        "last_modified": "2026-09-26T05:55:17.000+0000",
+        "code_sha256": "NKrn1nJEMz3UYVkuEPHdSUplmSians8InKSVzZLUFys=",
+        "code_size": 268000,
         "layers": [],
         "env_var_names": [
           "LINK_CLICKS_TABLE",
@@ -53,7 +53,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "12"
+        "live_alias_version": "13"
       },
       {
         "name": "wecare-ad-attribution",
@@ -64,9 +64,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:04:08.000+0000",
-        "code_sha256": "WJTvd/68uJ2DaWuXdedlXiktIc9zUHB07kBqtOaCzI8=",
-        "code_size": 264334,
+        "last_modified": "2026-09-26T05:57:11.000+0000",
+        "code_sha256": "C/ci7BEjRnD0cskUVGwgGpW9grTm+uUzu39xwA4NPHw=",
+        "code_size": 266264,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
@@ -82,9 +82,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:04:30.000+0000",
-        "code_sha256": "9BVuQA+NnAL2+SG1ee1NsgzqR6waU/7CWReBhgAW0z4=",
-        "code_size": 269085,
+        "last_modified": "2026-09-26T05:57:33.000+0000",
+        "code_sha256": "YhvHavdnIhoQBCtozfhTEwoh4IjWo8smJ9ejqPG8rBM=",
+        "code_size": 271015,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -99,7 +99,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "19"
+        "live_alias_version": "20"
       },
       {
         "name": "wecare-ai-config-management",
@@ -110,9 +110,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:04:27.000+0000",
-        "code_sha256": "8f9nUyCWtTMmanoCmOYBpfJ6gphuwTqr0yIYGPcWr04=",
-        "code_size": 268729,
+        "last_modified": "2026-09-26T05:57:30.000+0000",
+        "code_sha256": "IVP3tWdYDmqDGfz66pdOeToMIoADNj2eUISw53xqYkQ=",
+        "code_size": 270659,
         "layers": [],
         "env_var_names": [
           "AI_INTERACTIONS_TABLE",
@@ -126,7 +126,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-ai-generate-response",
@@ -137,9 +137,9 @@
         ],
         "memory": 1024,
         "timeout": 120,
-        "last_modified": "2026-09-25T11:04:24.000+0000",
-        "code_sha256": "hRhunXvNEzZPenL488GjnL3VMSBH7Oiu8QM7dzekgsQ=",
-        "code_size": 315044,
+        "last_modified": "2026-09-26T05:57:27.000+0000",
+        "code_sha256": "ZTkzaqSrOz9n/WOLY5yuIeTBM6tfC7SSyjGSxFBzf2g=",
+        "code_size": 316974,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
@@ -162,7 +162,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "19"
+        "live_alias_version": "20"
       },
       {
         "name": "wecare-ai-query-kb",
@@ -173,9 +173,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:04:21.000+0000",
-        "code_sha256": "l9Qhpr4SqgbCLw9yWZokqxFA6oJvBzIi78WRNhE5xxI=",
-        "code_size": 262588,
+        "last_modified": "2026-09-26T05:57:24.000+0000",
+        "code_sha256": "Gmk+NGMTIWMdvyyc495gMvdmQlT+Dbq91oKihC+ryTw=",
+        "code_size": 264518,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -188,7 +188,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-auth-middleware",
@@ -199,9 +199,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:00:54.000+0000",
-        "code_sha256": "SNVYyrBSUMtOJSdwAnamqI57VYN3YTNPwY9/Df/yPps=",
-        "code_size": 262981,
+        "last_modified": "2026-09-26T05:54:32.000+0000",
+        "code_sha256": "TOJG24iEnJGEg6A0psjNKaD8qmoq8fcoFsUKmYSOGng=",
+        "code_size": 264911,
         "layers": [],
         "env_var_names": [
           "COGNITO_USER_POOL_ID",
@@ -211,7 +211,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "14"
+        "live_alias_version": "15"
       },
       {
         "name": "wecare-automation-rules",
@@ -222,9 +222,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:00:59.000+0000",
-        "code_sha256": "SiwOBRCJYJxI9cOqQe7h0kFXeAhrgkPFdbWnWXjkmsA=",
-        "code_size": 263083,
+        "last_modified": "2026-09-26T05:54:35.000+0000",
+        "code_sha256": "Gfdw00pItWLN1W8U8YzeDTxkt/jkqW8vmW1EDD1esMY=",
+        "code_size": 265013,
         "layers": [],
         "env_var_names": [
           "AUTOMATION_RULES_TABLE",
@@ -234,7 +234,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "12"
+        "live_alias_version": "13"
       },
       {
         "name": "wecare-billing",
@@ -245,9 +245,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:04:33.000+0000",
-        "code_sha256": "t4naCrUj1aOIj9Hu/l99hGyXYDnIK3mcQQGE7Y5DhlM=",
-        "code_size": 269111,
+        "last_modified": "2026-09-26T05:57:36.000+0000",
+        "code_sha256": "Oi/yxyxoXZBgO4KuuMuEPLvicdQT2qqZeTPgTKVFims=",
+        "code_size": 271041,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -258,7 +258,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-bulk-job-control",
@@ -269,9 +269,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:04:42.000+0000",
-        "code_sha256": "1pqQBHJeHj1RHCk7yz5fZubkRIkBmwXLIdmB+fM0CI4=",
-        "code_size": 264951,
+        "last_modified": "2026-09-26T05:57:41.000+0000",
+        "code_sha256": "MO3YryHAyKwKb2zK8GvYvK0quD+mJqmTYJgtrh90uSI=",
+        "code_size": 266881,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -287,7 +287,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-bulk-job-create",
@@ -298,9 +298,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:04:36.000+0000",
-        "code_sha256": "fhgyr71/ex5hJjkVlm27h3KXz2lDZGCh3GRvgvIXZ9M=",
-        "code_size": 265178,
+        "last_modified": "2026-09-26T05:57:38.000+0000",
+        "code_sha256": "DGYMhurBvdEZlEypqy/PSul7pEpxS4ty3ISBEK5dMc0=",
+        "code_size": 267108,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -315,7 +315,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-bulk-worker",
@@ -326,9 +326,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T03:52:32.000+0000",
-        "code_sha256": "cYP0Sh/jj/RNSBgZb7Nn2/x8jJR7Vo5dtuEBHmpcunw=",
-        "code_size": 267525,
+        "last_modified": "2026-09-26T05:57:47.000+0000",
+        "code_sha256": "cYCkyLjUt1pjGjmbOwN+FhCZR0vc66RHUiyPKIrjlVs=",
+        "code_size": 267519,
         "layers": [],
         "env_var_names": [
           "BULK_JOBS_TABLE",
@@ -343,7 +343,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-catalog-management",
@@ -354,16 +354,16 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:05:49.000+0000",
-        "code_sha256": "1e0y3QKfad2V/hli6OqOF3MeZP8W0N17ei4Z1Ecf9ec=",
-        "code_size": 264498,
+        "last_modified": "2026-09-26T05:58:43.000+0000",
+        "code_sha256": "rgJNqRbq4ugYIzbYbwtx3P3ZwEPgrSX0+4lpkaGfvm4=",
+        "code_size": 266428,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "12"
+        "live_alias_version": "13"
       },
       {
         "name": "wecare-cognito-custom-message",
@@ -374,7 +374,7 @@
         ],
         "memory": 256,
         "timeout": 10,
-        "last_modified": "2026-09-25T11:01:44.000+0000",
+        "last_modified": "2026-09-26T05:55:12.000+0000",
         "code_sha256": "jP9uNBTpWwqBKn+Uc9tXPlzGFTLJznjv5MMlXZC/bfQ=",
         "code_size": 5085,
         "layers": [],
@@ -398,9 +398,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:01:03.000+0000",
-        "code_sha256": "WFnIdzYQC6UY/xtIwrd3aYv4LlZk5JxAm/dg9ObuqBA=",
-        "code_size": 268032,
+        "last_modified": "2026-09-26T05:54:38.000+0000",
+        "code_sha256": "vG+Hmft5SvjyFlKF63E21mpVlNTrGjf0NuarpIw4JPU=",
+        "code_size": 269962,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -413,7 +413,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-conversation-meta",
@@ -424,9 +424,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:01:11.000+0000",
-        "code_sha256": "htXs8Nzi5xWrYRTmR0u2hOVi/1PNMp18wnGYMlEvjrg=",
-        "code_size": 263014,
+        "last_modified": "2026-09-26T05:54:41.000+0000",
+        "code_sha256": "1oJ5YS2Mzoc0yPWRnGzCGOkOvHx5xG6wQ3dSvclPoYU=",
+        "code_size": 264944,
         "layers": [],
         "env_var_names": [
           "CONVERSATION_META_TABLE",
@@ -436,7 +436,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "12"
+        "live_alias_version": "13"
       },
       {
         "name": "wecare-crm",
@@ -447,9 +447,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:01:18.000+0000",
-        "code_sha256": "CuQSQNYvsN0fUjdjz7xEmWO3gOYtMhe5CjW5n7gSIz8=",
-        "code_size": 269165,
+        "last_modified": "2026-09-26T05:54:46.000+0000",
+        "code_sha256": "orQUWQMdVqye5WtjWlMzwtqb6yU9LLAmDVBig3xqGsQ=",
+        "code_size": 271095,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
@@ -465,7 +465,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "8"
+        "live_alias_version": "9"
       },
       {
         "name": "wecare-customer-whatsapp-auth",
@@ -476,7 +476,7 @@
         ],
         "memory": 256,
         "timeout": 15,
-        "last_modified": "2026-09-25T11:33:42.000+0000",
+        "last_modified": "2026-09-26T05:55:09.000+0000",
         "code_sha256": "KB3Jr131Ndmq7+J1CR/M46DtTysWrZB5kHqF+Lutrng=",
         "code_size": 4645,
         "layers": [],
@@ -506,9 +506,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:04:51.000+0000",
-        "code_sha256": "HMQRSfCesc1yDKL7StayyNIJ+sIdUqmaIniYcwhFDvg=",
-        "code_size": 264982,
+        "last_modified": "2026-09-26T05:57:50.000+0000",
+        "code_sha256": "fy2k2zWsvuq7KVQLkYuzHRmZb71Bto19HgP5rHhi9ms=",
+        "code_size": 266912,
         "layers": [],
         "env_var_names": [
           "DLQ_URL",
@@ -520,7 +520,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-docs-scraper",
@@ -549,16 +549,16 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:01:22.000+0000",
-        "code_sha256": "jE0YO9gj46jnIvesprpN3wowt7YNQ3EgVAHBserBji8=",
-        "code_size": 265060,
+        "last_modified": "2026-09-26T05:54:49.000+0000",
+        "code_sha256": "Jlk+XckfgNj7XP7zc9PERPV52oz3pobOQpzlXJDDLuc=",
+        "code_size": 266990,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-get-miss-redirect",
@@ -587,9 +587,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T05:11:05.000+0000",
-        "code_sha256": "w5tW4PVAqVS2G0dAN0CBcCGJIJiYIgm+t1XCUIUAmW8=",
-        "code_size": 347672,
+        "last_modified": "2026-09-26T05:55:20.000+0000",
+        "code_sha256": "kuQaMsbHdBnP/l1m143e1+JWILrvy4IQzLMFU3+h348=",
+        "code_size": 349440,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
@@ -604,7 +604,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "52"
+        "live_alias_version": "53"
       },
       {
         "name": "wecare-invoice-engine",
@@ -615,9 +615,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:05:30.000+0000",
-        "code_sha256": "zVuJLDjoKRic30+akTMAmtBjlKDHh5kdQjVsL4NM7HI=",
-        "code_size": 290863,
+        "last_modified": "2026-09-26T05:58:13.000+0000",
+        "code_sha256": "GGpgE/Bf+SMDnjkd9mqGzxPLTn/0XrsmeCJk+2BnYCI=",
+        "code_size": 292793,
         "layers": [
           "pillow-python312:2"
         ],
@@ -637,7 +637,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "25"
+        "live_alias_version": "26"
       },
       {
         "name": "wecare-marketing-ads",
@@ -648,9 +648,9 @@
         ],
         "memory": 256,
         "timeout": 45,
-        "last_modified": "2026-09-25T11:04:12.000+0000",
-        "code_sha256": "rSgrjl5uLRdQyn/E9w/cwOKupXTVdHe61rCpYmhx6GI=",
-        "code_size": 267279,
+        "last_modified": "2026-09-26T05:57:16.000+0000",
+        "code_sha256": "hfy2ezG6HbEgI+peqpQNIYvrWwWPu5BKmYpxOPDbB64=",
+        "code_size": 269209,
         "layers": [
           "cryptography-python312:1"
         ],
@@ -670,7 +670,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "14"
+        "live_alias_version": "15"
       },
       {
         "name": "wecare-media-cleanup",
@@ -681,9 +681,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:02:46.000+0000",
-        "code_sha256": "cB8QzC4OfGafFiVvtyRnoEr2Pt25N6i5Ou2aFHj79U4=",
-        "code_size": 263876,
+        "last_modified": "2026-09-26T05:56:06.000+0000",
+        "code_sha256": "aYAww0dGEv+SRLEhtMDgOG3xkBB3BjExR16DD4P/GYI=",
+        "code_size": 265806,
         "layers": [],
         "env_var_names": [
           "CLEANUP_AGE_DAYS",
@@ -696,7 +696,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-messages-delete",
@@ -707,9 +707,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:01:27.000+0000",
-        "code_sha256": "c4XK8zRZC4AqC9M833wSTXg3azvcW8A0JgTA1de0yYU=",
-        "code_size": 265775,
+        "last_modified": "2026-09-26T05:54:55.000+0000",
+        "code_sha256": "UGOe7W/C/gyUbTcL6Z+oI66fEbW+LUo4wrbuuqNRTj0=",
+        "code_size": 267705,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -721,7 +721,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-messages-read",
@@ -732,9 +732,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:01:30.000+0000",
-        "code_sha256": "QJ5PcPzIzO1i8lUclQ7iSuwskihLt2SSeGbimr2uDdw=",
-        "code_size": 268155,
+        "last_modified": "2026-09-26T05:54:58.000+0000",
+        "code_sha256": "xMV0vOFKnmi8zH2ZUu1kz4myWUyzRk2dpmK8Y4VCDGI=",
+        "code_size": 270085,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -745,7 +745,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-meta-analytics",
@@ -756,16 +756,16 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:04:04.000+0000",
-        "code_sha256": "xgFFjovQs3gv20OUR/swj0scZxuJftZxcr4yGMqHqec=",
-        "code_size": 264025,
+        "last_modified": "2026-09-26T05:57:08.000+0000",
+        "code_sha256": "BOUV2wCvMurp/raGu82AF3sOVrd5ktasA7KRc37qRHk=",
+        "code_size": 265955,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "12"
+        "live_alias_version": "13"
       },
       {
         "name": "wecare-meta-business-agent",
@@ -776,16 +776,16 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:04:18.000+0000",
-        "code_sha256": "VzfXF0P8ZOvL1+8PIJ6gKE9XzbL1REbSoMpVmaW3e9k=",
-        "code_size": 273876,
+        "last_modified": "2026-09-26T05:57:22.000+0000",
+        "code_sha256": "3ar9VUbNqu6deEM3j8J0pv9yuxvVOebuHHqNd+lzNPw=",
+        "code_size": 275806,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "27"
+        "live_alias_version": "28"
       },
       {
         "name": "wecare-notification-worker",
@@ -796,9 +796,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-25T11:03:38.000+0000",
-        "code_sha256": "PpnNY64678jyFroCEes2VLUHuJTBUf3aaNmz+F9ZGEk=",
-        "code_size": 263908,
+        "last_modified": "2026-09-26T05:56:45.000+0000",
+        "code_sha256": "bU+AYAeUhIopri9oNiY2h0CKtifjk5Xfy85OMaoMvOQ=",
+        "code_size": 265838,
         "layers": [],
         "env_var_names": [
           "NOTIF_SWEEP_LIMIT"
@@ -807,7 +807,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "9"
+        "live_alias_version": "10"
       },
       {
         "name": "wecare-outbound-email",
@@ -818,9 +818,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:03:10.000+0000",
-        "code_sha256": "AsgmPod0868e2Zwd5mMcuZfztWLKkmPC3RECRmNjY2U=",
-        "code_size": 263964,
+        "last_modified": "2026-09-26T05:56:25.000+0000",
+        "code_sha256": "jb92w6Tb+x/mTLXZyj/m1KSbJQHKnhRF7vN6Pt9oL+I=",
+        "code_size": 265894,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -836,7 +836,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-outbound-sms",
@@ -847,9 +847,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:03:06.000+0000",
-        "code_sha256": "BAPYWpjd8i7+6BpiHw5LePBs2qlmhprOtIx1wSLu2gk=",
-        "code_size": 265622,
+        "last_modified": "2026-09-26T05:56:23.000+0000",
+        "code_sha256": "78oKb5gICHQOLe4hbrss9LNAyHD75ReSCAKkUtv5XVE=",
+        "code_size": 267552,
         "layers": [],
         "env_var_names": [
           "AIRTEL_IQ_ENTITY_ID",
@@ -865,7 +865,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-outbound-whatsapp",
@@ -876,9 +876,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:02:00.000+0000",
-        "code_sha256": "/EVTbkbkUkhxLNNsZwEAy1Ai4ktEhtdrEOpgIMtOKEg=",
-        "code_size": 307262,
+        "last_modified": "2026-09-26T05:55:23.000+0000",
+        "code_sha256": "eastfgW28F5Kj5FVc0NHrIweGTZoZKXGb99rEXEbL/8=",
+        "code_size": 309192,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -898,7 +898,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "28"
+        "live_alias_version": "29"
       },
       {
         "name": "wecare-partner-onboarding",
@@ -909,9 +909,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T03:52:18.000+0000",
-        "code_sha256": "BrXGaZtFMKnre7tj5fPK0iPMAp3wiGReW4dwdpFWmuU=",
-        "code_size": 272555,
+        "last_modified": "2026-09-26T05:56:12.000+0000",
+        "code_sha256": "YbQFhM1zZst5K7iRdOlmqWCloZyJUHlaAa8bZbEbKew=",
+        "code_size": 272549,
         "layers": [
           "cryptography-python312:1"
         ],
@@ -935,7 +935,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-partner-token-refresh",
@@ -946,9 +946,9 @@
         ],
         "memory": 256,
         "timeout": 120,
-        "last_modified": "2026-09-25T11:02:58.000+0000",
-        "code_sha256": "j6alVxgsNNCilkvy+Dz1tnV+YaumImZHvOLmOjkQVgA=",
-        "code_size": 263952,
+        "last_modified": "2026-09-26T05:56:17.000+0000",
+        "code_sha256": "D85KEopM36Qg2Dd1Y2fTP/TRq8/Qod8LAYCe2BRyhFY=",
+        "code_size": 265882,
         "layers": [
           "cryptography-python312:1"
         ],
@@ -974,9 +974,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:05:08.000+0000",
-        "code_sha256": "c+FZhIIFaWQSUDZbuMryooQHqqbpkfs1InZoNGCReP4=",
-        "code_size": 264290,
+        "last_modified": "2026-09-26T05:58:04.000+0000",
+        "code_sha256": "ONenho9+H/sy3evthZQDGLJR7Czi9xG1qK0pyZ1RRRo=",
+        "code_size": 266220,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -987,7 +987,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "18"
       },
       {
         "name": "wecare-plivo-answer",
@@ -998,9 +998,9 @@
         ],
         "memory": 256,
         "timeout": 15,
-        "last_modified": "2026-09-25T11:03:41.000+0000",
-        "code_sha256": "TGZeFNSIWYX5EIs7416b5zRzbXNo3enO4gUFZHDKWUw=",
-        "code_size": 275479,
+        "last_modified": "2026-09-26T05:56:51.000+0000",
+        "code_sha256": "FKizCU7mruH5s32uLBfZSjgONawRH9SXfUZTlN4+xBw=",
+        "code_size": 277409,
         "layers": [],
         "env_var_names": [
           "DLT_TEMPLATE_KEY",
@@ -1012,7 +1012,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "21"
+        "live_alias_version": "22"
       },
       {
         "name": "wecare-product-image-gen",
@@ -1023,9 +1023,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:05:43.000+0000",
-        "code_sha256": "HlJ+vj6VJkxQ5umFlPeX8m7kRGNAhGMSQDtCOD5XZW4=",
-        "code_size": 269685,
+        "last_modified": "2026-09-26T05:58:38.000+0000",
+        "code_sha256": "3XGHNk6D1/eYZjDHmidEw3wVP1W9sEo3lJOF4Y1xZT4=",
+        "code_size": 271615,
         "layers": [
           "Klayers-p312-Pillow:10"
         ],
@@ -1039,7 +1039,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "18"
       },
       {
         "name": "wecare-pstn-softphone",
@@ -1050,9 +1050,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T03:52:27.000+0000",
-        "code_sha256": "6UkNir/Vt2Ye4fo4VmUdzXjRJMLwnUXqqSvmAITWzz4=",
-        "code_size": 269027,
+        "last_modified": "2026-09-26T05:56:54.000+0000",
+        "code_sha256": "QACwET5juXtm3Mb16I+CluRcJBtYPUIf7TrHScXjc/8=",
+        "code_size": 269021,
         "layers": [],
         "env_var_names": [
           "PLIVO_API_SECRET_ID",
@@ -1064,7 +1064,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "2"
+        "live_alias_version": "3"
       },
       {
         "name": "wecare-push-notifications",
@@ -1075,16 +1075,16 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:03:53.000+0000",
-        "code_sha256": "6Y+EbHPEWSHdwhC9h9a4e18VX5bzc0B4IPJ52F1BAJw=",
-        "code_size": 264362,
+        "last_modified": "2026-09-26T05:57:02.000+0000",
+        "code_sha256": "xQ9HO2fJTSjCHP8wNFfD2J9DkjYctIGlyjrBuJdFzwE=",
+        "code_size": 266292,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "14"
+        "live_alias_version": "15"
       },
       {
         "name": "wecare-razorpay-webhook",
@@ -1095,9 +1095,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:33:08.000+0000",
-        "code_sha256": "dw+tEvyJC/kIvFEdHAVhf2ErqeHjPDyBfraMMyY8bMc=",
-        "code_size": 281838,
+        "last_modified": "2026-09-26T05:58:01.000+0000",
+        "code_sha256": "I3M3QydpqZ13H6HZZQ+RZnYgsocj65vCjAlxVz22cv4=",
+        "code_size": 283768,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1116,7 +1116,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "36"
+        "live_alias_version": "37"
       },
       {
         "name": "wecare-rcs-dlr",
@@ -1127,9 +1127,9 @@
         ],
         "memory": 256,
         "timeout": 15,
-        "last_modified": "2026-09-25T11:03:50.000+0000",
-        "code_sha256": "lUVL9b6R/C0ZL25C9ejYHrv49DrXzSejTrOz/T37c9I=",
-        "code_size": 268328,
+        "last_modified": "2026-09-26T05:56:59.000+0000",
+        "code_sha256": "NZQwBfgwzqeChQocklJuCFU0dzG//kwV44DXfYil4uk=",
+        "code_size": 270258,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
@@ -1140,7 +1140,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "18"
+        "live_alias_version": "19"
       },
       {
         "name": "wecare-rcs-send",
@@ -1151,9 +1151,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:03:44.000+0000",
-        "code_sha256": "KVnGe7GcaY89X++K6Meao7goLHJ/+d/CDDnOGb2NLXo=",
-        "code_size": 271711,
+        "last_modified": "2026-09-26T05:56:57.000+0000",
+        "code_sha256": "oZyIQzKBN5mVG/k4Ygks256yqyQDPPHIpjyoGLJ6w24=",
+        "code_size": 273641,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
@@ -1167,7 +1167,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "19"
+        "live_alias_version": "20"
       },
       {
         "name": "wecare-scheduled-messages",
@@ -1178,9 +1178,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:03:59.000+0000",
-        "code_sha256": "id73zxqYx8Su/7NBnn4RxZ6Nkw7dBMfzqeOtlqSTUhI=",
-        "code_size": 265849,
+        "last_modified": "2026-09-26T05:57:05.000+0000",
+        "code_sha256": "nHDNHLLVGKldZOqA2RHyfaLoK2s+YTfuMJv0k5eCjxE=",
+        "code_size": 267779,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1195,7 +1195,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "14"
+        "live_alias_version": "15"
       },
       {
         "name": "wecare-secure-files",
@@ -1206,9 +1206,9 @@
         ],
         "memory": 512,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:42:59.000+0000",
-        "code_sha256": "TmS2yF/v0lsKaQEi4Cf7nVzHklDjVk2WKTZop1C2RqM=",
-        "code_size": 275096,
+        "last_modified": "2026-09-26T05:54:43.000+0000",
+        "code_sha256": "Y6DzcHq5T0KIcl5sVH5YRDTG4xO79JV3eXfr6o06UZA=",
+        "code_size": 285611,
         "layers": [],
         "env_var_names": [
           "COGNITO_USER_POOL_ID",
@@ -1235,7 +1235,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "14"
+        "live_alias_version": "15"
       },
       {
         "name": "wecare-seo-tools",
@@ -1246,9 +1246,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T00:49:13.000+0000",
-        "code_sha256": "cjV0C/hk/yyvtohbcB92BNOfSk4sYyGEAEN3fYWhqNs=",
-        "code_size": 117773,
+        "last_modified": "2026-09-26T05:17:40.000+0000",
+        "code_sha256": "6UhFgPYu3MoXjCtHtNhmG5XWpbZ1C1jT7UxSL0uqjXs=",
+        "code_size": 117767,
         "layers": [],
         "env_var_names": [
           "BEDROCK_MODEL_ID",
@@ -1276,9 +1276,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:01:33.000+0000",
-        "code_sha256": "XW+rDOqCGjIGR3P7jhBpjVvCzVgc2JFNQzAjM+VMYXw=",
-        "code_size": 269024,
+        "last_modified": "2026-09-26T05:55:03.000+0000",
+        "code_sha256": "vNug985yjeGrZRgRHWKbeJzRN0Xo3xs/XVYFfqvKoCk=",
+        "code_size": 270954,
         "layers": [],
         "env_var_names": [
           "DOCS_S3_BUCKET",
@@ -1288,7 +1288,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "11"
+        "live_alias_version": "12"
       },
       {
         "name": "wecare-site-language",
@@ -1299,8 +1299,8 @@
         ],
         "memory": 512,
         "timeout": 30,
-        "last_modified": "2026-09-26T03:50:49.000+0000",
-        "code_sha256": "AcEg3tIiWBi1ayYLQ4xN5rCVH+Zbs1hV8/H5L8StzKk=",
+        "last_modified": "2026-09-26T05:55:06.000+0000",
+        "code_sha256": "qUMTsgMTzo8KqbMJOvydrgIbvEtf1rSkZ+bN6u6u27Q=",
         "code_size": 9762,
         "layers": [],
         "env_var_names": [
@@ -1318,7 +1318,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "7"
+        "live_alias_version": "8"
       },
       {
         "name": "wecare-sla-engine",
@@ -1329,9 +1329,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:04:56.000+0000",
-        "code_sha256": "m8AtxTx8lo0WXAV5AwkZo4ZY+L/Db0hTZYvZYPqY6SE=",
-        "code_size": 263976,
+        "last_modified": "2026-09-26T05:57:53.000+0000",
+        "code_sha256": "1ZXRYsAZL7crPOR6JPAkuLWRgp5MM46m7tSa/eeDiog=",
+        "code_size": 265906,
         "layers": [],
         "env_var_names": [
           "DEFAULT_ASSIGNEE",
@@ -1353,9 +1353,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:03:14.000+0000",
-        "code_sha256": "iSU9lW6FwavW6nnrq+gMr78pzqTmJN+3P74hZ7v2FDs=",
-        "code_size": 270648,
+        "last_modified": "2026-09-26T05:56:28.000+0000",
+        "code_sha256": "81z2EAlo8dzZ11kTBx07nZZCbm1Wt5JNddh0V20fRLc=",
+        "code_size": 272578,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1366,7 +1366,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "19"
+        "live_alias_version": "20"
       },
       {
         "name": "wecare-system-cleanup",
@@ -1377,9 +1377,9 @@
         ],
         "memory": 512,
         "timeout": 300,
-        "last_modified": "2026-09-25T11:05:00.000+0000",
-        "code_sha256": "I8GV1789OGRbzITWTLr7fKf5IeMfxf8L7BhERjzNruI=",
-        "code_size": 267172,
+        "last_modified": "2026-09-26T05:57:55.000+0000",
+        "code_sha256": "xOPbFgSTJsVAnXK1v9qqwGOCSDsgPSTH+QA54bL4Lq8=",
+        "code_size": 269102,
         "layers": [],
         "env_var_names": [
           "AWS_REGION_OVERRIDE",
@@ -1390,7 +1390,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "18"
       },
       {
         "name": "wecare-template-analytics",
@@ -1401,9 +1401,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:02:49.000+0000",
-        "code_sha256": "UlPuVlM8Px7ZdbeTSYeHl5OsS6gyKIlF7PMOBvT5YKI=",
-        "code_size": 264015,
+        "last_modified": "2026-09-26T05:56:09.000+0000",
+        "code_sha256": "AO//0SP9aWCJtHibkWPRKFxUU3s3CkBluFJew/tZlSM=",
+        "code_size": 265945,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1414,7 +1414,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-url-shortener",
@@ -1425,9 +1425,9 @@
         ],
         "memory": 256,
         "timeout": 10,
-        "last_modified": "2026-09-25T11:01:47.000+0000",
-        "code_sha256": "M936s3rY3Bjs52P614LH7Nk9X2fTvb8O1m8i5R8gCdo=",
-        "code_size": 266070,
+        "last_modified": "2026-09-26T05:55:14.000+0000",
+        "code_sha256": "NKrn1nJEMz3UYVkuEPHdSUplmSians8InKSVzZLUFys=",
+        "code_size": 268000,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
@@ -1443,9 +1443,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:03:19.000+0000",
-        "code_sha256": "MKupxrAbQgcW8LR/GI6pMmUGjEfiHUS1gU/ZQnNlDuk=",
-        "code_size": 265620,
+        "last_modified": "2026-09-26T05:56:34.000+0000",
+        "code_sha256": "HU3AON8bKoeb2mTT+B8FPi2ZucXOKF4Wp6hBdnkCJQY=",
+        "code_size": 267550,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1461,7 +1461,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-voice-cdr-read",
@@ -1472,9 +1472,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:03:35.000+0000",
-        "code_sha256": "khkUv8wrAT8ZI6aiTsQs4MeWtpDSwiKFguWBcotugmg=",
-        "code_size": 268268,
+        "last_modified": "2026-09-26T05:56:43.000+0000",
+        "code_sha256": "3FniuexMyxPe9FWiysFUTYGN1US/XfiwcAg7MWfXSVY=",
+        "code_size": 270198,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1485,7 +1485,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "16"
       },
       {
         "name": "wecare-voice-in-c2c",
@@ -1496,9 +1496,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T01:33:10.000+0000",
-        "code_sha256": "iyhnlexwih4g0zWsGkLZ6KCQk8EhjuVSBdHSWKFgHB8=",
-        "code_size": 272117,
+        "last_modified": "2026-09-26T05:56:37.000+0000",
+        "code_sha256": "2rFixNGr0ypzkEXmWXNlprAYUkmNQHIFzwIsTEOb1vg=",
+        "code_size": 272111,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1512,7 +1512,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "18"
       },
       {
         "name": "wecare-voice-in-obd",
@@ -1523,9 +1523,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T03:52:22.000+0000",
-        "code_sha256": "XUtaYEf1Bkv/S/8qViC14jWAkuapua1fyKsTdX5Qt8s=",
-        "code_size": 275753,
+        "last_modified": "2026-09-26T05:56:40.000+0000",
+        "code_sha256": "D6OWfHYMp9TOK3NplipCv+M4WBt89wQoP20rbOODR40=",
+        "code_size": 275747,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1540,7 +1540,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "18"
+        "live_alias_version": "19"
       },
       {
         "name": "wecare-waba-management",
@@ -1551,9 +1551,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:02:40.000+0000",
-        "code_sha256": "g50OUTYploimd8cZ4PxqP3ZnyqbK0nr53k36ujtOK3s=",
-        "code_size": 271672,
+        "last_modified": "2026-09-26T05:56:03.000+0000",
+        "code_sha256": "/XGdt4qf1sc+lRi9tA1sUIO/Eh1LufdRBLWzhYRZzj8=",
+        "code_size": 273602,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1567,7 +1567,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "18"
+        "live_alias_version": "19"
       },
       {
         "name": "wecare-whatsapp-business-api",
@@ -1578,7 +1578,7 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:11:21.000+0000",
+        "last_modified": "2026-09-26T05:55:59.000+0000",
         "code_sha256": "AvlooTtlRfrcFWq6Pi7+EH/KxGTB+bhhPPnM0eSeVgU=",
         "code_size": 735779,
         "layers": [
@@ -1617,9 +1617,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T00:42:24.000+0000",
-        "code_sha256": "QA1VvuVXCe5/MDLIZfAx5A7m2PPmdyjgj6ggqVR8EtA=",
-        "code_size": 294456,
+        "last_modified": "2026-09-26T05:55:32.000+0000",
+        "code_sha256": "oC1kxmKeMK/yjTMzBo01P/BhH7wgI6idTvFkD1YaJMA=",
+        "code_size": 294450,
         "layers": [],
         "env_var_names": [
           "AI_LANGUAGE",
@@ -1644,7 +1644,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "24"
+        "live_alias_version": "25"
       },
       {
         "name": "wecare-whatsapp-template-management",
@@ -1655,9 +1655,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-25T11:02:13.000+0000",
-        "code_sha256": "v+cLgnKhljYLGXnHCZN6uB5ZXEyaMmltF9NBuMv47xI=",
-        "code_size": 270789,
+        "last_modified": "2026-09-26T05:55:40.000+0000",
+        "code_sha256": "okU4zLiGcZWR8IXK3gls80rsI5eN2AvbIFcnWPhYJdE=",
+        "code_size": 272719,
         "layers": [],
         "env_var_names": [
           "LOG_LEVEL",
@@ -1667,7 +1667,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-whatsapp-templates",
@@ -1678,9 +1678,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:02:10.000+0000",
-        "code_sha256": "zw3I0BakCE6Id+k8OsYjZRHQsnRO8aNcbeS3Nj7Cp8M=",
-        "code_size": 267360,
+        "last_modified": "2026-09-26T05:55:37.000+0000",
+        "code_sha256": "nGWyOAGwhlkrhPLwuLM/Ef0msEm1KmC5iSWW8jog0tQ=",
+        "code_size": 269290,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1691,7 +1691,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-whatsapp-voice",
@@ -1702,9 +1702,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-25T11:02:04.000+0000",
-        "code_sha256": "fBY3KFDZvelAOGqhgzrCq+3PnrLqJF0NHFFxWvFiVhw=",
-        "code_size": 270889,
+        "last_modified": "2026-09-26T05:55:29.000+0000",
+        "code_sha256": "d+s9qGQ6kW1fj58rg2OW1h+Tq61iKwycjiNKMYQtyG8=",
+        "code_size": 272819,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1715,7 +1715,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-wix-store",
@@ -1726,9 +1726,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T01:51:50.000+0000",
-        "code_sha256": "2HeLHQzcLhqNQCPT4bL7Z+P3sOSNhNqud+bByQWgbuM=",
-        "code_size": 275878,
+        "last_modified": "2026-09-26T05:58:18.000+0000",
+        "code_sha256": "L3+ZmlyUSwIdFVL2z2+Mhwwa2MFOSj5XPFPAbfULrDY=",
+        "code_size": 277808,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
@@ -1745,7 +1745,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "22"
+        "live_alias_version": "23"
       }
     ]
   },
@@ -7389,22 +7389,22 @@
             "enable_auto_build": true,
             "recent_jobs": [
               {
-                "id": "903",
+                "id": "910",
                 "status": "SUCCEED",
-                "commit": "4bc9f6db4a8b",
-                "end": "2026-09-26T05:05:18.691000+00:00"
+                "commit": "9b5d9aefb8e3",
+                "end": "2026-09-26T06:06:50.303000+00:00"
               },
               {
-                "id": "902",
+                "id": "909",
                 "status": "SUCCEED",
-                "commit": "df67e7f3d6c2",
-                "end": "2026-09-26T04:58:11.104000+00:00"
+                "commit": "df5ea8348bc0",
+                "end": "2026-09-26T05:59:57.024000+00:00"
               },
               {
-                "id": "901",
+                "id": "908",
                 "status": "SUCCEED",
-                "commit": "933d5d73fd69",
-                "end": "2026-09-26T04:14:50.660000+00:00"
+                "commit": "869760f7d167",
+                "end": "2026-09-26T05:52:06.697000+00:00"
               }
             ]
           }
@@ -7429,7 +7429,7 @@
   },
   "errors": [],
   "error_count": 0,
-  "duration_seconds": 152.7,
+  "duration_seconds": 152.0,
   "partial_run": false,
   "collectors_run": [
     "api_gateway",
