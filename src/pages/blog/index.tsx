@@ -67,7 +67,11 @@ export default function BlogIndex ( { posts }: Props ) {
       </Head>
       <main className="blog-shell">
         <section className="blog-hero">
-          <p className="eyebrow">WECARE.DIGITAL</p>
+          {/* data-wc-no-translate: the whole element is the company name, so the flag costs
+              no translation coverage here - there is no descriptor sharing the label, which
+              is the trap BrandBadge.tsx documents. The <h1> below and the lede after it are
+              deliberately NOT flagged and still translate. */}
+          <p className="eyebrow" data-wc-no-translate="true">WECARE.DIGITAL</p>
           <h1>Blog</h1>
           <p>Ideas, guides and updates published by the WECARE.DIGITAL team.</p>
         </section>
@@ -81,7 +85,13 @@ export default function BlogIndex ( { posts }: Props ) {
                   <h2><Link href={ `/post/${post.slug}/` }>{ post.title }</Link></h2>
                   { post.excerpt && <p>{ post.excerpt }</p> }
                   <div className="meta">
-                    { post.authorName && <span>{ post.authorName }</span> }
+                    {/* data-wc-no-translate: an author name is a proper noun, matching the
+                        byline in post/[slug].tsx. On the span and not on .meta, because the
+                        <time> beside it renders a formatted date that SHOULD translate.
+                        This page carries 638 of these - one per post - which made it the
+                        single largest source of brand-name text in the export once the
+                        article bylines were fixed. */}
+                    { post.authorName && <span data-wc-no-translate="true">{ post.authorName }</span> }
                     { post.publishedDate && <time dateTime={ post.publishedDate }>{ new Date( post.publishedDate ).toLocaleDateString( 'en-IN' ) }</time> }
                   </div>
                 </div>

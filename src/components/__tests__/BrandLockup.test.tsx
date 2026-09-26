@@ -36,3 +36,44 @@ describe( 'BrandLockup', () => {
     expect( css ).not.toContain( 'height:68px' );
   } );
 } );
+
+
+describe( 'BrandLockup translation protection', () => {
+  /**
+   * THE FAILURE THIS PINS. SupportWidget's walker collects text nodes and rewrites
+   * nodeValue in place. This lockup renders "WECARE" and "DIGITAL" as two SEPARATE text
+   * nodes, and with neither protected both were collected and sent to the translation
+   * provider as ordinary English words. On the live site Arabic came back as
+   * "نحن نهتم. رقمي" - a literal rendering of "we care" and "digital" - and Hindi produced
+   * "WECARE." followed by "डिजिटल", so the wordmark came apart mid-brand.
+   *
+   * Measured on the built export before the fix: 4 translatable brand text nodes on every
+   * route, two from the header lockup and two from the footer's compact one.
+   *
+   * The flag belongs on the ROOT, not on .brand-copy: `suffix` is a ReactNode a consumer
+   * can pass in, and an attribute on the inner wordmark span would leave it unprotected.
+   */
+  it( 'marks the whole lockup data-wc-no-translate so the wordmark survives translation', () => {
+    const { container } = render( <BrandLockup /> );
+    const root = container.querySelector( '.brand-lockup' );
+    expect( root ).toBeTruthy();
+    expect( root?.getAttribute( 'data-wc-no-translate' ) ).toBe( 'true' );
+  } );
+
+  it( 'keeps the flag on the compact footer variant too', () => {
+    // The footer renders <BrandLockup compact />. It is the same component, so this cannot
+    // regress independently - but the footer is where the Arabic screenshot showed the
+    // translated wordmark, so it is asserted explicitly rather than assumed from the above.
+    const { container } = render( <BrandLockup compact /> );
+    const root = container.querySelector( '.brand-lockup.compact' );
+    expect( root?.getAttribute( 'data-wc-no-translate' ) ).toBe( 'true' );
+  } );
+
+  it( 'protects the wordmark at the root rather than on the inner copy span', () => {
+    // Asserting WHERE the flag sits, because the walker takes the nearest flag: on
+    // .brand-copy it would cover the two wordmark nodes and miss anything a caller appends.
+    const { container } = render( <BrandLockup /> );
+    expect( container.querySelector( '.brand-copy' )?.getAttribute( 'data-wc-no-translate' ) ).toBeNull();
+    expect( container.querySelector( '.brand-lockup' )?.getAttribute( 'data-wc-no-translate' ) ).toBe( 'true' );
+  } );
+} );

@@ -63,8 +63,12 @@ function discover () {
 }
 
 const PROBE = () => {
+  // Mirrors SupportWidget.tsx's SKIP_TAGS. NEXT-ROUTE-ANNOUNCER is Next's aria-live region,
+  // which Next rewrites from document.title on every navigation, so translating it does not
+  // stick. If that set changes, this one and translatecheck.js change with it.
   const SKIP_TAGS = new Set( [ 'SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'SVG', 'CANVAS', 'VIDEO',
-    'AUDIO', 'INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'CODE', 'PRE', 'HEAD', 'META', 'LINK' ] );
+    'AUDIO', 'INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'CODE', 'PRE', 'HEAD', 'META', 'LINK',
+    'NEXT-ROUTE-ANNOUNCER' ] );
   const root = document.body;
 
   // --- translation coverage: SupportWidget's filter, reimplemented ---
