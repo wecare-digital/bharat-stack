@@ -190,7 +190,7 @@ async function main() {
     const RUNG_EXCEPTIONS = [
       {
         match: /(^|\.)lgd-h2(\.|$)/,
-        why: '/terms/ and /privacy/ carry 45 numbered legal sections between them. At 40px '
+        why: '/terms/ and /privacy/ carry 71 numbered legal sections between them - 47 and 24. At 40px '
           + 'each one reads as a page title and the documents become a wall of headings; at '
           + '28px they read as the clause headings they are. Density, not drift.',
       },
