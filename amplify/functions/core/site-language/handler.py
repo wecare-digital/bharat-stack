@@ -1,24 +1,28 @@
 """WECARE.DIGITAL site language service.
 
-Public website-facing language primitives backed by Amazon Translate and Polly.
-The service discovers languages/voices from AWS at runtime; it does not keep a
-hardcoded language catalogue.
+Public website-facing text translation. The service discovers the language
+catalogue from the provider at runtime; it does not keep a hardcoded one.
 
 Routes (API Gateway HTTP API):
-  GET  /site-language/languages
-  POST /site-language/translate
-  GET  /site-language/voices
-  POST /site-language/tts
+  GET  /site-language/languages   open - static catalogue, costs nothing per call
+  POST /site-language/translate   requires an allowlisted Origin, see _origin_allowed
 
-Translation results are cached in DynamoDB. TTS responses are intentionally
-limited to short/medium passages; long-form blog audio should be generated and
-stored asynchronously in S3 in a later phase.
+TWO ROUTES WERE REMOVED, not deprecated: GET /site-language/voices and
+POST /site-language/tts. They drove Amazon Polly and had no consumer - the widget
+dropped read-aloud once it was clear Polly has no voice for Tamil, Telugu,
+Bengali, Marathi, Gujarati, Kannada, Malayalam or Punjabi, so the button was
+hidden for nearly every language this serves. They stayed live and billable
+afterwards. See the note above the client constructors.
+
+Translation results are cached in DynamoDB - but only where the same strings
+recur. The cache key is the text, so it does nothing against a caller sending
+novel text, which is why the Origin check on /translate matters more than it does.
 
 Translation provider
 --------------------
 Google Cloud Translation v2 is preferred when a key is available, because its
 Indic output is materially better than Amazon Translate's. Amazon Translate is
-the automatic fallback and remains the only provider for TTS (Polly).
+the automatic fallback.
 
 The Google key is read from Secrets Manager AT RUNTIME and never leaves this
 process: it is not an env var, not a build input, and never reaches the browser.
@@ -60,7 +64,6 @@ CACHE_TTL_SECONDS = int(os.environ.get("SITE_LANGUAGE_CACHE_TTL_SECONDS", str(90
 MAX_TEXTS = int(os.environ.get("SITE_LANGUAGE_MAX_TEXTS", "40"))
 MAX_TEXT_BYTES = int(os.environ.get("SITE_LANGUAGE_MAX_TEXT_BYTES", "9000"))
 MAX_TOTAL_BYTES = int(os.environ.get("SITE_LANGUAGE_MAX_TOTAL_BYTES", "30000"))
-MAX_TTS_CHARS = int(os.environ.get("SITE_LANGUAGE_MAX_TTS_CHARS", "2800"))
 
 # "auto" uses Google when a key resolves and silently falls back to Amazon
 # Translate when it does not, so this ships and serves traffic before the key is
@@ -80,13 +83,27 @@ GOOGLE_MAX_BATCH = max(1, int(os.environ.get("SITE_LANGUAGE_GOOGLE_MAX_BATCH", "
 GOOGLE_TIMEOUT_SECONDS = float(os.environ.get("SITE_LANGUAGE_GOOGLE_TIMEOUT", "8"))
 
 translate_client = boto3.client("translate", region_name=REGION)
-polly_client = boto3.client("polly", region_name=REGION)
+# POLLY AND THE TWO READ-ALOUD ROUTES ARE GONE.
+#
+# /site-language/tts and /site-language/voices had NO CONSUMER. SupportWidget dropped
+# read-aloud when it became clear Amazon Polly has no voice for Tamil, Telugu, Bengali,
+# Marathi, Gujarati, Kannada, Malayalam or Punjabi - its whole Indic range is Hindi and
+# Indian English - so the button was hidden for nearly every language this serves. The
+# routes stayed live afterwards: unauthenticated, uncached, and billed.
+#
+# That is a cost surface with no user. MAX_TTS_CHARS was 2,800 per request and the route
+# shared the 15 rps throttle, so the ceiling was about $0.67 a second - roughly $2,400 an
+# hour - for a feature nothing called. The handler now 404s both paths and the Polly client,
+# the voice cache, the voice lookup and the synthesis path are deleted rather than left
+# unreachable, so nothing can quietly route back to them.
+#
+# The IAM grant is separate and is NOT removed here: it lives in the Amplify backend
+# definition, not in this file. Worth revoking, and it needs a deploy rather than an edit.
 secrets_client = boto3.client("secretsmanager", region_name=REGION)
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 cache_table = dynamodb.Table(CACHE_TABLE)
 
 _language_cache: Dict[str, Any] = {"at": 0, "items": []}
-_voice_cache: Dict[str, Any] = {"at": 0, "items": []}
 CATALOG_TTL_SECONDS = 6 * 3600
 
 # Resolved once per container and reused across warm invocations, same pattern as
@@ -109,6 +126,39 @@ def _origin(event: Dict[str, Any]) -> str:
     headers = event.get("headers") or {}
     candidate = headers.get("origin") or headers.get("Origin") or ""
     return candidate if candidate in ALLOWED_ORIGINS else "https://www.wecare.digital"
+
+
+def _origin_allowed(event: Dict[str, Any]) -> bool:
+    """
+    Is the caller a browser on one of our own pages?
+
+    THIS IS THE CHECK THAT WAS MISSING, AND _origin ABOVE IS NOT IT. _origin only decides
+    which value to put in the Access-Control-Allow-Origin RESPONSE header. That header is an
+    instruction to a browser, and a browser is the only thing that honours it: it stops
+    another website's JavaScript from READING our reply, and it stops nothing else. curl
+    sends no Origin, receives the translation, and is billed to us.
+
+    So the endpoint was an open proxy onto a metered Google API. Sized against the limits
+    actually configured - 15 rps in scripts/deploy_site_language.py, 30,000 bytes per request
+    in MAX_TOTAL_BYTES - that is 450,000 characters a second, which at Google's $20 per
+    million is about $9 a second, or $32,000 an hour. The DynamoDB cache below does not help
+    against it: the cache key is the text, and an attacker sending random text never repeats a
+    key. The throttle caps the RATE but not the bill.
+
+    A REQUEST WITH NO Origin HEADER IS REFUSED, and that is safe for the real client because
+    the site and the API are different hosts - wecare.digital calling api.wecare.digital is
+    cross-origin, so every browser attaches Origin to the POST. A same-origin request could
+    legitimately omit it; there is no same-origin caller here.
+
+    WHAT THIS DOES NOT DO. It is not authentication and it is not a defence against a
+    determined attacker, who can set any header they like. It removes the accidental and the
+    casual - a script, a scraper, someone else's site hotlinking the endpoint - which is the
+    traffic that actually produces a surprise invoice. Real protection is a budget alarm and
+    per-IP WAF; both are account configuration, not code, and neither is in this repository.
+    """
+    headers = event.get("headers") or {}
+    candidate = headers.get("origin") or headers.get("Origin") or ""
+    return candidate in ALLOWED_ORIGINS
 
 
 def _response(event: Dict[str, Any], status: int, body: Any) -> Dict[str, Any]:
@@ -169,39 +219,6 @@ def _list_languages() -> List[Dict[str, str]]:
     items.sort(key=lambda row: row["name"].casefold())
     _language_cache.update({"at": now, "items": items})
     return items
-
-
-def _list_voices() -> List[Dict[str, Any]]:
-    now = time.time()
-    if _voice_cache["items"] and now - _voice_cache["at"] < CATALOG_TTL_SECONDS:
-        return _voice_cache["items"]
-
-    voices: List[Dict[str, Any]] = []
-    token: Optional[str] = None
-    while True:
-        kwargs: Dict[str, Any] = {"IncludeAdditionalLanguageCodes": True}
-        if token:
-            kwargs["NextToken"] = token
-        result = polly_client.describe_voices(**kwargs)
-        for row in result.get("Voices", []):
-            voices.append(
-                {
-                    "id": row.get("Id", ""),
-                    "name": row.get("Name", ""),
-                    "languageCode": row.get("LanguageCode", ""),
-                    "languageName": row.get("LanguageName", ""),
-                    "gender": row.get("Gender", ""),
-                    "supportedEngines": row.get("SupportedEngines", []),
-                    "additionalLanguageCodes": row.get("AdditionalLanguageCodes", []),
-                }
-            )
-        token = result.get("NextToken")
-        if not token:
-            break
-
-    voices.sort(key=lambda row: (row["languageName"], row["name"]))
-    _voice_cache.update({"at": now, "items": voices})
-    return voices
 
 
 def _google_key() -> str:
@@ -477,54 +494,9 @@ def _validate_texts(texts: Any) -> List[str]:
     return clean
 
 
-def _pick_voice(language: str, requested_voice: str = "") -> Optional[Dict[str, Any]]:
-    voices = _list_voices()
-    if requested_voice:
-        exact = next((v for v in voices if v["id"] == requested_voice), None)
-        if exact:
-            return exact
-
-    lang = language.lower()
-    candidates = [
-        v for v in voices
-        if v["languageCode"].lower() == lang
-        or v["languageCode"].lower().startswith(lang + "-")
-        or any(code.lower() == lang or code.lower().startswith(lang + "-") for code in v["additionalLanguageCodes"])
-    ]
-    if not candidates:
-        return None
-
-    # Indian locale first, then neural, then name. Without the locale term a
-    # bare "en" resolves to Amy/en-GB purely because she is neural and sorts
-    # early, which gives an Indian brand a British voice.
-    candidates.sort(
-        key=lambda v: (
-            not _is_indian(v),
-            "neural" not in v["supportedEngines"],
-            v["name"],
-        )
-    )
-    return candidates[0]
-
-
 def _is_indian(voice: Dict[str, Any]) -> bool:
     codes = [voice.get("languageCode", "")] + list(voice.get("additionalLanguageCodes") or [])
     return any(str(code).lower().endswith("-in") for code in codes)
-
-
-def _resolve_locale(voice: Dict[str, Any], language: str) -> str:
-    """Locale to synthesise in.
-
-    Bilingual voices such as Kajal are listed under one primary languageCode
-    (hi-IN) while also supporting others (en-IN). Passing the primary code would
-    speak English text with Hindi pronunciation, so match the request instead.
-    """
-    lang = language.lower()
-    for code in [voice.get("languageCode", "")] + list(voice.get("additionalLanguageCodes") or []):
-        candidate = str(code).lower()
-        if candidate == lang or candidate.startswith(lang + "-"):
-            return str(code)
-    return str(voice.get("languageCode", ""))
 
 
 def _handle_translate(event: Dict[str, Any]) -> Dict[str, Any]:
@@ -557,77 +529,46 @@ def _handle_translate(event: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-def _handle_tts(event: Dict[str, Any]) -> Dict[str, Any]:
-    body = _body(event)
-    text = str(body.get("text") or "").strip()
-    language = str(body.get("language") or "").strip()
-    requested_voice = str(body.get("voiceId") or "").strip()
-    if not text:
-        raise ValueError("text is required")
-    if not language:
-        raise ValueError("language is required")
-    if len(text) > MAX_TTS_CHARS:
-        raise ValueError(f"text exceeds {MAX_TTS_CHARS} characters")
-
-    voice = _pick_voice(language, requested_voice)
-    if not voice:
-        return _response(event, 422, {"error": "No Amazon Polly voice is available for this language"})
-
-    engines = voice.get("supportedEngines") or []
-    engine = "neural" if "neural" in engines else (engines[0] if engines else "standard")
-    locale = _resolve_locale(voice, language)
-    result = polly_client.synthesize_speech(
-        Engine=engine,
-        LanguageCode=locale,
-        OutputFormat="mp3",
-        Text=text,
-        TextType="text",
-        VoiceId=voice["id"],
-    )
-    audio = result["AudioStream"].read()
-    return _response(
-        event,
-        200,
-        {
-            "audioBase64": base64.b64encode(audio).decode("ascii"),
-            "mimeType": result.get("ContentType", "audio/mpeg"),
-            "voice": voice,
-            "locale": locale,
-            "engine": engine,
-            "requestCharacters": result.get("RequestCharacters", len(text)),
-        },
-    )
-
-
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     path, method = _path_method(event)
     if method == "OPTIONS":
         return _response(event, 200, {})
     # INTENTIONALLY PUBLIC - do not add require_auth here.
     #
-    # LanguageBar renders from pages/_app.tsx on every page including public
-    # ones, so anonymous visitors must be able to list languages and voices and
-    # request translation and TTS. Requiring a Cognito token would blank the
-    # language bar for every signed-out visitor.
+    # SupportWidget renders from pages/_app.tsx on every page including public
+    # ones, so anonymous visitors must be able to list languages and request a
+    # translation. Requiring a Cognito token would blank the language control for
+    # every signed-out visitor - which is everyone the feature exists for.
     #
     # It also cannot work mechanically: this function is packaged standalone
     # (see scripts/deploy_all_lambdas.py) and does not bundle lambda_utils, so
     # importing the shared middleware fails the pre-upload import validation.
     # That validation is what caught this before it shipped.
     #
-    # The real exposure on these four routes is COST, not data:
-    # /site-language/tts drives Polly and /translate drives Translate. The
-    # correct mitigation is per-route API Gateway throttling, not
-    # authentication. Not yet applied - tracked as an improvement.
+    # THE EXPOSURE IS COST, NOT DATA, AND THE OLD NOTE HERE UNDERSTATED IT.
+    # It said the mitigation was per-route throttling and that this was "not yet
+    # applied". Throttling IS applied - scripts/deploy_site_language.py sets 15
+    # rps / burst 30 per route - but a rate cap is not a spend cap. At 15 rps
+    # with MAX_TOTAL_BYTES of 30,000 the ceiling is 450,000 characters a second,
+    # about $9/sec or $32,000/hour at Google's $20 per million, and the cache
+    # cannot help because an attacker's text never repeats a key.
+    #
+    # So the billed route now requires an allowlisted Origin. See
+    # _origin_allowed for why that is safe for the real client and what it does
+    # and does not defend against. /languages stays open: it returns a static
+    # catalogue, costs nothing per call and is what the widget needs before a
+    # visitor has asked for anything.
     try:
         if path.endswith("/site-language/languages") and method == "GET":
             return _response(event, 200, {"languages": _list_languages()})
         if path.endswith("/site-language/translate") and method == "POST":
+            if not _origin_allowed(event):
+                # 403 rather than 401: this is not a missing credential, it is a
+                # caller that is not one of our pages, and there is no token that
+                # would change the answer.
+                logger.warning("translate refused: origin not allowed")
+                return _response(event, 403, {"error": "Not allowed from this origin"})
             return _handle_translate(event)
-        if path.endswith("/site-language/voices") and method == "GET":
-            return _response(event, 200, {"voices": _list_voices()})
-        if path.endswith("/site-language/tts") and method == "POST":
-            return _handle_tts(event)
         return _response(event, 404, {"error": "Not found"})
     except ValueError as exc:
         return _response(event, 400, {"error": str(exc)})

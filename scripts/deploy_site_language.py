@@ -275,8 +275,12 @@ def ensure_api_routes(function_arn: str) -> None:
     route_keys = [
         "GET /site-language/languages",
         "POST /site-language/translate",
-        "GET /site-language/voices",
-        "POST /site-language/tts",
+        # GET /site-language/voices and POST /site-language/tts are NOT listed here any
+        # more. They drove Polly, had no consumer once the widget dropped read-aloud, and
+        # stayed unauthenticated and billable. The handler 404s both paths now.
+        # NOTE: this list only CREATES routes; it does not delete. The two existing routes
+        # must be removed from the API by hand or they keep pointing at a handler that
+        # refuses them - a 404 rather than a charge, but still a live surface.
         "OPTIONS /site-language/{proxy+}",
     ]
     for route_key in route_keys:

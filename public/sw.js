@@ -64,8 +64,23 @@ self.addEventListener( 'fetch', ( event ) =>
   // where one is still installed.
   if ( url.hostname === 'localhost' || url.hostname === '127.0.0.1' ) return;
 
-  // API calls: network-first with cache fallback
-  if ( url.pathname.startsWith( '/api/' ) || url.hostname.includes( 'execute-api' ) )
+  // API calls: network-first with cache fallback.
+  //
+  // `api.` IS THE IMPORTANT ONE AND IT WAS MISSING. This branch matched only `/api/` paths
+  // and `execute-api` hostnames, and the app's API is neither - it is
+  // https://api.wecare.digital. So every API call in the product fell through to the
+  // network-first HTML handler at the bottom of this function, whose failure path returns
+  // `/offline.html`. A caller doing `response.json()` on an offline HTML page does not get a
+  // network error, it gets a JSON parse error, which is a much harder thing to diagnose from
+  // a bug report - and the widget's language catalogue is one of those callers.
+  //
+  // Matching on the `api.` prefix rather than the full host so a staging or regional API
+  // subdomain is covered without another edit.
+  if (
+    url.pathname.startsWith( '/api/' )
+    || url.hostname.startsWith( 'api.' )
+    || url.hostname.includes( 'execute-api' )
+  )
   {
     event.respondWith(
       fetch( request )

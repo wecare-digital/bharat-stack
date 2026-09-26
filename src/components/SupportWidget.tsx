@@ -32,7 +32,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
  * `canSpeak` branch it existed to feed.
  */
 const API_BASE = ( process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital' ) + '/site-language';
-const LS_LANG = 'wc:stack:lang';
+/* The localStorage key that used to persist the chosen language is gone, along with the
+   restore it fed. See the catalogue effect: keeping it meant every later page load
+   re-translated the page unasked, and translation is billed per character. */
 const MAX_BATCH_ITEMS = 30;
 const MAX_BATCH_BYTES = 20000;
 
@@ -196,7 +198,6 @@ const SupportWidget: React.FC = () => {
   const inputRef = useRef<HTMLInputElement | null>( null );
   const listRef = useRef<HTMLDivElement | null>( null );
   const originals = useRef<Map<Text, string> | null>( null );
-  const applyLanguageRef = useRef<( ( code: string, label?: string ) => Promise<void> ) | null>( null );
 
   /**
    * WHAT GETS TRANSLATED, AND THE ONE RULE THAT MAKES IT SAFE ON THE DASHBOARD.
@@ -245,30 +246,39 @@ const SupportWidget: React.FC = () => {
         if ( cancelled ) return;
         setLangs( normalized );
 
-        // The saved-language restore lives here, in the flow that just produced the
-        // catalogue, rather than in a second effect watching `langs`. That second effect
-        // was a react-hooks/set-state-in-effect error: it called applyLanguage in an
-        // effect body, which cascades a render, and it could not declare applyLanguage as
-        // a dependency because that identity changes the moment `busy` flips - so listing
-        // it honestly would have re-fired the restore mid-translation.
-        let saved = '';
-        try { saved = localStorage.getItem( LS_LANG ) || ''; } catch { /* ignore */ }
-        if ( !saved || saved === 'en' ) return;
-        const savedLang = normalized.find( lang => lang.code === saved );
-        if ( !savedLang ) return;
-        // The label is passed in because this ref was captured on mount, when `langs` was
-        // still empty - applyLanguage's own lookup would miss and the status line would
-        // read the raw code instead of the language name.
-        await applyLanguageRef.current?.( saved, savedLang.name );
+        /**
+         * NOTHING IS RESTORED HERE ANY MORE, AND THAT IS THE POINT.
+         *
+         * A saved language used to be read back from localStorage at this moment and
+         * re-applied, so a visitor who once chose Hindi got the whole page re-translated on
+         * EVERY subsequent page load, for as long as the key survived. Translation is billed
+         * per character and the DynamoDB cache only helps where the same strings recur, so a
+         * reader moving through the site paid for each new page again and again - silently,
+         * with no action on their part and nothing on screen to say it was happening.
+         *
+         * The page now always arrives in English and translates only when someone asks it to.
+         * That is both the instruction and the single largest reduction in billed characters
+         * available on the client: it removes every translation nobody requested.
+         *
+         * The cost of it, stated honestly: a reader who wants Hindi has to choose Hindi on
+         * each page. That is a real loss of convenience, and it is the right trade while the
+         * endpoint is billed per character and reachable without a session.
+         */
       } catch { /* stay quiet if language services are unavailable */ }
     } )();
     return () => { cancelled = true; };
   }, [] );
 
-  const applyLanguage = useCallback( async ( code: string, labelOverride?: string ) => {
+  // No labelOverride parameter any more. It existed for one caller - the saved-language
+  // restore, which ran before `langs` was populated and so had to supply the display name
+  // itself. That restore is gone, and every remaining caller picks from a rendered row, so
+  // the lookup below always succeeds.
+  const applyLanguage = useCallback( async ( code: string ) => {
     if ( busy ) return;
     setCurrent( code );
-    try { localStorage.setItem( LS_LANG, code ); } catch { /* ignore */ }
+    // The choice is NOT persisted. See the note in the catalogue effect above: storing it
+    // meant every later page load re-translated the whole page unasked, which is billed per
+    // character. The selection lives for this page view only.
 
     if ( code === 'en' ) {
       restore();
@@ -282,7 +292,7 @@ const SupportWidget: React.FC = () => {
     if ( !originals.current ) originals.current = new Map( nodes.map( node => [ node, node.nodeValue || '' ] ) );
     restore();
     setBusy( true );
-    const label = labelOverride || langs.find( lang => lang.code === code )?.name || code;
+    const label = langs.find( lang => lang.code === code )?.name || code;
     setStatus( `Translating to ${label}.` );
 
     try {
@@ -307,10 +317,10 @@ const SupportWidget: React.FC = () => {
     } finally { setBusy( false ); }
   }, [ busy, contentRoot, langs, restore ] );
 
-  // Keeps the restore above pointed at the current applyLanguage. Assigned in an effect
-  // rather than during render: a ref written mid-render is its own hooks violation, and
-  // this only has to be current by the time the catalogue fetch resolves.
-  useEffect( () => { applyLanguageRef.current = applyLanguage; }, [ applyLanguage ] );
+  /* The ref that mirrored applyLanguage for the catalogue effect is gone with the restore it
+     existed to serve. It was only ever needed because that effect had to call a callback
+     whose identity changes when `busy` flips, which it could not honestly list as a
+     dependency. No caller outside this component reaches applyLanguage any more. */
 
   /**
    * OPENING AND CLOSING THE SEARCH PANEL.
@@ -534,8 +544,22 @@ const SupportWidget: React.FC = () => {
            signals only real state - focus, and busy. */
         .wc-chip{position:relative;display:inline-flex;align-items:center;height:40px;min-width:52px;justify-content:center;padding:0 9px 0 11px;border:0;border-radius:9999px;background:transparent;color:#1a3a2a;font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:background-color .2s}
         .wc-chip[aria-disabled='true']{cursor:progress}
-        /* Focus-visible only, so a mouse click does not leave a ring behind. */
-        .wc-chip:focus-visible{background:rgba(209,244,112,.38);outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+        /* FOCUS IS A RING, NEVER A FILL, and that is a cross-browser correctness fix rather
+           than a preference.
+           This rule used to add background:rgba(209,244,112,.38) as well. On Windows Chrome
+           the chip kept that pale lime fill indefinitely after a language was chosen with
+           the mouse - reported from a photograph of a real screen, with the pointer nowhere
+           near the widget - so the control looked permanently switched on. Headless Chromium
+           did not reproduce it: there, :focus-visible correctly did not match.
+           The cause is a documented difference in how browsers resolve :focus-visible for
+           PROGRAMMATIC focus. Choosing a language calls chip.focus() so a keyboard user is
+           not stranded, and at that moment the previously focused element is the search
+           input - and a text input always matches :focus-visible. Chrome carries that
+           modality across the programmatic focus, so the chip matched too.
+           Two changes make it robust rather than dependent on that resolution: the fill is
+           gone, so the worst case is a legible focus ring instead of a state that reads as
+           "selected", and focus is only returned when the panel was closed by keyboard. */
+        .wc-chip:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
         .wc-arw{width:6px;height:6px;box-sizing:border-box;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);margin-left:7px;opacity:.7;transition:transform .2s}
         .wc-chip[aria-expanded='true'] .wc-arw{transform:translateY(1px) rotate(225deg)}
 
@@ -812,15 +836,25 @@ const SupportWidget: React.FC = () => {
                 // onMouseDown, not onClick: the document mousedown listener that closes the
                 // panel fires first in the capture phase, and onClick would then land on an
                 // element that had already been unmounted.
-                onMouseDown={ event => { event.preventDefault(); closePanel( true ); void applyLanguage( lang.code ); } }
+                //
+                // closePanel( false ) - focus is NOT returned to the chip on a pointer pick.
+                // Returning it is right for the keyboard (Enter and Escape both do) but wrong
+                // here: the programmatic focus inherited :focus-visible from the search input
+                // on Windows Chrome, which left the chip looking permanently selected after a
+                // mouse click. A pointer user has nothing to return focus to, so this drops it
+                // and the chip renders in its resting state, which is what it is.
+                onMouseDown={ event => { event.preventDefault(); closePanel( false ); void applyLanguage( lang.code ); } }
                 onMouseEnter={ () => setActive( index ) }
               >
-                {/* ONE WORD PER ROW. The native name where we have it, the English name
-                    otherwise - both are single words, and a reader looking for their own
-                    language scans for its own script, not for a Latin transliteration of it.
-                    The code on the right is the second way in: search matches it too, so
-                    somebody who knows 'bn' and somebody who knows 'Bengali' both arrive. */}
-                <span className="wc-row-name">{ lang.native && lang.native !== lang.name ? lang.native : lang.name }</span>
+                {/* ONE WORD PER ROW, IN ENGLISH, FOR ALL 71.
+                    This rendered the native script where we had it - தமிழ், हिन्दी, বাংলা for
+                    eleven languages - and the English name for the other sixty. Changed on
+                    instruction to one uniform list.
+                    The native names are NOT deleted, only unrendered: searchLanguages still
+                    matches them, so a reader on an Indic keyboard typing தம still finds Tamil.
+                    Dropping the data as well would have removed that route in with no
+                    visible saving. */}
+                <span className="wc-row-name">{ lang.name }</span>
                 <span className="wc-row-code">{ lang.code.toUpperCase() }</span>
               </button>
             ) ) }
