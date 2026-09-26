@@ -46,7 +46,7 @@ INSERTED BEFORE it, or the catch-all swallows them. The script rebuilds the list
 run if it cannot find the catch-all where it expects it.
 
 Both slash forms are registered because `trailingSlash: true` means the canonical URL is
-`/workspace/calls/`, while a hand-typed or older link is usually `/workspace/calls`.
+`/engage/calls/`, while a hand-typed or older link is usually `/engage/calls`.
 
 Usage:
     python scripts/provision_legacy_redirects.py            # report
@@ -74,18 +74,18 @@ SNAPSHOT = pathlib.Path("docs/execution/snapshots/amplify-custom-rules-before-8.
 # Retired route -> what replaced it. Every target is a live page, and the four channel
 # ones carry the query string the operator would otherwise have to know to type.
 RETIRED = {
-    "/workspace/calls": "/workspace/inbox/?channel=voice",
-    "/workspace/rcs/inbox": "/workspace/inbox/?channel=rcs",
-    "/workspace/ses/inbox": "/workspace/inbox/?channel=email",
-    "/workspace/whatsapp/logs": "/workspace/logs/?channel=whatsapp",
-    "/workspace/rcs/logs": "/workspace/logs/?channel=rcs",
-    "/workspace/ses/logs": "/workspace/logs/?channel=email",
-    "/workspace/rcs/campaign": "/workspace/broadcast/",
-    "/workspace/ses/campaign": "/workspace/broadcast/",
+    "/engage/calls": "/engage/inbox/?channel=voice",
+    "/engage/rcs/inbox": "/engage/inbox/?channel=rcs",
+    "/engage/ses/inbox": "/engage/inbox/?channel=email",
+    "/engage/whatsapp/logs": "/engage/logs/?channel=whatsapp",
+    "/engage/rcs/logs": "/engage/logs/?channel=rcs",
+    "/engage/ses/logs": "/engage/logs/?channel=email",
+    "/engage/rcs/campaign": "/engage/broadcast/",
+    "/engage/ses/campaign": "/engage/broadcast/",
     "/link/logs": "/link/",
 }
 
-# Prefix renames: old top-level segment -> new one. `/dm` became `/workspace` on
+# Prefix renames: old top-level segment -> new one. `/dm` became `/engage` on
 # 2026-09-26 (63 routes).
 #
 # This is declared here rather than left as rules someone added in the console,
@@ -97,19 +97,26 @@ RETIRED = {
 #
 # Each entry expands to three rules plus a one-hop rule per RETIRED route:
 #
-#   /dm        -> /workspace/      301   bare form
-#   /dm/       -> /workspace/      301   trailing form; a static host treats these
+#   /dm        -> /engage/      301   bare form
+#   /dm/       -> /engage/      301   trailing form; a static host treats these
 #                                        as different keys
-#   /dm/<*>    -> /workspace/<*>   301   everything else. AWS documents exactly this
+#   /dm/<*>    -> /engage/<*>   301   everything else. AWS documents exactly this
 #                                        shape for a prefix rename, and the wildcard
 #                                        must be last in the source and appear once.
 #
 # The one-hop rules matter: without them `/dm/calls` would take TWO redirects
-# (`/dm/calls` -> `/workspace/calls` -> `/workspace/inbox/?channel=voice`). Correct,
+# (`/dm/calls` -> `/engage/calls` -> `/engage/inbox/?channel=voice`). Correct,
 # but a wasted round trip on every old bookmark, so the old prefix gets its own
 # direct rule to the final destination.
+# `/workspace` is listed alongside `/dm` and is NOT dropped as a rounding error. It
+# genuinely deployed — Amplify job 937 SUCCEED, and `/workspace/inbox/` served 200 —
+# so it is a URL that existed and could have been captured. The realistic number of
+# bookmarks is near zero on an admin-only, robots-disallowed route family, but three
+# rules is a trivial price against a broken link, and "it was only live briefly" is
+# the same argument that would justify dropping any redirect.
 RENAMED_PREFIXES = {
-    "/dm": "/workspace",
+    "/dm": "/engage",
+    "/workspace": "/engage",
 }
 
 # REMOVED 2026-09-25 on owner instruction: "/forms/logs": "/forms/responses/".
@@ -136,7 +143,7 @@ def desired_redirects() -> list[dict]:
 
     # Prefix renames. Ordering inside this list is load-bearing: the one-hop rules for
     # specific retired routes must precede the `<*>` wildcard, or the wildcard matches
-    # first and sends `/dm/calls` to a `/workspace/calls` page that does not exist.
+    # first and sends `/dm/calls` to a `/engage/calls` page that does not exist.
     for old, new in RENAMED_PREFIXES.items():
         for source, target in RETIRED.items():
             if not source.startswith(new + "/"):

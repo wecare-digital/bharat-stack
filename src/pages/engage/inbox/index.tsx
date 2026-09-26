@@ -45,7 +45,7 @@ interface PageProps {
      * continue over SMS when RCS is not deliverable), so widening back to ALL is
      * the point rather than a mistake.
      *
-     * `?channel=` is honoured too, so `/workspace/inbox?channel=voice` is a real
+     * `?channel=` is honoured too, so `/engage/inbox?channel=voice` is a real
      * destination. That is how Calls stopped needing a page of its own.
      */
     channel?: string;
@@ -53,14 +53,14 @@ interface PageProps {
 
 // Channel identity (distinct, on-brand) + reply deep-link target.
 const CHANNEL: Record<string, { label: string; fg: string; bg: string; reply: string }> = {
-    whatsapp: { label: 'WhatsApp', fg: '#15803d', bg: '#f0fdf4', reply: '/workspace/whatsapp' },
-    sms: { label: 'SMS', fg: '#1d4ed8', bg: '#eff6ff', reply: '/workspace/sms' },
-    email: { label: 'Email', fg: '#b45309', bg: '#fffbeb', reply: '/workspace/ses' },
-    rcs: { label: 'RCS', fg: '#0f766e', bg: '#f0fdfa', reply: '/workspace/rcs' },
-    voice: { label: 'Voice', fg: '#6d28d9', bg: '#f5f3ff', reply: '/workspace/voice' },
+    whatsapp: { label: 'WhatsApp', fg: '#15803d', bg: '#f0fdf4', reply: '/engage/whatsapp' },
+    sms: { label: 'SMS', fg: '#1d4ed8', bg: '#eff6ff', reply: '/engage/sms' },
+    email: { label: 'Email', fg: '#b45309', bg: '#fffbeb', reply: '/engage/ses' },
+    rcs: { label: 'RCS', fg: '#0f766e', bg: '#f0fdfa', reply: '/engage/rcs' },
+    voice: { label: 'Voice', fg: '#6d28d9', bg: '#f5f3ff', reply: '/engage/voice' },
 };
 
-const chMeta = ( c?: string ) => CHANNEL[ ( c || 'whatsapp' ).toLowerCase() ] || { label: c || '?', fg: colors.textMuted, bg: colors.bgSecondary, reply: '/workspace' };
+const chMeta = ( c?: string ) => CHANNEL[ ( c || 'whatsapp' ).toLowerCase() ] || { label: c || '?', fg: colors.textMuted, bg: colors.bgSecondary, reply: '/engage' };
 
 // Reaction quick-set for the per-message react popover.
 const REACT_EMOJIS = [ '👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅' ];
@@ -239,7 +239,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded, channel }
     // presetting its own channel must not be overridden by a stale URL.
     //
     // It MUST reset to 'ALL' when the URL carries no channel. All six sidebar Inbox
-    // entries are the same route `/workspace/inbox` differing only by query string, so Next
+    // entries are the same route `/engage/inbox` differing only by query string, so Next
     // keeps this component mounted across them and React state survives the
     // navigation. The first version of this effect only ever *set* the filter, so
     // going `?channel=email` -> "All channels" left it stuck on `email` - and email

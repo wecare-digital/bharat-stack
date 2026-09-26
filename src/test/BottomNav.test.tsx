@@ -19,7 +19,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import fs from 'node:fs';
 import path from 'node:path';
 
-let pathname = '/workspace/inbox';
+let pathname = '/engage/inbox';
 const push = vi.fn();
 
 vi.mock( 'next/router', () => ( {
@@ -35,7 +35,7 @@ const CSS = fs.readFileSync(
   path.resolve( __dirname, '../styles/Layout.css' ), 'utf8' );
 
 beforeEach( () => {
-  pathname = '/workspace/inbox';
+  pathname = '/engage/inbox';
   push.mockClear();
 } );
 
@@ -80,7 +80,7 @@ describe( 'behaviour', () => {
   } );
 
   it( 'marks the current stream with aria-current, not colour alone', () => {
-    pathname = '/workspace/inbox';
+    pathname = '/engage/inbox';
     render( <BottomNav onMore={ () => {} } /> );
     const current = screen.getAllByRole( 'button' )
       .filter( ( b ) => b.getAttribute( 'aria-current' ) === 'page' );

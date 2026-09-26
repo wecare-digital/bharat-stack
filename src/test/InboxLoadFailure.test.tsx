@@ -19,7 +19,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 let routerQuery: Record<string, string> = {};
 
 vi.mock( 'next/router', () => ( {
-  useRouter: () => ( { query: routerQuery, isReady: true, push: vi.fn(), pathname: '/workspace/inbox' } ),
+  useRouter: () => ( { query: routerQuery, isReady: true, push: vi.fn(), pathname: '/engage/inbox' } ),
 } ) );
 
 vi.mock( 'aws-amplify/auth', () => ( {
@@ -54,7 +54,7 @@ vi.mock( '../api/client', async () => {
   };
 } );
 
-import UnifiedInbox from '../pages/workspace/inbox/index';
+import UnifiedInbox from '../pages/engage/inbox/index';
 import { ToastProvider } from '../contexts/ToastContext';
 
 const Inbox: React.FC = () => (

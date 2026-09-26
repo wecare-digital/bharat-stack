@@ -259,7 +259,7 @@ const FormResponsesPage: React.FC<PageProps> = ( { signOut, user, embedded } ) =
                           </dl>
                           { r.contactId && (
                             <Link className="fr-link"
-                              href={ `/workspace/inbox?contact=${encodeURIComponent( r.contactId )}` }>
+                              href={ `/engage/inbox?contact=${encodeURIComponent( r.contactId )}` }>
                               Open the conversation
                             </Link>
                           ) }

@@ -45,11 +45,13 @@ Disallow: /service/
 Disallow: /settings/
 Disallow: /store/
 Disallow: /task/
-# /workspace/ is the former /dm/, renamed 2026-09-26. 63 routes. The old /dm/ rule was
-# removed rather than kept alongside: a Disallow for a route that no longer exists is
-# noise that implies the route does, which is the rule stated at the top of this file.
-# The /dm/ -> /workspace/ redirect is a 301 in the Amplify custom rules, and a crawler
-# following it lands here, on a Disallow, which is the intended outcome.
-Disallow: /workspace/
+# /engage/ is the former /dm/, renamed 2026-09-26. 63 routes.
+#
+# It passed through /workspace/ for about twenty minutes the same day before being
+# renamed again. Neither old rule is kept: a Disallow for a route that no longer
+# exists is noise that implies the route does, which is the rule at the top of this
+# file. Both /dm/ and /workspace/ are 301s in the Amplify custom rules, and a crawler
+# following either lands here on a Disallow, which is the intended outcome.
+Disallow: /engage/
 
 Sitemap: https://wecare.digital/sitemap.xml

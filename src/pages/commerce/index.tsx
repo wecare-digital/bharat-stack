@@ -41,7 +41,7 @@ const COMMERCE_PROVIDERS = [ 'wix' ];
 /** The live pages this module gathers rather than replaces. */
 const EXISTING = [
   { href: '/store', label: 'Catalog', note: 'Products, brands and offers' },
-  { href: '/workspace/commerce', label: 'Commerce', note: 'Store operations' },
+  { href: '/engage/commerce', label: 'Commerce', note: 'Store operations' },
   { href: '/pay', label: 'Payments overview', note: 'Links, flows and status' },
   { href: '/pay/records', label: 'Invoice records', note: 'The billed/paid/delivered ledger' },
 ];

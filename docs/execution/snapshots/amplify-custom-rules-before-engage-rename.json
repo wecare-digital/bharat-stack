@@ -1,0 +1,222 @@
+[
+    {
+        "source": "https://www.wecare.digital",
+        "target": "https://wecare.digital",
+        "status": "301"
+    },
+    {
+        "source": "/get",
+        "target": "/get/index.html",
+        "status": "200"
+    },
+    {
+        "source": "/get/",
+        "target": "/get/index.html",
+        "status": "200"
+    },
+    {
+        "source": "/get/<*>",
+        "target": "https://d1kf2rchz7yras.cloudfront.net/<*>",
+        "status": "200"
+    },
+    {
+        "source": "/dm/calls",
+        "target": "/workspace/inbox/?channel=voice",
+        "status": "301"
+    },
+    {
+        "source": "/dm/calls/",
+        "target": "/workspace/inbox/?channel=voice",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/inbox",
+        "target": "/workspace/inbox/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/inbox/",
+        "target": "/workspace/inbox/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/inbox",
+        "target": "/workspace/inbox/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/inbox/",
+        "target": "/workspace/inbox/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/dm/whatsapp/logs",
+        "target": "/workspace/logs/?channel=whatsapp",
+        "status": "301"
+    },
+    {
+        "source": "/dm/whatsapp/logs/",
+        "target": "/workspace/logs/?channel=whatsapp",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/logs",
+        "target": "/workspace/logs/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/logs/",
+        "target": "/workspace/logs/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/logs",
+        "target": "/workspace/logs/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/logs/",
+        "target": "/workspace/logs/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/campaign",
+        "target": "/workspace/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/dm/rcs/campaign/",
+        "target": "/workspace/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/campaign",
+        "target": "/workspace/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/dm/ses/campaign/",
+        "target": "/workspace/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/link/logs",
+        "target": "/link/",
+        "status": "301"
+    },
+    {
+        "source": "/link/logs/",
+        "target": "/link/",
+        "status": "301"
+    },
+    {
+        "source": "/r/<*>",
+        "target": "https://api.wecare.digital/r/<*>",
+        "status": "200"
+    },
+    {
+        "source": "/api/<*>",
+        "target": "https://api.wecare.digital/<*>",
+        "status": "200"
+    },
+    {
+        "source": "/workspace/calls",
+        "target": "/workspace/inbox/?channel=voice",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/calls/",
+        "target": "/workspace/inbox/?channel=voice",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/rcs/inbox",
+        "target": "/workspace/inbox/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/rcs/inbox/",
+        "target": "/workspace/inbox/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/ses/inbox",
+        "target": "/workspace/inbox/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/ses/inbox/",
+        "target": "/workspace/inbox/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/whatsapp/logs",
+        "target": "/workspace/logs/?channel=whatsapp",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/whatsapp/logs/",
+        "target": "/workspace/logs/?channel=whatsapp",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/rcs/logs",
+        "target": "/workspace/logs/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/rcs/logs/",
+        "target": "/workspace/logs/?channel=rcs",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/ses/logs",
+        "target": "/workspace/logs/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/ses/logs/",
+        "target": "/workspace/logs/?channel=email",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/rcs/campaign",
+        "target": "/workspace/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/rcs/campaign/",
+        "target": "/workspace/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/ses/campaign",
+        "target": "/workspace/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/workspace/ses/campaign/",
+        "target": "/workspace/broadcast/",
+        "status": "301"
+    },
+    {
+        "source": "/dm",
+        "target": "/workspace/",
+        "status": "301"
+    },
+    {
+        "source": "/dm/",
+        "target": "/workspace/",
+        "status": "301"
+    },
+    {
+        "source": "/dm/<*>",
+        "target": "/workspace/<*>",
+        "status": "301"
+    },
+    {
+        "source": "/<*>",
+        "target": "/index.html",
+        "status": "404-200"
+    }
+]

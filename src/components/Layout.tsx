@@ -19,8 +19,8 @@ import BrandLockup from './BrandLockup';
 // Minimal navigation shown to limited-access partner (customer) users.
 const PARTNER_NAV: NavItem[] = [
   {
-    path: '/workspace/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
-      { path: '/workspace/whatsapp/my-account', label: 'My WhatsApp Account' },
+    path: '/engage/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
+      { path: '/engage/whatsapp/my-account', label: 'My WhatsApp Account' },
       // Inbox intentionally omitted until tenant-scoped (avoids data leakage).
     ],
   },
@@ -45,7 +45,7 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
   useEffect( () => {
     if ( !roleLoading && isPartner && !isPartnerAllowed( router.pathname ) )
     {
-      router.replace( '/workspace/whatsapp/my-account' );
+      router.replace( '/engage/whatsapp/my-account' );
     }
   }, [ roleLoading, isPartner, router.pathname ] );
 

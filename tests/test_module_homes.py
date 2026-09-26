@@ -10,10 +10,10 @@ hub pages statically imported their tab bodies, so opening the RCS hub downloade
 inbox, the broadcast composer and the logs view before showing any of them. Measured per
 page against the built export:
 
-    /workspace/rcs                  1,957,586 -> 1,233,536   -37.0%
-    /workspace/ses                  1,944,813 -> 1,233,034   -36.6%
-    /workspace/whatsapp/settings    1,669,961 -> 1,233,687   -26.1%
-    /workspace/dashboard            1,520,749 -> 1,443,385    -5.1%
+    /engage/rcs                  1,957,586 -> 1,233,536   -37.0%
+    /engage/ses                  1,944,813 -> 1,233,034   -36.6%
+    /engage/whatsapp/settings    1,669,961 -> 1,233,687   -26.1%
+    /engage/dashboard            1,520,749 -> 1,443,385    -5.1%
 
 Total bytes on disk went UP 6%, which is the correct trade and why "total _next/static"
 is the wrong metric for a splitting change: more chunks, each smaller, and nobody
@@ -54,14 +54,14 @@ REMOVED_IDS = {"growth"}
 # list it used to group is asserted reachable independently.
 GROWTH_FORMER_INNER_PAGES = [
     "/seo", "/seo/pages", "/seo/analytics", "/seo/tracking", "/seo/schema",
-    "/workspace/whatsapp/ctwa-ads", "/workspace/whatsapp/conversions-api",
+    "/engage/whatsapp/ctwa-ads", "/engage/whatsapp/conversions-api",
 ]
 
 HUBS_THAT_MUST_BE_LAZY = {
-    "src/pages/workspace/whatsapp/settings.tsx": 15,
+    "src/pages/engage/whatsapp/settings.tsx": 15,
     "src/pages/dashboard/index.tsx": 5,
-    "src/pages/workspace/rcs/index.tsx": 4,
-    "src/pages/workspace/ses/index.tsx": 3,
+    "src/pages/engage/rcs/index.tsx": 4,
+    "src/pages/engage/ses/index.tsx": 3,
 }
 
 
@@ -163,7 +163,7 @@ class TestCommunicationsExposesExactlyThree:
         inner = block.split("innerPages:")[1]
         inner = inner[: inner.index("]")]
         pages = re.findall(r"'(/[a-z0-9/-]+)'", inner)
-        assert pages == ["/workspace/inbox", "/workspace/whatsapp", "/workspace/voice"], (
+        assert pages == ["/engage/inbox", "/engage/whatsapp", "/engage/voice"], (
             f"Communications must expose exactly Common Inbox, WhatsApp Business and "
             f"Business Calling; found {pages}")
 

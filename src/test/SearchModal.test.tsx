@@ -67,8 +67,8 @@ describe( 'SearchModal is derived from navigation.ts', () => {
 
   it( 'can find the destinations the old list could not', () => {
     const paths = getAllNavItems().map( ( i ) => i.path );
-    for ( const p of [ '/workspace/inbox', '/workspace/sms', '/workspace/rcs', '/workspace/ses',
-      '/workspace/settings', '/access/security', '/seo/sitemaps' ] )
+    for ( const p of [ '/engage/inbox', '/engage/sms', '/engage/rcs', '/engage/ses',
+      '/engage/settings', '/access/security', '/seo/sitemaps' ] )
     {
       expect( paths ).toContain( p );
     }
