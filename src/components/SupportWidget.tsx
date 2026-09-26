@@ -43,6 +43,85 @@ const NATIVE: Record<string, string> = {
   gu: 'ગુજરાતી', kn: 'ಕನ್ನಡ', ml: 'മലയാളം', pa: 'ਪੰਜਾਬੀ', ur: 'اردو',
 };
 
+/**
+ * THE CATALOGUE IS TRIMMED ON ARRIVAL, and every entry here has a reason.
+ *
+ * /languages returns the provider's full list - 76 entries - and it used to go straight
+ * into the picker untouched. Two problems with that, one of them a real bug.
+ *
+ * 'auto' IS NOT A LANGUAGE. The provider includes {"code":"auto","name":"Auto"} as a
+ * SOURCE-language sentinel meaning "detect it". As a destination it is meaningless:
+ * selecting it sent `targetLanguage: "auto"` to /translate. It was offered to every
+ * visitor, in the list, indistinguishable from a real choice.
+ *
+ * THE FOUR REGION VARIANTS ARE DROPPED because the requirement is one word per row and
+ * "Canadian French", "Mexican Spanish", "Portugal Portuguese" and "Chinese Traditional"
+ * are not. They are also the only entries in the list that duplicate a language already
+ * in it - French, Spanish, Portuguese and Chinese all remain - so for translating a web
+ * page nothing is lost; the base language serves the reader either way.
+ *
+ * That leaves 71 languages, every one a single word. The only remaining multi-word name
+ * was "Haitian Creole", renamed rather than dropped - it has no base-language twin, and
+ * "Creole" is how it is ordinarily labelled.
+ *
+ * Verified against the live endpoint, not assumed: mock/lang-search/live-catalogue.json on
+ * the mock-device-audit branch is the response these rules were derived from.
+ */
+const DROP_CODES = new Set( [ 'auto', 'fr-CA', 'zh-TW', 'es-MX', 'pt-PT' ] );
+const RENAME: Record<string, string> = { ht: 'Creole' };
+
+/** Rows shown at once. Five is not arbitrary - see the note on searching below. */
+const MAX_ROWS = 5;
+
+/**
+ * SEARCHING THE CATALOGUE. Three rules, each one measured against the real 71 entries
+ * rather than guessed at.
+ *
+ * 1. MATCH THE CODE AS WELL AS THE NAME. For half the Indian languages the ISO code is not
+ *    the first two letters of the English name - bn/Bengali, mr/Marathi, kn/Kannada,
+ *    ml/Malayalam, pa/Punjabi. Matching only the name would mean a reader who knows the
+ *    code types it and gets nothing; matching only the code would mean the opposite. Both
+ *    are matched, so 'bn' and 'be' both find Bengali and it does not matter which one they
+ *    reach for.
+ *
+ * 2. AN EXACT CODE MATCH RANKS FIRST, and this was a real defect caught in the mockup. The
+ *    rows are sorted alphabetically, so typing 'ta' listed TAGALOG ABOVE TAMIL - Tagalog
+ *    wins on spelling - while 'ta' is Tamil's own ISO code. For an audience in Bharat the
+ *    most likely language was sitting second behind one almost nobody here will want. Same
+ *    shape for 'ml', where Malayalam was behind Malay and Maltese.
+ *
+ * 3. THE NATIVE NAME IS MATCHED TOO, so a reader typing in their own script finds their own
+ *    language. Costs nothing and is the only route in for someone using an Indic keyboard.
+ *
+ * WHY FIVE ROWS IS ENOUGH, measured across the whole catalogue: two letters resolve to
+ * exactly one language 46 times out of 71, two languages 18 times, three twice, and five
+ * times it returns five - the 'ma' cluster of Macedonian, Malay, Malayalam, Maltese,
+ * Marathi. It never returns more than five. So five rows is not a truncation that usually
+ * works, it is the true worst case, and the panel therefore has a fixed height and never
+ * scrolls. The overflow hint below exists for the one- and zero-letter states only.
+ */
+function searchLanguages ( all: Lang[], query: string ): Lang[] {
+  const q = query.trim().toLowerCase();
+  if ( !q ) return all;
+  const scored: Array<{ lang: Lang; rank: number }> = [];
+  for ( const lang of all ) {
+    const code = lang.code.toLowerCase();
+    const name = lang.name.toLowerCase();
+    const native = ( lang.native || '' ).toLowerCase();
+    let rank = -1;
+    if ( code === q ) rank = 0;
+    else if ( name.startsWith( q ) ) rank = 1;
+    else if ( native && native.startsWith( q ) ) rank = 2;
+    else if ( code.startsWith( q ) ) rank = 3;
+    // Substring last, and only for three or more characters: on one or two letters it turns
+    // a five-row answer into a twenty-row one and defeats the fixed height.
+    else if ( q.length >= 3 && name.includes( q ) ) rank = 4;
+    if ( rank >= 0 ) scored.push( { lang, rank } );
+  }
+  // Stable within a rank, so the alphabetical order of the catalogue survives.
+  return scored.sort( ( a, b ) => a.rank - b.rank ).map( row => row.lang );
+}
+
 const SKIP_TAGS = new Set( [
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'SVG', 'CANVAS', 'VIDEO', 'AUDIO',
   'INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'CODE', 'PRE', 'HEAD', 'META', 'LINK',
@@ -98,6 +177,8 @@ const MOBILE_MAX = 767;
 const PARK_GAP = 16;
 /** The pill may never park closer than this to the fixed header's bottom edge. */
 const HEADER_GAP = 12;
+/** Space between the pill and the panel above it. Matches the flex gap on .wc-langbar. */
+const PANEL_GAP = 10;
 
 const SupportWidget: React.FC = () => {
   const [ langs, setLangs ] = useState<Lang[]>( [] );
@@ -106,7 +187,14 @@ const SupportWidget: React.FC = () => {
   const [ status, setStatus ] = useState( '' );
   const [ appShell, setAppShell ] = useState( false );
   const [ parkedBottom, setParkedBottom ] = useState<number | null>( null );
+  const [ open, setOpen ] = useState( false );
+  const [ query, setQuery ] = useState( '' );
+  const [ active, setActive ] = useState( 0 );
+  const [ panelMax, setPanelMax ] = useState<number | null>( null );
   const barRef = useRef<HTMLDivElement | null>( null );
+  const chipRef = useRef<HTMLButtonElement | null>( null );
+  const inputRef = useRef<HTMLInputElement | null>( null );
+  const listRef = useRef<HTMLDivElement | null>( null );
   const originals = useRef<Map<Text, string> | null>( null );
   const applyLanguageRef = useRef<( ( code: string, label?: string ) => Promise<void> ) | null>( null );
 
@@ -146,9 +234,9 @@ const SupportWidget: React.FC = () => {
         const response = await fetch( `${API_BASE}/languages` );
         if ( !response.ok ) return;
         const rows: Array<{ code: string; name: string }> = ( await response.json() ).languages || [];
-        const normalized = rows.map( row => {
+        const normalized = rows.filter( row => !DROP_CODES.has( row.code ) ).map( row => {
           const base = row.code.toLowerCase().split( '-' )[ 0 ];
-          return { code: row.code, name: row.name, native: NATIVE[ base ] };
+          return { code: row.code, name: RENAME[ row.code ] || row.name, native: NATIVE[ base ] };
         } ).sort( ( a, b ) => {
           if ( a.code === 'en' ) return -1;
           if ( b.code === 'en' ) return 1;
@@ -225,6 +313,50 @@ const SupportWidget: React.FC = () => {
   useEffect( () => { applyLanguageRef.current = applyLanguage; }, [ applyLanguage ] );
 
   /**
+   * OPENING AND CLOSING THE SEARCH PANEL.
+   *
+   * THIS IS THE COST OF LEAVING THE NATIVE CONTROL, and it is worth naming rather than
+   * burying. A <select> gave us keyboard navigation, screen-reader announcement, an
+   * outside-click that could not go wrong and the OS picker on a phone - all of it free and
+   * all of it correct. A custom box means owning every part of that: arrow keys, Enter,
+   * Escape, aria-expanded, aria-activedescendant, focus into the input on open, focus back
+   * to the chip on close, and a document listener that does not fight the pill's own clicks.
+   * Everything below is that bill being paid. If a future change is tempted to simplify it,
+   * the thing that breaks first is the keyboard, and nobody notices a broken keyboard by
+   * looking at a screenshot.
+   */
+  const closePanel = useCallback( ( returnFocus: boolean ) => {
+    setOpen( false );
+    setQuery( '' );
+    setActive( 0 );
+    // Focus goes back to the chip, not to the body. Dropping focus to the body would send a
+    // keyboard user back to the top of the document, which is a page-length punishment for
+    // pressing Escape.
+    if ( returnFocus ) chipRef.current?.focus();
+  }, [] );
+
+  useEffect( () => {
+    if ( !open ) return;
+    // The input is focused in an effect rather than with autoFocus: autoFocus on a
+    // conditionally rendered element is inconsistent across browsers, and on iOS it can
+    // raise the keyboard before the panel has finished positioning.
+    inputRef.current?.focus();
+
+    const onPointerDown = ( event: MouseEvent | TouchEvent ) => {
+      const bar = barRef.current;
+      if ( bar && event.target instanceof Node && !bar.contains( event.target ) ) closePanel( false );
+    };
+    // Capture phase, so a click on a page element that stops propagation still closes the
+    // panel. Without it the panel can be left open behind an overlay that swallowed the event.
+    document.addEventListener( 'mousedown', onPointerDown, true );
+    document.addEventListener( 'touchstart', onPointerDown, true );
+    return () => {
+      document.removeEventListener( 'mousedown', onPointerDown, true );
+      document.removeEventListener( 'touchstart', onPointerDown, true );
+    };
+  }, [ open, closePanel ] );
+
+  /**
    * THE PILL PARKS ABOVE THE FOOTER INSTEAD OF SLIDING OVER IT.
    *
    * The problem, measured at the end of the home page on every phone size: the pill landed
@@ -281,11 +413,40 @@ const SupportWidget: React.FC = () => {
       setParkedBottom( Math.min( wanted, Math.max( ceiling, 0 ) ) );
     };
 
+    /**
+     * HOW TALL THE PANEL IS ALLOWED TO BE.
+     *
+     * The panel opens UPWARD, because the pill is at the bottom of the screen. That is fine
+     * until the two constraints meet: on a 320x568 phone, with the pill parked 208px up to
+     * clear the footer, the space left above it is about 194px - and five rows plus the
+     * search field is about 230px. The panel would have opened straight through the fixed
+     * header.
+     *
+     * No current desktop or tablet width comes close, which is exactly why this is computed
+     * rather than assumed. Measuring the PILL rather than the bar is deliberate: the bar
+     * contains the panel, so measuring the bar while the panel is open would be circular.
+     *
+     * When the cap bites, .wc-rows scrolls and the panel shows four rows instead of five.
+     * That is the graceful end of it. The alternative considered and rejected was to unpark
+     * the pill while the panel is open, which would have dropped it ~190px the instant a
+     * phone user tapped the chip - a jump, to solve a problem only the smallest screens have.
+     */
+    const measurePanel = () => {
+      const bar = barRef.current;
+      const pill = bar?.querySelector( '.wc-pill' );
+      if ( !pill ) return;
+      const header = document.querySelector( 'header.hdr' );
+      const headerBottom = header ? header.getBoundingClientRect().bottom : 0;
+      const room = pill.getBoundingClientRect().top - headerBottom - HEADER_GAP - PANEL_GAP;
+      setPanelMax( Math.max( Math.round( room ), 132 ) );
+    };
+
     // Coalesced to one computation per frame. A scroll listener that writes state on every
     // event would set state dozens of times per frame on a trackpad or a momentum flick.
-    const onScroll = () => { if ( !frame ) frame = requestAnimationFrame( compute ); };
+    const onScroll = () => { if ( !frame ) frame = requestAnimationFrame( () => { compute(); measurePanel(); } ); };
 
     compute();
+    measurePanel();
     window.addEventListener( 'scroll', onScroll, { passive: true } );
     window.addEventListener( 'resize', onScroll );
     return () => {
@@ -303,6 +464,7 @@ const SupportWidget: React.FC = () => {
    * The catalogue failing hides the language chip alone.
    */
   const canTranslate = langs.length >= 2;
+  const hits = searchLanguages( langs, query );
   // Uppercased base code - "EN", "HI", "TA". Short enough to sit in the pill without the
   // chip changing width between languages, which a full name would do on every switch.
   const chipLabel = ( current.split( '-' )[ 0 ] || 'en' ).toUpperCase();
@@ -357,20 +519,95 @@ const SupportWidget: React.FC = () => {
         .wc-wa svg{width:21px;height:21px;display:block}
         .wc-sep{width:1px;height:22px;background:#eef0e6;flex:0 0 auto}
 
-        /* THE LANGUAGE CHIP IS A REAL <select>, NOT A CUSTOM PANEL.
-           This replaces a 324px panel with a search field, an ARIA combobox, a scrolling
-           listbox, keyboard navigation and aria-activedescendant wiring - about 150 lines.
-           A native control gets all of that from the platform, and on a phone it opens the
-           OS language picker, which is searchable, familiar and accessible for free.
-           The <select> is transparent and stretched over the chip, so the visible label is
-           ours while every interaction is the browser's. font-size:16px on it is not
-           cosmetic: iOS Safari zooms the viewport when a focused form control is under
-           16px. */
-        .wc-chip{position:relative;display:inline-flex;align-items:center;height:40px;min-width:52px;justify-content:center;padding:0 9px 0 11px;border-radius:9999px;background:transparent;color:#1a3a2a;font-size:14px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:background-color .2s}
-        .wc-chip:hover{background:rgba(209,244,112,.38)}
-        .wc-chip:focus-within{background:rgba(209,244,112,.38);outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
-        .wc-chip select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;border:0;padding:0;margin:0;-webkit-appearance:none;appearance:none}
-        .wc-arw{width:6px;height:6px;box-sizing:border-box;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);margin-left:7px;opacity:.7}
+        /* THE CHIP IS A BUTTON THAT OPENS THE SEARCH PANEL.
+           It was a transparent <select> stretched over the chip, which bought keyboard
+           navigation, screen-reader announcement and the phone's OS picker for nothing. That
+           is a real loss and it was traded deliberately: the picker showed the provider's
+           raw 76-entry list, two-thirds of it irrelevant, with no way to search on desktop.
+           What replaces it is in .wc-panel below, and the keyboard and ARIA work the select
+           used to do for free is in the component.
+
+           NO HOVER TINT. The chip used to fill with rgba(209,244,112,.38) on hover. It is
+           removed on instruction, and it is the right call for a reason worth recording: the
+           same tint marks the ACTIVE ROW inside the panel, so using it on the trigger as well
+           meant one colour saying two different things a few pixels apart. The chip now
+           signals only real state - focus, and busy. */
+        .wc-chip{position:relative;display:inline-flex;align-items:center;height:40px;min-width:52px;justify-content:center;padding:0 9px 0 11px;border:0;border-radius:9999px;background:transparent;color:#1a3a2a;font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:background-color .2s}
+        .wc-chip[aria-disabled='true']{cursor:progress}
+        /* Focus-visible only, so a mouse click does not leave a ring behind. */
+        .wc-chip:focus-visible{background:rgba(209,244,112,.38);outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+        .wc-arw{width:6px;height:6px;box-sizing:border-box;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);margin-left:7px;opacity:.7;transition:transform .2s}
+        .wc-chip[aria-expanded='true'] .wc-arw{transform:translateY(1px) rotate(225deg)}
+
+        /* ===== THE SEARCH PANEL =====
+           210px, and the width is the point: it is narrow enough to sit inside a 280px folded
+           phone with the pill's own 16px inset and still leave room, and it never has to grow
+           because every row is a single word.
+           The 3px lime top edge is the same device the header dropdown and the sign-in card
+           use, so a floating surface reads as ours without a lime outline on all four sides -
+           which the contract reserves for interactive state and which made inputs look
+           permanently focused when it was tried. */
+        /* order:-1 puts the panel ABOVE the pill visually while leaving it after the pill in
+           the DOM. Both halves matter: the pill sits at the bottom of the screen so the panel
+           has nowhere to go but up, and DOM order is what decides tab order and the order a
+           screen reader reads - the trigger should come before the thing it opens. */
+        .wc-panel{order:-1;display:flex;flex-direction:column;width:210px;background:#fcfdfa;border:1px solid #e8ecdf;border-top:3px solid #d1f470;border-radius:14px;box-shadow:0 14px 40px rgba(16,32,24,.18);overflow:hidden}
+
+        .wc-search{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #f1f3ec;background:#fff;transition:border-color .2s}
+        /* The focus signal lives on the ROW, not on the input. Deliberate: the input is
+           focused for the entire time the panel exists, so a ring around it conveys no
+           information and just sits there - which is the "reads as permanently focused"
+           defect this palette has already been burned by once. One lime hairline under the
+           field says where the typing goes, and nothing shouts. */
+        .wc-search:focus-within{border-bottom-color:#d1f470}
+        .wc-search svg{width:15px;height:15px;flex:0 0 auto;fill:none;stroke:#1a3a2a;stroke-width:2.2;stroke-linecap:round;opacity:.45}
+
+        /* THIS RULE IS MOSTLY UNDOING OTHER RULES, and each reset is here because the global
+           stylesheet was measurably reaching into the panel:
+             box-shadow  tokens.css gives every focused input a 3px lime glow. With the input
+                         permanently focused that drew a heavy lime rounded box around the
+                         search field - the single most visible thing in the panel, and not
+                         designed.
+             min-height  tokens.css sets 44px on every input. It made the field 44px, the
+                         search row 65px and the whole panel 302px instead of ~230.
+             radius      var(--radius-md) rounded the field inside an already-rounded panel.
+           None of these needed !important to beat - the styled-jsx class pair simply has to
+           name the property. Anything NOT named here silently keeps the global value, which
+           is exactly how all three arrived.
+           font-size:16px stays for iOS Safari, which zooms the viewport when a focused form
+           control is under 16px and does not zoom back out on blur. Layout.css happens to
+           force 16px on every input anyway, but this must not depend on that. */
+        .wc-search input{width:100%;min-width:0;min-height:0;height:auto;border:0;border-radius:0;outline:0;box-shadow:none;padding:0;margin:0;background:transparent;font-family:inherit;font-size:16px;font-weight:600;color:#1a3a2a}
+        .wc-search input:focus{border:0;box-shadow:none;outline:0}
+        .wc-search input::placeholder{color:rgba(0,0,0,.36);font-weight:400}
+
+        /* FIXED HEIGHT, NO SCROLLING. Five rows is the measured worst case for a two-letter
+           query across the whole catalogue - the 'ma' cluster of Macedonian, Malay,
+           Malayalam, Maltese, Marathi - so the panel never scrolls and never changes height
+           once two characters are in. overflow is hidden rather than auto for that reason: an
+           auto scroller here would be dead weight that occasionally flickers a scrollbar. */
+        /* min-height:0 is load-bearing in a flex column: without it a flex item refuses to
+           shrink below its content size, so max-height on the panel would be ignored and the
+           rows would push straight through the header on a short screen. */
+        .wc-rows{overflow-y:auto;min-height:0;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(26,58,42,.15) transparent}
+        /* min-height is DECLARED, not inherited. Measured at 46px before this line, which
+           came from a global min-height rule on every button in the shared stylesheet - the
+           row happened to clear the touch-target floor by luck. Accidentally correct is how
+           the WhatsApp circle ended up a 44x40 oval, so the floor is stated here: 44px,
+           which also makes the panel's height predictable at 5 rows plus the search field. */
+        .wc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px;padding:9px 13px;border:0;border-radius:0;background:transparent;font-family:inherit;font-size:13.5px;font-weight:600;color:#1a3a2a;text-align:left;cursor:pointer;transition:background-color .12s}
+        /* is-active is the keyboard/pointer highlight; is-on is the language currently
+           showing. Solid lime for the current one, tint for the highlight - the same pairing
+           as the header menu, where active==hover was itself a defect that had to be fixed. */
+        .wc-row.is-active{background:rgba(209,244,112,.38)}
+        .wc-row.is-on{background:#d1f470}
+        .wc-row:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:-3px}
+        .wc-row-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .wc-row-code{flex:0 0 auto;font-size:10px;font-weight:700;letter-spacing:.05em;color:rgba(0,0,0,.34)}
+        .wc-row.is-on .wc-row-code{color:rgba(26,58,42,.55)}
+
+        .wc-empty,.wc-more{margin:0;padding:10px 13px;font-size:11px;font-weight:500;color:rgba(0,0,0,.45);background:#fcfdfa}
+        .wc-more{border-top:1px solid #f1f3ec}
 
         /* ===== TRANSLATING =====
            NO DARK INVERSION. The chip used to flip to a #1a3a2a fill while working, which
@@ -466,27 +703,139 @@ const SupportWidget: React.FC = () => {
 
         { canTranslate && <span className="wc-sep" aria-hidden="true" /> }
 
+        {/* THE CHIP USES aria-disabled, NOT disabled, and that was a real bug caught by
+            driving the keyboard rather than looking at it. The disabled attribute was
+            correct-looking and wrong: choosing a language sets busy, React re-renders, the
+            chip becomes disabled - and a disabled element CANNOT HOLD FOCUS, so the browser
+            drops focus to the body. A keyboard user who picked a language was thrown back to
+            the top of the document, every time, silently. Escape kept focus correctly and
+            Enter did not, which is exactly how it surfaced.
+            aria-disabled announces the same state to a screen reader while leaving the
+            element focusable; the click handler does the actual refusing.
+
+            Note for future edits: this comment lives HERE, outside the parentheses, because
+            a JSX comment placed inside `cond && ( ... )` is a second expression where only
+            one is allowed, and Turbopack reports it as a parse error on the line after it. */}
         { canTranslate && (
-          <span className={ `wc-chip ${busy ? 'is-busy' : ''}`.trim() }>
+          <button
+            ref={ chipRef }
+            type="button"
+            className={ `wc-chip ${busy ? 'is-busy' : ''}`.trim() }
+            aria-disabled={ busy }
+            aria-expanded={ open }
+            aria-haspopup="listbox"
+            aria-controls="wc-lang-panel"
+            aria-label={ `Language: ${langs.find( lang => lang.code === current )?.name || 'English'}. Choose another.` }
+            onClick={ () => {
+              // The refusal that `disabled` used to do for us, minus the focus loss.
+              if ( busy ) return;
+              if ( open ) closePanel( true );
+              else { setQuery( '' ); setActive( 0 ); setOpen( true ); }
+            } }
+          >
             { chipLabel }
             <span className="wc-arw" aria-hidden="true" />
-            <select
-              aria-label="Choose language"
-              value={ current }
-              disabled={ busy }
-              onChange={ event => { void applyLanguage( event.target.value ); } }
-            >
-              { langs.map( lang => (
-                <option key={ lang.code } value={ lang.code }>
-                  { lang.native && lang.native !== lang.name ? `${lang.native} — ${lang.name}` : lang.name }
-                </option>
-              ) ) }
-            </select>
-          </span>
+          </button>
         ) }
 
         { busy && <span className="wc-sweep" aria-hidden="true" /> }
       </div>
+
+      { canTranslate && open && (
+        <div
+          className="wc-panel"
+          id="wc-lang-panel"
+          style={ panelMax === null ? undefined : { maxHeight: `${panelMax}px` } }
+        >
+          {/* The search row. A real <input>, so the platform still supplies text selection,
+              dictation, paste and a mobile keyboard - the parts of the native control that
+              were never worth reimplementing.
+              The keyboard handler lives here rather than on the list because focus stays in
+              the input the whole time: arrows move the highlight, they do not move focus.
+              That is what aria-activedescendant is for, and it is why a screen reader can
+              announce the highlighted row while the user is still typing. */}
+          <div className="wc-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-4.2-4.2" />
+            </svg>
+            <input
+              ref={ inputRef }
+              type="text"
+              role="combobox"
+              aria-expanded="true"
+              aria-controls="wc-lang-list"
+              aria-autocomplete="list"
+              aria-activedescendant={ hits.length ? `wc-lang-${hits[ Math.min( active, hits.length - 1 ) ].code}` : undefined }
+              aria-label="Search language"
+              placeholder="Search language"
+              value={ query }
+              autoComplete="off"
+              spellCheck={ false }
+              onChange={ event => { setQuery( event.target.value ); setActive( 0 ); } }
+              onKeyDown={ event => {
+                if ( event.key === 'ArrowDown' || event.key === 'ArrowUp' ) {
+                  // preventDefault so the caret does not jump to either end of the input,
+                  // which is what the browser does with an arrow key in a text field.
+                  event.preventDefault();
+                  const shown = Math.min( hits.length, MAX_ROWS );
+                  if ( !shown ) return;
+                  setActive( prev => ( event.key === 'ArrowDown'
+                    ? ( prev + 1 ) % shown
+                    : ( prev - 1 + shown ) % shown ) );
+                } else if ( event.key === 'Enter' ) {
+                  event.preventDefault();
+                  const pick = hits[ Math.min( active, hits.length - 1 ) ];
+                  if ( pick ) { closePanel( true ); void applyLanguage( pick.code ); }
+                } else if ( event.key === 'Escape' ) {
+                  event.preventDefault();
+                  closePanel( true );
+                } else if ( event.key === 'Tab' ) {
+                  // Tab closes rather than trapping. A three-element popover does not need a
+                  // focus trap, and trapping would strand a keyboard user who opened it by
+                  // accident.
+                  closePanel( false );
+                }
+              } }
+            />
+          </div>
+
+          <div className="wc-rows" id="wc-lang-list" role="listbox" aria-label="Languages" ref={ listRef }>
+            { hits.slice( 0, MAX_ROWS ).map( ( lang, index ) => (
+              <button
+                key={ lang.code }
+                id={ `wc-lang-${lang.code}` }
+                type="button"
+                role="option"
+                aria-selected={ lang.code === current }
+                className={ `wc-row ${lang.code === current ? 'is-on' : ''} ${index === Math.min( active, hits.length - 1 ) ? 'is-active' : ''}`.trim() }
+                // onMouseDown, not onClick: the document mousedown listener that closes the
+                // panel fires first in the capture phase, and onClick would then land on an
+                // element that had already been unmounted.
+                onMouseDown={ event => { event.preventDefault(); closePanel( true ); void applyLanguage( lang.code ); } }
+                onMouseEnter={ () => setActive( index ) }
+              >
+                {/* ONE WORD PER ROW. The native name where we have it, the English name
+                    otherwise - both are single words, and a reader looking for their own
+                    language scans for its own script, not for a Latin transliteration of it.
+                    The code on the right is the second way in: search matches it too, so
+                    somebody who knows 'bn' and somebody who knows 'Bengali' both arrive. */}
+                <span className="wc-row-name">{ lang.native && lang.native !== lang.name ? lang.native : lang.name }</span>
+                <span className="wc-row-code">{ lang.code.toUpperCase() }</span>
+              </button>
+            ) ) }
+            { !hits.length && <p className="wc-empty">No language matches that.</p> }
+          </div>
+
+          {/* Only reachable on a one-letter or empty query: two letters never return more
+              than five. Worth keeping for exactly that reason - the panel should say how
+              much it is not showing rather than imply the list is complete. */}
+          { hits.length > MAX_ROWS && (
+            <p className="wc-more">{ hits.length - MAX_ROWS } more — keep typing</p>
+          ) }
+        </div>
+      ) }
+
       <div className="wc-sr" role="status" aria-live="polite">{ status }</div>
     </div>
   );
