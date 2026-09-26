@@ -228,11 +228,33 @@ const HomePage: React.FC = () => {
   }, [] );
 
   useEffect( () => {
-    // Measured, not guessed: "Intelligence" is more than twice the width of
-    // "Service", and animating to a measured px value is what makes the pill glide
-    // instead of snap.
+    // Measured, not guessed: the widest word is nearly a third wider than the narrowest,
+    // and animating to a measured px value is what makes the pill glide instead of snap.
+    //
+    // RE-MEASURED ON RESIZE, AND THAT IS NOT BELT-AND-BRACES. This effect used to run only
+    // when cycleIndex changed, which left the px width stale on every other input:
+    //   - font-size is clamp(36px,4.3vw,60px), so a word's width is a function of viewport
+    //     width. During rotation a stale value self-heals at the next 2400ms tick - but
+    //     under prefers-reduced-motion the interval never starts, so nothing ever
+    //     re-measures. Measured 480 -> 1280: the pill held 182px for a word needing 278px
+    //     and overflow:hidden ate 96px, 35% of it, permanently.
+    //   - WCAG 1.4.12 requires a page to survive a reader's own letter-spacing and
+    //     word-spacing. With those applied the word needs 356.8px against a 278px pill:
+    //     22% clipped. That is a Level AA failure, not a cosmetic one.
+    //   - a webfont swap changes metrics after first paint too.
+    //
+    // OBSERVING THE WORD, NOT THE PILL. The pill's width is what this effect sets, so
+    // observing it would either never fire or feed itself. The word's content box is the
+    // thing that actually changes, so that is what is watched.
     const el = wordRefs.current[ cycleIndex ];
-    if ( el ) setCycleW( el.offsetWidth );
+    if ( !el ) return;
+    const measure = () => setCycleW( el.offsetWidth );
+    measure();
+    // Guarded because this also runs in jsdom, where ResizeObserver does not exist.
+    if ( typeof ResizeObserver === 'undefined' ) return;
+    const ro = new ResizeObserver( measure );
+    ro.observe( el );
+    return () => ro.disconnect();
   }, [ cycleIndex ] );
 
   return (
@@ -913,9 +935,18 @@ const HomePage: React.FC = () => {
         /* Width is animated from the measured word so the pill glides between
            "Service" and "Intelligence" instead of snapping. overflow:hidden is what
            clips the outgoing word as it slides. */
+        /* width:max-content IS THE RESTING WIDTH, and it is what stops the pill shipping
+           empty. cycleW starts null, so the first render writes no inline width - and with
+           every word absolutely positioned this box had NO intrinsic width at all. It
+           computed to 0px and overflow:hidden clipped the word away completely, so the
+           headline read "Everyday AI, built for" with nothing after it: for ~200ms on every
+           single load (4 painted frames, measured), and permanently with no JavaScript.
+           JavaScript still writes an explicit px width over this, which is what animates, so
+           the glide is unchanged. */
         .home-cycle{
           position:relative;z-index:1;
           display:inline-block;
+          width:max-content;
           height:1.06em;line-height:1.06em;
           vertical-align:baseline;
           overflow:hidden;
@@ -929,7 +960,16 @@ const HomePage: React.FC = () => {
           transform:translateY(.42em);
           transition:opacity .42s cubic-bezier(.16,1,.3,1),transform .42s cubic-bezier(.16,1,.3,1);
         }
-        .home-cyc-word.on{opacity:1;transform:translateY(0)}
+        /* THE ACTIVE WORD RETURNS TO FLOW, which is what gives .home-cycle a real
+           intrinsic width above. The inactive words stay absolute and keep stacking in
+           the same place, so nothing about the cross-fade changes.
+
+           display:inline-block IS LOAD-BEARING. position:static alone makes this a
+           non-replaced INLINE box, and offsetWidth is 0 for those - so the measuring effect
+           would write width:0px over max-content and the pill would collapse on every load
+           WITH JavaScript, turning a 200ms flash into a permanent one. Caught by measuring
+           a mock, not by reading the diff. */
+        .home-cyc-word.on{opacity:1;transform:translateY(0);position:static;display:inline-block}
         .home-sr-only{
           position:absolute;width:1px;height:1px;padding:0;margin:-1px;
           overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
@@ -948,7 +988,14 @@ const HomePage: React.FC = () => {
            its resting state so nothing is mid-transition. */
         @media(prefers-reduced-motion:reduce){
           .home-mark::before,.home-mark-dot{transition:none}
-          .home-mark::before{transform:scaleX(1)}
+          /* scaleX(0), NOT scaleX(1). The shutter's resting state is GONE - scaleX(1) is the
+             START state, a white panel covering the tint, which is what this rule used to
+             set. It never bit only because .home-layout.show .home-mark::before scores
+             (0,2,1) against this rule's (0,1,1) and a media query adds no specificity, so
+             the correct value won by accident. Any edit to the .show rule would have handed
+             every reduced-motion visitor a blank white pill. The dot's sibling rule below
+             was always right, which is what marked this as a slip rather than a theory. */
+          .home-mark::before{transform:scaleX(0)}
           .home-mark-dot{transform:scale(1)}
           .home-cycle{transition:none}
           .home-cyc-word{transition:none}

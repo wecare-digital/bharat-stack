@@ -419,7 +419,21 @@ const Header: React.FC = () => {
            through it and behind the logo.
            So the base rule is a solid #fff, and the translucent treatment is restored
            inside @supports where the blur it depends on is real. */
-        .hdr{position:fixed;top:0;left:0;right:0;z-index:1001;background:#fff}
+        /* THE TYPEFACE IS DECLARED HERE, not inherited, and that is the whole point of the
+           line. The brand lockup had no font-family of its own: it took body's, which is set
+           in src/styles/Layout.css. Nothing was visibly wrong - both stacks begin with Inter
+           and measure identically (195.59px vs 195.59px at 800/23px, with Inter present AND
+           with it blocked), and font-feature-settings is inherited so both already get Inter's
+           cv02/cv03/cv04/cv11 variants. The reason to own it is that the brand mark's typeface
+           should not depend on a global stylesheet a refactor could move: with that body rule
+           absent the lockup falls to a serif at 98px while the h1 stays Inter at 106px,
+           because the h1 declares its own stack. Observed, not imagined.
+
+           This is index.tsx:797's declaration, byte for byte. A shared token both files
+           reference would be better still, and is deliberately not done here - it is wider
+           than this change. */
+        .hdr{position:fixed;top:0;left:0;right:0;z-index:1001;background:#fff;
+          font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         @supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){
           .hdr{background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
         }
@@ -486,7 +500,20 @@ const Header: React.FC = () => {
            aria-expanded was false - the arrow unrotated and a screen reader announcing
            it as collapsed. A mega panel appearing on an accidental mouse-over is also
            far more disruptive than a small dropdown was. */
-        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 256px));max-height:calc(100vh - 320px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+        /* MAX-HEIGHT IS ANCHORED TO THE HEADER, and dvh rather than vh.
+           It was calc(100vh - 320px). 320 corresponded to no element in this layout, and the
+           failure needs a viewport that is WIDE and SHORT - rare on a phone or a laptop, and
+           the normal shape of a folded-landscape device. Measured with the menu open:
+             844x390  ->  70px of menu holding 700px of content
+             880x360  ->  40px   (Z Flip 5, landscape)
+             882x344  ->  24px   (Z Fold 5 cover, landscape)
+             653x280  ->   0px   (Galaxy Fold folded, landscape) - the 32px box was padding
+           Twenty links in a strip of chrome. 140 = the 108px header plus 32px of air, both
+           nameable; dvh accounts for mobile browser chrome, the same unit fix index.tsx
+           already made for .home-shell. Now: 280 -> 140px, 344 -> 204px, 360 -> 220px,
+           390 -> 250px. See also the mobile override further down - BOTH carried a magic
+           subtrahend and fixing only this one left the worst case untouched. */
+        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 256px));max-height:calc(100dvh - 140px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
         .nav-menu.open{opacity:1;visibility:visible;transform:translateY(0);transition:opacity .2s,transform .2s,visibility 0s}
 
         /* Search field. Sized off the language panel's input rather than a new set of
@@ -618,7 +645,7 @@ const Header: React.FC = () => {
            with a 16px gutter, sitting just under the 96px mobile header. max-height
            plus overflow-y is what stops twelve rows running off the bottom of a
            phone - the old six-item dropdown never needed it. */
-        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.nav-menu{position:fixed;top:100px;left:16px;right:16px;width:auto;max-height:calc(100vh - 308px)}.nav-cols,.nav-results{grid-template-columns:minmax(0,1fr)}.nav-item{font-size:19px;min-height:52px}.nav-sub{font-size:17px;min-height:46px}}
+        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.nav-menu{position:fixed;top:100px;left:16px;right:16px;width:auto;max-height:calc(100dvh - 140px)}.nav-cols,.nav-results{grid-template-columns:minmax(0,1fr)}.nav-item{font-size:19px;min-height:52px}.nav-sub{font-size:17px;min-height:46px}}
 
         @media(prefers-reduced-motion:reduce){
           .nav-menu{transition:none}
