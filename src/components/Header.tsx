@@ -3,10 +3,20 @@ import { useRouter } from 'next/router';
 import BrandLockup from './BrandLockup';
 import { PRODUCTS } from '../content/products';
 
-interface HeaderProps {
-  homeBrand?: boolean;
-}
-
+/**
+ * No props.
+ *
+ * There was one - `homeBrand?: boolean` - passed from _app.tsx as
+ * `homeBrand={ router.pathname === '/' }` and used to add an `hdr-home` class to the
+ * <header>. NO CSS RULE ANYWHERE KEYED OFF THAT CLASS. Four references across two files
+ * threading a boolean down to set a class name nothing read, so the home page and every
+ * other public page rendered an identical header either way.
+ *
+ * Removed rather than given a rule, because there is no brief for what a home-specific
+ * header should look like, and an unused hook that looks load-bearing is worse than no
+ * hook: the next person to touch _app.tsx has to prove it does nothing before they can
+ * safely ignore it. If the home header should differ later, the prop is two lines.
+ */
 interface NavLink {
   label: string;
   href: string;
@@ -184,7 +194,7 @@ const COLUMNS: NavColumn[] = [
   },
 ];
 
-const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
+const Header: React.FC = () => {
   const [ open, setOpen ] = useState( false );
   const [ query, setQuery ] = useState( '' );
   const router = useRouter();
@@ -293,7 +303,7 @@ const Header: React.FC<HeaderProps> = ( { homeBrand = false } ) => {
   // this cannot recur silently.
 
   return (
-    <header className={ `hdr ${homeBrand ? 'hdr-home' : ''}`.trim() }>
+    <header className="hdr">
       <div className="hdr-in">
         <div className="logo-nav">
           <a href="/" className="logo" aria-label="WECARE.DIGITAL home">

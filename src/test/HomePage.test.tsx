@@ -90,14 +90,33 @@ describe( 'WECARE.DIGITAL Home', () => {
   it( 'keeps the eyebrow 20px from the headline, not on the 96px section gap', () => {
     const { container } = render( <HomePage /> );
 
-    // The badge and headline are wrapped so the section gap cannot push them apart.
-    // As direct children of .home-layout they would have sat 96px from each other
-    // instead of the 20px the other two public pages use.
     const hero = container.querySelector( 'main > .home-layout > .home-hero' );
     expect( hero ).toBeInTheDocument();
-    expect( hero?.querySelector( '.home-eyebrow' ) ).toBeInTheDocument();
     expect( hero?.querySelector( '.home-head' ) ).toBeInTheDocument();
-    expect( cssOf( container ) ).toContain( 'margin:0 0 20px' );
+    expect( hero?.querySelector( '.home-sub' ) ).toBeInTheDocument();
+
+    /**
+     * THE BRAND BADGE IS GONE, AND ITS ABSENCE IS ASSERTED.
+     *
+     * This test used to require `.home-eyebrow` and the 20px gap under it. The eyebrow held
+     * a lime BrandBadge reading WECARE.DIGITAL - the same bag mark at 18px and the same words
+     * at 14px that the header renders at 60px and 23px, measured 109px above it on desktop
+     * and 73px on a phone. Two lockups saying the same thing, and because the badge came
+     * first in the hero it was the first thing anyone read on the site.
+     *
+     * Re-labelling it was the plan and was dropped: the candidate copy,
+     * "8 services · 1 foundation", is accurate - STEPS.length is 8 - but WorkflowTerminal
+     * already renders that exact string on this same page, so it would have traded a brand
+     * duplication for a copy duplication.
+     *
+     * Asserted as an absence rather than just deleted, so that re-adding a second brand
+     * lockup above the fold has to be a decision rather than a reflex.
+     */
+    expect(
+      hero?.querySelector( '.home-eyebrow, .brand-badge' ),
+      'the hero must not carry a second brand lockup - the header already states the brand '
+      + '109px above it'
+    ).toBeNull();
   } );
 
   it( 'animates on the same constants as the Grahak OS and VayuLok pills', () => {
@@ -126,7 +145,90 @@ describe( 'WECARE.DIGITAL Home', () => {
     // pages carry the same guard.
     expect( css ).toContain( 'font-size:clamp(36px,4.3vw,60px)' );
     expect( css ).toContain( 'font-weight:600' );
-    expect( css ).toContain( 'letter-spacing:-2.2px' );
+
+    /**
+     * TRACKING IS IN em, AND THAT IS THE ASSERTION.
+     *
+     * It was -2.2px here, with media-query overrides to -1.2px under 768px and -.8px under
+     * 480px. A fixed pixel value against a fluid clamp(36px,4.3vw,60px) font means the
+     * OPTICAL tightness changes with the viewport: measured across the breakpoints it ran
+     * from -2.22% to -6.11% of the font size, a 2.75x spread, worst at 768-820px where the
+     * font is still on the 36px clamp floor while the tracking was the value chosen for
+     * 60px.
+     *
+     * -0.04em is -4% at every size. The px form is asserted ABSENT as well, because the
+     * failure mode is not deleting this line - it is someone adding a px override back in a
+     * media query, which is what produced the spread in the first place.
+     */
+    expect( css ).toContain( 'letter-spacing:-0.04em' );
+
+    // SCOPED TO THE .home-head RULE, not searched for across the page. The first version of
+    // this assertion scanned the whole stylesheet and failed on .home-flow-title and
+    // .home-close-title, which legitimately use -1.2px - they are fixed-size headings, so a
+    // px value is correct for them. Only the fluid hero headline must avoid it. The selector
+    // `.home-head{` cannot match `.home-head-line{`, because the brace must follow directly.
+    const headRule = /\.home-head\{([^}]*)\}/.exec( css );
+    expect( headRule, '.home-head rule not found' ).not.toBeNull();
+    expect(
+      /letter-spacing:-?[\d.]+px/.test( headRule![ 1 ] ),
+      'the hero headline must not set letter-spacing in px. Its font size is fluid, so a '
+      + 'fixed px value makes optical tracking swing with the viewport - it measured -2.22% '
+      + 'to -6.11% of the font size before this became a single em value.'
+    ).toBe( false );
+
+    /**
+     * And no media query may put a px override back on it - that is what produced the
+     * spread, not the base declaration.
+     *
+     * The bodies are extracted by COUNTING BRACES, not by splitting on '@media'. The split
+     * version failed against correct CSS: this stylesheet has media queries for .home-flow
+     * and .home-close that appear BEFORE .home-head, so a split chunk ran from one of those
+     * queries all the way to the next one and swallowed the hero's own base rule, which the
+     * loop then reported as a media override. A brace walk gives each block's real extent.
+     */
+    const mediaBodies: string[] = [];
+    for ( let at = css.indexOf( '@media' ); at !== -1; at = css.indexOf( '@media', at + 1 ) ) {
+      const open = css.indexOf( '{', at );
+      if ( open === -1 ) break;
+      let depth = 0;
+      let end = open;
+      for ( ; end < css.length; end++ ) {
+        if ( css[ end ] === '{' ) depth++;
+        else if ( css[ end ] === '}' && --depth === 0 ) break;
+      }
+      mediaBodies.push( css.slice( open + 1, end ) );
+    }
+    expect( mediaBodies.length, 'no @media blocks parsed - the brace walk is broken' ).toBeGreaterThan( 0 );
+
+    for ( const body of mediaBodies ) {
+      const override = /\.home-head\{([^}]*)\}/.exec( body );
+      if ( !override ) continue;
+      expect(
+        /letter-spacing/.test( override[ 1 ] ),
+        'a media query re-declares letter-spacing on .home-head. The em value already scales '
+        + 'with the font, so restating it per breakpoint is what caused the 2.75x optical '
+        + 'swing this replaced.'
+      ).toBe( false );
+    }
+  } );
+
+  it( 'sizes the first screen in units a phone browser agrees with', () => {
+    const css = cssOf( render( <HomePage /> ).container );
+
+    // It was calc(100vh - 69px), with calc(100vh - 85px) under 768px. Neither subtrahend
+    // matched anything in the layout - the header is 108/96 and the footer 179/192 - so
+    // they could not be maintained against a real height. And 100vh on a phone means the
+    // viewport with the browser chrome hidden, so an element sized to it is taller than
+    // what can be seen; dvh tracks the visible viewport.
+    expect( css ).toContain( 'min-height:100dvh' );
+    // vh is kept as the fallback for browsers without dvh, so it must still be there -
+    // but never with an arbitrary subtraction.
+    expect( css ).toContain( 'min-height:100vh' );
+    expect(
+      /min-height:calc\(100vh\s*-/.test( css ),
+      'min-height must not subtract a magic number from 100vh - the two that were here, '
+      + '69px and 85px, corresponded to no element in the layout.'
+    ).toBe( false );
   } );
 
   it( 'declares the Inter stack rather than inheriting it from Amplify', () => {
