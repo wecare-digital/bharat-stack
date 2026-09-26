@@ -1026,7 +1026,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
           `}
         </Script>
         <Script src="https://connect.facebook.net/en_US/sdk.js" strategy="afterInteractive" id="facebook-jssdk-public" />
-        <Header homeBrand={ router.pathname === '/' } />
+        <Header />
         <Component { ...pageProps } />
         <Footer />
         {/* WhatsApp contact + page translation. This comment used to read "translation +

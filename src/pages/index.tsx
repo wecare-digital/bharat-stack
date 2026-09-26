@@ -64,7 +64,6 @@ import Head from 'next/head';
 // and the dashboard pages, and on a trailingSlash:true export '/contact/' resolves the
 // same either way - so this side is the one worth being consistent with.
 import Link from 'next/link';
-import BrandBadge from '../components/BrandBadge';
 import WorkflowTerminal from '../components/WorkflowTerminal';
 
 /* The SUITE array that used to live here - the three original products plus the seven from
@@ -257,14 +256,35 @@ const HomePage: React.FC = () => {
       <Head>
         <link rel="canonical" key="canonical" href="https://wecare.digital/" />
       </Head>
-      <main className="home-shell" aria-label="WECARE.DIGITAL home">
-        {/* Same pill as the Grahak OS hero, with the maker line flipped: this page is
-            the company, that page is one product of it. */}
+      {/* NO aria-label ON <main>. It carried aria-label="WECARE.DIGITAL home", which was
+          character-for-character the same as the header's home link (Header.tsx:299). A
+          screen reader therefore announced that string twice - once as a link, once as the
+          main landmark - and a landmark whose name repeats a link is no use for navigating,
+          which is the only reason to name a landmark at all. A page with a single <main>
+          and an <h1> needs no accessible name; the h1 already describes it. */}
+      <main className="home-shell">
         <div className={ `home-layout ${shown ? 'show' : ''}`.trim() }>
           <div className="home-hero">
-            <div className="home-eyebrow">
-              <BrandBadge label="WECARE.DIGITAL" />
-            </div>
+            {/* THE LIME BRAND BADGE WAS HERE AND IT REPEATED THE HEADER.
+                It rendered the same bag mark at 18px plus WECARE.DIGITAL at 14px/600,
+                measured 109px below the header's own 60px mark and WECARE./DIGITAL at
+                23px/800 - 73px below it on a phone. Two lockups, one under the other,
+                saying exactly the same thing, and because the badge sat first in the hero
+                it was the first thing anyone read on the site.
+
+                WHY NOT SIMPLY RE-LABEL IT, which was the original plan. The candidate copy
+                was "8 services · 1 foundation" - accurate, since STEPS.length is 8 - but
+                that exact string is already rendered by WorkflowTerminal on this same page,
+                about 380px further down (WorkflowTerminal.tsx:251). Re-labelling would have
+                traded a brand duplication for a copy duplication rather than removing one.
+                Dropping the mark only (keeping the words) was the other candidate, and it
+                halves the problem while leaving the brand name still stated twice inside
+                109px.
+
+                So the slot is removed. Colour above the fold is unaffected: the rotating
+                pill carries its own tint through amber, violet, green and red. The headline
+                now starts 58px higher, and the brand is stated once, by the header, where a
+                visitor expects to find it. Putting it back is one line if that reads wrong. */}
 
             {/* The pill sits on its OWN LINE, and that is a correctness fix rather
                 than a layout preference.
@@ -754,8 +774,23 @@ const HomePage: React.FC = () => {
            package bumped. This is the same stack .page declares on /grahak-os/.
            Note --font-sans in Pages.css contains no Inter at all, so that is not a
            fallback that would have caught it. */
+        /* MIN-HEIGHT: the intent is "at least a screenful", and it was written as
+           calc(100vh - 69px) with a second value of calc(100vh - 85px) under 768px. Both
+           were wrong in the same two ways.
+           The subtrahend matched nothing. 69 and 85 correspond to no element in this
+           layout - the header is 108px and 96px, the footer 179px and 192px - so they
+           could not be maintained against anything, and nothing would have noticed if a
+           real height changed.
+           100vh is the wrong unit on a phone: it means the viewport with the browser
+           chrome HIDDEN, so an element sized to it is taller than what the visitor can
+           actually see. dvh is the unit that tracks the visible viewport, declared second
+           so a browser without it keeps the vh value rather than nothing.
+           This is currently invisible because the page's content is three times a
+           viewport, so min-height never binds - which is exactly what makes it a trap for
+           whoever shortens this page and then wonders why the fold is in the wrong place. */
         .home-shell{
-          min-height:calc(100vh - 69px);
+          min-height:100vh;
+          min-height:100dvh;
           padding-top:108px;
           box-sizing:border-box;
           background:#fff;
@@ -789,17 +824,29 @@ const HomePage: React.FC = () => {
           flex-direction:column;
           align-items:flex-start;
         }
-        .home-eyebrow{
-          margin:0 0 20px;
-        }
         /* Hero h1 rung from the design contract: 600, which is LIGHTER than the 700
            section level. That inversion is notion's and is intentional - the same
-           note guards .vl-head and .hero-left h1. Do not "correct" it. */
+           note guards .vl-head and .hero-left h1. Do not "correct" it.
+
+           LETTER-SPACING IS IN em, AND IT USED TO BE THREE FIXED PIXEL VALUES.
+           font-size here is fluid - clamp(36px,4.3vw,60px) - but the tracking was -2.2px
+           with media-query overrides to -1.2px under 768 and -.8px under 480. A fixed px
+           value against a fluid font means the OPTICAL tightness changes with the width,
+           and measured across the breakpoints it swung from -2.22% to -6.11% of the font
+           size: a 2.75x spread. The worst case was 768-820px, where the font is still at
+           the 36px clamp floor while the tracking was the value chosen for 60px, so a
+           tablet headline carried nearly twice the tightness of the desktop one it was
+           tuned for.
+           -0.04em is -4% at every size. It deliberately barely moves what was signed off -
+           at 1440 the tracking goes from -2.2px to -2.4px and the h1 from 556px to 552px,
+           which is not visible - while fixing the tablet case. It also lets both media-query
+           overrides go, so there is one number here instead of three and the next change to
+           font-size cannot desynchronise them again. */
         .home-head{
           font-size:clamp(36px,4.3vw,60px);
           font-weight:600;
           line-height:1.04;
-          letter-spacing:-2.2px;
+          letter-spacing:-0.04em;
           color:rgba(0,0,0,.95);
           margin:0;
           max-width:900px;
@@ -889,12 +936,12 @@ const HomePage: React.FC = () => {
         }
 
         @media(max-width:767px){
-          .home-shell{min-height:calc(100vh - 85px);padding-top:96px}
+          .home-shell{padding-top:96px}
           .home-layout{padding:48px 16px 64px;gap:64px}
-          .home-head{letter-spacing:-1.2px;line-height:1.1}
-        }
-        @media(max-width:480px){
-          .home-head{letter-spacing:-.8px}
+          /* line-height only. The letter-spacing override that used to sit here is gone:
+             tracking is now -0.04em, which scales itself, so restating it per breakpoint is
+             what caused the 2.75x optical swing this replaced. */
+          .home-head{line-height:1.1}
         }
 
         /* The rotation itself is already disabled in JS; this settles the pill into
