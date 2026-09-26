@@ -534,8 +534,22 @@ const SupportWidget: React.FC = () => {
            signals only real state - focus, and busy. */
         .wc-chip{position:relative;display:inline-flex;align-items:center;height:40px;min-width:52px;justify-content:center;padding:0 9px 0 11px;border:0;border-radius:9999px;background:transparent;color:#1a3a2a;font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:background-color .2s}
         .wc-chip[aria-disabled='true']{cursor:progress}
-        /* Focus-visible only, so a mouse click does not leave a ring behind. */
-        .wc-chip:focus-visible{background:rgba(209,244,112,.38);outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+        /* FOCUS IS A RING, NEVER A FILL, and that is a cross-browser correctness fix rather
+           than a preference.
+           This rule used to add background:rgba(209,244,112,.38) as well. On Windows Chrome
+           the chip kept that pale lime fill indefinitely after a language was chosen with
+           the mouse - reported from a photograph of a real screen, with the pointer nowhere
+           near the widget - so the control looked permanently switched on. Headless Chromium
+           did not reproduce it: there, :focus-visible correctly did not match.
+           The cause is a documented difference in how browsers resolve :focus-visible for
+           PROGRAMMATIC focus. Choosing a language calls chip.focus() so a keyboard user is
+           not stranded, and at that moment the previously focused element is the search
+           input - and a text input always matches :focus-visible. Chrome carries that
+           modality across the programmatic focus, so the chip matched too.
+           Two changes make it robust rather than dependent on that resolution: the fill is
+           gone, so the worst case is a legible focus ring instead of a state that reads as
+           "selected", and focus is only returned when the panel was closed by keyboard. */
+        .wc-chip:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
         .wc-arw{width:6px;height:6px;box-sizing:border-box;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);margin-left:7px;opacity:.7;transition:transform .2s}
         .wc-chip[aria-expanded='true'] .wc-arw{transform:translateY(1px) rotate(225deg)}
 
@@ -812,7 +826,14 @@ const SupportWidget: React.FC = () => {
                 // onMouseDown, not onClick: the document mousedown listener that closes the
                 // panel fires first in the capture phase, and onClick would then land on an
                 // element that had already been unmounted.
-                onMouseDown={ event => { event.preventDefault(); closePanel( true ); void applyLanguage( lang.code ); } }
+                //
+                // closePanel( false ) - focus is NOT returned to the chip on a pointer pick.
+                // Returning it is right for the keyboard (Enter and Escape both do) but wrong
+                // here: the programmatic focus inherited :focus-visible from the search input
+                // on Windows Chrome, which left the chip looking permanently selected after a
+                // mouse click. A pointer user has nothing to return focus to, so this drops it
+                // and the chip renders in its resting state, which is what it is.
+                onMouseDown={ event => { event.preventDefault(); closePanel( false ); void applyLanguage( lang.code ); } }
                 onMouseEnter={ () => setActive( index ) }
               >
                 {/* ONE WORD PER ROW. The native name where we have it, the English name

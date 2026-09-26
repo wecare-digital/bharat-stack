@@ -1,13 +1,39 @@
-'use client';
-
 /**
- * Internal Agent Settings Page
- * Configure AI-powered admin assistant capabilities
+ * Internal Agent Settings — configure the AI-powered admin assistant.
+ *
+ * THIS FILE MOVED FROM src/app/settings/internal-agent/page.tsx, and the move fixed four
+ * things at once. It was the only route in an App Router directory that otherwise held
+ * nothing but a seven-line src/app/layout.tsx, and living there meant it bypassed
+ * src/pages/_app.tsx entirely:
+ *
+ *  1. NO AUTHENTICATION. _app.tsx wraps every non-allowlisted Pages route in the Cognito
+ *     Authenticator. An App Router page never reaches that wrapper, so this page was served
+ *     at HTTP 200 to anyone - verified live on wecare.digital. The API itself is sound
+ *     (GET /ai/internal/config returns 401 "No authorization token provided"), so nothing
+ *     leaked; the page simply could not work.
+ *  2. NO AUTH HEADER EITHER. Both calls below used a bare fetch with no token, so every
+ *     request 401'd even for a signed-in operator. They now go through src/api/client.ts,
+ *     which attaches the Cognito bearer token.
+ *  3. NO STYLING AT ALL. src/app/layout.tsx imported no CSS, and this page's markup is
+ *     built from 53 Tailwind-style class attributes while the project has no Tailwind and no
+ *     PostCSS installed. Wrapping it in the dashboard Layout gives it the app's stylesheet
+ *     and chrome. THE DEAD CLASS NAMES ARE LEFT AS THEY WERE - rewriting the markup of an
+ *     internal feature is a separate job, and pretending otherwise would bury it.
+ *  4. IT BROKE THE SITE'S 404 PAGE. When an app/ directory exists, Next hands not-found
+ *     handling to the App Router, so src/pages/404.tsx was ignored and every mistyped URL
+ *     got Next's bare built-in shell - no header, no footer, no widget, no links at all.
+ *     Removing src/app/ is what lets the real 404 page render.
+ *
+ * Nothing linked here: it is absent from src/config/navigation.ts and from every other file
+ * in the repo. It is reachable only by typing the URL, which is why none of the above
+ * surfaced until the chrome coverage of every route was checked.
  */
-
 import React, { useState, useEffect } from 'react';
+import Layout from '../../components/Layout';
+import SEO from '../../components/SEO';
+import * as api from '../../api/client';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+interface PageProps { signOut?: () => void; user?: unknown }
 
 interface AgentConfig {
   enabled: boolean;
@@ -51,7 +77,10 @@ const DEFAULT_CONFIG: AgentConfig = {
   conversationHistory: true,
 };
 
-export default function InternalAgentSettings() {
+/** The endpoint, kept local. src/api/client.ts does not export its own base. */
+const AGENT_CONFIG_URL = `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/ai/internal/config`;
+
+export default function InternalAgentSettings ( { signOut, user }: PageProps ) {
   const [config, setConfig] = useState<AgentConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,15 +90,20 @@ export default function InternalAgentSettings() {
     loadConfig();
   }, []);
 
+  // apiCallResult, not a bare fetch: it attaches the Cognito bearer token and retries a 401
+  // once with a refreshed one. The previous bare fetch sent no token, so this screen 401'd
+  // on every load even for a signed-in operator - it could never have shown real config.
   const loadConfig = async () => {
     try {
-      const res = await fetch(`${API_BASE}/ai/internal/config`);
-      if (res.ok) {
-        const data = await res.json();
-        setConfig({ ...DEFAULT_CONFIG, ...data.config });
+      const result = await api.apiCallResult<{ config?: Partial<AgentConfig> }>( AGENT_CONFIG_URL );
+      if ( result.ok ) {
+        setConfig( { ...DEFAULT_CONFIG, ...( result.data?.config || {} ) } );
+      } else {
+        setMessage( `Could not load settings: ${result.failure.message}` );
       }
     } catch (error) {
       console.error('Failed to load config:', error);
+      setMessage( 'Could not load settings.' );
     } finally {
       setLoading(false);
     }
@@ -79,17 +113,19 @@ export default function InternalAgentSettings() {
     setSaving(true);
     setMessage('');
     try {
-      const res = await fetch(`${API_BASE}/ai/internal/config`, {
+      const result = await api.apiCallResult( AGENT_CONFIG_URL, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
-      });
-      
-      if (res.ok) {
+      } );
+
+      if ( result.ok ) {
         setMessage('Settings saved successfully!');
         setTimeout(() => setMessage(''), 3000);
       } else {
-        setMessage('Failed to save settings');
+        // The reason, not just "failed" - a 401 and a 503 need different responses from
+        // whoever is looking at this screen.
+        setMessage( `Failed to save settings: ${result.failure.message}` );
       }
     } catch (error) {
       setMessage('Error saving settings');
@@ -123,17 +159,19 @@ export default function InternalAgentSettings() {
 
   if (loading) {
     return (
-      <div>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Loading settings...</div>
+      <Layout onSignOut={ signOut } user={ user }>
+        <SEO title="Internal Agent Settings" description="Configure the internal AI assistant." />
+        <div className="inner-page-container" style={ { padding: '24px 20px' } }>
+          <p>Loading settings…</p>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div>
-      <div className="max-w-4xl mx-auto p-6">
+    <Layout onSignOut={ signOut } user={ user }>
+      <SEO title="Internal Agent Settings" description="Configure the internal AI assistant." />
+      <div className="inner-page-container" style={ { maxWidth: 960, margin: '0 auto', padding: '24px 20px' } }>
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Internal Agent Settings</h1>
           <p className="text-gray-600 mt-1">Configure your AI-powered admin assistant</p>
@@ -358,6 +396,6 @@ export default function InternalAgentSettings() {
           </button>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

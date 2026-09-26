@@ -721,7 +721,18 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // resolved a setTimeout and threw the message away. De-listed rather than deleted so the
   // removal is one reversible line; PublicRouteRegistration.test.ts now fails any public
   // route that imports Layout, so this shape cannot return.
+  // '/404' IS PUBLIC, and it has to be listed here rather than in PUBLIC_PAGE_META.
+  // Header, Footer and SupportWidget are mounted once, below, inside `if ( isPublic )` - so
+  // a page receives the three common pieces by being on this list and by no other means.
+  // Before src/pages/404.tsx existed the export shipped Next's built-in page: 6.8KB reading
+  // "404 This page could not be found.", with no header, no footer, no widget and no link
+  // anywhere. It was the only exported page in the build with none of the three, so a
+  // mistyped URL was a dead end with no way back and no way to reach us.
+  // NOT in PUBLIC_PAGE_META, because entries there acquire WebPage structured data and a
+  // sitemap entry, and advertising a 404 to a crawler is the opposite of the intent. The
+  // page sets its own robots noindex.
   const isPublic = router.pathname === '/'
+    || router.pathname === '/404'
     || router.pathname === '/get'
     || Object.prototype.hasOwnProperty.call( PUBLIC_PAGE_META, router.pathname )
     || isContentPublic;
