@@ -614,6 +614,32 @@ const AuthGate: React.FC<{ children: React.ReactNode }> = ( { children } ) => {
           card IS one of our own surfaces. The other three sides take the static
           hairline. */}
       <style jsx global>{`
+        /* AMPLIFY'S ThemeProvider HARDCODES dir="ltr" ON ITS WRAPPER, AND IT MADE THE
+           DASHBOARD HALF-MIRROR.
+           The rendered element is <div data-amplify-theme="stack-crm-theme" dir="ltr">, and
+           everything on an authenticated route sits inside it. So when a visitor picked
+           Arabic, <html dir="rtl"> set the document direction and this wrapper immediately
+           overrode it for the entire subtree: text and flex axes stayed left-to-right, while
+           the [dir='rtl'] rules in Header.tsx and SupportWidget.tsx still matched, because
+           those select on the html attribute rather than on computed direction. The nav panel
+           then anchored to its rtl edge inside an unmirrored header and landed at
+           left:-504px - off screen on 105 of 125 routes, measured by rtlcheck.js. Public
+           routes were unaffected: they render no Amplify wrapper at all.
+           An author declaration beats the dir attribute's presentational hint, so one rule
+           puts the subtree back in step with the document. Fixing it here rather than by
+           passing a direction prop to ThemeProvider keeps it out of React state: direction
+           changes at runtime when the language changes, and a prop would need the document
+           attribute mirrored into state and kept in sync.
+           unicode-bidi is set with it. The dir attribute implies unicode-bidi:isolate in the
+           UA stylesheet, and overriding direction alone leaves the isolation behaving as
+           though the wrapper were still a left-to-right island.
+           NO BACKTICKS IN THIS COMMENT - it is inside a styled-jsx template literal and one
+           closes it, failing the build far below with an unrelated-looking parse error. */
+        [dir='rtl'] [data-amplify-theme]{
+          direction:rtl;
+          unicode-bidi:isolate;
+        }
+
         .ag-shell [data-amplify-router]{
           border:1px solid #e5e7eb;
           border-top:4px solid #d1f470;

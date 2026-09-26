@@ -49,18 +49,48 @@ const { launch, gotoStable } = require( './lib/browser' );
 const fs = require( 'fs' );
 const path = require( 'path' );
 
-/** The public surfaces a visitor can reach and translate. */
-const DEFAULT_ROUTES = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/my-order/',
-  '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
-  '/expo-week/', '/niji-setu/', '/ritual-guru/', '/404/', '/blog/', '/get/' ];
+/**
+ * EVERY EXPORTED ROUTE, discovered rather than listed - public pages, inner pages and the
+ * authenticated dashboard shells alike. An earlier version of this gate hardcoded the 18
+ * public routes, which let "the dashboard is unmirrored" be asserted without being measured.
+ * The dashboard renders Layout.tsx's own chrome, so it is a different surface, not a
+ * variation on the public one.
+ *
+ * Blog posts are SAMPLED, not swept: 638 of them share one template, so they would multiply
+ * runtime by forty and tell us the same thing once. pageaudit owns the full census.
+ */
+function discoverRoutes () {
+  const out = [];
+  const posts = [];
+  ( function walk ( dir ) {
+    for ( const entry of fs.readdirSync( dir, { withFileTypes: true } ) ) {
+      const p = path.join( dir, entry.name );
+      if ( entry.isDirectory() ) {
+        if ( entry.name === '_next' ) continue;
+        walk( p );
+      } else if ( entry.name === 'index.html' ) {
+        let r = '/' + path.relative( OUT_DIR, p ).replace( /\\/g, '/' );
+        r = r.replace( /index\.html$/, '' );
+        ( /^\/post\//.test( r ) ? posts : out ).push( r === '/' ? '/' : r );
+      }
+    }
+  } )( OUT_DIR );
+  return out.sort().concat( posts.sort().slice( 0, 2 ) );
+}
 
-/* Viewports chosen for direction, not for breadth: one desktop, one phone, and one
-   wide-and-short posture, because a mirrored absolute inset is most visible where the axis
-   is tightest. devicecheck owns the full matrix. */
+/**
+ * VIEWPORTS INCLUDING THE FOLDABLE POSTURES, because "wide and short" is where a mirrored
+ * absolute inset is most visible and it was the one shape this gate originally skipped -
+ * devicecheck covers those postures but only left-to-right, so the combination of mirrored
+ * AND short was untested by anything.
+ */
 const VIEWPORTS = [
   { n: 'desktop', w: 1280, h: 900 },
   { n: 'phone', w: 390, h: 844 },
-  { n: 'short', w: 880, h: 360 },
+  { n: 'fold-folded', w: 280, h: 653 },
+  { n: 'fold-land', w: 653, h: 280 },   // wide AND short
+  { n: 'zflip-land', w: 880, h: 360 },  // wide AND short
+  { n: 'zfold-cover-land', w: 882, h: 344 },
 ];
 
 const PROBE = () => {
@@ -95,6 +125,72 @@ const PROBE = () => {
     }
   }
 
+  /**
+   * MIRROR SYMMETRY, which is the measurement that answers "is it actually mirrored" rather
+   * than only "does it overflow". For a correctly mirrored element, its distance from the
+   * inline-START edge is the same in both directions: left in ltr equals (viewport - right)
+   * in rtl. A physical padding-left, margin-left or border-left that was never made logical
+   * shows up as a difference, and nothing else does.
+   *
+   * THREE CLASSES ARE EXCLUDED, each for a real reason rather than to flatter the number.
+   *   - EVERY INLINE-LEVEL BOX, including inline-block and inline-flex. A mirrored paragraph
+   *     reflows, and an inline-level box is placed by line layout rather than against its
+   *     container's edge, so it legitimately lands somewhere else - measuring it reports the
+   *     bidi algorithm working as a fault. inline-block and inline-flex were allowed through
+   *     at first, on the theory that a "box" should hold its place; the rotating hero pill and
+   *     the brand badge then reported 79-555px of asymmetry for reflowing exactly as they
+   *     should. Only block, flex and grid containers have a position defined relative to their
+   *     container, which is what this assertion is about.
+   *   - Subtrees under an explicit dir attribute. A terminal panel or a code sample is
+   *     left-to-right by SYNTAX and is locked with dir="ltr" on purpose; it is supposed to be
+   *     asymmetric, and a gate that failed on it would be arguing with the fix.
+   *   - Class names that appear MORE THAN ONCE on the page. A mirrored flex row reverses its
+   *     children, which is correct mirroring and moves every item's offset - so a row of
+   *     cards reports a large difference for doing exactly the right thing. Restricting the
+   *     assertion to singletons keeps it on page landmarks, where reordering is not a factor.
+   *
+   * OFFSETS ARE MEASURED AGAINST document.body, NOT THE VIEWPORT. The vertical scrollbar
+   * changes side under rtl, which shifts every viewport-relative coordinate by its width and
+   * reported a uniform ~16px asymmetry on every element of every page. Normalising against
+   * the body box cancels it, because the scrollbar moves the body too.
+   */
+  const bodyRect = body.getBoundingClientRect();
+  const seen = new Map();
+  const rows = [];
+  for ( const el of document.querySelectorAll( 'main *, header *, footer *' ) ) {
+    const cs = getComputedStyle( el );
+    if ( cs.display === 'none' || cs.visibility === 'hidden' ) continue;
+    if ( cs.display.startsWith( 'inline' ) ) continue;
+    // ...and anything INSIDE an inline-level box, because the whole subtree reflows with its
+    // ancestor. The brand mark is a block-level <svg> inside an inline-flex badge: excluding
+    // the badge but measuring its icon reported the icon as moving 553px when all that
+    // happened was the badge finding a different place on a mirrored line.
+    let inlineAncestor = false;
+    for ( let a = el.parentElement; a && a !== body; a = a.parentElement ) {
+      if ( getComputedStyle( a ).display.startsWith( 'inline' ) ) { inlineAncestor = true; break; }
+    }
+    if ( inlineAncestor ) continue;
+    const locked = el.closest( '[dir]' );
+    if ( locked && locked !== document.documentElement ) continue;
+    const r = el.getBoundingClientRect();
+    if ( r.width < 8 || r.height < 8 ) continue;
+    // getAttribute, NOT el.className: on an SVG element className is an SVGAnimatedString, and
+    // stringifying it yields the literal "[object SVGAnimatedString]" for every SVG on the
+    // page. They then share one key, the singleton filter no longer separates them, and the
+    // comparison comes out as hundreds of pixels of nonsense - which is how this first
+    // reported 553px of asymmetry on an icon that had not moved.
+    const cls = ( el.getAttribute( 'class' ) || '' ).split( /\s+/ ).filter( c => c && !/^jsx-/.test( c ) ).join( '.' );
+    if ( !cls ) continue;
+    const k = el.tagName.toLowerCase() + '.' + cls;
+    seen.set( k, ( seen.get( k ) || 0 ) + 1 );
+    rows.push( {
+      k,
+      start: Math.round( r.left - bodyRect.left ),
+      end: Math.round( bodyRect.right - r.right ),
+    } );
+  }
+  const symmetry = rows.filter( row => seen.get( row.k ) === 1 );
+
   return {
     dirAttr: de.getAttribute( 'dir' ) || '(unset)',
     computedDir: getComputedStyle( body ).direction,
@@ -103,11 +199,44 @@ const PROBE = () => {
     header: rect( header ),
     widget: rect( widget ),
     strays: strays.slice( 0, 6 ),
+    symmetry,
   };
 };
 
+/**
+ * KNOWN ASYMMETRIES, named with their measured cause rather than absorbed into a looser
+ * tolerance. A threshold wide enough to swallow these would also swallow a real physical
+ * property, so each one is listed and the number stays at 6px.
+ *
+ * div.contact-info (and its two text children) - 10px, /grahak-os/ phone mock.
+ *   Measured child offsets in .phone-header, a flex row with gap:10px and padding:12px 14px:
+ *     ltr: back-arrow w=0 @14 | avatar w=40 @24 | contact-info @84 | verified-badge @284
+ *     rtl: back-arrow w=0 @14 | avatar w=40 @24 | contact-info @74 | verified-badge @284
+ *   Every item agrees except contact-info, and arithmetic says 74 is right: 14 padding + 0 +
+ *   10 gap = 24 for the avatar, which is 40 wide and ends at 64, + 10 gap = 74. The ltr value
+ *   is 10px larger because .back-arrow is an EMPTY span - <span className="back-arrow" /> with
+ *   no content - and Chromium resolves the gap around a zero-width flex item differently by
+ *   direction. Not a physical property, and not fixable from CSS: the real defect is the empty
+ *   decorative element, which is a content question on that mock and predates this work.
+ */
+const KNOWN_ASYMMETRIC = new Set( [ 'div.contact-info', 'span.contact-name', 'span.contact-status' ] );
+
+/** Elements whose inline-start offset did not survive mirroring, worst first. */
+function asymmetries ( ltr, rtl, tolerance ) {
+  const byKey = new Map( rtl.symmetry.map( s => [ s.k, s ] ) );
+  const out = [];
+  for ( const a of ltr.symmetry ) {
+    const b = byKey.get( a.k );
+    if ( !b ) continue;
+    if ( KNOWN_ASYMMETRIC.has( a.k ) ) continue;
+    const d = Math.abs( a.start - b.end );
+    if ( d > tolerance ) out.push( { k: a.k, d, ltrStart: a.start, rtlEnd: b.end } );
+  }
+  return out.sort( ( x, y ) => y.d - x.d );
+}
+
 ( async () => {
-  const routes = process.argv.slice( 2 ).length ? process.argv.slice( 2 ) : DEFAULT_ROUTES;
+  const routes = process.argv.slice( 2 ).length ? process.argv.slice( 2 ) : discoverRoutes();
   const t = await target();
   const browser = await launch();
 
@@ -161,10 +290,18 @@ const PROBE = () => {
         : ok( Math.abs( rtl.widget.l - ltr.widget.l ) > 1,
           `${r} @${v.n}: the widget moved when the page mirrored (ltr l=${ltr.widget.l}, rtl l=${rtl.widget.l}) - logical insets compile to :lang() rules, so this fails if lang was not set` );
 
-      const line = ( a && b && c && d && e ) ? 'ok  ' : 'FAIL';
+      // 6px absorbs sub-pixel rounding and scrollbar reservation without hiding a real
+      // physical property - the ones this found measured 36px to 726px, not 7px.
+      const asym = asymmetries( ltr, rtl, 6 );
+      const f = ok( !asym.length,
+        `${r} @${v.n}: every block element keeps its inline-start offset when mirrored (${asym.slice( 0, 3 ).map( x => `${x.k} off by ${x.d}px` ).join( ' | ' )})` );
+
+      const line = ( a && b && c && d && e && f ) ? 'ok  ' : 'FAIL';
       console.log( `  ${line} ${r.padEnd( 18 )} dir:${rtl.computedDir} ovf:${String( rtl.overflow ).padStart( 3 )}`
         + ` widget ltr:${ltr.widget ? ltr.widget.l : 'n/a'}->rtl:${rtl.widget ? rtl.widget.l : 'n/a'}`
-        + ( rtl.strays.length ? '  strays: ' + rtl.strays.map( s => s.sel ).join( ',' ) : '' ) );
+        + ` asym:${String( asym.length ).padStart( 2 )}`
+        + ( rtl.strays.length ? '  strays: ' + rtl.strays.map( s => s.sel ).join( ',' ) : '' )
+        + ( asym.length ? '  worst: ' + asym[ 0 ].k + ' ' + asym[ 0 ].d + 'px' : '' ) );
     }
     await page.close();
   }

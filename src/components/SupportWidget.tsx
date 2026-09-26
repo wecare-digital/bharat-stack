@@ -132,16 +132,28 @@ function searchLanguages ( all: Lang[], query: string ): Lang[] {
  * start of every footer line. Latin fragments and digits inside the same run are ordered
  * wrongly too. The words were right and the writing system was not.
  *
- * MATCHED ON THE BASE SUBTAG, not the whole code. The catalogue is the provider's, and it
- * carries regional forms - Dari arrives as fa-AF - so `fa-AF` has to resolve through `fa`.
- * Anything with no region is unaffected by the split.
+ * MEASURED AGAINST THE LIVE CATALOGUE, not assumed. The response is captured in
+ * docs/execution/language-catalogue.json: 76 entries, of which exactly SIX are right-to-left
+ * - ar, fa, fa-AF, he, ps, ur - resolving to FIVE base codes. Sindhi is kept in the set below
+ * and is NOT currently offered; it is a script-correct entry held against the catalogue
+ * gaining it, and it can never mis-fire on a language that does not arrive.
+ *
+ * MATCHED ON THE BASE SUBTAG, and the catalogue proves this is load-bearing rather than
+ * defensive: Dari arrives as `fa-AF`, and it is not one of the four regional variants the
+ * trim above drops, so it reaches the picker intact. Whole-code matching would leave Dari
+ * rendering left-to-right - the original defect, narrowed to one language.
  *
  * WHY A LIST RATHER THAN Intl.Locale. `new Intl.Locale('ar').getTextInfo()` is the correct
- * modern answer and is not dependable here: it is unavailable in older Safari, the method
- * was renamed from `textInfo` mid-standardisation so the shape differs between engines, and
- * a wrong answer silently mirrors the whole page. Six codes that change once a decade are
- * cheaper to own than a capability check with a silent failure mode. Every entry is RTL by
- * script, not by region: Arabic, Persian, Hebrew, Urdu, Pashto and Sindhi.
+ * modern answer and is not dependable here: it is unavailable in older Safari, the method was
+ * renamed from `textInfo` mid-standardisation so the shape differs between engines, and a
+ * wrong answer silently mirrors the whole page. Six codes that change once a decade are
+ * cheaper to own than a capability check with a silent failure mode.
+ *
+ * THE SET MUST NOT BE NARROWER THAN THE BUILD'S. Lightning CSS mirrors boxes for 19 :lang()
+ * codes (see §5b of the skill). A language it mirrors that this set calls LTR would render
+ * mirrored boxes around left-to-right text. Measured against the catalogue: the overlap of
+ * "offered" and "Lightning-mirrored" is covered here with NOTHING left over, so the gap is
+ * empirically empty rather than merely unlikely. rtlLanguage.test.tsx pins that.
  */
 const RTL_BASE_LANGS = new Set( [ 'ar', 'fa', 'he', 'ur', 'ps', 'sd' ] );
 
