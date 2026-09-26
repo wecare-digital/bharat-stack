@@ -13,6 +13,11 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    // scripts/check-versions.ts runs under Node 24's native type stripping, which does no
+    // extension resolution — the import must literally say `.ts` or Node cannot find it.
+    // tsc rejects that spelling unless this is on. Safe here because `noEmit` is set, so
+    // nothing is written that could carry an unresolvable specifier into a build output.
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
