@@ -6,8 +6,14 @@ import { referenceAuth } from '@aws-amplify/backend';
  * Production Cognito User Pool: us-east-1_cSx0RHCIR
  * App Client ID: 1j8kbi48m4v2rped3n224rlevb
  * Identity Pool: us-east-1:471c2c38-5645-4ccd-aea1-7a008e906db5
- * OAuth Domain: signin.wecare.digital
+ * OAuth Domain: wecare-digital-auth.auth.us-east-1.amazoncognito.com
+ *   The Cognito-provided prefix domain, upgraded to managed login v2 on 2026-09-26
+ *   so it serves the same sign-in page the retired `signin.wecare.digital` custom
+ *   domain did. Using the prefix domain removes the ACM-certificate and Route 53
+ *   dependency that recommendation R28 flagged as a single point of failure for all
+ *   authentication.
  *
+
  * IMPORTANT: This uses referenceAuth() — NOT defineAuth() — so Amplify
  * will NOT create a new Cognito User Pool. It references the existing one.
  *

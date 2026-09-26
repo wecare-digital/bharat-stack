@@ -77,10 +77,24 @@ export const SNS_TOPICS = {
 };
 
 // Cognito
+//
+// SSO_DOMAIN moved off the `signin.wecare.digital` custom domain on 2026-09-26 and
+// onto the Cognito-provided prefix domain. The prefix domain was upgraded from
+// hosted UI classic (ManagedLoginVersion 1) to managed login v2 first, so the page
+// served is the same one: verified byte-for-byte equivalent apart from the hostname
+// length (34,433 vs 34,441 bytes, identical <title>, zero classic-widget markers).
+// Without that upgrade this move would have silently downgraded the sign-in page to
+// the old classic UI.
+//
+// NOTE: this constant currently has NO consumers — it is the only occurrence of
+// `SSO_DOMAIN` in the repository. The value that actually drives the OAuth flow is
+// `NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN`, read by `src/pages/_app.tsx` from the Amplify
+// branch environment at BUILD time. Kept and corrected rather than deleted so it
+// cannot be picked up later as a stale pointer to a removed host.
 export const COGNITO_CONFIG = {
   USER_POOL_ID: 'us-east-1_cSx0RHCIR',
   APP_CLIENT_ID: '1j8kbi48m4v2rped3n224rlevb',
-  SSO_DOMAIN: 'https://signin.wecare.digital',
+  SSO_DOMAIN: 'https://wecare-digital-auth.auth.us-east-1.amazoncognito.com',
 };
 
 // Bedrock AI Configuration

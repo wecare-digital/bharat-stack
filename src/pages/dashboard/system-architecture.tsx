@@ -247,7 +247,7 @@ const RISKS: RiskItem[] = [
   { id: 'R25', title: 'react-router-dom potentially unused', description: 'react-router-dom ^7.13.0 is installed but Next.js has built-in routing. This adds ~45KB to the bundle. Verify if it is actually used or can be removed.', priority: 'Important', category: 'Dependencies' },
   { id: 'R26', title: '@capacitor/cli in production dependencies', description: '@capacitor/cli is a build tool that should be in devDependencies, not dependencies. It adds unnecessary weight to production installs.', priority: 'Important', category: 'Dependencies' },
   { id: 'R27', title: 'No input validation on frontend forms', description: 'Contact forms, payment forms, and GSTIN inputs have maxLength but no regex validation. Invalid data can reach the backend.', priority: 'Important', category: 'Frontend' },
-  { id: 'R28', title: 'Cognito OAuth domain uses custom domain without fallback', description: 'NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN=signin.wecare.digital. If DNS or certificate expires, all authentication breaks with no fallback to the default Cognito domain.', priority: 'Important', category: 'Auth' },
+  { id: 'R28', title: '✅ FIXED — Cognito OAuth domain no longer depends on our own DNS or certificate', description: 'Moved from the signin.wecare.digital custom domain to the Cognito-provided prefix domain, which AWS operates. The prefix domain was upgraded to managed login v2 first so the sign-in page is unchanged. This removes the ACM-certificate and Route 53 single point of failure for all authentication.', priority: 'Important', category: 'Auth' },
   { id: 'R29', title: 'GA and FB tracking IDs empty', description: 'NEXT_PUBLIC_GA_MEASUREMENT_ID and NEXT_PUBLIC_FB_APP_ID are empty. Analytics scripts still load (googletagmanager, connect.facebook.net) but send no data — wasted bandwidth and privacy concern.', priority: 'Important', category: 'Configuration' },
   { id: 'R30', title: '✅ FIXED — Client password comparison removed', description: 'Edit and payment gates use Cognito Admin verification; no shared unlock password is evaluated in browser code.', priority: 'Important', category: 'Security' },
 
@@ -350,7 +350,7 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_COGNITO_USER_POOL_ID', value: 'us-east-1_cSx0RHCIR', sensitive: false, category: 'Auth' },
   { key: 'NEXT_PUBLIC_COGNITO_CLIENT_ID', value: '1j8kbi48m4v2rped3n224rlevb', sensitive: false, category: 'Auth' },
   { key: 'NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID', value: 'us-east-1:471c2c38-5645-4ccd-aea1-7a008e906db5', sensitive: false, category: 'Auth' },
-  { key: 'NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN', value: 'signin.wecare.digital', sensitive: false, category: 'Auth' },
+  { key: 'NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN', value: 'wecare-digital-auth.auth.us-east-1.amazoncognito.com', sensitive: false, category: 'Auth' },
   // App
   { key: 'NEXT_PUBLIC_APP_URL', value: 'https://wecare.digital/', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_API_BASE', value: 'https://api.wecare.digital', sensitive: false, category: 'App' },
@@ -1129,7 +1129,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
               {
                 name: 'Cognito User Pool (us-east-1_cSx0RHCIR)', children: [
                   { name: 'Groups: Viewer, Operator, Admin' },
-                  { name: 'OAuth Domain: signin.wecare.digital' },
+                  { name: 'OAuth Domain: wecare-digital-auth.auth.us-east-1.amazoncognito.com (managed login v2)' },
                 ]
               },
               { name: 'Cognito Identity Pool' },
@@ -1140,7 +1140,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
             name: '🌐 Networking', children: [
               {
                 name: 'Route 53 (DNS)', children: [
-                  { name: 'wecare.digital' }, { name: 'api.wecare.digital' }, { name: 'r.wecare.digital' }, { name: 'signin.wecare.digital' }, { name: 'app.wecare.digital' },
+                  { name: 'wecare.digital' }, { name: 'api.wecare.digital' }, { name: 'r.wecare.digital' }, { name: 'app.wecare.digital' },
                 ]
               },
               { name: 'CloudFront (CDN)' },
