@@ -6,6 +6,25 @@ describe( 'support widget wiring', () => {
   const app = readFileSync( resolve( process.cwd(), 'src/pages/_app.tsx' ), 'utf8' );
   const widget = readFileSync( resolve( process.cwd(), 'src/components/SupportWidget.tsx' ), 'utf8' );
 
+  /**
+   * The same source with comments removed, for NEGATIVE assertions only.
+   *
+   * This has now bitten five times in this suite, always the same way: a construct is
+   * removed, the removal is explained in a comment, and the comment necessarily names the
+   * construct - so the guard fires on the note recording the fix. Individually pinning each
+   * assertion to a code-shaped form worked but had to be re-derived every time, and the
+   * fifth failure was `not.toContain( '<select' )` catching a comment that says the native
+   * select was replaced.
+   *
+   * Stripping first removes the whole class of false alarm. POSITIVE assertions deliberately
+   * keep using the raw source: matching a real declaration in the raw text is stricter, and
+   * a positive match cannot be fooled by prose in the way an absence check can.
+   */
+  const widgetCode = widget
+    .replace( /\/\*[\s\S]*?\*\//g, '' )
+    .replace( /\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '' )
+    .replace( /^\s*\/\/.*$/gm, '' );
+
   it( 'renders one combined widget and no longer loads the external WhatsApp script', () => {
     // WHAT CHANGED. The WhatsApp button used to be injected by a third-party script,
     // wecare-wa-widget.js on app.wecare.digital, gated behind a showPublicWhatsApp flag.
@@ -53,28 +72,117 @@ describe( 'support widget wiring', () => {
     expect( widget ).toContain( 'height:40px' );
   } );
 
-  it( 'uses a native select instead of a custom panel', () => {
-    // The 324px panel - search field, ARIA combobox, scrolling listbox, keyboard
-    // navigation, aria-activedescendant - is replaced by a real <select>. The platform
-    // supplies all of that, and on a phone it opens the OS language picker.
-    expect( widget ).toContain( '<select' );
-    expect( widget ).toContain( 'aria-label="Choose language"' );
-    expect( widget ).toContain( '.wc-chip{position:relative' );
-
-    // The panel and its machinery must be GONE, not merely unused.
+  it( 'uses a searchable panel, and owns the keyboard that the native select used to give free', () => {
+    // WHAT CHANGED, AND WHY THIS TEST IS NOW THE OPPOSITE OF WHAT IT WAS. This asserted the
+    // presence of a native <select>, which had replaced an earlier custom panel precisely
+    // because the platform supplies keyboard navigation, screen-reader announcement and the
+    // phone's OS picker for nothing. That trade has been reversed on instruction, and the
+    // reason it is defensible is that the native picker showed the provider's raw catalogue -
+    // 76 entries, two thirds of them irrelevant, unsearchable on desktop.
     //
-    // PINNED ON CODE, NOT PROSE. A bare not.toContain('aria-activedescendant') failed on
-    // the comment above the chip, which lists what the native control replaced - the guard
-    // must not fire on the note explaining the deletion. So these match the JSX attribute
-    // form (`aria-activedescendant={`) rather than the bare word.
-    expect( widget ).not.toContain( 'className="panel' );
-    expect( widget ).not.toContain( 'role="combobox"' );
-    expect( widget ).not.toContain( 'aria-activedescendant={' );
-    expect( widget ).not.toContain( 'className="language-trigger"' );
+    // The cost of reversing it is the ARIA and keyboard wiring below. Every one of these is
+    // something the <select> did for free, so every one is something that can now silently
+    // break. A broken keyboard is invisible in a screenshot, which is why it is pinned here
+    // rather than left to review.
+    expect( widget ).toContain( 'role="combobox"' );
+    expect( widget ).toContain( 'aria-autocomplete="list"' );
+    expect( widget ).toContain( 'aria-activedescendant={' );
+    expect( widget ).toContain( 'role="listbox"' );
+    expect( widget ).toContain( 'role="option"' );
+    expect( widget ).toContain( 'aria-haspopup="listbox"' );
+    for ( const key of [ 'ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab' ] ) {
+      expect( widget, `the panel must handle ${key}` ).toContain( `'${key}'` );
+    }
+    // Focus must come back to the chip on close. Without it, Escape sends a keyboard user to
+    // the top of the document - a page-length punishment for changing their mind.
+    expect( widget ).toContain( 'chipRef.current?.focus()' );
 
-    // 16px on the select is not cosmetic: iOS Safari zooms the viewport when a focused
-    // form control is smaller than that.
+    // aria-disabled, NOT the disabled attribute. A disabled element cannot hold focus, so
+    // disabling the chip the moment a language is applied dropped focus to the body every
+    // time. Caught by driving the keyboard, not by looking.
+    expect( widget ).toContain( 'aria-disabled={ busy }' );
+    // Matched with a leading-whitespace boundary, not as a bare substring: 'aria-disabled={
+    // busy }' CONTAINS 'disabled={ busy }', so the naive negative assertion failed against
+    // the very fix it was written to protect.
+    expect(
+      /\sdisabled=\{/.test( widgetCode ),
+      'the chip must not use the disabled attribute - a disabled element cannot hold focus, '
+      + 'so applying a language dropped focus to the body every time. Use aria-disabled.'
+    ).toBe( false );
+
+    // The native control is gone, not merely unused. Checked against comment-stripped source:
+    // the note above this test explains what the select was replaced by, and therefore names
+    // it.
+    expect( widgetCode ).not.toContain( '<select' );
+
+    // 16px on the search field is not cosmetic: iOS Safari zooms the viewport when a focused
+    // form control is smaller than that, and does not zoom back out on blur.
     expect( widget ).toContain( 'font-size:16px' );
+  } );
+
+  it( 'trims the catalogue on arrival, including an entry that is not a language', () => {
+    // 'auto' is a SOURCE-language sentinel the provider ships in the same list as real
+    // destinations. Selecting it sent targetLanguage: "auto" to /translate. It was offered to
+    // every visitor, indistinguishable from a real choice.
+    // ASSERTED AGAINST THE SET LITERAL, not against the file. The first version of this test
+    // checked that the source contained "'auto'" anywhere - and it passed after 'auto' was
+    // removed from DROP_CODES, because the comment above the constant quotes it while
+    // explaining why it is dropped. Proved by deliberately re-introducing the bug: the guard
+    // stayed green. Reading the Set's own contents is the only form that cannot be satisfied
+    // by prose.
+    expect( widgetCode ).toContain( 'DROP_CODES.has( row.code )' );
+    const dropSet = /const DROP_CODES = new Set\(([^)]*)\)/.exec( widgetCode );
+    expect( dropSet, 'DROP_CODES declaration not found' ).not.toBeNull();
+    for ( const code of [ 'auto', 'fr-CA', 'zh-TW', 'es-MX', 'pt-PT' ] ) {
+      expect(
+        dropSet![ 1 ],
+        `'${code}' must be in DROP_CODES. ${code === 'auto'
+          ? "'auto' is a source-language sentinel, not a destination - offering it sends targetLanguage: \"auto\""
+          : 'it is a multi-word region variant of a base language that stays in the list'}`
+      ).toContain( `'${code}'` );
+    }
+    // Haitian Creole is renamed rather than dropped: it has no base-language twin.
+    expect( widget ).toContain( "ht: 'Creole'" );
+  } );
+
+  it( 'ranks an exact code match first', () => {
+    // A REAL DEFECT CAUGHT IN THE MOCKUP. Rows are sorted alphabetically, so typing 'ta'
+    // listed Tagalog above Tamil - Tagalog wins on spelling - while 'ta' is Tamil's own ISO
+    // code. For an audience in Bharat the most likely language sat second behind one almost
+    // nobody here will want. Same shape for 'ml', where Malayalam was behind Malay and
+    // Maltese.
+    expect( widget ).toContain( 'function searchLanguages' );
+    expect( widget ).toContain( 'if ( code === q ) rank = 0' );
+    // The native name is matched too, so a reader typing in their own script finds their own
+    // language - the only route in from an Indic keyboard.
+    expect( widget ).toMatch( /native\.startsWith\( q \)/ );
+    // Five rows is the measured worst case for a two-letter query across the whole
+    // catalogue, so the panel has a fixed height. Not a truncation that usually works.
+    expect( widget ).toContain( 'const MAX_ROWS = 5' );
+  } );
+
+  it( 'has no hover tint on the chip', () => {
+    // Removed on instruction, and correct for a reason worth keeping: the same tint marks the
+    // ACTIVE ROW inside the panel, so using it on the trigger meant one colour saying two
+    // different things a few pixels apart. The chip now signals only real state.
+    expect( widget ).not.toMatch( /\.wc-chip:hover/ );
+    // Focus-visible only, so a mouse click does not leave a ring behind.
+    expect( widget ).toContain( '.wc-chip:focus-visible' );
+  } );
+
+  it( 'neutralises the global input styling inside the panel', () => {
+    // MEASURED, NOT GUESSED. tokens.css styles every bare input: a 3px lime box-shadow on
+    // focus, min-height 44px, and a border-radius. With the search field focused for the
+    // whole time the panel is open, the glow drew a heavy lime rounded box around it - the
+    // most visible thing in the panel and not designed - and min-height pushed the panel from
+    // ~230px to 302px. Anything NOT named in the reset silently keeps the global value, which
+    // is exactly how all three arrived.
+    expect( widget ).toMatch( /\.wc-search input\{[^}]*box-shadow:none/ );
+    expect( widget ).toMatch( /\.wc-search input\{[^}]*min-height:0/ );
+    expect( widget ).toMatch( /\.wc-search input\{[^}]*border-radius:0/ );
+    // And the row height is declared rather than inherited from a global button rule, which
+    // is how the WhatsApp circle previously ended up a 44x40 oval.
+    expect( widget ).toMatch( /\.wc-row\{[^}]*min-height:44px/ );
   } );
 
   it( 'signals translating with lime motion, not a dark inversion', () => {

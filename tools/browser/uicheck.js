@@ -488,13 +488,31 @@ async function main() {
           `centre hits ${m.chipReach.hit}` );
 
         // ===== TRANSLATING =====
-        // Switch to Hindi and look at the pill WHILE the first batch is in flight.
+        /**
+         * Switch to Hindi through the SEARCH PANEL and look at the pill while the first batch
+         * is in flight.
+         *
+         * This was one selectOption call against a native <select>. The select is gone, and
+         * what replaced it is a custom combobox - so this now drives the real path a visitor
+         * takes: open the chip, type, confirm with the keyboard. Doing it by keyboard rather
+         * than by clicking the row is deliberate: the keyboard is the half that a screenshot
+         * cannot check and the half that the native control used to provide for free.
+         */
         let switched = true;
         try {
-          await page.selectOption( '.wc-pill .wc-chip select', 'hi' );
+          await page.click( '.wc-pill .wc-chip' );
+          await page.waitForSelector( '.wc-panel .wc-search input', { timeout: 5000 } );
+          await page.fill( '.wc-panel .wc-search input', 'hi' );
+          await page.waitForTimeout( 200 );
+          const first = await page.evaluate( () => {
+            const row = document.querySelector( '.wc-row' );
+            return row ? row.querySelector( '.wc-row-code' ).textContent.trim() : null;
+          } );
+          record( first === 'HI', `${vp.label}: typing a code puts that language first`, `first row is ${first}` );
+          await page.keyboard.press( 'Enter' );
         } catch ( err ) {
           switched = false;
-          record( false, `${vp.label}: language chip is operable`, `selectOption failed: ${err.message.split( '\n' )[ 0 ]}` );
+          record( false, `${vp.label}: language panel is operable`, err.message.split( '\n' )[ 0 ] );
         }
 
         if ( switched ) {
