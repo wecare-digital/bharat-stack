@@ -158,8 +158,9 @@ POST /site-language/translate  -> 403 {"error": "Not allowed from this origin"}
                                   for both absent and hostile Origin
 ```
 
-125 invocations, 0 errors, 0 throttles in the 20 minutes after. Readback:
-`handler.py` byte-identical to the tree.
+125 invocations, 0 errors, 0 throttles over a 20-minute window that straddles the
+deploy — so it proves no error spike, not a clean post-deploy period in isolation.
+Readback: `handler.py` byte-identical to the tree.
 
 This also exposes a blind spot in `audit_route_auth.py`, which reports 0 OPEN
 routes. It greps **local handler source** for auth markers. Local source had
