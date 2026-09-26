@@ -233,10 +233,13 @@ const pillState = () => {
       } );
       console.log( `       focusable-selector matches with a box above the fold: ${counts.dom}` );
       console.log( `       of those, actually visible: ${counts.visible} -> ${counts.list.join( ' | ' )}` );
-      check( counts.inMain > 0, 'the page offers at least one action above the fold',
-        counts.inMain === 0
-          ? `0 inside <main>; all ${counts.visible} visible controls above the fold are site chrome`
-          : `${counts.inMain} inside <main>` );
+      // NOT AN ASSERTION ANY MORE, AND THAT IS AN OWNER DECISION RATHER THAN A CLIMBDOWN.
+      // This used to fail on 0 actions above the fold. The brief is now explicit: the top
+      // band says what the page is about and carries no call to action, no price and no
+      // conversion furniture - the action lives in the closing band. So the count is
+      // reported, and a change in it is what would be worth noticing.
+      console.log( `       actions inside <main> above the fold: ${counts.inMain} `
+        + `(0 is intended - this band states what the page is about; the CTA is in the closing band)` );
 
       const stops = [];
       for ( let i = 0; i < 8; i++ ) {

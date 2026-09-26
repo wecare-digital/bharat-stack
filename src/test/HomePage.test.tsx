@@ -231,6 +231,77 @@ describe( 'WECARE.DIGITAL Home', () => {
     ).toBe( false );
   } );
 
+  it( 'gives the pill a resting width in CSS, so it never ships empty', () => {
+    const css = cssOf( render( <HomePage /> ).container );
+
+    /**
+     * THE PILL USED TO RENDER EMPTY, and a unit test can see the cause even though it
+     * cannot see the result.
+     *
+     * cycleW starts null, so the first render writes no inline width. Every .home-cyc-word
+     * was position:absolute, so .home-cycle had NO intrinsic width - it computed to 0px and
+     * overflow:hidden clipped the word away completely. The headline read "Everyday AI,
+     * built for" with nothing after it: ~200ms on every load (4 painted frames, measured in
+     * tools/browser/homeprobe.js) and permanently with JavaScript disabled.
+     *
+     * Two declarations fix it and both are asserted, because removing either brings the
+     * defect back in a different disguise.
+     */
+    expect( css ).toContain( 'width:max-content' );
+    expect(
+      css,
+      'the active word must return to flow, or .home-cycle has no intrinsic width to rest at'
+    ).toContain( 'position:static' );
+    expect(
+      css,
+      'display:inline-block is load-bearing: position:static alone makes this a non-replaced '
+      + 'inline box, whose offsetWidth is 0 - the measuring effect would then write width:0px '
+      + 'over max-content and the pill would collapse on every load WITH JavaScript'
+    ).toContain( 'display:inline-block' );
+  } );
+
+  it( 'settles the reduced-motion shutter open, not closed', () => {
+    const css = cssOf( render( <HomePage /> ).container );
+
+    /**
+     * This block used to set the shutter to scaleX(1) - the START state, a white panel over
+     * the tint - under a comment saying it settled the pill. It never bit only because
+     * `.home-layout.show .home-mark::before` scores (0,2,1) against the media rule's
+     * (0,1,1), so the correct value won by accident. Any edit to the .show rule would have
+     * handed every reduced-motion visitor a blank white pill.
+     *
+     * The older assertion here only checked that the media block EXISTED, which passed
+     * either way - so it is the value that is pinned now, scoped to the block.
+     */
+    /**
+     * SELECTED BY CONTENT, NOT BY POSITION. The first version of this took the first
+     * `@media(prefers-reduced-motion:reduce)` block on the page - which belongs to
+     * WorkflowTerminal, since this page renders it too. The assertion then failed against the
+     * wrong component's CSS. A brace walk collects every block and the one carrying
+     * `.home-mark` is the hero's.
+     */
+    const blocks: string[] = [];
+    for ( let at = css.indexOf( '@media(prefers-reduced-motion:reduce)' ); at !== -1;
+      at = css.indexOf( '@media(prefers-reduced-motion:reduce)', at + 1 ) ) {
+      const open = css.indexOf( '{', at );
+      if ( open === -1 ) break;
+      let depth = 0, end = open;
+      for ( ; end < css.length; end++ ) {
+        if ( css[ end ] === '{' ) depth++;
+        else if ( css[ end ] === '}' && --depth === 0 ) break;
+      }
+      blocks.push( css.slice( open + 1, end ) );
+    }
+    expect( blocks.length, 'no reduced-motion blocks parsed' ).toBeGreaterThan( 0 );
+    const body = blocks.find( b => b.includes( '.home-mark' ) );
+    expect( body, 'no reduced-motion block mentions .home-mark' ).toBeDefined();
+    expect( body! ).toContain( '.home-mark::before{transform:scaleX(0)}' );
+    expect(
+      /\.home-mark::before\{transform:scaleX\(1\)\}/.test( body! ),
+      'scaleX(1) is the start state - a white shutter covering the tint - not the resting one'
+    ).toBe( false );
+  } );
+
   it( 'declares the Inter stack rather than inheriting it from Amplify', () => {
     const css = cssOf( render( <HomePage /> ).container );
 
