@@ -632,16 +632,42 @@ return () =&gt; ro.disconnect();</code></pre>
 
 <section class="band">
   <div class="bhead"><span class="tag">E</span><span class="sev s-h">HIGH</span>
-    <h2>Translating the page clips the word by 39px</h2></div>
+    <h2>Translating the page leaves the word in English</h2></div>
   <div class="step">
-    <p class="cap">Not hypothetical — the site ships a language switcher, and the whole
-    <code>site-language</code> service exists to translate this page. A translation rewrites the
-    text and nothing else, so the pill keeps the width measured for English: “consumers” 278px,
-    “उपभोक्ताओं” needs <b>317px</b>.</p>
-    ${P.hindi}
-    <details class="why" data-note><summary>why / the code</summary><div class="inner">
-      <p>Devanagari is also taller than Latin at the same size, so the clipping is not only
-      horizontal. <strong>Fixes A + B close this too</strong>, for the same reason as D.</p>
+    <p class="cap"><b>Corrected — and the truth is worse than what I first wrote.</b> I claimed the
+    translated word gets clipped. It does not, because <b>the rotating word is never translated at
+    all.</b> <code>SupportWidget</code>'s text walker rejects any node whose ancestor carries
+    <code>aria-hidden="true"</code>, and all four animated words carry exactly that.</p>
+    <p class="cap">So translating the page produces a <b>mixed-language headline</b>: the frame
+    line becomes Hindi, the word inside the pill stays English. And the screen-reader list
+    <em>does</em> translate — so assistive tech gets Hindi while the screen shows English.</p>
+    <table style="margin-bottom:6px">
+      <tr><th>Element in the band</th><th>Translated?</th><th>Why</th></tr>
+      <tr><td><code>.brand-stack</code> — “WECARE.DIGITAL”</td><td>yes</td><td></td></tr>
+      <tr><td>23 <code>.nav-item</code> / <code>.nav-group-label</code></td><td>yes</td><td></td></tr>
+      <tr><td><code>.home-head-line</code> — “Everyday AI, built for”</td><td>yes</td><td></td></tr>
+      <tr><td><code>.home-sr-only</code> — the list read aloud</td><td><b>yes</b></td><td>no <code>aria-hidden</code> on it</td></tr>
+      <tr><td><code>.home-cyc-word</code> ×4 — the visible words</td><td><b>NO</b></td><td><code>aria-hidden="true"</code> → <code>FILTER_REJECT</code></td></tr>
+      <tr><td><code>.home-sub</code></td><td>yes</td><td></td></tr>
+    </table>
+    <p class="cap"><b>Measured on the built page: 34 text nodes in the band, 30 translated, 4
+    skipped</b> — and the 4 are the ones a visitor is looking at.</p>
+    <details class="why" data-note><summary>why / and why there is no fix here</summary><div class="inner">
+      <p>The <code>aria-hidden</code> rule is <em>correct</em> for its purpose — it is what keeps
+      decorative and duplicated text out of a translation batch. The words carry
+      <code>aria-hidden</code> for an equally good reason: without it a screen reader would read
+      the headline once per word. Two sound decisions that combine into a defect.</p>
+      <p><strong>This is not a CSS fix and I am not going to invent one.</strong> The options each
+      cost something: an allowlist attribute the walker honours ahead of
+      <code>aria-hidden</code>; translating <code>CYCLE_WORDS</code> at build time per locale so
+      the markup ships already-translated; or dropping <code>aria-hidden</code> from the active
+      word only and removing the sr-only list. The first is the smallest, the second is the most
+      correct, the third changes what assistive tech hears. That is a decision for you.</p>
+      <p class="sm">What the applied fixes <em>do</em> guarantee: if the words ever do become
+      translatable, the pill will size to them. <code>width:max-content</code> plus the
+      <code>ResizeObserver</code> means a longer word cannot be clipped — verified against the
+      WCAG 1.4.12 overrides, where the word grows from 278px to 377px and the pill follows it
+      exactly.</p>
     </div></details>
   </div>
 </section>
