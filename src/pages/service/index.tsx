@@ -13,8 +13,8 @@ const SERVICE_MODULES = [
   { path: '/service/submit-request', label: 'Submit Request', icon: '📝', desc: 'Submit a new service request linked to an order', color: '#dbeafe' },
   { path: '/service/track-request', label: 'Track Request', icon: '📊', desc: 'Track all service activity for an order', color: '#d1fae5' },
   { path: '/service/amend-request', label: 'Amend Request', icon: '✏️', desc: 'Modify or add info to an existing request', color: '#fef3c7' },
-  { path: '/dm/whatsapp/flow-responses', label: 'All Submissions', icon: '📋', desc: 'View all flow submissions across all types', color: '#f3e8ff' },
-  { path: '/dm/whatsapp/flow-hub', label: 'Flow Hub', icon: '🔄', desc: 'Manage WhatsApp flow configurations', color: '#e0e7ff' },
+  { path: '/workspace/whatsapp/flow-responses', label: 'All Submissions', icon: '📋', desc: 'View all flow submissions across all types', color: '#f3e8ff' },
+  { path: '/workspace/whatsapp/flow-hub', label: 'Flow Hub', icon: '🔄', desc: 'Manage WhatsApp flow configurations', color: '#e0e7ff' },
   { path: '/forms/selfservice', label: 'Self-Service', icon: '🤖', desc: 'Customer self-service portal', color: '#fce7f3' },
 ];
 

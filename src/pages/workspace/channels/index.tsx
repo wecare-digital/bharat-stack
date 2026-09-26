@@ -26,44 +26,44 @@ interface ChannelCard {
 const CHANNELS: ChannelCard[] = [
     {
         key: 'whatsapp', label: 'WhatsApp', desc: 'Conversations, templates, flows, calling', fg: '#15803d', bg: '#f0fdf4',
-        links: [ { label: 'Inbox', href: '/dm/whatsapp' }, { label: 'Settings', href: '/dm/whatsapp/settings' }, { label: 'Service Ops', href: '/dm/service-ops' } ],
+        links: [ { label: 'Inbox', href: '/workspace/whatsapp' }, { label: 'Settings', href: '/workspace/whatsapp/settings' }, { label: 'Service Ops', href: '/workspace/service-ops' } ],
     },
     {
         key: 'sms', label: 'SMS', desc: 'Transactional and promotional SMS, with India DLT templates', fg: '#1d4ed8', bg: '#eff6ff',
-        links: [ { label: 'Open', href: '/dm/sms' }, { label: 'Logs', href: '/dm/logs' } ],
+        links: [ { label: 'Open', href: '/workspace/sms' }, { label: 'Logs', href: '/workspace/logs' } ],
     },
     {
         key: 'rcs', label: 'RCS', desc: 'Rich cards & carousels (Sinch)', fg: '#0f766e', bg: '#f0fdfa',
-        links: [ { label: 'Open', href: '/dm/rcs' }, { label: 'Send', href: '/dm/rcs/send' } ],
+        links: [ { label: 'Open', href: '/workspace/rcs' }, { label: 'Send', href: '/workspace/rcs/send' } ],
     },
     {
         key: 'email', label: 'Email', desc: 'Transactional & campaigns (SES)', fg: '#b45309', bg: '#fffbeb',
-        links: [ { label: 'Open', href: '/dm/ses' }, { label: 'Inbox', href: '/dm/inbox?channel=email' } ],
+        links: [ { label: 'Open', href: '/workspace/ses' }, { label: 'Inbox', href: '/workspace/inbox?channel=email' } ],
     },
     {
         key: 'voice', label: 'Voice', desc: 'Calls, OBD, C2C, CDR', fg: '#6d28d9', bg: '#f5f3ff',
-        links: [ { label: 'Outbound', href: '/dm/voice' }, { label: 'Voice In', href: '/dm/voice-in' } ],
+        links: [ { label: 'Outbound', href: '/workspace/voice' }, { label: 'Voice In', href: '/workspace/voice-in' } ],
     },
     {
         key: 'push', label: 'Push', desc: 'Web & mobile push notifications', fg: '#be185d', bg: '#fdf2f8',
-        links: [ { label: 'Open', href: '/dm/push' } ],
+        links: [ { label: 'Open', href: '/workspace/push' } ],
     },
 ];
 
 const CROSS: { label: string; desc: string; href: string }[] = [
-    { label: 'Unified Inbox', desc: 'All conversations, one thread per contact', href: '/dm/inbox' },
-    { label: 'Broadcast', desc: 'Send a campaign across any channel', href: '/dm/broadcast' },
-    { label: 'Content Library', desc: 'Templates & content across channels', href: '/dm/content' },
-    { label: 'Calls', desc: 'Call records, inside the unified inbox', href: '/dm/inbox?channel=voice' },
-    { label: 'Contact 360', desc: 'Everything about a contact in one feed', href: '/dm/contact-360' },
-    { label: 'Scheduled', desc: 'Upcoming scheduled sends', href: '/dm/scheduled' },
-    { label: 'Analytics', desc: 'Cross-channel volume & delivery', href: '/dm/analytics' },
-    { label: 'Automation', desc: 'Cross-channel auto-reply rules', href: '/dm/automation' },
-    { label: 'Cost & Usage', desc: 'Estimated per-channel spend', href: '/dm/cost' },
-    { label: 'Channel Settings', desc: 'Consent, sender identities, config', href: '/dm/settings' },
-    { label: 'Delivery Report', desc: 'Cross-channel logs, status & failures', href: '/dm/logs' },
+    { label: 'Unified Inbox', desc: 'All conversations, one thread per contact', href: '/workspace/inbox' },
+    { label: 'Broadcast', desc: 'Send a campaign across any channel', href: '/workspace/broadcast' },
+    { label: 'Content Library', desc: 'Templates & content across channels', href: '/workspace/content' },
+    { label: 'Calls', desc: 'Call records, inside the unified inbox', href: '/workspace/inbox?channel=voice' },
+    { label: 'Contact 360', desc: 'Everything about a contact in one feed', href: '/workspace/contact-360' },
+    { label: 'Scheduled', desc: 'Upcoming scheduled sends', href: '/workspace/scheduled' },
+    { label: 'Analytics', desc: 'Cross-channel volume & delivery', href: '/workspace/analytics' },
+    { label: 'Automation', desc: 'Cross-channel auto-reply rules', href: '/workspace/automation' },
+    { label: 'Cost & Usage', desc: 'Estimated per-channel spend', href: '/workspace/cost' },
+    { label: 'Channel Settings', desc: 'Consent, sender identities, config', href: '/workspace/settings' },
+    { label: 'Delivery Report', desc: 'Cross-channel logs, status & failures', href: '/workspace/logs' },
     { label: 'Contacts', desc: 'One contact book across all channels', href: '/contacts' },
-    { label: 'Service Operations', desc: 'WhatsApp-Flow orders, bookings, docs', href: '/dm/service-ops' },
+    { label: 'Service Operations', desc: 'WhatsApp-Flow orders, bookings, docs', href: '/workspace/service-ops' },
 ];
 
 const ChannelsHub: React.FC<PageProps> = ( { signOut, user, embedded } ) => {

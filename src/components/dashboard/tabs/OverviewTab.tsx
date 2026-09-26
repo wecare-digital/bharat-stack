@@ -65,7 +65,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ data }) => {
       <div className="section">
         <h3>Quick Actions</h3>
         <div className="actions-grid">
-          <Link href="/dm/whatsapp" className="action-card">
+          <Link href="/workspace/whatsapp" className="action-card">
             <span className="icon"><WhatsAppIcon size={20} /></span>
             <span>WhatsApp</span>
           </Link>
@@ -85,15 +85,15 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ data }) => {
             <span className="icon"><ContactsIcon size={20} /></span>
             <span>Contacts</span>
           </Link>
-          <Link href="/dm/whatsapp" className="action-card">
+          <Link href="/workspace/whatsapp" className="action-card">
             <span className="icon"><BulkIcon size={20} /></span>
             <span>Campaign</span>
           </Link>
-          <Link href="/dm/sms" className="action-card">
+          <Link href="/workspace/sms" className="action-card">
             <span className="icon"><SmsIcon size={20} /></span>
             <span>SMS</span>
           </Link>
-          <Link href="/dm/ses" className="action-card">
+          <Link href="/workspace/ses" className="action-card">
             <span className="icon"><EmailIcon size={20} /></span>
             <span>Email</span>
           </Link>
@@ -119,7 +119,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ data }) => {
       <div className="section full-width">
         <div className="section-header">
           <h3>Recent Messages</h3>
-          <Link href="/dm/whatsapp" className="link">View All</Link>
+          <Link href="/workspace/whatsapp" className="link">View All</Link>
         </div>
         <div className="msg-list">
           {messages.slice(0, 5).map(msg => {

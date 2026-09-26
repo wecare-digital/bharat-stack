@@ -4,7 +4,7 @@
  * The bug this pins, in full, because the symptom was "the inbox stopped showing
  * messages" and the cause was three lines away from anything that looked related:
  *
- * All six sidebar Inbox entries point at the SAME route, `/dm/inbox`, differing only
+ * All six sidebar Inbox entries point at the SAME route, `/workspace/inbox`, differing only
  * by query string. Next therefore keeps the component mounted across them, so React
  * state survives the navigation. The first version of the `?channel=` effect only ever
  * *set* the filter:
@@ -34,7 +34,7 @@ vi.mock( 'next/router', () => ( {
     query: routerQuery,
     isReady: routerReady,
     push: vi.fn(),
-    pathname: '/dm/inbox',
+    pathname: '/workspace/inbox',
   } ),
 } ) );
 
@@ -58,11 +58,11 @@ vi.mock( '../api/client', async () => {
   };
 } );
 
-import UnifiedInbox from '../pages/dm/inbox/index';
+import UnifiedInbox from '../pages/workspace/inbox/index';
 import { ToastProvider } from '../contexts/ToastContext';
 
 const SRC = fs.readFileSync(
-  path.resolve( __dirname, '../pages/dm/inbox/index.tsx' ), 'utf8' );
+  path.resolve( __dirname, '../pages/workspace/inbox/index.tsx' ), 'utf8' );
 
 /** The inbox calls useToastContext, so it needs the provider to mount at all. */
 const Inbox: React.FC<{ channel?: string }> = ( { channel } ) => (
@@ -136,7 +136,7 @@ describe( 'the channel filter resets when the URL drops it', () => {
   it( 'does NOT stay stuck on a channel after the query is removed', async () => {
     // The regression, reproduced. Same component instance, query cleared — which is
     // exactly what clicking "All channels" after "Email" does, because both are
-    // `/dm/inbox`.
+    // `/workspace/inbox`.
     routerQuery = { channel: 'rcs' };
     const view = render( <Inbox /> );
     expect( await screen.findByText( 'Ravi' ) ).toBeTruthy();

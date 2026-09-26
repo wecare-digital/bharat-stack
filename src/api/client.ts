@@ -564,7 +564,7 @@ export interface Message {
   messageId: string;
   contactId: string;
   // VOICE is a real stored channel — message_store.VALID_CHANNELS has included it
-  // since calls started leaving a breadcrumb row, and `/dm/inbox?channel=voice` is
+  // since calls started leaving a breadcrumb row, and `/workspace/inbox?channel=voice` is
   // now the Calls destination. Omitting it here made the type assert something false
   // about data the inbox already renders with its own badge and audio player.
   channel: 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS' | 'VOICE';

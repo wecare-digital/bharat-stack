@@ -469,7 +469,7 @@ class TestTheHandlersAreWired:
         assert "payment_status.paise(" in code
 
     def test_payments_read_still_emits_the_field_the_dashboard_reads(self):
-        """src/pages/dm/commerce falls back to `amount`, which is paise."""
+        """src/pages/workspace/commerce falls back to `amount`, which is paise."""
         code = self.code_only(self.READ)
         assert "'amountInRupees'" in code
         assert "'amountPaise'" in code

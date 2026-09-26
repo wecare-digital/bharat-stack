@@ -47,8 +47,8 @@ const NAVIGATION_ITEMS: SearchResult[] = getAllNavItems().map( ( item, index ) =
 } ) );
 
 /** The handful worth offering before anything is typed. */
-const DEFAULT_PATHS = [ '/dm/inbox', '/contacts', '/dashboard', '/dm/broadcast',
-  '/dm/settings', '/access/security' ];
+const DEFAULT_PATHS = [ '/workspace/inbox', '/contacts', '/dashboard', '/workspace/broadcast',
+  '/workspace/settings', '/access/security' ];
 const DEFAULT_RESULTS: SearchResult[] = DEFAULT_PATHS
   .map( ( p ) => NAVIGATION_ITEMS.find( ( i ) => i.path === p ) )
   .filter( ( i ): i is SearchResult => !!i );
@@ -118,7 +118,7 @@ const SearchModal: React.FC<SearchModalProps> = ( {
           title: contact.name || contact.phone,
           subtitle: contact.phone,
           icon: '◎',
-          path: `/dm/whatsapp?contact=${contact.id}`,
+          path: `/workspace/whatsapp?contact=${contact.id}`,
         } );
       }
     } );

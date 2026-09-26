@@ -221,7 +221,7 @@ const TasksPage: React.FC<PageProps> = ( { signOut, user } ) => {
                   return (
                     <tr key={ r.conversationId }>
                       <td>
-                        <Link href={ `/dm/inbox?contact=${encodeURIComponent( r.conversationId )}` }
+                        <Link href={ `/workspace/inbox?contact=${encodeURIComponent( r.conversationId )}` }
                           className="tk-link">{ label( r.conversationId ) }</Link>
                       </td>
                       <td>

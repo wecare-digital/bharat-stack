@@ -301,7 +301,7 @@ def test_missing_call_uuid_is_refused(captured):
 
 
 def test_breadcrumb_is_written_as_plivo_not_airtel(captured):
-    """src/pages/dm/calls keys its provider badge on this value."""
+    """src/pages/workspace/calls keys its provider badge on this value."""
     _persist(captured, CallUUID="u14", From="+919876543210", To="+918031830030",
              Direction="inbound", CallStatus="completed", Duration="12")
     assert captured.breadcrumbs, "no breadcrumb written"

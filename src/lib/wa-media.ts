@@ -3,7 +3,7 @@
  *
  * Consolidates the MIME map, per-type size limits, category classifier, file-input
  * accept string, and size validation that were previously duplicated across
- * src/api/client.ts and src/pages/dm/whatsapp/inbox.tsx (and elsewhere).
+ * src/api/client.ts and src/pages/workspace/whatsapp/inbox.tsx (and elsewhere).
  *
  * Limits and supported types follow the WhatsApp Cloud API "Supported Media Types".
  */

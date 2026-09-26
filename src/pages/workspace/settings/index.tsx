@@ -31,21 +31,21 @@ const SettingsPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     }, [ contacts ] );
 
     const senders = [
-        { ch: 'WhatsApp', id: `${WHATSAPP_PHONES.primary.name} · ${WHATSAPP_PHONES.primary.display}`, cfg: '/dm/whatsapp/settings' },
-        { ch: 'WhatsApp', id: `${WHATSAPP_PHONES.secondary.name} · ${WHATSAPP_PHONES.secondary.display}`, cfg: '/dm/whatsapp/settings' },
-        { ch: 'SMS', id: 'Sender WDBEEP · India DLT', cfg: '/dm/sms' },
-        { ch: 'RCS', id: 'Sinch RCS bot', cfg: '/dm/rcs' },
-        { ch: 'Email', id: 'noreply@wecare.digital (SES)', cfg: '/dm/ses' },
-        { ch: 'Voice', id: 'Business Calling · IVR', cfg: '/dm/voice' },
+        { ch: 'WhatsApp', id: `${WHATSAPP_PHONES.primary.name} · ${WHATSAPP_PHONES.primary.display}`, cfg: '/workspace/whatsapp/settings' },
+        { ch: 'WhatsApp', id: `${WHATSAPP_PHONES.secondary.name} · ${WHATSAPP_PHONES.secondary.display}`, cfg: '/workspace/whatsapp/settings' },
+        { ch: 'SMS', id: 'Sender WDBEEP · India DLT', cfg: '/workspace/sms' },
+        { ch: 'RCS', id: 'Sinch RCS bot', cfg: '/workspace/rcs' },
+        { ch: 'Email', id: 'noreply@wecare.digital (SES)', cfg: '/workspace/ses' },
+        { ch: 'Voice', id: 'Business Calling · IVR', cfg: '/workspace/voice' },
     ];
 
     const configs = [
-        { label: 'WhatsApp Settings', desc: 'Profile, webhooks, WABA, calling, templates, flows', href: '/dm/whatsapp/settings' },
-        { label: 'SMS', desc: 'Sender IDs and India DLT templates', href: '/dm/sms' },
-        { label: 'RCS', desc: 'Bot config & templates (Sinch)', href: '/dm/rcs' },
-        { label: 'Email', desc: 'SES from-address & campaigns', href: '/dm/ses' },
-        { label: 'Voice', desc: 'Origination identity, OBD/C2C', href: '/dm/voice' },
-        { label: 'Push', desc: 'Mobile push apps and device tokens', href: '/dm/push' },
+        { label: 'WhatsApp Settings', desc: 'Profile, webhooks, WABA, calling, templates, flows', href: '/workspace/whatsapp/settings' },
+        { label: 'SMS', desc: 'Sender IDs and India DLT templates', href: '/workspace/sms' },
+        { label: 'RCS', desc: 'Bot config & templates (Sinch)', href: '/workspace/rcs' },
+        { label: 'Email', desc: 'SES from-address & campaigns', href: '/workspace/ses' },
+        { label: 'Voice', desc: 'Origination identity, OBD/C2C', href: '/workspace/voice' },
+        { label: 'Push', desc: 'Mobile push apps and device tokens', href: '/workspace/push' },
     ];
 
     const content = (

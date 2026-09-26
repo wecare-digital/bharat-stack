@@ -39,21 +39,21 @@ describe( 'the sidebar is short and holds only daily streams', () => {
   } );
 
   it( 'leads with the inbox', () => {
-    expect( navigationConfig[ 0 ].path ).toBe( '/dm/inbox' );
+    expect( navigationConfig[ 0 ].path ).toBe( '/workspace/inbox' );
   } );
 
   it( 'no longer carries the 30-item WhatsApp branch', () => {
     const waInSidebar = getAllNavItemsFrom( navigationConfig )
-      .filter( ( p ) => p.startsWith( '/dm/whatsapp' ) );
+      .filter( ( p ) => p.startsWith( '/workspace/whatsapp' ) );
     expect( waInSidebar ).toHaveLength( 0 );
   } );
 
   it( 'offers Calls as an inbox filter, not a page', () => {
-    const inbox = navigationConfig.find( ( i ) => i.path === '/dm/inbox' );
+    const inbox = navigationConfig.find( ( i ) => i.path === '/workspace/inbox' );
     const calls = inbox?.children?.find( ( c ) => c.label === 'Calls' );
-    expect( calls?.path ).toBe( '/dm/inbox?channel=voice' );
+    expect( calls?.path ).toBe( '/workspace/inbox?channel=voice' );
     // dm/calls must be gone, not merely unlinked.
-    expect( fs.existsSync( path.join( PAGES, 'dm/calls/index.tsx' ) ) ).toBe( false );
+    expect( fs.existsSync( path.join( PAGES, 'workspace/calls/index.tsx' ) ) ).toBe( false );
   } );
 } );
 
@@ -90,9 +90,9 @@ describe( 'nothing became unreachable', () => {
     // A sample of the 21 orphans, including the MFA page the owner asked to keep
     // and which cannot be reached any other way.
     const all = getAllNavItems().map( ( i ) => i.path );
-    for ( const p of [ '/access/security', '/dm/channels', '/dm/search',
-      '/dm/whatsapp/catalog-builder', '/dm/whatsapp/embedded-signup',
-      '/dashboard/design-reference', '/dm/meta-agent', '/dm/faq' ] )
+    for ( const p of [ '/access/security', '/workspace/channels', '/workspace/search',
+      '/workspace/whatsapp/catalog-builder', '/workspace/whatsapp/embedded-signup',
+      '/dashboard/design-reference', '/workspace/meta-agent', '/workspace/faq' ] )
     {
       expect( all ).toContain( p );
     }
@@ -103,8 +103,8 @@ describe( 'nothing became unreachable', () => {
     // '/forms/create' was in this list until 2026-09-25. It was deleted as a ComingSoon
     // stub, so asserting the nav still reaches it would now assert the opposite of what
     // this file is for. FeatureFlags.test.tsx carries the inverse check for it.
-    for ( const p of [ '/dashboard/cors-settings', '/dm/whatsapp/ai-agent',
-      '/dm/whatsapp/scripts', '/forms/responses' ] )
+    for ( const p of [ '/dashboard/cors-settings', '/workspace/whatsapp/ai-agent',
+      '/workspace/whatsapp/scripts', '/forms/responses' ] )
     {
       expect( all ).toContain( p );
     }
@@ -126,9 +126,9 @@ describe( 'every nav path resolves to a real page', () => {
 
   it( 'no retired page is still referenced', () => {
     const all = getAllNavItems().map( ( i ) => i.path.split( '?' )[ 0 ] );
-    for ( const dead of [ '/dm/calls', '/dm/rcs/inbox', '/dm/ses/inbox',
-      '/dm/rcs/logs', '/dm/ses/logs', '/dm/whatsapp/logs',
-      '/dm/rcs/campaign', '/dm/ses/campaign', '/forms/logs', '/link/logs' ] )
+    for ( const dead of [ '/workspace/calls', '/workspace/rcs/inbox', '/workspace/ses/inbox',
+      '/workspace/rcs/logs', '/workspace/ses/logs', '/workspace/whatsapp/logs',
+      '/workspace/rcs/campaign', '/workspace/ses/campaign', '/forms/logs', '/link/logs' ] )
     {
       expect( all ).not.toContain( dead );
     }
@@ -140,18 +140,18 @@ describe( 'active-state matching survives the query strings', () => {
   // against path-plus-query never matches, so without stripping the query the
   // sidebar would highlight nothing on the page you are looking at.
   it( 'marks the inbox active when a channel filter is applied', () => {
-    const inbox = navigationConfig.find( ( i ) => i.path === '/dm/inbox' )!;
-    expect( isNavItemActive( inbox, '/dm/inbox' ) ).toBe( true );
+    const inbox = navigationConfig.find( ( i ) => i.path === '/workspace/inbox' )!;
+    expect( isNavItemActive( inbox, '/workspace/inbox' ) ).toBe( true );
   } );
 
   it( 'marks a query-string child active on its base route', () => {
-    const child = { path: '/dm/inbox?channel=voice', label: 'Calls' };
-    expect( isSubItemActive( child, '/dm/inbox' ) ).toBe( true );
+    const child = { path: '/workspace/inbox?channel=voice', label: 'Calls' };
+    expect( isSubItemActive( child, '/workspace/inbox' ) ).toBe( true );
   } );
 
   it( 'does not mark an unrelated route active', () => {
     const contacts = navigationConfig.find( ( i ) => i.path === '/contacts' )!;
-    expect( isNavItemActive( contacts, '/dm/inbox' ) ).toBe( false );
+    expect( isNavItemActive( contacts, '/workspace/inbox' ) ).toBe( false );
   } );
 } );
 

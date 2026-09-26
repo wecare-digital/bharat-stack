@@ -57,7 +57,7 @@ export function useUserRole (): UserRole {
  *  The shared WhatsApp inbox is intentionally excluded until it is tenant-scoped,
  *  otherwise a customer would see platform-wide data. */
 export const PARTNER_ALLOWED_PATHS = [
-    '/dm/whatsapp/my-account',
+    '/workspace/whatsapp/my-account',
     '/',
 ];
 

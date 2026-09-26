@@ -19,12 +19,12 @@ const PushIcon: React.FC<{ size?: number; color?: string }> = ({ size = 18, colo
 );
 
 const channels = [
-  { id: 'whatsapp', label: 'WhatsApp', desc: 'Business API messaging, campaigns & templates', path: '/dm/whatsapp', Icon: WhatsAppIcon, color: '#25D366', count: 0 },
-  { id: 'sms', label: 'SMS', desc: 'Transactional and promotional SMS', path: '/dm/sms', Icon: SmsIcon, color: '#3B82F6', count: 0 },
-  { id: 'voice', label: 'Voice', desc: 'Outbound calls & CDR logs', path: '/dm/voice', Icon: VoiceIcon, color: '#8B5CF6', count: 0 },
-  { id: 'email', label: 'Email', desc: 'Amazon SES campaigns & inbox', path: '/dm/ses', Icon: EmailIcon, color: '#EF4444', count: 0 },
-  { id: 'rcs', label: 'RCS', desc: 'Rich Communication Services', path: '/dm/rcs', Icon: RcsIcon, color: '#F59E0B', count: 0 },
-  { id: 'push', label: 'Push', desc: 'Apple APNs & Android FCM notifications', path: '/dm/push', Icon: PushIcon, color: '#6366F1', count: 0 },
+  { id: 'whatsapp', label: 'WhatsApp', desc: 'Business API messaging, campaigns & templates', path: '/workspace/whatsapp', Icon: WhatsAppIcon, color: '#25D366', count: 0 },
+  { id: 'sms', label: 'SMS', desc: 'Transactional and promotional SMS', path: '/workspace/sms', Icon: SmsIcon, color: '#3B82F6', count: 0 },
+  { id: 'voice', label: 'Voice', desc: 'Outbound calls & CDR logs', path: '/workspace/voice', Icon: VoiceIcon, color: '#8B5CF6', count: 0 },
+  { id: 'email', label: 'Email', desc: 'Amazon SES campaigns & inbox', path: '/workspace/ses', Icon: EmailIcon, color: '#EF4444', count: 0 },
+  { id: 'rcs', label: 'RCS', desc: 'Rich Communication Services', path: '/workspace/rcs', Icon: RcsIcon, color: '#F59E0B', count: 0 },
+  { id: 'push', label: 'Push', desc: 'Apple APNs & Android FCM notifications', path: '/workspace/push', Icon: PushIcon, color: '#6366F1', count: 0 },
 ];
 
 const quickActions = [
@@ -42,7 +42,7 @@ const MessagesPage: React.FC<PageProps> = ({ signOut, user }) => {
 
   const handleQuickAction = (action: string) => {
     if (action === 'send') setSendOpen(true);
-    else if (action === 'logs') router.push('/dm/whatsapp');
+    else if (action === 'logs') router.push('/workspace/whatsapp');
     else if (action === 'contacts') router.push('/contacts');
   };
 

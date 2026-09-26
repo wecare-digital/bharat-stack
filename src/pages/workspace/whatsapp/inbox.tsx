@@ -1210,7 +1210,7 @@ const WhatsAppUnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded = 
           title={ PAGE_SEO.whatsapp.title }
           description={ PAGE_SEO.whatsapp.description }
           keywords={ PAGE_SEO.whatsapp.keywords }
-          canonical="/dm/whatsapp"
+          canonical="/workspace/whatsapp"
           noindex={ true }
         />
       ) }

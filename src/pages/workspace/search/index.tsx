@@ -46,7 +46,7 @@ const SearchPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                     <>
                         <div className="se-section">Contacts ({ contactHits.length })</div>
                         { contactHits.map( c => (
-                            <Link key={ c.contactId } href="/dm/contact-360" className="se-row">
+                            <Link key={ c.contactId } href="/workspace/contact-360" className="se-row">
                                 <span className="se-row-title">{ c.name || c.phone }</span>
                                 <span className="se-row-sub">{ c.phone || c.email }</span>
                             </Link>
@@ -56,7 +56,7 @@ const SearchPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                             const ch = ( m.channel || 'whatsapp' ).toLowerCase();
                             const cm = CH[ ch ] || { fg: colors.textMuted, bg: colors.bgSecondary };
                             return (
-                                <Link key={ m.messageId } href="/dm/inbox" className="se-row">
+                                <Link key={ m.messageId } href="/workspace/inbox" className="se-row">
                                     <span className="se-badge" style={ { color: cm.fg, background: cm.bg } }>{ ch }</span>
                                     <span className="se-row-title">{ ( m.content || '' ).slice( 0, 100 ) }</span>
                                     <span className="se-row-sub">{ ( m.direction || '' ).toLowerCase() }</span>
