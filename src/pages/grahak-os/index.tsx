@@ -168,7 +168,7 @@ response = requests.post(
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
         {/* Preload critical images for faster loading */}
-        <link rel="preload" href="https://app.wecare.digital/stream/media/m/wecaredigital.png" as="image" />
+        <link rel="preload" href="https://wecare.digital/get/o/stream/media/m/wecaredigital.png" as="image" />
         <link rel="preconnect" href="https://img.icons8.com" />
         <link rel="dns-prefetch" href="https://img.icons8.com" />
         
@@ -480,7 +480,7 @@ response = requests.post(
                   the span is the word; together they are one lockup, so only one of them
                   should carry the accessible name. */}
               <div className="trust-logo">
-                <img className="trust-mark meta-mark" src="https://app.wecare.digital/stream/media/m/meta-icon.svg" alt="" aria-hidden="true" loading="lazy" />
+                <img className="trust-mark meta-mark" src="https://wecare.digital/get/o/stream/media/m/meta-icon.svg" alt="" aria-hidden="true" loading="lazy" />
                 <span className="trust-wordmark">Meta</span>
               </div>
               <div className="trust-divider" />

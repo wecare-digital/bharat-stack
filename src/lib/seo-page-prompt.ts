@@ -16,7 +16,7 @@ const BRAND = 'WECARE.DIGITAL';
 const BASE = 'https://wecare.digital';
 const AUTHOR = 'Swdhya Vaksetu';
 const AUTHOR_URL = `${BASE}/swdhya`;
-const LOGO = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
+const LOGO = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png';
 
 export const PAGE_SEO_SYSTEM_PROMPT = `You are an expert SEO editor specializing in Wix websites. You follow Google's E-E-A-T guidelines and schema.org best practices.
 

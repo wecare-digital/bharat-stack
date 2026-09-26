@@ -108,9 +108,9 @@ Amplify.configure( {
   }
 } );
 
-const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
-const LOGO_SVG_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.svg';
-const FAVICON_URL = 'https://app.wecare.digital/stream/media/m/wecare-digital.ico';
+const LOGO_URL = 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png';
+const LOGO_SVG_URL = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.svg';
+const FAVICON_URL = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.ico';
 // Read but deliberately NOT used to inject a tag. GA4 is fired by the GTM container
 // (see _document.tsx); a direct gtag.js snippet here double-counts. Kept so the env
 // var stays documented and so anything that needs the id for a dataLayer push has it.

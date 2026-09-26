@@ -27,7 +27,7 @@ const PARTNER_NAV: NavItem[] = [
 ];
 import { Breadcrumbs, KeyboardShortcuts, useKeyboardShortcutsModal } from './ui';
 
-const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
+const LOGO_URL = 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png';
 const CONTACT_URL = 'https://wecare.digital/contact';
 
 interface LayoutProps {

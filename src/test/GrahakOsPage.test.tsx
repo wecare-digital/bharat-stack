@@ -55,7 +55,7 @@ describe( 'Grahak OS five approved visual fixes', () => {
   } );
 
   it( 'uses the hosted Meta icon from app.wecare.digital', () => {
-    expect( source ).toContain( 'src="https://app.wecare.digital/stream/media/m/meta-icon.svg"' );
+    expect( source ).toContain( 'src="https://wecare.digital/get/o/stream/media/m/meta-icon.svg"' );
     expect( source ).toContain( 'className="trust-mark meta-mark"' );
     expect( source ).not.toContain( 'src="/meta-icon.png"' );
   } );

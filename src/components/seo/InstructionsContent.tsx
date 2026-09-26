@@ -47,12 +47,12 @@ export default function InstructionsContent () {
   "description": "Standing with another is a conscious free choice rooted in responsibility and intentionality—without requiring reciprocity.",
   "keywords": "standing with another, conscious free choice, willingness to be responsible, being in relationship, intentionality",
   "url": "https://wecare.digital/post/stand",
-  "image": ["https://app.wecare.digital/stream/media/m/wecare-digital.png"],
+  "image": ["https://wecare.digital/get/o/stream/media/m/wecare-digital.png"],
   "datePublished": "2025-09-12T00:18:04.958Z",
   "dateModified": "2025-09-12T00:18:04.958Z",
   "wordCount": 75,
   "author": { "@type": "Person", "name": "Swdhya Vaksetu", "url": "https://wecare.digital/swdhya" },
-  "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL", "logo": { "@type": "ImageObject", "url": "https://app.wecare.digital/stream/media/m/wecare-digital.png" } },
+  "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL", "logo": { "@type": "ImageObject", "url": "https://wecare.digital/get/o/stream/media/m/wecare-digital.png" } },
   "mainEntityOfPage": { "@type": "WebPage", "@id": "https://wecare.digital/post/stand" },
   "inLanguage": "en-IN",
   "articleSection": "Philosophy of Relationship"
@@ -104,7 +104,7 @@ export default function InstructionsContent () {
   "description": "Digital services for everyday Bharat — travel, legal, ritual, reflection, and dispute resolution with transparent pricing.",
   "keywords": "digital services India, everyday Bharat, travel support, legal support, WECARE.DIGITAL",
   "url": "https://wecare.digital/",
-  "image": "https://app.wecare.digital/stream/media/m/wecare-digital.png",
+  "image": "https://wecare.digital/get/o/stream/media/m/wecare-digital.png",
   "publisher": { "@type": "Organization", "name": "WECARE.DIGITAL" },
   "mainEntityOfPage": { "@type": "WebPage", "@id": "https://wecare.digital/" },
   "inLanguage": "en-IN"
@@ -116,7 +116,7 @@ export default function InstructionsContent () {
   "@type": "Organization",
   "name": "WECARE.DIGITAL",
   "url": "https://wecare.digital/",
-  "logo": "https://app.wecare.digital/stream/media/m/wecare-digital.png",
+  "logo": "https://wecare.digital/get/o/stream/media/m/wecare-digital.png",
   "email": "one@wecare.digital",
   "telephone": "+91 9330994400",
   "address": { "@type": "PostalAddress", "streetAddress": "The W.B.S.I.D.C. Building", "addressLocality": "Kolkata", "addressRegion": "West Bengal", "postalCode": "700012", "addressCountry": "IN" }

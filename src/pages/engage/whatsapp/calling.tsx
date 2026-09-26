@@ -185,7 +185,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
   const [ autoPickup, setAutoPickup ] = useState( true );
   const [ autoPickupLoading, setAutoPickupLoading ] = useState( false );
   const [ autoPickupMode, setAutoPickupMode ] = useState<'manual' | 'ivr'>( 'ivr' );
-  const [ ivrUrl, setIvrUrl ] = useState( 'https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16' );
+  const [ ivrUrl, setIvrUrl ] = useState( 'https://wecare.digital/get/o/stream/media/ivr/incoming_welcome.sln16' );
 
   // IVR SMS state
   const [ smsOnCall, setSmsOnCall ] = useState( true );
@@ -1181,7 +1181,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
             <div style={ { ...s.card, marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' } }>
               <div style={ { flex: 1, minWidth: '200px' } }>
                 <label style={ { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' } }>IVR Audio URL</label>
-                <input value={ ivrUrl } onChange={ e => setIvrUrl( e.target.value ) } placeholder="https://app.wecare.digital/stream/media/ivr/incoming_welcome.sln16"
+                <input value={ ivrUrl } onChange={ e => setIvrUrl( e.target.value ) } placeholder="https://wecare.digital/get/o/stream/media/ivr/incoming_welcome.sln16"
                   style={ { width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '12px', fontFamily: 'monospace' } } />
               </div>
               <div style={ { display: 'flex', gap: '8px', alignItems: 'flex-end', paddingTop: '18px' } }>

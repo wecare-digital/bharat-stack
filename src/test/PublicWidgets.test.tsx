@@ -39,7 +39,7 @@ describe( 'support widget wiring', () => {
     // the first version and it failed on this file's own comments, which explain why the
     // script was retired - the guard cannot be allowed to fire on the note recording the
     // decision. So these pin the constructs that would actually load or gate it.
-    expect( app ).not.toContain( 'src="https://app.wecare.digital/stream/code/wecare-wa-widget.js"' );
+    expect( app ).not.toContain( 'src="https://wecare.digital/get/o/stream/code/wecare-wa-widget.js"' );
     expect( app ).not.toContain( 'id="wecare-wa-widget"' );
     expect( app ).not.toContain( 'const showPublicWhatsApp' );
     expect( app ).not.toContain( '{ showPublicWhatsApp && (' );

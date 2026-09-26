@@ -68,7 +68,7 @@ BUCKET = os.environ.get("SECURE_FILES_BUCKET", "wecare-digital-get")
 # Reused from the invoice flow so the payment card carries the same branding.
 HEADER_IMAGE = os.environ.get(
     "WA_PAY_HEADER_IMAGE",
-    "https://app.wecare.digital/stream/media/m/wecare-digital.png",
+    "https://wecare.digital/get/o/stream/media/m/wecare-digital.png",
 )
 
 _lambda = None

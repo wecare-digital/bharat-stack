@@ -275,7 +275,7 @@ const SendTestConsole: React.FC<PageProps> = ( { signOut, user, embedded = false
                         { [ 'image', 'video', 'document', 'audio', 'sticker' ].map( t => <option key={ t } value={ t }>{ t }</option> ) }
                     </select>
                     <div style={ label }>Media URL (public)</div>
-                    <input style={ input } value={ mediaUrl } onChange={ e => setMediaUrl( e.target.value ) } placeholder="https://app.wecare.digital/stream/media/..." />
+                    <input style={ input } value={ mediaUrl } onChange={ e => setMediaUrl( e.target.value ) } placeholder="https://wecare.digital/get/o/stream/media/..." />
                     <div style={ label }>Caption (image/video/document)</div>
                     <input style={ input } value={ caption } onChange={ e => setCaption( e.target.value ) } />
                     <button style={ btn } disabled={ busy } onClick={ sendMedia }>Send media</button>

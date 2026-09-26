@@ -246,7 +246,7 @@ const PushPage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
                   <div className="push-preview-label">Preview</div>
                   <div className="push-preview-card">
                     <div className="push-preview-app">
-                      <img src="https://app.wecare.digital/stream/media/m/wecaredigital.png" alt="" width={ 20 } height={ 20 } style={ { borderRadius: 4 } } />
+                      <img src="https://wecare.digital/get/o/stream/media/m/wecaredigital.png" alt="" width={ 20 } height={ 20 } style={ { borderRadius: 4 } } />
                       <span>Stack CRM</span>
                       <span className="push-preview-time">now</span>
                     </div>

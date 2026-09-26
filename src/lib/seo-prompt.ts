@@ -12,7 +12,7 @@
 
 const BRAND = 'WECARE.DIGITAL';
 const BASE = 'https://wecare.digital';
-const LOGO = 'https://app.wecare.digital/stream/media/m/wecare-digital.png';
+const LOGO = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png';
 
 export const SEO_SYSTEM_PROMPT = `You are an expert SEO editor and content strategist for a self-managed headless website. You follow Google's E-E-A-T guidelines and modern technical SEO best practices.
 

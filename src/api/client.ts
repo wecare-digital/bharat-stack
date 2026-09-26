@@ -2222,7 +2222,7 @@ export async function sendWhatsAppPaymentMessage ( request: SendPaymentMessageRe
       templateName: 'wecare_pay',
       templateParams: [],
       checkoutOrderDetails: orderDetails,
-      headerImageUrl: request.headerImageUrl || 'https://app.wecare.digital/stream/media/m/wecare-digital.png',
+      headerImageUrl: request.headerImageUrl || 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png',
     } ),
   } );
 }

@@ -363,7 +363,7 @@ const FloatingAgent: React.FC = () => {
     }
   };
 
-  const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
+  const LOGO_URL = 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png';
 
   const retryMessage = async (messageId: string) => {
     // Find the user message before this error message

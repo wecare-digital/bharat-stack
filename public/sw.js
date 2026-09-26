@@ -148,8 +148,8 @@ self.addEventListener( 'push', ( event ) =>
   const title = data.title || 'Stack CRM';
   const options = {
     body: data.body || 'New notification',
-    icon: 'https://app.wecare.digital/stream/media/m/wecaredigital.png',
-    badge: 'https://app.wecare.digital/stream/media/m/wecaredigital.png',
+    icon: 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png',
+    badge: 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png',
     data: data.data || {},
     actions: data.actions || [],
     tag: data.tag || 'stack-crm',

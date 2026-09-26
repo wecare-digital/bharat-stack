@@ -1274,7 +1274,7 @@ def _handle_checkout_template_send(
         components = []
 
         # Header (image or video) — wecare_pay template REQUIRES image header
-        DEFAULT_CHECKOUT_HEADER = 'https://app.wecare.digital/stream/media/m/wecare-digital.png'
+        DEFAULT_CHECKOUT_HEADER = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png'
         checkout_header = header_image_url or DEFAULT_CHECKOUT_HEADER
         if checkout_order_details.get('header_image_id'):
             components.append({
@@ -2857,7 +2857,7 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
         payload['to'] = whatsapp_phone  # Will fail at API level with clear error
     
     # Default header image for interactive payments
-    DEFAULT_PAYMENT_HEADER_IMAGE = 'https://app.wecare.digital/stream/media/m/wecare-digital.png'
+    DEFAULT_PAYMENT_HEADER_IMAGE = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png'
     
     # Handle INTERACTIVE order_details message (for within 24h window)
     # Structure:
