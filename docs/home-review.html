@@ -105,6 +105,48 @@ meant to look identical:</b> the fixes only repair states you cannot see in a no
   <div class="step"><div data-panel="finalM"></div></div>
 </section>
 
+<!-- ============== HEADER / MENU ============== -->
+<section class="band">
+  <div class="bhead"><span class="tag" style="background:#44546a;color:#fff">ORIGINAL</span>
+    <h2>Header menu open — desktop 1280, actual size</h2>
+    <span class="sel">shared chrome, every public page · unmodified</span></div>
+  <div class="step">
+    <p class="cap">This is fine. The header's keyboard and screen-reader wiring is already
+    correct — <code>aria-expanded</code> on the trigger, Escape closes from anywhere, an outside
+    click dismisses, focus returns to the trigger, and the closed menu is
+    <code>visibility:hidden</code> so its 20 links are not in the tab order.</p>
+    <div data-panel="hdrOpenD"></div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="bhead"><span class="tag">HEADER FIX</span><span class="sev s-m">MED</span>
+    <h2>Landscape phone — the menu collapses to a sliver</h2></div>
+  <div class="step">
+    <p class="cap"><b>At 844×390 the menu is 70 px tall and holds 700 px of content — 10.6x
+    its own height.</b> Twenty links in a sliver. Both panels are 1:1 at 844×390.</p>
+    <div data-panel="hdrLand"></div>
+    <details class="why" data-note><summary>why / the code</summary><div class="inner">
+      <p>The menu is <code>max-height:calc(100vh - 320px)</code>, and the mobile override that
+      repositions it is gated on <code>@media(max-width:767px)</code>. So any window
+      <em>wider</em> than 767 but short falls back to the desktop rule — a landscape phone, or a
+      short desktop window. Measured across nine viewports:</p>
+      <table>
+        <tr><th>Viewport</th><th class="n">menu</th><th class="n">content</th><th>verdict</th></tr>
+        <tr><td>390×844 portrait</td><td class="n">358×536</td><td class="n">1028px</td><td>scrolls, usable</td></tr>
+        <tr><td>1280×900 desktop</td><td class="n">760×403</td><td class="n">399px</td><td>fits</td></tr>
+        <tr><td><strong>844×390 landscape</strong></td><td class="n"><strong>588×70</strong></td><td class="n"><strong>700 px</strong></td><td><strong>unusable</strong></td></tr>
+      </table>
+      <p style="margin-top:10px">Also <code>100vh</code>, not <code>100dvh</code> — the exact unit
+      defect <code>index.tsx</code> already fixed for <code>.home-shell</code>, still present in the
+      shared chrome. And 320 corresponds to nothing nameable, which is the same magic-number family
+      as the 108/96 header heights.</p>
+      <pre><code>/* anchor to the header, and use dvh: 140 = the 108px header + 32px of air */
+.nav-menu{max-height:calc(100dvh - 140px)}</code></pre>
+    </div></details>
+  </div>
+</section>
+
 <!-- ============== WHAT CHANGED ============== -->
 <section class="band">
   <div class="bhead"><span class="tag">CHANGES</span><h2>Three repairs — one line each</h2></div>
@@ -221,6 +263,7 @@ const CSS   = ".brand-lockup.jsx-7a485e799f09328a{flex-wrap:nowrap;align-items:c
 const FIX   = "\n  /* ===== FIX A - the pill is sized by CSS, so it is never empty =====\n     The active word returns to normal flow, which gives .home-cycle a real intrinsic\n     width; the inactive words stay absolute so they still stack in the same place.\n     width:max-content is the resting value. JavaScript still writes an explicit px\n     width over it, which is what animates - so the glide is unchanged, and the\n     first-paint and no-JS states show the word instead of nothing.\n\n     display:inline-block IS LOAD-BEARING, and it is the whole reason this fix was\n     measured before being written. position:static alone turns the span back into a\n     non-replaced INLINE box, and offsetWidth/scrollWidth are 0 for those - so the\n     existing measuring effect would write width:0px over max-content and the pill\n     would collapse on every load WITH JavaScript, turning a 200ms flash into a\n     permanent one. inline-block keeps it in flow and keeps it measurable. */\n  .home-cycle.jsx-d8e23f58edaa7f9d{width:max-content}\n  .home-cyc-word.on.jsx-d8e23f58edaa7f9d{position:static;display:inline-block}\n\n  /* ===== FIX C - the reduced-motion resting state is the shutter GONE, not covering =====\n     Was scaleX(1), which is the START state: a white panel over the tint. Inert today\n     only because .home-layout.show out-specifies it, which is not a thing to rely on. */\n  .home-mark.jsx-d8e23f58edaa7f9d::before{transform:scaleX(0)}\n";
 const RED_B = "\n  .home-mark.jsx-d8e23f58edaa7f9d::before,.home-mark-dot.jsx-d8e23f58edaa7f9d{transition:none}\n  .home-mark.jsx-d8e23f58edaa7f9d::before{transform:scaleX(1)}\n  .home-mark-dot.jsx-d8e23f58edaa7f9d{transform:scale(1)}\n  .home-cycle.jsx-d8e23f58edaa7f9d,.home-cyc-word.jsx-d8e23f58edaa7f9d{transition:none}\n";
 const RED_A = "\n  .home-mark.jsx-d8e23f58edaa7f9d::before,.home-mark-dot.jsx-d8e23f58edaa7f9d{transition:none}\n  .home-mark.jsx-d8e23f58edaa7f9d::before{transform:scaleX(0)}\n  .home-mark-dot.jsx-d8e23f58edaa7f9d{transform:scale(1)}\n  .home-cycle.jsx-d8e23f58edaa7f9d,.home-cyc-word.jsx-d8e23f58edaa7f9d{transition:none}\n";
+const HFIX  = "\n  /* Anchor to the header instead of a magic 320, and use dvh so mobile browser chrome is\n     accounted for - the same unit fix index.tsx already made for .home-shell. 140 = the\n     108px header plus 32px of air, both nameable. */\n  .nav-menu.jsx-cb0b42eded1767f7{max-height:calc(100dvh - 140px)}\n";
 const HEADER= "<header class=\"jsx-cb0b42eded1767f7 hdr\"><div class=\"jsx-cb0b42eded1767f7 hdr-in\"><div class=\"jsx-cb0b42eded1767f7 logo-nav\"><a href=\"/\" aria-label=\"WECARE.DIGITAL home\" class=\"jsx-cb0b42eded1767f7 logo\"><span class=\"jsx-7a485e799f09328a brand-lockup full\"><img src=\"https://app.wecare.digital/stream/media/m/wecaredigital.png\" alt=\"\" aria-hidden=\"true\" class=\"jsx-7a485e799f09328a\"><span class=\"jsx-7a485e799f09328a brand-copy\"><span class=\"jsx-7a485e799f09328a\">WECARE<span class=\"jsx-7a485e799f09328a brand-dot\">.</span></span><span class=\"jsx-7a485e799f09328a brand-stack\">DIGITAL</span></span></span></a><div class=\"jsx-cb0b42eded1767f7 nav-dropdown\"><button type=\"button\" aria-label=\"Open navigation\" aria-expanded=\"false\" class=\"jsx-cb0b42eded1767f7 nav-trigger\"><span aria-hidden=\"true\" class=\"jsx-cb0b42eded1767f7 nav-arrow\"></span></button><nav aria-label=\"Public navigation\" class=\"jsx-cb0b42eded1767f7 nav-menu \"><input type=\"search\" placeholder=\"Search\" aria-label=\"Search navigation\" class=\"jsx-cb0b42eded1767f7 nav-search\" value=\"\"><div class=\"jsx-cb0b42eded1767f7 nav-cols\"><div class=\"jsx-cb0b42eded1767f7 nav-col\"><div class=\"jsx-cb0b42eded1767f7 nav-group\"><a href=\"/\" aria-current=\"page\" class=\"jsx-cb0b42eded1767f7 nav-item  active\">Home</a></div><div class=\"jsx-cb0b42eded1767f7 nav-group nav-group-products\"><span class=\"jsx-cb0b42eded1767f7 nav-group-label\">Products</span><div class=\"jsx-cb0b42eded1767f7 nav-products-scroll\"><a href=\"/grahak-os/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Grahak OS</a><a href=\"/vayulok/\" class=\"jsx-cb0b42eded1767f7 nav-item\">VayuLok</a><a href=\"/bharat-rx/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Bharat Rx</a><a href=\"/elsewhere/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Elsewhere</a><a href=\"/expo-week/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Expo Week</a><a href=\"/dastavez/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Dastavez</a><a href=\"/clear-closure/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Clear Closure</a><a href=\"/ritual-guru/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Ritual Guru</a><a href=\"/anew/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Anew</a><a href=\"/niji-setu/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Niji Setu</a></div></div></div><div class=\"jsx-cb0b42eded1767f7 nav-col\"><div class=\"jsx-cb0b42eded1767f7 nav-group\"><span class=\"jsx-cb0b42eded1767f7 nav-group-label\">Selfservice</span><a href=\"/my-order/\" class=\"jsx-cb0b42eded1767f7 nav-item\">My Order</a><a href=\"/contact/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Submit Request</a><a href=\"/contact/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Request Amendment</a><a href=\"/contact/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Drop Docs</a><a href=\"/contact/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Leave Review</a></div></div><div class=\"jsx-cb0b42eded1767f7 nav-col\"><div class=\"jsx-cb0b42eded1767f7 nav-group\"><span class=\"jsx-cb0b42eded1767f7 nav-group-label\">Work with us</span><a href=\"/contact/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Refer &amp; Earn</a></div><div class=\"jsx-cb0b42eded1767f7 nav-group\"><span class=\"jsx-cb0b42eded1767f7 nav-group-label\">Contact</span><a href=\"/contact/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Contact us</a></div><div class=\"jsx-cb0b42eded1767f7 nav-group\"><span class=\"jsx-cb0b42eded1767f7 nav-group-label\">Legal Stuff</span><a href=\"/terms/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Terms</a><a href=\"/privacy/\" class=\"jsx-cb0b42eded1767f7 nav-item\">Privacy</a></div></div></div></nav></div></div></div></header>";
 const H1    = "<h1 class=\"jsx-d8e23f58edaa7f9d home-head\"><span class=\"jsx-d8e23f58edaa7f9d home-head-line\">Everyday AI, built for</span><span style=\"background:#fef3c7\" class=\"jsx-d8e23f58edaa7f9d home-mark\"><i style=\"background:#f0a818\" aria-hidden=\"true\" class=\"jsx-d8e23f58edaa7f9d home-mark-dot\"></i><span class=\"jsx-d8e23f58edaa7f9d home-cycle\" style=\"\"><span class=\"jsx-d8e23f58edaa7f9d home-sr-only\">consumers, enterprises, climate tech, frontier tech</span><span aria-hidden=\"true\" class=\"jsx-d8e23f58edaa7f9d home-cyc-word on\">consumers</span><span aria-hidden=\"true\" class=\"jsx-d8e23f58edaa7f9d home-cyc-word\">enterprises</span><span aria-hidden=\"true\" class=\"jsx-d8e23f58edaa7f9d home-cyc-word\">climate tech</span><span aria-hidden=\"true\" class=\"jsx-d8e23f58edaa7f9d home-cyc-word\">frontier tech</span></span></span></h1>";
 const SUB   = "<p class=\"jsx-d8e23f58edaa7f9d home-sub\">Transparent pricing, guided journeys, and dependable support — on one shared foundation.</p>";
@@ -245,11 +288,13 @@ function boot( o ){
     + 'p();'
     + (o.noShow ? '' : 'var L=document.querySelector(".home-layout");if(L)L.classList.add("show");')
     + (o.rotate && !o.stale ? 'setInterval(function(){i=(i+1)%w.length;p();},2400);' : '')
+    + (o.menuOpen ? 'var nm=document.querySelector(".nav-menu");if(nm)nm.classList.add("open");'
+        + 'var tg=document.querySelector(".nav-trigger");if(tg)tg.setAttribute("aria-expanded","true");' : '')
     + '})();';
 }
 
 function frameDoc( o ){
-  var extra = (o.fix ? FIX : '')
+  var extra = (o.fix ? FIX : '') + (o.hfix ? HFIX : '')
     + (o.reduced === 'before' ? RED_B : '') + (o.reduced === 'after' ? RED_A : '');
   var script = o.noJs ? '' : '<scr' + 'ipt>' + boot(o) + '</scr' + 'ipt>';
   return '<!doctype html><meta charset="utf-8">'
@@ -287,6 +332,18 @@ function build(){
     shot({ rotate:rot, fix:true }, 1280, 470, 1);   // 470 = the band's real extent (hero ends at 399) plus air
   document.querySelector('[data-panel="finalM"]').innerHTML =
     shot({ rotate:rot, fix:true }, 390, 420, 1);    // hero ends at 342 on a phone
+
+  // Header: the menu open, at actual size.
+  document.querySelector('[data-panel="hdrOpenD"]').innerHTML =
+    // 900, a real viewport height, NOT a crop: the iframe's height IS 100vh inside it, and
+    // the menu is sized max-height:calc(100vh - 320px). A 640px panel would have shown a
+    // 320px menu where the live page shows 580px - the panel would misreport the design.
+    shot({ rotate:false, menuOpen:true }, 1280, 900, 1);
+  // The landscape-phone failure, before and after, both 1:1 at 844x390.
+  document.querySelector('[data-panel="hdrLand"]').innerHTML = '<div class="cmp">'
+    + labelled('before — 70px of menu','c-b',{ rotate:false, menuOpen:true }, 844, 390, 1)
+    + labelled('after — anchored to the header','c-a',{ rotate:false, menuOpen:true, hfix:true }, 844, 390, 1)
+    + '</div>';
 
   // Small comparison strips - desktop only, enough to read the pill.
   var SW = 1280, SH = 340, SC = 0.55;

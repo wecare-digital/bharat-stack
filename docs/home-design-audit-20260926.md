@@ -224,6 +224,41 @@ Screen readers are correct — the four animated copies carry `aria-hidden` and
 generators, some crawlers) reads the set five times, with no space after "for". Cheap to
 improve, and the sr-only span is the natural place.
 
+## M-HDR — The shared header's mega-menu collapses to a sliver on a short viewport
+
+Found while extending the 1:1 review treatment to the header. Measured across nine viewports
+with the menu open:
+
+| Viewport | menu box | content | verdict |
+|---|---:|---:|---|
+| 390×844 portrait | 358×536 | 1028px | scrolls, usable |
+| 768×900 | 512×580 | 700px | usable |
+| 1280×900 | 760×403 | 399px | fits outright |
+| **844×390 landscape** | **588×70** | **700px** | **20 links in a 66px scroller** |
+
+`Header.tsx:489` sizes the menu `max-height:calc(100vh - 320px)`, and the override that
+repositions it (`Header.tsx:621`) is gated on `@media(max-width:767px)`. So any window
+**wider** than 767 but short falls back to the desktop rule — a landscape phone, or a short
+desktop window. The threshold is roughly 620px of viewport height.
+
+Two smaller things in the same declaration: it uses `100vh` rather than `100dvh`, which is
+the exact unit defect `index.tsx` already fixed and documented for `.home-shell`; and `320`
+corresponds to no element in the layout, the same magic-number family as the 108/96 header
+heights.
+
+```css
+/* anchor to the header, and use dvh: 140 = the 108px header + 32px of air */
+.nav-menu{max-height:calc(100dvh - 140px)}
+```
+
+Measured effect at 844×390: **70px → 250px**, still inside the 390px viewport.
+
+**Credit where it is due — the header's accessibility is already right**, which is why this
+is geometry only: `aria-expanded` on the trigger, Escape closes from anywhere, an outside
+pointerdown dismisses, focus returns to the trigger on close, and the closed menu is
+`visibility:hidden` so its 20 links are genuinely out of the tab order. That last one is
+what the earlier above-fold count confirmed independently.
+
 ## L9 — `will-change:width` is permanent on `.home-cycle`
 
 `index.tsx:923`. `will-change` is meant to be applied shortly before a transition and

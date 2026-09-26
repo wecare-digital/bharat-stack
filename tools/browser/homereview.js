@@ -79,6 +79,18 @@ const FIX_CSS = `
      only because .home-layout.show out-specifies it, which is not a thing to rely on. */
   .home-markJSX::before{transform:scaleX(0)}
 `;
+// The header's mega-menu is sized max-height:calc(100vh - 320px) with the mobile override
+// gated on max-width:767px - so any window WIDER than 767 but short falls back to the desktop
+// rule. Measured at 844x390, a landscape phone: a 70px-tall menu holding 700px of content.
+// HDRJSX is replaced with the HEADER's own styled-jsx hash, which is a different hash from
+// the home page's.
+const HEADER_FIX_CSS = `
+  /* Anchor to the header instead of a magic 320, and use dvh so mobile browser chrome is
+     accounted for - the same unit fix index.tsx already made for .home-shell. 140 = the
+     108px header plus 32px of air, both nameable. */
+  .nav-menuHDRJSX{max-height:calc(100dvh - 140px)}
+`;
+
 // Simulates what @media(prefers-reduced-motion:reduce) does, since a preference cannot
 // be set inside a preview frame.
 const REDUCED_BEFORE = `
@@ -167,6 +179,11 @@ const METRICS = () => {
       ?.split( /\s+/ ).find( c => c.startsWith( 'jsx-' ) );
     if ( !jsxHash ) throw new Error( 'could not read the styled-jsx scoping class from the harvested h1' );
     const scope = css => css.replace( /JSX/g, `.${jsxHash}` );
+    // The header is a separate component, so styled-jsx gives it its own scoping class.
+    const hdrHash = ( /class="([^"]*\bjsx-[a-z0-9]+)\b/.exec( harvest.header ) || [] )[ 1 ]
+      ?.split( /\s+/ ).find( c => c.startsWith( 'jsx-' ) );
+    if ( !hdrHash ) throw new Error( 'could not read the styled-jsx scoping class from the harvested header' );
+    const scopeHdr = css => css.replace( /HDRJSX/g, `.${hdrHash}` );
 
     const J = o => JSON.stringify( o );
     const d = M.d, m = M.m;
@@ -279,6 +296,48 @@ meant to look identical:</b> the fixes only repair states you cannot see in a no
 <section class="band">
   <div class="bhead"><span class="tag">FIXED</span><h2>With the three fixes — phone 390, actual size</h2></div>
   <div class="step"><div data-panel="finalM"></div></div>
+</section>
+
+<!-- ============== HEADER / MENU ============== -->
+<section class="band">
+  <div class="bhead"><span class="tag" style="background:#44546a;color:#fff">ORIGINAL</span>
+    <h2>Header menu open — desktop 1280, actual size</h2>
+    <span class="sel">shared chrome, every public page · unmodified</span></div>
+  <div class="step">
+    <p class="cap">This is fine. The header's keyboard and screen-reader wiring is already
+    correct — <code>aria-expanded</code> on the trigger, Escape closes from anywhere, an outside
+    click dismisses, focus returns to the trigger, and the closed menu is
+    <code>visibility:hidden</code> so its 20 links are not in the tab order.</p>
+    <div data-panel="hdrOpenD"></div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="bhead"><span class="tag">HEADER FIX</span><span class="sev s-m">MED</span>
+    <h2>Landscape phone — the menu collapses to a sliver</h2></div>
+  <div class="step">
+    <p class="cap"><b>At 844×390 the menu is 70 px tall and holds 700 px of content — 10.6x
+    its own height.</b> Twenty links in a sliver. Both panels are 1:1 at 844×390.</p>
+    <div data-panel="hdrLand"></div>
+    <details class="why" data-note><summary>why / the code</summary><div class="inner">
+      <p>The menu is <code>max-height:calc(100vh - 320px)</code>, and the mobile override that
+      repositions it is gated on <code>@media(max-width:767px)</code>. So any window
+      <em>wider</em> than 767 but short falls back to the desktop rule — a landscape phone, or a
+      short desktop window. Measured across nine viewports:</p>
+      <table>
+        <tr><th>Viewport</th><th class="n">menu</th><th class="n">content</th><th>verdict</th></tr>
+        <tr><td>390×844 portrait</td><td class="n">358×536</td><td class="n">1028px</td><td>scrolls, usable</td></tr>
+        <tr><td>1280×900 desktop</td><td class="n">760×403</td><td class="n">399px</td><td>fits</td></tr>
+        <tr><td><strong>844×390 landscape</strong></td><td class="n"><strong>588×70</strong></td><td class="n"><strong>700 px</strong></td><td><strong>unusable</strong></td></tr>
+      </table>
+      <p style="margin-top:10px">Also <code>100vh</code>, not <code>100dvh</code> — the exact unit
+      defect <code>index.tsx</code> already fixed for <code>.home-shell</code>, still present in the
+      shared chrome. And 320 corresponds to nothing nameable, which is the same magic-number family
+      as the 108/96 header heights.</p>
+      <pre><code>/* anchor to the header, and use dvh: 140 = the 108px header + 32px of air */
+.nav-menu{max-height:calc(100dvh - 140px)}</code></pre>
+    </div></details>
+  </div>
 </section>
 
 <!-- ============== WHAT CHANGED ============== -->
@@ -397,6 +456,7 @@ const CSS   = ${J( harvest.inline + '\n' + harvest.chunks )};
 const FIX   = ${J( scope( FIX_CSS ) )};
 const RED_B = ${J( scope( REDUCED_BEFORE ) )};
 const RED_A = ${J( scope( REDUCED_AFTER ) )};
+const HFIX  = ${J( scopeHdr( HEADER_FIX_CSS ) )};
 const HEADER= ${J( harvest.header )};
 const H1    = ${J( harvest.h1 )};
 const SUB   = ${J( harvest.sub )};
@@ -421,11 +481,13 @@ function boot( o ){
     + 'p();'
     + (o.noShow ? '' : 'var L=document.querySelector(".home-layout");if(L)L.classList.add("show");')
     + (o.rotate && !o.stale ? 'setInterval(function(){i=(i+1)%w.length;p();},2400);' : '')
+    + (o.menuOpen ? 'var nm=document.querySelector(".nav-menu");if(nm)nm.classList.add("open");'
+        + 'var tg=document.querySelector(".nav-trigger");if(tg)tg.setAttribute("aria-expanded","true");' : '')
     + '})();';
 }
 
 function frameDoc( o ){
-  var extra = (o.fix ? FIX : '')
+  var extra = (o.fix ? FIX : '') + (o.hfix ? HFIX : '')
     + (o.reduced === 'before' ? RED_B : '') + (o.reduced === 'after' ? RED_A : '');
   var script = o.noJs ? '' : '<scr' + 'ipt>' + boot(o) + '</scr' + 'ipt>';
   return '<!doctype html><meta charset="utf-8">'
@@ -463,6 +525,18 @@ function build(){
     shot({ rotate:rot, fix:true }, 1280, 470, 1);   // 470 = the band's real extent (hero ends at 399) plus air
   document.querySelector('[data-panel="finalM"]').innerHTML =
     shot({ rotate:rot, fix:true }, 390, 420, 1);    // hero ends at 342 on a phone
+
+  // Header: the menu open, at actual size.
+  document.querySelector('[data-panel="hdrOpenD"]').innerHTML =
+    // 900, a real viewport height, NOT a crop: the iframe's height IS 100vh inside it, and
+    // the menu is sized max-height:calc(100vh - 320px). A 640px panel would have shown a
+    // 320px menu where the live page shows 580px - the panel would misreport the design.
+    shot({ rotate:false, menuOpen:true }, 1280, 900, 1);
+  // The landscape-phone failure, before and after, both 1:1 at 844x390.
+  document.querySelector('[data-panel="hdrLand"]').innerHTML = '<div class="cmp">'
+    + labelled('before — 70px of menu','c-b',{ rotate:false, menuOpen:true }, 844, 390, 1)
+    + labelled('after — anchored to the header','c-a',{ rotate:false, menuOpen:true, hfix:true }, 844, 390, 1)
+    + '</div>';
 
   // Small comparison strips - desktop only, enough to read the pill.
   var SW = 1280, SH = 340, SC = 0.55;
