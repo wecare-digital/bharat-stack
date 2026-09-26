@@ -137,6 +137,21 @@ function collectTextNodes ( root: HTMLElement ): Text[] {
       if ( value.length < 2 || !/[A-Za-z\u0900-\u0DFF\u0600-\u06FF]/.test( value ) ) return NodeFilter.FILTER_REJECT;
       let el = node.parentElement;
       while ( el ) {
+        // NEAREST FLAG WINS, and data-wc-translate is the opt-in that makes aria-hidden
+        // survivable.
+        //
+        // Rejecting aria-hidden subtrees is right in general - it is what keeps decorative
+        // and duplicated text out of a billed translation batch. But a rotating headline
+        // word carries aria-hidden for an equally good reason: without it a screen reader
+        // reads the headline once per word. The two correct rules combined to produce a
+        // MIXED-LANGUAGE HEADLINE - the frame line translated, the word inside the pill did
+        // not - on every page with a rotating hero, 78 text nodes sitewide.
+        //
+        // Checking the opt-in first, per element, means the closest ancestor carrying either
+        // flag decides. So a word can be marked translatable without weakening the rule for
+        // anything else inside an aria-hidden container, and a SCRIPT or a
+        // data-wc-no-translate subtree still wins wherever it is nearer.
+        if ( el.dataset?.wcTranslate === 'true' ) return NodeFilter.FILTER_ACCEPT;
         // data-wc-no-translate is what keeps the dashboard safe. Layout.tsx puts it on
         // .main-content, and this walk rejects a node if ANY ancestor up to the root
         // carries it - so customer names, numbers and message bodies are exempt while the
@@ -213,11 +228,30 @@ const SupportWidget: React.FC = () => {
    * Public pages have no `.layout`, so they fall through to `.page` / `main` and translate
    * in full.
    */
+  /**
+   * PUBLIC PAGES NOW TRANSLATE THE HEADER AND THE FOOTER, WHICH THEY DID NOT.
+   *
+   * This used to fall through to `.page` / `main`, and on a public page the header and footer
+   * are SIBLINGS of main, not children. Measured across twelve public routes: the root
+   * resolved to `main` on eleven and `.page` on /grahak-os/, and `root.contains(header)` was
+   * false on all twelve. So the body of every page translated while the navigation menu and
+   * the whole footer stayed in English - which is exactly what a visitor notices, because the
+   * menu is the thing they need in order to go anywhere else.
+   *
+   * `#__next` is the wrapper that contains header, main and footer, so the walk now covers
+   * all three. `.layout` still wins first: it only exists on the authenticated dashboard, and
+   * it is safe there only because Layout.tsx marks `.main-content` with data-wc-no-translate,
+   * so live operational data is never machine-translated.
+   *
+   * The widget itself is excluded by data-wc-no-translate on its own root - see the render
+   * below. Translating the language list would rewrite the native names a reader is scanning
+   * for, so the control that changes the language must not change with it.
+   */
   const contentRoot = useCallback( (): HTMLElement => (
     document.querySelector( '.layout' ) as HTMLElement
+      || document.getElementById( '__next' ) as HTMLElement
       || document.querySelector( '.page' ) as HTMLElement
       || document.querySelector( 'main' ) as HTMLElement
-      || document.getElementById( '__next' ) as HTMLElement
       || document.body
   ), [] );
 

@@ -78,6 +78,10 @@ const PROBE = () => {
     if ( v.length >= 2 && /[A-Za-z\u0900-\u0DFF\u0600-\u06FF]/.test( v ) ) {
       let el = n.parentElement, why = null;
       while ( el ) {
+        // data-wc-translate is the opt-in that beats aria-hidden - nearest flag wins, exactly
+        // as SupportWidget's walker does it. Without this the census reports the rotating
+        // words as skipped after they have been fixed, which would make the gate lie.
+        if ( el.dataset && el.dataset.wcTranslate === 'true' ) break;
         if ( SKIP_TAGS.has( el.tagName ) ) { why = 'tag:' + el.tagName; break; }
         if ( el.dataset && el.dataset.wcNoTranslate === 'true' ) { why = 'data-wc-no-translate'; break; }
         if ( el.getAttribute( 'aria-hidden' ) === 'true' ) { why = 'aria-hidden'; break; }

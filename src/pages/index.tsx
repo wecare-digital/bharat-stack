@@ -342,6 +342,7 @@ const HomePage: React.FC = () => {
                       key={ c.word }
                       ref={ el => { wordRefs.current[ i ] = el; } }
                       className={ `home-cyc-word ${i === cycleIndex ? 'on' : ''}`.trim() }
+                      data-wc-translate="true"
                       aria-hidden="true"
                     >{ c.word }</span>
                   ) ) }
