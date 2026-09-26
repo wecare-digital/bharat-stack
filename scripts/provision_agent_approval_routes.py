@@ -68,7 +68,7 @@ TEMPLATE_ROUTE = "POST /ai/generate"
 
 ROUTE_KEYS = ("POST /ai/approvals", "POST /ai/approvals/status")
 
-BASE_URL = "https://api.wecare.digital"
+BASE_URL = "https://wecare.digital/api"
 
 
 def all_routes(api):

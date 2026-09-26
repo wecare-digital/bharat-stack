@@ -264,7 +264,7 @@ def check_live_behaviour(r: Result) -> None:
         ("/secure-files/mine", 401),
         ("/secure-files/nonexistent/download?grant=x", 401),
     ):
-        status, _ = _fetch(f"https://api.wecare.digital{path}")
+        status, _ = _fetch(f"https://wecare.digital/api{path}")
         r.add(f"gated API rejects anonymous: {path}", status == expect, f"HTTP {status}")
 
     # the rest of the site must be untouched

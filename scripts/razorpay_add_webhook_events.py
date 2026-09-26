@@ -3,7 +3,7 @@
 
 Non-destructive by construction:
 
-  * Targets ONLY the webhook whose url is api.wecare.digital/razorpay-webhook.
+  * Targets ONLY the webhook whose url is wecare.digital/api/razorpay-webhook.
     The Wix webhook is never touched.
   * Razorpay's update REPLACES the events map, so this sends the UNION of what is
     already enabled plus what is missing. Nothing is unsubscribed.
@@ -31,7 +31,7 @@ from pathlib import Path
 import boto3
 
 REGION = "us-east-1"
-TARGET_URL = "https://api.wecare.digital/razorpay-webhook"
+TARGET_URL = "https://wecare.digital/api/razorpay-webhook"
 ROOT = Path(__file__).resolve().parents[1]
 HANDLER = ROOT / "amplify/functions/payments/razorpay-webhook/handler.py"
 API = "https://api.razorpay.com/v1/webhooks"
@@ -135,7 +135,7 @@ def main() -> int:
               "dashboard for this account type. Add these two events manually:")
         for e in missing:
             print(f"    {e}")
-        print("  Settings -> Webhooks -> edit the api.wecare.digital hook.")
+        print("  Settings -> Webhooks -> edit the wecare.digital/api hook.")
         print("  Do NOT change the secret while doing so.")
         return 2
 

@@ -205,7 +205,7 @@ def apply(api, lam, missing) -> int:
 
 def probe(method: str, path: str) -> str:
     request = urllib.request.Request(
-        f"https://api.wecare.digital{path}", method=method)
+        f"https://wecare.digital/api{path}", method=method)
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             return str(response.status)

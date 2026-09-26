@@ -37,7 +37,7 @@ import sys
 import urllib.error
 import urllib.request
 
-BASE = "https://api.wecare.digital"
+BASE = "https://wecare.digital/api"
 TIMEOUT = 20
 
 # (label, method, path, body, expected status, why)

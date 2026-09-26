@@ -13,12 +13,12 @@ import Button from '../../components/ui/Button';
 import { useToastContext } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 
-// The link CRUD API. Both r.wecare.digital and api.wecare.digital map to the same
+// The link CRUD API. Both r.wecare.digital and wecare.digital/api map to the same
 // HTTP API (zllr9lrg7j) and return identical results — verified, both 401 on an
 // anonymous GET /links. Pointed at the canonical API host rather than the shortener
 // subdomain so the dashboard does not depend on a host whose only remaining job is
 // honouring already-issued links.
-const API_BASE = process.env.NEXT_PUBLIC_LINK_API_BASE || 'https://api.wecare.digital';
+const API_BASE = process.env.NEXT_PUBLIC_LINK_API_BASE || 'https://wecare.digital/api';
 
 // The base shown to an operator and used to build a copyable link. Display only —
 // what actually gets stored comes back from the Lambda's SHORT_LINK_BASE.

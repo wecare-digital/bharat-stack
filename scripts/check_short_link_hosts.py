@@ -8,7 +8,7 @@ independent pieces of live configuration, and the handler is only one of them:
 
   1. `GET /r/{code}` and `GET /{code}` on HTTP API `zllr9lrg7j`
   2. the `r.wecare.digital` API Gateway custom domain mapped to that API
-  3. the Amplify custom rule `/r/<*>` -> `https://api.wecare.digital/r/<*>`,
+  3. the Amplify custom rule `/r/<*>` -> `https://wecare.digital/api/r/<*>`,
      which must sit BEFORE the `/<*>` -> `/index.html` SPA catch-all or it can
      never match
   4. the `live` alias of `stack-wecare-url-shortener` pointing at current code

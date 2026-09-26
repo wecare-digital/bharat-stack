@@ -17,7 +17,7 @@ import boto3
 
 REGION = "us-east-1"
 ACCOUNT = "775261844268"
-API_ID = "zllr9lrg7j"  # HTTP API behind api.wecare.digital
+API_ID = "zllr9lrg7j"  # HTTP API behind wecare.digital/api
 FUNCTION_NAME = "wecare-site-language"
 ROLE_NAME = "wecare-digital-lambda-role"
 ROLE_ARN = f"arn:aws:iam::{ACCOUNT}:role/{ROLE_NAME}"
@@ -351,7 +351,7 @@ def main() -> None:
     alias_arn = ensure_alias()
     ensure_api_routes(alias_arn)
     print("=== done ===")
-    print("Endpoints: https://api.wecare.digital/site-language/*")
+    print("Endpoints: https://wecare.digital/api/site-language/*")
     print(f"Serving via alias {FUNCTION_NAME}:{ALIAS_NAME}")
 
 

@@ -175,7 +175,7 @@ if ( contradicted.length > 0 )
  * URLs with 109 post pages, the next emitted 16 with none, from an unchanged
  * tree. The blog is not in the repository - `/post/[slug]` calls
  * listPublicBlogPosts() in getStaticPaths, which fetches
- * api.wecare.digital/seo-tools/blog-public at build time and, on ANY failure,
+ * wecare.digital/api/seo-tools/blog-public at build time and, on ANY failure,
  * returns [] from a bare catch. So a two-second network blip produces zero blog
  * pages, an empty paths array, a 16-URL sitemap, and `next build` exiting 0.
  * Amplify would then deploy it and 109 live, indexed pages would vanish with no
@@ -205,7 +205,7 @@ if ( postRoutes.length === 0 && process.env.ALLOW_EMPTY_BLOG !== '1' )
     '  getStaticPaths for /post/[slug] fetches the blog list at build time and\n' +
     '  swallows failures, so this is almost certainly a transient fetch error\n' +
     '  rather than an empty blog. Re-run the build. Confirm the API first with:\n' +
-    '    curl -s https://api.wecare.digital/seo-tools/blog-public | head -c 200\n\n' +
+    '    curl -s https://wecare.digital/api/seo-tools/blog-public | head -c 200\n\n' +
     '  Writing this sitemap would drop every published post from the index.\n' +
     '  If the blog really is empty, set ALLOW_EMPTY_BLOG=1 deliberately.\n'
   );

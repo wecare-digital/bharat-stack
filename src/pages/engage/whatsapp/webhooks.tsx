@@ -37,11 +37,11 @@ const WEBHOOK_FIELDS = [
 ];
 
 const EXISTING_WEBHOOKS = [
-  { name: 'Inbound Messages', url: 'https://api.wecare.digital/whatsapp-inbound', fields: [ 'messages' ], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verification: 'Server-side' },
-  { name: 'WhatsApp Unified (Calls + Messages)', url: 'https://api.wecare.digital/whatsapp', fields: [ 'messages', 'calls' ], lambda: 'wecare-whatsapp-calling', status: 'active', verification: 'Server-side' },
-  { name: 'Voice CDR Webhook', url: 'https://api.wecare.digital/voice-cdr-webhook', fields: [ 'CDR', 'ALL' ], lambda: 'wecare-voice-cdr-webhook', status: 'active', verification: 'Server-side' },
-  { name: 'Voice C2C', url: 'https://api.wecare.digital/voice-in/c2c', fields: [ 'CDR' ], lambda: 'wecare-voice-in-c2c', status: 'active', verification: 'Server-side' },
-  { name: 'Voice OBD', url: 'https://api.wecare.digital/voice-in/obd', fields: [ 'CDR' ], lambda: 'wecare-voice-in-obd', status: 'active', verification: 'Server-side' },
+  { name: 'Inbound Messages', url: 'https://wecare.digital/api/whatsapp-inbound', fields: [ 'messages' ], lambda: 'wecare-inbound-whatsapp-handler', status: 'active', verification: 'Server-side' },
+  { name: 'WhatsApp Unified (Calls + Messages)', url: 'https://wecare.digital/api/whatsapp', fields: [ 'messages', 'calls' ], lambda: 'wecare-whatsapp-calling', status: 'active', verification: 'Server-side' },
+  { name: 'Voice CDR Webhook', url: 'https://wecare.digital/api/voice-cdr-webhook', fields: [ 'CDR', 'ALL' ], lambda: 'wecare-voice-cdr-webhook', status: 'active', verification: 'Server-side' },
+  { name: 'Voice C2C', url: 'https://wecare.digital/api/voice-in/c2c', fields: [ 'CDR' ], lambda: 'wecare-voice-in-c2c', status: 'active', verification: 'Server-side' },
+  { name: 'Voice OBD', url: 'https://wecare.digital/api/voice-in/obd', fields: [ 'CDR' ], lambda: 'wecare-voice-in-obd', status: 'active', verification: 'Server-side' },
   // The "SMS Airtel" row was removed on 2026-09-23. It listed
   // lambda 'wecare-sms-in-airtel' with status 'active', and neither the function nor
   // the route /sms-in/airtel exists: measured against the account, there are zero
@@ -49,11 +49,11 @@ const EXISTING_WEBHOOKS = [
   // outright. A webhook inventory that reports a deleted endpoint as active is worse
   // than an incomplete one, because someone will go looking for why it stopped
   // delivering.
-  { name: 'Wix Store', url: 'https://api.wecare.digital/wix-store/*', fields: [ 'orders', 'products', 'inventory', 'collections' ], lambda: 'wecare-wix-store', status: 'active', verification: 'Server-side' },
+  { name: 'Wix Store', url: 'https://wecare.digital/api/wix-store/*', fields: [ 'orders', 'products', 'inventory', 'collections' ], lambda: 'wecare-wix-store', status: 'active', verification: 'Server-side' },
 ];
 
 const META_WEBHOOK_CONFIG = {
-  callbackUrl: 'https://api.wecare.digital/whatsapp',
+  callbackUrl: 'https://wecare.digital/api/whatsapp',
   waba1: { appId: '2238810740192680', appName: 'WECARE.DIGITAL', business: 'Wecare.Digital' },
   waba2: { appId: '1224334845952721', appName: 'Manish Agarwal', business: 'Manish Agarwal' },
   tokenType: 'System User Token',

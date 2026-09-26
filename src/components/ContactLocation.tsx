@@ -112,7 +112,7 @@ const IST_ZONE = 'Asia/Kolkata';
  * LICENSING, FLAGGED RATHER THAN BURIED: Open-Meteo's free tier is for NON-COMMERCIAL use.
  * This is a commercial site, so this call should not stay here indefinitely. Two clean exits,
  * both better than the status quo: take their commercial plan, or proxy it through a Lambda
- * behind api.wecare.digital using the Google Weather key the owner already holds - which is
+ * behind wecare.digital/api using the Google Weather key the owner already holds - which is
  * also how it stops being a third-party request from our own page. VayuLok is already the
  * weather product, so that endpoint arguably ought to exist anyway.
  *

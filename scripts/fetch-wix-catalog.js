@@ -6,7 +6,7 @@
  * WHY A SNAPSHOT AND NOT A RUNTIME FETCH. next.config.js sets output:'export', so the
  * public site is pre-generated HTML with no server of ours at runtime. Fetching through
  * our own Lambda at runtime works and already exists
- * (api.wecare.digital/wix-store/products), but it is authenticated - it answers 401 to
+ * (wecare.digital/api/wix-store/products), but it is authenticated - it answers 401 to
  * the public - and it puts a network hop and a spinner in front of a product list that
  * changes a few times a month. So the OUTPUT - names, prices, descriptions, which are
  * public information by definition - is committed, and the site renders it with no

@@ -37,8 +37,8 @@ WIX_CLIENT_ID = "197cd718-e4ec-4e2e-b380-46c297eb18a2"
 ROLE_NAME = "wecare-digital-lambda-role"
 ROLE_ARN = f"arn:aws:iam::{ACCOUNT}:role/{ROLE_NAME}"
 
-# HTTP API behind api.wecare.digital (stage prod, AutoDeploy on).
-# Frontend calls https://api.wecare.digital/seo-tools/{route} (src/api/seo.ts).
+# HTTP API behind wecare.digital/api (stage prod, AutoDeploy on).
+# Frontend calls https://wecare.digital/api/seo-tools/{route} (src/api/seo.ts).
 API_ID = "zllr9lrg7j"
 
 ENV_VARS = {
@@ -193,7 +193,7 @@ def deploy_lambda(zip_bytes: bytes) -> None:
 
 
 def ensure_api_route() -> None:
-    """Wire https://api.wecare.digital/seo-tools/* -> wecare-seo-tools (idempotent)."""
+    """Wire https://wecare.digital/api/seo-tools/* -> wecare-seo-tools (idempotent)."""
     api = boto3.client("apigatewayv2", region_name=REGION)
     lam = boto3.client("lambda", region_name=REGION)
     fn_arn = f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:{FUNCTION_NAME}"
@@ -252,7 +252,7 @@ def main() -> None:
     deploy_lambda(zip_bytes)
     ensure_api_route()
     print("=== done ===")
-    print(f"Endpoint: https://api.wecare.digital/seo-tools/  (stage prod, auto-deploy)")
+    print(f"Endpoint: https://wecare.digital/api/seo-tools/  (stage prod, auto-deploy)")
 
 
 if __name__ == "__main__":

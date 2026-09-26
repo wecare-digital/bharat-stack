@@ -187,7 +187,7 @@ interface AWSResource { name: string; type: string; purpose: string; module: str
 const AWS_RESOURCES: AWSResource[] = [
   { name: 'us-east-1_cSx0RHCIR', type: 'Cognito User Pool', purpose: 'User authentication & RBAC', module: 'Auth', env: 'Production', status: 'Active', risk: '' },
   { name: 'us-east-1:471c2c38-...', type: 'Cognito Identity Pool', purpose: 'Federated identity for AWS access', module: 'Auth', env: 'Production', status: 'Active', risk: '' },
-  { name: 'api.wecare.digital', type: 'API Gateway (REST)', purpose: 'Main API endpoint for all Lambda functions', module: 'All', env: 'Production', status: 'Active', risk: '' },
+  { name: 'wecare.digital/api', type: 'API Gateway (REST)', purpose: 'Main API endpoint for all Lambda functions', module: 'All', env: 'Production', status: 'Active', risk: '' },
   { name: 'app.wecare.digital', type: 'S3 Bucket', purpose: 'Media storage, invoices, voice, static assets', module: 'Storage', env: 'Production', status: 'Active', risk: '' },
   { name: DB_TABLES.length + ' DynamoDB Tables', type: 'DynamoDB', purpose: 'Primary database (PAY_PER_REQUEST)', module: 'Data', env: 'Production', status: 'Active', risk: '' },
   { name: '42 Lambda Functions', type: 'Lambda', purpose: 'Backend compute (Python 3.12)', module: 'Backend', env: 'Production', status: 'Active', risk: '' },
@@ -207,7 +207,7 @@ const AWS_RESOURCES: AWSResource[] = [
   { name: 'IAM Roles (Lambda)', type: 'IAM', purpose: 'Lambda execution roles with least-privilege', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'Secrets Manager', type: 'Secrets Manager', purpose: 'API keys, webhook secrets, payment credentials', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'CloudFront (CDN)', type: 'CloudFront', purpose: 'Static asset delivery for app.wecare.digital', module: 'Frontend', env: 'Production', status: 'Active', risk: '' },
-  { name: 'Route 53', type: 'Route 53', purpose: 'DNS for wecare.digital, api.wecare.digital, r.wecare.digital', module: 'Networking', env: 'Production', status: 'Active', risk: '' },
+  { name: 'Route 53', type: 'Route 53', purpose: 'DNS for wecare.digital, wecare.digital/api, r.wecare.digital', module: 'Networking', env: 'Production', status: 'Active', risk: '' },
   { name: 'ACM Certificates', type: 'ACM', purpose: 'SSL/TLS certificates for all domains', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'SNS Topics', type: 'SNS', purpose: 'SMS delivery notifications, alerts', module: 'Messaging', env: 'Production', status: 'Active', risk: '' },
   { name: 'Amazon Polly', type: 'Polly', purpose: 'Text-to-speech for WhatsApp voice messages', module: 'Messaging', env: 'Production', status: 'Active', risk: '' },
@@ -353,7 +353,7 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN', value: 'wecare-digital-auth.auth.us-east-1.amazoncognito.com', sensitive: false, category: 'Auth' },
   // App
   { key: 'NEXT_PUBLIC_APP_URL', value: 'https://wecare.digital/', sensitive: false, category: 'App' },
-  { key: 'NEXT_PUBLIC_API_BASE', value: 'https://api.wecare.digital', sensitive: false, category: 'App' },
+  { key: 'NEXT_PUBLIC_API_BASE', value: 'https://wecare.digital/api', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_SEND_MODE', value: 'LIVE', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_ENV', value: 'production', sensitive: false, category: 'App' },
   // ⚠️ SECRETS EXPOSED IN CLIENT BUNDLE
@@ -758,7 +758,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           </div>
           <div>
             <div style={ label }>Domain</div>
-            <div style={ { marginTop: 4 } }>wecare.digital / api.wecare.digital / r.wecare.digital</div>
+            <div style={ { marginTop: 4 } }>wecare.digital / wecare.digital/api / r.wecare.digital</div>
           </div>
           <div>
             <div style={ label }>Authentication</div>
@@ -908,7 +908,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
 │                                     │                                               │
 │                          ┌──────────▼──────────┐                                    │
 │                          │   API Gateway        │                                    │
-│                          │   api.wecare.digital │                                    │
+│                          │   wecare.digital/api │                                    │
 │                          └──────────┬──────────┘                                    │
 │                                     │                                               │
 │    ┌────────────────────────────────┼────────────────────────────────┐               │
@@ -1140,7 +1140,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
             name: '🌐 Networking', children: [
               {
                 name: 'Route 53 (DNS)', children: [
-                  { name: 'wecare.digital' }, { name: 'api.wecare.digital' }, { name: 'r.wecare.digital' }, { name: 'app.wecare.digital' },
+                  { name: 'wecare.digital' }, { name: 'wecare.digital/api' }, { name: 'r.wecare.digital' }, { name: 'app.wecare.digital' },
                 ]
               },
               { name: 'CloudFront (CDN)' },

@@ -89,7 +89,7 @@ function AiAgentPageBody ( { }: PageProps ) {
     const [ cName, setCName ] = useState( 'WECARE_API' );
     const [ cDesc, setCDesc ] = useState( 'WECARE.DIGITAL catalog product lookup' );
     // The custom domain, not the raw execute-api host. The previous default hardcoded
-    // the API Gateway id into the browser bundle, and it bypassed api.wecare.digital -
+    // the API Gateway id into the browser bundle, and it bypassed wecare.digital/api -
     // so the connector would have been registered against a URL that skips the custom
     // domain mapping and every auth behaviour attached to it.
     const [ cUrl, setCUrl ] = useState( API_BASE );

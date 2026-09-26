@@ -20,7 +20,7 @@ const PHONE_NUMBERS = [
 
 // Webhook configuration — LIVE (Direct API, all WABAs use same endpoint)
 const WEBHOOK_CONFIG = {
-  callbackUrl: 'https://api.wecare.digital/whatsapp',
+  callbackUrl: 'https://wecare.digital/api/whatsapp',
   subscribedFields: [ 'messages', 'calls' ],
   // `lambda` and `table` were here until 2026-09-23. Neither was ever rendered —
   // they were dead metadata shipping a function name and a table name into the
@@ -145,7 +145,7 @@ POST /{phone-number-id}/calls
 ];
 
 const AWS_RESOURCES = [
-  { service: 'API Gateway', resource: 'api.wecare.digital', purpose: 'Webhook endpoint for Meta call events + messaging', status: 'active' },
+  { service: 'API Gateway', resource: 'wecare.digital/api', purpose: 'Webhook endpoint for Meta call events + messaging', status: 'active' },
   { service: 'Lambda', resource: 'wecare-whatsapp-calling', purpose: 'Unified webhook handler (calls + messages + all Meta events)', status: 'active' },
   { service: 'Lambda', resource: 'wecare-whatsapp-voice', purpose: 'TTS generation, media upload, audio messages', status: 'active' },
   { service: 'DynamoDB', resource: 'WhatsAppCallingTable', purpose: 'Call event logs (connect, terminate, permission)', status: 'active' },
@@ -202,7 +202,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
   const [ loadingCalls, setLoadingCalls ] = useState( false );
   const toast = useToastContext();
 
-  const API_BASE = 'https://api.wecare.digital';
+  const API_BASE = 'https://wecare.digital/api';
 
   // Calling settings state
   const [ settingsPhone, setSettingsPhone ] = useState( PHONE_NUMBERS[ 1 ] ); // default to calling-ready number

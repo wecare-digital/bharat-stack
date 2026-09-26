@@ -777,7 +777,7 @@ const InternalChatTab: React.FC = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#6b7280' }}>Endpoint</span>
-                <span style={{ color: '#1f2937', fontFamily: 'monospace', fontSize: '11px' }}>api.wecare.digital</span>
+                <span style={{ color: '#1f2937', fontFamily: 'monospace', fontSize: '11px' }}>wecare.digital/api</span>
               </div>
             </div>
           </div>
