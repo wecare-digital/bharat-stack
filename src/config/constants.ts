@@ -17,7 +17,7 @@ export const AWS_ACCOUNT_ID = process.env.NEXT_PUBLIC_AWS_ACCOUNT_ID || '';
 export const AWS_REGION = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
 
 // API Configuration
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 
 // Payment Phone Configuration (default active phone for payments)
 export const PAYMENT_CONFIG = {

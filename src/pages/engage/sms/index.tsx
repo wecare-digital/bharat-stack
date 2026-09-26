@@ -57,7 +57,7 @@ const isIndianDestination = ( phone: string ): boolean => {
 };
 
 const ITEMS_PER_PAGE = 25;
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 
 const TABS: ShellTab[] = [
   { id: 'aws', label: 'AWS SMS' },

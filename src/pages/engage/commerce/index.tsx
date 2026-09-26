@@ -16,7 +16,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 
 const WABAS = [
     { label: 'WABA1 · +91 93309 94400', phoneId: 'phone-number-id-waba1-direct-1016149501586345', catalog: 'wecare_catalog', catalogId: '1607047307067517', payConfig: 'Razorpay_wecare.digital' },

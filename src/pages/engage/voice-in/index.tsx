@@ -69,7 +69,7 @@ interface CDRRecord {
   rcsMessageContent: string; rcsMessageTimestamp: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 const RETIRED_ACTION_REASON =
   'Outbound calling here has been retired. This page dialled a retired India voice '
   + 'provider; PSTN voice is now Plivo, and outbound calling arrives with the Plivo '

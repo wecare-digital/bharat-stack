@@ -14,7 +14,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
 
 // WhatsApp Business phone-number IDs (entity_id) — from backend `entities` action
 const WABAS = [

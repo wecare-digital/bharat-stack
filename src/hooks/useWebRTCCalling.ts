@@ -22,7 +22,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 
 import { acquireAudioStream } from '../lib/pstn/mediaCapability';
 
-const API_BASE = 'https://api.wecare.digital';
+const API_BASE = 'https://wecare.digital/api';
 
 export type CallStatus =
   | 'idle'

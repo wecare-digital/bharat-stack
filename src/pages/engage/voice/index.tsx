@@ -154,7 +154,7 @@ const VoicePage: React.FC<PageProps> = ( { signOut, user, embedded } ) => {
     setClearing( true );
     try
     {
-      const response = await api.authFetch( `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/voice-aws/clear-logs`, { method: 'DELETE' } );
+      const response = await api.authFetch( `${process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api'}/voice-aws/clear-logs`, { method: 'DELETE' } );
       const result = await response.json();
       if ( result.success ) { toast.success( `Cleared logs` ); await loadData(); }
       else toast.error( result.error || 'Failed' );
