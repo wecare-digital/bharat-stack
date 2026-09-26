@@ -244,10 +244,10 @@ const METRICS = () => {
 </style>
 <div class="wrap">
 
-<h1>Home page — top band, final design</h1>
-<p class="cap" style="font-size:16px">The complete band with all three fixes applied, at
-<b>actual size</b> — 1280 and 390, nothing scaled down. <b>It looks exactly like today;</b> the
-fixes only repair states you cannot see in this one.</p>
+<h1>Home page — top band</h1>
+<p class="cap" style="font-size:16px">The original as it ships today, then the same band with
+the three fixes — both at <b>actual size</b>, 1280 and 390, nothing scaled down. <b>They are
+meant to look identical:</b> the fixes only repair states you cannot see in a normal screenshot.</p>
 
 <div class="bar"><div class="in">
   <label><input type="checkbox" id="tRotate" checked> run the rotation</label>
@@ -255,14 +255,29 @@ fixes only repair states you cannot see in this one.</p>
   <span class="mut sm">no CTA, no price — this band says what the page is about · source unchanged</span>
 </div></div>
 
-<!-- ============== THE DESIGN, 1:1 ============== -->
+<!-- ============== ORIGINAL, 1:1 ============== -->
 <section class="band">
-  <div class="bhead"><span class="tag">FINAL</span><h2>Desktop — 1280, actual size</h2></div>
+  <div class="bhead"><span class="tag" style="background:#44546a;color:#fff">ORIGINAL</span>
+    <h2>As it ships today — desktop 1280, actual size</h2>
+    <span class="sel">unmodified: no fixes applied</span></div>
+  <div class="step"><div data-panel="origD"></div></div>
+</section>
+
+<section class="band">
+  <div class="bhead"><span class="tag" style="background:#44546a;color:#fff">ORIGINAL</span>
+    <h2>As it ships today — phone 390, actual size</h2>
+    <span class="sel">unmodified: no fixes applied</span></div>
+  <div class="step"><div data-panel="origM"></div></div>
+</section>
+
+<!-- ============== WITH THE FIXES, 1:1 ============== -->
+<section class="band">
+  <div class="bhead"><span class="tag">FIXED</span><h2>With the three fixes — desktop 1280, actual size</h2></div>
   <div class="step"><div data-panel="finalD"></div></div>
 </section>
 
 <section class="band">
-  <div class="bhead"><span class="tag">FINAL</span><h2>Phone — 390, actual size</h2></div>
+  <div class="bhead"><span class="tag">FIXED</span><h2>With the three fixes — phone 390, actual size</h2></div>
   <div class="step"><div data-panel="finalM"></div></div>
 </section>
 
@@ -437,7 +452,13 @@ function labelled( lab, cls, o, w, h, scale ){
 function build(){
   var rot = document.getElementById('tRotate').checked;
 
-  // The complete design, actual size.
+  // The original, actual size, nothing applied.
+  document.querySelector('[data-panel="origD"]').innerHTML =
+    shot({ rotate:rot }, 1280, 470, 1);
+  document.querySelector('[data-panel="origM"]').innerHTML =
+    shot({ rotate:rot }, 390, 420, 1);
+
+  // The same band with the three fixes, actual size.
   document.querySelector('[data-panel="finalD"]').innerHTML =
     shot({ rotate:rot, fix:true }, 1280, 470, 1);   // 470 = the band's real extent (hero ends at 399) plus air
   document.querySelector('[data-panel="finalM"]').innerHTML =
