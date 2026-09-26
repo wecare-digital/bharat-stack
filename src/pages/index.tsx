@@ -613,7 +613,10 @@ const HomePage: React.FC = () => {
            at 3px it cannot be mistaken for a hover affordance the way 2px could.
            padding-left goes 16px -> 18px to keep the optical gap between bar and text the
            same now that the bar is 2px wider. */
-        .home-flow-list li{padding-left:18px;border-left:3px solid #d1f470}
+        /* LOGICAL: the accent bar belongs on the edge the reader starts from. As border-left
+           it stayed on the physical left in Arabic, where it reads as a bar the text has
+           already passed rather than one introducing it. */
+        .home-flow-list li{padding-inline-start:18px;border-inline-start:3px solid #d1f470}
         /* Card-heading rung at the small end: 17px/700, a step below .pp-strip-title's
            22px because these sit inside a sidebar rather than on the page. */
         /* BOTH RUNGS WERE OFF THE CONTRACT LADDER, measured against every other text
@@ -711,7 +714,9 @@ const HomePage: React.FC = () => {
            20px/600 was considered and rejected: it exists nowhere on the site, and
            inventing a rung is the thing the h2 unification was done to stop. */
         .home-close-points li{
-          position:relative;padding-left:26px;
+          /* padding-inline-start: the 26px is room for the tick, which moves to the other
+             edge under rtl along with the ::before below. */
+          position:relative;padding-inline-start:26px;
           /* Body rung at the neutral colour rgba(0,0,0,.898), matching .home-close-lead,
              .home-flow-lead, .home-sub and the flow-beat bodies. It was #1a3a2a (brand
              green), which made this list a different treatment from the flow list in
@@ -728,7 +733,12 @@ const HomePage: React.FC = () => {
            24.65px tall and top:6px centred the tick on the x-height; at 20px/1.4 the box is
            28px, so the same optical position is 7px. Measured, not scaled by eye. */
         .home-close-points li::before{
-          content:'';position:absolute;left:2px;top:7px;
+          /* inset-inline-start keeps the tick on the reader's starting edge, matching the
+             padding above. The two BORDERS stay physical deliberately: rotated -45deg they
+             draw a tick, and a tick is a glyph with a settled shape rather than a
+             direction - mirroring it would produce a backwards mark that reads as an error
+             cross at small sizes. */
+          content:'';position:absolute;inset-inline-start:2px;top:7px;
           width:11px;height:6px;
           border-left:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;
           transform:rotate(-45deg);
@@ -928,7 +938,10 @@ const HomePage: React.FC = () => {
           position:relative;z-index:1;
           display:inline-block;width:.33em;height:.33em;
           background:#3da35a;border-radius:50%;
-          margin-right:.18em;vertical-align:.14em;
+          /* margin-inline-end: the dot precedes the word, so the gap has to be on the side
+             the word is on. margin-right put the gap behind the dot in Arabic and let the
+             dot touch the glyph it is meant to be spaced from. */
+          margin-inline-end:.18em;vertical-align:.14em;
           transform:scale(0);
           transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
         }
@@ -955,7 +968,10 @@ const HomePage: React.FC = () => {
           will-change:width;
         }
         .home-cyc-word{
-          position:absolute;left:0;top:0;
+          /* inset-inline-start:0 pins each rotating word to the pill's starting edge. With
+             left:0 an Arabic word shorter than the measured pill width floated away from the
+             edge the reader begins at, leaving the gap on the wrong side. */
+          position:absolute;inset-inline-start:0;top:0;
           white-space:nowrap;
           opacity:0;
           transform:translateY(.42em);

@@ -89,7 +89,25 @@ const Footer: React.FC = () => {
               approved for it, and inventing one would mean a hover that promises a click
               and lands somewhere arbitrary. cursor stays default for that reason. If it
               should become a link later, wrap it in an <a> and the sweep still applies. */}
-          <p className="ft-tagline">Trusted everyday services for Bharat</p>
+          {/* "BHARAT" IS PINNED, THE SENTENCE AROUND IT IS NOT, and the split is the point.
+              The whole line was being sent for translation and the provider returned
+              "خدمات يومية موثوقة لشركة Bharat" - it translated the sentence and passed the
+              name through, because it reads Bharat as a proper noun. That is defensible on
+              its own; what is not defensible is that it is the PROVIDER's judgement, made
+              per language, so the same word can come back transliterated in one language,
+              translated to a local exonym in another, and untouched in a third. The visible
+              result is inconsistency with no rule behind it.
+              Wrapping the word rather than flagging the <p> keeps "Trusted everyday services
+              for" translatable, which is the pattern BrandBadge.tsx argues for: split the
+              element, do not widen the exclusion. The exclusion is now ours and it is
+              deterministic across all 71 languages.
+              THIS IS A VOICE DECISION AND IT IS REVERSIBLE. Bharat is used here as the
+              brand's own name for the country, which is why it is held constant. If the
+              owner would rather it localise - "India", or a local exonym - delete this span
+              and the sentence translates whole again. */}
+          <p className="ft-tagline">
+            Trusted everyday services for <span data-wc-no-translate="true">Bharat</span>
+          </p>
 
           {/* The brand dash. Purely decorative, hence aria-hidden and a <span> rather than
               an <hr> - it separates nothing and announcing it would be noise. It is the
@@ -161,11 +179,15 @@ const Footer: React.FC = () => {
          frame the way animating width would; transform-origin:left makes it draw from the
          left edge. Same .2s and same easing as the header's row sweep. */
       .ft-tagline::after{
-        content:'';position:absolute;left:0;right:0;bottom:-3px;height:2px;
+        content:'';position:absolute;inset-inline:0;bottom:-3px;height:2px;
         background:#d1f470;
         transform:scaleX(0);transform-origin:left center;
         transition:transform .2s cubic-bezier(.16,1,.3,1);
       }
+      /* transform-origin takes no logical keyword, so rtl is stated. Without this the
+         underline would draw from the end of the line an Arabic reader finishes on, which
+         reads as the rule retracting rather than appearing. */
+      :global([dir='rtl']) .ft-tagline::after{transform-origin:right center}
       .ft-tagline:hover{color:#1a3a2a}
       .ft-tagline:hover::after{transform:scaleX(1)}
 

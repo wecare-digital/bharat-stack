@@ -124,6 +124,46 @@ function searchLanguages ( all: Lang[], query: string ): Lang[] {
   return scored.sort( ( a, b ) => a.rank - b.rank ).map( row => row.lang );
 }
 
+/**
+ * RIGHT-TO-LEFT SCRIPTS. Translating into Arabic produced correct Arabic words inside a
+ * left-to-right document, which is not a cosmetic problem: with `dir` left at ltr the
+ * paragraph direction is wrong, so a full stop ending an Arabic sentence renders at the
+ * LEFT edge of the line - reported from the live site, visible as a period sitting at the
+ * start of every footer line. Latin fragments and digits inside the same run are ordered
+ * wrongly too. The words were right and the writing system was not.
+ *
+ * MATCHED ON THE BASE SUBTAG, not the whole code. The catalogue is the provider's, and it
+ * carries regional forms - Dari arrives as fa-AF - so `fa-AF` has to resolve through `fa`.
+ * Anything with no region is unaffected by the split.
+ *
+ * WHY A LIST RATHER THAN Intl.Locale. `new Intl.Locale('ar').getTextInfo()` is the correct
+ * modern answer and is not dependable here: it is unavailable in older Safari, the method
+ * was renamed from `textInfo` mid-standardisation so the shape differs between engines, and
+ * a wrong answer silently mirrors the whole page. Six codes that change once a decade are
+ * cheaper to own than a capability check with a silent failure mode. Every entry is RTL by
+ * script, not by region: Arabic, Persian, Hebrew, Urdu, Pashto and Sindhi.
+ */
+const RTL_BASE_LANGS = new Set( [ 'ar', 'fa', 'he', 'ur', 'ps', 'sd' ] );
+
+export function isRtlLanguage ( code: string ): boolean {
+  const base = ( code || '' ).toLowerCase().split( /[-_]/ )[ 0 ];
+  return RTL_BASE_LANGS.has( base );
+}
+
+/**
+ * Sets `dir` on <html> to match the language. Paired with `lang`, which was already being
+ * set here - the two belong together, because assistive tech and the bidi algorithm read
+ * different halves of the same fact.
+ *
+ * Always writes an explicit value rather than removing the attribute. `_document.tsx`
+ * declares dir="ltr", and leaving a bare <html> to inherit means the direction depends on
+ * the user agent instead of on us - the same argument as declaring color-scheme rather than
+ * letting a browser guess.
+ */
+function applyDirection ( code: string ): void {
+  document.documentElement.dir = isRtlLanguage( code ) ? 'rtl' : 'ltr';
+}
+
 const SKIP_TAGS = new Set( [
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'SVG', 'CANVAS', 'VIDEO', 'AUDIO',
   'INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'CODE', 'PRE', 'HEAD', 'META', 'LINK',
@@ -325,6 +365,10 @@ const SupportWidget: React.FC = () => {
     if ( code === 'en' ) {
       restore();
       document.documentElement.lang = 'en';
+      // Back to ltr with the text. Restoring the words without restoring the direction
+      // would leave English running right-to-left after a visitor tried Arabic and
+      // changed their mind.
+      applyDirection( 'en' );
       setStatus( 'Showing the original English text.' );
       return;
     }
@@ -351,9 +395,16 @@ const SupportWidget: React.FC = () => {
         translated.forEach( ( row, index ) => { if ( row.translatedText && batch[ index ].node.parentNode ) batch[ index ].node.nodeValue = row.translatedText; } );
       }
       document.documentElement.lang = code;
+      // AFTER the batches, not before. A mid-flight failure restores English below, and
+      // flipping direction first would mirror the layout for however long the request took
+      // and then have to be undone - a visible lurch on a slow connection for a
+      // translation that never arrived.
+      applyDirection( code );
       setStatus( `Page translated to ${label}.` );
     } catch {
       restore();
+      // The text is English again, so the direction must be too.
+      applyDirection( 'en' );
       setCurrent( 'en' );
       setStatus( 'Translation is unavailable right now.' );
     } finally { setBusy( false ); }
@@ -540,7 +591,28 @@ const SupportWidget: React.FC = () => {
            That script is retired and the button is the left half of the pill below, so
            z-index only has to clear the mobile BottomNav (1200) and the header menu
            (1002). 1300 does both. */
-        .wc-langbar{position:fixed;right:20px;left:auto;bottom:20px;top:auto;z-index:1300;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-family:inherit}
+        /* THE INSET IS A CUSTOM PROPERTY, AND THAT IS THE WHOLE POINT OF THIS SHAPE.
+           With right:20px the widget stayed pinned right in Arabic, on the side a
+           right-to-left reader's eye leaves last, sitting over the end of every line.
+           Two repairs were tried and measured before this one. inset-inline-end does not
+           survive the build: Lightning CSS rewrites any direction-conditional rule - a
+           logical inset OR a [dir='rtl'] override - into a matched pair of :lang() rules,
+           one negated with :not(:is(...)) and one positive. :lang() is a pseudo-class, so
+           the compiled base selector gains a specificity class and scores (0,3,0), while the
+           mobile override below stays plain at (0,2,0). The base rule then WINS INSIDE THE
+           MEDIA QUERY and the phone pill renders at 20px where the media query asks for
+           16px. uicheck caught it twice; it is invisible in the source, which reads
+           correctly in both places.
+           Declaring the distance ONCE as --wc-inset removes the conflict instead of trying
+           to out-specify it: the media query overrides only the variable, and the two
+           direction rules below are the sole place left/right are ever set. Custom
+           properties cascade on their own, so specificity never enters into it.
+           NOTE FOR ANYONE EDITING THESE COMMENTS: no backticks. This block is inside a
+           styled-jsx template literal, and a backtick closes it - which turns the rest of
+           the stylesheet into JSX and fails the build with an unrelated-looking
+           "Unexpected token" several hundred lines further down. */
+        .wc-langbar{--wc-inset:20px;position:fixed;right:var(--wc-inset);left:auto;bottom:20px;top:auto;z-index:1300;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-family:inherit}
+        :global([dir='rtl']) .wc-langbar{right:auto;left:var(--wc-inset)}
 
         /* THE PILL. One container, two actions, reading as a single object rather than the
            two unrelated circles this replaced. 4px of padding around 40px controls makes
@@ -602,7 +674,11 @@ const SupportWidget: React.FC = () => {
            gone, so the worst case is a legible focus ring instead of a state that reads as
            "selected", and focus is only returned when the panel was closed by keyboard. */
         .wc-chip:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
-        .wc-arw{width:6px;height:6px;box-sizing:border-box;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);margin-left:7px;opacity:.7;transition:transform .2s}
+        /* margin-inline-start, so the chevron sits after the label in either direction. The
+           two borders are NOT logical on purpose: rotated 45deg they form a chevron pointing
+           DOWN, which is an orientation rather than a side, and mirroring it would point it
+           down-left for no reason. */
+        .wc-arw{width:6px;height:6px;box-sizing:border-box;border-right:2px solid #1a3a2a;border-bottom:2px solid #1a3a2a;transform:translateY(-2px) rotate(45deg);margin-inline-start:7px;opacity:.7;transition:transform .2s}
         .wc-chip[aria-expanded='true'] .wc-arw{transform:translateY(1px) rotate(225deg)}
 
         /* ===== THE SEARCH PANEL =====
@@ -661,7 +737,9 @@ const SupportWidget: React.FC = () => {
            row happened to clear the touch-target floor by luck. Accidentally correct is how
            the WhatsApp circle ended up a 44x40 oval, so the floor is stated here: 44px,
            which also makes the panel's height predictable at 5 rows plus the search field. */
-        .wc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px;padding:9px 13px;border:0;border-radius:0;background:transparent;font-family:inherit;font-size:13.5px;font-weight:600;color:#1a3a2a;text-align:left;cursor:pointer;transition:background-color .12s}
+        /* text-align:start, not left: a language row holds a native name, and in Arabic or
+           Urdu that name has to begin at the reader's starting edge. */
+        .wc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px;padding:9px 13px;border:0;border-radius:0;background:transparent;font-family:inherit;font-size:13.5px;font-weight:600;color:#1a3a2a;text-align:start;cursor:pointer;transition:background-color .12s}
         /* is-active is the keyboard/pointer highlight; is-on is the language currently
            showing. Solid lime for the current one, tint for the highlight - the same pairing
            as the header menu, where active==hover was itself a defect that had to be fixed. */
@@ -692,7 +770,12 @@ const SupportWidget: React.FC = () => {
            pill's overflow:hidden so it follows the rounded shape. It is the honest signal
            that batches are still in flight: translation is a sequence of network round
            trips over every text node, so it can take a couple of seconds on a long page. */
-        .wc-sweep{position:absolute;left:0;right:0;bottom:0;height:2px;background:#d1f470;transform-origin:left center;animation:wc-sweep 1.1s cubic-bezier(.4,0,.2,1) infinite}
+        /* inset-inline:0 replaces the symmetric left/right pair - same result in ltr, and
+           direction-safe. transform-origin has NO logical keyword, so the rtl start edge is
+           set explicitly below: a progress sweep must grow from the edge the reader starts
+           at, or it appears to run backwards. */
+        .wc-sweep{position:absolute;inset-inline:0;bottom:0;height:2px;background:#d1f470;transform-origin:left center;animation:wc-sweep 1.1s cubic-bezier(.4,0,.2,1) infinite}
+        :global([dir='rtl']) .wc-sweep{transform-origin:right center}
         @keyframes wc-sweep{
           0%{transform:scaleX(0);opacity:1}
           60%{transform:scaleX(1);opacity:1}
@@ -725,7 +808,10 @@ const SupportWidget: React.FC = () => {
               Public pages now match desktop at 20px; .is-appshell keeps the 72px for the
               dashboard, where the bar is real. */
         @media(max-width:767px){
-          .wc-langbar{right:16px;left:auto;top:auto;bottom:calc(20px + env(safe-area-inset-bottom))}
+          /* Only the VARIABLE changes here. Setting right/left directly loses to the
+             compiled base selector, which carries a :lang() specificity class - see the
+             note on the base rule. */
+          .wc-langbar{--wc-inset:16px;top:auto;bottom:calc(20px + env(safe-area-inset-bottom))}
           .wc-langbar.is-appshell{bottom:calc(72px + env(safe-area-inset-bottom))}
           .wc-pill{padding:3px;gap:0}
           /* The label alone, no arrow. min-width drops with it - "EN" at 13px needs about
