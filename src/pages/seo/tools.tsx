@@ -11,7 +11,7 @@ import SEO from '../../components/SEO';
 interface PageProps { signOut?: () => void; user?: any; }
 
 const SITE_BASE = 'https://wecare.digital';
-const BLOG_PUBLIC_API = `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/seo-tools/blog-public`;
+const BLOG_PUBLIC_API = `${process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api'}/seo-tools/blog-public`;
 const ALL_PAGES = [
   '/', '/grahak-os', '/vayulok', '/faq', '/partners', '/blog',
 ];

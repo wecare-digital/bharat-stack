@@ -78,7 +78,7 @@ const DEFAULT_CONFIG: AgentConfig = {
 };
 
 /** The endpoint, kept local. src/api/client.ts does not export its own base. */
-const AGENT_CONFIG_URL = `${process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital'}/ai/internal/config`;
+const AGENT_CONFIG_URL = `${process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api'}/ai/internal/config`;
 
 export default function InternalAgentSettings ( { signOut, user }: PageProps ) {
   const [config, setConfig] = useState<AgentConfig>(DEFAULT_CONFIG);

@@ -1,6 +1,23 @@
 /**
  * URL Shortener AWS Resources - WECARE.DIGITAL
- * Domain: r.wecare.digital
+ *
+ * Canonical base for new links: wecare.digital/r  (since 2026-09-26)
+ * Also honoured, permanently:   r.wecare.digital
+ *
+ * NOT DEPLOYED - verified 2026-09-26. There is no CloudFormation stack for this
+ * file, and the `stack-wecare-short-links` HTTP API it declares below does not
+ * exist: the account holds exactly one HTTP API, `zllr9lrg7j`
+ * ("wecare-digital-api"). The live wiring is different from what this file
+ * describes - the `r.wecare.digital` custom domain is mapped straight to
+ * `zllr9lrg7j` stage `prod`, and the shortener's routes (`GET /r/{code}`,
+ * `GET /{code}`, `/links*`) live on that same shared API against
+ * `stack-wecare-url-shortener:live`.
+ *
+ * So treat this as a description of intent, not of production. Changing a value
+ * here does NOT change the account; the live Lambda environment and the API
+ * Gateway mapping have to be changed directly. Recorded because a reader who
+ * assumes this file is authoritative will make a change here, see nothing happen,
+ * and conclude the change did not work.
  *
  * Creates:
  * 1. DynamoDB: ShortLinksTable (shortCode PK)
@@ -31,8 +48,22 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigatewayv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
-const SHORT_DOMAIN = 'r.wecare.digital';
 const ROOT_DOMAIN = 'wecare.digital';
+
+// The DNS name. Used for the ACM certificate subject and the API Gateway custom
+// domain, both of which require a bare hostname. This stays as it is: short links
+// already delivered to customers name this host, and they cannot be recalled.
+const SHORT_DOMAIN = 'r.wecare.digital';
+
+// The base that NEW short links are published under, canonical since 2026-09-26.
+// Carries a path, so it is NOT interchangeable with SHORT_DOMAIN above — one
+// constant previously served both purposes, which is exactly what makes moving the
+// shortener onto a path look like it requires giving up the subdomain.
+//
+// Resolution is unaffected either way: the handler already accepts both `/r/{code}`
+// and a bare `/{code}`, and Amplify proxies `/r/<*>` to the API. This value only
+// decides what we MINT.
+const SHORT_LINK_BASE = `${ROOT_DOMAIN}/r`;
 
 export function addLinkResources(stack: Stack) {
   // ═══════════════════════════════════════════
@@ -88,7 +119,8 @@ export function addLinkResources(stack: Stack) {
     environment: {
       SHORT_LINKS_TABLE: shortLinksTable.tableName,
       LINK_CLICKS_TABLE: linkClicksTable.tableName,
-      SHORT_DOMAIN: SHORT_DOMAIN,
+      // The public link base, not the DNS name — see the constants above.
+      SHORT_LINK_BASE: SHORT_LINK_BASE,
     },
   });
 

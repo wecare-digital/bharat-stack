@@ -219,7 +219,7 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'Amazon API Gateway': {
     arn: `arn:aws:apigateway:${AWS_REGION}::/restapis/*`,
     accountId: AWS_ACCOUNT_ID,
-    details: [ 'api.wecare.digital - HTTP API (prod stage, auto-deploy)', 'Routes: /contacts, /messages, /whatsapp/*, /sms-aws/*, /voice-aws/*, /voice-in/*, /voice-cdr-webhook, /sms-in/*, /billing, /ai/*, /templates/*, /waba/*, /wix-store/*' ]
+    details: [ 'wecare.digital/api - HTTP API (prod stage, auto-deploy)', 'Routes: /contacts, /messages, /whatsapp/*, /sms-aws/*, /voice-aws/*, /voice-in/*, /voice-cdr-webhook, /sms-in/*, /billing, /ai/*, /templates/*, /waba/*, /wix-store/*' ]
   },
   'AWS AppSync': {
     arn: `arn:aws:appsync:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`,
@@ -2197,7 +2197,7 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
                   <div style={ { background: '#f9fafb', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1rem', border: '1px solid #e5e7eb' } }>
                     <div style={ { marginBottom: '0.75rem' } }>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Webhook URL</label>
-                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#1a1a1a' } }>https://api.wecare.digital/razorpay-webhook</code>
+                      <code style={ { fontSize: '0.85rem', wordBreak: 'break-all', color: '#1a1a1a' } }>https://wecare.digital/api/razorpay-webhook</code>
                     </div>
                     <div>
                       <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>Credentials</label>
@@ -2385,7 +2385,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                       <div key={ path } style={ { marginBottom: '0.5rem' } }>
                         <label style={ { fontSize: '0.75rem', color: '#6b7280', display: 'block' } }>{ label }</label>
                         <code style={ { fontSize: '0.8rem', color: '#1a1a1a', background: '#fff', padding: '0.35rem 0.5rem', display: 'inline-block', borderRadius: '4px', marginTop: '2px' } }>
-                          <span style={ { color: method === 'POST' ? '#1a3a2a' : method === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600 } }>{ method }</span> https://api.wecare.digital{ path }
+                          <span style={ { color: method === 'POST' ? '#1a3a2a' : method === 'DELETE' ? '#6b7280' : '#1d4ed8', fontWeight: 600 } }>{ method }</span> https://wecare.digital/api{ path }
                         </code>
                       </div>
                     ) ) }
@@ -2463,7 +2463,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                     </div>
 
                     <div style={ { marginTop: '0.75rem' } }>
-                      <span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' } }>API Routes (all on api.wecare.digital)</span>
+                      <span style={ { color: '#6b7280', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' } }>API Routes (all on wecare.digital/api)</span>
                       <div style={ { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem', fontSize: '0.8rem' } }>
                         { [
                           { m: 'GET', p: '/whatsapp', d: 'Webhook verify' },
@@ -2504,7 +2504,7 @@ expected = hmac.new(webhook_secret, request_body, sha256).hexdigest()
                   </div>
 
                   <div style={ { display: 'flex', gap: '0.5rem', flexWrap: 'wrap' } }>
-                    <button onClick={ () => { navigator.clipboard.writeText( 'https://api.wecare.digital/whatsapp' ); toast.success( 'Callback URL copied' ); } }
+                    <button onClick={ () => { navigator.clipboard.writeText( 'https://wecare.digital/api/whatsapp' ); toast.success( 'Callback URL copied' ); } }
                       style={ { padding: '0.5rem 1rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500 } }>
                       Copy Callback URL
                     </button>

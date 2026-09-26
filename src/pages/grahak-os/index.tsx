@@ -67,7 +67,7 @@ const GrahakOsPage: React.FC = () => {
   // These are real calls, checked against docs/openapi.yaml and the handler rather
   // than written to look plausible. All three used to POST /v1/messages, which does
   // not exist: the spec has no /v1 prefix at all, its server is
-  // https://api.wecare.digital, and /messages is GET-only for reading a paginated
+  // https://wecare.digital/api, and /messages is GET-only for reading a paginated
   // list. The hero panel was worse - /v1/send exists nowhere in the spec.
   //
   // The documented way to send is POST /outbound-whatsapp ("Send outbound WhatsApp
@@ -82,7 +82,7 @@ const GrahakOsPage: React.FC = () => {
     { lang: 'Python', code: `import requests
 
 response = requests.post(
-  "https://api.wecare.digital/outbound-whatsapp",
+  "https://wecare.digital/api/outbound-whatsapp",
   headers={
     "Authorization": f"Bearer {access_token}"
   },
@@ -92,7 +92,7 @@ response = requests.post(
   }
 )` },
     { lang: 'JavaScript', code: `const response = await fetch(
-  "https://api.wecare.digital/outbound-whatsapp",
+  "https://wecare.digital/api/outbound-whatsapp",
   {
     method: "POST",
     headers: {
@@ -105,7 +105,7 @@ response = requests.post(
   }
 );` },
     { lang: 'cURL', code: `curl -X POST \\
-  "https://api.wecare.digital/outbound-whatsapp" \\
+  "https://wecare.digital/api/outbound-whatsapp" \\
   -H "Authorization: Bearer $ACCESS_TOKEN" \\
   -d '{"recipientPhone": "+919330994400",
        "content": "Your order #WD-87A6G has been shipped"}'` },
@@ -328,7 +328,7 @@ response = requests.post(
                       absorb exactly that. Lengthen any line here and you move the
                       panel over the thread - re-measure, do not eyeball. */}
                   <pre className="code-body">{`response = requests.post(
-  "api.wecare.digital/outbound-whatsapp",
+  "wecare.digital/api/outbound-whatsapp",
   json={
     "recipientPhone": "+919330994400",
     "content": "Your order #WD-87A6G has been shipped"

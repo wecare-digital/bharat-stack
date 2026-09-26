@@ -31,7 +31,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
  * Removing it also deleted the /voices fetch (one less request on every page) and the
  * `canSpeak` branch it existed to feed.
  */
-const API_BASE = ( process.env.NEXT_PUBLIC_API_BASE || 'https://api.wecare.digital' ) + '/site-language';
+const API_BASE = ( process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api' ) + '/site-language';
 /* The localStorage key that used to persist the chosen language is gone, along with the
    restore it fed. See the catalogue effect: keeping it meant every later page load
    re-translated the page unasked, and translation is billed per character. */

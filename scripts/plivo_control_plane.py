@@ -110,7 +110,20 @@ CAPTURED_FIELDS = (
 )
 
 # §6 target webhook state.
-API_BASE = os.environ.get("WECARE_API_BASE", "https://api.wecare.digital")
+# Moved off the `api.wecare.digital` custom domain on 2026-09-26. The apex path is
+# served by an Amplify rewrite straight to the API Gateway execute-api endpoint, so
+# it no longer depends on that custom domain existing — which is the whole point,
+# since the domain is being retired.
+#
+# Verified equivalent before the switch: all five /plivo/* endpoints returned the
+# identical status through both, and the `?token=` gate is preserved by
+# apply_application_update rather than silently dropped.
+#
+# This constant is what verify_post_update_state and check_drift compare against, so
+# it has to move at the same time as the live application. Leaving it behind would
+# make the drift check report a permanent false positive and fail plivo-drift.yml on
+# a correctly configured account.
+API_BASE = os.environ.get("WECARE_API_BASE", "https://wecare.digital/api")
 TARGET_URLS = {
     "answer_url": f"{API_BASE}/plivo/answer",
     "fallback_answer_url": f"{API_BASE}/plivo/fallback",

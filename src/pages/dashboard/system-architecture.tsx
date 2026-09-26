@@ -141,7 +141,7 @@ const LAMBDAS: LambdaDef[] = [
   { name: 'messages-read', category: 'Core', trigger: 'API Gateway', tables: 'WhatsAppInbound, WhatsAppOutbound', description: 'Read messages from all channels', apiRoute: '/messages' },
   { name: 'messages-delete', category: 'Core', trigger: 'API Gateway', tables: 'WhatsAppInbound, WhatsAppOutbound', description: 'Delete messages by ID', apiRoute: '/messages/{id}' },
   { name: 'faq-handler', category: 'Core', trigger: 'API Gateway', tables: 'SystemConfig', description: 'FAQ auto-response engine', apiRoute: '/faq' },
-  { name: 'url-shortener', category: 'Core', trigger: 'API Gateway', tables: '-', description: 'Short link creation (r.wecare.digital)', apiRoute: '/link' },
+  { name: 'url-shortener', category: 'Core', trigger: 'API Gateway', tables: '-', description: 'Short link creation (wecare.digital/r)', apiRoute: '/link' },
   { name: 'inbound-whatsapp-handler', category: 'Messaging', trigger: 'API GW Webhook', tables: 'WhatsAppInbound, Contact, MediaFile, WebhookDedup', description: 'Process incoming WhatsApp messages', apiRoute: '/webhook/whatsapp' },
   { name: 'outbound-whatsapp', category: 'Messaging', trigger: 'API Gateway, SQS', tables: 'WhatsAppOutbound', description: 'Send WhatsApp messages via Cloud API', apiRoute: '/whatsapp/send' },
   { name: 'outbound-sms', category: 'Messaging', trigger: 'API Gateway', tables: 'Messages', description: 'Send SMS via AWS End User Messaging', apiRoute: '/sms/send' },
@@ -187,7 +187,7 @@ interface AWSResource { name: string; type: string; purpose: string; module: str
 const AWS_RESOURCES: AWSResource[] = [
   { name: 'us-east-1_cSx0RHCIR', type: 'Cognito User Pool', purpose: 'User authentication & RBAC', module: 'Auth', env: 'Production', status: 'Active', risk: '' },
   { name: 'us-east-1:471c2c38-...', type: 'Cognito Identity Pool', purpose: 'Federated identity for AWS access', module: 'Auth', env: 'Production', status: 'Active', risk: '' },
-  { name: 'api.wecare.digital', type: 'API Gateway (REST)', purpose: 'Main API endpoint for all Lambda functions', module: 'All', env: 'Production', status: 'Active', risk: '' },
+  { name: 'wecare.digital/api', type: 'API Gateway (REST)', purpose: 'Main API endpoint for all Lambda functions', module: 'All', env: 'Production', status: 'Active', risk: '' },
   { name: 'app.wecare.digital', type: 'S3 Bucket', purpose: 'Media storage, invoices, voice, static assets', module: 'Storage', env: 'Production', status: 'Active', risk: '' },
   { name: DB_TABLES.length + ' DynamoDB Tables', type: 'DynamoDB', purpose: 'Primary database (PAY_PER_REQUEST)', module: 'Data', env: 'Production', status: 'Active', risk: '' },
   { name: '42 Lambda Functions', type: 'Lambda', purpose: 'Backend compute (Python 3.12)', module: 'Backend', env: 'Production', status: 'Active', risk: '' },
@@ -207,7 +207,7 @@ const AWS_RESOURCES: AWSResource[] = [
   { name: 'IAM Roles (Lambda)', type: 'IAM', purpose: 'Lambda execution roles with least-privilege', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'Secrets Manager', type: 'Secrets Manager', purpose: 'API keys, webhook secrets, payment credentials', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'CloudFront (CDN)', type: 'CloudFront', purpose: 'Static asset delivery for app.wecare.digital', module: 'Frontend', env: 'Production', status: 'Active', risk: '' },
-  { name: 'Route 53', type: 'Route 53', purpose: 'DNS for wecare.digital, api.wecare.digital, r.wecare.digital', module: 'Networking', env: 'Production', status: 'Active', risk: '' },
+  { name: 'Route 53', type: 'Route 53', purpose: 'DNS for wecare.digital, wecare.digital/api, r.wecare.digital', module: 'Networking', env: 'Production', status: 'Active', risk: '' },
   { name: 'ACM Certificates', type: 'ACM', purpose: 'SSL/TLS certificates for all domains', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'SNS Topics', type: 'SNS', purpose: 'SMS delivery notifications, alerts', module: 'Messaging', env: 'Production', status: 'Active', risk: '' },
   { name: 'Amazon Polly', type: 'Polly', purpose: 'Text-to-speech for WhatsApp voice messages', module: 'Messaging', env: 'Production', status: 'Active', risk: '' },
@@ -247,7 +247,7 @@ const RISKS: RiskItem[] = [
   { id: 'R25', title: 'react-router-dom potentially unused', description: 'react-router-dom ^7.13.0 is installed but Next.js has built-in routing. This adds ~45KB to the bundle. Verify if it is actually used or can be removed.', priority: 'Important', category: 'Dependencies' },
   { id: 'R26', title: '@capacitor/cli in production dependencies', description: '@capacitor/cli is a build tool that should be in devDependencies, not dependencies. It adds unnecessary weight to production installs.', priority: 'Important', category: 'Dependencies' },
   { id: 'R27', title: 'No input validation on frontend forms', description: 'Contact forms, payment forms, and GSTIN inputs have maxLength but no regex validation. Invalid data can reach the backend.', priority: 'Important', category: 'Frontend' },
-  { id: 'R28', title: 'Cognito OAuth domain uses custom domain without fallback', description: 'NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN=signin.wecare.digital. If DNS or certificate expires, all authentication breaks with no fallback to the default Cognito domain.', priority: 'Important', category: 'Auth' },
+  { id: 'R28', title: '✅ FIXED — Cognito OAuth domain no longer depends on our own DNS or certificate', description: 'Moved from the signin.wecare.digital custom domain to the Cognito-provided prefix domain, which AWS operates. The prefix domain was upgraded to managed login v2 first so the sign-in page is unchanged. This removes the ACM-certificate and Route 53 single point of failure for all authentication.', priority: 'Important', category: 'Auth' },
   { id: 'R29', title: 'GA and FB tracking IDs empty', description: 'NEXT_PUBLIC_GA_MEASUREMENT_ID and NEXT_PUBLIC_FB_APP_ID are empty. Analytics scripts still load (googletagmanager, connect.facebook.net) but send no data — wasted bandwidth and privacy concern.', priority: 'Important', category: 'Configuration' },
   { id: 'R30', title: '✅ FIXED — Client password comparison removed', description: 'Edit and payment gates use Cognito Admin verification; no shared unlock password is evaluated in browser code.', priority: 'Important', category: 'Security' },
 
@@ -350,10 +350,10 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_COGNITO_USER_POOL_ID', value: 'us-east-1_cSx0RHCIR', sensitive: false, category: 'Auth' },
   { key: 'NEXT_PUBLIC_COGNITO_CLIENT_ID', value: '1j8kbi48m4v2rped3n224rlevb', sensitive: false, category: 'Auth' },
   { key: 'NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID', value: 'us-east-1:471c2c38-5645-4ccd-aea1-7a008e906db5', sensitive: false, category: 'Auth' },
-  { key: 'NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN', value: 'signin.wecare.digital', sensitive: false, category: 'Auth' },
+  { key: 'NEXT_PUBLIC_COGNITO_OAUTH_DOMAIN', value: 'wecare-digital-auth.auth.us-east-1.amazoncognito.com', sensitive: false, category: 'Auth' },
   // App
   { key: 'NEXT_PUBLIC_APP_URL', value: 'https://wecare.digital/', sensitive: false, category: 'App' },
-  { key: 'NEXT_PUBLIC_API_BASE', value: 'https://api.wecare.digital', sensitive: false, category: 'App' },
+  { key: 'NEXT_PUBLIC_API_BASE', value: 'https://wecare.digital/api', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_SEND_MODE', value: 'LIVE', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_ENV', value: 'production', sensitive: false, category: 'App' },
   // ⚠️ SECRETS EXPOSED IN CLIENT BUNDLE
@@ -390,35 +390,35 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/dashboard/lambda-functions', label: 'Lambda Functions', backend: '(static data)', tables: '-' },
   { path: '/dashboard/code-repo', label: 'Code Repo', backend: '(static data)', tables: '-' },
   // WhatsApp
-  { path: '/dm/whatsapp', label: 'WhatsApp Inbox', backend: 'messages-read, inbound-whatsapp, outbound-whatsapp', tables: 'WhatsAppInbound, WhatsAppOutbound, Contact' },
-  { path: '/dm/whatsapp/templates', label: 'WA Templates', backend: 'whatsapp-templates, whatsapp-template-management', tables: 'TemplateAnalytics' },
-  { path: '/dm/whatsapp/campaign', label: 'WA Campaign', backend: 'outbound-whatsapp, bulk-job-create', tables: 'BulkJob, BulkRecipient, WhatsAppOutbound' },
-  { path: '/dm/whatsapp/flows', label: 'WA Flows', backend: 'whatsapp-business-api', tables: 'FlowRegistry, FlowSubmission' },
-  { path: '/dm/whatsapp/flow-hub', label: 'WA Flow Hub', backend: 'whatsapp-business-api', tables: 'FlowRegistry, FlowSubmission, FlowLog' },
-  { path: '/dm/whatsapp/flow-responses', label: 'WA Flow Responses', backend: 'inbound-whatsapp-handler', tables: 'FlowSubmission, FlowLog, SubmitRequest' },
-  { path: '/dm/whatsapp/calling', label: 'WA Calling', backend: 'whatsapp-calling', tables: 'WhatsAppCalling' },
-  { path: '/dm/whatsapp/groups', label: 'WA Groups', backend: 'waba-management', tables: 'WhatsAppGroup' },
-  { path: '/dm/whatsapp/interactive-lists', label: 'WA Interactive Lists', backend: 'outbound-whatsapp', tables: '-' },
-  { path: '/dm/whatsapp/scripts', label: 'WA Scripts', backend: 'outbound-whatsapp', tables: '-' },
-  { path: '/dm/whatsapp/welcome', label: 'WA Welcome', backend: 'outbound-whatsapp', tables: 'Contact' },
-  { path: '/dm/whatsapp/auto-response', label: 'WA Auto Response', backend: 'ai-generate-response, ai-config-management', tables: 'ConversationHistory, SystemConfig' },
-  { path: '/dm/whatsapp/ai-config', label: 'WA AI Config', backend: 'ai-config-management', tables: 'SystemConfig' },
-  { path: '/dm/whatsapp/waba-dashboard', label: 'WABA Dashboard', backend: 'waba-management, meta-analytics', tables: 'MetaAnalyticsLog' },
-  { path: '/dm/whatsapp/business-profile', label: 'WA Business Profile', backend: 'whatsapp-business-api', tables: '-' },
-  { path: '/dm/whatsapp/webhooks', label: 'WA Webhooks', backend: 'inbound-whatsapp-handler', tables: 'WebhookDedup, SystemEvent' },
-  { path: '/dm/whatsapp/migration', label: 'WA Migration', backend: 'waba-management', tables: '-' },
-  { path: '/dm/logs', label: 'Message Logs (all channels)', backend: 'messages-read', tables: 'MessagesTable' },
-  { path: '/dm/whatsapp/settings', label: 'WA Settings', backend: 'waba-management', tables: 'SystemConfig' },
+  { path: '/engage/whatsapp', label: 'WhatsApp Inbox', backend: 'messages-read, inbound-whatsapp, outbound-whatsapp', tables: 'WhatsAppInbound, WhatsAppOutbound, Contact' },
+  { path: '/engage/whatsapp/templates', label: 'WA Templates', backend: 'whatsapp-templates, whatsapp-template-management', tables: 'TemplateAnalytics' },
+  { path: '/engage/whatsapp/campaign', label: 'WA Campaign', backend: 'outbound-whatsapp, bulk-job-create', tables: 'BulkJob, BulkRecipient, WhatsAppOutbound' },
+  { path: '/engage/whatsapp/flows', label: 'WA Flows', backend: 'whatsapp-business-api', tables: 'FlowRegistry, FlowSubmission' },
+  { path: '/engage/whatsapp/flow-hub', label: 'WA Flow Hub', backend: 'whatsapp-business-api', tables: 'FlowRegistry, FlowSubmission, FlowLog' },
+  { path: '/engage/whatsapp/flow-responses', label: 'WA Flow Responses', backend: 'inbound-whatsapp-handler', tables: 'FlowSubmission, FlowLog, SubmitRequest' },
+  { path: '/engage/whatsapp/calling', label: 'WA Calling', backend: 'whatsapp-calling', tables: 'WhatsAppCalling' },
+  { path: '/engage/whatsapp/groups', label: 'WA Groups', backend: 'waba-management', tables: 'WhatsAppGroup' },
+  { path: '/engage/whatsapp/interactive-lists', label: 'WA Interactive Lists', backend: 'outbound-whatsapp', tables: '-' },
+  { path: '/engage/whatsapp/scripts', label: 'WA Scripts', backend: 'outbound-whatsapp', tables: '-' },
+  { path: '/engage/whatsapp/welcome', label: 'WA Welcome', backend: 'outbound-whatsapp', tables: 'Contact' },
+  { path: '/engage/whatsapp/auto-response', label: 'WA Auto Response', backend: 'ai-generate-response, ai-config-management', tables: 'ConversationHistory, SystemConfig' },
+  { path: '/engage/whatsapp/ai-config', label: 'WA AI Config', backend: 'ai-config-management', tables: 'SystemConfig' },
+  { path: '/engage/whatsapp/waba-dashboard', label: 'WABA Dashboard', backend: 'waba-management, meta-analytics', tables: 'MetaAnalyticsLog' },
+  { path: '/engage/whatsapp/business-profile', label: 'WA Business Profile', backend: 'whatsapp-business-api', tables: '-' },
+  { path: '/engage/whatsapp/webhooks', label: 'WA Webhooks', backend: 'inbound-whatsapp-handler', tables: 'WebhookDedup, SystemEvent' },
+  { path: '/engage/whatsapp/migration', label: 'WA Migration', backend: 'waba-management', tables: '-' },
+  { path: '/engage/logs', label: 'Message Logs (all channels)', backend: 'messages-read', tables: 'MessagesTable' },
+  { path: '/engage/whatsapp/settings', label: 'WA Settings', backend: 'waba-management', tables: 'SystemConfig' },
   // SMS
-  { path: '/dm/sms', label: 'SMS', backend: 'outbound-sms, sms-aws', tables: 'SmsAws, DLTTemplates, AirtelSMS (read-only history)' },
+  { path: '/engage/sms', label: 'SMS', backend: 'outbound-sms, sms-aws', tables: 'SmsAws, DLTTemplates, AirtelSMS (read-only history)' },
   // Voice
-  { path: '/dm/voice', label: 'Voice Out', backend: 'outbound-voice, voice-aws', tables: 'VoiceCall, VoiceAws' },
-  { path: '/dm/voice-in', label: 'Voice In', backend: 'voice-in, voice-cdr-read', tables: 'AirtelC2C, VoiceCDR, OBDCampaign' },
+  { path: '/engage/voice', label: 'Voice Out', backend: 'outbound-voice, voice-aws', tables: 'VoiceCall, VoiceAws' },
+  { path: '/engage/voice-in', label: 'Voice In', backend: 'voice-in, voice-cdr-read', tables: 'AirtelC2C, VoiceCDR, OBDCampaign' },
   // Email / RCS / Push
-  { path: '/dm/ses', label: 'Email', backend: 'outbound-email', tables: '-' },
-  { path: '/dm/rcs', label: 'RCS', backend: '(planned)', tables: '-' },
-  { path: '/dm/push', label: 'Push', backend: 'push-notifications', tables: '-' },
-  { path: '/dm/logs', label: 'Message Logs', backend: 'messages-read', tables: 'WhatsAppInbound, WhatsAppOutbound, SmsAws' },
+  { path: '/engage/ses', label: 'Email', backend: 'outbound-email', tables: '-' },
+  { path: '/engage/rcs', label: 'RCS', backend: '(planned)', tables: '-' },
+  { path: '/engage/push', label: 'Push', backend: 'push-notifications', tables: '-' },
+  { path: '/engage/logs', label: 'Message Logs', backend: 'messages-read', tables: 'WhatsAppInbound, WhatsAppOutbound, SmsAws' },
   // Pay
   { path: '/pay', label: 'Payments', backend: 'payments-read, razorpay-webhook, invoice-engine', tables: 'Payment, Invoice, InvoiceItem, RazorpayWebhookLog' },
   { path: '/pay/flow', label: 'Pay Flow', backend: 'invoice-engine, razorpay-webhook', tables: 'Invoice, InvoiceItem, InvoicePayment, InvoiceDeliveryLog' },
@@ -435,7 +435,7 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/forms/selfservice', label: 'Self-Service Hub', backend: 'whatsapp-business-api, inbound-whatsapp-handler', tables: 'FlowRegistry, FlowSubmission, FlowLog, SubmitRequest' },
   // Was '/faq'. The public page was deleted on owner instruction; the faq-handler backend
   // and SystemConfig table are unchanged and are driven from the dashboard route.
-  { path: '/dm/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
+  { path: '/engage/faq', label: 'FAQ', backend: 'faq-handler', tables: 'SystemConfig' },
   { path: '/grahak-os', label: 'Grahak OS', backend: '(public product page)', tables: '-' },
   // '/studio' REMOVED on owner instruction. The slug is retired and no page exists for it
   // in src/pages, so listing it here described a route that 404s - and this table is read
@@ -449,8 +449,8 @@ interface CodeFolder { path: string; purpose: string; files: string; linkedTo: s
 const CODE_MAP: CodeFolder[] = [
   { path: 'src/pages/', purpose: 'Next.js page routes (Pages Router)', files: '~50 pages', linkedTo: 'Frontend routing' },
   { path: 'src/pages/dashboard/', purpose: 'Dashboard + Admin + Control Center', files: '6 pages', linkedTo: '/dashboard/*' },
-  { path: 'src/pages/dm/whatsapp/', purpose: 'WhatsApp messaging pages (21 sub-pages)', files: '21 pages', linkedTo: '/dm/whatsapp/*' },
-  { path: 'src/pages/dm/', purpose: 'Multi-channel messaging (SMS, Voice, Email, RCS, Push)', files: '~15 pages', linkedTo: '/dm/*' },
+  { path: 'src/pages/engage/whatsapp/', purpose: 'WhatsApp messaging pages (21 sub-pages)', files: '21 pages', linkedTo: '/engage/whatsapp/*' },
+  { path: 'src/pages/engage/', purpose: 'Multi-channel messaging (SMS, Voice, Email, RCS, Push)', files: '~15 pages', linkedTo: '/engage/*' },
   { path: 'src/pages/pay/', purpose: 'Payment pages (overview, flow, link)', files: '3 pages', linkedTo: '/pay/*' },
   { path: 'src/pages/link/', purpose: 'URL shortener (list, create, logs)', files: '3 pages', linkedTo: '/link/*' },
   { path: 'src/components/', purpose: 'Reusable UI components', files: '~25 components', linkedTo: 'All pages' },
@@ -552,16 +552,16 @@ const CODE_ASSETS: CodeAsset[] = [
   // deleted on owner instruction, so that link 404'd and "Active" was a false claim in
   // the one table this project treats as its source of truth. The live FAQ surface is the
   // dashboard route below; the customer-facing answer arrives over WhatsApp, not as a page.
-  { id: 'ss-faq', category: 'Selfservice Flows', name: '❓ FAQ', description: 'View frequently asked questions.', path: '/dm/faq', type: 'Page Link', status: 'Active' },
+  { id: 'ss-faq', category: 'Selfservice Flows', name: '❓ FAQ', description: 'View frequently asked questions.', path: '/engage/faq', type: 'Page Link', status: 'Active' },
   // Frontend Pages
   { id: 'p-dashboard', category: 'Frontend Pages', name: 'Dashboard Overview', description: 'Main analytics dashboard with billing, conversation metrics.', path: 'src/pages/dashboard/index.tsx', type: 'Page' },
   { id: 'p-control', category: 'Frontend Pages', name: 'Project Control Center', description: '18-tab system architecture dashboard — single source of truth.', path: 'src/pages/dashboard/system-architecture.tsx', type: 'Page' },
-  { id: 'p-wa-inbox', category: 'Frontend Pages', name: 'WhatsApp Inbox', description: 'Real-time WhatsApp message inbox with contact sidebar.', path: 'src/pages/dm/whatsapp/index.tsx', type: 'Page' },
-  { id: 'p-wa-templates', category: 'Frontend Pages', name: 'WhatsApp Templates', description: 'Template management — create, edit, send, analytics.', path: 'src/pages/dm/whatsapp/templates.tsx', type: 'Page' },
-  { id: 'p-wa-flows', category: 'Frontend Pages', name: 'WhatsApp Flows', description: 'Flow builder and management for WhatsApp Business Flows.', path: 'src/pages/dm/whatsapp/flows.tsx', type: 'Page' },
-  { id: 'p-wa-flowhub', category: 'Frontend Pages', name: 'Flow Hub', description: 'Centralized flow registry, submissions, and analytics.', path: 'src/pages/dm/whatsapp/flow-hub.tsx', type: 'Page' },
-  { id: 'p-wa-calling', category: 'Frontend Pages', name: 'WhatsApp Calling', description: 'Voice/video call logs and WebRTC integration.', path: 'src/pages/dm/whatsapp/calling.tsx', type: 'Page' },
-  { id: 'p-wa-groups', category: 'Frontend Pages', name: 'WhatsApp Groups', description: 'Group management — create, participants, messaging.', path: 'src/pages/dm/whatsapp/groups.tsx', type: 'Page' },
+  { id: 'p-wa-inbox', category: 'Frontend Pages', name: 'WhatsApp Inbox', description: 'Real-time WhatsApp message inbox with contact sidebar.', path: 'src/pages/engage/whatsapp/index.tsx', type: 'Page' },
+  { id: 'p-wa-templates', category: 'Frontend Pages', name: 'WhatsApp Templates', description: 'Template management — create, edit, send, analytics.', path: 'src/pages/engage/whatsapp/templates.tsx', type: 'Page' },
+  { id: 'p-wa-flows', category: 'Frontend Pages', name: 'WhatsApp Flows', description: 'Flow builder and management for WhatsApp Business Flows.', path: 'src/pages/engage/whatsapp/flows.tsx', type: 'Page' },
+  { id: 'p-wa-flowhub', category: 'Frontend Pages', name: 'Flow Hub', description: 'Centralized flow registry, submissions, and analytics.', path: 'src/pages/engage/whatsapp/flow-hub.tsx', type: 'Page' },
+  { id: 'p-wa-calling', category: 'Frontend Pages', name: 'WhatsApp Calling', description: 'Voice/video call logs and WebRTC integration.', path: 'src/pages/engage/whatsapp/calling.tsx', type: 'Page' },
+  { id: 'p-wa-groups', category: 'Frontend Pages', name: 'WhatsApp Groups', description: 'Group management — create, participants, messaging.', path: 'src/pages/engage/whatsapp/groups.tsx', type: 'Page' },
   { id: 'p-pay', category: 'Frontend Pages', name: 'Payments', description: 'Payment dashboard — Razorpay transactions.', path: 'src/pages/pay/index.tsx', type: 'Page' },
   { id: 'p-pay-flow', category: 'Frontend Pages', name: 'Pay Flow', description: 'WhatsApp payment flow — invoice + collect via chat.', path: 'src/pages/pay/flow/index.tsx', type: 'Page' },
   { id: 'p-contacts', category: 'Frontend Pages', name: 'Contacts', description: 'Contact management with opt-in, addresses, BSUID.', path: 'src/pages/contacts/index.tsx', type: 'Page' },
@@ -572,7 +572,7 @@ const CODE_ASSETS: CodeAsset[] = [
   { id: 'l-msg-read', category: 'Core Lambdas', name: 'Messages Read', description: 'Read messages from all channels with media pre-signed URLs.', path: 'amplify/functions/core/messages-read/handler.py', type: 'Lambda' },
   { id: 'l-msg-del', category: 'Core Lambdas', name: 'Messages Delete', description: 'Delete messages by ID from inbound/outbound tables.', path: 'amplify/functions/core/messages-delete/handler.py', type: 'Lambda' },
   { id: 'l-faq', category: 'Core Lambdas', name: 'FAQ Handler', description: 'FAQ auto-response engine from SystemConfig.', path: 'amplify/functions/core/faq-handler/handler.py', type: 'Lambda' },
-  { id: 'l-url', category: 'Core Lambdas', name: 'URL Shortener', description: 'Short link creation and redirect (r.wecare.digital).', path: 'amplify/functions/core/url-shortener/handler.py', type: 'Lambda' },
+  { id: 'l-url', category: 'Core Lambdas', name: 'URL Shortener', description: 'Short link creation and redirect (wecare.digital/r; r.wecare.digital retained for links already issued).', path: 'amplify/functions/core/url-shortener/handler.py', type: 'Lambda' },
   // WhatsApp Lambdas
   { id: 'l-inbound', category: 'WhatsApp Lambdas', name: 'Inbound WhatsApp', description: 'Main webhook handler — messages, keyword triggers, flow routing, AI, media.', path: 'amplify/functions/messaging/inbound-whatsapp-handler/handler.py', type: 'Lambda' },
   { id: 'l-outbound', category: 'WhatsApp Lambdas', name: 'Outbound WhatsApp', description: 'Send WhatsApp messages — text, media, interactive, templates, flows.', path: 'amplify/functions/messaging/outbound-whatsapp/handler.py', type: 'Lambda' },
@@ -758,7 +758,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           </div>
           <div>
             <div style={ label }>Domain</div>
-            <div style={ { marginTop: 4 } }>wecare.digital / api.wecare.digital / r.wecare.digital</div>
+            <div style={ { marginTop: 4 } }>wecare.digital / wecare.digital/api / r.wecare.digital</div>
           </div>
           <div>
             <div style={ label }>Authentication</div>
@@ -908,7 +908,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
 │                                     │                                               │
 │                          ┌──────────▼──────────┐                                    │
 │                          │   API Gateway        │                                    │
-│                          │   api.wecare.digital │                                    │
+│                          │   wecare.digital/api │                                    │
 │                          └──────────┬──────────┘                                    │
 │                                     │                                               │
 │    ┌────────────────────────────────┼────────────────────────────────┐               │
@@ -1129,7 +1129,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
               {
                 name: 'Cognito User Pool (us-east-1_cSx0RHCIR)', children: [
                   { name: 'Groups: Viewer, Operator, Admin' },
-                  { name: 'OAuth Domain: signin.wecare.digital' },
+                  { name: 'OAuth Domain: wecare-digital-auth.auth.us-east-1.amazoncognito.com (managed login v2)' },
                 ]
               },
               { name: 'Cognito Identity Pool' },
@@ -1140,7 +1140,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
             name: '🌐 Networking', children: [
               {
                 name: 'Route 53 (DNS)', children: [
-                  { name: 'wecare.digital' }, { name: 'api.wecare.digital' }, { name: 'r.wecare.digital' }, { name: 'signin.wecare.digital' }, { name: 'app.wecare.digital' },
+                  { name: 'wecare.digital' }, { name: 'wecare.digital/api' }, { name: 'r.wecare.digital' }, { name: 'app.wecare.digital' },
                 ]
               },
               { name: 'CloudFront (CDN)' },

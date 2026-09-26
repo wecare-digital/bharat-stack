@@ -22,7 +22,7 @@
 | 15 | Blog schema endpoint | `http-functions.js` get_schemablog | ✅ Deployed |
 | 16 | Product schema endpoint | `http-functions.js` get_schemaproduct | ✅ Deployed |
 | 17 | Feed discovery endpoint | `http-functions.js` get_discovery | ✅ Deployed |
-| 18 | SEO dashboard (blog + pages + products) | `stack.wecare.digital/src/pages/seo/` | ✅ Deployed |
+| 18 | SEO dashboard (blog + pages + products) | `src/pages/seo/` | ✅ Deployed |
 | 19 | Bedrock model chain (Sonnet 4.6 → Opus 4.6 → Nova Pro) | `bedrock.ts` | ✅ Deployed |
 | 20 | All Lambdas updated (nova-pro, agent IDs) | `_deploy_all_lambdas.py` | ✅ Deployed |
 

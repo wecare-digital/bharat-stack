@@ -1457,7 +1457,7 @@ IVR_SMS_CONTENT = (
     "Thanks for contacting WECARE.DIGITAL!\n\n"
     "Submit your request here: https://wecare.digital/selfservice "
     "or send us a message / voice note on WhatsApp: "
-    "https://r.wecare.digital/wa.\n\n"
+    "https://wecare.digital/r/wa.\n\n"
     "We'll review it and follow up if needed."
 )
 
@@ -1467,7 +1467,7 @@ ORDER_SMS_CONTENT = (
     "Thanks for placing your order with WECARE.DIGITAL!\n\n"
     "Your order has been received. We'll review it and share updates shortly.\n\n"
     "Need help? Submit a request here: https://wecare.digital/selfservice "
-    "or message / voice note us on WhatsApp: https://r.wecare.digital/wa."
+    "or message / voice note us on WhatsApp: https://wecare.digital/r/wa."
 )
 
 # WhatsApp template video URL (CloudFront — publicly accessible)
@@ -2037,7 +2037,7 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
         fallback_text = (
             "Thanks for contacting *WECARE.DIGITAL*! "
             "Submit your request here: https://wecare.digital/selfservice "
-            "or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa. "
+            "or send us a message / voice note on WhatsApp: https://wecare.digital/r/wa. "
             "We'll review it and follow up if needed."
         )
         _send_via_aws(aws_phone_id, to_number, {
