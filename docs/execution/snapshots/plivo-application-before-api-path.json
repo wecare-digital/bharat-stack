@@ -1,0 +1,20 @@
+{
+  "answer_method": "POST",
+  "answer_url": "https://api.wecare.digital/plivo/answer",
+  "app_id": "12775976954213184",
+  "app_name": "WECARE-WHATSAPP-IVR",
+  "credential_uuid": "30ad5c63-a41b-4b8c-b0f0-14693b6f4346",
+  "default_endpoint_app": true,
+  "enabled": true,
+  "fallback_answer_url": "https://api.wecare.digital/plivo/fallback",
+  "fallback_method": "POST",
+  "hangup_method": "POST",
+  "hangup_url": "https://api.wecare.digital/plivo/hangup",
+  "ip_acl_uuid": "",
+  "message_method": "POST",
+  "message_url": "",
+  "public_uri": true,
+  "sip_auth_type": "credential",
+  "sip_uri": "sip:12775976954213184@app.plivo.com",
+  "sub_account": null
+}
