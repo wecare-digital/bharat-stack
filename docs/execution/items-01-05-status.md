@@ -146,13 +146,32 @@ bottom, and every header tap target ≥44px.
 is "amend a request" at 279px on the 36px floor, the pill adds ~0.52em, so required width is
 `279·(F/36) + 0.52F = 8.27F`; a 280px viewport leaves 248px, giving `F ≤ 30.0`. 28px at ≤340px.
 
-### PENDING — and this is the honest gap
-- **Only Chromium has been tested.** "Any browser" is not verified: **Firefox and WebKit/Safari
-  have not been run at all.** `width:max-content`, `dvh`, `ResizeObserver` and
-  `text-wrap:balance` are all well supported, but supported is not tested. Playwright can drive
-  all three; this is a real gap and it is cheap to close.
-- **No real WebView test.** The matrix approximates it with `dvh` and a phone viewport. An
-  actual Android WebView / iOS `WKWebView` has its own viewport and font-scaling behaviour.
+### Cross-browser — CLOSED for Chromium and Firefox, BLOCKED for WebKit
+
+| Engine | Result | Notes |
+|---|---|---|
+| **Chromium** 153 | **270/270** | default |
+| **Firefox** 155 (Gecko) | **270/270** | `--firefox`; zero failures, including every foldable posture |
+| **WebKit** | **cannot run on this host** | see below |
+
+Feature support confirmed directly in both engines that run, rather than assumed from
+caniuse: `width:max-content`, `height:100dvh`, `ResizeObserver` and `text-wrap:balance` all
+report `true` in Chromium **and** Firefox. Those are the four the fixes depend on.
+
+### PENDING — WebKit, and it is an image problem not an install problem
+- **WebKit will not launch here, and the reason is specific.** The host is Amazon Linux 2023,
+  which ships **ICU 67**; the Playwright WebKit build links `libicudata.so.74`,
+  `libicui18n.so.74` and `libicuuc.so.74`. It also wants GTK4, a full GStreamer stack,
+  `libgraphene`, `libxslt`, `libopus` and `flite`. `playwright install-deps` only knows
+  `apt-get` and fails on AL2023; `dnf` has no `flite` package at all. The fix is an
+  Ubuntu-based image — `mcr.microsoft.com/playwright` — not a longer dnf line.
+- **Consequence, stated plainly: iOS is unverified.** WebKit is Safari's engine and the engine
+  behind *every* browser and WebView on iOS, so that is the platform this leaves open — not a
+  minor third engine. `--webkit` is already wired into `devicecheck.js`, so closing it is one
+  CI job on the right base image.
+- **No real WebView test.** The matrix approximates it with `dvh` and a phone viewport. Android
+  WebView is Chromium-based, so the Chromium pass covers its engine but not its chrome-inset or
+  font-scaling behaviour; iOS `WKWebView` is WebKit and therefore blocked by the same item above.
 - **Not checked at all:** print stylesheet, RTL (`dir="rtl"`), and real browser zoom at 200/400%
   as distinct from a narrow viewport.
 - **105 auth-gated routes** are unverified for any of this, by construction.

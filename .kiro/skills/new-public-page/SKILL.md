@@ -128,9 +128,13 @@ across 124 routes:
   carries `aria-hidden` for an equally correct reason (so a screen reader does not read the
   headline once per word). The two combine into a **mixed-language headline**: the frame line
   translates, the word inside the pill does not. 78 nodes sitewide.
-- **`data-wc-no-translate` is doing double duty.** It is meant to protect customer data in the
-  dashboard, and it is also sitting on public eyebrow labels — "Legal Stuff — WECARE.DIGITAL",
-  "Selfservice by WECARE.DIGITAL" — which then never translate. Check before adding it.
+- **`data-wc-no-translate` on a brand lockup is correct — do not "fix" it.** `BrandBadge.tsx:56`
+  sets it deliberately so the **brand name** survives translation, and says so in a comment. An
+  earlier version of this skill called it a misapplied dashboard flag; that was wrong. The real
+  and much smaller problem is that the descriptor shares the label — "Legal Stuff —
+  WECARE.DIGITAL", "Selfservice by WECARE.DIGITAL" — so the words around the brand name are
+  collateral. If you need the descriptor translated, split it into its own element rather than
+  removing the flag.
 - **A translated word is wider.** "consumers" 278px → "उपभोक्ताओं" 317px, and Devanagari is
   taller at the same size. Any box with `overflow:hidden` and a JS-measured width will clip.
   `width:max-content` plus a `ResizeObserver` **on the text element, not its container**, is
@@ -169,12 +173,22 @@ npx vitest run
 node tools/browser/animcheck.js        # rotating-headline reflow, 21 viewports
 node tools/browser/homeprobe.js        # the degradation states from §3
 node tools/browser/pageaudit.js        # structure + translation census + overflow
+node tools/browser/devicecheck.js      # 18 routes × 15 postures, incl. foldables
+node tools/browser/devicecheck.js --firefox   # same matrix on Gecko
 node tools/browser/uicheck.js
 node tools/browser/typecheck.js
 node tools/browser/seocheck.js
 python3 scripts/check_design_drift.py
 python3 -m pytest tests/test_design_drift_tokens.py -q
 ```
+
+**Run at least two engines.** Chromium and Firefox both pass 270/270 today. `--webkit` is wired
+up but **cannot run on this host**: Amazon Linux 2023 ships ICU 67 while the Playwright WebKit
+build links ICU 74, and it also wants GTK4, GStreamer, libgraphene, libxslt, libopus and flite —
+`playwright install-deps` only knows apt-get, and AL2023 has no flite package. It needs an
+Ubuntu-based image (`mcr.microsoft.com/playwright`). **Until it runs, iOS is unverified**, because
+WebKit is Safari's engine and the engine behind every browser and WebView on iOS. Treat that as a
+known task, not a caveat.
 
 A new page adds a route to `pageaudit.js`'s discovery automatically. If it introduces a state
 the matrix in §3 does not cover, add the assertion — a green suite that cannot see a defect is
