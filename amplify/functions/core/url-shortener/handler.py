@@ -1,6 +1,14 @@
 """
 URL Shortener Lambda - WECARE.DIGITAL
-Domain: r.wecare.digital
+
+Canonical base for new links: wecare.digital/r  (since 2026-09-26)
+Also honoured, permanently:   r.wecare.digital
+
+Both resolve to this same function. The subdomain is NOT deprecated in the
+"switch it off soon" sense — it is a permanent alias, because every short link
+already sent to a customer names it. Serving a shortener means honouring codes
+you issued, so the old host has to keep answering for as long as those messages
+exist, which is indefinitely.
 
 Creates short links with optional deep link support for iOS/Android.
 Tracks clicks with device/geo info.
@@ -23,7 +31,30 @@ from datetime import datetime, timezone
 dynamodb = boto3.resource("dynamodb")
 SHORT_LINKS_TABLE = os.environ.get("SHORT_LINKS_TABLE", "stack-wecare-digital-ShortLinksTable")
 LINK_CLICKS_TABLE = os.environ.get("LINK_CLICKS_TABLE", "stack-wecare-digital-LinkClicksTable")
-SHORT_DOMAIN = os.environ.get("SHORT_DOMAIN", "r.wecare.digital")
+
+# The base that NEWLY minted short links are published under. Canonical form is the
+# apex path `wecare.digital/r` as of 2026-09-26, replacing the `r.wecare.digital`
+# subdomain.
+#
+# This is deliberately NOT called SHORT_DOMAIN any more, because that one name was
+# doing three incompatible jobs in link-resources.ts: the ACM certificate subject,
+# the API Gateway custom domain, and this public link base. The first two must stay
+# a bare DNS label — `wecare.digital/r` is not a hostname and cannot be either —
+# while this one must carry the path. Reusing one constant for both is what would
+# make "move the shortener to a path" look like it required giving up the subdomain.
+#
+# It does not: `r.wecare.digital` stays mapped and serving, because short links
+# already delivered to customers cannot be edited. An RCS card on a handset and an
+# SMS already sent both still point at the old host, and 719 recorded clicks say
+# people follow them. Changing this value changes what we MINT, not what we HONOUR.
+#
+# SHORT_DOMAIN is still read as a fallback so an environment that has not been
+# updated yet keeps working rather than silently minting links on a bare default.
+SHORT_LINK_BASE = (
+    os.environ.get("SHORT_LINK_BASE")
+    or os.environ.get("SHORT_DOMAIN")
+    or "wecare.digital/r"
+).strip().strip("/")
 
 links_table = dynamodb.Table(SHORT_LINKS_TABLE)
 clicks_table = dynamodb.Table(LINK_CLICKS_TABLE)
@@ -176,7 +207,7 @@ def create_link(body):
     item = {
         "shortCode": short_code,
         "originalUrl": original_url,
-        "shortUrl": f"https://{SHORT_DOMAIN}/{short_code}",
+        "shortUrl": f"https://{SHORT_LINK_BASE}/{short_code}",
         "title": body.get("title", original_url),
         "clicks": 0,
         "createdAt": now,

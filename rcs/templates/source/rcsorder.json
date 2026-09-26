@@ -3,7 +3,7 @@
     "richCard": {
       "standaloneCard": {
         "cardContent": {
-          "description": "Your order has been received. We’ll review it and share updates shortly.\n\nNeed help? Submit a request here: https://wecare.digital/selfservice or message / voice note us on WhatsApp: https://r.wecare.digital/wa.\n``````\nWECARE.DIGITAL",
+          "description": "Your order has been received. We’ll review it and share updates shortly.\n\nNeed help? Submit a request here: https://wecare.digital/selfservice or message / voice note us on WhatsApp: https://wecare.digital/r/wa.\n``````\nWECARE.DIGITAL",
           "media": {
             "contentInfo": {
               "fileUrl": "https://app.wecare.digital/stream/media/m/selfservice.mp4",
@@ -17,7 +17,7 @@
               "action": {
                 "openUrlAction": {
                   "application": "BROWSER",
-                  "url": "https://r.wecare.digital/getstarted"
+                  "url": "https://wecare.digital/r/getstarted"
                 },
                 "postbackData": "rcsorder",
                 "text": "Get Started"

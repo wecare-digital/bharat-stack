@@ -1831,7 +1831,7 @@ def _process_message(
                     contact_id=contact_id,
                     phone_number_id=aws_phone_number_id,
                     cta_text='Pay Now',
-                    cta_url='https://r.wecare.digital/pay',
+                    cta_url='https://wecare.digital/r/pay',
                     request_id=request_id,
                     body_text='\U0001f4b3 Make your payment quickly and securely online.',
                     footer_text='WECARE.DIGITAL',
@@ -4836,16 +4836,16 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
             else:
                 # No WABA 2 flow  -  send CTA URL fallback
                 SHORT_URLS = {
-                    'submit_request': 'https://r.wecare.digital/sr',
-                    'track_request': 'https://r.wecare.digital/tr',
-                    'amend_request': 'https://r.wecare.digital/ar',
-                    'schedule_appointment': 'https://r.wecare.digital/sa',
-                    'rx_slot': 'https://r.wecare.digital/rx',
-                    'drop_docs': 'https://r.wecare.digital/dd',
-                    'enterprise_assist': 'https://r.wecare.digital/ea',
-                    'leave_review': 'https://r.wecare.digital/lr',
-                    'subscribe': 'https://r.wecare.digital/sub',
-                    'order_notes': 'https://r.wecare.digital/on',
+                    'submit_request': 'https://wecare.digital/r/sr',
+                    'track_request': 'https://wecare.digital/r/tr',
+                    'amend_request': 'https://wecare.digital/r/ar',
+                    'schedule_appointment': 'https://wecare.digital/r/sa',
+                    'rx_slot': 'https://wecare.digital/r/rx',
+                    'drop_docs': 'https://wecare.digital/r/dd',
+                    'enterprise_assist': 'https://wecare.digital/r/ea',
+                    'leave_review': 'https://wecare.digital/r/lr',
+                    'subscribe': 'https://wecare.digital/r/sub',
+                    'order_notes': 'https://wecare.digital/r/on',
                 }
                 PHONE2_BODY = {
                     'submit_request': '\U0001f4cb Start a new support request. Share the details and our team will follow up with you.',
@@ -4859,7 +4859,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
                     'subscribe': '\U0001f514 Get updates, offers, and service news. Fill in your details to stay connected.',
                     'order_notes': '\U0001f4dd Add notes to your order with any special instructions.',
                 }
-                short_url = SHORT_URLS.get(flow_key, 'https://r.wecare.digital/sr')
+                short_url = SHORT_URLS.get(flow_key, 'https://wecare.digital/r/sr')
                 cta_text = msg.get('flowCta', flow_key.replace('_', ' ').title())
                 body_text = PHONE2_BODY.get(flow_key, msg.get('body', 'Tap below to continue.'))
                 _send_cta_button(contact_id, phone_number_id, cta_text, short_url, request_id,
@@ -6799,7 +6799,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
                 contact_id=contact_id,
                 phone_number_id=phone_number_id,
                 cta_text='Pay Now',
-                cta_url='https://r.wecare.digital/pay',
+                cta_url='https://wecare.digital/r/pay',
                 request_id=request_id,
                 body_text='\U0001f4b3 Make your payment quickly and securely online.',
                 footer_text='WECARE.DIGITAL',
@@ -7053,7 +7053,7 @@ def _get_welcome_config() -> Dict:
     Takes no phone argument, so WABA1 and WABA2 render the identical menu. What
     differs between the numbers is what happens after a tap: 9 of the 10 flows
     have no `flowId2`, so WABA2 degrades to a CTA URL, and `menu_pay` routes to
-    r.wecare.digital/pay instead of native WhatsApp Pay.
+    wecare.digital/r/pay instead of native WhatsApp Pay.
 
     The config key is unchanged so the dashboard editor at
     /dm/whatsapp/auto-response keeps working. Note it is a shallow merge: an

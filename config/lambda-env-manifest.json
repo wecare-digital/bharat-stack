@@ -7,8 +7,8 @@
   "functions": {
     "stack-wecare-url-shortener": {
       "LINK_CLICKS_TABLE": "stack-wecare-digital-LinkClicksTable",
-      "SHORT_DOMAIN": "r.wecare.digital",
-      "SHORT_LINKS_TABLE": "stack-wecare-digital-ShortLinksTable"
+      "SHORT_LINKS_TABLE": "stack-wecare-digital-ShortLinksTable",
+      "SHORT_LINK_BASE": "wecare.digital/r"
     },
     "wecare-ad-attribution": {},
     "wecare-agent-action-group": {

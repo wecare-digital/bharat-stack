@@ -17,7 +17,7 @@
               "action": {
                 "openUrlAction": {
                   "application": "BROWSER",
-                  "url": "https://r.wecare.digital/getstarted"
+                  "url": "https://wecare.digital/r/getstarted"
                 },
                 "postbackData": "waalert",
                 "text": "Get Started"

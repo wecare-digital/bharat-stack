@@ -451,12 +451,12 @@ def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
         title='Thanks for contacting WECARE.DIGITAL!',
         description=(
             'Submit your request here: https://wecare.digital/selfservice '
-            'or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\n'
+            'or send us a message / voice note on WhatsApp: https://wecare.digital/r/wa.\n\n'
             "We'll review it and follow up if needed.\nWECARE.DIGITAL"
         ),
         media_url='https://app.wecare.digital/stream/media/m/selfservice.mp4',
         choices=[
-            {'title': 'Get Started', 'url': 'https://r.wecare.digital/getstarted'},
+            {'title': 'Get Started', 'url': 'https://wecare.digital/r/getstarted'},
         ],
     )
 

@@ -107,10 +107,27 @@ export function initDeepLinks(navigate: (path: string) => void) {
     } catch {
       return;
     }
-    // r.wecare.digital short links — let the redirect Lambda handle it
-    if (url.hostname === 'r.wecare.digital') {
-      // The /r/:code redirect will resolve to the actual path
-      const code = url.pathname.replace(/^\//, '');
+    // Short links — let the redirect Lambda resolve the code.
+    //
+    // TWO forms, both live and both required:
+    //   wecare.digital/r/<code>   canonical since 2026-09-26, what we mint now
+    //   r.wecare.digital/<code>   every link issued before that
+    //
+    // The subdomain branch is not legacy cruft to be cleaned up later. Short links
+    // are printed on physical materials and embedded in messages already delivered
+    // (see PROTECTED_TABLES in operations/system-cleanup), so a handset opening the
+    // old form has to keep working for as long as those exist. Dropping this branch
+    // would make the app swallow its own short links while a browser still followed
+    // them, which is the worst failure shape: broken only for the people who
+    // installed the app.
+    const isApexShortLink =
+      (url.hostname === 'wecare.digital' || url.hostname === 'www.wecare.digital')
+      && /^\/r\/.+/.test(url.pathname);
+
+    if (url.hostname === 'r.wecare.digital' || isApexShortLink) {
+      const code = isApexShortLink
+        ? url.pathname.replace(/^\/r\//, '')
+        : url.pathname.replace(/^\//, '');
       if (code) navigate(`/link?opened=${code}`);
       return;
     }

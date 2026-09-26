@@ -634,7 +634,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
       const endpoint = '/sms-aws/send';
       const body = {
         phoneNumber: smsTestPhone,
-        content: "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.",
+        content: "Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://wecare.digital/r/wa.\n\nWe'll review it and follow up if needed.",
         messageType: 'TRANSACTIONAL',
         dltTemplateKey: 'ivr-default',
       };
@@ -1244,7 +1244,7 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                 </div>
               </div>
               <div style={ { marginTop: '8px', padding: '8px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb', fontFamily: 'monospace', fontSize: '11px', color: '#374151', whiteSpace: 'pre-line' } }>
-                { `Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\nWe'll review it and follow up if needed.` }
+                { `Thanks for contacting WECARE.DIGITAL!\n\nSubmit your request here: https://wecare.digital/selfservice or send us a message / voice note on WhatsApp: https://wecare.digital/r/wa.\n\nWe'll review it and follow up if needed.` }
               </div>
               {/* Test SMS Controls */ }
               <div style={ { marginTop: '10px', padding: '10px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb' } }>

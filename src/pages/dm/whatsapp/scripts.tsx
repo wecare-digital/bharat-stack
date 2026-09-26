@@ -133,7 +133,7 @@ const ScriptsPageBody: React.FC<Props> = () => {
     items.push(
       { id: 'pay_pulling', category: 'Pay', trigger: '"pay" / "payment" / "invoice" (Phone 1)', messageType: 'Text', content: '👀 Pulling your pending invoice...', phone: 'Phone 1', editable: false },
       { id: 'pay_no_dues', category: 'Pay', trigger: 'No pending invoices found', messageType: 'Text', content: '✅ No pending dues!', phone: 'Phone 1', editable: false },
-      { id: 'pay_cta', category: 'Pay', trigger: '"pay" (Phone 2)', messageType: 'CTA URL Button', content: 'CTA: Pay Now → r.wecare.digital/pay', phone: 'Phone 2', editable: false },
+      { id: 'pay_cta', category: 'Pay', trigger: '"pay" (Phone 2)', messageType: 'CTA URL Button', content: 'CTA: Pay Now → wecare.digital/r/pay', phone: 'Phone 2', editable: false },
     );
 
     // Phone 2 CTA links
@@ -150,7 +150,7 @@ const ScriptsPageBody: React.FC<Props> = () => {
         category: 'CTA Link',
         trigger: `Phone 2 flow fallback for ${cl.label}`,
         messageType: 'CTA URL Button',
-        content: `CTA: ${cl.label} → r.wecare.digital/${cl.key}`,
+        content: `CTA: ${cl.label} → wecare.digital/r/${cl.key}`,
         phone: 'Phone 2 only',
         editable: false,
       });

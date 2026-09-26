@@ -141,7 +141,7 @@ const LAMBDAS: LambdaDef[] = [
   { name: 'messages-read', category: 'Core', trigger: 'API Gateway', tables: 'WhatsAppInbound, WhatsAppOutbound', description: 'Read messages from all channels', apiRoute: '/messages' },
   { name: 'messages-delete', category: 'Core', trigger: 'API Gateway', tables: 'WhatsAppInbound, WhatsAppOutbound', description: 'Delete messages by ID', apiRoute: '/messages/{id}' },
   { name: 'faq-handler', category: 'Core', trigger: 'API Gateway', tables: 'SystemConfig', description: 'FAQ auto-response engine', apiRoute: '/faq' },
-  { name: 'url-shortener', category: 'Core', trigger: 'API Gateway', tables: '-', description: 'Short link creation (r.wecare.digital)', apiRoute: '/link' },
+  { name: 'url-shortener', category: 'Core', trigger: 'API Gateway', tables: '-', description: 'Short link creation (wecare.digital/r)', apiRoute: '/link' },
   { name: 'inbound-whatsapp-handler', category: 'Messaging', trigger: 'API GW Webhook', tables: 'WhatsAppInbound, Contact, MediaFile, WebhookDedup', description: 'Process incoming WhatsApp messages', apiRoute: '/webhook/whatsapp' },
   { name: 'outbound-whatsapp', category: 'Messaging', trigger: 'API Gateway, SQS', tables: 'WhatsAppOutbound', description: 'Send WhatsApp messages via Cloud API', apiRoute: '/whatsapp/send' },
   { name: 'outbound-sms', category: 'Messaging', trigger: 'API Gateway', tables: 'Messages', description: 'Send SMS via AWS End User Messaging', apiRoute: '/sms/send' },
@@ -572,7 +572,7 @@ const CODE_ASSETS: CodeAsset[] = [
   { id: 'l-msg-read', category: 'Core Lambdas', name: 'Messages Read', description: 'Read messages from all channels with media pre-signed URLs.', path: 'amplify/functions/core/messages-read/handler.py', type: 'Lambda' },
   { id: 'l-msg-del', category: 'Core Lambdas', name: 'Messages Delete', description: 'Delete messages by ID from inbound/outbound tables.', path: 'amplify/functions/core/messages-delete/handler.py', type: 'Lambda' },
   { id: 'l-faq', category: 'Core Lambdas', name: 'FAQ Handler', description: 'FAQ auto-response engine from SystemConfig.', path: 'amplify/functions/core/faq-handler/handler.py', type: 'Lambda' },
-  { id: 'l-url', category: 'Core Lambdas', name: 'URL Shortener', description: 'Short link creation and redirect (r.wecare.digital).', path: 'amplify/functions/core/url-shortener/handler.py', type: 'Lambda' },
+  { id: 'l-url', category: 'Core Lambdas', name: 'URL Shortener', description: 'Short link creation and redirect (wecare.digital/r; r.wecare.digital retained for links already issued).', path: 'amplify/functions/core/url-shortener/handler.py', type: 'Lambda' },
   // WhatsApp Lambdas
   { id: 'l-inbound', category: 'WhatsApp Lambdas', name: 'Inbound WhatsApp', description: 'Main webhook handler — messages, keyword triggers, flow routing, AI, media.', path: 'amplify/functions/messaging/inbound-whatsapp-handler/handler.py', type: 'Lambda' },
   { id: 'l-outbound', category: 'WhatsApp Lambdas', name: 'Outbound WhatsApp', description: 'Send WhatsApp messages — text, media, interactive, templates, flows.', path: 'amplify/functions/messaging/outbound-whatsapp/handler.py', type: 'Lambda' },

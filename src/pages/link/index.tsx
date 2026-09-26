@@ -1,6 +1,9 @@
 /**
  * Link Page - URL Shortener & Deep Links
- * Domain: r.wecare.digital
+ *
+ * New links are minted under wecare.digital/r (canonical since 2026-09-26).
+ * r.wecare.digital still resolves every code ever issued and is not being retired.
+ *
  * General-purpose short links, click tracking, deep links for iOS/Android
  */
 import React, { useState, useEffect, useCallback } from 'react';
@@ -10,8 +13,16 @@ import Button from '../../components/ui/Button';
 import { useToastContext } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 
-const API_BASE = process.env.NEXT_PUBLIC_LINK_API_BASE || 'https://r.wecare.digital';
-const SHORT_DOMAIN = 'r.wecare.digital';
+// The link CRUD API. Both r.wecare.digital and api.wecare.digital map to the same
+// HTTP API (zllr9lrg7j) and return identical results — verified, both 401 on an
+// anonymous GET /links. Pointed at the canonical API host rather than the shortener
+// subdomain so the dashboard does not depend on a host whose only remaining job is
+// honouring already-issued links.
+const API_BASE = process.env.NEXT_PUBLIC_LINK_API_BASE || 'https://api.wecare.digital';
+
+// The base shown to an operator and used to build a copyable link. Display only —
+// what actually gets stored comes back from the Lambda's SHORT_LINK_BASE.
+const SHORT_LINK_BASE = 'wecare.digital/r';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
@@ -96,7 +107,7 @@ const LinkPage: React.FC<PageProps> = ( { signOut, user } ) => {
       setLinks( ( data.links || [] ).map( ( l: any ) => ( {
         ...l,
         clicks: Number( l.clicks ) || 0,
-        shortUrl: `https://${SHORT_DOMAIN}/${l.shortCode}`,
+        shortUrl: `https://${SHORT_LINK_BASE}/${l.shortCode}`,
       } ) ) );
     } catch ( err )
     {
@@ -260,12 +271,12 @@ const LinkPage: React.FC<PageProps> = ( { signOut, user } ) => {
 
   return (
     <Layout user={ user } onSignOut={ signOut }>
-      <SEO title="Link" description="URL shortener and deep links — r.wecare.digital" />
+      <SEO title="Link" description="URL shortener and deep links — wecare.digital/r" />
       <div className="link-page">
         <div className="link-page-header">
           <div>
             <h1>Link</h1>
-            <p>URL shortener &amp; deep links via <strong>{ SHORT_DOMAIN }</strong></p>
+            <p>URL shortener &amp; deep links via <strong>{ SHORT_LINK_BASE }</strong></p>
           </div>
           <Button variant="primary" onClick={ openCreate }>
             <PlusIcon size={ 14 } /> Create Short Link
@@ -276,7 +287,7 @@ const LinkPage: React.FC<PageProps> = ( { signOut, user } ) => {
           <div className="link-stat"><div className="link-stat-val">{ links.length }</div><div className="link-stat-lbl">Total Links</div></div>
           <div className="link-stat"><div className="link-stat-val">{ totalClicks }</div><div className="link-stat-lbl">Total Clicks</div></div>
           <div className="link-stat"><div className="link-stat-val">{ deepLinkCount }</div><div className="link-stat-lbl">Deep Links</div></div>
-          <div className="link-stat"><div className="link-stat-val">{ SHORT_DOMAIN }</div><div className="link-stat-lbl">Domain</div></div>
+          <div className="link-stat"><div className="link-stat-val">{ SHORT_LINK_BASE }</div><div className="link-stat-lbl">Domain</div></div>
         </div>
 
         <div className="link-table-wrap">
@@ -359,7 +370,7 @@ const LinkPage: React.FC<PageProps> = ( { signOut, user } ) => {
                 <label className="link-label">
                   { editingCode ? 'Short Code' : 'Custom Code (optional)' }
                   <div style={ { display: 'flex', gap: 8, alignItems: 'center' } }>
-                    <span style={ { fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' } }>{ SHORT_DOMAIN }/</span>
+                    <span style={ { fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' } }>{ SHORT_LINK_BASE }/</span>
                     <input className="link-input" type="text" placeholder={ formCode } value={ formCode } onChange={ e => setFormCode( e.target.value ) } style={ { flex: 1 } } disabled={ !!editingCode } />
                     { !editingCode && <button className="link-gen-btn" onClick={ generateCode } type="button">Random</button> }
                   </div>

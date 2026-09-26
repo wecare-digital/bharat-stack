@@ -167,7 +167,7 @@ def attempt(destination: str, *, template_key: str, live: bool, label: str) -> d
             "Thanks for contacting WECARE.DIGITAL!\n\n"
             "Submit your request here: https://wecare.digital/selfservice "
             "or send us a message / voice note on WhatsApp: "
-            "https://r.wecare.digital/wa.\n\n"
+            "https://wecare.digital/r/wa.\n\n"
             "We'll review it and follow up if needed."
         )
 

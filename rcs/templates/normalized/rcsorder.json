@@ -8,7 +8,7 @@
       "kind": "action",
       "postbackData": "rcsorder",
       "text": "Get Started",
-      "url": "https://r.wecare.digital/getstarted"
+      "url": "https://wecare.digital/r/getstarted"
     }
   ],
   "bodyLength": 233,

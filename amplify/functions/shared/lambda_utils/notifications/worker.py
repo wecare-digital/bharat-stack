@@ -221,7 +221,7 @@ def notification_body() -> str:
     return os.environ.get("NOTIF_SMS_BODY", (
         "Thanks for contacting WECARE.DIGITAL!\n\n"
         "Submit your request here: https://wecare.digital/selfservice "
-        "or send us a message / voice note on WhatsApp: https://r.wecare.digital/wa.\n\n"
+        "or send us a message / voice note on WhatsApp: https://wecare.digital/r/wa.\n\n"
         "We'll review it and follow up if needed."
     ))
 
