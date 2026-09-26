@@ -896,9 +896,11 @@ def collect_iac() -> dict:
                 "platform": a.get("platform"),
                 "repository": a.get("repository"),
                 "custom_rule_count": len(a.get("customRules") or []),
-                "branches": brows,
+                # Sorted so a regenerated inventory diffs to real change only.
+                "branches": sorted(brows, key=lambda b: b["branch"] or ""),
             }
         )
+    app_rows.sort(key=lambda r: r["app_id"] or "")
     return {
         "cfn_stack_count": len(stack_rows),
         "cfn_stacks": stack_rows,
@@ -1058,13 +1060,23 @@ def main() -> int:
         "alt_regions": ALT_REGIONS,
     }
 
+    # Collect concurrently, but assign into `data` in a fixed order. Writing keys
+    # in thread-completion order reordered the whole document on every run, so a
+    # regenerated inventory diffed by ~550 lines and genuine change was invisible
+    # in the noise.
+    results: dict = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=7) as pool:
         futures = {pool.submit(guard, name, fn, {}): name for name, fn in selected.items()}
         for fut in concurrent.futures.as_completed(futures):
             name = futures[fut]
-            data[name] = fut.result() or {}
+            results[name] = fut.result() or {}
             if not args.json_only:
                 print(f"  collected {name}", file=sys.stderr)
+    for name in COLLECTORS:
+        if name in results:
+            data[name] = results[name]
+
+    ERRORS.sort(key=lambda e: (e["label"], e["error"]))
 
     data["errors"] = ERRORS
     data["error_count"] = len(ERRORS)

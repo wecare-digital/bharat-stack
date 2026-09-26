@@ -1,1181 +1,1753 @@
 {
-  "generated": "2026-09-26T03:28:13.823431+00:00",
+  "generated": "2026-09-26T03:48:54.871742+00:00",
   "account": "775261844268",
   "identity_arn": "arn:aws:iam::775261844268:user/wecare-admin",
   "region": "us-east-1",
   "alt_regions": [
     "ap-south-1"
   ],
-  "secrets_manager": {
-    "count": 31,
-    "scheduled_for_deletion": [
-      "wecare/airtel-iq",
-      "wecare/airtel/c2c",
-      "wecare/airtel/obd",
-      "wecare/airtel/sms",
-      "wecare/sinch/sms"
+  "lambda": {
+    "count": 65,
+    "with_live_alias": 58,
+    "without_live_alias": [
+      "wecare-ad-attribution",
+      "wecare-docs-scraper",
+      "wecare-get-miss-redirect",
+      "wecare-partner-token-refresh",
+      "wecare-seo-tools",
+      "wecare-sla-engine",
+      "wecare-url-shortener"
     ],
-    "rotation_enabled": [],
-    "never_accessed": [],
-    "secrets": [
-      {
-        "name": "wecare/ads/account-registry",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/ads/account-registry-PFC39J",
-        "last_changed": "2026-09-18T08:10:55.580000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": true,
-        "tags": {
-          "Application": "WECARE.DIGITAL",
-          "Purpose": "IntegrationCredentials",
-          "ManagedBy": "ChatGPT"
-        }
-      },
-      {
-        "name": "wecare/agent-connector-token",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/agent-connector-token-rW4wo3",
-        "last_changed": "2026-07-20T14:16:07.071000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/airtel-iq",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel-iq-VIq8Rr",
-        "last_changed": "2026-09-20T01:46:18.158000+00:00",
-        "last_accessed": "2026-09-19T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": "2026-09-20T01:46:18.150000+00:00",
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/airtel/c2c",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel/c2c-unYhQj",
-        "last_changed": "2026-09-20T01:46:18.793000+00:00",
-        "last_accessed": "2026-09-19T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": "2026-09-20T01:46:18.786000+00:00",
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/airtel/obd",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel/obd-3iJ5ZF",
-        "last_changed": "2026-09-20T01:46:18.488000+00:00",
-        "last_accessed": "2026-09-19T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": "2026-09-20T01:46:18.479000+00:00",
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/airtel/sms",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel/sms-P7s1OS",
-        "last_changed": "2026-09-20T01:46:19.117000+00:00",
-        "last_accessed": "2026-09-19T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": "2026-09-20T01:46:19.111000+00:00",
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/aws/iam-access-keys",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/aws/iam-access-keys-R64OdR",
-        "last_changed": "2026-09-18T10:29:22.532000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/backup/recovery-passphrase",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/backup/recovery-passphrase-6dtrTd",
-        "last_changed": "2026-09-19T03:08:56.850000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/bing/api",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/bing/api-Opu8P3",
-        "last_changed": "2026-09-18T08:10:45.600000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": true,
-        "tags": {
-          "Application": "WECARE.DIGITAL",
-          "Purpose": "IntegrationCredentials",
-          "ManagedBy": "ChatGPT"
-        }
-      },
-      {
-        "name": "wecare/config/webhook-registry",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/config/webhook-registry-LEbXAV",
-        "last_changed": "2026-09-19T08:17:40.383000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/flow-private-key",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/flow-private-key-qTil1Q",
-        "last_changed": "2026-02-23T03:47:08.954000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/github-connection",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/github-connection-VYaD4z",
-        "last_changed": "2026-09-18T07:09:34.165000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/github-pat",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/github-pat-y4tXJa",
-        "last_changed": "2026-08-26T00:47:58.696000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/google-api-key",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google-api-key-KcZ6nj",
-        "last_changed": "2026-09-18T10:22:41.266000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/google-maps",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google-maps-WFucJA",
-        "last_changed": "2026-09-18T10:22:49.341000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/google-maps-server",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google-maps-server-tpmvdh",
-        "last_changed": "2026-09-26T02:19:14.014000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/google/ads",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/ads-HuIYKY",
-        "last_changed": "2026-09-17T11:05:14.453000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": true,
-        "tags": {
-          "Application": "WECARE.DIGITAL",
-          "Purpose": "IntegrationCredentials",
-          "ManagedBy": "ChatGPT"
-        }
-      },
-      {
-        "name": "wecare/google/cloud",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/cloud-wKkDxP",
-        "last_changed": "2026-09-19T07:28:27.629000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": true,
-        "tags": {
-          "Application": "WECARE.DIGITAL",
-          "Purpose": "IntegrationCredentials",
-          "ManagedBy": "ChatGPT"
-        }
-      },
-      {
-        "name": "wecare/meta-system-user-token",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/meta-system-user-token-5vu2o3",
-        "last_changed": "2026-09-20T08:11:36.888000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/meta/payments",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/meta/payments-8L2LIa",
-        "last_changed": "2026-09-18T09:40:43.015000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/openai/api",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/openai/api-ke9WOX",
-        "last_changed": "2026-09-18T08:10:50.855000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": true,
-        "tags": {
-          "Application": "WECARE.DIGITAL",
-          "Purpose": "IntegrationCredentials",
-          "ManagedBy": "ChatGPT"
-        }
-      },
-      {
-        "name": "wecare/plivo",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/plivo-3ZLA2U",
-        "last_changed": "2026-09-19T07:28:28.546000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/plivo-answer",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/plivo-answer-uxE0q7",
-        "last_changed": "2026-09-19T07:38:56.179000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/plivo/api",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/plivo/api-aIEx8b",
-        "last_changed": "2026-09-18T10:06:33.375000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": true,
-        "tags": {
-          "Application": "WECARE.DIGITAL",
-          "Purpose": "IntegrationCredentials",
-          "ManagedBy": "ChatGPT"
-        }
-      },
-      {
-        "name": "wecare/razorpay-webhook",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/razorpay-webhook-Jt2DYn",
-        "last_changed": "2026-07-02T13:53:03.746000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/razorpay/api",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/razorpay/api-vaHEaM",
-        "last_changed": "2026-09-19T03:19:33.634000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/seo/google-oauth",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/seo/google-oauth-XnSVlc",
-        "last_changed": "2026-09-19T07:28:29.947000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/sinch/rcs",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/sinch/rcs-18kRci",
-        "last_changed": "2026-05-05T14:01:52.351000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/sinch/sms",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/sinch/sms-Mwa0W0",
-        "last_changed": "2026-09-20T01:46:19.437000+00:00",
-        "last_accessed": "2026-09-19T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": "2026-09-20T01:46:19.430000+00:00",
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/truecaller",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/truecaller-b4PYwF",
-        "last_changed": "2026-09-19T07:28:31.915000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      },
-      {
-        "name": "wecare/wix/headless-api-key",
-        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/wix/headless-api-key-UTWQel",
-        "last_changed": "2026-09-26T01:47:57.558000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
-        "rotation_enabled": false,
-        "deleted_date": null,
-        "kms_key": false,
-        "tags": {}
-      }
-    ]
-  },
-  "sqs": {
-    "count": 8,
-    "dlq_like": [
-      "stack-wecare-digital-bulk-dlq",
-      "stack-wecare-digital-inbound-dlq",
-      "stack-wecare-digital-notification-dlq",
-      "stack-wecare-digital-outbound-dlq",
-      "wecare-eventbridge-dlq",
-      "wecare-lambda-async-dlq"
-    ],
-    "without_redrive": [],
-    "non_empty": {},
-    "queues": [
-      {
-        "name": "stack-wecare-digital-bulk-dlq",
-        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-bulk-dlq",
-        "visible_messages": 0,
-        "in_flight": 0,
-        "fifo": false,
-        "kms": true,
-        "dlq_target": null,
-        "is_dlq_name": true,
-        "max_receive_count": null
-      },
-      {
-        "name": "stack-wecare-digital-bulk-queue",
-        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-bulk-queue",
-        "visible_messages": 0,
-        "in_flight": 0,
-        "fifo": false,
-        "kms": true,
-        "dlq_target": "stack-wecare-digital-bulk-dlq",
-        "is_dlq_name": false,
-        "max_receive_count": 3
-      },
-      {
-        "name": "stack-wecare-digital-inbound-dlq",
-        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-inbound-dlq",
-        "visible_messages": 0,
-        "in_flight": 0,
-        "fifo": false,
-        "kms": true,
-        "dlq_target": null,
-        "is_dlq_name": true,
-        "max_receive_count": null
-      },
-      {
-        "name": "stack-wecare-digital-notification-dlq",
-        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-notification-dlq",
-        "visible_messages": 0,
-        "in_flight": 0,
-        "fifo": false,
-        "kms": true,
-        "dlq_target": null,
-        "is_dlq_name": true,
-        "max_receive_count": null
-      },
-      {
-        "name": "stack-wecare-digital-notification-queue",
-        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-notification-queue",
-        "visible_messages": 0,
-        "in_flight": 0,
-        "fifo": false,
-        "kms": true,
-        "dlq_target": "stack-wecare-digital-notification-dlq",
-        "is_dlq_name": false,
-        "max_receive_count": 3
-      },
-      {
-        "name": "stack-wecare-digital-outbound-dlq",
-        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-outbound-dlq",
-        "visible_messages": 0,
-        "in_flight": 0,
-        "fifo": false,
-        "kms": true,
-        "dlq_target": null,
-        "is_dlq_name": true,
-        "max_receive_count": null
-      },
-      {
-        "name": "wecare-eventbridge-dlq",
-        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/wecare-eventbridge-dlq",
-        "visible_messages": 0,
-        "in_flight": 0,
-        "fifo": false,
-        "kms": true,
-        "dlq_target": null,
-        "is_dlq_name": true,
-        "max_receive_count": null
-      },
-      {
-        "name": "wecare-lambda-async-dlq",
-        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/wecare-lambda-async-dlq",
-        "visible_messages": 0,
-        "in_flight": 0,
-        "fifo": false,
-        "kms": true,
-        "dlq_target": null,
-        "is_dlq_name": true,
-        "max_receive_count": null
-      }
-    ]
-  },
-  "eventbridge": {
-    "bus_count": 1,
-    "rule_count": 6,
-    "disabled_rules": [],
-    "scheduler_count": 0,
-    "schedules": [],
-    "pipe_count": 0,
-    "buses": [
-      {
-        "name": "default",
-        "rule_count": 6,
-        "rules": [
-          {
-            "name": "AWSUserNotificationsManagedRule-adi3lsr",
-            "state": "ENABLED",
-            "schedule": null,
-            "has_pattern": true,
-            "targets": [
-              {
-                "id": "AWSNotifications-Rule-a4illdh",
-                "arn_tail": "",
-                "has_dlq": false,
-                "retry": null
-              }
-            ]
-          },
-          {
-            "name": "wecare-amplify-build-failed",
-            "state": "ENABLED",
-            "schedule": null,
-            "has_pattern": true,
-            "targets": [
-              {
-                "id": "sns-email",
-                "arn_tail": "stack-wecare-digital",
-                "has_dlq": false,
-                "retry": null
-              }
-            ]
-          },
-          {
-            "name": "wecare-docs-scraper-daily",
-            "state": "ENABLED",
-            "schedule": "rate(1 day)",
-            "has_pattern": false,
-            "targets": [
-              {
-                "id": "1",
-                "arn_tail": "wecare-docs-scraper",
-                "has_dlq": false,
-                "retry": null
-              }
-            ]
-          },
-          {
-            "name": "wecare-media-cleanup-daily",
-            "state": "ENABLED",
-            "schedule": "rate(1 day)",
-            "has_pattern": false,
-            "targets": [
-              {
-                "id": "media-cleanup-target",
-                "arn_tail": "wecare-media-cleanup",
-                "has_dlq": true,
-                "retry": {
-                  "MaximumRetryAttempts": 3,
-                  "MaximumEventAgeInSeconds": 3600
-                }
-              }
-            ]
-          },
-          {
-            "name": "wecare-partner-token-refresh-daily",
-            "state": "ENABLED",
-            "schedule": "rate(1 day)",
-            "has_pattern": false,
-            "targets": [
-              {
-                "id": "refresh-fn",
-                "arn_tail": "wecare-partner-token-refresh",
-                "has_dlq": false,
-                "retry": null
-              }
-            ]
-          },
-          {
-            "name": "wecare-scheduled-messages-trigger",
-            "state": "ENABLED",
-            "schedule": "rate(5 minutes)",
-            "has_pattern": false,
-            "targets": [
-              {
-                "id": "wecare-scheduled-messages-target",
-                "arn_tail": "wecare-scheduled-messages",
-                "has_dlq": true,
-                "retry": {
-                  "MaximumRetryAttempts": 3,
-                  "MaximumEventAgeInSeconds": 3600
-                }
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  "cognito": {
-    "user_pool_count": 2,
-    "identity_pool_count": 1,
-    "identity_pools": [
-      {
-        "id": "us-east-1:471c2c38-5645-4ccd-aea1-7a008e906db5",
-        "name": "base-wecare-digital-identity-pool"
-      }
-    ],
-    "user_pools": [
-      {
-        "id": "us-east-1_46ULYuukt",
-        "name": "WECARE.DIGITAL-CUSTOMERS",
-        "status": null,
-        "estimated_users": 1,
-        "mfa_configuration": "OFF",
-        "software_token_mfa": null,
-        "sms_mfa": false,
-        "advanced_security": null,
-        "deletion_protection": "INACTIVE",
-        "password_policy": {
-          "MinimumLength": 16,
-          "RequireUppercase": true,
-          "RequireLowercase": true,
-          "RequireNumbers": true,
-          "RequireSymbols": true,
-          "TemporaryPasswordValidityDays": 1
-        },
-        "domain": null,
-        "lambda_triggers": [
-          "CreateAuthChallenge",
-          "DefineAuthChallenge",
-          "VerifyAuthChallengeResponse"
-        ],
-        "group_names": [
-          "Partner"
-        ],
-        "clients": [
-          {
-            "id": "4avmt9n4gpmkvkdk88qbtit33o",
-            "name": "wecare-customer-whatsapp-otp"
-          }
-        ]
-      },
-      {
-        "id": "us-east-1_cSx0RHCIR",
-        "name": "WECARE.DIGITAL",
-        "status": null,
-        "estimated_users": 1,
-        "mfa_configuration": "OPTIONAL",
-        "software_token_mfa": true,
-        "sms_mfa": true,
-        "advanced_security": null,
-        "deletion_protection": "ACTIVE",
-        "password_policy": {
-          "MinimumLength": 8,
-          "RequireUppercase": true,
-          "RequireLowercase": true,
-          "RequireNumbers": true,
-          "RequireSymbols": true,
-          "TemporaryPasswordValidityDays": 7
-        },
-        "domain": "wecare-digital-auth",
-        "lambda_triggers": [
-          "CustomMessage"
-        ],
-        "group_names": [
-          "Admin",
-          "Operator",
-          "Partner",
-          "Viewer"
-        ],
-        "clients": [
-          {
-            "id": "1j8kbi48m4v2rped3n224rlevb",
-            "name": "stack-wecare-digital-web"
-          },
-          {
-            "id": "1jrnb80tcvceg7uln9vuoe8va5",
-            "name": "WECARE.DIGITAL"
-          }
-        ]
-      }
-    ]
-  },
-  "ses": {
-    "us-east-1": {
-      "identity_count": 3,
-      "identities": [
-        {
-          "identity": "one@wecare.digital",
-          "type": "EMAIL_ADDRESS",
-          "sending_enabled": true,
-          "verified": true,
-          "dkim_status": "SUCCESS",
-          "dkim_signing": true,
-          "mail_from": null,
-          "mail_from_status": null
-        },
-        {
-          "identity": "wecare-digital.awsapps.com",
-          "type": "DOMAIN",
-          "sending_enabled": true,
-          "verified": true,
-          "dkim_status": "SUCCESS",
-          "dkim_signing": true,
-          "mail_from": null,
-          "mail_from_status": null
-        },
-        {
-          "identity": "wecare.digital",
-          "type": "DOMAIN",
-          "sending_enabled": true,
-          "verified": true,
-          "dkim_status": "SUCCESS",
-          "dkim_signing": true,
-          "mail_from": null,
-          "mail_from_status": null
-        }
-      ],
-      "production_access": true,
-      "sending_enabled": true,
-      "sending_quota": {
-        "Max24HourSend": 50000.0,
-        "MaxSendRate": 14.0,
-        "SentLast24Hours": 0.0
-      },
-      "enforcement_status": "HEALTHY",
-      "configuration_sets": [
-        "wecare-digital"
-      ]
+    "alias_read_errors": 0,
+    "runtimes": {
+      "python3.12": 64,
+      "null": 1
     },
-    "ap-south-1": {
-      "identity_count": 0,
-      "identities": [],
-      "production_access": false,
-      "sending_enabled": true,
-      "sending_quota": {
-        "Max24HourSend": 200.0,
-        "MaxSendRate": 1.0,
-        "SentLast24Hours": 0.0
-      },
-      "enforcement_status": "HEALTHY",
-      "configuration_sets": []
-    }
-  },
-  "route53": {
-    "zone_count": 1,
-    "zones": [
+    "package_types": {
+      "Zip": 64,
+      "Image": 1
+    },
+    "snapstart": {
+      "None": 65
+    },
+    "functions": [
       {
-        "id": "Z03939753QJGZ6ZD6BXO8",
-        "name": "wecare.digital.",
-        "private": false,
-        "record_count": 42,
-        "record_types": {
-          "CNAME": 22,
-          "A": 7,
-          "TXT": 7,
-          "AAAA": 3,
-          "MX": 1,
-          "NS": 1,
-          "SOA": 1
-        },
-        "has_mx": true,
-        "txt_names": [
-          "_amazonses.wecare.digital.",
-          "_dmarc.wecare.digital.",
-          "_mta-sts.wecare.digital.",
-          "_smtp._tls.wecare.digital.",
-          "default._bimi.wecare.digital.",
-          "google._domainkey.wecare.digital.",
-          "wecare.digital."
-        ]
-      }
-    ]
-  },
-  "cloudfront": {
-    "count": 3,
-    "without_web_acl": [
-      "E1SZBXLQ4XNLJ7",
-      "E2GP22R4BIFGQ3",
-      "ERCXSFDL0VM8X"
-    ],
-    "distributions": [
-      {
-        "id": "E1SZBXLQ4XNLJ7",
-        "domain": "djbi65ldve9va.cloudfront.net",
+        "name": "stack-wecare-url-shortener",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 10,
+        "last_modified": "2026-09-25T11:01:51.000+0000",
+        "code_sha256": "M936s3rY3Bjs52P614LH7Nk9X2fTvb8O1m8i5R8gCdo=",
+        "code_size": 266070,
+        "layers": [],
+        "env_var_names": [
+          "LINK_CLICKS_TABLE",
+          "SHORT_DOMAIN",
+          "SHORT_LINKS_TABLE"
+        ],
+        "snapstart": "None",
         "aliases": [
-          "mta-sts.wecare.digital"
+          "live"
         ],
-        "status": "Deployed",
-        "enabled": true,
-        "origins": [
-          "wecare-digital-mta-sts.s3.us-east-1.amazonaws.com"
-        ],
-        "web_acl": null,
-        "viewer_protocol": "redirect-to-https",
-        "lambda_edge": [],
-        "price_class": "PriceClass_All"
+        "live_alias_version": "12"
       },
       {
-        "id": "E2GP22R4BIFGQ3",
-        "domain": "d1kf2rchz7yras.cloudfront.net",
+        "name": "wecare-ad-attribution",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:04:08.000+0000",
+        "code_sha256": "WJTvd/68uJ2DaWuXdedlXiktIc9zUHB07kBqtOaCzI8=",
+        "code_size": 264334,
+        "layers": [],
+        "env_var_names": [],
+        "snapstart": "None",
         "aliases": [],
-        "status": "Deployed",
-        "enabled": true,
-        "origins": [
-          "wecare-digital-get.s3.us-east-1.amazonaws.com"
-        ],
-        "web_acl": null,
-        "viewer_protocol": "redirect-to-https",
-        "lambda_edge": [
-          [
-            "wecare-get-miss-redirect",
-            "4"
-          ]
-        ],
-        "price_class": "PriceClass_All"
+        "live_alias_version": null
       },
       {
-        "id": "ERCXSFDL0VM8X",
-        "domain": "d1c2t5x9nvib1v.cloudfront.net",
+        "name": "wecare-agent-action-group",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:04:30.000+0000",
+        "code_sha256": "9BVuQA+NnAL2+SG1ee1NsgzqR6waU/7CWReBhgAW0z4=",
+        "code_size": 269085,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "CONTACTS_TABLE",
+          "LOG_LEVEL",
+          "MESSAGES_INBOUND_TABLE",
+          "MESSAGES_OUTBOUND_TABLE",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
         "aliases": [
-          "app.wecare.digital"
+          "live"
         ],
-        "status": "Deployed",
-        "enabled": true,
-        "origins": [
-          "app.wecare.digital.s3.us-east-1.amazonaws.com"
+        "live_alias_version": "19"
+      },
+      {
+        "name": "wecare-ai-config-management",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
         ],
-        "web_acl": null,
-        "viewer_protocol": "redirect-to-https",
-        "lambda_edge": [],
-        "price_class": "PriceClass_All"
-      }
-    ]
-  },
-  "waf": {
-    "REGIONAL": {
-      "count": 1,
-      "web_acls": [
-        {
-          "name": "wecare-cognito-waf",
-          "id": "88886e29-8eb4-4036-ae7e-1a39f9dd68a0",
-          "arn": "arn:aws:wafv2:us-east-1:775261844268:regional/webacl/wecare-cognito-waf/88886e29-8eb4-4036-ae7e-1a39f9dd68a0",
-          "associated_resources": [
-            "arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_46ULYuukt",
-            "arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_cSx0RHCIR"
-          ]
-        }
-      ]
-    },
-    "CLOUDFRONT": {
-      "count": 1,
-      "web_acls": [
-        {
-          "name": "wecare-amplify-waf",
-          "id": "b4d41adc-d1ad-4639-9403-00e7df7b3741",
-          "arn": "arn:aws:wafv2:us-east-1:775261844268:global/webacl/wecare-amplify-waf/b4d41adc-d1ad-4639-9403-00e7df7b3741",
-          "associated_resources": []
-        }
-      ]
-    }
-  },
-  "cloudwatch": {
-    "alarm_count": 42,
-    "composite_alarm_count": 0,
-    "alarms_in_alarm": [],
-    "alarms_insufficient_data": [],
-    "alarms_without_actions": [],
-    "dashboard_count": 1,
-    "dashboards": [
-      "wecare-platform-health"
-    ],
-    "log_group_count": 81,
-    "log_groups_without_retention": [],
-    "log_bytes_total": 161121043,
-    "alarms": [
-      {
-        "name": "wecare-apigw-5xx-wecare-api",
-        "state": "OK",
-        "metric": "5xx",
-        "namespace": "AWS/ApiGateway",
-        "actions": 1,
-        "actions_enabled": true
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:04:27.000+0000",
+        "code_sha256": "8f9nUyCWtTMmanoCmOYBpfJ6gphuwTqr0yIYGPcWr04=",
+        "code_size": 268729,
+        "layers": [],
+        "env_var_names": [
+          "AI_INTERACTIONS_TABLE",
+          "AWS_ACCOUNT_ID",
+          "LOG_LEVEL",
+          "REGION",
+          "S3_BUCKET",
+          "SYSTEM_CONFIG_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "16"
       },
       {
-        "name": "wecare-apigw-5xx-wecare-digital-api",
-        "state": "OK",
-        "metric": "5xx",
-        "namespace": "AWS/ApiGateway",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-ai-generate-response",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 1024,
+        "timeout": 120,
+        "last_modified": "2026-09-25T11:04:24.000+0000",
+        "code_sha256": "hRhunXvNEzZPenL488GjnL3VMSBH7Oiu8QM7dzekgsQ=",
+        "code_size": 315044,
+        "layers": [],
+        "env_var_names": [
+          "CONTACTS_TABLE",
+          "CONVERSATION_TABLE",
+          "CONVERSATION_TTL_HOURS",
+          "GUARDRAIL_ID",
+          "GUARDRAIL_VERSION",
+          "LOG_LEVEL",
+          "MAX_HISTORY_MESSAGES",
+          "MAX_INPUT_TEXT_LENGTH",
+          "MAX_SESSION_MESSAGES",
+          "MEDIA_BUCKET",
+          "MESSAGES_TABLE",
+          "MODEL_ID",
+          "SEND_MODE",
+          "SESSION_IDLE_TIMEOUT_MINUTES",
+          "SYSTEM_CONFIG_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "19"
       },
       {
-        "name": "wecare-apigw-latency-wecare-api",
-        "state": "OK",
-        "metric": "Latency",
-        "namespace": "AWS/ApiGateway",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-ai-query-kb",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:04:21.000+0000",
+        "code_sha256": "l9Qhpr4SqgbCLw9yWZokqxFA6oJvBzIi78WRNhE5xxI=",
+        "code_size": 262588,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "LOG_LEVEL",
+          "REGION",
+          "S3_BUCKET",
+          "SEND_MODE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "16"
       },
       {
-        "name": "wecare-apigw-latency-wecare-digital-api",
-        "state": "OK",
-        "metric": null,
-        "namespace": null,
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-auth-middleware",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:00:54.000+0000",
+        "code_sha256": "SNVYyrBSUMtOJSdwAnamqI57VYN3YTNPwY9/Df/yPps=",
+        "code_size": 262981,
+        "layers": [],
+        "env_var_names": [
+          "COGNITO_USER_POOL_ID",
+          "LOG_LEVEL"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "14"
       },
       {
-        "name": "wecare-bulk-dlq-depth",
-        "state": "OK",
-        "metric": "ApproximateNumberOfMessagesVisible",
-        "namespace": "AWS/SQS",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-automation-rules",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:00:59.000+0000",
+        "code_sha256": "SiwOBRCJYJxI9cOqQe7h0kFXeAhrgkPFdbWnWXjkmsA=",
+        "code_size": 263083,
+        "layers": [],
+        "env_var_names": [
+          "AUTOMATION_RULES_TABLE",
+          "LOG_LEVEL"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "12"
       },
       {
-        "name": "wecare-ddb-throttle-AuditLogsTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-billing",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:04:33.000+0000",
+        "code_sha256": "t4naCrUj1aOIj9Hu/l99hGyXYDnIK3mcQQGE7Y5DhlM=",
+        "code_size": 269111,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "16"
       },
       {
-        "name": "wecare-ddb-throttle-BulkRecipientsTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-bulk-job-control",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:04:42.000+0000",
+        "code_sha256": "1pqQBHJeHj1RHCk7yz5fZubkRIkBmwXLIdmB+fM0CI4=",
+        "code_size": 264951,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "BULK_JOBS_TABLE",
+          "BULK_QUEUE_URL",
+          "BULK_RECIPIENTS_TABLE",
+          "LOG_LEVEL",
+          "REGION",
+          "REPORT_BUCKET",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
       },
       {
-        "name": "wecare-ddb-throttle-ContactsTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-bulk-job-create",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:04:36.000+0000",
+        "code_sha256": "fhgyr71/ex5hJjkVlm27h3KXz2lDZGCh3GRvgvIXZ9M=",
+        "code_size": 265178,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "BULK_JOBS_TABLE",
+          "BULK_QUEUE_URL",
+          "BULK_RECIPIENTS_TABLE",
+          "LOG_LEVEL",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
       },
       {
-        "name": "wecare-ddb-throttle-ConversationHistoryTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-bulk-worker",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 120,
+        "last_modified": "2026-09-25T11:04:45.000+0000",
+        "code_sha256": "CGBR/7sELsRGhEOZHGfgHPAhA5XanvpB/a1peVz97WI=",
+        "code_size": 265589,
+        "layers": [],
+        "env_var_names": [
+          "BULK_JOBS_TABLE",
+          "BULK_RECIPIENTS_TABLE",
+          "CONTACTS_TABLE",
+          "DEFAULT_PHONE_NUMBER_ID",
+          "LOG_LEVEL",
+          "OUTBOUND_TABLE",
+          "SEND_MODE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
       },
       {
-        "name": "wecare-ddb-throttle-InvoicesTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-catalog-management",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:05:49.000+0000",
+        "code_sha256": "1e0y3QKfad2V/hli6OqOF3MeZP8W0N17ei4Z1Ecf9ec=",
+        "code_size": 264498,
+        "layers": [],
+        "env_var_names": [],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "12"
       },
       {
-        "name": "wecare-ddb-throttle-MessagesTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-cognito-custom-message",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 10,
+        "last_modified": "2026-09-25T11:01:44.000+0000",
+        "code_sha256": "jP9uNBTpWwqBKn+Uc9tXPlzGFTLJznjv5MMlXZC/bfQ=",
+        "code_size": 5085,
+        "layers": [],
+        "env_var_names": [
+          "BRAND_NAME",
+          "SENDER_ADDRESS",
+          "SIGNIN_URL"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "2"
       },
       {
-        "name": "wecare-ddb-throttle-OrderTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-contacts",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:01:03.000+0000",
+        "code_sha256": "WFnIdzYQC6UY/xtIwrd3aYv4LlZk5JxAm/dg9ObuqBA=",
+        "code_size": 268032,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "CONTACTS_TABLE",
+          "LOG_LEVEL",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "16"
       },
       {
-        "name": "wecare-ddb-throttle-PaymentsTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-conversation-meta",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:01:11.000+0000",
+        "code_sha256": "htXs8Nzi5xWrYRTmR0u2hOVi/1PNMp18wnGYMlEvjrg=",
+        "code_size": 263014,
+        "layers": [],
+        "env_var_names": [
+          "CONVERSATION_META_TABLE",
+          "LOG_LEVEL"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "12"
       },
       {
-        "name": "wecare-ddb-throttle-RateLimitTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-crm",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:01:18.000+0000",
+        "code_sha256": "CuQSQNYvsN0fUjdjz7xEmWO3gOYtMhe5CjW5n7gSIz8=",
+        "code_size": 269165,
+        "layers": [],
+        "env_var_names": [
+          "CONTACTS_TABLE",
+          "CRM_ACTIVITIES_TABLE",
+          "CRM_LEADS_TABLE",
+          "CRM_OPPORTUNITIES_TABLE",
+          "CRM_PIPELINES_TABLE",
+          "CRM_STAGES_TABLE",
+          "INVOICES_TABLE",
+          "PAYMENTS_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "8"
       },
       {
-        "name": "wecare-ddb-throttle-SubmitRequestsTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-customer-whatsapp-auth",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 15,
+        "last_modified": "2026-09-25T11:33:42.000+0000",
+        "code_sha256": "KB3Jr131Ndmq7+J1CR/M46DtTysWrZB5kHqF+Lutrng=",
+        "code_size": 4645,
+        "layers": [],
+        "env_var_names": [
+          "MAX_ATTEMPTS",
+          "META_PHONE_NUMBER_ID",
+          "META_WABA_ID",
+          "OTP_PROBE_MAX_PER_WINDOW",
+          "OTP_PROBE_WINDOW_SECONDS",
+          "OTP_TEMPLATE_LANGUAGE",
+          "OTP_TEMPLATE_NAME",
+          "OTP_TTL_SECONDS",
+          "SENDER_FUNCTION"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "9"
       },
       {
-        "name": "wecare-ddb-throttle-SystemConfigTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-dlq-replay",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:04:51.000+0000",
+        "code_sha256": "HMQRSfCesc1yDKL7StayyNIJ+sIdUqmaIniYcwhFDvg=",
+        "code_size": 264982,
+        "layers": [],
+        "env_var_names": [
+          "DLQ_URL",
+          "LOG_LEVEL",
+          "MAX_MESSAGES",
+          "SNS_TOPIC_ARN"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
       },
       {
-        "name": "wecare-ddb-throttle-UsersTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-docs-scraper",
+        "runtime": null,
+        "package_type": "Image",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 2048,
+        "timeout": 300,
+        "last_modified": "2026-09-23T22:40:18.000+0000",
+        "code_sha256": "6d2880cd1e7b5717f5a252b2fc0cb5fdf14651fc1f0d9cd2c3279c5b94cc3de4",
+        "code_size": 0,
+        "layers": [],
+        "env_var_names": [],
+        "snapstart": "None",
+        "aliases": [],
+        "live_alias_version": null
       },
       {
-        "name": "wecare-ddb-throttle-WhatsAppInboundTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-faq-handler",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:01:22.000+0000",
+        "code_sha256": "jE0YO9gj46jnIvesprpN3wowt7YNQ3EgVAHBserBji8=",
+        "code_size": 265060,
+        "layers": [],
+        "env_var_names": [],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
       },
       {
-        "name": "wecare-ddb-throttle-WhatsAppOutboundTable",
-        "state": "OK",
-        "metric": "ThrottledRequests",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-get-miss-redirect",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 128,
+        "timeout": 5,
+        "last_modified": "2026-09-25T03:25:21.000+0000",
+        "code_sha256": "+UvlzSu6Nf62r30jRd4xJk7Gy+w9ySFey6+vfZg8vt8=",
+        "code_size": 2695,
+        "layers": [],
+        "env_var_names": [],
+        "snapstart": "None",
+        "aliases": [],
+        "live_alias_version": null
       },
       {
-        "name": "wecare-ddb-user-errors",
-        "state": "OK",
-        "metric": "UserErrors",
-        "namespace": "AWS/DynamoDB",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-inbound-whatsapp",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 120,
+        "last_modified": "2026-09-26T00:42:21.000+0000",
+        "code_sha256": "5h9Jp6OHbB8QeQo2rU1NBB82HQ19Mb9TTkxQ3uiEVcU=",
+        "code_size": 347063,
+        "layers": [],
+        "env_var_names": [
+          "CONTACTS_TABLE",
+          "IAM_REFRESH",
+          "INBOUND_TABLE",
+          "MEDIA_BUCKET",
+          "OUTBOUND_TABLE",
+          "WHATSAPP_PHONE_NUMBER_ID_1",
+          "WHATSAPP_PHONE_NUMBER_ID_2"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "51"
       },
       {
-        "name": "wecare-eventbridge-dlq-depth",
-        "state": "OK",
-        "metric": "ApproximateNumberOfMessagesVisible",
-        "namespace": "AWS/SQS",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-invoice-engine",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:05:30.000+0000",
+        "code_sha256": "zVuJLDjoKRic30+akTMAmtBjlKDHh5kdQjVsL4NM7HI=",
+        "code_size": 290863,
+        "layers": [
+          "pillow-python312:2"
+        ],
+        "env_var_names": [
+          "CDN_DOMAIN",
+          "CONTACTS_TABLE",
+          "INVOICES_TABLE",
+          "INVOICE_ASSETS_TABLE",
+          "INVOICE_DELIVERY_TABLE",
+          "INVOICE_ITEMS_TABLE",
+          "INVOICE_SEQ_TABLE",
+          "LOG_LEVEL",
+          "MEDIA_BUCKET",
+          "PAYMENTS_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "25"
       },
       {
-        "name": "wecare-eventbridge-failed-wecare-media-cleanup-daily",
-        "state": "OK",
-        "metric": "FailedInvocations",
-        "namespace": "AWS/Events",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-marketing-ads",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 45,
+        "last_modified": "2026-09-25T11:04:12.000+0000",
+        "code_sha256": "rSgrjl5uLRdQyn/E9w/cwOKupXTVdHe61rCpYmhx6GI=",
+        "code_size": 267279,
+        "layers": [
+          "cryptography-python312:1"
+        ],
+        "env_var_names": [
+          "COGNITO_USER_POOL_ID",
+          "LOG_LEVEL",
+          "MEDIA_BUCKET",
+          "META_AD_ACCOUNT",
+          "META_BUSINESS_ID",
+          "META_GRAPH_BASE",
+          "META_PAGE_ID",
+          "META_TOKEN_SECRET",
+          "WABA1_DISPLAY",
+          "WABA2_DISPLAY"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "14"
       },
       {
-        "name": "wecare-eventbridge-failed-wecare-scheduled-messages-trigger",
-        "state": "OK",
-        "metric": "FailedInvocations",
-        "namespace": "AWS/Events",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-media-cleanup",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:02:46.000+0000",
+        "code_sha256": "cB8QzC4OfGafFiVvtyRnoEr2Pt25N6i5Ou2aFHj79U4=",
+        "code_size": 263876,
+        "layers": [],
+        "env_var_names": [
+          "CLEANUP_AGE_DAYS",
+          "LOG_LEVEL",
+          "MAX_DELETIONS",
+          "MEDIA_FILES_TABLE",
+          "WHATSAPP_PHONE_NUMBER_ID_1"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
       },
       {
-        "name": "wecare-inbound-dlq-depth",
-        "state": "OK",
-        "metric": "ApproximateNumberOfMessagesVisible",
-        "namespace": "AWS/SQS",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-messages-delete",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:01:27.000+0000",
+        "code_sha256": "c4XK8zRZC4AqC9M833wSTXg3azvcW8A0JgTA1de0yYU=",
+        "code_size": 265775,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "INBOUND_WHATSAPP_FUNCTION",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
       },
       {
-        "name": "wecare-inbound-lambda-errors",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-messages-read",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:01:30.000+0000",
+        "code_sha256": "QJ5PcPzIzO1i8lUclQ7iSuwskihLt2SSeGbimr2uDdw=",
+        "code_size": 268155,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "16"
       },
       {
-        "name": "wecare-lambda-async-dlq-depth",
-        "state": "OK",
-        "metric": "ApproximateNumberOfMessagesVisible",
-        "namespace": "AWS/SQS",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-meta-analytics",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:04:04.000+0000",
+        "code_sha256": "xgFFjovQs3gv20OUR/swj0scZxuJftZxcr4yGMqHqec=",
+        "code_size": 264025,
+        "layers": [],
+        "env_var_names": [],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "12"
       },
       {
-        "name": "wecare-lambda-errors-wecare-billing",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-meta-business-agent",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:04:18.000+0000",
+        "code_sha256": "VzfXF0P8ZOvL1+8PIJ6gKE9XzbL1REbSoMpVmaW3e9k=",
+        "code_size": 273876,
+        "layers": [],
+        "env_var_names": [],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "27"
       },
       {
-        "name": "wecare-lambda-errors-wecare-bulk-worker",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-notification-worker",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 120,
+        "last_modified": "2026-09-25T11:03:38.000+0000",
+        "code_sha256": "PpnNY64678jyFroCEes2VLUHuJTBUf3aaNmz+F9ZGEk=",
+        "code_size": 263908,
+        "layers": [],
+        "env_var_names": [
+          "NOTIF_SWEEP_LIMIT"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "9"
       },
       {
-        "name": "wecare-lambda-errors-wecare-invoice-engine",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-outbound-email",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:03:10.000+0000",
+        "code_sha256": "AsgmPod0868e2Zwd5mMcuZfztWLKkmPC3RECRmNjY2U=",
+        "code_size": 263964,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "CONTACTS_TABLE",
+          "FROM_EMAIL",
+          "LOG_LEVEL",
+          "MESSAGES_TABLE",
+          "REGION",
+          "REPLY_TO_EMAIL",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
       },
       {
-        "name": "wecare-lambda-errors-wecare-payu-webhook",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-outbound-sms",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:03:06.000+0000",
+        "code_sha256": "BAPYWpjd8i7+6BpiHw5LePBs2qlmhprOtIx1wSLu2gk=",
+        "code_size": 265622,
+        "layers": [],
+        "env_var_names": [
+          "AIRTEL_IQ_ENTITY_ID",
+          "AIRTEL_IQ_SOURCE_ADDRESS",
+          "AWS_ACCOUNT_ID",
+          "CONTACTS_TABLE",
+          "LOG_LEVEL",
+          "MESSAGES_TABLE",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "16"
       },
       {
-        "name": "wecare-lambda-errors-wecare-razorpay-webhook",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-outbound-whatsapp",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:02:00.000+0000",
+        "code_sha256": "/EVTbkbkUkhxLNNsZwEAy1Ai4ktEhtdrEOpgIMtOKEg=",
+        "code_size": 307262,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "CONTACTS_TABLE",
+          "LOG_LEVEL",
+          "MEDIA_BUCKET",
+          "MEDIA_FILES_TABLE",
+          "MESSAGES_TABLE",
+          "RATE_LIMIT_TABLE",
+          "REGION",
+          "S3_BUCKET",
+          "SEND_MODE",
+          "WHATSAPP_PHONE_NUMBER_ID_1",
+          "WHATSAPP_PHONE_NUMBER_ID_2"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "28"
       },
       {
-        "name": "wecare-lambda-errors-wecare-scheduled-messages",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-partner-onboarding",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:02:52.000+0000",
+        "code_sha256": "tLjTSg6vA/AO4T15f+zYS+7XJK03PKt2kf22RfdA/sU=",
+        "code_size": 270619,
+        "layers": [
+          "cryptography-python312:1"
+        ],
+        "env_var_names": [
+          "COGNITO_USER_POOL_ID",
+          "LOG_LEVEL",
+          "META_API_VERSION",
+          "META_APP_ID",
+          "META_EXTENDED_CREDIT_ID",
+          "META_TOKEN_SECRET",
+          "PARTNER_DEFAULT_CURRENCY",
+          "PARTNER_GROUP",
+          "PARTNER_LEDGER_TABLE",
+          "PARTNER_WALLET_TABLE",
+          "SNS_TOPIC_ARN",
+          "SYSTEM_CONFIG_TABLE",
+          "UNIFIED_MESSAGES_TABLE",
+          "WA_REG_PIN"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
       },
       {
-        "name": "wecare-lambda-errors-wecare-service-api",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-partner-token-refresh",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 120,
+        "last_modified": "2026-09-25T11:02:58.000+0000",
+        "code_sha256": "j6alVxgsNNCilkvy+Dz1tnV+YaumImZHvOLmOjkQVgA=",
+        "code_size": 263952,
+        "layers": [
+          "cryptography-python312:1"
+        ],
+        "env_var_names": [
+          "LOG_LEVEL",
+          "META_API_VERSION",
+          "META_APP_ID",
+          "META_TOKEN_SECRET",
+          "PARTNER_SECRET_PREFIX",
+          "REFRESH_WINDOW_DAYS",
+          "SYSTEM_CONFIG_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [],
+        "live_alias_version": null
       },
       {
-        "name": "wecare-lambda-errors-wecare-whatsapp-business-api",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-payments-read",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:05:08.000+0000",
+        "code_sha256": "c+FZhIIFaWQSUDZbuMryooQHqqbpkfs1InZoNGCReP4=",
+        "code_size": 264290,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "17"
       },
       {
-        "name": "wecare-lambda-throttles",
-        "state": "OK",
-        "metric": "Throttles",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-plivo-answer",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 15,
+        "last_modified": "2026-09-25T11:03:41.000+0000",
+        "code_sha256": "TGZeFNSIWYX5EIs7416b5zRzbXNo3enO4gUFZHDKWUw=",
+        "code_size": 275479,
+        "layers": [],
+        "env_var_names": [
+          "DLT_TEMPLATE_KEY",
+          "IVR_AUDIO_URL",
+          "POST_CALL_SMS_ENABLED",
+          "SMS_FUNCTION"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "21"
       },
       {
-        "name": "wecare-outbound-dlq-depth",
-        "state": "OK",
-        "metric": "ApproximateNumberOfMessagesVisible",
-        "namespace": "AWS/SQS",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-product-image-gen",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:05:43.000+0000",
+        "code_sha256": "HlJ+vj6VJkxQ5umFlPeX8m7kRGNAhGMSQDtCOD5XZW4=",
+        "code_size": 269685,
+        "layers": [
+          "Klayers-p312-Pillow:10"
+        ],
+        "env_var_names": [
+          "CREDENTIAL_PURGE_EPOCH",
+          "WIX_ACCOUNT_ID",
+          "WIX_CREDENTIALS_DISABLED",
+          "WIX_SITE_ID"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "17"
       },
       {
-        "name": "wecare-outbound-lambda-errors",
-        "state": "OK",
-        "metric": "Errors",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-pstn-softphone",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-23T11:02:57.087+0000",
+        "code_sha256": "o2PBfbyV5fuStEd5e/SNVAf5PR6zMSkyIFB4JwLbcG0=",
+        "code_size": 216747,
+        "layers": [],
+        "env_var_names": [
+          "PLIVO_API_SECRET_ID",
+          "PLIVO_APPLICATION_ID",
+          "PSTN_SESSIONS_TABLE",
+          "PSTN_TOKEN_TTL_SECONDS"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "1"
       },
       {
-        "name": "wecare-queue-age-bulk",
-        "state": "OK",
-        "metric": "ApproximateAgeOfOldestMessage",
-        "namespace": "AWS/SQS",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-push-notifications",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:03:53.000+0000",
+        "code_sha256": "6Y+EbHPEWSHdwhC9h9a4e18VX5bzc0B4IPJ52F1BAJw=",
+        "code_size": 264362,
+        "layers": [],
+        "env_var_names": [],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "14"
       },
       {
-        "name": "wecare-sip-cert-expiry-sip.wecare.digital",
-        "state": "OK",
-        "metric": "CertDaysToExpiry",
-        "namespace": "Wecare/SIP",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-razorpay-webhook",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:33:08.000+0000",
+        "code_sha256": "dw+tEvyJC/kIvFEdHAVhf2ErqeHjPDyBfraMMyY8bMc=",
+        "code_size": 281838,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "INVOICES_TABLE",
+          "LOG_LEVEL",
+          "MESSAGES_TABLE",
+          "PAYMENTS_TABLE",
+          "POST_PAYMENT_FLOW_WABA1",
+          "POST_PAYMENT_FLOW_WABA2",
+          "POST_PAYMENT_REQUEST_TEMPLATE",
+          "REGION",
+          "S3_BUCKET",
+          "WEBHOOK_LOG_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "36"
       },
       {
-        "name": "wecare-sns-delivery-failures",
-        "state": "OK",
-        "metric": "NumberOfNotificationsFailed",
-        "namespace": "AWS/SNS",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-rcs-dlr",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 15,
+        "last_modified": "2026-09-25T11:03:50.000+0000",
+        "code_sha256": "lUVL9b6R/C0ZL25C9ejYHrv49DrXzSejTrOz/T37c9I=",
+        "code_size": 268328,
+        "layers": [],
+        "env_var_names": [
+          "CONTACTS_TABLE",
+          "LOG_LEVEL",
+          "RCS_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "18"
       },
       {
-        "name": "wecare-url-hit-wecare-payu-webhook",
-        "state": "OK",
-        "metric": "UrlRequestCount",
-        "namespace": "AWS/Lambda",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-rcs-send",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:03:44.000+0000",
+        "code_sha256": "KVnGe7GcaY89X++K6Meao7goLHJ/+d/CDDnOGb2NLXo=",
+        "code_size": 271711,
+        "layers": [],
+        "env_var_names": [
+          "CONTACTS_TABLE",
+          "LOG_LEVEL",
+          "RCS_APP_ID",
+          "RCS_PROJECT_ID",
+          "RCS_SECRET_NAME",
+          "RCS_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "19"
       },
       {
-        "name": "wecare-webhook-dedup-errors",
-        "state": "OK",
-        "metric": "WebhookDedupErrors",
-        "namespace": "WECARE.DIGITAL",
-        "actions": 1,
-        "actions_enabled": true
+        "name": "wecare-scheduled-messages",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:03:59.000+0000",
+        "code_sha256": "id73zxqYx8Su/7NBnn4RxZ6Nkw7dBMfzqeOtlqSTUhI=",
+        "code_size": 265849,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "CONTACTS_TABLE",
+          "LOG_LEVEL",
+          "OUTBOUND_LAMBDA",
+          "REGION",
+          "S3_BUCKET",
+          "SCHEDULED_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "14"
+      },
+      {
+        "name": "wecare-secure-files",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:42:59.000+0000",
+        "code_sha256": "TmS2yF/v0lsKaQEi4Cf7nVzHklDjVk2WKTZop1C2RqM=",
+        "code_size": 275096,
+        "layers": [],
+        "env_var_names": [
+          "COGNITO_USER_POOL_ID",
+          "CUSTOMER_USER_POOL_ID",
+          "DOWNLOAD_GRANTS_TABLE",
+          "DOWNLOAD_URL_TTL_SECONDS",
+          "GRANT_TTL_SECONDS",
+          "META_PHONE_NUMBER_ID",
+          "META_WABA_ID",
+          "PARTNER_GROUP",
+          "RAZORPAY_SECRET_ID",
+          "SECURE_FILES_BUCKET",
+          "SECURE_FILES_PAYMENT_ENABLED",
+          "SECURE_FILES_TABLE",
+          "SECURE_FILE_PRICE_PAISE",
+          "UPLOAD_URL_TTL_SECONDS",
+          "WA_DOC_TEMPLATE",
+          "WA_MEDIA_FUNCTION",
+          "WA_PAY_TEMPLATE",
+          "WA_SENDER_FUNCTION",
+          "WHATSAPP_LINK_TTL_SECONDS"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "14"
+      },
+      {
+        "name": "wecare-seo-tools",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 120,
+        "last_modified": "2026-09-26T00:49:13.000+0000",
+        "code_sha256": "cjV0C/hk/yyvtohbcB92BNOfSk4sYyGEAEN3fYWhqNs=",
+        "code_size": 117773,
+        "layers": [],
+        "env_var_names": [
+          "BEDROCK_MODEL_ID",
+          "COGNITO_USER_POOL_ID",
+          "CREDENTIAL_PURGE_EPOCH",
+          "LOG_LEVEL",
+          "SEO_TOOLS_TABLE",
+          "WEBHOOK_DEDUP_TABLE",
+          "WIX_ACCOUNT_ID",
+          "WIX_BLOG_AUTHOR_NAME",
+          "WIX_CLIENT_ID",
+          "WIX_CREDENTIALS_DISABLED",
+          "WIX_SITE_ID"
+        ],
+        "snapstart": "None",
+        "aliases": [],
+        "live_alias_version": null
+      },
+      {
+        "name": "wecare-service-api",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:01:33.000+0000",
+        "code_sha256": "XW+rDOqCGjIGR3P7jhBpjVvCzVgc2JFNQzAjM+VMYXw=",
+        "code_size": 269024,
+        "layers": [],
+        "env_var_names": [
+          "DOCS_S3_BUCKET",
+          "TABLE_PREFIX"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "11"
+      },
+      {
+        "name": "wecare-site-language",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:01:37.000+0000",
+        "code_sha256": "kfh6kvI9RishF2r8M5hvqT8oFUy39TYeQ7INFnv1yqo=",
+        "code_size": 9117,
+        "layers": [],
+        "env_var_names": [
+          "SITE_LANGUAGE_ALLOWED_ORIGINS",
+          "SITE_LANGUAGE_CACHE_TABLE",
+          "SITE_LANGUAGE_CACHE_TTL_SECONDS",
+          "SITE_LANGUAGE_GOOGLE_SECRET",
+          "SITE_LANGUAGE_MAX_TEXTS",
+          "SITE_LANGUAGE_MAX_TEXT_BYTES",
+          "SITE_LANGUAGE_MAX_TOTAL_BYTES",
+          "SITE_LANGUAGE_MAX_TTS_CHARS",
+          "SITE_LANGUAGE_TRANSLATE_PROVIDER"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "6"
+      },
+      {
+        "name": "wecare-sla-engine",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:04:56.000+0000",
+        "code_sha256": "m8AtxTx8lo0WXAV5AwkZo4ZY+L/Db0hTZYvZYPqY6SE=",
+        "code_size": 263976,
+        "layers": [],
+        "env_var_names": [
+          "DEFAULT_ASSIGNEE",
+          "SLA_APPOINTMENT_MINUTES",
+          "SLA_ASSIGN_MINUTES",
+          "SLA_ESCALATE_MINUTES",
+          "TABLE_PREFIX"
+        ],
+        "snapstart": "None",
+        "aliases": [],
+        "live_alias_version": null
+      },
+      {
+        "name": "wecare-sms-aws",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:03:14.000+0000",
+        "code_sha256": "iSU9lW6FwavW6nnrq+gMr78pzqTmJN+3P74hZ7v2FDs=",
+        "code_size": 270648,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "19"
+      },
+      {
+        "name": "wecare-system-cleanup",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 300,
+        "last_modified": "2026-09-25T11:05:00.000+0000",
+        "code_sha256": "I8GV1789OGRbzITWTLr7fKf5IeMfxf8L7BhERjzNruI=",
+        "code_size": 267172,
+        "layers": [],
+        "env_var_names": [
+          "AWS_REGION_OVERRIDE",
+          "LOG_LEVEL",
+          "MEDIA_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "17"
+      },
+      {
+        "name": "wecare-template-analytics",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:02:49.000+0000",
+        "code_sha256": "UlPuVlM8Px7ZdbeTSYeHl5OsS6gyKIlF7PMOBvT5YKI=",
+        "code_size": 264015,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
+      },
+      {
+        "name": "wecare-url-shortener",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 10,
+        "last_modified": "2026-09-25T11:01:47.000+0000",
+        "code_sha256": "M936s3rY3Bjs52P614LH7Nk9X2fTvb8O1m8i5R8gCdo=",
+        "code_size": 266070,
+        "layers": [],
+        "env_var_names": [],
+        "snapstart": "None",
+        "aliases": [],
+        "live_alias_version": null
+      },
+      {
+        "name": "wecare-voice-aws",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:03:19.000+0000",
+        "code_sha256": "MKupxrAbQgcW8LR/GI6pMmUGjEfiHUS1gU/ZQnNlDuk=",
+        "code_size": 265620,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "CONTACTS_TABLE",
+          "LOG_LEVEL",
+          "REGION",
+          "S3_BUCKET",
+          "VOICE_AWS_TABLE",
+          "VOICE_ID",
+          "VOICE_ORIGINATION_IDENTITY"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
+      },
+      {
+        "name": "wecare-voice-cdr-read",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:03:35.000+0000",
+        "code_sha256": "khkUv8wrAT8ZI6aiTsQs4MeWtpDSwiKFguWBcotugmg=",
+        "code_size": 268268,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "15"
+      },
+      {
+        "name": "wecare-voice-in-c2c",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-26T01:33:10.000+0000",
+        "code_sha256": "iyhnlexwih4g0zWsGkLZ6KCQk8EhjuVSBdHSWKFgHB8=",
+        "code_size": 272117,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "LOG_LEVEL",
+          "REGION",
+          "S3_BUCKET",
+          "SINCH_RCS_ENABLED",
+          "VOICE_CDR_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "17"
+      },
+      {
+        "name": "wecare-voice-in-obd",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 120,
+        "last_modified": "2026-09-26T01:33:17.000+0000",
+        "code_sha256": "/fIRmw58JK3QWI+ayzLUPEFVWLHSUBgczIJCvOzhdKM=",
+        "code_size": 275634,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "LOG_LEVEL",
+          "OBD_CAMPAIGNS_TABLE",
+          "REGION",
+          "S3_BUCKET",
+          "SINCH_RCS_ENABLED",
+          "VOICE_CDR_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "17"
+      },
+      {
+        "name": "wecare-waba-management",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:02:40.000+0000",
+        "code_sha256": "g50OUTYploimd8cZ4PxqP3ZnyqbK0nr53k36ujtOK3s=",
+        "code_size": 271672,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "LOG_LEVEL",
+          "REGION",
+          "S3_BUCKET",
+          "SNS_TOPIC_ARN",
+          "SYSTEM_CONFIG_TABLE"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "18"
+      },
+      {
+        "name": "wecare-whatsapp-business-api",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:02:34.000+0000",
+        "code_sha256": "awFhkrrSlqI7ONycabiuj/rYKp4h7HjRTaN9xd6o85c=",
+        "code_size": 733714,
+        "layers": [
+          "cryptography-python312:1"
+        ],
+        "env_var_names": [
+          "AUTH_SKIP_PATHS",
+          "FLOW_LOGS_TABLE",
+          "FLOW_PRIVATE_KEY_PASSPHRASE",
+          "FLOW_PRIVATE_KEY_SECRET",
+          "FLOW_REGISTRY_TABLE",
+          "FLOW_SUBMISSIONS_TABLE",
+          "LOG_LEVEL",
+          "META_API_VERSION",
+          "META_TOKEN_SECRET",
+          "PAYMENT_WABA_ID",
+          "PAYU_MID",
+          "PAYU_UPI_ID",
+          "RAZORPAY_MID",
+          "RAZORPAY_UPI_ID",
+          "SUBMIT_REQUESTS_TABLE",
+          "WIX_ORDERS_CACHE_TABLE",
+          "WIX_ORDER_IDS_TABLE",
+          "WIX_SITE_URL"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "41"
+      },
+      {
+        "name": "wecare-whatsapp-calling",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-26T00:42:24.000+0000",
+        "code_sha256": "QA1VvuVXCe5/MDLIZfAx5A7m2PPmdyjgj6ggqVR8EtA=",
+        "code_size": 294456,
+        "layers": [],
+        "env_var_names": [
+          "AI_LANGUAGE",
+          "AI_VOICE_ID",
+          "AUTO_PICKUP_AUDIO_KEY",
+          "AUTO_PICKUP_ENABLED",
+          "AUTO_PICKUP_IVR_URL",
+          "CALL_LOG_TABLE",
+          "INBOUND_HANDLER_FUNCTION",
+          "LOG_LEVEL",
+          "MEDIA_BUCKET",
+          "META_API_VERSION",
+          "META_TOKEN_SECRET",
+          "SECRETS_ROTATED_AT",
+          "SINCH_RCS_ENABLED",
+          "SYSTEM_CONFIG_TABLE",
+          "TRANSCRIBE_LANGUAGE",
+          "WHATSAPP_PHONE_NUMBER_ID_1",
+          "WHATSAPP_PHONE_NUMBER_ID_2"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "24"
+      },
+      {
+        "name": "wecare-whatsapp-template-management",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 60,
+        "last_modified": "2026-09-25T11:02:13.000+0000",
+        "code_sha256": "v+cLgnKhljYLGXnHCZN6uB5ZXEyaMmltF9NBuMv47xI=",
+        "code_size": 270789,
+        "layers": [],
+        "env_var_names": [
+          "LOG_LEVEL",
+          "MEDIA_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "16"
+      },
+      {
+        "name": "wecare-whatsapp-templates",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:02:10.000+0000",
+        "code_sha256": "zw3I0BakCE6Id+k8OsYjZRHQsnRO8aNcbeS3Nj7Cp8M=",
+        "code_size": 267360,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "16"
+      },
+      {
+        "name": "wecare-whatsapp-voice",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 30,
+        "last_modified": "2026-09-25T11:02:04.000+0000",
+        "code_sha256": "fBY3KFDZvelAOGqhgzrCq+3PnrLqJF0NHFFxWvFiVhw=",
+        "code_size": 270889,
+        "layers": [],
+        "env_var_names": [
+          "AWS_ACCOUNT_ID",
+          "REGION",
+          "S3_BUCKET"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "16"
+      },
+      {
+        "name": "wecare-wix-store",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 256,
+        "timeout": 60,
+        "last_modified": "2026-09-26T01:51:50.000+0000",
+        "code_sha256": "2HeLHQzcLhqNQCPT4bL7Z+P3sOSNhNqud+bByQWgbuM=",
+        "code_size": 275878,
+        "layers": [],
+        "env_var_names": [
+          "CONTACTS_TABLE",
+          "LOG_LEVEL",
+          "WIX_ACCOUNT_ID",
+          "WIX_API_BASE_URL",
+          "WIX_API_KEY_SECRET",
+          "WIX_ORDERS_CACHE_TABLE",
+          "WIX_ORDER_IDS_TABLE",
+          "WIX_PRODUCTS_CACHE_TABLE",
+          "WIX_SITE_ID"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "22"
       }
     ]
   },
@@ -4096,2088 +4668,6 @@
     ],
     "rest_apis": []
   },
-  "s3": {
-    "count": 6,
-    "unencrypted": [],
-    "public_policy": [],
-    "no_full_public_access_block": [],
-    "buckets": [
-      {
-        "name": "app.wecare.digital",
-        "created": "2026-02-10T02:29:10+00:00",
-        "region": "us-east-1",
-        "encryption": "AES256",
-        "public_access_block_all": true,
-        "versioning": "Enabled",
-        "policy_is_public": false
-      },
-      {
-        "name": "cdk-hnb659fds-assets-775261844268-us-east-1",
-        "created": "2026-02-11T01:05:56+00:00",
-        "region": "us-east-1",
-        "encryption": "aws:kms",
-        "public_access_block_all": true,
-        "versioning": "Enabled",
-        "policy_is_public": false
-      },
-      {
-        "name": "wecare-credential-backups-775261844268",
-        "created": "2026-09-20T06:52:57+00:00",
-        "region": "us-east-1",
-        "encryption": "aws:kms",
-        "public_access_block_all": true,
-        "versioning": "Enabled",
-        "policy_is_public": false
-      },
-      {
-        "name": "wecare-digital-get",
-        "created": "2026-09-25T02:46:54+00:00",
-        "region": "us-east-1",
-        "encryption": "AES256",
-        "public_access_block_all": true,
-        "versioning": "Enabled",
-        "policy_is_public": false
-      },
-      {
-        "name": "wecare-digital-mta-sts",
-        "created": "2026-08-22T15:10:15+00:00",
-        "region": "us-east-1",
-        "encryption": "AES256",
-        "public_access_block_all": true,
-        "versioning": null,
-        "policy_is_public": false
-      },
-      {
-        "name": "wecare-maintenance-reports-775261844268",
-        "created": "2026-09-19T02:16:21+00:00",
-        "region": "us-east-1",
-        "encryption": "aws:kms",
-        "public_access_block_all": true,
-        "versioning": "Enabled",
-        "policy_is_public": false
-      }
-    ]
-  },
-  "iac": {
-    "cfn_stack_count": 7,
-    "cfn_stacks": [
-      {
-        "name": "CDKToolkit",
-        "status": "CREATE_COMPLETE",
-        "updated": "2026-02-11T01:05:49.747000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-call-hooks",
-        "status": "UPDATE_COMPLETE",
-        "updated": "2026-09-19T09:17:41.074000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-init",
-        "status": "CREATE_COMPLETE",
-        "updated": "2026-09-19T09:20:01.036000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-mcp",
-        "status": "UPDATE_COMPLETE",
-        "updated": "2026-09-19T07:57:38.414000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-mcp-enable",
-        "status": "UPDATE_COMPLETE",
-        "updated": "2026-09-19T09:40:43.405000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-postcall-sms",
-        "status": "CREATE_COMPLETE",
-        "updated": "2026-09-19T09:20:01.805000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-temp-code-inspector",
-        "status": "CREATE_COMPLETE",
-        "updated": "2026-09-19T09:12:09.763000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      }
-    ],
-    "amplify_app_count": 1,
-    "amplify_apps": [
-      {
-        "app_id": "d22dm4b0jn71jw",
-        "name": "wecare.digital",
-        "default_domain": "d22dm4b0jn71jw.amplifyapp.com",
-        "platform": "WEB",
-        "repository": "https://github.com/wecare-digital/bharat-stack",
-        "custom_rule_count": 23,
-        "branches": [
-          {
-            "branch": "chatgpt/grahak-os-color-unify-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "3",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T11:31:52.387000+00:00"
-              },
-              {
-                "id": "2",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T11:23:06.522000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T11:18:14.711000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-final-polish-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T06:09:27.256000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T06:00:01.187000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-five-fixes-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T08:17:44.125000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T07:55:52.757000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-route-header-20260917",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T00:35:05.410000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T00:24:30.259000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-trust-strip-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "4",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T02:50:23.498000+00:00"
-              },
-              {
-                "id": "3",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T02:43:09.487000+00:00"
-              },
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T02:33:01.465000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-widgets-footer-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T04:37:39.834000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T04:07:09.011000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/meta-icon-s3-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T10:17:18.829000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T10:08:45.805000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/meta-icon-s3-latest-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "1",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T10:25:29.098000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "stack",
-            "stage": "PRODUCTION",
-            "enable_auto_build": true,
-            "recent_jobs": [
-              {
-                "id": "896",
-                "status": "SUCCEED",
-                "commit": "5653a12a0f5a",
-                "end": "2026-09-26T03:05:24.531000+00:00"
-              },
-              {
-                "id": "895",
-                "status": "SUCCEED",
-                "commit": "1efd670c998b",
-                "end": "2026-09-26T02:30:57.994000+00:00"
-              },
-              {
-                "id": "894",
-                "status": "SUCCEED",
-                "commit": "20b523f03631",
-                "end": "2026-09-26T02:19:26.839000+00:00"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  "crosschecks": {
-    "dlqs_without_alarm": [
-      "stack-wecare-digital-inbound-dlq",
-      "stack-wecare-digital-notification-dlq",
-      "stack-wecare-digital-outbound-dlq"
-    ],
-    "alarms_watching_nonexistent_queue": {
-      "base-wecare-digital-inbound-dlq": [
-        "wecare-inbound-dlq-depth"
-      ],
-      "base-wecare-digital-outbound-dlq": [
-        "wecare-outbound-dlq-depth"
-      ]
-    },
-    "regional_web_acls_with_zero_associations": [],
-    "amplify_waf": {
-      "d22dm4b0jn71jw": {
-        "web_acl_arn_tail": [
-          "wecare-amplify-waf",
-          "b4d41adc-d1ad-4639-9403-00e7df7b3741"
-        ],
-        "status": "ASSOCIATION_SUCCESS"
-      }
-    }
-  },
-  "lambda": {
-    "count": 65,
-    "with_live_alias": 58,
-    "without_live_alias": [
-      "wecare-ad-attribution",
-      "wecare-docs-scraper",
-      "wecare-get-miss-redirect",
-      "wecare-partner-token-refresh",
-      "wecare-seo-tools",
-      "wecare-sla-engine",
-      "wecare-url-shortener"
-    ],
-    "alias_read_errors": 0,
-    "runtimes": {
-      "python3.12": 64,
-      "null": 1
-    },
-    "package_types": {
-      "Zip": 64,
-      "Image": 1
-    },
-    "snapstart": {
-      "None": 65
-    },
-    "functions": [
-      {
-        "name": "stack-wecare-url-shortener",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 10,
-        "last_modified": "2026-09-25T11:01:51.000+0000",
-        "code_sha256": "M936s3rY3Bjs52P614LH7Nk9X2fTvb8O1m8i5R8gCdo=",
-        "code_size": 266070,
-        "layers": [],
-        "env_var_names": [
-          "LINK_CLICKS_TABLE",
-          "SHORT_DOMAIN",
-          "SHORT_LINKS_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "12"
-      },
-      {
-        "name": "wecare-ad-attribution",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:04:08.000+0000",
-        "code_sha256": "WJTvd/68uJ2DaWuXdedlXiktIc9zUHB07kBqtOaCzI8=",
-        "code_size": 264334,
-        "layers": [],
-        "env_var_names": [],
-        "snapstart": "None",
-        "aliases": [],
-        "live_alias_version": null
-      },
-      {
-        "name": "wecare-agent-action-group",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:04:30.000+0000",
-        "code_sha256": "9BVuQA+NnAL2+SG1ee1NsgzqR6waU/7CWReBhgAW0z4=",
-        "code_size": 269085,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "MESSAGES_INBOUND_TABLE",
-          "MESSAGES_OUTBOUND_TABLE",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "19"
-      },
-      {
-        "name": "wecare-ai-config-management",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:04:27.000+0000",
-        "code_sha256": "8f9nUyCWtTMmanoCmOYBpfJ6gphuwTqr0yIYGPcWr04=",
-        "code_size": 268729,
-        "layers": [],
-        "env_var_names": [
-          "AI_INTERACTIONS_TABLE",
-          "AWS_ACCOUNT_ID",
-          "LOG_LEVEL",
-          "REGION",
-          "S3_BUCKET",
-          "SYSTEM_CONFIG_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "16"
-      },
-      {
-        "name": "wecare-ai-generate-response",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 1024,
-        "timeout": 120,
-        "last_modified": "2026-09-25T11:04:24.000+0000",
-        "code_sha256": "hRhunXvNEzZPenL488GjnL3VMSBH7Oiu8QM7dzekgsQ=",
-        "code_size": 315044,
-        "layers": [],
-        "env_var_names": [
-          "CONTACTS_TABLE",
-          "CONVERSATION_TABLE",
-          "CONVERSATION_TTL_HOURS",
-          "GUARDRAIL_ID",
-          "GUARDRAIL_VERSION",
-          "LOG_LEVEL",
-          "MAX_HISTORY_MESSAGES",
-          "MAX_INPUT_TEXT_LENGTH",
-          "MAX_SESSION_MESSAGES",
-          "MEDIA_BUCKET",
-          "MESSAGES_TABLE",
-          "MODEL_ID",
-          "SEND_MODE",
-          "SESSION_IDLE_TIMEOUT_MINUTES",
-          "SYSTEM_CONFIG_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "19"
-      },
-      {
-        "name": "wecare-ai-query-kb",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:04:21.000+0000",
-        "code_sha256": "l9Qhpr4SqgbCLw9yWZokqxFA6oJvBzIi78WRNhE5xxI=",
-        "code_size": 262588,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "LOG_LEVEL",
-          "REGION",
-          "S3_BUCKET",
-          "SEND_MODE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "16"
-      },
-      {
-        "name": "wecare-auth-middleware",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:00:54.000+0000",
-        "code_sha256": "SNVYyrBSUMtOJSdwAnamqI57VYN3YTNPwY9/Df/yPps=",
-        "code_size": 262981,
-        "layers": [],
-        "env_var_names": [
-          "COGNITO_USER_POOL_ID",
-          "LOG_LEVEL"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "14"
-      },
-      {
-        "name": "wecare-automation-rules",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:00:59.000+0000",
-        "code_sha256": "SiwOBRCJYJxI9cOqQe7h0kFXeAhrgkPFdbWnWXjkmsA=",
-        "code_size": 263083,
-        "layers": [],
-        "env_var_names": [
-          "AUTOMATION_RULES_TABLE",
-          "LOG_LEVEL"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "12"
-      },
-      {
-        "name": "wecare-billing",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:04:33.000+0000",
-        "code_sha256": "t4naCrUj1aOIj9Hu/l99hGyXYDnIK3mcQQGE7Y5DhlM=",
-        "code_size": 269111,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "16"
-      },
-      {
-        "name": "wecare-bulk-job-control",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:04:42.000+0000",
-        "code_sha256": "1pqQBHJeHj1RHCk7yz5fZubkRIkBmwXLIdmB+fM0CI4=",
-        "code_size": 264951,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "BULK_JOBS_TABLE",
-          "BULK_QUEUE_URL",
-          "BULK_RECIPIENTS_TABLE",
-          "LOG_LEVEL",
-          "REGION",
-          "REPORT_BUCKET",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-bulk-job-create",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:04:36.000+0000",
-        "code_sha256": "fhgyr71/ex5hJjkVlm27h3KXz2lDZGCh3GRvgvIXZ9M=",
-        "code_size": 265178,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "BULK_JOBS_TABLE",
-          "BULK_QUEUE_URL",
-          "BULK_RECIPIENTS_TABLE",
-          "LOG_LEVEL",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-bulk-worker",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 120,
-        "last_modified": "2026-09-25T11:04:45.000+0000",
-        "code_sha256": "CGBR/7sELsRGhEOZHGfgHPAhA5XanvpB/a1peVz97WI=",
-        "code_size": 265589,
-        "layers": [],
-        "env_var_names": [
-          "BULK_JOBS_TABLE",
-          "BULK_RECIPIENTS_TABLE",
-          "CONTACTS_TABLE",
-          "DEFAULT_PHONE_NUMBER_ID",
-          "LOG_LEVEL",
-          "OUTBOUND_TABLE",
-          "SEND_MODE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-catalog-management",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:05:49.000+0000",
-        "code_sha256": "1e0y3QKfad2V/hli6OqOF3MeZP8W0N17ei4Z1Ecf9ec=",
-        "code_size": 264498,
-        "layers": [],
-        "env_var_names": [],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "12"
-      },
-      {
-        "name": "wecare-cognito-custom-message",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 10,
-        "last_modified": "2026-09-25T11:01:44.000+0000",
-        "code_sha256": "jP9uNBTpWwqBKn+Uc9tXPlzGFTLJznjv5MMlXZC/bfQ=",
-        "code_size": 5085,
-        "layers": [],
-        "env_var_names": [
-          "BRAND_NAME",
-          "SENDER_ADDRESS",
-          "SIGNIN_URL"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "2"
-      },
-      {
-        "name": "wecare-contacts",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:01:03.000+0000",
-        "code_sha256": "WFnIdzYQC6UY/xtIwrd3aYv4LlZk5JxAm/dg9ObuqBA=",
-        "code_size": 268032,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "16"
-      },
-      {
-        "name": "wecare-conversation-meta",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:01:11.000+0000",
-        "code_sha256": "htXs8Nzi5xWrYRTmR0u2hOVi/1PNMp18wnGYMlEvjrg=",
-        "code_size": 263014,
-        "layers": [],
-        "env_var_names": [
-          "CONVERSATION_META_TABLE",
-          "LOG_LEVEL"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "12"
-      },
-      {
-        "name": "wecare-crm",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:01:18.000+0000",
-        "code_sha256": "CuQSQNYvsN0fUjdjz7xEmWO3gOYtMhe5CjW5n7gSIz8=",
-        "code_size": 269165,
-        "layers": [],
-        "env_var_names": [
-          "CONTACTS_TABLE",
-          "CRM_ACTIVITIES_TABLE",
-          "CRM_LEADS_TABLE",
-          "CRM_OPPORTUNITIES_TABLE",
-          "CRM_PIPELINES_TABLE",
-          "CRM_STAGES_TABLE",
-          "INVOICES_TABLE",
-          "PAYMENTS_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "8"
-      },
-      {
-        "name": "wecare-customer-whatsapp-auth",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 15,
-        "last_modified": "2026-09-25T11:33:42.000+0000",
-        "code_sha256": "KB3Jr131Ndmq7+J1CR/M46DtTysWrZB5kHqF+Lutrng=",
-        "code_size": 4645,
-        "layers": [],
-        "env_var_names": [
-          "MAX_ATTEMPTS",
-          "META_PHONE_NUMBER_ID",
-          "META_WABA_ID",
-          "OTP_PROBE_MAX_PER_WINDOW",
-          "OTP_PROBE_WINDOW_SECONDS",
-          "OTP_TEMPLATE_LANGUAGE",
-          "OTP_TEMPLATE_NAME",
-          "OTP_TTL_SECONDS",
-          "SENDER_FUNCTION"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "9"
-      },
-      {
-        "name": "wecare-dlq-replay",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:04:51.000+0000",
-        "code_sha256": "HMQRSfCesc1yDKL7StayyNIJ+sIdUqmaIniYcwhFDvg=",
-        "code_size": 264982,
-        "layers": [],
-        "env_var_names": [
-          "DLQ_URL",
-          "LOG_LEVEL",
-          "MAX_MESSAGES",
-          "SNS_TOPIC_ARN"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-docs-scraper",
-        "runtime": null,
-        "package_type": "Image",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 2048,
-        "timeout": 300,
-        "last_modified": "2026-09-23T22:40:18.000+0000",
-        "code_sha256": "6d2880cd1e7b5717f5a252b2fc0cb5fdf14651fc1f0d9cd2c3279c5b94cc3de4",
-        "code_size": 0,
-        "layers": [],
-        "env_var_names": [],
-        "snapstart": "None",
-        "aliases": [],
-        "live_alias_version": null
-      },
-      {
-        "name": "wecare-faq-handler",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:01:22.000+0000",
-        "code_sha256": "jE0YO9gj46jnIvesprpN3wowt7YNQ3EgVAHBserBji8=",
-        "code_size": 265060,
-        "layers": [],
-        "env_var_names": [],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-get-miss-redirect",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 128,
-        "timeout": 5,
-        "last_modified": "2026-09-25T03:25:21.000+0000",
-        "code_sha256": "+UvlzSu6Nf62r30jRd4xJk7Gy+w9ySFey6+vfZg8vt8=",
-        "code_size": 2695,
-        "layers": [],
-        "env_var_names": [],
-        "snapstart": "None",
-        "aliases": [],
-        "live_alias_version": null
-      },
-      {
-        "name": "wecare-inbound-whatsapp",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 120,
-        "last_modified": "2026-09-26T00:42:21.000+0000",
-        "code_sha256": "5h9Jp6OHbB8QeQo2rU1NBB82HQ19Mb9TTkxQ3uiEVcU=",
-        "code_size": 347063,
-        "layers": [],
-        "env_var_names": [
-          "CONTACTS_TABLE",
-          "IAM_REFRESH",
-          "INBOUND_TABLE",
-          "MEDIA_BUCKET",
-          "OUTBOUND_TABLE",
-          "WHATSAPP_PHONE_NUMBER_ID_1",
-          "WHATSAPP_PHONE_NUMBER_ID_2"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "51"
-      },
-      {
-        "name": "wecare-invoice-engine",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:05:30.000+0000",
-        "code_sha256": "zVuJLDjoKRic30+akTMAmtBjlKDHh5kdQjVsL4NM7HI=",
-        "code_size": 290863,
-        "layers": [
-          "pillow-python312:2"
-        ],
-        "env_var_names": [
-          "CDN_DOMAIN",
-          "CONTACTS_TABLE",
-          "INVOICES_TABLE",
-          "INVOICE_ASSETS_TABLE",
-          "INVOICE_DELIVERY_TABLE",
-          "INVOICE_ITEMS_TABLE",
-          "INVOICE_SEQ_TABLE",
-          "LOG_LEVEL",
-          "MEDIA_BUCKET",
-          "PAYMENTS_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "25"
-      },
-      {
-        "name": "wecare-marketing-ads",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 45,
-        "last_modified": "2026-09-25T11:04:12.000+0000",
-        "code_sha256": "rSgrjl5uLRdQyn/E9w/cwOKupXTVdHe61rCpYmhx6GI=",
-        "code_size": 267279,
-        "layers": [
-          "cryptography-python312:1"
-        ],
-        "env_var_names": [
-          "COGNITO_USER_POOL_ID",
-          "LOG_LEVEL",
-          "MEDIA_BUCKET",
-          "META_AD_ACCOUNT",
-          "META_BUSINESS_ID",
-          "META_GRAPH_BASE",
-          "META_PAGE_ID",
-          "META_TOKEN_SECRET",
-          "WABA1_DISPLAY",
-          "WABA2_DISPLAY"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "14"
-      },
-      {
-        "name": "wecare-media-cleanup",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:02:46.000+0000",
-        "code_sha256": "cB8QzC4OfGafFiVvtyRnoEr2Pt25N6i5Ou2aFHj79U4=",
-        "code_size": 263876,
-        "layers": [],
-        "env_var_names": [
-          "CLEANUP_AGE_DAYS",
-          "LOG_LEVEL",
-          "MAX_DELETIONS",
-          "MEDIA_FILES_TABLE",
-          "WHATSAPP_PHONE_NUMBER_ID_1"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-messages-delete",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:01:27.000+0000",
-        "code_sha256": "c4XK8zRZC4AqC9M833wSTXg3azvcW8A0JgTA1de0yYU=",
-        "code_size": 265775,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "INBOUND_WHATSAPP_FUNCTION",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-messages-read",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:01:30.000+0000",
-        "code_sha256": "QJ5PcPzIzO1i8lUclQ7iSuwskihLt2SSeGbimr2uDdw=",
-        "code_size": 268155,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "16"
-      },
-      {
-        "name": "wecare-meta-analytics",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:04:04.000+0000",
-        "code_sha256": "xgFFjovQs3gv20OUR/swj0scZxuJftZxcr4yGMqHqec=",
-        "code_size": 264025,
-        "layers": [],
-        "env_var_names": [],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "12"
-      },
-      {
-        "name": "wecare-meta-business-agent",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:04:18.000+0000",
-        "code_sha256": "VzfXF0P8ZOvL1+8PIJ6gKE9XzbL1REbSoMpVmaW3e9k=",
-        "code_size": 273876,
-        "layers": [],
-        "env_var_names": [],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "27"
-      },
-      {
-        "name": "wecare-notification-worker",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 120,
-        "last_modified": "2026-09-25T11:03:38.000+0000",
-        "code_sha256": "PpnNY64678jyFroCEes2VLUHuJTBUf3aaNmz+F9ZGEk=",
-        "code_size": 263908,
-        "layers": [],
-        "env_var_names": [
-          "NOTIF_SWEEP_LIMIT"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "9"
-      },
-      {
-        "name": "wecare-outbound-email",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:03:10.000+0000",
-        "code_sha256": "AsgmPod0868e2Zwd5mMcuZfztWLKkmPC3RECRmNjY2U=",
-        "code_size": 263964,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "CONTACTS_TABLE",
-          "FROM_EMAIL",
-          "LOG_LEVEL",
-          "MESSAGES_TABLE",
-          "REGION",
-          "REPLY_TO_EMAIL",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-outbound-sms",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:03:06.000+0000",
-        "code_sha256": "BAPYWpjd8i7+6BpiHw5LePBs2qlmhprOtIx1wSLu2gk=",
-        "code_size": 265622,
-        "layers": [],
-        "env_var_names": [
-          "AIRTEL_IQ_ENTITY_ID",
-          "AIRTEL_IQ_SOURCE_ADDRESS",
-          "AWS_ACCOUNT_ID",
-          "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "MESSAGES_TABLE",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "16"
-      },
-      {
-        "name": "wecare-outbound-whatsapp",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:02:00.000+0000",
-        "code_sha256": "/EVTbkbkUkhxLNNsZwEAy1Ai4ktEhtdrEOpgIMtOKEg=",
-        "code_size": 307262,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "MEDIA_BUCKET",
-          "MEDIA_FILES_TABLE",
-          "MESSAGES_TABLE",
-          "RATE_LIMIT_TABLE",
-          "REGION",
-          "S3_BUCKET",
-          "SEND_MODE",
-          "WHATSAPP_PHONE_NUMBER_ID_1",
-          "WHATSAPP_PHONE_NUMBER_ID_2"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "28"
-      },
-      {
-        "name": "wecare-partner-onboarding",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:02:52.000+0000",
-        "code_sha256": "tLjTSg6vA/AO4T15f+zYS+7XJK03PKt2kf22RfdA/sU=",
-        "code_size": 270619,
-        "layers": [
-          "cryptography-python312:1"
-        ],
-        "env_var_names": [
-          "COGNITO_USER_POOL_ID",
-          "LOG_LEVEL",
-          "META_API_VERSION",
-          "META_APP_ID",
-          "META_EXTENDED_CREDIT_ID",
-          "META_TOKEN_SECRET",
-          "PARTNER_DEFAULT_CURRENCY",
-          "PARTNER_GROUP",
-          "PARTNER_LEDGER_TABLE",
-          "PARTNER_WALLET_TABLE",
-          "SNS_TOPIC_ARN",
-          "SYSTEM_CONFIG_TABLE",
-          "UNIFIED_MESSAGES_TABLE",
-          "WA_REG_PIN"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-partner-token-refresh",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 120,
-        "last_modified": "2026-09-25T11:02:58.000+0000",
-        "code_sha256": "j6alVxgsNNCilkvy+Dz1tnV+YaumImZHvOLmOjkQVgA=",
-        "code_size": 263952,
-        "layers": [
-          "cryptography-python312:1"
-        ],
-        "env_var_names": [
-          "LOG_LEVEL",
-          "META_API_VERSION",
-          "META_APP_ID",
-          "META_TOKEN_SECRET",
-          "PARTNER_SECRET_PREFIX",
-          "REFRESH_WINDOW_DAYS",
-          "SYSTEM_CONFIG_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [],
-        "live_alias_version": null
-      },
-      {
-        "name": "wecare-payments-read",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:05:08.000+0000",
-        "code_sha256": "c+FZhIIFaWQSUDZbuMryooQHqqbpkfs1InZoNGCReP4=",
-        "code_size": 264290,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "17"
-      },
-      {
-        "name": "wecare-plivo-answer",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 15,
-        "last_modified": "2026-09-25T11:03:41.000+0000",
-        "code_sha256": "TGZeFNSIWYX5EIs7416b5zRzbXNo3enO4gUFZHDKWUw=",
-        "code_size": 275479,
-        "layers": [],
-        "env_var_names": [
-          "DLT_TEMPLATE_KEY",
-          "IVR_AUDIO_URL",
-          "POST_CALL_SMS_ENABLED",
-          "SMS_FUNCTION"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "21"
-      },
-      {
-        "name": "wecare-product-image-gen",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:05:43.000+0000",
-        "code_sha256": "HlJ+vj6VJkxQ5umFlPeX8m7kRGNAhGMSQDtCOD5XZW4=",
-        "code_size": 269685,
-        "layers": [
-          "Klayers-p312-Pillow:10"
-        ],
-        "env_var_names": [
-          "CREDENTIAL_PURGE_EPOCH",
-          "WIX_ACCOUNT_ID",
-          "WIX_CREDENTIALS_DISABLED",
-          "WIX_SITE_ID"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "17"
-      },
-      {
-        "name": "wecare-pstn-softphone",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-23T11:02:57.087+0000",
-        "code_sha256": "o2PBfbyV5fuStEd5e/SNVAf5PR6zMSkyIFB4JwLbcG0=",
-        "code_size": 216747,
-        "layers": [],
-        "env_var_names": [
-          "PLIVO_API_SECRET_ID",
-          "PLIVO_APPLICATION_ID",
-          "PSTN_SESSIONS_TABLE",
-          "PSTN_TOKEN_TTL_SECONDS"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "1"
-      },
-      {
-        "name": "wecare-push-notifications",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:03:53.000+0000",
-        "code_sha256": "6Y+EbHPEWSHdwhC9h9a4e18VX5bzc0B4IPJ52F1BAJw=",
-        "code_size": 264362,
-        "layers": [],
-        "env_var_names": [],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "14"
-      },
-      {
-        "name": "wecare-razorpay-webhook",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:33:08.000+0000",
-        "code_sha256": "dw+tEvyJC/kIvFEdHAVhf2ErqeHjPDyBfraMMyY8bMc=",
-        "code_size": 281838,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "INVOICES_TABLE",
-          "LOG_LEVEL",
-          "MESSAGES_TABLE",
-          "PAYMENTS_TABLE",
-          "POST_PAYMENT_FLOW_WABA1",
-          "POST_PAYMENT_FLOW_WABA2",
-          "POST_PAYMENT_REQUEST_TEMPLATE",
-          "REGION",
-          "S3_BUCKET",
-          "WEBHOOK_LOG_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "36"
-      },
-      {
-        "name": "wecare-rcs-dlr",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 15,
-        "last_modified": "2026-09-25T11:03:50.000+0000",
-        "code_sha256": "lUVL9b6R/C0ZL25C9ejYHrv49DrXzSejTrOz/T37c9I=",
-        "code_size": 268328,
-        "layers": [],
-        "env_var_names": [
-          "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "RCS_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "18"
-      },
-      {
-        "name": "wecare-rcs-send",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:03:44.000+0000",
-        "code_sha256": "KVnGe7GcaY89X++K6Meao7goLHJ/+d/CDDnOGb2NLXo=",
-        "code_size": 271711,
-        "layers": [],
-        "env_var_names": [
-          "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "RCS_APP_ID",
-          "RCS_PROJECT_ID",
-          "RCS_SECRET_NAME",
-          "RCS_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "19"
-      },
-      {
-        "name": "wecare-scheduled-messages",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:03:59.000+0000",
-        "code_sha256": "id73zxqYx8Su/7NBnn4RxZ6Nkw7dBMfzqeOtlqSTUhI=",
-        "code_size": 265849,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "OUTBOUND_LAMBDA",
-          "REGION",
-          "S3_BUCKET",
-          "SCHEDULED_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "14"
-      },
-      {
-        "name": "wecare-secure-files",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:42:59.000+0000",
-        "code_sha256": "TmS2yF/v0lsKaQEi4Cf7nVzHklDjVk2WKTZop1C2RqM=",
-        "code_size": 275096,
-        "layers": [],
-        "env_var_names": [
-          "COGNITO_USER_POOL_ID",
-          "CUSTOMER_USER_POOL_ID",
-          "DOWNLOAD_GRANTS_TABLE",
-          "DOWNLOAD_URL_TTL_SECONDS",
-          "GRANT_TTL_SECONDS",
-          "META_PHONE_NUMBER_ID",
-          "META_WABA_ID",
-          "PARTNER_GROUP",
-          "RAZORPAY_SECRET_ID",
-          "SECURE_FILES_BUCKET",
-          "SECURE_FILES_PAYMENT_ENABLED",
-          "SECURE_FILES_TABLE",
-          "SECURE_FILE_PRICE_PAISE",
-          "UPLOAD_URL_TTL_SECONDS",
-          "WA_DOC_TEMPLATE",
-          "WA_MEDIA_FUNCTION",
-          "WA_PAY_TEMPLATE",
-          "WA_SENDER_FUNCTION",
-          "WHATSAPP_LINK_TTL_SECONDS"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "14"
-      },
-      {
-        "name": "wecare-seo-tools",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 120,
-        "last_modified": "2026-09-26T00:49:13.000+0000",
-        "code_sha256": "cjV0C/hk/yyvtohbcB92BNOfSk4sYyGEAEN3fYWhqNs=",
-        "code_size": 117773,
-        "layers": [],
-        "env_var_names": [
-          "BEDROCK_MODEL_ID",
-          "COGNITO_USER_POOL_ID",
-          "CREDENTIAL_PURGE_EPOCH",
-          "LOG_LEVEL",
-          "SEO_TOOLS_TABLE",
-          "WEBHOOK_DEDUP_TABLE",
-          "WIX_ACCOUNT_ID",
-          "WIX_BLOG_AUTHOR_NAME",
-          "WIX_CLIENT_ID",
-          "WIX_CREDENTIALS_DISABLED",
-          "WIX_SITE_ID"
-        ],
-        "snapstart": "None",
-        "aliases": [],
-        "live_alias_version": null
-      },
-      {
-        "name": "wecare-service-api",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:01:33.000+0000",
-        "code_sha256": "XW+rDOqCGjIGR3P7jhBpjVvCzVgc2JFNQzAjM+VMYXw=",
-        "code_size": 269024,
-        "layers": [],
-        "env_var_names": [
-          "DOCS_S3_BUCKET",
-          "TABLE_PREFIX"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "11"
-      },
-      {
-        "name": "wecare-site-language",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:01:37.000+0000",
-        "code_sha256": "kfh6kvI9RishF2r8M5hvqT8oFUy39TYeQ7INFnv1yqo=",
-        "code_size": 9117,
-        "layers": [],
-        "env_var_names": [
-          "SITE_LANGUAGE_ALLOWED_ORIGINS",
-          "SITE_LANGUAGE_CACHE_TABLE",
-          "SITE_LANGUAGE_CACHE_TTL_SECONDS",
-          "SITE_LANGUAGE_GOOGLE_SECRET",
-          "SITE_LANGUAGE_MAX_TEXTS",
-          "SITE_LANGUAGE_MAX_TEXT_BYTES",
-          "SITE_LANGUAGE_MAX_TOTAL_BYTES",
-          "SITE_LANGUAGE_MAX_TTS_CHARS",
-          "SITE_LANGUAGE_TRANSLATE_PROVIDER"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "6"
-      },
-      {
-        "name": "wecare-sla-engine",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:04:56.000+0000",
-        "code_sha256": "m8AtxTx8lo0WXAV5AwkZo4ZY+L/Db0hTZYvZYPqY6SE=",
-        "code_size": 263976,
-        "layers": [],
-        "env_var_names": [
-          "DEFAULT_ASSIGNEE",
-          "SLA_APPOINTMENT_MINUTES",
-          "SLA_ASSIGN_MINUTES",
-          "SLA_ESCALATE_MINUTES",
-          "TABLE_PREFIX"
-        ],
-        "snapstart": "None",
-        "aliases": [],
-        "live_alias_version": null
-      },
-      {
-        "name": "wecare-sms-aws",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:03:14.000+0000",
-        "code_sha256": "iSU9lW6FwavW6nnrq+gMr78pzqTmJN+3P74hZ7v2FDs=",
-        "code_size": 270648,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "19"
-      },
-      {
-        "name": "wecare-system-cleanup",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 300,
-        "last_modified": "2026-09-25T11:05:00.000+0000",
-        "code_sha256": "I8GV1789OGRbzITWTLr7fKf5IeMfxf8L7BhERjzNruI=",
-        "code_size": 267172,
-        "layers": [],
-        "env_var_names": [
-          "AWS_REGION_OVERRIDE",
-          "LOG_LEVEL",
-          "MEDIA_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "17"
-      },
-      {
-        "name": "wecare-template-analytics",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:02:49.000+0000",
-        "code_sha256": "UlPuVlM8Px7ZdbeTSYeHl5OsS6gyKIlF7PMOBvT5YKI=",
-        "code_size": 264015,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-url-shortener",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 10,
-        "last_modified": "2026-09-25T11:01:47.000+0000",
-        "code_sha256": "M936s3rY3Bjs52P614LH7Nk9X2fTvb8O1m8i5R8gCdo=",
-        "code_size": 266070,
-        "layers": [],
-        "env_var_names": [],
-        "snapstart": "None",
-        "aliases": [],
-        "live_alias_version": null
-      },
-      {
-        "name": "wecare-voice-aws",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:03:19.000+0000",
-        "code_sha256": "MKupxrAbQgcW8LR/GI6pMmUGjEfiHUS1gU/ZQnNlDuk=",
-        "code_size": 265620,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "REGION",
-          "S3_BUCKET",
-          "VOICE_AWS_TABLE",
-          "VOICE_ID",
-          "VOICE_ORIGINATION_IDENTITY"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-voice-cdr-read",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:03:35.000+0000",
-        "code_sha256": "khkUv8wrAT8ZI6aiTsQs4MeWtpDSwiKFguWBcotugmg=",
-        "code_size": 268268,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "15"
-      },
-      {
-        "name": "wecare-voice-in-c2c",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-26T01:33:10.000+0000",
-        "code_sha256": "iyhnlexwih4g0zWsGkLZ6KCQk8EhjuVSBdHSWKFgHB8=",
-        "code_size": 272117,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "LOG_LEVEL",
-          "REGION",
-          "S3_BUCKET",
-          "SINCH_RCS_ENABLED",
-          "VOICE_CDR_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "17"
-      },
-      {
-        "name": "wecare-voice-in-obd",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 120,
-        "last_modified": "2026-09-26T01:33:17.000+0000",
-        "code_sha256": "/fIRmw58JK3QWI+ayzLUPEFVWLHSUBgczIJCvOzhdKM=",
-        "code_size": 275634,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "LOG_LEVEL",
-          "OBD_CAMPAIGNS_TABLE",
-          "REGION",
-          "S3_BUCKET",
-          "SINCH_RCS_ENABLED",
-          "VOICE_CDR_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "17"
-      },
-      {
-        "name": "wecare-waba-management",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:02:40.000+0000",
-        "code_sha256": "g50OUTYploimd8cZ4PxqP3ZnyqbK0nr53k36ujtOK3s=",
-        "code_size": 271672,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "LOG_LEVEL",
-          "REGION",
-          "S3_BUCKET",
-          "SNS_TOPIC_ARN",
-          "SYSTEM_CONFIG_TABLE"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "18"
-      },
-      {
-        "name": "wecare-whatsapp-business-api",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:02:34.000+0000",
-        "code_sha256": "awFhkrrSlqI7ONycabiuj/rYKp4h7HjRTaN9xd6o85c=",
-        "code_size": 733714,
-        "layers": [
-          "cryptography-python312:1"
-        ],
-        "env_var_names": [
-          "AUTH_SKIP_PATHS",
-          "FLOW_LOGS_TABLE",
-          "FLOW_PRIVATE_KEY_PASSPHRASE",
-          "FLOW_PRIVATE_KEY_SECRET",
-          "FLOW_REGISTRY_TABLE",
-          "FLOW_SUBMISSIONS_TABLE",
-          "LOG_LEVEL",
-          "META_API_VERSION",
-          "META_TOKEN_SECRET",
-          "PAYMENT_WABA_ID",
-          "PAYU_MID",
-          "PAYU_UPI_ID",
-          "RAZORPAY_MID",
-          "RAZORPAY_UPI_ID",
-          "SUBMIT_REQUESTS_TABLE",
-          "WIX_ORDERS_CACHE_TABLE",
-          "WIX_ORDER_IDS_TABLE",
-          "WIX_SITE_URL"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "41"
-      },
-      {
-        "name": "wecare-whatsapp-calling",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-26T00:42:24.000+0000",
-        "code_sha256": "QA1VvuVXCe5/MDLIZfAx5A7m2PPmdyjgj6ggqVR8EtA=",
-        "code_size": 294456,
-        "layers": [],
-        "env_var_names": [
-          "AI_LANGUAGE",
-          "AI_VOICE_ID",
-          "AUTO_PICKUP_AUDIO_KEY",
-          "AUTO_PICKUP_ENABLED",
-          "AUTO_PICKUP_IVR_URL",
-          "CALL_LOG_TABLE",
-          "INBOUND_HANDLER_FUNCTION",
-          "LOG_LEVEL",
-          "MEDIA_BUCKET",
-          "META_API_VERSION",
-          "META_TOKEN_SECRET",
-          "SECRETS_ROTATED_AT",
-          "SINCH_RCS_ENABLED",
-          "SYSTEM_CONFIG_TABLE",
-          "TRANSCRIBE_LANGUAGE",
-          "WHATSAPP_PHONE_NUMBER_ID_1",
-          "WHATSAPP_PHONE_NUMBER_ID_2"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "24"
-      },
-      {
-        "name": "wecare-whatsapp-template-management",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 512,
-        "timeout": 60,
-        "last_modified": "2026-09-25T11:02:13.000+0000",
-        "code_sha256": "v+cLgnKhljYLGXnHCZN6uB5ZXEyaMmltF9NBuMv47xI=",
-        "code_size": 270789,
-        "layers": [],
-        "env_var_names": [
-          "LOG_LEVEL",
-          "MEDIA_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "16"
-      },
-      {
-        "name": "wecare-whatsapp-templates",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:02:10.000+0000",
-        "code_sha256": "zw3I0BakCE6Id+k8OsYjZRHQsnRO8aNcbeS3Nj7Cp8M=",
-        "code_size": 267360,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "16"
-      },
-      {
-        "name": "wecare-whatsapp-voice",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 30,
-        "last_modified": "2026-09-25T11:02:04.000+0000",
-        "code_sha256": "fBY3KFDZvelAOGqhgzrCq+3PnrLqJF0NHFFxWvFiVhw=",
-        "code_size": 270889,
-        "layers": [],
-        "env_var_names": [
-          "AWS_ACCOUNT_ID",
-          "REGION",
-          "S3_BUCKET"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "16"
-      },
-      {
-        "name": "wecare-wix-store",
-        "runtime": "python3.12",
-        "package_type": "Zip",
-        "architectures": [
-          "x86_64"
-        ],
-        "memory": 256,
-        "timeout": 60,
-        "last_modified": "2026-09-26T01:51:50.000+0000",
-        "code_sha256": "2HeLHQzcLhqNQCPT4bL7Z+P3sOSNhNqud+bByQWgbuM=",
-        "code_size": 275878,
-        "layers": [],
-        "env_var_names": [
-          "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "WIX_ACCOUNT_ID",
-          "WIX_API_BASE_URL",
-          "WIX_API_KEY_SECRET",
-          "WIX_ORDERS_CACHE_TABLE",
-          "WIX_ORDER_IDS_TABLE",
-          "WIX_PRODUCTS_CACHE_TABLE",
-          "WIX_SITE_ID"
-        ],
-        "snapstart": "None",
-        "aliases": [
-          "live"
-        ],
-        "live_alias_version": "22"
-      }
-    ]
-  },
   "dynamodb": {
     "count": 79,
     "empty_tables": [
@@ -7459,7 +5949,1535 @@
       }
     ]
   },
+  "sqs": {
+    "count": 8,
+    "dlq_like": [
+      "stack-wecare-digital-bulk-dlq",
+      "stack-wecare-digital-inbound-dlq",
+      "stack-wecare-digital-notification-dlq",
+      "stack-wecare-digital-outbound-dlq",
+      "wecare-eventbridge-dlq",
+      "wecare-lambda-async-dlq"
+    ],
+    "without_redrive": [],
+    "non_empty": {},
+    "queues": [
+      {
+        "name": "stack-wecare-digital-bulk-dlq",
+        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-bulk-dlq",
+        "visible_messages": 0,
+        "in_flight": 0,
+        "fifo": false,
+        "kms": true,
+        "dlq_target": null,
+        "is_dlq_name": true,
+        "max_receive_count": null
+      },
+      {
+        "name": "stack-wecare-digital-bulk-queue",
+        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-bulk-queue",
+        "visible_messages": 0,
+        "in_flight": 0,
+        "fifo": false,
+        "kms": true,
+        "dlq_target": "stack-wecare-digital-bulk-dlq",
+        "is_dlq_name": false,
+        "max_receive_count": 3
+      },
+      {
+        "name": "stack-wecare-digital-inbound-dlq",
+        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-inbound-dlq",
+        "visible_messages": 0,
+        "in_flight": 0,
+        "fifo": false,
+        "kms": true,
+        "dlq_target": null,
+        "is_dlq_name": true,
+        "max_receive_count": null
+      },
+      {
+        "name": "stack-wecare-digital-notification-dlq",
+        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-notification-dlq",
+        "visible_messages": 0,
+        "in_flight": 0,
+        "fifo": false,
+        "kms": true,
+        "dlq_target": null,
+        "is_dlq_name": true,
+        "max_receive_count": null
+      },
+      {
+        "name": "stack-wecare-digital-notification-queue",
+        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-notification-queue",
+        "visible_messages": 0,
+        "in_flight": 0,
+        "fifo": false,
+        "kms": true,
+        "dlq_target": "stack-wecare-digital-notification-dlq",
+        "is_dlq_name": false,
+        "max_receive_count": 3
+      },
+      {
+        "name": "stack-wecare-digital-outbound-dlq",
+        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/stack-wecare-digital-outbound-dlq",
+        "visible_messages": 0,
+        "in_flight": 0,
+        "fifo": false,
+        "kms": true,
+        "dlq_target": null,
+        "is_dlq_name": true,
+        "max_receive_count": null
+      },
+      {
+        "name": "wecare-eventbridge-dlq",
+        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/wecare-eventbridge-dlq",
+        "visible_messages": 0,
+        "in_flight": 0,
+        "fifo": false,
+        "kms": true,
+        "dlq_target": null,
+        "is_dlq_name": true,
+        "max_receive_count": null
+      },
+      {
+        "name": "wecare-lambda-async-dlq",
+        "url": "https://sqs.us-east-1.amazonaws.com/775261844268/wecare-lambda-async-dlq",
+        "visible_messages": 0,
+        "in_flight": 0,
+        "fifo": false,
+        "kms": true,
+        "dlq_target": null,
+        "is_dlq_name": true,
+        "max_receive_count": null
+      }
+    ]
+  },
+  "eventbridge": {
+    "bus_count": 1,
+    "rule_count": 6,
+    "disabled_rules": [],
+    "scheduler_count": 0,
+    "schedules": [],
+    "pipe_count": 0,
+    "buses": [
+      {
+        "name": "default",
+        "rule_count": 6,
+        "rules": [
+          {
+            "name": "AWSUserNotificationsManagedRule-adi3lsr",
+            "state": "ENABLED",
+            "schedule": null,
+            "has_pattern": true,
+            "targets": [
+              {
+                "id": "AWSNotifications-Rule-a4illdh",
+                "arn_tail": "",
+                "has_dlq": false,
+                "retry": null
+              }
+            ]
+          },
+          {
+            "name": "wecare-amplify-build-failed",
+            "state": "ENABLED",
+            "schedule": null,
+            "has_pattern": true,
+            "targets": [
+              {
+                "id": "sns-email",
+                "arn_tail": "stack-wecare-digital",
+                "has_dlq": false,
+                "retry": null
+              }
+            ]
+          },
+          {
+            "name": "wecare-docs-scraper-daily",
+            "state": "ENABLED",
+            "schedule": "rate(1 day)",
+            "has_pattern": false,
+            "targets": [
+              {
+                "id": "1",
+                "arn_tail": "wecare-docs-scraper",
+                "has_dlq": false,
+                "retry": null
+              }
+            ]
+          },
+          {
+            "name": "wecare-media-cleanup-daily",
+            "state": "ENABLED",
+            "schedule": "rate(1 day)",
+            "has_pattern": false,
+            "targets": [
+              {
+                "id": "media-cleanup-target",
+                "arn_tail": "wecare-media-cleanup",
+                "has_dlq": true,
+                "retry": {
+                  "MaximumRetryAttempts": 3,
+                  "MaximumEventAgeInSeconds": 3600
+                }
+              }
+            ]
+          },
+          {
+            "name": "wecare-partner-token-refresh-daily",
+            "state": "ENABLED",
+            "schedule": "rate(1 day)",
+            "has_pattern": false,
+            "targets": [
+              {
+                "id": "refresh-fn",
+                "arn_tail": "wecare-partner-token-refresh",
+                "has_dlq": false,
+                "retry": null
+              }
+            ]
+          },
+          {
+            "name": "wecare-scheduled-messages-trigger",
+            "state": "ENABLED",
+            "schedule": "rate(5 minutes)",
+            "has_pattern": false,
+            "targets": [
+              {
+                "id": "wecare-scheduled-messages-target",
+                "arn_tail": "wecare-scheduled-messages",
+                "has_dlq": true,
+                "retry": {
+                  "MaximumRetryAttempts": 3,
+                  "MaximumEventAgeInSeconds": 3600
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "secrets_manager": {
+    "count": 31,
+    "scheduled_for_deletion": [
+      "wecare/airtel-iq",
+      "wecare/airtel/c2c",
+      "wecare/airtel/obd",
+      "wecare/airtel/sms",
+      "wecare/sinch/sms"
+    ],
+    "rotation_enabled": [],
+    "never_accessed": [],
+    "secrets": [
+      {
+        "name": "wecare/ads/account-registry",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/ads/account-registry-PFC39J",
+        "last_changed": "2026-09-18T08:10:55.580000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": true,
+        "tags": {
+          "Application": "WECARE.DIGITAL",
+          "Purpose": "IntegrationCredentials",
+          "ManagedBy": "ChatGPT"
+        }
+      },
+      {
+        "name": "wecare/agent-connector-token",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/agent-connector-token-rW4wo3",
+        "last_changed": "2026-07-20T14:16:07.071000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/airtel-iq",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel-iq-VIq8Rr",
+        "last_changed": "2026-09-20T01:46:18.158000+00:00",
+        "last_accessed": "2026-09-19T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": "2026-09-20T01:46:18.150000+00:00",
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/airtel/c2c",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel/c2c-unYhQj",
+        "last_changed": "2026-09-20T01:46:18.793000+00:00",
+        "last_accessed": "2026-09-19T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": "2026-09-20T01:46:18.786000+00:00",
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/airtel/obd",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel/obd-3iJ5ZF",
+        "last_changed": "2026-09-20T01:46:18.488000+00:00",
+        "last_accessed": "2026-09-19T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": "2026-09-20T01:46:18.479000+00:00",
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/airtel/sms",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/airtel/sms-P7s1OS",
+        "last_changed": "2026-09-20T01:46:19.117000+00:00",
+        "last_accessed": "2026-09-19T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": "2026-09-20T01:46:19.111000+00:00",
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/aws/iam-access-keys",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/aws/iam-access-keys-R64OdR",
+        "last_changed": "2026-09-18T10:29:22.532000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/backup/recovery-passphrase",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/backup/recovery-passphrase-6dtrTd",
+        "last_changed": "2026-09-19T03:08:56.850000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/bing/api",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/bing/api-Opu8P3",
+        "last_changed": "2026-09-18T08:10:45.600000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": true,
+        "tags": {
+          "Application": "WECARE.DIGITAL",
+          "Purpose": "IntegrationCredentials",
+          "ManagedBy": "ChatGPT"
+        }
+      },
+      {
+        "name": "wecare/config/webhook-registry",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/config/webhook-registry-LEbXAV",
+        "last_changed": "2026-09-19T08:17:40.383000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/flow-private-key",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/flow-private-key-qTil1Q",
+        "last_changed": "2026-02-23T03:47:08.954000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/github-connection",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/github-connection-VYaD4z",
+        "last_changed": "2026-09-18T07:09:34.165000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/github-pat",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/github-pat-y4tXJa",
+        "last_changed": "2026-08-26T00:47:58.696000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/google-api-key",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google-api-key-KcZ6nj",
+        "last_changed": "2026-09-18T10:22:41.266000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/google-maps",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google-maps-WFucJA",
+        "last_changed": "2026-09-18T10:22:49.341000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/google-maps-server",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google-maps-server-tpmvdh",
+        "last_changed": "2026-09-26T02:19:14.014000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/google/ads",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/ads-HuIYKY",
+        "last_changed": "2026-09-17T11:05:14.453000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": true,
+        "tags": {
+          "Application": "WECARE.DIGITAL",
+          "Purpose": "IntegrationCredentials",
+          "ManagedBy": "ChatGPT"
+        }
+      },
+      {
+        "name": "wecare/google/cloud",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/cloud-wKkDxP",
+        "last_changed": "2026-09-19T07:28:27.629000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": true,
+        "tags": {
+          "Application": "WECARE.DIGITAL",
+          "Purpose": "IntegrationCredentials",
+          "ManagedBy": "ChatGPT"
+        }
+      },
+      {
+        "name": "wecare/meta-system-user-token",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/meta-system-user-token-5vu2o3",
+        "last_changed": "2026-09-20T08:11:36.888000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/meta/payments",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/meta/payments-8L2LIa",
+        "last_changed": "2026-09-18T09:40:43.015000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/openai/api",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/openai/api-ke9WOX",
+        "last_changed": "2026-09-18T08:10:50.855000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": true,
+        "tags": {
+          "Application": "WECARE.DIGITAL",
+          "Purpose": "IntegrationCredentials",
+          "ManagedBy": "ChatGPT"
+        }
+      },
+      {
+        "name": "wecare/plivo",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/plivo-3ZLA2U",
+        "last_changed": "2026-09-19T07:28:28.546000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/plivo-answer",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/plivo-answer-uxE0q7",
+        "last_changed": "2026-09-19T07:38:56.179000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/plivo/api",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/plivo/api-aIEx8b",
+        "last_changed": "2026-09-18T10:06:33.375000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": true,
+        "tags": {
+          "Application": "WECARE.DIGITAL",
+          "Purpose": "IntegrationCredentials",
+          "ManagedBy": "ChatGPT"
+        }
+      },
+      {
+        "name": "wecare/razorpay-webhook",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/razorpay-webhook-Jt2DYn",
+        "last_changed": "2026-07-02T13:53:03.746000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/razorpay/api",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/razorpay/api-vaHEaM",
+        "last_changed": "2026-09-19T03:19:33.634000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/seo/google-oauth",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/seo/google-oauth-XnSVlc",
+        "last_changed": "2026-09-19T07:28:29.947000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/sinch/rcs",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/sinch/rcs-18kRci",
+        "last_changed": "2026-05-05T14:01:52.351000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/sinch/sms",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/sinch/sms-Mwa0W0",
+        "last_changed": "2026-09-20T01:46:19.437000+00:00",
+        "last_accessed": "2026-09-19T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": "2026-09-20T01:46:19.430000+00:00",
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/truecaller",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/truecaller-b4PYwF",
+        "last_changed": "2026-09-19T07:28:31.915000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      },
+      {
+        "name": "wecare/wix/headless-api-key",
+        "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/wix/headless-api-key-UTWQel",
+        "last_changed": "2026-09-26T01:47:57.558000+00:00",
+        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "rotation_enabled": false,
+        "deleted_date": null,
+        "kms_key": false,
+        "tags": {}
+      }
+    ]
+  },
+  "cognito": {
+    "user_pool_count": 2,
+    "identity_pool_count": 1,
+    "identity_pools": [
+      {
+        "id": "us-east-1:471c2c38-5645-4ccd-aea1-7a008e906db5",
+        "name": "base-wecare-digital-identity-pool"
+      }
+    ],
+    "user_pools": [
+      {
+        "id": "us-east-1_46ULYuukt",
+        "name": "WECARE.DIGITAL-CUSTOMERS",
+        "status": null,
+        "estimated_users": 1,
+        "mfa_configuration": "OFF",
+        "software_token_mfa": null,
+        "sms_mfa": false,
+        "advanced_security": null,
+        "deletion_protection": "INACTIVE",
+        "password_policy": {
+          "MinimumLength": 16,
+          "RequireUppercase": true,
+          "RequireLowercase": true,
+          "RequireNumbers": true,
+          "RequireSymbols": true,
+          "TemporaryPasswordValidityDays": 1
+        },
+        "domain": null,
+        "lambda_triggers": [
+          "CreateAuthChallenge",
+          "DefineAuthChallenge",
+          "VerifyAuthChallengeResponse"
+        ],
+        "group_names": [
+          "Partner"
+        ],
+        "clients": [
+          {
+            "id": "4avmt9n4gpmkvkdk88qbtit33o",
+            "name": "wecare-customer-whatsapp-otp"
+          }
+        ]
+      },
+      {
+        "id": "us-east-1_cSx0RHCIR",
+        "name": "WECARE.DIGITAL",
+        "status": null,
+        "estimated_users": 1,
+        "mfa_configuration": "OPTIONAL",
+        "software_token_mfa": true,
+        "sms_mfa": true,
+        "advanced_security": null,
+        "deletion_protection": "ACTIVE",
+        "password_policy": {
+          "MinimumLength": 8,
+          "RequireUppercase": true,
+          "RequireLowercase": true,
+          "RequireNumbers": true,
+          "RequireSymbols": true,
+          "TemporaryPasswordValidityDays": 7
+        },
+        "domain": "wecare-digital-auth",
+        "lambda_triggers": [
+          "CustomMessage"
+        ],
+        "group_names": [
+          "Admin",
+          "Operator",
+          "Partner",
+          "Viewer"
+        ],
+        "clients": [
+          {
+            "id": "1j8kbi48m4v2rped3n224rlevb",
+            "name": "stack-wecare-digital-web"
+          },
+          {
+            "id": "1jrnb80tcvceg7uln9vuoe8va5",
+            "name": "WECARE.DIGITAL"
+          }
+        ]
+      }
+    ]
+  },
+  "ses": {
+    "us-east-1": {
+      "identity_count": 3,
+      "identities": [
+        {
+          "identity": "one@wecare.digital",
+          "type": "EMAIL_ADDRESS",
+          "sending_enabled": true,
+          "verified": true,
+          "dkim_status": "SUCCESS",
+          "dkim_signing": true,
+          "mail_from": null,
+          "mail_from_status": null
+        },
+        {
+          "identity": "wecare-digital.awsapps.com",
+          "type": "DOMAIN",
+          "sending_enabled": true,
+          "verified": true,
+          "dkim_status": "SUCCESS",
+          "dkim_signing": true,
+          "mail_from": null,
+          "mail_from_status": null
+        },
+        {
+          "identity": "wecare.digital",
+          "type": "DOMAIN",
+          "sending_enabled": true,
+          "verified": true,
+          "dkim_status": "SUCCESS",
+          "dkim_signing": true,
+          "mail_from": null,
+          "mail_from_status": null
+        }
+      ],
+      "production_access": true,
+      "sending_enabled": true,
+      "sending_quota": {
+        "Max24HourSend": 50000.0,
+        "MaxSendRate": 14.0,
+        "SentLast24Hours": 0.0
+      },
+      "enforcement_status": "HEALTHY",
+      "configuration_sets": [
+        "wecare-digital"
+      ]
+    },
+    "ap-south-1": {
+      "identity_count": 0,
+      "identities": [],
+      "production_access": false,
+      "sending_enabled": true,
+      "sending_quota": {
+        "Max24HourSend": 200.0,
+        "MaxSendRate": 1.0,
+        "SentLast24Hours": 0.0
+      },
+      "enforcement_status": "HEALTHY",
+      "configuration_sets": []
+    }
+  },
+  "s3": {
+    "count": 6,
+    "unencrypted": [],
+    "public_policy": [],
+    "no_full_public_access_block": [],
+    "buckets": [
+      {
+        "name": "app.wecare.digital",
+        "created": "2026-02-10T02:29:10+00:00",
+        "region": "us-east-1",
+        "encryption": "AES256",
+        "public_access_block_all": true,
+        "versioning": "Enabled",
+        "policy_is_public": false
+      },
+      {
+        "name": "cdk-hnb659fds-assets-775261844268-us-east-1",
+        "created": "2026-02-11T01:05:56+00:00",
+        "region": "us-east-1",
+        "encryption": "aws:kms",
+        "public_access_block_all": true,
+        "versioning": "Enabled",
+        "policy_is_public": false
+      },
+      {
+        "name": "wecare-credential-backups-775261844268",
+        "created": "2026-09-20T06:52:57+00:00",
+        "region": "us-east-1",
+        "encryption": "aws:kms",
+        "public_access_block_all": true,
+        "versioning": "Enabled",
+        "policy_is_public": false
+      },
+      {
+        "name": "wecare-digital-get",
+        "created": "2026-09-25T02:46:54+00:00",
+        "region": "us-east-1",
+        "encryption": "AES256",
+        "public_access_block_all": true,
+        "versioning": "Enabled",
+        "policy_is_public": false
+      },
+      {
+        "name": "wecare-digital-mta-sts",
+        "created": "2026-08-22T15:10:15+00:00",
+        "region": "us-east-1",
+        "encryption": "AES256",
+        "public_access_block_all": true,
+        "versioning": null,
+        "policy_is_public": false
+      },
+      {
+        "name": "wecare-maintenance-reports-775261844268",
+        "created": "2026-09-19T02:16:21+00:00",
+        "region": "us-east-1",
+        "encryption": "aws:kms",
+        "public_access_block_all": true,
+        "versioning": "Enabled",
+        "policy_is_public": false
+      }
+    ]
+  },
+  "cloudfront": {
+    "count": 3,
+    "without_web_acl": [
+      "E1SZBXLQ4XNLJ7",
+      "E2GP22R4BIFGQ3",
+      "ERCXSFDL0VM8X"
+    ],
+    "distributions": [
+      {
+        "id": "E1SZBXLQ4XNLJ7",
+        "domain": "djbi65ldve9va.cloudfront.net",
+        "aliases": [
+          "mta-sts.wecare.digital"
+        ],
+        "status": "Deployed",
+        "enabled": true,
+        "origins": [
+          "wecare-digital-mta-sts.s3.us-east-1.amazonaws.com"
+        ],
+        "web_acl": null,
+        "viewer_protocol": "redirect-to-https",
+        "lambda_edge": [],
+        "price_class": "PriceClass_All"
+      },
+      {
+        "id": "E2GP22R4BIFGQ3",
+        "domain": "d1kf2rchz7yras.cloudfront.net",
+        "aliases": [],
+        "status": "Deployed",
+        "enabled": true,
+        "origins": [
+          "wecare-digital-get.s3.us-east-1.amazonaws.com"
+        ],
+        "web_acl": null,
+        "viewer_protocol": "redirect-to-https",
+        "lambda_edge": [
+          [
+            "wecare-get-miss-redirect",
+            "4"
+          ]
+        ],
+        "price_class": "PriceClass_All"
+      },
+      {
+        "id": "ERCXSFDL0VM8X",
+        "domain": "d1c2t5x9nvib1v.cloudfront.net",
+        "aliases": [
+          "app.wecare.digital"
+        ],
+        "status": "Deployed",
+        "enabled": true,
+        "origins": [
+          "app.wecare.digital.s3.us-east-1.amazonaws.com"
+        ],
+        "web_acl": null,
+        "viewer_protocol": "redirect-to-https",
+        "lambda_edge": [],
+        "price_class": "PriceClass_All"
+      }
+    ]
+  },
+  "waf": {
+    "REGIONAL": {
+      "count": 1,
+      "web_acls": [
+        {
+          "name": "wecare-cognito-waf",
+          "id": "88886e29-8eb4-4036-ae7e-1a39f9dd68a0",
+          "arn": "arn:aws:wafv2:us-east-1:775261844268:regional/webacl/wecare-cognito-waf/88886e29-8eb4-4036-ae7e-1a39f9dd68a0",
+          "associated_resources": [
+            "arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_46ULYuukt",
+            "arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_cSx0RHCIR"
+          ]
+        }
+      ]
+    },
+    "CLOUDFRONT": {
+      "count": 1,
+      "web_acls": [
+        {
+          "name": "wecare-amplify-waf",
+          "id": "b4d41adc-d1ad-4639-9403-00e7df7b3741",
+          "arn": "arn:aws:wafv2:us-east-1:775261844268:global/webacl/wecare-amplify-waf/b4d41adc-d1ad-4639-9403-00e7df7b3741",
+          "associated_resources": []
+        }
+      ]
+    }
+  },
+  "route53": {
+    "zone_count": 1,
+    "zones": [
+      {
+        "id": "Z03939753QJGZ6ZD6BXO8",
+        "name": "wecare.digital.",
+        "private": false,
+        "record_count": 42,
+        "record_types": {
+          "CNAME": 22,
+          "A": 7,
+          "TXT": 7,
+          "AAAA": 3,
+          "MX": 1,
+          "NS": 1,
+          "SOA": 1
+        },
+        "has_mx": true,
+        "txt_names": [
+          "_amazonses.wecare.digital.",
+          "_dmarc.wecare.digital.",
+          "_mta-sts.wecare.digital.",
+          "_smtp._tls.wecare.digital.",
+          "default._bimi.wecare.digital.",
+          "google._domainkey.wecare.digital.",
+          "wecare.digital."
+        ]
+      }
+    ]
+  },
+  "cloudwatch": {
+    "alarm_count": 42,
+    "composite_alarm_count": 0,
+    "alarms_in_alarm": [],
+    "alarms_insufficient_data": [],
+    "alarms_without_actions": [],
+    "dashboard_count": 1,
+    "dashboards": [
+      "wecare-platform-health"
+    ],
+    "log_group_count": 81,
+    "log_groups_without_retention": [],
+    "log_bytes_total": 161121043,
+    "alarms": [
+      {
+        "name": "wecare-apigw-5xx-wecare-api",
+        "state": "OK",
+        "metric": "5xx",
+        "namespace": "AWS/ApiGateway",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-apigw-5xx-wecare-digital-api",
+        "state": "OK",
+        "metric": "5xx",
+        "namespace": "AWS/ApiGateway",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-apigw-latency-wecare-api",
+        "state": "OK",
+        "metric": "Latency",
+        "namespace": "AWS/ApiGateway",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-apigw-latency-wecare-digital-api",
+        "state": "OK",
+        "metric": null,
+        "namespace": null,
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-bulk-dlq-depth",
+        "state": "OK",
+        "metric": "ApproximateNumberOfMessagesVisible",
+        "namespace": "AWS/SQS",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-AuditLogsTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-BulkRecipientsTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-ContactsTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-ConversationHistoryTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-InvoicesTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-MessagesTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-OrderTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-PaymentsTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-RateLimitTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-SubmitRequestsTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-SystemConfigTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-UsersTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-WhatsAppInboundTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-throttle-WhatsAppOutboundTable",
+        "state": "OK",
+        "metric": "ThrottledRequests",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-ddb-user-errors",
+        "state": "OK",
+        "metric": "UserErrors",
+        "namespace": "AWS/DynamoDB",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-eventbridge-dlq-depth",
+        "state": "OK",
+        "metric": "ApproximateNumberOfMessagesVisible",
+        "namespace": "AWS/SQS",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-eventbridge-failed-wecare-media-cleanup-daily",
+        "state": "OK",
+        "metric": "FailedInvocations",
+        "namespace": "AWS/Events",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-eventbridge-failed-wecare-scheduled-messages-trigger",
+        "state": "OK",
+        "metric": "FailedInvocations",
+        "namespace": "AWS/Events",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-inbound-dlq-depth",
+        "state": "OK",
+        "metric": "ApproximateNumberOfMessagesVisible",
+        "namespace": "AWS/SQS",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-inbound-lambda-errors",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-async-dlq-depth",
+        "state": "OK",
+        "metric": "ApproximateNumberOfMessagesVisible",
+        "namespace": "AWS/SQS",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-billing",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-bulk-worker",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-invoice-engine",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-payu-webhook",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-razorpay-webhook",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-scheduled-messages",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-service-api",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-whatsapp-business-api",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-throttles",
+        "state": "OK",
+        "metric": "Throttles",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-outbound-dlq-depth",
+        "state": "OK",
+        "metric": "ApproximateNumberOfMessagesVisible",
+        "namespace": "AWS/SQS",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-outbound-lambda-errors",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-queue-age-bulk",
+        "state": "OK",
+        "metric": "ApproximateAgeOfOldestMessage",
+        "namespace": "AWS/SQS",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-sip-cert-expiry-sip.wecare.digital",
+        "state": "OK",
+        "metric": "CertDaysToExpiry",
+        "namespace": "Wecare/SIP",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-sns-delivery-failures",
+        "state": "OK",
+        "metric": "NumberOfNotificationsFailed",
+        "namespace": "AWS/SNS",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-url-hit-wecare-payu-webhook",
+        "state": "OK",
+        "metric": "UrlRequestCount",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-webhook-dedup-errors",
+        "state": "OK",
+        "metric": "WebhookDedupErrors",
+        "namespace": "WECARE.DIGITAL",
+        "actions": 1,
+        "actions_enabled": true
+      }
+    ]
+  },
+  "iac": {
+    "cfn_stack_count": 7,
+    "cfn_stacks": [
+      {
+        "name": "CDKToolkit",
+        "status": "CREATE_COMPLETE",
+        "updated": "2026-02-11T01:05:49.747000+00:00",
+        "drift": "NOT_CHECKED",
+        "parent": null
+      },
+      {
+        "name": "wecare-elevenlabs-call-hooks",
+        "status": "UPDATE_COMPLETE",
+        "updated": "2026-09-19T09:17:41.074000+00:00",
+        "drift": "NOT_CHECKED",
+        "parent": null
+      },
+      {
+        "name": "wecare-elevenlabs-init",
+        "status": "CREATE_COMPLETE",
+        "updated": "2026-09-19T09:20:01.036000+00:00",
+        "drift": "NOT_CHECKED",
+        "parent": null
+      },
+      {
+        "name": "wecare-elevenlabs-mcp",
+        "status": "UPDATE_COMPLETE",
+        "updated": "2026-09-19T07:57:38.414000+00:00",
+        "drift": "NOT_CHECKED",
+        "parent": null
+      },
+      {
+        "name": "wecare-elevenlabs-mcp-enable",
+        "status": "UPDATE_COMPLETE",
+        "updated": "2026-09-19T09:40:43.405000+00:00",
+        "drift": "NOT_CHECKED",
+        "parent": null
+      },
+      {
+        "name": "wecare-elevenlabs-postcall-sms",
+        "status": "CREATE_COMPLETE",
+        "updated": "2026-09-19T09:20:01.805000+00:00",
+        "drift": "NOT_CHECKED",
+        "parent": null
+      },
+      {
+        "name": "wecare-temp-code-inspector",
+        "status": "CREATE_COMPLETE",
+        "updated": "2026-09-19T09:12:09.763000+00:00",
+        "drift": "NOT_CHECKED",
+        "parent": null
+      }
+    ],
+    "amplify_app_count": 1,
+    "amplify_apps": [
+      {
+        "app_id": "d22dm4b0jn71jw",
+        "name": "wecare.digital",
+        "default_domain": "d22dm4b0jn71jw.amplifyapp.com",
+        "platform": "WEB",
+        "repository": "https://github.com/wecare-digital/bharat-stack",
+        "custom_rule_count": 23,
+        "branches": [
+          {
+            "branch": "chatgpt/grahak-os-color-unify-20260918",
+            "stage": "DEVELOPMENT",
+            "enable_auto_build": false,
+            "recent_jobs": [
+              {
+                "id": "3",
+                "status": "SUCCEED",
+                "commit": "HEAD",
+                "end": "2026-09-18T11:31:52.387000+00:00"
+              },
+              {
+                "id": "2",
+                "status": "FAILED",
+                "commit": "HEAD",
+                "end": "2026-09-18T11:23:06.522000+00:00"
+              },
+              {
+                "id": "1",
+                "status": "FAILED",
+                "commit": "HEAD",
+                "end": "2026-09-18T11:18:14.711000+00:00"
+              }
+            ]
+          },
+          {
+            "branch": "chatgpt/grahak-os-final-polish-20260918",
+            "stage": "DEVELOPMENT",
+            "enable_auto_build": false,
+            "recent_jobs": [
+              {
+                "id": "2",
+                "status": "SUCCEED",
+                "commit": "HEAD",
+                "end": "2026-09-18T06:09:27.256000+00:00"
+              },
+              {
+                "id": "1",
+                "status": "FAILED",
+                "commit": "HEAD",
+                "end": "2026-09-18T06:00:01.187000+00:00"
+              }
+            ]
+          },
+          {
+            "branch": "chatgpt/grahak-os-five-fixes-20260918",
+            "stage": "DEVELOPMENT",
+            "enable_auto_build": false,
+            "recent_jobs": [
+              {
+                "id": "2",
+                "status": "SUCCEED",
+                "commit": "HEAD",
+                "end": "2026-09-18T08:17:44.125000+00:00"
+              },
+              {
+                "id": "1",
+                "status": "FAILED",
+                "commit": "HEAD",
+                "end": "2026-09-18T07:55:52.757000+00:00"
+              }
+            ]
+          },
+          {
+            "branch": "chatgpt/grahak-os-route-header-20260917",
+            "stage": "DEVELOPMENT",
+            "enable_auto_build": false,
+            "recent_jobs": [
+              {
+                "id": "2",
+                "status": "SUCCEED",
+                "commit": "HEAD",
+                "end": "2026-09-18T00:35:05.410000+00:00"
+              },
+              {
+                "id": "1",
+                "status": "FAILED",
+                "commit": "HEAD",
+                "end": "2026-09-18T00:24:30.259000+00:00"
+              }
+            ]
+          },
+          {
+            "branch": "chatgpt/grahak-os-trust-strip-20260918",
+            "stage": "DEVELOPMENT",
+            "enable_auto_build": false,
+            "recent_jobs": [
+              {
+                "id": "4",
+                "status": "SUCCEED",
+                "commit": "HEAD",
+                "end": "2026-09-18T02:50:23.498000+00:00"
+              },
+              {
+                "id": "3",
+                "status": "FAILED",
+                "commit": "HEAD",
+                "end": "2026-09-18T02:43:09.487000+00:00"
+              },
+              {
+                "id": "2",
+                "status": "SUCCEED",
+                "commit": "HEAD",
+                "end": "2026-09-18T02:33:01.465000+00:00"
+              }
+            ]
+          },
+          {
+            "branch": "chatgpt/grahak-os-widgets-footer-20260918",
+            "stage": "DEVELOPMENT",
+            "enable_auto_build": false,
+            "recent_jobs": [
+              {
+                "id": "2",
+                "status": "SUCCEED",
+                "commit": "HEAD",
+                "end": "2026-09-18T04:37:39.834000+00:00"
+              },
+              {
+                "id": "1",
+                "status": "FAILED",
+                "commit": "HEAD",
+                "end": "2026-09-18T04:07:09.011000+00:00"
+              }
+            ]
+          },
+          {
+            "branch": "chatgpt/meta-icon-s3-20260918",
+            "stage": "DEVELOPMENT",
+            "enable_auto_build": false,
+            "recent_jobs": [
+              {
+                "id": "2",
+                "status": "SUCCEED",
+                "commit": "HEAD",
+                "end": "2026-09-18T10:17:18.829000+00:00"
+              },
+              {
+                "id": "1",
+                "status": "FAILED",
+                "commit": "HEAD",
+                "end": "2026-09-18T10:08:45.805000+00:00"
+              }
+            ]
+          },
+          {
+            "branch": "chatgpt/meta-icon-s3-latest-20260918",
+            "stage": "DEVELOPMENT",
+            "enable_auto_build": false,
+            "recent_jobs": [
+              {
+                "id": "1",
+                "status": "SUCCEED",
+                "commit": "HEAD",
+                "end": "2026-09-18T10:25:29.098000+00:00"
+              }
+            ]
+          },
+          {
+            "branch": "stack",
+            "stage": "PRODUCTION",
+            "enable_auto_build": true,
+            "recent_jobs": [
+              {
+                "id": "898",
+                "status": "SUCCEED",
+                "commit": "6ffcbcefa3b7",
+                "end": "2026-09-26T03:46:53.226000+00:00"
+              },
+              {
+                "id": "897",
+                "status": "SUCCEED",
+                "commit": "5df910792e25",
+                "end": "2026-09-26T03:41:38.678000+00:00"
+              },
+              {
+                "id": "896",
+                "status": "SUCCEED",
+                "commit": "5653a12a0f5a",
+                "end": "2026-09-26T03:05:24.531000+00:00"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "crosschecks": {
+    "dlqs_without_alarm": [
+      "stack-wecare-digital-inbound-dlq",
+      "stack-wecare-digital-notification-dlq",
+      "stack-wecare-digital-outbound-dlq"
+    ],
+    "alarms_watching_nonexistent_queue": {
+      "base-wecare-digital-inbound-dlq": [
+        "wecare-inbound-dlq-depth"
+      ],
+      "base-wecare-digital-outbound-dlq": [
+        "wecare-outbound-dlq-depth"
+      ]
+    },
+    "regional_web_acls_with_zero_associations": [],
+    "amplify_waf": {
+      "d22dm4b0jn71jw": {
+        "web_acl_arn_tail": [
+          "wecare-amplify-waf",
+          "b4d41adc-d1ad-4639-9403-00e7df7b3741"
+        ],
+        "status": "ASSOCIATION_SUCCESS"
+      }
+    }
+  },
   "errors": [],
   "error_count": 0,
-  "duration_seconds": 153.3
+  "duration_seconds": 152.3,
+  "partial_run": false,
+  "collectors_run": [
+    "api_gateway",
+    "cloudfront",
+    "cloudwatch",
+    "cognito",
+    "crosschecks",
+    "dynamodb",
+    "eventbridge",
+    "iac",
+    "lambda",
+    "route53",
+    "s3",
+    "secrets_manager",
+    "ses",
+    "sqs",
+    "waf"
+  ]
 }
