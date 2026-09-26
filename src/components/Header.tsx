@@ -432,7 +432,9 @@ const Header: React.FC = () => {
            This is index.tsx:797's declaration, byte for byte. A shared token both files
            reference would be better still, and is deliberately not done here - it is wider
            than this change. */
-        .hdr{position:fixed;top:0;left:0;right:0;z-index:1001;background:#fff;
+        /* inset-inline:0 for the symmetric left/right pair - identical in ltr, and it stops
+           the bar being anchored to physical sides in a mirrored document. */
+        .hdr{position:fixed;top:0;inset-inline:0;z-index:1001;background:#fff;
           font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         @supports ((backdrop-filter:blur(20px)) or (-webkit-backdrop-filter:blur(20px))){
           .hdr{background:rgba(255,255,255,.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
@@ -513,7 +515,17 @@ const Header: React.FC = () => {
            already made for .home-shell. Now: 280 -> 140px, 344 -> 204px, 360 -> 220px,
            390 -> 250px. See also the mobile override further down - BOTH carried a magic
            subtrahend and fixing only this one left the worst case untouched. */
-        .nav-menu{position:absolute;top:calc(100% + 8px);left:0;z-index:1002;width:min(760px,calc(100vw - 256px));max-height:calc(100dvh - 140px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+        /* ANCHORED WITH A VARIABLE, for the specificity reason documented at length on
+           .wc-langbar in SupportWidget.tsx. Short version: Lightning CSS rewrites any
+           direction-conditional rule into a matched pair of :lang() rules, which adds a
+           specificity class, so a logical inset here out-specified the mobile override below
+           and pinned the panel to left:0 on phones where the media query asks for 16px.
+           --nav-menu-inset is set once, overridden by the media query, and consumed by the
+           two direction rules underneath.
+           NO BACKTICKS IN THIS COMMENT: it sits inside a styled-jsx template literal, and a
+           single backtick closes it - turning the rest of the stylesheet into JSX and failing
+           the build hundreds of lines later with an unrelated-looking "Unexpected token". */
+        .nav-menu{--nav-menu-inset:0px;position:absolute;top:calc(100% + 8px);left:var(--nav-menu-inset);right:auto;z-index:1002;width:min(760px,calc(100vw - 256px));max-height:calc(100dvh - 140px);overflow-y:auto;-webkit-overflow-scrolling:touch;background:#fcfdfb;border:1px solid #e5e7eb;border-top:3px solid #d1f470;border-radius:14px;padding:14px;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .2s,transform .2s,visibility 0s linear .2s;box-shadow:0 8px 28px rgba(0,0,0,.10)}
         .nav-menu.open{opacity:1;visibility:visible;transform:translateY(0);transition:opacity .2s,transform .2s,visibility 0s}
 
         /* Search field. Sized off the language panel's input rather than a new set of
@@ -622,8 +634,16 @@ const Header: React.FC = () => {
            SWEEPS in on hover: scaleX(0)->(1) from the left, 0.2s, so a thin lime line
            draws left-to-right under the row. Inset 12px each side to line up with the row
            padding. Reduced-motion users get the end state with no transition. */
-        .nav-item::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:1px;background:#f1f3ec}
-        .nav-item::before{content:'';position:absolute;left:12px;right:12px;bottom:0;height:2px;background:#d1f470;transform:scaleX(0);transform-origin:left center;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+        /* inset-inline:12px collapses the symmetric pair. The ::before underline reveal grows
+           with scaleX from transform-origin, which has no logical keyword, so the rtl case is
+           stated explicitly - otherwise the underline would wipe in from the end of the line
+           a right-to-left reader finishes on, reading as a retreat rather than a reveal. */
+        .nav-item::after{content:'';position:absolute;inset-inline:12px;bottom:0;height:1px;background:#f1f3ec}
+        .nav-item::before{content:'';position:absolute;inset-inline:12px;bottom:0;height:2px;background:#d1f470;transform:scaleX(0);transform-origin:left center;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+        :global([dir='rtl']) .nav-item::before{transform-origin:right center}
+        /* The desktop panel hangs off its trigger, so under rtl it has to hang off the other
+           edge. Paired with the --nav-menu-inset base rule above. */
+        :global([dir='rtl']) .nav-menu{left:auto;right:var(--nav-menu-inset)}
         .nav-item:hover::before,.nav-item:focus-visible::before{transform:scaleX(1)}
         /* The last row in a group has nothing after it, so no divider. */
         .nav-group .nav-item:last-child::after,.nav-products-scroll .nav-item:last-child::after{display:none}
@@ -645,7 +665,11 @@ const Header: React.FC = () => {
            with a 16px gutter, sitting just under the 96px mobile header. max-height
            plus overflow-y is what stops twelve rows running off the bottom of a
            phone - the old six-item dropdown never needed it. */
-        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.nav-menu{position:fixed;top:100px;left:16px;right:16px;width:auto;max-height:calc(100dvh - 140px)}.nav-cols,.nav-results{grid-template-columns:minmax(0,1fr)}.nav-item{font-size:19px;min-height:52px}.nav-sub{font-size:17px;min-height:46px}}
+        /* The mobile panel spans the viewport, so it sets BOTH insets rather than the
+           variable - symmetric, therefore direction-neutral, therefore no rtl override
+           needed. It still has to beat the base rule's compiled :lang() selector, which the
+           extra .hdr-in ancestor class does. */
+        @media(max-width:767px){.hdr-in{height:96px;padding:14px 16px}.logo-nav{gap:8px}.hdr-in .nav-menu{position:fixed;top:100px;left:16px;right:16px;width:auto;max-height:calc(100dvh - 140px)}.nav-cols,.nav-results{grid-template-columns:minmax(0,1fr)}.nav-item{font-size:19px;min-height:52px}.nav-sub{font-size:17px;min-height:46px}}
 
         @media(prefers-reduced-motion:reduce){
           .nav-menu{transition:none}

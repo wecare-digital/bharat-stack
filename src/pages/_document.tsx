@@ -52,9 +52,17 @@ j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNo
 })(window,document,'script','dataLayer','${GTM_ID}');
 `.trim();
 
+/**
+ * dir IS DECLARED, not left to the user agent. SupportWidget rewrites it to "rtl" when a
+ * visitor picks Arabic, Persian, Hebrew, Urdu, Pashto or Sindhi, and back to "ltr"
+ * otherwise. Stating the default in the served HTML means the document says which direction
+ * it is in rather than depending on a browser default - the same argument as declaring
+ * color-scheme instead of letting a browser infer one. Asserted by rtlcheck.js, which reads
+ * the exported index.html before any script has run.
+ */
 export default function Document () {
   return (
-    <Html lang="en">
+    <Html lang="en" dir="ltr">
       <Head>
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
         {/* THERE IS DELIBERATELY NO X-Frame-Options META TAG HERE. Browsers honour XFO

@@ -242,7 +242,20 @@ const WorkflowTerminal: React.FC = () => {
         every one of them on the same shared infrastructure.
       </p>
 
-      <div className="wt-window" aria-hidden="true">
+      {/* dir="ltr" LOCKS THE TERMINAL, and it is a correctness fix rather than a preference.
+          This panel draws literal machine output - a shell prompt, "platform / production",
+          $contacts.get("cust_2841"), "# dynamodb · single-table". None of that is prose and
+          none of it is left-to-right by convention: it is left-to-right by SYNTAX. With the
+          document mirrored for an Arabic reader the flex rows inside reversed, so the window
+          lights moved to the right, the prompt reversed, and the punctuation in the call
+          reordered - a reader who knows the API would see code that no longer parses.
+          Found by measuring mirror symmetry, not by looking: comparing each element's
+          distance from the inline-start edge in ltr against rtl, this subtree was the largest
+          asymmetry on the home page at 726px.
+          It pairs with the aria-hidden already here. Both say the same thing about this
+          panel - it is a picture of a machine, not text - so it is exempt from translation
+          and from mirroring for one reason. */}
+      <div className="wt-window" aria-hidden="true" dir="ltr">
         <div className="wt-bar">
           <span className="wt-light wt-red" />
           <span className="wt-light wt-amber" />

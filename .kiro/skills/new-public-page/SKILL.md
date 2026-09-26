@@ -218,10 +218,36 @@ exactly and reports per route what would translate, what would be skipped, and w
 filter now exists in three places** — `SupportWidget.tsx`, `pageaudit.js` and
 `translatecheck.js`. If `acceptNode` changes, all three change together.
 
-**RTL is unhandled and the catalogue offers RTL languages.** No route sets `dir` — measured
-`0 of 761` — while the provider list includes Arabic, Urdu, Hebrew and Persian. Translating
-into Arabic today produces correct words in a left-to-right layout, which is why punctuation
-lands at the wrong end of a line.
+## 5b. Right-to-left: `lang` and `dir` are not independent
+
+The catalogue offers Arabic, Persian, Hebrew, Urdu, Pashto and Sindhi, so RTL is one button
+press away. `_document.tsx` declares `dir="ltr"` and `SupportWidget` rewrites it; `rtlcheck.js`
+asserts the result across 18 routes × 3 viewports.
+
+**Write logical properties, but know they do not ship.** `inset-inline-end`,
+`padding-inline-start` and `border-inline-start` are the right thing to write and appear **zero
+times in `out/`**. Lightning CSS downlevels each one for the browserslist targets into a pair
+of rules keyed on `:lang()`:
+
+```css
+.wc-langbar:not(:is(:lang(ar),:lang(he), … )){left:auto;right:20px}
+.wc-langbar:is(:lang(ar),:lang(he), … )){left:20px;right:auto}
+```
+
+So in the shipped stylesheet **mirroring is driven by `lang` while the bidi algorithm is driven
+by `dir`**. Set one without the other and you get half a mirror. This cost a debugging round:
+the first version of `rtlcheck.js` set only `dir`, reported the language widget still pinned
+right, and blamed the CSS — the gate was wrong, not the fix. Anything that changes direction
+must write both attributes, and any harness that simulates RTL must do the same.
+
+**Two things have no logical form.** `transform-origin` takes no logical keyword, so a
+`scaleX` reveal needs an explicit `[dir='rtl']` override or it wipes in from the edge the
+reader finishes on. And a glyph drawn from borders — a tick, a chevron — is an *orientation*,
+not a side: mirroring a tick produces a backwards mark that reads as an error cross.
+
+**Measure the mirror, do not trust it.** `rtlcheck.js` asserts the widget actually *moved*
+between LTR and RTL, because every other assertion in it passes on a page that ignored the
+direction entirely — which is exactly the state it exists to catch.
 
 ## 6. Structure every public page must carry
 
@@ -256,6 +282,7 @@ node tools/browser/pageaudit.js        # structure + translation census + overfl
 node tools/browser/devicecheck.js      # 18 routes × 15 postures, incl. foldables
 node tools/browser/devicecheck.js --firefox   # same matrix on Gecko
 node tools/browser/translatecheck.js   # brand name must NOT translate; header/footer must
+node tools/browser/rtlcheck.js         # mirrored layout, 18 routes × 3 viewports
 node tools/browser/uicheck.js
 node tools/browser/typecheck.js
 node tools/browser/seocheck.js

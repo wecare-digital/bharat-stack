@@ -301,7 +301,14 @@ response = requests.post(
                     <div className="typing-indicator"><span></span><span></span><span></span></div>
                   </div>
                 </div>
-                <div className="code-box">
+                {/* dir="ltr": the panel is a Python call. Code is left-to-right by syntax, not
+                    by convention, so it must not mirror when an Arabic reader translates the
+                    page - the brackets and the dotted path reverse and it stops parsing.
+                    LanguageBar already skips CODE and PRE for the same underlying reason.
+                    It also pins .file-name, which uses margin-left:auto to push the filename
+                    to the far end of the header; inside a locked subtree that physical
+                    property is now correct rather than accidentally correct. */}
+                <div className="code-box" dir="ltr">
                   <div className="code-header">
                     <div className="dots"><span className="dot-red"></span><span className="dot-yellow"></span><span className="dot-green"></span></div>
                     {/* A filename. The code body below is already safe because
@@ -843,7 +850,11 @@ response = requests.post(
              top:28px, not 8px. At 8px the phone sat flush with the wrapper's top
              edge, so its dark title bar ran under the fixed header and read as
              clipped. */
-          .phone{position:absolute;left:0;top:28px;width:56%;max-width:320px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+          /* inset-inline-start:0 so the phone mock sits on the reader's starting edge. Unlike
+             the code panel above it, a chat interface SHOULD mirror - WhatsApp itself is
+             mirrored in Arabic - so this one follows the document instead of being locked.
+             Measured at 260px out of position under rtl before the change. */
+          .phone{position:absolute;inset-inline-start:0;top:28px;width:56%;max-width:320px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
           .phone-header{background:#1a3a2a;padding:12px 14px;display:flex;align-items:center;gap:10px}
           .back-arrow{color:#fff;font-size:20px}
           .avatar{width:40px;height:40px;background:#1a3a2a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
