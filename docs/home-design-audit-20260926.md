@@ -224,6 +224,86 @@ Screen readers are correct — the four animated copies carry `aria-hidden` and
 generators, some crawlers) reads the set five times, with no space after "for". Cheap to
 improve, and the sr-only span is the natural place.
 
+## FOLD — Foldable postures, and a gap in my own proposed fix
+
+Sixteen foldable configurations measured. They matter here for a precise reason: the menu
+failure needs a viewport that is **wide and short**, which is rare on a phone or a laptop and
+is the *normal* shape of an unfolded or folded-landscape device. Folded covers also go
+narrower than the 320px floor everything else is tested at.
+
+### FOLD-1 — The menu does not just shrink, it reaches zero
+
+| Device | Viewport | Menu box | computed `max-height` | content |
+|---|---|---:|---:|---:|
+| Galaxy Fold — folded, landscape | 653×280 | 621×**32** | **0px** | 1028px |
+| Z Fold 5 — cover, landscape | 882×344 | 626×**32** | **24px** | 700px |
+| Z Flip 5 — landscape | 880×360 | 624×**40** | **40px** | 700px |
+| Surface Duo — landscape | 720×540 | 688×232 | 232px | 1028px |
+| *(previously reported)* 844×390 | | 588×70 | 70px | 700px |
+
+At 653×280 the computed `max-height` is **zero** — the 32px that remains is padding and
+border. The menu is present, focusable and holds 20 links, and it is a strip of chrome. Z Flip
+and Z Fold are the two best-selling foldables, so this is not an exotic posture.
+
+### FOLD-2 — My proposed fix was incomplete, and the folded case is what showed it
+
+I proposed replacing the desktop rule's `calc(100vh - 320px)`. That would **not** fix
+653×280, because at 653px wide the *mobile* override applies —
+`max-height:calc(100vh - 308px)` — and 308 is larger than the 280px viewport, so it resolves
+negative and clamps to 0. **Both subtrahends have to go, not just the desktop one:**
+
+```css
+/* 140 = the 108px header + 32px of air. Both nameable, and dvh so mobile browser
+   chrome is accounted for. Applied to BOTH rules. */
+.nav-menu{max-height:calc(100dvh - 140px)}
+@media(max-width:767px){ .nav-menu{max-height:calc(100dvh - 140px)} }
+```
+
+Resulting heights: 280 → 140px, 344 → 204px, 360 → 220px, 390 → 250px. All scrollable and
+usable rather than 0–70px.
+
+### FOLD-3 — On two folded-landscape postures the band's own sentence is below the fold
+
+The top band exists to say what the page is about, and its sentence does not fit:
+
+| Device | Viewport | sub-line ends at |
+|---|---|---:|
+| Galaxy Fold — folded, landscape | 653×280 | **314px** — 34px below the fold |
+| Z Fold 5 — cover, landscape | 882×344 | **359px** — 15px below the fold |
+
+Everything else in the matrix fits. This is a judgement rather than a defect — a 280px-tall
+viewport is genuinely hostile — but it interacts with the `80px` of blank above the headline
+that is already an open question: on these two postures that padding is the difference.
+
+### FOLD-4 — There is precedent in this repo, and the public header never got it
+
+`src/styles/Layout.css:2185` and `:2204` already handle exactly this, for the dashboard's
+bottom nav:
+
+```css
+@media (max-width: 768px) and (max-height: 500px) and (orientation: landscape) { … }
+@media (vertical-viewport-segments: 2) { … }
+```
+
+and the comment above them names the trap precisely — *"An unfolded inner display is
+tablet-WIDE but often phone-TALL … Short and wide (a landscape fold, or a phone in landscape)
+… `vertical-viewport-segments: 2` is the real posture signal rather than a guess from width."*
+`BottomNav.test.tsx:140` asserts it ships.
+
+So the reasoning was already worked out in this codebase and written down. The dashboard
+learned it; the public chrome did not. Note the dashboard rule carries a `max-width:768px`
+ceiling, which would **not** cover the header cases at 880 and 882 wide — the header needs the
+height condition without the width ceiling.
+
+### FOLD-5 — Clean across all sixteen postures
+
+Worth recording so it is not re-checked: **zero horizontal overflow** and **the pill never
+crosses the viewport edge** on any configuration, including 280px wide — narrower than the
+320px floor `animcheck` tests. The band's own layout is sound; it is the menu and the fold
+position that are not.
+
+---
+
 ## TYPE — Typography findings, measured with the font harnesses
 
 Prompted by the fair observation that everything above is a runtime state and none of it is
@@ -398,6 +478,9 @@ with the menu open:
 repositions it (`Header.tsx:621`) is gated on `@media(max-width:767px)`. So any window
 **wider** than 767 but short falls back to the desktop rule — a landscape phone, or a short
 desktop window. The threshold is roughly 620px of viewport height.
+
+**Foldables make this materially worse — see FOLD below. 844×390 is not the worst case; it is
+a mild one.**
 
 Two smaller things in the same declaration: it uses `100vh` rather than `100dvh`, which is
 the exact unit defect `index.tsx` already fixed and documented for `.home-shell`; and `320`
