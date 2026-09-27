@@ -418,3 +418,80 @@ product decision needing explicit approval, not a configuration tidy-up.
 `webhook_secret` is missing from `wecare/sinch/rcs` (§4.1). Sends succeed; only the
 delivery *reports* are refused, and Sinch retries them. Adding that field is the
 one item here that needs a credential write, and therefore you.
+
+---
+
+## 8. RCS template inventory (2026-09-27)
+
+12 templates, all `approved`. `rcsmenu` — the name the code sends — is present.
+
+| Name | Type | Stale host refs |
+|---|---|---|
+| `rcsmenu` | rich_card | `app.wecare.digital`, `r.wecare.digital` |
+| `rcsorder` | rich_card | `app.wecare.digital`, `r.wecare.digital` |
+| `wecaremenu` | rich_card | `app.wecare.digital`, `r.wecare.digital` |
+| `wdorder` | rich_card | `app.wecare.digital`, `r.wecare.digital` |
+| `waalert` | rich_card | `app.wecare.digital`, `r.wecare.digital` |
+| `get_started` | rich_card | `app.wecare.digital`, `r.wecare.digital` — **dead thumbnail** |
+| `rcsmenu_apex` | rich_card | none — created 2026-09-27 on the migrated URLs |
+| `test16` | text_message | none |
+| `test17` | text_message | none |
+| `wecare_order_update` | text_message | none |
+| `wecare_test_create` | text_message | none |
+| `wecare_v2_test` | text_message | none |
+
+`get_started`'s thumbnail `stream/media/m/WECARE+SC.png` does not exist in any
+spelling — the `+` never decoded to a space. Silently broken, pre-existing.
+
+The three media URLs the rich cards reference, and their state on both hosts:
+
+| Key under `stream/media/m/` | old `app.wecare.digital` | new `wecare.digital/get/o` |
+|---|---|---|
+| `selfservice.mp4` | 200 `video/mp4` 1302443 b | 200 identical |
+| `wecare-digital-rcs-h.png` | 200 `image/png` 89548 b | 200 identical |
+| `WECARE+SC.png` | 200 but 596 b of **HTML** | 302 — **key does not exist** |
+
+Because 6 of 12 templates are **approved** against `app.wecare.digital`, that host
+cannot be retired until the templates are re-pointed and re-approved. This is one
+of three independent blockers on deleting the old S3 folder; the others are 35
+`S3_BUCKET`/`MEDIA_BUCKET` env vars naming it as a bucket across 30+ live
+functions, and an active writer outside this repo still adding
+`stream/blog/source/production-N-decisions.json`.
+
+### 8.1 Template CRUD
+
+All three actions live on `wecare-rcs-send`. `create_template` takes
+`type: text_message | rich_card`; for `rich_card` the `text` field carries the
+card JSON.
+
+```bash
+# list
+aws lambda invoke --function-name wecare-rcs-send \
+  --payload '{"body":"{\"action\":\"templates\"}"}' /dev/stdout
+
+# create
+aws lambda invoke --function-name wecare-rcs-send \
+  --payload '{"body":"{\"action\":\"create_template\",\"name\":\"…\",\"type\":\"text_message\",\"text\":\"…\"}"}' /dev/stdout
+
+# delete
+aws lambda invoke --function-name wecare-rcs-send \
+  --payload '{"body":"{\"action\":\"delete_template\",\"name\":\"…\"}"}' /dev/stdout
+```
+
+Creation returned `status: approved` immediately for `rcsmenu_apex`, so there is
+no separate approval wait on this provider.
+
+### 8.2 Sending
+
+```bash
+aws lambda invoke --function-name wecare-rcs-send \
+  --payload '{"body":"{\"action\":\"send\",\"phoneNumber\":\"+9198…\",\"template\":\"rcsmenu\",\"language\":\"en\"}"}' /dev/stdout
+```
+
+India destinations only. `rcs-send` normalises with `comms.numbers.to_e164` and
+refuses a non-India number with 400 — the old `'91' + clean[-10:]` rewrite was
+removed because it turned +65/+852/+45 numbers into real Indian subscribers.
+
+`rcs-send` itself does **not** check `SINCH_RCS_ENABLED`; only its callers do
+(`sinch_rcs.is_rcs_enabled()` and `policy.decide_rcs`). So a direct invoke sends
+even when the WhatsApp-call path is flag-blocked.
