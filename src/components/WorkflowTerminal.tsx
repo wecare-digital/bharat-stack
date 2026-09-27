@@ -250,10 +250,43 @@ const WorkflowTerminal: React.FC = () => {
     return () => { cancelled = true; window.clearTimeout( timer ); };
   }, [ run ] );
 
-  // Follow the stream, but inside the panel only - never scroll the page.
+  // Is the reader still following the tail, or have they scrolled back to read something?
+  // Starts true because the panel begins at the top with the tail in view.
+  const pinnedRef = useRef( true );
+
+  // FOLLOW THE TAIL, BUT STOP FIGHTING A READER WHO SCROLLS BACK.
+  //
+  // This effect used to set scrollTop = scrollHeight on every step, unconditionally. The full
+  // sequence is 1350px of content in a 551px box at 1280 - and 1900px in 461px on a phone - so
+  // roughly 800px scrolls past, and four of the eight steps end up above the visible edge.
+  // Scrolling up to read one of them worked for at most one step: the next arrival yanked the
+  // view straight back to the bottom. That is what made those steps unrecoverable rather than
+  // merely off-screen, and it is the half of the defect that is fixable without cutting
+  // content or growing the panel.
+  //
+  // WHY NOT GROW THE PANEL, which was the obvious alternative. Measured: fitting the content
+  // needs 1447px at 1280 and 1997px at 390, against 650 and 560 today. On a phone that is 2.4
+  // screens of black terminal, and the page goes from 2498px to about 3935px. Letting it grow
+  // as steps arrive is worse again - every step would shift the rest of the page.
+  //
+  // So the panel keeps its height and the reader keeps control: auto-scroll only continues
+  // while they are already at the bottom. 24px of tolerance, because a trackpad rarely lands
+  // exactly on zero and sub-pixel rounding makes an equality test flap.
   useEffect( () => {
-    const el = streamRef.current;
-    if ( el && el.parentElement ) el.parentElement.scrollTop = el.parentElement.scrollHeight;
+    const box = streamRef.current?.parentElement;
+    if ( !box ) return undefined;
+    const onScroll = () => {
+      pinnedRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+    };
+    box.addEventListener( 'scroll', onScroll, { passive: true } );
+    return () => box.removeEventListener( 'scroll', onScroll );
+  }, [] );
+
+  // Inside the panel only - this must never scroll the page.
+  useEffect( () => {
+    const box = streamRef.current?.parentElement;
+    if ( !box || !pinnedRef.current ) return;
+    box.scrollTop = box.scrollHeight;
   }, [ shown, settled ] );
 
   const visible = STEPS.slice( 0, shown );
@@ -422,9 +455,19 @@ const WorkflowTerminal: React.FC = () => {
            the panel grows past its 650px and nothing ever scrolls. Bottom padding is
            24px now rather than 66px - the 66 was reserving room for a footer that used
            to overlap this box and no longer does. */
-        .wt-space{position:relative;flex:1;min-height:0;padding:30px 34px 24px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.24) transparent}
+        /* THE SCROLLBAR IS VISIBLE, AND THAT IS PART OF THE SAME FIX.
+           The thumb was rgba(255,255,255,.24) on a transparent track, over a #000 panel - so
+           the channel was invisible and the thumb was close to it. About 800px of the sequence
+           scrolls past at 1280 and 1439px on a phone, and nothing indicated that there was
+           anything above the visible edge to go back to. Overflow the reader cannot see is
+           overflow they will not look for.
+           .38 thumb on a .08 track: the track is what makes the region legible as scrollable
+           at rest, which the thumb alone does not do. Both are white alphas on the existing
+           panel, so no new colour enters. */
+        .wt-space{position:relative;flex:1;min-height:0;padding:30px 34px 24px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.38) rgba(255,255,255,.08)}
         .wt-space::-webkit-scrollbar{width:7px}
-        .wt-space::-webkit-scrollbar-thumb{background:rgba(255,255,255,.24);border-radius:20px}
+        .wt-space::-webkit-scrollbar-track{background:rgba(255,255,255,.08);border-radius:20px}
+        .wt-space::-webkit-scrollbar-thumb{background:rgba(255,255,255,.38);border-radius:20px}
 
         /* EVERY SIZE IN THIS PANEL WENT UP, on instruction - the code was 10 and 11px,
            which is below what the rest of the site uses anywhere and unreadable on a

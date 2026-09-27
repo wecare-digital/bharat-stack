@@ -176,27 +176,25 @@ const Footer: React.FC = () => {
          that family of greys.
          inline-block so the swept underline can span exactly the text, and position
          relative so the ::after anchors to it. */
+      /* NO HOVER AFFORDANCE ON THIS LINE, AND THAT IS THE POINT.
+         It used to darken to #1a3a2a on hover and sweep a 2px lime underline in from the
+         left, with position:relative, display:inline-block and a transition existing only
+         to support that. Both are exactly what a link does here - the footer's own rows use
+         the same sweep, at the same .2s and the same easing, and the note that used to sit
+         below said so outright.
+         But this is a <p> with no href. Measured: cursor resolves to auto, there is no
+         href attribute, and it sits in the same block as the real footer links. So hovering
+         it produced link feedback on text that cannot be clicked - a false affordance, and
+         the worst place for one is beside controls that do work.
+         The lime accent has not been lost from the footer: .ft-dash below is a 56x3px lime
+         rule and is the deliberate, static place for it. A second lime line three pixels
+         under the tagline was competing with it anyway.
+         If this line should ever become a link, give it an href and the sweep comes back with
+         it - the affordance is fine, it just has to be true. */
       .ft-tagline{
-        position:relative;display:inline-block;
         font-size:15px;line-height:1.6;color:rgba(0,0,0,.54);
         margin:0;max-width:340px;
-        transition:color .2s;
       }
-      /* The sweep. transform:scaleX is compositor-only, so it cannot cause layout on any
-         frame the way animating width would; transform-origin:left makes it draw from the
-         left edge. Same .2s and same easing as the header's row sweep. */
-      .ft-tagline::after{
-        content:'';position:absolute;inset-inline:0;bottom:-3px;height:2px;
-        background:#d1f470;
-        transform:scaleX(0);transform-origin:left center;
-        transition:transform .2s cubic-bezier(.16,1,.3,1);
-      }
-      /* transform-origin takes no logical keyword, so rtl is stated. Without this the
-         underline would draw from the end of the line an Arabic reader finishes on, which
-         reads as the rule retracting rather than appearing. */
-      :global([dir='rtl']) .ft-tagline::after{transform-origin:right center}
-      .ft-tagline:hover{color:#1a3a2a}
-      .ft-tagline:hover::after{transform:scaleX(1)}
 
       /* THE LIME DASH. 56x3px, matching .home-close-rule's 3px lime rule.
          READ THE .is-armed PATTERN BEFORE CHANGING THIS: the default below is the FINAL,
@@ -228,7 +226,8 @@ const Footer: React.FC = () => {
       .ft-dash.is-armed.is-in{transform:scaleX(1)}
 
       @media(prefers-reduced-motion:reduce){
-        .ft-tagline,.ft-tagline::after{transition:none}
+        /* .ft-tagline is gone from here: it no longer transitions anything, so there was
+           nothing left for this to disable. */
         /* Belt and braces. The effect already never arms under reduced motion, so this is
            the guard for the case where the preference changes after arming, when the class
            is already on the node. It kills the movement without hiding the dash. */
