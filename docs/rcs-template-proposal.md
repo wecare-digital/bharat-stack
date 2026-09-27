@@ -463,12 +463,59 @@ description : Thanks for contacting us.
 media       : wd-card-front-tall.png   (VERTICAL, TALL)
 
 buttons     : 1. GET STARTED    url     wecare.digital/r/getstarted
-              2. WHATSAPP US    url     wecare.digital/r/wa
+              2. WHATSAPP US    url     wa.me/message/APDM5HUWH26SG1
               3. CALL US        dialer  +919330994400
                                         (4th slot left free)
 ```
 
 Zero URLs in the body. Three taps available, one slot spare.
+
+### 11.2a The WhatsApp button goes direct, matching the widget
+
+Revised 2026-09-27: button 2 was `wecare.digital/r/wa`; it is now the **direct**
+link, taken from what the site widget actually uses rather than invented.
+
+`SupportWidget.tsx:747` links to `https://wa.me/message/APDM5HUWH26SG1`, and its
+comment records that the href was read out of the retired `wecare-wa-widget.js`
+"rather than guessed, so retiring that script did not move where people land."
+`/r/wa` 302s to exactly the same URL, so this is a change of hop count, not of
+destination.
+
+Verified the destination rather than assuming it:
+
+```
+https://wa.me/message/APDM5HUWH26SG1
+  -> 302 https://api.whatsapp.com/message/APDM5HUWH26SG1?autoload=1&app_absent=0
+  -> phone=919330994400        og:description "Official Business Account"
+```
+
+`919330994400` is **WABA1 — the same number printed on the card image**, so the
+button and the artwork agree. Worth stating because a WhatsApp button landing on a
+different number than the card shows would be a quiet inconsistency.
+
+Two things this costs, both worth knowing before it ships:
+
+* **Click analytics.** The shortener counts clicks — 742 recorded on `/r/*` — and a
+  direct link is invisible to it. If WhatsApp taps from RCS need measuring, the
+  short link is the only thing here that measures them.
+* **Retargetability.** A template is *approved* by the provider, so the URL inside
+  it is effectively frozen; changing it later means a new template. `/r/wa` could be
+  repointed in seconds without touching RCS at all.
+
+Neither is a blocker — just the trade being made. `wa.me/message/…` is itself one
+internal redirect (`wa.me` → `api.whatsapp.com`), which is Meta's own hop and not
+avoidable.
+
+**Observation, not a change:** the code `APDM5HUWH26SG1` is the one labelled
+**`subscribe`** in `selfservice.tsx`'s `MESSAGE_LINKS`, while `submit_request` is a
+different code, `J3ZJ4W52TPJEN1`. The widget has pointed at the `subscribe` deep
+link since before this work, deliberately preserved from the old script. Flagging it
+in case the RCS button ought to open `submit_request` instead — that is a product
+call, so nothing was changed.
+
+`GET STARTED` is left as `wecare.digital/r/getstarted` (which 302s to
+`wecare.digital/selfservice`). Say if you want that one direct too; the same
+analytics trade applies.
 
 ### 11.3 Copy alternatives
 
