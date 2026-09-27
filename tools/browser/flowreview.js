@@ -311,8 +311,23 @@ const METRICS = () => {
       + `<iframe loading="lazy" scrolling="no" title="preview" `
       + `style="width:${w}px;height:${h}px;transform:scale(${sc})" `
       + `srcdoc="${frameDoc( o ).replace( /"/g, '&quot;' )}"></iframe></div>`;
+    // THE SCALE IS PART OF THE LABEL, and leaving it out was a real defect in this page.
+    //
+    // Frames are scaled down so several fit side by side, and the four-state strip used
+    // scale(0.5). That renders this band's 20px body copy at 10px on screen - while
+    // close-review.html shows band 3's identical 20px rung at scale(1). Comparing type
+    // across the two pages therefore suggested band 2 used a smaller font size than band 3,
+    // which is false: measured on the live site and locally, at 320/390/768/1280, both are
+    // font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px - the same
+    // declaration. The mock invented a discrepancy the page does not have, and someone
+    // reasonably asked for a font size to be "matched" that already matched.
+    //
+    // So every frame below 1:1 now says so on its own label. A reviewer can still compare
+    // across pages; they can just see when they are not comparing like with like.
     const labelled = ( lab, cls, o, w, h, sc ) =>
-      `<div class="cmpcol"><span class="collab ${cls}">${lab}</span>${shot( o, w, h, sc )}</div>`;
+      `<div class="cmpcol"><span class="collab ${cls}">${lab}</span>`
+      + ( sc < 1 ? `<span class="scale">shown at ${Math.round( sc * 100 )}% — type is not to size</span>` : '' )
+      + `${shot( o, w, h, sc )}</div>`;
 
     const DH = 740, MH = 1240;
     const P = {
@@ -383,6 +398,8 @@ const METRICS = () => {
   .shot iframe{border:0;display:block;transform-origin:0 0}
   .cmp{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin:0 0 14px}
   .cmpcol{flex:none}
+  .scale{display:block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--amb);background:#fff4e5;border-radius:4px;padding:2px 7px;margin:0 0 6px}
   .cap{font-size:14px;color:var(--mut);margin:0 0 14px;max-width:110ch}
   .cap b{color:var(--ink)}
   details.why{border:1px solid var(--line);border-radius:9px;background:#fcfcfc;margin:14px 0 0}
