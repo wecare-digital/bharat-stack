@@ -220,9 +220,21 @@ filter now exists in three places** — `SupportWidget.tsx`, `pageaudit.js` and
 
 ## 5b. Right-to-left: `lang` and `dir` are not independent
 
-The catalogue offers Arabic, Persian, Hebrew, Urdu, Pashto and Sindhi, so RTL is one button
-press away. `_document.tsx` declares `dir="ltr"` and `SupportWidget` rewrites it; `rtlcheck.js`
-asserts the result across 18 routes × 3 viewports.
+The catalogue offers Arabic, Persian, Hebrew, Urdu, Pashto and Sindhi — measured against the
+live endpoint and captured in `docs/execution/language-catalogue.json`, 76 entries of which six
+are RTL — so RTL is one button press away. `_document.tsx` declares `dir="ltr"` and
+`SupportWidget` rewrites it; `rtlcheck.js` asserts the result across **125 routes × 6
+viewports**, on Chromium and Firefox.
+
+**Write logical properties in stylesheets, and nothing physical.** All 216 physical direction
+declarations in `src/styles/*.css` are gone, and `src/test/LogicalDirectionCss.test.tsx` fails
+if one returns. That static check exists because `rtlcheck.js` cannot reach inside an
+authenticated view — the export ships auth shells, so real tables and side panels never render
+— and whether a rule names a physical edge is a property of the text, not the render.
+
+**Converting a base rule while leaving a media-query override physical is WORSE than leaving
+both.** The logical form gains a `:lang()` specificity class (see below) and beats the
+override. Either convert both or neither.
 
 **Write logical properties, but know they do not ship.** `inset-inline-end`,
 `padding-inline-start` and `border-inline-start` are the right thing to write and appear **zero
@@ -247,7 +259,30 @@ not a side: mirroring a tick produces a backwards mark that reads as an error cr
 
 **Measure the mirror, do not trust it.** `rtlcheck.js` asserts the widget actually *moved*
 between LTR and RTL, because every other assertion in it passes on a page that ignored the
-direction entirely — which is exactly the state it exists to catch.
+direction entirely — which is exactly the state it exists to catch. It also compares each
+block element's distance from the inline-**start** edge across directions, which is what
+catches a physical property that was never converted; four classes of false positive had to be
+excluded first — inline-level boxes and their subtrees, repeated class names, viewport-relative
+offsets (the scrollbar switches sides), and `el.className` on an SVG.
+
+**A third-party wrapper can override the document.** Amplify's `ThemeProvider` renders
+`dir="ltr"` on its own wrapper, which left the dashboard *half*-mirrored — boxes unmoved while
+`[dir='rtl']` rules still matched, putting the nav panel at `left:-504px` on 105 routes. An
+author declaration beats the attribute's presentational hint.
+
+**Arabic typography cannot be measured on the build host.** `fc-list` reports **zero** families
+with Arabic or Devanagari coverage against 82 with Latin, so both render as `.notdef` and every
+glyph measures the same width. Chromium's CDP is actively misleading here:
+`CSS.getPlatformFontsForNode` answers "Inter" for an Arabic string because it names the family
+*requested*, not the one that supplied the glyphs. `rtlcheck.js` prints the coverage counts at
+startup so a mirrored-Latin pass can never be read as an Arabic pass.
+
+**Do not split a sentence around a pinned word.** It assumes the word keeps its position
+through translation, and it does not: English puts a preposition before the noun while Hindi,
+Bengali, Tamil, Telugu, Marathi, Gujarati and Urdu put the object first with a postposition
+after it. Wrapping "Bharat" in `data-wc-no-translate` stranded the postposition and appended the
+name in source order — grammatically broken in all seven, measured against the live endpoint.
+Either pin the whole line or let the whole line translate.
 
 ## 6. Structure every public page must carry
 
@@ -282,7 +317,8 @@ node tools/browser/pageaudit.js        # structure + translation census + overfl
 node tools/browser/devicecheck.js      # 18 routes × 15 postures, incl. foldables
 node tools/browser/devicecheck.js --firefox   # same matrix on Gecko
 node tools/browser/translatecheck.js   # brand name must NOT translate; header/footer must
-node tools/browser/rtlcheck.js         # mirrored layout, 18 routes × 3 viewports
+node tools/browser/rtlcheck.js         # mirrored layout, 125 routes × 6 viewports
+node tools/browser/rtlcheck.js --firefox      # same sweep on Gecko
 node tools/browser/uicheck.js
 node tools/browser/typecheck.js
 node tools/browser/seocheck.js

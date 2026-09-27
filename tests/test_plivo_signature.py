@@ -238,3 +238,173 @@ def test_form_params_keep_list_values():
     ev = _event(params={"Dup": ["a", "b"]})
     parsed = ps.parse_form_params(ev)
     assert parsed["Dup"] == ["a", "b"]
+
+
+# --------------------------------------------------------------------------
+# The proxy path prefix — regression for the 2026-09-26 callback failure
+# --------------------------------------------------------------------------
+# On 2026-09-26 the callbacks moved from `https://api.wecare.digital/plivo/*` to
+# `https://wecare.digital/api/plivo/*`, served by an Amplify rewrite
+# `/api/<*>` -> `execute-api/prod/<*>`. That rewrite CONSUMES `/api`, so Plivo
+# signs `/api/plivo/hangup` while the Lambda sees `/prod/plivo/hangup` and
+# `normalize_path` reduces it to `/plivo/hangup`. Two of the three URL components
+# were then wrong — host AND path — and every signed callback was rejected.
+#
+# `/plivo/answer` kept working, because Plivo does not sign answer_url fetches and
+# the `?token=` gate does not depend on the URL. So the symptom was silent: callers
+# still heard the greeting while `hangup`, `events` and `dial-events` were dropped,
+# taking the CDR row and the follow-up SMS with them.
+#
+# These tests reproduce the real event shape. The fixture above cannot: it sets
+# `domainName` to a custom domain and `path` to an already-clean path, which is the
+# one arrangement in which the bug does not appear.
+PROXY_HOST = "wecare.digital"
+PROXY_PREFIX = "/api"
+
+
+def _proxied_event(path="/plivo/hangup", query="token=abc123", params=None,
+                   nonce=NONCE, token=TOKEN, stage="prod"):
+    """An event as it actually arrives through the Amplify `/api/<*>` rewrite.
+
+    Signed against the PUBLIC url Plivo was configured with, but carrying the
+    PRIVATE host and stage-prefixed path the Lambda really receives.
+    """
+    import urllib.parse
+    params = PLIVO_POST if params is None else params
+    body = urllib.parse.urlencode(
+        [(k, v) for k, vals in params.items() for v in
+         (vals if isinstance(vals, list) else [vals])])
+    public_uri = (f"https://{PROXY_HOST}{PROXY_PREFIX}{path}"
+                  + (f"?{query}" if query else ""))
+    sig = ps.expected_signature("POST", public_uri, nonce, token, params)
+    staged = f"/{stage}{path}" if stage else path
+    return {
+        "requestContext": {
+            "stage": stage,
+            "domainName": "zllr9lrg7j.execute-api.us-east-1.amazonaws.com",
+            "http": {"method": "POST", "path": staged},
+        },
+        "rawPath": staged,
+        "rawQueryString": query,
+        "headers": {ps.HEADER_V3: sig, ps.HEADER_NONCE: nonce,
+                    "content-type": "application/x-www-form-urlencoded"},
+        "body": body,
+        "isBase64Encoded": False,
+    }, public_uri
+
+
+def test_proxied_callback_is_rejected_without_the_overrides(monkeypatch):
+    """The bug itself. Without the overrides this is exactly the live failure.
+
+    The variables are explicitly REMOVED rather than merely left alone: this is
+    the one test whose premise is that they are absent, so inheriting them from
+    the ambient environment would turn it green for the wrong reason.
+    """
+    monkeypatch.delenv("PLIVO_CALLBACK_HOST", raising=False)
+    monkeypatch.delenv("PLIVO_CALLBACK_PATH_PREFIX", raising=False)
+    ev, _ = _proxied_event()
+    ok, reason = ps.verify_request(ev, TOKEN)
+    assert not ok and reason == "signature_mismatch"
+
+
+def test_reconstruct_url_rebuilds_the_public_url_from_the_proxied_event():
+    ev, public_uri = _proxied_event()
+    assert ps.reconstruct_url(
+        ev, force_host=PROXY_HOST, force_path_prefix=PROXY_PREFIX) == public_uri
+
+
+def test_proxied_callback_verifies_with_host_and_prefix_from_the_environment(
+        monkeypatch):
+    """The fix, exercised the way production configures it: env vars."""
+    monkeypatch.setenv("PLIVO_CALLBACK_HOST", PROXY_HOST)
+    monkeypatch.setenv("PLIVO_CALLBACK_PATH_PREFIX", PROXY_PREFIX)
+    ev, _ = _proxied_event()
+    ok, reason = ps.verify_request(ev, TOKEN)
+    assert ok and reason == "v3"
+
+
+def test_prefix_is_accepted_in_any_reasonable_spelling(monkeypatch):
+    """`api`, `/api` and `/api/` must all normalise to the same one segment.
+
+    An operator setting `api` without the slash, or pasting `/api/` with a
+    trailing one, must not silently produce `https://host.../api//plivo/hangup`
+    or `https://hostapi/plivo/hangup` — both of which fail closed and look
+    identical to a wrong token.
+    """
+    ev, public_uri = _proxied_event()
+    monkeypatch.setenv("PLIVO_CALLBACK_HOST", PROXY_HOST)
+    for spelling in ("api", "/api", "/api/", "api/"):
+        monkeypatch.setenv("PLIVO_CALLBACK_PATH_PREFIX", spelling)
+        assert ps.reconstruct_url(ev) == public_uri, spelling
+        ok, _ = ps.verify_request(ev, TOKEN)
+        assert ok, spelling
+
+
+def test_empty_prefix_changes_nothing(monkeypatch):
+    """An unset or blank prefix must behave exactly as before this change.
+
+    This is what keeps the override safe for the rest of the fleet: the shared
+    module ships everywhere, and nowhere else sets these variables.
+    """
+    monkeypatch.setenv("PLIVO_CALLBACK_PATH_PREFIX", "")
+    ev = _event()
+    assert ps.reconstruct_url(ev) == \
+        "https://api.wecare.digital/plivo/hangup?token=abc123"
+    monkeypatch.setenv("PLIVO_CALLBACK_PATH_PREFIX", "///")
+    assert ps.reconstruct_url(ev) == \
+        "https://api.wecare.digital/plivo/hangup?token=abc123"
+
+
+def test_prefix_still_rejects_a_tampered_query_string(monkeypatch):
+    """The prefix must not weaken anything it is not about."""
+    monkeypatch.setenv("PLIVO_CALLBACK_HOST", PROXY_HOST)
+    monkeypatch.setenv("PLIVO_CALLBACK_PATH_PREFIX", PROXY_PREFIX)
+    ev, _ = _proxied_event()
+    ev["rawQueryString"] = "token=tampered"
+    ok, _ = ps.verify_request(ev, TOKEN)
+    assert not ok
+
+
+def test_prefix_still_rejects_a_tampered_body(monkeypatch):
+    monkeypatch.setenv("PLIVO_CALLBACK_HOST", PROXY_HOST)
+    monkeypatch.setenv("PLIVO_CALLBACK_PATH_PREFIX", PROXY_PREFIX)
+    ev, _ = _proxied_event()
+    ev["body"] = ev["body"].replace("CallStatus=completed", "CallStatus=ringing")
+    ok, _ = ps.verify_request(ev, TOKEN)
+    assert not ok
+
+
+def test_an_explicit_argument_beats_the_environment(monkeypatch):
+    """force_* wins, so a caller can reason about one request without the env."""
+    monkeypatch.setenv("PLIVO_CALLBACK_HOST", "wrong.example")
+    monkeypatch.setenv("PLIVO_CALLBACK_PATH_PREFIX", "/wrong")
+    ev, public_uri = _proxied_event()
+    assert ps.reconstruct_url(
+        ev, force_host=PROXY_HOST, force_path_prefix=PROXY_PREFIX) == public_uri
+
+
+def test_every_signed_plivo_route_verifies_through_the_proxy(monkeypatch):
+    """All four signed routes, not just hangup.
+
+    `events` and `dial-events` require a signature too, and `dial-events` is the
+    authoritative connected-call signal that Phase 9 depends on — so a fix proven
+    only on `hangup` would leave the notification path broken.
+    """
+    monkeypatch.setenv("PLIVO_CALLBACK_HOST", PROXY_HOST)
+    monkeypatch.setenv("PLIVO_CALLBACK_PATH_PREFIX", PROXY_PREFIX)
+    for path in ("/plivo/hangup", "/plivo/events", "/plivo/dial-events",
+                 "/plivo/fallback"):
+        ev, _ = _proxied_event(path=path)
+        ok, reason = ps.verify_request(ev, TOKEN)
+        assert ok and reason == "v3", path
+
+
+def test_proxied_callback_without_a_query_string_verifies(monkeypatch):
+    """No `?token=` at all — the shape a future tokenless URL would take."""
+    monkeypatch.setenv("PLIVO_CALLBACK_HOST", PROXY_HOST)
+    monkeypatch.setenv("PLIVO_CALLBACK_PATH_PREFIX", PROXY_PREFIX)
+    ev, public_uri = _proxied_event(query="")
+    assert ps.reconstruct_url(ev) == public_uri
+    assert "?" not in ps.reconstruct_url(ev)
+    ok, _ = ps.verify_request(ev, TOKEN)
+    assert ok

@@ -171,27 +171,49 @@ def validate_signature(method: str, uri: str, nonce: str, auth_token: str,
 from lambda_utils.http_path import normalize_path  # noqa: E402,F401  (re-export)
 
 
-def reconstruct_url(event: Dict[str, Any], *, force_host: str = "") -> str:
+def reconstruct_url(event: Dict[str, Any], *, force_host: str = "",
+                    force_path_prefix: str = "") -> str:
     """Rebuild the exact URL Plivo requested, from an HTTP API v2 event.
 
     The signature covers the full URL including the query string, so this has to
-    match byte for byte. Two things matter behind API Gateway:
+    match byte for byte. Three things matter behind API Gateway:
 
-      * the custom domain, not the execute-api hostname. Plivo was configured
-        with https://api.wecare.digital/..., so that is what it signed.
-        requestContext.domainName carries the custom domain when the request
-        arrived through it.
+      * the custom domain, not the execute-api hostname.
+        `requestContext.domainName` carries it when the request arrived through
+        one, and `PLIVO_CALLBACK_HOST` overrides when it does not.
       * rawQueryString, not queryStringParameters. The latter is a parsed dict
         and reserialising it can reorder or re-encode, changing the digest. The
         `?token=` on these URLs makes this concrete: the token is part of the
         signed payload.
+      * any path segment consumed by a proxy in front of the API.
+
+    THE PATH PREFIX, AND THE OUTAGE THAT ADDED IT
+    ---------------------------------------------
+    On 2026-09-26 the callbacks moved from `https://api.wecare.digital/plivo/*` to
+    `https://wecare.digital/api/plivo/*`, served by an Amplify rewrite
+    `/api/<*>` -> `execute-api/prod/<*>`. That rewrite CONSUMES the `/api`
+    segment, so Plivo signs `/api/plivo/answer` while the Lambda only ever sees
+    `/plivo/answer` after `normalize_path` strips the stage. Every callback then
+    failed with `signature_mismatch` — inbound IVR answered nothing.
+
+    It was not caught beforehand because the pre-migration checks compared status
+    codes on UNSIGNED requests, and an unsigned request is rejected identically on
+    either URL. A signature that covers the URL cannot be validated by a probe
+    that carries no signature; only a real signed call exercises it.
+
+    `PLIVO_CALLBACK_PATH_PREFIX` restores the segment the proxy ate. It is
+    deliberately explicit rather than inferred from a header: `x-forwarded-*` is
+    not present on this path, and guessing the public path from the private one is
+    how a signature check starts silently passing the wrong thing.
     """
     rc = event.get("requestContext") or {}
     host = (force_host or os.environ.get("PLIVO_CALLBACK_HOST")
             or rc.get("domainName") or "")
+    prefix = (force_path_prefix or os.environ.get("PLIVO_CALLBACK_PATH_PREFIX") or "")
+    prefix = ("/" + prefix.strip("/")) if prefix.strip("/") else ""
     path = normalize_path(event)
     query = event.get("rawQueryString") or ""
-    url = f"https://{host}{path}"
+    url = f"https://{host}{prefix}{path}"
     return f"{url}?{query}" if query else url
 
 

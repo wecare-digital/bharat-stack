@@ -12,7 +12,7 @@
  * That redundancy is deliberate, because 21 of the original 88 paths have no link
  * anywhere else in the app — for those, navigation IS the only way in.
  *
- * It is a panel and not a route on purpose. A `/settings` page would be one more
+ * It is a panel and not a route on purpose. A `/workspace/settings` page would be one more
  * destination to navigate to before navigating, and it would need its own shell,
  * its own breadcrumb, and a decision about what happens to the page you were on.
  *

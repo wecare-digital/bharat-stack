@@ -16,7 +16,7 @@ import path from 'node:path';
 
 const push = vi.fn();
 vi.mock( 'next/router', () => ( {
-  useRouter: () => ( { push, pathname: '/dashboard' } ),
+  useRouter: () => ( { push, pathname: '/workspace/dashboard' } ),
 } ) );
 
 import SearchModal from '../components/SearchModal';
@@ -67,8 +67,8 @@ describe( 'SearchModal is derived from navigation.ts', () => {
 
   it( 'can find the destinations the old list could not', () => {
     const paths = getAllNavItems().map( ( i ) => i.path );
-    for ( const p of [ '/engage/inbox', '/engage/sms', '/engage/rcs', '/engage/ses',
-      '/engage/settings', '/access/security', '/seo/sitemaps' ] )
+    for ( const p of [ '/workspace/engage/inbox', '/workspace/engage/sms', '/workspace/engage/rcs', '/workspace/engage/ses',
+      '/workspace/engage/settings', '/workspace/access/security', '/workspace/seo/sitemaps' ] )
     {
       expect( paths ).toContain( p );
     }

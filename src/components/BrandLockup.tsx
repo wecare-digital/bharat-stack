@@ -1,6 +1,6 @@
 import React from 'react';
 
-const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
+const LOGO_URL = 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png';
 
 interface BrandLockupProps {
   compact?: boolean;

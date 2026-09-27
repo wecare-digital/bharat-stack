@@ -1422,7 +1422,7 @@ MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
 # ── LOCKED CONFIGURATION — DO NOT CHANGE WITHOUT TESTING ──
 # IVR audio: incoming_welcome.ogg (OGG/OPUS — WhatsApp supported format)
 # .sln16 is Asterisk-only format, WhatsApp rejects it (wrong MIME type)
-DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://app.wecare.digital/stream/media/ivr/incoming_welcome.ogg')
+DEFAULT_IVR_URL = os.environ.get('AUTO_PICKUP_IVR_URL', 'https://wecare.digital/get/o/stream/media/ivr/incoming_welcome.ogg')
 AUTO_PICKUP_DEFAULT = os.environ.get('AUTO_PICKUP_ENABLED', 'true').lower() == 'true'
 
 s3 = boto3.client('s3', region_name=REGION)
@@ -1471,7 +1471,7 @@ ORDER_SMS_CONTENT = (
 )
 
 # WhatsApp template video URL (CloudFront — publicly accessible)
-WA_TEMPLATE_VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
+WA_TEMPLATE_VIDEO_URL = 'https://wecare.digital/get/o/stream/media/m/selfservice.mp4'
 
 # WABA phone IDs for sending templates
 WABA1_META_ID = '1016149501586345'   # +91 93309 94400
@@ -1613,7 +1613,7 @@ def _is_auto_pickup_enabled() -> bool:
 
 def _get_auto_pickup_audio_url() -> Optional[str]:
     """Get the IVR audio URL for auto-pickup greeting.
-    Uses direct URL by default: https://app.wecare.digital/stream/media/ivr/incoming_welcome.ogg
+    Uses direct URL by default: https://wecare.digital/get/o/stream/media/ivr/incoming_welcome.ogg
     """
     try:
         table = dynamodb.Table(SYSTEM_CONFIG_TABLE)

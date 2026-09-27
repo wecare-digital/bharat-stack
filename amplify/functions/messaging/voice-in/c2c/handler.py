@@ -436,7 +436,7 @@ def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
             proof = _hmac.new(app_secret.encode(), meta_token.encode(), _hashlib.sha256).hexdigest()
 
             WABA1_PHONE = '1016149501586345'
-            VIDEO_URL = 'https://app.wecare.digital/stream/media/m/selfservice.mp4'
+            VIDEO_URL = 'https://wecare.digital/get/o/stream/media/m/selfservice.mp4'
 
             template_payload = json.dumps({
                 'messaging_product': 'whatsapp',

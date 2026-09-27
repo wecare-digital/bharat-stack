@@ -65,35 +65,35 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ data }) => {
       <div className="section">
         <h3>Quick Actions</h3>
         <div className="actions-grid">
-          <Link href="/engage/whatsapp" className="action-card">
+          <Link href="/workspace/engage/whatsapp" className="action-card">
             <span className="icon"><WhatsAppIcon size={20} /></span>
             <span>WhatsApp</span>
           </Link>
-          <Link href="/pay" className="action-card">
+          <Link href="/workspace/pay" className="action-card">
             <span className="icon"><PaymentIcon size={20} /></span>
             <span>Pay</span>
           </Link>
-          <Link href="/pay" className="action-card">
+          <Link href="/workspace/pay" className="action-card">
             <span className="icon"><InvoiceIcon size={20} /></span>
             <span>Invoice</span>
           </Link>
-          <Link href="/link" className="action-card">
+          <Link href="/workspace/link" className="action-card">
             <span className="icon"><LinkIcon size={20} /></span>
             <span>Link</span>
           </Link>
-          <Link href="/contacts" className="action-card">
+          <Link href="/workspace/contacts" className="action-card">
             <span className="icon"><ContactsIcon size={20} /></span>
             <span>Contacts</span>
           </Link>
-          <Link href="/engage/whatsapp" className="action-card">
+          <Link href="/workspace/engage/whatsapp" className="action-card">
             <span className="icon"><BulkIcon size={20} /></span>
             <span>Campaign</span>
           </Link>
-          <Link href="/engage/sms" className="action-card">
+          <Link href="/workspace/engage/sms" className="action-card">
             <span className="icon"><SmsIcon size={20} /></span>
             <span>SMS</span>
           </Link>
-          <Link href="/engage/ses" className="action-card">
+          <Link href="/workspace/engage/ses" className="action-card">
             <span className="icon"><EmailIcon size={20} /></span>
             <span>Email</span>
           </Link>
@@ -119,7 +119,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ data }) => {
       <div className="section full-width">
         <div className="section-header">
           <h3>Recent Messages</h3>
-          <Link href="/engage/whatsapp" className="link">View All</Link>
+          <Link href="/workspace/engage/whatsapp" className="link">View All</Link>
         </div>
         <div className="msg-list">
           {messages.slice(0, 5).map(msg => {

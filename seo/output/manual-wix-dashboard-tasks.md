@@ -18,7 +18,7 @@ Add these 3 JSON-LD blocks:
   "@id": "https://www.wecare.digital/#organization",
   "name": "WECARE.DIGITAL",
   "url": "https://www.wecare.digital/",
-  "logo": "https://app.wecare.digital/stream/media/m/wecare-digital.png",
+  "logo": "https://wecare.digital/get/o/stream/media/m/wecare-digital.png",
   "email": "one@wecare.digital",
   "telephone": "+919330994400",
   "address": {

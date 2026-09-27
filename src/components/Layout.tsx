@@ -19,15 +19,15 @@ import BrandLockup from './BrandLockup';
 // Minimal navigation shown to limited-access partner (customer) users.
 const PARTNER_NAV: NavItem[] = [
   {
-    path: '/engage/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
-      { path: '/engage/whatsapp/my-account', label: 'My WhatsApp Account' },
+    path: '/workspace/engage/whatsapp', label: 'WhatsApp', icon: 'whatsapp', children: [
+      { path: '/workspace/engage/whatsapp/my-account', label: 'My WhatsApp Account' },
       // Inbox intentionally omitted until tenant-scoped (avoids data leakage).
     ],
   },
 ];
 import { Breadcrumbs, KeyboardShortcuts, useKeyboardShortcutsModal } from './ui';
 
-const LOGO_URL = 'https://app.wecare.digital/stream/media/m/wecaredigital.png';
+const LOGO_URL = 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png';
 const CONTACT_URL = 'https://wecare.digital/contact';
 
 interface LayoutProps {
@@ -45,7 +45,7 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
   useEffect( () => {
     if ( !roleLoading && isPartner && !isPartnerAllowed( router.pathname ) )
     {
-      router.replace( '/engage/whatsapp/my-account' );
+      router.replace( '/workspace/engage/whatsapp/my-account' );
     }
   }, [ roleLoading, isPartner, router.pathname ] );
 
@@ -53,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
   const navForRole = useMemo( () => ( isPartner ? PARTNER_NAV : navigationConfig ), [ isPartner ] );
 
   const [ isMobileMenuOpen, setIsMobileMenuOpen ] = useState( false );
-  const [ expandedPaths, setExpandedPaths ] = useState<Set<string>>( new Set( [ '/dashboard' ] ) );
+  const [ expandedPaths, setExpandedPaths ] = useState<Set<string>>( new Set( [ '/workspace/dashboard' ] ) );
   const [ searchOpen, setSearchOpen ] = useState( false );
   const [ sidebarSearch, setSidebarSearch ] = useState( '' );
   const [ brandDropdownOpen, setBrandDropdownOpen ] = useState( false );
@@ -95,7 +95,7 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
   }, [ sidebarSearch, allNavItems ] );
 
   useEffect( () => {
-    const newExpanded = new Set<string>( [ '/dashboard' ] ); // Always keep Dashboard expanded
+    const newExpanded = new Set<string>( [ '/workspace/dashboard' ] ); // Always keep Dashboard expanded
     const findParents = ( items: ( NavItem | NavSubItem )[], parents: string[] = [] ) => {
       for ( const item of items )
       {
@@ -272,8 +272,8 @@ const Layout: React.FC<LayoutProps> = ( { children, user, onSignOut, showBreadcr
                       <div onClick={ () => setBrandDropdownOpen( false ) } style={ { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 } } />
                       <div style={ { position: 'absolute', top: 'calc(100% + 4px)', left: 0, background: '#fcfdfb', border: '1px solid #e5e7eb', borderTop: '3px solid #d1f470', borderRadius: 14, padding: '8px 0', minWidth: 170, boxShadow: '0 8px 28px rgba(0,0,0,0.12)', zIndex: 9999, display: 'flex', flexDirection: 'column' } }>
                         <Link href="/" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Home</Link>
-                        <Link href="/dashboard" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>CRM</Link>
-                        <Link href="/access" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Sign in</Link>
+                        <Link href="/workspace/dashboard" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>CRM</Link>
+                        <Link href="/workspace/access" onClick={ () => setBrandDropdownOpen( false ) } style={ { display: 'block', padding: '10px 20px', fontSize: 14, fontWeight: 500, color: '#1a3a2a', textDecoration: 'none' } }>Sign in</Link>
                       </div>
                     </>
                   ) }

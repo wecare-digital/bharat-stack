@@ -3,7 +3,7 @@ import React from 'react';
 /**
  * The WECARE.DIGITAL / WECARE.DIGITAL mark, inlined.
  *
- * Source: https://app.wecare.digital/stream/media/m/wecare-digital.svg
+ * Source: https://wecare.digital/get/o/stream/media/m/wecare-digital.svg
  * That file cannot be used through an img tag here, for two reasons that both live
  * inside the file and are therefore unreachable by CSS:
  *

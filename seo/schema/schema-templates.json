@@ -5,7 +5,7 @@
     "@id": "https://wecare.digital/#organization",
     "name": "WECARE.DIGITAL",
     "url": "https://wecare.digital/",
-    "logo": "https://app.wecare.digital/stream/media/m/wecare-digital.png",
+    "logo": "https://wecare.digital/get/o/stream/media/m/wecare-digital.png",
     "email": "one@wecare.digital",
     "telephone": "+919330994400",
     "address": {
@@ -70,7 +70,7 @@
     "datePublished": "{DATE_PUBLISHED}",
     "dateModified": "{DATE_MODIFIED}",
     "author": {"@type": "Person", "name": "Swdhya Vaksetu", "url": "https://wecare.digital/swdhya"},
-    "publisher": {"@type": "Organization", "name": "WECARE.DIGITAL", "logo": {"@type": "ImageObject", "url": "https://app.wecare.digital/stream/media/m/wecare-digital.png"}},
+    "publisher": {"@type": "Organization", "name": "WECARE.DIGITAL", "logo": {"@type": "ImageObject", "url": "https://wecare.digital/get/o/stream/media/m/wecare-digital.png"}},
     "mainEntityOfPage": {"@type": "WebPage", "@id": "{URL}"},
     "inLanguage": "en-IN"
   },

@@ -2143,7 +2143,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
             'templateName': 'wecare_pay',
             'templateParams': [],  # wecare_pay has no body variables
             'checkoutOrderDetails': order_details_obj,
-            'headerImageUrl': 'https://app.wecare.digital/stream/media/m/wecare-digital.png',
+            'headerImageUrl': 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png',
         })
     }
 

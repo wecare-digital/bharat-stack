@@ -564,7 +564,7 @@ export interface Message {
   messageId: string;
   contactId: string;
   // VOICE is a real stored channel — message_store.VALID_CHANNELS has included it
-  // since calls started leaving a breadcrumb row, and `/engage/inbox?channel=voice` is
+  // since calls started leaving a breadcrumb row, and `/workspace/engage/inbox?channel=voice` is
   // now the Calls destination. Omitting it here made the type assert something false
   // about data the inbox already renders with its own badge and audio player.
   channel: 'WHATSAPP' | 'SMS' | 'EMAIL' | 'RCS' | 'VOICE';
@@ -2222,7 +2222,7 @@ export async function sendWhatsAppPaymentMessage ( request: SendPaymentMessageRe
       templateName: 'wecare_pay',
       templateParams: [],
       checkoutOrderDetails: orderDetails,
-      headerImageUrl: request.headerImageUrl || 'https://app.wecare.digital/stream/media/m/wecare-digital.png',
+      headerImageUrl: request.headerImageUrl || 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png',
     } ),
   } );
 }

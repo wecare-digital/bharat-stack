@@ -13,13 +13,13 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "https://app.wecare.digital/stream/media/m/wecaredigital.png",
+      "src": "https://wecare.digital/get/o/stream/media/m/wecaredigital.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://app.wecare.digital/stream/media/m/wecaredigital.png",
+      "src": "https://wecare.digital/get/o/stream/media/m/wecaredigital.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

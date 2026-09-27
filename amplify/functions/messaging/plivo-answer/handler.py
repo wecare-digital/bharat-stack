@@ -2,10 +2,16 @@
 
   WhatsApp user / PSTN caller
     -> Plivo Voice Application (WECARE-WHATSAPP-IVR, 12775976954213184)
-    -> POST https://api.wecare.digital/plivo/answer     -> <Play> + <Hangup/>
-       POST https://api.wecare.digital/plivo/fallback    -> emergency XML
-       POST https://api.wecare.digital/plivo/hangup      -> persist CDR, 2xx
-       POST https://api.wecare.digital/plivo/events      -> record, 2xx
+    -> POST https://wecare.digital/api/plivo/answer     -> <Play> + <Hangup/>
+       POST https://wecare.digital/api/plivo/fallback    -> emergency XML
+       POST https://wecare.digital/api/plivo/hangup      -> persist CDR, 2xx
+       POST https://wecare.digital/api/plivo/events      -> record, 2xx
+
+These are APEX paths behind an Amplify rewrite `/api/<*>` -> execute-api, as of
+2026-09-26. The rewrite CONSUMES the `/api` segment, which broke every signed
+callback until `PLIVO_CALLBACK_HOST` and `PLIVO_CALLBACK_PATH_PREFIX` were set on
+this function - see lambda_utils/plivo_signature.reconstruct_url. Both variables
+are REQUIRED here; without them `hangup`, `events` and `dial-events` all reject.
 
 One Lambda serves all four routes. They share provider verification, the call
 record and the post-call SMS de-duplication, and splitting them would mean three
@@ -61,7 +67,17 @@ logger = get_logger(__name__)
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
 
-MEDIA_BASE = os.environ.get('IVR_MEDIA_BASE', 'https://app.wecare.digital')
+# The greeting Plivo fetches for <Play>. Moved onto the apex `/get/o/` path on
+# 2026-09-26, when app.wecare.digital's objects were consolidated into
+# wecare-digital-get under the `o/` prefix.
+#
+# Verified equivalent before switching, because <Play> is what a real caller hears
+# and a 404 here is silence: same ETag (2479657262de…), same 738160 bytes, same
+# `audio/wav`, and — the part a plain GET would have missed — the same
+# `206 Partial Content` with an identical `content-range` for a Range request.
+# A media fetcher that ranges would otherwise have failed on a URL that looked
+# healthy in a browser.
+MEDIA_BASE = os.environ.get('IVR_MEDIA_BASE', 'https://wecare.digital/get/o')
 IVR_AUDIO_KEY = os.environ.get('IVR_AUDIO_KEY', 'stream/media/ivr/incoming_welcome.wav')
 IVR_AUDIO_URL = os.environ.get('IVR_AUDIO_URL', f'{MEDIA_BASE}/{IVR_AUDIO_KEY}')
 
@@ -98,8 +114,15 @@ PSTN_DIAL_TIMEOUT = int(os.environ.get('PSTN_DIAL_TIMEOUT', '25'))
 
 # Where Plivo reports the dial outcome. This is the AUTHORITATIVE connected
 # signal; see lambda_utils/pstn/notifications.py.
+#
+# The default moved off `api.wecare.digital` on 2026-09-26 when that custom domain
+# was retired. It was unreachable rather than merely stale: this URL is handed to
+# Plivo inside `<Dial callbackUrl=...>`, so a dial would have reported its outcome
+# to a host that no longer resolves, silently losing the connected signal. It has
+# never fired in production only because PSTN_BROWSER_ROUTING_ENABLED is off - so
+# this was a landmine armed for whoever turned that flag on, not a live fault.
 PSTN_DIAL_CALLBACK_URL = os.environ.get(
-    'PSTN_DIAL_CALLBACK_URL', 'https://api.wecare.digital/plivo/dial-events')
+    'PSTN_DIAL_CALLBACK_URL', 'https://wecare.digital/api/plivo/dial-events')
 
 CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
 CDR_TTL_SECONDS = 90 * 24 * 60 * 60
