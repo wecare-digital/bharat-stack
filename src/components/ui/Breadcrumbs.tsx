@@ -23,8 +23,8 @@ function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
   const crumbs: BreadcrumbItem[] = [];
   
   // Always start with Dashboard
-  if (pathname !== '/dashboard') {
-    crumbs.push({ label: 'Dashboard', path: '/dashboard', isLast: false });
+  if (pathname !== '/workspace/dashboard') {
+    crumbs.push({ label: 'Dashboard', path: '/workspace/dashboard', isLast: false });
   }
   
   // Find matching nav items
@@ -74,7 +74,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ className }) => {
   const breadcrumbs = getBreadcrumbs(router.pathname);
   
   // Don't show breadcrumbs on dashboard or if only one item
-  if (router.pathname === '/dashboard' || breadcrumbs.length <= 1) {
+  if (router.pathname === '/workspace/dashboard' || breadcrumbs.length <= 1) {
     return null;
   }
   

@@ -7,13 +7,13 @@ Measured against `GetRoutes` on the only HTTP API (`zllr9lrg7j`), not inferred:
 
 | Page | Calls | Route |
 |---|---|---|
-| `/engage/docs` | `GET /docs/sources`, `POST /docs/sources`, `POST /docs/scrape`, `GET /docs/changelog` | **absent** |
-| `/engage/push` | `GET /push/devices`, `POST /push/send` | **absent** |
+| `/workspace/engage/docs` | `GET /docs/sources`, `POST /docs/sources`, `POST /docs/scrape`, `GET /docs/changelog` | **absent** |
+| `/workspace/engage/push` | `GET /push/devices`, `POST /push/send` | **absent** |
 | `src/api/client.ts` | `GET` + `PUT /whatsapp-voice/language-config` | **absent** |
 
-Every one of those calls 404s today, and **both pages hide it**. `/engage/docs` wraps its
+Every one of those calls 404s today, and **both pages hide it**. `/workspace/engage/docs` wraps its
 reads in `.catch(() => [])`, so it renders an empty source list and an empty changelog
-as though that were the truth. `/engage/push` checks `res.ok` and silently shows nothing.
+as though that were the truth. `/workspace/engage/push` checks `res.ok` and silently shows nothing.
 So three screens look functional and cannot work - the same shape as the agent panel
 advertising 18 refused tools and the `createInvoice` that returned success and wrote
 no row.
@@ -97,7 +97,7 @@ PLAN = {
 # the invoke permission is wrong and the Lambda was never called.
 PROBES = [
     ("GET", "/push/devices"),
-    ("GET", "/docs/sources"),
+    ("GET", "/workspace/docs/sources"),
     ("GET", "/whatsapp-voice/language-config"),
 ]
 

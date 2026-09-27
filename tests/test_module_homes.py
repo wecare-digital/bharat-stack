@@ -53,15 +53,15 @@ REMOVED_IDS = {"growth"}
 # had orphaned any of them, that would be a real regression rather than a tidy-up, so the
 # list it used to group is asserted reachable independently.
 GROWTH_FORMER_INNER_PAGES = [
-    "/seo", "/seo/pages", "/seo/analytics", "/seo/tracking", "/seo/schema",
-    "/engage/whatsapp/ctwa-ads", "/engage/whatsapp/conversions-api",
+    "/workspace/seo", "/workspace/seo/pages", "/workspace/seo/analytics", "/workspace/seo/tracking", "/workspace/seo/schema",
+    "/workspace/engage/whatsapp/ctwa-ads", "/workspace/engage/whatsapp/conversions-api",
 ]
 
 HUBS_THAT_MUST_BE_LAZY = {
-    "src/pages/engage/whatsapp/settings.tsx": 15,
-    "src/pages/dashboard/index.tsx": 5,
-    "src/pages/engage/rcs/index.tsx": 4,
-    "src/pages/engage/ses/index.tsx": 3,
+    "src/pages/workspace/engage/whatsapp/settings.tsx": 15,
+    "src/pages/workspace/dashboard/index.tsx": 5,
+    "src/pages/workspace/engage/rcs/index.tsx": 4,
+    "src/pages/workspace/engage/ses/index.tsx": 3,
 }
 
 
@@ -163,7 +163,7 @@ class TestCommunicationsExposesExactlyThree:
         inner = block.split("innerPages:")[1]
         inner = inner[: inner.index("]")]
         pages = re.findall(r"'(/[a-z0-9/-]+)'", inner)
-        assert pages == ["/engage/inbox", "/engage/whatsapp", "/engage/voice"], (
+        assert pages == ["/workspace/engage/inbox", "/workspace/engage/whatsapp", "/workspace/engage/voice"], (
             f"Communications must expose exactly Common Inbox, WhatsApp Business and "
             f"Business Calling; found {pages}")
 
@@ -223,7 +223,7 @@ class TestInnerPagesLoadLazily:
                 f"{hub}'s lazyTab is not generic, so it flattens tab prop types")
 
     def test_the_default_dashboard_tab_stays_eager(self):
-        code = (ROOT / "src/pages/dashboard/index.tsx").read_text(encoding="utf-8")
+        code = (ROOT / "src/pages/workspace/dashboard/index.tsx").read_text(encoding="utf-8")
         assert re.search(r"^import OverviewTab from", code, re.M), (
             "OverviewTab is the default tab; lazy-loading it only adds a round trip "
             "before the page can show anything")

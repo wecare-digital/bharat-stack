@@ -128,7 +128,7 @@ export function initDeepLinks(navigate: (path: string) => void) {
       const code = isApexShortLink
         ? url.pathname.replace(/^\/r\//, '')
         : url.pathname.replace(/^\//, '');
-      if (code) navigate(`/link?opened=${code}`);
+      if (code) navigate(`/workspace/link?opened=${code}`);
       return;
     }
     const path = url.pathname;

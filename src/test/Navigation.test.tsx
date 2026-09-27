@@ -39,21 +39,21 @@ describe( 'the sidebar is short and holds only daily streams', () => {
   } );
 
   it( 'leads with the inbox', () => {
-    expect( navigationConfig[ 0 ].path ).toBe( '/engage/inbox' );
+    expect( navigationConfig[ 0 ].path ).toBe( '/workspace/engage/inbox' );
   } );
 
   it( 'no longer carries the 30-item WhatsApp branch', () => {
     const waInSidebar = getAllNavItemsFrom( navigationConfig )
-      .filter( ( p ) => p.startsWith( '/engage/whatsapp' ) );
+      .filter( ( p ) => p.startsWith( '/workspace/engage/whatsapp' ) );
     expect( waInSidebar ).toHaveLength( 0 );
   } );
 
   it( 'offers Calls as an inbox filter, not a page', () => {
-    const inbox = navigationConfig.find( ( i ) => i.path === '/engage/inbox' );
+    const inbox = navigationConfig.find( ( i ) => i.path === '/workspace/engage/inbox' );
     const calls = inbox?.children?.find( ( c ) => c.label === 'Calls' );
-    expect( calls?.path ).toBe( '/engage/inbox?channel=voice' );
+    expect( calls?.path ).toBe( '/workspace/engage/inbox?channel=voice' );
     // dm/calls must be gone, not merely unlinked.
-    expect( fs.existsSync( path.join( PAGES, 'engage/calls/index.tsx' ) ) ).toBe( false );
+    expect( fs.existsSync( path.join( PAGES, 'workspace/engage/calls/index.tsx' ) ) ).toBe( false );
   } );
 } );
 
@@ -90,9 +90,9 @@ describe( 'nothing became unreachable', () => {
     // A sample of the 21 orphans, including the MFA page the owner asked to keep
     // and which cannot be reached any other way.
     const all = getAllNavItems().map( ( i ) => i.path );
-    for ( const p of [ '/access/security', '/engage/channels', '/engage/search',
-      '/engage/whatsapp/catalog-builder', '/engage/whatsapp/embedded-signup',
-      '/dashboard/design-reference', '/engage/meta-agent', '/engage/faq' ] )
+    for ( const p of [ '/workspace/access/security', '/workspace/engage/channels', '/workspace/engage/search',
+      '/workspace/engage/whatsapp/catalog-builder', '/workspace/engage/whatsapp/embedded-signup',
+      '/workspace/dashboard/design-reference', '/workspace/engage/meta-agent', '/workspace/engage/faq' ] )
     {
       expect( all ).toContain( p );
     }
@@ -100,11 +100,11 @@ describe( 'nothing became unreachable', () => {
 
   it( 'picked up routes that were orphaned before the restructure', () => {
     const all = getAllNavItems().map( ( i ) => i.path );
-    // '/forms/create' was in this list until 2026-09-25. It was deleted as a ComingSoon
+    // '/workspace/forms/create' was in this list until 2026-09-25. It was deleted as a ComingSoon
     // stub, so asserting the nav still reaches it would now assert the opposite of what
     // this file is for. FeatureFlags.test.tsx carries the inverse check for it.
-    for ( const p of [ '/dashboard/cors-settings', '/engage/whatsapp/ai-agent',
-      '/engage/whatsapp/scripts', '/forms/responses' ] )
+    for ( const p of [ '/workspace/dashboard/cors-settings', '/workspace/engage/whatsapp/ai-agent',
+      '/workspace/engage/whatsapp/scripts', '/workspace/forms/responses' ] )
     {
       expect( all ).toContain( p );
     }
@@ -126,9 +126,9 @@ describe( 'every nav path resolves to a real page', () => {
 
   it( 'no retired page is still referenced', () => {
     const all = getAllNavItems().map( ( i ) => i.path.split( '?' )[ 0 ] );
-    for ( const dead of [ '/engage/calls', '/engage/rcs/inbox', '/engage/ses/inbox',
-      '/engage/rcs/logs', '/engage/ses/logs', '/engage/whatsapp/logs',
-      '/engage/rcs/campaign', '/engage/ses/campaign', '/forms/logs', '/link/logs' ] )
+    for ( const dead of [ '/workspace/engage/calls', '/workspace/engage/rcs/inbox', '/workspace/engage/ses/inbox',
+      '/workspace/engage/rcs/logs', '/workspace/engage/ses/logs', '/workspace/engage/whatsapp/logs',
+      '/workspace/engage/rcs/campaign', '/workspace/engage/ses/campaign', '/workspace/forms/logs', '/workspace/link/logs' ] )
     {
       expect( all ).not.toContain( dead );
     }
@@ -140,18 +140,18 @@ describe( 'active-state matching survives the query strings', () => {
   // against path-plus-query never matches, so without stripping the query the
   // sidebar would highlight nothing on the page you are looking at.
   it( 'marks the inbox active when a channel filter is applied', () => {
-    const inbox = navigationConfig.find( ( i ) => i.path === '/engage/inbox' )!;
-    expect( isNavItemActive( inbox, '/engage/inbox' ) ).toBe( true );
+    const inbox = navigationConfig.find( ( i ) => i.path === '/workspace/engage/inbox' )!;
+    expect( isNavItemActive( inbox, '/workspace/engage/inbox' ) ).toBe( true );
   } );
 
   it( 'marks a query-string child active on its base route', () => {
-    const child = { path: '/engage/inbox?channel=voice', label: 'Calls' };
-    expect( isSubItemActive( child, '/engage/inbox' ) ).toBe( true );
+    const child = { path: '/workspace/engage/inbox?channel=voice', label: 'Calls' };
+    expect( isSubItemActive( child, '/workspace/engage/inbox' ) ).toBe( true );
   } );
 
   it( 'does not mark an unrelated route active', () => {
-    const contacts = navigationConfig.find( ( i ) => i.path === '/contacts' )!;
-    expect( isNavItemActive( contacts, '/engage/inbox' ) ).toBe( false );
+    const contacts = navigationConfig.find( ( i ) => i.path === '/workspace/contacts' )!;
+    expect( isNavItemActive( contacts, '/workspace/engage/inbox' ) ).toBe( false );
   } );
 } );
 
@@ -167,7 +167,7 @@ describe( 'the settings tree is navigable', () => {
 
   it( 'puts Sign-in & MFA first in the account group, since it cannot be reached otherwise', () => {
     const account = settingsConfig.find( ( g ) => g.id === 'account' );
-    expect( account?.items[ 0 ].path ).toBe( '/access/security' );
+    expect( account?.items[ 0 ].path ).toBe( '/workspace/access/security' );
   } );
 
   it( 'has no duplicate destination across the whole tree', () => {

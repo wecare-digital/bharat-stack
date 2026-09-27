@@ -25,7 +25,7 @@
  *   - Fifteen routes rendered no shell at all. Wrapped before this, because
  *     without a sidebar they would have been dead ends.
  *
- * WHY Calls IS NOT HERE AS A PAGE: it is `/engage/inbox?channel=voice`. `dm/calls`
+ * WHY Calls IS NOT HERE AS A PAGE: it is `/workspace/engage/inbox?channel=voice`. `dm/calls`
  * read the same canonical MessagesTable the inbox already reads, and the inbox
  * already renders voice with its own badge and an audio player. Call
  * *configuration* is under the gear.
@@ -66,67 +66,67 @@ export const navigationConfig: NavItem[] = [
     // The channel children are filters on ONE page, not separate pages. They exist
     // because jumping straight to "just the RCS threads" is a daily move, and the
     // in-page selector is one extra click away from the sidebar.
-    path: '/engage/inbox',
+    path: '/workspace/engage/inbox',
     label: 'Inbox',
     icon: 'message',
     children: [
-      { path: '/engage/inbox', label: 'All channels' },
-      { path: '/engage/inbox?channel=whatsapp', label: 'WhatsApp' },
-      { path: '/engage/inbox?channel=sms', label: 'SMS' },
-      { path: '/engage/inbox?channel=rcs', label: 'RCS' },
-      { path: '/engage/inbox?channel=email', label: 'Email' },
-      { path: '/engage/inbox?channel=voice', label: 'Calls' },
+      { path: '/workspace/engage/inbox', label: 'All channels' },
+      { path: '/workspace/engage/inbox?channel=whatsapp', label: 'WhatsApp' },
+      { path: '/workspace/engage/inbox?channel=sms', label: 'SMS' },
+      { path: '/workspace/engage/inbox?channel=rcs', label: 'RCS' },
+      { path: '/workspace/engage/inbox?channel=email', label: 'Email' },
+      { path: '/workspace/engage/inbox?channel=voice', label: 'Calls' },
     ],
   },
   {
-    path: '/contacts',
+    path: '/workspace/contacts',
     label: 'Contacts',
     icon: 'contacts',
     children: [
-      { path: '/contacts', label: 'All contacts' },
-      { path: '/engage/contact-360', label: 'Contact 360' },
+      { path: '/workspace/contacts', label: 'All contacts' },
+      { path: '/workspace/engage/contact-360', label: 'Contact 360' },
     ],
   },
   {
-    path: '/engage/broadcast',
+    path: '/workspace/engage/broadcast',
     label: 'Broadcast',
     icon: 'message',
     children: [
-      { path: '/engage/broadcast', label: 'Send a broadcast' },
-      { path: '/engage/scheduled', label: 'Scheduled' },
-      { path: '/engage/logs', label: 'Message logs' },
+      { path: '/workspace/engage/broadcast', label: 'Send a broadcast' },
+      { path: '/workspace/engage/scheduled', label: 'Scheduled' },
+      { path: '/workspace/engage/logs', label: 'Message logs' },
     ],
   },
   {
-    path: '/pay',
+    path: '/workspace/pay',
     label: 'Payments',
     icon: 'payment',
     children: [
-      { path: '/pay', label: 'Overview' },
+      { path: '/workspace/pay', label: 'Overview' },
       // The ledger: what was billed, paid and delivered. Read-only on purpose -
       // cancel, delete and resend all move money or message a customer.
-      { path: '/pay/records', label: 'Invoice records' },
-      { path: '/pay/flow', label: 'Pay Flow' },
-      { path: '/pay/link', label: 'Pay Link' },
+      { path: '/workspace/pay/records', label: 'Invoice records' },
+      { path: '/workspace/pay/flow', label: 'Pay Flow' },
+      { path: '/workspace/pay/link', label: 'Pay Link' },
     ],
   },
   {
     // Owner leaned sidebar: ten child routes, and they are order-linked daily work
     // rather than configuration.
-    path: '/engage/service-ops',
+    path: '/workspace/engage/service-ops',
     label: 'Service Ops',
     icon: 'order',
     children: [
-      { path: '/engage/service-ops', label: 'Orders' },
-      { path: '/service/submit-request', label: 'Submit Request' },
-      { path: '/service/track-request', label: 'Track Request' },
-      { path: '/service/amend-request', label: 'Amend Request' },
-      { path: '/engage/appointments', label: 'Appointments' },
-      { path: '/engage/rx-slots', label: 'RX Slots' },
-      { path: '/engage/documents', label: 'Drop Docs' },
-      { path: '/engage/enterprise', label: 'Enterprise' },
-      { path: '/engage/reviews', label: 'Reviews' },
-      { path: '/engage/faq', label: 'FAQ' },
+      { path: '/workspace/engage/service-ops', label: 'Orders' },
+      { path: '/workspace/service/submit-request', label: 'Submit Request' },
+      { path: '/workspace/service/track-request', label: 'Track Request' },
+      { path: '/workspace/service/amend-request', label: 'Amend Request' },
+      { path: '/workspace/engage/appointments', label: 'Appointments' },
+      { path: '/workspace/engage/rx-slots', label: 'RX Slots' },
+      { path: '/workspace/engage/documents', label: 'Drop Docs' },
+      { path: '/workspace/engage/enterprise', label: 'Enterprise' },
+      { path: '/workspace/engage/reviews', label: 'Reviews' },
+      { path: '/workspace/engage/faq', label: 'FAQ' },
     ],
   },
   {
@@ -135,29 +135,29 @@ export const navigationConfig: NavItem[] = [
     icon: 'store',
     children: [
       { path: '/store', label: 'Catalog' },
-      { path: '/engage/commerce', label: 'Commerce' },
+      { path: '/workspace/engage/commerce', label: 'Commerce' },
     ],
   },
   {
-    path: '/forms',
+    path: '/workspace/forms',
     label: 'Forms',
     icon: 'form',
     children: [
       // Responses first: a submitted request nobody actioned is a customer who paid
       // and heard nothing, so the queue matters more than a builder would.
-      { path: '/forms/responses', label: 'Responses' },
-      // '/forms/create' ("Forms Builder") was here. Removed 2026-09-25 with the page: it
+      { path: '/workspace/forms/responses', label: 'Responses' },
+      // '/workspace/forms/create' ("Forms Builder") was here. Removed 2026-09-25 with the page: it
       // was a ComingSoon stub listing six features with no backend behind any of them,
       // and /forms/index.tsx redirected straight to it, so the whole /forms landing was a
       // redirect into a list of promises. /forms now goes to Responses.
-      { path: '/forms/selfservice', label: 'Self-service Hub' },
+      { path: '/workspace/forms/selfservice', label: 'Self-service Hub' },
     ],
   },
   {
     // No longer 'Soon'. It was a ComingSoon stub promising six features with no
     // backend at all; it is now the conversation-meta work queue, which is real
     // data the inbox already writes.
-    path: '/task',
+    path: '/workspace/task',
     label: 'Tasks',
     icon: 'checklist',
   },
@@ -177,8 +177,8 @@ export const settingsConfig: SettingsGroup[] = [
       // side — Cognito's AssociateSoftwareToken takes the user's own access token
       // and does not evaluate IAM — so the signed-in person must be able to reach
       // this. Burying it would work against the admin-MFA target.
-      { path: '/access/security', label: 'Sign-in & MFA' },
-      { path: '/access', label: 'Access' },
+      { path: '/workspace/access/security', label: 'Sign-in & MFA' },
+      { path: '/workspace/access', label: 'Access' },
     ],
   },
   {
@@ -187,35 +187,35 @@ export const settingsConfig: SettingsGroup[] = [
     icon: 'whatsapp',
     hint: 'WABA setup, templates, flows, calling',
     items: [
-      { path: '/engage/whatsapp', label: 'WhatsApp Inbox' },
-      { path: '/engage/whatsapp/waba-dashboard', label: 'WABA Dashboard' },
-      { path: '/engage/whatsapp/embedded-signup', label: 'Connect WABA' },
-      { path: '/engage/whatsapp/connected-accounts', label: 'Connected Accounts' },
-      { path: '/engage/whatsapp/my-account', label: 'My WhatsApp Account' },
-      { path: '/engage/whatsapp/business-profile', label: 'Business Profile' },
-      { path: '/engage/whatsapp/webhooks', label: 'Webhooks' },
-      { path: '/engage/whatsapp/bsuid', label: 'BSUID & Usernames' },
-      { path: '/engage/whatsapp/migration', label: 'WABA Migration' },
-      { path: '/engage/whatsapp/settings', label: 'WhatsApp Settings' },
-      { path: '/engage/whatsapp/send-test', label: 'Send Test' },
-      { path: '/engage/whatsapp/campaign', label: 'WhatsApp Campaign' },
-      { path: '/engage/whatsapp/interactive-lists', label: 'Interactive Lists' },
-      { path: '/engage/whatsapp/auto-response', label: 'Auto Response' },
-      { path: '/engage/whatsapp/conversions-api', label: 'Conversions API (CTWA)' },
-      { path: '/engage/whatsapp/ctwa-ads', label: 'Ads to WhatsApp (CTWA)' },
-      { path: '/engage/whatsapp/tech-partner', label: 'Tech Partner Readiness' },
-      { path: '/engage/whatsapp/templates', label: 'Templates' },
-      { path: '/engage/whatsapp/template-builder', label: 'Template Builder' },
-      { path: '/engage/whatsapp/catalog-builder', label: 'Catalog & Flow Builder' },
-      { path: '/engage/whatsapp/flow-hub', label: 'Flow Hub' },
-      { path: '/engage/whatsapp/flows', label: 'Flows' },
-      { path: '/engage/whatsapp/flow-publish', label: 'Flow Publish Checklist' },
-      { path: '/engage/whatsapp/flow-responses', label: 'Flow Responses' },
-      { path: '/engage/whatsapp/groups', label: 'Groups' },
-      { path: '/engage/whatsapp/calling', label: 'Calling' },
-      { path: '/engage/whatsapp/cost-controls', label: 'Cost Controls' },
-      { path: '/engage/whatsapp/scripts', label: 'Scripts' },
-      { path: '/engage/whatsapp/welcome', label: 'Welcome Message' },
+      { path: '/workspace/engage/whatsapp', label: 'WhatsApp Inbox' },
+      { path: '/workspace/engage/whatsapp/waba-dashboard', label: 'WABA Dashboard' },
+      { path: '/workspace/engage/whatsapp/embedded-signup', label: 'Connect WABA' },
+      { path: '/workspace/engage/whatsapp/connected-accounts', label: 'Connected Accounts' },
+      { path: '/workspace/engage/whatsapp/my-account', label: 'My WhatsApp Account' },
+      { path: '/workspace/engage/whatsapp/business-profile', label: 'Business Profile' },
+      { path: '/workspace/engage/whatsapp/webhooks', label: 'Webhooks' },
+      { path: '/workspace/engage/whatsapp/bsuid', label: 'BSUID & Usernames' },
+      { path: '/workspace/engage/whatsapp/migration', label: 'WABA Migration' },
+      { path: '/workspace/engage/whatsapp/settings', label: 'WhatsApp Settings' },
+      { path: '/workspace/engage/whatsapp/send-test', label: 'Send Test' },
+      { path: '/workspace/engage/whatsapp/campaign', label: 'WhatsApp Campaign' },
+      { path: '/workspace/engage/whatsapp/interactive-lists', label: 'Interactive Lists' },
+      { path: '/workspace/engage/whatsapp/auto-response', label: 'Auto Response' },
+      { path: '/workspace/engage/whatsapp/conversions-api', label: 'Conversions API (CTWA)' },
+      { path: '/workspace/engage/whatsapp/ctwa-ads', label: 'Ads to WhatsApp (CTWA)' },
+      { path: '/workspace/engage/whatsapp/tech-partner', label: 'Tech Partner Readiness' },
+      { path: '/workspace/engage/whatsapp/templates', label: 'Templates' },
+      { path: '/workspace/engage/whatsapp/template-builder', label: 'Template Builder' },
+      { path: '/workspace/engage/whatsapp/catalog-builder', label: 'Catalog & Flow Builder' },
+      { path: '/workspace/engage/whatsapp/flow-hub', label: 'Flow Hub' },
+      { path: '/workspace/engage/whatsapp/flows', label: 'Flows' },
+      { path: '/workspace/engage/whatsapp/flow-publish', label: 'Flow Publish Checklist' },
+      { path: '/workspace/engage/whatsapp/flow-responses', label: 'Flow Responses' },
+      { path: '/workspace/engage/whatsapp/groups', label: 'Groups' },
+      { path: '/workspace/engage/whatsapp/calling', label: 'Calling' },
+      { path: '/workspace/engage/whatsapp/cost-controls', label: 'Cost Controls' },
+      { path: '/workspace/engage/whatsapp/scripts', label: 'Scripts' },
+      { path: '/workspace/engage/whatsapp/welcome', label: 'Welcome Message' },
     ],
   },
   {
@@ -224,19 +224,19 @@ export const settingsConfig: SettingsGroup[] = [
     icon: 'message',
     hint: 'SMS, RCS, Email, Voice, Push',
     items: [
-      // `/engage` is a real 160-line page (the Messages hub), not just a section
+      // `/workspace/engage` is a real 160-line page (the Messages hub), not just a section
       // container. It was the old sidebar's "Messages" parent, so dropping the
       // parent would have orphaned an actual route.
-      { path: '/engage', label: 'Messages hub' },
-      { path: '/engage/channels', label: 'All channels' },
-      { path: '/engage/settings', label: 'Channel Settings' },
-      { path: '/engage/sms', label: 'SMS' },
-      { path: '/engage/rcs', label: 'RCS' },
-      { path: '/engage/ses', label: 'Email' },
-      { path: '/engage/push', label: 'Push' },
+      { path: '/workspace/engage', label: 'Messages hub' },
+      { path: '/workspace/engage/channels', label: 'All channels' },
+      { path: '/workspace/engage/settings', label: 'Channel Settings' },
+      { path: '/workspace/engage/sms', label: 'SMS' },
+      { path: '/workspace/engage/rcs', label: 'RCS' },
+      { path: '/workspace/engage/ses', label: 'Email' },
+      { path: '/workspace/engage/push', label: 'Push' },
       // Call CONFIGURATION. The call RECORDS are /dm/inbox?channel=voice.
-      { path: '/engage/voice', label: 'Voice (outbound)' },
-      { path: '/engage/voice-in', label: 'Voice In (IVR)' },
+      { path: '/workspace/engage/voice', label: 'Voice (outbound)' },
+      { path: '/workspace/engage/voice-in', label: 'Voice In (IVR)' },
     ],
   },
   {
@@ -245,15 +245,15 @@ export const settingsConfig: SettingsGroup[] = [
     icon: 'settings',
     hint: 'Automation, content, analytics, cost',
     items: [
-      { path: '/engage/automation', label: 'Automation' },
-      { path: '/engage/content', label: 'Content Library' },
-      { path: '/engage/analytics', label: 'Analytics' },
-      { path: '/engage/cost', label: 'Cost & Usage' },
-      { path: '/engage/search', label: 'Message Search' },
-      { path: '/engage/meta-agent', label: 'Meta AI Agent' },
-      { path: '/engage/whatsapp/ai-agent', label: 'AI Agent' },
-      { path: '/engage/docs', label: 'Docs Scraper' },
-      { path: '/link', label: 'Short Links' },
+      { path: '/workspace/engage/automation', label: 'Automation' },
+      { path: '/workspace/engage/content', label: 'Content Library' },
+      { path: '/workspace/engage/analytics', label: 'Analytics' },
+      { path: '/workspace/engage/cost', label: 'Cost & Usage' },
+      { path: '/workspace/engage/search', label: 'Message Search' },
+      { path: '/workspace/engage/meta-agent', label: 'Meta AI Agent' },
+      { path: '/workspace/engage/whatsapp/ai-agent', label: 'AI Agent' },
+      { path: '/workspace/engage/docs', label: 'Docs Scraper' },
+      { path: '/workspace/link', label: 'Short Links' },
     ],
   },
   {
@@ -268,7 +268,7 @@ export const settingsConfig: SettingsGroup[] = [
       //
       // '/growth' sat beside Commerce until 2026-09-25 and was removed with its page on
       // owner instruction. Commerce is the same shape and stays.
-      { path: '/commerce', label: 'Commerce' },
+      { path: '/workspace/commerce', label: 'Commerce' },
     ],
   },
   {
@@ -277,17 +277,17 @@ export const settingsConfig: SettingsGroup[] = [
     icon: 'search',
     hint: 'Pages, schema, sitemaps, tracking',
     items: [
-      { path: '/seo', label: 'SEO Dashboard' },
-      { path: '/seo/pages', label: 'Pages' },
-      { path: '/seo/issues', label: 'Issues' },
-      { path: '/seo/analytics', label: 'Analytics' },
-      { path: '/seo/tracking', label: 'Tracking' },
-      { path: '/seo/schema', label: 'Schema' },
-      { path: '/seo/properties', label: 'Properties' },
-      { path: '/seo/sitemaps', label: 'Sitemaps' },
-      { path: '/seo/tools', label: 'Tools' },
-      { path: '/seo/blog-manager', label: 'Blog SEO' },
-      { path: '/seo/pages-manager', label: 'Site Pages SEO' },
+      { path: '/workspace/seo', label: 'SEO Dashboard' },
+      { path: '/workspace/seo/pages', label: 'Pages' },
+      { path: '/workspace/seo/issues', label: 'Issues' },
+      { path: '/workspace/seo/analytics', label: 'Analytics' },
+      { path: '/workspace/seo/tracking', label: 'Tracking' },
+      { path: '/workspace/seo/schema', label: 'Schema' },
+      { path: '/workspace/seo/properties', label: 'Properties' },
+      { path: '/workspace/seo/sitemaps', label: 'Sitemaps' },
+      { path: '/workspace/seo/tools', label: 'Tools' },
+      { path: '/workspace/seo/blog-manager', label: 'Blog SEO' },
+      { path: '/workspace/seo/pages-manager', label: 'Site Pages SEO' },
     ],
   },
   {
@@ -296,21 +296,21 @@ export const settingsConfig: SettingsGroup[] = [
     icon: 'dashboard',
     hint: 'Infrastructure, architecture, diagnostics',
     items: [
-      { path: '/dashboard', label: 'Dashboard Overview' },
-      { path: '/dashboard/system-architecture', label: 'Control Center' },
-      { path: '/dashboard/lambda-functions', label: 'Lambda Functions' },
-      { path: '/dashboard/code-repo', label: 'Code Repo' },
-      { path: '/dashboard/waba-usernames', label: 'WABA Usernames' },
-      { path: '/dashboard/wa-graph-tools', label: 'WA Graph Tools' },
-      { path: '/dashboard/cors-settings', label: 'CORS Settings' },
-      { path: '/dashboard/design-reference', label: 'Design Reference' },
+      { path: '/workspace/dashboard', label: 'Dashboard Overview' },
+      { path: '/workspace/dashboard/system-architecture', label: 'Control Center' },
+      { path: '/workspace/dashboard/lambda-functions', label: 'Lambda Functions' },
+      { path: '/workspace/dashboard/code-repo', label: 'Code Repo' },
+      { path: '/workspace/dashboard/waba-usernames', label: 'WABA Usernames' },
+      { path: '/workspace/dashboard/wa-graph-tools', label: 'WA Graph Tools' },
+      { path: '/workspace/dashboard/cors-settings', label: 'CORS Settings' },
+      { path: '/workspace/dashboard/design-reference', label: 'Design Reference' },
       // '/carbon' and '/nocode' were here. Both removed 2026-09-25 with their pages:
       // each was a 15-line EmptyState reading "... coming soon" with nothing behind it
       // ("Sustainability and carbon tracking", "Visual workflow and form builder"). A
       // menu entry leading to a promise is exactly the failure mode the Growth/Commerce
       // comment above set out to avoid — a flagged-off page that explains itself is real
       // content, "coming soon" is not.
-      { path: '/docs', label: 'Docs' },
+      { path: '/workspace/docs', label: 'Docs' },
     ],
   },
 ];
@@ -335,7 +335,7 @@ export const settingsConfig: SettingsGroup[] = [
  * implicit, and `tests/test_module_homes.py` asserts each `path` exists as a page and
  * appears in `getAllNavItems()`.
  *
- * Settings is deliberately `null`. A `/settings` page would be one more destination to
+ * Settings is deliberately `null`. A `/workspace/settings` page would be one more destination to
  * navigate to *before* navigating, with its own shell, breadcrumb and a decision about
  * the page you were on — so it is a panel (`SettingsGear`) over `settingsConfig`, not a
  * route. That was a C1 decision and it stands; recording it as a home with no path is
@@ -355,27 +355,27 @@ export interface ModuleHome {
 
 export const moduleHomes: ModuleHome[] = [
   {
-    id: 'home', label: 'Home', path: '/dashboard',
-    innerPages: ['/dashboard/system-architecture', '/dashboard/lambda-functions',
-      '/dashboard/code-repo', '/dashboard/cors-settings'],
+    id: 'home', label: 'Home', path: '/workspace/dashboard',
+    innerPages: ['/workspace/dashboard/system-architecture', '/workspace/dashboard/lambda-functions',
+      '/workspace/dashboard/code-repo', '/workspace/dashboard/cors-settings'],
     note: 'Tab bodies are lazy via next/dynamic; OverviewTab stays eager because it is '
       + 'the default tab and lazy-loading it would only add a round trip.',
   },
   {
-    id: 'communications', label: 'Communications', path: '/engage',
+    id: 'communications', label: 'Communications', path: '/workspace/engage',
     // The master prompt is explicit: Communications exposes EXACTLY these three.
-    innerPages: ['/engage/inbox', '/engage/whatsapp', '/engage/voice'],
+    innerPages: ['/workspace/engage/inbox', '/workspace/engage/whatsapp', '/workspace/engage/voice'],
     note: 'Common Inbox, WhatsApp Business and Business Calling — exactly three, as '
       + 'specified. The other channels (SMS, RCS, Email, Push) are filters on the '
       + 'common inbox plus configuration under the gear, not peers of these three.',
   },
   {
-    id: 'customers', label: 'Customers', path: '/contacts',
-    innerPages: ['/engage/contact-360'],
+    id: 'customers', label: 'Customers', path: '/workspace/contacts',
+    innerPages: ['/workspace/engage/contact-360'],
   },
   {
-    id: 'commerce', label: 'Commerce', path: '/commerce',
-    innerPages: ['/store', '/engage/commerce', '/pay', '/pay/records'],
+    id: 'commerce', label: 'Commerce', path: '/workspace/commerce',
+    innerPages: ['/store', '/workspace/engage/commerce', '/workspace/pay', '/workspace/pay/records'],
     note: 'Behind NEXT_PUBLIC_ENABLE_COMMERCE_MODULE, and OFF — not because it is '
       + 'unfinished but because the storefront is live, so a new surface over a '
       + 'production store opens deliberately. With the flag off it links to the working '
@@ -388,16 +388,16 @@ export const moduleHomes: ModuleHome[] = [
   // /dm/whatsapp/conversions-api each have their own nav entry — so nothing became
   // unreachable, only the grouping page went.
   {
-    id: 'service-operations', label: 'Service Operations', path: '/engage/service-ops',
-    innerPages: ['/service/submit-request', '/service/track-request',
-      '/service/amend-request', '/engage/appointments', '/engage/rx-slots',
-      '/engage/documents', '/engage/enterprise', '/engage/reviews', '/engage/faq'],
+    id: 'service-operations', label: 'Service Operations', path: '/workspace/engage/service-ops',
+    innerPages: ['/workspace/service/submit-request', '/workspace/service/track-request',
+      '/workspace/service/amend-request', '/workspace/engage/appointments', '/workspace/engage/rx-slots',
+      '/workspace/engage/documents', '/workspace/engage/enterprise', '/workspace/engage/reviews', '/workspace/engage/faq'],
   },
   {
     id: 'platform-operations', label: 'Platform Operations',
-    path: '/dashboard/system-architecture',
-    innerPages: ['/dashboard/lambda-functions', '/dashboard/code-repo',
-      '/dashboard/cors-settings', '/dashboard/design-reference'],
+    path: '/workspace/dashboard/system-architecture',
+    innerPages: ['/workspace/dashboard/lambda-functions', '/workspace/dashboard/code-repo',
+      '/workspace/dashboard/cors-settings', '/workspace/dashboard/design-reference'],
   },
   {
     id: 'settings', label: 'Settings', path: null,
@@ -442,7 +442,7 @@ export function getSettingsItems (): { path: string; label: string; group: strin
 /**
  * Strip a query string before comparing to a route.
  *
- * The Inbox children are `/engage/inbox?channel=rcs` — one page, six entries. Without
+ * The Inbox children are `/workspace/engage/inbox?channel=rcs` — one page, six entries. Without
  * this, active-state matching compares a path against a path-plus-query and never
  * matches, so the sidebar would highlight nothing on the page you are looking at.
  */

@@ -25,33 +25,28 @@
 User-agent: *
 Allow: /
 
-Disallow: /access/
-Disallow: /admin/
 Disallow: /api/
-Disallow: /commerce/
-Disallow: /contacts/
-Disallow: /dashboard/
-Disallow: /docs/
-Disallow: /forms/
-Disallow: /link/
 # /mock-home/ arrived in ef1abc5b, a design mock of the home page. Added within minutes of
 # the audit below reaching zero gaps, which is the whole argument for re-running it rather
 # than trusting the number: a mock of the home page is the worst possible thing to leave
 # indexable, because it competes with the real home page for the same query.
 Disallow: /mock-home/
-Disallow: /pay/
-Disallow: /seo/
-Disallow: /service/
-Disallow: /settings/
+# /store/ is NOT one of the families that moved under /workspace/. It is still a live
+# top-level route (1 page, 1 built route) and absent from the sitemap, so it keeps its
+# own rule. It was removed by mistake during the nesting change and restored in the
+# same commit — the audit rule at the top of this file is what caught it. /carbon/ by
+# contrast is an empty directory building zero routes, so it correctly has none.
 Disallow: /store/
-Disallow: /task/
-# /engage/ is the former /dm/, renamed 2026-09-26. 63 routes.
+# All fourteen authenticated families nested under /workspace/ on 2026-09-26, so their
+# individual Disallow lines came out rather than being kept alongside: a Disallow for a
+# route that no longer exists is noise that implies the route does. That covers
+# access, admin, commerce, contacts, dashboard, docs, engage, forms, link, pay, seo,
+# service, settings and task.
 #
-# It passed through /workspace/ for about twenty minutes the same day before being
-# renamed again. Neither old rule is kept: a Disallow for a route that no longer
-# exists is noise that implies the route does, which is the rule at the top of this
-# file. Both /dm/ and /workspace/ are 301s in the Amplify custom rules, and a crawler
-# following either lands here on a Disallow, which is the intended outcome.
-Disallow: /engage/
+# /engage/ was itself the former /dm/, by way of /workspace/ for about twenty minutes,
+# and is now /workspace/engage/. Every old prefix 301s in the Amplify custom rules and a
+# crawler following any of them lands here on this Disallow, which is the intended
+# outcome. /api/ stays separate because it is a live root path, not a moved one.
+Disallow: /workspace/
 
 Sitemap: https://wecare.digital/sitemap.xml

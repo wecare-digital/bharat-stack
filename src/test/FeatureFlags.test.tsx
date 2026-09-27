@@ -18,11 +18,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 vi.mock( 'next/router', () => ( {
-  useRouter: () => ( { pathname: '/commerce', query: {}, push: vi.fn(), isReady: true } ),
+  useRouter: () => ( { pathname: '/workspace/commerce', query: {}, push: vi.fn(), isReady: true } ),
 } ) );
 
 import { featureFlags, allFlags } from '../config/featureFlags';
-import CommercePage from '../pages/commerce/index';
+import CommercePage from '../pages/workspace/commerce/index';
 import inventory from '../content/integration-registry.json';
 import { moduleHomes, getAllNavItems } from '../config/navigation';
 
@@ -132,13 +132,13 @@ describe( 'the Commerce home is reachable', () => {
   // deleted 2026-09-25 on owner instruction, so the assertions that named it are gone.
   it( 'is declared as a module home at its own route', () => {
     const commerce = moduleHomes.find( ( m ) => m.id === 'commerce' );
-    expect( commerce?.path ).toBe( '/commerce' );
+    expect( commerce?.path ).toBe( '/workspace/commerce' );
   } );
 
   it( 'appears in the navigation the command palette is built from', () => {
     const paths = getAllNavItems().map( ( i ) => i.path );
     // A flagged-off page that explains itself beats a 404, so it stays findable.
-    expect( paths ).toContain( '/commerce' );
+    expect( paths ).toContain( '/workspace/commerce' );
   } );
 
   // The other half of the same property, and the reason this file did not just lose a
@@ -146,7 +146,7 @@ describe( 'the Commerce home is reachable', () => {
   // command palette offers an entry that lands on the home-page fallback.
   it( 'no longer advertises the routes whose pages were deleted', () => {
     const paths = getAllNavItems().map( ( i ) => i.path );
-    for ( const gone of [ '/growth', '/carbon', '/nocode', '/forms/create', '/link/create' ] ) {
+    for ( const gone of [ '/growth', '/carbon', '/nocode', '/workspace/forms/create', '/workspace/link/create' ] ) {
       expect( paths, `${gone} was deleted but is still in the nav` ).not.toContain( gone );
     }
   } );

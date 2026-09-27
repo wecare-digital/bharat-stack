@@ -35,7 +35,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReload = () => { window.location.reload(); };
-  handleGoHome = () => { window.location.href = '/dashboard'; };
+  handleGoHome = () => { window.location.href = '/workspace/dashboard'; };
 
   render() {
     if (this.state.hasError) {

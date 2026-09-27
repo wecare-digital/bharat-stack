@@ -50,13 +50,13 @@ SRC = ROOT / "src"
 # Adding an entry here is a deliberate decision that this screen is a technical
 # surface shown to operators, not ordinary product UI.
 AUTHORISED_SURFACES = {
-    "src/pages/dashboard/system-architecture.tsx":
+    "src/pages/workspace/dashboard/system-architecture.tsx":
         "Technical Details: the architecture map exists to show operators the topology.",
-    "src/pages/dashboard/lambda-functions.tsx":
+    "src/pages/workspace/dashboard/lambda-functions.tsx":
         "Technical Details: a function inventory is the page's entire subject.",
-    "src/pages/dashboard/code-repo.tsx":
+    "src/pages/workspace/dashboard/code-repo.tsx":
         "Technical Details: repository and deployment surface for operators.",
-    "src/pages/dashboard/design-reference.tsx":
+    "src/pages/workspace/dashboard/design-reference.tsx":
         "Internal design reference, not a customer-facing screen.",
     "src/components/dashboard/tabs/InfraTab.tsx":
         "Technical Details tab: named resources are the content.",
@@ -64,17 +64,17 @@ AUTHORISED_SURFACES = {
         "Technical Details tab: system state per resource.",
     "src/components/dashboard/tabs/DataTab.tsx":
         "Technical Details tab: per-table row counts.",
-    "src/pages/dashboard/index.tsx":
+    "src/pages/workspace/dashboard/index.tsx":
         "Operator dashboard shell that hosts the Technical Details tabs.",
     "src/config/constants.ts":
         "Configuration, not UI. Endpoints belong here rather than in a component.",
-    "src/pages/engage/whatsapp/webhooks.tsx":
+    "src/pages/workspace/engage/whatsapp/webhooks.tsx":
         "Technical Details: a webhook inventory for operators, whose whole content is "
         "endpoint URLs, handlers and delivery status.",
-    "src/pages/engage/whatsapp/calling.tsx":
+    "src/pages/workspace/engage/whatsapp/calling.tsx":
         "Operator screen carrying a service/resource/purpose infrastructure panel for "
         "WhatsApp Calling. Not customer-facing.",
-    "src/pages/engage/whatsapp/waba-dashboard.tsx":
+    "src/pages/workspace/engage/whatsapp/waba-dashboard.tsx":
         "Technical Details: WABA and SNS subscription state for operators.",
     # --- added 2026-09-24, clearing the 20 tracked medium violations -------------
     "src/components/seo/InstructionsContent.tsx":
@@ -82,11 +82,11 @@ AUTHORISED_SURFACES = {
         "the entire content. Same reason system-architecture.tsx is authorised; it only "
         "shows up separately because it was moved out of src/pages/ to stop Next "
         "publishing it as a chrome-less route.",
-    "src/pages/engage/whatsapp/cost-controls.tsx":
+    "src/pages/workspace/engage/whatsapp/cost-controls.tsx":
         "Technical Details: the page lists the AWS services under cost control, so the "
         "service names ARE the subject. Renaming them would leave an operator unable to "
         "match a line here to a line on the bill.",
-    "src/pages/engage/whatsapp/migration.tsx":
+    "src/pages/workspace/engage/whatsapp/migration.tsx":
         "Technical Details: a WABA migration screen showing callback URL, phone ids and "
         "where the verify token lives. Naming Secrets Manager is the by-reference form "
         "that secret-handling.md asks for - it tells an operator where to look without "

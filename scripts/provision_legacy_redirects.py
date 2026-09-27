@@ -46,7 +46,7 @@ INSERTED BEFORE it, or the catch-all swallows them. The script rebuilds the list
 run if it cannot find the catch-all where it expects it.
 
 Both slash forms are registered because `trailingSlash: true` means the canonical URL is
-`/engage/calls/`, while a hand-typed or older link is usually `/engage/calls`.
+`/workspace/engage/calls/`, while a hand-typed or older link is usually `/workspace/engage/calls`.
 
 Usage:
     python scripts/provision_legacy_redirects.py            # report
@@ -69,30 +69,30 @@ from botocore.exceptions import BotoCoreError, ClientError
 REGION = "us-east-1"
 APP_ID = "d22dm4b0jn71jw"
 SITE = "https://wecare.digital"
-SNAPSHOT = pathlib.Path("docs/execution/snapshots/amplify-custom-rules-before-8.4.json")
+SNAPSHOT = pathlib.Path("workspace/docs/execution/snapshots/amplify-custom-rules-before-8.4.json")
 
 # Retired route -> what replaced it. Every target is a live page, and the four channel
 # ones carry the query string the operator would otherwise have to know to type.
 RETIRED = {
-    "/engage/calls": "/engage/inbox/?channel=voice",
-    "/engage/rcs/inbox": "/engage/inbox/?channel=rcs",
-    "/engage/ses/inbox": "/engage/inbox/?channel=email",
-    "/engage/whatsapp/logs": "/engage/logs/?channel=whatsapp",
-    "/engage/rcs/logs": "/engage/logs/?channel=rcs",
-    "/engage/ses/logs": "/engage/logs/?channel=email",
-    "/engage/rcs/campaign": "/engage/broadcast/",
-    "/engage/ses/campaign": "/engage/broadcast/",
-    "/link/logs": "/link/",
+    "/workspace/engage/calls": "/workspace/engage/inbox/?channel=voice",
+    "/workspace/engage/rcs/inbox": "/workspace/engage/inbox/?channel=rcs",
+    "/workspace/engage/ses/inbox": "/workspace/engage/inbox/?channel=email",
+    "/workspace/engage/whatsapp/logs": "/workspace/engage/logs/?channel=whatsapp",
+    "/workspace/engage/rcs/logs": "/workspace/engage/logs/?channel=rcs",
+    "/workspace/engage/ses/logs": "/workspace/engage/logs/?channel=email",
+    "/workspace/engage/rcs/campaign": "/workspace/engage/broadcast/",
+    "/workspace/engage/ses/campaign": "/workspace/engage/broadcast/",
+    "/workspace/link/logs": "/workspace/link/",
 }
 
-# Prefix renames: old top-level segment -> new one. `/dm` became `/engage` on
+# Prefix renames: old top-level segment -> new one. `/dm` became `/workspace/engage` on
 # 2026-09-26 (63 routes).
 #
 # This is declared here rather than left as rules someone added in the console,
 # because `apply()` rebuilds the list as [redirects] + [everything else] and only
 # treats a rule as "ours" if its source is in RETIRED. The `/dm` rules would have
 # survived a re-run by landing in `middle` — by luck, not by design. The same class
-# of bug is already documented above for `/forms/logs`: a rule the script does not
+# of bug is already documented above for `/workspace/forms/logs`: a rule the script does not
 # model is a rule the next `--apply` can silently drop or resurrect.
 #
 # Each entry expands to three rules plus a one-hop rule per RETIRED route:
@@ -105,7 +105,7 @@ RETIRED = {
 #                                        must be last in the source and appear once.
 #
 # The one-hop rules matter: without them `/dm/calls` would take TWO redirects
-# (`/dm/calls` -> `/engage/calls` -> `/engage/inbox/?channel=voice`). Correct,
+# (`/dm/calls` -> `/workspace/engage/calls` -> `/workspace/engage/inbox/?channel=voice`). Correct,
 # but a wasted round trip on every old bookmark, so the old prefix gets its own
 # direct rule to the final destination.
 # `/workspace` is listed alongside `/dm` and is NOT dropped as a rounding error. It
@@ -114,12 +114,39 @@ RETIRED = {
 # bookmarks is near zero on an admin-only, robots-disallowed route family, but three
 # rules is a trivial price against a broken link, and "it was only live briefly" is
 # the same argument that would justify dropping any redirect.
+# On 2026-09-26 the thirteen authenticated route families were nested under
+# `/workspace/`, so every one of them is an old prefix now. `/dm` and `/engage` both
+# land on `/workspace/engage` because the section was renamed twice before moving.
+#
+# `/workspace` itself MUST NOT appear as a key. It was briefly an old prefix during a
+# twenty-minute rename, and a bulk edit re-added it here as
+# `"/workspace": "/workspace/engage"` — which would have emitted
+# `/workspace/<*>` -> `/workspace/engage/<*>`, redirecting `/workspace/dashboard` to
+# `/workspace/engage/dashboard` and taking out all thirteen sections at once. The
+# wildcard cannot point inside its own source prefix.
+#
+# The cost of dropping it: a bookmark captured during that twenty-minute window, on a
+# robots-disallowed admin family, no longer resolves. That is accepted deliberately;
+# the alternative breaks the live tree.
 RENAMED_PREFIXES = {
-    "/dm": "/engage",
-    "/workspace": "/engage",
+    "/dm": "/workspace/engage",
+    "/engage": "/workspace/engage",
+    "/dashboard": "/workspace/dashboard",
+    "/contacts": "/workspace/contacts",
+    "/commerce": "/workspace/commerce",
+    "/pay": "/workspace/pay",
+    "/forms": "/workspace/forms",
+    "/service": "/workspace/service",
+    "/docs": "/workspace/docs",
+    "/seo": "/workspace/seo",
+    "/admin": "/workspace/admin",
+    "/access": "/workspace/access",
+    "/link": "/workspace/link",
+    "/task": "/workspace/task",
+    "/settings": "/workspace/settings",
 }
 
-# REMOVED 2026-09-25 on owner instruction: "/forms/logs": "/forms/responses/".
+# REMOVED 2026-09-25 on owner instruction: "/workspace/forms/logs": "/workspace/forms/responses/".
 #
 # Deleted from the live app too (rules 22 -> 20; snapshot in
 # docs/execution/snapshots/amplify-custom-rules-before-forms-logs-removal.json).
@@ -143,7 +170,7 @@ def desired_redirects() -> list[dict]:
 
     # Prefix renames. Ordering inside this list is load-bearing: the one-hop rules for
     # specific retired routes must precede the `<*>` wildcard, or the wildcard matches
-    # first and sends `/dm/calls` to a `/engage/calls` page that does not exist.
+    # first and sends `/dm/calls` to a `/workspace/engage/calls` page that does not exist.
     for old, new in RENAMED_PREFIXES.items():
         for source, target in RETIRED.items():
             if not source.startswith(new + "/"):
@@ -162,6 +189,36 @@ def current_rules(client) -> list[dict]:
     return [dict(r) for r in app.get("customRules", [])]
 
 
+# Sources this script once emitted and must now actively REMOVE rather than merely
+# stop emitting. `apply()` preserves anything `is_ours()` does not claim, so dropping a
+# prefix from RENAMED_PREFIXES is not enough on its own — the old rules survive in
+# `middle` and keep redirecting. That is how `/workspace/<*>` -> `/engage/<*>` outlived
+# the rename that made it wrong, and an assertion caught it pointing the live
+# `/workspace` tree at a path that no longer exists.
+OBSOLETE_SOURCES = {
+    "/workspace", "/workspace/", "/workspace/<*>",
+}
+
+# Every internal path a redirect may legitimately land on. Anything else is a target
+# left behind by an earlier topology.
+LIVE_TARGET_PREFIXES = ("/workspace/", "/index.html", "/get/")
+
+
+def _targets_dead_prefix(rule: dict) -> bool:
+    """True when a rule points at a path that no longer exists.
+
+    Enumerating obsolete SOURCES is not sufficient. The `/workspace/{calls,rcs/inbox,…}`
+    rules had valid-looking sources and stale TARGETS (`/engage/inbox/?channel=voice`),
+    so they passed a source check and still pointed sixteen routes at a deleted prefix.
+    Deriving it from the target instead means the next topology change cannot leave the
+    same residue behind.
+    """
+    t = rule.get("target", "")
+    if not t.startswith("/"):
+        return False  # absolute URL: an external rewrite, not ours to judge
+    return not t.startswith(LIVE_TARGET_PREFIXES)
+
+
 def is_ours(rule: dict) -> bool:
     """Rules this script owns and will rewrite from scratch on --apply.
 
@@ -170,6 +227,10 @@ def is_ours(rule: dict) -> bool:
     duplicates every one of them on each run.
     """
     src = rule.get("source", "").rstrip("/")
+    if rule.get("source") in OBSOLETE_SOURCES or src in {s.rstrip("/") for s in OBSOLETE_SOURCES}:
+        return True
+    if _targets_dead_prefix(rule):
+        return True
     if src in RETIRED:
         return True
     for old, new in RENAMED_PREFIXES.items():
