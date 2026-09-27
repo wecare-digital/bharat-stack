@@ -19,11 +19,13 @@
  *      one 26px line. Source can tell you the delay exists; only a clock can tell you the
  *      panel is 96% empty while it runs.
  *
- *   2. THE LOOP PERIOD. dwell() is keyed off what each step CONTAINS, not its index, so the
- *      total is a sum over the STEPS array plus eight inter-step gaps plus the hold and the
- *      restart. That is derivable by hand and was - but WCAG 2.2.2 turns on whether it
- *      exceeds five seconds and whether it can be paused, so it is worth measuring rather
- *      than arithmetic on a comment.
+ *   2. THAT IT PLAYS ONCE. This started as a measurement of the LOOP period - 15.8s, restart
+ *      edge to restart edge - which failed WCAG 2.2.2: content moving automatically for over
+ *      five seconds with no pause, stop or hide, and a panel that reset itself to 95% empty
+ *      on every cycle. The sequence now plays once and holds, so the assertion is inverted:
+ *      it watches for a restart that must not come. Proving an absence needs a bounded
+ *      window, so it watches for 18s - longer than the cycle it replaced, so a surviving
+ *      loop cannot hide inside it.
  *
  *   3. CONTRAST INSIDE THE PANEL. Every colour in there is a white alpha over #000 or over
  *      the #3b271a title bar. An alpha is not a colour until it is composited, so the ratio
@@ -165,36 +167,55 @@ const CONTRAST_FN = `
   // an arbitrary point in that loop cannot give its period.
   // So this waits for a restart edge first, uses THAT as t0, and measures to the next one.
   // The number then means one full cycle regardless of when observation began.
-  console.log( '\nTHE LOOP' );
-  const loop = await fresh.evaluate( () => new Promise( resolve => {
-    // The footer's own label is the component's signal - 'complete' at the end, reverting
-    // to 'running' on restart - rather than a guess about its internals.
-    const state = () => document.querySelector( '.wt-foot-left' )?.textContent.trim();
+  // ---------------------------------------------------- one-shot, not a loop
+  //
+  // THIS ASSERTION IS INVERTED FROM HOW IT STARTED, because the behaviour it described was
+  // fixed rather than accepted. It used to measure the loop period - 15.8s, restart edge to
+  // restart edge - and fail on WCAG 2.2.2: content moving automatically for over five seconds
+  // with no pause, stop or hide. It also meant the panel reset to 95% empty every cycle.
+  //
+  // The sequence now plays once and holds, so the correct assertion is the opposite one: that
+  // no restart happens. Watching for an absence needs a bounded window, so this waits for
+  // completion and then watches for longer than one old cycle (15.8s) - if the loop were still
+  // there, it would restart inside that window and be caught.
+  console.log( '\nONE-SHOT, NOT A LOOP' );
+  const once = await fresh.evaluate( () => new Promise( resolve => {
     const steps = () => document.querySelectorAll( '.wt-step' ).length;
-    let t0 = null, completeAt = null, prev = state();
+    const state = () => document.querySelector( '.wt-foot-left' )?.textContent.trim();
+    const t0 = performance.now();
+    let completedAt = null;
     const iv = setInterval( () => {
-      const s = state(), n = steps();
-      // A restart edge: 'complete' -> 'running' with the list emptied back out.
-      if ( prev === 'complete' && s === 'running' && n <= 1 ) {
-        if ( t0 === null ) { t0 = performance.now(); }
-        else {
-          clearInterval( iv );
-          resolve( { period: Math.round( performance.now() - t0 ),
-            toComplete: completeAt === null ? null : Math.round( completeAt - t0 ) } );
-          return;
-        }
+      if ( completedAt === null && steps() === 8 && state() === 'complete' ) {
+        completedAt = performance.now() - t0;
       }
-      if ( t0 !== null && s === 'complete' && completeAt === null ) completeAt = performance.now();
-      prev = s;
-    }, 50 );
-    setTimeout( () => { clearInterval( iv ); resolve( { timedOut: true } ); }, 60000 );
+      // A restart is the step list emptying out again, which is what the old reset did.
+      if ( completedAt !== null && steps() < 8 ) {
+        clearInterval( iv );
+        resolve( { restarted: true, completedAt: Math.round( completedAt ),
+          restartedAt: Math.round( performance.now() - t0 ) } );
+      }
+    }, 100 );
+    // 18s: longer than the 15.8s cycle this replaced, so a surviving loop cannot hide.
+    setTimeout( () => {
+      clearInterval( iv );
+      resolve( { restarted: false, completedAt: completedAt === null ? null : Math.round( completedAt ),
+        steps: steps(), state: state(), watched: 18000 } );
+    }, 18000 );
   } ) );
-  ok( false, 'the stream loops forever with no pause control (WCAG 2.2.2)',
-    loop.timedOut
-      ? 'could not observe two restart edges inside 60s'
-      : `one cycle is ${( loop.period / 1000 ).toFixed( 1 )}s ` +
-        `(${( loop.toComplete / 1000 ).toFixed( 1 )}s streaming, ${( ( loop.period - loop.toComplete ) / 1000 ).toFixed( 1 )}s holding, then it empties) ` +
-        '— auto-starts, runs over 5s, offers no pause, stop or hide' );
+  // The offset is measured from when THIS watcher started, not from page load - the fill
+  // sampling above has already run ~13s on the same page, so completion is normally already
+  // reached by the time the watch begins. Saying "all 8 steps at ~0.1s" would read as a
+  // streaming time, which it is not; the fill curve above is where the real ~12.5s is.
+  ok( once.completedAt !== null, 'the sequence reaches completion',
+    once.completedAt === null ? 'never completed inside 18s'
+      : once.completedAt < 500 ? 'already complete when the watch began — see the fill curve above for the real timing'
+        : `all 8 steps ${( once.completedAt / 1000 ).toFixed( 1 )}s into the watch window` );
+  ok( !once.restarted, 'it plays once and holds — no loop (WCAG 2.2.2)',
+    once.restarted
+      ? `restarted at ${( once.restartedAt / 1000 ).toFixed( 1 )}s — the loop is still there`
+      : `still "${once.state}" with ${once.steps}/8 steps after watching ${once.watched / 1000}s, ` +
+        'longer than the 15.8s cycle this replaced' );
+
   await fresh.close();
 
   // ------------------------------------------------------------- contrast

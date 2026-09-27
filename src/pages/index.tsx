@@ -693,7 +693,14 @@ const HomePage: React.FC = () => {
         .home-close.is-armed .home-close-rule{transform:scaleX(0)}
         .home-close.is-armed.is-in .home-close-rule{transform:scaleX(1)}
 
-        .home-close-points{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+        /* max-width IS A GUARD, NOT A VISIBLE CHANGE. The three strings are short - the
+           longest is 38 characters - so at 1280 each li box ran the full 1126px while its text
+           occupied about 300px, and capping it moves nothing today. It is here because the lead
+           directly above is capped at 62ch and the title at 19ch, so this list was the one text
+           block on the band with no measure at all: the first point that grows past ~75
+           characters would have set a line nearly twice the measure of the lead above it.
+           Same 62ch as .home-close-lead, because both sit on the same 20px/400 body rung. */
+        .home-close-points{margin:0;padding:0;max-width:62ch;list-style:none;display:flex;flex-direction:column;gap:12px}
         /* ON THE SITE'S ONE BODY RUNG: 20px/400/1.4/-.125px, byte for byte the same
            declaration as .home-sub, .home-flow-lead, .home-close-lead and the flow
            section's beat bodies - six elements on this page alone.
