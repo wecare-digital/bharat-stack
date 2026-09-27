@@ -422,3 +422,125 @@ Compare the two messages and pick one. Specifically:
 
 Nothing points at these yet. `rcsmenu` remains the template every post-call RCS
 sends, unchanged, until you have chosen — see §7 for the two places that name it.
+
+---
+
+## 11. DRAFT — no links in the body, actions on buttons
+
+**Not built.** Draft for review.
+
+The change: strip every URL out of `description` and move each action onto a
+suggestion button. Two reasons it is the right shape, not just tidier:
+
+1. **A URL in the description is inert.** It is plain text — long-press, then pick
+   "open" from a menu. A suggestion is one tap.
+2. **The body currently repeats the card image.** The artwork already carries the
+   phone number, the site, the email and the QR. Printing the same URLs underneath
+   spends three lines saying it again, and pushes the one real button further down.
+
+### 11.1 The limit that shapes the draft
+
+A rich card accepts **at most 4 suggestions**, actions and replies combined, and a
+label runs to roughly 25 characters. Three button types are available: suggested
+**reply**, **dialer**, and **open URL**.
+
+Sources: [Google — rich cards](https://developers.google.com/business-communications/rcs-business-messaging/guides/learn/rich-cards),
+[AWS — configuring RCS suggestions](https://docs.aws.amazon.com/sms-voice/latest/userguide/rcs-suggestions.html),
+[CM.com — rich card messages](https://developers.cm.com/messaging/docs/rcs-rich-card-messages),
+[Route Mobile — RCS message types](https://route-mobile-group.readme.io/route-mobile-project/docs/rcs-message-types).
+*Content was rephrased for compliance with licensing restrictions.*
+
+### 11.2 Draft copy — `wd_card_clean`
+
+```
+title       : WECARE.DIGITAL
+
+description : Thanks for contacting us.
+              Building digital railroads for Everyday Bharat.
+
+              Choose an option below and we'll follow up.
+
+media       : wd-card-front-tall.png   (VERTICAL, TALL)
+
+buttons     : 1. GET STARTED    url     wecare.digital/r/getstarted
+              2. WHATSAPP US    url     wecare.digital/r/wa
+              3. CALL US        dialer  +919330994400
+                                        (4th slot left free)
+```
+
+Zero URLs in the body. Three taps available, one slot spare.
+
+### 11.3 Copy alternatives
+
+Pick one — the only constraint is that it contains no URL.
+
+**A — shortest.**
+```
+Thanks for contacting us. Choose an option below and we'll follow up.
+```
+
+**B — keeps the tagline (drafted above).**
+```
+Thanks for contacting us.
+Building digital railroads for Everyday Bharat.
+
+Choose an option below and we'll follow up.
+```
+
+**C — sets an expectation.**
+```
+Thanks for contacting WECARE.DIGITAL.
+
+Submit a request, message us on WhatsApp, or call — whichever suits you.
+We review everything and follow up if needed.
+```
+
+C reads best but names the actions in prose *and* on the buttons, which is the
+same duplication in a milder form. B is the recommendation.
+
+### 11.4 Button label alternatives
+
+Labels are uppercased by the handset and truncate on narrow screens, so short wins.
+
+| Slot | Recommended | Alternatives |
+|---|---|---|
+| 1 | `Get Started` | `Submit request`, `New request` |
+| 2 | `WhatsApp us` | `WhatsApp`, `Chat on WhatsApp` (17 chars, still fits) |
+| 3 | `Call us` | `Call`, `Call support` |
+| 4 | *(unused)* | `Visit website`, or a suggested **reply** such as `Talk to a human` |
+
+Leaving slot 4 empty is deliberate. Four buttons on a small screen crowds the card,
+and a spare slot is somewhere to put a reply chip later without a redesign.
+
+### 11.5 The one unknown
+
+`CALL US` needs a **dialer** suggestion. Every template on this account today uses
+only `openUrlAction`, so the dialer type is **unproven with this provider**.
+`_create_template` passes rich-card JSON through untouched when a `richCard` key is
+present, so the provider decides — it will either accept it or return a 4xx.
+
+If it is rejected, the fallback is a **2-button card**. Nothing is lost: the phone
+number is printed on the card image and encoded in the QR.
+
+Proposed shape:
+
+```json
+{"action": {"text": "Call us", "postbackData": "wd_call",
+            "dialAction": {"phoneNumber": "+919330994400"}}}
+```
+
+### 11.6 What this does not touch
+
+* `rcsmenu` stays exactly as it is — still the template every post-call RCS sends.
+* No media changes. It reuses `wd-card-front-tall.png`, already uploaded and
+  verified 200.
+* Nothing is repointed. Switching the post-call card over is the separate step in
+  §7.
+* The SMS fallback is unaffected: if RCS is not delivered the recipient gets the
+  DLT-approved `ivr-default` SMS, which carries its own links by design.
+
+### 11.7 On approval
+
+Say the word and I will create `wd_card_clean` with copy B and the three buttons,
+report whether the dialer type was accepted, and send it to the QA number next to
+the two existing variants so all three can be compared on one handset.
