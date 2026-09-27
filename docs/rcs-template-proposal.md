@@ -339,3 +339,86 @@ Because the chrome is not ours, the ways to change the card's feel are:
    every template at the same time.
 3. **The button label.** `"GET STARTED"` is our string; the handset uppercases and
    tints it. Shorter labels survive narrow screens better.
+
+---
+
+## 10. BUILT 2026-09-27 — card front, two variants
+
+Option C1 chosen. Two variants were created rather than one, because the right
+media height for a 1:1 source is not something a probe can settle — only a handset
+can.
+
+### 10.1 Why two
+
+The 7:3 letterbox is the *safe* ratio, but it costs QR legibility: padding a
+square to 7:3 leaves the card occupying only **43% of the width** (617 of 1440 px),
+so on a vertical card the artwork renders small and the QR shrinks with it.
+
+A `TALL` vertical card is roughly 280dp wide by 264dp high — about **1.06:1** —
+which is very nearly square. Padding the 1254 × 1254 source on the **width only**
+to 1.06:1 crops nothing and lets the artwork fill the full card width, making the
+QR roughly 2.3× larger than in the 7:3 version.
+
+The trade: 1.06:1 is **not** one of the three ratios Sinch documents (2:1, 16:9,
+7:3). The provider accepted it, but acceptance is not rendering. Hence both.
+
+| Template | Media | Pixels | Ratio | Size | Height |
+|---|---|---|---|---|---|
+| `wd_card_front` | `wd-card-front-tall.png` | 1080 × 1017 | 1.062 | 1.05 MB | `TALL` |
+| `wd_card_front_wide` | `wd-card-front-wide.png` | 1440 × 617 | 2.334 | 0.47 MB | `MEDIUM` |
+
+Both under the 2 MB guidance. The `TALL` source was reduced from 1440 px wide,
+where it reached 1.78 MB — uncomfortably close to the ceiling for a marginal gain,
+since 1080 px is still about 3× density for a 280dp card.
+
+### 10.2 What both contain
+
+```
+orientation : VERTICAL
+title       : WECARE.DIGITAL
+description : Building digital railroads for Everyday Bharat.
+
+              Submit your request: https://wecare.digital/selfservice
+              Message / voice note us on WhatsApp: https://wecare.digital/r/wa
+suggestion  : "Get Started" -> https://wecare.digital/r/getstarted
+```
+
+No `thumbnailUrl` — there is no video, so it would be redundant. No colour fields,
+because none exist (§9): the button renders in the agent colour, everything else
+follows the handset theme.
+
+### 10.3 Verification
+
+Assets uploaded to `wecare-digital-get/o/`, **not** `app.wecare.digital`, so these
+add nothing to the host being retired:
+
+```
+wd-card-front-tall.png   200  image/png  1099743 bytes
+wd-card-front-wide.png   200  image/png   497916 bytes
+```
+
+Templates created, both `status: approved` immediately. Test-sent to the
+owner-nominated QA number `+918100640044`:
+
+| Template | messageId |
+|---|---|
+| `wd_card_front` | `01M3GD25KJ3S59PDNN28SS69NP` |
+| `wd_card_front_wide` | `01M3GD28QXFKH13MAQ80JZA5BB` |
+
+Template count 12 → 14. Both new templates carry **zero** references to
+`app.wecare.digital` or `r.wecare.digital`.
+
+### 10.4 Still to decide, on the handset
+
+Compare the two messages and pick one. Specifically:
+
+1. Does the `TALL` near-square render full-width, or does the provider letterbox
+   it back down? That is the whole reason both exist.
+2. Is the QR scannable in the `TALL` variant? If it is not at full card width, it
+   never will be, and the front face is the wrong choice — use the `hello` back
+   (§5 C2) and let the button carry the action.
+3. Does the button pick up `#01643F`, or a different agent colour? That answers
+   the open question in §9.3 about what the agent is actually set to.
+
+Nothing points at these yet. `rcsmenu` remains the template every post-call RCS
+sends, unchanged, until you have chosen — see §7 for the two places that name it.
