@@ -28,9 +28,9 @@ import string
 import boto3
 from datetime import datetime, timezone
 
-dynamodb = boto3.resource("dynamodb")
 SHORT_LINKS_TABLE = os.environ.get("SHORT_LINKS_TABLE", "stack-wecare-digital-ShortLinksTable")
 LINK_CLICKS_TABLE = os.environ.get("LINK_CLICKS_TABLE", "stack-wecare-digital-LinkClicksTable")
+REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 # The base that NEWLY minted short links are published under. Canonical form is the
 # apex path `wecare.digital/r` as of 2026-09-26, replacing the `r.wecare.digital`
@@ -56,8 +56,53 @@ SHORT_LINK_BASE = (
     or "wecare.digital/r"
 ).strip().strip("/")
 
-links_table = dynamodb.Table(SHORT_LINKS_TABLE)
-clicks_table = dynamodb.Table(LINK_CLICKS_TABLE)
+# DynamoDB resources are built LAZILY, on first use, not at import.
+#
+# This module used to do `dynamodb = boto3.resource("dynamodb")` and bind both tables
+# at module scope. boto3 resolves a region when the resource is CONSTRUCTED, so merely
+# importing this file reached for AWS configuration — and with no region configured it
+# raised `botocore.exceptions.NoRegionError: You must specify a region`.
+#
+# That is invisible on a developer machine, because `~/.aws/config` supplies a default
+# region, and fatal in CI, which has no AWS config at all. It took out all 8 tests in
+# tests/test_url_shortener_base.py — none of which touch DynamoDB; they only import the
+# module to read SHORT_LINK_BASE — and through them the whole `Route auth` workflow.
+# Measured 2026-09-27: 20 of the 28 failing runs in the last 120 were this one cause.
+#
+# Region is also explicit now rather than inherited, so the Lambda does not depend on
+# AWS_REGION being present in its environment either.
+_ddb = None
+
+
+def _resource():
+    global _ddb
+    if _ddb is None:
+        _ddb = boto3.resource("dynamodb", region_name=REGION)
+    return _ddb
+
+
+class _LazyTable:
+    """Defers `.Table(name)` until an attribute is actually touched.
+
+    Keeps the `links_table.get_item(...)` call shape used throughout this file, so the
+    fix is one indirection rather than rewriting every call site — which is what would
+    turn a CI fix into a risky change to a live redirect path.
+    """
+
+    __slots__ = ("_name", "_table")
+
+    def __init__(self, name):
+        self._name = name
+        self._table = None
+
+    def __getattr__(self, attr):
+        if self._table is None:
+            self._table = _resource().Table(self._name)
+        return getattr(self._table, attr)
+
+
+links_table = _LazyTable(SHORT_LINKS_TABLE)
+clicks_table = _LazyTable(LINK_CLICKS_TABLE)
 
 # ── In-memory link cache (per warm container) for fast repeat redirects ──
 # Content-addressed by shortCode; bounded by TTL so edits/deactivations
