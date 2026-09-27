@@ -260,6 +260,56 @@ const METRICS = () => {
     const DH = 640, MH = 760;
     const d = M.d, m = M.m, C = M.contrast;
 
+    // ---- WHERE THE BUTTON SITS INSIDE A FRAME, MEASURED IN THE FRAME ITSELF -------------
+    //
+    // WHY A ZOOM IS NEEDED AT ALL. The whole change is a 2px border colour. At the 62% scale
+    // the comparison rows use, 2px renders as 1.2px - so the owner looked at the before/after
+    // pair, could not see any difference, and reasonably asked whether it had shipped. A mock
+    // that cannot show its own subject is not doing its job. So the button also gets a panel
+    // at 3x, cropped to it.
+    //
+    // The offsets are MEASURED inside a real frame rather than derived from the page
+    // coordinates. Computing them by hand means adding up the shell padding, the layout
+    // padding, the band offset and the panel padding - four numbers, each of which is a clamp
+    // or a media query away from changing - and any drift silently crops the wrong region.
+    const probe = await browser.newContext( { viewport: { width: 1280, height: 900 } } );
+    const probePg = await probe.newPage();
+    await probePg.setContent( frameDoc( { html: H.d } ) );
+    await probePg.waitForTimeout( 350 );
+    const ctaBox = await probePg.evaluate( () => {
+      const r = document.querySelector( '.home-close-cta' ).getBoundingClientRect();
+      return { l: Math.round( r.left ), t: Math.round( r.top ), w: Math.round( r.width ), h: Math.round( r.height ) };
+    } );
+    await probe.close();
+
+    /**
+     * A frame cropped to the button and scaled up, so a 2px border is actually visible.
+     * Padding is in UNSCALED px so the crop keeps the same visual margin at any scale.
+     */
+    const zoom = ( o, sc, padX = 26, padY = 18 ) => {
+      const w = Math.round( ( ctaBox.w + padX * 2 ) * sc );
+      const h = Math.round( ( ctaBox.h + padY * 2 ) * sc );
+      const ox = Math.round( ( ctaBox.l - padX ) * sc );
+      const oy = Math.round( ( ctaBox.t - padY ) * sc );
+      return `<div class="shot" style="width:${w}px;height:${h}px;overflow:hidden;position:relative">`
+        + `<iframe loading="lazy" scrolling="no" title="preview" `
+        + `style="width:1280px;height:${DH}px;transform:scale(${sc});transform-origin:0 0;`
+        + `position:absolute;left:${-ox}px;top:${-oy}px" `
+        + `srcdoc="${frameDoc( o ).replace( /"/g, '&quot;' )}"></iframe></div>`;
+    };
+    const zoomPair = sc => '<div class="cmp">'
+      + `<div class="cmpcol"><span class="collab c-b">was — lime border on lime panel</span>`
+      + `<span class="scale">shown at ${sc}x</span>${zoom( { html: H.d, preFix: true }, sc )}</div>`
+      + `<div class="cmpcol"><span class="collab c-a">now — #1a3a2a border</span>`
+      + `<span class="scale">shown at ${sc}x</span>${zoom( { html: H.d }, sc )}</div>`
+      + '</div>';
+    const zoomFocus = sc => '<div class="cmp">'
+      + `<div class="cmpcol"><span class="collab c-b">was — focus ring at 22% alpha</span>`
+      + `<span class="scale">shown at ${sc}x</span>${zoom( { html: H.d, focus: true, preFix: true }, sc, 34, 26 )}</div>`
+      + `<div class="cmpcol"><span class="collab c-a">now — opaque focus ring</span>`
+      + `<span class="scale">shown at ${sc}x</span>${zoom( { html: H.d, focus: true }, sc, 34, 26 )}</div>`
+      + '</div>';
+
     const P = {
       // origD/origM are now the SHIPPING state, so they need no injection. wasD/wasM restore
       // the pre-fix values.
@@ -416,6 +466,11 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
     gains an edge. <b>${C.edgeBefore}:1 → ${C.edgeAfter}:1.</b> No new colour —
     <span class="swatch" style="background:#1a3a2a"></span><code>#1a3a2a</code> is already the
     text inside this button and the eyebrow above it.</p>
+    <p class="cap"><b>At actual size this is a 2px border, so here it is at 3× first — the
+    comparison rows below are at 62%, where 2px renders as 1.2px and the change is genuinely
+    hard to see.</b></p>
+    ${zoomPair( 3 )}
+    <p class="cap">And in place, at 62%:</p>
     ${P.edge}
   </div>
 </section>
@@ -434,6 +489,8 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
     <code>#1a3a2a</code>. <b>${C.focusBefore}:1 → ${C.focusAfter}:1.</b>
     <code>outline-offset:3px</code> stays, and it is what keeps the ring legible as a ring now
     that the border is the same colour: 3px of panel tint separates them.</p>
+    ${zoomFocus( 3 )}
+    <p class="cap">In place, at 62%:</p>
     ${P.focus}
     <details class="why"><summary>how a frame can show a focus ring at all</summary><div class="inner">
       <p class="cap" style="margin:0">It cannot, natively — <code>:focus-visible</code> needs a

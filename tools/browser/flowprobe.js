@@ -122,9 +122,75 @@ const CONTRAST_FN = `
     `${L.copyPos} top:${L.copyTop}` );
   ok( L.focusable === 0, 'nothing in this band is focusable', `${L.focusable} focusable` );
   ok( L.spaceHidden === 'true', 'the terminal window is aria-hidden', String( L.spaceHidden ) );
-  ok( !( L.spaceOverflow === 'auto' && !L.spaceTabbable ),
-    'the scrollable stream is reachable by keyboard (WCAG 2.1.1)',
-    `overflow-y:${L.spaceOverflow}, tabindex absent — a scroll region no keyboard can scroll` );
+  // WCAG 2.1.1 FOR A DECORATIVE SCROLL REGION, AND WHY THE EARLIER ASSERTION WAS WRONG.
+  //
+  // This used to demand a tabindex on .wt-space, on the reasoning that a scrollable region must
+  // be keyboard-operable. That is the right rule for a scroll region carrying content - and the
+  // wrong one here, because the region is inside aria-hidden="true". Adding tabindex would make
+  // it focusable but invisible to assistive technology: a Tab stop that announces nothing,
+  // which is a worse defect than the one it set out to fix.
+  //
+  // The panel is a picture of a machine. Its content is provided in text by .wt-sr, which is
+  // the conformant route for decorative content, so nothing is keyboard-unreachable as long as
+  // that alternative genuinely covers the sequence. So the assertions are: the region is hidden
+  // from AT, it is NOT focusable, and the text alternative names every stage.
+  ok( !L.spaceTabbable, 'the decorative scroll region is not a phantom Tab stop',
+    L.spaceTabbable ? 'it has a tabindex while inside aria-hidden - focusable but unannounced'
+      : 'no tabindex inside aria-hidden, which is correct for decorative content' );
+  const alt = await page.evaluate( () => {
+    const p = document.querySelector( '.wt-sr' );
+    if ( !p ) return null;
+    const txt = p.textContent.toLowerCase();
+    const stages = [ 'gateway', 'verified', 'customer record', 'parallel', 'catalog', 'metered', 'queue', 'healthy' ];
+    return { missing: stages.filter( s => !txt.includes( s ) ), len: p.textContent.trim().length };
+  } );
+  ok( alt && !alt.missing.length,
+    'the text alternative covers all eight stages (WCAG 2.1.1 / 1.1.1)',
+    !alt ? 'no .wt-sr paragraph at all'
+      : alt.missing.length ? `missing: ${alt.missing.join( ', ' )}`
+        : `${alt.len} characters naming every stage the stream shows` );
+
+  // ------------------------------------------- can a reader get back to step 1?
+  //
+  // THE HALF OF THE OVERFLOW DEFECT THAT IS FIXABLE. About 800px of the sequence scrolls past
+  // the visible edge at 1280, and the panel used to re-pin itself to the bottom on every step -
+  // so scrolling up to read an earlier step survived at most one arrival. That is what made
+  // those steps unrecoverable rather than merely off-screen.
+  // Growing the panel to fit was measured and rejected: it needs 1447px at 1280 and 1997px at
+  // 390 against 650 and 560 today, which on a phone is 2.4 screens of black terminal.
+  // IT MUST BE TESTED MID-STREAM, WHICH IS THE ONLY STATE THE BUG EXISTED IN.
+  // The first version ran this immediately after the layout checks, when one step had rendered
+  // and there were 0px of overflow: scrolling to 0 trivially stayed at 0 and the assertion
+  // passed while proving nothing. Re-pinning only happened when a NEW STEP ARRIVED, so the
+  // window has to be one where steps are still arriving and there is already something to
+  // scroll back from.
+  console.log( '\nRECOVERING AN EARLIER STEP' );
+  await page.waitForFunction( () => {
+    const b = document.querySelector( '.wt-space' );
+    return b && b.scrollHeight - b.clientHeight > 200
+      && document.querySelectorAll( '.wt-step' ).length < 8;
+  }, null, { timeout: 30000 } );
+  const recover = await page.evaluate( () => new Promise( resolve => {
+    const box = document.querySelector( '.wt-space' );
+    const stepsBefore = document.querySelectorAll( '.wt-step' ).length;
+    const overflow = box.scrollHeight - box.clientHeight;
+    box.scrollTop = 0;                       // the reader scrolls back to step 1
+    // Longer than the longest dwell (1650ms) plus its 250ms gap, so at least one more step
+    // lands inside the window - otherwise the test could pass simply because nothing happened.
+    setTimeout( () => resolve( {
+      overflow,
+      stepsBefore,
+      stepsAfter: document.querySelectorAll( '.wt-step' ).length,
+      afterScrollUp: Math.round( box.scrollTop ),
+    } ), 2400 );
+  } ) );
+  ok( recover.stepsAfter > recover.stepsBefore,
+    'the window actually contained a new step arriving',
+    `${recover.stepsBefore} -> ${recover.stepsAfter} steps in 2.4s, with ${recover.overflow}px of overflow` );
+  ok( recover.afterScrollUp < 40,
+    'scrolling back to an earlier step survives the next arrival',
+    `scrolled to 0, still at ${recover.afterScrollUp}px after ${recover.stepsAfter - recover.stepsBefore} more step(s) ` +
+    '— it used to be re-pinned to the bottom every time' );
 
   // ------------------------------------------------------- the empty panel
   console.log( '\nTHE PANEL AT FIRST PAINT' );
