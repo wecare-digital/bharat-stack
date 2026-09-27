@@ -595,8 +595,17 @@ const ContactLocation: React.FC = () => {
            (owner request), so the card is dropped below it - the label is at top:12px and is
            ~30px tall, so 56px clears it with a ~14px gap. Still well clear of Google's
            bottom-edge attribution strip. */
+        /* inset-inline-start, not left: this card floats over the map, and an overlay has to
+           sit on the edge the reader starts from or it covers the first thing they look at.
+           Found by measuring mirror symmetry rather than by eye - it was 396px out of
+           position under rtl at 1280, the largest asymmetry on this route.
+           A logical property is safe HERE specifically because the only media-query override
+           of .cl-card changes the top inset. Where a media query also overrides the inline
+           axis, the Lightning :lang() rewrite out-specifies it and a custom property is needed
+           instead - see the note on .wc-langbar in SupportWidget.tsx.
+           NO BACKTICKS IN THIS COMMENT: styled-jsx template literal. */
         .cl-card{
-          position:absolute;top:56px;left:16px;z-index:1;
+          position:absolute;top:56px;inset-inline-start:16px;z-index:1;
           max-width:calc(100% - 32px);
           padding:14px 18px;
           border:2px solid #d1f470;border-radius:14px;

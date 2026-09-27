@@ -129,7 +129,15 @@ describe( 'the CSS contract the bar depends on', () => {
   it( 'gives the tablet a permanent rail instead of a hidden drawer', () => {
     expect( CSS ).toContain( '@media (max-width: 1024px) and (min-width: 769px)' );
     expect( CSS ).toMatch( /width:\s*76px/ );
-    expect( CSS ).toMatch( /margin-left:\s*76px/ );
+    // margin-INLINE-START, not margin-left. The rail is in flow and the content has to clear
+    // it, which is an inline-start relationship rather than a left one: under rtl the rail is
+    // on the other side and a physical margin would push the content away from it into the
+    // rail. It also HAD to change here in step with the base .main-content rule - Lightning CSS
+    // compiles a logical property into a :lang() pair, which carries a specificity class, so a
+    // physical override in this media query would have lost to the converted base rule and let
+    // the rail overlap the first 76px of every page.
+    expect( CSS ).toMatch( /margin-inline-start:\s*76px/ );
+    expect( CSS ).not.toMatch( /margin-left:\s*76px/ );
   } );
 
   it( 'recomposes for a foldable rather than guessing from width alone', () => {

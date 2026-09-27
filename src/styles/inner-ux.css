@@ -679,7 +679,7 @@
 .inner-table th,
 .inner-table td {
   padding: var(--space-3) var(--space-4);
-  text-align: left;
+  text-align: start;
   /* #e5e7eb, not lime. A hairline repeated on every row of every table is a
      hairline, and the contract fixes hairline colour at #e5e7eb; lime is for
      our own surfaces and for state. The single heavy lime edges elsewhere
@@ -729,7 +729,7 @@
 .toast-container {
   position: fixed;
   top: var(--space-5);
-  right: var(--space-5);
+  inset-inline-end: var(--space-5);
   z-index: 10002;
   display: flex;
   flex-direction: column;
@@ -873,8 +873,8 @@
 
   .toast-container {
     top: var(--space-3);
-    right: var(--space-3);
-    left: var(--space-3);
+    inset-inline-end: var(--space-3);
+    inset-inline-start: var(--space-3);
     max-width: none;
   }
 
@@ -1133,7 +1133,7 @@
 .logs-table th,
 .logs-table td {
   padding: var(--space-3) var(--space-4);
-  text-align: left;
+  text-align: start;
   /* #e5e7eb, not lime. A hairline repeated on every row of every table is a
      hairline, and the contract fixes hairline colour at #e5e7eb; lime is for
      our own surfaces and for state. The single heavy lime edges elsewhere
@@ -1276,7 +1276,7 @@
 }
 
 .stat-card.accent {
-  border-left: 4px solid #d1f470;
+  border-inline-start: 4px solid #d1f470;
 }
 
 .stat-value {
@@ -1783,7 +1783,7 @@
 .ps-tab-icon {
   display: inline-flex;
   align-items: center;
-  margin-right: 5px;
+  margin-inline-end: 5px;
   vertical-align: middle;
 }
 
@@ -1814,7 +1814,7 @@
 
 /* Divider: extra gap before group-starting tabs */
 .ps-tab-after-divider {
-  margin-left: 8px;
+  margin-inline-start: 8px;
 }
 
 /* Tab Content */
@@ -1899,7 +1899,7 @@
   }
 
   .ps-tab-after-divider {
-    margin-left: 4px;
+    margin-inline-start: 4px;
   }
 }
 
@@ -1962,7 +1962,7 @@
   border-radius: 4px;
   background: #f3f4f6;
   color: #9ca3af;
-  margin-left: auto;
+  margin-inline-start: auto;
   flex-shrink: 0;
 }
 
@@ -2416,7 +2416,7 @@
     width: 100% !important;
     max-width: none !important;
     max-height: 200px;
-    border-right: none !important;
+    border-inline-end: none !important;
     border-bottom: 1px solid var(--color-border);
   }
 
@@ -2534,7 +2534,7 @@
   .floating-agent-window {
     width: calc(100vw - 24px) !important;
     height: 60vh !important;
-    right: 12px !important;
+    inset-inline-end: 12px !important;
     bottom: 70px !important;
   }
 }
@@ -2900,7 +2900,7 @@
   background-repeat: no-repeat !important;
   background-position: right 11px center !important;
   background-size: 14px 14px !important;
-  padding-right: 32px !important;
+  padding-inline-end: 32px !important;
 }
 
 /* Hide the legacy arrow in old Edge/IE */

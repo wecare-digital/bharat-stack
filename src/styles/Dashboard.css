@@ -386,11 +386,11 @@
 }
 
 .msg-item.inbound {
-  border-left: 2px solid #000000;
+  border-inline-start: 2px solid #000000;
 }
 
 .msg-item.outbound {
-  border-left: 2px solid #999999;
+  border-inline-start: 2px solid #999999;
 }
 
 .msg-item .dir {
@@ -575,7 +575,7 @@
 .data-table th {
   background: var(--notion-bg-secondary);
   padding: 10px 12px;
-  text-align: left;
+  text-align: start;
   font-weight: 600;
   color: var(--notion-text-secondary);
   font-size: 10px;
@@ -1053,7 +1053,7 @@
 }
 
 .billing-meta {
-  text-align: right;
+  text-align: end;
 }
 
 .billing-meta .period {
@@ -1082,7 +1082,7 @@
 .billing-table th {
   background: var(--notion-bg-secondary);
   padding: 10px 12px;
-  text-align: left;
+  text-align: start;
   font-weight: 600;
   color: var(--notion-text-secondary);
   font-size: 10px;
@@ -1419,7 +1419,7 @@
 
 .search-bar.large button {
   position: absolute;
-  right: 12px;
+  inset-inline-end: 12px;
   top: 50%;
   transform: translateY(-50%);
   background: var(--notion-bg-secondary);
@@ -1611,7 +1611,7 @@
   .refresh-btn {
     position: absolute;
     top: 12px;
-    right: 16px;
+    inset-inline-end: 16px;
     width: 40px;
     height: 40px;
   }
@@ -1966,7 +1966,7 @@
   
   .refresh-btn {
     top: 10px;
-    right: 12px;
+    inset-inline-end: 12px;
     width: 36px;
     height: 36px;
   }
@@ -2058,7 +2058,7 @@
 
 .search-bar.large button {
   position: absolute;
-  right: 12px;
+  inset-inline-end: 12px;
   top: 50%;
   transform: translateY(-50%);
   width: 28px;
@@ -2392,7 +2392,7 @@
   background: #f9fafb;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  border-left: 4px solid #d1f470;
+  border-inline-start: 4px solid #d1f470;
 }
 
 .info-banner-blue p {
@@ -2402,7 +2402,7 @@
 }
 
 .info-banner-blue a {
-  margin-left: 8px;
+  margin-inline-start: 8px;
   color: #1a3a2a;
 }
 
@@ -2427,7 +2427,7 @@
 /* Stat Card Variants */
 .stat-card.error {
   background: #f9fafb;
-  border-left: 4px solid #1a3a2a;
+  border-inline-start: 4px solid #1a3a2a;
 }
 
 .stat-card.error .stat-value {
@@ -2436,7 +2436,7 @@
 
 .stat-card.warning {
   background: #f9fafb;
-  border-left: 4px solid #1a3a2a;
+  border-inline-start: 4px solid #1a3a2a;
 }
 
 .stat-card.warning .stat-value {
@@ -2445,7 +2445,7 @@
 
 .stat-card.success {
   background: #f9fafb;
-  border-left: 4px solid #1a3a2a;
+  border-inline-start: 4px solid #1a3a2a;
 }
 
 .stat-card.success .stat-value {
@@ -2454,7 +2454,7 @@
 
 .stat-card.accent {
   background: #f9fafb;
-  border-left: 4px solid #1a3a2a;
+  border-inline-start: 4px solid #1a3a2a;
 }
 
 .stat-card.accent .stat-value {

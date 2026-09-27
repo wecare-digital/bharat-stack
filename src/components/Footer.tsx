@@ -89,6 +89,31 @@ const Footer: React.FC = () => {
               approved for it, and inventing one would mean a hover that promises a click
               and lands somewhere arbitrary. cursor stays default for that reason. If it
               should become a link later, wrap it in an <a> and the sweep still applies. */}
+          {/* THE WHOLE LINE IS ONE TRANSLATABLE NODE, AND "Bharat" IS DELIBERATELY NOT PINNED.
+              An earlier pass wrapped the word in data-wc-no-translate to stop the provider
+              deciding its fate per language. Measured against the live endpoint, that was
+              WRONG, and wrong in the worst place - it broke grammar in every Indic language
+              this product is built for. Splitting a sentence around a pinned word assumes the
+              word keeps its position through translation. It does not.
+              English is subject-verb-object with a preposition BEFORE the noun. Hindi, Bengali,
+              Tamil, Telugu, Marathi, Gujarati and Urdu all put the object FIRST and use a
+              POSTposition after it. So the whole line translates correctly:
+                hi  भारत के लिए विश्वसनीय रोजमर्रा की सेवाएं
+                ur  بھارت کے لئے روزمرہ کی قابل اعتماد خدمات
+              while the split fragment leaves the postposition stranded at the front and the
+              pinned word orphaned at the end, in source order:
+                hi  के लिए विश्वसनीय रोजमर्रा की सेवाएं Bharat
+              Seven languages checked, seven broken. Arabic produced a dangling bound prefix
+              for the same reason: خدمات يومية موثوقة لـ + Bharat.
+              The whole line also TRANSLITERATES the name into the reader's own script - भारत,
+              ভারতের, భారత్, ભારત, بھارت - which is better than holding it in Latin, not worse.
+              The inconsistency the earlier pass worried about turns out to be the provider
+              doing the right thing per language.
+              What remains is an Arabic-specific artefact: the full sentence comes back as
+              "خدمات يومية موثوقة لشركة Bharat", inserting "the company" and keeping Bharat in
+              Latin. That is one language's MT quirk, not a reason to break grammar in seven.
+              translatecheck.js reports this line under "brand embedded in a translatable
+              sentence", which is the correct category for it: reported, never failed. */}
           <p className="ft-tagline">Trusted everyday services for Bharat</p>
 
           {/* The brand dash. Purely decorative, hence aria-hidden and a <span> rather than
@@ -161,11 +186,15 @@ const Footer: React.FC = () => {
          frame the way animating width would; transform-origin:left makes it draw from the
          left edge. Same .2s and same easing as the header's row sweep. */
       .ft-tagline::after{
-        content:'';position:absolute;left:0;right:0;bottom:-3px;height:2px;
+        content:'';position:absolute;inset-inline:0;bottom:-3px;height:2px;
         background:#d1f470;
         transform:scaleX(0);transform-origin:left center;
         transition:transform .2s cubic-bezier(.16,1,.3,1);
       }
+      /* transform-origin takes no logical keyword, so rtl is stated. Without this the
+         underline would draw from the end of the line an Arabic reader finishes on, which
+         reads as the rule retracting rather than appearing. */
+      :global([dir='rtl']) .ft-tagline::after{transform-origin:right center}
       .ft-tagline:hover{color:#1a3a2a}
       .ft-tagline:hover::after{transform:scaleX(1)}
 

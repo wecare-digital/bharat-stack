@@ -87,7 +87,7 @@
   text-transform: uppercase;
   letter-spacing: 0.4px;
   padding: 12px 14px;
-  text-align: left;
+  text-align: start;
   border-bottom: 1.5px solid #1a3a2a;
   white-space: nowrap;
 }

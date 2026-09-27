@@ -132,7 +132,12 @@ describe( 'WECARE.DIGITAL Home', () => {
 
     // The dot geometry is measured, not eyeballed - .33em with a .18em gap.
     expect( css ).toContain( 'width:.33em;height:.33em' );
-    expect( css ).toContain( 'margin-right:.18em' );
+    // margin-INLINE-end, not margin-right. The dot precedes the rotating word, so the gap
+    // belongs on whichever side the word is on: under rtl, margin-right put the gap behind
+    // the dot and let it touch the glyph it exists to separate. Asserting the logical
+    // property keeps the physical one from coming back.
+    expect( css ).toContain( 'margin-inline-end:.18em' );
+    expect( css ).not.toContain( 'margin-right:.18em' );
 
     // Reduced motion settles the pill rather than leaving it mid-transition.
     expect( css ).toContain( '@media(prefers-reduced-motion:reduce)' );

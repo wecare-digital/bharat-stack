@@ -339,13 +339,13 @@
 .btn-group .btn,
 .btn-group .btn-secondary {
   border-radius: 0;
-  margin-left: -1.5px;
+  margin-inline-start: -1.5px;
 }
 
 .btn-group .btn:first-child,
 .btn-group .btn-secondary:first-child {
   border-radius: var(--btn-radius) 0 0 var(--btn-radius);
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 
 .btn-group .btn:last-child,
@@ -471,19 +471,19 @@
 }
 
 .stat-card.accent {
-  border-left: 3px solid var(--color-primary);
+  border-inline-start: 3px solid var(--color-primary);
 }
 
 .stat-card.accent2 {
-  border-left: 3px solid var(--color-secondary);
+  border-inline-start: 3px solid var(--color-secondary);
 }
 
 .stat-card.success {
-  border-left: 3px solid var(--color-primary);
+  border-inline-start: 3px solid var(--color-primary);
 }
 
 .stat-card.error {
-  border-left: 3px solid var(--color-danger);
+  border-inline-start: 3px solid var(--color-danger);
 }
 
 .stat-icon {
@@ -718,11 +718,11 @@
 }
 
 .message-row.inbound {
-  border-left: 2px solid var(--color-primary);
+  border-inline-start: 2px solid var(--color-primary);
 }
 
 .message-row.outbound {
-  border-left: 2px solid var(--color-secondary);
+  border-inline-start: 2px solid var(--color-secondary);
 }
 
 .message-direction {
@@ -1103,7 +1103,7 @@
 
 .delete-preview ul {
   margin: 0;
-  padding-left: 20px;
+  padding-inline-start: 20px;
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
@@ -1306,7 +1306,7 @@
 }
 
 .billing-period {
-  text-align: right;
+  text-align: end;
 }
 
 .billing-dates {
@@ -1370,7 +1370,7 @@
 .billing-table th {
   background: var(--bg-secondary);
   padding: 12px 16px;
-  text-align: left;
+  text-align: start;
   font-weight: var(--font-semibold);
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
@@ -1470,7 +1470,7 @@
   min-width: 280px;
   max-width: 320px;
   background: #fff;
-  border-right: 1px solid #d1f470;
+  border-inline-end: 1px solid #d1f470;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -1603,7 +1603,7 @@
     flex: 1;
     max-height: none;
     min-height: 0;
-    border-right: none;
+    border-inline-end: none;
     border-bottom: none;
     display: flex;
   }
@@ -1822,7 +1822,16 @@
   }
   
   .contact-info {
-    margin-left: 8px;
+    /* LOGICAL, matching the base rule below so both carry the same compiled specificity.
+       NOTE THAT THIS RULE IS ALREADY DEAD, and that is pre-existing rather than introduced
+       here: it and the base .contact-info rule are both (0,1,0), and the base one appears
+       LATER in this file, so source order gives the base its 10px at every width and the 8px
+       here has never applied. Converting both keeps that behaviour exactly as it ships today
+       instead of silently changing mobile spacing. If the 8px is wanted, the fix is a custom
+       property - base sets margin-inline-start:var(--contact-info-gap,10px), this sets
+       --contact-info-gap:8px - which is the pattern .wc-langbar uses, and it is a spacing
+       decision rather than a direction one. */
+    margin-inline-start: 8px;
   }
   
   .contact-name {
@@ -2035,7 +2044,7 @@
 .contact-item.selected,
 .whatsapp-inbox .contact-item.selected {
   background: #f0fdf4;
-  border-left: 3px solid #d1f470;
+  border-inline-start: 3px solid #d1f470;
   border-bottom: 1px solid #f3f4f6;
   border-radius: 0;
 }
@@ -2057,7 +2066,13 @@
 .contact-info {
   flex: 1;
   min-width: 0;
-  margin-left: 10px;
+  /* margin-INLINE-start: this is the gap between the avatar and the name beside it, so it
+     belongs on whichever side the avatar is on. As margin-left it stayed on the physical left
+     under rtl - where the avatar no longer is - which put the gap on the far side of the text
+     and pulled the name 10px tighter to the avatar than intended. It was the last physical
+     direction property in any stylesheet, and rtlcheck measured it as a 10px mirror asymmetry
+     on /grahak-os/ across all six viewports. */
+  margin-inline-start: 10px;
 }
 
 .contact-name {
@@ -2093,7 +2108,7 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
-  margin-left: 8px;
+  margin-inline-start: 8px;
 }
 
 .contact-time {
@@ -2281,8 +2296,8 @@
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-bottom-left-radius: 4px;
-  margin-right: 20%;
-  margin-left: 0;
+  margin-inline-end: 20%;
+  margin-inline-start: 0;
 }
 
 .message-bubble.outbound {
@@ -2290,8 +2305,8 @@
   background: #edfcd4;
   border: 1px solid #d1f470;
   border-bottom-right-radius: 4px;
-  margin-left: 20%;
-  margin-right: 0;
+  margin-inline-start: 20%;
+  margin-inline-end: 0;
 }
 
 .message-bubble:hover {
@@ -2495,7 +2510,7 @@
   height: 24px;
   border-radius: 50%;
   cursor: pointer;
-  margin-left: auto;
+  margin-inline-start: auto;
   transition: all 0.15s;
 }
 
@@ -2978,7 +2993,7 @@
   .delete-option-card {
     padding: 16px;
     flex-direction: row;
-    text-align: left;
+    text-align: start;
     gap: 12px;
   }
   
@@ -3293,8 +3308,8 @@ pre code {
     margin: 0 -12px;
     width: calc(100% + 24px);
     border-radius: 0;
-    border-left: none;
-    border-right: none;
+    border-inline-start: none;
+    border-inline-end: none;
   }
   
   /* Horizontal scroll indicator */
@@ -3303,7 +3318,7 @@ pre code {
   pre::after {
     content: '';
     position: absolute;
-    right: 0;
+    inset-inline-end: 0;
     top: 0;
     bottom: 0;
     width: 24px;
@@ -3489,8 +3504,8 @@ pre code {
   }
   
   .mobile-mx-0 {
-    margin-left: 0 !important;
-    margin-right: 0 !important;
+    margin-inline-start: 0 !important;
+    margin-inline-end: 0 !important;
   }
 }
 
@@ -3560,8 +3575,8 @@ pre code {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   height: 4px;
   background: transparent;
   transition: background var(--transition-fast);
@@ -3941,11 +3956,11 @@ pre code {
 }
 
 .msg-item.inbound {
-  border-left: 3px solid var(--color-primary);
+  border-inline-start: 3px solid var(--color-primary);
 }
 
 .msg-item.outbound {
-  border-left: 3px solid var(--color-secondary);
+  border-inline-start: 3px solid var(--color-secondary);
 }
 
 .msg-item .dir {
@@ -4045,7 +4060,7 @@ pre code {
 }
 
 .data-table th {
-  text-align: left;
+  text-align: start;
   padding: 12px 16px;
   background: var(--color-bg-secondary);
   font-weight: 600;
@@ -4165,7 +4180,7 @@ pre code {
   .refresh-btn {
     position: absolute;
     top: 16px;
-    right: 16px;
+    inset-inline-end: 16px;
     width: 40px;
     height: 40px;
     border-radius: 12px;
@@ -4303,7 +4318,7 @@ pre code {
   background: var(--color-bg-secondary);
   border-radius: var(--card-radius);
   padding: 28px 36px;
-  text-align: left;
+  text-align: start;
   margin-bottom: 24px;
   max-width: 360px;
   width: 100%;
@@ -4443,8 +4458,8 @@ pre code {
 .modal-overlay {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
