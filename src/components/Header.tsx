@@ -135,7 +135,13 @@ const COLUMNS: NavColumn[] = [
         // owner's instruction is that there is no Selfservice page, only the items under
         // it. It previously linked to the external landing page, which made the heading
         // both a category and a link and gave a visitor two things to click for one idea.
-        heading: 'Selfservice',
+        // Renamed from 'Selfservice' on 2026-09-27 (owner instruction: remove the word
+        // everywhere it is customer-visible). It named a portal that has no page at any
+        // address - the in-repo /selfservice route went in PR #47 on 2026-09-24 and nothing
+        // replaced it, so the label promised a destination that did not exist. The only
+        // /selfservice route left is the ADMIN flow dashboard under /workspace/forms/.
+        // 'Requests' describes what the rows beneath it actually do.
+        heading: 'Requests',
         links: [
           // MY ORDER IS FIRST, on owner instruction - it is the row customers reach for
           // most, and it is the one real local page in this group (the others land on

@@ -87,7 +87,18 @@ HEADERS = {
 }
 
 
-FALLBACK_URL = "https://wecare.digital/selfservice"
+# Where an unknown, expired or malformed short code lands. Four call sites use it.
+#
+# This pointed at `https://wecare.digital/selfservice` until 2026-09-27, which had been a
+# 404 since commit 6bc44a35 removed the in-repo stub on 2026-09-24 and nothing replaced
+# it. Measured live before the change: /r/<unknown> -> 302 -> /selfservice -> 301 ->
+# /selfservice/ -> 404. So every mistyped or expired PRINTED short link ended on an error
+# page, which is the worst possible destination for the one visitor who already got
+# something slightly wrong.
+#
+# `/contact/` is a real page and TERMINAL - 200 with zero redirect hops, verified with the
+# trailing slash, because `/contact` without it costs a 301. Keep the slash.
+FALLBACK_URL = "https://wecare.digital/contact/"
 
 
 def handler(event, context):

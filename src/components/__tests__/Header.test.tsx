@@ -60,22 +60,28 @@ describe( 'Header', () => {
     // this row is now gone too.
     expect( screen.queryByRole( 'link', { name: 'FAQ' } ) ).toBeNull();
 
-    // Bharat Rx is a product, not one of the Selfservice request actions. Asserted by
+    // Bharat Rx is a product, not one of the request actions. Asserted by
     // column position, because the label alone would pass wherever it sat.
     const products = screen.getByText( 'Products' ).closest( '.nav-group' );
     expect( products ).not.toBeNull();
     expect( products?.textContent ).toContain( 'Bharat Rx' );
 
-    // Selfservice is found by TEXT, not by role=link. It used to be a link, because the
-    // heading doubled as a link to the external landing page; that page is being retired
-    // and the heading is now a plain group label, so getByRole('link') would throw here.
-    const selfservice = screen.getByText( 'Selfservice' ).closest( '.nav-group' );
-    expect( selfservice ).not.toBeNull();
-    expect( selfservice?.textContent ).not.toContain( 'Bharat Rx' );
+    // The group is 'Requests', renamed from 'Selfservice' on 2026-09-27. Found by TEXT,
+    // not by role=link: the heading used to double as a link to a landing page, that page
+    // no longer exists at any address, and the heading is now a plain group label - so
+    // getByRole('link') would throw here.
+    const requests = screen.getByText( 'Requests' ).closest( '.nav-group' );
+    expect( requests ).not.toBeNull();
+    expect( requests?.textContent ).not.toContain( 'Bharat Rx' );
 
-    // And it must NOT be a link any more - that is the actual requirement, so assert it
+    // And it must NOT be a link - that is the actual requirement, so assert it
     // rather than leaving it implied by the lookup above happening to work.
-    expect( screen.queryByRole( 'link', { name: 'Selfservice' } ) ).toBeNull();
+    expect( screen.queryByRole( 'link', { name: 'Requests' } ) ).toBeNull();
+
+    // The retired word must not come back anywhere in the menu. This is the guard for the
+    // owner instruction, not a restatement of the rename: a new row or heading carrying
+    // 'Selfservice' would name a destination that does not exist.
+    expect( screen.queryByText( /Selfservice/i ) ).toBeNull();
   } );
 
   it( 'lists Terms and Privacy under a Legal Stuff heading', () => {
@@ -94,14 +100,15 @@ describe( 'Header', () => {
     expect( screen.queryByText( /^Legal$/ ) ).toBeNull();
 
     // Legal Stuff now sits in the SAME column as "Refer & Earn" (the Work with us
-    // column), not under Selfservice where it used to be. Asserted by shared column
-    // ancestor so a future reorder that splits them is caught.
+    // column), not under the request actions where it used to be. Asserted by shared
+    // column ancestor so a future reorder that splits them is caught.
     const legalCol = screen.getByText( 'Legal Stuff' ).closest( '.nav-col' );
     expect( legalCol ).not.toBeNull();
     expect( legalCol?.textContent ).toContain( 'Refer & Earn' );
-    // And it is no longer beside the Selfservice actions.
-    const selfCol = screen.getByText( 'Selfservice' ).closest( '.nav-col' );
-    expect( selfCol?.textContent ).not.toContain( 'Legal Stuff' );
+    // And it is no longer beside the request actions. The group was renamed from
+    // 'Selfservice' to 'Requests' on 2026-09-27; this looks it up by the new label.
+    const requestsCol = screen.getByText( 'Requests' ).closest( '.nav-col' );
+    expect( requestsCol?.textContent ).not.toContain( 'Legal Stuff' );
   } );
 
   it( 'uses the approved public header dimensions and brand navigation colors', () => {

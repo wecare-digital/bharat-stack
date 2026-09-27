@@ -18,9 +18,15 @@ import RotatingHero, { type CycleWord } from '../components/RotatingHero';
  *
  * NOT YET WIRED TO ANY DATA. There is no order-lookup endpoint on the public site, and a
  * page that asks for an order number and then cannot answer would be worse than an
- * honest signpost. So this is the hero plus a route to the Selfservice portal, which is
- * where order state actually lives today. The moment an endpoint exists, the lookup form
+ * honest signpost. So this is the hero plus a route to contact, which is where a customer
+ * can actually get an answer today. The moment an endpoint exists, the lookup form
  * belongs here.
+ *
+ * "SELFSERVICE" NAMING REMOVED 2026-09-27 (owner instruction). It named a portal that no
+ * longer exists at any address: the in-repo /selfservice stub went in commit 6bc44a35 and
+ * nothing replaced it, so the word pointed customers at a concept with no page behind it.
+ * The only /selfservice route in the codebase now is the ADMIN flow dashboard under
+ * /workspace/forms/, which is not a customer destination.
  */
 
 // "Track your order / delivery / request / booking" - all four complete the frame and
@@ -33,10 +39,11 @@ const CYCLE_WORDS: CycleWord[] = [
   { word: 'booking', tint: '#ede9fe', dot: '#9849e8' },
 ];
 
-// Was 'https://www.wecare.digital/selfservice' until 2026-09-25: `www` 301s to the apex
-// and /selfservice was deleted in commit 6bc44a35, so every button here ran
-// 301 -> 301 -> 404. /contact/ is a real 200 page on the canonical host.
-const SELFSERVICE = 'https://wecare.digital/contact/';
+// A terminal URL, deliberately: `/contact/` is a real 200 page on the canonical host with
+// no redirect hop. Two earlier values both ended in a 404 -
+// 'https://www.wecare.digital/selfservice' (www 301s to apex, then /selfservice 404s) and
+// the apex '/selfservice' on its own. Verify with curl before changing this again.
+const CONTACT = 'https://wecare.digital/contact/';
 
 const MyOrderPage: React.FC = () => (
   <>
@@ -47,7 +54,7 @@ const MyOrderPage: React.FC = () => (
     />
     <RotatingHero
       ariaLabel="My order"
-      badgeLabel="Selfservice — WECARE.DIGITAL"
+      badgeLabel="Order tracking — WECARE.DIGITAL"
       frame="Track your"
       words={ CYCLE_WORDS }
       sub="Every order and request is tracked end to end, with one place to check where things stand."
@@ -55,15 +62,15 @@ const MyOrderPage: React.FC = () => (
       <section className="mo" aria-label="Check an order">
         <h2 className="mo-h2">Check where something stands</h2>
         <p className="mo-p">
-          Order and request status lives in the Selfservice portal. Open it with the
-          reference from your confirmation message and it will show the current stage,
-          what happens next, and who to contact if something needs changing.
+          Send us the reference from your confirmation message and we will tell you the
+          current stage, what happens next, and who to speak to if something needs
+          changing.
         </p>
-        <a className="mo-cta" href={ SELFSERVICE }>Open Selfservice</a>
+        <a className="mo-cta" href={ CONTACT }>Contact us</a>
 
         <h2 className="mo-h2 mo-h2-spaced">If something needs changing</h2>
         <p className="mo-p">
-          Amendments, cancellations and refunds are handled through the same portal. What
+          Amendments, cancellations and refunds go through the same route. What
           is possible depends on how far along the order is - the detail is in section 14
           of our{ ' ' }
           {/* Plain anchor, not next/link, for the reason Footer.tsx documents: styled-jsx

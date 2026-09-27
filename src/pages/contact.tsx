@@ -4,7 +4,13 @@ import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 import ContactLocation from '../components/ContactLocation';
 
 /**
- * /contact — the Selfservice entry point.
+ * /contact — the request entry point.
+ *
+ * "SELFSERVICE" NAMING REMOVED 2026-09-27 (owner instruction). The word named a portal
+ * with no page at any address: the in-repo /selfservice route went in PR #47 on
+ * 2026-09-24 and nothing replaced it. The only /selfservice route left in the codebase
+ * is the ADMIN flow dashboard under /workspace/forms/, which is not a customer
+ * destination. This page is where a customer actually starts a request.
  *
  * ROUTING: _app.tsx keeps an EXACT-MATCH public route allowlist. '/contact' must be
  * registered there or this page renders an empty body with HTTP 200 - a 404 that does
@@ -15,7 +21,7 @@ import ContactLocation from '../components/ContactLocation';
  * three different things - do not consolidate them without checking the allowlist and
  * the dashboard nav.
  *
- * The rotation carries the five Selfservice actions, which is the owner's request and
+ * The rotation carries the five request actions, which is the owner's request and
  * also does useful work: it tells a visitor what this page is for before they read a
  * word of body copy.
  */
@@ -46,7 +52,7 @@ const ContactPage: React.FC = () => (
     />
     <RotatingHero
       ariaLabel="Contact WECARE.DIGITAL"
-      badgeLabel="Selfservice by WECARE.DIGITAL"
+      badgeLabel="Requests by WECARE.DIGITAL"
       frame="You can"
       words={ CYCLE_WORDS }
       sub="Every request is tracked end to end, with transparent pricing and one place to check where things stand."
