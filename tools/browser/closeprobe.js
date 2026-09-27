@@ -175,9 +175,21 @@ const CONTRAST_FN = `
     const declared = focusRule && /rgba?\\([^)]+\\)|#[0-9a-f]{3,8}/i.exec(focusRule);
     out.focus = { rule: focusRule, color: declared ? declared[0] : cs.outlineColor,
       ratio: ratioOf(declared ? declared[0] : cs.outlineColor, cta.parentElement), need: 3 };
-    // And the button's own edge against the panel behind it.
-    out.ctaEdge = { color: cs.backgroundColor,
-      ratio: ratioOf(cs.backgroundColor, cta.parentElement), need: 3 };
+    // THE CONTROL'S BOUNDARY, WHICH IS THE BORDER - NOT THE FILL.
+    //
+    // This measured backgroundColor first, and that was the wrong property. WCAG 1.4.11 asks
+    // about the visual boundary that lets you find the control, and on a bordered button that
+    // is the border. Measuring the fill reported 1.18:1 both before and after the fix, because
+    // the fill is deliberately unchanged - it stays #d1f470 so the button remains the lime
+    // affordance used site-wide. A probe that cannot see the fix it asked for is a broken
+    // probe, not a surviving defect.
+    //
+    // The fill ratio is still reported, because it is what makes the border load-bearing: the
+    // button cannot be found by its fill on this panel, so it must be found by its edge.
+    out.ctaEdge = { color: cs.borderTopColor, width: cs.borderTopWidth,
+      ratio: ratioOf(cs.borderTopColor, cta.parentElement), need: 3 };
+    out.ctaFill = { color: cs.backgroundColor,
+      ratio: ratioOf(cs.backgroundColor, cta.parentElement) };
     return out;
   })()` );
   for ( const k of [ 'eyebrow', 'title', 'lead', 'point', 'cta' ] ) {
@@ -187,8 +199,10 @@ const CONTRAST_FN = `
   ok( C.focus.ratio >= 3, `the focus ring is visible (WCAG 1.4.11)`,
     `declared "${C.focus.rule || '(no :focus-visible rule found)'}" → ${C.focus.color} ` +
     `= ${C.focus.ratio}:1 against the panel it sits on (needs 3:1)` );
-  ok( C.ctaEdge.ratio >= 3, 'the CTA fill is distinguishable from the panel (WCAG 1.4.11)',
-    `${C.ctaEdge.ratio}:1 (needs 3:1) — solid lime on a 22% lime tint` );
+  ok( C.ctaEdge.ratio >= 3, 'the CTA has a findable boundary (WCAG 1.4.11)',
+    `border ${C.ctaEdge.width} ${C.ctaEdge.color} = ${C.ctaEdge.ratio}:1 against the panel (needs 3:1)` );
+  console.log( `  note the fill is ${C.ctaFill.color} = ${C.ctaFill.ratio}:1 against the panel — ` +
+    'lime on a 22% lime tint, so the border is what makes the button findable, by design' );
 
   console.log( '\nTHE NO-JAVASCRIPT STATE — the thing this band gets right' );
   const noJsCtx = await browser.newContext( { viewport: { width: 1280, height: 900 }, javaScriptEnabled: false } );

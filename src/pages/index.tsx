@@ -751,20 +751,45 @@ const HomePage: React.FC = () => {
         .home-close.is-armed.is-in .home-close-points li:nth-child(2){transition-delay:.43s}
         .home-close.is-armed.is-in .home-close-points li:nth-child(3){transition-delay:.52s}
 
-        /* Full-strength lime with #1a3a2a type: the contract's own-surface pairing. Solid
-           lime on the tinted panel still separates because the panel is the same hue at
-           22% - the button is the saturated version of its own background, which is why it
-           needs no shadow at rest. */
+        /* Full-strength lime with #1a3a2a type: the contract's own-surface pairing.
+           THE BORDER IS #1a3a2a, NOT #d1f470, AND THE OLD REASONING HERE WAS THE DEFECT.
+           This comment used to read: "Solid lime on the tinted panel still separates because
+           the panel is the same hue at 22% - the button is the saturated version of its own
+           background, which is why it needs no shadow at rest." Being the same hue is exactly
+           what removes the separation. Composited, #d1f470 against this panel's
+           rgba(209,244,112,.22) over white measures 1.18:1, and WCAG 1.4.11 wants 3:1 for the
+           boundary of a control. The 2px border was the same lime as the fill, so it
+           contributed nothing and the button's shape was carried almost entirely by its label -
+           on the ONLY action on this page.
+           #1a3a2a takes that boundary to 11.85:1. It is not a new colour: it is this button's
+           own text colour and the eyebrow's colour in this same panel, so the palette is
+           untouched and the fill stays the lime affordance used site-wide.
+           It also repairs :hover below, which swaps the fill to #fff and previously left a
+           near-invisible lime outline on a pale tint, with translateY and the shadow doing all
+           the work of saying "button".
+           Re-measure with: node tools/browser/closeprobe.js - it asserts both ratios.
+           (No backticks in this comment, deliberately: it sits inside a style jsx template
+           literal, where one stray backtick ends the literal. Writing the command in backticks
+           here is what broke the build once already - see the same warning above
+           .home-flow-title.) */
         .home-close-cta{
           display:inline-flex;align-items:center;min-height:52px;margin-top:32px;
-          padding:0 28px;border:2px solid #d1f470;border-radius:50px;
+          padding:0 28px;border:2px solid #1a3a2a;border-radius:50px;
           background:#d1f470;color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
           transition:opacity .5s ease,transform .5s ease,background-color .2s,box-shadow .2s;
         }
         .home-close.is-armed .home-close-cta{opacity:0;transform:translateY(8px)}
         .home-close.is-armed.is-in .home-close-cta{opacity:1;transform:none;transition-delay:.62s}
         .home-close-cta:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-        .home-close-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+        /* THE FOCUS RING IS OPAQUE. It was rgba(26,58,42,.22), which over this panel's lime
+           tint composites to 1.51:1 against the 3:1 WCAG 1.4.11 asks of a focus indicator -
+           on the only focusable element inside <main> on the whole page, so a keyboard visitor
+           got one Tab stop and almost no sign they had reached it. Dropping the alpha gives
+           11.85:1.
+           outline-offset:3px STAYS, and it is now load-bearing rather than decorative: the
+           border above is the same #1a3a2a, so the 3px band of panel tint between them is what
+           keeps the ring legible as a ring instead of reading as a thicker border. */
+        .home-close-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
 
         @media(prefers-reduced-motion:reduce){
           /* Belt and braces. The effect already never arms under reduced motion - the JS

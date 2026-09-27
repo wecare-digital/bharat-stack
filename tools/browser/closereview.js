@@ -59,17 +59,27 @@ const OUT_FILE = path.join( REPO, 'docs', 'close-review.html' );
 // FIX C3 - the focus ring. rgba(26,58,42,.22) -> #1a3a2a, 1.51:1 to 11.85:1. outline-offset
 // stays 3px, which is what keeps the ring legible as a ring now that the border is the same
 // colour: there is a 3px band of panel tint between the two.
-const FIX_CSS = `
-  .home-close-ctaJSX{border-color:#1a3a2a}
-  .home-close-ctaJSX:focus-visible{outline-color:#1a3a2a}
-  .home-close-cta.is-focusJSX{outline:3px solid #1a3a2a;outline-offset:3px}
+// BOTH FIXES HAVE LANDED, SO THE INJECTION DIRECTION IS INVERTED FROM HOW THIS STARTED.
+//
+// While the defects were live, an un-injected frame showed them and FIX_CSS produced the
+// "after". index.tsx now ships border:2px solid #1a3a2a and outline:3px solid #1a3a2a, so an
+// un-injected frame IS the fixed state. Leaving the page as written would have labelled the
+// repaired button "before - 1.18:1, fails 1.4.11": a mock asserting defects that no longer
+// exist, which is worse than no mock.
+//
+// So PRE_FIX_CSS restores the old declared values for the left-hand frames, and the right-hand
+// frames inject nothing. The page stays a record of what changed rather than a claim about the
+// present.
+const PRE_FIX_CSS = `
+  .home-close-ctaJSX{border-color:#d1f470}
+  .home-close-cta.is-focusJSX{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
 `;
 
-// A frame has no keyboard, so :focus-visible can never match inside one. The declared
-// outline is applied through a class instead - the BEFORE frame gets the real declared
-// value, the AFTER frame gets the fixed one, so the comparison is honest.
-const FOCUS_BEFORE = `
-  .home-close-cta.is-focusJSX{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+// A frame has no keyboard, so :focus-visible can never match inside one - the same reason
+// prefers-reduced-motion has to be simulated. This mirrors the SHIPPED rule through a class so
+// the ring is visible in a frame; it is not a change, it is the declared value made renderable.
+const FOCUS_SIM = `
+  .home-close-cta.is-focusJSX{outline:3px solid #1a3a2a;outline-offset:3px}
 `;
 const HOVER_CSS = `
   .home-close-cta.is-hoverJSX{background:#fff;transform:translateY(-2px);
@@ -171,9 +181,17 @@ const METRICS = () => {
             return null;
           })();
           return {
-            edgeBefore: ratioOf(cs.backgroundColor, panel),
+            // THE HISTORICAL VALUES ARE MEASURED FROM THE OLD COLOURS, NOT READ FROM THE PAGE.
+            // focusBefore used to come from the declared :focus-visible rule, which was
+            // rgba(26,58,42,.22) while the defect was live. index.tsx now declares #1a3a2a
+            // there, so reading the stylesheet returns 11.85:1 and the "was" frame acquired
+            // the label "was - 11.85:1" - the fixed number presented as the broken one.
+            // Both old values are therefore composited explicitly here. Still measured rather
+            // than typed, so the before/after numbers cannot drift from the frames beside them,
+            // and they stay correct now that the page no longer contains the old colours.
+            edgeBefore: ratioOf('#d1f470', panel),
             edgeAfter:  ratioOf('#1a3a2a', panel),
-            focusBefore: declaredFocus ? ratioOf(declaredFocus, panel) : null,
+            focusBefore: ratioOf('rgba(26,58,42,.22)', panel),
             focusDeclared: declaredFocus,
             focusAfter: ratioOf('#1a3a2a', panel),
             hoverEdgeBefore: ratioOf('#d1f470', panel),
@@ -208,8 +226,11 @@ const METRICS = () => {
       let html = o.html;
       if ( o.focus ) html = html.replace( /(class="[^"]*home-close-cta)/, '$1 is-focus' );
       if ( o.hover ) html = html.replace( /(class="[^"]*home-close-cta)/, '$1 is-hover' );
-      const extra = scope( o.fix ? FIX_CSS : '' )
-        + scope( o.focus && !o.fix ? FOCUS_BEFORE : '' )
+      // preFix restores the old values; without it the frame shows what ships. FOCUS_SIM is
+      // applied whenever a ring is wanted and the old one is NOT being restored, because
+      // PRE_FIX_CSS carries its own is-focus rule with the old alpha.
+      const extra = scope( o.preFix ? PRE_FIX_CSS : '' )
+        + scope( o.focus && !o.preFix ? FOCUS_SIM : '' )
         + scope( o.hover ? HOVER_CSS : '' )
         + ( o.cap ? scope( '.home-close-pointsJSX{max-width:62ch}' ) : '' );
       return '<!doctype html><meta charset="utf-8">'
@@ -240,24 +261,26 @@ const METRICS = () => {
     const d = M.d, m = M.m, C = M.contrast;
 
     const P = {
+      // origD/origM are now the SHIPPING state, so they need no injection. wasD/wasM restore
+      // the pre-fix values.
       origD: shot( { html: H.d }, 1280, DH, 1 ),
       origM: shot( { html: H.m }, 390, MH, 1 ),
-      fixedD: shot( { html: H.d, fix: true }, 1280, DH, 1 ),
+      wasD: shot( { html: H.d, preFix: true }, 1280, DH, 1 ),
       edge: '<div class="cmp">'
-        + labelled( `before — ${C.edgeBefore}:1, fails 1.4.11`, 'c-b', { html: H.d }, 1280, DH, 0.62 )
-        + labelled( `after — ${C.edgeAfter}:1`, 'c-a', { html: H.d, fix: true }, 1280, DH, 0.62 ) + '</div>',
+        + labelled( `was — ${C.edgeBefore}:1, failed 1.4.11`, 'c-b', { html: H.d, preFix: true }, 1280, DH, 0.62 )
+        + labelled( `now — ${C.edgeAfter}:1, shipping`, 'c-a', { html: H.d }, 1280, DH, 0.62 ) + '</div>',
       focus: '<div class="cmp">'
-        + labelled( `before — ${C.focusBefore}:1`, 'c-b', { html: H.d, focus: true }, 1280, DH, 0.62 )
-        + labelled( `after — ${C.focusAfter}:1`, 'c-a', { html: H.d, focus: true, fix: true }, 1280, DH, 0.62 ) + '</div>',
+        + labelled( `was — ${C.focusBefore}:1`, 'c-b', { html: H.d, focus: true, preFix: true }, 1280, DH, 0.62 )
+        + labelled( `now — ${C.focusAfter}:1, shipping`, 'c-a', { html: H.d, focus: true }, 1280, DH, 0.62 ) + '</div>',
       hover: '<div class="cmp">'
-        + labelled( 'before — white fill, lime border, no edge', 'c-b', { html: H.d, hover: true }, 1280, DH, 0.62 )
-        + labelled( 'after — the edge survives hover', 'c-a', { html: H.d, hover: true, fix: true }, 1280, DH, 0.62 ) + '</div>',
+        + labelled( 'was — white fill, lime border, no edge', 'c-b', { html: H.d, hover: true, preFix: true }, 1280, DH, 0.62 )
+        + labelled( 'now — the edge survives hover', 'c-a', { html: H.d, hover: true }, 1280, DH, 0.62 ) + '</div>',
       cap: '<div class="cmp">'
         + labelled( 'today — max-width:none', 'c-n', { html: H.d }, 1280, DH, 0.62 )
         + labelled( 'capped to 62ch — identical', 'c-n', { html: H.d, cap: true }, 1280, DH, 0.62 ) + '</div>',
       fixedM: '<div class="cmp">'
-        + labelled( 'before', 'c-b', { html: H.m }, 390, MH, 1 )
-        + labelled( 'after', 'c-a', { html: H.m, fix: true }, 390, MH, 1 ) + '</div>',
+        + labelled( 'was', 'c-b', { html: H.m, preFix: true }, 390, MH, 1 )
+        + labelled( 'now — shipping', 'c-a', { html: H.m }, 390, MH, 1 ) + '</div>',
     };
 
     const STAMP = new Date().toISOString().replace( 'T', ' ' ).slice( 0, 16 ) + 'Z';
@@ -374,8 +397,8 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
 
 <!-- ============== C1 ============== -->
 <section class="band">
-  <div class="bhead"><span class="sev s-h">HIGH</span>
-    <h2>C1 — The button's edge against its own panel is ${C.edgeBefore}:1</h2>
+  <div class="bhead"><span class="sev s-ok">FIXED</span>
+    <h2>C1 — FIXED: the button's edge against its own panel was ${C.edgeBefore}:1</h2>
     <span class="sel">#d1f470 fill + #d1f470 border on rgba(209,244,112,.22)</span></div>
   <div class="step">
     <p class="cap">WCAG 1.4.11 asks for <b>3:1</b> between a control's boundary and what is
@@ -399,8 +422,8 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
 
 <!-- ============== C2 ============== -->
 <section class="band">
-  <div class="bhead"><span class="sev s-m">MED</span>
-    <h2>C2 — The focus ring on that same button is ${C.focusBefore}:1</h2>
+  <div class="bhead"><span class="sev s-ok">FIXED</span>
+    <h2>C2 — FIXED: the focus ring on that same button was ${C.focusBefore}:1</h2>
     <span class="sel">outline:3px solid rgba(26,58,42,.22)</span></div>
   <div class="step">
     <p class="cap">Same criterion, same panel. A 22% alpha of the dark green over a pale lime
@@ -428,8 +451,8 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
 
 <!-- ============== C3 ============== -->
 <section class="band">
-  <div class="bhead"><span class="sev s-m">MED</span>
-    <h2>C3 — On hover the button loses its outline entirely</h2>
+  <div class="bhead"><span class="sev s-ok">FIXED</span>
+    <h2>C3 — FIXED: on hover the button lost its outline entirely</h2>
     <span class="sel">.home-close-cta:hover{background:#fff}</span></div>
   <div class="step">
     <p class="cap">Hover swaps the fill to white while the border stays lime, so the control's
@@ -482,7 +505,7 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
 
 <!-- ============== THE PROPOSAL ============== -->
 <section class="band">
-  <div class="bhead"><span class="tag">PROPOSAL</span><h2>The whole change, in two lines</h2></div>
+  <div class="bhead"><span class="tag">SHIPPED</span><h2>The whole change, in two lines</h2></div>
   <div class="step">
     <pre>.home-close-cta{
 -  border:2px solid #d1f470;
@@ -499,10 +522,10 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
     <b>${C.focusBefore}:1 → ${C.focusAfter}:1</b> for the focus ring.</p>
     <p class="cap"><b>Both sides, actual size, desktop and phone:</b></p>
     <div class="cmp">
-      <div class="cmpcol"><span class="collab c-b">today</span>${P.origD}</div>
+      <div class="cmpcol"><span class="collab c-b">was</span>${P.wasD}</div>
     </div>
     <div class="cmp">
-      <div class="cmpcol"><span class="collab c-a">with the change</span>${P.fixedD}</div>
+      <div class="cmpcol"><span class="collab c-a">now — shipping</span>${P.origD}</div>
     </div>
     ${P.fixedM}
   </div>
@@ -536,7 +559,7 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
     check( f.rule.w === d.rule.w, 'the revealed rule width', `${f.rule.w} (live ${d.rule.w})` );
 
     console.log( '\nthe proposed fix, measured inside the frame' );
-    await pg.setContent( frameDoc( { html: H.d, fix: true } ) );
+    await pg.setContent( frameDoc( { html: H.d } ) );
     await pg.waitForTimeout( 350 );
     const after = await pg.evaluate( `(() => { ${CONTRAST_FN}
       const cta=document.querySelector('.home-close-cta');
@@ -544,7 +567,7 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
       return { edge: ratioOf(cs.borderTopColor, cta.parentElement), border: cs.borderTopColor }; })()` );
     check( after.edge >= 3, `the button's edge clears 3:1`, `${after.edge}:1 with border ${after.border}` );
 
-    await pg.setContent( frameDoc( { html: H.d, focus: true, fix: true } ) );
+    await pg.setContent( frameDoc( { html: H.d, focus: true } ) );
     await pg.waitForTimeout( 350 );
     const afterFocus = await pg.evaluate( `(() => { ${CONTRAST_FN}
       const cta=document.querySelector('.home-close-cta');

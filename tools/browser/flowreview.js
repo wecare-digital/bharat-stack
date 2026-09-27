@@ -90,6 +90,20 @@ const INFRA_FIX_CSS = `
   .wt-infraWTJSX{color:rgba(255,255,255,.50)}
 `;
 
+// THE FIX HAS LANDED, SO "BEFORE" IS NOW THE SIMULATED STATE - THE DIRECTION IS INVERTED.
+//
+// While the defect was live, a frame with no injected CSS showed the defect and FIX_CSS
+// produced the "after". WorkflowTerminal.tsx now ships .50, so an un-injected frame shows the
+// FIXED state, and leaving the page as it was would have labelled the repaired panel "before -
+// 4.25:1, fails AA" - a mock asserting a defect that no longer exists.
+//
+// So the old value is restored explicitly for the before frames, the same technique the focus
+// ring already needed in closereview.js. The page stays a truthful record of what changed
+// rather than becoming a claim about the present.
+const INFRA_PRE_FIX_CSS = `
+  .wt-infraWTJSX{color:rgba(255,255,255,.44)}
+`;
+
 /** WCAG contrast, computed in-page so it reads composited pixels. Same helper as flowprobe. */
 const CONTRAST_FN = `
   function lin(c){c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4)}
@@ -292,6 +306,7 @@ const METRICS = () => {
 
     const frameDoc = o => {
       const extra = ( o.fix ? scopeWt( INFRA_FIX_CSS ) : '' )
+        + ( o.preFix ? scopeWt( INFRA_PRE_FIX_CSS ) : '' )
         + ( o.noSticky ? '.home-flow-copy{position:static !important}' : '' );
       return '<!doctype html><meta charset="utf-8">'
         + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">'
@@ -340,8 +355,8 @@ const METRICS = () => {
       arrivalM: shot( { html: SNAP.m.t0 }, 390, MH, 1 ),
       completeM: shot( { html: SNAP.m.complete }, 390, MH, 1 ),
       infra: '<div class="cmp">'
-        + labelled( 'before — 4.25:1, fails AA', 'c-b', { html: SNAP.d.complete }, 1280, DH, 1 )
-        + labelled( 'after — 5.28:1', 'c-a', { html: SNAP.d.complete, fix: true }, 1280, DH, 1 )
+        + labelled( 'was — 4.25:1, failed AA', 'c-b', { html: SNAP.d.complete, preFix: true }, 1280, DH, 1 )
+        + labelled( 'now — 5.28:1, shipping', 'c-a', { html: SNAP.d.complete }, 1280, DH, 1 )
         + '</div>',
       sticky: '<div class="cmp">'
         + labelled( 'sticky — as it ships', 'c-n', { html: SNAP.d.complete }, 1280, DH, 0.62 )
@@ -392,6 +407,7 @@ const METRICS = () => {
   ol,ul{margin:6px 0 10px;padding-left:20px} li{margin:5px 0}
   .sev{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:4px;flex:none}
   .s-h{background:#fdeceb;color:var(--red)} .s-m{background:#fff4e5;color:var(--amb)} .s-l{background:#eef1f4;color:#44546a}
+  .s-ok{background:#eefaf0;color:#1f6f3d}
   .collab{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin:0 0 7px;padding:2px 7px;border-radius:4px;display:inline-block}
   .c-b{background:#fdeceb;color:var(--red)} .c-a{background:#eefaf0;color:#1f6f3d} .c-n{background:#eef1f4;color:#44546a}
   .shot{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;position:relative}
@@ -554,18 +570,20 @@ this one is signed off.</p>
 
 <!-- ============== F3 ============== -->
 <section class="band">
-  <div class="bhead"><span class="sev s-m">MED</span><h2>F3 — <code>.wt-infra</code> fails AA, and it is the line carrying the band's claim</h2>
-    <span class="sel">rgba(255,255,255,.44) on #000 → 4.25:1</span></div>
+  <div class="bhead"><span class="sev s-ok">FIXED</span><h2>F3 — <code>.wt-infra</code> failed AA, and it is the line carrying the band's claim</h2>
+    <span class="sel">was rgba(255,255,255,.44) → 4.25:1 · now .50 → 5.28:1</span></div>
   <div class="step">
     <p class="cap">Every colour in this panel is a white alpha over <code>#000</code>, and an
     alpha is not a colour until it is composited — so these ratios are computed from the painted
-    pixel, not looked up. Thirteen of the fourteen text styles pass. The one that fails is the
-    <code>#</code> comment line naming the shared infrastructure in each step — which is
+    pixel, not looked up. Thirteen of the fourteen text styles passed. The one that did not was
+    the <code>#</code> comment line naming the shared infrastructure in each step — which is
     precisely the line that makes the band's argument.</p>
-    <p class="cap"><b>The fix is <code>.44</code> → <code>.50</code>, and nothing else.</b>
+    <p class="cap"><b>Fixed: <code>.44</code> → <code>.50</code>, and nothing else.</b>
     Deliberately not <code>.62</code>: that is <code>.wt-desc</code>'s value, and the infra line
     is meant to read as substrate <i>beneath</i> the description rather than level with it.
-    <code>.50</code> is the smallest step that clears AA and keeps that order.</p>
+    <code>.50</code> is the smallest step that clears AA and keeps that order. <b>All fourteen
+    now pass</b> — the left frame below restores the old value so the comparison still means
+    something; the right frame is what ships.</p>
     ${P.infra}
     <details class="why"><summary>the full contrast table</summary><div class="inner">
       <pre>.wt-request      15px/400   21.00:1  ok
@@ -581,7 +599,7 @@ this one is signed off.</p>
 .wt-foot-right   12px/400    6.06:1  ok
 .wt-bar-state    12px/400    5.77:1  ok
 .wt-time         12px/400    4.58:1  ok   (4.5 needed — 0.08 of margin)
-.wt-infra      12.5px/400    4.25:1  FAIL (4.5 needed)</pre>
+.wt-infra      12.5px/400    5.28:1  ok   (was 4.25:1 - FIXED)</pre>
       <p class="cap" style="margin:8px 0 0"><code>.wt-time</code> passes by 0.08. It is not a
       finding today, but any future dimming of it fails.</p>
     </div></details>

@@ -443,8 +443,20 @@ const WorkflowTerminal: React.FC = () => {
         .wt-cm{color:rgba(255,255,255,.46)}
 
         /* The infra comment. Dim on purpose - it is the substrate, not the event - but
-           still above the 12px floor because it carries the actual message. */
-        .wt-infra{margin-top:9px;color:rgba(255,255,255,.44);font-size:12.5px;line-height:1.6}
+           still above the 12px floor because it carries the actual message.
+           .50, NOT .44, AND THE REASON IS MEASURED. This line is the one that makes the
+           section's argument - "# dynamodb · single-table · on-demand capacity", the shared
+           foundation named under every step - and at rgba(255,255,255,.44) it composited to
+           4.25:1 on #000, below the 4.5:1 WCAG 1.4.3 requires at 12.5px/400. It was the only
+           one of the fourteen text styles in this panel that failed; .50 measures 5.28:1.
+           Deliberately NOT .62: that is .wt-desc's value, and this line must stay dimmer than
+           the description it sits under, which is the whole point of the "dim on purpose"
+           above. .50 is the smallest step that clears AA and keeps that order intact.
+           NOTE .wt-cm above passes at 4.58:1, i.e. by 0.08 - any further dimming of it fails.
+           Re-measure with: node tools/browser/flowprobe.js - it asserts every ratio here.
+           (No backticks in this comment: this sits inside a style jsx template literal, where
+           one stray backtick ends the literal and the build fails at type-check.) */
+        .wt-infra{margin-top:9px;color:rgba(255,255,255,.50);font-size:12.5px;line-height:1.6}
 
         .wt-results{margin-top:11px;display:flex;flex-wrap:wrap;gap:7px}
         .wt-chip{padding:5px 9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:5px;color:rgba(255,255,255,.62);font-size:12px}
