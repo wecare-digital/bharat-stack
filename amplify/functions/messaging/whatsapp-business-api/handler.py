@@ -3706,7 +3706,8 @@ def _upsert_flow_registry(body: Dict) -> Dict:
             'contactMapping': body.get('contactMapping', '{}'),
             'dataFetchers': body.get('dataFetchers', '{}'),
             'submissionPrefix': body.get('submissionPrefix', 'WD'),
-            'endpointUri': body.get('endpointUri', 'https://api.wecare.digital/wa-business/flow-data'),
+            # apex `/api` path since 2026-09-26; `api.wecare.digital` is retired.
+            'endpointUri': body.get('endpointUri', 'https://wecare.digital/api/wa-business/flow-data'),
             'createdAt': Decimal(str(body.get('createdAt', now))),
             'updatedAt': Decimal(str(now)),
         }
