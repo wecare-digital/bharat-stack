@@ -226,8 +226,15 @@ const METRICS = () => {
       + `<iframe loading="lazy" scrolling="no" title="preview" `
       + `style="width:${w}px;height:${h}px;transform:scale(${sc})" `
       + `srcdoc="${frameDoc( o ).replace( /"/g, '&quot;' )}"></iframe></div>`;
+    // THE SCALE IS PART OF THE LABEL - see the same note in flowreview.js. A frame at
+    // scale(0.62) shows this band's 20px body rung at 12.4px on screen, and band 2's page
+    // scales some of its frames differently again, so type compared across the two pages is
+    // not type compared at the same size. Both bands really do use one 20px/400/1.4/-.125px
+    // body rung; the mocks were the only thing suggesting otherwise.
     const labelled = ( lab, cls, o, w, h, sc ) =>
-      `<div class="cmpcol"><span class="collab ${cls}">${lab}</span>${shot( o, w, h, sc )}</div>`;
+      `<div class="cmpcol"><span class="collab ${cls}">${lab}</span>`
+      + ( sc < 1 ? `<span class="scale">shown at ${Math.round( sc * 100 )}% — type is not to size</span>` : '' )
+      + `${shot( o, w, h, sc )}</div>`;
 
     const DH = 640, MH = 760;
     const d = M.d, m = M.m, C = M.contrast;
@@ -297,6 +304,8 @@ const METRICS = () => {
   .shot iframe{border:0;display:block;transform-origin:0 0}
   .cmp{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin:0 0 14px}
   .cmpcol{flex:none}
+  .scale{display:block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--amb);background:#fff4e5;border-radius:4px;padding:2px 7px;margin:0 0 6px}
   .cap{font-size:14px;color:var(--mut);margin:0 0 14px;max-width:110ch}
   .cap b{color:var(--ink)}
   details.why{border:1px solid var(--line);border-radius:9px;background:#fcfcfc;margin:14px 0 0}
