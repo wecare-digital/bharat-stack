@@ -49,10 +49,21 @@ describe( 'support widget wiring', () => {
     expect( app ).not.toContain( '<LanguageBar' );
   } );
 
-  it( 'keeps the WhatsApp link pointing where the external script pointed', () => {
-    // Read out of the live wecare-wa-widget.js rather than invented, so retiring that
-    // script does not silently move where visitors land.
-    expect( widget ).toContain( 'https://wa.me/message/APDM5HUWH26SG1' );
+  it( 'sends WhatsApp through the short link, which resolves to the original destination', () => {
+    // THE DESTINATION HAS NOT MOVED, ONLY THE URL THAT NAMES IT. wecare.digital/r/wa answers
+    // 302 to https://wa.me/message/APDM5HUWH26SG1 - the URL that used to be hardcoded here,
+    // itself read out of the retired wecare-wa-widget.js rather than invented. Verified by
+    // request before the swap, not assumed.
+    // Asserting the short link rather than the wa.me URL is the point: the destination becomes
+    // editable without a deploy, and this button now matches the link the voice handlers read
+    // out to callers instead of duplicating it.
+    expect( widget ).toContain( 'href="https://wecare.digital/r/wa"' );
+    // And no wa.me URL may be the HREF any more, or both would ship and the indirection would
+    // be decorative. Scoped to href= rather than the bare string on purpose: the component's
+    // comment names the wa.me URL to record what the short link resolves to, and this file is
+    // read as SOURCE, so a blanket not.toContain would fail on the documentation explaining
+    // the change. That is precisely what it did first time.
+    expect( widget ).not.toContain( 'href="https://wa.me/' );
     // An anchor, not a button with an onClick: it leaves the site, so it has to be
     // middle-clickable and copyable like any other link.
     expect( widget ).toContain( 'className="wc-wa"' );
