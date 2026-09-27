@@ -266,3 +266,76 @@ looked right — it is the template every post-call RCS currently uses.
    the QR is too small to rely on at card size.
 4. **Option A** as a fallback for handsets or routes where rich cards are not
    worth the weight.
+
+---
+
+## 9. Text and button colour — what is actually settable
+
+Short version: **an RCS template carries no colour field.** Checked both ways —
+the only colour-adjacent string in the entire RCS code path
+(`rcs-send/handler.py`, `lambda_utils/sinch_rcs.py`) is the word `brand` inside a
+redaction key list. There is no `color`, no `theme`, no `style`.
+
+### 9.1 Who controls what
+
+| Element | Controlled by | Light mode | Dark mode |
+|---|---|---|---|
+| Card background | handset Messages theme | near-white | near-black `#1f1f1f` |
+| Title | handset theme | `#1f1f1f` | `#e8eaed` |
+| Description | handset theme | `#5f6368` | `#9aa0a6` |
+| Inline links in the description | handset theme | `#1a73e8` | `#8ab4f8` |
+| **Suggestion / action button** | **your RBM agent colour** | agent colour | auto-lightened |
+| Media image | your asset | as uploaded | as uploaded |
+
+So the only colour you own is the **button tint**, and it is set **once on the
+agent**, not per template. Google lists colour among the agent fields edited in
+the Business Communications console — alongside display name, description, images
+and contact details — which for us means Sinch/ACL sets it during agent
+verification. Vonage documents the binding constraint: the brand colour must reach
+at least **4.5:1 contrast against white** (WCAG 2.0) so it stays legible.
+
+Sources: [Google — edit agent information](https://developers.google.com/business-communications/rcs-business-messaging/guides/build/agents/edit-agent-information),
+[Vonage — branding your RCS agent](https://api.support.vonage.com/hc/en-us/articles/20710366656668-Branding-Your-RCS-Agent-Guidelines-for-Logo-Banner-and-Color-Theme).
+*Content was rephrased for compliance with licensing restrictions.*
+
+### 9.2 Measured contrast for our candidate colours
+
+Computed with the WCAG 2.0 relative-luminance formula, not eyeballed:
+
+| Colour | Source | vs white | vs `#1f1f1f` | RBM rule |
+|---|---|---:|---:|---|
+| **`#01643F`** | sampled from the card artwork | **7.25:1** | 2.27:1 | **PASS — recommended** |
+| `#1a3a2a` | site CSS `--color-primary` | 12.48:1 | 1.32:1 | PASS, but darker than the art |
+| `#0f2a1d` | CSS `--color-primary-hover` | 15.34:1 | 1.07:1 | PASS, very dark |
+| `#d1f470` | UI lime accent | 1.24:1 | 13.25:1 | **FAIL — illegible on white** |
+| `#25D366` | WhatsApp green | 1.98:1 | 8.31:1 | **FAIL**, and off-brand here |
+
+`#01643F` is the right choice: it clears the rule with margin at 7.25:1 **and** it
+is the exact green in `wdf.png` / `wdb.png`, so the button and the card image
+match instead of clashing by a few degrees of hue.
+
+Do **not** propose `#d1f470`. It is the workspace UI accent and reads well on
+dark chrome, but at 1.24:1 on white it would be effectively invisible in a light
+mode card — and light mode is the default.
+
+### 9.3 What I could not verify
+
+* **The agent's current colour.** The ACL Conversation API `/apps` probe returns
+  rate limits, retention, callback and fallback settings — no branding block. The
+  RBM agent's colour lives on the Google side, held by the partner. Ask Sinch/ACL
+  what the agent is set to, or read it in the Business Communications console.
+* **Exact dark-mode rendering.** `#01643F` is only 2.27:1 against `#1f1f1f`, so
+  Messages will lighten the tint rather than render it unreadably. I have not
+  confirmed the algorithm or the resulting value — check it on a real handset.
+  The mock in this section is a mock, not a measurement.
+
+### 9.4 If you want a different look
+
+Because the chrome is not ours, the ways to change the card's feel are:
+
+1. **The media image** — the one part fully under our control, and the reason
+   option C matters. The 7:3 banner is the card's visual identity.
+2. **The agent colour**, once, via the provider. Changing it moves every button in
+   every template at the same time.
+3. **The button label.** `"GET STARTED"` is our string; the handset uppercases and
+   tints it. Shorter labels survive narrow screens better.
