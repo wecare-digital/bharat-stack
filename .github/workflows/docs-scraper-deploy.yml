@@ -41,6 +41,20 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
+          # THE ROLE NAME KEEPS "bharat-stack" ON PURPOSE. The GitHub repository was renamed
+          # to wecare-digital/wecare-digital; this is an AWS IAM role, which was NOT renamed
+          # with it. Editing this string to match the new repo name would point at a role that
+          # does not exist.
+          #
+          # WHAT THE RENAME DOES BREAK, and it is not visible from here: this job authenticates
+          # by OIDC (id-token: write above), and the token's `sub` claim carries the repository
+          # path - repo:wecare-digital/<name>:ref:... . The role's TRUST POLICY matches on that
+          # claim, so if it still names the old path this step fails with
+          #   Not authorized to perform sts:AssumeRoleWithWebIdentity
+          # which reads as a credentials problem rather than a rename consequence. The fix is
+          # on the AWS side - update the trust policy's sub condition - not in this file.
+          # Four workflows assume a role this way: this one, seo-tools-deploy, plivo-drift and
+          # route-auth.
           role-to-assume: arn:aws:iam::775261844268:role/GitHubActions-bharat-stack-docs-scraper
           role-session-name: bharat-stack-docs-scraper
           aws-region: ${{ env.AWS_REGION }}

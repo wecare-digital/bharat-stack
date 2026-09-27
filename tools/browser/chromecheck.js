@@ -50,7 +50,11 @@ const MARKERS = {
   header: { re: /<header[^>]*class="[^"]*\bhdr\b/, what: 'the public header' },
   footer: { re: /<footer[^>]*class="[^"]*\bft-footer\b/, what: 'the public footer' },
   widget: { re: /class="[^"]*\bwc-langbar\b/, what: 'the support widget' },
-  whatsapp: { re: /wa\.me\/message\/APDM5HUWH26SG1/, what: "the widget's WhatsApp destination" },
+  // The short link, not the wa.me URL it resolves to. wecare.digital/r/wa answers 302 to
+  // https://wa.me/message/APDM5HUWH26SG1, so the destination is unchanged - but the markup now
+  // carries the shortener path, and a marker matching the old URL would report the widget's
+  // WhatsApp destination as MISSING on every page.
+  whatsapp: { re: /wecare\.digital\/r\/wa/, what: "the widget's WhatsApp destination" },
   lockup: { re: /class="[^"]*\bbrand-lockup\b/, what: 'the brand lockup' },
 };
 
