@@ -1,0 +1,56 @@
+{
+  "actions": [
+    {
+      "actionTypes": [
+        "openUrlAction"
+      ],
+      "application": "BROWSER",
+      "kind": "action",
+      "postbackData": "wd_get_started",
+      "text": "Get Started",
+      "url": "https://wecare.digital/selfservice"
+    },
+    {
+      "actionTypes": [
+        "openUrlAction"
+      ],
+      "application": "BROWSER",
+      "kind": "action",
+      "postbackData": "wd_whatsapp",
+      "text": "WhatsApp us",
+      "url": "https://wa.me/message/APDM5HUWH26SG1"
+    },
+    {
+      "actionTypes": [
+        "dialAction"
+      ],
+      "application": null,
+      "kind": "action",
+      "postbackData": "wd_call",
+      "text": "Call us",
+      "url": null
+    }
+  ],
+  "bodyLength": 118,
+  "cardOrientation": "VERTICAL",
+  "documentedOnly": false,
+  "fingerprint": "184917792fa1ec74",
+  "forceRefresh": false,
+  "hasTrailingBackticks": false,
+  "isCarousel": false,
+  "isRichCard": true,
+  "mediaExtension": "png",
+  "mediaHeight": "MEDIUM",
+  "mediaUrl": "https://wecare.digital/get/o/stream/media/m/wd-brand-16x9.png",
+  "name": "wd_card_clean",
+  "referencedByCode": false,
+  "status": "approved",
+  "suggestionCount": 3,
+  "thumbnailImageAlignment": null,
+  "thumbnailUrl": null,
+  "title": "WECARE.DIGITAL",
+  "titleLength": 14,
+  "type": "rich_card",
+  "variableSyntax": "none",
+  "variables": []
+}

@@ -1,0 +1,35 @@
+{
+  "component": {
+    "richCard": {
+      "standaloneCard": {
+        "cardContent": {
+          "description": "Building digital railroads for Everyday Bharat.\n\nSubmit your request: https://wecare.digital/selfservice\nMessage / voice note us on WhatsApp: https://wecare.digital/r/wa",
+          "media": {
+            "contentInfo": {
+              "fileUrl": "https://wecare.digital/get/o/stream/media/m/wd-card-front-wide.png",
+              "forceRefresh": false
+            },
+            "height": "MEDIUM"
+          },
+          "suggestions": [
+            {
+              "action": {
+                "openUrlAction": {
+                  "application": "BROWSER",
+                  "url": "https://wecare.digital/r/getstarted"
+                },
+                "postbackData": "wd_card_front",
+                "text": "Get Started"
+              }
+            }
+          ],
+          "title": "WECARE.DIGITAL"
+        },
+        "cardOrientation": "VERTICAL"
+      }
+    }
+  },
+  "name": "wd_card_front_wide",
+  "status": "approved",
+  "type": "rich_card"
+}
