@@ -194,8 +194,34 @@ across 124 routes:
   `width:max-content` plus a `ResizeObserver` **on the text element, not its container**, is
   the pattern that survives it. Observing the container never fires or feeds itself.
 
+- **A brand name must NOT translate, and a census cannot see that.** `pageaudit.js` counts
+  what translates and what is skipped, which treats every translated node as a success. The
+  opposite defect is invisible to it: `BrandLockup` renders "WECARE" and "DIGITAL" as two
+  separate text nodes, neither was flagged, so the provider returned `نحن نهتم. رقمي` in
+  Arabic and `डिजिटल` in Hindi — the wordmark came apart mid-brand on **every** route, header
+  and footer, while the census read green. Use `tools/browser/translatecheck.js`, which fails
+  on a translatable brand node and asserts in the same run that the header menu and footer
+  still translate — because the failure mode of an exclusion is scope, and putting the flag on
+  a container instead of the wordmark silently un-translates everything beneath it.
+- **Proper nouns are the general case.** Author names, business names on a map card and brand
+  eyebrows are all names, not prose. An author byline was the largest single source: **1276**
+  occurrences across the exported blog. Prefer the flag on the element holding the name alone,
+  never on a wrapper that also holds a date or an address — those should translate.
+- **A name inside a sentence is a different problem.** 44 strings embed the brand in real
+  prose ("WECARE.DIGITAL is not an emergency service…"). Flagging those would stop a genuine
+  sentence translating, so `translatecheck.js` reports them without failing. The visible
+  symptom is inconsistency rather than breakage: the provider may render the name in one
+  language and pass it through in another.
+
 Verify with the census in `tools/browser/pageaudit.js`, which reimplements the walker's filter
-exactly and reports per route what would translate, what would be skipped, and why.
+exactly and reports per route what would translate, what would be skipped, and why. **That
+filter now exists in three places** — `SupportWidget.tsx`, `pageaudit.js` and
+`translatecheck.js`. If `acceptNode` changes, all three change together.
+
+**RTL is unhandled and the catalogue offers RTL languages.** No route sets `dir` — measured
+`0 of 761` — while the provider list includes Arabic, Urdu, Hebrew and Persian. Translating
+into Arabic today produces correct words in a left-to-right layout, which is why punctuation
+lands at the wrong end of a line.
 
 ## 6. Structure every public page must carry
 
@@ -229,6 +255,7 @@ node tools/browser/homeprobe.js        # the degradation states from §3
 node tools/browser/pageaudit.js        # structure + translation census + overflow
 node tools/browser/devicecheck.js      # 18 routes × 15 postures, incl. foldables
 node tools/browser/devicecheck.js --firefox   # same matrix on Gecko
+node tools/browser/translatecheck.js   # brand name must NOT translate; header/footer must
 node tools/browser/uicheck.js
 node tools/browser/typecheck.js
 node tools/browser/seocheck.js

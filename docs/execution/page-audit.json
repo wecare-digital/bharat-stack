@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-26T10:39:47.987Z",
+ "generated": "2026-09-26T14:32:47.330Z",
  "routes": [
   {
    "route": "/",
@@ -18,14 +18,16 @@
     }
    },
    "status": 200,
-   "translated": 53,
+   "translated": 49,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "aria-hidden": 10,
+    "data-wc-no-translate": 4,
+    "aria-hidden": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
     "aria-hidden": "platform / production",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/\",\"qu"
    },
@@ -63,16 +65,20 @@
     }
    },
    "status": 200,
-   "translated": 54,
+   "translated": 49,
    "skipped": {
     "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 4,
     "aria-hidden": 5,
-    "tag:SCRIPT": 2
+    "tag:SCRIPT": 2,
+    "tag:NEXT-ROUTE-ANNOUNCER": 1
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
     "aria-hidden": "platform / production",
-    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/404\","
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/404\",",
+    "tag:NEXT-ROUTE-ANNOUNCER": "Everyday AI, built for Bharat | WECARE.D"
    },
    "attrs": {
     "placeholder": 1,
@@ -108,16 +114,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/acces"
    },
@@ -155,16 +161,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/acces"
    },
@@ -202,16 +208,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/admin"
    },
@@ -249,15 +255,15 @@
     }
    },
    "status": 200,
-   "translated": 47,
+   "translated": 43,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Anew by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/anew\""
    },
    "attrs": {
@@ -294,15 +300,15 @@
     }
    },
    "status": 200,
-   "translated": 46,
+   "translated": 42,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Bharat Rx by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/bhara"
    },
    "attrs": {
@@ -339,13 +345,15 @@
     }
    },
    "status": 200,
-   "translated": 2585,
+   "translated": 1942,
    "skipped": {
     "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 643,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{\"posts\":[{\"id\":\"7"
    },
    "attrs": {
@@ -382,15 +390,15 @@
     }
    },
    "status": 200,
-   "translated": 47,
+   "translated": 43,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Clear Closure by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/clear"
    },
    "attrs": {
@@ -427,16 +435,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/comme"
    },
@@ -474,17 +482,17 @@
     }
    },
    "status": 200,
-   "translated": 55,
+   "translated": 50,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 6,
     "aria-hidden": 1,
     "tag:CODE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Selfservice by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "aria-hidden": "WECARE.DIGITAL",
     "tag:CODE": "H9C4+MMP",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/conta"
@@ -523,16 +531,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/conta"
    },
@@ -570,16 +578,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dashb"
    },
@@ -617,16 +625,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dashb"
    },
@@ -664,16 +672,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dashb"
    },
@@ -711,16 +719,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dashb"
    },
@@ -758,16 +766,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dashb"
    },
@@ -805,16 +813,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dashb"
    },
@@ -852,16 +860,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dashb"
    },
@@ -899,16 +907,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dashb"
    },
@@ -946,16 +954,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dashb"
    },
@@ -993,15 +1001,15 @@
     }
    },
    "status": 200,
-   "translated": 47,
+   "translated": 43,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Dastavez by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dasta"
    },
    "attrs": {
@@ -1038,16 +1046,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm\",\""
    },
@@ -1085,16 +1093,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/an"
    },
@@ -1132,16 +1140,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/ap"
    },
@@ -1179,16 +1187,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/au"
    },
@@ -1226,16 +1234,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/br"
    },
@@ -1273,16 +1281,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/ch"
    },
@@ -1320,16 +1328,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/co"
    },
@@ -1367,16 +1375,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/co"
    },
@@ -1414,16 +1422,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/co"
    },
@@ -1461,16 +1469,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/co"
    },
@@ -1508,16 +1516,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/do"
    },
@@ -1555,16 +1563,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/do"
    },
@@ -1602,16 +1610,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/en"
    },
@@ -1649,16 +1657,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/fa"
    },
@@ -1696,16 +1704,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/in"
    },
@@ -1743,16 +1751,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/lo"
    },
@@ -1790,16 +1798,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/me"
    },
@@ -1837,16 +1845,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/or"
    },
@@ -1884,16 +1892,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/pu"
    },
@@ -1931,16 +1939,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/rc"
    },
@@ -1978,16 +1986,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/rc"
    },
@@ -2025,16 +2033,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/rc"
    },
@@ -2072,16 +2080,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/re"
    },
@@ -2119,16 +2127,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/rx"
    },
@@ -2166,16 +2174,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/sc"
    },
@@ -2213,16 +2221,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/se"
    },
@@ -2260,16 +2268,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/se"
    },
@@ -2307,16 +2315,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/se"
    },
@@ -2354,16 +2362,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/se"
    },
@@ -2401,16 +2409,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/sm"
    },
@@ -2448,16 +2456,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/vo"
    },
@@ -2495,16 +2503,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/vo"
    },
@@ -2542,16 +2550,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -2589,16 +2597,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -2636,16 +2644,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -2683,16 +2691,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -2730,16 +2738,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -2777,16 +2785,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -2824,16 +2832,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -2871,16 +2879,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -2918,16 +2926,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -2965,16 +2973,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3012,16 +3020,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3059,16 +3067,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3106,16 +3114,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3153,16 +3161,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3200,16 +3208,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3247,16 +3255,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3294,16 +3302,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3341,16 +3349,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3388,16 +3396,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3435,16 +3443,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3482,16 +3490,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3529,16 +3537,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3576,16 +3584,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3623,16 +3631,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3670,16 +3678,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3717,16 +3725,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3764,16 +3772,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3811,16 +3819,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3858,16 +3866,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3905,16 +3913,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3952,16 +3960,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/dm/wh"
    },
@@ -3999,16 +4007,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/docs\""
    },
@@ -4046,15 +4054,15 @@
     }
    },
    "status": 200,
-   "translated": 47,
+   "translated": 43,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Elsewhere by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/elsew"
    },
    "attrs": {
@@ -4091,15 +4099,15 @@
     }
    },
    "status": 200,
-   "translated": 46,
+   "translated": 42,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Expo Week by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/expo-"
    },
    "attrs": {
@@ -4136,16 +4144,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/forms"
    },
@@ -4183,16 +4191,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/forms"
    },
@@ -4230,16 +4238,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/forms"
    },
@@ -4277,13 +4285,15 @@
     }
    },
    "status": 200,
-   "translated": 35,
+   "translated": 30,
    "skipped": {
     "tag:NOSCRIPT": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/get\","
    },
    "attrs": {
@@ -4320,16 +4330,16 @@
     }
    },
    "status": 200,
-   "translated": 81,
+   "translated": 77,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 3,
+    "data-wc-no-translate": 7,
     "tag:PRE": 2,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Grahak OS · by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:PRE": "response = requests.post(\n  \"api.wecare.",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/graha"
    },
@@ -4367,16 +4377,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/link\""
    },
@@ -4414,15 +4424,15 @@
     }
    },
    "status": 200,
-   "translated": 47,
+   "translated": 43,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Selfservice — WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/my-or"
    },
    "attrs": {
@@ -4459,15 +4469,15 @@
     }
    },
    "status": 200,
-   "translated": 46,
+   "translated": 42,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Niji Setu by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/niji-"
    },
    "attrs": {
@@ -4541,16 +4551,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/pay\","
    },
@@ -4588,16 +4598,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/pay/f"
    },
@@ -4635,16 +4645,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/pay/l"
    },
@@ -4682,16 +4692,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/pay/r"
    },
@@ -4729,15 +4739,15 @@
     }
    },
    "status": 200,
-   "translated": 248,
+   "translated": 244,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Legal Stuff — WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/priva"
    },
    "attrs": {
@@ -4774,15 +4784,15 @@
     }
    },
    "status": 200,
-   "translated": 46,
+   "translated": 42,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Ritual Guru by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/ritua"
    },
    "attrs": {
@@ -4819,16 +4829,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo\","
    },
@@ -4866,16 +4876,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/a"
    },
@@ -4913,16 +4923,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/b"
    },
@@ -4960,16 +4970,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/i"
    },
@@ -5007,18 +5017,20 @@
     }
    },
    "status": 200,
-   "translated": 37,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
-    "tag:SCRIPT": 2
+    "tag:SCRIPT": 2,
+    "tag:NEXT-ROUTE-ANNOUNCER": 1
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
-    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/p"
+    "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/p",
+    "tag:NEXT-ROUTE-ANNOUNCER": "WECARE.DIGITAL"
    },
    "attrs": {
     "placeholder": 3,
@@ -5054,16 +5066,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/p"
    },
@@ -5101,16 +5113,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/p"
    },
@@ -5148,16 +5160,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/p"
    },
@@ -5195,16 +5207,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/s"
    },
@@ -5242,16 +5254,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/s"
    },
@@ -5289,16 +5301,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/t"
    },
@@ -5336,16 +5348,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/seo/t"
    },
@@ -5383,16 +5395,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/servi"
    },
@@ -5430,16 +5442,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/servi"
    },
@@ -5477,16 +5489,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/servi"
    },
@@ -5524,16 +5536,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/servi"
    },
@@ -5571,16 +5583,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/setti"
    },
@@ -5618,16 +5630,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/store"
    },
@@ -5665,16 +5677,16 @@
     }
    },
    "status": 200,
-   "translated": 36,
+   "translated": 32,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:STYLE": 1,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:STYLE": "[data-amplify-theme=\"stack-crm-theme\"] {",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/task\""
    },
@@ -5712,15 +5724,15 @@
     }
    },
    "status": 200,
-   "translated": 493,
+   "translated": 489,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "Legal Stuff — WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/terms"
    },
    "attrs": {
@@ -5757,15 +5769,15 @@
     }
    },
    "status": 200,
-   "translated": 39,
+   "translated": 35,
    "skipped": {
     "tag:NOSCRIPT": 1,
-    "data-wc-no-translate": 1,
+    "data-wc-no-translate": 5,
     "tag:SCRIPT": 2
    },
    "samples": {
     "tag:NOSCRIPT": "<iframe src=\"https://www.googletagmanage",
-    "data-wc-no-translate": "VayuLok by WECARE.DIGITAL",
+    "data-wc-no-translate": "WECARE",
     "tag:SCRIPT": "{\"props\":{\"pageProps\":{}},\"page\":\"/vayul"
    },
    "attrs": {

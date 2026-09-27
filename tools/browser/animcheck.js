@@ -127,10 +127,14 @@ const ALLOWED = [
   { why: 'dev: Next serves this with a MIME type Chromium refuses', test: ( text ) => /_clientMiddlewareManifest\.js/.test( text ) },
   { why: 'dev: HMR websocket cannot handshake through this sandbox', test: ( text ) => /_next\/hmr/.test( text ) },
   {
-    why: 'local origin: api.wecare.digital sends no CORS header for 127.0.0.1',
+    // MATCHED ON THE PATH, NOT THE HOST, for the reason uicheck.js's stub now is: this read
+    // /api\.wecare\.digital\/site-language/ and stopped matching when the frontend moved to
+    // wecare.digital/api, so a CORS failure that is expected on a 127.0.0.1 origin started
+    // failing this gate on four routes. The host is not the contract; the path is.
+    why: 'local origin: the site-language API sends no CORS header for 127.0.0.1',
     test: ( text, url ) =>
-      /api\.wecare\.digital\/site-language/.test( text )
-      || ( /Failed to load resource/.test( text ) && /api\.wecare\.digital\/site-language/.test( url || '' ) ),
+      /\/site-language/.test( text )
+      || ( /Failed to load resource/.test( text ) && /\/site-language/.test( url || '' ) ),
   },
   {
     why: "third party: Google's keyless maps/embed iframe calls its own private "

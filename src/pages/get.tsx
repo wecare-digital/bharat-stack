@@ -216,7 +216,10 @@ export default function FilesPage () {
 
             <main className="sf-shell" aria-label="Your files">
                 <div className="sf-panel">
-                    <p className="sf-eyebrow">WECARE.DIGITAL</p>
+                    {/* data-wc-no-translate: the element is the company name and nothing
+                        else, so excluding it costs no coverage. The .sf-title below still
+                        translates. */}
+                    <p className="sf-eyebrow" data-wc-no-translate="true">WECARE.DIGITAL</p>
                     <h1 className="sf-title">
                         { stage === 'files' ? 'Your files' : 'Collect your files' }
                     </h1>

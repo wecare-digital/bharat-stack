@@ -243,7 +243,14 @@ const FIRST_BATCH_DELAY = 900;
 
 async function stubLanguageApi( page ) {
   let translateCalls = 0;
-  await page.route( /api\.wecare\.digital\/site-language\/(languages|translate)/, async route => {
+  // MATCHED ON THE PATH, NOT THE HOST. This pattern was
+  // /api\.wecare\.digital\/site-language\/.../ and it silently stopped matching when the
+  // frontend moved to wecare.digital/api - SupportWidget's fetch went unstubbed, the
+  // catalogue never arrived, .wc-chip never rendered, and four assertions failed with
+  // "the language catalogue stub did not satisfy SupportWidget". The stub was pointing at
+  // an address the app no longer calls. /site-language/ is the stable part of the contract,
+  // so it is what this keys on; the host is free to move again.
+  await page.route( /\/site-language\/(languages|translate)/, async route => {
     const headers = { 'access-control-allow-origin': '*' };
     if ( /\/translate/.test( route.request().url() ) ) {
       const body = route.request().postDataJSON() || {};

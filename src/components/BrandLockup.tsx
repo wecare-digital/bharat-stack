@@ -16,8 +16,36 @@ interface BrandLockupProps {
  * shape: same logo, same two-line split on the dot, same red accent. Size is the only
  * difference, so the two read as one brand at two levels rather than as two brands.
  */
+/**
+ * data-wc-no-translate: THE WORDMARK IS A COMPANY NAME AND WAS BEING TRANSLATED.
+ *
+ * SupportWidget's walker collects text nodes and rewrites nodeValue in place. This lockup
+ * renders "WECARE" and "DIGITAL" as two separate text nodes (the two-line split below), and
+ * neither was protected, so both were collected and sent to the provider. Measured on the
+ * built export before this attribute existed: 4 translatable brand nodes on every route -
+ * two in the header lockup, two in the footer's compact one.
+ *
+ * What a visitor saw, from the live site: Arabic rendered the header as "نحن نهتم. رقمي" -
+ * a literal translation of "we care" and "digital" - and Hindi rendered "WECARE." followed
+ * by "डिजिटल", so the wordmark came apart mid-brand. The provider is behaving correctly;
+ * it was handed two ordinary English words with no indication they were a name.
+ *
+ * ON THE ROOT, NOT ON .brand-copy. The flag has to cover every text node this component can
+ * produce, and `suffix` is a ReactNode a consumer can pass in - putting the attribute on the
+ * inner wordmark span would leave anything a caller appends unprotected. The walker takes the
+ * NEAREST flag, so a consumer that genuinely wants a translatable suffix can still opt back
+ * in with data-wc-translate="true" on it.
+ *
+ * WHY NOT A TRANSLATABLE DESCRIPTOR. BrandBadge.tsx documents the related trap: the flag also
+ * catches words sitting beside the brand name, which then never translate. There are none
+ * here - this component renders the wordmark and nothing else - so the exclusion is exactly
+ * the brand and costs no coverage. That is measured rather than assumed: translatecheck.js
+ * asserts the header menu and footer still translate in the same run that asserts this.
+ *
+ * Asserted by tools/browser/translatecheck.js and BrandLockup.test.tsx.
+ */
 const BrandLockup: React.FC<BrandLockupProps> = ( { className = '', compact = false } ) => (
-  <span className={ `brand-lockup full ${compact ? 'compact' : ''} ${className}`.trim() }>
+  <span className={ `brand-lockup full ${compact ? 'compact' : ''} ${className}`.trim() } data-wc-no-translate="true">
     <img src={ LOGO_URL } alt="" aria-hidden="true" />
     {/* WECARE.DIGITAL, split across the same two lines the wordmark has always used.
         The owner asked for "WECARE.DIGITAL" to become WECARE.DIGITAL everywhere; this

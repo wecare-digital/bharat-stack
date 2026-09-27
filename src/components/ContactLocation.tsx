@@ -453,7 +453,15 @@ const ContactLocation: React.FC = () => {
               that IS achievable today. */}
           <p className="cl-pinlabel" aria-hidden="true">WECARE.DIGITAL</p>
           <div className="cl-card">
-            <p className="cl-card-name">WECARE.DIGITAL</p>
+            {/* data-wc-no-translate: a company name, for the reason BrandLockup.tsx sets out
+                at length. This one is the map card's business name, so it is the same string
+                Google shows on the listing beside it - a translated copy next to an
+                untranslated one would read as two different businesses. The sibling
+                .cl-pinlabel above is already skipped, but only incidentally, because it
+                carries aria-hidden; this is the explicit flag. The address below is NOT
+                flagged: a street and city are worth translating, and the postcode has no
+                letters for the walker to collect. */}
+            <p className="cl-card-name" data-wc-no-translate="true">WECARE.DIGITAL</p>
             <p className="cl-card-addr">Phears Lane<br />Kolkata 700012, WB</p>
 
             {/* LIVE ROW. Rendered only once at least one value has arrived, so the card never

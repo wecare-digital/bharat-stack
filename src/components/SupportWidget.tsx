@@ -127,6 +127,14 @@ function searchLanguages ( all: Lang[], query: string ): Lang[] {
 const SKIP_TAGS = new Set( [
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'SVG', 'CANVAS', 'VIDEO', 'AUDIO',
   'INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'CODE', 'PRE', 'HEAD', 'META', 'LINK',
+  // NEXT-ROUTE-ANNOUNCER is Next.js's own aria-live region, not page content. Next writes
+  // document.title into it on every client navigation, so anything we translate there is
+  // overwritten by the next route change - we would be paying per character to rewrite a
+  // node that does not stay rewritten. It held the bare company name on the dynamic
+  // /seo/page/[id]/ shell, which is why it surfaced: it was the last node in the export
+  // reporting the brand as translatable. Skipping it is the honest description of what the
+  // walker can usefully own.
+  'NEXT-ROUTE-ANNOUNCER',
 ] );
 
 function collectTextNodes ( root: HTMLElement ): Text[] {
