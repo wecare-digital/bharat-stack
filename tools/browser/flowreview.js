@@ -132,6 +132,9 @@ const METRICS = () => {
   const space = q( '.wt-space' );
   return {
     vw: window.innerWidth,
+    // Needed to decide whether the band is above the fold at load, which is what determines
+    // whether the IntersectionObserver has fired and therefore what "arrival" looks like.
+    vh: window.innerHeight,
     flow: box( q( '.home-flow' ) ),
     panel: box( q( '.home-flow-panel' ) ),
     copy: box( q( '.home-flow-copy' ) ),
@@ -244,7 +247,36 @@ const METRICS = () => {
         overflow: M[ `${vp.k}_overflow` ].steps,
         complete: M[ `${vp.k}_complete` ].steps,
       };
-      if ( counts.t0 !== 0 ) throw new Error( `${vp.k} t0 should be empty, has ${counts.t0} steps` );
+      // WHAT ARRIVAL LOOKS LIKE DEPENDS ON WHETHER THE PANEL IS ON SCREEN, AND THE TWO
+      // VIEWPORTS GENUINELY DIFFER.
+      //
+      // The stream is gated on an IntersectionObserver at threshold 0.25, so it starts when a
+      // quarter of the panel is visible - not on load. At 1280 the band spans 495-1145 in a
+      // 900px viewport, so it is already visible and the first step lands on arrival. At 390
+      // the panel sits at 982 behind an 844px viewport: nothing of it is on screen, the
+      // observer has not fired, and arrival is legitimately an empty panel until the visitor
+      // scrolls down to it.
+      //
+      // This assertion originally read `t0 !== 0`, which was right while a 600ms delay sat in
+      // front of step 0. Removing that delay made the desktop case 1 step and broke it - the
+      // check doing its job. Rewriting it as a flat `=== 1` then broke the phone case for the
+      // opposite reason. So the expectation is derived from whether the band is above the fold
+      // at load, which is the thing that actually decides it.
+      // THE PANEL'S POSITION, NOT THE BAND'S, AND THE REAL 0.25 THRESHOLD.
+      // Using the band was wrong at 390: it reports top 406, comfortably above an 844px fold,
+      // because the copy column is ordered first there (order:-1) and the band starts with it.
+      // The observer is attached to the terminal, which at that width sits at 982 - off screen.
+      // So the fraction of the PANEL visible at load is what decides this, compared against
+      // the same 0.25 the component uses.
+      const mt = M[ `${vp.k}_t0` ];
+      const visible = Math.max( 0, Math.min( mt.panel.t + mt.panel.h, mt.vh ) - mt.panel.t );
+      const frac = visible / mt.panel.h;
+      const expectT0 = frac >= 0.25 ? 1 : 0;
+      if ( counts.t0 !== expectT0 ) {
+        throw new Error( `${vp.k} t0 should hold ${expectT0} step(s): ${Math.round( frac * 100 )}% of the `
+          + `panel is visible at load (top ${mt.panel.t}, height ${mt.panel.h}, viewport ${mt.vh}) `
+          + `against the observer's 25% threshold - but it has ${counts.t0}` );
+      }
       if ( counts.first < 1 ) throw new Error( `${vp.k} first should have the first step, has ${counts.first}` );
       if ( counts.complete !== 8 ) {
         throw new Error( `${vp.k} complete should be complete with 8 steps, has ${counts.complete} `
@@ -369,7 +401,11 @@ const METRICS = () => {
 
     const STAMP = new Date().toISOString().replace( 'T', ' ' ).slice( 0, 16 ) + 'Z';
     const d0 = M.d_t0, d12 = M.d_complete, m0 = M.m_t0, m12 = M.m_complete;
-    const emptyPct = Math.round( ( 1 - 26 / d0.space.h ) * 100 );
+    // MEASURED, NOT THE OLD HARDCODED 26. That literal was the height of the single request
+    // line the panel used to arrive with; the first step now lands immediately, so arrival is
+    // taller and the figure had to come from the capture instead of a constant that was only
+    // true before the fix.
+    const emptyPct = Math.round( ( 1 - d0.streamed / d0.space.h ) * 100 );
     const overflowPct = Math.round( d12.scrollH / d12.space.h * 100 );
 
     const html = `<!doctype html>
@@ -511,36 +547,39 @@ this one is signed off.</p>
 
 <!-- ============== F1 ============== -->
 <section class="band">
-  <div class="bhead"><span class="sev s-h">HIGH</span><h2>F1 — The largest element on the page is ${emptyPct}% empty when you arrive</h2>
+  <div class="bhead"><span class="sev s-m">IMPROVED</span><h2>F1 — The panel no longer empties itself, but it still starts mostly empty</h2>
     <span class="sel">.wt-space</span></div>
   <div class="step">
-    <p class="cap">The terminal is ${d0.win.h}px tall — the biggest single thing on a
-    ${( 2090 )}px page. At <code>t=0</code> it holds one ${26}px line of text. The stream is gated
-    on an <code>IntersectionObserver</code> at threshold 0.25 and then waits a further 600ms, so
-    the empty state is not a flash on a slow connection: <b>it is the state the panel is
-    authored to start in</b>, and it recurs at the bottom of every 15.8s cycle.</p>
-    <p class="cap">The left panel above, at actual size, is what a visitor meets. <b>No fix is
-    proposed here</b> — the options all change what the band says, so they are decisions, listed
-    at the end.</p>
+    <p class="cap">The terminal is ${d0.win.h}px tall — the biggest single thing on a 2090px
+    page. <b>Two of the three causes are fixed.</b> The 600ms delay before the first step is gone,
+    so arrival now shows one step rather than nothing: <b>${emptyPct}% empty instead of 95%</b>.
+    And the sequence no longer resets — it used to drop back to a single line every 15.8s, so the
+    empty state recurred for as long as you stayed on the page. It now happens once.</p>
+    <p class="cap"><b>What is still true:</b> the first thing a visitor sees is a 650px panel with
+    one line in it, filling over ~12.5s. Making it start fuller means seeding several steps, which
+    weakens the "watch it happen" idea — still a decision, still listed at the end.</p>
     <details class="why"><summary>the measurement</summary><div class="inner">
-      <pre>tools/browser/flowprobe.js
+      <pre>node tools/browser/flowprobe.js   (re-measured after the fix)
 
   fill over time (panel inner height ${d0.space.h}px)
     t(ms)  steps  used px  % filled
-        0      0       26        5%
+        0      1      137       25%   &lt;- was 0 steps / 5%
       600      1      137       25%
-     1200      1      137       25%
-     2400      2      289       52%
+     1200      2      289       52%
+     2400      3      460       83%
      4800      4      651      118%
      8000      6      915      166%
-    12500      8     1264      229%</pre>
+    12500      8     1264      229%
+
+  and then it HOLDS. It used to reset to 1 line here and repeat,
+  every 15.8s, for as long as the panel stayed on screen.</pre>
     </div></details>
   </div>
 </section>
 
 <!-- ============== F2 ============== -->
 <section class="band">
-  <div class="bhead"><span class="sev s-h">HIGH</span><h2>F2 — By the end, ${d12.hidden} of the 8 steps have scrolled out and cannot be recovered</h2>
+  <div class="bhead"><span class="sev s-h">STILL OPEN</span><h2>F2 — By the end, ${d12.hidden} of the 8 steps have scrolled out and cannot be recovered</h2>
     <span class="sel">.wt-space · overflow-y:auto · aria-hidden</span></div>
   <div class="step">
     <p class="cap">At completion <b>${d12.scrollH}px of content sits in a ${d12.space.h}px box</b> —
@@ -645,16 +684,18 @@ this one is signed off.</p>
     <table>
       <tr><th>#</th><th>The question</th><th>Why it is a decision</th></tr>
       <tr><td>F1</td><td>Should the panel ship already populated?</td>
-        <td>Seeding it with the first few steps removes the empty arrival but weakens the
-        “watch it happen” idea. Rendering all eight and not animating removes it entirely.</td></tr>
+        <td><b>Partly done.</b> The 600ms dead start and the 15.8s reset are gone, so arrival is
+        one step rather than none and the empty state no longer recurs. Seeding <i>several</i>
+        steps is what remains, and that weakens the “watch it happen” idea.</td></tr>
       <tr><td>F2</td><td>Eight steps, or fewer that fit?</td>
         <td>${d12.scrollH}px does not fit ${d12.space.h}px. Either the panel grows, the steps get
         shorter, or four of them are cut. All three change the argument.</td></tr>
-      <tr><td>F2</td><td>Should the stream be pausable?</td>
-        <td>WCAG 2.2.2 applies to content that moves automatically for over 5s; this runs 15.8s
-        on a loop. A pause control is the conformant answer and it is new furniture on the page.
-        <b>The rotating headline in band 1 has the same exposure</b> — one control may have to
-        serve both.</td></tr>
+      <tr><td>F2</td><td><s>Should the stream be pausable?</s> <b>Resolved</b></td>
+        <td>WCAG 2.2.2 applies to content moving automatically for over 5s; this ran 15.8s on a
+        loop with no pause, stop or hide. <b>It now plays once and holds</b>, which is the
+        conformant answer that adds no furniture to the page — and it matches what the closing
+        band already does for the same stated reason. <b>The rotating headline in band 1 still
+        has this exposure</b> at 9.6s, and is now the only one left.</td></tr>
       <tr><td>F4</td><td>Keep sticky for ${d0.win.h - d0.copy.h}px?</td>
         <td>Dropping it removes a magic number; keeping it is a real if small effect.</td></tr>
       <tr><td>F5</td><td>Should the no-JS state carry the steps?</td>

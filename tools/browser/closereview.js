@@ -467,18 +467,18 @@ and the page's only call to action. Band 1: <code>docs/home-review.html</code>. 
 
 <!-- ============== C4 ============== -->
 <section class="band">
-  <div class="bhead"><span class="sev s-l">LATENT</span>
-    <h2>C4 — The claim list has no measure cap, which changes nothing today</h2>
+  <div class="bhead"><span class="sev s-ok">FIXED</span>
+    <h2>C4 — The claim list had no measure cap</h2>
     <span class="sel">.home-close-points{max-width:${d.pointsMax}}</span></div>
   <div class="step">
     <p class="cap">The lead is capped at <code>${d.leadMax}</code> and the title at
     <code>${d.titleMax}</code>. The points list is not, so each <code>&lt;li&gt;</code> box runs
     the full <b>${d.li[ 0 ].w}px</b> for ${d.li[ 0 ].chars} characters of text.</p>
-    <p class="cap"><b>The two frames below are identical, and that is the finding.</b> The
-    strings are short, so nothing overruns — it is a trap rather than a defect: the first point
-    that grows past ~75 characters will set a line nearly twice the measure of the lead directly
-    above it. <b>I am not proposing this change</b> unless you want the guard; it has no visible
-    effect and the honest way to record it is as a note.</p>
+    <p class="cap"><b>The two frames below are identical, and that is the point.</b> The strings
+    are short, so nothing overran — it was a trap rather than a defect: the first point to grow
+    past ~75 characters would have set a line nearly twice the measure of the lead above it.
+    <b>Now capped at 62ch</b>, the same value as the lead, since both sit on the 20px/400 body
+    rung. Nothing moves today; the guard is the whole benefit.</p>
     ${P.cap}
   </div>
 </section>

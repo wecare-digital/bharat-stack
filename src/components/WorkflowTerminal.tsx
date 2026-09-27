@@ -182,8 +182,16 @@ const WorkflowTerminal: React.FC = () => {
 
       const node = rootRef.current;
       if ( !node || typeof IntersectionObserver !== 'function' ) { setRun( true ); return; }
+      // ONE-SHOT, AND IT DISCONNECTS. This used to toggle `run` on every intersection
+      // change, so scrolling the panel out and back in restarted the sequence from step 0 -
+      // which is both a visible glitch and, together with the loop that used to follow
+      // completion, the reason this panel moved without end.
+      // Firing once and disconnecting is the same pattern the closing band already uses on
+      // this page ("One-shot: it is an entrance, not a scroll effect"), so the two now agree.
       io = new IntersectionObserver(
-        entries => entries.forEach( entry => setRun( entry.isIntersecting ) ),
+        entries => {
+          if ( entries.some( e => e.isIntersecting ) ) { setRun( true ); io?.disconnect(); }
+        },
         { threshold: 0.25 }
       );
       io.observe( node );
@@ -194,6 +202,30 @@ const WorkflowTerminal: React.FC = () => {
 
   // The sequence. One chained timeout rather than an interval, so a slow frame cannot
   // stack two steps on top of each other.
+  //
+  // IT PLAYS ONCE AND HOLDS. IT USED TO LOOP FOR EVER, AND THAT WAS TWO DEFECTS.
+  //
+  // On reaching the last step it waited 3200ms, then reset to `shown: 0` and started again
+  // after 650ms. Measured restart-edge to restart-edge, one cycle was 15.8s - 12.6s streaming
+  // and 3.2s holding - repeating for as long as the panel stayed on screen.
+  //
+  //   1. WCAG 2.2.2. Content that moves automatically for more than five seconds must be
+  //      pausable, stoppable or hideable. This offered none of the three. Playing once is the
+  //      conformant answer that needs no new control on the page, which is why it is preferred
+  //      here over adding a pause button.
+  //   2. THE PANEL EMPTIED ITSELF. The reset dropped it back to one 26px line inside a 551px
+  //      box - 95% empty - every 15.8s. So the largest element on the home page spent part of
+  //      every cycle showing nothing, and anyone arriving mid-reset met a black rectangle.
+  //
+  // Playing once also matches what this page already says about itself: the closing band's
+  // reveal is deliberately one-shot on the stated grounds that there were already two
+  // continuously moving things above it, and a third loop would compete with both. One of
+  // those two was this panel. It is no longer one of them.
+  //
+  // THE FIRST STEP LANDS IMMEDIATELY. There was a 600ms delay before step 0, on top of the
+  // observer gate, so the panel held its empty state for a measurable beat after coming into
+  // view. Nothing needed that delay - the entrance animation on each step is what gives the
+  // arrival its softness, and it still runs.
   useEffect( () => {
     if ( !run ) return undefined;
     let cancelled = false;
@@ -202,12 +234,8 @@ const WorkflowTerminal: React.FC = () => {
     const step = ( index: number ) => {
       if ( cancelled ) return;
       if ( index >= STEPS.length ) {
+        // Hold the finished state. No reset, no restart - see the note above.
         setDone( true );
-        timer = window.setTimeout( () => {
-          if ( cancelled ) return;
-          setShown( 0 ); setSettled( -1 ); setDone( false );
-          timer = window.setTimeout( () => step( 0 ), 650 );
-        }, 3200 );
         return;
       }
       setShown( index + 1 );
@@ -218,7 +246,7 @@ const WorkflowTerminal: React.FC = () => {
       }, dwell( STEPS[ index ] ) );
     };
 
-    timer = window.setTimeout( () => step( 0 ), 600 );
+    step( 0 );
     return () => { cancelled = true; window.clearTimeout( timer ); };
   }, [ run ] );
 
