@@ -262,7 +262,19 @@ response = requests.post(
               <div className="mockup-wrapper">
                 <div className="phone">
                   <div className="phone-header">
-                    <span className="back-arrow"></span>
+                    {/* The empty <span className="back-arrow" /> that used to sit here is
+                        GONE. It had no content and no size, so it drew nothing - but as a
+                        zero-width item in a flex row with gap:10px it still claimed a gap,
+                        and Chromium resolves that gap differently by direction: measured
+                        children of .phone-header put .contact-info at 84px from the inline
+                        start in ltr and 74px in rtl. 74 is the arithmetically correct value
+                        (14 padding + 10 gap = 24 for the avatar, which is 40 wide and ends at
+                        64, + 10 gap = 74), so ltr was carrying a phantom gap.
+                        rtlcheck.js reported it as a 10px mirror asymmetry and it was briefly
+                        allowlisted as a browser quirk. It is not a quirk worth keeping: the
+                        element was dead markup, and deleting it removes the asymmetry and 10px
+                        of unintended space at the same time. If a back chevron is ever wanted
+                        in this mock, give it content and mirror it under rtl. */}
                     <div className="avatar">W</div>
                     <div className="contact-info">
                       {/* A company name, not copy. Without this the translation
@@ -856,7 +868,6 @@ response = requests.post(
              Measured at 260px out of position under rtl before the change. */
           .phone{position:absolute;inset-inline-start:0;top:28px;width:56%;max-width:320px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.12)}
           .phone-header{background:#1a3a2a;padding:12px 14px;display:flex;align-items:center;gap:10px}
-          .back-arrow{color:#fff;font-size:20px}
           .avatar{width:40px;height:40px;background:#1a3a2a;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px}
           .contact-info{flex:1;display:flex;flex-direction:column}
           .contact-name{color:#fff;font-size:17px;font-weight:600}

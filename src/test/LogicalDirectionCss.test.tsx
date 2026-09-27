@@ -31,20 +31,23 @@ describe( 'stylesheets are direction-agnostic', () => {
   const STYLES = path.join( __dirname, '..', 'styles' );
 
   /**
-   * THE ONE ALLOWED EXCEPTION, named with its reason rather than hidden behind a loose regex.
+   * NO EXCEPTIONS, and the empty list is the point.
    *
-   * Pages.css .contact-info sets margin-left both in the base rule AND inside a media query.
-   * Converting the base to margin-inline-start makes Lightning CSS rewrite it into a
-   * :not(:is(:lang(...))) / :is(:lang(...)) pair; :lang() is a pseudo-class, so the compiled
-   * base selector gains a specificity class and BEATS the plain media-query override. That is
-   * not theory - it is what put the language pill at right:20px where the media query asked
-   * for 16px, twice, until the inset was moved into a custom property. The same repair is
-   * available here and is not worth the churn for one rule on a dashboard panel, so it stays
-   * physical and stays listed.
+   * It briefly held Pages.css .contact-info margin-left, excused because that selector sets
+   * the property in a media query too and converting only the base rule lets Lightning's
+   * :lang() rewrite out-specify the override. That reasoning was circular: the skipped
+   * declaration was itself the cause of a 10px mirror asymmetry that rtlcheck then reported
+   * on six viewports, which was in turn allowlisted THERE as a browser quirk about an empty
+   * flex child. Two allowlists covering for one unconverted property.
+   *
+   * Measured: .contact-info computed margin-inline-start as 10px in ltr and 0px in rtl,
+   * putting the avatar-to-name gap on the wrong side. Both declarations are now logical, so
+   * they share one compiled specificity and source order decides, exactly as before.
+   *
+   * Anything added here needs a measured reason that survives being checked, not a plausible
+   * one.
    */
-  const ALLOWED = [
-    { file: 'Pages.css', selectorHint: 'contact-info', prop: 'margin-left' },
-  ];
+  const ALLOWED: Array<{ file: string; selectorHint: string; prop: string }> = [];
 
   const PHYSICAL = [
     'margin-left', 'margin-right',

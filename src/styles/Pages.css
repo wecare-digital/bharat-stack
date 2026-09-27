@@ -1822,7 +1822,16 @@
   }
   
   .contact-info {
-    margin-left: 8px;
+    /* LOGICAL, matching the base rule below so both carry the same compiled specificity.
+       NOTE THAT THIS RULE IS ALREADY DEAD, and that is pre-existing rather than introduced
+       here: it and the base .contact-info rule are both (0,1,0), and the base one appears
+       LATER in this file, so source order gives the base its 10px at every width and the 8px
+       here has never applied. Converting both keeps that behaviour exactly as it ships today
+       instead of silently changing mobile spacing. If the 8px is wanted, the fix is a custom
+       property - base sets margin-inline-start:var(--contact-info-gap,10px), this sets
+       --contact-info-gap:8px - which is the pattern .wc-langbar uses, and it is a spacing
+       decision rather than a direction one. */
+    margin-inline-start: 8px;
   }
   
   .contact-name {
@@ -2057,7 +2066,13 @@
 .contact-info {
   flex: 1;
   min-width: 0;
-  margin-left: 10px;
+  /* margin-INLINE-start: this is the gap between the avatar and the name beside it, so it
+     belongs on whichever side the avatar is on. As margin-left it stayed on the physical left
+     under rtl - where the avatar no longer is - which put the gap on the far side of the text
+     and pulled the name 10px tighter to the avatar than intended. It was the last physical
+     direction property in any stylesheet, and rtlcheck measured it as a 10px mirror asymmetry
+     on /grahak-os/ across all six viewports. */
+  margin-inline-start: 10px;
 }
 
 .contact-name {
