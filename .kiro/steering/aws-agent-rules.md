@@ -83,3 +83,53 @@ application secrets in Secrets Manager; keep human/developer AWS auth in
   `asm-exec` so the secret resolves at runtime without entering context.
 
 <!-- END AWS Agent Toolkit rules -->
+
+
+## `UpdateUserPool` is a full replace, not a patch
+
+Learned the hard way on 2026-09-28. This command looks like it changes one setting:
+
+    aws cognito-idp update-user-pool --user-pool-id us-east-1_46ULYuukt \
+        --deletion-protection ACTIVE
+
+It returned 200, set deletion protection, and **silently reset every field it was not
+given**. On the customer pool that meant:
+
+| Field | Before | After |
+|---|---|---|
+| `LambdaConfig.DefineAuthChallenge` | `wecare-customer-whatsapp-auth:live` | *gone* |
+| `LambdaConfig.CreateAuthChallenge` | `wecare-customer-whatsapp-auth:live` | *gone* |
+| `LambdaConfig.VerifyAuthChallengeResponse` | `wecare-customer-whatsapp-auth:live` | *gone* |
+| `AdminCreateUserConfig.AllowAdminCreateUserOnly` | `true` | **`false`** |
+
+The first three break customer WhatsApp OTP sign-in outright — the pool is phone-keyed
+`CUSTOM_AUTH`, and with no triggers there is no challenge to issue. The fourth is worse:
+it **opened self-signup** on an internet-facing pool that WAF fronts precisely because it
+is public. Neither produced an error, a warning, or a non-zero exit.
+
+**Never call `update-user-pool` with a partial argument set.** Use:
+
+    python scripts/cognito_pool_safe_update.py --pool-id <id> --set Field=Value --apply
+
+It reads the live pool, applies only the named change, writes the whole configuration
+back, and prints any field that moved when it should not have. `--show` lists the
+writable fields; a dry run is the default.
+
+Two details that matter if you ever write this by hand instead:
+
+- `DescribeUserPool` returns read-only fields (`Id`, `Arn`, `CreationDate`,
+  `SchemaAttributes`, `Domain`, `Status`, `EstimatedNumberOfUsers`) that `UpdateUserPool`
+  rejects. Echoing the response back verbatim fails.
+- `AdminCreateUserConfig.UnusedAccountValidityDays` is deprecated and derived from
+  `Policies.PasswordPolicy.TemporaryPasswordValidityDays`. Sending both is a conflict.
+
+Recovery, if it happens again: the previous values are in CloudTrail's 90-day history.
+`lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=UpdateUserPool`
+and read `requestParameters` of the last call that set the field — that is how the three
+trigger ARNs above were recovered. A Lambda's resource policy is unaffected, so
+`AllowCustomerCognitoInvoke` survives and only the pool side needs restoring.
+
+The same replace-not-patch shape applies to `amplify update-app` (omitted fields are
+left alone there, but `--repository` additionally demands a token) and to
+`cloudfront update-distribution`, which requires the **entire** `DistributionConfig`
+plus a matching `ETag`. Treat "update" in an AWS API as "replace" until proven otherwise.
