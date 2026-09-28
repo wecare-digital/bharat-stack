@@ -27,10 +27,11 @@ name: Route auth
 #   source-gate  runs on every push and PR, needs no credentials, and asserts the
 #                guard is present and ordered before the side effect. This is the
 #                blocking gate.
-#   live-gate    needs AWS read access, so it runs on a schedule and on demand.
-#                It catches the case source cannot see: a route added or
-#                re-pointed in the console, which is exactly how the five dangling
-#                prohibited-provider routes survived.
+#   live-gate    needs AWS read access, so it runs on push to stack, on a schedule
+#                and on demand - never on a pull request, for the reason set out on
+#                the job itself. It catches the case source cannot see: a route
+#                added or re-pointed in the console, which is exactly how the five
+#                dangling prohibited-provider routes survived.
 #
 # If source-gate fails on your PR you have added an HTTP route whose handler has
 # no require_auth, no signature verification and no shared-secret check. Add one,
@@ -112,7 +113,29 @@ jobs:
     # Only meaningful with a read-only role. Skipped rather than failed when the
     # repository variable is absent, so a fork or a fresh clone is not red for a
     # reason the contributor cannot fix.
-    if: vars.ROUTE_AUTH_ROLE_ARN != ''
+    #
+    # NOT ON PULL REQUESTS, and not because of a broken trust policy. GitHub's OIDC
+    # `sub` claim carries the event, not just the repo:
+    #
+    #   push to stack  repo:OWNER@ID/REPO@ID:ref:refs/heads/stack
+    #   pull_request   repo:OWNER@ID/REPO@ID:pull_request
+    #
+    # GitHubActions-wecare-digital-route-auth is branch-scoped to the first form,
+    # so from 2026-09-28 02:55 - when ROUTE_AUTH_ROLE_ARN was first set and this
+    # job stopped being skipped - every PR run died at `Assume read-only role`
+    # while every push run passed. The header above always said this job runs on a
+    # schedule and on demand; the `if` only checked the variable, so setting it
+    # switched the job on for all four triggers at once.
+    #
+    # Excluding the event is the right fix rather than adding `:pull_request` to
+    # the trust policy. A PR from a fork cannot obtain an OIDC token at all -
+    # GitHub withholds `id-token: write` there - so widening IAM would still leave
+    # this red for exactly the contributor who cannot fix it, which is the case the
+    # comment above exists to prevent. It would also trade a branch-scoped trust
+    # for "any PR in this repo" to gain no signal: this job audits live AWS state,
+    # which does not depend on the contents of the PR. What must run on a PR is
+    # source-gate, and it does, and it is the blocking gate.
+    if: github.event_name != 'pull_request' && vars.ROUTE_AUTH_ROLE_ARN != ''
     steps:
       - uses: actions/checkout@v7
 
