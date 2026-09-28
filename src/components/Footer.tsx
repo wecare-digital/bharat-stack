@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import BrandLockup from './BrandLockup';
 
 /**
@@ -71,17 +71,112 @@ const Footer: React.FC = () => {
     el.classList.add( 'is-armed' );
     if ( tag ) tag.classList.add( 'is-armed' );
     const io = new IntersectionObserver(
+      /*
+       * PLAYS AGAIN EACH TIME THE LINE COMES BACK INTO VIEW. It used to disconnect on the first
+       * intersection - "an entrance, not a scroll effect" - and that one line is what made the
+       * animation effectively invisible.
+       *
+       * Measured, which is why this changed: this tagline sits at the very bottom of a 2090px
+       * document and CANNOT be scrolled higher than 92% down the viewport, at any width up to
+       * 2560x1600. It is never on screen at load. So the only moment it can play is the moment a
+       * reader reaches the end of the page - and at that moment they are usually still scrolling.
+       * The 0.42s delay plus the 1.15s sweep then finish during the deceleration, once, and
+       * io.disconnect() guaranteed there was no second chance for the rest of the page view.
+       *
+       * Re-arming on exit and replaying on re-entry means scrolling away and back shows it again.
+       * WCAG 2.2.2 is not engaged: it governs motion that starts AUTOMATICALLY, and this starts
+       * only because the reader scrolled. It is also still bounded - 1.57s per entry, never
+       * looping while stationary.
+       */
       entries => {
-        if ( entries.some( e => e.isIntersecting ) ) {
-          el.classList.add( 'is-in' );
-          if ( tag ) tag.classList.add( 'is-in' );
-          io.disconnect(); // One-shot: an entrance, not a scroll effect.
+        for ( const entry of entries ) {
+          if ( entry.isIntersecting ) {
+            el.classList.add( 'is-in' );
+            if ( tag ) tag.classList.add( 'is-in' );
+          } else {
+            /* Back to the armed state, ready to replay. Safe to hide: by definition the element
+             * is outside the viewport when this runs, so nothing visible changes. */
+            el.classList.remove( 'is-in' );
+            if ( tag ) tag.classList.remove( 'is-in' );
+          }
         }
       },
-      { threshold: 0.6 }
+      /*
+       * THRESHOLD 1 ON THE TAGLINE, NOT 0.6 ON THE DASH - and the difference is the reason the
+       * owner could not see this animation.
+       *
+       * It observed .ft-dash, which is 56x3px. threshold:0.6 of a 3px-tall box is 1.8px, so the
+       * reveal started the instant the dash grazed the bottom edge of the viewport. Measured on
+       * the live site by scrolling in reader-sized increments instead of calling scrollIntoView:
+       * it fired with the tagline at y=829 of a 900px viewport on desktop and y=773 of 844 on a
+       * phone. The 0.42s delay plus the 1.15s sweep then ran out while the line was still in the
+       * bottom eighth of the screen, mid-scroll, so there was nothing left by the time a reader
+       * settled on the footer.
+       *
+       * Raising the rise from 6px to 14px did not fix the report because this is a SECOND,
+       * independent defect. The first was "too small to notice"; this is "over before you look".
+       *
+       * WHY NOT rootMargin, which is the obvious tool. Tried -22% and the animation then never
+       * fired at all: at MAXIMUM scroll the dash sits 95% down the viewport and the tagline 92%,
+       * on both widths. This line lives at the very bottom of a 2090px document and cannot be
+       * scrolled any higher, so any bottom margin over about 5% makes the trigger unreachable.
+       * Measuring the element's best-case position is what caught that; the first version of this
+       * fix was a worse bug than the thing it fixed.
+       *
+       * threshold:1 on the tagline fires when the WHOLE LINE is on screen - the earliest moment a
+       * reader could actually read it - and it is reachable, because at max scroll the line sits
+       * fully inside the viewport. One observer still drives both nodes, so the dash and the line
+       * stay one gesture.
+       *
+       * Every probe that used scrollIntoView was blind to this by construction: block:center puts
+       * the element in a position a reader can never reach on this page.
+       */
+      { threshold: 1 }
     );
-    io.observe( el );
+    /* Observe the TAGLINE, not the dash. The dash is 3px tall, so any threshold on it resolves
+     * to "a pixel or two is visible" and fires at the bottom edge of the screen. The tagline is a
+     * real line of text, so threshold:1 on it means something a reader would recognise: the whole
+     * sentence is on screen. Classes still go on both nodes - see above - so the two move
+     * together; only the trigger moved. */
+    io.observe( tag || el );
     return () => io.disconnect();
+  }, [] );
+
+  /**
+   * REPLAY THE COLOUR SWEEP ON POINTER, on top of the scroll trigger.
+   *
+   * Owner asked for the effect on hover or click, every time. The scroll trigger stays, so the
+   * line still announces itself once on arrival for anyone who never points at it.
+   *
+   * IT RESTARTS THE ANIMATION, NOT THE ARMED STATE. The obvious implementation is to drop .is-in
+   * and re-add it, and that is wrong here: .is-armed without .is-in sets opacity 0 and a 14px
+   * offset, so every hover would begin with a frame of the line vanishing. Clearing and restoring
+   * the inline `animation` property restarts the keyframes while opacity and transform stay where
+   * they are.
+   *
+   * The reflow between the two writes is load-bearing. Without reading offsetWidth the browser
+   * coalesces both style changes into one frame, sees no net change, and the animation does not
+   * restart at all - the same trap the footer probe was written to catch on the arming path.
+   *
+   * NO cursor:pointer, and that is deliberate. This line has no href. A pointer cursor on it is
+   * the false affordance that got the old hover-underline removed from this very element, and
+   * adding the cursor back to advertise a decorative effect would reintroduce it. Hovering still
+   * works; it just does not claim to be a link.
+   *
+   * NO tabindex either. Making a <p> focusable to reach this by keyboard would add a Tab stop that
+   * announces nothing and does nothing - the same reasoning that kept .wt-space out of the tab
+   * order. Keyboard and screen-reader users get the scroll-triggered run, which is the same
+   * animation.
+   */
+  const replaySweep = useCallback( () => {
+    const tag = taglineRef.current;
+    if ( !tag ) return;
+    if ( typeof window !== 'undefined' && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) return;
+    // Only meaningful once the effect has been armed; before that the CSS has no animation to run.
+    if ( !tag.classList.contains( 'is-armed' ) ) return;
+    tag.style.animation = 'none';
+    void tag.offsetWidth;
+    tag.style.animation = '';
   }, [] );
 
   return (
@@ -133,7 +228,15 @@ const Footer: React.FC = () => {
               Latin. That is one language's MT quirk, not a reason to break grammar in seven.
               translatecheck.js reports this line under "brand embedded in a translatable
               sentence", which is the correct category for it: reported, never failed. */}
-          <p className="ft-tagline" ref={ taglineRef }>Trusted everyday services for Bharat</p>
+          {/* onMouseEnter and onClick replay the colour sweep - see replaySweep. No href, no
+              cursor:pointer and no tabindex: the effect is decorative and must not advertise
+              itself as a control. */}
+          <p
+            className="ft-tagline"
+            ref={ taglineRef }
+            onMouseEnter={ replaySweep }
+            onClick={ replaySweep }
+          >Trusted everyday services for Bharat</p>
 
           {/* The brand dash. Purely decorative, hence aria-hidden and a <span> rather than
               an <hr> - it separates nothing and announcing it would be noise. It is the
