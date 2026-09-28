@@ -42,7 +42,9 @@ const ROUTES = [
   '/my-order/', '/bharat-rx/',
   '/elsewhere/', '/expo-week/', '/dastavez/', '/clear-closure/',
   '/ritual-guru/', '/anew/', '/niji-setu/',
-  '/blog/', '/store/', '/get/',
+  // '/store/' was in this list and has moved to /workspace/commerce/catalog - it was a
+  // staff page behind the Authenticator, so it never had a band structure to measure.
+  '/blog/', '/get/',
 ];
 
 const inventory = async () => {

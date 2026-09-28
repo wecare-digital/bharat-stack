@@ -141,9 +141,17 @@ const pillState = () => {
       await page.waitForTimeout( 900 );
 
       const atNarrow = await page.evaluate( pillState );
+      // The explanation here described the OLD mechanism and had to be rewritten with it.
+      // It read "the scaleX(1) rule must stay masked ... the media rule asks for 1 and is
+      // out-specified by .home-layout.show", which was true when scaleX(1) was the CSS
+      // DEFAULT and .show removed it. The entrance is now opt-in: scaleX(0) is the default,
+      // .home-layout.is-armed applies the start state, and the reduced-motion block is scoped
+      // to that same selector so it can win rather than winning by accident. The assertion is
+      // unchanged - the tint must be visible - but the reason is the opposite one.
       check( scaleXOf( atNarrow.shutter ) === 0,
-        'reduced motion still leaves the tint visible (the scaleX(1) rule must stay masked)',
-        `computed scaleX ${scaleXOf( atNarrow.shutter )}; the media rule asks for 1 and is out-specified by .home-layout.show` );
+        'reduced motion leaves the tint visible, because the finished state is the default',
+        `computed scaleX ${scaleXOf( atNarrow.shutter )}; JS never adds .is-armed under reduced motion, `
+        + 'and the media block also overrides it at equal specificity if the preference changes later' );
 
       const first = atNarrow.word;
       await page.waitForTimeout( 3000 );

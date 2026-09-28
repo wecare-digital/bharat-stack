@@ -40,7 +40,10 @@ if ( !fs.existsSync( OUT ) ) { console.error( 'out/ not found - run npm run buil
 const ROUTES = [
   '/', '/grahak-os/', '/vayulok/', '/contact/', '/terms/', '/privacy/',
   '/my-order/', '/bharat-rx/', '/elsewhere/', '/expo-week/', '/dastavez/',
-  '/clear-closure/', '/ritual-guru/', '/anew/', '/niji-setu/', '/blog/', '/store/', '/get/',
+  '/clear-closure/', '/ritual-guru/', '/anew/', '/niji-setu/', '/blog/', '/get/',
+  // '/store/' is gone: it was a staff page on a public URL and now lives at
+  // /workspace/commerce/catalog. It was the only route failing H1-NONE and NO-MAIN here,
+  // because the Authenticator renders instead of the page when there is no session.
 ];
 
 const only = ( () => { const i = process.argv.indexOf( '--route' ); return i > -1 ? process.argv[ i + 1 ] : null; } )();

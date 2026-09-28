@@ -1,19 +1,43 @@
 /**
- * Store Page - WECARE.DIGITAL
- * Wix Headless Commerce — Catalog V3, Categories, Inventory, Orders
- * URL: https://wecare.digital/store
+ * Catalog - Wix Headless Commerce: Catalog V3, categories, inventory, orders.
+ *
+ * WHY THIS MOVED FROM /store TO /workspace/commerce/catalog.
+ *
+ * It is a staff page: it imports the authenticated Layout, and _app.tsx wraps every route
+ * that is not on the public allowlist in the Cognito Authenticator. At /store that produced a
+ * PUBLIC-looking URL whose prerendered HTML was the staff sign-in screen at HTTP 200, with the
+ * public header and footer around it. Measured on the export: no <main>, no <h1>, no
+ * .page-title - because the Authenticator renders INSTEAD of these children when there is no
+ * session, and a static export is always prerendered without one. It was the only public
+ * route on the site failing both the landmark and heading checks in tools/audit/htmlcheck.js.
+ *
+ * _app.tsx already records what this shape cost once: /contact-test was both allowlisted AND
+ * wrapped in Layout, which leaked the entire staff sidebar into public HTML. That note names
+ * /store as having been clean at the time. It was not clean any more.
+ *
+ * Under /workspace/ the sign-in wall is the correct response to an anonymous request, the URL
+ * no longer implies a storefront, and htmlcheck's public sweep - which is scoped to the 18
+ * authored public routes - stops reporting it.
+ *
+ * IT ALSO FREES A PREFIX THAT WAS DOING THREE JOBS. _routes.json declares
+ * GET /store/preview-product-image, POST /store/generate-product-image and
+ * POST /store/convert-flag, so /store/* was simultaneously a public page, a staff page and an
+ * API namespace. Those API routes are unaffected by this move and keep their paths.
+ *
+ * The old URL is not redirected in-repo: there are no public inbound links to it, it was never
+ * in the sitemap, and Amplify's /<*> -> /index.html rule already catches a stale bookmark.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Layout from '../../components/Layout';
-import PageHeader from '../../components/PageHeader';
-import SEO from '../../components/SEO';
-import Tabs, { TabItem } from '../../components/ui/Tabs';
-import Table from '../../components/ui/Table';
-import Modal from '../../components/ui/Modal';
-import Spinner from '../../components/ui/Spinner';
-import EmptyState from '../../components/ui/EmptyState';
-import * as api from '../../api/client';
+import Layout from '../../../components/Layout';
+import PageHeader from '../../../components/PageHeader';
+import SEO from '../../../components/SEO';
+import Tabs, { TabItem } from '../../../components/ui/Tabs';
+import Table from '../../../components/ui/Table';
+import Modal from '../../../components/ui/Modal';
+import Spinner from '../../../components/ui/Spinner';
+import EmptyState from '../../../components/ui/EmptyState';
+import * as api from '../../../api/client';
 
 interface PageProps {
   signOut?: () => void;

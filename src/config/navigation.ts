@@ -130,11 +130,13 @@ export const navigationConfig: NavItem[] = [
     ],
   },
   {
-    path: '/store',
+    // '/store' until it moved: it is a staff page, and at that path its prerendered HTML
+    // was the sign-in wall on a public-looking URL. See the note atop the page file.
+    path: '/workspace/commerce/catalog',
     label: 'Store',
     icon: 'store',
     children: [
-      { path: '/store', label: 'Catalog' },
+      { path: '/workspace/commerce/catalog', label: 'Catalog' },
       { path: '/workspace/engage/commerce', label: 'Commerce' },
     ],
   },
@@ -375,7 +377,7 @@ export const moduleHomes: ModuleHome[] = [
   },
   {
     id: 'commerce', label: 'Commerce', path: '/workspace/commerce',
-    innerPages: ['/store', '/workspace/engage/commerce', '/workspace/pay', '/workspace/pay/records'],
+    innerPages: ['/workspace/commerce/catalog', '/workspace/engage/commerce', '/workspace/pay', '/workspace/pay/records'],
     note: 'Behind NEXT_PUBLIC_ENABLE_COMMERCE_MODULE, and OFF — not because it is '
       + 'unfinished but because the storefront is live, so a new surface over a '
       + 'production store opens deliberately. With the flag off it links to the working '
