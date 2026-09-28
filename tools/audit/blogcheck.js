@@ -60,6 +60,28 @@ if ( fs.existsSync( pageRoot ) ) {
 indexPages.sort( ( a, b ) => ( a.n || 1 ) - ( b.n || 1 ) );
 
 /*
+ * CATEGORY STREAMS COUNT AS INDEX PAGES, and forgetting them is how this check reported a
+ * correct export as broken.
+ *
+ * /blog/ paginates the DEFAULT category only - the "All" pill was removed on owner instruction,
+ * and filtering the full-corpus pages client-side instead left 40 posts on no index page and
+ * rendered /blog/ with zero cards, because those 40 are the newest in the corpus and filled page
+ * one. Each remaining category is therefore its own prerendered stream at /blog/topic/<slug>/,
+ * and those streams are the ONLY listing their posts appear on. A checker that scans /blog/ and
+ * /blog/page/N/ alone sees 824 of 864 posts and calls 40 of them unreachable - which is what it
+ * did, correctly by its own rules and wrongly about the site.
+ *
+ * Appended after the numeric sort so the paginated run stays in page order and the streams follow.
+ */
+const topicRoot = path.join( OUT, 'blog', 'topic' );
+if ( fs.existsSync( topicRoot ) ) {
+  for ( const entry of fs.readdirSync( topicRoot ).sort() ) {
+    const file = path.join( topicRoot, entry, 'index.html' );
+    if ( fs.existsSync( file ) ) indexPages.push( { label: `/blog/topic/${entry}/`, file, topic: true } );
+  }
+}
+
+/*
  * Slugs linked from each index page, read from the CARD MARKUP only.
  *
  * Scoped to href="/post/<slug>/" inside the rendered HTML, which on these pages appears only
@@ -121,6 +143,17 @@ else bad( 'no index page links a post that was not built', listedButNotEmitted.s
 const missingFromSitemap = emittedPosts.filter( s => !sitemapPosts.has( s ) );
 if ( missingFromSitemap.length === 0 ) ok( 'every post is in the sitemap', `${sitemapPosts.size} post URLs` );
 else bad( 'every post is in the sitemap', `${missingFromSitemap.length} missing` );
+
+/* Every category stream must be advertised too, or the posts only it lists are unfindable. */
+const topicPages = indexPages.filter( p => p.topic );
+const sitemapTopics = new Set( [ ...sitemap.matchAll( /\/blog\/topic\/([^<\/]+)\//g ) ].map( m => m[ 1 ] ) );
+if ( topicPages.length === 0 ) {
+  note( 'category streams', 'none emitted - every post is in the default category' );
+} else {
+  const missingTopics = topicPages.filter( p => !sitemapTopics.has( p.label.split( '/' )[ 3 ] ) );
+  if ( missingTopics.length === 0 ) ok( 'every category stream is in the sitemap', topicPages.map( p => p.label ).join( ', ' ) );
+  else bad( 'every category stream is in the sitemap', `missing: ${missingTopics.map( p => p.label ).join( ', ' )}` );
+}
 
 const expectedIndexPages = indexPages.filter( p => p.n ).map( p => p.n ).sort( ( a, b ) => a - b );
 const missingIndexPages = expectedIndexPages.filter( n => !sitemapIndexPages.includes( n ) );

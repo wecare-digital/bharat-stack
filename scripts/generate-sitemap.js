@@ -65,7 +65,10 @@ const PUBLIC_EXACT = new Set( [
 // document; now 810 of the 834 are listed only on pages 2-35, so leaving those pages out would
 // leave most of the corpus with no crawlable listing at all. This is also why BlogIndexHead
 // makes each page self-canonical and index,follow rather than pointing them at /blog/.
-const PUBLIC_PREFIXES = [ '/post/', '/blog/page/' ];
+// '/blog/topic/' is one stream per non-default category. Those streams are the ONLY index pages
+// listing their posts - /blog/ paginates the default category only - so leaving them out would
+// advertise 824 posts and hide 40.
+const PUBLIC_PREFIXES = [ '/post/', '/blog/page/', '/blog/topic/' ];
 
 function normalizeRoute ( base ) {
   if ( !base ) return '/';
