@@ -87,3 +87,33 @@ def test_required_editorial_metadata_is_enforced():
     assert 'canonical' in joined
     assert 'Ingredients' in joined
     assert 'Method' in joined
+
+
+def test_pending_posts_skips_existing_slugs():
+    m = load_module()
+    doc = make_doc()
+    pending = m.pending_posts(doc, {'post-041', 'post-050'})
+    assert len(pending) == 23
+    assert all(p['slug'] not in {'post-041', 'post-050'} for p in pending)
+
+
+def test_live_audit_rejects_literal_markdown_and_missing_structure():
+    m = load_module()
+    expected = make_post(41)
+    bad = {
+        'slug': expected['slug'],
+        'authorName': 'Anew by WECARE.DIGITAL',
+        'category': 'Gastronomy',
+        'tags': expected['tags'],
+        'seoTitle': expected['seo_title'],
+        'metaDescription': expected['meta_description'],
+        'richContent': {'nodes': [
+            {'type': 'PARAGRAPH', 'nodes': [{'type': 'TEXT', 'textData': {'text': r'Intro.\n\n## Ingredients\n- x\n\n## Method\nCook.'}}]}
+        ]},
+    }
+    errors = m.audit_public_post(bad, expected)
+    joined = '\n'.join(errors)
+    assert 'literal escaped newline' in joined
+    assert 'Ingredients heading' in joined
+    assert 'Method heading' in joined
+    assert 'ingredient list' in joined
