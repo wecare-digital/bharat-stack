@@ -57,7 +57,16 @@ def test_short_link_base_env_wins(monkeypatch):
 def test_legacy_short_domain_is_still_honoured_as_a_fallback(monkeypatch):
     """An environment not yet migrated keeps minting its old form rather than
     silently switching. Changing what a deployed function emits should be a
-    deliberate env change, not a side effect of shipping code."""
+    deliberate env change, not a side effect of shipping code.
+
+    Note the sting in this since 2026-09-28: `r.wecare.digital` is now NXDOMAIN, so an
+    environment still relying on this fallback would mint links that resolve nowhere.
+    The precedence test below is what matters in practice — `SHORT_LINK_BASE` wins — and
+    the live value is `wecare.digital/r`, verified in
+    config/lambda-env-manifest.json. The fallback is kept because removing it would
+    make an un-migrated environment mint on a bare default instead, which is no better
+    and harder to diagnose.
+    """
     mod = _load(monkeypatch, {'SHORT_DOMAIN': 'r.wecare.digital'})
     assert mod.SHORT_LINK_BASE == 'r.wecare.digital'
 
@@ -78,11 +87,25 @@ def test_stray_slashes_and_space_are_normalised(monkeypatch, raw):
     assert f"https://{mod.SHORT_LINK_BASE}/abc" == 'https://wecare.digital/r/abc'
 
 
-def test_the_old_host_is_not_treated_as_retired(monkeypatch):
-    """Guards against someone copying the `stack.wecare.digital` retirement
-    pattern onto this host. That host was removed because it served nothing of its
-    own; this one resolves live short codes, so it is an alias, not a redundancy.
-    `check_retired_origins.py` must never list it."""
+def test_the_old_host_is_registered_as_retired(monkeypatch):
+    """Inverted on 2026-09-28, deliberately, and worth reading before changing back.
+
+    This test used to assert the opposite — that `check_retired_origins.py` must NEVER
+    list `r.wecare.digital` — guarding against someone copying the
+    `stack.wecare.digital` retirement pattern onto a host that still resolved live
+    short codes. That was correct while the host resolved.
+
+    The owner then retired it: the Route 53 record was deleted under
+    `YES R53-DELETE-001` and the host is NXDOMAIN, so it now resolves nothing at all
+    and the distinction the old assertion protected no longer exists. Registering it
+    is what keeps the two retired-host guards agreeing with each other —
+    `check_short_link_hosts.py` asserts the host does not resolve, and this registry is
+    what refuses an allow-list entry offering it.
+
+    The links already issued on that host are dead. That is a consequence of the
+    retirement recorded in docs/media-bucket-merge.md, not something either guard can
+    fix, and not a reason to un-register the host here.
+    """
     import sys
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts')))
     spec = importlib.util.spec_from_file_location(
@@ -91,7 +114,10 @@ def test_the_old_host_is_not_treated_as_retired(monkeypatch):
                                      'check_retired_origins.py')))
     gate = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gate)
-    assert 'r.wecare.digital' not in gate.RETIRED_HOSTS
-    # The genuinely dead host stays listed, so this assertion cannot pass by the
-    # registry simply being empty.
+    assert 'r.wecare.digital' in gate.RETIRED_HOSTS
+    # A reason must accompany it. The registry's value is the explanation, not the key:
+    # a bare entry tells the next reader nothing about whether it can be removed.
+    assert 'NXDOMAIN' in gate.RETIRED_HOSTS['r.wecare.digital']
+    # The originally dead host stays listed, so this cannot pass by the registry
+    # having been emptied.
     assert 'stack.wecare.digital' in gate.RETIRED_HOSTS

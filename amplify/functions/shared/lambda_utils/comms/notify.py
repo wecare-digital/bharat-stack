@@ -120,7 +120,7 @@ def build_payload(phone_e164: str, content: str, *,
     return {
         "rawPath": SMS_PATH,
         "requestContext": {"http": {"method": "POST", "path": SMS_PATH}},
-        "headers": {"origin": "https://app.wecare.digital"},
+        "headers": {"origin": "https://wecare.digital"},
         "body": json.dumps(body),
     }
 

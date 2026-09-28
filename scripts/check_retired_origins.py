@@ -15,9 +15,18 @@ place, found on 2026-09-26: the **S3 bucket `app.wecare.digital`** still carried
 
     AllowedOrigins: [ "https://stack.wecare.digital", ... ]
 
-That bucket is the live media CDN behind CloudFront `ERCXSFDL0VM8X` — it serves
-the logos, the RCS video, and the WhatsApp template media. So the one surface that
-kept the dead origin was also the one with the widest reach.
+At the time that bucket was the live media CDN behind CloudFront `ERCXSFDL0VM8X` —
+it served the logos, the RCS video, and the WhatsApp template media. So the one
+surface that kept the dead origin was also the one with the widest reach.
+
+Since then the retired list has grown, and the media surface named above is itself
+retired. On **2026-09-28** the owner deleted the `app.wecare.digital` bucket, the
+`ERCXSFDL0VM8X` distribution that fronted it (aliases `app.`, `selfservice.` and
+`selfcare.`), and the `r.wecare.digital` record for the URL shortener. All four
+hostnames are NXDOMAIN, measured. Media now serves from the apex path
+`wecare.digital/get` over bucket `wecare-digital-get`, and short links from
+`wecare.digital/r`. Each of those four is in `RETIRED_HOSTS` below, so the same gate
+that caught the S3 CORS entry now also refuses an allow-list offering any of them.
 
 It survived because nothing in this repository configured it. There is no
 `put_bucket_cors` call, no CDK construct and no CloudFormation resource for that
@@ -82,6 +91,28 @@ RETIRED_HOSTS = {
         "a usable allowed origin because the browser compares Access-Control-Allow-"
         "Origin to the literal request origin and never follows it"
     ),
+    "app.wecare.digital": (
+        "retired 2026-09-28; NXDOMAIN. Was the media CDN host, served by CloudFront "
+        "ERCXSFDL0VM8X over the same-named S3 bucket and later over "
+        "wecare-digital-get with origin path /o. The owner deleted the bucket, the "
+        "distribution and the DNS record. Media is served from the apex path "
+        "wecare.digital/get instead, and the bucket for S3 API calls is "
+        "wecare-digital-get - see lambda_utils/media_paths.py"
+    ),
+    "selfservice.wecare.digital": (
+        "retired 2026-09-28 alongside app.wecare.digital; both were aliases on "
+        "CloudFront ERCXSFDL0VM8X. NXDOMAIN"
+    ),
+    "selfcare.wecare.digital": (
+        "retired 2026-09-28 alongside app.wecare.digital; both were aliases on "
+        "CloudFront ERCXSFDL0VM8X. NXDOMAIN"
+    ),
+    "r.wecare.digital": (
+        "retired 2026-09-28 under YES R53-DELETE-001; NXDOMAIN. Was the URL "
+        "shortener's custom domain. Short links are minted and served on the apex "
+        "path wecare.digital/r, and scripts/check_short_link_hosts.py asserts this "
+        "host stays unresolvable so an IaC deploy cannot quietly bring it back"
+    ),
 }
 
 # Extensions that can carry effective configuration. Prose and snapshots are not
@@ -120,9 +151,47 @@ def strip_comments(text: str, suffix: str) -> str:
     return "\n".join(out)
 
 
-def scan_repo() -> list[str]:
-    """Retired hosts appearing in effective repository configuration."""
-    violations = []
+# An allow-list context. A retired hostname is a FAILURE only when it is being offered
+# as an origin; anywhere else it is a mention, and mentions are usually the record of the
+# retirement rather than the defect.
+#
+# This narrowing was forced by evidence. Stripping comments was sufficient while
+# `stack.wecare.digital` was the only entry, because all 13 of its prose references sat
+# in `#` or `//` comments. When `app.wecare.digital` and `r.wecare.digital` were added on
+# 2026-09-28 the scan produced 44 hits and only ONE was a real allow-list entry. The rest
+# were Python **docstrings** - which are string literals, not comments, so `strip_comments`
+# cannot see them - plus dashboard inventory labels, test names, and the detector
+# constants in this script's siblings (`DEAD_BUCKETS`, `LEGACY_HOST`, `ASSETS_URL`).
+#
+# That is exactly the "record of the fix reported as the defect" trap named in the module
+# docstring, arriving for the third time. Left alone it would have made this gate
+# something people pass with `|| true`.
+ORIGIN_CONTEXT_RE = re.compile(
+    r"(origin|allowedorigins|allow_origins|alloworigins|callbackurls|logouturls|"
+    r"redirect_uri|redirecturi|cors)",
+    re.I,
+)
+# How many lines above a hit may supply the allow-list context. An origin list is
+# usually a multi-line array whose key sits several lines up; 6 covers the ones in this
+# repo (`_PROD_ORIGINS`, `allowOrigins`, `AllowedOrigins`) without reaching into an
+# unrelated block.
+CONTEXT_WINDOW = 6
+
+
+def _in_origin_context(lines: list[str], index: int) -> bool:
+    start = max(0, index - CONTEXT_WINDOW)
+    return bool(ORIGIN_CONTEXT_RE.search("\n".join(lines[start:index + 1])))
+
+
+def scan_repo() -> tuple[list[str], list[str]]:
+    """(violations, mentions) for retired hosts in effective repository configuration.
+
+    A violation is a retired host offered as an origin - scheme-qualified and inside an
+    allow-list context. A mention is any other occurrence; it is reported for review but
+    does not fail the gate, because the overwhelming majority are the documentation and
+    the detectors that exist *because* of the retirement.
+    """
+    violations, mentions = [], []
     for path in sorted(ROOT.rglob("*")):
         if not path.is_file() or path.suffix not in SCANNED_SUFFIXES:
             continue
@@ -137,12 +206,18 @@ def scan_repo() -> list[str]:
             continue
         if not any(h in raw for h in RETIRED_HOSTS):
             continue
-        cleaned = strip_comments(raw, path.suffix)
-        for lineno, line in enumerate(cleaned.splitlines(), 1):
+        lines = strip_comments(raw, path.suffix).splitlines()
+        for index, line in enumerate(lines):
             for host in RETIRED_HOSTS:
-                if host in line:
-                    violations.append(f"{rel}:{lineno}  {host}  {line.strip()[:120]}")
-    return violations
+                if host not in line:
+                    continue
+                where = f"{rel}:{index + 1}  {host}  {line.strip()[:120]}"
+                # A CORS origin is always scheme-qualified; a bare mention is not one.
+                if f"https://{host}" in line and _in_origin_context(lines, index):
+                    violations.append(where)
+                else:
+                    mentions.append(where)
+    return violations, mentions
 
 
 def _client(service):
@@ -235,6 +310,8 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo", action="store_true",
                     help="scan the repository only; make no AWS calls")
+    ap.add_argument("--mentions", action="store_true",
+                    help="also list non-failing mentions of a retired host")
     args = ap.parse_args()
 
     print("retired hosts  : " + ", ".join(sorted(RETIRED_HOSTS)))
@@ -242,15 +319,23 @@ def main() -> int:
         print(f"  {host}\n      {why}")
     print()
 
-    repo_v = scan_repo()
-    print(f"repository     : {len(repo_v)} violation(s) in effective config "
-          f"(comments stripped)")
+    repo_v, repo_mentions = scan_repo()
+    print(f"repository     : {len(repo_v)} violation(s) in an origin allow-list, "
+          f"{len(repo_mentions)} other mention(s) (comments stripped)")
 
     live_v, checked, errors = ([], [], 0)
     if not args.repo:
         live_v, checked, errors = scan_live()
         print(f"live surfaces  : {len(checked)} checked, {len(live_v)} violation(s), "
               f"{errors} collector error(s)")
+
+    if args.mentions and repo_mentions:
+        print()
+        for m in repo_mentions:
+            print(f"  note  {m}")
+        print(f"\n  {len(repo_mentions)} mention(s) above are NOT failures. Most are the "
+              "documentation of the retirement or a detector that must name the host to "
+              "detect it. Review them for stale claims, not for removal.")
 
     if repo_v or live_v:
         print()
@@ -259,7 +344,7 @@ def main() -> int:
         for v in live_v:
             print(f"  LIVE  {v}")
         print("\nRETIRED ORIGIN CHECK FAILED - a hostname that no longer resolves is "
-              "still allowed. Remove it; do not allowlist it here.")
+              "still allowed as an origin. Remove it; do not allowlist it here.")
         return 1
 
     if errors:

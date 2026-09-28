@@ -9,33 +9,42 @@ There is exactly **one** media bucket, and it has exactly **two** top-level pref
     s3://wecare-digital-get/o/        249 objects   public
     s3://wecare-digital-get/secure/     2 objects   gated
 
-Nothing else exists at the root. Two CloudFront distributions read the bucket, and
-the difference between them is the entire reason this module exists:
+Nothing else exists at the root, and exactly **one** CloudFront distribution now reads
+the bucket::
 
-===========================  ==============================  =====================
-Host                         Distribution / origin path      ``<X>`` resolves to
-===========================  ==============================  =====================
-``wecare.digital/get/<X>``   ``E2GP22R4BIFGQ3``  path ``""``  key ``<X>``
-``app.wecare.digital/<X>``   ``E1DP37QIS4G0T4``  path ``/o``  key ``o/<X>``
-===========================  ==============================  =====================
+    ``wecare.digital/get/<X>``   ``E2GP22R4BIFGQ3``  origin path ``""``  ->  key ``<X>``
 
-So an object is reachable on **both** hosts only if its key starts with ``o/``. An
-object written to the bucket root is reachable on the apex host alone.
+Why ``o/`` is load-bearing
+--------------------------
+It was originally the thing that made an object *dual-homed*. A second host,
+``app.wecare.digital``, served this same bucket through origin path ``/o`` on
+distribution ``ERCXSFDL0VM8X`` (which also carried ``selfservice.wecare.digital`` and
+``selfcare.wecare.digital`` - all three names went with it), so
+``app.wecare.digital/<X>`` resolved to key
+``o/<X>`` and an object was reachable on both hosts only if its key carried ``o/``.
 
-Why that matters more than it looks
------------------------------------
-The bucket named ``app.wecare.digital`` was deleted, but the **host** survived: it
-now serves ``wecare-digital-get`` through origin path ``/o``. ``o/public/wa-tpl/``
-holds **61 objects** whose URLs are embedded in WhatsApp templates Meta has already
-**approved**, and Meta refetches media from the approved URL at send time. Those URLs
-are on the ``app.wecare.digital`` host, so they resolve only because the keys carry
-``o/``. A template attachment written to ``public/wa-tpl/`` instead lands in a second,
-parallel tree that the approved URLs cannot see.
+**That host was retired on 2026-09-28** — distribution deleted, DNS record removed, and
+the bucket that once shared its name deleted before that. Re-measured the same day:
+``get_distribution_config`` returns ``NoSuchDistribution`` and the hostname does not
+resolve. So there is no second home any more.
 
-The failure is silent in the worst way: the apex URL the handler mints for a
-root-level key returns **HTTP 200**, so nothing errors, logs, or alarms. Verified by
-probe — a key at the root and the same key under ``o/`` both served 200, while a key
-under ``secure/`` served 302.
+``o/`` remains mandatory regardless, for reasons that never depended on that host:
+
+* Every key this module composes, and every ``storageKey`` already persisted in
+  ``stack-wecare-digital-DocumentTable``, is written against it.
+* The BIMI ``l=`` record and every apex ``/get/o/...`` URL already issued name it.
+* ``o/public/wa-tpl/`` holds **61 objects** whose URLs are embedded in WhatsApp
+  templates Meta has already **approved**, and Meta refetches media from the approved
+  URL at send time. An approved template body cannot be edited in place.
+
+Dropping the prefix is therefore a data migration, not a rename. Keep composing keys
+through `public` and `secure` rather than hand-building them.
+
+One historical trap worth keeping, because it explains why this went unnoticed for two
+days: a key written to the bucket **root** still returned **HTTP 200** on the apex host,
+so addressing one level above the data errored nowhere, logged nothing and alarmed
+nothing. Verified by probe at the time — a key at the root and the same key under
+``o/`` both served 200, while a key under ``secure/`` served 302.
 
 The defect this module closes
 -----------------------------
@@ -54,8 +63,9 @@ were live:
 ``secure/`` is the security boundary, ``o/`` is not
 --------------------------------------------------
 Worth stating plainly, because the naming invites the opposite reading: ``o/`` does
-not make an object public. *Everything* outside ``secure/`` is public. ``o/`` makes an
-object **dual-homed**. Only ``secure/`` is gated, by the ``wecare-get-miss-redirect``
+not make an object public. *Everything* outside ``secure/`` is public, including the
+bucket root. ``o/`` is a location, not a permission. Only ``secure/`` is gated, by the
+``wecare-get-miss-redirect``
 Lambda@Edge on origin-response, and its sub-prefixes are ``secure/u/`` (the upload as
 received) and ``secure/d/`` (the deliverable rendition).
 
@@ -76,7 +86,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-#: Public root. Dual-homed: reachable on the apex host and on ``app.wecare.digital``.
+#: Public root. Where real objects live; see the module docstring for why it is still
+#: mandatory now that the second host it once served is retired.
 PUBLIC_ROOT = "o/"
 
 #: Gated root. Denied at the edge; reachable only via a presigned URL.

@@ -18,6 +18,9 @@ export const contacts = defineFunction({
     CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable',
     INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable',
     OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable',
-    MEDIA_BUCKET: 'app.wecare.digital',
+    // The handler already defaults to media_paths.BUCKET, so this line only mattered
+    // on deploy — where it would have overridden a correct default with the bucket
+    // deleted on 2026-09-28.
+    MEDIA_BUCKET: 'wecare-digital-get',
   },
 });

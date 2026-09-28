@@ -136,9 +136,10 @@ const dataStack = backend.data.resources.stacks[ 'data' ];
 
 /**
  * URL Shortener Resources
- * Creates Route53 CNAME for r.wecare.digital -> API Gateway (retained: it still
- * resolves every short code ever issued),
- * DynamoDB tables, ACM cert, and Lambda integration.
+ * DynamoDB tables, the HTTP API and the Lambda integration.
+ *
+ * No longer creates anything for `r.wecare.digital`: that host was retired on
+ * 2026-09-28 and short links are served on the apex `/r/<*>` path instead.
  */
 addLinkResources( dataStack );
 

@@ -1,14 +1,19 @@
 """
 URL Shortener Lambda - WECARE.DIGITAL
 
-Canonical base for new links: wecare.digital/r  (since 2026-09-26)
-Also honoured, permanently:   r.wecare.digital
+Canonical base for links: wecare.digital/r  (since 2026-09-26)
+Retired:                  r.wecare.digital  (2026-09-28)
 
-Both resolve to this same function. The subdomain is NOT deprecated in the
-"switch it off soon" sense — it is a permanent alias, because every short link
-already sent to a customer names it. Serving a shortener means honouring codes
-you issued, so the old host has to keep answering for as long as those messages
-exist, which is indefinitely.
+This function is reached on the apex path only. Amplify proxies `/r/<*>` to the
+shared API, and the handler accepts both `/r/{code}` and a bare `/{code}`.
+
+The subdomain used to be described here as a permanent alias, on the reasoning
+that short links already sent to customers name it and a shortener must honour
+the codes it issued. That reasoning was sound and it was overtaken: the owner
+deleted the Route 53 record on 2026-09-28, so the host no longer resolves and
+those already-delivered links are dead. Nothing in this function can bring them
+back — the redirect only runs once DNS has already found us. Recorded so the next
+reader does not restore the record on the strength of a comment.
 
 Creates short links with optional deep link support for iOS/Android.
 Tracks clicks with device/geo info.
@@ -32,24 +37,22 @@ SHORT_LINKS_TABLE = os.environ.get("SHORT_LINKS_TABLE", "stack-wecare-digital-Sh
 LINK_CLICKS_TABLE = os.environ.get("LINK_CLICKS_TABLE", "stack-wecare-digital-LinkClicksTable")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 
-# The base that NEWLY minted short links are published under. Canonical form is the
-# apex path `wecare.digital/r` as of 2026-09-26, replacing the `r.wecare.digital`
-# subdomain.
+# The base that short links are published under: the apex path `wecare.digital/r`,
+# canonical since 2026-09-26.
 #
-# This is deliberately NOT called SHORT_DOMAIN any more, because that one name was
-# doing three incompatible jobs in link-resources.ts: the ACM certificate subject,
-# the API Gateway custom domain, and this public link base. The first two must stay
-# a bare DNS label — `wecare.digital/r` is not a hostname and cannot be either —
-# while this one must carry the path. Reusing one constant for both is what would
-# make "move the shortener to a path" look like it required giving up the subdomain.
+# This is deliberately NOT called SHORT_DOMAIN, because that one name was doing three
+# incompatible jobs in link-resources.ts: the ACM certificate subject, the API Gateway
+# custom domain, and this public link base. The first two had to be a bare DNS label —
+# `wecare.digital/r` is not a hostname and cannot be either — while this one must carry
+# the path. Reusing one constant for both is what made "move the shortener to a path"
+# look like it required giving up the subdomain.
 #
-# It does not: `r.wecare.digital` stays mapped and serving, because short links
-# already delivered to customers cannot be edited. An RCS card on a handset and an
-# SMS already sent both still point at the old host, and 719 recorded clicks say
-# people follow them. Changing this value changes what we MINT, not what we HONOUR.
-#
-# SHORT_DOMAIN is still read as a fallback so an environment that has not been
-# updated yet keeps working rather than silently minting links on a bare default.
+# The subdomain was given up anyway, separately, on 2026-09-28, and those two constructs
+# have since been removed from link-resources.ts. SHORT_DOMAIN is still read as a
+# fallback so an environment that has not been updated yet keeps working rather than
+# silently minting on a bare default — but note that a stale SHORT_DOMAIN would now mint
+# links on a host that does not resolve, so the ordering below matters: SHORT_LINK_BASE
+# must win.
 SHORT_LINK_BASE = (
     os.environ.get("SHORT_LINK_BASE")
     or os.environ.get("SHORT_DOMAIN")

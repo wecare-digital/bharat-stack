@@ -82,9 +82,15 @@ export const IAM_POLICIES = {
           's3:DeleteObject',
           's3:ListBucket',
         ],
+        // `app.wecare.digital` until 2026-09-28, when that bucket was deleted. The
+        // live inline policy `wecare-digital-lambda-permissions` was corrected by hand
+        // the same day; this file was not, so a redeploy from here would have replaced
+        // a working grant with one naming a bucket that does not exist — turning every
+        // media read and write into AccessDenied rather than a loud NoSuchBucket.
+        // Before-state: docs/execution/snapshots/iam-lambda-role-before-get-bucket-20260928.json
         Resource: [
-          'arn:aws:s3:::app.wecare.digital',
-          'arn:aws:s3:::app.wecare.digital/*',
+          'arn:aws:s3:::wecare-digital-get',
+          'arn:aws:s3:::wecare-digital-get/*',
         ],
       },
     ],
@@ -219,7 +225,9 @@ export const IAM_POLICIES = {
           's3:GetObject',
           's3:PutObject',
         ],
-        Resource: 'arn:aws:s3:::app.wecare.digital/*',
+        // See the note on the WhatsApp statement above: the old bucket is deleted and
+        // the live role already grants `wecare-digital-get`.
+        Resource: 'arn:aws:s3:::wecare-digital-get/*',
       },
     ],
   },
@@ -300,9 +308,15 @@ export const IAM_POLICIES = {
           's3:DeleteObject',
           's3:ListBucket',
         ],
+        // `app.wecare.digital` until 2026-09-28, when that bucket was deleted. The
+        // live inline policy `wecare-digital-lambda-permissions` was corrected by hand
+        // the same day; this file was not, so a redeploy from here would have replaced
+        // a working grant with one naming a bucket that does not exist — turning every
+        // media read and write into AccessDenied rather than a loud NoSuchBucket.
+        // Before-state: docs/execution/snapshots/iam-lambda-role-before-get-bucket-20260928.json
         Resource: [
-          'arn:aws:s3:::app.wecare.digital',
-          'arn:aws:s3:::app.wecare.digital/*',
+          'arn:aws:s3:::wecare-digital-get',
+          'arn:aws:s3:::wecare-digital-get/*',
         ],
       },
     ],

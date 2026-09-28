@@ -5595,7 +5595,7 @@ def _tool_get_voice_cdr(params: Dict, request_id: str) -> Dict:
         payload = {
             'httpMethod': 'GET',
             'queryStringParameters': query_params,
-            'headers': {'origin': 'https://app.wecare.digital'}
+            'headers': {'origin': 'https://wecare.digital'}
         }
         
         response = lambda_client.invoke(
@@ -5641,7 +5641,7 @@ def _tool_get_billing_summary(params: Dict, request_id: str) -> Dict:
         payload = {
             'httpMethod': 'GET',
             'queryStringParameters': {'month': str(month)},
-            'headers': {'origin': 'https://app.wecare.digital'}
+            'headers': {'origin': 'https://wecare.digital'}
         }
         
         response = lambda_client.invoke(
@@ -5680,7 +5680,7 @@ def _tool_get_invoice_list(params: Dict, request_id: str) -> Dict:
             'httpMethod': 'GET',
             'path': '/invoices',
             'queryStringParameters': query_params,
-            'headers': {'origin': 'https://app.wecare.digital'}
+            'headers': {'origin': 'https://wecare.digital'}
         }
         
         response = lambda_client.invoke(
@@ -5734,7 +5734,7 @@ def _tool_create_invoice(params: Dict, request_id: str) -> Dict:
             'httpMethod': 'POST',
             'path': '/invoices',
             'body': json.dumps(invoice_data),
-            'headers': {'origin': 'https://app.wecare.digital', 'Content-Type': 'application/json'}
+            'headers': {'origin': 'https://wecare.digital', 'Content-Type': 'application/json'}
         }
         
         response = lambda_client.invoke(
@@ -5769,7 +5769,7 @@ def _tool_get_wix_products(params: Dict, request_id: str) -> Dict:
             'httpMethod': 'GET',
             'path': '/products',
             'queryStringParameters': query_params,
-            'headers': {'origin': 'https://app.wecare.digital'}
+            'headers': {'origin': 'https://wecare.digital'}
         }
         
         response = lambda_client.invoke(
@@ -5812,7 +5812,7 @@ def _tool_get_wix_orders(params: Dict, request_id: str) -> Dict:
             'httpMethod': 'GET',
             'path': '/orders',
             'queryStringParameters': query_params,
-            'headers': {'origin': 'https://app.wecare.digital'}
+            'headers': {'origin': 'https://wecare.digital'}
         }
         
         response = lambda_client.invoke(

@@ -1,43 +1,59 @@
 #!/usr/bin/env python3
-"""Prove that every short-link form still resolves, on both hosts.
+"""Prove the apex short-link path resolves, and that the retired subdomain stays retired.
 
 Why this is a live probe and not a unit test
 --------------------------------------------
-Short-link resolution is not a property of the handler. It is the product of four
+Short-link resolution is not a property of the handler. It is the product of three
 independent pieces of live configuration, and the handler is only one of them:
 
   1. `GET /r/{code}` and `GET /{code}` on HTTP API `zllr9lrg7j`
-  2. the `r.wecare.digital` API Gateway custom domain mapped to that API
-  3. the Amplify custom rule `/r/<*>` -> `https://wecare.digital/api/r/<*>`,
-     which must sit BEFORE the `/<*>` -> `/index.html` SPA catch-all or it can
-     never match
-  4. the `live` alias of `stack-wecare-url-shortener` pointing at current code
+  2. the Amplify custom rule `/r/<*>` -> the API, which must sit BEFORE the
+     `/<*>` -> `/index.html` SPA catch-all or it can never match
+  3. the `live` alias of `stack-wecare-url-shortener` pointing at current code
 
-A unit test can assert none of that. Any of the four can be removed by a console
-click or a well-meaning cleanup, and three of them fail silently - the SPA
-catch-all in particular answers `200` with the app shell, so a broken short link
-looks like a working page rather than an error.
+A unit test can assert none of that. Any of the three can be removed by a console
+click or a well-meaning cleanup, and they fail silently - the SPA catch-all in
+particular answers `200` with the app shell, so a broken short link looks like a
+working page rather than an error.
 
-What must never break
----------------------
-The apex path is what we mint now. The subdomain is what everything already sent
-names, and it is NOT scheduled for retirement:
+What changed on 2026-09-28, and why this script was inverted
+-----------------------------------------------------------
+There used to be a fourth piece: the `r.wecare.digital` API Gateway custom domain.
+This script asserted that host still resolved, and said in as many words "do not
+'fix' this by retiring the old host; it is the links already sent that cannot be
+changed". That was the right call on the evidence available, and the owner
+subsequently made the opposite one: the Route 53 record was deleted under
+`YES R53-DELETE-001` (before-state in
+`docs/execution/snapshots/route53-r-subdomain-before-delete-20260928.json`).
 
-  wecare.digital/r/<code>    canonical since 2026-09-26
-  r.wecare.digital/<code>    every link issued before that
+So the old assertion now fails on a deliberate decision rather than on a defect,
+and a guard that fails for a reason nobody intends to act on stops being read.
 
-`operations/system-cleanup` protects the link tables from factory reset on the
-explicit grounds that short links are "printed on materials, embedded in messages,
-and shared externally". Printed material cannot be edited and a delivered RCS card
-cannot be recalled, so the old host has to answer indefinitely. This script fails
-if it stops.
+The consequence is real and is NOT what this script is for: every short link already
+delivered on `r.wecare.digital` - printed material, sent SMS, RCS cards already on
+handsets - is dead, and no configuration change here can recall them. That is recorded
+in `docs/media-bucket-merge.md` and the change-authority matrix. What this script now
+does is narrower and still worth having:
+
+  wecare.digital/r/<code>    MUST resolve - this is what we mint, and all we serve
+  r.wecare.digital/<code>    MUST NOT resolve - retirement must stay complete
+
+The second check is not spite. A retired host that quietly comes back - an IaC deploy
+re-creating the alias record is the likely route, which is why those constructs were
+deleted from `amplify/link-resources.ts` - would start serving links again from a
+certificate and mapping nobody is maintaining. Either state is defensible; drifting
+between them silently is not.
+
+`operations/system-cleanup` still protects the link tables from factory reset, on the
+same grounds as before: the codes themselves remain valid on the apex path.
 
 Usage
 -----
     python scripts/check_short_link_hosts.py
     python scripts/check_short_link_hosts.py --code wa
 
-Exit 0 means every form resolved to the same target. Non-zero names the mismatch.
+Exit 0 means the apex forms resolve and the retired host does not. Non-zero names
+the mismatch.
 """
 
 from __future__ import annotations
@@ -94,11 +110,10 @@ def main() -> int:
     args = ap.parse_args()
     code = args.code
 
-    # Every form that a customer could possibly be holding.
+    # The forms we actually serve. Both are on the apex, because the handler accepts
+    # `/r/{code}` and a bare `/{code}` and Amplify proxies both.
     forms = [
         (f"https://{APEX}/r/{code}", "apex path (canonical, what we mint)"),
-        (f"https://{LEGACY_HOST}/{code}", "legacy subdomain (already-sent links)"),
-        (f"https://{LEGACY_HOST}/r/{code}", "legacy subdomain, /r/ prefix"),
     ]
 
     print(f"code under test : {code}\n")
@@ -114,12 +129,19 @@ def main() -> int:
     redirecting = [r for r in results if r[2] in (301, 302, 307, 308)]
 
     print("\n  absent-code handling (must fall back, not 404 or serve the app shell)")
-    miss_ok = True
-    for host_url in (f"https://{APEX}/r/{ABSENT_CODE}", f"https://{LEGACY_HOST}/{ABSENT_CODE}"):
-        status, location = probe(host_url)
-        ok = status in (301, 302) and location == FALLBACK
-        miss_ok &= ok
-        print(f"  {status:>3}  {host_url}\n       -> {location}  {'ok' if ok else 'UNEXPECTED'}")
+    status, location = probe(f"https://{APEX}/r/{ABSENT_CODE}")
+    miss_ok = status in (301, 302) and location == FALLBACK
+    print(f"  {status:>3}  https://{APEX}/r/{ABSENT_CODE}\n"
+          f"       -> {location}  {'ok' if miss_ok else 'UNEXPECTED'}")
+
+    # The retired host must stay retired. `0` from probe() means the connection never
+    # got made, which for a hostname with no DNS record is exactly what we want to see.
+    print("\n  retired subdomain (must NOT resolve)")
+    legacy_status, legacy_detail = probe(f"https://{LEGACY_HOST}/{code}")
+    legacy_gone = legacy_status == 0
+    print(f"  {legacy_status:>3}  https://{LEGACY_HOST}/{code}\n"
+          f"       -> {legacy_detail}  "
+          f"{'ok - retired, as intended' if legacy_gone else 'UNEXPECTED - it answered'}")
 
     print()
     failures = []
@@ -130,17 +152,23 @@ def main() -> int:
         failures.append(f"forms disagree on the target: {sorted(targets)}")
     if not miss_ok:
         failures.append("an unknown code did not fall back to " + FALLBACK)
+    if not legacy_gone:
+        failures.append(
+            f"{LEGACY_HOST} answered with status {legacy_status}. It was retired on "
+            "2026-09-28; something has re-created its DNS record or custom domain. "
+            "Check whether an IaC deploy re-added the Route 53 alias.")
 
     if failures:
         for f in failures:
             print(f"  FAIL  {f}")
-        print("\nSHORT LINK HOSTS FAILED - a form that customers may be holding is "
-              "broken. Do not 'fix' this by retiring the old host; it is the links "
-              "already sent that cannot be changed.")
+        print("\nSHORT LINK HOSTS FAILED - either the apex path a customer follows is "
+              "broken, or the retired subdomain has come back. Fix the apex; do not "
+              "restore the subdomain.")
         return 1
 
-    print(f"  all {len(forms)} forms redirect to the same target: {targets.pop()}")
-    print("\nSHORT LINK HOSTS PASSED - apex path and legacy subdomain both resolve.")
+    print(f"  apex form redirects to: {targets.pop()}")
+    print(f"  {LEGACY_HOST} does not resolve, as intended since 2026-09-28")
+    print("\nSHORT LINK HOSTS PASSED")
     return 0
 
 

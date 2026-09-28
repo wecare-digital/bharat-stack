@@ -24,10 +24,14 @@ import os as _os
 #
 # stack.wecare.digital was removed when the hostname was retired: Amplify serves
 # the apex directly, and the subdomain was a 301 to it.
+# app.wecare.digital was removed on 2026-09-28 when that host was retired: the bucket,
+# the CloudFront distribution (ERCXSFDL0VM8X) and the DNS record were all deleted, so the
+# origin is NXDOMAIN. An allow-list entry for a hostname nobody resolves is a standing
+# offer to whoever can next claim the name - the same reasoning that removed
+# stack.wecare.digital above.
 _PROD_ORIGINS = [
     'https://wecare.digital',
     'https://www.wecare.digital',
-    'https://app.wecare.digital',
 ]
 
 ALLOWED_ORIGINS = (

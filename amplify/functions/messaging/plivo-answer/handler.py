@@ -485,7 +485,7 @@ def _send_post_call_sms(caller: str, call_uuid: str, request_id: str) -> None:
         import boto3
         payload = {
             'requestContext': {'http': {'method': 'POST', 'path': '/sms-aws/send'}},
-            'headers': {'origin': 'https://app.wecare.digital'},
+            'headers': {'origin': 'https://wecare.digital'},
             'body': json.dumps({
                 'phoneNumber': f'+{digits}',
                 'content': IVR_SMS_BODY,
