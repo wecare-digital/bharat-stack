@@ -26,7 +26,7 @@ from decimal import Decimal
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import extract_origin
-from lambda_utils.privacy import mask_phone, redact_pii
+from lambda_utils.privacy import mask_phone, mask_flow_token, redact_pii
 from lambda_utils.validation import normalize_phone
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
@@ -4723,7 +4723,7 @@ def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phon
             'contactId': contact_id,
             'senderPhone': mask_phone(sender_phone),
             'flowId': flow_id,
-            'flowToken': flow_token,
+            'flowToken': mask_flow_token(flow_token),
             'statusCode': response.get('StatusCode'),
             'requestId': request_id
         }))
@@ -4789,7 +4789,7 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
             'contactId': contact_id,
             'senderPhone': mask_phone(sender_phone),
             'flowId': flow_id,
-            'flowToken': flow_token,
+            'flowToken': mask_flow_token(flow_token),
             'statusCode': response.get('StatusCode'),
             'requestId': request_id
         }))
@@ -4926,7 +4926,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
             'contactId': contact_id,
             'senderPhone': mask_phone(sender_phone),
             'flowId': flow_id,
-            'flowToken': flow_token,
+            'flowToken': mask_flow_token(flow_token),
             'statusCode': response.get('StatusCode'),
             'requestId': request_id
         }))

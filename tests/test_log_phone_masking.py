@@ -268,3 +268,86 @@ def test_raw_exception_text_is_not_logged_where_codeql_found_taint():
             f"{relative} should log the exception TYPE at >= {expected} site(s); "
             f"found {actual}"
         )
+
+
+# ── Flow tokens: a phone number hiding behind a key that does not look like one ──
+
+#: A WhatsApp Flow token is `{prefix}-{uuid4}-waba-{n}-ph-{phone}` and
+#: `flows/common.get_phone_from_token` recovers the number by splitting on `-ph-`. So a
+#: log line carrying a whole Flow token carries a full E.164 number. Four sites did,
+#: under the key `flowToken` -- which no phone-shaped-field-name check can see. This is
+#: the class of finding that made the 202-alert CodeQL backlog worth reading rather than
+#: dismissing: the signal was real and it was not where the noise was.
+TOKEN_KEY = re.compile(r"^flow_?token$", re.I)
+
+
+def _token_offences() -> list[tuple[str, int, str]]:
+    found: list[tuple[str, int, str]] = []
+    for path in _handlers():
+        source = path.read_text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:                                          # pragma: no cover
+            continue
+        parents = _parents(tree)
+        lines = source.splitlines()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Dict):
+                continue
+            if not _is_logger(_consuming_call(node, parents)):
+                continue
+            for key, value in zip(node.keys, node.values):
+                if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                    continue
+                if not TOKEN_KEY.match(key.value):
+                    continue
+                masked = (
+                    isinstance(value, ast.Call)
+                    and getattr(value.func, "id", getattr(value.func, "attr", ""))
+                    in ("mask_flow_token",)
+                )
+                if masked:
+                    continue
+                line = getattr(value, "lineno", node.lineno)
+                found.append((str(path.relative_to(ROOT)), line, lines[line - 1].strip()))
+    return found
+
+
+def test_no_raw_flow_token_in_a_log_line():
+    found = _token_offences()
+    if found:
+        rendered = "\n".join(f"  {p}:{n}  {code}" for p, n, code in found)
+        pytest.fail(
+            f"{len(found)} logging site(s) log a whole WhatsApp Flow token, whose "
+            f"`-ph-` suffix IS the customer's phone number.\n"
+            f"Use mask_flow_token() from lambda_utils.privacy.\n{rendered}"
+        )
+
+
+def test_mask_flow_token_removes_the_phone_and_keeps_the_correlation():
+    import sys
+    sys.path.insert(0, str(FUNCTIONS / "shared"))
+    from lambda_utils.privacy import mask_flow_token
+
+    token = "sr-2f1c9e5a-0d3b-4a7e-9c11-8b6d5e4f3a2b-waba-1-ph-+918100640044"
+    masked = mask_flow_token(token)
+
+    assert "918100640044" not in masked
+    assert masked.endswith("-ph-***")
+    # The half that makes a Flow token useful in a log survives: which flow, which
+    # send, which business number.
+    assert masked.startswith("sr-2f1c9e5a-0d3b-4a7e-9c11-8b6d5e4f3a2b-waba-1")
+
+    # A token with no phone segment is returned unchanged rather than mangled.
+    assert mask_flow_token("flow-abc-123") == "flow-abc-123"
+    assert mask_flow_token("") == ""
+    assert mask_flow_token(None) == ""
+
+
+def test_the_arithmetic_truncation_is_gone():
+    """`flow_token[:25]` was correct only because a uuid4 is 36 characters.
+
+    It stops being correct the moment a prefix grows, and nothing would have failed.
+    """
+    handler = (ROOT / "amplify/functions/messaging/whatsapp-business-api/handler.py").read_text()
+    assert "flow_token[:25]" not in handler

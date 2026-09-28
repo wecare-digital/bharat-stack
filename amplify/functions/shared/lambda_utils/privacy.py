@@ -35,6 +35,32 @@ def mask_email(email: str) -> str:
     return local[0] + '***@' + parts[1] if local else '***@' + parts[1]
 
 
+def mask_flow_token(token: str) -> str:
+    """Drop the phone segment from a WhatsApp Flow token so it can be logged.
+
+    A Flow token is minted as ``{prefix}-{uuid4}-waba-{n}-ph-{phone}`` (see
+    ``lambda_utils/flow_completion.py``) and ``flows/common.get_phone_from_token``
+    recovers the customer's number by splitting on ``-ph-``. So a log line carrying a
+    whole Flow token carries a full E.164 number, and four sites were doing exactly
+    that under the key ``flowToken`` -- invisible to a check that looks for phone-shaped
+    field NAMES, which is why this needed finding by reading rather than by grepping.
+
+    Everything before ``-ph-`` is kept, because that half is what makes the token useful
+    in a log: the prefix says which flow, the uuid correlates the send with the
+    submission, and ``-waba-{n}`` says which business number sent it. Only the phone
+    goes.
+
+    Two existing sites truncated at ``flow_token[:25]`` instead. That is correct today
+    -- a uuid4 is 36 characters, so 25 cannot reach ``-ph-`` -- but it is correct by
+    arithmetic rather than by construction, and it silently stops being correct if the
+    prefix ever grows. This is the same intent expressed so it cannot drift.
+    """
+    if not token or not isinstance(token, str):
+        return ''
+    head, separator, _ = token.partition('-ph-')
+    return head + '-ph-***' if separator else token
+
+
 _PHONE_RE = re.compile(r'\+?\d{10,15}')
 _EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
 

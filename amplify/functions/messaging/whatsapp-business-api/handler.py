@@ -67,6 +67,7 @@ from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.middleware import require_auth
 from lambda_utils import meta_signature  # X-Hub-Signature-256, fails closed
+from lambda_utils.privacy import mask_flow_token  # a Flow token ends in the customer's number
 
 logger = get_logger(__name__)
 
@@ -4253,7 +4254,7 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
 
     logger.info(json.dumps({
         'flow_data': True, 'action': action, 'screen': screen,
-        'data_keys': list(data.keys()), 'flow_token': flow_token,
+        'data_keys': list(data.keys()), 'flow_token': mask_flow_token(flow_token),
         'requestId': request_id,
     }))
 
@@ -5186,7 +5187,7 @@ def _get_phone_number_id_for_flow(flow_token: str) -> str:
                 'event': 'flow_phone_resolved_from_waba_segment',
                 'waba_segment': waba_part,
                 'resolved_phone_id': resolved,
-                'flow_token_prefix': flow_token[:25],
+                'flow_token_prefix': mask_flow_token(flow_token),
             }))
             return resolved
         except (IndexError, ValueError):
@@ -5195,7 +5196,7 @@ def _get_phone_number_id_for_flow(flow_token: str) -> str:
     # Legacy format fallback: no waba segment, use PHONE1_ID (old tokens)
     logger.warning(json.dumps({
         'event': 'flow_phone_resolution_legacy_token',
-        'flow_token_prefix': flow_token[:25],
+        'flow_token_prefix': mask_flow_token(flow_token),
         'defaulting_to': PHONE1_ID,
         'reason': 'no -waba- segment found (legacy token)',
     }))
