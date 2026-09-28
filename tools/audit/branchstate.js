@@ -113,14 +113,35 @@ if ( dirty ) {
 
 /* ---------- has this branch's PR already closed? ---------- */
 
-const repo = ( sh( 'git remote get-url origin', true ).match( /([^/:]+\/[^/]+?)(?:\.git)?$/ ) || [] )[ 1 ];
+/*
+ * STRIP .git BEFORE splitting owner/repo. Doing both in one regex with an optional (?:\.git)? group
+ * silently kept the suffix, so every API call 404'd - and because the failure was swallowed, this
+ * check reported "no pull request found for it yet" and PASSED. A check that cannot distinguish an
+ * API error from a real answer is worse than no check, and that is precisely the class of bug this
+ * whole file exists to eliminate. Two steps instead.
+ */
+const originUrl = sh( 'git remote get-url origin', true ).replace( /\.git$/, '' );
+const repo = ( originUrl.match( /([^/:]+\/[^/]+)$/ ) || [] )[ 1 ];
 const ghAvailable = Boolean( sh( 'command -v gh', true ) );
 
 if ( !ghAvailable || !repo ) {
   note( 'pull request state', 'gh unavailable - content check above still applies' );
 } else {
-  const raw = sh( `gh api "repos/${repo}/pulls?head=${repo.split( '/' )[ 0 ]}:${branch}&state=all&per_page=5" --jq '.[] | "\\(.number) \\(.state) \\(.merged_at // "-")"'`, true );
-  if ( !raw ) {
+  /*
+   * Distinguish THREE outcomes, not two: an answer, an empty answer, and a failed call. The command
+   * is run without allowFail so a non-zero exit is caught here rather than collapsing into "".
+   */
+  let raw = null;
+  let queryFailed = false;
+  try {
+    raw = sh( `gh api "repos/${repo}/pulls?head=${repo.split( '/' )[ 0 ]}:${branch}&state=all&per_page=5" --jq '.[] | "\\(.number) \\(.state) \\(.merged_at // "-")"'` );
+  } catch {
+    queryFailed = true;
+  }
+
+  if ( queryFailed ) {
+    bad( 'no closed PR blocks this branch', 'could not query GitHub - this check could not run, so do not read its silence as a pass' );
+  } else if ( !raw ) {
     ok( 'no closed PR blocks this branch', 'no pull request found for it yet' );
   } else {
     const rows = raw.split( '\n' ).map( line => {

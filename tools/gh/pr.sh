@@ -25,7 +25,13 @@
 
 set -euo pipefail
 
-repo=$(git remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/]+?)(\.git)?$#\1#')
+# Strip a trailing .git BEFORE extracting owner/repo. Doing it in one regex with an optional
+# (\.git)? group silently left the suffix on, so every API call 404'd - and the 404 body then got
+# treated as a PR number, producing "PR #{"message":"Github returned a client error."} is already
+# MERGED". Two steps, no cleverness.
+origin_url=$(git remote get-url origin)
+origin_url=${origin_url%.git}
+repo=$(printf '%s' "$origin_url" | sed -E 's#.*[:/]([^/]+/[^/]+)$#\1#')
 owner=${repo%%/*}
 
 die() { printf '%s\n' "$*" >&2; exit 1; }
@@ -41,9 +47,21 @@ case "${1:-}" in
 
     # Refuse if the branch's PR is already merged - pushing and PRing a merged branch is the other
     # mistake this directory exists to prevent. See tools/audit/branchstate.js.
-    existing=$(gh api "repos/$repo/pulls?head=$owner:$branch&state=all&per_page=5" \
-      --jq '.[] | select(.merged_at != null) | .number' 2>/dev/null || true)
-    [ -z "$existing" ] || die "pr.sh: PR #$existing for '$branch' is already MERGED. Branch off origin/$base and use a new branch."
+    #
+    # THE RESULT IS VALIDATED AS A NUMBER, because the first version of this check did not. When the
+    # API call failed the error BODY was substituted into the message and compared as if it were a
+    # PR id, so a 404 read as "already merged" and blocked a perfectly good PR. A check that cannot
+    # tell an error from an answer is worse than no check.
+    if ! existing=$(gh api "repos/$repo/pulls?head=$owner:$branch&state=all&per_page=5" \
+        --jq '[.[] | select(.merged_at != null) | .number] | first // empty' 2>/dev/null); then
+      printf 'pr.sh: warning - could not query existing PRs for %s; skipping the merged-branch check\n' "$branch" >&2
+      existing=''
+    fi
+    case "$existing" in
+      ''            ) : ;;
+      *[!0-9]*      ) printf 'pr.sh: warning - unexpected PR lookup result %s; skipping the merged-branch check\n' "$existing" >&2 ;;
+      *             ) die "pr.sh: PR #$existing for '$branch' is already MERGED. Branch off origin/$base and use a new branch." ;;
+    esac
 
     gh api "repos/$repo/pulls" \
       -F title=@"$titlefile" \
