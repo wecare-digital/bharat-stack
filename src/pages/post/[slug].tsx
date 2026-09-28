@@ -181,33 +181,44 @@ export default function BlogPostPage ( { post }: Props ) {
         </article>
       </main>
       <style jsx>{`
-        .article-shell{max-width:900px;margin:0 auto;padding:148px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-        article{max-width:760px;margin:0 auto}
-        .back{display:inline-block;color:#1a3a2a;text-decoration:none;font-size:13px;font-weight:650;margin-bottom:26px}
-        .back:before{content:'← ';margin-right:4px}
-        .category{display:inline-block;background:#d1f470;color:#1a3a2a;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:700;margin-bottom:18px}
-        h1{font-size:clamp(36px,4.3vw,60px);line-height:1.04;letter-spacing:-2.2px;color:#1a3a2a;margin:0 0 18px;font-weight:600}
-        .byline{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#6b7280;margin-bottom:38px}
+        .article-shell{max-width:1300px;margin:0 auto;padding:156px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+        article{max-width:700px;margin:0 auto}
+        .back{display:inline-block;color:#1a3a2a;text-decoration:none;font-size:13px;font-weight:650;margin-bottom:28px;text-underline-offset:3px}
+        .back:before{content:'← ';margin-inline-end:4px}
+        .back:hover{text-decoration:underline}
+        .back:focus-visible{outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}
+        .category{display:inline-block;background:rgba(209,244,112,.28);color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:18px}
+        h1{font-size:clamp(36px,4.3vw,60px);line-height:1.04;letter-spacing:-0.04em;color:rgba(0,0,0,.95);margin:0 0 20px;font-weight:600;text-wrap:balance;max-width:20ch}
+        .byline{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;line-height:1.4;color:#6b7280;margin-bottom:40px}
         .content{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         .content :global(p),
-        .content :global(li),
-        .content :global(blockquote){font-size:20px;line-height:1.4;letter-spacing:-.125px;font-weight:400;color:rgba(0,0,0,.898)}
+        .content :global(li){font-size:20px;line-height:1.55;letter-spacing:-.125px;font-weight:400;color:rgba(0,0,0,.898)}
         .content :global(p){margin:0}
         .content :global(p + p){margin-top:28px}
         .content :global(.spacer){height:28px}
-        .content :global(h2){font-size:30px;line-height:1.18;letter-spacing:-.6px;color:#1a3a2a;margin:44px 0 18px;font-weight:700}
-        .content :global(h3){font-size:23px;line-height:1.3;color:#1a3a2a;margin:36px 0 14px;font-weight:700}
-        .content :global(ul),.content :global(ol){margin:0;padding-left:28px}
-        .content :global(li + li){margin-top:8px}
-        .content :global(blockquote){margin:0;padding-left:18px;border-left:3px solid #d1f470}
+        .content :global(h2){font-size:30px;line-height:1.15;letter-spacing:-.6px;color:rgba(0,0,0,.95);margin:48px 0 20px;font-weight:700}
+        .content :global(h3){font-size:23px;line-height:1.3;color:rgba(0,0,0,.95);margin:36px 0 16px;font-weight:700}
+        .content :global(h2 + p),.content :global(h3 + p){margin-top:0}
+        .content :global(ul),.content :global(ol){margin:28px 0;padding-inline-start:1.4em}
+        .content :global(li + li){margin-top:10px}
+        .content :global(blockquote){margin:36px 0;padding:2px 0 2px 22px;border-inline-start:3px solid #d1f470;font-size:21px;line-height:1.5;letter-spacing:-.125px;font-weight:400;color:rgba(0,0,0,.898)}
+        .content :global(blockquote p){font:inherit;color:inherit;letter-spacing:inherit}
         .content :global(a){color:#1a3a2a;text-underline-offset:3px}
+        .content :global(a:hover){text-decoration-thickness:2px}
+        .content :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}
         .content :global(strong){font-weight:700}
-        .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:48px;padding-top:24px;border-top:1px solid #e5e7eb}
-        .tags span{font-size:11px;background:#f3f4f6;border-radius:999px;padding:6px 10px;color:rgba(0, 0, 0, 0.54)}
-        @media(max-width:640px){
-          .article-shell{padding:124px 16px 64px}
-          .content :global(p),.content :global(li),.content :global(blockquote){font-size:18px;line-height:1.5}
+        .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:52px;padding-top:24px;border-top:1px solid #e5e7eb}
+        .tags span{font-size:11px;background:#f3f4f6;border-radius:999px;padding:6px 10px;color:rgba(0,0,0,.54)}
+        @media(max-width:680px){
+          .article-shell{padding:128px 16px 64px}
+          h1{max-width:none}
+          .byline{margin-bottom:34px}
+          .content :global(p),.content :global(li){font-size:18px;line-height:1.6}
+          .content :global(p + p){margin-top:24px}
           .content :global(.spacer){height:24px}
+          .content :global(h2){font-size:27px;margin-top:42px}
+          .content :global(h3){font-size:22px}
+          .content :global(blockquote){font-size:19px;line-height:1.55;margin:32px 0;padding-inline-start:18px}
         }
       `}</style>
     </>
