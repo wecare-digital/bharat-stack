@@ -74,6 +74,24 @@ jobs:
       - name: Check provider policy
         run: ./scripts/check-provider-policy.sh --verbose
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # Added 2026-09-28. This gate existed as a script and ran in no workflow, because
+      # it could not pass: every rendering defect was flat HIGH, including one on
+      # `get_started` — a template no code path sends and whose senders never existed —
+      # so `--check` returned 1 permanently. A check that can never go green gets wired
+      # nowhere and guards nothing, which is how a real defect in `rcsmenu` (the only
+      # template anything sends) would have gone unnoticed.
+      #
+      # Severity is now derived from reachability, so HIGH means "a customer can receive
+      # this". `--validate` re-runs the rules against the committed export and makes NO
+      # AWS or Sinch call, so this needs no credentials and cannot be skipped for want of
+      # a secret. Refreshing the export itself still requires AWS and stays manual.
+      - name: RCS template health (blocking on HIGH)
+        run: python scripts/rcs_template_sync.py --validate --check
+
       - name: Summarise
         if: always()
         run: |

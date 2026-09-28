@@ -147,19 +147,34 @@ class TestValidationRules:
     def _finding(self, row, fragment):
         return [f for f in sync.validate([row]) if fragment in f["finding"]]
 
-    def test_horizontal_with_tall_media_is_high(self):
+    def test_horizontal_with_tall_media_is_high_when_reachable(self):
         """Google's RBM standalone card does not offer TALL media on a HORIZONTAL card.
         A client that rejects the combination drops the media, leaving a card whose whole
-        purpose was the video showing nothing."""
-        row = sync.normalize({
-            "name": "x", "type": "rich_card", "status": "approved",
-            "component": {"richCard": {"standaloneCard": {
-                "cardOrientation": "HORIZONTAL",
-                "cardContent": {"media": {"height": "TALL", "contentInfo": {
-                    "fileUrl": "https://x/y.mp4"}}}}}}})
-        found = self._finding(row, "HORIZONTAL")
-        assert found and found[0]["severity"] == "HIGH"
-        assert found[0]["needsProviderReadback"] is True
+        purpose was the video showing nothing.
+
+        Severity became reachability-derived on 2026-09-28: HIGH when a code path can
+        send the template, MEDIUM when none can. Both directions are asserted here,
+        because the relaxation is only defensible if the escalation is real — see
+        `tests/test_rcs_finding_severity.py` for why the flat-HIGH version left
+        `--check` permanently red and therefore wired into nothing.
+        """
+        def _row(name):
+            return sync.normalize({
+                "name": name, "type": "rich_card", "status": "approved",
+                "component": {"richCard": {"standaloneCard": {
+                    "cardOrientation": "HORIZONTAL",
+                    "cardContent": {"media": {"height": "TALL", "contentInfo": {
+                        "fileUrl": "https://x/y.mp4"}}}}}}})
+
+        # "rcsmenu" is the one name in sync.REFERENCED, so normalize() marks it reachable.
+        reachable = self._finding(_row("rcsmenu"), "HORIZONTAL")
+        assert reachable and reachable[0]["severity"] == "HIGH"
+        assert reachable[0]["needsProviderReadback"] is True
+
+        unreachable = self._finding(_row("x"), "HORIZONTAL")
+        assert unreachable, "the defect must still be reported on an unsent template"
+        assert unreachable[0]["severity"] == "MEDIUM"
+        assert unreachable[0]["needsProviderReadback"] is True
 
     def test_vertical_with_tall_media_is_fine(self):
         row = sync.normalize({
@@ -180,12 +195,19 @@ class TestValidationRules:
         assert found and found[0]["severity"] == "MEDIUM"
         assert "do NOT edit the approved template in place" in found[0]["action"]
 
-    def test_mixed_placeholder_syntax_is_high(self):
-        row = sync.normalize({
+    def test_mixed_placeholder_syntax_is_high_when_reachable(self):
+        """Same reachability rule as the orientation defect, asserted both ways."""
+        text = "Hi {{name}}, order [custom_param1b]"
+
+        reachable = self._finding(sync.normalize({
+            "name": "rcsmenu", "type": "text_message", "status": "approved",
+            "component": {"text": text}}), "placeholder")
+        assert reachable and reachable[0]["severity"] == "HIGH"
+
+        unreachable = self._finding(sync.normalize({
             "name": "x", "type": "text_message", "status": "approved",
-            "component": {"text": "Hi {{name}}, order [custom_param1b]"}})
-        found = self._finding(row, "placeholder")
-        assert found and found[0]["severity"] == "HIGH"
+            "component": {"text": text}}), "placeholder")
+        assert unreachable and unreachable[0]["severity"] == "MEDIUM"
 
     def test_a_single_syntax_is_not_flagged(self):
         for text in ("Hi {{name}}", "Hi [custom_param1b]", "no vars at all"):
@@ -278,8 +300,25 @@ class TestLiveInventory:
 
     def test_the_high_finding_count_is_known(self, manifest):
         """Pinned deliberately. A new HIGH finding should fail this test and force a
-        decision rather than sliding into the manifest unnoticed."""
-        high = [f for f in sync.validate(manifest["templates"])
-                if f["severity"] == "HIGH"]
-        assert len(high) == 1, [f["finding"] for f in high]
-        assert high[0]["template"] == "get_started"
+        decision rather than sliding into the manifest unnoticed.
+
+        The pinned count went 1 -> 0 on 2026-09-28, and the defect did not go away. The
+        single HIGH was `get_started`'s HORIZONTAL/TALL combination, on a template no code
+        path sends; severity is now derived from reachability, so it is reported at MEDIUM
+        with its consequence and remediation intact. `--check` gating on HIGH is what made
+        this matter: at 1 it could never pass, so it ran in no workflow. At 0 it is now a
+        blocking step in `provider-policy.yml`, and it will fail the moment a defect lands
+        on a template something actually sends.
+
+        Zero is therefore the correct pin, and it is a stronger position than 1: the
+        assertion below no longer tolerates a reachable defect at all.
+        """
+        findings = sync.validate(manifest["templates"])
+        high = [f for f in findings if f["severity"] == "HIGH"]
+        assert high == [], [f["finding"] for f in high]
+
+        # The de-escalated finding must still be present, or this became a silencer.
+        orientation = [f for f in findings if "HORIZONTAL" in f["finding"]]
+        assert orientation, "the get_started orientation defect must still be reported"
+        assert orientation[0]["template"] == "get_started"
+        assert orientation[0]["severity"] == "MEDIUM"

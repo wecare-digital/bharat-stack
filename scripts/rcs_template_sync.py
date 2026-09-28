@@ -162,6 +162,45 @@ def _variable_syntax(text: str) -> str:
 # Each rule states the rendering consequence, because "inconsistent" on its own is
 # not a reason to change an approved template.
 
+def _reachable(row: dict) -> bool:
+    """Can this template actually reach a handset from our code?
+
+    `referencedByCode` means a sender names it. `documentedOnly` templates are named in
+    docstrings but their senders were deleted on 2026-09-19, so they cannot be sent
+    today — they are listed separately precisely because they are NOT reachable.
+    """
+    return bool(row.get("referencedByCode"))
+
+
+def _rendering_severity(row: dict) -> str:
+    """HIGH only when a rendering defect can actually reach a customer.
+
+    WHY THIS EXISTS. Until 2026-09-28 every rendering defect was flat HIGH, so
+    `--check` exited 1 on `get_started` — a template **no code path sends**, whose
+    senders never existed. The result was a gate that could never go green, was
+    therefore wired into no workflow, and so guarded nothing at all. That is the same
+    failure mode `tests/test_log_phone_masking.py` documents for CodeQL: a check that
+    fires on the safe majority trains people to ignore it.
+
+    Reachability is the honest axis. A card that would drop its media is a serious
+    defect *if a customer can receive it* and an inert curiosity if not. So the
+    severity is derived rather than asserted, and the finding says which case it is.
+
+    This is NOT a way to silence the defect. It stays reported at MEDIUM with the same
+    consequence and action text, and it escalates to HIGH automatically the moment a
+    sender names the template — which is exactly when it starts to matter. `rcsmenu`,
+    the one template code does send, is therefore fully covered.
+    """
+    return "HIGH" if _reachable(row) else "MEDIUM"
+
+
+def _reach_note(row: dict) -> str:
+    if _reachable(row):
+        return "a code path sends this template, so a customer can receive the defect"
+    return ("no code path sends this template, so the defect cannot reach a customer "
+            "today; this escalates to HIGH automatically if a sender starts naming it")
+
+
 def validate(rows: list) -> list:
     findings = []
 
@@ -173,12 +212,13 @@ def validate(rows: list) -> list:
         # all, which on a card whose entire purpose is the video is a blank card.
         if r["cardOrientation"] == "HORIZONTAL" and r["mediaHeight"] == "TALL":
             findings.append({
-                "severity": "HIGH", "template": name,
+                "severity": _rendering_severity(r), "template": name,
                 "finding": "HORIZONTAL card orientation with TALL media height",
                 "consequence": "TALL is not offered for horizontal cards; the media "
                                "may be dropped, leaving a card with no video",
                 "action": "set mediaHeight to MEDIUM, or cardOrientation to VERTICAL",
                 "needsProviderReadback": True,
+                "reachability": _reach_note(r),
             })
 
         # The approved body carries six literal backticks. On a client that renders
@@ -196,11 +236,12 @@ def validate(rows: list) -> list:
 
         if r["variableSyntax"] == "MIXED":
             findings.append({
-                "severity": "HIGH", "template": name,
+                "severity": _rendering_severity(r), "template": name,
                 "finding": "two placeholder syntaxes in one body",
                 "consequence": "at most one syntax substitutes; the other reaches the "
                                "handset as literal text",
                 "action": "pick one syntax per template",
+                "reachability": _reach_note(r),
             })
 
         # A video in a rich card is the riskiest cross-platform element: autoplay,
