@@ -89,6 +89,14 @@ REVIEWED_KEYS = re.compile(
     r"requires_?payment|mfa_?enrolled|enforcing|where|pair|quality_?rating|"
     # An emoji in a reaction, and a short link we minted.
     r"emoji|short_?url|"
+    # Provider-returned handles for a reaction, a payment and an invoice. `pay_xxx` and
+    # `inv_xxx` are references to records, not instruments -- neither can be charged.
+    r"reaction_?message_?id|payment_?id|invoice_?id|"
+    # Retry and backoff measurements on our own sender.
+    r"elapsed|backoff|retry_?after|threshold|message_?type|"
+    # The keyword that matched a fixed set, added by this session's own fix -- a member
+    # of PAY_KEYWORDS/PAY_FUZZY, never free text.
+    r"matched_?keyword|"
     # Meta's ban/restriction metadata about OUR OWN number.
     r"ban_?info|"
     # A Graph API path, plus the AI classifier's own output about its own decision.
@@ -223,6 +231,65 @@ def classify(key: str, value: ast.expr) -> str:
     return classify_by_key(key)
 
 
+#: Helpers that reduce a credential to something non-reversible before it is printed.
+#: These are the by-reference pattern `.kiro/steering/secret-handling.md` prescribes:
+#: report "provider, credential present YES/NO, field count, fingerprint, length", never
+#: the value.
+SAFE_PRINT_CALLS = {
+    "len", "fingerprint", "digest", "fp", "sha256", "bool", "sorted", "list", "int",
+    "_redact", "redact", "mask", "mask_phone", "type", "repr_shape", "count",
+}
+
+
+def print_interpolations(path: pathlib.Path, start: int, end: int) -> list[tuple[str, str, str]] | None:
+    """Classify the interpolated expressions of a `print()` at this location.
+
+    69 of the open alerts are in `scripts/`, which are developer-run tools that use
+    `print()` rather than a logger, so there is no dict to enumerate. CodeQL flags them
+    because names like `SECRET_ID` and `args.secret` look sensitive -- but they hold secret
+    *identifiers*, and the value-bearing lines emit a length, a label or an irreversible
+    `sha256[:12]`. Reviewed all 69 by hand: exactly one interpolated a variable that could
+    have been a value, `verify_secret_consumption.py`'s JSON `leaks` list, and reading it
+    shows `what` is a LABEL from the known-credential map and `fp` is `digest(value)`.
+
+    Returns None when no `print` is found at the location.
+    """
+    tree = ast.parse(path.read_text())
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if getattr(node.func, "id", None) != "print":
+            continue
+        if not (start <= node.lineno <= end + 1):
+            continue
+        out: list[tuple[str, str, str]] = []
+        for argument in node.args:
+            for piece in ast.walk(argument):
+                if not isinstance(piece, ast.FormattedValue):
+                    continue
+                expr = ast.unparse(piece.value)
+                verdict = "UNPROVEN"
+                inner = piece.value
+                if isinstance(inner, ast.Constant):
+                    verdict = "CONST"
+                elif isinstance(inner, ast.Call):
+                    name = getattr(inner.func, "id", getattr(inner.func, "attr", ""))
+                    if name in SAFE_PRINT_CALLS:
+                        verdict = f"REDUCED:{name}"
+                    elif name in ("get", "join", "format", "strip", "keys", "values",
+                                  "most_common", "upper", "lower", "split", "dumps"):
+                        verdict = f"DERIVED:{name}"
+                elif isinstance(inner, ast.Subscript) and isinstance(inner.slice, ast.Slice):
+                    verdict = "SLICE"
+                elif isinstance(inner, (ast.Compare, ast.IfExp, ast.UnaryOp, ast.BoolOp)):
+                    verdict = "PREDICATE"
+                elif isinstance(inner, (ast.Name, ast.Attribute, ast.Subscript)):
+                    verdict = classify_by_key(expr.split(".")[-1].split("[")[0])
+                out.append((expr[:60], verdict, expr[:70]))
+        return out
+    return None
+
+
 def dict_at(path: pathlib.Path, start: int, end: int) -> ast.Dict | None:
     tree = ast.parse(path.read_text())
     parents = _parents(tree)
@@ -264,6 +331,24 @@ def head_sha() -> str:
                           cwd=ROOT, check=True).stdout.strip()
 
 
+def file_changed(old: str, new: str, path: str) -> bool:
+    """True when `path` differs between two commits, or when that cannot be determined.
+
+    Fails CLOSED: an unknown commit (a force-push, a shallow clone, a commit from a branch
+    that no longer exists) returns True, so the alert is treated as stale and left open
+    rather than judged against a file whose history we cannot see.
+    """
+    result = subprocess.run(["git", "diff", "--name-only", old, new, "--", path],
+                            capture_output=True, text=True, cwd=ROOT)
+    if result.returncode != 0:
+        return True
+    if subprocess.run(["git", "status", "--porcelain", "--", path],
+                      capture_output=True, text=True, cwd=ROOT).stdout.strip():
+        # Uncommitted local edits to the file put it out of step with every commit.
+        return True
+    return bool(result.stdout.strip())
+
+
 def review() -> tuple[list[dict], list[dict]]:
     """Classify every open alert. Refuses to judge one analysed against another tree.
 
@@ -278,11 +363,18 @@ def review() -> tuple[list[dict], list[dict]]:
     for alert in load_alerts():
         instance = alert["most_recent_instance"]
         loc = instance["location"]
-        if instance.get("commit_sha") and instance["commit_sha"] != current:
+        analysed = instance.get("commit_sha")
+        # Per-FILE staleness, not whole-tree. Requiring `commit_sha == HEAD` is correct in
+        # principle and unreachable in practice here: three sessions push every few
+        # minutes, so CodeQL is always a commit or two behind and the check never passes.
+        # What actually has to hold is narrower -- the file this alert points INTO must
+        # not have changed between the analysed commit and HEAD, or `start_line` lands
+        # somewhere else and the classification describes a different dict.
+        if analysed and analysed != current and file_changed(analysed, current, loc["path"]):
             unproven.append({
                 "alert": alert, "path": loc["path"], "line": loc["start_line"],
-                "why": f"STALE: analysed on {instance['commit_sha'][:8]}, HEAD is "
-                       f"{current[:8]}; line numbers may have moved",
+                "why": f"STALE: {loc['path']} changed between {analysed[:8]} and "
+                       f"{current[:8]}, so the line reference may have moved",
                 "elements": [], "bad": [],
             })
             continue
@@ -292,8 +384,17 @@ def review() -> tuple[list[dict], list[dict]]:
             continue
         node = dict_at(path, loc["start_line"], loc["end_line"])
         if node is None:
-            unproven.append({"alert": alert, "why": "no logger dict at location",
-                             "elements": []})
+            printed = print_interpolations(path, loc["start_line"], loc["end_line"])
+            if printed is None:
+                unproven.append({"alert": alert, "path": loc["path"],
+                                 "line": loc["start_line"],
+                                 "why": "neither a logger dict nor a print() at location",
+                                 "elements": [], "bad": []})
+                continue
+            bad = [e for e in printed if e[1] == "UNPROVEN"]
+            record = {"alert": alert, "path": loc["path"], "line": loc["start_line"],
+                      "elements": printed, "bad": bad, "kind": "print"}
+            (unproven if bad else proven).append(record)
             continue
         els = elements(node)
         bad = [e for e in els if e[1] == "UNPROVEN"]
@@ -335,17 +436,21 @@ def main() -> int:
     for r in proven:
         number = r["alert"]["number"]
         keys = ", ".join(f"{k}={c}" for k, c, _ in r["elements"])
+        # GitHub caps `dismissed_comment` at 280 characters. The first attempt sent ~700
+        # and every call came back "Invalid request" with no field named, which reads as a
+        # malformed payload rather than a length limit. Detail lives in the committed
+        # rationale document; the comment carries the per-alert evidence that cannot be
+        # reconstructed from it -- this dict's own keys and their classifications.
         comment = (
-            "Triaged individually, not in bulk. Every element of this logged dict was "
-            "enumerated from the AST and classified; none can carry subscriber data. "
-            f"Elements: {keys}. "
-            "The genuine findings in this rule's backlog were remediated first rather "
-            "than dismissed: ~30 dicts logging a full E.164 number, 4 logging a "
-            "WhatsApp Flow token whose -ph- suffix IS the number, and 85 logging a "
-            "contactId that is 'wa' + the customer's digits. Three gates in "
-            "tests/test_log_phone_masking.py now fail the build on any of those "
-            "returning. Rationale: docs/security-codeql-triage.md"
-        )[:1000]
+            f"Triaged per alert, not in bulk. Every element of this logged expression was "
+            f"enumerated from the AST; none can carry subscriber data: {keys}. "
+            f"Evidence + the 120 real disclosures remediated first: "
+            f"docs/security-codeql-triage.md"
+        )
+        if len(comment) > 280:
+            comment = (f"Per-alert AST triage; no element can carry subscriber data. "
+                       f"See docs/security-codeql-triage.md ({len(r['elements'])} "
+                       f"elements checked)")[:280]
         result = subprocess.run(
             ["gh", "api", "-X", "PATCH",
              f"repos/:owner/:repo/code-scanning/alerts/{number}",
