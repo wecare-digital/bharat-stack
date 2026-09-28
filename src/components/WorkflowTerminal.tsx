@@ -146,6 +146,11 @@ const WorkflowTerminal: React.FC = () => {
   const [ shown, setShown ] = useState( 0 );
   const [ settled, setSettled ] = useState( -1 );
   const [ done, setDone ] = useState( false );
+  /* The loop's pause control and its restart counter. `paused` gates the restart at the end of
+   * a pass AND is what makes the continuous animation WCAG 2.2.2 conformant; `cycle` bumping is
+   * what re-enters the stepping effect for another pass. */
+  const [ paused, setPaused ] = useState( false );
+  const [ cycle, setCycle ] = useState( 0 );
   const [ run, setRun ] = useState( false );
   const rootRef = useRef<HTMLDivElement | null>( null );
   const streamRef = useRef<HTMLDivElement | null>( null );
@@ -203,42 +208,99 @@ const WorkflowTerminal: React.FC = () => {
   // The sequence. One chained timeout rather than an interval, so a slow frame cannot
   // stack two steps on top of each other.
   //
-  // IT PLAYS ONCE AND HOLDS. IT USED TO LOOP FOR EVER, AND THAT WAS TWO DEFECTS.
+  // IT LOOPS CONTINUOUSLY, WITH A PAUSE CONTROL. It played once and held before that, and it
+  // looped before THAT - so this is the third state of this decision and the history matters,
+  // because the original loop had two real defects and neither is allowed back.
   //
-  // On reaching the last step it waited 3200ms, then reset to `shown: 0` and started again
-  // after 650ms. Measured restart-edge to restart-edge, one cycle was 15.8s - 12.6s streaming
-  // and 3.2s holding - repeating for as long as the panel stayed on screen.
+  // The original reset to `shown: 0` and restarted. Measured restart-edge to restart-edge, one
+  // cycle was 15.8s - 12.6s streaming and 3.2s holding.
   //
   //   1. WCAG 2.2.2. Content that moves automatically for more than five seconds must be
-  //      pausable, stoppable or hideable. This offered none of the three. Playing once is the
-  //      conformant answer that needs no new control on the page, which is why it is preferred
-  //      here over adding a pause button.
+  //      pausable, stoppable or hideable. The original offered none of the three. Playing once
+  //      was the conformant answer that needed no new control, which is why it was preferred
+  //      at the time over adding a button.
   //   2. THE PANEL EMPTIED ITSELF. The reset dropped it back to one 26px line inside a 551px
   //      box - 95% empty - every 15.8s. So the largest element on the home page spent part of
   //      every cycle showing nothing, and anyone arriving mid-reset met a black rectangle.
   //
-  // Playing once also matches what this page already says about itself: the closing band's
-  // reveal is deliberately one-shot on the stated grounds that there were already two
-  // continuously moving things above it, and a third loop would compete with both. One of
-  // those two was this panel. It is no longer one of them.
+  // Owner asked for continuous play. BOTH DEFECTS ARE FIXED RATHER THAN RE-ACCEPTED:
+  //   1. is answered by .wt-play, a real pause control rendered outside the aria-hidden window
+  //      so it is exposed to assistive tech rather than focusable-but-invisible.
+  //   2. is answered by never rewinding `shown`. Only `settled` rewinds, so all eight rows stay
+  //      mounted for the whole cycle and the panel is never empty at any moment.
+  //
+  // The closing band's reveal stays one-shot for its own stated reason - it did not want to
+  // compete with the continuously moving things above it, and this panel is one of those again.
   //
   // THE FIRST STEP LANDS IMMEDIATELY. There was a 600ms delay before step 0, on top of the
   // observer gate, so the panel held its empty state for a measurable beat after coming into
   // view. Nothing needed that delay - the entrance animation on each step is what gives the
   // arrival its softness, and it still runs.
+  /*
+   * WHERE THE NEXT PASS RESUMES FROM. `paused` is in this effect's dependency list, so toggling
+   * it tears the effect down and sets it up again - and the first version of the pause called
+   * step(0) on the way back, which meant pressing Pause RESTARTED the sequence instead of
+   * stopping it. replaycheck caught it: the settle frontier read 2,0,1,3 while paused.
+   *
+   * A ref rather than state, because writing it must not itself re-run the effect that reads it.
+   */
+  const resumeRef = useRef( 0 );
+
   useEffect( () => {
-    if ( !run ) return undefined;
+    /* PAUSED MEANS NO STEPPER AT ALL. Returning before anything is scheduled is what makes the
+     * pause real - a paused machine that still holds a pending timeout is just a slower machine.
+     * The CSS halts the dot pulse separately; both are needed for WCAG 2.2.2. */
+    if ( !run || paused ) return undefined;
     let cancelled = false;
     let timer = 0;
 
     const step = ( index: number ) => {
       if ( cancelled ) return;
+      // Remembered every step, so an unpause resumes here instead of rewinding to the top.
+      resumeRef.current = index;
       if ( index >= STEPS.length ) {
-        // Hold the finished state. No reset, no restart - see the note above.
         setDone( true );
+        /*
+         * IT LOOPS AGAIN, ON OWNER INSTRUCTION - BUT NOT THE LOOP THAT WAS REMOVED.
+         *
+         * The old loop reset `shown` to 0, and that is the defect recorded above: the panel
+         * dropped to a single 26px line inside a 551px box, 95% empty, every 15.8s, so the
+         * largest element on the home page periodically showed nothing and anyone arriving
+         * mid-reset met a black rectangle.
+         *
+         * THIS RESTART LEAVES `shown` AT STEPS.length AND ONLY REWINDS `settled`. All eight
+         * rows stay mounted and on screen for the entire cycle; what replays is the
+         * running-to-done pass travelling down them. The panel is never empty at any point,
+         * which is the whole objection answered rather than accepted.
+         *
+         * What a reader sees at the restart edge is the stack going live at once and then
+         * settling row by row - a heartbeat rather than a rebuild. Stated because eight dots
+         * pulsing for one beat is a real visual event and someone reading this file should
+         * know it is intended, not a race.
+         *
+         * WCAG 2.2.2 IS SATISFIED BY THE CONTROL, NOT BY LUCK. Content that moves
+         * automatically for more than five seconds must be pausable, stoppable or hideable,
+         * and this cycle is far longer than five seconds. That is why the pause button exists
+         * and why it is rendered OUTSIDE the aria-hidden window subtree - a focusable control
+         * inside aria-hidden is reachable by keyboard while absent from the accessibility
+         * tree, which trades one failure for a worse one. `paused` also short-circuits here,
+         * so pausing stops the machine rather than just hiding its effect.
+         *
+         * Reduced motion never reaches this line: that path sets the finished state directly
+         * and never sets `run`, so there is no loop to stop.
+         */
+        timer = window.setTimeout( () => {
+          if ( cancelled ) return;
+          setDone( false );
+          setSettled( -1 );
+          resumeRef.current = 0;
+          setCycle( c => c + 1 );
+        }, 3200 );
         return;
       }
-      setShown( index + 1 );
+      // Only the first pass reveals rows. Every later pass finds all eight already mounted,
+      // which is what keeps the panel from emptying itself.
+      setShown( prev => ( prev > index + 1 ? prev : index + 1 ) );
       timer = window.setTimeout( () => {
         if ( cancelled ) return;
         setSettled( index );
@@ -246,9 +308,9 @@ const WorkflowTerminal: React.FC = () => {
       }, dwell( STEPS[ index ] ) );
     };
 
-    step( 0 );
+    step( resumeRef.current );
     return () => { cancelled = true; window.clearTimeout( timer ); };
-  }, [ run ] );
+  }, [ run, paused, cycle ] );
 
   // Is the reader still following the tail, or have they scrolled back to read something?
   // Starts true because the panel begins at the top with the tail in view.
@@ -292,7 +354,11 @@ const WorkflowTerminal: React.FC = () => {
   const visible = STEPS.slice( 0, shown );
 
   return (
-    <section className="wt-wrap" ref={ rootRef } aria-label="How a workflow runs">
+    <section
+      className={ `wt-wrap ${paused ? 'is-paused' : ''}`.trim() }
+      ref={ rootRef }
+      aria-label="How a workflow runs"
+    >
       {/* One static sentence for assistive tech. The stream below is aria-hidden: a
           screen reader should not receive eight nodes appearing on timers. */}
       <p className="wt-sr">
@@ -316,6 +382,33 @@ const WorkflowTerminal: React.FC = () => {
           It pairs with the aria-hidden already here. Both say the same thing about this
           panel - it is a picture of a machine, not text - so it is exempt from translation
           and from mirroring for one reason. */}
+      {/* THE PAUSE CONTROL SITS OUTSIDE .wt-window ON PURPOSE, and the purpose is not layout.
+          The window carries aria-hidden="true" because a screen reader should not receive eight
+          nodes appearing on timers - the static .wt-sr paragraph above is what it gets instead.
+          A <button> placed inside that subtree would still be in the tab order while absent
+          from the accessibility tree: reachable by keyboard, announced as nothing. So the
+          control is a sibling and is positioned over the title bar with CSS.
+
+          IT EXISTS BECAUSE THE LOOP EXISTS. WCAG 2.2.2 requires content that moves
+          automatically for more than five seconds to be pausable, stoppable or hideable, and
+          one cycle here runs about 15.8s. This is the pause. It is the reason the panel is
+          allowed to animate continuously at all, not a convenience bolted on afterwards.
+
+          The label is real text rather than an icon glyph, and that is deliberate after the
+          tick: this sandbox has 82 fonts and none with symbol coverage, so a play triangle or
+          pause bars written as U+25B6 / U+23F8 would render as tofu somewhere. Two CSS-drawn
+          bars and a CSS-drawn triangle cannot fall back to a missing glyph. */}
+      <button
+        type="button"
+        className={ `wt-play ${paused ? 'is-paused' : ''}`.trim() }
+        onClick={ () => setPaused( p => !p ) }
+        aria-pressed={ paused }
+      >
+        <span className="wt-play-mark" aria-hidden="true" />
+        { paused ? 'Play' : 'Pause' }
+        <span className="wt-sr-only"> the illustration of a customer request</span>
+      </button>
+
       <div className="wt-window" aria-hidden="true" dir="ltr">
         <div className="wt-bar">
           {/* Class names carry the POSITION, not the colour. They were wt-red / wt-amber /
@@ -409,8 +502,53 @@ const WorkflowTerminal: React.FC = () => {
       </div>
 
       <style jsx>{`
-        .wt-wrap{width:100%}
+        /* position:relative so .wt-play can be placed over the title bar while living OUTSIDE
+           the aria-hidden window in the DOM - see the note on the button. */
+        .wt-wrap{width:100%;position:relative}
+
+        /* THE PAUSE CONTROL. Sits on the title bar, which is #3b271a, so the resting state is
+           a translucent white chip on brown rather than a hue - the bar already carries three
+           coloured lights and a fourth colour there would read as a fifth status signal.
+           Measured: #f2efe9 on #3b271a is 9.41:1, and on the lime hover fill 8.87:1, both well
+           clear of 4.5:1 for 12px text. */
+        .wt-play{
+          position:absolute;top:0;right:0;z-index:3;height:47px;
+          display:inline-flex;align-items:center;gap:7px;
+          padding:0 15px;margin:0;border:0;background:transparent;
+          font:inherit;font-size:12px;letter-spacing:.02em;color:#f2efe9;
+          cursor:pointer;
+          border-top-right-radius:14px;
+          transition:background .2s cubic-bezier(.33,0,.24,1),color .2s cubic-bezier(.33,0,.24,1);
+        }
+        .wt-play:hover,.wt-play:focus-visible{background:rgba(209,244,112,.16);color:#fff}
+        /* A real focus ring. The bar is dark, so the lime the rest of the site uses for focus
+           reads clearly against it. */
+        .wt-play:focus-visible{outline:2px solid #d1f470;outline-offset:-2px}
+        /* CSS-DRAWN MARKS, NOT GLYPHS. U+23F8 and U+25B6 have no coverage in several of the
+           fonts this site ships and would render as tofu - the same trap the tick hit in the
+           review mock. Two bars for pause; a triangle, via borders, for play. */
+        .wt-play-mark{display:inline-block;width:9px;height:10px;flex:0 0 auto;position:relative}
+        .wt-play-mark::before,.wt-play-mark::after{
+          content:'';position:absolute;top:0;width:3px;height:10px;background:currentColor
+        }
+        .wt-play-mark::before{left:0}
+        .wt-play-mark::after{right:0}
+        .wt-play.is-paused .wt-play-mark::after{display:none}
+        .wt-play.is-paused .wt-play-mark::before{
+          left:1px;width:0;height:0;background:transparent;
+          border-top:5px solid transparent;border-bottom:5px solid transparent;
+          border-left:8px solid currentColor
+        }
+        /* PAUSE MUST STOP THE MOTION, not just the timers. The stepping effect stops scheduling
+           when paused, but .wt-pulse is a CSS animation with infinite iteration on whichever row
+           is running - motion that would carry on indefinitely after a reader pressed pause,
+           which is exactly what 2.2.2 forbids. Halting it here is what makes the control honest. */
+        .wt-wrap.is-paused .wt-step.is-running .wt-dot{animation:none}
         .wt-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+        /* Same clip as .wt-sr, but for text INSIDE a visible control: the button needs to read
+           as "Pause the illustration of a customer request" to a screen reader while showing
+           only "Pause", because "Pause" alone does not say what stops. */
+        .wt-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
         /* #000 with the 1.5px white stroke: the documented editor-pane treatment the
            two existing code panels already use, rather than the mock's #17191c and a
@@ -433,7 +571,11 @@ const WorkflowTerminal: React.FC = () => {
            The lights had to be re-derived for it: they were dark alphas chosen for the old
            light bar, and rgba(0,0,0,.16) on brown is nearly the bar itself. Back to white
            alphas, which is correct on a dark surface. */
-        .wt-bar{height:47px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 15px;background:#3b271a;border-bottom:1px solid rgba(209,244,112,.30)}
+        /* RIGHT PADDING RESERVES THE PAUSE BUTTON'S FOOTPRINT. .wt-play is absolutely
+           positioned, so it is out of flow and would sit on top of .wt-bar-state - measured at
+           1280 the two overlapped by 86px, which put "Pause" across "1 foundation". 108px is the
+           button's own width plus a gap, so the state text ends before the control begins. */
+        .wt-bar{height:47px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 108px 0 15px;background:#3b271a;border-bottom:1px solid rgba(209,244,112,.30)}
         .wt-light{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
         /* LIME AND NEUTRALS ONLY, on instruction. The window lights were red/amber/lime
            borrowed from macOS; the first two are the only warm hues on the page and they
@@ -635,12 +777,41 @@ const WorkflowTerminal: React.FC = () => {
            redundant reinforcement of text that is already there, which is the one use of
            colour that costs a reader nothing.
 
-           WHY THE BACKGROUND TINTS TOO. A blue ink on the old lime-tinted chip is two hues
-           fighting in a 40px box - measured, blue ink on #1d2210 is 3.15:1 and fails outright.
-           Tinting bg and border from the same --rgb puts the ink on its own hue's near-black
-           ground (#050e21 for blue) where it clears 4.5:1. Same alphas as before, .14 and .34,
-           so the chip's weight on the panel is unchanged. */
-        .wt-svc{padding:2px 7px;border-radius:4px;background:rgba(var(--rgb),.14);border:1px solid rgba(var(--rgb),.34);color:var(--ink);font-size:11.5px;letter-spacing:.02em}
+           THE LABEL IS WHITE. THE HUE IS THE CHIP AROUND IT. This is a correction, and the
+           thing it corrects was mine: the label used to be var(--ink) on a 14% ground of its own
+           hue, which passed 4.5:1 and was still hard to read. Owner reported it on the auth
+           chip specifically, and the numbers say exactly that:
+
+             gateway   #3d74ed on #050e21   4.51:1    bare pass
+             auth      #9f56ea on #150a20   4.56:1    bare pass
+             commerce  #3da35a on #09170d   5.78:1    middling
+             contacts  #f0a818 on #221803   8.60:1    fine
+             messaging #d1f470 on #1d2210  13.10:1    fine
+
+           4.5:1 IS A FLOOR WRITTEN FOR ~16px TEXT. This label is 11.5px. Clearing the floor by
+           0.01 and 0.06 at three quarters of that size is a pass on paper and a squint in
+           practice, and only two of the five hues had any real headroom - so the set was also
+           visibly uneven, two crisp chips and two murky ones.
+
+           Lifting the inks to 7:1 was the obvious fix and is worse. Blue needs 36% toward white
+           and moves 141 of 765 in RGB distance from its own dot; purple needs 33%. Amber and
+           lime need 0%. The result is a half-pastel set where some chips match their dot and
+           others have drifted off it.
+
+           White costs nothing and is even: 19.24, 19.16, 17.50, 16.30 and 18.42:1 at the old
+           alphas - the WORST of them is better than the best hue-ink chip was. Raising the
+           ground to .20 and the border to .60 trades a little of that back for a chip whose hue
+           is unmistakable at a glance, and the lowest is still 13.55:1 on messaging. All five
+           grounds stay separable from each other, so the chips remain distinguishable by fill
+           as well as by border.
+
+           Identity is not lost by taking hue off these 11.5px letters. It is carried twice over
+           by things that have no legibility floor at all: the 12px solid dot and the chip's own
+           fill and border. This is the same principle option A settled for the step names -
+           hue belongs on shapes, text belongs at maximum contrast - applied one level down.
+
+           --ink SURVIVES for .wt-tick, which still needs a legible hue. */
+        .wt-svc{padding:2px 7px;border-radius:4px;background:rgba(var(--rgb),.20);border:1px solid rgba(var(--rgb),.60);color:#fff;font-size:11.5px;letter-spacing:.02em}
         .wt-name{color:#fff;font-size:15px;font-weight:600}
         /* THE TICK TAKES THE STEP'S OWN HUE. THE NAME STAYS WHITE ON ALL EIGHT ROWS.
            Both the name and the tick were #d1f470 while the dots were lime too, so the row
