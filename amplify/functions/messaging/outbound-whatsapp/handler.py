@@ -43,13 +43,13 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-Contacts
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'stack-wecare-digital-MediaFilesTable')
 RATE_LIMIT_TABLE = os.environ.get('RATE_LIMIT_TABLE', 'stack-wecare-digital-RateLimitTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
 MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'stack/whatsapp-media/outgoing/')
 # Public, reusable template-attachment folder (same bucket). Files here are served
 # via CloudFront so WhatsApp can fetch them by URL and the same attachment can be
 # re-sent across many template messages without re-uploading to Meta each time.
 PUBLIC_MEDIA_PREFIX = os.environ.get('PUBLIC_MEDIA_PREFIX', 'public/wa-tpl/')
-CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
 
 # WhatsApp Phone Number IDs (Allowlist) - Requirement 3.2
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
@@ -338,7 +338,7 @@ def _block_users_api(phone_number_id: str, users: list, action: str) -> Dict:
         raise Exception(f"HTTP {e.code}: {error_body[:300]}")
 
 # Constants
-META_API_VERSION = 'v25.0'  # Latest WhatsApp Cloud API with full payment support
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 MAX_TEXT_LENGTH = 4096  # Requirement 5.4
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2

@@ -331,7 +331,7 @@ def _is_direct_api_phone(phone_number_id: str) -> bool:
 # All WABAs use Direct Meta Graph API for messaging.
 # Token loaded from Secrets Manager (same secret as calling handler).
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
-META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 PHONE1_META_ID = '1016149501586345'  # +91 93309 94400 (WABA1, Direct API)
 _direct_api_token_cache = {}
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -3393,7 +3393,7 @@ def _process_payment_status(status: Dict, request_id: str) -> None:
                         meta_phone_id = meta_phone_id.split('-direct-')[-1]
 
                     token = _load_direct_api_token()
-                    lookup_url = f"https://graph.facebook.com/v25.0/{meta_phone_id}/payments/{config_name}/{reference_id}"
+                    lookup_url = f"https://graph.facebook.com/{META_API_VERSION}/{meta_phone_id}/payments/{config_name}/{reference_id}"
                     req = urllib.request.Request(lookup_url, headers={
                         'Authorization': f'Bearer {token}',
                     }, method='GET')

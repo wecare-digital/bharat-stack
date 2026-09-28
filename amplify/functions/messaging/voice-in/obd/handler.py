@@ -52,6 +52,7 @@ from lambda_utils.middleware import require_auth
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.privacy import mask_contact_id  # contactId is `wa` + the customer's digits
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 
 logger = get_logger(__name__)
 
@@ -64,7 +65,16 @@ secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 # Environment variables
 OBD_CAMPAIGNS_TABLE = os.environ.get('OBD_CAMPAIGNS_TABLE', 'stack-wecare-digital-OBDCampaigns')
 VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
-S3_BUCKET = os.environ.get('S3_BUCKET', 'app.wecare.digital')
+S3_BUCKET = os.environ.get('S3_BUCKET', 'wecare-digital-get')
+# The PUBLIC host, which is NOT the bucket name.
+#
+# Every audio URL below used to be built from the BUCKET name. That only
+# worked because the old bucket was literally named app.wecare.digital, so its name
+# doubled as a hostname. The bucket is now wecare-digital-get, which is not a
+# domain, so interpolating it produced https://wecare-digital-get/... - a URL that
+# resolves to nothing. Keep the two concepts separate: S3_BUCKET for API calls,
+# CDN_DOMAIN for anything a caller will fetch.
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
 S3_RECORDING_PREFIX = 'stack/voice/'
 S3_OBD_AUDIO_PREFIX = 'stack/voice/obd-audio/'
 TTL_DAYS = 90
@@ -437,7 +447,7 @@ def _text_to_audio(body: Dict, request_id: str) -> Dict[str, Any]:
         # The provider prompt upload that used to run here is gone. S3 is the
         # only destination now, so audioUrl is the S3 URL rather than a
         # vendor-hosted one that may or may not have succeeded.
-        audio_url = f'https://{S3_BUCKET}/{s3_key}'
+        audio_url = f'https://{CDN_DOMAIN}/{s3_key}'
 
         return _response(200, {
             'success': True,
@@ -593,7 +603,7 @@ def _normalize_campaign(item: Dict) -> Dict:
 def _list_audio_library(params: Dict, request_id: str) -> Dict[str, Any]:
     """List audio files from S3 obd-audio library folder.
     
-    Returns all WAV files stored in s3://app.wecare.digital/stack/voice/obd-audio/
+    Returns all WAV files stored in s3://wecare-digital-get/stack/voice/obd-audio/
     Each file includes: key, name, size, lastModified, publicUrl, downloadUrl, format info
     """
     try:
@@ -630,7 +640,7 @@ def _list_audio_library(params: Dict, request_id: str) -> Dict[str, Any]:
                 except Exception:
                     pass
                 
-                public_url = f'https://{S3_BUCKET}/{key}'
+                public_url = f'https://{CDN_DOMAIN}/{key}'
                 files.append({
                     'key': key,
                     'name': name,
@@ -650,7 +660,7 @@ def _list_audio_library(params: Dict, request_id: str) -> Dict[str, Any]:
 def _upload_to_audio_library(body: Dict, request_id: str) -> Dict[str, Any]:
     """Upload audio file to S3 obd-audio library.
     
-    Stores in s3://app.wecare.digital/stack/voice/obd-audio/{fileName}
+    Stores in s3://wecare-digital-get/stack/voice/obd-audio/{fileName}
     Stores in S3 only. The best-effort upload to a retired provider's prompt
     store was removed on 2026-09-19.
     
@@ -702,9 +712,9 @@ def _upload_to_audio_library(body: Dict, request_id: str) -> Dict[str, Any]:
             'success': True,
             'fileName': file_name,
             's3Key': s3_key,
-            'publicUrl': f'https://{S3_BUCKET}/{s3_key}',
-            'downloadUrl': f'https://{S3_BUCKET}/{s3_key}',
-            'audioUrl': f'https://{S3_BUCKET}/{s3_key}',
+            'publicUrl': f'https://{CDN_DOMAIN}/{s3_key}',
+            'downloadUrl': f'https://{CDN_DOMAIN}/{s3_key}',
+            'audioUrl': f'https://{CDN_DOMAIN}/{s3_key}',
             'sizeBytes': len(audio_bytes),
             'converted': was_converted,
             'conversionReport': conversion_report,
@@ -942,7 +952,7 @@ def _send_obd_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
                 },
             }).encode()
 
-            url = f'https://graph.facebook.com/v25.0/{WABA1_PHONE}/messages?appsecret_proof={proof}'
+            url = f'https://graph.facebook.com/{META_API_VERSION}/{WABA1_PHONE}/messages?appsecret_proof={proof}'
             req = urllib.request.Request(url, data=template_payload, headers={
                 'Authorization': f'Bearer {meta_token}',
                 'Content-Type': 'application/json',

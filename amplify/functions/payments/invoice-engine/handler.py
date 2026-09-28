@@ -14,7 +14,7 @@ DynamoDB Tables:
 - stack-wecare-digital-InvoiceAssetsTable
 - stack-wecare-digital-InvoiceDeliveryLogTable
 
-S3 Bucket: app.wecare.digital
+S3 Bucket: wecare-digital-get  (was app.wecare.digital until it was deleted 2026-09-28)
 Prefix: stack/invoices/
 """
 
@@ -52,9 +52,9 @@ INVOICE_DELIVERY_TABLE = os.environ.get('INVOICE_DELIVERY_TABLE', 'stack-wecare-
 PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'stack-wecare-digital-PaymentsTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
 INVOICE_PREFIX = 'stack/invoices/'
-CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
 
 # Module-level origin for CORS (set per-invocation in handler)
 origin = ''

@@ -28,11 +28,12 @@ from datetime import datetime, timezone, timedelta
 import boto3
 
 from lambda_utils.logging import get_logger
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 
 logger = get_logger(__name__)
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
-API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
+API_VERSION = META_API_VERSION
 GRAPH_BASE = f'https://graph.facebook.com/{API_VERSION}'
 APP_ID = os.environ.get('META_APP_ID', '2238810740192680')
 TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')

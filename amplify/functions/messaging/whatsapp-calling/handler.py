@@ -56,7 +56,7 @@ secrets_client = boto3.client('secretsmanager', region_name=REGION)
 
 CALL_LOG_TABLE = os.environ.get('CALL_LOG_TABLE', 'stack-wecare-digital-WhatsAppCallingTable')
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
-META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 # Meta WhatsApp Calling error codes (from Meta Troubleshooting docs)
@@ -1418,7 +1418,13 @@ def _outbound_call(event: Dict, request_id: str) -> Dict[str, Any]:
 # Toggle via SystemConfig table or environment variable.
 
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
+# The PUBLIC host for media this function uploads, kept separate from the bucket.
+# The IVR greeting URL below was a HARDCODED 'https://app.wecare.digital/{key}',
+# which broke twice over on 2026-09-28: that host was deleted, and once it was
+# rebuilt it served with OriginPath=/o while this function writes to the bucket
+# root, so the old literal would have resolved to o/{key} and 404ed.
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
 # ── LOCKED CONFIGURATION — DO NOT CHANGE WITHOUT TESTING ──
 # IVR audio: incoming_welcome.ogg (OGG/OPUS — WhatsApp supported format)
 # .sln16 is Asterisk-only format, WhatsApp rejects it (wrong MIME type)
@@ -2167,8 +2173,8 @@ def _generate_ivr_tts_audio(phone_number_id: str, call_id: str) -> Optional[str]
             ContentType='audio/mpeg',
         )
 
-        # Generate a public URL via CloudFront (app.wecare.digital)
-        public_url = f'https://app.wecare.digital/{s3_key}'
+        # Generate a public URL via the CDN host, not the bucket name
+        public_url = f'https://{CDN_DOMAIN}/{s3_key}'
         logger.info(f"IVR TTS audio generated: {public_url} ({len(audio_bytes)} bytes, voice={voice_id})")
         return public_url
 

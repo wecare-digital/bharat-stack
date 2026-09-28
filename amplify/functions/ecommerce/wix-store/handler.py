@@ -53,6 +53,19 @@ logger = get_logger(__name__)
 # Headless project must be configured explicitly before Wix calls can run.
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', '').strip()
+# S3_BUCKET and CDN_DOMAIN were NEVER DEFINED in this module.
+#
+# `_s3_public_url` referenced S3_BUCKET and the product-image upload passed it to
+# put_object, but nothing ever assigned it and it is not in the wix_domain import
+# list above - so both paths raised NameError on every call. That predates the
+# 2026-09-28 bucket migration; those two code paths have never worked.
+#
+# Defined here as the same env-with-live-default pair used elsewhere, and kept
+# separate on purpose: the bucket name is for S3 API calls, the domain is for URLs a
+# caller will fetch. Interpolating the bucket name into a URL only ever worked while
+# the bucket happened to be named app.wecare.digital.
+S3_BUCKET = os.environ.get('S3_BUCKET', 'wecare-digital-get')
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
 
 
 _wix_api_key_cache = ''
@@ -1075,7 +1088,7 @@ def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
 
 def _s3_public_url(key: str) -> str:
     """Convert an S3 key to a public HTTPS URL."""
-    return f'https://{S3_BUCKET}/{key}'
+    return f'https://{CDN_DOMAIN}/{key}'
 
 
 def _import_to_wix_media(url: str, display_name: str, folder: str = 'products') -> Dict[str, Any]:

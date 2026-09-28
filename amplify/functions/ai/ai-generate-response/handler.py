@@ -51,6 +51,7 @@ from lambda_utils.agent import approvals as approval_module
 from lambda_utils.agent import drafts as draft_module
 from lambda_utils.middleware import require_auth
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 
 logger = get_logger(__name__)
 
@@ -81,7 +82,7 @@ lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 
 
 # Environment variables
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
 CONVERSATION_TABLE = os.environ.get('CONVERSATION_TABLE', 'stack-wecare-digital-ConversationHistoryTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
@@ -5114,7 +5115,7 @@ def _tool_list_templates(params: Dict, request_id: str) -> Dict:
         token = (secret_data.get('access_token') or '').strip()
         app_secret = (secret_data.get('app_secret') or '').strip()
 
-        api_version = os.environ.get('META_API_VERSION', 'v25.0')
+        api_version = META_API_VERSION
         url = f'https://graph.facebook.com/{api_version}/{waba_id}/message_templates?limit={limit}'
         if status_filter:
             url += f'&status={status_filter}'
