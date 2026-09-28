@@ -170,9 +170,28 @@ jobs:
 
           walk(nodes)
           text = '\n'.join(text_parts)
-          assert 'Once balance is distinguished, you do not need to rediscover it every time.' in text
-          assert 'We can always choose it again.' in text
+
+          # DELIBERATELY NOT PINNED TO VERBATIM PROSE. Until 2026-09-28 this asserted
+          # two exact sentences quoted from docs/blog-migration-standard.md. The post
+          # was then edited in Wix - the opening became the explicit bicycle analogy and
+          # "We can always choose it again." lost its "always" - and this deploy job went
+          # red with `AssertionError` on a Lambda that had deployed perfectly.
+          #
+          # That is the wrong coupling in two ways. blog-migration-standard.md opens by
+          # naming Wix Blog the content source of truth, so an editor changing copy there
+          # is doing the sanctioned thing; and a copy edit in a third-party CMS must not
+          # be able to block an unrelated, possibly urgent, Lambda deploy.
+          #
+          # What is asserted instead is everything the standard fixes as a *rule* rather
+          # than as cadence - author, category, slug, no cover or inline media - plus
+          # proof that real prose came back rather than an empty or truncated body. Those
+          # cannot drift on an edit, and they still fail loudly if the Headless read path
+          # breaks, returns the wrong post, or starts serving migrated imagery.
+          assert len(text_parts) >= 4, f'expected >=4 text nodes, got {len(text_parts)}: {text_parts}'
+          assert len(text) >= 400, f'body too short to be the real article ({len(text)} chars): {text}'
+          assert 'integrity' in text.lower(), text
           assert not ({'IMAGE', 'GALLERY', 'GIF', 'VIDEO', 'AUDIO'} & set(node_types))
 
-          print('Live Integrity Headless smoke test passed')
+          print(f'Live Integrity Headless smoke test passed '
+                f'({len(text_parts)} paragraphs, {len(text)} chars, no media nodes)')
           PY

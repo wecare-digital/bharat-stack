@@ -16,14 +16,34 @@ post itself supports it.
 
 The approved Integrity flow begins:
 
-> Once balance is distinguished, you do not need to rediscover it every time.
+> Once we learn to balance on a bicycle, we do not have to rediscover the whole
+> skill every time we ride. We get on and use what we have learned.
 
 and closes:
 
-> We can always choose it again.
+> We can choose it again. The choice matters because it has to become visible in
+> what we do.
 
 That standard means the upgrade is primarily editing, cadence, paragraph structure,
 and selective emphasis.
+
+**These two quotes are a dated snapshot, read from live on 2026-09-28, not a
+frozen contract.** Wix Blog is the content source of truth (above), so an editor
+revising the post there is authoritative and these lines go stale rather than the
+post going wrong. They previously read:
+
+> Once balance is distinguished, you do not need to rediscover it every time.
+>
+> We can always choose it again.
+
+which is what `seo-tools-deploy.yml` asserted verbatim. When the post was edited,
+that assertion failed and blocked the `wecare-seo-tools` deploy — a Lambda that
+had shipped fine — so the deploy gate no longer pins prose. It now asserts only
+what this document fixes as a *rule*: author, category, slug, no cover or inline
+media, and that substantive prose came back at all. Re-read the live post before
+quoting these lines as current:
+
+    python scripts/wix_blog_probe.py --slug integrity-honoring-our-word
 
 ## Fixed publication rules
 
