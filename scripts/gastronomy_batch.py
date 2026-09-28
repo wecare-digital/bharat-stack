@@ -125,6 +125,198 @@ def validate_batch_document(document: dict):
     return errors
 
 
+def pending_posts(document: dict, existing_slugs):
+    existing = {str(s) for s in existing_slugs}
+    return [post for post in document.get('posts', []) if str(post.get('slug') or '') not in existing]
+
+
+def _walk_nodes(value):
+    if isinstance(value, dict):
+        yield value
+        for nested in value.values():
+            yield from _walk_nodes(nested)
+    elif isinstance(value, list):
+        for nested in value:
+            yield from _walk_nodes(nested)
+
+
+def audit_public_post(post: dict, expected: dict):
+    errors = []
+    slug = str(expected.get('slug') or '')
+    if post.get('slug') != slug:
+        errors.append(f'{slug}: slug mismatch')
+    if post.get('authorName') != AUTHOR:
+        errors.append(f'{slug}: author mismatch')
+    if post.get('category') != CATEGORY:
+        errors.append(f'{slug}: category mismatch')
+    if post.get('coverImage'):
+        errors.append(f'{slug}: cover image must be empty')
+    nodes = ((post.get('richContent') or {}).get('nodes') or [])
+    flat_parts = []
+    headings = []
+    node_types = []
+    for node in _walk_nodes(nodes):
+        kind = str(node.get('type') or '').upper()
+        if kind:
+            node_types.append(kind)
+        text = (node.get('textData') or {}).get('text')
+        if text:
+            flat_parts.append(str(text))
+        if kind == 'HEADING':
+            value = ''.join(
+                str((child.get('textData') or {}).get('text') or '')
+                for child in node.get('nodes', []) or []
+            )
+            if value:
+                headings.append(value)
+    flat = ''.join(flat_parts)
+    if '\\n' in flat:
+        errors.append(f'{slug}: literal escaped newline in published body')
+    if '## ' in flat:
+        errors.append(f'{slug}: literal markdown heading in published body')
+    if 'Ingredients' not in headings:
+        errors.append(f'{slug}: missing Ingredients heading')
+    if 'Method' not in headings:
+        errors.append(f'{slug}: missing Method heading')
+    if 'BULLETED_LIST' not in node_types:
+        errors.append(f'{slug}: missing ingredient list')
+    return errors
+
+
+def _load_wix_module():
+    import wix_blog_migrate as wix
+    return wix
+
+
+def _ensure_gastronomy_category(wix):
+    data = wix.request(wix.TARGET_SITE_ID, 'GET', '/blog/v3/categories?paging.limit=100')
+    for category in data.get('categories', []) or []:
+        if str(category.get('label') or '').lower() == CATEGORY.lower():
+            return str(category['id'])
+    created = wix.request(
+        wix.TARGET_SITE_ID,
+        'POST',
+        '/blog/v3/categories',
+        {'category': {'label': CATEGORY, 'title': CATEGORY, 'slug': 'gastronomy', 'language': 'en'}},
+    )
+    return str(created['category']['id'])
+
+
+def _ensure_tags(wix, labels):
+    tags = []
+    cursor = ''
+    while True:
+        paging = {'limit': 100}
+        if cursor:
+            paging['cursor'] = cursor
+        data = wix.request(
+            wix.TARGET_SITE_ID,
+            'POST',
+            '/v3/tags/query',
+            {'query': {'cursorPaging': paging}},
+        )
+        tags.extend(data.get('tags', []) or [])
+        cursor = str((((data.get('pagingMetadata') or {}).get('cursors') or {}).get('next')) or '')
+        if not cursor:
+            break
+    existing = {str(tag.get('label') or '').lower(): str(tag.get('id') or '') for tag in tags}
+    resolved = {}
+    for label in labels:
+        key = str(label).lower()
+        if existing.get(key):
+            resolved[label] = existing[key]
+            continue
+        created = wix.request(wix.TARGET_SITE_ID, 'POST', '/v3/tags', {'label': label, 'language': 'en'})
+        resolved[label] = str(created['tag']['id'])
+        existing[key] = resolved[label]
+    return resolved
+
+
+def publish_document(document: dict):
+    errors = validate_batch_document(document)
+    if errors:
+        raise ValueError('batch validation failed: ' + '; '.join(errors))
+    wix = _load_wix_module()
+    existing_posts = wix.query_posts(wix.TARGET_SITE_ID)
+    existing_slugs = {str(post.get('slug') or '') for post in existing_posts}
+    pending = pending_posts(document, existing_slugs)
+    if not pending:
+        return {'created': 0, 'skipped': len(document.get('posts', [])), 'failures': []}
+    member_id = wix.ensure_author()
+    category_id = _ensure_gastronomy_category(wix)
+    labels = sorted({label for post in pending for label in post.get('tags', [])})
+    tag_ids = _ensure_tags(wix, labels)
+    prepared = []
+    for post in pending:
+        prepared.append({
+            'title': post['title'],
+            'excerpt': post['meta_description'],
+            'featured': False,
+            'categoryIds': [category_id],
+            'memberId': member_id,
+            'tagIds': [tag_ids[label] for label in post['tags']],
+            'language': 'en',
+            'richContent': markdown_to_rich_content(post['body_markdown']),
+            'seoSlug': post['slug'],
+            'seoData': {'tags': [
+                {'type': 'title', 'children': post['seo_title']},
+                {'type': 'meta', 'props': {'name': 'description', 'content': post['meta_description']}},
+            ]},
+            'commentingEnabled': True,
+        })
+    created_count = 0
+    failures = []
+    for start in range(0, len(prepared), 20):
+        batch = prepared[start:start + 20]
+        data = wix.request(
+            wix.TARGET_SITE_ID,
+            'POST',
+            '/blog/v3/bulk/draft-posts/create',
+            {'draftPosts': batch, 'publish': True, 'returnFullEntity': False},
+        )
+        for result in data.get('results', []) or []:
+            meta = result.get('itemMetadata') or {}
+            if meta.get('success'):
+                created_count += 1
+            else:
+                failures.append(meta.get('error') or {'error': 'unknown'})
+    if failures:
+        raise RuntimeError(f'{len(failures)} Wix publication item(s) failed: {failures}')
+    return {'created': created_count, 'skipped': len(document.get('posts', [])) - len(pending), 'failures': []}
+
+
+def fetch_public_post(slug: str):
+    import boto3
+    path = f'/seo-tools/blog-public/{slug}'
+    payload = {
+        'requestContext': {'apiId': 'gastronomy-audit', 'http': {'method': 'GET', 'path': path, 'sourceIp': '127.0.0.1'}},
+        'rawPath': path,
+    }
+    response = boto3.client('lambda', region_name='us-east-1').invoke(
+        FunctionName='wecare-seo-tools', InvocationType='RequestResponse', Payload=json.dumps(payload).encode()
+    )
+    raw = response['Payload'].read().decode()
+    if response.get('FunctionError'):
+        raise RuntimeError(raw[:500])
+    outer = json.loads(raw)
+    if int(outer.get('statusCode') or 0) != 200:
+        raise RuntimeError(f'public-blog HTTP {outer.get("statusCode")}: {outer.get("body")}')
+    body = json.loads(outer.get('body') or '{}')
+    if body.get('ok') is not True:
+        raise RuntimeError(f'public-blog returned not-ok for {slug}')
+    return body.get('post') or {}
+
+
+def audit_document(document: dict):
+    errors = validate_batch_document(document)
+    if errors:
+        return errors
+    audit_errors = []
+    for expected in document.get('posts', []):
+        audit_errors.extend(audit_public_post(fetch_public_post(expected['slug']), expected))
+    return audit_errors
+
+
 def load_document(path: Path):
     data = json.loads(path.read_text(encoding='utf-8'))
     if not isinstance(data, dict):
@@ -137,15 +329,28 @@ def main(argv=None):
     sub = parser.add_subparsers(dest='command', required=True)
     validate = sub.add_parser('validate')
     validate.add_argument('--manifest', required=True, type=Path)
+    publish = sub.add_parser('publish')
+    publish.add_argument('--manifest', required=True, type=Path)
+    audit = sub.add_parser('audit')
+    audit.add_argument('--manifest', required=True, type=Path)
     args = parser.parse_args(argv)
+    doc = load_document(args.manifest)
     if args.command == 'validate':
-        doc = load_document(args.manifest)
         errors = validate_batch_document(doc)
         if errors:
             for error in errors:
                 print(error)
             raise SystemExit(1)
         print(f"Validated {len(doc['posts'])} Gastronomy posts: GAST-{doc['batch_start']:03d} through GAST-{doc['batch_end']:03d}")
+    elif args.command == 'publish':
+        print(json.dumps(publish_document(doc), indent=2))
+    elif args.command == 'audit':
+        errors = audit_document(doc)
+        if errors:
+            for error in errors:
+                print(error)
+            raise SystemExit(1)
+        print(f"Audited {len(doc['posts'])} published Gastronomy posts successfully")
 
 
 if __name__ == '__main__':
