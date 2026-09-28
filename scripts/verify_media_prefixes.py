@@ -18,9 +18,19 @@ Four things are checked, and each one corresponds to a defect that actually ship
 3. **Import precedes use.** `media_paths` imported BELOW its first use is a module-scope
    NameError that byte-compiles cleanly and only fails at runtime. Three handlers shipped
    that way for one deploy cycle; this is the check that catches it statically.
-4. **The hosts still map as documented.** `o/` is only load-bearing because
-   app.wecare.digital serves this bucket through origin path `/o`. If that ever changes,
-   the convention needs rewriting, not enforcing.
+4. **The host topology matches whichever state we are actually in.** This check used to
+   assert that `app.wecare.digital` still served this bucket through origin path `/o`,
+   on the reasoning that the dual-homing was the only thing making `o/` load-bearing.
+   That host was retired on 2026-09-28 — distribution `E1DP37QIS4G0T4` deleted, DNS
+   record removed — so the old assertion could never pass again, and a check that can
+   only fail gets ignored rather than fixed.
+
+   `o/` is still load-bearing, for a reason that does not depend on the legacy host at
+   all: every handler key, every `storageKey` already persisted in DynamoDB, the BIMI
+   `l=` URL and every apex `/get/o/...` URL are written against it. Moving off `o/` is
+   now a data migration, not a rename. So the convention is still enforced, and this
+   check instead verifies the retirement is *coherent*: the host is gone from DNS, and
+   nothing in source or live configuration still mints a URL on it.
 
     python scripts/verify_media_prefixes.py            # source checks only
     python scripts/verify_media_prefixes.py --live     # also check AWS
@@ -33,6 +43,7 @@ import argparse
 import ast
 import pathlib
 import re
+import socket
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -44,7 +55,11 @@ DEAD_BUCKETS = ["app.wecare.digital", "wecare-digital-media", "wecare-digital-do
 PUBLIC_ROOT = "o/"
 SECURE_ROOT = "secure/"
 
-# The distribution that makes `o/` load-bearing, and the origin path it must keep.
+# The retired dual-homing host. Distribution deleted and DNS record removed 2026-09-28,
+# so both are expected to be absent. Kept named here because the retirement itself is the
+# thing under test: if either ever comes back, the topology claim in media_paths.py needs
+# rewriting rather than silently diverging from reality.
+LEGACY_HOST = "app.wecare.digital"
 LEGACY_HOST_DISTRIBUTION = "E1DP37QIS4G0T4"
 LEGACY_HOST_ORIGIN_PATH = "/o"
 
@@ -212,8 +227,15 @@ def check_live(r: Result) -> None:
             env = (f.get("Environment") or {}).get("Variables") or {}
             checked += 1
             for k, v in env.items():
-                if isinstance(v, str) and v in DEAD_BUCKETS:
-                    bad.append(f"{f['FunctionName']}.{k}={v}")
+                if not isinstance(v, str):
+                    continue
+                # Substring, not equality. A dead name is just as broken embedded in a
+                # URL or a prefix as it is standing alone, and `CDN_DOMAIN` used to hold
+                # `app.wecare.digital/<something>` rather than the bare host - equality
+                # would have walked straight past it.
+                for dead in DEAD_BUCKETS:
+                    if dead in v:
+                        bad.append(f"{f['FunctionName']}.{k} contains {dead}")
     r.add("no live env var names a dead bucket", not bad,
           "; ".join(bad[:4]) if bad else f"{checked} functions checked")
 
@@ -223,15 +245,44 @@ def check_live(r: Result) -> None:
     r.add("bucket has exactly the two documented roots",
           roots == {PUBLIC_ROOT, SECURE_ROOT}, f"found {sorted(roots)}")
 
+    # The legacy host is expected to be RETIRED. Both outcomes below are legitimate
+    # states of the world, so neither is hardcoded as the pass condition - what is
+    # asserted is that the distribution and DNS agree with each other, because a
+    # half-retired host is the state that silently breaks media.
     cf = boto3.client("cloudfront")
+    dist_present = True
     try:
         cfg = cf.get_distribution_config(Id=LEGACY_HOST_DISTRIBUTION)["DistributionConfig"]
         origin = cfg["Origins"]["Items"][0]
-        r.add("legacy host still serves this bucket via origin path /o",
+    except cf.exceptions.NoSuchDistribution:
+        dist_present = False
+    except Exception as exc:  # noqa: BLE001
+        r.add("legacy host distribution state determinable", False, type(exc).__name__)
+        return
+
+    try:
+        socket.getaddrinfo(LEGACY_HOST, 443)
+        dns_present = True
+    except socket.gaierror:
+        dns_present = False
+
+    if dist_present:
+        # Still dual-homed. The original invariant applies: `o/` is what makes an object
+        # reachable on both hosts, so the origin path must stay `/o` on this bucket.
+        r.add("legacy host serves this bucket via origin path /o",
               origin["OriginPath"] == LEGACY_HOST_ORIGIN_PATH and BUCKET in origin["DomainName"],
               f"path={origin['OriginPath']!r} origin={origin['DomainName']}")
-    except Exception as exc:  # noqa: BLE001
-        r.add("legacy host distribution readable", False, type(exc).__name__)
+        r.add("legacy host resolves, matching its live distribution", dns_present,
+              "DNS present" if dns_present else
+              "distribution exists but DNS does not resolve - half-retired")
+    else:
+        # Retired. Assert the retirement is complete rather than partial: a DNS record
+        # still pointing at a deleted distribution is a dangling alias.
+        r.add("legacy host retired: distribution deleted", True,
+              f"{LEGACY_HOST_DISTRIBUTION} absent, as expected since 2026-09-28")
+        r.add("legacy host retired: DNS record also removed", not dns_present,
+              "does not resolve" if not dns_present else
+              f"{LEGACY_HOST} still resolves with no distribution behind it")
 
 
 def main() -> int:

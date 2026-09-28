@@ -245,3 +245,90 @@ before the first session committed, so its commit swept up the staged paths.
 Not rewritten, because it is already pushed and the standing rules forbid a history
 rewrite to tidy a message. The content is correct and complete; only the attribution is
 wrong, and this table is the fix.
+
+---
+
+## Addendum, 2026-09-28 (later) — the legacy host WAS switched off
+
+The section "What must NOT follow: the old host cannot be switched off" is now a record of
+a decision that was subsequently reversed, not a live constraint. Measured directly:
+
+| Check | Result |
+|---|---|
+| `cloudfront get-distribution-config E1DP37QIS4G0T4` | `NoSuchDistribution` |
+| `app.wecare.digital` in Route 53 (`Z03939753QJGZ6ZD6BXO8`, 31 records) | **no record of any type** |
+| `curl https://app.wecare.digital/...` | fails at DNS resolution, not at TLS or HTTP |
+| `s3api list-buckets` | 6 buckets, `app.wecare.digital` not among them |
+
+So the host is gone at every layer: bucket, distribution, DNS. The "keep both / read-only
+alias indefinitely" end state recommended above was **not** what shipped.
+
+### What that means for the three constraints listed above
+
+1. **Meta-approved template media — now genuinely broken, and silently.** The 61 objects
+   under `o/public/wa-tpl/` are still in the bucket and still reachable on the apex host,
+   but the URLs embedded in already-approved templates name `app.wecare.digital`, which no
+   longer resolves. Meta refetches media from the stored URL at send time. Previously this
+   failure mode was masked — the earlier addendum recorded the host mapping 403 and 404 to
+   `200 /error.html`, so a broken template looked healthy. It is no longer masked; it is
+   simply a DNS failure. **Unverified here:** whether any approved template still carries an
+   `app.wecare.digital` URL, because confirming it requires a Graph API read against the
+   WABA and template registration is a protected surface. That check is the open item.
+2. **BIMI — already migrated, correctly.** `default._bimi.wecare.digital` now reads
+   `l=https://wecare.digital/get/o/stream/media/m/wecare-digital.svg`, and that URL returns
+   `200 image/svg+xml`, 2953 bytes. No action needed. This was the one item handled.
+3. **Already-delivered content** — unchanged and unfixable by definition: RCS cards on
+   handsets, sent messages and cached PWA icons that reference the old host stay broken.
+
+### The verifier had to change, because it could only fail
+
+`scripts/verify_media_prefixes.py --live` check 4 asserted *"legacy host still serves this
+bucket via origin path `/o`"*. After the deletion that assertion can never pass, and a
+check that can only fail is worse than no check: it trains the reader to skip a red line.
+
+It now asserts the **coherence** of whichever state is live — if the distribution exists,
+the origin path must still be `/o` and DNS must resolve; if it is absent, DNS must also be
+absent, so a record dangling at a deleted distribution is caught. Both branches pass
+honestly, and the run is 7/7 rather than 5/1.
+
+The same pass also strengthened the dead-bucket check from equality to substring. The old
+form compared the whole env-var value against each dead name, so it matched a bare
+`app.wecare.digital` but walked straight past `app.wecare.digital/stream/media/m/x.png` —
+which is precisely the shape `CDN_DOMAIN` used to hold. Re-measured with the stricter test:
+**65 functions, 0 dead-bucket references.**
+
+### `o/` is still load-bearing, for a different reason
+
+Worth stating because the original justification has evaporated. `o/` was introduced as the
+thing that made an object dual-homed, and there is no second home any more. It remains
+mandatory anyway: every handler key, every `storageKey` already persisted in
+`stack-wecare-digital-DocumentTable`, the BIMI `l=` URL and every apex `/get/o/...` URL are
+written against it. Dropping the prefix is now a data migration, not a rename. Enforcement
+of checks 1-3 is unaffected.
+
+### Unrelated to the host, but measured in the same pass
+
+The 24 delete markers under `o/stream/media/m/` flagged as outstanding above are **still
+live**, and the re-deletion has stopped — the newest media marker is `06:49:57Z` and the
+sweep was re-measured at `13:15Z`. Bucket versioning is now **Suspended**, so the hidden
+object versions are still present and recoverable by removing the marker, but any *new*
+delete is permanent.
+
+Three of those keys serve `200` through the apex host while having no current object,
+confirming the earlier warning that edge cache outlives the object. A query-string
+cache-buster does **not** dislodge them, because the distribution's cache key excludes
+query strings — so `?cb=<n>` is not a valid absence test on this distribution. Use
+`s3api head-object`, which is authoritative:
+
+| Key | S3 object | Apex `/get` |
+|---|---|---|
+| `wd-brand-16x9.png` | **gone** | 200 (cache) |
+| `selfservice.mp4` | **gone** | 200 (cache) |
+| `wecare-digital-rcs-h.png` | **gone** | 200 (cache) |
+| `wdb.png`, `wdf.png`, `qr-selfservice.png` | **gone** | 302 (cache already expired) |
+| `wecare-digital.png`, `wecare-digital.svg`, `wecaredigital.png`, `meta-icon.svg` | present | 200 |
+
+`wd-brand-16x9.png` is the `og:image` in `src/pages/_app.tsx` and `src/components/SEO.tsx`;
+`selfservice.mp4` and `wecare-digital-rcs-h.png` are `mediaUrl`/`thumbnailUrl` in 7 RCS
+templates under `rcs/templates/`. Not restored here: it is another session's media-parity
+work, and the recovery is a delete-marker removal on production media.
