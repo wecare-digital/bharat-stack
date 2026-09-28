@@ -26,7 +26,7 @@ def make_post(n: int):
         'canonical': f'https://wecare.digital/post/{slug}/',
         'source_ref': f'book p.{n}',
         'image_status': 'none',
-        'body_markdown': 'Opening paragraph.\n\n## Ingredients\n\n**Makes 2 servings**\n\n- 1 cup ingredient\n- 1 tsp spice\n\n## Method\n\nCook carefully.\n\n## Technique\n\nFinish well.',
+        'body_markdown': 'This recipe has a clear culinary identity and enough context to explain what to look for before cooking. The opening should orient the reader without padding or generic filler.\n\nA second paragraph explains texture, balance, or ingredient choice so the article adds useful culinary context beyond a bare transcription of the recipe.\n\n## Ingredients\n\n**Makes 2 servings**\n\n- 1 cup ingredient\n- 1 tsp spice\n\n## Method\n\nCook carefully, watching the texture and heat rather than relying only on the clock. The method should be concise but complete enough to reproduce the dish.\n\n## Technique\n\nA final paragraph explains the practical cue that matters most when serving or finishing the dish, keeping the article useful and specific.',
     }
 
 
@@ -148,3 +148,67 @@ def test_progress_refuses_skipped_or_partial_batch():
     bad = dict(progress, next_id=50)
     errors = m.validate_progress(bad)
     assert any('next_id' in e for e in errors)
+
+
+def test_quality_gate_rejects_thin_or_fused_recipe_body():
+    m = load_module()
+    doc = make_doc()
+    doc['posts'][0]['body_markdown'] = (
+        'Very short intro.\n'
+        'Another fused line.\n'
+        '## Ingredients\n'
+        '- 1 cup ingredient\n'
+        '## Method\n'
+        'Mix and serve.'
+    )
+    errors = m.validate_batch_document(doc)
+    joined = '\n'.join(errors)
+    assert 'body too thin' in joined
+    assert 'substantive prose paragraphs' in joined
+
+
+def test_live_audit_rejects_editor_tokens_and_single_paragraph_body():
+    m = load_module()
+    expected = make_post(41)
+    bad = {
+        'slug': expected['slug'],
+        'authorName': 'Anew by WECARE.DIGITAL',
+        'category': 'Gastronomy',
+        'richContent': {'nodes': [
+            {
+                'type': 'PARAGRAPH',
+                'nodes': [{
+                    'type': 'TEXT',
+                    'textData': {
+                        'text': 'undefined raw editor placeholder body that should never reach production'
+                    }
+                }],
+                'paragraphData': {}
+            },
+            {
+                'type': 'HEADING',
+                'nodes': [{'type': 'TEXT', 'textData': {'text': 'Ingredients'}}],
+                'headingData': {'level': 2}
+            },
+            {
+                'type': 'BULLETED_LIST',
+                'nodes': [{
+                    'type': 'LIST_ITEM',
+                    'nodes': [{
+                        'type': 'PARAGRAPH',
+                        'nodes': [{'type': 'TEXT', 'textData': {'text': '1 cup ingredient'}}],
+                        'paragraphData': {}
+                    }]
+                }]
+            },
+            {
+                'type': 'HEADING',
+                'nodes': [{'type': 'TEXT', 'textData': {'text': 'Method'}}],
+                'headingData': {'level': 2}
+            }
+        ]},
+    }
+    errors = m.audit_public_post(bad, expected)
+    joined = '\n'.join(errors)
+    assert 'editor placeholder token' in joined
+    assert 'substantive prose paragraphs' in joined
