@@ -600,9 +600,18 @@ const HomePage: React.FC = () => {
           align-items:start;
         }
         .home-flow-panel{min-width:0}
-        /* Sticky so the explanation stays level with the panel while the eye follows the
-           stream. 128px clears the fixed 108px header with room to breathe. */
-        .home-flow-copy{position:sticky;top:128px}
+        /* NOT STICKY, AND THE STICKY IT REPLACES WAS DOING NOTHING IT CLAIMED TO.
+           This was position:sticky;top:128px under a comment saying the explanation "stays level
+           with the panel while the eye follows the stream". It cannot. A sticky element only
+           travels inside its own containing block, which here is the 650px grid band, and this
+           column measures 570px - so the total sticky travel was 80px, against 1350px of stream
+           in the panel beside it. It could stay level with about 6% of the thing it was said to
+           follow, and the other 94% it scrolled away exactly like a static element.
+           Measured at 1280x800: the column left the sticky position between scrollY 400 and 800
+           and was above the viewport from there on.
+           So it is static, which is what it was behaving as. align-items:start on the grid is
+           what actually keeps it at the top of the band. If the intent ever returns, the honest
+           way to get it is a taller band or a shorter column, not a sticky with no room. */
         /* Section h2: 700, HEAVIER than the hero h1's 600. That inversion is deliberate.
            The SIZE is now clamp(28px,3.2vw,40px) with lh 1.08 and ls -1.2px, which is
            identical to .home-close-title below - and that is the point of the change.
@@ -900,19 +909,32 @@ const HomePage: React.FC = () => {
           background:#d1f470;color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
           transition:opacity .5s ease,transform .5s ease,background-color .2s,box-shadow .2s;
         }
-        /* visibility:hidden ALONGSIDE opacity:0, because opacity ALONE DOES NOT REMOVE AN
-           ELEMENT FROM THE TAB ORDER. This is the page's only focusable element, and between
-           the band arming and the band scrolling into view it was a Tab stop on a control
-           nobody could see: focus landed, the ring drew at 1697px down the page, and there
-           was nothing at that position to look at. A keyboard visitor's first Tab into the
-           main content went to an invisible button.
-           visibility is inherited and it does remove an element from the tab order, which is
-           exactly what is wanted here - the button is not merely transparent during the
-           entrance, it is not yet present. It is also discretely animatable, so it flips at
-           the start of the reveal rather than fading, and the opacity transition still does
-           the visible work. */
-        .home-close.is-armed .home-close-cta{opacity:0;visibility:hidden;transform:translateY(8px)}
-        .home-close.is-armed.is-in .home-close-cta{opacity:1;visibility:visible;transform:none;transition-delay:.62s}
+        /* THE ARMED STATE HIDES THIS BUTTON FROM SIGHT WITHOUT REMOVING IT FROM THE PAGE, and
+           getting that distinction right took two goes.
+           It was opacity:0 alone, which left a Tab stop on a control nobody could see: focus
+           landed, the ring drew at 1697px down the page, and there was nothing there to look
+           at. The fix for that was visibility:hidden, which does remove an element from the tab
+           order - and it removed it from the ACCESSIBILITY TREE with it, which turned one defect
+           into a worse one. Measured: cta.focus() returned false while armed, and the whole tab
+           cycle from page load was five stops - logo, nav trigger, the terminal's Pause, footer
+           logo, WhatsApp - and then wrapped to the body. The page's only call to action was in
+           none of them. Because Tab could not reach it, Tab could not scroll it into view
+           either, so the IntersectionObserver that reveals the band never fired from keyboard
+           navigation: a reader using Tab alone could never get to it at all.
+           So opacity:0 is back for the hiding, and the original objection is answered directly
+           instead - FOCUS REVEALS IT. Sequential focus navigation scrolls the focused element
+           into view, so Tab brings the band on screen, the :focus rule below makes the button
+           visible in the same moment, and the observer fires too. The ring can no longer draw on
+           something invisible, because focusing it is what makes it visible.
+           pointer-events:none for the other half: opacity:0 leaves an element clickable, and a
+           button nobody can see must not be clickable. Keyboard focus is unaffected by it. */
+        .home-close.is-armed .home-close-cta{opacity:0;transform:translateY(8px);pointer-events:none}
+        .home-close.is-armed.is-in .home-close-cta{opacity:1;transform:none;pointer-events:auto;transition-delay:.62s}
+        /* AFTER .is-in on purpose: same specificity, so source order decides, and focus must
+           always win. transition:none because this is an accessibility escape hatch rather than
+           an entrance - a reader who has just tabbed to a control should see it now, not fade it
+           in over half a second. */
+        .home-close.is-armed .home-close-cta:focus{opacity:1;transform:none;pointer-events:auto;transition:none}
         .home-close-cta:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
         /* THE FOCUS RING IS OPAQUE. It was rgba(26,58,42,.22), which over this panel's lime
            tint composites to 1.51:1 against the 3:1 WCAG 1.4.11 asks of a focus indicator -
@@ -933,10 +955,9 @@ const HomePage: React.FC = () => {
           .home-close.is-armed .home-close-rule{transform:scaleX(1)}
           .home-close.is-armed .home-close-points li,
           .home-close.is-armed .home-close-cta{opacity:1;transform:none}
-          /* visibility too, or a reduced-motion visitor whose preference changed after
-             arming would get a CTA that is opaque but still visibility:hidden - present in
-             the layout, absent from the tab order, and invisible. */
-          .home-close.is-armed .home-close-cta{visibility:visible}
+          /* pointer-events too, or a reduced-motion visitor whose preference changed after
+             arming would get a CTA that is visible and focusable but not clickable. */
+          .home-close.is-armed .home-close-cta{pointer-events:auto}
           .home-close-cta:hover{transform:none}
         }
 
@@ -957,8 +978,9 @@ const HomePage: React.FC = () => {
         @media(max-width:1024px){
           .home-flow{grid-template-columns:minmax(0,1fr);gap:32px}
           /* Copy first on a narrow screen: it introduces the panel, and a 650px black
-             box arriving with no context is the thing that felt overwhelming. */
-          .home-flow-copy{position:static;order:-1}
+             box arriving with no context is the thing that felt overwhelming.
+             The position:static that used to be here went with the sticky it was undoing. */
+          .home-flow-copy{order:-1}
         }
 
         /* The font stack is declared here, not inherited. Measured in a browser, this

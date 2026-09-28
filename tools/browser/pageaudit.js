@@ -39,7 +39,7 @@ const REPO = path.join( __dirname, '..', '..' );
 const OUT_JSON = path.join( REPO, 'docs', 'execution', 'page-audit.json' );
 
 // The 15 routes _app.tsx treats as public, plus the two it names directly.
-const PUBLIC = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/my-order/',
+const PUBLIC = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/orders/',
   '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
   '/expo-week/', '/niji-setu/', '/ritual-guru/' ];
 

@@ -90,8 +90,8 @@ ${STEP.map( ( [ svc, hue, name ], i ) => {
   } ).join( '\n' )}
 </div></div>`;
 
-const NAV_TAIL = [ 'Bharat RX', 'My Order', 'Contact us', 'Terms', 'Privacy' ];
-const NAV_TAIL_FIXED = [ 'Bharat RX', 'My Order', 'Terms', 'Privacy', 'Contact us' ];
+const NAV_TAIL = [ 'Bharat RX', 'Orders', 'Contact us', 'Terms', 'Privacy' ];
+const NAV_TAIL_FIXED = [ 'Bharat RX', 'Orders', 'Terms', 'Privacy', 'Contact us' ];
 
 const html = `<!doctype html>
 <html lang="en">
