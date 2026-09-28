@@ -266,13 +266,16 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
                 { categories.map( category => {
                   const href = category === defaultCategory ? '/blog/' : `/blog/topic/${topicSlug( category )}/`;
                   const here = category === activeCategory;
+                  /* NO POST COUNT ON THE PILL, on owner instruction. Each pill carried
+                     <i>{ categoryCounts[ category ] }</i> - "Conversations 824" - so the label
+                     was a name followed by a number. The count is not gone from the page: the
+                     line beside the search box still reports it (see categoryTotal below), which
+                     is where a reader looks for "how many", and the pills go back to being what
+                     they are - a set of names you choose between. `categoryCounts` stays a prop
+                     because that line still needs it. */
                   return here
-                    ? <span key={ category } className="cat-here" aria-current="page">
-                      { category } <i>{ categoryCounts?.[ category ] ?? '' }</i>
-                    </span>
-                    : <Link key={ category } href={ href }>
-                      { category } <i>{ categoryCounts?.[ category ] ?? '' }</i>
-                    </Link>;
+                    ? <span key={ category } className="cat-here" aria-current="page">{ category }</span>
+                    : <Link key={ category } href={ href }>{ category }</Link>;
                 } ) }
               </nav>
             ) }
@@ -376,8 +379,8 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
         /* The current category: filled, and not a link, so there is nothing to click. */
         .category-switch .cat-here{background:#d1f470;border-color:#d1f470}
         /* The count. Tabular so the pills do not jiggle, and quiet so the name leads. */
-        .category-switch i{font-style:normal;font-weight:400;font-variant-numeric:tabular-nums;color:rgba(26,58,42,.62)}
-        .category-switch .cat-here i{color:rgba(26,58,42,.72)}
+        /* The .category-switch i rules that styled the per-pill post count went with the count
+           itself - see the note in the markup. Nothing else in this nav renders an <i>. */
         .post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
         .post-card{border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff;transition:border-color .18s ease,transform .18s ease}
         .post-card:hover{border-color:#d1f470;transform:translateY(-1px)}

@@ -75,7 +75,7 @@ interface NavColumn {
 // The current mapping, for the record:
 //   Submit Request     -> /submit-request/
 //   Request Amendment  -> /request-amendment/
-//   My Order           -> /my-order/
+//   Orders             -> /orders/
 //   Drop Docs          -> /drop-docs/
 //   Leave Review       -> /leave-review/
 //   Refer & Earn       -> /refer-and-earn/
@@ -141,12 +141,18 @@ const COLUMNS: NavColumn[] = [
         // 'Requests' describes what the rows beneath it actually do.
         heading: 'Requests',
         links: [
-          // MY ORDER IS FIRST, on owner instruction - it is the row customers reach for
+          // ORDERS IS FIRST, on owner instruction - it is the row customers reach for
           // most, and it is the one real local page in this group (the others land on
           // /contact for now), so it leads. It carries `match` and lights up on its own
-          // route. "My Order" REPLACES the old "Request Tracking" row - the two answer the
+          // route. It REPLACES the old "Request Tracking" row - the two answer the
           // same question, and offering both sends one visitor to two places for one answer.
-          { label: 'My Order', href: '/my-order/', match: '/my-order' },
+          //
+          // RENAMED FROM "My Order" -> "Orders" AND /my-order/ -> /orders/, on owner
+          // instruction, label and URL in the same change. `match` stays the slashless form
+          // because it is compared against router.pathname; `href` keeps the trailing slash or
+          // the static host 308s before resolving. The old path 301s here - see RETIRED in
+          // scripts/provision_legacy_redirects.py.
+          { label: 'Orders', href: '/orders/', match: '/orders' },
           // FAQ removed on request. The local /faq page was already deleted; this
           // drops the menu row too, so there is no FAQ entry point left anywhere.
           // EACH ROW NOW HAS ITS OWN PAGE. These four, plus Refer & Earn below, used to
@@ -199,7 +205,7 @@ const COLUMNS: NavColumn[] = [
       // ACCOUNT / SIGN IN REMOVED from the public menu on owner instruction. That "Sign
       // in" pointed at /access, which is the INTERNAL staff dashboard login (Cognito) -
       // it does not belong in the public navigation. A fresh, customer-facing login
-      // (WhatsApp OTP, SMS/email fallback) will live on the /my-order page instead, so
+      // (WhatsApp OTP, SMS/email fallback) will live on the /orders page instead, so
       // there is deliberately no sign-in row here now.
     ],
   },

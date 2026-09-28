@@ -162,10 +162,32 @@ const isHidden = (): boolean =>
   typeof document !== 'undefined' && document.visibilityState === 'hidden';
 
 const WorkflowTerminal: React.FC = () => {
-  // How many steps are on screen, and whether the last of them is still running.
-  const [ shown, setShown ] = useState( 0 );
-  const [ settled, setSettled ] = useState( -1 );
-  const [ done, setDone ] = useState( false );
+  /* THE INITIAL STATE IS THE FINISHED RUN, NOT AN EMPTY BOX - which is the .is-armed inversion
+   * the home page already uses for its hero and its closing band, applied here at last.
+   *
+   * These were 0 / -1 / false, so the static export rendered ZERO rows. Measured on the built
+   * HTML: `grep -c "Request accepted" out/index.html` returned 0, and with JavaScript disabled
+   * the largest element on the home page was a 650px black rectangle holding one line of text
+   * and a footer reading "running 0 / 8 services". Every word of the eight steps existed only
+   * after hydration, so a no-JS reader, a WebView with scripting off, and anything reading the
+   * HTML rather than running it all got an empty panel - on the same site that just started
+   * publishing llms.txt and an /mcp endpoint for exactly those readers.
+   *
+   * Shipping the COMPLETE state fixes it with no new markup: eight rows, all settled, footer
+   * reading "complete". It is also the most meaningful single frame the panel has, it is
+   * byte-identical to what a reduced-motion visitor already gets, and it removes the last place
+   * the panel was ever nearly empty - the first-load state, which the loop was already fixed
+   * for but the initial render was not.
+   *
+   * Hydration is safe because these are plain initial values, identical on both sides; nothing
+   * here reads a browser global. The animation then starts from this state rather than replacing
+   * it - see `resumeRef`, which begins at STEPS.length so the first thing the stepper does is
+   * serve the end-of-pass hold and loop round, exactly as it does on every later cycle. So there
+   * is no flash: the panel a reader sees before JavaScript runs is the panel it keeps.
+   */
+  const [ shown, setShown ] = useState( STEPS.length );
+  const [ settled, setSettled ] = useState( STEPS.length );
+  const [ done, setDone ] = useState( true );
   /* The loop's pause control and its restart counter. `paused` gates the restart at the end of
    * a pass AND is what makes the continuous animation WCAG 2.2.2 conformant; `cycle` bumping is
    * what re-enters the stepping effect for another pass. */
@@ -212,14 +234,10 @@ const WorkflowTerminal: React.FC = () => {
 
       const reduce = typeof window.matchMedia === 'function'
         && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
-      if ( reduce ) {
-        // The finished state, held: the sequence is the decoration, the content is not.
-        // `paused` rather than a missing `run`, so the control means something.
-        setShown( STEPS.length );
-        setSettled( STEPS.length );
-        setDone( true );
-        setPaused( true );
-      }
+      // The finished state is now the INITIAL state, so this branch no longer has to build it -
+      // it only has to stop the stepper from leaving it. `paused` rather than a missing `run`,
+      // so the control still means something.
+      if ( reduce ) setPaused( true );
       setRun( true );
     }, 0 );
 
@@ -276,7 +294,12 @@ const WorkflowTerminal: React.FC = () => {
    *
    * A ref rather than state, because writing it must not itself re-run the effect that reads it.
    */
-  const resumeRef = useRef( 0 );
+  /* STEPS.length, NOT 0, and that is what makes the static complete state seamless. The stepper
+   * resumes from here, so its first act is to enter the end-of-pass branch: hold the finished
+   * panel for 3.2s, then rewind and replay, then loop. A visitor therefore reads a completed run
+   * first and watches it replay - rather than seeing eight settled rows blink back to running
+   * one frame after hydration, which is what starting at 0 would have produced. */
+  const resumeRef = useRef( STEPS.length );
 
   useEffect( () => {
     /* PAUSED MEANS NO STEPPER AT ALL. Returning before anything is scheduled is what makes the
@@ -328,11 +351,14 @@ const WorkflowTerminal: React.FC = () => {
           setDone( false );
           setSettled( -1 );
           resumeRef.current = 0;
-          // A new pass gets the view back - see the note on followRef. autoTop is cleared with
-          // it so a stale expected position cannot swallow the reader's first scroll of the
-          // next pass.
+          /* A new pass gets the view back - see the note on followRef.
+           * `autoTop` is deliberately NOT reset here. It was, as belt-and-braces against a stale
+           * expected position swallowing the reader's first scroll of the next pass - but writing
+           * it in this effect is what made react-hooks/immutability reject the write in the
+           * follow effect below, and the guard was never load-bearing: every auto-scroll is
+           * followed by a scroll event that consumes the value, and the follow effect overwrites
+           * it before each scroll regardless. */
           followRef.current = true;
-          autoTop.current = -1;
           setCycle( c => c + 1 );
         }, 3200 );
         return;
@@ -438,7 +464,14 @@ const WorkflowTerminal: React.FC = () => {
     if ( !box || !stream || !followRef.current ) return;
     const rows = stream.children;
     if ( !rows.length ) return;
-    const row = rows[ Math.min( Math.max( settled + 1, 0 ), rows.length - 1 ) ] as HTMLElement;
+    /* NOTHING IS RUNNING, SO THERE IS NO EDGE TO FOLLOW - leave the view where the reader has it.
+     * This guard is what keeps the new static complete state readable from the top: on mount
+     * `settled` is STEPS.length, and without it the clamp below would resolve to the LAST row and
+     * scroll a freshly loaded panel straight to its bottom before anything had moved. It also
+     * covers the end of every pass, where the final row settles and the frontier walks off the
+     * end; that row was already brought into view one step earlier. */
+    if ( settled >= rows.length - 1 ) return;
+    const row = rows[ Math.max( settled + 1, 0 ) ] as HTMLElement;
     const bb = box.getBoundingClientRect();
     const rb = row.getBoundingClientRect();
     const pad = 16;
@@ -524,16 +557,26 @@ const WorkflowTerminal: React.FC = () => {
           tick: this sandbox has 82 fonts and none with symbol coverage, so a play triangle or
           pause bars written as U+25B6 / U+23F8 would render as tofu somewhere. Two CSS-drawn
           bars and a CSS-drawn triangle cannot fall back to a missing glyph. */}
-      <button
-        type="button"
-        className={ `wt-play ${paused ? 'is-paused' : ''}`.trim() }
-        onClick={ togglePlay }
-        aria-pressed={ paused }
-      >
-        <span className="wt-play-mark" aria-hidden="true" />
-        { paused ? 'Play' : 'Pause' }
-        <span className="wt-sr-only"> the illustration of a customer request</span>
-      </button>
+      {/* RENDERED ONLY ONCE THERE IS SOMETHING TO CONTROL. `run` is false during the static
+          export and on the first client render, and becomes true one tick later - so the HTML
+          ships without this button and a reader with JavaScript disabled is not offered a Pause
+          control for an animation that cannot start. It used to ship unconditionally, which left
+          a no-JS visitor a button labelled "Pause" sitting over a panel that was never going to
+          move. Hydration-safe because the condition is identical on both sides of the boundary,
+          and no layout shifts when it arrives: .wt-bar already reserves 108px of right padding
+          for its footprint. */}
+      { run && (
+        <button
+          type="button"
+          className={ `wt-play ${paused ? 'is-paused' : ''}`.trim() }
+          onClick={ togglePlay }
+          aria-pressed={ paused }
+        >
+          <span className="wt-play-mark" aria-hidden="true" />
+          { paused ? 'Play' : 'Pause' }
+          <span className="wt-sr-only"> the illustration of a customer request</span>
+        </button>
+      ) }
 
       <div className="wt-window" aria-hidden="true" dir="ltr">
         <div className="wt-bar">

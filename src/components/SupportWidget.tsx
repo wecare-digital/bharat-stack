@@ -23,7 +23,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
  *    between what is read and what is heard.
  *  - /tts responses were never cached, so every press billed ~2,800 characters. It was
  *    the single largest cost line in this feature - larger than all translation combined.
- *  - Pre-generating audio was considered and rejected: the blog, /my-order and /get are
+ *  - Pre-generating audio was considered and rejected: the blog, /orders and /get are
  *    dynamic, so the audio would either be stale or missing.
  *  - Accessibility is unaffected and arguably better served: VoiceOver, TalkBack and NVDA
  *    already read pages aloud in the user's own language, natively and already installed,

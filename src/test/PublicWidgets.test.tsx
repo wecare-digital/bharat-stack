@@ -257,7 +257,7 @@ describe( 'support widget wiring', () => {
     // coverage is Hindi and Indian English - so the button was hidden for almost every
     // language this product serves. /tts responses were also never cached, making it the
     // largest cost line in the feature, and pre-generating audio is impossible for the
-    // blog, /my-order and /get, which are dynamic.
+    // blog, /orders and /get, which are dynamic.
     // PINNED ON CODE, NOT PROSE, for the same reason as the panel assertions above: the
     // header comment explains why /tts was dropped, so a bare not.toContain('/tts') fired
     // on the explanation. These match the fetch template and the JSX/identifier forms.

@@ -3,16 +3,25 @@ import PageMeta from '../components/PageMeta';
 import RotatingHero, { type CycleWord } from '../components/RotatingHero';
 
 /**
- * /my-order — where a customer checks what they have already asked for.
+ * /orders — where a customer checks what they have already asked for.
  *
- * ROUTING: '/my-order' must be in the EXACT-MATCH allowlist in _app.tsx or this renders
+ * RENAMED FROM /my-order ON OWNER INSTRUCTION, label and URL together. The old path is not
+ * simply gone: it 301s to this one from the Amplify customRules written by
+ * scripts/provision_legacy_redirects.py (RETIRED), because the page has been live and linked.
+ * The same change repointed FROZEN_EXTERNAL["/track"], which is printed inside a DLT-approved
+ * SMS template that cannot be edited and used to land on /my-order/ - leaving it alone would
+ * have pointed an unchangeable template at a dead URL.
+ *
+ * ROUTING: '/orders' must be in the EXACT-MATCH allowlist in _app.tsx or this renders
  * an empty body with HTTP 200 - a 404 that does not look like one. trailingSlash means
- * the URL is /my-order/.
+ * the URL is /orders/. Three more lists have to agree or the suite fails: PUBLIC_EXACT in
+ * scripts/generate-sitemap.js, and the path plus name in config/public-pages.json - whose
+ * description must stay byte-identical to the one in _app.tsx.
  *
  * THIS REPLACED "Request Tracking" IN THE MENU rather than sitting beside it. The two are
  * the same function under different names, and a menu that offers both sends the same
  * visitor to two places to answer one question. If both are genuinely wanted - say
- * "My Order" for purchases and "Request Tracking" for service requests - that is a real
+ * "Orders" for purchases and "Request Tracking" for service requests - that is a real
  * distinction and the row should come back, but it needs different destinations to be
  * worth the space.
  *
@@ -45,15 +54,15 @@ const CYCLE_WORDS: CycleWord[] = [
 // the apex '/selfservice' on its own. Verify with curl before changing this again.
 const CONTACT = 'https://wecare.digital/contact/';
 
-const MyOrderPage: React.FC = () => (
+const OrdersPage: React.FC = () => (
   <>
     <PageMeta
-      title="My Order — WECARE.DIGITAL"
+      title="Orders — WECARE.DIGITAL"
       description="Check the status of an order, delivery, request or booking with WECARE.DIGITAL, and find what to do if something needs changing."
-      path="/my-order/"
+      path="/orders/"
     />
     <RotatingHero
-      ariaLabel="My order"
+      ariaLabel="Orders"
       badgeLabel="Order tracking — WECARE.DIGITAL"
       frame="Track your"
       words={ CYCLE_WORDS }
@@ -131,4 +140,4 @@ const MyOrderPage: React.FC = () => (
   </>
 );
 
-export default MyOrderPage;
+export default OrdersPage;

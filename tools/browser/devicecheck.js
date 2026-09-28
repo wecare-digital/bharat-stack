@@ -45,7 +45,7 @@ const launchEngine = async () => {
   return require( 'playwright-core' )[ ENGINE ].launch();
 };
 
-const ROUTES = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/my-order/',
+const ROUTES = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/orders/',
   '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
   '/expo-week/', '/niji-setu/', '/ritual-guru/', '/404/', '/blog/', '/get/' ];
 

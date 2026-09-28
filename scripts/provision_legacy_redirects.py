@@ -116,6 +116,15 @@ RETIRED = {
     "/workspace/engage/rcs/campaign": "/workspace/engage/broadcast/",
     "/workspace/engage/ses/campaign": "/workspace/engage/broadcast/",
     "/workspace/link/logs": "/workspace/link/",
+    # RENAMED 2026-09-28 on owner instruction: the menu row "My Order" became "Orders" and the
+    # page moved with it. This is the first PUBLIC, indexable entry in this dict - every other
+    # one is behind /workspace/ - which is what makes the 301 matter rather than being tidiness:
+    # /my-order/ has been live, is in the sitemap, is advertised in llms.txt and is shipped
+    # inside the MCP catalogue, so it is a URL other people and other machines already hold.
+    # A 301 moves that equity to /orders/ and takes the old path out of the index; letting it
+    # fall through to the catch-all would serve 404.html at HTTP 200 instead, which is the
+    # failure mode this whole script exists to avoid.
+    "/my-order": "/orders/",
 }
 
 # Prefix renames: old top-level segment -> new one. `/dm` became `/workspace/engage` on
@@ -205,7 +214,7 @@ RENAMED_PREFIXES = {
 # WHY THESE TARGETS. Not `/contact/`, which was the obvious guess and is weaker. The
 # frozen sentence is literally "**Submit your request** here", and since 2026-09-28 there
 # is a real public page for exactly that — `/submit-request/`, one of the five Selfservice
-# rows given their own pages. `/track` maps to `/my-order/`, whose own badge reads "Order
+# rows given their own pages. `/track` maps to `/orders/`, whose own badge reads "Order
 # tracking". Both were probed live at 200 before being named here. A redirect to a page
 # that answers the sentence beats one to a generic contact form.
 #
@@ -213,9 +222,14 @@ RENAMED_PREFIXES = {
 # removed "Selfservice" from everywhere customer-visible. Re-creating the page would
 # reintroduce the retired word as a live public URL; a 301 keeps the frozen links working
 # without putting it back in front of anyone.
+# `/track` REPOINTED 2026-09-28 from `/my-order/` to `/orders/` with the page rename. This is the
+# entry that made the rename more than a find-and-replace: the sentence containing /track is
+# printed inside a DLT-approved template that cannot be edited, so the redirect is the only thing
+# standing between an unchangeable SMS and a dead link. Left at /my-order/ it would have chained
+# /track -> /my-order/ -> /orders/ at best, and pointed at nothing at worst.
 FROZEN_EXTERNAL = {
     "/selfservice": "/submit-request/",
-    "/track": "/my-order/",
+    "/track": "/orders/",
 }
 
 # REMOVED 2026-09-25 on owner instruction: "/workspace/forms/logs": "/workspace/forms/responses/".
@@ -287,9 +301,13 @@ OBSOLETE_SOURCES = {
 # judged dead on sight, and, worse, so would any future rule pointing at a public page.
 # Listed individually rather than relaxed to "/" so the check keeps its teeth: a target
 # that is genuinely stale still has to be named here to survive.
+# `/orders/` replaced `/my-order/` on 2026-09-28. `/my-order/` is NOT kept here: nothing targets
+# it any more, and leaving a retired page in the list of legitimate destinations is how the
+# residue check loses its teeth - the point of naming each one is that a stale target has to be
+# re-justified to survive.
 LIVE_TARGET_PREFIXES = (
     "/workspace/", "/index.html", "/404.html", "/get/",
-    "/submit-request/", "/my-order/", "/contact/",
+    "/submit-request/", "/orders/", "/contact/",
 )
 
 #: The document the `/<*>` catch-all serves on a miss. See the docstring section
