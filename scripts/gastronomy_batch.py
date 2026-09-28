@@ -317,6 +317,47 @@ def audit_document(document: dict):
     return audit_errors
 
 
+
+def validate_progress(progress: dict):
+    errors = []
+    completed = progress.get('completed_through')
+    next_id = progress.get('next_id')
+    batch_size = progress.get('batch_size')
+    total = progress.get('total')
+    if batch_size != BATCH_SIZE:
+        errors.append(f'batch_size must be {BATCH_SIZE}')
+    if total != 340:
+        errors.append('total must be 340')
+    if not isinstance(completed, int) or completed < 40 or completed > 340:
+        errors.append('completed_through must be an integer from 40 through 340')
+    elif completed != 40 and (completed - 40) % BATCH_SIZE != 0:
+        errors.append('completed_through must advance in 25-post batches after 40')
+    expected_next = 341 if completed == 340 else (completed + 1 if isinstance(completed, int) else None)
+    if next_id != expected_next:
+        errors.append(f'next_id must be {expected_next}')
+    if completed == 340 and progress.get('last_batch') != 'GAST-316-GAST-340':
+        errors.append('last_batch must identify the final batch at completion')
+    return errors
+
+
+def advance_progress(progress: dict, batch_start: int, batch_end: int):
+    errors = validate_progress(progress)
+    if errors:
+        raise ValueError('invalid progress: ' + '; '.join(errors))
+    expected_start = progress['next_id']
+    expected_end = expected_start + BATCH_SIZE - 1
+    if batch_start != expected_start:
+        raise ValueError(f'batch_start {batch_start} does not match next_id {expected_start}')
+    if batch_end != expected_end:
+        raise ValueError(f'batch_end {batch_end} must be {expected_end}')
+    if batch_end > progress['total']:
+        raise ValueError('batch exceeds total')
+    updated = dict(progress)
+    updated['completed_through'] = batch_end
+    updated['next_id'] = 341 if batch_end == progress['total'] else batch_end + 1
+    updated['last_batch'] = f'GAST-{batch_start:03d}-GAST-{batch_end:03d}'
+    return updated
+
 def load_document(path: Path):
     data = json.loads(path.read_text(encoding='utf-8'))
     if not isinstance(data, dict):
