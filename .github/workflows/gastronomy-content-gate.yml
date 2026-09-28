@@ -57,7 +57,7 @@ jobs:
           done
 
   publish:
-    if: (github.event_name == 'workflow_dispatch' && inputs.publish == true) || github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
     needs: validate
     runs-on: ubuntu-latest
     permissions:
@@ -80,20 +80,9 @@ jobs:
           role-to-assume: arn:aws:iam::775261844268:role/GitHubActions-bharat-stack-seo-tools
           role-session-name: gastronomy-publisher
           aws-region: ${{ env.AWS_REGION }}
-      - name: Resolve manifest
-        id: manifest
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            manifest="${{ inputs.manifest }}"
-          else
-            manifest="$(find content/gastronomy/batches -maxdepth 1 -type f -name 'GAST-*.json' | sort | tail -1)"
-          fi
-          test -n "$manifest"
-          echo "path=$manifest" >> "$GITHUB_OUTPUT"
       - name: Validate requested manifest
-        run: python scripts/gastronomy_batch.py validate --manifest "${{ steps.manifest.outputs.path }}"
+        run: python scripts/gastronomy_batch.py validate --manifest "${{ inputs.manifest }}"
       - name: Publish only missing Wix posts
-        run: python scripts/gastronomy_batch.py publish --manifest "${{ steps.manifest.outputs.path }}"
+        run: python scripts/gastronomy_batch.py publish --manifest "${{ inputs.manifest }}"
       - name: Audit published posts through public-blog backend
-        run: python scripts/gastronomy_batch.py audit --manifest "${{ steps.manifest.outputs.path }}"
+        run: python scripts/gastronomy_batch.py audit --manifest "${{ inputs.manifest }}"
