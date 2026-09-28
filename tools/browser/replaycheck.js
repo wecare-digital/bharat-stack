@@ -37,6 +37,29 @@ const hex = ( rgb ) => {
   if ( !m ) return String( rgb );
   return '#' + m.slice( 0, 3 ).map( n => Number( n ).toString( 16 ).padStart( 2, '0' ) ).join( '' );
 };
+
+/**
+ * FLATTEN AN rgba() ONTO WHAT IS BEHIND IT.
+ *
+ * getComputedStyle().backgroundColor returns the AUTHORED value, alpha included -
+ * "rgba(37, 99, 235, 0.2)" - not the colour a reader's eye receives. hex() above keeps the
+ * first three numbers and discards the alpha, so measuring contrast against its output compares
+ * text to the hue at FULL strength rather than to the 20% wash actually painted.
+ *
+ * That is not a rounding difference, it inverts the verdict. White on messaging lime measured
+ * 1.24:1 against #d1f470 and fails hard; against the real chip, lime at 20% over the panel's
+ * black, it is 13.55:1 and is the most legible thing on the row. This function is the difference
+ * between a probe that measures the design and one that fails it for a reason that is not real.
+ */
+const flatten = ( rgba, baseHex = '#000000' ) => {
+  const m = String( rgba ).match( /[\d.]+/g );
+  if ( !m ) return String( rgba );
+  const a = m.length > 3 ? Number( m[ 3 ] ) : 1;
+  const base = [ 1, 3, 5 ].map( i => parseInt( baseHex.substr( i, 2 ), 16 ) );
+  return '#' + m.slice( 0, 3 )
+    .map( ( n, i ) => Math.round( Number( n ) * a + base[ i ] * ( 1 - a ) ) )
+    .map( v => v.toString( 16 ).padStart( 2, '0' ) ).join( '' );
+};
 const lum = h => {
   const c = [ 1, 3, 5 ].map( i => parseInt( h.substr( i, 2 ), 16 ) / 255 )
     .map( v => ( v <= 0.03928 ? v / 12.92 : Math.pow( ( v + 0.055 ) / 1.055, 2.4 ) ) );
@@ -95,6 +118,8 @@ async function main() {
           dotVar: cs.getPropertyValue( '--dot' ).trim(),
           dotPaint: dot ? getComputedStyle( dot ).backgroundColor : null,
           svcColor: svc ? getComputedStyle( svc ).color : null,
+          svcBg: svc ? getComputedStyle( svc ).backgroundColor : null,
+          svcBorder: svc ? getComputedStyle( svc ).borderTopColor : null,
           nameColor: name ? getComputedStyle( name ).color : null,
           complete: name ? name.classList.contains( 'is-complete' ) : false,
           hasTick: !!tick,
@@ -139,10 +164,27 @@ async function main() {
     assert( distinctDots.length >= 4,
       `dots carry ${distinctDots.length} distinct hues: ${distinctDots.join( ' ' )}` );
 
-    assert( distinctPills.length >= 4,
-      `pill text carries ${distinctPills.length} distinct hues: ${distinctPills.join( ' ' )}`,
-      distinctPills.length < 4
-        ? 'the pill is meant to carry its service hue - a single colour here means .wt-svc lost var(--ink)'
+    /*
+     * THE PILL LABEL IS WHITE AND ITS CHIP CARRIES THE HUE. This assertion used to require the
+     * label itself to carry five hues, which was the design until it was measured properly:
+     * at 11.5px, blue cleared the 4.5:1 floor by 0.01 and purple by 0.06, and the owner
+     * reported `auth` as unreadable. The floor is written for ~16px text. So hue moved to the
+     * chip's fill and border, where there is no legibility floor at all.
+     */
+    const nonWhitePills = steps.filter( s => hex( s.svcColor ) !== '#ffffff' );
+    assert( nonWhitePills.length === 0,
+      `all ${steps.length} pill labels are #ffffff`,
+      nonWhitePills.length
+        ? `${nonWhitePills.map( s => `${s.service} is ${hex( s.svcColor )}` ).join( ', ' )}. `
+          + 'A hue on 11.5px text cleared 4.5:1 by hundredths and read as murky - see the note '
+          + 'on .wt-svc. Hue belongs on the chip, not the letters.'
+        : '' );
+
+    const distinctPillBgs = [ ...new Set( steps.map( s => flatten( s.svcBg ) ) ) ];
+    assert( distinctPillBgs.length >= 4,
+      `pill chips carry ${distinctPillBgs.length} distinct fills: ${distinctPillBgs.join( ' ' )}`,
+      distinctPillBgs.length < 4
+        ? 'the chip fill is what identifies the service now - one fill means .wt-svc lost rgba(var(--rgb),.20)'
         : '' );
 
     const nonWhite = steps.filter( s => hex( s.nameColor ) !== '#ffffff' );
@@ -154,23 +196,124 @@ async function main() {
           + 'amber on "A provider failed, nobody noticed" was rejected. See docs/step-review.md.'
         : '' );
 
-    // Every pill must clear 4.5:1 on its own tinted ground - it is 11.5px text.
-    const pillFloor = steps.filter( s => {
-      const bg = hex( s.dotPaint );
-      const tinted = '#' + [ 1, 3, 5 ].map( i => Math.round( parseInt( bg.substr( i, 2 ), 16 ) * 0.14 ).toString( 16 ).padStart( 2, '0' ) ).join( '' );
-      return Number( ratio( hex( s.svcColor ), tinted ) ) < 4.5;
-    } );
+    /*
+     * 7:1, NOT 4.5:1, and the higher bar is the entire point of the change. This label is
+     * 11.5px; the 4.5:1 floor assumes roughly 16px. Holding small text to the AA minimum is how
+     * the previous palette passed every gate and still could not be read, so the floor here is
+     * AAA and the measurement is against the chip's REAL painted background rather than a
+     * recomputed tint.
+     */
+    const pillRatio = s => Number( ratio( hex( s.svcColor ), flatten( s.svcBg, '#000000' ) ) );
+    const pillFloor = steps.filter( s => pillRatio( s ) < 7 );
     assert( pillFloor.length === 0,
-      `every pill clears 4.5:1 on its own 14% ground (11.5px text)`,
-      pillFloor.map( s => `row ${s.i} ${s.service}` ).join( ', ' ) );
+      `every pill label clears 7:1 on its own chip (11.5px text, AAA not AA)`,
+      pillFloor.map( s => `${s.service} ${pillRatio( s ).toFixed( 2 )}:1` ).join( ', ' ) );
+    const worst = steps.map( s => ( { s, r: pillRatio( s ) } ) ).sort( ( a, b ) => a.r - b.r )[ 0 ];
+    console.log( `  note  lowest pill contrast is ${worst.s.service} at ${worst.r.toFixed( 2 )}:1 on ${flatten( worst.s.svcBg )} (chip flattened onto #000)` );
 
     console.log( `  note  ${recoloured.length} of ${steps.length} rows carry .is-complete; it is a state hook with no paint of its own` );
     for ( const s of recoloured ) {
       console.log( `        row ${s.i} "${s.label}": name ${hex( s.nameColor )} = ${ratio( hex( s.nameColor ), '#000000' )}:1, pill ${hex( s.svcColor )}, tick takes the hue` );
     }
 
-    /* ---------------- 2. footer tagline replay ---------------- */
-    console.log( '\n2. FOOTER TAGLINE - replay on hover and click' );
+    /* ---------------- 2. the loop, and the control that legitimises it ---------------- */
+    console.log( '\n2. WORKFLOW TERMINAL - continuous loop and its pause control' );
+
+    /*
+     * The panel played once and held for a while, and it looped before that. The original loop
+     * was removed for two reasons, and this asserts that neither came back with it:
+     *
+     *   1. WCAG 2.2.2 - motion over five seconds must be pausable. A cycle is ~15.8s, so the
+     *      control is not optional. It also must be OUTSIDE the aria-hidden window subtree,
+     *      because a focusable node in there is in the tab order and absent from the a11y tree.
+     *   2. The panel emptied itself. The old reset rewound `shown` to 0, leaving one 26px line
+     *      in a 551px box. The row count must therefore never fall once it has reached eight.
+     */
+    const control = await page.evaluate( () => {
+      const btn = document.querySelector( '.wt-play' );
+      if ( !btn ) return null;
+      const win = document.querySelector( '.wt-window' );
+      return {
+        exists: true,
+        label: btn.textContent.trim(),
+        tag: btn.tagName,
+        insideAriaHidden: !!( win && win.contains( btn ) ),
+        ariaPressed: btn.getAttribute( 'aria-pressed' ),
+      };
+    } );
+    assert( control && control.exists, 'a pause control exists (WCAG 2.2.2 for a ~15.8s cycle)' );
+    if ( control ) {
+      assert( control.tag === 'BUTTON', `the control is a real <button> (${control.tag})` );
+      assert( !control.insideAriaHidden,
+        'the control is OUTSIDE the aria-hidden window subtree',
+        control.insideAriaHidden
+          ? 'a focusable node inside aria-hidden is reachable by keyboard and announced as nothing'
+          : '' );
+    }
+
+    // Watch the row count and the settle frontier for long enough to catch a restart.
+    const watched = await page.evaluate( () => new Promise( resolve => {
+      const samples = [];
+      const t0 = performance.now();
+      const tick = setInterval( () => {
+        const rows = document.querySelectorAll( '.wt-step' );
+        let frontier = -1;
+        rows.forEach( ( r, i ) => { if ( r.classList.contains( 'is-done' ) ) frontier = i; } );
+        samples.push( { t: Math.round( performance.now() - t0 ), rows: rows.length, frontier } );
+        if ( performance.now() - t0 > 34000 ) { clearInterval( tick ); resolve( samples ); }
+      }, 250 );
+    } ) );
+
+    const maxRows = Math.max( ...watched.map( s => s.rows ) );
+    const afterFull = watched.filter( s => s.rows >= maxRows );
+    const minAfterFull = Math.min( ...afterFull.map( s => s.rows ) );
+    assert( maxRows === 8, `all 8 rows mount (${maxRows})` );
+    assert( minAfterFull === 8,
+      'the row count never falls once all 8 have mounted - the panel never empties',
+      minAfterFull < 8 ? `dropped to ${minAfterFull} rows, which is the old reset defect` : '' );
+
+    // A restart shows up as the settle frontier going BACKWARDS.
+    let rewinds = 0;
+    for ( let i = 1; i < watched.length; i++ ) {
+      if ( watched[ i ].frontier < watched[ i - 1 ].frontier ) rewinds++;
+    }
+    assert( rewinds >= 1,
+      `the sequence restarts - settle frontier rewound ${rewinds}x in 34s`,
+      rewinds === 0 ? 'no restart seen; the panel is still one-shot' : '' );
+
+    // Pausing must stop it. Press, then confirm the frontier stops moving.
+    await page.click( '.wt-play' );
+    const paused = await page.evaluate( () => new Promise( resolve => {
+      const read = () => {
+        let f = -1;
+        document.querySelectorAll( '.wt-step' ).forEach( ( r, i ) => { if ( r.classList.contains( 'is-done' ) ) f = i; } );
+        return f;
+      };
+      const seen = new Set();
+      const t0 = performance.now();
+      const tick = setInterval( () => {
+        seen.add( read() );
+        if ( performance.now() - t0 > 6000 ) {
+          clearInterval( tick );
+          const anims = [ ...document.querySelectorAll( '.wt-step.is-running .wt-dot' ) ]
+            .flatMap( d => ( d.getAnimations ? d.getAnimations() : [] ) )
+            .map( a => a.playState );
+          resolve( { frontiers: [ ...seen ], pulsing: anims } );
+        }
+      }, 250 );
+    } ) );
+    assert( paused.frontiers.length <= 1,
+      `paused: the sequence stops advancing (frontier held at ${paused.frontiers.join( ',' )})`,
+      paused.frontiers.length > 1 ? 'it kept stepping after pause' : '' );
+    assert( paused.pulsing.length === 0,
+      'paused: the dot pulse stops too, not just the timers',
+      paused.pulsing.length ? `${paused.pulsing.length} pulse animation(s) still ${paused.pulsing.join( ',' )}` : '' );
+
+    // Leave it playing so later sections see the normal state.
+    await page.click( '.wt-play' );
+
+    /* ---------------- 3. footer tagline replay ---------------- */
+    console.log( '\n3. FOOTER TAGLINE - replay on hover and click' );
 
     await page.evaluate( () => window.scrollTo( 0, document.body.scrollHeight ) );
     await page.waitForTimeout( 400 );
