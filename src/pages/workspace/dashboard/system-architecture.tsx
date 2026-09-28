@@ -425,7 +425,7 @@ const FRONTEND_ROUTES: FrontendRoute[] = [
   { path: '/workspace/pay/link', label: 'Pay Link', backend: 'invoice-engine', tables: 'Invoice, InvoiceSequence' },
   // Other
   { path: '/workspace/contacts', label: 'Contacts', backend: 'contacts', tables: 'Contact' },
-  { path: '/store', label: 'Store', backend: 'wix-store, catalog-management, product-image-gen', tables: 'WixProductsCache, WixOrdersCache, CatalogCache, WixOrderId' },
+  { path: '/workspace/commerce/catalog', label: 'Store', backend: 'wix-store, catalog-management, product-image-gen', tables: 'WixProductsCache, WixOrdersCache, CatalogCache, WixOrderId' },
   { path: '/workspace/access', label: 'Access Control', backend: 'auth-middleware', tables: 'User' },
   { path: '/workspace/link', label: 'URL Shortener', backend: 'url-shortener', tables: '-' },
   // '/workspace/link/create' ("Create Link") was listed here. Removed 2026-09-25 with the page: a
