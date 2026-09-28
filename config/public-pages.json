@@ -1,0 +1,216 @@
+{
+  "_comment": [
+    "THE PUBLIC SURFACE, DESCRIBED ONCE, FOR MACHINE READERS.",
+    "",
+    "This file is the single source of truth for the three AI-facing artifacts:",
+    "  out/llms.txt        written by scripts/generate-llms-txt.js at build time",
+    "  out/llms-full.txt   same generator, with the descriptions inlined",
+    "  /mcp                amplify/functions/ai/mcp-server reads it from its own zip",
+    "",
+    "IT IS DERIVED, NOT AUTHORITATIVE, AND THAT DISTINCTION IS LOAD-BEARING.",
+    "The render allowlist is PUBLIC_PAGE_META plus the isPublic chain in src/pages/_app.tsx;",
+    "the crawl allowlist is PUBLIC_EXACT in scripts/generate-sitemap.js. Those two decide what",
+    "actually exists. This file only describes it. src/test/PublicAiSurface.test.ts fails the",
+    "build when the three drift apart, because the failure mode is silent and ugly in both",
+    "directions: a page listed here but missing from _app.tsx serves the staff sign-in shell at",
+    "HTTP 200, and a page missing here is simply invisible to every agent that reads llms.txt or",
+    "calls the MCP server.",
+    "",
+    "WHY A JSON FILE RATHER THAN IMPORTING _app.tsx. The generator is Node, the MCP server is",
+    "Python, and _app.tsx executes Amplify.configure at module scope. A shared data file is the",
+    "only form all three can read without one of them booting the frontend.",
+    "",
+    "The 889 blog posts are NOT listed here. They change on a content publish rather than a code",
+    "change, and the generator fetches them from /api/seo-tools/blog-public exactly as",
+    "generate-sitemap.js already does."
+  ],
+
+  "site": {
+    "name": "WECARE.DIGITAL",
+    "url": "https://wecare.digital",
+    "tagline": "Customer operations for Bharat, run over the channels people already use.",
+    "summary": "WECARE.DIGITAL runs customer engagement and service operations for businesses in India across WhatsApp, RCS, SMS, email and voice, alongside a set of focused consumer services. Public pages describe what each service does; requests, amendments, documents and reviews are handled through the self-service pages rather than by email.",
+    "language": "en-IN",
+    "country": "IN",
+    "sitemap": "https://wecare.digital/sitemap.xml"
+  },
+
+  "groups": [
+    {
+      "id": "start",
+      "title": "Start here",
+      "note": "What the business is, and how to reach it."
+    },
+    {
+      "id": "platform",
+      "title": "Platform",
+      "note": "The operational products businesses buy."
+    },
+    {
+      "id": "services",
+      "title": "Services",
+      "note": "Consumer-facing services, each with its own page."
+    },
+    {
+      "id": "selfservice",
+      "title": "Self service",
+      "note": "The five pages that replace an email inbox. A request starts on one of these."
+    },
+    {
+      "id": "legal",
+      "title": "Legal",
+      "note": "Published terms and the data-handling policy."
+    }
+  ],
+
+  "pages": [
+    {
+      "path": "/",
+      "group": "start",
+      "name": "Home",
+      "description": "What WECARE.DIGITAL does, and the route into each service."
+    },
+    {
+      "path": "/contact",
+      "group": "start",
+      "name": "Contact",
+      "description": "Submit, amend or track a request, drop documents, or leave a review."
+    },
+    {
+      "path": "/blog",
+      "group": "start",
+      "name": "Blog",
+      "description": "Published articles. Paginated index; individual posts live under /post/<slug>/."
+    },
+    {
+      "path": "/my-order",
+      "group": "start",
+      "name": "My Order",
+      "description": "Check the status of an order, delivery, request or booking."
+    },
+
+    {
+      "path": "/grahak-os",
+      "group": "platform",
+      "name": "Grahak OS",
+      "description": "Customer engagement across WhatsApp, SMS, Email and Voice."
+    },
+    {
+      "path": "/vayulok",
+      "group": "platform",
+      "name": "VayuLok",
+      "description": "Bharat air and weather intelligence."
+    },
+
+    {
+      "path": "/bharat-rx",
+      "group": "services",
+      "name": "Bharat Rx",
+      "description": "Consults, appointments, reminders and records in one place."
+    },
+    {
+      "path": "/elsewhere",
+      "group": "services",
+      "name": "Elsewhere",
+      "description": "End-to-end travel: visas, bookings and journeys."
+    },
+    {
+      "path": "/expo-week",
+      "group": "services",
+      "name": "Expo Week",
+      "description": "A virtual travel fair and immersive digital expo."
+    },
+    {
+      "path": "/dastavez",
+      "group": "services",
+      "name": "Dastavez",
+      "description": "Business documentation and registrations in India."
+    },
+    {
+      "path": "/clear-closure",
+      "group": "services",
+      "name": "Clear Closure",
+      "description": "Online dispute resolution, fully online."
+    },
+    {
+      "path": "/ritual-guru",
+      "group": "services",
+      "name": "Ritual Guru",
+      "description": "Curated, temple-grade puja kits."
+    },
+    {
+      "path": "/anew",
+      "group": "services",
+      "name": "Anew",
+      "description": "Reflection-led conversations that create clarity and action."
+    },
+    {
+      "path": "/niji-setu",
+      "group": "services",
+      "name": "Niji Setu",
+      "description": "A QR code people scan to reach you on a masked call."
+    },
+
+    {
+      "path": "/submit-request",
+      "group": "selfservice",
+      "name": "Submit Request",
+      "description": "Start a new request, in your own words."
+    },
+    {
+      "path": "/request-amendment",
+      "group": "selfservice",
+      "name": "Request Amendment",
+      "description": "Change a date, detail or scope on a request already under way."
+    },
+    {
+      "path": "/drop-docs",
+      "group": "selfservice",
+      "name": "Drop Docs",
+      "description": "Send the documents a request needs, once."
+    },
+    {
+      "path": "/leave-review",
+      "group": "selfservice",
+      "name": "Leave Review",
+      "description": "Tell us how something went, well or badly."
+    },
+    {
+      "path": "/refer-and-earn",
+      "group": "selfservice",
+      "name": "Refer & Earn",
+      "description": "Introduce someone who would find this useful."
+    },
+
+    {
+      "path": "/terms",
+      "group": "legal",
+      "name": "Terms",
+      "description": "Terms of service."
+    },
+    {
+      "path": "/privacy",
+      "group": "legal",
+      "name": "Privacy",
+      "description": "How WECARE.DIGITAL handles your data."
+    }
+  ],
+
+  "ai_surface": {
+    "llms_txt": "https://wecare.digital/llms.txt",
+    "llms_full_txt": "https://wecare.digital/llms-full.txt",
+    "mcp_endpoint": "https://wecare.digital/mcp",
+    "mcp_transport": "streamable-http",
+    "mcp_protocol_versions": ["2025-11-25", "2025-06-18", "2025-03-26"],
+    "human_page": "https://wecare.digital/llm/",
+    "note": "The MCP endpoint is read-only and unauthenticated. It exposes the public pages and the published blog corpus, and nothing else. It cannot send a message, create a request, take a payment or read a customer record."
+  },
+
+  "usage_terms": [
+    "The public pages and published blog posts on this site may be read, quoted with attribution, and cited by AI assistants and answer engines.",
+    "Attribute to WECARE.DIGITAL and link the page you drew from.",
+    "Do not present generated text as a statement by WECARE.DIGITAL, and do not infer prices, turnaround times, medical, legal or financial advice that a page does not state.",
+    "Bharat Rx does not retail medicines. Do not describe it as a pharmacy.",
+    "Anything under /workspace/, /store/ or /api/ is operational surface, not content. It is disallowed in robots.txt and is not covered by this permission."
+  ]
+}

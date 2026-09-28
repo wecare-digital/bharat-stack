@@ -328,6 +328,11 @@ const WorkflowTerminal: React.FC = () => {
           setDone( false );
           setSettled( -1 );
           resumeRef.current = 0;
+          // A new pass gets the view back - see the note on followRef. autoTop is cleared with
+          // it so a stale expected position cannot swallow the reader's first scroll of the
+          // next pass.
+          followRef.current = true;
+          autoTop.current = -1;
           setCycle( c => c + 1 );
         }, 3200 );
         return;
@@ -369,44 +374,108 @@ const WorkflowTerminal: React.FC = () => {
     setPaused( p => !p );
   };
 
-  // Is the reader still following the tail, or have they scrolled back to read something?
-  // Starts true because the panel begins at the top with the tail in view.
-  const pinnedRef = useRef( true );
+  /* WHO OWNS THE PANEL'S SCROLL POSITION.
+   *
+   * `followRef` is on while the animation may move the view, and off once the READER has
+   * scrolled the panel themselves. A scroll event carries no flag saying who caused it, so the
+   * two have to be told apart some other way.
+   *
+   * BY POSITION, NOT BY TIME, and that distinction cost a measured bug. The first version of
+   * this recorded the TIMESTAMP of each scroll we caused and ignored scroll events within 150ms
+   * of it. Traced in Chromium and Firefox: a step's auto-scroll landed at -6ms, the reader's
+   * wheel fired at 0 and its scroll event arrived at +62ms - 68ms after our own, inside the
+   * window - so the reader's scroll was classified as ours and the panel kept dragging the view
+   * away from them. Steps are 1050-1650ms apart, so roughly one scroll in ten hit that window,
+   * and because the cycle is deterministic a scroll at a fixed offset hit it EVERY time, which
+   * is how both engines failed identically.
+   *
+   * `autoTop` instead holds the exact scrollTop we are about to write. A scroll event that lands
+   * on that value is ours and is consumed; anything else is the reader's, whatever the timing.
+   * 2px of tolerance for fractional scroll offsets on fractional device pixel ratios - a phone
+   * at dpr 2.75 does not round to integers.
+   */
+  const followRef = useRef( true );
+  const autoTop = useRef( -1 );
 
-  // FOLLOW THE TAIL, BUT STOP FIGHTING A READER WHO SCROLLS BACK.
-  //
-  // This effect used to set scrollTop = scrollHeight on every step, unconditionally. The full
-  // sequence is 1350px of content in a 551px box at 1280 - and 1900px in 461px on a phone - so
-  // roughly 800px scrolls past, and four of the eight steps end up above the visible edge.
-  // Scrolling up to read one of them worked for at most one step: the next arrival yanked the
-  // view straight back to the bottom. That is what made those steps unrecoverable rather than
-  // merely off-screen, and it is the half of the defect that is fixable without cutting
-  // content or growing the panel.
-  //
-  // WHY NOT GROW THE PANEL, which was the obvious alternative. Measured: fitting the content
-  // needs 1447px at 1280 and 1997px at 390, against 650 and 560 today. On a phone that is 2.4
-  // screens of black terminal, and the page goes from 2498px to about 3935px. Letting it grow
-  // as steps arrive is worse again - every step would shift the rest of the page.
-  //
-  // So the panel keeps its height and the reader keeps control: auto-scroll only continues
-  // while they are already at the bottom. 24px of tolerance, because a trackpad rarely lands
-  // exactly on zero and sub-pixel rounding makes an equality test flap.
+  /* FOLLOW THE MOVING EDGE, NOT THE BOTTOM - and this is the fix that makes the loop visible
+   * rather than merely running.
+   *
+   * This effect used to do `box.scrollTop = box.scrollHeight` - slam to the bottom. That was
+   * right for a stream that only ever grows, which is what pass one is. It is WRONG for a loop.
+   * Measured, with the panel scrolled to the middle of the viewport: on pass two the box sat at
+   * scrollTop 799/799 at 1280 and 1439/1439 at 390, so the visible rows were 4-7 and 6-7
+   * respectively, while the running-to-done frontier travelled rows 0 through 7 above the
+   * visible edge. The moving edge was off screen in 6 of 7 samples, about 11 of every 15.8
+   * seconds. The animation was playing perfectly and a reader could not see it: the panel read
+   * as a frozen screenshot of its own last two rows.
+   *
+   * So the target is the FRONTIER row - index settled+1, the one that is currently running -
+   * and the box scrolls only as far as it takes to bring that row inside itself. On pass one
+   * the frontier is always the newest row, so this behaves exactly like following the tail. On
+   * every later pass it tracks the replay from the top, which is the thing there is to watch.
+   * At a restart `settled` is -1, so the frontier is row 0 and the panel rewinds to the top by
+   * the same arithmetic rather than by a special case.
+   *
+   * THE BOX, NEVER THE PAGE. scrollTop arithmetic on the box, not scrollIntoView, which walks
+   * up every scrollable ancestor and would drag the whole document to the panel.
+   *
+   * WHY NOT GROW THE PANEL SO NOTHING SCROLLS, which was the earlier alternative. Measured:
+   * fitting the content needs 1447px at 1280 and 1997px at 390, against 650 and 560 today. On
+   * a phone that is 2.4 screens of black terminal, and the page goes from 2498px to 3935px.
+   *
+   * THE READER STILL WINS WHILE THEY ARE READING. Their own scroll clears `followRef`, so the
+   * rest of that pass leaves the view where they put it - about 12.6 seconds undisturbed, which
+   * is what the original "stop fighting a reader who scrolls back" note was protecting and it
+   * is still protected. Following resumes at the next restart, stated plainly because it IS a
+   * yank: the cost of never resuming is a reader who scrolls once and then watches a permanently
+   * still panel for as long as the tab is open, which is the defect above with extra steps. It
+   * lands on the restart edge, where the whole stack already pulses, so it coincides with a
+   * visual event that is there anyway instead of introducing a new one.
+   */
+  useEffect( () => {
+    const box = streamRef.current?.parentElement;
+    const stream = streamRef.current;
+    if ( !box || !stream || !followRef.current ) return;
+    const rows = stream.children;
+    if ( !rows.length ) return;
+    const row = rows[ Math.min( Math.max( settled + 1, 0 ), rows.length - 1 ) ] as HTMLElement;
+    const bb = box.getBoundingClientRect();
+    const rb = row.getBoundingClientRect();
+    const pad = 16;
+    let delta = 0;
+    if ( rb.bottom > bb.bottom - pad ) delta = rb.bottom - ( bb.bottom - pad );
+    else if ( rb.top < bb.top + pad ) delta = rb.top - ( bb.top + pad );
+    if ( !delta ) return;
+    /* AN ABSOLUTE TARGET, CLAMPED HERE RATHER THAN BY THE BROWSER. `scrollTop += delta` past
+     * either end is silently clamped, so the value that lands is not the value asked for - and
+     * the listener above, which recognises our own scroll by its position, would then read it
+     * as the reader's and hand over control we never gave away. */
+    const max = box.scrollHeight - box.clientHeight;
+    const target = Math.max( 0, Math.min( max, box.scrollTop + delta ) );
+    if ( Math.abs( target - box.scrollTop ) < 1 ) return;
+    autoTop.current = target;
+    box.scrollTop = target;
+  }, [ shown, settled ] );
+
+  /* THE HAND-OVER LISTENER, AND IT IS DECLARED AFTER THE EFFECT ABOVE ON PURPOSE.
+   * react-hooks/immutability rejects writing a ref that an EARLIER effect already read, so with
+   * this listener first the `autoTop.current = target` above was a lint error. Ordering it after
+   * removes the error without a suppression comment and costs nothing: both effects mount on the
+   * same commit, and on that first commit `shown` is 0, so the effect above finds no rows and
+   * returns before scrolling anything. There is no scroll for this listener to miss. */
   useEffect( () => {
     const box = streamRef.current?.parentElement;
     if ( !box ) return undefined;
     const onScroll = () => {
-      pinnedRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+      if ( autoTop.current >= 0 && Math.abs( box.scrollTop - autoTop.current ) <= 2 ) {
+        autoTop.current = -1;
+        return;
+      }
+      followRef.current = false;
     };
     box.addEventListener( 'scroll', onScroll, { passive: true } );
     return () => box.removeEventListener( 'scroll', onScroll );
   }, [] );
-
-  // Inside the panel only - this must never scroll the page.
-  useEffect( () => {
-    const box = streamRef.current?.parentElement;
-    if ( !box || !pinnedRef.current ) return;
-    box.scrollTop = box.scrollHeight;
-  }, [ shown, settled ] );
 
   const visible = STEPS.slice( 0, shown );
 

@@ -874,9 +874,28 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // NOT in PUBLIC_PAGE_META, because entries there acquire WebPage structured data and a
   // sitemap entry, and advertising a redirect stub to a crawler is the opposite of the
   // intent. The page sets its own robots noindex and canonicals to the destination.
+  // '/llm' IS PUBLIC, and it takes the '/get' slot rather than a PUBLIC_PAGE_META entry.
+  //
+  // It documents the AI-facing surface - the MCP endpoint at /mcp, /llms.txt and
+  // /llms-full.txt, and the terms for citing this content. Three audiences need somewhere to
+  // be sent that is not a JSON-RPC endpoint or a text file: an operator wiring up a client,
+  // anyone auditing what an unauthenticated route on this domain exposes, and a model that
+  // followed the link from robots.txt or llms.txt.
+  //
+  // Listed HERE and not in PUBLIC_PAGE_META, so it renders without the staff sign-in but
+  // acquires no WebPage/BreadcrumbList schema and no sitemap entry - exactly the /get
+  // reasoning. That map is the indexable marketing and content set; this is a machine-facing
+  // reference page, and structured data describing it would compete for nothing. It is
+  // discoverable by the route its audience actually uses: robots.txt links it, /llms.txt
+  // links it, and the MCP server names it in its own `instructions` string.
+  //
+  // Adding it to PUBLIC_PAGE_META instead would ALSO require adding it to PUBLIC_EXACT in
+  // scripts/generate-sitemap.js - src/test/PublicRouteRegistration.test.ts asserts the two
+  // stay in step - so the one-line form here is the whole change rather than half of one.
   const isPublic = router.pathname === '/'
     || router.pathname === '/404'
     || router.pathname === '/get'
+    || router.pathname === '/llm'
     || Object.prototype.hasOwnProperty.call( PUBLIC_PAGE_META, router.pathname )
     || isContentPublic;
 

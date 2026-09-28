@@ -49,4 +49,69 @@ Disallow: /store/
 # outcome. /api/ stays separate because it is a live root path, not a moved one.
 Disallow: /workspace/
 
+# ── AI crawlers and answer engines ────────────────────────────────────────────────
+#
+# THE TRAP THIS BLOCK EXISTS TO AVOID, stated first because it is counter-intuitive.
+# A named User-agent group REPLACES the `User-agent: *` group for that agent - robots.txt
+# has no inheritance. So the obvious way to welcome an AI crawler:
+#
+#     User-agent: GPTBot
+#     Allow: /
+#
+# does not mean "same as everyone else, and welcome". It means GPTBot gets a group with no
+# Disallow at all, which GRANTS it /workspace/, /api/ and /store/ - the authenticated
+# dashboard that the * group above is the only thing holding out of the index. Welcoming a
+# crawler by name and handing it the internal route map is the same edit.
+#
+# Hence the four Disallow lines are repeated verbatim below. If a line is added to the *
+# group above, it must be added here too. scripts/generate-llms-txt.js and
+# scripts/generate-sitemap.js both fail the build when an advertised URL is Disallowed, so a
+# contradiction in ONE direction is caught automatically; this direction - a named agent
+# being granted more than * - is not, and is why the duplication is deliberate rather than
+# sloppy.
+#
+# WHY NAME THEM AT ALL, given * already allows them. Two reasons. Google-Extended is not a
+# crawler but a control token for Gemini and Vertex grounding, so its absence and its
+# presence-with-Allow are different statements and only the second is a decision on the
+# record. And naming the set is what makes a future opt-out a one-line change to a group
+# that already exists, rather than a new group somebody writes in a hurry and gets wrong in
+# the way described above.
+#
+# Not named, deliberately: CCBot (Common Crawl feeds training corpora we have no
+# relationship with) and the SEO backlink crawlers. Their absence leaves them under *,
+# which allows them - this is a list of agents we have thought about, not a whitelist.
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-User
+User-agent: Claude-SearchBot
+User-agent: Google-Extended
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Applebot-Extended
+User-agent: meta-externalagent
+User-agent: Bytespider
+User-agent: cohere-ai
+User-agent: DuckAssistBot
+User-agent: MistralAI-User
+Allow: /
+Disallow: /api/
+Disallow: /mock-home/
+Disallow: /store/
+Disallow: /workspace/
+
 Sitemap: https://wecare.digital/sitemap.xml
+
+# Not a standard directive, so a comment: there is no registered robots.txt field for
+# llms.txt and inventing one would be noise a parser has to skip. Both files are generated
+# at build time by scripts/generate-llms-txt.js from config/public-pages.json.
+#
+#   https://wecare.digital/llms.txt        curated map of the public pages
+#   https://wecare.digital/llms-full.txt   the same plus every article title and summary
+#
+# An agent that speaks Model Context Protocol should prefer the live query interface over
+# either file, because it can search on demand instead of reading a snapshot:
+#
+#   https://wecare.digital/mcp             read-only MCP server, Streamable HTTP
+#   https://wecare.digital/llm/            what it exposes, and the citation terms

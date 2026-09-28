@@ -164,6 +164,16 @@ EXPECTED_PUBLIC_ROUTES = {
     # be expressed as an API Gateway authorizer. Verified in the handler.
     "GET /webhook/sinch-rcs": "Sinch health probe; POST carries the HMAC",
     "POST /webhook/sinch-rcs": "Sinch Conversation API HMAC over rawBody.nonce.timestamp",
+    # The MCP endpoint. An MCP client has no Cognito session and the protocol has no
+    # place to put one, so requiring auth would make the endpoint unusable for its only
+    # purpose. Safe because every tool is a read of ALREADY-PUBLIC content and the
+    # capability to do anything else is absent rather than merely unpermitted: the
+    # handler imports no boto3, so there is no table, queue or model it can reach, and
+    # tests/test_mcp_server.py asserts the advertised tool list for EXACT equality
+    # against a frozen read-only allowlist. Read docs/ai-discovery-surface.md before
+    # widening this. If a tool that mutates or that costs money per call is ever added,
+    # this line must come out and the route must move behind require_auth.
+    "ANY /mcp": "read-only MCP server over public content; no auth possible in-protocol",
 }
 
 

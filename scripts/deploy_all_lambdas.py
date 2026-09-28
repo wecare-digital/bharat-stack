@@ -298,7 +298,17 @@ SPECS: List[Spec] = [
 # operations/seo-tools, with lambda_utils under shared/). scripts/deploy_seo_tools.py
 # owns it, along with its table and IAM policy, so it is delegated rather than
 # reimplemented here.
-DELEGATED = {"wecare-seo-tools": "scripts/deploy_seo_tools.py"}
+#
+# wecare-mcp ships `config/public-pages.json` beside its handler, and `extra_files`
+# cannot express that: it resolves relative to the function directory, and it is skipped
+# entirely for a standalone spec. The alternatives were a second checked-in copy of the
+# catalogue (the drift src/test/PublicAiSurface.test.ts exists to prevent) or a symlink
+# (breaks on a Windows checkout). Its script also owns the Amplify Hosting rewrite that
+# makes /mcp reachable on the apex at all, which has no equivalent here.
+DELEGATED = {
+    "wecare-seo-tools": "scripts/deploy_seo_tools.py",
+    "wecare-mcp": "scripts/deploy_mcp_server.py",
+}
 SKIPPED = {"wecare-docs-scraper": "PackageType=Image, deploys via GitHub Actions"}
 
 
