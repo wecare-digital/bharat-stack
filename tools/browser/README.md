@@ -98,6 +98,47 @@ recorded here (12/12 and 28/28) were stale — both suites have grown since.
 
 Those failures are left red deliberately. They are not tuned to pass.
 
+### Review mocks are deleted once their decision ships
+
+The `*review.js` scripts write a standalone HTML page into `docs/` so a design choice can be
+looked at before it is built. Those pages are **committed on purpose** — the owner reviews
+this repository through a browser, so a file that is not committed cannot be seen, and
+`.gitignore`-ing them would make the mocks useless to the one person they are for.
+
+What they are not is permanent. A mock exists to settle one question; once the answer is
+merged, the file is a large stale copy of a page that has moved on. Four of them had
+accumulated to **3.07 MB** of committed HTML describing decisions that were already live:
+
+| File | Size | Decision it settled |
+|---|---|---|
+| `home-review.html` | 1.3 MB | band 1 — shipped in #72 |
+| `close-review.html` | 712 kB | band 3 — shipped in #71, #77 |
+| `flow-review.html` | 608 kB | band 2 — shipped in #70, #71 |
+| `post-layout-review.html` | 404 kB | blog layout A/B/C — “B”, shipped in #76 |
+
+All four are deleted. **Regenerate any of them in one command** — the generators are still
+here and read the current `out/`, so a regenerated mock is more accurate than the committed
+copy was anyway:
+
+```
+npm run build                          # the mocks measure out/
+node tools/browser/homereview.js       # -> docs/home-review.html
+node tools/browser/flowreview.js       # -> docs/flow-review.html
+node tools/browser/closereview.js      # -> docs/close-review.html
+node tools/browser/postlayoutreview.js # -> docs/post-layout-review.html
+node tools/browser/dividerreview.js    # -> docs/divider-review.html
+```
+
+**So the rule is: delete the mock in the PR that ships its decision.** Not gitignore — that
+was the other option considered and it fails the only reader. The two review pages tracked
+today are `divider-review.html` (20 kB, open question) and `mocks/home-hero/` (48 kB, a
+hand-written reference rather than a generated mock).
+
+`dividerreview.js` is also the pattern to copy for new ones: it is 18 kB rather than 1.3 MB
+because it renders the component's real CSS values inline instead of embedding screenshots,
+and its animations run live with a Replay button — a staggered reveal cannot be judged from a
+still image, which is exactly how the footer entrance came back as a bug report twice.
+
 `homeprobe.js` exists because everything else here passed while seven defects shipped. The
 other suites all measure one settled state: JS running, motion allowed, viewport fixed at
 load. Every `homeprobe` failure lives in a state none of them enters — JavaScript off,

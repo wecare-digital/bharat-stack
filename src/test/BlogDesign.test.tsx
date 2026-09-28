@@ -1,9 +1,11 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import BlogIndex from '../pages/blog/index';
+import BlogIndexPage from '../pages/blog/page/[page]';
 import BlogPostPage from '../pages/post/[slug]';
-import type { PublicBlogPost } from '../lib/public-blog';
+import { toBlogCard, blogPageCount, POSTS_PER_PAGE, type BlogCard, type PublicBlogPost } from '../lib/public-blog';
+import type { BlogIndexPageProps } from '../lib/blog-index-props';
 
 vi.mock( 'next/head', () => ( { default: ( { children }: { children: React.ReactNode } ) => <>{ children }</> } ) );
 
@@ -20,6 +22,10 @@ const samplePost: PublicBlogPost = {
   tags: [ 'Practice', 'Inquiry' ],
   authorName: 'Anew by WECARE.DIGITAL',
   publishedDate: '2026-09-27T00:00:00Z',
+  seoTitle: 'A Clear Question Can Change the Work | WECARE.DIGITAL',
+  metaDescription: 'A meta description that belongs to the post page head, not to a listing card.',
+  robots: 'index, follow',
+  modifiedDate: '2026-09-28T00:00:00Z',
   richContent: {
     nodes: [
       {
@@ -47,6 +53,38 @@ const secondPost: PublicBlogPost = {
   category: 'Guides',
 };
 
+const firstCard = toBlogCard( samplePost );
+const secondCard = toBlogCard( secondPost );
+
+/**
+ * Props for one index page, the way lib/blog-index-props.ts builds them: categories come from
+ * the whole corpus and totalPosts is the corpus count, NOT this page's length. Tests that pass
+ * a page's own cards as the corpus would never catch the bug those two fields exist to prevent.
+ */
+const propsFor = ( overrides: Partial<BlogIndexPageProps> = {} ): BlogIndexPageProps => ( {
+  posts: [ firstCard, secondCard ],
+  page: 1,
+  totalPages: 1,
+  totalPosts: 2,
+  categories: [ 'Conversations', 'Guides' ],
+  ...overrides,
+} );
+
+/** Stand in for the lazily-fetched /blog/search-index.json. */
+function mockSearchIndex ( posts: BlogCard[] ) {
+  const fetchMock = vi.fn().mockResolvedValue( {
+    ok: true,
+    json: async () => ( { ok: true, count: posts.length, posts } ),
+  } );
+  vi.stubGlobal( 'fetch', fetchMock );
+  return fetchMock;
+}
+
+afterEach( () => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+} );
+
 describe( 'Blog design alignment', () => {
   /**
    * REWRITTEN WITH THE PAGE, AND THE INTENT IS UNCHANGED.
@@ -68,7 +106,7 @@ describe( 'Blog design alignment', () => {
    * .brand-badge without it.
    */
   it( 'renders the homepage rotating hero on /blog/, and still does not repeat the brand eyebrow', () => {
-    const { container } = render( <BlogIndex posts={ [ samplePost ] } /> );
+    const { container } = render( <BlogIndex { ...propsFor() } /> );
 
     // The shared hero, not a local copy of its numbers.
     expect( container.querySelector( '.rh-hero' ) ).not.toBeNull();
@@ -90,28 +128,36 @@ describe( 'Blog design alignment', () => {
     expect( container.querySelector( 'form[role="search"]' ) ).not.toBeNull();
   } );
 
-  it( 'filters the listing by text as well as by category', () => {
-    render( <BlogIndex posts={ [ samplePost, secondPost ] } /> );
+  it( 'filters the listing by text as well as by category', async () => {
+    mockSearchIndex( [ firstCard, secondCard ] );
+    render( <BlogIndex { ...propsFor() } /> );
     const box = screen.getByLabelText( 'Search the blog' );
 
     // Matches the title of the second post only.
     fireEvent.change( box, { target: { value: 'Better Decisions' } } );
-    expect( screen.queryByRole( 'heading', { name: samplePost.title } ) ).toBeNull();
+    await waitFor( () => {
+      expect( screen.queryByRole( 'heading', { name: samplePost.title } ) ).toBeNull();
+    } );
     expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
 
     // A category name typed as text finds its posts even with the All pill active.
     fireEvent.change( box, { target: { value: 'conversations' } } );
-    expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
+    await waitFor( () => {
+      expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
+    } );
     expect( screen.queryByRole( 'heading', { name: secondPost.title } ) ).toBeNull();
 
     // Clearing restores everything.
     fireEvent.change( box, { target: { value: '   ' } } );
-    expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
+    await waitFor( () => {
+      expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
+    } );
     expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
   } );
 
-  it( 'switches between all posts and each available category without a page load', () => {
-    const { container } = render( <BlogIndex posts={ [ samplePost, secondPost ] } /> );
+  it( 'switches between all posts and each available category without a page load', async () => {
+    mockSearchIndex( [ firstCard, secondCard ] );
+    const { container } = render( <BlogIndex { ...propsFor() } /> );
 
     const all = screen.getByRole( 'button', { name: 'All' } );
     const conversations = screen.getByRole( 'button', { name: 'Conversations' } );
@@ -123,12 +169,16 @@ describe( 'Blog design alignment', () => {
 
     fireEvent.click( conversations );
     expect( conversations ).toHaveAttribute( 'aria-pressed', 'true' );
+    await waitFor( () => {
+      expect( screen.queryByRole( 'heading', { name: secondPost.title } ) ).toBeNull();
+    } );
     expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
-    expect( screen.queryByRole( 'heading', { name: secondPost.title } ) ).toBeNull();
 
     fireEvent.click( guides );
     expect( guides ).toHaveAttribute( 'aria-pressed', 'true' );
-    expect( screen.queryByRole( 'heading', { name: samplePost.title } ) ).toBeNull();
+    await waitFor( () => {
+      expect( screen.queryByRole( 'heading', { name: samplePost.title } ) ).toBeNull();
+    } );
     expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
 
     const css = cssOf( container );
@@ -137,7 +187,7 @@ describe( 'Blog design alignment', () => {
   } );
 
   it( 'keeps listing cards typographic, readable and responsive rather than dashboard-like', () => {
-    const { container } = render( <BlogIndex posts={ [ samplePost ] } /> );
+    const { container } = render( <BlogIndex { ...propsFor() } /> );
     const css = cssOf( container );
 
     expect( css ).toContain( '.post-card{border:1px solid #e5e7eb;border-radius:14px' );
@@ -147,7 +197,167 @@ describe( 'Blog design alignment', () => {
     expect( css ).toContain( '@media(max-width:680px)' );
     expect( css ).toContain( ':global(a:focus-visible)' );
   } );
+} );
 
+/**
+ * PAGINATION.
+ *
+ * /blog/ rendered all 834 posts in one document - 103,908px at 1280x900, and a build warning
+ * on every run that its 842 kB of props exceeded the 128 kB threshold. These assertions pin
+ * the three things that were easy to get wrong while splitting it, all of which would have
+ * been invisible on a page that merely looked right:
+ *
+ *   1. Page 1 links to /blog/, never /blog/page/1/. A second URL for the same 24 cards is
+ *      duplicate content, and every page is self-canonical, so both would be indexed.
+ *   2. The paginator disappears while a search or category is active. Filtered results are
+ *      already a narrowing and all matches are shown; paging them too would put two
+ *      independent narrowings between a reader and one post.
+ *   3. Search counts and searches the WHOLE corpus, not the page. "3 of 24" would be a lie
+ *      about what was searched.
+ */
+describe( 'Blog pagination', () => {
+  const manyCards: BlogCard[] = Array.from( { length: 5 }, ( _, i ) => ( {
+    slug: `post-${i + 1}`,
+    title: `Post number ${i + 1}`,
+    excerpt: `Excerpt for post ${i + 1}.`,
+    category: i % 2 === 0 ? 'Conversations' : 'Guides',
+  } ) );
+
+  /**
+   * TRAILING SLASHES ARE COMPARED LOOSELY HERE, ON PURPOSE.
+   *
+   * next.config.js sets trailingSlash:true, and next/link normalises against that config at
+   * runtime - which jsdom does not load, so a Link given '/blog/' renders href="/blog" in
+   * this environment and href="/blog/" in the export. Pinning the slash here would assert a
+   * property of the test environment rather than of the site.
+   *
+   * The slash IS asserted, by routegraph.js, against the built HTML: its "MIXED TRAILING
+   * SLASH - href without the slash trailingSlash:true emits" check reads the real hrefs out
+   * of out/ and is currently 0. That is the right place for it - this test owns which page a
+   * link points at, and routegraph owns how the URL is spelled.
+   */
+  const samePath = ( href: string | null ) => String( href ).replace( /\/$/, '' ) || '/';
+
+  it( 'sends page 1 to /blog/ rather than to /blog/page/1/', () => {
+    const { container } = render( <BlogIndexPage { ...propsFor( { posts: manyCards, page: 2, totalPages: 3, totalPosts: 60 } ) } /> );
+
+    const newer = container.querySelector( 'a[rel="prev"]' );
+    expect( newer ).not.toBeNull();
+    expect( samePath( newer!.getAttribute( 'href' ) ) ).toBe( '/blog' );
+
+    // And the numbered link for page 1 agrees with it - not /blog/page/1/.
+    const one = Array.from( container.querySelectorAll( 'a.pager-num' ) )
+      .find( node => node.textContent?.trim().endsWith( '1' ) );
+    expect( samePath( one!.getAttribute( 'href' ) ) ).toBe( '/blog' );
+  } );
+
+  it( 'marks the current page and offers only the directions that exist', () => {
+    const { container: first } = render( <BlogIndex { ...propsFor( { posts: manyCards, page: 1, totalPages: 3, totalPosts: 60 } ) } /> );
+    // Page 1 has no previous page: the control is rendered so the row does not reflow, but it
+    // is not a link and is hidden from the accessibility tree.
+    expect( first.querySelector( 'a[rel="prev"]' ) ).toBeNull();
+    expect( first.querySelector( '.pager-step.is-off[aria-hidden="true"]' ) ).not.toBeNull();
+    expect( samePath( first.querySelector( 'a[rel="next"]' )!.getAttribute( 'href' ) ) ).toBe( '/blog/page/2' );
+    // Scoped to the pager: Breadcrumbs marks its own last crumb aria-current="page", so an
+    // unscoped query finds "Blog" first and would pass on page 1 for the wrong reason.
+    expect( first.querySelector( '.pager [aria-current="page"]' )!.textContent ).toBe( '1' );
+
+    const { container: last } = render( <BlogIndexPage { ...propsFor( { posts: manyCards, page: 3, totalPages: 3, totalPosts: 60 } ) } /> );
+    expect( last.querySelector( 'a[rel="next"]' ) ).toBeNull();
+    expect( samePath( last.querySelector( 'a[rel="prev"]' )!.getAttribute( 'href' ) ) ).toBe( '/blog/page/2' );
+    expect( last.querySelector( '.pager [aria-current="page"]' )!.textContent ).toBe( '3' );
+  } );
+
+  it( 'hides the paginator while a search or a category is narrowing the list', async () => {
+    mockSearchIndex( manyCards );
+    const { container } = render( <BlogIndex { ...propsFor( { posts: manyCards, page: 1, totalPages: 3, totalPosts: 60 } ) } /> );
+
+    expect( container.querySelector( 'nav[aria-label="Blog pages"]' ) ).not.toBeNull();
+
+    fireEvent.change( screen.getByLabelText( 'Search the blog' ), { target: { value: 'number 3' } } );
+    await waitFor( () => {
+      expect( container.querySelector( 'nav[aria-label="Blog pages"]' ) ).toBeNull();
+    } );
+    // The grid relabels itself, so a screen reader is told these are matches and not the page.
+    expect( container.querySelector( 'section[aria-label="Matching posts"]' ) ).not.toBeNull();
+
+    // Clearing the query brings the paginator back.
+    fireEvent.change( screen.getByLabelText( 'Search the blog' ), { target: { value: '' } } );
+    await waitFor( () => {
+      expect( container.querySelector( 'nav[aria-label="Blog pages"]' ) ).not.toBeNull();
+    } );
+  } );
+
+  it( 'searches every published post, not just the page in front of the reader', async () => {
+    /**
+     * THE CASE THIS EXISTS FOR. The page carries 2 cards; the corpus has 5. A search for a
+     * post that is NOT on this page must find it, which is only possible via the lazily
+     * fetched index - and the announced count must be against the corpus. Before pagination
+     * this was free because every post was in the page; it is now the thing most likely to
+     * regress, and it would regress silently.
+     */
+    const fetchMock = mockSearchIndex( manyCards );
+    render( <BlogIndex { ...propsFor( { posts: manyCards.slice( 0, 2 ), page: 1, totalPages: 3, totalPosts: 5 } ) } /> );
+
+    // Nothing is fetched for a plain page view.
+    expect( fetchMock ).not.toHaveBeenCalled();
+
+    fireEvent.change( screen.getByLabelText( 'Search the blog' ), { target: { value: 'number 5' } } );
+
+    await waitFor( () => {
+      expect( screen.getByRole( 'heading', { name: 'Post number 5' } ) ).toBeInTheDocument();
+    } );
+    expect( fetchMock ).toHaveBeenCalledWith( '/blog/search-index.json', expect.anything() );
+    // Counted against all 5, not against the 2 on this page.
+    expect( screen.getByText( '1 of 5 posts' ) ).toBeInTheDocument();
+
+    // And it is fetched ONCE however much more is typed.
+    fireEvent.change( screen.getByLabelText( 'Search the blog' ), { target: { value: 'number' } } );
+    await waitFor( () => {
+      expect( screen.getByRole( 'heading', { name: 'Post number 4' } ) ).toBeInTheDocument();
+    } );
+    expect( fetchMock ).toHaveBeenCalledTimes( 1 );
+  } );
+
+  it( 'says so when the search index cannot be loaded instead of silently searching one page', async () => {
+    vi.stubGlobal( 'fetch', vi.fn().mockResolvedValue( { ok: false, status: 502, json: async () => ( {} ) } ) );
+    render( <BlogIndex { ...propsFor( { posts: manyCards.slice( 0, 2 ), page: 1, totalPages: 3, totalPosts: 5 } ) } /> );
+
+    fireEvent.change( screen.getByLabelText( 'Search the blog' ), { target: { value: 'number' } } );
+
+    await waitFor( () => {
+      expect( screen.getByRole( 'status' ).textContent ).toContain( 'could not be loaded' );
+    } );
+    // It still filters what it has rather than showing nothing.
+    expect( screen.getByRole( 'heading', { name: 'Post number 1' } ) ).toBeInTheDocument();
+  } );
+
+  it( 'projects a post down to the fields a card renders, and drops the 357 kB it does not', () => {
+    const card = toBlogCard( samplePost ) as unknown as Record<string, unknown>;
+
+    // Kept: everything the card prints, plus coverImage when present.
+    expect( Object.keys( card ).sort() ).toEqual(
+      [ 'authorName', 'category', 'excerpt', 'publishedDate', 'slug', 'title' ]
+    );
+
+    // Dropped: the post page's head fields and the crawler hints. These were 357 kB of the
+    // 842 kB payload across 834 posts, and no listing card ever rendered one of them.
+    for ( const field of [ 'metaDescription', 'seoTitle', 'robots', 'tags', 'modifiedDate', 'url', 'id', 'richContent' ] ) {
+      expect( card ).not.toHaveProperty( field );
+    }
+  } );
+
+  it( 'never reports zero pages, so an empty blog still has a /blog/', () => {
+    expect( blogPageCount( 0 ) ).toBe( 1 );
+    expect( blogPageCount( 1 ) ).toBe( 1 );
+    expect( blogPageCount( POSTS_PER_PAGE ) ).toBe( 1 );
+    expect( blogPageCount( POSTS_PER_PAGE + 1 ) ).toBe( 2 );
+    // The live corpus at the time of the split.
+    expect( blogPageCount( 834 ) ).toBe( 35 );
+  } );
+} );
+
+describe( 'Blog post page', () => {
   it( 'uses a reading measure and paragraph rhythm appropriate for long-form posts', () => {
     const { container } = render( <BlogPostPage post={ samplePost } /> );
     const css = cssOf( container );
