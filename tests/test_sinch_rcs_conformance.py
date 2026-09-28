@@ -234,13 +234,48 @@ class TestNonSecretConfiguration:
         assert "os.environ.get('RCS_SECRET_NAME'" in code
 
     def test_default_template_is_rcsmenu(self):
+        """The default is still `rcsmenu`, but it is now resolved rather than literal.
+
+        Changed 2026-09-28. This previously read the default off the function signature:
+
+            signature.parameters["template_id"].default == DEFAULT_TEMPLATE
+
+        `send_rcs_template` now takes `template_id=None` and resolves it per call from
+        `NOTIF_RCS_TEMPLATE_NAME`, falling back to `DEFAULT_IVR_TEMPLATE`. That was not a
+        loosening — it closed a split where `notifications/policy.py` honoured the
+        variable and this module hardcoded `'rcsmenu'` four times, so setting the
+        variable switched one sender and silently left the other. The hardcoded half was
+        the live one.
+
+        So the assertion moves to the resolved value, which is what actually gets sent,
+        and gains an override case. Signature defaults cannot express "resolved per
+        call", and pinning one would forbid the fix.
+        """
+        import inspect
+        import os
+
         code = code_only(RCS_SEND)
         assert f"'{DEFAULT_TEMPLATE}'" in code
         from lambda_utils import sinch_rcs
-        import inspect
 
         signature = inspect.signature(sinch_rcs.send_rcs_template)
-        assert signature.parameters["template_id"].default == DEFAULT_TEMPLATE
+        assert signature.parameters["template_id"].default is None, (
+            "template_id must default to None so it can be resolved at call time"
+        )
+        assert sinch_rcs.DEFAULT_IVR_TEMPLATE == DEFAULT_TEMPLATE
+
+        previous = os.environ.pop("NOTIF_RCS_TEMPLATE_NAME", None)
+        try:
+            assert sinch_rcs._ivr_template() == DEFAULT_TEMPLATE
+            os.environ["NOTIF_RCS_TEMPLATE_NAME"] = "rcsmenu_apex"
+            assert sinch_rcs._ivr_template() == "rcsmenu_apex", (
+                "the template must be overridable without a deploy; an approved RCS body "
+                "cannot be edited, so switching template is the only repair available"
+            )
+        finally:
+            os.environ.pop("NOTIF_RCS_TEMPLATE_NAME", None)
+            if previous is not None:
+                os.environ["NOTIF_RCS_TEMPLATE_NAME"] = previous
 
     def test_rcs_is_opt_in_and_defaults_off(self):
         from lambda_utils import sinch_rcs

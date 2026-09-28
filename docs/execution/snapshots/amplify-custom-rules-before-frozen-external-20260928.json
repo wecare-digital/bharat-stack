@@ -1,0 +1,522 @@
+[
+  {
+    "source": "https://www.wecare.digital",
+    "target": "https://wecare.digital",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/calls",
+    "target": "/workspace/engage/inbox/?channel=voice",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/calls/",
+    "target": "/workspace/engage/inbox/?channel=voice",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/rcs/inbox",
+    "target": "/workspace/engage/inbox/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/rcs/inbox/",
+    "target": "/workspace/engage/inbox/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/ses/inbox",
+    "target": "/workspace/engage/inbox/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/ses/inbox/",
+    "target": "/workspace/engage/inbox/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/whatsapp/logs",
+    "target": "/workspace/engage/logs/?channel=whatsapp",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/whatsapp/logs/",
+    "target": "/workspace/engage/logs/?channel=whatsapp",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/rcs/logs",
+    "target": "/workspace/engage/logs/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/rcs/logs/",
+    "target": "/workspace/engage/logs/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/ses/logs",
+    "target": "/workspace/engage/logs/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/ses/logs/",
+    "target": "/workspace/engage/logs/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/rcs/campaign",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/rcs/campaign/",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/ses/campaign",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/engage/ses/campaign/",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/link/logs",
+    "target": "/workspace/link/",
+    "status": "301"
+  },
+  {
+    "source": "/workspace/link/logs/",
+    "target": "/workspace/link/",
+    "status": "301"
+  },
+  {
+    "source": "/dm/calls",
+    "target": "/workspace/engage/inbox/?channel=voice",
+    "status": "301"
+  },
+  {
+    "source": "/dm/calls/",
+    "target": "/workspace/engage/inbox/?channel=voice",
+    "status": "301"
+  },
+  {
+    "source": "/dm/rcs/inbox",
+    "target": "/workspace/engage/inbox/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/dm/rcs/inbox/",
+    "target": "/workspace/engage/inbox/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/dm/ses/inbox",
+    "target": "/workspace/engage/inbox/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/dm/ses/inbox/",
+    "target": "/workspace/engage/inbox/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/dm/whatsapp/logs",
+    "target": "/workspace/engage/logs/?channel=whatsapp",
+    "status": "301"
+  },
+  {
+    "source": "/dm/whatsapp/logs/",
+    "target": "/workspace/engage/logs/?channel=whatsapp",
+    "status": "301"
+  },
+  {
+    "source": "/dm/rcs/logs",
+    "target": "/workspace/engage/logs/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/dm/rcs/logs/",
+    "target": "/workspace/engage/logs/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/dm/ses/logs",
+    "target": "/workspace/engage/logs/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/dm/ses/logs/",
+    "target": "/workspace/engage/logs/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/dm/rcs/campaign",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/dm/rcs/campaign/",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/dm/ses/campaign",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/dm/ses/campaign/",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/dm",
+    "target": "/workspace/engage/",
+    "status": "301"
+  },
+  {
+    "source": "/dm/",
+    "target": "/workspace/engage/",
+    "status": "301"
+  },
+  {
+    "source": "/dm/<*>",
+    "target": "/workspace/engage/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/engage/calls",
+    "target": "/workspace/engage/inbox/?channel=voice",
+    "status": "301"
+  },
+  {
+    "source": "/engage/calls/",
+    "target": "/workspace/engage/inbox/?channel=voice",
+    "status": "301"
+  },
+  {
+    "source": "/engage/rcs/inbox",
+    "target": "/workspace/engage/inbox/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/engage/rcs/inbox/",
+    "target": "/workspace/engage/inbox/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/engage/ses/inbox",
+    "target": "/workspace/engage/inbox/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/engage/ses/inbox/",
+    "target": "/workspace/engage/inbox/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/engage/whatsapp/logs",
+    "target": "/workspace/engage/logs/?channel=whatsapp",
+    "status": "301"
+  },
+  {
+    "source": "/engage/whatsapp/logs/",
+    "target": "/workspace/engage/logs/?channel=whatsapp",
+    "status": "301"
+  },
+  {
+    "source": "/engage/rcs/logs",
+    "target": "/workspace/engage/logs/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/engage/rcs/logs/",
+    "target": "/workspace/engage/logs/?channel=rcs",
+    "status": "301"
+  },
+  {
+    "source": "/engage/ses/logs",
+    "target": "/workspace/engage/logs/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/engage/ses/logs/",
+    "target": "/workspace/engage/logs/?channel=email",
+    "status": "301"
+  },
+  {
+    "source": "/engage/rcs/campaign",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/engage/rcs/campaign/",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/engage/ses/campaign",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/engage/ses/campaign/",
+    "target": "/workspace/engage/broadcast/",
+    "status": "301"
+  },
+  {
+    "source": "/engage",
+    "target": "/workspace/engage/",
+    "status": "301"
+  },
+  {
+    "source": "/engage/",
+    "target": "/workspace/engage/",
+    "status": "301"
+  },
+  {
+    "source": "/engage/<*>",
+    "target": "/workspace/engage/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/dashboard",
+    "target": "/workspace/dashboard/",
+    "status": "301"
+  },
+  {
+    "source": "/dashboard/",
+    "target": "/workspace/dashboard/",
+    "status": "301"
+  },
+  {
+    "source": "/dashboard/<*>",
+    "target": "/workspace/dashboard/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/contacts",
+    "target": "/workspace/contacts/",
+    "status": "301"
+  },
+  {
+    "source": "/contacts/",
+    "target": "/workspace/contacts/",
+    "status": "301"
+  },
+  {
+    "source": "/contacts/<*>",
+    "target": "/workspace/contacts/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/commerce",
+    "target": "/workspace/commerce/",
+    "status": "301"
+  },
+  {
+    "source": "/commerce/",
+    "target": "/workspace/commerce/",
+    "status": "301"
+  },
+  {
+    "source": "/commerce/<*>",
+    "target": "/workspace/commerce/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/pay",
+    "target": "/workspace/pay/",
+    "status": "301"
+  },
+  {
+    "source": "/pay/",
+    "target": "/workspace/pay/",
+    "status": "301"
+  },
+  {
+    "source": "/pay/<*>",
+    "target": "/workspace/pay/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/forms",
+    "target": "/workspace/forms/",
+    "status": "301"
+  },
+  {
+    "source": "/forms/",
+    "target": "/workspace/forms/",
+    "status": "301"
+  },
+  {
+    "source": "/forms/<*>",
+    "target": "/workspace/forms/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/service",
+    "target": "/workspace/service/",
+    "status": "301"
+  },
+  {
+    "source": "/service/",
+    "target": "/workspace/service/",
+    "status": "301"
+  },
+  {
+    "source": "/service/<*>",
+    "target": "/workspace/service/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/docs",
+    "target": "/workspace/docs/",
+    "status": "301"
+  },
+  {
+    "source": "/docs/",
+    "target": "/workspace/docs/",
+    "status": "301"
+  },
+  {
+    "source": "/docs/<*>",
+    "target": "/workspace/docs/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/seo",
+    "target": "/workspace/seo/",
+    "status": "301"
+  },
+  {
+    "source": "/seo/",
+    "target": "/workspace/seo/",
+    "status": "301"
+  },
+  {
+    "source": "/seo/<*>",
+    "target": "/workspace/seo/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/admin",
+    "target": "/workspace/admin/",
+    "status": "301"
+  },
+  {
+    "source": "/admin/",
+    "target": "/workspace/admin/",
+    "status": "301"
+  },
+  {
+    "source": "/admin/<*>",
+    "target": "/workspace/admin/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/access",
+    "target": "/workspace/access/",
+    "status": "301"
+  },
+  {
+    "source": "/access/",
+    "target": "/workspace/access/",
+    "status": "301"
+  },
+  {
+    "source": "/access/<*>",
+    "target": "/workspace/access/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/link/logs",
+    "target": "/workspace/link/",
+    "status": "301"
+  },
+  {
+    "source": "/link/logs/",
+    "target": "/workspace/link/",
+    "status": "301"
+  },
+  {
+    "source": "/link",
+    "target": "/workspace/link/",
+    "status": "301"
+  },
+  {
+    "source": "/link/",
+    "target": "/workspace/link/",
+    "status": "301"
+  },
+  {
+    "source": "/link/<*>",
+    "target": "/workspace/link/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/task",
+    "target": "/workspace/task/",
+    "status": "301"
+  },
+  {
+    "source": "/task/",
+    "target": "/workspace/task/",
+    "status": "301"
+  },
+  {
+    "source": "/task/<*>",
+    "target": "/workspace/task/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/settings",
+    "target": "/workspace/settings/",
+    "status": "301"
+  },
+  {
+    "source": "/settings/",
+    "target": "/workspace/settings/",
+    "status": "301"
+  },
+  {
+    "source": "/settings/<*>",
+    "target": "/workspace/settings/<*>",
+    "status": "301"
+  },
+  {
+    "source": "/get",
+    "target": "/get/index.html",
+    "status": "200"
+  },
+  {
+    "source": "/get/",
+    "target": "/get/index.html",
+    "status": "200"
+  },
+  {
+    "source": "/get/<*>",
+    "target": "https://d1kf2rchz7yras.cloudfront.net/<*>",
+    "status": "200"
+  },
+  {
+    "source": "/r/<*>",
+    "target": "https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod/r/<*>",
+    "status": "200"
+  },
+  {
+    "source": "/api/<*>",
+    "target": "https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod/<*>",
+    "status": "200"
+  },
+  {
+    "source": "/<*>",
+    "target": "/404.html",
+    "status": "404-200"
+  }
+]

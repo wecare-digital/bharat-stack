@@ -350,10 +350,43 @@ def send_rcs_card(phone: str, title: str, description: str,
     return _send_sinch_message(payload)
 
 
-def send_rcs_template(phone: str, template_id: str = 'rcsmenu',
+#: The post-call RCS template, resolved at call time from the SAME environment
+#: variable `notifications/policy.py` already reads.
+#:
+#: WHY THIS IS NOT A LITERAL ANY MORE. `policy.RCS_INDIA_TEMPLATE` has been
+#: `os.environ.get("NOTIF_RCS_TEMPLATE_NAME", "rcsmenu")` for a while, while this module
+#: hardcoded `'rcsmenu'` in four places and never read the variable. Those are two
+#: different senders for the same notification, so setting `NOTIF_RCS_TEMPLATE_NAME`
+#: switched one and silently left the other — a half-applied migration that looks
+#: applied. `send_rcs_ivr_notification` is the path the three live callers use
+#: (voice-in/c2c, voice-in/obd, whatsapp-calling, all with `SINCH_RCS_ENABLED=true`),
+#: so it was the half that mattered.
+#:
+#: WHY IT MATTERS NOW. `rcsmenu`'s approved body and its Get Started button point at
+#: `https://r.wecare.digital/...`, and that hostname's Route 53 record was deleted on
+#: 2026-09-28 06:07Z under confirmation `YES R53-DELETE-001`. The API Gateway custom
+#: domain still exists, so only DNS went — which means the button now fails to RESOLVE
+#: rather than returning a 404. An approved RCS body cannot be edited in place, so the
+#: repair is to send a different, already-approved template whose links are on the apex
+#: (`rcsmenu_apex` is approved and every one of its URLs measured 200). Reading the env
+#: var makes that a one-variable change with instant rollback and no deploy.
+#:
+#: Resolved per call, not at import: a module-scope read is frozen for the life of the
+#: execution environment, so a change would not take effect until every warm sandbox
+#: recycled. Same reasoning as the lazy secret loading in this file.
+DEFAULT_IVR_TEMPLATE = 'rcsmenu'
+
+
+def _ivr_template() -> str:
+    return os.environ.get('NOTIF_RCS_TEMPLATE_NAME', DEFAULT_IVR_TEMPLATE)
+
+
+def send_rcs_template(phone: str, template_id: str = None,
                      language: str = 'en', parameters: dict = None,
                      correlation_id: str = '') -> dict:
     """Send an RCS template message via Sinch Conversation API."""
+    if template_id is None:
+        template_id = _ivr_template()
     if not is_rcs_enabled():
         return {'success': False, 'error': 'RCS not enabled'}
 
@@ -401,7 +434,8 @@ def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
         logger.warning(f'RCS IVR skipped — invalid phone: {phone}')
         return {'success': False, 'error': f'Invalid phone number: {phone}'}
 
-    logger.info(f'RCS IVR sending to ...{normalized[-4:]} (template=rcsmenu via rcs-send Lambda, request_id={request_id})')
+    template = _ivr_template()
+    logger.info(f'RCS IVR sending to ...{normalized[-4:]} (template={template} via rcs-send Lambda, request_id={request_id})')
 
     # ── Primary: Invoke wecare-rcs-send Lambda (proven working path) ──
     try:
@@ -412,7 +446,7 @@ def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
             'body': json.dumps({
                 'action': 'send',
                 'phoneNumber': normalized,
-                'template': 'rcsmenu',
+                'template': template,
                 'language': 'en',
             }),
         }
@@ -436,7 +470,7 @@ def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
     # ── Fallback: Direct API call to Sinch ──
     result = send_rcs_template(
         phone=phone,
-        template_id='rcsmenu',
+        template_id=template,
     )
 
     if result.get('success'):
@@ -445,7 +479,7 @@ def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
 
     # Final fallback: card_message
     error_msg = result.get('error', 'unknown')
-    logger.warning(f'rcsmenu template failed ({error_msg}), falling back to card_message')
+    logger.warning(f'{template} template failed ({error_msg}), falling back to card_message')
     result = send_rcs_card(
         phone=phone,
         title='Thanks for contacting WECARE.DIGITAL!',

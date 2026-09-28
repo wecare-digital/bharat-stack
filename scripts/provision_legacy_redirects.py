@@ -179,6 +179,45 @@ RENAMED_PREFIXES = {
     "/settings": "/workspace/settings",
 }
 
+# Paths that are frozen OUTSIDE this repository and cannot be edited to follow a
+# rename. Added 2026-09-28.
+#
+# WHY THIS IS A SEPARATE DICT AND NOT MORE RETIRED ENTRIES. Everything in RETIRED is a
+# route this project itself retired, where the redirect is a courtesy to a bookmark. The
+# two below are different in kind: the URL is printed inside an **approved, immutable**
+# provider artefact, so the redirect is the only repair available at all.
+#
+#   /selfservice  appears in DLT-approved SMS template `ivr-default`
+#                 (1007277993798259629) as "Submit your request here:
+#                 https://wecare.digital/selfservice". A DLT body must match the
+#                 registration character for character, and the registry table
+#                 `stack-wecare-digital-DLTTemplates` holds no other approved content,
+#                 so the sentence CANNOT be changed. It is also in the body of nine
+#                 approved Sinch RCS templates, including `rcsmenu` — the one template
+#                 every post-call RCS actually sends — and an approved RCS body cannot
+#                 be edited in place either, only superseded by a new template.
+#   /track        appears in approved RCS template `wecare_order_update`.
+#
+# Measured 2026-09-28: `/selfservice` and `/track` both 404, and 0 of the app's 104
+# custom rules mentioned either. PR #47 (`6bc44a35`) removed the in-repo `/selfservice`
+# stub and nothing replaced it, so the primary call to action in the SMS had been dead.
+#
+# WHY THESE TARGETS. Not `/contact/`, which was the obvious guess and is weaker. The
+# frozen sentence is literally "**Submit your request** here", and since 2026-09-28 there
+# is a real public page for exactly that — `/submit-request/`, one of the five Selfservice
+# rows given their own pages. `/track` maps to `/my-order/`, whose own badge reads "Order
+# tracking". Both were probed live at 200 before being named here. A redirect to a page
+# that answers the sentence beats one to a generic contact form.
+#
+# WHY A REDIRECT RATHER THAN RESTORING A `/selfservice` PAGE. `faa956e8` deliberately
+# removed "Selfservice" from everywhere customer-visible. Re-creating the page would
+# reintroduce the retired word as a live public URL; a 301 keeps the frozen links working
+# without putting it back in front of anyone.
+FROZEN_EXTERNAL = {
+    "/selfservice": "/submit-request/",
+    "/track": "/my-order/",
+}
+
 # REMOVED 2026-09-25 on owner instruction: "/workspace/forms/logs": "/workspace/forms/responses/".
 #
 # Deleted from the live app too (rules 22 -> 20; snapshot in
@@ -197,6 +236,13 @@ def amplify():
 
 def desired_redirects() -> list[dict]:
     rules = []
+    # Frozen external links first. No wildcard overlaps any of them, so position among
+    # the specific rules is not load-bearing; what matters is that they precede the
+    # `/<*>` catch-all, which apply() guarantees for everything in this list.
+    for source, target in FROZEN_EXTERNAL.items():
+        rules.append({"source": source, "target": target, "status": "301"})
+        rules.append({"source": source + "/", "target": target, "status": "301"})
+
     for source, target in RETIRED.items():
         rules.append({"source": source, "target": target, "status": "301"})
         rules.append({"source": source + "/", "target": target, "status": "301"})
@@ -234,7 +280,17 @@ OBSOLETE_SOURCES = {
 
 # Every internal path a redirect may legitimately land on. Anything else is a target
 # left behind by an earlier topology.
-LIVE_TARGET_PREFIXES = ("/workspace/", "/index.html", "/404.html", "/get/")
+#
+# The public entries were added 2026-09-28 with FROZEN_EXTERNAL and are NOT cosmetic.
+# `_targets_dead_prefix()` treats any internal target outside this tuple as residue and
+# `is_ours()` then claims it for deletion — so without them the two new rules would be
+# judged dead on sight, and, worse, so would any future rule pointing at a public page.
+# Listed individually rather than relaxed to "/" so the check keeps its teeth: a target
+# that is genuinely stale still has to be named here to survive.
+LIVE_TARGET_PREFIXES = (
+    "/workspace/", "/index.html", "/404.html", "/get/",
+    "/submit-request/", "/my-order/", "/contact/",
+)
 
 #: The document the `/<*>` catch-all serves on a miss. See the docstring section
 #: "The catch-all's TARGET" for why this is the 404 export and not `/index.html`.
@@ -274,6 +330,8 @@ def is_ours(rule: dict) -> bool:
         return True
     if src in RETIRED:
         return True
+    if src in {s.rstrip("/") for s in FROZEN_EXTERNAL}:
+        return True
     for old, new in RENAMED_PREFIXES.items():
         if src == old or src == f"{old}/<*>":
             return True
@@ -294,6 +352,8 @@ def report(client) -> tuple[list[dict], list[dict]]:
     for r in existing:
         print(f"    {r.get('status'):>8}  {r.get('source')}  ->  {r.get('target')}")
     print(f"\nretired routes to redirect: {len(RETIRED)}")
+    print(f"frozen external links to repair: {len(FROZEN_EXTERNAL)} "
+          f"({', '.join(FROZEN_EXTERNAL)})")
     print(f"rules wanted: {len(want)}   missing: {len(missing)}")
     return existing, missing
 
@@ -361,10 +421,11 @@ def verify() -> int:
         problems.append(f"rule missing: {r['source']}")
 
     print("\nlive probes (301 with a Location is the pass):")
-    for source, target in RETIRED.items():
+    for source, target in {**FROZEN_EXTERNAL, **RETIRED}.items():
         for path in (source, source + "/"):
             code, loc = probe(path)
-            print(f"  {path:26} -> {code:4} {loc}")
+            frozen = " [frozen external link]" if source in FROZEN_EXTERNAL else ""
+            print(f"  {path:26} -> {code:4} {loc}{frozen}")
             if code == "404":
                 problems.append(f"{path} still 404s")
             elif code not in ("301", "302", "308"):
@@ -373,7 +434,7 @@ def verify() -> int:
                 problems.append(f"{path} redirects to {loc}, expected {target}")
 
     print("\nthe replacement targets must themselves be live:")
-    for target in sorted(set(RETIRED.values())):
+    for target in sorted(set(RETIRED.values()) | set(FROZEN_EXTERNAL.values())):
         code, _ = probe(target)
         print(f"  {target:26} -> {code}")
         if code != "200":
