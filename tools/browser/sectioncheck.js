@@ -45,6 +45,9 @@ const ROUTES = [
   // '/store/' was in this list and has moved to /workspace/commerce/catalog - it was a
   // staff page behind the Authenticator, so it never had a band structure to measure.
   '/blog/', '/get/',
+  // The five Selfservice pages, added when the header's six labels stopped all resolving
+  // to /contact/. Same shape as the product pages: rotating hero plus one content section.
+  '/submit-request/', '/request-amendment/', '/drop-docs/', '/leave-review/', '/refer-and-earn/',
 ];
 
 const inventory = async () => {

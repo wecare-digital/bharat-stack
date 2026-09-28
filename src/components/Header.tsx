@@ -50,40 +50,38 @@ interface NavColumn {
 // They now point at routes that exist and return 200. /service/ and its three children are
 // real exported pages that were simply never wired into this menu.
 
-// PLACEHOLDER, pending the owner's per-service URLs.
+// EVERY ROW NOW HAS ITS OWN PAGE, and the placeholder that stood here is gone with the
+// constants it defined.
 //
-// Every Selfservice child points at the Selfservice landing page for now. That is a
-// deliberate choice over href="#" or a guessed path: "#" scrolls the page to the top
-// and looks broken, and an invented path like /selfservice/submit-request would 404
-// on the marketing site. Pointing at the parent means every row in the menu works
-// today and lands the visitor one click from what they wanted.
+// What it said: every Selfservice child pointed at /contact/, chosen over href="#" or an
+// invented path so that each row at least worked. The consequence, measured on the built
+// home page, was six distinct labels - Submit Request, Request Amendment, Drop Docs, Leave
+// Review, Refer & Earn and Contact us - resolving to one destination, on all 872 documents.
+// The menu made six promises and kept one.
 //
-// ALL SEVEN ROWS NOW POINT AT LOCAL ROUTES THAT RETURN 200, and every one carries
-// `match` so it lights up on its own route. Mapping, for the record:
-//   Submit Request     -> /contact/
-//   Request Amendment  -> /contact/
+// That note also named the way out, and this is it: public pages, registered in
+// PUBLIC_PAGE_META. Copy lives in src/content/selfservice.ts, layout in ProductPage.tsx -
+// the same shape the seven product pages use, so twelve pages cannot drift apart. Contact us
+// keeps /contact/, which is its real destination, so five pages were needed rather than six.
+//
+// STILL NOT /service/*, AND THAT PART OF THE OLD NOTE STANDS. Those routes exist and return
+// 200, and an earlier pass wired these rows to them, which was wrong: service/index.tsx
+// renders <Layout user onSignOut> and submit-request.tsx reads the requester from
+// user?.signInDetails?.loginId. None is in PUBLIC_PAGE_META, so _app.tsx wraps them in the
+// Authenticator and a public row pointing there shows an anonymous visitor a login wall.
+// Measured: out/service/submit-request/index.html was 144,800 bytes of auth shell against
+// 35,738 for public /contact/. The new pages touch neither Layout nor a session.
+//
+// The current mapping, for the record:
+//   Submit Request     -> /submit-request/
+//   Request Amendment  -> /request-amendment/
 //   My Order           -> /my-order/
-//   Drop Docs          -> /contact/
-//   Leave Review       -> /contact/
-//   Contact            -> /contact/
+//   Drop Docs          -> /drop-docs/
+//   Leave Review       -> /leave-review/
+//   Refer & Earn       -> /refer-and-earn/
+//   Contact us         -> /contact/
 //
-// WHY THEY ALL POINT AT /contact/ AND *NOT* AT /service/*. The /service/ pages exist and
-// return 200, and an earlier pass wired these rows to them - which was wrong. Those pages
-// are AUTHENTICATED by design: service/index.tsx renders <Layout user onSignOut> (the
-// dashboard chrome, with a sign-out control) and submit-request.tsx identifies the
-// requester from user?.signInDetails?.loginId. None of them is in PUBLIC_PAGE_META, so
-// _app.tsx renders them inside the Authenticator - a public menu row pointing there shows
-// an anonymous visitor a login wall. Measured: out/service/submit-request/index.html is
-// 144,800 bytes of auth shell against 35,738 for the public /contact/ page.
-// /contact/ is the right destination until public equivalents exist: it IS the Selfservice
-// entry point - its badge reads "Selfservice by WECARE.DIGITAL" and its rotation already
-// says submit a request, amend a request, track a request, drop documents, leave a review.
-// To give these rows their own pages, build PUBLIC ones (authenticating with the existing
-// WhatsApp OTP flow, not the dashboard's Cognito session) and register each in
-// PUBLIC_PAGE_META - otherwise they render a blank 200 or a login wall.
 // Header.test.tsx asserts all seven rows exist, so a typo here cannot silently drop one.
-const SELFSERVICE = '/contact/';
-const PARTNERS = '/contact/';
 
 // One structure, rendered as columns, rather than the single flat list this used to
 // be. The Selfservice group is why: seven children under one parent made a
@@ -151,10 +149,15 @@ const COLUMNS: NavColumn[] = [
           { label: 'My Order', href: '/my-order/', match: '/my-order' },
           // FAQ removed on request. The local /faq page was already deleted; this
           // drops the menu row too, so there is no FAQ entry point left anywhere.
-          { label: 'Submit Request', href: '/contact/', match: '/contact' },
-          { label: 'Request Amendment', href: '/contact/', match: '/contact' },
-          { label: 'Drop Docs', href: '/contact/', match: '/contact' },
-          { label: 'Leave Review', href: '/contact/', match: '/contact' },
+          // EACH ROW NOW HAS ITS OWN PAGE. These four, plus Refer & Earn below, used to
+          // resolve to /contact/ - six labels, one destination, on every page of the site.
+          // They are public pages registered in PUBLIC_PAGE_META, NOT the authenticated
+          // /service/* routes: those render the dashboard Layout behind a Cognito session,
+          // so a public row pointing there shows an anonymous visitor a login wall.
+          { label: 'Submit Request', href: '/submit-request/', match: '/submit-request' },
+          { label: 'Request Amendment', href: '/request-amendment/', match: '/request-amendment' },
+          { label: 'Drop Docs', href: '/drop-docs/', match: '/drop-docs' },
+          { label: 'Leave Review', href: '/leave-review/', match: '/leave-review' },
           // CONTACT MOVED OUT of Selfservice into the third column (Work with us), on
           // owner instruction - the Selfservice column is now the request ACTIONS only,
           // and Contact sits with Refer & Earn as a way to reach the company.
@@ -173,7 +176,9 @@ const COLUMNS: NavColumn[] = [
       // "Refer & Earn", not "Partners", on instruction. It is also the better label: it says
       // what you get rather than what you become, and the destination is the referral-partner
       // product page.
-      { heading: 'Work with us', links: [ { label: 'Refer & Earn', href: PARTNERS, external: true } ] },
+      // Now a LOCAL page rather than an external link, so it carries `match` and lights up
+      // on its own route like every other row.
+      { heading: 'Work with us', links: [ { label: 'Refer & Earn', href: '/refer-and-earn/', match: '/refer-and-earn' } ] },
       // CONTACT HAS ITS OWN HEADING now, on owner instruction, rather than sitting as a
       // second row under Work with us. It is its own thing - a way to reach us - so it
       // gets its own labelled group in this column. Local page, so it carries `match`
