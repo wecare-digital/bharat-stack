@@ -225,10 +225,22 @@ const Footer: React.FC = () => {
            exact sweep, at the same duration and easing, and they sit in this same block. On a
            <p> with no href that is a false affordance: hover feedback on text that cannot be
            clicked, beside controls that can. An entrance gives the line emphasis without
-           claiming it is interactive, because there is no pointer state to invite a click. */
-        transition:opacity .52s cubic-bezier(.22,.61,.36,1),transform .52s cubic-bezier(.22,.61,.36,1);
+           claiming it is interactive, because there is no pointer state to invite a click.
+
+           THE RISE IS 14px, NOT 6px, AND THAT WAS A BUG REPORT. The owner said this entrance
+           was "not showing" twice. It was: tools/browser/footerprobe.js finds .is-armed
+           added, 35 frames of hidden start state painted, 46 frames mid-fade and a finish at
+           opacity 1, at both 1280 and 390. It was playing and it was not visible - 6px over
+           520ms is about 11px/s, which on a 15px line is roughly the floor of what a reader
+           notices while scrolling, especially next to a 56px lime dash drawing beside it.
+           Reading the stylesheet said "shipped"; measuring the frames said "invisible", and
+           only the second answers the report. 14px is a little over half this line's 24px
+           line box, so the movement registers without reading as a jump, and 560ms keeps the
+           velocity close to the dash's rather than making the line faster for being farther.
+           footerprobe.js asserts the travel, so a future tidy cannot quietly shrink it back. */
+        transition:opacity .56s cubic-bezier(.22,.61,.36,1),transform .56s cubic-bezier(.22,.61,.36,1);
       }
-      .ft-tagline.is-armed{opacity:0;transform:translateY(6px)}
+      .ft-tagline.is-armed{opacity:0;transform:translateY(14px)}
       .ft-tagline.is-armed.is-in{opacity:1;transform:none}
 
       /* THE LIME DASH. 56x3px, matching .home-close-rule's 3px lime rule.

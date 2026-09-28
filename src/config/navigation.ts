@@ -124,6 +124,14 @@ export const navigationConfig: NavItem[] = [
       { path: '/workspace/engage/appointments', label: 'Appointments' },
       { path: '/workspace/engage/rx-slots', label: 'RX Slots' },
       { path: '/workspace/engage/documents', label: 'Drop Docs' },
+      // Beside Drop Docs because the two are the same errand in opposite directions:
+      // Drop Docs collects a file from a customer, Secure Files delivers one to them.
+      // NOT under Platform, where its /dashboard/ path would suggest it belongs - it
+      // charges a customer ₹49 per download and creates their Cognito login, which is
+      // order work, not infrastructure. Until now nothing linked it at all: 535 lines
+      // and the only four callers of initSecureUpload/confirmSecureUpload/
+      // listSecureFiles/revokeSecureFile, reachable only by typing the URL.
+      { path: '/workspace/dashboard/secure-files', label: 'Secure Files' },
       { path: '/workspace/engage/enterprise', label: 'Enterprise' },
       { path: '/workspace/engage/reviews', label: 'Reviews' },
       { path: '/workspace/engage/faq', label: 'FAQ' },
@@ -306,6 +314,13 @@ export const settingsConfig: SettingsGroup[] = [
       { path: '/workspace/dashboard/wa-graph-tools', label: 'WA Graph Tools' },
       { path: '/workspace/dashboard/cors-settings', label: 'CORS Settings' },
       { path: '/workspace/dashboard/design-reference', label: 'Design Reference' },
+      // The operator's own assistant, and deliberately NOT next to "AI Agent" under
+      // Messaging tools: that one answers customers on WhatsApp, this one configures the
+      // admin helper, and two rows reading "agent" in one settings screen would invite
+      // changing the wrong model's prompt. Its own docblock recorded that nothing in the
+      // repo linked it; the /workspace tile grid was the only route, and nothing links
+      // /workspace either, so the page was reachable only by typing two URLs in a row.
+      { path: '/workspace/settings/internal-agent', label: 'Internal Agent' },
       // '/carbon' and '/nocode' were here. Both removed 2026-09-25 with their pages:
       // each was a 15-line EmptyState reading "... coming soon" with nothing behind it
       // ("Sustainability and carbon tracking", "Visual workflow and form builder"). A

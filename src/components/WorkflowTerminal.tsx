@@ -502,6 +502,14 @@ const WorkflowTerminal: React.FC = () => {
         .wt-name{color:#fff;font-size:15px;font-weight:600}
         .wt-name.is-complete{color:#d1f470}
         .wt-tick{color:#d1f470}
+        /* .46 IS 4.58:1 ON THIS PANEL - eight hundredths above the 4.5:1 floor for text this
+           size, and the tightest margin anywhere on the home page. Left alone deliberately,
+           and the reason is the rung below it: .wt-infra was raised from .44 to .50 when it
+           failed, and a timestamp has to stay dimmer than the infrastructure line or the two
+           read as equals. Moving this to .50 would collapse that distinction to fix a value
+           that already passes. What it must not do is drift DOWN: .45 is 4.47:1 and fails, so
+           there is no headroom here at all. flowprobe.js asserts the measured ratio, which is
+           why a one-notch nudge cannot land quietly. */
         .wt-time{color:rgba(255,255,255,.46);font-size:12px}
         .wt-desc{max-width:780px;margin:7px 0 0;color:rgba(255,255,255,.62);font-size:13.5px;line-height:1.65}
 

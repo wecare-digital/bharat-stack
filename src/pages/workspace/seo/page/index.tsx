@@ -1,5 +1,25 @@
 /**
- * SEO Page Detail — view/edit SEO, tracking, schema for a single page
+ * SEO Page Detail — view/edit SEO, tracking, schema for a single page.
+ *
+ * WHY THE ID IS A QUERY STRING AND NOT A ROUTE SEGMENT. This was `page/[id].tsx` until
+ * 2026-09-27. The site is a static export (`output: 'export'`), and a dynamic segment with
+ * no `getStaticPaths` cannot be prerendered per id - the ids come from a live API - so the
+ * export emitted exactly one file for the route: a directory named, literally, `[id]`.
+ * That produced two defects from one cause:
+ *
+ *  1. `/workspace/seo/page/%5Bid%5D/` was a real HTTP 200. It rendered this shell with
+ *     `id === '[id]'`, so `Number(id)` was NaN and all four calls below went out as
+ *     getPage(NaN), getTrackingByPage(NaN) and so on.
+ *  2. `/workspace/seo/page/123/` had no file at all. Clicking a row from Pages worked,
+ *     because the Next router handles it inside the SPA, but reloading that URL - or
+ *     opening a colleague's link to it - hit the CDN with nothing behind it.
+ *
+ * A query string is a real static file, so the reload works and there is no bracket URL to
+ * serve. The app already reads a record selector this way: the five Inbox rows in
+ * navigation.ts are `/workspace/engage/inbox?channel=<x>` against one page.
+ *
+ * Rejected: leaving the route and only guarding for NaN. That silences the first defect and
+ * leaves the second, which is the one an operator actually meets.
  */
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
@@ -21,17 +41,27 @@ const SEOPageDetail: React.FC<PageProps> = ( { signOut, user } ) => {
   const [ tab, setTab ] = useState<'seo' | 'tracking' | 'schema' | 'inspections'>( 'seo' );
   const [ loading, setLoading ] = useState( true );
 
+  /*
+   * router.query is empty until the router hydrates, and on a static export that is also
+   * true of a page reached by a full load rather than a click. Waiting on `isReady` is what
+   * separates "no id yet" from "no id at all" - without it, arriving at this URL with no
+   * ?id= is indistinguishable from arriving a millisecond early, and the page would sit on
+   * "Loading..." for good.
+   */
+  const pageId = router.isReady ? Number( id ) : NaN;
+  const idMissing = router.isReady && !Number.isFinite( pageId );
+
   useEffect( () => {
-    if ( !id ) return;
-    const pid = Number( id );
+    if ( !router.isReady ) return;
+    if ( !Number.isFinite( pageId ) ) { setLoading( false ); return; }
     setLoading( true );
     Promise.all( [
-      seoApi.getPage( pid ).then( setPage ),
-      seoApi.getTrackingByPage( pid ).then( setTracking ).catch( () => null ),
-      seoApi.getSchemaByPage( pid ).then( setSchema ).catch( () => null ),
-      seoApi.getPageInspections( pid ).then( setInspections ).catch( () => [] ),
+      seoApi.getPage( pageId ).then( setPage ),
+      seoApi.getTrackingByPage( pageId ).then( setTracking ).catch( () => null ),
+      seoApi.getSchemaByPage( pageId ).then( setSchema ).catch( () => null ),
+      seoApi.getPageInspections( pageId ).then( setInspections ).catch( () => [] ),
     ] ).finally( () => setLoading( false ) );
-  }, [ id ] );
+  }, [ router.isReady, pageId ] );
 
   async function handleInspect () {
     if ( !page ) return;
@@ -56,6 +86,17 @@ const SEOPageDetail: React.FC<PageProps> = ( { signOut, user } ) => {
   if ( loading ) return (
     <Layout user={ user } onSignOut={ signOut }>
       <div className="inner-page"><div className="card" style={ { padding: 40, textAlign: 'center', color: '#6b7280' } }>Loading...</div></div>
+    </Layout>
+  );
+
+  /* No ?id= at all: this is the bare URL, not a failed lookup, and saying "not found"
+   * about a page nobody named would send an operator looking for a deleted record. */
+  if ( idMissing ) return (
+    <Layout user={ user } onSignOut={ signOut }>
+      <div className="inner-page"><div className="card" style={ { padding: 40, textAlign: 'center' } }>
+        <p style={ { margin: '0 0 16px', color: '#6b7280' } }>This page shows one crawled URL. Choose one from the inventory to see its SEO, tracking and schema.</p>
+        <button className="btn btn-secondary" onClick={ () => router.push( '/workspace/seo/pages/' ) }>Go to Pages</button>
+      </div></div>
     </Layout>
   );
 

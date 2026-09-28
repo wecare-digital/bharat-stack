@@ -100,9 +100,11 @@ const SEOPages: React.FC<PageProps> = ( { signOut, user } ) => {
                 </tr>
               </thead>
               <tbody>
+                { /* Rows link with ?id= rather than a path segment: the detail view is one
+                     static file, so the link survives a reload. See page/index.tsx. */ }
                 { pages.map( p => (
                   <tr key={ p.id } style={ { borderBottom: '1px solid #f3f4f6', cursor: 'pointer' } }
-                    onClick={ () => router.push( `/workspace/seo/page/${p.id}` ) }>
+                    onClick={ () => router.push( `/workspace/seo/page/?id=${p.id}` ) }>
                     <td style={ { padding: '10px 12px', color: '#1a3a2a', fontWeight: 500, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }>
                       { p.normalized_url }
                     </td>

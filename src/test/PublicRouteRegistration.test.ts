@@ -95,7 +95,7 @@ const rootPageFiles = fs.readdirSync( PAGES_DIR )
 /**
  * One level of directory-backed pages: src/pages/<name>/index.tsx. /grahak-os, /vayulok
  * and /blog are all this shape, so "root-level files only" left a public page shape
- * completely unguarded. Deeper nesting (dm/whatsapp/..., seo/page/[id]) is skipped:
+ * completely unguarded. Deeper nesting (dm/whatsapp/..., seo/page/) is skipped:
  * it is dashboard territory and every one of those would be a false alarm.
  */
 const dirPages = fs.readdirSync( PAGES_DIR, { withFileTypes: true } )
