@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import BlogIndex from '../pages/blog/index';
 import BlogPostPage from '../pages/post/[slug]';
 import type { PublicBlogPost } from '../lib/public-blog';
@@ -39,6 +39,14 @@ const samplePost: PublicBlogPost = {
   },
 };
 
+const secondPost: PublicBlogPost = {
+  ...samplePost,
+  id: 'post-2',
+  title: 'A Guide to Better Decisions',
+  slug: 'a-guide-to-better-decisions',
+  category: 'Guides',
+};
+
 describe( 'Blog design alignment', () => {
   it( 'uses the homepage hero typography and does not repeat the brand eyebrow on /blog/', () => {
     const { container } = render( <BlogIndex posts={ [ samplePost ] } /> );
@@ -50,6 +58,32 @@ describe( 'Blog design alignment', () => {
     expect( css ).toContain( '.blog-shell{max-width:1300px' );
     expect( css ).toContain( 'h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;letter-spacing:-0.04em' );
     expect( css ).toContain( '.blog-hero>p{font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898)' );
+  } );
+
+  it( 'switches between all posts and each available category without a page load', () => {
+    const { container } = render( <BlogIndex posts={ [ samplePost, secondPost ] } /> );
+
+    const all = screen.getByRole( 'button', { name: 'All' } );
+    const conversations = screen.getByRole( 'button', { name: 'Conversations' } );
+    const guides = screen.getByRole( 'button', { name: 'Guides' } );
+
+    expect( all ).toHaveAttribute( 'aria-pressed', 'true' );
+    expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
+    expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
+
+    fireEvent.click( conversations );
+    expect( conversations ).toHaveAttribute( 'aria-pressed', 'true' );
+    expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
+    expect( screen.queryByRole( 'heading', { name: secondPost.title } ) ).toBeNull();
+
+    fireEvent.click( guides );
+    expect( guides ).toHaveAttribute( 'aria-pressed', 'true' );
+    expect( screen.queryByRole( 'heading', { name: samplePost.title } ) ).toBeNull();
+    expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
+
+    const css = cssOf( container );
+    expect( css ).toContain( '.category-switch{display:flex;gap:8px;overflow-x:auto' );
+    expect( css ).toContain( '.category-switch button[aria-pressed="true"]{background:#d1f470' );
   } );
 
   it( 'keeps listing cards typographic, readable and responsive rather than dashboard-like', () => {
