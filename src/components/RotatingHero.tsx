@@ -78,11 +78,65 @@ const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, 
   const [ cycleIndex, setCycleIndex ] = useState( 0 );
   const [ cycleW, setCycleW ] = useState<number | null>( null );
   const wordRefs = useRef<( HTMLSpanElement | null )[]>( [] );
-  const [ shown, setShown ] = useState( false );
+  /**
+   * 'final' is the CSS default: shutter gone, dot popped, nothing animating. 'armed' puts
+   * the start state back, 'shown' plays it. Starting at 'final' is what makes the entrance
+   * additive - no JS, a failed bundle or reduced motion all render a complete pill.
+   */
+  const [ phase, setPhase ] = useState<'final' | 'armed' | 'shown'>( 'final' );
 
   useEffect( () => {
-    const id = window.setTimeout( () => setShown( true ), 60 );
-    return () => window.clearTimeout( id );
+    // THE ENTRANCE IS OPT-IN, NOT OPT-OUT, and this was a real defect on twelve pages.
+    //
+    // The shutter used to default to scaleX(1) - a white panel covering the pill's tint - and
+    // the dot to scale(0), with .rh-layout.show removing both once this effect had run. So
+    // anything that stopped that class arriving left the headline followed by a blank white
+    // lozenge with no dot, permanently. Measured on the built /elsewhere/ with scripting
+    // disabled: shutter matrix(1,0,0,1,0,0), dot matrix(0,0,0,0,0,0).
+    //
+    // index.tsx carried the same bug and was fixed; this component was not, so every page
+    // using it kept it - the seven product pages and the five Selfservice pages.
+    //
+    // The CSS now ships the FINISHED state and this effect adds .is-armed, which is what puts
+    // it back to the start, and only once it knows the animation can play. No JS, a failed
+    // bundle or reduced motion therefore all render a complete pill instead of an empty one.
+    //
+    // classList rather than state: a visual side-effect that changes nothing React renders,
+    // which is the case react-hooks/set-state-in-effect exists to steer away from state.
+    // DECLARATIVE, NOT classList - AND THAT MATTERS HERE SPECIFICALLY.
+    //
+    // The closing band on the home page arms itself with classList, which is right there: that
+    // node never re-renders. THIS component re-renders every 2400ms, because cycleIndex
+    // advances the rotation - and React rewrites className on every render, silently dropping
+    // any class added imperatively. Measured: with classList the built page showed
+    // "rh-layout show" and no is-armed at all.
+    //
+    // It still animated, by accident: the first re-render lands at 60ms, which is exactly when
+    // is-armed should come off, and because the CSS default is the finished state every later
+    // re-render is a no-op. Correct output, for a reason nobody could rely on - adding
+    // is-armed to the className template would have broken it.
+    //
+    // A phase variable makes the class attribute the single source of truth, so the rotation's
+    // own re-renders cannot interfere. Scheduled in a timeout rather than set in the effect
+    // body because that is the react-hooks/set-state-in-effect case, and because matchMedia is
+    // browser-only and must not run during the static export.
+    let cancelled = false;
+    let reveal = 0;
+    const start = window.setTimeout( () => {
+      if ( cancelled ) return;
+      const reduce = typeof window.matchMedia === 'function'
+        && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
+      // Stay at 'final': the CSS default is already the finished pill, so there is nothing
+      // to do and nothing to animate.
+      if ( reduce ) return;
+      setPhase( 'armed' );
+      reveal = window.setTimeout( () => { if ( !cancelled ) setPhase( 'shown' ); }, 60 );
+    }, 0 );
+    return () => {
+      cancelled = true;
+      window.clearTimeout( start );
+      window.clearTimeout( reveal );
+    };
   }, [] );
 
   useEffect( () => {
@@ -105,7 +159,11 @@ const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, 
 
   return (
     <main className="rh-shell" aria-label={ ariaLabel }>
-      <div className={ `rh-layout ${shown ? 'show' : ''}`.trim() }>
+      <div className={ [
+        'rh-layout',
+        phase === 'armed' || phase === 'shown' ? 'is-armed' : '',
+        phase === 'shown' ? 'show' : '',
+      ].filter( Boolean ).join( ' ' ) }>
         <div className="rh-hero">
           {/* Wrapper carries the spacing. BrandBadge paints itself - styled-jsx
               cannot reach into it from here either. */}
@@ -190,18 +248,22 @@ const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, 
            rather than switching on. */
         .rh-mark::before{
           content:'';position:absolute;inset:0;background:#fff;border-radius:9999px;
-          transform:scaleX(1);transform-origin:right center;
+          /* scaleX(0) - the FINISHED state - so no JS leaves the tint visible, not covered. */
+          transform:scaleX(0);transform-origin:right center;
           transition:transform .78s cubic-bezier(.16,1,.3,1) .18s;z-index:0;
         }
-        .rh-layout.show .rh-mark::before{transform:scaleX(0)}
+        .rh-layout.is-armed .rh-mark::before{transform:scaleX(1)}
+        .rh-layout.is-armed.show .rh-mark::before{transform:scaleX(0)}
         /* .33em matches the dot-to-headline ratio measured on notion.com; the tight
            .18em gap keeps it reading as attached to the word. */
         .rh-mark-dot{
           position:relative;z-index:1;display:inline-block;width:.33em;height:.33em;
           background:#3da35a;border-radius:50%;margin-right:.18em;vertical-align:.14em;
-          transform:scale(0);transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
+          /* scale(1) by default, for the same reason as the shutter above. */
+          transform:scale(1);transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
         }
-        .rh-layout.show .rh-mark-dot{transform:scale(1)}
+        .rh-layout.is-armed .rh-mark-dot{transform:scale(0)}
+        .rh-layout.is-armed.show .rh-mark-dot{transform:scale(1)}
         /* Width animates from the measured word so the pill glides instead of
            snapping. overflow:hidden clips the outgoing word as it slides. */
         /* PORTED FROM THE HOME BAND. Four implementations of this hero exist and every one
@@ -281,8 +343,12 @@ const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, 
           /* scaleX(0) is the RESTING state. scaleX(1) is the START state - a white
              shutter covering the tint - which is what this used to set. It never bit only
              because .rh-layout.show out-specifies it (0,2,1 vs 0,1,1). */
-          .rh-mark::before{transform:scaleX(0)}
-          .rh-mark-dot{transform:scale(1)}
+          /* Scoped to .is-armed so it WINS rather than winning by accident: unscoped these
+             were (0,1,1) against the armed rule at (0,2,1). Both resting states are now the
+             CSS default anyway, so all this has to do is beat .is-armed for the one case the
+             JS cannot cover - the preference changing after the class is on the node. */
+          .rh-layout.is-armed .rh-mark::before{transform:scaleX(0)}
+          .rh-layout.is-armed .rh-mark-dot{transform:scale(1)}
           .rh-cycle{transition:none}
           .rh-cyc-word{transition:none}
         }
