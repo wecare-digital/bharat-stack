@@ -1,0 +1,46 @@
+name: Gastronomy content gate
+
+on:
+  pull_request:
+    branches: [ stack ]
+    paths:
+      - 'content/gastronomy/**'
+      - 'scripts/gastronomy_batch.py'
+      - 'tests/test_gastronomy_batch.py'
+      - '.github/workflows/gastronomy-content-gate.yml'
+  push:
+    branches: [ gastronomy-publishing ]
+    paths:
+      - 'content/gastronomy/**'
+      - 'scripts/gastronomy_batch.py'
+      - 'tests/test_gastronomy_batch.py'
+      - '.github/workflows/gastronomy-content-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install focused test dependencies
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Run Gastronomy contract tests
+        run: python -m pytest tests/test_gastronomy_batch.py -q
+      - name: Validate committed batch manifests
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(content/gastronomy/batches/GAST-*.json)
+          if (( ${#files[@]} == 0 )); then
+            echo "No Gastronomy batch manifests committed yet."
+            exit 0
+          fi
+          for file in "${files[@]}"; do
+            python scripts/gastronomy_batch.py validate --manifest "$file"
+          done
