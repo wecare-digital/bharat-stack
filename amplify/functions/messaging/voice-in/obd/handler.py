@@ -51,6 +51,7 @@ from lambda_utils.middleware import require_auth
 
 # Configure logging
 from lambda_utils.logging import get_logger
+from lambda_utils.privacy import mask_contact_id  # contactId is `wa` + the customer's digits
 
 logger = get_logger(__name__)
 
@@ -806,7 +807,7 @@ def _store_to_inbox(message_id: str, contact_id: str, contact_phone: str,
             'event': 'obd_notification_stored_in_inbox',
             'id': store_id,
             'channel': channel,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'requestId': request_id,
         }))
     except Exception as e:

@@ -43,7 +43,7 @@ from typing import Dict, Any, Optional
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
-from lambda_utils.privacy import mask_phone, redact_pii
+from lambda_utils.privacy import mask_phone, mask_contact_id, redact_pii  # contactId is `wa` + the customer's digits
 from lambda_utils.message_store import put_call_breadcrumb
 from lambda_utils.middleware import require_auth  # unified timeline breadcrumb
 from lambda_utils import wa_internal_event  # typed ingress -> worker contract
@@ -2525,7 +2525,7 @@ def _store_notification_to_inbox(message_id: str, contact_id: str, contact_phone
             'event': 'notification_stored_in_inbox',
             'id': store_id,
             'channel': channel,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'requestId': request_id,
         }))
     except Exception as e:

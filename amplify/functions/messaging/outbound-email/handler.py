@@ -16,6 +16,7 @@ from decimal import Decimal
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 # Configure logging
 from lambda_utils.logging import get_logger
+from lambda_utils.privacy import mask_contact_id  # contactId is `wa` + the customer's digits
 from lambda_utils.message_store import put_message  # canonical MessagesTable writer
 
 logger = get_logger(__name__)
@@ -107,7 +108,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.info(json.dumps({
             'event': 'email_sent',
             'messageId': message_id,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'sesMessageId': result.get('sesMessageId'),
             'requestId': request_id
         }))

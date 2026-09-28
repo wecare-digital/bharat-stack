@@ -40,6 +40,7 @@ from decimal import Decimal
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
+from lambda_utils.privacy import mask_contact_id  # contactId is `wa` + the customer's digits
 from lambda_utils.middleware import require_auth
 from lambda_utils import retired_store
 
@@ -331,7 +332,7 @@ def _store_to_inbox(message_id: str, contact_id: str, contact_phone: str,
             'event': 'c2c_notification_stored_in_inbox',
             'id': store_id,
             'channel': channel,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'requestId': request_id,
         }))
     except Exception as e:

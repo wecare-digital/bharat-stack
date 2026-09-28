@@ -26,7 +26,7 @@ from decimal import Decimal
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import extract_origin
-from lambda_utils.privacy import mask_phone, mask_flow_token, redact_pii
+from lambda_utils.privacy import mask_phone, mask_flow_token, mask_contact_id, redact_pii  # contactId is `wa` + the customer's digits
 from lambda_utils.validation import normalize_phone
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
@@ -1392,7 +1392,7 @@ def _process_message(
                         'body': json.dumps({'contactId': contact_id, 'content': _auto, 'phoneNumberId': aws_phone_number_id}),
                     }),
                 )
-                logger.info(json.dumps({'event': 'automation_auto_reply', 'contactId': contact_id, 'whatsappMessageId': whatsapp_message_id}))
+                logger.info(json.dumps({'event': 'automation_auto_reply', 'contactId': mask_contact_id(contact_id), 'whatsappMessageId': whatsapp_message_id}))
     except Exception as _ae:
         logger.warning(f'automation auto-reply skipped: {_ae}')
     
@@ -1531,7 +1531,7 @@ def _process_message(
                         )
                         logger.info(json.dumps({
                             'event': 'contact_request_phone_captured',
-                            'contactId': contact_id,
+                            'contactId': mask_contact_id(contact_id),
                             'sharedPhone': shared_phone,
                             'origin': msg_origin,
                             'requestId': request_id
@@ -1545,7 +1545,7 @@ def _process_message(
     logger.info(json.dumps({
         'event': 'message_stored',
         'messageId': message_id,
-        'contactId': contact_id,
+        'contactId': mask_contact_id(contact_id),
         'senderPhone': mask_phone(sender_phone),
         # A WhatsApp profile name is the customer's own name. contactId already
         # identifies them for correlation, so only its presence is logged.
@@ -1573,7 +1573,7 @@ def _process_message(
                     _send_direct_api_reaction(sender_phone, whatsapp_message_id, emoji=AUTO_THUMB_EMOJI)
                 logger.info(json.dumps({
                     'event': 'auto_reaction_triggered_direct_api',
-                    'contactId': contact_id,
+                    'contactId': mask_contact_id(contact_id),
                     'whatsappMessageId': whatsapp_message_id,
                     'requestId': request_id
                 }))
@@ -1607,7 +1607,7 @@ def _process_message(
     if msg_type == 'request_welcome':
         logger.info(json.dumps({
             'event': 'request_welcome_triggered',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'senderPhone': mask_phone(sender_phone),
             'requestId': request_id,
         }))
@@ -1637,7 +1637,7 @@ def _process_message(
         logger.info(json.dumps({
             'event': 'button_message_received',
             'buttonText': button_text_lower,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'senderPhone': mask_phone(sender_phone),
             'requestId': request_id,
         }))
@@ -1662,7 +1662,7 @@ def _process_message(
             logger.info(json.dumps({
                 'event': 'button_triggered_menu_sent',
                 'buttonText': button_text_lower,
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
             return  # Skip AI automation — menu sent via button trigger
@@ -1687,7 +1687,7 @@ def _process_message(
                 logger.info(json.dumps({
                     'event': 'slash_command_normalized',
                     'original': content_lower[:80], 'command': _cmd_token,
-                    'contactId': contact_id, 'requestId': request_id,
+                    'contactId': mask_contact_id(contact_id), 'requestId': request_id,
                 }))
                 content_lower = _cmd_token
 
@@ -1822,7 +1822,7 @@ def _process_message(
             logger.info(json.dumps({
                 'event': 'pay_keyword_triggered',
                 'content': content_lower,
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'senderPhone': mask_phone(sender_phone),
                 'phoneNumberId': aws_phone_number_id,
                 'requestId': request_id,
@@ -1914,7 +1914,7 @@ def _process_message(
             logger.info(json.dumps({
                 'event': 'hi_keyword_triggered',
                 'content': content_lower,
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'senderPhone': mask_phone(sender_phone),
                 'requestId': request_id,
             }))
@@ -1928,7 +1928,7 @@ def _process_message(
             )
             logger.info(json.dumps({
                 'event': 'hi_keyword_welcome_sent',
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
             return  # Skip AI automation  -  welcome flow handled
@@ -1946,7 +1946,7 @@ def _process_message(
             logger.info(json.dumps({
                 'event': 'explore_wecare_triggered',
                 'content': content_lower,
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
             _send_cta_button(contact_id, aws_phone_number_id, 'Explore WECARE.DIGITAL', 'https://wecare.digital', request_id,
@@ -1968,7 +1968,7 @@ def _process_message(
             logger.info(json.dumps({
                 'event': 'selfservice_triggered',
                 'content': content_lower,
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
             _send_interactive_list(
@@ -2068,7 +2068,7 @@ def _process_message(
                 pass
             logger.info(json.dumps({
                 'event': 'welcome_message_sent',
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'senderPhone': mask_phone(sender_phone),
                 'requestId': request_id
             }))
@@ -2257,7 +2257,7 @@ def _get_or_create_contact(phone: str, sender_name: str = '', bsuid: str = '', u
             ConditionExpression='attribute_not_exists(id)',
         )
         logger.info(json.dumps({
-            'event': 'contact_auto_created', 'contactId': contact_id,
+            'event': 'contact_auto_created', 'contactId': mask_contact_id(contact_id),
             'phone': mask_phone(phone), 'hasName': bool(sender_name), 'bsuid': bsuid, 'hasUsername': bool(username),
         }))
         return contact
@@ -2273,7 +2273,7 @@ def _get_or_create_contact(phone: str, sender_name: str = '', bsuid: str = '', u
             except Exception:
                 pass
         else:
-            logger.warning(json.dumps({'event': 'contact_create_error', 'error': str(e), 'contactId': contact_id}))
+            logger.warning(json.dumps({'event': 'contact_create_error', 'error': str(e), 'contactId': mask_contact_id(contact_id)}))
         return contact
 
 
@@ -2345,7 +2345,7 @@ def _update_contact_bsuid_fields(contacts_table, contact: Dict, sender_name: str
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'contact_bsuid_update_failed',
-            'contactId': contact.get('id', ''),
+            'contactId': mask_contact_id(contact.get('id', '')),
             'error': str(e),
         }))
 
@@ -2421,7 +2421,7 @@ def _process_user_id_update(uid_update: Dict, contacts_map: Dict, request_id: st
             )
             logger.info(json.dumps({
                 'event': 'user_id_updated',
-                'contactId': contact['id'],
+                'contactId': mask_contact_id(contact['id']),
                 'old_bsuid': old_user_id,
                 'new_bsuid': new_user_id,
                 'new_parent_bsuid': new_parent_id,
@@ -4095,7 +4095,7 @@ def _store_payment_record(reference_id: str, recipient_id: str, payment_status: 
             'event': 'payment_record_stored',
             'paymentId': payment_id,
             'referenceId': reference_id,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'paymentStatus': payment_status,
             'amount': actual_amount,
             'pgTransactionId': pg_transaction_id,
@@ -4193,7 +4193,7 @@ def _get_contact_by_phone(phone: str) -> Optional[Dict]:
                         'event': 'contact_lookup_result',
                         'phone': mask_phone(phone),
                         'foundCount': len(items),
-                        'contactId': items[0].get('id', ''),
+                        'contactId': mask_contact_id(items[0].get('id', '')),
                         'method': 'gsi'
                     }))
                     return items[0]
@@ -4218,7 +4218,7 @@ def _get_contact_by_phone(phone: str) -> Optional[Dict]:
             'event': 'contact_lookup_result',
             'phone': mask_phone(phone),
             'foundCount': len(items),
-            'contactId': items[0].get('id', '') if items else None,
+            'contactId': mask_contact_id(items[0].get('id', '') if items else None),
             'method': 'scan_fallback'
         }))
         
@@ -4393,7 +4393,7 @@ def _send_order_status_message(recipient_id: str, reference_id: str,
         
         logger.info(json.dumps({
             'event': 'order_status_message_sending',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'contactPhone': mask_phone(contact_phone),
             'referenceId': reference_id,
             'orderStatus': order_status,
@@ -4411,7 +4411,7 @@ def _send_order_status_message(recipient_id: str, reference_id: str,
         
         logger.info(json.dumps({
             'event': 'order_status_message_triggered',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'contactPhone': mask_phone(contact_phone),
             'referenceId': reference_id,
             'orderStatus': order_status,
@@ -4615,7 +4615,7 @@ def _send_auto_reaction(contact_id: str, whatsapp_message_id: str,
         
         logger.info(json.dumps({
             'event': 'auto_reaction_triggered',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'whatsappMessageId': whatsapp_message_id,
             'phoneNumberId': phone_number_id,
             'statusCode': response.get('StatusCode'),
@@ -4625,7 +4625,7 @@ def _send_auto_reaction(contact_id: str, whatsapp_message_id: str,
     except Exception as e:
         logger.error(json.dumps({
             'event': 'auto_reaction_error',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'error': str(e),
             'requestId': request_id
         }))
@@ -4656,7 +4656,7 @@ def _send_ai_auto_reply(contact_id: str, content: str, phone_number_id: str, req
         
         logger.info(json.dumps({
             'event': 'ai_auto_reply_triggered',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'contentLength': len(content),
             'phoneNumberId': phone_number_id,
             'statusCode': response.get('StatusCode'),
@@ -4666,7 +4666,7 @@ def _send_ai_auto_reply(contact_id: str, content: str, phone_number_id: str, req
     except Exception as e:
         logger.error(json.dumps({
             'event': 'ai_auto_reply_error',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'error': str(e),
             'requestId': request_id
         }))
@@ -4720,7 +4720,7 @@ def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phon
 
         logger.info(json.dumps({
             'event': 'submit_request_flow_sent',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'senderPhone': mask_phone(sender_phone),
             'flowId': flow_id,
             'flowToken': mask_flow_token(flow_token),
@@ -4731,7 +4731,7 @@ def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phon
     except Exception as e:
         logger.error(json.dumps({
             'event': 'submit_request_flow_error',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'error': str(e),
             'requestId': request_id
         }))
@@ -4748,7 +4748,7 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
         if not flow_id:
             logger.warning(json.dumps({
                 'event': 'subscribe_flow_no_id',
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
             return
@@ -4786,7 +4786,7 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
 
         logger.info(json.dumps({
             'event': 'subscribe_flow_sent',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'senderPhone': mask_phone(sender_phone),
             'flowId': flow_id,
             'flowToken': mask_flow_token(flow_token),
@@ -4797,7 +4797,7 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
     except Exception as e:
         logger.error(json.dumps({
             'event': 'subscribe_flow_error',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'error': str(e),
             'requestId': request_id
         }))
@@ -4818,7 +4818,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
             logger.warning(json.dumps({
                 'event': 'generic_flow_no_id',
                 'flowKey': flow_key,
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
             }))
             return
@@ -4869,7 +4869,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
                 _send_followup_buttons(contact_id, phone_number_id, request_id)
                 logger.info(json.dumps({
                     'event': 'generic_flow_phone2_cta_sent',
-                    'flowKey': flow_key, 'contactId': contact_id, 'shortUrl': short_url,
+                    'flowKey': flow_key, 'contactId': mask_contact_id(contact_id), 'shortUrl': short_url,
                     'phoneNumberId': phone_number_id, 'requestId': request_id,
                 }))
                 return
@@ -4923,7 +4923,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
         logger.info(json.dumps({
             'event': 'generic_flow_sent',
             'flowKey': flow_key,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'senderPhone': mask_phone(sender_phone),
             'flowId': flow_id,
             'flowToken': mask_flow_token(flow_token),
@@ -4935,7 +4935,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
         logger.error(json.dumps({
             'event': 'generic_flow_error',
             'flowKey': flow_key,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'error': str(e),
             'requestId': request_id
         }))
@@ -4974,7 +4974,7 @@ def _send_interactive_list(contact_id: str, phone_number_id: str, list_config: D
 
         logger.info(json.dumps({
             'event': 'interactive_list_sent',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'buttonText': list_config.get('buttonText', 'Menu'),
             'sectionsCount': len(list_config.get('sections', [])),
             'statusCode': response.get('StatusCode'),
@@ -4984,7 +4984,7 @@ def _send_interactive_list(contact_id: str, phone_number_id: str, list_config: D
     except Exception as e:
         logger.error(json.dumps({
             'event': 'interactive_list_error',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'error': str(e),
             'requestId': request_id
         }))
@@ -5026,7 +5026,7 @@ def _send_cta_button(contact_id: str, phone_number_id: str, cta_text: str, cta_u
 
         logger.info(json.dumps({
             'event': 'cta_button_sent',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'ctaText': cta_text,
             'ctaUrl': cta_url,
             'statusCode': response.get('StatusCode'),
@@ -5036,7 +5036,7 @@ def _send_cta_button(contact_id: str, phone_number_id: str, cta_text: str, cta_u
     except Exception as e:
         logger.error(json.dumps({
             'event': 'cta_button_error',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'error': str(e),
             'requestId': request_id
         }))
@@ -5074,7 +5074,7 @@ def _send_reply_buttons(contact_id: str, phone_number_id: str, button_config: Di
 
         logger.info(json.dumps({
             'event': 'reply_buttons_sent',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'buttonCount': len(button_config.get('buttons', [])),
             'statusCode': response.get('StatusCode'),
             'requestId': request_id
@@ -5083,7 +5083,7 @@ def _send_reply_buttons(contact_id: str, phone_number_id: str, button_config: Di
     except Exception as e:
         logger.error(json.dumps({
             'event': 'reply_buttons_error',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'error': str(e),
             'requestId': request_id
         }))
@@ -5218,7 +5218,7 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
 
         logger.info(json.dumps({
             'event': 'audio_response_triggered',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'voiceId': voice_id,
             'langCode': lang_code,
             'textLength': len(text),
@@ -5229,7 +5229,7 @@ def _send_audio_response(contact_id: str, phone_number_id: str, text: str, langu
     except Exception as e:
         logger.error(json.dumps({
             'event': 'audio_response_error',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'error': str(e),
             'requestId': request_id
         }))
@@ -5438,7 +5438,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
     if amount > 1000000:
         logger.warning(json.dumps({
             'event': 'payment_amount_exceeds_limit',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'amount': amount,
             'requestId': request_id,
         }))
@@ -5605,7 +5605,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
 
         logger.info(json.dumps({
             'event': 'payment_request_sent',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'referenceId': reference_id,
             'itemCount': len(order_items),
             'subtotal': subtotal_paise / 100,
@@ -5625,7 +5625,7 @@ def _send_payment_request(contact_id: str, phone_number_id: str, amount: float, 
     except Exception as e:
         logger.error(json.dumps({
             'event': 'payment_request_error',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'amount': amount,
             'error': str(e),
             'requestId': request_id
@@ -6186,7 +6186,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
             'event': 'invoice_sent',
             'invoiceRef': inv_ref,
             'payRef': pay_ref,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'requestId': request_id,
         }))
 
@@ -6194,7 +6194,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
         logger.error(json.dumps({
             'event': 'invoice_generation_error',
             'error': str(e),
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'requestId': request_id,
         }))
 
@@ -6563,7 +6563,7 @@ def _handle_address_submission(nfm: Dict, contact_id: str, sender_phone: str,
             expr_vals[':nm'] = name
         ct.update_item(Key={'id': contact_id}, UpdateExpression=update_expr,
                        ExpressionAttributeNames=expr_names, ExpressionAttributeValues=expr_vals)
-        logger.info(json.dumps({'event': 'address_saved', 'contactId': contact_id, 'requestId': request_id}))
+        logger.info(json.dumps({'event': 'address_saved', 'contactId': mask_contact_id(contact_id), 'requestId': request_id}))
     except Exception as e:
         logger.error(json.dumps({'event': 'address_submission_error', 'error': str(e), 'requestId': request_id}))
 
@@ -6577,7 +6577,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
     logger.info(json.dumps({
         'event': 'list_reply_received',
         'listId': list_id,
-        'contactId': contact_id,
+        'contactId': mask_contact_id(contact_id),
         'requestId': request_id,
     }))
 
@@ -6838,7 +6838,7 @@ def _handle_list_reply(list_id: str, contact_id: str, phone_number_id: str,
         logger.info(json.dumps({
             'event': 'list_reply_unhandled',
             'listId': list_id,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'requestId': request_id,
         }))
 
@@ -7458,7 +7458,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 'intent': ai_response.get('intent', 'unknown'),
                 'confidence': ai_response.get('confidence', 0),
                 'messageId': message_id,
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'escalationTextSent': bool(escalation_text),
                 'requestId': request_id
             }))
@@ -7700,13 +7700,13 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
             except Exception as hh_err:
                 logger.warning(json.dumps({
                     'event': 'human_handoff_flag_error',
-                    'contactId': contact_id,
+                    'contactId': mask_contact_id(contact_id),
                     'error': str(hh_err),
                     'requestId': request_id
                 }))
             logger.info(json.dumps({
                 'event': 'human_handoff_requested',
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'requestId': request_id
             }))
         elif flow_action == 'end':
@@ -7721,7 +7721,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 fallback_msg = "Hi! 👋 I'm here to help. Type *menu* to see options, or just ask me anything. 😊"
                 logger.warning(json.dumps({
                     'event': 'ai_blank_response_fallback',
-                    'contactId': contact_id,
+                    'contactId': mask_contact_id(contact_id),
                     'messageId': message_id,
                     'aiResponseKeys': list(ai_response.keys()) if ai_response else [],
                     'requestId': request_id
@@ -7762,7 +7762,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 except Exception as audio_err:
                     logger.warning(json.dumps({
                         'event': 'audio_check_error',
-                        'contactId': contact_id,
+                        'contactId': mask_contact_id(contact_id),
                         'error': str(audio_err),
                         'requestId': request_id
                     }))

@@ -26,6 +26,7 @@ from decimal import Decimal
 
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
+from lambda_utils.privacy import mask_contact_id  # contactId is `wa` + the customer's digits
 from lambda_utils.message_store import put_message  # canonical MessagesTable writer
 from lambda_utils.automation import evaluate_rules  # cross-channel auto-reply rules
 from lambda_utils import sinch_signature  # raw-body HMAC on the public callback
@@ -436,7 +437,7 @@ def _process_inbound(data: Dict, request_id: str):
         'event': 'rcs_inbound_stored',
         'messageId': msg_id,
         'identity': identity[-4:] if identity else '',
-        'contactId': contact_id,
+        'contactId': mask_contact_id(contact_id),
         'content': content[:50],
         'contentLen': len(content),
         'requestId': request_id,

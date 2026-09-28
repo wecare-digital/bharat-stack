@@ -44,7 +44,7 @@ from functools import wraps
 
 # Configure logging
 from lambda_utils.logging import get_logger
-from lambda_utils.privacy import mask_phone  # a full number must never reach CloudWatch
+from lambda_utils.privacy import mask_phone, mask_contact_id  # contactId is `wa` + the customer's digits
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.agent import governance as gov
 from lambda_utils.agent import approvals as approval_module
@@ -2306,7 +2306,7 @@ def _handle_external(body: Dict, headers: Dict, request_id: str) -> Dict:
         'hasMessageContent': bool(message_content),
         'messageType': message_type,
         'phoneHash': phone_hash[:8] if phone_hash else 'NONE',
-        'contactId': contact_id,
+        'contactId': mask_contact_id(contact_id),
         'requestId': request_id
     }))
 
@@ -4122,7 +4122,7 @@ def _save_subscriber(data: Dict, phone_hash: str, request_id: str) -> None:
             )
             logger.info(json.dumps({
                 'event': 'subscriber_updated',
-                'contactId': existing['id'],
+                'contactId': mask_contact_id(existing['id']),
                 'phoneHash': phone_hash,
                 'requestId': request_id
             }))
@@ -4142,7 +4142,7 @@ def _save_subscriber(data: Dict, phone_hash: str, request_id: str) -> None:
             })
             logger.info(json.dumps({
                 'event': 'subscriber_created',
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'phoneHash': phone_hash,
                 'requestId': request_id
             }))
@@ -4867,7 +4867,7 @@ def _tool_send_whatsapp_pay(params: Dict, request_id: str) -> Dict:
 
         logger.info(json.dumps({
             'event': 'whatsapp_pay_sent',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'amount': amount,
             'currency': currency,
             'referenceId': reference_id,
@@ -5271,7 +5271,7 @@ def _tool_delete_contact(params: Dict, request_id: str) -> Dict:
 
         logger.info(json.dumps({
             'event': 'contact_deleted',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'hasContactName': bool(contact_name),
             'requestId': request_id
         }))
@@ -5325,7 +5325,7 @@ def _tool_delete_messages(params: Dict, request_id: str) -> Dict:
         
         logger.info(json.dumps({
             'event': 'messages_deleted',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'count': deleted_count,
             'requestId': request_id
         }))
@@ -5373,7 +5373,7 @@ def _tool_delete_media_files(params: Dict, request_id: str) -> Dict:
         
         logger.info(json.dumps({
             'event': 'media_files_deleted',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'count': deleted_count,
             'requestId': request_id
         }))
@@ -5450,7 +5450,7 @@ def _tool_clear_all_contact_data(params: Dict, request_id: str) -> Dict:
         
         logger.warning(json.dumps({
             'event': 'all_contact_data_cleared',
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'results': results,
             'requestId': request_id
         }))

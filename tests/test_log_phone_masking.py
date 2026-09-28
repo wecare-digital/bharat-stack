@@ -110,8 +110,11 @@ def _is_sanitised(value: ast.expr) -> bool:
         if name in ("mask_phone", "mask_email", "mask", "redact_pii", "redact_string",
                     "bool", "len", "last4", "_mask", "_mask_tail", "_mask_phone"):
             return True
-    if isinstance(value, ast.Subscript):          # phone[-4:], phone[:6]
-        return True
+    # A SLICE truncates and is therefore safe (`phone[-4:]`, `phone[:6]`). An INDEX does
+    # not: `contact['id']` is a dict lookup that returns the whole value, and treating
+    # the two alike hid two raw contact ids behind `existing['id']` and `contact['id']`.
+    if isinstance(value, ast.Subscript):
+        return isinstance(value.slice, ast.Slice)
     if isinstance(value, ast.BoolOp):             # x or None / x or ''
         return all(_is_sanitised(v) for v in value.values)
     if isinstance(value, ast.IfExp):
@@ -351,3 +354,92 @@ def test_the_arithmetic_truncation_is_gone():
     """
     handler = (ROOT / "amplify/functions/messaging/whatsapp-business-api/handler.py").read_text()
     assert "flow_token[:25]" not in handler
+
+
+# ── contactId: an "opaque surrogate key" that is the phone number ────────────────
+
+#: The field that looked safest of all, and was the largest disclosure in the tree.
+#: `inbound-whatsapp-handler._deterministic_contact_id` mints a contact id as
+#: `f'wa{digits}'` where digits are the normalised E.164, so a WhatsApp-originated
+#: `contactId` IS the customer's number behind a two-character prefix -- and it is the
+#: standard correlation field, so it appeared in 83 logger dicts. Contacts created
+#: through the API get a uuid instead, which discloses nothing, which is why
+#: `mask_contact_id` masks one form and passes the other through.
+CONTACT_KEY = re.compile(r"^contact_?id$", re.I)
+
+
+def _contact_offences() -> list[tuple[str, int, str]]:
+    found: list[tuple[str, int, str]] = []
+    for path in _handlers():
+        source = path.read_text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:                                          # pragma: no cover
+            continue
+        parents = _parents(tree)
+        lines = source.splitlines()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Dict):
+                continue
+            if not _is_logger(_consuming_call(node, parents)):
+                continue
+            for key, value in zip(node.keys, node.values):
+                if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                    continue
+                if not CONTACT_KEY.match(key.value):
+                    continue
+                wrapped = (
+                    isinstance(value, ast.Call)
+                    and getattr(value.func, "id", getattr(value.func, "attr", ""))
+                    == "mask_contact_id"
+                )
+                if wrapped or isinstance(value, ast.Constant):
+                    continue
+                line = getattr(value, "lineno", node.lineno)
+                found.append((str(path.relative_to(ROOT)), line, lines[line - 1].strip()))
+    return found
+
+
+def test_no_unmasked_contact_id_in_a_log_line():
+    found = _contact_offences()
+    if found:
+        rendered = "\n".join(f"  {p}:{n}  {code}" for p, n, code in found[:40])
+        pytest.fail(
+            f"{len(found)} logging site(s) log a raw contactId. The deterministic form "
+            f"is 'wa' + the customer's E.164 digits.\n"
+            f"Use mask_contact_id() from lambda_utils.privacy.\n{rendered}"
+        )
+
+
+def test_mask_contact_id_masks_the_phone_form_and_passes_the_uuid_form():
+    import sys
+    sys.path.insert(0, str(FUNCTIONS / "shared"))
+    from lambda_utils.privacy import mask_contact_id
+
+    # The deterministic form: wa + normalised digits.
+    assert mask_contact_id("wa918100640044") == "wa***0044"
+    assert "918100640" not in mask_contact_id("wa918100640044")
+
+    # The API form is a uuid and carries nothing, so masking it would throw away a
+    # usable correlation key for no gain.
+    uuid_form = "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
+    assert mask_contact_id(uuid_form) == uuid_form
+
+    assert mask_contact_id("") == ""
+    assert mask_contact_id(None) == ""
+    # `wa` followed by non-digits is not the deterministic form.
+    assert mask_contact_id("wanderer") == "wanderer"
+
+
+def test_the_deterministic_scheme_is_still_what_the_helper_assumes():
+    """If the minting changes, this masking is wrong and should fail loudly.
+
+    The helper keys on a literal `wa` prefix plus digits. That is only correct while
+    `_deterministic_contact_id` produces it, so the assumption is pinned to the source
+    rather than left implicit.
+    """
+    handler = (ROOT / "amplify/functions/messaging/inbound-whatsapp-handler/handler.py").read_text()
+    assert "def _deterministic_contact_id" in handler
+    assert "f'wa{digits}'" in handler, (
+        "the deterministic contact-id format changed; re-check mask_contact_id"
+    )

@@ -23,7 +23,7 @@ from decimal import Decimal
 # Configure logging
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_headers, extract_origin
-from lambda_utils.privacy import mask_phone, redact_pii
+from lambda_utils.privacy import mask_phone, mask_contact_id, redact_pii  # contactId is `wa` + the customer's digits
 from lambda_utils.middleware import require_auth
 from lambda_utils.message_store import put_message  # unified MessagesTable dual-write
 from lambda_utils import graph_errors  # Meta error subcode + transient classification
@@ -647,7 +647,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'event': 'smoke_mode_request_blocked',
                 'reason': _smoke_reason,
                 'recipientPhone': mask_phone(recipient_phone or ''),
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'requestId': request_id,
                 **live_smoke.describe(),
             }))
@@ -729,7 +729,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if not within_window and not is_template:
             logger.info(json.dumps({
                 'event': 'send_blocked_outside_window',
-                'contactId': contact_id,
+                'contactId': mask_contact_id(contact_id),
                 'hasContactRecord': bool(contact),
                 'requestId': request_id,
             }))
@@ -859,7 +859,7 @@ def _handle_dry_run(message_id: str, contact_id: str, recipient_phone: str,
     logger.info(json.dumps({
         'event': 'dry_run_message',
         'messageId': message_id,
-        'contactId': contact_id,
+        'contactId': mask_contact_id(contact_id),
         'recipientPhone': mask_phone(recipient_phone),
         'contentLength': len(content) if content else 0,
         'isTemplate': is_template,
@@ -884,7 +884,7 @@ def _handle_dry_run_reaction(message_id: str, contact_id: str, recipient_phone: 
     logger.info(json.dumps({
         'event': 'dry_run_reaction',
         'messageId': message_id,
-        'contactId': contact_id,
+        'contactId': mask_contact_id(contact_id),
         'recipientPhone': mask_phone(recipient_phone),
         'reactionMessageId': reaction_message_id,
         'emoji': reaction_emoji,
@@ -954,7 +954,7 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
             'event': 'reaction_sent',
             'messageId': message_id,
             'whatsappMessageId': whatsapp_message_id,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'reactionMessageId': reaction_message_id,
             'emoji': reaction_emoji,
             'requestId': request_id
@@ -1107,7 +1107,7 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
             'event': 'order_status_sent',
             'messageId': message_id,
             'whatsappMessageId': whatsapp_message_id,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'referenceId': reference_id,
             'orderStatus': order_status,
             'requestId': request_id
@@ -1762,7 +1762,7 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             'event': 'interactive_sent',
             'messageId': message_id,
             'whatsappMessageId': whatsapp_message_id,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'interactiveType': interactive_type,
             'requestId': request_id
         }))
@@ -1875,7 +1875,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
         logger.info(json.dumps({
             'event': 'message_payload_built',
             'messageId': message_id,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'recipientPhone': mask_phone(recipient_phone),
             'normalizedPhone': mask_phone(message_payload.get('to')),
             'payloadType': message_payload.get('type'),
@@ -2084,7 +2084,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
                 logger.info(json.dumps({
                     'event': 'payment_request_record_stored',
                     'referenceId': payment_ref_id,
-                    'contactId': contact_id,
+                    'contactId': mask_contact_id(contact_id),
                     'requestId': request_id,
                 }))
             except Exception as pr_err:
@@ -2099,7 +2099,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             'event': 'message_sent',
             'messageId': message_id,
             'whatsappMessageId': whatsapp_message_id,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'isTemplate': is_template,
             'hasMedia': bool(whatsapp_media_id),
             'requestId': request_id
@@ -3519,7 +3519,7 @@ def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
                 contact = sorted(items, key=lambda x: x.get('createdAt', 0))[0]
                 logger.info(json.dumps({
                     'event': 'contact_found_by_phone',
-                    'contactId': contact.get('contactId', contact.get('id', '')),
+                    'contactId': mask_contact_id(contact.get('contactId', contact.get('id', ''))),
                     'phone': mask_phone(phone),
                 }))
                 return contact
@@ -3557,7 +3557,7 @@ def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
     }
     try:
         contacts_table.put_item(Item=contact, ConditionExpression='attribute_not_exists(id)')
-        logger.info(json.dumps({'event': 'contact_auto_created_outbound', 'contactId': contact_id, 'phone': mask_phone(with_plus)}))
+        logger.info(json.dumps({'event': 'contact_auto_created_outbound', 'contactId': mask_contact_id(contact_id), 'phone': mask_phone(with_plus)}))
         return contact
     except Exception as e:
         # Race / already exists — fetch and reuse (never create a duplicate)
@@ -3591,7 +3591,7 @@ def _enrich_contact_identity(contact_id: str, wa_id: str) -> None:
             UpdateExpression='SET waId = :w, updatedAt = :u',
             ExpressionAttributeValues={':w': norm, ':u': Decimal(str(int(time.time())))},
         )
-        logger.info(json.dumps({'event': 'contact_waid_enriched', 'contactId': contact_id, 'waId': norm}))
+        logger.info(json.dumps({'event': 'contact_waid_enriched', 'contactId': mask_contact_id(contact_id), 'waId': norm}))
     except Exception as e:
         logger.warning(f'contact wa_id enrich failed (non-blocking): {e}')
 
@@ -3742,7 +3742,7 @@ def _store_message_record(message_id: str, contact_id: str, content: str, status
         logger.warning(json.dumps({
             'event': 'empty_content_skipped',
             'messageId': message_id,
-            'contactId': contact_id,
+            'contactId': mask_contact_id(contact_id),
             'status': status,
         }))
         return
@@ -3836,7 +3836,7 @@ def _log_validation_failure(contact_id: str, channel: str, reason: str, request_
     """Log validation failure - Requirement 3.6"""
     logger.warning(json.dumps({
         'event': 'validation_failure',
-        'contactId': contact_id,
+        'contactId': mask_contact_id(contact_id),
         'channel': channel,
         'reason': reason,
         'requestId': request_id,

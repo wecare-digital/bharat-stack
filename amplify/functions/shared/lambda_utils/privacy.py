@@ -35,6 +35,44 @@ def mask_email(email: str) -> str:
     return local[0] + '***@' + parts[1] if local else '***@' + parts[1]
 
 
+def mask_contact_id(contact_id: str) -> str:
+    """Mask a contact id, but only the form that is a phone number.
+
+    THE FINDING, 2026-09-28. `contactId` reads like an opaque surrogate key and is the
+    standard correlation field in this codebase's logs -- 83 logger sites carried it. It
+    is not opaque. `inbound-whatsapp-handler._deterministic_contact_id` mints it as
+
+        f'wa{digits}'   where digits = normalize_phone(phone)
+
+    so a WhatsApp-originated contact id **is** the customer's E.164 digits behind a
+    two-character prefix. Confirmed against the live table without reading a value:
+    all 6 rows in `stack-wecare-digital-ContactsTable` match the character-class
+    pattern `Ax999999999999` -- `wa` followed by twelve digits.
+
+    The scheme is deliberate and worth keeping: one phone maps to one contact, which is
+    what removes the duplicate-contact churn that GSI eventual consistency used to
+    cause. The defect is only that the value was being logged whole.
+
+    TWO FORMS, AND ONLY ONE IS MASKED. Contacts created through the API get
+    `str(uuid.uuid4())` (`core/contacts/handler.py`), and a uuid discloses nothing, so
+    masking it would destroy a usable correlation key for no gain. This masks the
+    phone-derived form and returns the uuid form untouched -- the distinction is
+    checkable from the value itself, which is why it can be made here rather than at
+    every call site.
+
+    Last four, not a hash, because that is already the convention every other masked
+    number in these logs follows and an operator reading two adjacent lines should not
+    have to hold two schemes in their head. `.kiro/steering/02-qa-recipient.md` notes
+    the ambiguity this creates for `...0044` and why widening the mask is the wrong
+    answer to it.
+    """
+    if not contact_id or not isinstance(contact_id, str):
+        return ''
+    if contact_id.startswith('wa') and contact_id[2:].isdigit() and len(contact_id) > 6:
+        return 'wa***' + contact_id[-4:]
+    return contact_id
+
+
 def mask_flow_token(token: str) -> str:
     """Drop the phone segment from a WhatsApp Flow token so it can be logged.
 
