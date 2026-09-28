@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import BrandLockup from './BrandLockup';
 
 /**
@@ -142,6 +142,43 @@ const Footer: React.FC = () => {
     return () => io.disconnect();
   }, [] );
 
+  /**
+   * REPLAY THE COLOUR SWEEP ON POINTER, on top of the scroll trigger.
+   *
+   * Owner asked for the effect on hover or click, every time. The scroll trigger stays, so the
+   * line still announces itself once on arrival for anyone who never points at it.
+   *
+   * IT RESTARTS THE ANIMATION, NOT THE ARMED STATE. The obvious implementation is to drop .is-in
+   * and re-add it, and that is wrong here: .is-armed without .is-in sets opacity 0 and a 14px
+   * offset, so every hover would begin with a frame of the line vanishing. Clearing and restoring
+   * the inline `animation` property restarts the keyframes while opacity and transform stay where
+   * they are.
+   *
+   * The reflow between the two writes is load-bearing. Without reading offsetWidth the browser
+   * coalesces both style changes into one frame, sees no net change, and the animation does not
+   * restart at all - the same trap the footer probe was written to catch on the arming path.
+   *
+   * NO cursor:pointer, and that is deliberate. This line has no href. A pointer cursor on it is
+   * the false affordance that got the old hover-underline removed from this very element, and
+   * adding the cursor back to advertise a decorative effect would reintroduce it. Hovering still
+   * works; it just does not claim to be a link.
+   *
+   * NO tabindex either. Making a <p> focusable to reach this by keyboard would add a Tab stop that
+   * announces nothing and does nothing - the same reasoning that kept .wt-space out of the tab
+   * order. Keyboard and screen-reader users get the scroll-triggered run, which is the same
+   * animation.
+   */
+  const replaySweep = useCallback( () => {
+    const tag = taglineRef.current;
+    if ( !tag ) return;
+    if ( typeof window !== 'undefined' && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) return;
+    // Only meaningful once the effect has been armed; before that the CSS has no animation to run.
+    if ( !tag.classList.contains( 'is-armed' ) ) return;
+    tag.style.animation = 'none';
+    void tag.offsetWidth;
+    tag.style.animation = '';
+  }, [] );
+
   return (
   <footer className="ft-footer">
     <div className="ft-in">
@@ -191,7 +228,15 @@ const Footer: React.FC = () => {
               Latin. That is one language's MT quirk, not a reason to break grammar in seven.
               translatecheck.js reports this line under "brand embedded in a translatable
               sentence", which is the correct category for it: reported, never failed. */}
-          <p className="ft-tagline" ref={ taglineRef }>Trusted everyday services for Bharat</p>
+          {/* onMouseEnter and onClick replay the colour sweep - see replaySweep. No href, no
+              cursor:pointer and no tabindex: the effect is decorative and must not advertise
+              itself as a control. */}
+          <p
+            className="ft-tagline"
+            ref={ taglineRef }
+            onMouseEnter={ replaySweep }
+            onClick={ replaySweep }
+          >Trusted everyday services for Bharat</p>
 
           {/* The brand dash. Purely decorative, hence aria-hidden and a <span> rather than
               an <hr> - it separates nothing and announcing it would be noise. It is the
