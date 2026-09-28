@@ -563,15 +563,44 @@ const WorkflowTerminal: React.FC = () => {
            on either reads as an alarm about the thing being described. Five hues cycle instead,
            ordered so no two adjacent steps repeat, and step 8 "All services healthy" lands on
            green because that is the one hue whose convention matches its sentence. */
-        .wt-step{--dot:#d1f470}
-        .wt-step:nth-child(1){--dot:#2563eb}
-        .wt-step:nth-child(2){--dot:#9849e8}
-        .wt-step:nth-child(3){--dot:#f0a818}
-        .wt-step:nth-child(4){--dot:#d1f470}
-        .wt-step:nth-child(5){--dot:#3da35a}
-        .wt-step:nth-child(6){--dot:#2563eb}
-        .wt-step:nth-child(7){--dot:#f0a818}
-        .wt-step:nth-child(8){--dot:#3da35a}
+        /* THREE PROPERTIES PER STEP, FROM ONE SOURCE OF TRUTH.
+           --rgb   the hue as bare channels, so a tint can be mixed with rgba() without a
+                   second literal to keep in sync. There is no color-mix() anywhere in this
+                   repo and no browserslist declaring support for it, so rgba(var(--rgb),a)
+                   is the portable way to get "this hue at 14%" - it works wherever custom
+                   properties do, which is everywhere this site is served.
+           --dot   the solid hue, derived. Substitution happens before the value is parsed,
+                   so rgb(var(--rgb)) resolves to rgb(37,99,235) and every existing
+                   var(--dot) usage keeps working untouched.
+           --ink   the same hue LIFTED until it is legible as text. Defaults to --dot and is
+                   overridden only where it has to be - see the note on --ink below.
+
+           Deriving --dot rather than listing both is deliberate: a hex and a channel triple
+           for the same colour is two things to edit and one to forget. */
+        .wt-step{--rgb:209,244,112;--dot:rgb(var(--rgb));--ink:var(--dot)}
+        /* --ink EXISTS BECAUSE TWO OF THE FIVE HUES ARE NOT LEGIBLE AS TEXT ON #000, and the
+           comment this replaces got that wrong in writing. It said the lowest of the five was
+           "blue at 4.06:1. Well clear of 4.5:1 for 15px/600 text". 4.06 is not clear of 4.5,
+           it is BELOW it - so the rule as shipped was a latent AA failure waiting for a data
+           change: mark step 1 or 6 complete and its name renders blue at 4.06:1. Nothing was
+           visibly broken only because step 8, the single complete step, happens to be green.
+           Purple was the same story with less margin to spare, at 4.45:1.
+
+           The lift is the smallest that clears 4.5:1 on the pill's own tinted background:
+             blue    #2563eb -> #3d74ed   4.51:1   11% toward white
+             purple  #9849e8 -> #9f56ea   4.56:1    7% toward white
+             amber, lime, green unchanged - they already clear it at 8.60, 13.10 and 5.78:1
+           11% and 7% are small enough that the dot and its pill read as the same colour: blue
+           moves 43 of a possible 765 in RGB distance. And the five inks stay distinguishable
+           from each other - the closest pair, blue and purple, is 131 apart. */
+        .wt-step:nth-child(1){--rgb:37,99,235;--ink:#3d74ed}
+        .wt-step:nth-child(2){--rgb:152,73,232;--ink:#9f56ea}
+        .wt-step:nth-child(3){--rgb:240,168,24}
+        .wt-step:nth-child(4){--rgb:209,244,112}
+        .wt-step:nth-child(5){--rgb:61,163,90}
+        .wt-step:nth-child(6){--rgb:37,99,235;--ink:#3d74ed}
+        .wt-step:nth-child(7){--rgb:240,168,24}
+        .wt-step:nth-child(8){--rgb:61,163,90}
 
         /* Running fills and pulses; done fills. The glow is NEUTRAL white at .10 rather than
            the lime rgba(209,244,112,.14) it was: a lime halo around a blue or purple dot reads
@@ -583,8 +612,29 @@ const WorkflowTerminal: React.FC = () => {
 
         .wt-head{min-height:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
         /* The service name is the new first-class thing in each row: the panel's subject
-           is which service ran, not which phase of a plan it was. */
-        .wt-svc{padding:2px 7px;border-radius:4px;background:rgba(209,244,112,.14);border:1px solid rgba(209,244,112,.34);color:#d1f470;font-size:11.5px;letter-spacing:.02em}
+           is which service ran, not which phase of a plan it was.
+
+           THE PILL NOW CARRIES ITS SERVICE'S OWN HUE, and this reverses an earlier call.
+           It was lime on all eight, with the reasoning that "giving it five colours would
+           turn a label into a legend the reader is expected to decode". Owner overruled it,
+           three times, and on reflection the objection was answering the wrong question.
+           This pill contains the service's own name - gateway, auth, contacts - so it IS the
+           service identity, which is precisely what the dot hue encodes. Lime on all eight meant the
+           one element naming the service was the one element refusing to colour it, and lime
+           there had stopped meaning anything at all: it was the last survivor of the old
+           "lime = ran" scheme that the per-service dots replaced.
+
+           Nothing is asked of the reader that was not already asked. The hue is not a legend
+           to decode because the pill spells the service out in words beside it; colour is
+           redundant reinforcement of text that is already there, which is the one use of
+           colour that costs a reader nothing.
+
+           WHY THE BACKGROUND TINTS TOO. A blue ink on the old lime-tinted chip is two hues
+           fighting in a 40px box - measured, blue ink on #1d2210 is 3.15:1 and fails outright.
+           Tinting bg and border from the same --rgb puts the ink on its own hue's near-black
+           ground (#050e21 for blue) where it clears 4.5:1. Same alphas as before, .14 and .34,
+           so the chip's weight on the panel is unchanged. */
+        .wt-svc{padding:2px 7px;border-radius:4px;background:rgba(var(--rgb),.14);border:1px solid rgba(var(--rgb),.34);color:var(--ink);font-size:11.5px;letter-spacing:.02em}
         .wt-name{color:#fff;font-size:15px;font-weight:600}
         /* THE COMPLETED NAME AND ITS TICK TAKE THE STEP'S OWN HUE, not lime.
            Both were #d1f470 while the dots were lime too, so the row agreed with itself. Once the
@@ -593,17 +643,25 @@ const WorkflowTerminal: React.FC = () => {
            steps 1-7 and lime only on step 8, the is-complete one. So "the text is still lime" was
            three separate things - this name, this tick, and the .wt-svc pill.
 
-           THE PILL IS DELIBERATELY NOT IN THIS RULE. Owner's instruction, and it is the right
-           call: the pill is a repeated label carrying the service's own name, and giving it five
-           colours would turn a label into a legend the reader is expected to decode. It stays
-           lime on all eight - see the note on .wt-svc.
+           THE PILL IS NOW IN THE SAME SCHEME - see the note on .wt-svc. It used to be excluded
+           and held lime on all eight, which meant this rule recoloured exactly ONE line in the
+           whole panel (step 8, the only step whose data says complete:true) while the eight
+           pills stayed lime. That is why the change was reported as "not showing" after it
+           shipped correct: it was a single row moving from lime to green, two greens, against
+           eight unchanged lime chips.
 
-           COST, STATED: a completed name goes from white at 21:1 on this panel to its own hue,
-           and the lowest of the five is blue at 4.06:1. Well clear of 4.5:1 for 15px/600 text, but
-           it is a real reduction on the panel's primary text and worth knowing rather than
-           discovering. State is not carried by this colour either way - the pulse, the tick glyph
-           and the footer's "running"/"complete" wording do that. */
-        .wt-name.is-complete,.wt-tick{color:var(--dot)}
+           USES --ink, NOT --dot, and that is the fix for a latent AA failure rather than a
+           preference. This rule paints 15px/600 text, which needs 4.5:1. Raw blue is 4.06:1 on
+           #000 and raw purple 4.45:1, so marking step 1 or 6 complete would have shipped
+           failing text - see the note beside --ink. --ink is the same hue lifted just past the
+           floor, and it is identity for amber, lime and green, so step 8 is pixel-identical to
+           what it renders today.
+
+           COST, STATED: a completed name goes from white at 21:1 to its own hue, lowest 4.51:1.
+           A real reduction on the panel's primary text, worth knowing rather than discovering.
+           State is not carried by this colour either way - the pulse, the tick glyph and the
+           footer's "running"/"complete" wording do that, so WCAG 1.4.1 stays unengaged. */
+        .wt-name.is-complete,.wt-tick{color:var(--ink)}
         /* .46 IS 4.58:1 ON THIS PANEL - eight hundredths above the 4.5:1 floor for text this
            size, and the tightest margin anywhere on the home page. Left alone deliberately,
            and the reason is the rung below it: .wt-infra was raised from .44 to .50 when it
