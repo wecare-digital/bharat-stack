@@ -108,9 +108,54 @@ Amplify.configure( {
   }
 } );
 
-const LOGO_URL = 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png';
-const LOGO_SVG_URL = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.svg';
-const FAVICON_URL = 'https://wecare.digital/get/o/stream/media/m/wecare-digital.ico';
+/**
+ * BRAND ASSETS, all from s3://wecare-digital-get/o/stream/media/m/ — served as
+ * https://wecare.digital/get/o/stream/media/m/ via CloudFront E2GP22R4BIFGQ3. That is the
+ * canonical media location since the app.wecare.digital merge (docs/media-bucket-merge.md).
+ *
+ * THERE ARE THREE ASSETS HERE, NOT ONE, AND THE SPLIT IS THE POINT.
+ *
+ * One file was doing all three jobs — `wecaredigital.png` — and it was the wrong file for two
+ * of them. Measured from the live object rather than assumed:
+ *
+ *   wecaredigital.png    1080x1080  PNG colour-type 6 (RGBA)  68.4% FULLY TRANSPARENT
+ *                        corner AND centre both rgba(0,0,0,0); the mark itself is black
+ *   wecare-digital.png   1080x1080  RGBA but 0% transparent, white ground
+ *   wd-brand-16x9.png    1440x810   PNG colour-type 2 (RGB) — no alpha channel at all
+ *
+ * WHY THE TRANSPARENT ONE WAS THE BUG. og:image and apple-touch-icon are both composited by
+ * someone else's renderer, and neither guarantees a white backdrop: Apple has flattened
+ * apple-touch-icon alpha to BLACK since iOS 7, and the social card renderers flatten to black
+ * or to their own surface colour. A black mark on a flattened-black ground is an invisible
+ * logo — so the shared-link preview and the iOS home-screen icon were plausibly rendering as
+ * black squares. Nothing in the page could reveal that, because the asset is correct in
+ * isolation and only wrong once something else flattens it.
+ *
+ * SOCIAL_CARD_URL is also the right SHAPE, which the old value never was. twitter:card is
+ * `summary_large_image` and og had no width/height that matched anything: the tags declared
+ * 512x512 while the file was 1080x1080, so the hint was wrong even about the wrong asset. A
+ * 1:1 image in a large-card slot is centre-cropped, which cut the top and bottom off the mark.
+ * wd-brand-16x9 is a designed card — mark, wordmark and the "Building digital railroads for
+ * Everyday Bharat" line — at 1.78:1, inside the 2:1..1:1 band the platforms accept.
+ *
+ * LOGO_URL now points at the OPAQUE square, and is used only where a square logo on a known
+ * ground is wanted: apple-touch-icon and the schema.org Organization logo.
+ *
+ * LOGO_SVG_URL IS LOAD-BEARING OUTSIDE THIS REPO — DO NOT REPOINT IT. The DNS record
+ * `default._bimi.wecare.digital` carries `l=https://wecare.digital/get/o/stream/media/m/
+ * wecare-digital.svg` under a `p=reject` DMARC policy. A BIMI record aimed at a missing logo
+ * degrades silently rather than erroring, so a rename here breaks inbox branding with no
+ * failure anywhere to notice. Change the DNS record first, verify, then this.
+ */
+const MEDIA_BASE = 'https://wecare.digital/get/o/stream/media/m';
+/** 1440x810, RGB, no alpha. og:image and twitter:image. */
+const SOCIAL_CARD_URL = `${MEDIA_BASE}/wd-brand-16x9.png`;
+const SOCIAL_CARD_W = '1440';
+const SOCIAL_CARD_H = '810';
+/** 1080x1080, opaque white ground. Icons and structured data only. */
+const LOGO_URL = `${MEDIA_BASE}/wecare-digital.png`;
+const LOGO_SVG_URL = `${MEDIA_BASE}/wecare-digital.svg`;
+const FAVICON_URL = `${MEDIA_BASE}/wecare-digital.ico`;
 // Read but deliberately NOT used to inject a tag. GA4 is fired by the GTM container
 // (see _document.tsx); a direct gtag.js snippet here double-counts. Kept so the env
 // var stays documented and so anything that needs the id for a dataLayer push has it.
@@ -265,6 +310,11 @@ const organizationSchema = {
   "name": "WECARE.DIGITAL",
   "alternateName": "WECARE.DIGITAL",
   "url": "https://wecare.digital",
+  // Both stay on the SQUARE logo rather than moving to the 16:9 social card: Google renders
+  // Organization.logo in the knowledge panel and wants the logo itself, not a banner. What
+  // changed is that LOGO_URL is now the OPAQUE copy - see the note on the constants. A 68%
+  // transparent PNG with a black mark is a logo that vanishes on any dark surface, and a
+  // knowledge panel is not a surface this repo controls.
   "logo": LOGO_URL,
   "image": LOGO_URL,
   "description": COMPANY_DESCRIPTION,
@@ -1022,9 +1072,16 @@ export default function App ( { Component, pageProps }: AppProps ) {
               product claim belongs. */}
           <meta property="og:title" key="og:title" content="Everyday AI, built for Bharat | WECARE.DIGITAL" />
           <meta property="og:description" key="og:description" content={ COMPANY_DESCRIPTION } />
-          <meta property="og:image" key="og:image" content={ LOGO_URL } />
-          <meta property="og:image:width" key="og:image:width" content="512" />
-          <meta property="og:image:height" key="og:image:height" content="512" />
+          {/* The branded 16:9 card, not the square mark. The dimensions are the FILE's, read
+              off the object — they said 512x512 while the asset was 1080x1080, so the hint was
+              wrong even before the asset changed. Crawlers use it to reserve layout before the
+              image arrives, so a wrong one is worse than none. */}
+          <meta property="og:image" key="og:image" content={ SOCIAL_CARD_URL } />
+          <meta property="og:image:width" key="og:image:width" content={ SOCIAL_CARD_W } />
+          <meta property="og:image:height" key="og:image:height" content={ SOCIAL_CARD_H } />
+          <meta property="og:image:type" key="og:image:type" content="image/png" />
+          {/* Alt text on the card, because a link preview is content a screen reader meets. */}
+          <meta property="og:image:alt" key="og:image:alt" content="WECARE.DIGITAL — building digital railroads for Everyday Bharat" />
           <meta property="og:site_name" key="og:site_name" content="WECARE.DIGITAL" />
           <meta property="og:locale" key="og:locale" content="en_IN" />
 
@@ -1036,7 +1093,8 @@ export default function App ( { Component, pageProps }: AppProps ) {
           <meta name="twitter:url" content={ canonicalUrl } />
           <meta name="twitter:title" content="Everyday AI, built for Bharat | WECARE.DIGITAL" />
           <meta name="twitter:description" content={ COMPANY_DESCRIPTION } />
-          <meta name="twitter:image" content={ LOGO_URL } />
+          <meta name="twitter:image" content={ SOCIAL_CARD_URL } />
+          <meta name="twitter:image:alt" content="WECARE.DIGITAL — building digital railroads for Everyday Bharat" />
 
           {/* SEO */ }
           <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />

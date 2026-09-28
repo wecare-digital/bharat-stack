@@ -15,7 +15,16 @@ interface SEOProps {
 }
 
 const BASE_URL = 'https://wecare.digital';
-const DEFAULT_IMAGE = 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png';
+/**
+ * The branded 16:9 card, NOT the square mark — and for the same measured reason as in
+ * _app.tsx, where the full note lives. In short: this fed og:image and twitter:image with
+ * `wecaredigital.png`, which is 1080x1080 and 68.4% FULLY TRANSPARENT with a black mark. The
+ * platforms that render a link preview flatten alpha themselves, commonly onto black, so the
+ * preview could come out as a black square with an invisible logo. This asset is
+ * colour-type 2 (RGB) with no alpha channel to flatten, and at 1440x810 it is the shape
+ * `twitter:card=summary_large_image` actually wants rather than a square that gets cropped.
+ */
+const DEFAULT_IMAGE = 'https://wecare.digital/get/o/stream/media/m/wd-brand-16x9.png';
 const SITE_NAME = 'WECARE.DIGITAL';
 
 // Default keywords for all pages

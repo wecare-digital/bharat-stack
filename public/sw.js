@@ -148,8 +148,19 @@ self.addEventListener( 'push', ( event ) =>
   const title = data.title || 'Stack CRM';
   const options = {
     body: data.body || 'New notification',
-    icon: 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png',
-    badge: 'https://wecare.digital/get/o/stream/media/m/wecaredigital.png',
+    // THE OPAQUE LOGO, not `wecaredigital.png`, and this is the same defect as og:image was.
+    // A notification is drawn by the OPERATING SYSTEM's shade - Android, Chrome on Windows,
+    // macOS - which is frequently DARK and which flattens alpha onto its own surface.
+    // wecaredigital.png is 1080x1080, colour-type 6, 68.4% fully transparent, and the mark
+    // inside it is black: on a dark tray that is an invisible icon. wecare-digital.png is the
+    // same artwork on an opaque white ground. src/pages/_app.tsx carries the full measurement.
+    icon: 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png',
+    // `badge` is the small monochrome glyph shown when there is no room for the icon, and
+    // Android tints it - so it wants a silhouette rather than the full lockup. There is no
+    // such asset in the bucket yet, so this stays the logo: an oversized badge still renders,
+    // where a transparent one tinted onto a dark bar does not. Worth a real 96x96 monochrome
+    // PNG when one exists.
+    badge: 'https://wecare.digital/get/o/stream/media/m/wecare-digital.png',
     data: data.data || {},
     actions: data.actions || [],
     tag: data.tag || 'stack-crm',
@@ -162,7 +173,11 @@ self.addEventListener( 'push', ( event ) =>
 self.addEventListener( 'notificationclick', ( event ) =>
 {
   event.notification.close();
-  const url = event.notification.data?.url || '/dashboard';
+  // '/dashboard' until 2026-09-28. It still resolves - verified live at 301 to
+  // /workspace/dashboard/ - so this was a redirect hop rather than a break, but a notification
+  // tap is a cold start and the hop costs a round trip before any HTML arrives. Trailing slash
+  // included because next.config.js sets trailingSlash:true and its absence is a second hop.
+  const url = event.notification.data?.url || '/workspace/dashboard/';
   event.waitUntil(
     self.clients.matchAll( { type: 'window' } ).then( ( clients ) =>
     {

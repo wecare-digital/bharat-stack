@@ -13,16 +13,10 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "https://wecare.digital/get/o/stream/media/m/wecaredigital.png",
-      "sizes": "192x192",
+      "src": "https://wecare.digital/get/o/stream/media/m/wecare-digital.png",
+      "sizes": "1080x1080",
       "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "https://wecare.digital/get/o/stream/media/m/wecaredigital.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
   "screenshots": [],
@@ -30,19 +24,19 @@
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
-      "url": "/dashboard",
+      "url": "/workspace/dashboard/",
       "icons": []
     },
     {
       "name": "Messages",
       "short_name": "Messages",
-      "url": "/dm",
+      "url": "/workspace/engage/inbox/",
       "icons": []
     },
     {
       "name": "Contacts",
       "short_name": "Contacts",
-      "url": "/contacts",
+      "url": "/workspace/contacts/",
       "icons": []
     }
   ]
