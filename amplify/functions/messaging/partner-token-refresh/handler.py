@@ -121,7 +121,7 @@ def handler(event, context):
             data = json.loads(raw)
         except Exception as e:  # noqa: BLE001
             failed += 1
-            logger.warning(json.dumps({'event': 'partner_refresh_read_error', 'secret': name, 'error': str(e)}))
+            logger.warning(json.dumps({'event': 'partner_refresh_read_error', 'secret': name, 'errorType': type(e).__name__}))
             continue
 
         token = (data.get('access_token') or '').strip()

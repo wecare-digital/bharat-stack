@@ -1,0 +1,270 @@
+"""A phone number, a customer name, or raw exception text must not reach a log line.
+
+WHY THIS TEST EXISTS. CodeQL's `py/clear-text-logging-sensitive-data` reported 202 open
+alerts on this repository with **zero** triaged, and the volume was itself the problem:
+roughly 155 were `phoneNumberId` / `metaPhoneId` / `phoneHash`, which are opaque Meta
+business identifiers and SHA hashes rather than customer data, and that noise was hiding
+about twenty sites that logged a **full E.164 number** and three that logged a
+customer's WhatsApp profile name. A gate that fires on the safe majority trains people to
+ignore it, so this asserts only the part that is genuinely a disclosure.
+
+WHY IT PARSES INSTEAD OF GREPPING, which is the expensive lesson in here. A dict entry of
+the shape ``'to': whatsapp_phone`` occurs in three completely different roles:
+
+    logger.info(json.dumps({'event': 'sent', 'to': whatsapp_phone}))    a log  -> mask
+    payload = {'messaging_product': 'whatsapp', 'to': whatsapp_phone}   the Meta request
+    _store_call_log({'fromNumber': from_number, ...})                   the stored record
+
+Masking the second breaks sending; masking the third destroys the record the CRM exists
+to keep. Two successive regex heuristics got this wrong. The first, "wrap any matching
+line", hit 11 payload and item dicts. The second, "walk backwards to the nearest
+`logger.`", hit 20 more -- including `_store_call_log({...})` sitting a few lines below an
+unrelated `logger.info`, which masked the call log's numbers and dropped the caller's name
+from it. `tests/test_calling.py::test_bsuid_extraction_from_contacts` is what caught that.
+
+Bracket structure is the only thing that answers "which call is this dict in", so this
+module walks the AST and asks the tree. `json.dumps` is transparent: the classifier looks
+through it to whatever consumes the result, because `json.dumps` feeding
+`lambda_client.invoke` is a payload and `json.dumps` feeding `logger.info` is a log.
+"""
+
+from __future__ import annotations
+
+import ast
+import pathlib
+import re
+
+import pytest
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+FUNCTIONS = ROOT / "amplify/functions"
+
+LOG_LEVELS = {"info", "warning", "error", "debug", "critical", "exception", "log"}
+
+#: Keys naming a subscriber phone number. `*Id`-suffixed names are excluded: a Meta
+#: phone-number id such as `1055232054343117` is a business identifier this repo's own
+#: docs publish, not a number anyone can call.
+PHONE_KEY = re.compile(
+    r"^(?:(?:sender|recipient|caller|contact|customer|display|receiving|to|from|whatsapp"
+    r"|dest\w*|clean)_?)?phone(?:_?number|_?e164)?$|^phone_?number$|^msisdn$|^wa_id$"
+    r"|^from$|^to$|^to_?number$|^from_?number$",
+    re.I,
+)
+
+#: Keys that unambiguously carry an END CUSTOMER's own name. Deliberately NOT bare
+#: `name`/`username`: in these handlers those are a WhatsApp template name, an order
+#: line-item name, or the STAFF Cognito username that `middleware.py` logs so an
+#: administrative action can be attributed. Attribution is an audit requirement, and a
+#: gate demanding its removal would be asking for the wrong thing.
+PERSON_KEY = re.compile(
+    r"^(?:sender|caller|contact|customer|buyer|recipient)_?(?:name|username)$", re.I)
+
+NOT_SENSITIVE_KEY = re.compile(
+    r"(_?id|_?ids|_?hash|_?key|_?type|_?count|_?status|_?limit|_?score|_?bsuid"
+    r"|_?prefix|_?suffix)$", re.I)
+
+
+def _handlers() -> list[pathlib.Path]:
+    return sorted(p for p in FUNCTIONS.rglob("*.py") if "__pycache__" not in str(p))
+
+
+def _parents(tree: ast.AST) -> dict[ast.AST, ast.AST]:
+    table: dict[ast.AST, ast.AST] = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            table[child] = node
+    return table
+
+
+def _consuming_call(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.Call | None:
+    """The nearest enclosing Call, seeing through json.dumps()."""
+    current = parents.get(node)
+    while current is not None:
+        if isinstance(current, ast.Call):
+            func = current.func
+            if isinstance(func, ast.Attribute) and func.attr == "dumps":
+                current = parents.get(current)
+                continue
+            return current
+        current = parents.get(current)
+    return None
+
+
+def _is_logger(call: ast.Call | None) -> bool:
+    if call is None or not isinstance(call.func, ast.Attribute):
+        return False
+    if call.func.attr not in LOG_LEVELS:
+        return False
+    owner = call.func.value
+    name = owner.id if isinstance(owner, ast.Name) else getattr(owner, "attr", "")
+    return "logger" in str(name).lower() or "log" == str(name).lower()
+
+
+def _is_sanitised(value: ast.expr) -> bool:
+    """True when the expression cannot carry the identifying value through."""
+    if isinstance(value, ast.Constant):
+        return True
+    if isinstance(value, ast.Call):
+        func = value.func
+        name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+        if name in ("mask_phone", "mask_email", "mask", "redact_pii", "redact_string",
+                    "bool", "len", "last4", "_mask", "_mask_tail", "_mask_phone"):
+            return True
+    if isinstance(value, ast.Subscript):          # phone[-4:], phone[:6]
+        return True
+    if isinstance(value, ast.BoolOp):             # x or None / x or ''
+        return all(_is_sanitised(v) for v in value.values)
+    if isinstance(value, ast.IfExp):
+        return _is_sanitised(value.body) and _is_sanitised(value.orelse)
+    if isinstance(value, ast.BinOp):              # phone[:6] + '***'
+        return True
+    return False
+
+
+def offences() -> list[tuple[str, int, str]]:
+    found: list[tuple[str, int, str]] = []
+    for path in _handlers():
+        source = path.read_text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError as exc:                                   # pragma: no cover
+            pytest.fail(f"{path} does not parse: {type(exc).__name__}")
+        parents = _parents(tree)
+        lines = source.splitlines()
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Dict):
+                continue
+            if not _is_logger(_consuming_call(node, parents)):
+                continue
+            for key, value in zip(node.keys, node.values):
+                if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                    continue
+                name = key.value
+                if NOT_SENSITIVE_KEY.search(name):
+                    continue
+                if not (PHONE_KEY.match(name) or PERSON_KEY.match(name)):
+                    continue
+                if _is_sanitised(value):
+                    continue
+                line = getattr(value, "lineno", node.lineno)
+                found.append((str(path.relative_to(ROOT)), line, lines[line - 1].strip()))
+    return found
+
+
+def test_no_unmasked_phone_or_name_in_a_log_line():
+    found = offences()
+    if found:
+        rendered = "\n".join(f"  {p}:{n}  {code}" for p, n, code in found)
+        pytest.fail(
+            f"{len(found)} logging site(s) put a subscriber number or a person's name "
+            f"into CloudWatch in clear text.\n"
+            f"Wrap the value in mask_phone() / mask_email() from lambda_utils.privacy, or "
+            f"log only its presence with bool(). Do NOT change a dict that is an API "
+            f"payload or a stored item -- read this module's docstring first.\n{rendered}"
+        )
+
+
+def test_the_masking_helpers_actually_mask():
+    import sys
+    sys.path.insert(0, str(FUNCTIONS / "shared"))
+    from lambda_utils.privacy import mask_email, mask_phone
+
+    assert mask_phone("+918100640044") == "+91****0044"
+    assert mask_phone("") == "***"
+    assert mask_phone("12345") == "***"
+    # The point: country code and last four survive, the subscriber digits do not.
+    assert "810064" not in mask_phone("+918100640044")
+    assert mask_email("someone@wecare.digital") == "s***@wecare.digital"
+
+
+def _classify(source: str) -> list[str]:
+    """Labels in SOURCE order. `ast.walk` is breadth-first, so it must be sorted."""
+    tree = ast.parse(source)
+    parents = _parents(tree)
+    labels = [(node.lineno,
+               "LOG" if _is_logger(_consuming_call(node, parents)) else "DATA")
+              for node in ast.walk(tree) if isinstance(node, ast.Dict)]
+    return [label for _, label in sorted(labels)]
+
+
+def test_the_detector_can_actually_see_an_offence():
+    """A gate that cannot fail is not a gate.
+
+    This is the failure mode `pageaudit.js` had: a census that treats every observation
+    as a success is indistinguishable from one that is not running.
+    """
+    source = ("import json\n"
+              "def h():\n"
+              "    logger.info(json.dumps({'event': 'x', 'senderPhone': sender_phone}))\n")
+    assert _classify(source) == ["LOG"]
+    tree = ast.parse(source)
+    value = [n for n in ast.walk(tree) if isinstance(n, ast.Dict)][0].values[1]
+    assert not _is_sanitised(value)
+
+
+def test_the_masked_form_is_accepted():
+    source = ("import json\n"
+              "def h():\n"
+              "    logger.info(json.dumps({'senderPhone': mask_phone(sender_phone)}))\n")
+    tree = ast.parse(source)
+    value = [n for n in ast.walk(tree) if isinstance(n, ast.Dict)][0].values[0]
+    assert _is_sanitised(value)
+
+
+def test_the_detector_does_not_judge_payloads_or_stored_items():
+    """The three roles that a `'to': phone` entry can play, as real code."""
+    payload = ("import json\n"
+               "def send():\n"
+               "    lambda_client.invoke(Payload=json.dumps({'to': whatsapp_phone}))\n")
+    assert _classify(payload) == ["DATA"]
+
+    stored = ("def store():\n"
+              "    _store_call_log({'fromNumber': from_number, 'toNumber': to_number})\n")
+    assert _classify(stored) == ["DATA"]
+
+    item = ("def put():\n"
+            "    table.put_item(Item={'senderPhone': sender_phone})\n")
+    assert _classify(item) == ["DATA"]
+
+
+def test_a_logger_call_near_a_store_call_is_not_confused_for_it():
+    """The exact shape that broke `whatsapp-calling`'s stored call log.
+
+    A `logger.info(...)` immediately above `_store_call_log({...})` made a
+    nearest-logger-above heuristic classify the stored record as a log.
+    """
+    source = (
+        "import json\n"
+        "def h():\n"
+        "    logger.info(json.dumps({'event': 'call_event', 'from': from_number}))\n"
+        "    _store_call_log({\n"
+        "        'fromNumber': from_number,\n"
+        "        'callerName': caller_name,\n"
+        "    })\n"
+    )
+    assert _classify(source) == ["LOG", "DATA"]
+
+
+def test_raw_exception_text_is_not_logged_where_codeql_found_taint():
+    """Fourteen sites logged `str(e)`.
+
+    Steering is explicit that an exception's text may be logged only when our own code
+    built it from known-safe parts, and CodeQL tracks taint across function boundaries,
+    so a message boto3 assembled from a caller-supplied value is not safe. These now log
+    `type(e).__name__`.
+    """
+    known = {
+        "amplify/functions/ai/ai-generate-response/handler.py": 10,
+        "amplify/functions/messaging/inbound-whatsapp-handler/handler.py": 1,
+        "amplify/functions/messaging/outbound-whatsapp/handler.py": 1,
+        "amplify/functions/messaging/partner-token-refresh/handler.py": 1,
+        "amplify/functions/payments/razorpay-webhook/handler.py": 1,
+    }
+    for relative, expected in known.items():
+        text = (ROOT / relative).read_text()
+        actual = text.count("type(e).__name__")
+        assert actual >= expected, (
+            f"{relative} should log the exception TYPE at >= {expected} site(s); "
+            f"found {actual}"
+        )

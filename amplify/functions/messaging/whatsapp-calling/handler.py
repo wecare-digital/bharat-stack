@@ -703,9 +703,9 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
 
     logger.info(json.dumps({
         'event': 'call_event', 'type': event_type, 'call_id': call_id,
-        'from': from_number, 'to': to_number, 'direction': direction,
-        'phone_number_id': phone_number_id, 'caller_name': caller_name,
-        'caller_bsuid': caller_bsuid, 'caller_username': caller_username,
+        'from': mask_phone(from_number), 'to': mask_phone(to_number), 'direction': direction,
+        'phone_number_id': phone_number_id, 'has_caller_name': bool(caller_name),
+        'caller_bsuid': caller_bsuid, 'has_caller_username': bool(caller_username),
     }))
 
     if event_type == 'connect':
@@ -1714,7 +1714,7 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
     logger.info(json.dumps({
         'event': 'ivr_start',
         'call_id': call_id,
-        'from': from_number,
+        'from': mask_phone(from_number),
         'phone_number_id': phone_number_id,
         'has_sdp_offer': bool(sdp_offer),
         'sdp_offer_len': len(sdp_offer) if sdp_offer else 0,

@@ -32,6 +32,7 @@ from decimal import Decimal
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.validation import normalize_phone
+from lambda_utils.privacy import mask_phone  # a full number must never reach CloudWatch
 
 from lambda_utils.logging import get_logger
 
@@ -892,7 +893,7 @@ def _send_whatsapp_audio(phone: str, media_id: str,
         wa_msg_id = result.get('messages', [{}])[0].get('id', '')
         logger.info(json.dumps({
             'event': 'whatsapp_audio_sent',
-            'messageId': wa_msg_id, 'to': phone
+            'messageId': wa_msg_id, 'to': mask_phone(phone)
         }))
         return wa_msg_id
 

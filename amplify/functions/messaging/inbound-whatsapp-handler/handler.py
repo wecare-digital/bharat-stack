@@ -597,7 +597,7 @@ def _download_media_direct_api(whatsapp_media_id: str, message_id: str, media_ty
         logger.error(json.dumps({
             'event': 'direct_api_media_download_error',
             'mediaId': whatsapp_media_id,
-            'error': str(e),
+            'errorType': type(e).__name__,
             'requestId': request_id
         }))
         return None
@@ -1082,7 +1082,7 @@ def _get_aws_phone_number_id(display_phone: str, meta_phone_id: str) -> str:
     # Default to first phone number ID if no mapping found
     logger.warning(json.dumps({
         'event': 'phone_number_mapping_not_found',
-        'displayPhone': display_phone,
+        'displayPhone': mask_phone(display_phone),
         'metaPhoneId': meta_phone_id,
         'usingDefault': PHONE_NUMBER_ID_1
     }))
@@ -1155,7 +1155,7 @@ def _process_message(
     ):
         logger.warning(json.dumps({
             'event': 'unsupported_or_new_message_type',
-            'senderPhone': sender_phone,
+            'senderPhone': mask_phone(sender_phone),
             'whatsappMessageId': whatsapp_message_id,
             'messageType': msg_type,
             'messageKeys': list(message.keys()),
@@ -1480,7 +1480,7 @@ def _process_message(
             new_wa_id = system_data.get('wa_id', '')
             logger.info(json.dumps({
                 'event': 'system_user_changed_user_id',
-                'senderPhone': sender_phone,
+                'senderPhone': mask_phone(sender_phone),
                 'newBsuid': new_bsuid,
                 'newParentBsuid': new_parent_bsuid,
                 'newWaId': new_wa_id,
@@ -1546,12 +1546,14 @@ def _process_message(
         'event': 'message_stored',
         'messageId': message_id,
         'contactId': contact_id,
-        'senderPhone': sender_phone,
-        'senderName': sender_name,
+        'senderPhone': mask_phone(sender_phone),
+        # A WhatsApp profile name is the customer's own name. contactId already
+        # identifies them for correlation, so only its presence is logged.
+        'hasSenderName': bool(sender_name),
         'whatsappMessageId': whatsapp_message_id,
         'type': msg_type,
         'hasMedia': bool(media_id),
-        'receivingPhone': receiving_phone,
+        'receivingPhone': mask_phone(receiving_phone),
         'awsPhoneNumberId': aws_phone_number_id,
         'requestId': request_id
     }))
@@ -1606,7 +1608,7 @@ def _process_message(
         logger.info(json.dumps({
             'event': 'request_welcome_triggered',
             'contactId': contact_id,
-            'senderPhone': sender_phone,
+            'senderPhone': mask_phone(sender_phone),
             'requestId': request_id,
         }))
         # Send ONLY the main menu (header/body already contains greeting)
@@ -1636,7 +1638,7 @@ def _process_message(
             'event': 'button_message_received',
             'buttonText': button_text_lower,
             'contactId': contact_id,
-            'senderPhone': sender_phone,
+            'senderPhone': mask_phone(sender_phone),
             'requestId': request_id,
         }))
         # Map common button texts to menu trigger.
@@ -1821,7 +1823,7 @@ def _process_message(
                 'event': 'pay_keyword_triggered',
                 'content': content_lower,
                 'contactId': contact_id,
-                'senderPhone': sender_phone,
+                'senderPhone': mask_phone(sender_phone),
                 'phoneNumberId': aws_phone_number_id,
                 'requestId': request_id,
             }))
@@ -1867,20 +1869,20 @@ def _process_message(
                     logger.warning(json.dumps({
                         'event': 'pay_keyword_send_failed',
                         'sent': 0, 'total': total_count,
-                        'error': send_error, 'phone': sender_phone,
+                        'error': send_error, 'phone': mask_phone(sender_phone),
                         'requestId': request_id,
                     }))
 
                 logger.info(json.dumps({
                     'event': 'pay_keyword_complete',
                     'sent': sent_count, 'total': total_count,
-                    'phone': sender_phone, 'requestId': request_id,
+                    'phone': mask_phone(sender_phone), 'requestId': request_id,
                 }))
             except Exception as pay_err:
                 logger.error(json.dumps({
                     'event': 'pay_keyword_error',
                     'error': str(pay_err),
-                    'phone': sender_phone,
+                    'phone': mask_phone(sender_phone),
                     'requestId': request_id,
                 }))
                 _send_ai_auto_reply(contact_id, PAY_MSG['error'], aws_phone_number_id, request_id)
@@ -1913,7 +1915,7 @@ def _process_message(
                 'event': 'hi_keyword_triggered',
                 'content': content_lower,
                 'contactId': contact_id,
-                'senderPhone': sender_phone,
+                'senderPhone': mask_phone(sender_phone),
                 'requestId': request_id,
             }))
             # Send ONLY the main menu interactive list (no separate welcome text)
@@ -2067,7 +2069,7 @@ def _process_message(
             logger.info(json.dumps({
                 'event': 'welcome_message_sent',
                 'contactId': contact_id,
-                'senderPhone': sender_phone,
+                'senderPhone': mask_phone(sender_phone),
                 'requestId': request_id
             }))
         except Exception as _we:
@@ -2256,7 +2258,7 @@ def _get_or_create_contact(phone: str, sender_name: str = '', bsuid: str = '', u
         )
         logger.info(json.dumps({
             'event': 'contact_auto_created', 'contactId': contact_id,
-            'phone': phone, 'name': sender_name, 'bsuid': bsuid, 'username': username,
+            'phone': mask_phone(phone), 'hasName': bool(sender_name), 'bsuid': bsuid, 'hasUsername': bool(username),
         }))
         return contact
     except Exception as e:
@@ -3777,7 +3779,7 @@ def _generate_invoice_for_captured_payment(reference_id: str, recipient_id: str,
                 logger.info(json.dumps({
                     'event': 'invoice_whatsapp_triggered',
                     'invoiceId': invoice_id,
-                    'toPhone': customer_phone,
+                    'toPhone': mask_phone(customer_phone),
                     'requestId': request_id,
                 }))
             except Exception as send_err:
@@ -4170,7 +4172,7 @@ def _get_contact_by_phone(phone: str) -> Optional[Dict]:
         logger.info(json.dumps({
             'event': 'contact_lookup_by_phone',
             'originalPhone': phone,
-            'cleanPhone': clean_phone,
+            'cleanPhone': mask_phone(clean_phone),
             'phoneWithPlus': phone_with_plus
         }))
         
@@ -4189,7 +4191,7 @@ def _get_contact_by_phone(phone: str) -> Optional[Dict]:
                 if items:
                     logger.info(json.dumps({
                         'event': 'contact_lookup_result',
-                        'phone': phone,
+                        'phone': mask_phone(phone),
                         'foundCount': len(items),
                         'contactId': items[0].get('id', ''),
                         'method': 'gsi'
@@ -4214,7 +4216,7 @@ def _get_contact_by_phone(phone: str) -> Optional[Dict]:
         
         logger.info(json.dumps({
             'event': 'contact_lookup_result',
-            'phone': phone,
+            'phone': mask_phone(phone),
             'foundCount': len(items),
             'contactId': items[0].get('id', '') if items else None,
             'method': 'scan_fallback'
@@ -4225,7 +4227,7 @@ def _get_contact_by_phone(phone: str) -> Optional[Dict]:
     except Exception as e:
         logger.error(json.dumps({
             'event': 'contact_lookup_error',
-            'phone': phone,
+            'phone': mask_phone(phone),
             'error': str(e)
         }))
         return None
@@ -4392,7 +4394,7 @@ def _send_order_status_message(recipient_id: str, reference_id: str,
         logger.info(json.dumps({
             'event': 'order_status_message_sending',
             'contactId': contact_id,
-            'contactPhone': contact_phone,
+            'contactPhone': mask_phone(contact_phone),
             'referenceId': reference_id,
             'orderStatus': order_status,
             'amount': amount,
@@ -4410,7 +4412,7 @@ def _send_order_status_message(recipient_id: str, reference_id: str,
         logger.info(json.dumps({
             'event': 'order_status_message_triggered',
             'contactId': contact_id,
-            'contactPhone': contact_phone,
+            'contactPhone': mask_phone(contact_phone),
             'referenceId': reference_id,
             'orderStatus': order_status,
             'statusCode': response.get('StatusCode'),
@@ -4529,7 +4531,7 @@ def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
 
     logger.info(json.dumps({
         'event': 'ivr_response',
-        'senderPhone': sender_phone,
+        'senderPhone': mask_phone(sender_phone),
         'buttonId': button_id,
         'department': response_config['dept'],
         'requestId': request_id,
@@ -4719,7 +4721,7 @@ def _send_submit_request_flow(contact_id: str, phone_number_id: str, sender_phon
         logger.info(json.dumps({
             'event': 'submit_request_flow_sent',
             'contactId': contact_id,
-            'senderPhone': sender_phone,
+            'senderPhone': mask_phone(sender_phone),
             'flowId': flow_id,
             'flowToken': flow_token,
             'statusCode': response.get('StatusCode'),
@@ -4785,7 +4787,7 @@ def _send_subscribe_flow(contact_id: str, phone_number_id: str, sender_phone: st
         logger.info(json.dumps({
             'event': 'subscribe_flow_sent',
             'contactId': contact_id,
-            'senderPhone': sender_phone,
+            'senderPhone': mask_phone(sender_phone),
             'flowId': flow_id,
             'flowToken': flow_token,
             'statusCode': response.get('StatusCode'),
@@ -4922,7 +4924,7 @@ def _send_generic_flow(contact_id: str, phone_number_id: str, sender_phone: str,
             'event': 'generic_flow_sent',
             'flowKey': flow_key,
             'contactId': contact_id,
-            'senderPhone': sender_phone,
+            'senderPhone': mask_phone(sender_phone),
             'flowId': flow_id,
             'flowToken': flow_token,
             'statusCode': response.get('StatusCode'),
@@ -7631,7 +7633,7 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                 _send_ai_auto_reply(contact_id, PAY_MSG['redirect'], phone_number_id, request_id)
                 logger.info(json.dumps({
                     'event': 'payment_redirected_to_phone1',
-                    'phone': customer_phone,
+                    'phone': mask_phone(customer_phone),
                     'fromPhoneId': phone_number_id,
                     'requestId': request_id,
                 }))
@@ -7667,14 +7669,14 @@ def _process_ai_automation(message_id: str, contact_id: str, content: str, messa
                         logger.warning(json.dumps({
                             'event': 'send_pending_payment_link_failed',
                             'sent': 0, 'total': total_count,
-                            'error': send_error, 'phone': customer_phone,
+                            'error': send_error, 'phone': mask_phone(customer_phone),
                             'requestId': request_id,
                         }))
 
                     logger.info(json.dumps({
                         'event': 'send_pending_payments_complete',
                         'sent': sent_count, 'total': total_count,
-                        'phone': customer_phone, 'requestId': request_id,
+                        'phone': mask_phone(customer_phone), 'requestId': request_id,
                     }))
                 except Exception as e:
                     logger.error(json.dumps({
@@ -7936,7 +7938,7 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
             # Send another read receipt as typing proxy if we have a message ID.
             logger.info(json.dumps({
                 'event': 'typing_indicator_direct_api',
-                'senderPhone': sender_phone,
+                'senderPhone': mask_phone(sender_phone),
                 'phoneNumberId': phone_number_id,
                 'note': 'Using read receipt as typing proxy for Direct API phone',
                 'requestId': request_id
@@ -7967,7 +7969,7 @@ def _send_typing_indicator(sender_phone: str, phone_number_id: str, request_id: 
 
         logger.info(json.dumps({
             'event': 'typing_indicator_sent',
-            'senderPhone': sender_phone,
+            'senderPhone': mask_phone(sender_phone),
             'phoneNumberId': phone_number_id,
             'note': 'Sent read receipt as typing proxy',
             'requestId': request_id
@@ -8094,7 +8096,7 @@ def _process_phone_quality_update(value: Dict, request_id: str) -> None:
     
     logger.info(json.dumps({
         'event': 'phone_quality_update',
-        'displayPhone': display_phone,
+        'displayPhone': mask_phone(display_phone),
         'currentLimit': current_limit,
         'qualityEvent': event,
         'qualityScore': quality_score,
@@ -8117,7 +8119,7 @@ def _process_phone_quality_update(value: Dict, request_id: str) -> None:
     if quality_score in ['YELLOW', 'RED'] or event == 'FLAGGED':
         logger.warning(json.dumps({
             'event': 'phone_quality_alert',
-            'displayPhone': display_phone,
+            'displayPhone': mask_phone(display_phone),
             'qualityScore': quality_score,
             'qualityEvent': event,
             'action': 'Review message quality and reduce spam complaints',
@@ -8157,7 +8159,7 @@ def _process_account_update(value: Dict, request_id: str) -> None:
     logger.info(json.dumps({
         'event': 'account_update',
         'accountEvent': event,
-        'phoneNumber': phone_number,
+        'phoneNumber': mask_phone(phone_number),
         'currentLimit': current_limit,
         'restrictionType': restriction_type,
         'banInfo': ban_info,
@@ -8181,7 +8183,7 @@ def _process_account_update(value: Dict, request_id: str) -> None:
     if event == 'PHONE_NUMBER_MESSAGING_LIMIT_CHANGED':
         logger.info(json.dumps({
             'event': 'messaging_limit_changed',
-            'phoneNumber': phone_number,
+            'phoneNumber': mask_phone(phone_number),
             'newLimit': current_limit,
             'requestId': request_id
         }))

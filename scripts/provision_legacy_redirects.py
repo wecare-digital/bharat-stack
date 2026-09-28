@@ -37,6 +37,32 @@ shadow all ~123 exported pages and serve the home page for the entire site. The 
 applies to `301`/`302` on `/<*>`. Only the 404-family statuses are evaluated after the
 file lookup fails, which is exactly why this rule uses one.
 
+The catch-all's TARGET, changed 2026-09-28 (gap `SEO-404-001`)
+-------------------------------------------------------------
+The status stays `404-200` for the reason above. What changed is the document: the
+catch-all now serves **`/404.html`**, not `/index.html`.
+
+The status code was never the defect. `src/pages/404.tsx` carries
+`<meta name="robots" content="noindex, follow">` and a canonical pointing at the home
+page, and it is those that a crawler needs on a mistyped URL -- but while the catch-all
+served `/index.html`, a mistyped path received the HOME page's head instead, canonical
+self-referencing the dead URL and no `noindex` anywhere. The safeguards the 404 page was
+written to provide never reached the only requests that needed them.
+
+Serving `/404.html` keeps every behaviour the 404 page documents -- it still
+`router.replace`s to the home page, so a visitor still lands on the home page and no
+history entry is left behind -- and additionally delivers `noindex` and the correct
+canonical. Measured before the change: `/definitely-not-a-page/` returned 404 with
+`"page":"/"` and 52,131 bytes of home page. After: 404 with `"page":"/404"`.
+
+It costs nothing in reachability. `/workspace/seo/page/<*>` is the app's only runtime
+dynamic route and it was ALREADY not working: a static export emits the literal
+directory `out/workspace/seo/page/[id]`, which no URL can address, so
+`/workspace/seo/page/test/` was being swallowed by this same catch-all and hydrating as
+`"page":"/"` -- the home page, under a 404, with the id discarded. Measured, not assumed.
+That route needs the id moved into a query string to work at all; pointing the catch-all
+at `/404.html` neither causes nor worsens it.
+
 Order matters
 -------------
 Amplify evaluates custom rules top-down, and the app already ends with a
@@ -69,7 +95,14 @@ from botocore.exceptions import BotoCoreError, ClientError
 REGION = "us-east-1"
 APP_ID = "d22dm4b0jn71jw"
 SITE = "https://wecare.digital"
-SNAPSHOT = pathlib.Path("workspace/docs/execution/snapshots/amplify-custom-rules-before-8.4.json")
+# Resolved against the repo root, not the cwd. This path carried a stray `workspace/`
+# prefix until 2026-09-28 -- collateral from the `/dm/` -> `/workspace/` rename, which
+# string-replaced inside a filesystem path that has nothing to do with URL topology. The
+# effect was silent: `--apply` created `workspace/docs/execution/snapshots/` in the repo
+# root and wrote the rollback artefact there, so the snapshot everyone would reach for
+# was not where the script's own docstring implied.
+SNAPSHOT = (pathlib.Path(__file__).resolve().parents[1]
+            / "docs/execution/snapshots/amplify-custom-rules-before-8.4.json")
 
 # Retired route -> what replaced it. Every target is a live page, and the four channel
 # ones carry the query string the operator would otherwise have to know to type.
@@ -201,7 +234,15 @@ OBSOLETE_SOURCES = {
 
 # Every internal path a redirect may legitimately land on. Anything else is a target
 # left behind by an earlier topology.
-LIVE_TARGET_PREFIXES = ("/workspace/", "/index.html", "/get/")
+LIVE_TARGET_PREFIXES = ("/workspace/", "/index.html", "/404.html", "/get/")
+
+#: The document the `/<*>` catch-all serves on a miss. See the docstring section
+#: "The catch-all's TARGET" for why this is the 404 export and not `/index.html`.
+#: `apply()` normalises the live rule onto this value, because the catch-all is
+#: otherwise preserved verbatim and would silently keep whatever it already had.
+CATCH_ALL_SOURCE = "/<*>"
+CATCH_ALL_TARGET = "/404.html"
+CATCH_ALL_STATUS = "404-200"
 
 
 def _targets_dead_prefix(rule: dict) -> bool:
@@ -261,17 +302,27 @@ def apply(client, existing: list[dict]) -> int:
     # Preserve everything that is not one of ours, IN ORDER, and put the redirects
     # first so the catch-all cannot swallow them.
     keep = [r for r in existing if not is_ours(r)]
-    catch_all = [r for r in keep if r.get("source") == "/<*>"]
+    catch_all = [r for r in keep if r.get("source") == CATCH_ALL_SOURCE]
     if not catch_all:
         print("refusing to write: the /<*> catch-all is not in the current rules, so "
               "the ordering assumption this script relies on does not hold",
               file=sys.stderr)
         return 2
 
+    # Normalise the catch-all rather than preserving it verbatim. It is the one rule
+    # whose target this script asserts, and leaving it untouched is how it kept
+    # pointing at /index.html after 404.tsx was written to handle this case.
+    for rule in catch_all:
+        if rule.get("target") != CATCH_ALL_TARGET or rule.get("status") != CATCH_ALL_STATUS:
+            print(f"  catch-all normalised: {rule.get('status')} {rule.get('target')}"
+                  f"  ->  {CATCH_ALL_STATUS} {CATCH_ALL_TARGET}")
+        rule["target"] = CATCH_ALL_TARGET
+        rule["status"] = CATCH_ALL_STATUS
+
     # Domain-level 301s stay at the very top; the catch-all stays at the very bottom.
     domain = [r for r in keep if r.get("source", "").startswith("http")]
     middle = [r for r in keep
-              if r not in domain and r.get("source") != "/<*>"]
+              if r not in domain and r.get("source") != CATCH_ALL_SOURCE]
     new_rules = domain + desired_redirects() + middle + catch_all
 
     if not SNAPSHOT.exists():
@@ -353,7 +404,18 @@ def main(argv=None) -> int:
         print(f"could not read the app: {type(exc).__name__}", file=sys.stderr)
         return 2
 
-    if not missing:
+    # Two independent kinds of divergence, and keying "nothing to do" on the first
+    # alone is what let the catch-all keep pointing at /index.html indefinitely: the
+    # redirect set was complete, so the script returned 0 and never looked at it.
+    drifted = [r for r in existing
+               if r.get("source") == CATCH_ALL_SOURCE
+               and (r.get("target") != CATCH_ALL_TARGET
+                    or r.get("status") != CATCH_ALL_STATUS)]
+    for rule in drifted:
+        print(f"\ncatch-all drift: {rule.get('status')} {rule.get('target')}"
+              f"  should be  {CATCH_ALL_STATUS} {CATCH_ALL_TARGET}")
+
+    if not missing and not drifted:
         print("\nnothing to do; run --verify to probe")
         return 0
     if not args.apply:

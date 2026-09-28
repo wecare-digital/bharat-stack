@@ -30,6 +30,7 @@ from decimal import Decimal
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.logging import get_logger
+from lambda_utils.privacy import mask_phone  # a full number must never reach CloudWatch
 
 logger = get_logger(__name__)
 
@@ -1893,7 +1894,7 @@ def send_pending_by_phone(body: Dict, request_id: str) -> Dict:
         invoice_list[0]['status'] = 'failed'
         send_error = str(e)
 
-    logger.info(json.dumps({'event': 'send_pending_complete', 'phone': customer_phone, 'total': len(all_pending), 'firstSent': first_id, 'sendError': send_error, 'requestId': request_id}))
+    logger.info(json.dumps({'event': 'send_pending_complete', 'phone': mask_phone(customer_phone), 'total': len(all_pending), 'firstSent': first_id, 'sendError': send_error, 'requestId': request_id}))
 
     return _resp(200, {
         'sent': 1 if invoice_list[0]['status'] == 'sent' else 0,
@@ -2201,7 +2202,7 @@ def send_payment_link(invoice_id: str, phone_number_id: str, payment_configurati
 
     logger.info(json.dumps({
         'event': 'payment_link_sent', 'invoiceId': invoice_id,
-        'referenceId': reference_id, 'toPhone': customer_phone,
+        'referenceId': reference_id, 'toPhone': mask_phone(customer_phone),
         'total': float(invoice.get('total', 0)), 'requestId': request_id,
     }))
 
@@ -2572,7 +2573,7 @@ def send_invoice_whatsapp(invoice_id: str, to_phone: str, phone_number_id: str, 
     logger.info(json.dumps({
         'event': 'invoice_whatsapp_sent', 'invoiceId': invoice_id,
         'waMessageId': wa_message_id, 'status': wa_status,
-        'toNumber': to_phone, 'requestId': request_id,
+        'toNumber': mask_phone(to_phone), 'requestId': request_id,
     }))
 
     return _resp(200, {

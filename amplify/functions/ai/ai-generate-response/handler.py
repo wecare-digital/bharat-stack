@@ -44,6 +44,7 @@ from functools import wraps
 
 # Configure logging
 from lambda_utils.logging import get_logger
+from lambda_utils.privacy import mask_phone  # a full number must never reach CloudWatch
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.agent import governance as gov
 from lambda_utils.agent import approvals as approval_module
@@ -4034,7 +4035,7 @@ def _update_contact_with_customer_info(sender_phone: str, profile: Dict, request
 
         logger.info(json.dumps({
             'event': 'contact_customer_info_updated',
-            'phone': clean_phone,
+            'phone': mask_phone(clean_phone),
             'requestId': request_id,
         }))
     except Exception as e:
@@ -4062,7 +4063,7 @@ def _save_flow_state(phone_hash: str, flow: str, step: str, data: Dict) -> None:
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'flow_state_save_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'phoneHash': phone_hash
         }))
 
@@ -4078,7 +4079,7 @@ def _clear_flow_state(phone_hash: str) -> None:
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'flow_state_clear_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'phoneHash': phone_hash
         }))
 
@@ -4148,7 +4149,7 @@ def _save_subscriber(data: Dict, phone_hash: str, request_id: str) -> None:
     except Exception as e:
         logger.error(json.dumps({
             'event': 'subscriber_save_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'phoneHash': phone_hash,
             'requestId': request_id
         }))
@@ -4170,7 +4171,7 @@ def _save_toggle_preference(phone_hash: str, toggle_type: str, enabled: bool) ->
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'toggle_save_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'toggleType': toggle_type,
             'phoneHash': phone_hash
         }))
@@ -4191,7 +4192,7 @@ def _save_rating(phone_hash: str, rating: str, request_id: str) -> None:
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'rating_save_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'phoneHash': phone_hash,
             'requestId': request_id
         }))
@@ -4302,7 +4303,7 @@ def _save_language_preference(phone_hash: str, language: str) -> None:
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'language_preference_save_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'phoneHash': phone_hash
         }))
 
@@ -4352,7 +4353,7 @@ def _load_conversation_history(phone_hash: str) -> Dict:
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'history_load_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'phoneHash': phone_hash
         }))
         return {'messages': [], 'messageCount': 0}
@@ -4381,7 +4382,7 @@ def _save_conversation_history(phone_hash: str, messages: List[Dict], message_co
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'history_save_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'phoneHash': phone_hash
         }))
 
@@ -4422,7 +4423,7 @@ def _acquire_processing_lock(phone_hash: str) -> bool:
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'processing_lock_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'phoneHash': phone_hash
         }))
         # On error, allow processing (fail open)
@@ -4441,7 +4442,7 @@ def _release_processing_lock(phone_hash: str) -> None:
     except Exception as e:
         logger.warning(json.dumps({
             'event': 'processing_lock_release_error',
-            'error': str(e),
+            'errorType': type(e).__name__,
             'phoneHash': phone_hash
         }))
 
@@ -5271,7 +5272,7 @@ def _tool_delete_contact(params: Dict, request_id: str) -> Dict:
         logger.info(json.dumps({
             'event': 'contact_deleted',
             'contactId': contact_id,
-            'contactName': contact_name,
+            'hasContactName': bool(contact_name),
             'requestId': request_id
         }))
 

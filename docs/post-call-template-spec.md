@@ -213,3 +213,100 @@ facing is broken by them, and both can be deleted or recreated.
    independent of this template work.
 3. Whether to **recreate** the two templates once the URL is settled, so they ship
    with a terminal, working link rather than the 404.
+
+---
+
+## 9. RE-MEASURED 2026-09-28 — nothing needs re-filing; one redirect fixes nine of ten
+
+Asked to check RCS "re-filing". There is **no filing queue to check**. Read live
+through `wecare-rcs-send:live action=templates`:
+
+    HTTP 200 · 15 templates · status tally {approved: 15} · non-approved: 0
+
+Nothing is pending Sinch review and nothing is rejected — this provider approves
+synchronously at creation, so a re-filing backlog cannot exist. A full re-sync
+(`python scripts/rcs_template_sync.py`) produced **zero** substantive drift against
+the 2026-09-27 snapshot; only `generatedAt` moved.
+
+### 9.1 What is actually broken: links, not filings
+
+Every URL in every live template was probed — button actions and media pulled from
+the structured fields, body URLs from the decoded body text. 45 URLs, 10 dead:
+
+| Template | Where | Code | URL | Sent by code? |
+|---|---|---:|---|---|
+| `rcsmenu` | **body text** | **404** | `wecare.digital/selfservice` | **YES — the only template any code sends** |
+| `wd_card_clean` | **button** | **404** | `wecare.digital/selfservice` | no |
+| `get_started` | body text | 404 | `wecare.digital/selfservice` | no |
+| `wecaremenu` | body text | 404 | `wecare.digital/selfservice` | no |
+| `wdorder` | body text | 404 | `wecare.digital/selfservice` | no |
+| `rcsorder` | body text | 404 | `wecare.digital/selfservice` | no |
+| `rcsmenu_apex` | body text | 404 | `wecare.digital/selfservice` | no |
+| `wd_card_front` | body text | 404 | `wecare.digital/selfservice` | no |
+| `wd_card_front_wide` | body text | 404 | `wecare.digital/selfservice` | no |
+| `wecare_order_update` | body text | 404 | `wecare.digital/track` | no |
+
+**Every button and every media asset in `rcsmenu` returns 200.** Its 404 is the
+plain-text line in the body ("Submit your request: …/selfservice"), which is inert
+until a customer long-presses it — so the live post-call card is degraded, not
+broken. That is a narrower claim than §0 implied, and it is the measured one.
+
+### 9.2 §1 is now stale in one row — `/r/getstarted` was repaired
+
+Re-measured, and it contradicts the table in §1:
+
+| URL | §1 said (2026-09-27) | Measured 2026-09-28 |
+|---|---|---|
+| `wecare.digital/r/getstarted` | 302 → **404** | **200**, 1 hop → `/contact/` |
+| `wecare.digital/selfservice` | 404 | **404** (unchanged) |
+| `wecare.digital/contact/` | not listed | **200**, terminal |
+| `wecare.digital/workspace/forms/selfservice/` | 200 | 200 |
+| `wecare.digital/get/o/stream/media/m/wd-brand-16x9.png` | 200 | 200 |
+
+`faa956e8` made `/contact/` canonical and fixed the short link. So the URL question
+§8 asked to be decided **has been decided by code**: the destination is `/contact/`.
+Option B in §1 is therefore moot — `/selfservice` was deliberately removed, not
+pending restoration.
+
+### 9.3 Re-filing ten templates is the wrong fix
+
+All ten dead links are **one** root cause: `wecare.digital/selfservice` returns 404.
+Zero of the app's **104** live Amplify custom rules mention `selfservice` or `track`.
+
+One redirect rule, `/selfservice` → `/contact/`, repairs **nine of the ten** with no
+provider review, no new approvals, and no frozen-body problem. Re-filing cannot
+compete with that:
+
+* An approved body cannot be edited in place, so "fixing" nine templates means
+  creating nine successors and reprovisioning whatever points at them.
+* It would not repair SMS at all. The DLT-approved `ivr-default` body names
+  `wecare.digital/selfservice` and is frozen character-for-character, so a redirect
+  is the *only* thing that can fix the SMS path — exactly as §0 said.
+* `wecare_order_update`'s `/track` is a separate second rule, or a deliberate
+  retirement — it is a text template nothing sends.
+
+**The one template that genuinely warrants re-filing is `wd_card_clean`**, because
+its 404 is a *button* rather than body text, and a dead button on the primary CTA is
+not something a redirect should be papering over. It is also free to redo: nothing
+sends it. Point `Get Started` at `https://wecare.digital/contact/` (terminal, 0 hops)
+and recreate.
+
+### 9.4 Not done here, and why
+
+The `/selfservice` redirect was **not** applied in this pass. Amplify `customRules`
+is replaced as a whole array by `UpdateApp`, and another session is concurrently
+editing exactly that surface — `scripts/provision_legacy_redirects.py` is modified in
+the working tree and `docs/execution/snapshots/amplify-custom-rules-before-seo404.json`
+had just been written. Writing the array from two sessions is last-writer-wins and
+would silently drop their rules. Per `.kiro/steering/multi-session-parallel-agents.md`
+this is sequenced, not raced.
+
+Handover, precisely: that script's map does **not** currently contain `/selfservice`
+(its only related entry is `/contacts` → `/workspace/contacts`), so the rule is
+unowned. Add to whoever holds the Amplify rule array:
+
+    /selfservice   ->  /contact/    301
+    /track         ->  /contact/    301   (or retire wecare_order_update)
+
+Then re-probe with the command in §9.1 and the table above should go fully green
+without touching a single template.

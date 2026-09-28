@@ -30,6 +30,7 @@ from decimal import Decimal
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.logging import get_logger
 from lambda_utils import payment_status  # monotonic status, one vocabulary, dedup key
+from lambda_utils.privacy import mask_phone  # a full number must never reach CloudWatch
 
 logger = get_logger(__name__)
 
@@ -43,7 +44,7 @@ def _secret_from_sm(secret_id: str, key: str) -> str:
         _sm = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         return _json.loads(_sm.get_secret_value(SecretId=secret_id)['SecretString']).get(key, '') or ''
     except Exception as e:
-        logger.warning(json.dumps({'event': 'secret_fetch_failed', 'secretId': secret_id, 'error': str(e)}))
+        logger.warning(json.dumps({'event': 'secret_fetch_failed', 'secretId': secret_id, 'errorType': type(e).__name__}))
         return ''
 
 
@@ -645,7 +646,7 @@ def _handle_payment_captured(event_data: Dict, request_id: str) -> None:
                 InvocationType='Event',
                 Payload=json.dumps(order_status_payload),
             )
-            logger.info(json.dumps({'event': 'razorpay_order_status_sent', 'phone': clean_phone, 'referenceId': reference_id, 'phoneId': originating_phone_id, 'requestId': request_id}))
+            logger.info(json.dumps({'event': 'razorpay_order_status_sent', 'phone': mask_phone(clean_phone), 'referenceId': reference_id, 'phoneId': originating_phone_id, 'requestId': request_id}))
 
             # Post-payment flow: after payment is confirmed, optionally start a
             # WhatsApp Flow (e.g. submit-request) so the customer completes service
@@ -932,7 +933,7 @@ def _trigger_post_payment_flow(clean_phone: str, phone_id: str, reference_id: st
             InvocationType='Event',
             Payload=json.dumps(flow_payload),
         )
-        logger.info(json.dumps({'event': 'post_payment_flow_sent', 'phone': clean_phone,
+        logger.info(json.dumps({'event': 'post_payment_flow_sent', 'phone': mask_phone(clean_phone),
                                 'flowId': str(flow_id), 'serviceRequestId': service_request_id,
                                 'sendMode': send_mode, 'withinWindow': within_window,
                                 'referenceId': reference_id, 'phoneId': phone_id, 'requestId': request_id}))

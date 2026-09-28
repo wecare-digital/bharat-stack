@@ -938,7 +938,7 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
         
         logger.info(json.dumps({
             'event': 'reaction_payload',
-            'to': formatted_phone,
+            'to': mask_phone(formatted_phone),
             'reactionMessageId': reaction_message_id,
             'emoji': reaction_emoji,
             'payload': reaction_payload,
@@ -1079,7 +1079,7 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
         
         logger.info(json.dumps({
             'event': 'order_status_payload',
-            'to': whatsapp_phone,
+            'to': mask_phone(whatsapp_phone),
             'referenceId': reference_id,
             'orderStatus': order_status,
             'payload': order_status_payload,
@@ -1735,7 +1735,7 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
         
         logger.info(json.dumps({
             'event': 'interactive_payload',
-            'to': whatsapp_phone,
+            'to': mask_phone(whatsapp_phone),
             'interactiveType': interactive_type,
             'payload': payload,
             'requestId': request_id
@@ -2619,7 +2619,7 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
         except Exception as e:
             logger.error(json.dumps({
                 'event': 'media_registration_failed',
-                'error': str(e),
+                'errorType': type(e).__name__,
                 'errorType': type(e).__name__,
                 's3Key': s3_key,
                 'phoneNumberId': phone_number_id,
@@ -3520,7 +3520,7 @@ def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
                 logger.info(json.dumps({
                     'event': 'contact_found_by_phone',
                     'contactId': contact.get('contactId', contact.get('id', '')),
-                    'phone': phone,
+                    'phone': mask_phone(phone),
                 }))
                 return contact
         except Exception as e:
@@ -3557,7 +3557,7 @@ def _get_or_create_contact_by_phone(phone: str) -> Dict[str, Any]:
     }
     try:
         contacts_table.put_item(Item=contact, ConditionExpression='attribute_not_exists(id)')
-        logger.info(json.dumps({'event': 'contact_auto_created_outbound', 'contactId': contact_id, 'phone': with_plus}))
+        logger.info(json.dumps({'event': 'contact_auto_created_outbound', 'contactId': contact_id, 'phone': mask_phone(with_plus)}))
         return contact
     except Exception as e:
         # Race / already exists — fetch and reuse (never create a duplicate)
