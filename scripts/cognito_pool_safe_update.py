@@ -17,7 +17,9 @@ service default. Recovered from CloudTrail, the pool lost
 
 The first silently breaks customer WhatsApp OTP sign-in -- the pool is phone-keyed
 `CUSTOM_AUTH` and with no triggers there is no challenge to issue. The second is
-worse: it **opened self-signup** on an internet-facing pool that WAF fronts
+worse: it **opened self-signup** on an internet-facing pool that WAF fronted at the time
+(the web ACL was deleted on 2026-09-28, so that pool now has no edge filtering at all,
+which makes an accidental self-signup reopening worse rather than better)
 precisely because it is public. Neither raises an error, and `update-user-pool`
 returns 200.
 

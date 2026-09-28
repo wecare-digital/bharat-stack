@@ -137,6 +137,17 @@ DESTRUCTIVE_AWS = {
     ("sns", "delete-topic"): "deletes an SNS topic",
     ("rds", "delete-db-instance"): "deletes an RDS instance",
     ("route53", "delete-hosted-zone"): "deletes a Route 53 hosted zone",
+    # Added 2026-09-28. Both of the account's web ACLs were deleted that day and this
+    # table produced no prompt, because WAF was simply absent from it. The deletion was
+    # authorised, but it should not have been silent: removing a web ACL strips a
+    # security control from an internet-facing surface and cannot be undone from the
+    # repo -- a recreated ACL is a new id, and the association has to be rebuilt.
+    ("wafv2", "delete-web-acl"): "deletes a WAF web ACL, removing request filtering "
+                                 "from every resource it protects",
+    ("wafv2", "disassociate-web-acl"): "detaches a WAF web ACL, leaving the resource "
+                                       "unfiltered while the ACL still appears to exist",
+    ("wafv2", "delete-rule-group"): "deletes a WAF rule group referenced by web ACLs",
+    ("wafv2", "delete-ip-set"): "deletes a WAF IP set referenced by web ACL rules",
 }
 
 # Steering aws-agent-rules: never pull a secret value into context.

@@ -588,7 +588,6 @@ flowchart TB
     subgraph Edge
         AMP[Amplify Hosting d22dm4b0jn71jw<br/>23 custom rules, 404-200 catch-all]
         CF[CloudFront: app.wecare.digital, mta-sts, /get origin]
-        WAF[WAFv2 wecare-cognito-waf<br/>REGIONAL, Cognito only today]
     end
     subgraph API
         GW[HTTP API zllr9lrg7j<br/>361 routes, 0 authorizers, stage prod]
@@ -626,8 +625,6 @@ flowchart TB
 
     AMP --> GW
     CF --> AMP
-    WAF -.-> CP
-    WAF -.->|GAP not attached today| GW
     GW --> OTPL
     GW --> CUST
     GW --> ADDR
@@ -660,9 +657,15 @@ flowchart TB
     SM --> KMS
 ```
 
-`WAF -.-> GW` is dashed because it is a **gap, not a fact**: the only regional WebACL is scoped
-to Cognito managed login, so the 361-route API has none. Owner overrides list WAF as a
-required target while removing its blocking semantics — the work remains.
+**There is no WAF node in this diagram, and that is current rather than an omission.**
+Both web ACLs — `wecare-cognito-waf` (REGIONAL, both Cognito pools) and
+`wecare-amplify-waf` (CLOUDFRONT, the Amplify app) — were deleted on 2026-09-28 by owner
+cost decision, and `00-current-owner-overrides.md` withdrew "WAF must be implemented and
+live-verified" as a required target at the same time. The diagram previously carried a
+dashed `WAF -.-> GW` edge to mark the API's lack of coverage as a gap; that edge is gone
+because the gap is no longer one the project intends to close. Edge filtering is now
+absent everywhere, and the controls that remain are all in-handler. Restore path if the
+decision reverses: `python3 scripts/provision_waf.py --apply`.
 
 ---
 

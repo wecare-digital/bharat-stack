@@ -185,7 +185,10 @@ TTL is enabled on 18 tables via CDK overrides in `amplify/backend.ts`:
 - [x] PII redaction utility (mask_phone, redact_pii) in all handlers
 - [x] appsecret_proof on all Meta Graph API calls
 - [x] Razorpay webhook signature verification (HMAC-SHA256)
-- [x] WAF protection on webhook endpoints (rate limiting + AWS managed rules)
+- [ ] ~~WAF protection on webhook endpoints (rate limiting + AWS managed rules)~~ —
+      **withdrawn 2026-09-28.** No WAF exists in this account: both web ACLs were
+      deleted by owner cost decision. Webhook protection is HMAC signature
+      verification plus `lambda_utils/rate_limit.py` only
 - [x] CloudWatch log retention (90 days)
 - [x] Per-Lambda error rate alarms on critical functions
 - [x] DynamoDB IAM scoped to stack-wecare-digital-* tables + indexes

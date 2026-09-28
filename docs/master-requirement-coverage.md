@@ -76,7 +76,7 @@ highest *proven* state, with the evidence that proves it.
 | Internal chatbot + governed operations | `DEPLOYED` | Versioned READ/PLAN/APPLY catalogue; **18 APPLY tools refused in `governance.py`** |
 | Growth and presence APIs | `DEPLOYED` / `WAITING_FOR_OWNER` | 88 fixture-driven contract tests; 7 of 8 providers `SCOPE_UNVERIFIED` pending owner access |
 | Wix commerce / site | `DEPLOYED` | Existing site preserved, no duplicate created. Domain layer lifted; equivalence proven over 64 golden cases, 0 differences |
-| Security / compliance | `DEPLOYED` | Raw-body signatures, 0 open routes, WAF enforcing on both carrying surfaces, MFA staged. Admin *data-path* proof blocked — §4 |
+| Security / compliance | `DEPLOYED` | Raw-body signatures, 0 open routes, MFA staged. **No WAF** — both WebACLs deleted 2026-09-28 by owner cost decision, so the "enforcing on both carrying surfaces" claim is retired. Admin *data-path* proof blocked — §4 |
 | Cleanup / storage | `DEPLOYED` | Route, dependency and bundle cleanup with manifests and rollback |
 | Deployment / operations | `DEPLOYED` | 65 functions, 0 alias drift (re-measured 2026-09-26), snapshots for rollback, 5/5 CI green |
 | Final reporting | `LIVE_VERIFIED` | `PHASE-10.3-CLOSURE.md` plus this document |
@@ -133,7 +133,7 @@ evidence. Listing them is how the contradiction gets recorded instead of hidden.
 | Row | Registry says | Evidence since |
 |---|---|---|
 | `SEC-MFA-001` | `DISCOVERED` | MFA implemented; Cognito `OPTIONAL` with TOTP + email + SMS. Enforcement staged at `warn` on purpose |
-| `SEC-WAF-001` | `DISCOVERED` | 2 WebACLs live, enforcement proven by a blocked request |
+| `SEC-WAF-001` | `WITHDRAWN` | Was `DISCOVERED` with 2 WebACLs live and enforcement proven by a blocked request. Both deleted 2026-09-28 by owner cost decision; the requirement was withdrawn in `00-current-owner-overrides.md` rather than left failing |
 | `SEC-ROUTE-007` | `DISCOVERED` | Airtel CDR branch behind `require_auth`; dead ingester removed in `91488c94` |
 | `SEC-ROUTE-008` | `DISCOVERED` | Still genuinely open — blocked on Admin group membership (§4) |
 | `PROV-GATE-001` | `DISCOVERED` | Live-estate gate exists and passes; source gate 8/8 |

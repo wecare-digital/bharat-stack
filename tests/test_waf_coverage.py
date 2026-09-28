@@ -1,5 +1,14 @@
 """Every WAF-protectable surface is in the plan, and the plan reports per resource.
 
+STATUS 2026-09-28: there is no WAF in this account. Both web ACLs were deleted by
+owner cost decision, and `scripts/provision_waf.py` was retained as the one-command
+restore path. These tests still pass, and are still worth running, because they assert
+the *restore plan* is well-formed -- not that anything is currently protected. If WAF is
+ever restored, the plan they guard is the thing that will do it, so a regression here
+would mean restoring into the same partial-coverage blind spot described below. Nothing
+in this file should be read as a claim that a surface is protected today; see
+`docs/security.md` for the live posture.
+
 Why this exists
 ---------------
 On 2026-09-26 the customer Cognito pool had **no web ACL** while the staff pool had

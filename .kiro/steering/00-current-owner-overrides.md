@@ -10,7 +10,9 @@ disagree, **this file wins**.
 
 ## Security decisions
 
-- AWS WAF is **not MANDATORY**.
+- AWS WAF is **REMOVED**, by owner decision on 2026-09-28, as a cost decision. There
+  is no web ACL in this account in either scope. Do not re-create one, and do not
+  report its absence as a gap to close — see "WAF is removed" below.
 - Administrator MFA is **not MANDATORY**.
 - Security Hub is **EXCLUDED**. Do not enable it.
 - GuardDuty is **OPTIONAL** and is not a project completion blocker.
@@ -71,8 +73,8 @@ previous snapshot, as a record of drift rather than a value to reuse:
 | HTTP API routes | 332 | 361 |
 | API Gateway authorizers | 0 | 0 |
 | Routes reporting `AuthorizationType=NONE` | 332 | 361 |
-| Regional WAF WebACLs | 0 | 1 (`wecare-cognito-waf`, attached to **both** user pools) |
-| CloudFront-scope WAF WebACLs | — | 1 (`wecare-amplify-waf`, `ASSOCIATION_SUCCESS`) |
+| Regional WAF WebACLs | 0 | 1 on 2026-09-26 → **0 on 2026-09-28, deleted** |
+| CloudFront-scope WAF WebACLs | — | 1 on 2026-09-26 → **0 on 2026-09-28, deleted** |
 | CloudWatch alarms | — | 41, all routable to a human |
 | Cognito pools | WECARE.DIGITAL | 2 (+ WECARE.DIGITAL-CUSTOMERS) |
 | Cognito MFA (admin pool) | OFF | OPTIONAL |
@@ -81,6 +83,39 @@ previous snapshot, as a record of drift rather than a value to reuse:
 
 The route surface grew by 29 while authorization stayed at zero, so the gap
 widened rather than closed.
+
+## WAF is removed
+
+Deleted 2026-09-28 on owner instruction, as a cost decision. Both web ACLs are gone:
+
+| Deleted | Scope | Was protecting |
+|---|---|---|
+| `wecare-cognito-waf` | REGIONAL | staff pool `us-east-1_cSx0RHCIR` **and** customer pool `us-east-1_46ULYuukt` |
+| `wecare-amplify-waf` | CLOUDFRONT | Amplify app `d22dm4b0jn71jw` (dashboard + public site) |
+
+Verified after deletion: `list_web_acls` returns **0** in both scopes,
+`get_web_acl_for_resource` returns nothing for both pool ARNs, and the Amplify app's
+`wafConfiguration` is `null`.
+
+**State the cost honestly.** WAF billing was roughly $18/month at list price, but
+credits currently absorb it, so the realised saving today is **$0.00**. The saving
+only materialises if credits lapse. The protection loss was immediate.
+
+What is now the only request filtering, so nobody assumes WAF still backstops it:
+handler-level `require_auth`, provider HMAC verification on webhooks,
+`lambda_utils/rate_limit.py`, the per-phone OTP probe counter in the Cognito trigger,
+and API Gateway stage/route throttling. There is **no per-IP protection in front of
+public customer OTP sign-in any more**, which is a genuine open exposure rather than a
+solved one.
+
+Restore path, kept deliberately: `python3 scripts/provision_waf.py --apply`. Prior
+state including every rule and association is in
+`docs/execution/snapshots/waf-associations-before-delete-20260928.json` and the
+`waf-*-before-delete-20260928.json` files beside it. The WAF log groups
+`aws-waf-logs-wecare-amplify` and `aws-waf-logs-wecare-cognito` were **retained**.
+
+The measurement caveat below is kept because it will matter again if WAF ever returns,
+and because it explains why earlier audits misread the association state.
 
 **Never read a WAF association with `list_resources_for_web_acl` alone.** It
 defaults `ResourceType` to `APPLICATION_LOAD_BALANCER`, this account has none, and
@@ -97,17 +132,20 @@ an intentionally public signed webhook from an accidentally public API.
 ## Required target
 
 - Admin MFA must be implemented and verified.
-- WAF must be implemented and live-verified.
+- ~~WAF must be implemented and live-verified.~~ **Withdrawn 2026-09-28.** WAF is
+  removed by owner decision; it is no longer a required target and its absence is
+  not a gap to close.
 - User APIs must have an explicit authentication strategy.
 - Provider webhooks remain publicly reachable where required, protected using
   provider signature verification.
 - Security Hub must remain excluded.
 - GuardDuty may be evaluated but must not block closure.
 
-Note the deliberate shape of this section: WAF and admin MFA are not *mandatory
-gates* inherited from the master prompt, but they **are** required targets here.
-"Not MANDATORY" removes the master prompt's blocking semantics; it does not
-remove the work.
+Note the deliberate shape of this section: admin MFA is not a *mandatory gate*
+inherited from the master prompt, but it **is** a required target here. "Not
+MANDATORY" removes the master prompt's blocking semantics; it does not remove the
+work. WAF used to be listed the same way and no longer is, because the owner removed
+the resource itself rather than downgrading the requirement.
 
 ## Provider rules
 
