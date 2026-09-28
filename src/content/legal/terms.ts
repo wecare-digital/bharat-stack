@@ -19,15 +19,18 @@
  *     14.6, 14.8, 14.9, 14.10, 31, 32 and 33 - rather than sprinkled everywhere.
  *   - Added `inShort` to every top-level section. A 57-section contract with no summaries
  *     is not readable on a phone, which is where it gets opened.
- *   - REMOVED SCRAPED PAGE FURNITURE FROM SECTION 45. The extractor had swept up the old
+ *   - REMOVED SCRAPED PAGE FURNITURE FROM THE CONTACT SECTION, which was 45 at the time of
+ *     the rewrite and is now 47. The extractor had swept up the old
  *     site's footer and navigation into the contact section, so the signed-off Contact
  *     Information clause ended with "BUY GIFT CARD", "DECARBONIZING", "INVITE", "APP",
  *     the retired brand name, and the literal string "bottom of page". That was live.
  *
  * WHAT IT DID NOT CHANGE: any obligation, right, remedy, limitation, disclaimer or
- * liability cap. Every section keeps its original NUMBER, id and scope, so citations
- * still resolve - including the two from elsewhere in this codebase, src/pages/
- * my-order.tsx to section 14 and src/pages/bharat-rx.tsx to section 17. Nothing was
+ * liability cap. The rewrite kept every section's original NUMBER, id and scope, so
+ * citations still resolve - including the two from elsewhere in this codebase, src/pages/
+ * my-order.tsx to section 14 and src/pages/bharat-rx.tsx to section 17. The ONLY numbers
+ * that have moved since are the last three, when the contact clause was sent to the end of
+ * the document; see the note above section 45 for exactly what changed. Nothing was
  * added that makes a commitment the original did not already make; in particular the
  * original's deliberate vagueness about which conditions attach to which service is
  * preserved, because that genuinely varies per service and inventing specifics here
@@ -600,34 +603,34 @@ export const TERMS_SECTIONS: LegalSection[] = [
       'Where a separately signed agreement, memorandum of understanding, engagement agreement, enterprise agreement or order form covers the same subject matter, that agreement prevails on the matters it specifically addresses.',
     ],
   },
-  {
-    number: '45', heading: 'How to contact us', id: 's45',
-    inShort: 'WECARE.DIGITAL BHARATWORKS, Kolkata. one@wecare.digital, +91 9330994400.',
-    paragraphs: [
-      'WECARE.DIGITAL is operated under the business name WECARE.DIGITAL BHARATWORKS.',
-      'Our address is The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Lane, Kolkata, West Bengal 700012, India.',
-      'For customer care, email one@wecare.digital or call +91 9330994400.',
-      'Use those details for any question, complaint or concern about these Terms or the Services. Our Privacy Policy is at /privacy/.',
-    ],
-  },
   /**
-   * 46 AND 47 ARE APPENDED RATHER THAN INSERTED, and that is deliberate.
+   * "HOW TO CONTACT US" IS LAST, on owner instruction, and the two clauses that used to sit
+   * behind it were renumbered to make room. It is now 47, at the foot of this file.
    *
-   * Both belong logically in the boilerplate cluster around 40-44, but every section here
-   * carries a stable `id` that is also its in-page anchor - /terms/#s40 and so on - and the
-   * table of contents, the heading numbers and any external deep link all read from it.
-   * Inserting mid-document would renumber up to six sections and silently break every link
-   * to them. Appending costs a slightly unconventional order after "How to contact us" and
-   * breaks nothing.
+   * This file previously appended Machine translation and AI as 46 and 47 AFTER the contact
+   * clause, specifically to avoid renumbering anything. That left the document ending on a
+   * disclaimer, and it contradicted src/content/legal/privacy.ts, which ends on 24 "Who we
+   * are and how to reach us". Contact-last is now the convention in both documents.
    *
-   * NOT LEGAL ADVICE AND NOT COUNSEL-REVIEWED. These are drafted to the pattern used by
-   * public bodies and software vendors for the same two risks - see the note in each
-   * `inShort` - and they should be read by whoever signs off the rest of this document
+   * WHAT THE RENUMBER MOVED: Machine translation 46 -> 45, AI 47 -> 46, How to contact us
+   * 45 -> 47. Every section's `id` is its in-page anchor and tracks its number, so
+   * /terms/#s45 now resolves to Machine translation, #s46 to AI, and #s47 to contact.
+   * Nothing in this repo links to any of the three: the only in-code citations of these
+   * Terms are src/pages/my-order.tsx to section 14 and src/pages/bharat-rx.tsx to section
+   * 17, both untouched. 46 and 47 have never been published under any other number, so the
+   * only real exposure is an external document citing "Terms section 45" for contact
+   * details - which is the one thing this repo cannot check.
+   *
+   * NO WORDING CHANGED. Only the order and those three numbers.
+   *
+   * NOT LEGAL ADVICE AND NOT COUNSEL-REVIEWED, for 45 and 46 below. These are drafted to
+   * the pattern used by public bodies and software vendors for the same two risks - see the
+   * note in each `inShort` - and they should be read by whoever signs off this document
    * before being relied on. The engineering facts they describe are measured and accurate;
    * the legal effect of the wording is not something this repo can assert.
    */
   {
-    number: '46', heading: 'Machine translation', id: 's46',
+    number: '45', heading: 'Machine translation', id: 's45',
     inShort: 'The English version is the official one. Translations are automatic, offered as a convenience, and may be wrong or incomplete.',
     paragraphs: [
       'The Platform offers on-page translation into other languages. Those translations are produced automatically by machine translation, without human review.',
@@ -639,7 +642,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     ],
   },
   {
-    number: '47', heading: 'Artificial intelligence and automated processing', id: 's47',
+    number: '46', heading: 'Artificial intelligence and automated processing', id: 's46',
     inShort: 'Some parts of the Services use AI. Its output can be wrong, it is not professional advice, and a human decides anything that matters.',
     paragraphs: [
       'Some features of the Services use artificial intelligence, machine learning, large language models or other automated processing. That can include drafting and summarising messages, suggesting replies, classifying or routing a request, extracting information from a document you send us, generating descriptions or images, transcribing or translating speech and text, and prioritising work in a queue.',
@@ -650,6 +653,16 @@ export const TERMS_SECTIONS: LegalSection[] = [
       'What you submit may be processed by automated systems, including systems operated by the third-party providers named in our Privacy Policy, in order to deliver the Service you asked for. How we handle that data, how long we keep it, and the choices you have are set out in the Privacy Policy, including the section on automated systems.',
       'We may add, change, limit or withdraw an AI-assisted feature at any time. Where an AI-assisted feature is offered alongside a human alternative, you may ask for the human route instead.',
       'Nothing in this section reduces any liability we cannot lawfully exclude, or any statutory right you have in relation to automated decision-making.',
+    ],
+  },
+  {
+    number: '47', heading: 'How to contact us', id: 's47',
+    inShort: 'WECARE.DIGITAL BHARATWORKS, Kolkata. one@wecare.digital, +91 9330994400.',
+    paragraphs: [
+      'WECARE.DIGITAL is operated under the business name WECARE.DIGITAL BHARATWORKS.',
+      'Our address is The W.B.S.I.D.C. Building, Unit 1/20 81/2/7, Phears Lane, Kolkata, West Bengal 700012, India.',
+      'For customer care, email one@wecare.digital or call +91 9330994400.',
+      'Use those details for any question, complaint or concern about these Terms or the Services. Our Privacy Policy is at /privacy/.',
     ],
   },
 ];

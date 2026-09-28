@@ -92,7 +92,14 @@ const Footer: React.FC = () => {
         for ( const entry of entries ) {
           if ( entry.isIntersecting ) {
             el.classList.add( 'is-in' );
-            if ( tag ) tag.classList.add( 'is-in' );
+            if ( tag ) {
+              /* Hand the delay back to the stylesheet. replaySweep pins animation-delay to 0s
+               * so a pointer gesture moves immediately; the scroll entrance wants the designed
+               * 0.42s so the sweep follows the 560ms rise instead of racing it. Clearing the
+               * inline value here means one hover does not permanently retune the entrance. */
+              tag.style.animationDelay = '';
+              tag.classList.add( 'is-in' );
+            }
           } else {
             /* Back to the armed state, ready to replay. Safe to hide: by definition the element
              * is outside the viewport when this runs, so nothing visible changes. */
@@ -177,6 +184,32 @@ const Footer: React.FC = () => {
     tag.style.animation = 'none';
     void tag.offsetWidth;
     tag.style.animation = '';
+    /*
+     * THE POINTER REPLAY RUNS WITH NO DELAY, and this line is the whole reason the owner
+     * reported the effect as "not showing" after it shipped working.
+     *
+     * The stylesheet sets `animation:ft-run 1.15s ... .42s`. That 0.42s is right for the
+     * SCROLL entrance - it lets the 560ms rise settle so the two read as one arrival - and
+     * wrong for a pointer, where there is no rise to wait for. Measured with
+     * tools/browser/replaycheck.js: after a click, the first frame of movement landed at
+     * +500ms. So a hover shorter than half a second produced no movement whatsoever, and a
+     * hover barely longer than that produced movement after the reader had already given up.
+     * The animation was running correctly the entire time and was invisible anyway.
+     *
+     * Worse than dead time: the restart above snaps background-position back to its 100%
+     * start, so the old behaviour was a visible jump, then a 420ms freeze, then travel.
+     *
+     * OVERRIDES THE DELAY LONGHAND, NOT THE SHORTHAND. Re-declaring the whole `animation`
+     * inline would have to name the keyframes, and styled-jsx is free to scope
+     * `@keyframes ft-run` to a hashed name - it happens not to here, but pinning production
+     * behaviour to that is a trap that breaks silently on a build-tool upgrade. Setting the
+     * longhand keeps the stylesheet as the single source of the keyframes, the duration and
+     * the easing, and changes only the one value that is wrong for this trigger.
+     *
+     * The inline value is cleared when the observer re-arms on re-entry, so the scroll
+     * entrance keeps its designed 0.42s.
+     */
+    tag.style.animationDelay = '0s';
   }, [] );
 
   return (
