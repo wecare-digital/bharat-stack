@@ -243,6 +243,77 @@ const Footer: React.FC = () => {
       .ft-tagline.is-armed{opacity:0;transform:translateY(14px)}
       .ft-tagline.is-armed.is-in{opacity:1;transform:none}
 
+      /* A COLOUR RUNNING ACROSS THE LINE, ONCE. Owner asked for a colour effect on this line
+         "running over" it, so a band of brand green travels left to right through the muted
+         text and then the line settles back to flat.
+
+         EVERY PIXEL STAYS READABLE THROUGHOUT, which is the constraint that shaped it. The
+         gradient interpolates between only two colours and both are measured on white:
+
+           rgba(0,0,0,.54) -> #757575   4.61:1   the resting colour
+           #1a3a2a                     12.48:1   the travelling band
+
+         So the sweep only ever makes the text DARKER than its resting state - contrast rises
+         to 12.48:1 at the band and returns to 4.61:1. A lime sweep was the obvious reading of
+         "colour" and is exactly what this cannot be: #d1f470 is 1.24:1 on white, so the band
+         would have erased the words as it passed over them.
+
+         ONE-SHOT, NOT A LOOP, and that is not a preference. A repeating shimmer is motion that
+         starts automatically and runs longer than five seconds, which is WCAG 2.2.2 - the same
+         rule that removed this page's terminal loop. It runs once on arrival and stops.
+
+         ADDITIVE, LIKE THE REST OF THIS FILE. background-clip:text needs color:transparent,
+         and transparent text with no painted gradient is an INVISIBLE LINE - so the resting
+         rules above own the colour, and the two properties that can hide the text are applied
+         only under .is-armed.is-in, which JavaScript adds after confirming it can animate. No
+         JS, no observer, reduced motion, or a browser without background-clip:text all leave
+         the line as plain readable grey.
+
+         background-position is the only animated property and it composites off the main
+         thread; animating the gradient stops themselves would relayout the paint on every
+         frame. 300% background-size is what gives the band somewhere to travel from. */
+      .ft-tagline.is-armed.is-in{
+        background-image:linear-gradient(100deg,
+          rgba(0,0,0,.54) 42%, #1a3a2a 50%, rgba(0,0,0,.54) 58%);
+        background-size:300% 100%;
+        background-position:100% 0;
+        background-repeat:no-repeat;
+        -webkit-background-clip:text;background-clip:text;
+        -webkit-text-fill-color:transparent;color:transparent;
+        /* Starts after the 560ms rise has settled, so the two read as one arrival rather than
+           competing. forwards holds the end state; it runs once and never repeats.
+
+           NEARLY LINEAR EASING, AND THAT IS A CORRECTION. This was
+           cubic-bezier(.33,0,.24,1) over 1.5s - the site's standard entrance curve, which
+           front-loads its travel. Sampled every 150ms, the band was over the text in only 2
+           frames of 12: it crossed in roughly 400ms and then the remaining second held a
+           position that was already flat. An easing chosen for "arrive and settle" is wrong for
+           a thing whose whole job is to travel at a readable speed.
+           This curve is symmetric and close to linear through the middle, so the band moves at
+           an even pace for the whole 1.15s instead of darting. */
+        animation:ft-run 1.15s cubic-bezier(.45,.05,.55,.95) .42s 1 forwards;
+      }
+      /* BOTH ENDPOINTS MUST STAY INSIDE 0%..100%, and this is not a tidiness rule - getting it
+         wrong hides most of the line.
+         A background percentage positions the image as p x (elementWidth - imageWidth). The
+         image here is 300% wide, so the origin lands at -2W x p: only p between 0% and 100%
+         keeps a 3W-wide image covering the element at all. This animation first ended at -40%,
+         which puts the origin at +0.8W - the image then starts four fifths of the way across
+         and, with background-repeat:no-repeat, the first 80% of the line has NO gradient behind
+         it. Combined with transparent text that is an invisible tagline, permanently, after
+         the sweep finishes.
+         It looked right: the darkest rendered pixel was identical either way, because the
+         fragment that WAS painted carried the correct colour. What gave it away was counting
+         ink pixels in a screenshot - 165 against 822 for the same sentence.
+         At 100% the element shows the gradient's last third and at 0% its first third; the
+         band sits at 42-58%, so both endpoints are flat resting colour and the band is only
+         on screen in between. That is what makes the end state indistinguishable from a line
+         that never animated. */
+      @keyframes ft-run{
+        from{background-position:100% 0}
+        to{background-position:0% 0}
+      }
+
       /* THE LIME DASH. 56x3px, matching .home-close-rule's 3px lime rule.
          READ THE .is-armed PATTERN BEFORE CHANGING THIS: the default below is the FINAL,
          visible state. .is-armed is added by JavaScript only once it has confirmed it can
@@ -280,6 +351,20 @@ const Footer: React.FC = () => {
            guard for the preference changing AFTER the class is on the node. */
         .ft-tagline{transition:none}
         .ft-tagline.is-armed{opacity:1;transform:none}
+        /* THE COLOUR SWEEP, AND IT IS NOT ENOUGH TO STOP THE ANIMATION. background-clip:text
+           works by making the text itself transparent and painting a gradient through it, so
+           animation:none on its own would leave transparent text over a gradient parked off
+           the line - an INVISIBLE tagline, for precisely the readers who asked for less
+           motion. (No backticks in this comment: it lives inside a styled-jsx template
+           literal, and one backtick ends the template - which StyledJsxBackticks.test.tsx
+           just caught me doing.)
+           Both properties that hide the text have to be handed back, and the resting colour
+           restated, because the rule being overridden set it to transparent. Selector is
+           (0,3,0) to beat the .is-armed.is-in rule that introduces them. */
+        .ft-tagline.is-armed.is-in{
+          animation:none;background-image:none;
+          -webkit-text-fill-color:currentColor;color:rgba(0,0,0,.54);
+        }
         /* Belt and braces. The effect already never arms under reduced motion, so this is
            the guard for the case where the preference changes after arming, when the class
            is already on the node. It kills the movement without hiding the dash. */
