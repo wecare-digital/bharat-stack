@@ -75,12 +75,18 @@ OWNER_ID = "319896805"
 REPO_ID = "1342943014"
 BRANCH = "stack"
 
-# The roles keep "bharat-stack" in their names on purpose: an IAM role name is not
-# a repository reference and renaming it would invalidate every `role-to-assume`
-# in .github/workflows. Only the trust policy was wrong.
+# The first two keep "bharat-stack" in their names on purpose: an IAM role name is
+# not a repository reference and renaming it would invalidate every
+# `role-to-assume` in .github/workflows. Only the trust policy was wrong.
+#
+# The third was created fresh on 2026-09-28 02:55 with the *correct* new repo name,
+# so it was never broken - but it pinned that name with StringEquals, which is the
+# same latent bug one rename away from repeating this outage. It is included so all
+# three are rename-proof and auditable from one command.
 ROLES = [
     "GitHubActions-bharat-stack-docs-scraper",
     "GitHubActions-bharat-stack-seo-tools",
+    "GitHubActions-wecare-digital-route-auth",
 ]
 
 

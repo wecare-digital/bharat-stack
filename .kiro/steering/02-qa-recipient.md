@@ -23,7 +23,7 @@ Measured against the repo's own helpers, not assumed:
 | Country | India (`IN`), so India DLT and India RCS rules apply |
 | Collides with a business number | **No** |
 | SMS routing | AWS End User Messaging `ap-south-1`, DLT key `ivr-default` |
-| RCS routing | Sinch India — currently `INELIGIBLE_UNSUPPORTED` only because `SINCH_RCS_ENABLED` is off |
+| RCS routing | Sinch India. **Corrected 2026-09-28: the flag is ON** — see the note below |
 | `live_smoke` behaviour as `WA_QA_RECIPIENT` | QA number allowed; a customer number and all three business numbers refused |
 
 The business-number check matters: the registry in
@@ -40,7 +40,23 @@ requires a deliberate, separately-authorized step:
 |---|---|---|
 | WhatsApp smoke test | `WA_LIVE_SMOKE_TEST=true` **and** `WA_QA_RECIPIENT=+918100640044` on `wecare-outbound-whatsapp` | both **absent** |
 | Connected-call notification | `PSTN_CONNECTED_NOTIFICATIONS_ENABLED=true` **and** `NOTIF_CUTOVER_WATERMARK` set | both **absent** |
-| India RCS | `SINCH_RCS_ENABLED=true` | absent |
+| India RCS | `SINCH_RCS_ENABLED=true` | **present on 3 functions** — see below |
+
+### Correction, 2026-09-28: `SINCH_RCS_ENABLED` is not absent
+
+Measured across all 65 functions: `SINCH_RCS_ENABLED=true` is set on
+`wecare-voice-in-obd`, `wecare-voice-in-c2c` and `wecare-whatsapp-calling`. It is also
+in `config/lambda-env-manifest.json` and documented as intended by
+`03-sinch-rcs-india-only.md`, so the configuration is correct and long-standing — the
+two places that called it "absent" (the row above, and the flag table in
+`docs/execution/PHASE-10.3-CLOSURE.md` §3) were simply wrong.
+
+This does not make the QA row's conclusion wrong, only its reason. India RCS to this
+number is not blocked by the flag; it is gated further down, and
+`docs/cdr-and-webhook-reference.md` records that `rcs-send` itself does not read the
+flag at all — only `sinch_rcs.is_rcs_enabled()` and `policy.decide_rcs` do. A live RCS
+send to this number has in fact happened (matrix entry 333), so treat "RCS is off" as
+retired prose rather than live state, and re-measure before relying on either claim.
 
 `WA_LIVE_SMOKE_TEST` is a **lockdown, not a permission**: switching it on narrows
 sending to this number only and halts customer messaging. That is the correct
