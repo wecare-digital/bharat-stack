@@ -165,6 +165,9 @@ export default function BlogIndex ( { posts }: Props ) {
   );
 }
 
+// Static-export content refresh marker: 2026-09-28 Gastronomy batch 001.
+// Publishing to Wix changes the source of truth; a new frontend build snapshots
+// the latest published posts into /blog/ and /post/[slug]/ static pages.
 export const getStaticProps: GetStaticProps<Props> = async () => {
   const posts = await listPublicBlogPosts();
   return { props: { posts } };
