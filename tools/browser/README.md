@@ -130,7 +130,28 @@ node tools/browser/dividerreview.js    # -> docs/divider-review.html
 ```
 
 **So the rule is: delete the mock in the PR that ships its decision.** Not gitignore — that
-was the other option considered and it fails the only reader. The two review pages tracked
+was the other option considered and it fails the only reader.
+
+#### Two things that make a committed mock unopenable
+
+Both were hit in sequence handing one file to the owner, and neither is obvious.
+
+**1. GitHub serves raw `.html` as `text/plain`.** A committed HTML mock therefore displays as
+*source*, not as a page. `raw.githack.com` re-serves it as `text/html` and does work — it
+returned 200 — but it is a third-party domain and it did not open for the owner. So an HTML
+mock cannot be the only artefact. `dividershots.js` renders the HTML one to PNGs plus a
+Markdown wrapper, which GitHub renders inline with no proxy; the HTML stays for anyone who
+wants the live animation and a Replay button.
+
+**2. A branch name containing `/` breaks every `blob` URL on it.** This repo names branches
+`fix/…`, `feat/…`, `docs/…`, and GitHub's URL is `/blob/<ref>/<path>` with no delimiter
+between them — so for branch `docs/divider-review-png` and path `docs/divider-review.md`,
+`/blob/docs/divider-review-png/docs/divider-review.md` is unparseable and 404s. `refs/heads/`
+does **not** rescue it; that 404s too. Options: name the branch without a slash, or link
+`/pull/<n>/files` instead, which always resolves.
+
+**Verify the URL with `curl -o /dev/null -w '%{http_code}'` before sending it.** Both failures
+above looked fine when the link was constructed and 404'd when it was clicked. The two review pages tracked
 today are `divider-review.html` (20 kB, open question) and `mocks/home-hero/` (48 kB, a
 hand-written reference rather than a generated mock).
 
