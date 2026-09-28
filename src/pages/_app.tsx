@@ -467,6 +467,18 @@ const PUBLIC_PAGE_META: Record<string, { name: string; type: string; description
   // to redirect from.
   '/anew': { name: 'Anew', type: 'WebPage', description: 'Reflection-led conversations that create clarity and action.' },
   '/niji-setu': { name: 'Niji Setu', type: 'WebPage', description: 'A QR code people scan to reach you on a masked call.' },
+  // The five Selfservice pages. They exist because the header's Selfservice column offered
+  // six labels and every one resolved to /contact/ - six promises, one destination, on every
+  // page of the site. Header.tsx recorded that as a placeholder and named this as the fix.
+  // Contact us keeps /contact/, which is its real destination, so there are five and not six.
+  // Being listed HERE is what makes them render at all: this map is the public allowlist as
+  // well as the structured-data source, so a route missing from it serves an empty body at
+  // HTTP 200. They must stay in step with PUBLIC_EXACT in scripts/generate-sitemap.js.
+  '/submit-request': { name: 'Submit Request', type: 'WebPage', description: 'Start a new request, in your own words.' },
+  '/request-amendment': { name: 'Request Amendment', type: 'WebPage', description: 'Change a date, detail or scope on a request already under way.' },
+  '/drop-docs': { name: 'Drop Docs', type: 'WebPage', description: 'Send the documents a request needs, once.' },
+  '/leave-review': { name: 'Leave Review', type: 'WebPage', description: 'Tell us how something went, well or badly.' },
+  '/refer-and-earn': { name: 'Refer & Earn', type: 'WebPage', description: 'Introduce someone who would find this useful.' },
 };
 
 /**

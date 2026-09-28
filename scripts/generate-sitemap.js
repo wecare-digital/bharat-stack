@@ -46,6 +46,15 @@ const PUBLIC_EXACT = new Set( [
   '/anew',
   '/niji-setu',
   '/ritual-guru',
+  // The five Selfservice pages. Same rule as the product group above: these must stay in
+  // step with PUBLIC_PAGE_META in _app.tsx, because a route advertised here but missing
+  // there serves an empty body at HTTP 200 - i.e. it would put blank pages in front of a
+  // crawler. They replaced six menu labels that all resolved to /contact/.
+  '/drop-docs',
+  '/leave-review',
+  '/refer-and-earn',
+  '/request-amendment',
+  '/submit-request',
 ] );
 const PUBLIC_PREFIXES = [ '/post/' ];
 

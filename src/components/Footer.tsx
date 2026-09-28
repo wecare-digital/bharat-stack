@@ -27,6 +27,7 @@ import BrandLockup from './BrandLockup';
  */
 const Footer: React.FC = () => {
   const dashRef = useRef<HTMLElement | null>( null );
+  const taglineRef = useRef<HTMLParagraphElement | null>( null );
 
   /**
    * The lime dash draws itself in WHEN IT COMES INTO VIEW, not on page load.
@@ -51,11 +52,29 @@ const Footer: React.FC = () => {
     if ( typeof IntersectionObserver === 'undefined' ) return undefined;
     if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) return undefined;
 
+    // THE TAGLINE RIDES THE SAME ONE-SHOT REVEAL, on one observer rather than two.
+    //
+    // It had an animation before and it was the wrong kind: a hover that darkened the text
+    // and swept a 2px lime underline in from the left - the same sweep, duration and easing
+    // the real footer link rows use, on a <p> with no href, sitting among those links. That
+    // is a false affordance, so it was removed.
+    //
+    // This is the honest version of the same wish. An ENTRANCE says "this line matters"
+    // without claiming the line is clickable: it plays once, on arrival, and there is no
+    // hover state to invite a click. It also reads as one movement with the lime dash below
+    // it rather than as a second effect competing with it.
+    //
+    // Both nodes take the classes so each keeps its own transition - the dash scales, the
+    // tagline rises - but they are driven by the one observer on the dash, which is the
+    // lower of the two and therefore the stricter trigger.
+    const tag = taglineRef.current;
     el.classList.add( 'is-armed' );
+    if ( tag ) tag.classList.add( 'is-armed' );
     const io = new IntersectionObserver(
       entries => {
         if ( entries.some( e => e.isIntersecting ) ) {
           el.classList.add( 'is-in' );
+          if ( tag ) tag.classList.add( 'is-in' );
           io.disconnect(); // One-shot: an entrance, not a scroll effect.
         }
       },
@@ -114,7 +133,7 @@ const Footer: React.FC = () => {
               Latin. That is one language's MT quirk, not a reason to break grammar in seven.
               translatecheck.js reports this line under "brand embedded in a translatable
               sentence", which is the correct category for it: reported, never failed. */}
-          <p className="ft-tagline">Trusted everyday services for Bharat</p>
+          <p className="ft-tagline" ref={ taglineRef }>Trusted everyday services for Bharat</p>
 
           {/* The brand dash. Purely decorative, hence aria-hidden and a <span> rather than
               an <hr> - it separates nothing and announcing it would be noise. It is the
@@ -194,7 +213,23 @@ const Footer: React.FC = () => {
       .ft-tagline{
         font-size:15px;line-height:1.6;color:rgba(0,0,0,.54);
         margin:0;max-width:340px;
+        /* AN ENTRANCE, NOT A HOVER - and that distinction is the whole point.
+           The default below is the FINAL state, per the .is-armed pattern this file already
+           uses for the dash: opacity 1, no offset. JavaScript adds .is-armed to hide the
+           start state only once it knows it can animate, then .is-in plays it. So no JS, no
+           IntersectionObserver or reduced motion all leave the line simply readable.
+           Same easing as the dash below so the two read as one settling movement, and 24ms
+           ahead of it: the words arrive, then the lime rule closes the block under them.
+           WHAT THIS DELIBERATELY IS NOT. This line used to darken to #1a3a2a on hover and
+           sweep a 2px lime underline in from the left - the footer's real link rows use that
+           exact sweep, at the same duration and easing, and they sit in this same block. On a
+           <p> with no href that is a false affordance: hover feedback on text that cannot be
+           clicked, beside controls that can. An entrance gives the line emphasis without
+           claiming it is interactive, because there is no pointer state to invite a click. */
+        transition:opacity .52s cubic-bezier(.22,.61,.36,1),transform .52s cubic-bezier(.22,.61,.36,1);
       }
+      .ft-tagline.is-armed{opacity:0;transform:translateY(6px)}
+      .ft-tagline.is-armed.is-in{opacity:1;transform:none}
 
       /* THE LIME DASH. 56x3px, matching .home-close-rule's 3px lime rule.
          READ THE .is-armed PATTERN BEFORE CHANGING THIS: the default below is the FINAL,
@@ -226,8 +261,13 @@ const Footer: React.FC = () => {
       .ft-dash.is-armed.is-in{transform:scaleX(1)}
 
       @media(prefers-reduced-motion:reduce){
-        /* .ft-tagline is gone from here: it no longer transitions anything, so there was
-           nothing left for this to disable. */
+        /* The tagline's entrance, neutralised. Scoped to .is-armed so it can actually win:
+           the armed rule is (0,2,0) and an unscoped .ft-tagline would be (0,1,0), which is
+           the specificity slip the hero's own reduced-motion block had to be corrected for.
+           The effect already returns before arming under this preference, so this is the
+           guard for the preference changing AFTER the class is on the node. */
+        .ft-tagline{transition:none}
+        .ft-tagline.is-armed{opacity:1;transform:none}
         /* Belt and braces. The effect already never arms under reduced motion, so this is
            the guard for the case where the preference changes after arming, when the class
            is already on the node. It kills the movement without hiding the dash. */
