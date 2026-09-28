@@ -190,12 +190,35 @@ class TestAuditMarkerPolicy:
             assert reason and len(reason) > 20, route
 
     def test_allowlist_holds_only_routes_that_cannot_authenticate(self, audit):
-        """A route lands here because auth is impossible or circular, not awkward."""
+        """A route lands here because auth is impossible or circular, not awkward.
+
+        This set is deliberately a LITERAL and deliberately duplicates
+        ``audit_route_auth.EXPECTED_PUBLIC_ROUTES``. The duplication IS the
+        control: "auth is impossible or circular" cannot be derived from source,
+        so the only enforcement available is that exempting a route from
+        authentication takes two edits in two files rather than one. Do not
+        "fix" this by computing the right-hand side from the audit module - that
+        makes the assertion vacuous and removes the one gate standing between a
+        new HTTP route and a permanently unauthenticated production endpoint.
+
+        Adding a line here is the second key. Turning it. Justify it.
+        """
         assert set(audit.EXPECTED_PUBLIC_ROUTES) == {
             "GET /{code}",
             "GET /r/{code}",
             "POST /auth/validate",
             "GET /webhook/sinch-rcs",
             "POST /webhook/sinch-rcs",
+            # An MCP client has no Cognito session and the protocol defines no
+            # place to carry one, so require_auth would make the endpoint
+            # unusable for its only purpose. Admitted because the capability to
+            # do harm is ABSENT rather than unpermitted: the handler imports no
+            # boto3 (asserted by test_mcp_server.py::
+            # test_the_handler_imports_no_aws_client) and its advertised tool
+            # list is compared for exact equality against a frozen read-only
+            # allowlist, so a tool that mutates or costs money per call fails
+            # the suite on the addition. If that ever changes, this line and the
+            # one in audit_route_auth.py both come out and /mcp moves behind
+            # require_auth. See docs/ai-discovery-surface.md.
             "ANY /mcp",
         }
