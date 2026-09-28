@@ -25,10 +25,16 @@ import React, { useEffect, useRef, useState } from 'react';
  * That loses the mock's syntax rainbow on purpose: one accent doing the work reads as
  * this site, five borrowed hues read as a different product embedded in it.
  *
- * THE STREAM IS aria-hidden AND GATED. It is illustrative, so a screen reader gets one
- * static summary instead of a stream of appearing nodes. It also only animates while
- * on screen and never under reduced motion - the mock looped forever unconditionally,
- * which on a homepage means a timer burning battery in a background tab.
+ * THE STREAM IS aria-hidden. It is illustrative, so a screen reader gets one static
+ * summary instead of a stream of appearing nodes.
+ *
+ * IT PLAYS ON LOAD AND LOOPS UNTIL STOPPED, on owner instruction. There is no scroll
+ * gate: it used to wait for a one-shot IntersectionObserver at 25% visibility, which
+ * meant "does it play?" depended on how the panel happened to enter the viewport. The
+ * only condition left is a reader pressing Pause. The background-tab objection that the
+ * gate was standing in for is answered directly instead, by `document.hidden` - see the
+ * visibility effect - which is both narrower and actually correct: an on-screen panel
+ * scrolled past is still on screen, a hidden tab never is.
  */
 
 type Result = { label: string; kind?: 'ok' | 'warn' };
@@ -141,6 +147,20 @@ const dwell = ( step: Step ): number => {
   return 1050;
 };
 
+/**
+ * Is this document in a tab nobody can see?
+ *
+ * visibilityState === 'hidden', NOT document.hidden, and the difference is not pedantry.
+ * `document.hidden` is true for ANY state that is not 'visible', which includes 'prerender'.
+ * jsdom reports exactly that - hidden true, visibilityState 'prerender' - so gating on
+ * `document.hidden` silently froze the whole sequence under test, and it would do the same to
+ * a prerendered page in a browser that still exposes that state. A prerender is a document
+ * heading for the screen, not one that left it. Only 'hidden' means the reader is elsewhere,
+ * and that is the only case worth stopping a timer for.
+ */
+const isHidden = (): boolean =>
+  typeof document !== 'undefined' && document.visibilityState === 'hidden';
+
 const WorkflowTerminal: React.FC = () => {
   // How many steps are on screen, and whether the last of them is still running.
   const [ shown, setShown ] = useState( 0 );
@@ -152,57 +172,69 @@ const WorkflowTerminal: React.FC = () => {
   const [ paused, setPaused ] = useState( false );
   const [ cycle, setCycle ] = useState( 0 );
   const [ run, setRun ] = useState( false );
+  /* Tab-level visibility, the one thing other than Pause that stops the stepper. It is not a
+   * reader-facing state: nobody is looking at a hidden tab, so stopping there is invisible,
+   * and `resumeRef` means coming back continues rather than restarts. */
+  const [ hidden, setHidden ] = useState( false );
   const rootRef = useRef<HTMLDivElement | null>( null );
   const streamRef = useRef<HTMLDivElement | null>( null );
 
-  // Only animate while visible, and never under reduced motion. The mock ran an
-  // unconditional infinite loop; on a homepage that is a timer in a background tab.
-  //
-  // Every state change here is SCHEDULED rather than called in the effect body.
-  // Writing setShown/setRun straight into the body is the
-  // react-hooks/set-state-in-effect error - the repo already carries 116 of those and
-  // this file is not adding more. It cannot be hoisted into a lazy useState initialiser
-  // either, because both branches read browser-only globals (matchMedia,
-  // IntersectionObserver) that are undefined during the static export and would
-  // hydrate to a different value than they render to. A timeout of 0 resolves both:
-  // the decision happens after commit, on the client, one frame later than paint,
-  // which is invisible for an element that starts empty anyway.
+  /* START PLAYING, FULL STOP. This effect used to decide WHETHER to play: a one-shot
+   * IntersectionObserver at 25% threshold held `run` false until the panel was scrolled into
+   * view. The owner's instruction is that the panel plays in a loop on its own, and a
+   * visibility gate is a condition on that - so the observer is gone and `run` is set
+   * unconditionally.
+   *
+   * REDUCED MOTION NOW STARTS PAUSED RATHER THAN DEAD. It still lands on the finished state,
+   * because the sequence is the decoration and the content is not - but it also sets `paused`
+   * and still sets `run`, which changes two things that were both defects. The control reads
+   * "Play" instead of offering to pause something that was never moving, and pressing it
+   * actually starts the loop. Before, `run` stayed false forever on that path, so the button
+   * was inert: a reader who has reduced motion set at the OS level but wants to watch this one
+   * illustration had no way to.
+   *
+   * EVERY STATE CHANGE HERE IS SCHEDULED rather than called in the effect body. Writing
+   * setShown/setRun straight into the body is the react-hooks/set-state-in-effect error - the
+   * repo already carries 116 of those and this file is not adding more. It cannot be hoisted
+   * into a lazy useState initialiser either, because the branch reads browser-only globals
+   * (matchMedia, visibilityState) that are undefined during the static export and would hydrate
+   * to a different value than they render to. A timeout of 0 resolves both: the decision happens
+   * after commit, on the client, one frame later than paint, which is invisible for an element
+   * that starts empty anyway.
+   */
   useEffect( () => {
     let cancelled = false;
-    let io: IntersectionObserver | null = null;
 
     const id = window.setTimeout( () => {
       if ( cancelled ) return;
 
+      setHidden( isHidden() );
+
       const reduce = typeof window.matchMedia === 'function'
         && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
       if ( reduce ) {
-        // Show the finished state outright: the sequence is the decoration, the
-        // content is not.
+        // The finished state, held: the sequence is the decoration, the content is not.
+        // `paused` rather than a missing `run`, so the control means something.
         setShown( STEPS.length );
         setSettled( STEPS.length );
         setDone( true );
-        return;
+        setPaused( true );
       }
-
-      const node = rootRef.current;
-      if ( !node || typeof IntersectionObserver !== 'function' ) { setRun( true ); return; }
-      // ONE-SHOT, AND IT DISCONNECTS. This used to toggle `run` on every intersection
-      // change, so scrolling the panel out and back in restarted the sequence from step 0 -
-      // which is both a visible glitch and, together with the loop that used to follow
-      // completion, the reason this panel moved without end.
-      // Firing once and disconnecting is the same pattern the closing band already uses on
-      // this page ("One-shot: it is an entrance, not a scroll effect"), so the two now agree.
-      io = new IntersectionObserver(
-        entries => {
-          if ( entries.some( e => e.isIntersecting ) ) { setRun( true ); io?.disconnect(); }
-        },
-        { threshold: 0.25 }
-      );
-      io.observe( node );
+      setRun( true );
     }, 0 );
 
-    return () => { cancelled = true; window.clearTimeout( id ); if ( io ) io.disconnect(); };
+    return () => { cancelled = true; window.clearTimeout( id ); };
+  }, [] );
+
+  /* THE BACKGROUND-TAB GUARD, which is what the removed scroll gate was really for. An
+   * infinite loop on a homepage should not keep stepping in a tab nobody is looking at; that
+   * objection is legitimate and predates this change. Tab visibility answers it exactly, where
+   * "scrolled 25% into view" only answered it by accident. Pressing nothing and coming back to
+   * the tab resumes mid-pass, because the stepper restarts from `resumeRef`. */
+  useEffect( () => {
+    const onVisibility = () => setHidden( isHidden() );
+    document.addEventListener( 'visibilitychange', onVisibility );
+    return () => document.removeEventListener( 'visibilitychange', onVisibility );
   }, [] );
 
   // The sequence. One chained timeout rather than an interval, so a slow frame cannot
@@ -250,7 +282,7 @@ const WorkflowTerminal: React.FC = () => {
     /* PAUSED MEANS NO STEPPER AT ALL. Returning before anything is scheduled is what makes the
      * pause real - a paused machine that still holds a pending timeout is just a slower machine.
      * The CSS halts the dot pulse separately; both are needed for WCAG 2.2.2. */
-    if ( !run || paused ) return undefined;
+    if ( !run || paused || hidden ) return undefined;
     let cancelled = false;
     let timer = 0;
 
@@ -286,8 +318,10 @@ const WorkflowTerminal: React.FC = () => {
          * tree, which trades one failure for a worse one. `paused` also short-circuits here,
          * so pausing stops the machine rather than just hiding its effect.
          *
-         * Reduced motion never reaches this line: that path sets the finished state directly
-         * and never sets `run`, so there is no loop to stop.
+         * Reduced motion does not reach this line unless it was asked to. That path starts on
+         * the finished state with `paused` set, so no loop runs - but `run` IS set now, so a
+         * reader who presses Play gets one. That is the preference respected by default and
+         * overridable on request, rather than a control that silently does nothing.
          */
         timer = window.setTimeout( () => {
           if ( cancelled ) return;
@@ -310,7 +344,30 @@ const WorkflowTerminal: React.FC = () => {
 
     step( resumeRef.current );
     return () => { cancelled = true; window.clearTimeout( timer ); };
-  }, [ run, paused, cycle ] );
+  }, [ run, paused, hidden, cycle ] );
+
+  /* PLAY HAS TO PLAY, and in two states it did not.
+   *
+   *   1. Pause pressed during the 3.2s "complete" hold left `resumeRef` at STEPS.length, so
+   *      Play re-entered the end branch: the panel then sat completely still for another 3.2s
+   *      before anything moved. Pressing Play and watching nothing happen for three seconds is
+   *      indistinguishable from a broken button.
+   *   2. A reduced-motion visitor starts on the finished state with every row settled, so
+   *      there was no frontier left to travel and the first thing Play could do was wait out a
+   *      dwell before rewinding.
+   *
+   * One fix for both: if the stream is already at its end, rewind the frontier on the way in so
+   * Play starts a pass. Pause is untouched - it is a stop, and it must not rewind anything, or
+   * it becomes the restart bug recorded above.
+   */
+  const togglePlay = () => {
+    if ( paused && ( done || resumeRef.current >= STEPS.length || settled >= STEPS.length - 1 ) ) {
+      resumeRef.current = 0;
+      setDone( false );
+      setSettled( -1 );
+    }
+    setPaused( p => !p );
+  };
 
   // Is the reader still following the tail, or have they scrolled back to read something?
   // Starts true because the panel begins at the top with the tail in view.
@@ -401,7 +458,7 @@ const WorkflowTerminal: React.FC = () => {
       <button
         type="button"
         className={ `wt-play ${paused ? 'is-paused' : ''}`.trim() }
-        onClick={ () => setPaused( p => !p ) }
+        onClick={ togglePlay }
         aria-pressed={ paused }
       >
         <span className="wt-play-mark" aria-hidden="true" />
@@ -947,8 +1004,11 @@ const WorkflowTerminal: React.FC = () => {
           .wt-request{font-size:12px}
         }
 
-        /* The sequence is already short-circuited in JS - every step is rendered at
-           once - so this only has to stop the decorative loops. */
+        /* Reduced motion starts on the finished state with the loop paused, so by default this
+           only has to stop the decorative loops. It also holds if that reader presses Play: the
+           steps still advance, because that is the content, but the entrance slide and the dot
+           pulse stay off. Asking to see the sequence is not the same as asking for the
+           flourishes around it, and the OS preference is still the tie-breaker on those. */
         @media(prefers-reduced-motion:reduce){
           .wt-step{animation:none}
           .wt-step.is-running .wt-dot{animation:none}
