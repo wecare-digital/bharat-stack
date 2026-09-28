@@ -72,12 +72,27 @@ indexPages.sort( ( a, b ) => ( a.n || 1 ) - ( b.n || 1 ) );
  * did, correctly by its own rules and wrongly about the site.
  *
  * Appended after the numeric sort so the paginated run stays in page order and the streams follow.
+ *
+ * THE STREAMS ARE PAGINATED NOW TOO, so their page/N/ directories have to be collected with the
+ * same care and for the same reason. Gastronomy grew from 40 posts to 90 and its single-page
+ * props reached 30.2 kB against the 128 kB threshold asserted at the bottom of this file, so the
+ * stream was split the way /blog/ already is. Collecting only /blog/topic/<slug>/ after that
+ * split would see the first 24 of 90 and call the other 66 unreachable - the identical failure
+ * this comment was written about, one level deeper.
  */
 const topicRoot = path.join( OUT, 'blog', 'topic' );
 if ( fs.existsSync( topicRoot ) ) {
   for ( const entry of fs.readdirSync( topicRoot ).sort() ) {
     const file = path.join( topicRoot, entry, 'index.html' );
     if ( fs.existsSync( file ) ) indexPages.push( { label: `/blog/topic/${entry}/`, file, topic: true } );
+    const streamPageRoot = path.join( topicRoot, entry, 'page' );
+    if ( !fs.existsSync( streamPageRoot ) ) continue;
+    for ( const n of fs.readdirSync( streamPageRoot ).sort( ( a, b ) => Number( a ) - Number( b ) ) ) {
+      const pageFile = path.join( streamPageRoot, n, 'index.html' );
+      if ( fs.existsSync( pageFile ) ) {
+        indexPages.push( { label: `/blog/topic/${entry}/page/${n}/`, file: pageFile, topic: true, topicPage: Number( n ) } );
+      }
+    }
   }
 }
 

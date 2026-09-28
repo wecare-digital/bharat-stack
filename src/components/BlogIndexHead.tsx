@@ -61,9 +61,22 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
    * their posts. Canonicalising them at /blog/ would point at a page that does not contain them.
    */
   if ( topic ) {
-    const url = `${ORIGIN}${topicHref}`;
-    const title = `${topic} | WECARE.DIGITAL Blog`;
-    const description = `${count ?? ''} ${count === 1 ? 'post' : 'posts'} on ${topic}, from WECARE.DIGITAL.`.trim();
+    /* THE STREAMS PAGINATE NOW, so this branch has to carry a page number the way the /blog/
+     * branch below already does. It used to assume one page per category and hardcode the
+     * canonical to topicHref, which after the split would have pointed all four pages of
+     * Gastronomy at page one - and a canonical means "index that URL instead of me", so the 66
+     * posts listed only on pages 2 to 4 would have had no indexable page linking to them. That is
+     * the exact mistake the note above records for /blog/page/N/; it applies here unchanged. */
+    const streamFirst = `${ORIGIN}${topicHref}`;
+    const url = `${ORIGIN}${blogPageHref( page, topicHref )}`;
+    const onFirst = page <= 1;
+    const title = onFirst
+      ? `${topic} | WECARE.DIGITAL Blog`
+      : `${topic} — page ${page} of ${totalPages} | WECARE.DIGITAL Blog`;
+    const base = `${count ?? ''} ${count === 1 ? 'post' : 'posts'} on ${topic}, from WECARE.DIGITAL.`.trim();
+    // A distinct description per page: several pages sharing one is what reads as duplicate
+    // content in a results list, which is the reasoning the /blog/ branch records.
+    const description = onFirst ? base : `${base} Page ${page} of ${totalPages}.`;
     const schema = {
       '@context': 'https://schema.org',
       '@graph': [
@@ -80,11 +93,22 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
         {
           '@type': 'BreadcrumbList',
           '@id': `${url}#breadcrumb`,
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
-            { '@type': 'ListItem', position: 2, name: 'Blog', item: `${ORIGIN}/blog/` },
-            { '@type': 'ListItem', position: 3, name: topic, item: url },
-          ],
+          // The category always points at the stream's FIRST page, and a page number is a fourth
+          // crumb beyond it - the same shape the /blog/ branch below uses, where "Page N" is
+          // appended rather than replacing "Blog". A trail whose category crumb pointed at page 3
+          // would describe the stream as living there.
+          itemListElement: onFirst
+            ? [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
+              { '@type': 'ListItem', position: 2, name: 'Blog', item: `${ORIGIN}/blog/` },
+              { '@type': 'ListItem', position: 3, name: topic, item: streamFirst },
+            ]
+            : [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
+              { '@type': 'ListItem', position: 2, name: 'Blog', item: `${ORIGIN}/blog/` },
+              { '@type': 'ListItem', position: 3, name: topic, item: streamFirst },
+              { '@type': 'ListItem', position: 4, name: `Page ${page}`, item: url },
+            ],
         },
       ],
     };
@@ -93,6 +117,8 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
         <title>{ title }</title>
         <meta name="description" content={ description } />
         <link rel="canonical" href={ url } />
+        { page > 1 && <link rel="prev" href={ `${ORIGIN}${blogPageHref( page - 1, topicHref )}` } /> }
+        { page < totalPages && <link rel="next" href={ `${ORIGIN}${blogPageHref( page + 1, topicHref )}` } /> }
         <meta property="og:type" content="website" />
         <meta property="og:title" content={ title } />
         <meta property="og:description" content={ description } />

@@ -828,6 +828,10 @@ export default function App ( { Component, pageProps }: AppProps ) {
   const isContentPublic = router.pathname === '/blog'
     || router.pathname === '/blog/page/[page]'
     || router.pathname === '/blog/topic/[topic]'
+    // The category streams paginate now - see src/pages/blog/topic/[topic]/page/[page].tsx.
+    // Without this line every page but the first of every stream renders an empty body at
+    // HTTP 200, which is the "404 that does not look like one" the note below describes.
+    || router.pathname === '/blog/topic/[topic]/page/[page]'
     || router.pathname === '/post/[slug]';
   // /faq and /partners are deliberately ABSENT. stack still lists them because this
   // branch's removal has not landed there yet; both pages were deleted on owner

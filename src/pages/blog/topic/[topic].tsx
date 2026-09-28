@@ -22,11 +22,14 @@ import { blogIndexProps, blogCategories, topicSlug, type BlogIndexPageProps } fr
  * everything else lives here. Every post is listed exactly once, the HTML is what the reader
  * sees, and the category pills are links that work with JavaScript off.
  *
- * NOT PAGINATED, and that is a measurement not an omission: the only non-default category is 40
- * posts, which is under two pages at 24 and about 7,800px - shorter than /terms/. Its props are
- * ~12 kB, well inside Next's 128 kB warning. If a category passes roughly 100 posts this needs
- * the same page/[page] treatment /blog/ has, and blogcheck's payload assertion is what will say
- * so rather than a person noticing.
+ * PAGINATED NOW, and this route is page 1 of its stream. It used to list a whole category on one
+ * page, documented as safe only while the streams were small and with the trigger written down:
+ * "If a category passes roughly 100 posts this needs the same page/[page] treatment /blog/ has,
+ * and blogcheck's payload assertion is what will say so rather than a person noticing."
+ * That arrived. Gastronomy is 90 posts, up from 40, and its single page measured 30.2 kB of props
+ * against the 128 kB threshold. Pages 2 and up live at /blog/topic/<slug>/page/N/, which is the
+ * same shape /blog/ and /blog/page/N/ already use, so the blog has one pagination rule rather
+ * than one rule and one exception.
  *
  * ROUTING: '/blog/topic/[topic]' must be in the isContentPublic check in _app.tsx or this
  * renders an empty body at HTTP 200, and '/blog/topic/' must be in PUBLIC_PREFIXES in
@@ -67,9 +70,8 @@ export const getStaticProps: GetStaticProps<BlogIndexPageProps> = async ( contex
    * stream at an old URL - it 404s, which is the honest answer. */
   const category = categories.find( c => topicSlug( c ) === slug );
   if ( !category || category === categories[ 0 ] ) return { notFound: true };
-  // wholeCategory: this stream is the only listing its posts appear on, so it must contain all
-  // of them. Without it the page took the first 24 of 40 and left 16 orphaned - blogcheck caught
-  // it, having gone from "40 unreachable" to "16 unreachable", which looks like progress and is
-  // still a broken export.
-  return { props: await blogIndexProps( 1, category, { wholeCategory: true } ) };
+  // Page 1 of the stream. The tail is emitted by the sibling page/[page] route, and every post
+  // stays listed exactly once because the two together cover the whole category - which is the
+  // property blogcheck asserts, and the reason the previous whole-category shortcut existed.
+  return { props: await blogIndexProps( 1, category ) };
 };

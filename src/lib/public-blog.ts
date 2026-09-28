@@ -131,6 +131,20 @@ async function fetchAllPosts (): Promise<PublicBlogPost[]> {
  * being dropped - a post with a missing date is a data problem, not a reason to hide it.
  */
 export function listBlogCards ( posts: PublicBlogPost[] ): BlogCard[] {
+  return orderPostsNewestFirst( posts ).map( toBlogCard );
+}
+
+/**
+ * The corpus in index order, still as FULL posts.
+ *
+ * Extracted from listBlogCards so there is exactly one definition of "newest first" on the site.
+ * The post page's newer/older pager walks the same sequence the index paginates, and it needs
+ * fields the card projection drops - `tags`, for related posts - so it cannot go through
+ * listBlogCards. Two comparators would be two orders, and the note above is explicit that order
+ * is load-bearing here: a pager that disagreed with the index by one would offer a reader a
+ * "newer" post that the listing shows as older.
+ */
+export function orderPostsNewestFirst ( posts: PublicBlogPost[] ): PublicBlogPost[] {
   return posts
     .slice()
     .sort( ( a, b ) => {
@@ -140,8 +154,7 @@ export function listBlogCards ( posts: PublicBlogPost[] ): BlogCard[] {
       if ( Number.isNaN( at ) ) return 1;
       if ( Number.isNaN( bt ) ) return -1;
       return bt - at;
-    } )
-    .map( toBlogCard );
+    } );
 }
 
 /** Total index pages for a post count. Always at least 1, so an empty blog still has /blog/. */

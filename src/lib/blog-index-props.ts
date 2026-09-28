@@ -64,22 +64,24 @@ export async function blogCategories (): Promise<string[]> {
  * once, the static HTML matches what the reader sees, the pills become real links that work
  * without JavaScript, and no index fetch is needed to change category.
  */
+/*
+ * `wholeCategory` IS GONE, AND THE CONDITION IT WAS WAITING FOR ARRIVED.
+ *
+ * It put a whole category on one page for the /blog/topic/ streams, because a stream is the only
+ * listing its posts appear on and paginating it without emitting the extra pages orphaned the
+ * tail - blogcheck went from "40 unreachable" to "16 unreachable", which looks like progress and
+ * is still a broken export. The option was documented as safe only while the streams were small,
+ * with the explicit trigger: "If a category passes roughly 100 posts this needs the same
+ * page/[page] treatment /blog/ has, and blogcheck's payload assertion is what will say so."
+ *
+ * Gastronomy is now 90 posts, up from 40, and its single page measured 30.2 kB of props against
+ * the 128 kB threshold. So the streams paginate like /blog/ does, at /blog/topic/<slug>/page/N/,
+ * and every page of every stream is emitted - which is what keeps the tail listed rather than
+ * orphaned. There is one pagination rule on the blog again instead of two.
+ */
 export async function blogIndexProps (
   page: number,
-  category?: string,
-  /**
-   * WHOLE CATEGORY ON ONE PAGE, for the /blog/topic/ streams.
-   *
-   * Without this the topic page took `page: 1` and got the first 24 of 40 Gastronomy posts, and
-   * blogcheck went from 40 unreachable to 16 - better, still broken, and for a reason that looks
-   * exactly like success if you only check that the route exists. A category stream is the ONLY
-   * listing its posts appear on, so it has to list all of them or the tail is orphaned.
-   *
-   * Safe because the streams are small: 40 posts is ~12 kB of props against Next's 128 kB
-   * threshold, and blogcheck asserts that threshold. When a category outgrows it, this needs the
-   * same page/[page] treatment /blog/ has, and the assertion is what will say so.
-   */
-  opts: { wholeCategory?: boolean } = {}
+  category?: string
 ): Promise<BlogIndexPageProps> {
   const all = await listPublicBlogPosts();
   const everyCard = listBlogCards( all );
@@ -88,8 +90,8 @@ export async function blogIndexProps (
   const active = category || categories[ 0 ] || '';
 
   const cards = active ? everyCard.filter( c => c.category === active ) : everyCard;
-  const perPage = opts.wholeCategory ? Math.max( cards.length, 1 ) : POSTS_PER_PAGE;
-  const totalPages = opts.wholeCategory ? 1 : blogPageCount( cards.length );
+  const perPage = POSTS_PER_PAGE;
+  const totalPages = blogPageCount( cards.length );
   const start = ( page - 1 ) * perPage;
 
   /**
