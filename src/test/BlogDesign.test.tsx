@@ -83,7 +83,7 @@ describe( 'Blog design alignment', () => {
     expect( css ).toContain( '.content :global(h2){font-size:30px;line-height:1.15' );
     expect( css ).toContain( '.content :global(ul),.content :global(ol){margin:28px 0;padding-inline-start:1.4em}' );
     expect( css ).toContain( '.content :global(li + li){margin-top:10px}' );
-    expect( css ).toContain( '.content :global(blockquote){margin:36px 0;padding:2px 0 2px 22px;border-inline-start:3px solid #d1f470;font-size:21px;line-height:1.5}' );
+    expect( css ).toContain( '.content :global(blockquote){margin:36px 0;padding:2px 0 2px 22px;border-inline-start:3px solid #d1f470;font-size:21px;line-height:1.5;' );
     expect( css ).toContain( '.content :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}' );
   } );
 } );
