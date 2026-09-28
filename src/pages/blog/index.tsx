@@ -1,4 +1,5 @@
 import type { GetStaticProps } from 'next';
+import { useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { listPublicBlogPosts, PublicBlogPost } from '../../lib/public-blog';
@@ -25,6 +26,14 @@ interface Props {
 export default function BlogIndex ( { posts }: Props ) {
   const canonical = 'https://wecare.digital/blog/';
   const DESCRIPTION = 'Ideas, guides and updates from WECARE.DIGITAL.';
+  const categories = useMemo(
+    () => Array.from( new Set( posts.map( post => post.category ).filter( Boolean ) as string[] ) ).sort( ( a, b ) => a.localeCompare( b ) ),
+    [ posts ]
+  );
+  const [ activeCategory, setActiveCategory ] = useState( 'All' );
+  const visiblePosts = activeCategory === 'All'
+    ? posts
+    : posts.filter( post => post.category === activeCategory );
 
   const schema = {
     '@context': 'https://schema.org',
@@ -72,8 +81,30 @@ export default function BlogIndex ( { posts }: Props ) {
         </section>
 
         { posts.length > 0 ? (
-          <section className="post-grid" aria-label="Published posts">
-            { posts.map( post => (
+          <>
+            { categories.length > 1 && (
+              <nav className="category-switch" aria-label="Filter posts by category">
+                <button
+                  type="button"
+                  aria-pressed={ activeCategory === 'All' }
+                  onClick={ () => setActiveCategory( 'All' ) }
+                >
+                  All
+                </button>
+                { categories.map( category => (
+                  <button
+                    key={ category }
+                    type="button"
+                    aria-pressed={ activeCategory === category }
+                    onClick={ () => setActiveCategory( category ) }
+                  >
+                    { category }
+                  </button>
+                ) ) }
+              </nav>
+            ) }
+            <section className="post-grid" aria-label="Published posts">
+            { visiblePosts.map( post => (
               <article key={ post.id || post.slug } className="post-card">
                 <div className="post-copy">
                   { post.category && <span className="category">{ post.category }</span> }
@@ -92,7 +123,8 @@ export default function BlogIndex ( { posts }: Props ) {
                 </div>
               </article>
             ) ) }
-          </section>
+            </section>
+          </>
         ) : (
           <div className="empty">No posts have been published yet.</div>
         ) }
@@ -102,6 +134,11 @@ export default function BlogIndex ( { posts }: Props ) {
         .blog-hero{max-width:720px;margin-bottom:64px}
         h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;margin:0 0 24px;color:rgba(0,0,0,.95);text-wrap:balance}
         .blog-hero>p{font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898);margin:0;max-width:560px}
+        .category-switch{display:flex;gap:8px;overflow-x:auto;margin:0 0 28px;padding:2px 0 6px;scrollbar-width:thin}
+        .category-switch button{flex:0 0 auto;min-height:38px;padding:0 14px;border:1px solid #d1d5db;border-radius:999px;background:#fff;color:#1a3a2a;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
+        .category-switch button:hover{border-color:#d1f470;transform:translateY(-1px)}
+        .category-switch button[aria-pressed="true"]{background:#d1f470;border-color:#d1f470}
+        .category-switch button:focus-visible{outline:3px solid rgba(26,58,42,.25);outline-offset:3px}
         .post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
         .post-card{border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff;transition:border-color .18s ease,transform .18s ease}
         .post-card:hover{border-color:#d1f470;transform:translateY(-1px)}
@@ -118,6 +155,7 @@ export default function BlogIndex ( { posts }: Props ) {
         @media(max-width:680px){
           .blog-shell{padding:128px 16px 64px}
           .blog-hero{margin-bottom:44px}
+          .category-switch{margin-bottom:22px}
           .post-grid{grid-template-columns:1fr;gap:18px}
           .post-copy{padding:22px}
           h2{font-size:22px}
