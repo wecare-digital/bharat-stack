@@ -3,7 +3,11 @@ Cost-control feature flags. All default FALSE. Read from env first, then SystemC
 
 Usage:
     from lambda_utils.cost_flags import is_enabled
-    if is_enabled('ENABLE_WAF'): ...
+    if is_enabled('ENABLE_CLOUDFRONT'): ...
+
+`ENABLE_WAF` was removed on 2026-09-28. WAF itself was deleted from the account as a
+cost decision, and the CDK resource the flag gated is gone, so the flag could only
+have misreported a capability that no longer exists.
 """
 import os
 import json
@@ -13,7 +17,7 @@ from typing import Dict
 import boto3
 
 FLAGS = [
-    'ENABLE_WAF', 'ENABLE_CLOUDFRONT', 'ENABLE_STEP_FUNCTIONS', 'ENABLE_ATHENA_ANALYTICS',
+    'ENABLE_CLOUDFRONT', 'ENABLE_STEP_FUNCTIONS', 'ENABLE_ATHENA_ANALYTICS',
     'ENABLE_GLUE', 'ENABLE_TEXTRACT_IMPORT', 'ENABLE_BEDROCK_ASSIST', 'ENABLE_XRAY',
     'ENABLE_ADVANCED_CLOUDWATCH_DASHBOARD', 'ENABLE_RAW_WEBHOOK_ARCHIVE',
 ]

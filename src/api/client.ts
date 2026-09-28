@@ -1739,7 +1739,6 @@ const FREE_TIER_LIMITS: Record<string, { limit: string; unit: string }> = {
   'Amazon OpenSearch Service': { limit: 'Serverless free tier', unit: 'operations' },
   'Meta WhatsApp Cloud API': { limit: 'Pay per conversation', unit: 'conversations' },
   'Amazon Route 53': { limit: '$0.50/zone', unit: 'queries' },
-  'AWS WAF': { limit: 'Pay per rule', unit: 'requests' },
   'AWS Certificate Manager': { limit: 'Free public certs', unit: 'certificates' },
   'AWS CloudFormation': { limit: 'Free', unit: 'stacks' },
   'AWS Secrets Manager': { limit: '$0.40/secret/month', unit: 'secrets' },

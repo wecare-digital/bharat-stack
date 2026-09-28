@@ -1558,7 +1558,8 @@ def _get_cost_flags() -> Dict:
         flags = {}
     # Static cost-risk metadata for the UI (kept here so the page needs no second call).
     meta = {
-        'ENABLE_WAF': {'risk': 'medium', 'service': 'AWS WAF'},
+        # No ENABLE_WAF entry: WAF was deleted from the account on 2026-09-28 and the
+        # flag was removed from lambda_utils.cost_flags.FLAGS with it.
         'ENABLE_CLOUDFRONT': {'risk': 'medium', 'service': 'CloudFront'},
         'ENABLE_STEP_FUNCTIONS': {'risk': 'medium', 'service': 'Step Functions'},
         'ENABLE_ATHENA_ANALYTICS': {'risk': 'high', 'service': 'Athena'},

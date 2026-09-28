@@ -341,12 +341,6 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
     accountId: AWS_ACCOUNT_ID,
     details: [ 'Default encryption keys' ]
   },
-  'AWS WAF': {
-    arn: `arn:aws:wafv2:${AWS_REGION}:${AWS_ACCOUNT_ID}:*`,
-    accountId: AWS_ACCOUNT_ID,
-    details: [ 'Not currently used' ]
-  },
-
   // MONITORING & MANAGEMENT
   'CloudWatch': {
     arn: `arn:aws:logs:${AWS_REGION}:${AWS_ACCOUNT_ID}:log-group:*`,

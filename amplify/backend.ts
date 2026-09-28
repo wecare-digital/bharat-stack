@@ -25,7 +25,6 @@ import * as iam from 'aws-cdk-lib/aws-iam';
  * Additional CDK resources:
  * - SQS Queues (4): inbound-dlq, bulk-queue, bulk-dlq, outbound-dlq
  * - CloudWatch Alarms, Dashboard, Log Retention
- * - WAF Web ACL for webhook endpoints
  * - URL Shortener (wecare.digital/r, plus the r.wecare.digital alias):
  *   API Gateway + Lambda + DynamoDB + Route53
  * - Durable Admin SEO audit/log storage and Lambda
@@ -146,7 +145,7 @@ addLinkResources( dataStack );
 /**
  * Backend Infrastructure Resources
  * Creates SQS queues, CloudWatch alarms/dashboard, log retention,
- * WAF Web ACL, and per-Lambda error alarms.
+ * and per-Lambda error alarms.
  */
 addBackendResources( dataStack );
 

@@ -93,9 +93,10 @@ const CostControls: React.FC<PageProps> = ( { signOut, user, embedded = false } 
                     </table>
                 ) }
                 <p style={ { fontSize: 12, color: '#888', marginTop: 12 } }>
-                    To enable a flag: set its env var (e.g. <code>ENABLE_WAF=true</code>) in the Amplify backend, or the
-                    <code> cost_flags</code> SystemConfig record, then redeploy. WAF is intentionally off — webhook endpoints are
-                    protected by HMAC signature verification + Lambda rate limiting.
+                    To enable a flag: set its env var (e.g. <code>ENABLE_CLOUDFRONT=true</code>) in the Amplify backend, or the
+                    <code> cost_flags</code> SystemConfig record, then redeploy. There is no WAF flag: AWS WAF was removed from
+                    this account on 2026-09-28 as a cost decision, so endpoints are protected by HMAC signature verification
+                    and Lambda-side rate limiting only.
                 </p>
                 <RawJsonDrawer data={ data } label="Raw flags response" />
             </div>

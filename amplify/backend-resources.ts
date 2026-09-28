@@ -11,7 +11,6 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cloudwatch_actions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import { Duration } from 'aws-cdk-lib';
@@ -266,56 +265,18 @@ export function addBackendResources ( stack: Stack ) {
     targets: [ new targets.SnsTopic( alarmTopic ) ],
   } );
 
-  // ─── WAF Web ACL for Webhook Endpoints (cost-gated) ────────────────
-  // Part 6: WAF is a paid resource (~$5/web ACL + $1/rule per month + per-request).
-  // Only created when ENABLE_WAF=true so it is OFF by default. Removing it on a
-  // deploy drops webhook rate-limiting — Lambda-side rate_limit + HMAC signature
-  // verification still apply regardless. See docs/AWS_COST_CONTROL.md.
-  const ENABLE_WAF = process.env.ENABLE_WAF === 'true';
-  const webhookWaf = ENABLE_WAF ? new wafv2.CfnWebACL( stack, 'WebhookWAF', {
-    name: 'wecare-webhook-waf',
-    scope: 'REGIONAL',
-    defaultAction: { allow: {} },
-    visibilityConfig: {
-      cloudWatchMetricsEnabled: true,
-      metricName: 'wecare-webhook-waf',
-      sampledRequestsEnabled: true,
-    },
-    rules: [
-      {
-        name: 'RateLimit',
-        priority: 1,
-        action: { block: {} },
-        visibilityConfig: {
-          cloudWatchMetricsEnabled: true,
-          metricName: 'wecare-waf-rate-limit',
-          sampledRequestsEnabled: true,
-        },
-        statement: {
-          rateBasedStatement: {
-            limit: 2000,
-            aggregateKeyType: 'IP',
-          },
-        },
-      },
-      {
-        name: 'AWSManagedRulesCommonRuleSet',
-        priority: 2,
-        overrideAction: { none: {} },
-        visibilityConfig: {
-          cloudWatchMetricsEnabled: true,
-          metricName: 'wecare-waf-common-rules',
-          sampledRequestsEnabled: true,
-        },
-        statement: {
-          managedRuleGroupStatement: {
-            vendorName: 'AWS',
-            name: 'AWSManagedRulesCommonRuleSet',
-          },
-        },
-      },
-    ],
-  } ) : undefined;
+  // ─── WAF ────────────────────────────────────────────────────────────
+  // Removed 2026-09-28 by owner instruction, as a cost decision. There is no
+  // WAF in this account any more: the `WebhookWAF` ACL that used to be declared
+  // here (ENABLE_WAF-gated, never switched on) is gone, and so are the two ACLs
+  // that WERE live — `wecare-amplify-waf` and `wecare-cognito-waf`. Do not
+  // re-add a web ACL here without reading
+  // docs/execution/snapshots/waf-associations-before-delete-20260928.json,
+  // which records what was removed and what protection went with it.
+  // Restore path for the live ACLs: `python3 scripts/provision_waf.py --apply`.
+  // Request filtering now rests entirely on the application: handler-level
+  // require_auth, provider HMAC verification, lambda_utils/rate_limit.py, the
+  // per-phone OTP probe counter, and API Gateway stage/route throttling.
 
   return {
     queues: {
@@ -333,6 +294,5 @@ export function addBackendResources ( stack: Stack ) {
       perLambdaAlarms,
     },
     rules: { amplifyBuildFailedRule },
-    waf: webhookWaf,
   };
 }
