@@ -586,8 +586,24 @@ const WorkflowTerminal: React.FC = () => {
            is which service ran, not which phase of a plan it was. */
         .wt-svc{padding:2px 7px;border-radius:4px;background:rgba(209,244,112,.14);border:1px solid rgba(209,244,112,.34);color:#d1f470;font-size:11.5px;letter-spacing:.02em}
         .wt-name{color:#fff;font-size:15px;font-weight:600}
-        .wt-name.is-complete{color:#d1f470}
-        .wt-tick{color:#d1f470}
+        /* THE COMPLETED NAME AND ITS TICK TAKE THE STEP'S OWN HUE, not lime.
+           Both were #d1f470 while the dots were lime too, so the row agreed with itself. Once the
+           dots became one hue per service, lime here was the last thing in the panel still
+           claiming the old meaning - and measured, only ONE row was affected: names are #fff on
+           steps 1-7 and lime only on step 8, the is-complete one. So "the text is still lime" was
+           three separate things - this name, this tick, and the .wt-svc pill.
+
+           THE PILL IS DELIBERATELY NOT IN THIS RULE. Owner's instruction, and it is the right
+           call: the pill is a repeated label carrying the service's own name, and giving it five
+           colours would turn a label into a legend the reader is expected to decode. It stays
+           lime on all eight - see the note on .wt-svc.
+
+           COST, STATED: a completed name goes from white at 21:1 on this panel to its own hue,
+           and the lowest of the five is blue at 4.06:1. Well clear of 4.5:1 for 15px/600 text, but
+           it is a real reduction on the panel's primary text and worth knowing rather than
+           discovering. State is not carried by this colour either way - the pulse, the tick glyph
+           and the footer's "running"/"complete" wording do that. */
+        .wt-name.is-complete,.wt-tick{color:var(--dot)}
         /* .46 IS 4.58:1 ON THIS PANEL - eight hundredths above the 4.5:1 floor for text this
            size, and the tightest margin anywhere on the home page. Left alone deliberately,
            and the reason is the rung below it: .wt-infra was raised from .44 to .50 when it

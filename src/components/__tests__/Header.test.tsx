@@ -117,7 +117,27 @@ describe( 'Header', () => {
 
     expect( css ).toContain( 'box-sizing:border-box;height:108px' );
     expect( css ).toContain( '@media(max-width:767px){.hdr-in{height:96px' );
-    expect( css ).toContain( ".nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}" );
+
+    /*
+     * THE TRIGGER'S ACTIVE STATE INVERTS NOW. This asserted
+     *   .nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}
+     * and that value is exactly what was wrong with it. Over the white header that tint
+     * composites to rgb(245,253,224), which measures 1.032:1 against the chip's own #f4f7ee - an
+     * RGB move of 15 out of a possible 441. The test was pinning a state change that was not
+     * perceptible, which is how it survived a report of "no hover effect".
+     *
+     * Lime cannot fix it either: lime is a LIGHT colour, so measured against #f4f7ee the solid
+     * #d1f470 still only reaches 1.15:1. Only an inversion gives a luminance step - #1a3a2a is
+     * 11.52:1 - so hover, focus-visible and expanded now share one dark fill with the chevron
+     * flipping to lime at 10.04:1 on it.
+     *
+     * Asserted as one rule covering all three states, because the defect was partly that they
+     * were separate declarations drifting apart.
+     */
+    expect( css ).toContain( ".nav-trigger:hover,.nav-trigger:focus-visible,.nav-trigger[aria-expanded='true']" );
+    expect( css ).toContain( 'background:#1a3a2a;border-color:#1a3a2a' );
+    // And the chevron inverts with it, or it would be dark-on-dark.
+    expect( css ).toContain( 'border-right-color:#d1f470;border-bottom-color:#d1f470;opacity:1' );
 
     // The dropdown control is a CSS-drawn chevron, not a text triangle. The old
     // literal glyph rendered nothing but a font character, so its shape and

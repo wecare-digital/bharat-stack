@@ -75,6 +75,43 @@ const VIEWPORTS = [
       } );
       note( `${vp.label}: footer on screen at load`, String( inViewAtLoad ) );
 
+      /*
+       * WHERE THE LINE CAN ACTUALLY BE, AND WHETHER THE REVEAL REPLAYS. Two assertions this file
+       * was blind to for its whole life, because every check above reaches the footer with
+       * scrollIntoView - which parks the element at block:center, a position a reader cannot
+       * reach on this page.
+       *
+       * Measured: at MAXIMUM scroll the tagline sits 92% down the viewport, at every width from
+       * 1280x900 to 2560x1600, because it lives at the bottom of a ~2090px document. It is never
+       * on screen at load. So the only moment it can play is the moment a reader hits the end of
+       * the page, while they are usually still scrolling - and the observer used to
+       * io.disconnect() on that first intersection, so there was no second chance for the rest of
+       * the page view. That single line is what made a working animation invisible.
+       *
+       * This asserts the replay, by scrolling away and back the way a reader would.
+       */
+      const replay = await page.evaluate( async () => {
+        const el = document.querySelector( '.ft-tagline' );
+        const bottom = () => window.scrollTo( 0, document.documentElement.scrollHeight );
+        const wait = ms => new Promise( r => setTimeout( r, ms ) );
+        bottom(); await wait( 450 );
+        const first = el.classList.contains( 'is-in' );
+        window.scrollTo( 0, 0 ); await wait( 450 );
+        const rearmed = el.classList.contains( 'is-armed' ) && !el.classList.contains( 'is-in' );
+        bottom(); await wait( 450 );
+        const second = el.classList.contains( 'is-in' );
+        const r = el.getBoundingClientRect();
+        return { first, rearmed, second, pctDown: Math.round( 100 * r.top / window.innerHeight ) };
+      } );
+
+      if ( replay.first && replay.rearmed && replay.second ) {
+        ok( `${vp.label}: the reveal replays on returning to the footer`, 're-arms on exit, plays again on re-entry' );
+      } else {
+        bad( `${vp.label}: the reveal replays on returning to the footer`, `first=${replay.first} re-armed=${replay.rearmed} second=${replay.second} - a one-shot here is invisible, because the line can only ever be reached mid-scroll` );
+      }
+
+      note( `${vp.label}: best position the line can reach`, `${replay.pctDown}% down the viewport - it cannot be scrolled higher` );
+
       /* Arrive at the footer the way a reader does. */
       await page.evaluate( () => document.querySelector( '.ft-dash' ).scrollIntoView( { block: 'center' } ) );
       // 2600ms: the rise is 560ms and the colour sweep runs 420-1570ms, so this samples the

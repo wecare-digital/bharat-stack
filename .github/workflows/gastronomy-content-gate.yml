@@ -1,0 +1,88 @@
+name: Gastronomy content gate
+
+on:
+  pull_request:
+    branches: [ stack ]
+    paths:
+      - 'content/gastronomy/**'
+      - 'scripts/gastronomy_batch.py'
+      - 'tests/test_gastronomy_batch.py'
+      - '.github/workflows/gastronomy-content-gate.yml'
+  push:
+    branches: [ gastronomy-publishing ]
+    paths:
+      - 'content/gastronomy/**'
+      - 'scripts/gastronomy_batch.py'
+      - 'tests/test_gastronomy_batch.py'
+      - '.github/workflows/gastronomy-content-gate.yml'
+  workflow_dispatch:
+    inputs:
+      manifest:
+        description: 'Batch manifest path'
+        required: true
+        default: 'content/gastronomy/batches/GAST-041-GAST-065.json'
+        type: string
+      publish:
+        description: 'Publish validated batch to Wix and audit it'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check pytest boto3
+      - name: Run Gastronomy contract tests
+        run: python -m pytest tests/test_gastronomy_batch.py -q
+      - name: Validate committed batch manifests
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(content/gastronomy/batches/GAST-*.json)
+          if (( ${#files[@]} == 0 )); then
+            echo "No Gastronomy batch manifests committed yet."
+            exit 0
+          fi
+          for file in "${files[@]}"; do
+            python scripts/gastronomy_batch.py validate --manifest "$file"
+          done
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == true
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: us-east-1
+      WIX_API_KEY_SECRET: wecare/wix/headless-api-key
+      WIX_SITE_ID: fcd82f0c-9572-49c7-acfb-88fb05042ece
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install publish dependencies
+        run: python -m pip install --disable-pip-version-check boto3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::775261844268:role/GitHubActions-bharat-stack-seo-tools
+          role-session-name: gastronomy-publisher
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Validate requested manifest
+        run: python scripts/gastronomy_batch.py validate --manifest "${{ inputs.manifest }}"
+      - name: Publish only missing Wix posts
+        run: python scripts/gastronomy_batch.py publish --manifest "${{ inputs.manifest }}"
+      - name: Audit published posts through public-blog backend
+        run: python scripts/gastronomy_batch.py audit --manifest "${{ inputs.manifest }}"
