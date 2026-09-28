@@ -168,9 +168,37 @@ const HomePage: React.FC = () => {
   // classList on the node itself.
   const closeRef = useRef<HTMLElement | null>( null );
 
+  // The hero's entrance is armed through this node, for the same reason the closing band is
+  // armed through closeRef: the class that hides the start state must be added by JavaScript,
+  // never shipped in the markup, or the pill is blank whenever the script does not run.
+  const layoutRef = useRef<HTMLDivElement | null>( null );
+
   useEffect( () => {
     // One-shot entrance, same 60ms beat as VayuLok. No observer: there is a single
     // block above the fold, so there is nothing to reveal on scroll.
+    //
+    // THE ENTRANCE IS OPT-IN, AND THAT IS THE WHOLE POINT - the same inversion the closing
+    // band already uses. The CSS now ships the FINISHED pill: shutter gone, dot popped. This
+    // effect adds .is-armed, which is what puts it back to the start state, and it only does
+    // so once it knows the animation can actually play. So the failure modes all degrade to
+    // "no animation" rather than "no content": without JavaScript, with a failed bundle, or
+    // under reduced motion, the pill renders complete.
+    //
+    // Previously the shutter defaulted to scaleX(1) and the dot to scale(0), with .show
+    // removing them - so anything that stopped .show arriving left the headline followed by a
+    // blank white lozenge, permanently. Measured with scripting disabled.
+    //
+    // classList rather than state, deliberately: this is a visual side-effect that changes
+    // nothing React renders, which is the case the react-hooks/set-state-in-effect rule
+    // exists to steer away from state. The closing band's reveal takes the same approach for
+    // the same reason.
+    const el = layoutRef.current;
+    if ( !el ) return undefined;
+    const reduce = typeof window.matchMedia === 'function'
+      && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
+    // Leave the finished state alone - there is nothing to animate.
+    if ( reduce ) return undefined;
+    el.classList.add( 'is-armed' );
     const id = window.setTimeout( () => setShown( true ), 60 );
     return () => window.clearTimeout( id );
   }, [] );
@@ -285,7 +313,7 @@ const HomePage: React.FC = () => {
           which is the only reason to name a landmark at all. A page with a single <main>
           and an <h1> needs no accessible name; the h1 already describes it. */}
       <main className="home-shell">
-        <div className={ `home-layout ${shown ? 'show' : ''}`.trim() }>
+        <div className={ `home-layout ${shown ? 'show' : ''}`.trim() } ref={ layoutRef }>
           <div className="home-hero">
             {/* THE LIME BRAND BADGE WAS HERE AND IT REPEATED THE HEADER.
                 It rendered the same bag mark at 18px plus WECARE.DIGITAL at 14px/600,
@@ -785,8 +813,19 @@ const HomePage: React.FC = () => {
           background:#d1f470;color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
           transition:opacity .5s ease,transform .5s ease,background-color .2s,box-shadow .2s;
         }
-        .home-close.is-armed .home-close-cta{opacity:0;transform:translateY(8px)}
-        .home-close.is-armed.is-in .home-close-cta{opacity:1;transform:none;transition-delay:.62s}
+        /* visibility:hidden ALONGSIDE opacity:0, because opacity ALONE DOES NOT REMOVE AN
+           ELEMENT FROM THE TAB ORDER. This is the page's only focusable element, and between
+           the band arming and the band scrolling into view it was a Tab stop on a control
+           nobody could see: focus landed, the ring drew at 1697px down the page, and there
+           was nothing at that position to look at. A keyboard visitor's first Tab into the
+           main content went to an invisible button.
+           visibility is inherited and it does remove an element from the tab order, which is
+           exactly what is wanted here - the button is not merely transparent during the
+           entrance, it is not yet present. It is also discretely animatable, so it flips at
+           the start of the reveal rather than fading, and the opacity transition still does
+           the visible work. */
+        .home-close.is-armed .home-close-cta{opacity:0;visibility:hidden;transform:translateY(8px)}
+        .home-close.is-armed.is-in .home-close-cta{opacity:1;visibility:visible;transform:none;transition-delay:.62s}
         .home-close-cta:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
         /* THE FOCUS RING IS OPAQUE. It was rgba(26,58,42,.22), which over this panel's lime
            tint composites to 1.51:1 against the 3:1 WCAG 1.4.11 asks of a focus indicator -
@@ -807,6 +846,10 @@ const HomePage: React.FC = () => {
           .home-close.is-armed .home-close-rule{transform:scaleX(1)}
           .home-close.is-armed .home-close-points li,
           .home-close.is-armed .home-close-cta{opacity:1;transform:none}
+          /* visibility too, or a reduced-motion visitor whose preference changed after
+             arming would get a CTA that is opaque but still visibility:hidden - present in
+             the layout, absent from the tab order, and invisible. */
+          .home-close.is-armed .home-close-cta{visibility:visible}
           .home-close-cta:hover{transform:none}
         }
 
@@ -955,15 +998,28 @@ const HomePage: React.FC = () => {
           transition:background-color .52s cubic-bezier(.16,1,.3,1);
         }
         /* White shutter that wipes off to the left on entrance, so the tint appears
-           to fill in rather than simply switching on. */
+           to fill in rather than simply switching on.
+
+           THE DEFAULT IS THE FINISHED STATE - scaleX(0), shutter gone - AND THAT INVERSION
+           IS THE FIX. It used to default to scaleX(1): a white panel covering the tint, with
+           .home-layout.show removing it once JavaScript had run. So the entrance was OPT-OUT,
+           and anything that stopped the class arriving left the pill permanently blank - no
+           JS, a failed bundle, a hydration error. Measured with scripting disabled: the
+           headline read "Everyday AI, built for" followed by a white lozenge.
+           The closing band already does this the right way round and says so at length; this
+           is the same pattern. CSS ships what the visitor should end up with, and JavaScript
+           adds .is-armed only once it has confirmed it can animate - which is what hides the
+           start state. The effect is purely additive, so no JS means no animation rather than
+           no content. */
         .home-mark::before{
           content:'';position:absolute;inset:0;
           background:#fff;border-radius:9999px;
-          transform:scaleX(1);transform-origin:right center;
+          transform:scaleX(0);transform-origin:right center;
           transition:transform .78s cubic-bezier(.16,1,.3,1) .18s;
           z-index:0;
         }
-        .home-layout.show .home-mark::before{transform:scaleX(0)}
+        .home-layout.is-armed .home-mark::before{transform:scaleX(1)}
+        .home-layout.is-armed.show .home-mark::before{transform:scaleX(0)}
         /* .33em matches the dot-to-headline ratio measured on notion.com; the tight
            .18em gap keeps it reading as attached to the word. */
         .home-mark-dot{
@@ -974,10 +1030,13 @@ const HomePage: React.FC = () => {
              the word is on. margin-right put the gap behind the dot in Arabic and let the
              dot touch the glyph it is meant to be spaced from. */
           margin-inline-end:.18em;vertical-align:.14em;
-          transform:scale(0);
+          /* scale(1) BY DEFAULT, for the same reason as the shutter above: scale(0) was the
+             start state, so without JavaScript the dot never appeared at all. */
+          transform:scale(1);
           transition:transform .5s cubic-bezier(.34,1.56,.64,1) .72s;
         }
-        .home-layout.show .home-mark-dot{transform:scale(1)}
+        .home-layout.is-armed .home-mark-dot{transform:scale(0)}
+        .home-layout.is-armed.show .home-mark-dot{transform:scale(1)}
         /* Width is animated from the measured word so the pill glides between
            "Service" and "Intelligence" instead of snapping. overflow:hidden is what
            clips the outgoing word as it slides. */
@@ -1037,15 +1096,17 @@ const HomePage: React.FC = () => {
            its resting state so nothing is mid-transition. */
         @media(prefers-reduced-motion:reduce){
           .home-mark::before,.home-mark-dot{transition:none}
-          /* scaleX(0), NOT scaleX(1). The shutter's resting state is GONE - scaleX(1) is the
-             START state, a white panel covering the tint, which is what this rule used to
-             set. It never bit only because .home-layout.show .home-mark::before scores
-             (0,2,1) against this rule's (0,1,1) and a media query adds no specificity, so
-             the correct value won by accident. Any edit to the .show rule would have handed
-             every reduced-motion visitor a blank white pill. The dot's sibling rule below
-             was always right, which is what marked this as a slip rather than a theory. */
-          .home-mark::before{transform:scaleX(0)}
-          .home-mark-dot{transform:scale(1)}
+          /* Belt and braces, and now SCOPED TO .is-armed so it can actually win.
+             These used to read .home-mark::before and .home-mark-dot unscoped, which scored
+             (0,1,1) against .home-layout.show .home-mark::before at (0,2,1) - so the correct
+             value won only by accident of what the .show rule happened to set, and any edit
+             to it would have handed every reduced-motion visitor a blank white pill.
+             Both resting states are now the CSS default, so this block no longer has to
+             establish them. What it still has to do is beat .home-layout.is-armed, for the
+             one case the JS cannot cover: the preference changing AFTER the class is on the
+             node. Matching the armed selector's specificity is what makes that work. */
+          .home-layout.is-armed .home-mark::before{transform:scaleX(0)}
+          .home-layout.is-armed .home-mark-dot{transform:scale(1)}
           .home-cycle{transition:none}
           .home-cyc-word{transition:none}
         }
