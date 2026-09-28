@@ -117,3 +117,34 @@ def test_live_audit_rejects_literal_markdown_and_missing_structure():
     assert 'Ingredients heading' in joined
     assert 'Method heading' in joined
     assert 'ingredient list' in joined
+
+
+def test_initial_progress_state_is_valid_and_advances_one_batch():
+    m = load_module()
+    progress = {
+        'completed_through': 40,
+        'next_id': 41,
+        'batch_size': 25,
+        'total': 340,
+        'last_batch': 'GAST-031-GAST-040',
+    }
+    assert m.validate_progress(progress) == []
+    advanced = m.advance_progress(progress, 41, 65)
+    assert advanced['completed_through'] == 65
+    assert advanced['next_id'] == 66
+    assert advanced['last_batch'] == 'GAST-041-GAST-065'
+
+
+def test_progress_refuses_skipped_or_partial_batch():
+    m = load_module()
+    progress = {'completed_through': 40, 'next_id': 41, 'batch_size': 25, 'total': 340, 'last_batch': 'GAST-031-GAST-040'}
+    try:
+        m.advance_progress(progress, 42, 66)
+    except ValueError as exc:
+        assert 'next_id' in str(exc)
+    else:
+        raise AssertionError('expected skipped batch to fail')
+
+    bad = dict(progress, next_id=50)
+    errors = m.validate_progress(bad)
+    assert any('next_id' in e for e in errors)
