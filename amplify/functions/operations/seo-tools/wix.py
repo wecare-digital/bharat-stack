@@ -22,6 +22,82 @@ _api_key = None
 _visitor_access_token = None
 _visitor_access_token_expires_at = 0.0
 
+# ── Upstream budget and per-sandbox caches ──────────────────────────────────────
+#
+# THE 30-SECOND WALL, and why a flat per-call timeout could not avoid it.
+#
+# API Gateway cuts a Lambda integration off at 30s and returns 503 with no body.
+# Measured on 2026-09-28: `wecare-seo-tools` peaked at 30,499ms and one access-log line
+# reads `30001ms status=503` on a per-slug path. The cause is arithmetic rather than a
+# slow network. Every blog call did this:
+#
+#   _blog_reference_maps()   2+ paginated upstream calls, EVERY request, uncached
+#   list_blog_posts()        889 posts at 100 a page = 9 sequential queries
+#   each of those            urlopen(timeout=30)
+#
+# so the worst case was 11 x 30s = 330s against a 30s ceiling. A single stalled page
+# spent the entire budget, and the caller saw a 503 that looked like our fault rather
+# than a timeout. Wix also returned a genuine 503 twice in 7 days, and with no retry
+# that surfaced straight into the build - `generate-sitemap.js` fetches this endpoint at
+# build time and refuses to write a sitemap when it comes back empty.
+#
+# Three changes, and each addresses a different one of those terms:
+#
+#   1. A per-call timeout well under the ceiling, so no single upstream call can spend
+#      the whole budget.
+#   2. One retry on the retryable statuses, because a 503 from Wix is usually transient
+#      and a build must not fail on it.
+#   3. Per-sandbox TTL caches on the two expensive reads, so a warm invocation makes NO
+#      upstream call at all. This is the change that actually removes the timeout: the
+#      reference maps are category and tag labels that change on a content edit, not per
+#      request, and re-fetching them on every single call was pure waste.
+#
+# Lazy, module-level, and warm-sandbox-scoped, which is the same shape the visitor token
+# above already uses. Not a shared cache - a cold sandbox pays full price once, which is
+# correct: a cross-invocation store would need a table, and the value here is reference
+# data that is cheap to re-derive and harmful to serve indefinitely.
+_REQUEST_TIMEOUT = float(os.environ.get('WIX_REQUEST_TIMEOUT_SECONDS', '8'))
+_RETRY_STATUSES = (429, 500, 502, 503, 504)
+_BLOG_CACHE_TTL = float(os.environ.get('WIX_BLOG_CACHE_TTL_SECONDS', '300'))
+
+# key -> (fetched_at, value). Holds the last GOOD value indefinitely so that
+# _cached() can serve it when a refresh fails; TTL controls freshness, not eviction.
+_cache: Dict[str, Any] = {}
+
+
+def _cached(key: str, producer, ttl: float = _BLOG_CACHE_TTL):
+    """Memoise `producer` for `ttl` seconds, and serve stale rather than fail.
+
+    STALE BEATS EMPTY HERE, and that is a deliberate asymmetry worth stating. This data
+    feeds the public blog index and, at build time, the sitemap. A five-minute-old
+    category label is a non-event. An exception - or worse, an empty list - during a
+    build makes `next build` emit a site with no blog, and `generate-sitemap.js` exists
+    specifically because that once happened from a two-second network blip.
+    So a failed refresh with a previous value in hand returns the previous value and logs
+    nothing to the caller; a failed refresh with nothing in hand still raises.
+    """
+    entry = _cache.get(key)
+    if entry is not None and (time.time() - entry[0]) < ttl:
+        return entry[1]
+    try:
+        value = producer()
+    except Exception:
+        if entry is not None:
+            return entry[1]
+        raise
+    _cache[key] = (time.time(), value)
+    return value
+
+
+def clear_blog_cache() -> None:
+    """Drop the caches. Called after a write so a mutation is visible immediately.
+
+    Without this, creating or cleaning a post would leave the reader serving the
+    pre-edit corpus for up to the TTL, and the Admin who just made the change is
+    precisely the person who would report it as a bug.
+    """
+    _cache.clear()
+
 SITE_PAGES = [
     ('/', 'Homepage', 'landing'), ('/bnb', 'BNB Club', 'brand_hub'),
     ('/bnb-store', 'BNB Club Store', 'store'),
@@ -149,17 +225,34 @@ def public_blog_request(
         },
         method=method,
     )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            raw = response.read().decode('utf-8')
-            return json.loads(raw) if raw else {}
-    except urllib.error.HTTPError as error:
-        error.read()
-        raise RuntimeError(
-            f'Wix public Blog API request failed with status {error.code}'
-        ) from error
-    except urllib.error.URLError as error:
-        raise RuntimeError('Wix public Blog API request failed') from error
+    # ONE retry, and only for the statuses where retrying can help. A 404 means the slug
+    # does not exist and get_blog_post_by_slug reads that string to return None, so
+    # retrying it would double the latency of every miss; a 401 means the visitor token
+    # is wrong and will be wrong again. 429/5xx is the transient family - Wix returned a
+    # real 503 twice in 7 days and with no retry that reached the build.
+    #
+    # Total worst case is 2 x _REQUEST_TIMEOUT + backoff, which must stay comfortably
+    # under the 30s API Gateway ceiling even when a caller makes several of these.
+    last: Exception
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(req, timeout=_REQUEST_TIMEOUT) as response:
+                raw = response.read().decode('utf-8')
+                return json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as error:
+            error.read()
+            last = RuntimeError(
+                f'Wix public Blog API request failed with status {error.code}'
+            )
+            if error.code not in _RETRY_STATUSES:
+                raise last from error
+        except urllib.error.URLError as error:
+            last = RuntimeError('Wix public Blog API request failed')
+        except TimeoutError as error:
+            last = RuntimeError('Wix public Blog API request timed out')
+        if attempt == 0:
+            time.sleep(0.4)
+    raise last
 
 
 def public_json(path: str, timeout: int = 8) -> Dict[str, Any]:
@@ -247,6 +340,17 @@ def _paged_blog_labels(path: str, key: str) -> List[Dict[str, Any]]:
 
 
 def _blog_reference_maps() -> Dict[str, Dict[str, str]]:
+    """Category and tag id -> label, cached per sandbox.
+
+    THE SINGLE BIGGEST WASTE IN THIS MODULE before caching. Both `list_blog_posts` and
+    `get_blog_post_by_slug` call this first, so every one of the ~185,000 daily requests
+    paid for at least two extra paginated upstream queries to resolve labels that change
+    when someone edits a category - which is to say, almost never.
+    """
+    return _cached('blog_refs', _fetch_blog_reference_maps)
+
+
+def _fetch_blog_reference_maps() -> Dict[str, Dict[str, str]]:
     categories = _paged_blog_labels('/blog/v3/categories/query', 'categories')
     tags = _paged_blog_labels('/v3/tags/query', 'tags')
     return {
@@ -298,10 +402,35 @@ def _blog_view(post: Dict[str, Any], refs: Dict[str, Dict[str, str]], include_co
 
 
 def list_blog_posts() -> List[Dict[str, Any]]:
+    """The whole published corpus, cached per sandbox.
+
+    889 posts at 100 a page is 9 sequential upstream queries plus the reference maps, and
+    this is the single hottest read in the account. Cached, a warm invocation makes zero
+    upstream calls; uncached it was the path that reached the 30s ceiling.
+    """
+    return _cached('blog_list', _fetch_blog_posts)
+
+
+def _fetch_blog_posts() -> List[Dict[str, Any]]:
     refs = _blog_reference_maps()
     posts: List[Dict[str, Any]] = []
     cursor = ''
+    # A DEADLINE ON THE LOOP, because the page count is set by the corpus rather than by
+    # us: it was 9 pages at 889 posts and grows with every publish. Without this, a slow
+    # upstream is cut off mid-flight by API Gateway at 30s and the caller gets a bodiless
+    # 503. Raising instead means _cached() can fall back to the previous good corpus, and
+    # a caller with no cache gets an error it can report.
+    #
+    # It RAISES rather than returning what it has so far. A truncated corpus is the worse
+    # outcome by a distance: it looks like success, and `generate-sitemap.js` would write
+    # a sitemap that silently drops the missing posts. Its own guard only catches ZERO
+    # posts, not 400 of 889.
+    deadline = time.monotonic() + float(os.environ.get('WIX_BLOG_LIST_BUDGET_SECONDS', '20'))
     while True:
+        if time.monotonic() > deadline:
+            raise RuntimeError(
+                f'Wix blog listing exceeded its time budget after {len(posts)} posts'
+            )
         paging = {'limit': 100}
         if cursor:
             paging['cursor'] = cursor
@@ -319,9 +448,28 @@ def list_blog_posts() -> List[Dict[str, Any]]:
 
 
 def get_blog_post_by_slug(slug: str) -> Optional[Dict[str, Any]]:
+    """One post with its body, cached per sandbox per slug.
+
+    This is the endpoint the 185,000 daily requests actually hit: 890 distinct paths,
+    each slug about 219 times in 24 hours. The frontend memo in src/lib/public-blog.ts
+    removes most of that multiplication at source, and this removes the rest - a warm
+    sandbox serves a repeat without touching Wix at all.
+
+    A MISS IS NOT CACHED. `None` here means either "no such post" or "the lookup failed",
+    and the two must not be conflated: caching a failure would keep a real post missing
+    for the whole TTL. Same reasoning as the frontend memo, which deletes its entry on a
+    null for exactly this reason.
+    """
     wanted = str(slug or '').strip().strip('/')
     if not wanted:
         return None
+    post = _cached(f'blog_post:{wanted}', lambda: _fetch_blog_post(wanted))
+    if post is None:
+        _cache.pop(f'blog_post:{wanted}', None)
+    return post
+
+
+def _fetch_blog_post(wanted: str) -> Optional[Dict[str, Any]]:
     refs = _blog_reference_maps()
     params = urllib.parse.urlencode([
         ('fieldsets', 'URL'),

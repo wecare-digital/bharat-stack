@@ -58,7 +58,22 @@ const OUT_DIR = path.join( __dirname, '..', 'out' );
 const TARGET = path.join( OUT_DIR, 'blog', 'search-index.json' );
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api';
-const ENDPOINT = `${API_BASE}/seo-tools/blog-public`;
+
+/**
+ * ?fields= ASKS FOR THE FOUR THIS FILE KEEPS, instead of downloading 924 kB to discard
+ * half of it.
+ *
+ * The header above already explains that publishedDate and authorName are deliberately
+ * absent from the output because they cost 41 kB and are never matched. That reasoning
+ * applies with more force to the transfer itself: the unprojected response carries
+ * jsonLd, keywords, hashtags, robots, focusKeyword and metaDescription for all 889 posts,
+ * none of which appear in the index this writes.
+ *
+ * Kept as a named constant beside the endpoint so the two cannot drift: if a field is
+ * added to the card shape below, it has to be added here or it arrives undefined.
+ */
+const FIELDS = [ 'slug', 'title', 'excerpt', 'category', 'publishedDate' ];
+const ENDPOINT = `${API_BASE}/seo-tools/blog-public?fields=${FIELDS.join( ',' )}`;
 
 /** Same sort as lib/public-blog.ts listBlogCards: newest first, undated last, then by slug. */
 function byNewest ( a, b ) {

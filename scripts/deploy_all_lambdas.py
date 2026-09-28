@@ -305,8 +305,25 @@ SPECS: List[Spec] = [
 # catalogue (the drift src/test/PublicAiSurface.test.ts exists to prevent) or a symlink
 # (breaks on a Windows checkout). Its script also owns the Amplify Hosting rewrite that
 # makes /mcp reachable on the apex at all, which has no equivalent here.
+# CAUTION ON wecare-seo-tools: THE SCRIPT IS NOT THE ONLY OWNER.
+# `.github/workflows/seo-tools-deploy.yml` also deploys it, on every push to `stack`
+# touching `amplify/functions/operations/seo-tools/**`, `seo_tools_handler.py`,
+# `amplify/functions/shared/lambda_utils/**`, `static_knowledge_base.py`,
+# `tests/test_task12_seo.py` or `scripts/deploy_seo_tools.py`.
+#
+# That `lambda_utils/**` trigger is the wide one, and it means ANY commit touching shared
+# code redeploys seo-tools from the COMMITTED tree. Proved on 2026-09-28: a local
+# `deploy_seo_tools.py` run at 15:35 was verified working live, then overwritten at 15:40
+# and again at 15:44 by the workflow, because another session pushed commits while the
+# local changes were still uncommitted. CloudTrail shows all three UpdateFunctionCode calls
+# - one from `user/wecare-admin` via Boto3, two from the `bharat-stack-seo-tools` CI role.
+#
+# So for this function CI is the authority and a local deploy from a dirty tree is
+# TRANSIENT. Commit first, then push, and let the workflow deploy. Running the script
+# locally is still correct for a fast iteration loop - just do not treat the result as
+# durable until it is committed.
 DELEGATED = {
-    "wecare-seo-tools": "scripts/deploy_seo_tools.py",
+    "wecare-seo-tools": "scripts/deploy_seo_tools.py  (also .github/workflows/seo-tools-deploy.yml on push)",
     "wecare-mcp": "scripts/deploy_mcp_server.py",
 }
 SKIPPED = {"wecare-docs-scraper": "PackageType=Image, deploys via GitHub Actions"}

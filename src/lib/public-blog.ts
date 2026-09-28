@@ -149,7 +149,50 @@ export function blogPageCount ( total: number ): number {
   return Math.max( 1, Math.ceil( total / POSTS_PER_PAGE ) );
 }
 
+/**
+ * PER-SLUG BUILD-TIME MEMO. The same mechanism as postsPromise above, and it was missing
+ * here, which cost roughly four times more upstream requests than the build needs.
+ *
+ * MEASURED, not guessed. API Gateway access logs for 24h on 2026-09-28:
+ *
+ *     185,576 requests to /seo-tools/blog-public*, all userAgent "node"
+ *     890 distinct paths - exactly the 889 slugs plus the list endpoint
+ *     each slug hit ~219 times, against 54 Amplify builds in the same window
+ *
+ * 219 / 54 is about 4 fetches of every slug per build. 117 of those requests came back
+ * 429, so it was consuming API Gateway stage capacity from every other route on the API.
+ *
+ * WHY FOUR AND NOT ONE. Next renders with 9 workers and more than one page type resolves a
+ * post: /post/[slug] via getStaticProps, and the blog index, its 35 paginated pages and the
+ * per-category streams all sit on the same corpus. Without a memo each of those paths is an
+ * independent fetch of the same document, and the module-level memo on the LIST call is
+ * exactly why the list was not also multiplied.
+ *
+ * THE PER-SLUG FETCH ITSELF IS NECESSARY and must not be replaced by a filter over
+ * listPublicBlogPosts(): the single-post response carries `content` and `richContent`, which
+ * the list response omits. Checked against the live API rather than assumed. So the fix is
+ * to fetch each slug once, not to stop fetching.
+ *
+ * A NULL IS NOT CACHED, matching listPublicBlogPosts. getPublicBlogPost returns null both
+ * for "no such post" and for "the request failed", and those must not be treated alike: a
+ * cached failure would turn one network blip into a permanently missing page for the rest of
+ * the build. Caching the promise rather than the value also means concurrent callers share
+ * one in-flight request instead of each starting their own, which is the normal case here
+ * because Next renders pages in parallel.
+ */
+const postPromises = new Map<string, Promise<PublicBlogPost | null>>();
+
 export async function getPublicBlogPost ( slug: string ): Promise<PublicBlogPost | null> {
+  const cached = postPromises.get( slug );
+  if ( cached ) return cached;
+  const pending = fetchPost( slug );
+  postPromises.set( slug, pending );
+  const post = await pending;
+  if ( post === null ) postPromises.delete( slug );
+  return post;
+}
+
+async function fetchPost ( slug: string ): Promise<PublicBlogPost | null> {
   try {
     const response = await fetch( `${PUBLIC_BLOG_API}/${encodeURIComponent( slug )}`, {
       headers: { Accept: 'application/json' },
