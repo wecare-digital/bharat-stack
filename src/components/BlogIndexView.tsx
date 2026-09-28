@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { BlogCard } from '../lib/public-blog';
+import { topicSlug } from '../lib/blog-index-props';
 import RotatingHero, { CycleWord } from './RotatingHero';
 import Breadcrumbs from './Breadcrumbs';
 import BlogSearch from './BlogSearch';
@@ -86,8 +87,16 @@ interface BlogIndexViewProps {
   totalPages: number;
   /** Every published post, for the count beside the search box. */
   totalPosts: number;
-  /** Every category across the whole corpus, not just this page's - see below. */
+  /** Every category across the whole corpus, not just this page's - see below. Sorted, and the
+   *  FIRST one is the default pill now that "All" is gone. */
   categories: string[];
+  /** Posts per category across the whole corpus, so the announced count has an honest
+   *  denominator: "3 of 824 posts" rather than "3 of 864" when Conversations is active. */
+  categoryCounts?: Record<string, number>;
+  /** Which category this prerendered page lists. Server-decided, never client state. */
+  activeCategory?: string;
+  /** The category that lives at /blog/; all others at /blog/topic/<slug>/. */
+  defaultCategory?: string;
 }
 
 /** /blog/ for page 1, /blog/page/N/ after that. Page 1 must not also exist at page/1/. */
@@ -111,8 +120,24 @@ function pageWindow ( page: number, totalPages: number ): ( number | null )[] {
   return out;
 }
 
-const BlogIndexView: React.FC<BlogIndexViewProps> = ( { posts, page, totalPages, totalPosts, categories } ) => {
-  const [ activeCategory, setActiveCategory ] = useState( 'All' );
+const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
+  posts, page, totalPages, totalPosts, categories, categoryCounts,
+  activeCategory = '', defaultCategory = '',
+} ) => {
+  /**
+   * NO "ALL" PILL, AND THE ACTIVE CATEGORY IS DECIDED BY THE SERVER.
+   *
+   * Owner instruction to drop "All" and default to the first category, and the corpus supports
+   * it: measured live, 864 posts carry two categories - Conversations 824 and Gastronomy 40 -
+   * so "All" selected 864 where the next pill selected 824. Two options, effectively one list.
+   *
+   * IT IS NOT CLIENT STATE ANY MORE, and that is the important part. Filtering the full-corpus
+   * pages in the browser looked equivalent and was not: the 40 Gastronomy posts are the NEWEST
+   * in the corpus, so in date order they filled the whole of page 1 and 16 of page 2. A default
+   * filter rendered /blog/ with ZERO cards and left 40 posts on no index page at all - caught
+   * by blogcheck, not by looking. Each category is now its own prerendered stream, so the HTML
+   * is what the reader sees and the pills are links rather than state.
+   */
   const [ query, setQuery ] = useState( '' );
 
   /** The full corpus, or null until something needs it. */
@@ -163,35 +188,32 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( { posts, page, totalPages,
     if ( next.trim() ) loadIndex();
   }, [ loadIndex ] );
 
-  const onCategory = useCallback( ( next: string ) => {
-    setActiveCategory( next );
-    if ( next !== 'All' ) loadIndex();
-  }, [ loadIndex ] );
-
-  const filtering = Boolean( query.trim() ) || activeCategory !== 'All';
+  /** Only a text query filters now. Category is a route, not a control. */
+  const filtering = Boolean( query.trim() );
 
   /**
-   * Category first, then text. Matching title, excerpt and category means a search for a
-   * category name finds those posts even when the pill is on All, which is what someone
-   * typing "Practice" expects. Case-insensitive, and trimmed so a stray space from a paste
-   * does not empty the list.
+   * SEARCH IS SCOPED TO THIS CATEGORY, and searches all of it rather than this page's 24.
+   * The 301 kB index covers the whole corpus, so it is narrowed to the active category here -
+   * a reader on Conversations searching "paneer" should get nothing, not a Gastronomy post
+   * from a stream they are not in.
    *
-   * SEARCHES THE FULL CORPUS ONCE IT IS LOADED, and this page's slice before then. That
-   * fallback is what keeps the first keystroke from showing an empty grid while the index is
-   * in flight - it narrows what is already on screen, then widens when the list lands.
+   * Falls back to this page's slice while the index is in flight, so the first keystroke
+   * narrows what is on screen instead of blanking the grid.
    */
   const searchable = allCards || posts;
   const visiblePosts = useMemo( () => {
     if ( !filtering ) return posts;
-    const byCategory = activeCategory === 'All'
-      ? searchable
-      : searchable.filter( post => post.category === activeCategory );
+    const inCategory = activeCategory
+      ? searchable.filter( post => post.category === activeCategory )
+      : searchable;
     const q = query.trim().toLowerCase();
-    if ( !q ) return byCategory;
-    return byCategory.filter( post => (
-      `${post.title} ${post.excerpt || ''} ${post.category || ''}`.toLowerCase().includes( q )
+    return inCategory.filter( post => (
+      `${post.title} ${post.excerpt || ''}`.toLowerCase().includes( q )
     ) );
   }, [ posts, searchable, activeCategory, query, filtering ] );
+
+  /** Honest denominator: this category's size across the corpus, not the whole corpus. */
+  const categoryTotal = categoryCounts?.[ activeCategory ] ?? totalPosts;
 
   const windowed = pageWindow( page, totalPages );
 
@@ -214,7 +236,7 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( { posts, page, totalPages,
           value={ query }
           onChange={ onQueryChange }
           resultCount={ visiblePosts.length }
-          totalCount={ totalPosts }
+          totalCount={ categoryTotal }
         />
 
         { indexState === 'failed' && filtering && (
@@ -230,21 +252,28 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( { posts, page, totalPages,
                 this page's 24. Deriving them locally would give each page a different set of
                 pills - page 3 would offer four categories and page 9 a different four - which
                 reads as the filter being broken rather than as the data being sliced. */}
+            {/* NO "ALL" BUTTON, and these are LINKS rather than buttons.
+                "All" selected 864 posts where the next pill selected 824 - two options that
+                were effectively one list - so it went on owner instruction.
+                Links, not buttons, because each category is now its own prerendered stream:
+                the default lives at /blog/ and every other category at /blog/topic/<slug>/.
+                That makes the switch work with JavaScript off, gives each category a URL a
+                reader can share, and means no 301 kB index has to be fetched to change
+                category. aria-current marks the one you are on, which is what a link set uses
+                where a button set would use aria-pressed. */}
             { categories.length > 1 && (
-              <nav className="category-switch" aria-label="Filter posts by category">
-                <button type="button" aria-pressed={ activeCategory === 'All' } onClick={ () => onCategory( 'All' ) }>
-                  All
-                </button>
-                { categories.map( category => (
-                  <button
-                    key={ category }
-                    type="button"
-                    aria-pressed={ activeCategory === category }
-                    onClick={ () => onCategory( category ) }
-                  >
-                    { category }
-                  </button>
-                ) ) }
+              <nav className="category-switch" aria-label="Blog categories">
+                { categories.map( category => {
+                  const href = category === defaultCategory ? '/blog/' : `/blog/topic/${topicSlug( category )}/`;
+                  const here = category === activeCategory;
+                  return here
+                    ? <span key={ category } className="cat-here" aria-current="page">
+                      { category } <i>{ categoryCounts?.[ category ] ?? '' }</i>
+                    </span>
+                    : <Link key={ category } href={ href }>
+                      { category } <i>{ categoryCounts?.[ category ] ?? '' }</i>
+                    </Link>;
+                } ) }
               </nav>
             ) }
 
@@ -331,11 +360,24 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( { posts, page, totalPages,
            section and a line that restated it, on a page sharing no design language with the
            rest of the site. RotatingHero replaced both. */
         h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;margin:0 0 24px;color:rgba(0,0,0,.95);text-wrap:balance}
-        .category-switch{display:flex;gap:8px;overflow-x:auto;margin:0 0 28px;padding:2px 0 6px;scrollbar-width:thin}
-        .category-switch button{flex:0 0 auto;min-height:38px;padding:0 14px;border:1px solid #d1d5db;border-radius:999px;background:#fff;color:#1a3a2a;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
-        .category-switch button:hover{border-color:#d1f470;transform:translateY(-1px)}
-        .category-switch button[aria-pressed="true"]{background:#d1f470;border-color:#d1f470}
-        .category-switch button:focus-visible{outline:3px solid rgba(26,58,42,.25);outline-offset:3px}
+        /* The pills. Same shape as before; they are <a> and <span> now rather than <button>,
+           because each category is a real route. min-height 38px is kept from the button
+           version, and display:inline-flex is what makes it apply to a link. */
+        .category-switch{display:flex;gap:8px;overflow-x:auto;margin:0 0 28px;padding:2px 0 6px;scrollbar-width:thin;align-items:center}
+        .category-switch :global(a),.category-switch .cat-here{
+          flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+          min-height:38px;padding:0 14px;border:1px solid #d1d5db;border-radius:999px;
+          background:#fff;color:#1a3a2a;font:inherit;font-size:13px;font-weight:600;
+          text-decoration:none;
+          transition:background-color .18s ease,border-color .18s ease,transform .18s ease;
+        }
+        .category-switch :global(a:hover){border-color:#d1f470;transform:translateY(-1px)}
+        .category-switch :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px}
+        /* The current category: filled, and not a link, so there is nothing to click. */
+        .category-switch .cat-here{background:#d1f470;border-color:#d1f470}
+        /* The count. Tabular so the pills do not jiggle, and quiet so the name leads. */
+        .category-switch i{font-style:normal;font-weight:400;font-variant-numeric:tabular-nums;color:rgba(26,58,42,.62)}
+        .category-switch .cat-here i{color:rgba(26,58,42,.72)}
         .post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
         .post-card{border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff;transition:border-color .18s ease,transform .18s ease}
         .post-card:hover{border-color:#d1f470;transform:translateY(-1px)}

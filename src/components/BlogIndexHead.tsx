@@ -47,9 +47,62 @@ const DESCRIPTION = 'Ideas, guides and updates from WECARE.DIGITAL.';
 interface BlogIndexHeadProps {
   page: number;
   totalPages: number;
+  /** Set on /blog/topic/<slug>/ - the category this stream lists. */
+  topic?: string;
+  topicHref?: string;
+  /** Posts in this stream, for the description. */
+  count?: number;
 }
 
-const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages } ) => {
+const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic, topicHref, count } ) => {
+  /*
+   * A CATEGORY STREAM IS ITS OWN CANONICAL, like every paginated page. It has to be: the default
+   * category is at /blog/ and the others are here, so these are the ONLY index pages listing
+   * their posts. Canonicalising them at /blog/ would point at a page that does not contain them.
+   */
+  if ( topic ) {
+    const url = `${ORIGIN}${topicHref}`;
+    const title = `${topic} | WECARE.DIGITAL Blog`;
+    const description = `${count ?? ''} ${count === 1 ? 'post' : 'posts'} on ${topic}, from WECARE.DIGITAL.`.trim();
+    const schema = {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'CollectionPage',
+          '@id': `${url}#page`,
+          url,
+          name: title,
+          description,
+          inLanguage: 'en-IN',
+          isPartOf: { '@type': 'Blog', '@id': `${ORIGIN}/blog/#blog`, url: `${ORIGIN}/blog/`, name: 'WECARE.DIGITAL Blog' },
+          breadcrumb: { '@id': `${url}#breadcrumb` },
+        },
+        {
+          '@type': 'BreadcrumbList',
+          '@id': `${url}#breadcrumb`,
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${ORIGIN}/` },
+            { '@type': 'ListItem', position: 2, name: 'Blog', item: `${ORIGIN}/blog/` },
+            { '@type': 'ListItem', position: 3, name: topic, item: url },
+          ],
+        },
+      ],
+    };
+    return (
+      <Head>
+        <title>{ title }</title>
+        <meta name="description" content={ description } />
+        <link rel="canonical" href={ url } />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={ title } />
+        <meta property="og:description" content={ description } />
+        <meta property="og:url" content={ url } />
+        <meta name="robots" content="index, follow, max-image-preview:large" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( schema ) } } />
+      </Head>
+    );
+  }
+
   const canonical = `${ORIGIN}${blogPageHref( page )}`;
   const blogRoot = `${ORIGIN}/blog/`;
   const first = page === 1;
