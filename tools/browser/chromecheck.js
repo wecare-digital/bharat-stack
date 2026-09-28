@@ -135,13 +135,27 @@ function main() {
     // which has no file of its own.
     let target = route, via = '';
     if ( route.includes( '[' ) ) {
-      const segment = route.split( '/' )[ 1 ];
-      const dir = path.join( OUT, segment );
+      /**
+       * THE DIRECTORY IS EVERY SEGMENT BEFORE THE PARAMETER, not just the first one.
+       *
+       * This read `route.split('/')[1]` until 2026-09-28, which silently assumed every
+       * dynamic route is exactly two segments deep. That held while `/post/[slug]` was the
+       * only one. `/blog/page/[page]` then failed with "no exported instance" even though
+       * the export was correct and contained 35 of them: the lookup resolved to `out/blog`
+       * and searched its children for an `index.html`, the only child being `page/`, which
+       * has none — `/blog/page/1/` is deliberately never emitted because page 1 is `/blog/`.
+       * So a correct export was reported as a missing route, and `Build and test` went red
+       * on a harness bug rather than a defect.
+       */
+      const parts = route.split( '/' ).filter( Boolean );
+      const paramAt = parts.findIndex( p => p.startsWith( '[' ) );
+      const prefix = parts.slice( 0, paramAt );
+      const dir = path.join( OUT, ...prefix );
       const instance = fs.existsSync( dir )
         ? fs.readdirSync( dir ).find( d => fs.existsSync( path.join( dir, d, 'index.html' ) ) )
         : null;
       if ( !instance ) { record( false, `${route}`, 'no exported instance of this dynamic route' ); continue; }
-      target = `/${segment}/${instance}`;
+      target = `/${prefix.join( '/' )}/${instance}`;
       via = ` (via ${target})`;
     }
 
