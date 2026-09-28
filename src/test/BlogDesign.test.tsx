@@ -66,7 +66,12 @@ const propsFor = ( overrides: Partial<BlogIndexPageProps> = {} ): BlogIndexPageP
   page: 1,
   totalPages: 1,
   totalPosts: 2,
+  // Sorted; categories[0] is the default, served at /blog/. The rest are their own streams.
   categories: [ 'Conversations', 'Guides' ],
+  categoryCounts: { Conversations: 1, Guides: 1 },
+  // Server-decided, never client state - see the note in BlogIndexView.
+  activeCategory: 'Conversations',
+  defaultCategory: 'Conversations',
   ...overrides,
 } );
 
@@ -128,62 +133,81 @@ describe( 'Blog design alignment', () => {
     expect( container.querySelector( 'form[role="search"]' ) ).not.toBeNull();
   } );
 
-  it( 'filters the listing by text as well as by category', async () => {
+  /**
+   * NO "ALL" PILL, AND THE FIRST CATEGORY IS THE DEFAULT. Owner instruction, and the corpus
+   * supports it: measured live, 834 posts carry two categories - Conversations 824 (98.8%) and
+   * Gastronomy 10 (1.2%). "All" selected 834 where the next pill selected 824, so the control
+   * offered a choice between two lists that are the same list.
+   */
+  it( 'has no All pill, and the categories are links rather than buttons', () => {
+    /*
+     * "All" selected 864 posts where the next pill selected 824 - two options, one list - so it
+     * went on owner instruction.
+     *
+     * LINKS, NOT BUTTONS, and that is the load-bearing part. Filtering the full-corpus pages
+     * client-side to honour the instruction left 40 posts on no index page and rendered /blog/
+     * with ZERO cards, because the 40 Gastronomy posts are the newest and filled page 1. Each
+     * category is now its own prerendered stream, so the switch is navigation.
+     */
+    render( <BlogIndex { ...propsFor() } /> );
+
+    expect( screen.queryByRole( 'button', { name: 'All' } ) ).toBeNull();
+    // No buttons at all in the switch - if these are buttons again, the streams are gone.
+    expect( screen.queryByRole( 'button', { name: 'Conversations' } ) ).toBeNull();
+
+    // The active one is not a link, and says so to a screen reader.
+    const here = document.querySelector( '.category-switch .cat-here' );
+    expect( here?.textContent ).toContain( 'Conversations' );
+    expect( here ).toHaveAttribute( 'aria-current', 'page' );
+
+    // The other is a real href to its own stream.
+    const other = screen.getByRole( 'link', { name: /Guides/ } );
+    expect( String( other.getAttribute( 'href' ) ).replace( /\/$/, '' ) ).toBe( '/blog/topic/guides' );
+  } );
+
+  it( 'shows each category its own size, so a pill says what it selects', () => {
+    render( <BlogIndex { ...propsFor( { categoryCounts: { Conversations: 824, Guides: 40 } } ) } /> );
+    expect( document.querySelector( '.category-switch .cat-here' )?.textContent ).toContain( '824' );
+    expect( screen.getByRole( 'link', { name: /Guides/ } ).textContent ).toContain( '40' );
+  } );
+
+  it( 'needs no fetch to render a category stream, because the page IS the category', () => {
+    /*
+     * The payload win survives the change: a plain page view fetches nothing, because the
+     * server already sliced this page to one category.
+     */
+    const fetchMock = mockSearchIndex( [ firstCard, secondCard ] );
+    render( <BlogIndex { ...propsFor() } /> );
+    expect( fetchMock ).not.toHaveBeenCalled();
+    expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
+  } );
+
+  it( 'scopes a search to the category the reader is in', async () => {
+    /*
+     * The index covers all 864 posts, so it has to be narrowed: someone reading Conversations
+     * who searches "paneer" should get nothing, not a Gastronomy post from a stream they are
+     * not in.
+     */
     mockSearchIndex( [ firstCard, secondCard ] );
     render( <BlogIndex { ...propsFor() } /> );
     const box = screen.getByLabelText( 'Search the blog' );
 
-    // Matches the title of the second post only.
     fireEvent.change( box, { target: { value: 'Better Decisions' } } );
     await waitFor( () => {
       expect( screen.queryByRole( 'heading', { name: samplePost.title } ) ).toBeNull();
     } );
-    expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
+    // The Guides post matches the text but is in another stream, so it stays out.
+    expect( screen.queryByRole( 'heading', { name: secondPost.title } ) ).toBeNull();
 
-    // A category name typed as text finds its posts even with the All pill active.
-    fireEvent.change( box, { target: { value: 'conversations' } } );
+    fireEvent.change( box, { target: { value: 'Clear Question' } } );
     await waitFor( () => {
       expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
     } );
-    expect( screen.queryByRole( 'heading', { name: secondPost.title } ) ).toBeNull();
 
-    // Clearing restores everything.
     fireEvent.change( box, { target: { value: '   ' } } );
     await waitFor( () => {
       expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
     } );
-    expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
-  } );
-
-  it( 'switches between all posts and each available category without a page load', async () => {
-    mockSearchIndex( [ firstCard, secondCard ] );
-    const { container } = render( <BlogIndex { ...propsFor() } /> );
-
-    const all = screen.getByRole( 'button', { name: 'All' } );
-    const conversations = screen.getByRole( 'button', { name: 'Conversations' } );
-    const guides = screen.getByRole( 'button', { name: 'Guides' } );
-
-    expect( all ).toHaveAttribute( 'aria-pressed', 'true' );
-    expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
-    expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
-
-    fireEvent.click( conversations );
-    expect( conversations ).toHaveAttribute( 'aria-pressed', 'true' );
-    await waitFor( () => {
-      expect( screen.queryByRole( 'heading', { name: secondPost.title } ) ).toBeNull();
-    } );
-    expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
-
-    fireEvent.click( guides );
-    expect( guides ).toHaveAttribute( 'aria-pressed', 'true' );
-    await waitFor( () => {
-      expect( screen.queryByRole( 'heading', { name: samplePost.title } ) ).toBeNull();
-    } );
-    expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
-
-    const css = cssOf( container );
-    expect( css ).toContain( '.category-switch{display:flex;gap:8px;overflow-x:auto' );
-    expect( css ).toContain( '.category-switch button[aria-pressed="true"]{background:#d1f470' );
   } );
 
   it( 'keeps listing cards typographic, readable and responsive rather than dashboard-like', () => {
@@ -216,11 +240,16 @@ describe( 'Blog design alignment', () => {
  *      about what was searched.
  */
 describe( 'Blog pagination', () => {
+  /*
+   * All one category, and deliberately so: these cases are about paging, and mixing categories
+   * in here would mean the default-category filter silently removed cards from every count. The
+   * category behaviour has its own cases above.
+   */
   const manyCards: BlogCard[] = Array.from( { length: 5 }, ( _, i ) => ( {
     slug: `post-${i + 1}`,
     title: `Post number ${i + 1}`,
     excerpt: `Excerpt for post ${i + 1}.`,
-    category: i % 2 === 0 ? 'Conversations' : 'Guides',
+    category: 'Conversations',
   } ) );
 
   /**
@@ -297,7 +326,12 @@ describe( 'Blog pagination', () => {
      * regress, and it would regress silently.
      */
     const fetchMock = mockSearchIndex( manyCards );
-    render( <BlogIndex { ...propsFor( { posts: manyCards.slice( 0, 2 ), page: 1, totalPages: 3, totalPosts: 5 } ) } /> );
+    render( <BlogIndex { ...propsFor( {
+      posts: manyCards.slice( 0, 2 ), page: 1, totalPages: 3, totalPosts: 5,
+      // The announced denominator is the ACTIVE CATEGORY's corpus count, not the whole corpus:
+      // with "All" gone, "3 of 834" would be counting a list the reader is not looking at.
+      categories: [ 'Conversations' ], categoryCounts: { Conversations: 5 },
+    } ) } /> );
 
     // Nothing is fetched for a plain page view.
     expect( fetchMock ).not.toHaveBeenCalled();

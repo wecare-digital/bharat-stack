@@ -822,8 +822,12 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // bodies at HTTP 200 while the sitemap advertised every one of them. It belongs in this
   // check rather than in PUBLIC_PAGE_META because, like /blog and /post/[slug], it declares
   // its own <head> and structured data - see components/BlogIndexHead.tsx.
+  // '/blog/topic/[topic]' is one prerendered stream per non-default category. It MUST be here:
+  // the default category is served at /blog/, so these are the only index pages that list their
+  // own posts, and a missing entry would serve them as empty bodies at HTTP 200.
   const isContentPublic = router.pathname === '/blog'
     || router.pathname === '/blog/page/[page]'
+    || router.pathname === '/blog/topic/[topic]'
     || router.pathname === '/post/[slug]';
   // /faq and /partners are deliberately ABSENT. stack still lists them because this
   // branch's removal has not landed there yet; both pages were deleted on owner
