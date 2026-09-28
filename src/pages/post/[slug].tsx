@@ -193,7 +193,7 @@ export default function BlogPostPage ( { post }: Props ) {
         .content :global(li),
         .content :global(blockquote){font-size:20px;line-height:1.4;letter-spacing:-.125px;font-weight:400;color:rgba(0,0,0,.898)}
         .content :global(p){margin:0}
-        .content :global(p + p){margin-top:4px}
+        .content :global(p + p){margin-top:28px}
         .content :global(.spacer){height:28px}
         .content :global(h2){font-size:30px;line-height:1.18;letter-spacing:-.6px;color:#1a3a2a;margin:44px 0 18px;font-weight:700}
         .content :global(h3){font-size:23px;line-height:1.3;color:#1a3a2a;margin:36px 0 14px;font-weight:700}
