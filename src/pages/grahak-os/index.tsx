@@ -197,7 +197,13 @@ response = requests.post(
           "operatingSystem": "Web Browser",
           "url": "https://wecare.digital/grahak-os/",
           "publisher": { "@id": "https://wecare.digital/#organization" },
-          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+          // offers REMOVED - it declared price "0" INR, i.e. that Grahak OS is free. The
+          // platform-level node in _app.tsx carried the identical claim on 22 other routes and
+          // was removed for the same reason; this was the last copy of it in the export.
+          // Not replaced with a number: no price for this product exists anywhere in the
+          // repository, and inventing one is the same class of error as the fabricated
+          // aggregateRating removed alongside it. An Offer here needs a real price, ideally
+          // derived from the catalogue rather than typed into a page.
           "description": "Customer engagement product in WECARE.DIGITAL with WhatsApp Business API, SMS, Email, Voice, customer data and AI automation.",
           "featureList": ["WhatsApp Business API", "Bulk Messaging", "SMS API", "Email Marketing", "Voice Calls", "Razorpay Payments", "AI Responses", "Analytics"]
         })}} />

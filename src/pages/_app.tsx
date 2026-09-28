@@ -236,6 +236,25 @@ const authTheme: Theme = {
 };
 
 // Structured data for the organization
+/**
+ * THE COMPANY, IN ONE SENTENCE, DECLARED ONCE.
+ *
+ * This string was written out five times - three meta tags plus the Organization and WebSite
+ * schema nodes - and the two schema copies had drifted to something else entirely:
+ * "Enterprise WhatsApp Business API platform for multi-channel customer engagement", on 129
+ * pages. The hero was deliberately rewritten AWAY from that framing: no channel names, no
+ * platform language, "Everyday AI, built for consumers / enterprises / climate tech /
+ * frontier tech". So the machine-readable description of the company contradicted the human
+ * one on every page, and described a company the copy had stopped being.
+ *
+ * One constant means the next rewrite cannot leave half the site behind. It is deliberately
+ * the same sentence the meta description uses, because a crawler reading both should not be
+ * told two different things.
+ */
+const COMPANY_DESCRIPTION =
+  'WECARE.DIGITAL builds everyday AI for consumers, enterprises, climate tech and frontier '
+  + 'tech, with transparent pricing and one place to track everything.';
+
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -248,8 +267,14 @@ const organizationSchema = {
   "url": "https://wecare.digital",
   "logo": LOGO_URL,
   "image": LOGO_URL,
-  "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
-  "foundingDate": "2020",
+  "description": COMPANY_DESCRIPTION,
+  // foundingDate REMOVED. It said "2020" on 129 pages and nothing in this repository
+  // supports that date - it is not in the content, the docs or anywhere else, so it was
+  // either a guess or a placeholder that shipped. A wrong date is worse than no date:
+  // schema.org fields are read as facts, and this one is trivially checkable against
+  // incorporation records.
+  // Put it back the moment the real date is known - it is a genuinely useful property for
+  // an Organization node - but with the actual founding date, not an approximation.
   "sameAs": [
     "https://www.linkedin.com/company/wecare-digital",
     "https://twitter.com/wecaredotdigital"
@@ -275,12 +300,15 @@ const softwareSchema = {
   "applicationCategory": "BusinessApplication",
   "applicationSubCategory": "CRM Software",
   "operatingSystem": "Web Browser",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "INR",
-    "availability": "https://schema.org/InStock"
-  },
+  // offers REMOVED. It declared price "0" INR, InStock - i.e. the machine-readable version
+  // of every page said the product is free. The home page's closing band promises "Know the
+  // price before you commit" and the catalogue floor is 599 INR (wix-catalog.json, Viveka),
+  // so the page and its structured data contradicted each other on 22 routes.
+  // It is NOT replaced with 599 either: this is a company-wide node emitted on /terms,
+  // /privacy and every service page, and one price cannot be true for all of them. An Offer
+  // belongs on a node that describes a single purchasable thing, with a price derived from
+  // the catalogue rather than typed here - the same reasoning index.tsx already records for
+  // why no price is hardcoded into the closing band's copy.
   "description": "Enterprise multi-channel messaging CRM platform with WhatsApp Business API, SMS, Email, Voice integration, and AI-powered automation. Features include bulk messaging, payment collection via Razorpay, customer data platform, and analytics.",
   "featureList": [
     "WhatsApp Business API Integration",
@@ -303,13 +331,23 @@ const softwareSchema = {
     "name": "WECARE.DIGITAL",
     "url": "https://wecare.digital"
   },
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.8",
-    "ratingCount": "150",
-    "bestRating": "5",
-    "worstRating": "1"
-  }
+  // aggregateRating REMOVED, and this was the most serious of the four.
+  //
+  // It declared ratingValue "4.8" over ratingCount "150" - 150 reviews that do not exist,
+  // on 22 pages including the company home page, /terms and /privacy. Google's
+  // structured-data policy treats self-serving invented review markup as grounds for a
+  // MANUAL ACTION against the whole site, not merely as markup that gets ignored, so this
+  // was a standing risk to every ranking on the domain rather than a cosmetic defect.
+  //
+  // There is no honest version of this field today: a rating has to come from reviews that
+  // were actually collected. If reviews are gathered later, the node that carries them must
+  // also be the node they are about - a company-wide SoftwareApplication emitted on /privacy
+  // is not that - and the count must be the real count.
+  //
+  // WHY seocheck.js DID NOT CATCH ANY OF THIS, which is worth recording: it asserts that
+  // every JSON-LD block parses and that no @id appears twice. Both passed throughout. Neither
+  // is a truth check, and no amount of schema validation is - a fabricated rating is
+  // syntactically perfect.
 };
 
 // Structured data for the website
@@ -320,7 +358,9 @@ const websiteSchema = {
   "name": "WECARE.DIGITAL",
   "alternateName": "WECARE.DIGITAL",
   "url": "https://wecare.digital",
-  "description": "Enterprise WhatsApp Business API platform for multi-channel customer engagement",
+  // The same constant the Organization node and the meta tags use. This was the second copy
+  // of the "Enterprise WhatsApp Business API platform" line the hero was rewritten away from.
+  "description": COMPANY_DESCRIPTION,
   "publisher": {
     "@type": "Organization",
     "name": "WECARE.DIGITAL"
@@ -911,7 +951,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
               weight either, so this tag earns nothing for ranking. It is kept only so the page
               does not describe a product it is not about; deleting it outright would be equally
               valid. Do not invest in tuning it. */}
-          <meta name="description" content="WECARE.DIGITAL builds everyday AI for consumers, enterprises, climate tech and frontier tech, with transparent pricing and one place to track everything." />
+          <meta name="description" content={ COMPANY_DESCRIPTION } />
           <meta name="keywords" content="WECARE.DIGITAL, everyday AI, AI services India, transparent pricing, consumer services, enterprise services, climate tech, frontier tech" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="icon" href={ FAVICON_URL } />
@@ -974,7 +1014,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
               /grahak-os/ keeps its WhatsApp positioning in its own Head, which is where a
               product claim belongs. */}
           <meta property="og:title" key="og:title" content="Everyday AI, built for Bharat | WECARE.DIGITAL" />
-          <meta property="og:description" key="og:description" content="WECARE.DIGITAL builds everyday AI for consumers, enterprises, climate tech and frontier tech, with transparent pricing and one place to track everything." />
+          <meta property="og:description" key="og:description" content={ COMPANY_DESCRIPTION } />
           <meta property="og:image" key="og:image" content={ LOGO_URL } />
           <meta property="og:image:width" key="og:image:width" content="512" />
           <meta property="og:image:height" key="og:image:height" content="512" />
@@ -988,7 +1028,7 @@ export default function App ( { Component, pageProps }: AppProps ) {
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:url" content={ canonicalUrl } />
           <meta name="twitter:title" content="Everyday AI, built for Bharat | WECARE.DIGITAL" />
-          <meta name="twitter:description" content="WECARE.DIGITAL builds everyday AI for consumers, enterprises, climate tech and frontier tech, with transparent pricing and one place to track everything." />
+          <meta name="twitter:description" content={ COMPANY_DESCRIPTION } />
           <meta name="twitter:image" content={ LOGO_URL } />
 
           {/* SEO */ }
