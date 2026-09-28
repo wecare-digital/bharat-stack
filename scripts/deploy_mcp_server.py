@@ -511,6 +511,45 @@ def verify() -> int:
     except ClientError as exc:
         problems.append(f"lambda/live alias unreachable: {exc.response['Error']['Code']}")
 
+    # IS THE DEPLOYED CATALOGUE THE ONE IN THE REPO?
+    #
+    # This function is the only consumer of config/public-pages.json that carries a COPY
+    # rather than reading it live, so a catalogue change does not reach it until someone
+    # redeploys - and nothing makes them. It happened within hours of the function being
+    # created: another session renamed /my-order to /orders, updated the catalogue, the
+    # allowlists and the tests, committed, and CI deployed the frontend. wecare-mcp has no
+    # CI workflow, so it kept serving the old copy, and `search_pages` handed agents
+    # https://wecare.digital/my-order/ - a URL that now 404s. Nothing reported it.
+    #
+    # Caught here by comparing bytes, so a stale catalogue is a loud verify failure rather
+    # than a wrong answer to an agent. scripts/check_deployed_source.py finds the same thing
+    # across the whole fleet; this is the function-specific check for the command an operator
+    # of THIS function actually runs.
+    #
+    # The permanent fix is a CI workflow keyed on config/public-pages.json, like
+    # seo-tools-deploy.yml. That needs a new OIDC IAM role - the existing
+    # GitHubActions-bharat-stack-seo-tools role is scoped to its own function - and creating
+    # one is an owner decision under maintenance-reporting. Until then, this check plus
+    # `--verify` in the release routine is the guard.
+    try:
+        import hashlib
+        local = hashlib.sha256(CATALOG_FILE.read_bytes()).hexdigest()
+        artifact = lam.get_function(FunctionName=FUNCTION_NAME, Qualifier="live")
+        import urllib.request as _req
+        with _req.urlopen(artifact["Code"]["Location"], timeout=60) as resp:
+            blob = resp.read()
+        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+            deployed = hashlib.sha256(archive.read("public-pages.json")).hexdigest()
+        if deployed != local:
+            problems.append(
+                "the DEPLOYED catalogue differs from config/public-pages.json. The MCP "
+                "server is describing pages that may no longer exist, or missing ones that "
+                "do. Fix with: python scripts/deploy_mcp_server.py")
+        else:
+            _log("verify", "deployed catalogue matches config/public-pages.json")
+    except (ClientError, KeyError, OSError, zipfile.BadZipFile) as exc:
+        problems.append(f"could not compare the deployed catalogue: {type(exc)}")
+
     routes = {r["RouteKey"]: r for r in api.get_routes(ApiId=API_ID, MaxResults="1000").get("Items", [])}
     if ROUTE_KEY not in routes:
         problems.append(f"API route missing: {ROUTE_KEY}")
