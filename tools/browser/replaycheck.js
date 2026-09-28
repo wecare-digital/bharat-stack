@@ -129,7 +129,14 @@ async function main() {
     if ( recoloured.length ) {
       for ( const s of recoloured ) {
         console.log( `        row ${s.i} "${s.label}": name ${hex( s.nameColor )} on #000 = ${ratio( hex( s.nameColor ), '#000000' )}:1` );
-        console.log( `        that row's pill is still ${hex( s.svcColor )} - the two disagree on the same line` );
+        /* Only a finding when they actually differ. It used to print "the two disagree"
+         * unconditionally, which was true when the pill was lime on all eight and became a
+         * false alarm the moment the pill took its own hue. A probe that keeps reporting a
+         * defect after the defect is fixed trains the reader to ignore it. */
+        const same = hex( s.svcColor ) === hex( s.nameColor );
+        console.log( same
+          ? `        its pill is ${hex( s.svcColor )} too - the row agrees with itself`
+          : `        its pill is ${hex( s.svcColor )} - pill and name disagree on the same line` );
       }
     }
 
