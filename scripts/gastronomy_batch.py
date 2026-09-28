@@ -68,6 +68,23 @@ def _heading_texts(ricos):
     return out
 
 
+def _node_text(node):
+    parts = []
+    for nested in _walk_nodes(node):
+        text = (nested.get('textData') or {}).get('text')
+        if text:
+            parts.append(str(text))
+    return ''.join(parts).strip()
+
+
+def _substantive_top_level_paragraphs(ricos):
+    return [
+        _node_text(node)
+        for node in ricos.get('nodes', [])
+        if node.get('type') == 'PARAGRAPH' and len(_node_text(node)) >= 60
+    ]
+
+
 def validate_batch_document(document: dict):
     errors = []
     posts = document.get('posts')
@@ -104,6 +121,10 @@ def validate_batch_document(document: dict):
             errors.append(f'{prefix}: body contains literal escaped newline')
         ricos = markdown_to_rich_content(body)
         headings = _heading_texts(ricos)
+        if len(body.strip()) < 450:
+            errors.append(f'{prefix}: body too thin for editorial publication')
+        if len(_substantive_top_level_paragraphs(ricos)) < 3:
+            errors.append(f'{prefix}: needs at least 3 substantive prose paragraphs with real paragraph spacing')
         if 'Ingredients' not in headings:
             errors.append(f'{prefix}: missing Ingredients heading')
         if 'Method' not in headings:
@@ -170,6 +191,12 @@ def audit_public_post(post: dict, expected: dict):
             if value:
                 headings.append(value)
     flat = ''.join(flat_parts)
+    if re.search(r'\b(?:undefined|null|nan)\b', flat, re.IGNORECASE):
+        errors.append(f'{slug}: editor placeholder token in published body')
+    if re.search(r'\{\s*["\']?(?:type|nodes|richContent|textData)["\']?\s*:', flat):
+        errors.append(f'{slug}: raw editor JSON in published body')
+    if len(_substantive_top_level_paragraphs({'nodes': nodes})) < 3:
+        errors.append(f'{slug}: needs at least 3 substantive prose paragraphs with real paragraph spacing')
     if '\\n' in flat:
         errors.append(f'{slug}: literal escaped newline in published body')
     if '## ' in flat:
