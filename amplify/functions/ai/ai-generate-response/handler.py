@@ -51,6 +51,8 @@ from lambda_utils.agent import approvals as approval_module
 from lambda_utils.agent import drafts as draft_module
 from lambda_utils.middleware import require_auth
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -81,7 +83,7 @@ lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 
 
 # Environment variables
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
 CONVERSATION_TABLE = os.environ.get('CONVERSATION_TABLE', 'stack-wecare-digital-ConversationHistoryTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
@@ -2651,6 +2653,9 @@ def _build_media_block(s3_key: str, message_type: str, mime_type: str, request_i
     Build a single media content block for the Converse API.
     Downloads from S3 and formats per Nova's schema.
     """
+    # The key arrives from a persisted message row, so root it before the head/get
+    # and before it is interpolated into an s3:// URI for Nova.
+    s3_key = media_paths.canonical(s3_key)
     try:
         # Determine format from mime type or file extension
         fmt = _get_converse_format(message_type, mime_type, s3_key)
@@ -5114,7 +5119,7 @@ def _tool_list_templates(params: Dict, request_id: str) -> Dict:
         token = (secret_data.get('access_token') or '').strip()
         app_secret = (secret_data.get('app_secret') or '').strip()
 
-        api_version = os.environ.get('META_API_VERSION', 'v25.0')
+        api_version = META_API_VERSION
         url = f'https://graph.facebook.com/{api_version}/{waba_id}/message_templates?limit={limit}'
         if status_filter:
             url += f'&status={status_filter}'
@@ -5352,21 +5357,25 @@ def _tool_delete_media_files(params: Dict, request_id: str) -> Dict:
         deleted_count = 0
         
         if file_keys:
-            # Delete specific files
-            for key in file_keys:
+            # Delete specific files. Caller-supplied keys are rooted, and a gated key is
+            # refused outright: secure/ objects belong to the secure-files flow and must
+            # not be reachable through a conversation-media tool.
+            for raw in file_keys:
+                key = media_paths.canonical(raw)
+                if not key or media_paths.is_gated(key):
+                    continue
                 try:
                     s3.delete_object(Bucket=MEDIA_BUCKET, Key=key)
                     deleted_count += 1
                 except Exception:
                     pass
         else:
-            # Delete all files for contact
-            prefix = f'media/{contact_id}/'
-            response = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix)
-            
-            for obj in response.get('Contents', []):
+            # Delete all media for the contact, resolved from that contact's message rows
+            # rather than from a per-contact prefix that nothing writes. See
+            # _media_keys_for_contact.
+            for key in _media_keys_for_contact(contact_id):
                 try:
-                    s3.delete_object(Bucket=MEDIA_BUCKET, Key=obj['Key'])
+                    s3.delete_object(Bucket=MEDIA_BUCKET, Key=key)
                     deleted_count += 1
                 except Exception:
                     pass
@@ -5465,6 +5474,57 @@ def _tool_clear_all_contact_data(params: Dict, request_id: str) -> Dict:
         return {'success': False, 'error': str(e)}
 
 
+def _media_keys_for_contact(contact_id: str) -> List[str]:
+    """Every S3 key belonging to a contact, resolved from that contact's message rows.
+
+    There is no per-contact S3 prefix and there never was. Both callers below used to list
+    `media/<contactId>/`, a layout NOTHING writes: inbound-whatsapp stores media flat under
+    `o/stack/whatsapp-media/incoming/` named by message id, and records the key on the
+    message row as `s3Key`. So the listing was always empty and the two tools silently
+    reported zero files and deleted nothing.
+
+    The message row is therefore the only thing that associates media with a contact, which
+    makes it the right place to resolve from. Keys are rooted through
+    `media_paths.canonical`, because rows written before the bucket merge stored the key
+    without its `o/` root.
+
+    Uses the same scan-with-contactId-filter shape as `_tool_delete_messages`, for the same
+    reason: the messages table has no contactId index.
+    """
+    keys: List[str] = []
+    seen = set()
+    try:
+        messages_table = dynamodb.Table(MESSAGES_TABLE)
+        kwargs = {
+            'FilterExpression': 'contactId = :cid',
+            'ExpressionAttributeValues': {':cid': contact_id},
+        }
+        while True:
+            response = messages_table.scan(**kwargs)
+            for item in response.get('Items', []):
+                raw = item.get('s3Key')
+                if not raw:
+                    continue
+                key = media_paths.canonical(raw)
+                # A gated key is deliberately excluded: secure/ objects belong to the
+                # secure-files flow with its own lifecycle, not to conversation media.
+                if not key or key in seen or media_paths.is_gated(key):
+                    continue
+                seen.add(key)
+                keys.append(key)
+            token = response.get('LastEvaluatedKey')
+            if not token:
+                break
+            kwargs['ExclusiveStartKey'] = token
+    except Exception as exc:
+        logger.warning(json.dumps({
+            'event': 'media_key_resolution_failed',
+            'contactId': mask_contact_id(contact_id),
+            'error': type(exc).__name__,
+        }))
+    return keys
+
+
 def _tool_list_media_files(params: Dict, request_id: str) -> Dict:
     """List media files for a contact."""
     contact_id = params.get('contactId')
@@ -5474,14 +5534,16 @@ def _tool_list_media_files(params: Dict, request_id: str) -> Dict:
         return {'success': False, 'error': 'contactId is required'}
     
     try:
-        prefix = f'media/{contact_id}/'
-        response = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix)
-        
         files = []
-        for obj in response.get('Contents', []):
-            key = obj['Key']
-            size = obj['Size']
-            last_modified = obj['LastModified'].isoformat()
+        for key in _media_keys_for_contact(contact_id):
+            try:
+                head = s3.head_object(Bucket=MEDIA_BUCKET, Key=key)
+            except Exception:
+                # The row references an object that is gone. Skip it rather than
+                # reporting a file the caller cannot fetch.
+                continue
+            size = head.get('ContentLength', 0)
+            last_modified = head['LastModified'].isoformat()
             
             # Determine file type from extension
             ext = key.split('.')[-1].lower() if '.' in key else ''

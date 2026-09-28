@@ -105,3 +105,143 @@ you *mint*, honour what you already *issued*.
 
 Retiring the old host is a provider-coordination project — resubmit every affected
 WhatsApp template, move BIMI, re-register RCS media — not an infrastructure change.
+
+---
+
+## Addendum, 2026-09-28 — the bucket went, the host stayed, the code never followed
+
+Two things happened after the merge above, and together they produced a class of silent
+failure worth recording.
+
+### The old bucket was deleted; the old host was not
+
+`aws s3api list-buckets` now returns six buckets and `app.wecare.digital` is not among
+them. But `https://app.wecare.digital/...` still answers **HTTP 200**, because CloudFront
+`E1DP37QIS4G0T4` was repointed at `wecare-digital-get` with **origin path `/o`**:
+
+| Host | Distribution | Origin path | `<X>` resolves to |
+|---|---|---|---|
+| `wecare.digital/get/<X>` | `E2GP22R4BIFGQ3` | `""` | `<X>` |
+| `app.wecare.digital/<X>` | `E1DP37QIS4G0T4` | `/o` | `o/<X>` |
+
+So the "keep both" recommendation above was implemented, and the 61 Meta-approved
+template media URLs still resolve. That is the good news, and it is also precisely what
+makes the `o/` prefix **load-bearing rather than cosmetic**: an object is reachable on
+both hosts only if its key starts with `o/`.
+
+### The handler prefixes were never repointed
+
+The section above says the Lambda side is "environment-driven, not hardcoded", and that
+was right about the **bucket** and wrong about the **key**. Every `*_PREFIX` default still
+carried the pre-merge shape — `stack/whatsapp-media/incoming/`, `public/wa-tpl/`,
+`stream/media/m/...` — with no `o/` segment, because on the old bucket the whole bucket
+*was* the public root.
+
+Measured consequences, all live until 2026-09-28:
+
+| Symptom | Cause |
+|---|---|
+| Invoice PDFs lost their logo and monospace font | `stream/media/m/wecare-digital.png` and `stream/media/fonts/DejaVuSansMono.ttf` are absent at the root, present under `o/` |
+| Document downloads returned a dead URL | `DOCS_S3_BUCKET` was `wecare-digital-media` live and `wecare-digital-documents` in code — **neither bucket exists** — and the stored `storageKey` lacked `o/` |
+| `system-cleanup` deleted nothing, reporting success | all 11 TTL prefixes plus `S3_ROOT_PREFIX` targeted `stack/` at the root, which holds zero objects |
+| Wix product-image upload raised `NameError` | `S3_PRODUCT_PREFIX` was referenced but never defined anywhere in the repo |
+
+None of these raised an alarm, and the reason is uncomfortable: a key written to the
+bucket root still serves **HTTP 200** on the apex host. Verified by probe — a key at the
+root and the same key under `o/` both returned 200, while a key under `secure/` returned
+302. So a write to the wrong folder looked perfectly healthy from the apex and was simply
+invisible to `app.wecare.digital`.
+
+### What was done
+
+`amplify/functions/shared/lambda_utils/media_paths.py` now owns the convention —
+`PUBLIC_ROOT = "o/"`, `SECURE_ROOT = "secure/"`, plus `public()`, `secure()`,
+`canonical()` and `public_url()`. 24 handlers compose their keys through it, and keys read
+back out of DynamoDB go through `canonical()`, which roots a legacy un-prefixed key
+without ever moving one between the public and gated roots.
+
+No objects were moved. The data was always in the right place; the code was addressing one
+level above it.
+
+`scripts/verify_media_prefixes.py --live` enforces all of this, including the ordering
+trap that caught three handlers on the first deploy: `media_paths` imported *below* its
+first use is a module-scope `NameError` that byte-compiles cleanly and only fails when the
+function is invoked.
+
+### Closed out on 2026-09-28
+
+- **`paid_icon_s3_key` was deleted from `invoice-engine`.** It was read by nothing — a
+  repo-wide search found one definition and zero uses — and `stream/media/m/paid.png` has
+  no object *and no version history* in this bucket, so it was never migrated and probably
+  never existed. A config key naming an unfetchable file that nothing fetches is the exact
+  drift this audit was chasing.
+- **`ai-generate-response` now resolves per-contact media from the message rows.** The new
+  `_media_keys_for_contact` scans the messages table on `contactId` and roots each `s3Key`
+  through `canonical()`, because the message row is the only thing that associates media
+  with a contact. Verified against live data: 2 files (92266 and 68334 bytes), both needing
+  rooting, where the old `media/<contactId>/` listing returned **0 objects**. The delete
+  path refuses a `secure/` key outright, so a conversation-media tool cannot reach the
+  gated tree.
+- **`system-cleanup`'s docstring was corrected.** It claimed deletion happened "on
+  confirm"; there is **no server-side confirmation token**. The gate is `require_auth` plus
+  an explicit `selected` list, and the word "confirm" referred to a dialog in the admin UI.
+  No EventBridge rule targets it. Worth stating plainly now that its prefixes reach real
+  data.
+- **`config/lambda-env-manifest.json` is at key parity with live.** 26 keys added, 2 stale
+  removed, `--keys-only` now reports 0 differences. `scripts/env_manifest.py --keys-only`
+  is a new mode that measures key-level drift from Lambda configuration alone, printing
+  names and never values, so the scope of a drift can be established without the Secrets
+  Manager read that `--export` requires. Every key added was cleared by env_manifest's own
+  `SECRET_FIELD`/`CONFIG_FIELD`/`SHAPES` classifiers rather than by eye. A full `--export`
+  is still the only thing that can detect a changed **value** on a key present in both.
+- **`.github/workflows/media-prefixes.yml` makes the guard blocking.** A credential-free
+  `source-gate` runs on every push and PR; a `live-gate` skips until
+  `MEDIA_PREFIX_ROLE_ARN` is set. The checks are AST-based, after text scanning produced
+  false positives in both directions — per-line missed rooting on a continuation line, and
+  per-statement then flagged the prose *documenting* the convention.
+
+### Still outstanding
+
+- **24 objects under `o/stream/media/m/` are behind delete markers created 2026-09-28
+  06:48–06:49**, including `selfservice.mp4`, `WECARE+SC.png` and `qr-selfservice.png`.
+  `docs/execution/snapshots/get-delete-markers-removed-20260928.json` records markers being
+  removed at 06:43–06:46, and new ones appeared 3–6 minutes later, so something is
+  re-deleting them. **7 RCS template files registered with Sinch reference
+  `selfservice.mp4` and `WECARE+SC.png` as `mediaUrl`/`thumbnailUrl`.** The 459-byte
+  `qr-selfservice.png` version is intact behind its marker and recoverable. Not touched
+  here, because this is another session's active media-parity work and a blind restore
+  would thrash against whatever is re-deleting.
+- **`app.wecare.digital` maps both 403 and 404 to HTTP 200 serving `/error.html`.**
+  Confirmed by fetch: a missing object returns `200` with `content-type: text/html`, 596
+  bytes, `x-cache: Error from cloudfront`. This is why the deletions above are invisible —
+  and it means **Meta fetching an approved template's media gets a 200 and an HTML page
+  instead of a 404**, so a broken template looks healthy to every status-code check. The
+  apex distribution `E2GP22R4BIFGQ3` has no custom error responses and is unaffected.
+  Fixing it means an `update-distribution` on the host serving Meta-approved media, which
+  needs the entire `DistributionConfig` plus a matching `ETag` — a production CDN change
+  worth deciding deliberately rather than folding into this one.
+- A deleted object can still serve from the edge cache: `wecare-digital-rcs-h.png` has a
+  live delete marker yet returned `200 image/png 89548 bytes`. "It works now" is not
+  evidence the object exists.
+- The docs-scraper image deploys from a workflow whose path filter covers
+  `amplify/functions/operations/docs-scraper/**` but **not**
+  `amplify/functions/shared/lambda_utils/**`, so a change confined to the shared module
+  would not rebuild that image.
+
+### Where these commits actually live
+
+Recorded because `git log --oneline` is misleading here and bisecting would mislead with it.
+
+| Work | Commit |
+|---|---|
+| Rooting the fleet's keys, `media_paths`, manifest correction | `739f8ddc` (merged as `c413326c`) |
+| Follow-ups: CI gate, per-contact media, `--keys-only`, doc updates | **`5054d0e3`**, whose message describes only `scripts/provision_ci_route_auth_role.py` |
+
+`5054d0e3` carries nine files. Eight of them are the follow-up work described above and are
+unrelated to its subject line. The cause is the shared git index: these changes were staged
+by explicit path from one session, and a second session ran `git commit` in the window
+before the first session committed, so its commit swept up the staged paths.
+
+Not rewritten, because it is already pushed and the standing rules forbid a history
+rewrite to tidy a message. The content is correct and complete; only the attribution is
+wrong, and this table is the fix.

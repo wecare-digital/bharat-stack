@@ -32,8 +32,12 @@ from lambda_utils.masking import mask_text
 logger = get_logger(__name__)
 
 DEFAULT_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
-DEFAULT_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
-GRAPH_BASE = 'https://graph.facebook.com'
+#: Resolved by `lambda_utils.meta_version`, which validates the format and fails at
+#: import rather than letting Graph answer 400 for an unknown path. This module used to
+#: read the environment itself with its own hard-coded default, which made it a twelfth
+#: independent opinion about the API version.
+from lambda_utils.meta_version import META_API_VERSION as DEFAULT_API_VERSION  # noqa: E402
+from lambda_utils.meta_version import GRAPH_HOST as GRAPH_BASE  # noqa: E402
 _WABA2_ENV = os.environ.get('WABA2_IDS', '2513394156072604,1055232054343117')
 DEFAULT_WABA2_IDS = {x.strip() for x in _WABA2_ENV.split(',') if x.strip()}
 

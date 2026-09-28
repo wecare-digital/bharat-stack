@@ -31,13 +31,25 @@ exiting zero is not verification.
 
 ## Phase 1 — Version compatibility layer (startable now, no Wix dependency)
 
-- [ ] 1.1 Single-source the Meta Graph version
-  - Remove the 7 hard-coded `META_API_VERSION` module constants and the 3 URL-embedded
-    literals; resolve from one config module
+- [x] 1.1 Single-source the Meta Graph version
+  - **It was 11 module constants and 5 URL literals, not 7 and 3** — plus three more the
+    new test found on its first run (`ai-generate-response`, `partner-onboarding`,
+    `partner-token-refresh` read the env var under local names `api_version` /
+    `API_VERSION`, invisible to a grep for the canonical name), and `meta_client.py` as a
+    twelfth opinion. All 19 now import `lambda_utils/meta_version.py`
   - _Requirements: R1.1, R1.2_
-  - _Verify: `grep -rn 'v2[0-9]\.[0-9]' amplify/functions` returns no request-URL literal_
-- [ ] 1.2 Fail startup on a malformed version
-  - _Requirements: R1.3_ · _Verify: unit test with `v25`, `25.0`, `latest`_
+  - Verified: `tests/test_meta_version.py` — 18 tests asserting no local declaration and
+    no URL literal anywhere under `amplify/functions`, plus agreement with
+    `config/vendor-versions.json`. Whole fleet deployed (62 functions, 0 stale files)
+- [x] 1.2 Fail startup on a malformed version
+  - Raises `MetaVersionError` at **import**, not at request time: a bad value otherwise
+    surfaces as a Graph 400 about an unknown path, which reads like an application bug
+  - **Absent and empty are deliberately different** — absent means no opinion and the
+    pinned default applies; `META_API_VERSION=""` means someone configured it and got it
+    wrong, most likely an unresolved deploy-template substitution, and silently defaulting
+    would hide exactly that
+  - _Requirements: R1.3_ · Verified: parametrised over `v25`, `25.0`, `latest`, `v25.0.1`,
+    `""`, `v.0`, `vv25.0`, `v25.00`, `V25.0`
 - [ ] 1.3 Write the compatibility manifest and version checker
   - Record `nodejs24.x` as available-and-rejected with the D1 reason, so the decision is
     revisited rather than forgotten
@@ -46,9 +58,14 @@ exiting zero is not verification.
   - `payment_status.py` documents `paid` vs `captured` disagreement across three tables;
     choose one and make each legacy mapping explicit
   - _Requirements: R15, R7.8_ · _Verify: test asserting one vocabulary across all three_
-- [ ] 1.5 Fill `.kiro/steering/whatsapp-payments-india-reference.md`
-  - Currently 0 bytes and always-on. Record the India payments contract, the two payment
-    config names, MCC 7392 / purpose code 03, and the `reference_id` rules
+- [x] 1.5 Fill `.kiro/steering/whatsapp-payments-india-reference.md`
+  - Was 0 bytes while carrying `inclusion: always`, which is worse than absent: it occupied
+    a slot that reads as "the payments rules are written down". Now holds the one-gateway
+    rule and the Razorpay secret path, the two payment configurations being
+    non-interchangeable, MCC 7392 / purpose code 03, integer-paise money with the reason
+    the fail-closed comparison needs it, and the four `reference_id` rules
+  - Deliberately does **not** reproduce the two configuration names — a dated constant in
+    steering is what `00-current-owner-overrides.md` forbids quoting
   - _Requirements: R1, R6_
 
 ## Phase 2 — Unique order subsystem (startable now)

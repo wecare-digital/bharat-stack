@@ -1,8 +1,30 @@
 """
 System Cleanup Lambda Handler
 Provides selective cleanup of DynamoDB tables and S3 prefixes.
-Returns item counts for preview, and deletes selected resources on confirm.
+GET previews item counts; POST deletes the resources named in `selected`.
 Preserves: SystemConfig table always.
+
+What actually gates the delete, stated precisely
+------------------------------------------------
+This docstring used to say "on confirm", which overstated it. There is **no server-side
+confirmation token**. Deletion is gated by exactly two things:
+
+1. `require_auth` - the caller must be an authenticated admin.
+2. An explicit `selected` list in the POST body. Nothing is deleted by default, there is
+   no "all" shorthand, and an empty list deletes nothing.
+
+The word "confirm" refers to the dialog in the admin UI, which is a client-side courtesy
+and not a guarantee. Any authenticated caller can POST a `selected` list directly.
+
+No EventBridge rule targets this function, so nothing here runs on a schedule. The
+similarly named `wecare-media-cleanup` IS scheduled daily, but it only expires
+DynamoDB rows and never touches S3.
+
+**The S3 prefixes below deleted nothing until 2026-09-28.** They all pointed at `stack/`
+at the bucket root, which holds zero objects, so every sweep reported success having
+removed nothing. Rooting them under `o/` made this path reach real data for the first
+time - see lambda_utils/media_paths. Treat changes here as destructive, because now they
+are.
 """
 
 import os
@@ -16,11 +38,12 @@ from botocore.exceptions import ClientError
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
 from lambda_utils.logging import get_logger
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
-BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
 
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 dynamodb_client = boto3.client('dynamodb', region_name=REGION)
@@ -176,25 +199,25 @@ CLEANUP_RESOURCES = {
         'label': 'S3: Invoice Files',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/invoices/',
+        'prefix': media_paths.public('stack/invoices/'),
     },
     's3_whatsapp_media': {
         'label': 'S3: WhatsApp Media',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/',
+        'prefix': media_paths.public('stack/whatsapp-media/'),
     },
     's3_voice_recordings': {
         'label': 'S3: Voice Recordings',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/voice/',
+        'prefix': media_paths.public('stack/voice/'),
     },
     's3_whatsapp_voice': {
         'label': 'S3: WhatsApp Voice (TTS)',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/voice/',
+        'prefix': media_paths.public('stack/whatsapp-media/voice/'),
     },
     # --- Additional resources (full factory reset coverage) ---
     'dlq_messages': {
@@ -262,43 +285,43 @@ CLEANUP_RESOURCES = {
         'label': 'S3: WhatsApp Media (Incoming)',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/incoming/',
+        'prefix': media_paths.public('stack/whatsapp-media/incoming/'),
     },
     's3_whatsapp_media_outgoing': {
         'label': 'S3: WhatsApp Media (Outgoing)',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/outgoing/',
+        'prefix': media_paths.public('stack/whatsapp-media/outgoing/'),
     },
     's3_template_headers': {
         'label': 'S3: Template Headers',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/template-headers/',
+        'prefix': media_paths.public('stack/whatsapp-media/template-headers/'),
     },
     's3_product_images': {
         'label': 'S3: Product Images',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/store/products/',
+        'prefix': media_paths.public('stack/store/products/'),
     },
     's3_reports': {
         'label': 'S3: Reports & Exports',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/reports/',
+        'prefix': media_paths.public('stack/reports/'),
     },
     's3_whatsapp_calling_ai': {
         'label': 'S3: WhatsApp Calling AI Audio',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/calling-ai/',
+        'prefix': media_paths.public('stack/whatsapp-media/calling-ai/'),
     },
     's3_whatsapp_downloads': {
         'label': 'S3: WhatsApp Media Downloads',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/downloads/',
+        'prefix': media_paths.public('stack/whatsapp-media/downloads/'),
     },
     # SQS Queues
     'sqs_inbound_dlq': {
@@ -329,7 +352,10 @@ CLEANUP_RESOURCES = {
 
 # ── Dynamic discovery config ──
 TABLE_PREFIX = 'stack-wecare-digital-'
-S3_ROOT_PREFIX = 'stack/'
+# Rooted in the public tree. This was 'stack/' - a prefix with zero objects under it -
+# so discovery listed nothing and every S3 cleanup reported success having deleted
+# nothing. See lambda_utils/media_paths for why the data sits one level lower.
+S3_ROOT_PREFIX = media_paths.public('stack/')
 S3_MAX_DEPTH = 3  # how many folder levels under stack/ to expose
 
 # Tables that must NEVER be wiped by factory reset (config + durable assets).

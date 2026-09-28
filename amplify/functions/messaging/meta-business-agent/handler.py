@@ -2,7 +2,7 @@
 Meta Business Agent — WECARE.DIGITAL
 
 Backend for onboarding/configuring Meta's Business AI Agent on WhatsApp.
-Docs (scraped to s3://app.wecare.digital/stream/docs/meta-business-agent/):
+Docs (scraped to s3://wecare-digital-get/o/stream/docs/meta-business-agent/):
   Onboarding: POST https://api.facebook.com/{entity_id}/agent_onboarding/?channel=whatsapp
     headers: Authorization: Bearer <token>, X-API-Version: 2.0.0
     entity_id = WhatsApp Business Phone Number ID (or FB Page ID)
@@ -29,6 +29,7 @@ import time
 import boto3
 
 from lambda_utils.middleware import require_auth
+from lambda_utils.meta_version import GRAPH_BASE  # one source; validated at import
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -232,7 +233,7 @@ def _onboard(body: dict):
 # other handler moved on, which put the two oldest Graph calls in the account
 # here. Deliberately NOT v26.0: that release blocked a batch of commerce
 # endpoints, and _tool_product_lookup below reads /{catalog_id}/products.
-GRAPH = os.environ.get("META_GRAPH_BASE", "https://graph.facebook.com/v25.0")
+GRAPH = os.environ.get("META_GRAPH_BASE", GRAPH_BASE)
 # WABA IDs (not phone-number IDs) — subscribed_apps is per WABA
 WABA_IDS = {"WABA1": "2094615664435155", "WABA-T": "2513394156072604", "WABA2": "2513394156072604"}
 

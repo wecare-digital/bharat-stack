@@ -20,6 +20,7 @@ from decimal import Decimal
 
 from lambda_utils.response import cors_response, options_response, extract_origin
 from lambda_utils.logging import get_logger, log_event
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -42,8 +43,8 @@ VOICE_AWS_TABLE = os.environ.get('VOICE_AWS_TABLE', 'stack-wecare-digital-VoiceA
 EMAIL_MESSAGES_TABLE = os.environ.get('EMAIL_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 # Canonical unified message table (all channels). The single source the inbox reads.
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'app.wecare.digital')  # CloudFront domain
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
+MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', media_paths.CDN_DOMAIN)  # CloudFront host + path
 
 # Pagination defaults
 DEFAULT_LIMIT = 1000
@@ -371,7 +372,7 @@ def _convert_from_dynamodb(item: Dict[str, Any]) -> Dict[str, Any]:
     # Generate pre-signed URL for media files if s3Key exists
     if result.get('s3Key'):
         try:
-            s3_key = result['s3Key']
+            s3_key = media_paths.canonical(result['s3Key'])
             media_id = result.get('mediaId')
             message_id = result.get('messageId') or result.get('id')
             message_type = result.get('messageType', 'document')
@@ -451,6 +452,8 @@ def _get_display_filename(s3_key: str, message_id: str, message_type: str) -> st
 
 
 def _find_actual_s3_key(stored_key: str, message_id: str) -> Optional[str]:
+    # Root the persisted key before any lookup: rows predating the bucket merge
+    # store `stack/...` while the object is at `o/stack/...`.
     """
     Find the actual S3 key by searching with prefix.
     

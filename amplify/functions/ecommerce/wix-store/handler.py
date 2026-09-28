@@ -31,6 +31,7 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 # Pure Wix transforms, lifted out in 7.2. This module imports no AWS SDK and reads no
 # credential, so these 13 functions are unit-testable without standing up the
 # integration - which is what made ~270 lines of shape-mapping untestable before.
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 from lambda_utils.ecommerce.wix_domain import (  # noqa: F401
     _base36,
     _extract_id,
@@ -53,6 +54,23 @@ logger = get_logger(__name__)
 # Headless project must be configured explicitly before Wix calls can run.
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', '').strip()
+# S3_BUCKET and CDN_DOMAIN were NEVER DEFINED in this module.
+#
+# `_s3_public_url` referenced S3_BUCKET and the product-image upload passed it to
+# put_object, but nothing ever assigned it and it is not in the wix_domain import
+# list above - so both paths raised NameError on every call. That predates the
+# 2026-09-28 bucket migration; those two code paths have never worked.
+#
+# Defined here as the same env-with-live-default pair used elsewhere, and kept
+# separate on purpose: the bucket name is for S3 API calls, the domain is for URLs a
+# caller will fetch. Interpolating the bucket name into a URL only ever worked while
+# the bucket happened to be named app.wecare.digital.
+S3_BUCKET = os.environ.get('S3_BUCKET', media_paths.BUCKET)
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', media_paths.CDN_DOMAIN)
+# Referenced by _upload_product_image but never defined until 2026-09-28, so that
+# path raised NameError rather than uploading. Same folder product-image-gen uses.
+S3_PRODUCT_PREFIX = os.environ.get('S3_PRODUCT_PREFIX',
+                                   media_paths.public('stack/store/products'))
 
 
 _wix_api_key_cache = ''
@@ -1075,7 +1093,7 @@ def _bulk_create_products_rest(body: dict, request_id: str) -> Dict[str, Any]:
 
 def _s3_public_url(key: str) -> str:
     """Convert an S3 key to a public HTTPS URL."""
-    return f'https://{S3_BUCKET}/{key}'
+    return f'https://{CDN_DOMAIN}/{key}'
 
 
 def _import_to_wix_media(url: str, display_name: str, folder: str = 'products') -> Dict[str, Any]:

@@ -1,9 +1,9 @@
 {
   "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - this is the source of truth to diff against. Regenerate with scripts/env_manifest.py --export; verify with no arguments.",
-  "_region": "us-east-1",
-  "_functions": 65,
-  "_variables": 361,
   "_fingerprinted": 15,
+  "_functions": 65,
+  "_region": "us-east-1",
+  "_variables": 385,
   "functions": {
     "stack-wecare-url-shortener": {
       "LINK_CLICKS_TABLE": "stack-wecare-digital-LinkClicksTable",
@@ -18,17 +18,18 @@
       "MESSAGES_INBOUND_TABLE": "stack-wecare-digital-WhatsAppInboundTable",
       "MESSAGES_OUTBOUND_TABLE": "stack-wecare-digital-WhatsAppOutboundTable",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-ai-config-management": {
       "AI_INTERACTIONS_TABLE": "stack-wecare-digital-AIInteractionsTable",
       "AWS_ACCOUNT_ID": "775261844268",
       "LOG_LEVEL": "INFO",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital",
+      "S3_BUCKET": "wecare-digital-get",
       "SYSTEM_CONFIG_TABLE": "stack-wecare-digital-SystemConfigTable"
     },
     "wecare-ai-generate-response": {
+      "ADMIN_MFA_REQUIRED": "true",
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "CONVERSATION_TABLE": "stack-wecare-digital-ConversationHistoryTable",
       "CONVERSATION_TTL_HOURS": "24",
@@ -38,7 +39,7 @@
       "MAX_HISTORY_MESSAGES": "20",
       "MAX_INPUT_TEXT_LENGTH": "2000",
       "MAX_SESSION_MESSAGES": "50",
-      "MEDIA_BUCKET": "app.wecare.digital",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "MESSAGES_TABLE": "stack-wecare-digital-WhatsAppInboundTable",
       "MODEL_ID": "amazon.nova-lite-v1:0",
       "SEND_MODE": "LIVE",
@@ -49,7 +50,7 @@
       "AWS_ACCOUNT_ID": "775261844268",
       "LOG_LEVEL": "INFO",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital",
+      "S3_BUCKET": "wecare-digital-get",
       "SEND_MODE": "LIVE"
     },
     "wecare-auth-middleware": {
@@ -63,7 +64,7 @@
     "wecare-billing": {
       "AWS_ACCOUNT_ID": "775261844268",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-bulk-job-control": {
       "AWS_ACCOUNT_ID": "775261844268",
@@ -72,8 +73,8 @@
       "BULK_RECIPIENTS_TABLE": "stack-wecare-digital-BulkRecipientsTable",
       "LOG_LEVEL": "INFO",
       "REGION": "us-east-1",
-      "REPORT_BUCKET": "app.wecare.digital",
-      "S3_BUCKET": "app.wecare.digital"
+      "REPORT_BUCKET": "wecare-digital-get",
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-bulk-job-create": {
       "AWS_ACCOUNT_ID": "775261844268",
@@ -82,7 +83,7 @@
       "BULK_RECIPIENTS_TABLE": "stack-wecare-digital-BulkRecipientsTable",
       "LOG_LEVEL": "INFO",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-bulk-worker": {
       "BULK_JOBS_TABLE": "stack-wecare-digital-BulkJobsTable",
@@ -103,8 +104,9 @@
       "AWS_ACCOUNT_ID": "775261844268",
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "LOG_LEVEL": "INFO",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-conversation-meta": {
       "CONVERSATION_META_TABLE": "stack-wecare-digital-ConversationMetaTable",
@@ -137,20 +139,24 @@
       "MAX_MESSAGES": "10",
       "SNS_TOPIC_ARN": "arn:aws:sns:us-east-1:775261844268:stack-wecare-digital"
     },
-    "wecare-docs-scraper": {},
+    "wecare-docs-scraper": {
+      "ADMIN_MFA_REQUIRED": "true",
+      "DOCS_BUCKET": "wecare-digital-get"
+    },
     "wecare-faq-handler": {},
     "wecare-get-miss-redirect": {},
     "wecare-inbound-whatsapp": {
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "IAM_REFRESH": "1772814879",
       "INBOUND_TABLE": "stack-wecare-digital-WhatsAppInboundTable",
-      "MEDIA_BUCKET": "app.wecare.digital",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "OUTBOUND_TABLE": "stack-wecare-digital-WhatsAppOutboundTable",
       "WHATSAPP_PHONE_NUMBER_ID_1": "phone-number-id-waba1-direct-1016149501586345",
       "WHATSAPP_PHONE_NUMBER_ID_2": "phone-number-id-waba-t-direct-1055232054343117"
     },
     "wecare-invoice-engine": {
-      "CDN_DOMAIN": "app.wecare.digital",
+      "ADMIN_MFA_REQUIRED": "true",
+      "CDN_DOMAIN": "wecare.digital/get",
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "INVOICES_TABLE": "stack-wecare-digital-InvoicesTable",
       "INVOICE_ASSETS_TABLE": "stack-wecare-digital-InvoiceAssetsTable",
@@ -158,13 +164,13 @@
       "INVOICE_ITEMS_TABLE": "stack-wecare-digital-InvoiceItemsTable",
       "INVOICE_SEQ_TABLE": "stack-wecare-digital-InvoiceSequenceTable",
       "LOG_LEVEL": "INFO",
-      "MEDIA_BUCKET": "app.wecare.digital",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "PAYMENTS_TABLE": "stack-wecare-digital-PaymentsTable"
     },
     "wecare-marketing-ads": {
       "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
       "LOG_LEVEL": "INFO",
-      "MEDIA_BUCKET": "app.wecare.digital",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "META_AD_ACCOUNT": "506155527842845",
       "META_BUSINESS_ID": "382642103987922",
       "META_GRAPH_BASE": "https://graph.facebook.com/v25.0",
@@ -183,13 +189,17 @@
     "wecare-messages-delete": {
       "AWS_ACCOUNT_ID": "775261844268",
       "INBOUND_WHATSAPP_FUNCTION": "wecare-inbound-whatsapp",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-messages-read": {
+      "ADMIN_MFA_REQUIRED": "true",
       "AWS_ACCOUNT_ID": "775261844268",
+      "MEDIA_BUCKET": "wecare-digital-get",
+      "MEDIA_CDN_DOMAIN": "wecare.digital/get",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-meta-analytics": {},
     "wecare-meta-business-agent": {},
@@ -204,7 +214,7 @@
       "MESSAGES_TABLE": "stack-wecare-digital-WhatsAppOutboundTable",
       "REGION": "us-east-1",
       "REPLY_TO_EMAIL": "support@wecare.digital",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-outbound-sms": {
       "AIRTEL_IQ_ENTITY_ID": "1201161991108627443",
@@ -214,23 +224,26 @@
       "LOG_LEVEL": "INFO",
       "MESSAGES_TABLE": "stack-wecare-digital-WhatsAppOutboundTable",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-outbound-whatsapp": {
+      "ADMIN_MFA_REQUIRED": "true",
       "AWS_ACCOUNT_ID": "775261844268",
+      "CDN_DOMAIN": "wecare.digital/get",
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "LOG_LEVEL": "INFO",
-      "MEDIA_BUCKET": "app.wecare.digital",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "MEDIA_FILES_TABLE": "stack-wecare-digital-MediaFilesTable",
       "MESSAGES_TABLE": "stack-wecare-digital-WhatsAppOutboundTable",
       "RATE_LIMIT_TABLE": "stack-wecare-digital-RateLimitTable",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital",
+      "S3_BUCKET": "wecare-digital-get",
       "SEND_MODE": "LIVE",
       "WHATSAPP_PHONE_NUMBER_ID_1": "phone-number-id-waba1-direct-1016149501586345",
       "WHATSAPP_PHONE_NUMBER_ID_2": "phone-number-id-waba-t-direct-1055232054343117"
     },
     "wecare-partner-onboarding": {
+      "ADMIN_MFA_REQUIRED": "true",
       "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
       "LOG_LEVEL": "INFO",
       "META_API_VERSION": "v25.0",
@@ -258,11 +271,13 @@
     "wecare-payments-read": {
       "AWS_ACCOUNT_ID": "775261844268",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-plivo-answer": {
       "DLT_TEMPLATE_KEY": "ivr-default",
       "IVR_AUDIO_URL": "sha256:f1e26f55251f",
+      "PLIVO_CALLBACK_HOST": "wecare.digital",
+      "PLIVO_CALLBACK_PATH_PREFIX": "/api",
       "POST_CALL_SMS_ENABLED": "true",
       "SMS_FUNCTION": "wecare-sms-aws:live"
     },
@@ -278,7 +293,9 @@
       "PSTN_SESSIONS_TABLE": "stack-wecare-digital-PstnSoftphoneSessions",
       "PSTN_TOKEN_TTL_SECONDS": "300"
     },
-    "wecare-push-notifications": {},
+    "wecare-push-notifications": {
+      "ADMIN_MFA_REQUIRED": "true"
+    },
     "wecare-razorpay-webhook": {
       "AWS_ACCOUNT_ID": "775261844268",
       "INVOICES_TABLE": "stack-wecare-digital-InvoicesTable",
@@ -289,29 +306,28 @@
       "POST_PAYMENT_FLOW_WABA2": "1021379973921053",
       "POST_PAYMENT_REQUEST_TEMPLATE": "postpay_request_v1",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital",
+      "S3_BUCKET": "wecare-digital-get",
       "WEBHOOK_LOG_TABLE": "stack-wecare-digital-RazorpayWebhookLogTable"
     },
     "wecare-rcs-dlr": {
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
-      "LOG_LEVEL": "INFO",
-      "RCS_TABLE": "stack-wecare-digital-RcsMessagesTable"
+      "LOG_LEVEL": "INFO"
     },
     "wecare-rcs-send": {
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "LOG_LEVEL": "INFO",
       "RCS_APP_ID": "sha256:98c49ff499b0",
       "RCS_PROJECT_ID": "sha256:497a7a540fc3",
-      "RCS_SECRET_NAME": "wecare/sinch/rcs",
-      "RCS_TABLE": "stack-wecare-digital-RcsMessagesTable"
+      "RCS_SECRET_NAME": "wecare/sinch/rcs"
     },
     "wecare-scheduled-messages": {
+      "ADMIN_MFA_REQUIRED": "true",
       "AWS_ACCOUNT_ID": "775261844268",
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "LOG_LEVEL": "INFO",
       "OUTBOUND_LAMBDA": "wecare-outbound-whatsapp",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital",
+      "S3_BUCKET": "wecare-digital-get",
       "SCHEDULED_TABLE": "stack-wecare-digital-ScheduledMessagesTable"
     },
     "wecare-secure-files": {
@@ -336,6 +352,7 @@
       "WHATSAPP_LINK_TTL_SECONDS": "21600"
     },
     "wecare-seo-tools": {
+      "ADMIN_MFA_REQUIRED": "true",
       "BEDROCK_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
       "COGNITO_USER_POOL_ID": "us-east-1_cSx0RHCIR",
       "CREDENTIAL_PURGE_EPOCH": "2026-09-23T03:05:00Z",
@@ -349,7 +366,7 @@
       "WIX_SITE_ID": "sha256:0bfb241a3e34"
     },
     "wecare-service-api": {
-      "DOCS_S3_BUCKET": "wecare-digital-media",
+      "DOCS_S3_BUCKET": "wecare-digital-get",
       "TABLE_PREFIX": "stack-wecare-digital"
     },
     "wecare-site-language": {
@@ -373,17 +390,17 @@
     "wecare-sms-aws": {
       "AWS_ACCOUNT_ID": "775261844268",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-system-cleanup": {
       "AWS_REGION_OVERRIDE": "us-east-1",
       "LOG_LEVEL": "INFO",
-      "MEDIA_BUCKET": "app.wecare.digital"
+      "MEDIA_BUCKET": "wecare-digital-get"
     },
     "wecare-template-analytics": {
       "AWS_ACCOUNT_ID": "775261844268",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-url-shortener": {},
     "wecare-voice-aws": {
@@ -391,7 +408,7 @@
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "LOG_LEVEL": "INFO",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital",
+      "S3_BUCKET": "wecare-digital-get",
       "VOICE_AWS_TABLE": "stack-wecare-digital-VoiceAwsTable",
       "VOICE_ID": "RAVEENA",
       "VOICE_ORIGINATION_IDENTITY": "+18444891209"
@@ -399,13 +416,13 @@
     "wecare-voice-cdr-read": {
       "AWS_ACCOUNT_ID": "775261844268",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-voice-in-c2c": {
       "AWS_ACCOUNT_ID": "775261844268",
       "LOG_LEVEL": "INFO",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital",
+      "S3_BUCKET": "wecare-digital-get",
       "SINCH_RCS_ENABLED": "true",
       "VOICE_CDR_TABLE": "stack-wecare-digital-VoiceCDRTable"
     },
@@ -414,15 +431,17 @@
       "LOG_LEVEL": "INFO",
       "OBD_CAMPAIGNS_TABLE": "stack-wecare-digital-OBDCampaigns",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital",
+      "S3_BUCKET": "wecare-digital-get",
       "SINCH_RCS_ENABLED": "true",
       "VOICE_CDR_TABLE": "stack-wecare-digital-VoiceCDRTable"
     },
     "wecare-waba-management": {
+      "ADMIN_MFA_REQUIRED": "true",
       "AWS_ACCOUNT_ID": "775261844268",
       "LOG_LEVEL": "INFO",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital",
+      "S3_BUCKET": "wecare-digital-get",
       "SNS_TOPIC_ARN": "arn:aws:sns:us-east-1:775261844268:stack-wecare-digital",
       "SYSTEM_CONFIG_TABLE": "stack-wecare-digital-SystemConfigTable"
     },
@@ -434,6 +453,7 @@
       "FLOW_REGISTRY_TABLE": "stack-wecare-digital-FlowRegistryTable",
       "FLOW_SUBMISSIONS_TABLE": "stack-wecare-digital-FlowSubmissionTable",
       "LOG_LEVEL": "INFO",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "META_API_VERSION": "v25.0",
       "META_TOKEN_SECRET": "wecare/meta-system-user-token",
       "PAYMENT_WABA_ID": "2094615664435155",
@@ -445,6 +465,7 @@
       "WIX_SITE_URL": "https://www.wecare.digital"
     },
     "wecare-whatsapp-calling": {
+      "ADMIN_MFA_REQUIRED": "true",
       "AI_LANGUAGE": "en-IN",
       "AI_VOICE_ID": "Kajal",
       "AUTO_PICKUP_AUDIO_KEY": "whatsapp-media/whatsapp-calling/auto-pickup-greeting.ogg",
@@ -453,7 +474,7 @@
       "CALL_LOG_TABLE": "stack-wecare-digital-WhatsAppCallingTable",
       "INBOUND_HANDLER_FUNCTION": "wecare-inbound-whatsapp",
       "LOG_LEVEL": "INFO",
-      "MEDIA_BUCKET": "app.wecare.digital",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "META_API_VERSION": "v25.0",
       "META_TOKEN_SECRET": "wecare/meta-system-user-token",
       "SINCH_RCS_ENABLED": "true",
@@ -463,20 +484,25 @@
       "WHATSAPP_PHONE_NUMBER_ID_2": "phone-number-id-waba-t-direct-1055232054343117"
     },
     "wecare-whatsapp-template-management": {
+      "CDN_DOMAIN": "wecare.digital/get",
       "LOG_LEVEL": "INFO",
-      "MEDIA_BUCKET": "app.wecare.digital"
+      "MEDIA_BUCKET": "wecare-digital-get"
     },
     "wecare-whatsapp-templates": {
       "AWS_ACCOUNT_ID": "775261844268",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-whatsapp-voice": {
+      "ADMIN_MFA_REQUIRED": "true",
       "AWS_ACCOUNT_ID": "775261844268",
+      "MEDIA_BUCKET": "wecare-digital-get",
       "REGION": "us-east-1",
-      "S3_BUCKET": "app.wecare.digital"
+      "S3_BUCKET": "wecare-digital-get"
     },
     "wecare-wix-store": {
+      "ADMIN_MFA_REQUIRED": "true",
       "CONTACTS_TABLE": "stack-wecare-digital-ContactsTable",
       "LOG_LEVEL": "INFO",
       "WIX_ACCOUNT_ID": "sha256:9139bb2fe801",

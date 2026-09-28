@@ -29,6 +29,7 @@ from lambda_utils.message_store import put_message  # unified MessagesTable dual
 from lambda_utils import graph_errors  # Meta error subcode + transient classification
 from lambda_utils import live_smoke  # WA_LIVE_SMOKE_TEST recipient lockdown
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -43,13 +44,21 @@ CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-Contacts
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
 MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'stack-wecare-digital-MediaFilesTable')
 RATE_LIMIT_TABLE = os.environ.get('RATE_LIMIT_TABLE', 'stack-wecare-digital-RateLimitTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX', 'stack/whatsapp-media/outgoing/')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
+MEDIA_PREFIX = os.environ.get('MEDIA_OUTBOUND_PREFIX',
+                              media_paths.public('stack/whatsapp-media/outgoing/'))
 # Public, reusable template-attachment folder (same bucket). Files here are served
 # via CloudFront so WhatsApp can fetch them by URL and the same attachment can be
 # re-sent across many template messages without re-uploading to Meta each time.
-PUBLIC_MEDIA_PREFIX = os.environ.get('PUBLIC_MEDIA_PREFIX', 'public/wa-tpl/')
-CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
+#
+# The `o/` root is LOAD-BEARING here, not cosmetic. The 61 objects already in
+# `o/public/wa-tpl/` are referenced by WhatsApp templates Meta has APPROVED, and those
+# URLs are on the app.wecare.digital host, which serves this bucket through origin path
+# `/o`. An attachment written to `public/wa-tpl/` is invisible to that host, so it would
+# 200 on the apex URL and 404 for Meta. See lambda_utils/media_paths.
+PUBLIC_MEDIA_PREFIX = os.environ.get('PUBLIC_MEDIA_PREFIX',
+                                     media_paths.public('public/wa-tpl/'))
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', media_paths.CDN_DOMAIN)
 
 # WhatsApp Phone Number IDs (Allowlist) - Requirement 3.2
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
@@ -338,7 +347,7 @@ def _block_users_api(phone_number_id: str, users: list, action: str) -> Dict:
         raise Exception(f"HTTP {e.code}: {error_body[:300]}")
 
 # Constants
-META_API_VERSION = 'v25.0'  # Latest WhatsApp Cloud API with full payment support
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 MAX_TEXT_LENGTH = 4096  # Requirement 5.4
 MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
 CUSTOMER_SERVICE_WINDOW_HOURS = 24  # Requirement 16.2
@@ -2457,15 +2466,20 @@ def _upload_media(media_file: str, media_type: str, message_id: str, phone_numbe
         
         # If media_file is already an S3 key, use it directly
         # Detect S3 keys: s3:// prefix, media prefix, invoices/ prefix, or any path with / that isn't base64
+        # 'stack/' and 'stream/' stay in this list alongside the rooted forms: a caller
+        # may still hand us a key persisted before the bucket merge, and this only
+        # CLASSIFIES the string as a key. canonical() below does the rooting.
         is_s3_key = (
             media_file.startswith('s3://') or
             media_file.startswith(MEDIA_PREFIX) or
+            media_file.startswith((media_paths.PUBLIC_ROOT, media_paths.SECURE_ROOT)) or
             media_file.startswith('stack/') or
             media_file.startswith('stream/') or
             (('/' in media_file) and media_file.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp4', '.pdf', '.ogg', '.mp3')))
         )
         if is_s3_key:
             s3_key = media_file.replace('s3://', '').replace(f'{MEDIA_BUCKET}/', '')
+            s3_key = media_paths.canonical(s3_key)
             
             # Get file size from S3 for validation
             try:

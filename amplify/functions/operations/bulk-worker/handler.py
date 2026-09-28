@@ -38,7 +38,7 @@ DIRECT_API_META_PHONE_MAP = {
     'phone-number-id-waba1-direct-1016149501586345': '1016149501586345',
     'phone-number-id-waba-t-direct-1055232054343117': '1055232054343117',
 }
-META_API_VERSION = 'v25.0'
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 _direct_api_cache = {}
 
 # CORS headers provided by lambda_utils.response.cors_headers(origin)

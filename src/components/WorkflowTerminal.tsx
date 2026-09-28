@@ -530,10 +530,55 @@ const WorkflowTerminal: React.FC = () => {
         @keyframes wt-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
         .wt-dot{position:absolute;left:0;top:4px;width:12px;height:12px;z-index:2;border-radius:50%;border:2px solid rgba(255,255,255,.34);background:#000}
-        /* Running is lime and pulses; settled is solid lime. The mock used blue for
-           running and green for done - one accent carries both states here. */
-        .wt-step.is-running .wt-dot{border-color:#d1f470;background:#d1f470;box-shadow:0 0 0 4px rgba(209,244,112,.14);animation:wt-pulse 1.2s ease-in-out infinite}
-        .wt-step.is-done .wt-dot{border-color:#d1f470;background:#d1f470}
+
+        /* ONE HUE PER SERVICE, and this is a system rather than decoration - which is the
+           difference that makes it defensible here after the window lights took three colours.
+           Each step IS a named service (gateway, auth, contacts, messaging, commerce, billing,
+           queue, platform), so a hue that identifies the service is the same use the rotating
+           hero pill puts this palette to: one colour per subject.
+
+           STATE IS STILL NOT CARRIED BY HUE, which is the constraint that had to hold. Before
+           this, lime meant "ran", so the hue was doing two jobs at once. What separates the two
+           states now:
+             running   pulsing
+             done      static
+           plus .wt-name.is-complete turns the service name lime, the row carries a tick, and
+           the footer reads "running" / "complete" in words. Three non-colour signals, so WCAG
+           1.4.1 is not engaged: hue says WHICH service, motion and text say WHETHER it ran.
+
+           The hollow .wt-dot default above is a fallback that NO rendered step uses - the
+           component assigns every visible step either is-done or is-running
+           (state = i <= settled ? 'is-done' : 'is-running'), so there is no pending dot on
+           screen to distinguish. Worth stating because "pending is hollow" is the obvious thing
+           to assume from reading the CSS alone, and it would be wrong.
+
+           MEASURED ON THE PANEL BODY #000, every value already in this repo:
+             lime   #d1f470  16.89:1    amber #f0a818  10.32:1
+             green  #3da35a   6.58:1    purple #9849e8  4.45:1
+             blue   #2563eb   4.06:1    red    #dc2626  4.35:1
+
+           RED IS EXCLUDED DELIBERATELY, and it is the only one that clears contrast and is
+           still wrong. Step 7 reads "A provider failed, nobody noticed" - the whole point of
+           that line is that the failure was absorbed - and step 6 is "Usage metered". A red dot
+           on either reads as an alarm about the thing being described. Five hues cycle instead,
+           ordered so no two adjacent steps repeat, and step 8 "All services healthy" lands on
+           green because that is the one hue whose convention matches its sentence. */
+        .wt-step{--dot:#d1f470}
+        .wt-step:nth-child(1){--dot:#2563eb}
+        .wt-step:nth-child(2){--dot:#9849e8}
+        .wt-step:nth-child(3){--dot:#f0a818}
+        .wt-step:nth-child(4){--dot:#d1f470}
+        .wt-step:nth-child(5){--dot:#3da35a}
+        .wt-step:nth-child(6){--dot:#2563eb}
+        .wt-step:nth-child(7){--dot:#f0a818}
+        .wt-step:nth-child(8){--dot:#3da35a}
+
+        /* Running fills and pulses; done fills. The glow is NEUTRAL white at .10 rather than
+           the lime rgba(209,244,112,.14) it was: a lime halo around a blue or purple dot reads
+           as two colours fighting, and a per-hue halo would need a second variable for every
+           step to say the same thing a neutral one says once. */
+        .wt-step.is-running .wt-dot{border-color:var(--dot);background:var(--dot);box-shadow:0 0 0 4px rgba(255,255,255,.10);animation:wt-pulse 1.2s ease-in-out infinite}
+        .wt-step.is-done .wt-dot{border-color:var(--dot);background:var(--dot)}
         @keyframes wt-pulse{0%,100%{opacity:.5;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
 
         .wt-head{min-height:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}

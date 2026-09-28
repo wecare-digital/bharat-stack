@@ -37,6 +37,8 @@ from decimal import Decimal
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 
+from lambda_utils import media_paths
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -59,7 +61,16 @@ REVIEWS_TABLE = f'{TABLE_PREFIX}-ReviewTable'
 AMENDMENT_HISTORY_TABLE = f'{TABLE_PREFIX}-AmendmentHistoryTable'
 AUDIT_LOG_TABLE = f'{TABLE_PREFIX}-AuditLogsTable'
 
-DOCS_S3_BUCKET = os.environ.get('DOCS_S3_BUCKET', 'wecare-digital-documents')
+# Documents ARE WhatsApp media: inbound-whatsapp writes the object and then records its
+# key as DocumentTable.storageKey, so both live in the one media bucket. There has never
+# been a separate documents bucket. The old default named `wecare-digital-documents` and
+# the deployed value named `wecare-digital-media` — measured 2026-09-28, NEITHER EXISTS
+# in this account.
+#
+# That failed silently, which is why it survived: generate_presigned_url signs locally
+# and never contacts S3, so this endpoint kept returning 200 with a URL that only broke
+# when the browser followed it.
+DOCS_S3_BUCKET = os.environ.get('DOCS_S3_BUCKET', media_paths.BUCKET)
 
 origin = '*'
 
@@ -501,6 +512,12 @@ def _get_document_download_url(doc_id: str) -> Dict:
 
     if storage_key.startswith('http'):
         return _resp(200, {'url': storage_key})
+
+    # Rows written before the bucket merge store `stack/whatsapp-media/incoming/<file>`
+    # while the object sits at `o/stack/whatsapp-media/incoming/<file>`. Normalise on
+    # read so legacy and current rows both resolve; canonical() is idempotent and never
+    # moves a key between the public and gated roots.
+    storage_key = media_paths.canonical(storage_key)
 
     try:
         url = s3_client.generate_presigned_url('get_object',

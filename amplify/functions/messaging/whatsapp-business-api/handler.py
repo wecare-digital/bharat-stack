@@ -73,7 +73,8 @@ logger = get_logger(__name__)
 
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 GRAPH_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
 
@@ -99,9 +100,11 @@ s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east
 OUTBOUND_WHATSAPP_FUNCTION = os.environ.get('OUTBOUND_WHATSAPP_FUNCTION', 'wecare-outbound-whatsapp')
 
 # Media handling (Part 4 D)
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_RESUMABLE_PREFIX = os.environ.get('MEDIA_RESUMABLE_PREFIX', 'stack/whatsapp-media/resumable/')
-MEDIA_DOWNLOAD_PREFIX = os.environ.get('MEDIA_DOWNLOAD_PREFIX', 'stack/whatsapp-media/downloads/')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
+MEDIA_RESUMABLE_PREFIX = os.environ.get(
+    'MEDIA_RESUMABLE_PREFIX', media_paths.public('stack/whatsapp-media/resumable/'))
+MEDIA_DOWNLOAD_PREFIX = os.environ.get(
+    'MEDIA_DOWNLOAD_PREFIX', media_paths.public('stack/whatsapp-media/downloads/'))
 META_APP_ID = os.environ.get('META_APP_ID', '2238810740192680')
 # Meta media URLs are short-lived; treat as ~5 min for expiry tracking.
 MEDIA_URL_TTL_SECONDS = int(os.environ.get('MEDIA_URL_TTL_SECONDS', '300'))
@@ -1710,7 +1713,7 @@ def _graph_media_multipart(phone_id: str, file_bytes: bytes, content_type: str, 
 # not enough.
 MEDIA_SOURCE_BUCKETS = {
     MEDIA_BUCKET,
-    os.environ.get('SECURE_FILES_BUCKET', 'wecare-digital-get'),
+    os.environ.get('SECURE_FILES_BUCKET', media_paths.BUCKET),
 }
 
 

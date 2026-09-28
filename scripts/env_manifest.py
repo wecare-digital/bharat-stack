@@ -159,13 +159,87 @@ def build(lam, sm) -> tuple[dict, list[str]]:
     return doc, refusals
 
 
+def keys_only_drift(lam) -> int:
+    """Report key-level drift WITHOUT reading Secrets Manager and without printing values.
+
+    Why this mode exists
+    --------------------
+    Every other mode calls `load_secret_values`, which reads every `wecare/` secret in order
+    to fingerprint credential-shaped values before they are written to a file committed to a
+    public repository. That comparison is the whole safety property of `--export`, so it
+    cannot be skipped when writing.
+
+    But it also means an operator who is forbidden from reading secret values - which is the
+    standing rule for agents in this repository - cannot run ANY mode, and therefore cannot
+    even measure how far the manifest has drifted. That is the gap this fills: key SETS are
+    not secrets, so the scope of the drift can be established from Lambda configuration
+    alone. Only names are printed, never a value, not even a fingerprint.
+
+    This is a measurement, not a repair. Writing the manifest still requires `--export` and
+    still requires the Secrets Manager comparison.
+    """
+    if not MANIFEST.exists():
+        print(f"no manifest at {MANIFEST.relative_to(ROOT)} - run --export first")
+        return 1
+
+    recorded = json.loads(MANIFEST.read_text())["functions"]
+    current = live_env(lam)
+
+    added_fns = sorted(set(current) - set(recorded))
+    removed_fns = sorted(set(recorded) - set(current))
+    missing_keys: list[tuple[str, str]] = []
+    extra_keys: list[tuple[str, str]] = []
+
+    for fn in sorted(set(current) & set(recorded)):
+        for k in sorted(set(current[fn]) - set(recorded[fn])):
+            missing_keys.append((fn, k))
+        for k in sorted(set(recorded[fn]) - set(current[fn])):
+            extra_keys.append((fn, k))
+
+    print("key-level drift (names only; no values read, no secrets read)")
+    print(f"  functions live            : {len(current)}")
+    print(f"  functions in the manifest : {len(recorded)}")
+
+    if added_fns:
+        print(f"\n  live but absent from the manifest ({len(added_fns)} functions):")
+        for fn in added_fns:
+            print(f"    {fn}  ({len(current[fn])} variables)")
+    if removed_fns:
+        print(f"\n  in the manifest but not live ({len(removed_fns)} functions):")
+        for fn in removed_fns:
+            print(f"    {fn}")
+    if missing_keys:
+        print(f"\n  keys set live but NOT recorded ({len(missing_keys)}):")
+        for fn, k in missing_keys:
+            print(f"    {fn}.{k}")
+    if extra_keys:
+        print(f"\n  keys recorded but NOT set live ({len(extra_keys)}):")
+        for fn, k in extra_keys:
+            print(f"    {fn}.{k}")
+
+    total = len(added_fns) + len(removed_fns) + len(missing_keys) + len(extra_keys)
+    print(f"\n  key-level differences: {total}")
+    if total:
+        print("  A full `--export` is needed to resolve these, and that reads Secrets")
+        print("  Manager to fingerprint credential-shaped values before writing.")
+        print("  NOTE: this mode cannot see a changed VALUE on a key that exists in both,")
+        print("  so 0 here does not mean the manifest is in sync.")
+    return 1 if total else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--export", action="store_true", help="write the manifest")
+    ap.add_argument("--keys-only", action="store_true",
+                    help="report key-level drift without reading Secrets Manager or values")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
     lam = boto3.client("lambda", region_name=REGION)
+
+    if args.keys_only:
+        return keys_only_drift(lam)
+
     sm = boto3.client("secretsmanager", region_name=REGION)
 
     doc, refusals = build(lam, sm)

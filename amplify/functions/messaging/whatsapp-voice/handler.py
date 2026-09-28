@@ -30,6 +30,7 @@ import urllib.error
 from typing import Dict, Any, Optional
 from decimal import Decimal
 
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.validation import normalize_phone
 from lambda_utils.privacy import mask_phone  # a full number must never reach CloudWatch
@@ -51,8 +52,12 @@ VOICE_LOG_TABLE = os.environ.get('VOICE_LOG_TABLE', 'stack-wecare-digital-WhatsA
 INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
 UNIFIED_MESSAGES_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'stack/whatsapp-media/voice/')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
+MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX',
+                              media_paths.public('stack/whatsapp-media/voice/'))
+# Amazon Transcribe writes its result straight into the bucket, so the OutputKey
+# needs the same root as everything else or the job lands outside the served tree.
+TRANSCRIPTION_PREFIX = media_paths.public('stack/whatsapp-media/transcriptions/')
 
 # WhatsApp Phone Number IDs
 PHONE_NUMBER_ID_1 = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1',
@@ -80,7 +85,7 @@ def _load_voice_token() -> str:
     _voice_token_cache['app_secret'] = (data.get('app_secret') or '').strip()
     return _voice_token_cache['token']
 
-META_API_VERSION = 'v25.0'
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 
@@ -653,7 +658,7 @@ def _handle_transcribe(body: Dict, request_id: str) -> Dict[str, Any]:
             IdentifyLanguage=True,
             LanguageOptions=list(TRANSCRIBE_LANGUAGES.keys()),
             OutputBucketName=MEDIA_BUCKET,
-            OutputKey=f"stack/whatsapp-media/transcriptions/{job_name}.json",
+            OutputKey=f"{TRANSCRIPTION_PREFIX}{job_name}.json",
         )
 
         # Poll for completion (max ~60s for short voice notes)
@@ -678,7 +683,7 @@ def _handle_transcribe(body: Dict, request_id: str) -> Dict[str, Any]:
             return _response(504, {'error': 'Transcription timed out', 'jobName': job_name})
 
         # Read transcription result from S3
-        result_key = f"stack/whatsapp-media/transcriptions/{job_name}.json"
+        result_key = f"{TRANSCRIPTION_PREFIX}{job_name}.json"
         result_obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=result_key)
         result_data = json.loads(result_obj['Body'].read().decode('utf-8'))
 

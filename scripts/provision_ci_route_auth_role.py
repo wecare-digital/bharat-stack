@@ -195,17 +195,34 @@ def verify() -> int:
         print(f"role missing: {exc.response['Error']['Code']}", file=sys.stderr)
         return 1
 
-    trust = role["AssumeRolePolicyDocument"]
-    condition = trust["Statement"][0].get("Condition", {}).get("StringEquals", {})
+    statement = role["AssumeRolePolicyDocument"]["Statement"][0]
+    equals = statement.get("Condition", {}).get("StringEquals", {})
+    like = statement.get("Condition", {}).get("StringLike", {})
+    subject = str(equals.get("token.actions.githubusercontent.com:sub")
+                  or like.get("token.actions.githubusercontent.com:sub") or "")
+
+    # Relaxed 2026-09-28 from an exact-string match on `sub`. `fix_github_oidc_trust.py`
+    # rewrote this role, and every other OIDC role, to pin the two numeric ids as their
+    # OWN condition keys and wildcard the name segments inside `sub` -- which is strictly
+    # tighter, because ids cannot be recycled by a namespace grab whereas names can. An
+    # exact-literal assertion called that improvement a failure. What has to hold is the
+    # PROPERTY (this repo, this owner, branch stack), not one spelling of it.
+    ids_pinned = (
+        equals.get("token.actions.githubusercontent.com:repository_id") == REPO_ID
+        and equals.get("token.actions.githubusercontent.com:repository_owner_id") == OWNER_ID
+    ) or (REPO_ID in subject and OWNER_ID in subject)
+
     checks = {
         "trusts the GitHub OIDC provider":
-            trust["Statement"][0]["Principal"].get("Federated") == OIDC_PROVIDER,
+            statement["Principal"].get("Federated") == OIDC_PROVIDER,
         "audience pinned to sts.amazonaws.com":
-            condition.get("token.actions.githubusercontent.com:aud") == "sts.amazonaws.com",
-        "subject pinned by repository id":
-            condition.get("token.actions.githubusercontent.com:sub") == SUBJECT,
-        "subject carries the numeric ids":
-            REPO_ID in str(condition.get("token.actions.githubusercontent.com:sub", "")),
+            equals.get("token.actions.githubusercontent.com:aud") == "sts.amazonaws.com",
+        "restricted to branch stack":
+            subject.endswith(f":ref:refs/heads/{BRANCH}"),
+        "subject is not a bare wildcard":
+            subject not in ("*", ""),
+        "both numeric ids are pinned":
+            ids_pinned,
     }
 
     inline = iam.list_role_policies(RoleName=ROLE)["PolicyNames"]

@@ -8,6 +8,7 @@ import boto3
 import urllib.request
 import urllib.parse
 import urllib.error
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 from lambda_utils.response import cors_headers, options_response, extract_origin
 from lambda_utils.logging import get_logger
 from lambda_utils.middleware import require_auth
@@ -19,11 +20,13 @@ origin = ''
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-TEMPLATE_MEDIA_PREFIX = os.environ.get('TEMPLATE_MEDIA_PREFIX', 'stack/whatsapp-media/template-headers/')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
+TEMPLATE_MEDIA_PREFIX = os.environ.get(
+    'TEMPLATE_MEDIA_PREFIX',
+    media_paths.public('stack/whatsapp-media/template-headers/'))
 DEFAULT_WABA_ID = 'waba-e47d916f3c7a47e1a34a19653893dd4b'
 
-META_API_VERSION = 'v25.0'
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 META_GRAPH_URL = f'https://graph.facebook.com/{META_API_VERSION}'
 META_APP_ID = '2238810740192680'
 DEFAULT_PHONE_ID = '1016149501586345'

@@ -36,6 +36,7 @@ from lambda_utils.middleware import require_auth
 from lambda_utils.meta_client import MetaGraphClient
 from lambda_utils.audit import record_audit
 from lambda_utils.logging import get_logger
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -83,7 +84,7 @@ CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
 
 # Environment variables
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
 SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN', 'arn:aws:sns:us-east-1:775261844268:stack-wecare-digital')
 
 # AWS WABA ID → Meta WABA ID mapping
@@ -641,7 +642,8 @@ def _get_media(media_id: str, phone_number_id: str, query_params: Dict, request_
                                          'error': str(e), 'requestId': request_id}))
                 return _error_response(502, f'Failed to download media binary: {str(e)}')
 
-            s3_key = f'stack/whatsapp-media/downloads/wecare-digital-{media_id}'
+            s3_key = media_paths.public(
+                f'stack/whatsapp-media/downloads/wecare-digital-{media_id}')
             s3.put_object(
                 Bucket=MEDIA_BUCKET, Key=s3_key, Body=media_bytes,
                 ContentType=media_info.get('mime_type', 'application/octet-stream')

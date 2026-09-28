@@ -43,6 +43,8 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 from lambda_utils.privacy import mask_contact_id  # contactId is `wa` + the customer's digits
 from lambda_utils.middleware import require_auth
 from lambda_utils import retired_store
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -91,8 +93,16 @@ def _legacy_store_gone(operation: str) -> Dict[str, Any]:
         what='Retired-provider click-to-call history',
         retired='Deleted 2026-09-20 with the Airtel retirement.',
     ))
-S3_BUCKET = 'app.wecare.digital'
-S3_RECORDING_PREFIX = 'stack/voice/'
+# Read from the environment, and default to the bucket that actually exists.
+#
+# This was the literal 'app.wecare.digital' until 2026-09-28, which made the
+# S3_BUCKET env var on this function inert: the deployed value was repointed
+# during the media cutover and the code ignored it. That bucket was then deleted,
+# so the literal named nothing and every delete_object below would have raised
+# NoSuchBucket. The sibling handler in voice-in/obd already read the env var,
+# which is why only this one broke.
+S3_BUCKET = os.environ.get('S3_BUCKET', media_paths.BUCKET)
+S3_RECORDING_PREFIX = media_paths.public('stack/voice/')
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
 
 # Cached secrets
@@ -454,7 +464,7 @@ def _send_c2c_cdr_notifications(cdr_record: Dict, request_id: str) -> None:
                 },
             }).encode()
 
-            url = f'https://graph.facebook.com/v25.0/{WABA1_PHONE}/messages?appsecret_proof={proof}'
+            url = f'https://graph.facebook.com/{META_API_VERSION}/{WABA1_PHONE}/messages?appsecret_proof={proof}'
             req = urllib.request.Request(url, data=template_payload, headers={
                 'Authorization': f'Bearer {meta_token}',
                 'Content-Type': 'application/json',

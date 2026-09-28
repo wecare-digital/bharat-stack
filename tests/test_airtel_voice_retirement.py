@@ -162,10 +162,23 @@ def test_obd_keeps_text_to_speech_and_the_audio_library():
 
 
 def test_obd_audio_url_now_points_at_storage_we_control():
-    """It used to report a vendor URL even when that upload had silently failed."""
+    """It used to report a vendor URL even when that upload had silently failed.
+
+    The assertion moved from S3_BUCKET to CDN_DOMAIN on 2026-09-28 and the invariant
+    got STRONGER rather than weaker. It previously pinned
+    `f'https://{S3_BUCKET}/{s3_key}'`, which was only ever a valid URL because the
+    bucket was literally named app.wecare.digital and so doubled as a hostname. Once
+    the bucket became wecare-digital-get that expression produced
+    `https://wecare-digital-get/...`, which resolves to nothing - so the old
+    assertion would have passed while the URL was broken.
+
+    A bucket name is not a hostname. Pin the CDN host for the URL, and assert the
+    bucket name is never interpolated into one.
+    """
     body = OBD.read_text()
-    assert "audio_url = f'https://{S3_BUCKET}/{s3_key}'" in body
+    assert "audio_url = f'https://{CDN_DOMAIN}/{s3_key}'" in body
     assert "airtelAudioUrl" not in body
+    assert "https://{S3_BUCKET}/" not in body, "a bucket name is not a hostname"
 
 
 @pytest.mark.parametrize("path,keeps", [

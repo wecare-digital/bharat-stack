@@ -8,6 +8,7 @@ import boto3
 import urllib.request
 import urllib.parse
 import urllib.error
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 from lambda_utils.response import cors_headers, options_response, extract_origin
 from lambda_utils.logging import get_logger
 from lambda_utils.middleware import require_auth
@@ -19,13 +20,19 @@ origin = ''
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-TEMPLATE_MEDIA_PREFIX = os.environ.get('TEMPLATE_MEDIA_PREFIX', 'stack/whatsapp-media/template-headers/')
-PUBLIC_MEDIA_PREFIX = os.environ.get('PUBLIC_MEDIA_PREFIX', 'public/wa-tpl/')
-CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'app.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
+TEMPLATE_MEDIA_PREFIX = os.environ.get(
+    'TEMPLATE_MEDIA_PREFIX',
+    media_paths.public('stack/whatsapp-media/template-headers/'))
+# The `o/` root is load-bearing: the 61 objects already in o/public/wa-tpl/ are
+# referenced by Meta-APPROVED templates whose URLs are on the app.wecare.digital
+# host, and that host serves this bucket through origin path `/o`.
+PUBLIC_MEDIA_PREFIX = os.environ.get('PUBLIC_MEDIA_PREFIX',
+                                     media_paths.public('public/wa-tpl/'))
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
 DEFAULT_WABA_ID = 'waba-e47d916f3c7a47e1a34a19653893dd4b'
 
-META_API_VERSION = 'v25.0'
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 META_GRAPH_URL = f'https://graph.facebook.com/{META_API_VERSION}'
 META_APP_ID = '2238810740192680'
 DEFAULT_PHONE_ID = '1016149501586345'
@@ -649,7 +656,7 @@ def _upload_send_media(body):
     """Upload media that will be sent in a template message.
     
     WhatsApp fetches the URL to deliver media to the recipient.
-    Files go to the public/wa-tpl/ prefix on app.wecare.digital so they're
+    Files go to the public/wa-tpl/ prefix in wecare-digital-get so they're
     publicly accessible via CloudFront.
     
     Request body:
@@ -658,7 +665,15 @@ def _upload_send_media(body):
         filename: original filename (required)
     
     Returns:
-        mediaUrl: https://app.wecare.digital/public/wa-tpl/{folder}/wecare-digital-{id}_{file}
+        mediaUrl: https://{CDN_DOMAIN}/public/wa-tpl/{folder}/wecare-digital-{id}_{file}
+                  i.e. https://wecare.digital/get/public/wa-tpl/... by default.
+
+        NOTE the 61 objects backing already-approved templates live at
+        o/public/wa-tpl/ and are served on app.wecare.digital, because that host is
+        rebuilt with OriginPath=/o. New uploads land at the bucket root instead, so
+        they are reachable on wecare.digital/get but NOT on app.wecare.digital. Both
+        work; they are simply different locations. Do not "fix" one to match the
+        other without resubmitting the approved templates that name the old URLs.
         s3Key: full S3 key
         folder: short folder name (docs/img/vid/aud/stk)
         category: WhatsApp media category
@@ -716,7 +731,7 @@ def _upload_send_media(body):
             }
         )
 
-        # Public CDN URL (CloudFront serves app.wecare.digital → S3)
+        # Public CDN URL (CDN_DOMAIN, not the bucket name)
         media_url = f'https://{CDN_DOMAIN}/{s3_key}'
 
         category_map = {'docs': 'document', 'img': 'image', 'vid': 'video', 'aud': 'audio', 'stk': 'sticker'}
