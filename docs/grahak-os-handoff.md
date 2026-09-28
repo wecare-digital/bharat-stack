@@ -14,7 +14,10 @@ is an instruction that survives a sandbox reset.
 
 ## Position
 
-- Repo `wecare-digital/bharat-stack`. Default branch is **`stack`**, not `main`.
+- Repo `wecare-digital/wecare-digital`. Default branch is **`stack`**, not `main`.
+  (Renamed from `bharat-stack` on 2026-09-27. GitHub still redirects the old path, so
+  a stale URL appears to work — which is why three IAM trust policies and the Amplify
+  app broke silently while `git` did not. Use the current name everywhere.)
 - All work is on the single long-lived branch **`feat/grahak-os-trust-a-i`**.
 - **THE BRANCH AUTO-DELETES ON MERGE.** It is squash-merged into `stack` and the remote
   branch is then removed, so at the start of a session it usually **does not exist** —
@@ -31,7 +34,7 @@ is an instruction that survives a sandbox reset.
 - **Do not trust any commit hash, PR number or count written in this file.** Every
   previous revision named something stale by the time it was read — the revision before
   this one opened by describing PR **#5** as the latest merge when PRs up to **#35** had
-  landed. Read the real state: `gh api "repos/wecare-digital/bharat-stack/pulls?state=all&per_page=10"`
+  landed. Read the real state: `gh api "repos/wecare-digital/wecare-digital/pulls?state=all&per_page=10"`
   and `git log --oneline -1`.
 - Merges from this branch so far include PRs #26, #28, #32 and #35, all squash-merged
   into `stack`. Anything described in earlier revisions of this file as "shipped on this

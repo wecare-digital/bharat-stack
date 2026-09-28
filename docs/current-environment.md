@@ -74,7 +74,7 @@ by a **missing credential**, not by a permissions limit.
 | CloudFront | global | `ERCXSFDL0VM8X` (`app.wecare.digital`), `E1SZBXLQ4XNLJ7` (`mta-sts`), `E2GP22R4BIFGQ3` (`/get` origin) | asset CDN, MTA-STS, file origin | YES | none |
 | Route 53 | global | `Z03939753QJGZ6ZD6BXO8` `wecare.digital.` (42 records) | DNS | YES | fail-closed email posture — read `email-auth-dns` steering first |
 | KMS | `us-east-1` | `alias/wecare-secrets-manager`, `alias/wecaredigital` | secret + backup encryption | YES | none |
-| Amplify Hosting | `us-east-1` | `d22dm4b0jn71jw` `wecare.digital`, repo `wecare-digital/bharat-stack`, **23 custom rules** | public site hosting | YES | redirects/headers live here, not in `next.config.js` |
+| Amplify Hosting | `us-east-1` | `d22dm4b0jn71jw` `wecare.digital`, repo `wecare-digital/wecare-digital`, **23 custom rules** | public site hosting | YES | redirects/headers live here, not in `next.config.js` |
 | Cognito | `us-east-1` | `us-east-1_cSx0RHCIR` `WECARE.DIGITAL` | staff/admin | YES | MFA `OPTIONAL`, password min **8**, deletion protection ON |
 | Cognito | `us-east-1` | `us-east-1_46ULYuukt` `WECARE.DIGITAL-CUSTOMERS` | customers, phone-keyed `CUSTOM_AUTH` | YES | MFA `OFF`, password min 16, **deletion protection INACTIVE**, 1 user |
 | WAFv2 | `us-east-1` | `wecare-cognito-waf` (REGIONAL) | rate limiting on Cognito managed login | PARTIALLY | scoped to Cognito only — **no WebACL on `zllr9lrg7j`** |

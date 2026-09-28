@@ -11,16 +11,40 @@ identical to a pass in the checks list. Only the console-drift half can catch a
 route added straight in the console, which is exactly the class of change the
 source scan is blind to.
 
-THE SUBJECT CLAIM USES REPOSITORY IDS, NOT NAMES. The two existing roles --
-`GitHubActions-bharat-stack-docs-scraper` and `-seo-tools` -- pin
+THE SUBJECT CLAIM CARRIES BOTH IDS AND NAMES, AND ONLY THE IDS SURVIVE A RENAME.
+Corrected 2026-09-28 against measured evidence. This docstring previously claimed the
+ID-qualified subject "survives a rename" and that the two older roles "kept working"
+through it. **Both halves were wrong**, and the error was load-bearing, because it
+justified pinning the whole subject string with `StringEquals`.
 
-    repo:wecare-digital@319896805/bharat-stack@1342943014:ref:refs/heads/stack
+GitHub's immutable subject format is
 
-and that is deliberate, not a leftover. GitHub's ID-qualified subject survives a
-rename: the repo became `wecare-digital/wecare-digital` on 2026-09-27 and both roles
-kept working, while the Amplify app -- which pinned the NAME -- stopped deploying
-entirely and took the production frontend 17 commits stale. So this role pins the
-same numeric owner and repository ids.
+    repo:OWNER@OWNER-ID/REPO@REPO-ID:ref:refs/heads/BRANCH
+
+The ids survive a rename. The NAME segments are still in the string and do not. So
+when the repo became `wecare-digital/wecare-digital` on 2026-09-27, the two older
+roles -- `GitHubActions-bharat-stack-docs-scraper` and `-seo-tools` -- stopped
+working immediately, exactly like the Amplify app did. They failed with
+
+    Not authorized to perform sts:AssumeRoleWithWebIdentity
+
+from 06:46 on 2026-09-27 until repaired on 2026-09-28. `seo-tools-deploy` succeeded
+at 03:58Z and failed at 06:46Z that day with no change to the role, the workflow or
+its permissions -- the rename is the only event in the window. So the Amplify app was
+not the only name-pinned casualty; it was merely the loudest.
+
+Consequence for this script: pinning the corrected NAME would be the same bug one
+rename later, and re-running `--apply` with a name-pinned document would silently
+revert the hardening applied by `scripts/fix_github_oidc_trust.py`. The trust
+document below therefore wildcards the name segments and pins the ids twice -- inside
+`sub` via `StringLike`, and again as their own `repository_id` /
+`repository_owner_id` conditions. The effective grant is identical to the
+name-pinned form and strictly tighter, because ids cannot be recycled by a namespace
+grab whereas freed names can. IAM still sees a `sub` condition that is not solely a
+wildcard, which it rejects outright.
+
+Keep this file and `scripts/fix_github_oidc_trust.py` writing the SAME document, or
+whichever runs last wins and the drift returns.
 
 PERMISSIONS. Exactly the four calls `audit_route_auth.py` makes --
 `apigatewayv2:GET` on the API collection plus `lambda:ListFunctions` -- and nothing
@@ -54,7 +78,12 @@ OWNER = "wecare-digital"
 REPO = "wecare-digital"
 BRANCH = "stack"
 
+# The literal subject GitHub sends today, kept for reporting in --plan/--verify so a
+# reader can see the concrete string. It is NOT what the trust policy matches.
 SUBJECT = f"repo:{OWNER}@{OWNER_ID}/{REPO}@{REPO_ID}:ref:refs/heads/{BRANCH}"
+
+# What the policy actually matches: names wildcarded, ids pinned. See the docstring.
+SUBJECT_PATTERN = f"repo:*@{OWNER_ID}/*@{REPO_ID}:ref:refs/heads/{BRANCH}"
 
 TRUST = {
     "Version": "2012-10-17",
@@ -66,8 +95,12 @@ TRUST = {
             "Condition": {
                 "StringEquals": {
                     "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-                    "token.actions.githubusercontent.com:sub": SUBJECT,
-                }
+                    "token.actions.githubusercontent.com:repository_owner_id": OWNER_ID,
+                    "token.actions.githubusercontent.com:repository_id": REPO_ID,
+                },
+                "StringLike": {
+                    "token.actions.githubusercontent.com:sub": SUBJECT_PATTERN,
+                },
             },
         }
     ],
@@ -111,7 +144,8 @@ def _role_exists(iam) -> bool:
 def plan() -> int:
     iam = _iam()
     print(f"role   {ROLE}: {'EXISTS' if _role_exists(iam) else 'ABSENT'}")
-    print(f"subject: {SUBJECT}")
+    print(f"subject GitHub sends: {SUBJECT}")
+    print(f"subject matched      : {SUBJECT_PATTERN}  (StringLike)")
     print("permissions: apigateway:GET on /apis*, lambda:ListFunctions")
     existing = subprocess.run(["gh", "variable", "list"], capture_output=True, text=True)
     print(f"repo variables now: {existing.stdout.strip() or '(none)'}")

@@ -32,6 +32,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# DO NOT "correct" THIS TO THE NEW REPOSITORY NAME. The GitHub repo was renamed
+# `bharat-stack` -> `wecare-digital` on 2026-09-27, but this string is a report
+# ARCHIVE KEY, not a repository reference: it names the directory under
+# ~/.local/share/kiro-maintenance-reports/ and the S3 prefix
+# maintenance-reports/<PROJECT>/<timestamp>/ where every historical run already
+# lives. Changing it does not rename that history, it starts a second archive
+# beside it and makes the series look like it began today - and the reporting rules
+# in .kiro/steering/maintenance-reporting.md require historical reports to remain
+# intact and never be overwritten. If it is ever renamed, migrate both the local
+# directory and the S3 prefix in the same change and verify checksums after.
 PROJECT = "bharat-stack"
 REPORTS = Path.home() / ".local/share/kiro-maintenance-reports" / PROJECT
 SNAPSHOT = Path.home() / ".local/share/kiro-maintenance-backup/20260919-063734"
