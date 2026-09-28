@@ -56,7 +56,16 @@ const PUBLIC_EXACT = new Set( [
   '/request-amendment',
   '/submit-request',
 ] );
-const PUBLIC_PREFIXES = [ '/post/' ];
+// '/blog/page/' is pages 2..N of the paginated blog index. It has to be a prefix rather than
+// exact entries because the count moves with the corpus - 834 posts at 24 a page is 35 pages
+// today and a different number after the next publish, so listing them would go stale on a
+// content change rather than on a code change.
+//
+// THEY MUST BE IN THE SITEMAP. Before pagination every post was linked from the single /blog/
+// document; now 810 of the 834 are listed only on pages 2-35, so leaving those pages out would
+// leave most of the corpus with no crawlable listing at all. This is also why BlogIndexHead
+// makes each page self-canonical and index,follow rather than pointing them at /blog/.
+const PUBLIC_PREFIXES = [ '/post/', '/blog/page/' ];
 
 function normalizeRoute ( base ) {
   if ( !base ) return '/';

@@ -767,7 +767,14 @@ export default function App ( { Component, pageProps }: AppProps ) {
   // route has to be added here as well as created under src/pages.
   // Blog and post pages own their own <head> via SEO.tsx, so the sitewide Head below is
   // suppressed for them - that is stack's arrangement and it is kept.
-  const isContentPublic = router.pathname === '/blog' || router.pathname === '/post/[slug]';
+  // '/blog/page/[page]' is pages 2..N of the paginated index. It MUST be here: the blog was
+  // one 834-post document until it was split, and a missing entry would serve 34 empty
+  // bodies at HTTP 200 while the sitemap advertised every one of them. It belongs in this
+  // check rather than in PUBLIC_PAGE_META because, like /blog and /post/[slug], it declares
+  // its own <head> and structured data - see components/BlogIndexHead.tsx.
+  const isContentPublic = router.pathname === '/blog'
+    || router.pathname === '/blog/page/[page]'
+    || router.pathname === '/post/[slug]';
   // /faq and /partners are deliberately ABSENT. stack still lists them because this
   // branch's removal has not landed there yet; both pages were deleted on owner
   // instruction and re-adding the routes here would render blank 200s for them.
