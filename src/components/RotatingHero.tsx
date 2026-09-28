@@ -61,20 +61,45 @@ export interface CycleWord {
 }
 
 interface RotatingHeroProps {
-  /** Lime brand pill above the headline. */
-  badgeLabel: string;
+  /**
+   * Lime brand pill above the headline. OPTIONAL, and omitting it is a real choice.
+   *
+   * The home page deliberately REMOVED its own copy of this badge: it rendered the bag mark
+   * plus WECARE.DIGITAL only 109px below the header's own lockup, so the brand was stated
+   * twice inside 109px and was the first thing anyone read. src/test/BlogDesign.test.tsx pins
+   * the same decision for /blog/ - "does not repeat the brand eyebrow".
+   * The product and Selfservice pages still pass it, because on those the badge names the
+   * PRODUCT rather than repeating the company. Where the label would just be the site again,
+   * leave it out.
+   */
+  badgeLabel?: string;
   /** Fixed text on the first headline line. The pill takes the second. */
   frame: string;
   words: CycleWord[];
   /** The single body line under the headline. Optional. */
   sub?: React.ReactNode;
-  /** Accessible name for the <main> landmark. */
+  /** Accessible name for the landmark. */
   ariaLabel: string;
   /** Extra content below the hero, inside the page measure. */
   children?: React.ReactNode;
+  /**
+   * SUBORDINATE MODE, for a page that already owns its main landmark and its h1.
+   *
+   * By default this renders <main> and <h1>, which is right when the hero IS the page - the
+   * home page, the seven product pages, the five Selfservice pages. On a blog post it is not:
+   * the article owns the <main> and the post title owns the <h1>, and stacking a second of
+   * each produces markup that fails two checks in tools/audit/htmlcheck.js at once -
+   * MANY-MAIN at HIGH and H1-MANY - which on the blog would mean 824 pages failing both.
+   * Measured in the layout mock before this existed: 2 mains, 2 h1s.
+   *
+   * With subordinate set, the wrapper becomes a <section> and the headline an <h2>. Nothing
+   * visual changes: .rh-head styles by class, not by tag, so the 55px/600 rung is identical
+   * either way. What changes is only what the document says it is.
+   */
+  subordinate?: boolean;
 }
 
-const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, sub, ariaLabel, children } ) => {
+const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, sub, ariaLabel, children, subordinate = false } ) => {
   const [ cycleIndex, setCycleIndex ] = useState( 0 );
   const [ cycleW, setCycleW ] = useState<number | null>( null );
   const wordRefs = useRef<( HTMLSpanElement | null )[]>( [] );
@@ -157,8 +182,14 @@ const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, 
 
   const active = words.length ? cycleIndex % words.length : 0;
 
+  // The landmark and the heading level move together: a subordinate hero is a section of
+  // someone else's page, so it must not claim either role. Styling is by class throughout, so
+  // the rendered result is pixel-identical - only the semantics differ.
+  const Shell = subordinate ? 'section' : 'main';
+  const Head = subordinate ? 'h2' : 'h1';
+
   return (
-    <main className="rh-shell" aria-label={ ariaLabel }>
+    <Shell className="rh-shell" aria-label={ ariaLabel }>
       <div className={ [
         'rh-layout',
         phase === 'armed' || phase === 'shown' ? 'is-armed' : '',
@@ -167,11 +198,13 @@ const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, 
         <div className="rh-hero">
           {/* Wrapper carries the spacing. BrandBadge paints itself - styled-jsx
               cannot reach into it from here either. */}
-          <div className="rh-eyebrow">
-            <BrandBadge label={ badgeLabel } />
-          </div>
+          { badgeLabel && (
+            <div className="rh-eyebrow">
+              <BrandBadge label={ badgeLabel } />
+            </div>
+          ) }
 
-          <h1 className="rh-head">
+          <Head className="rh-head">
             <span className="rh-head-line">{ frame }</span>
             <span className="rh-mark" style={ { background: words[ active ]?.tint } }>
               <i className="rh-mark-dot" style={ { background: words[ active ]?.dot } } aria-hidden="true" />
@@ -190,7 +223,7 @@ const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, 
                 ) ) }
               </span>
             </span>
-          </h1>
+          </Head>
 
           { sub && <p className="rh-sub">{ sub }</p> }
         </div>
@@ -353,7 +386,7 @@ const RotatingHero: React.FC<RotatingHeroProps> = ( { badgeLabel, frame, words, 
           .rh-cyc-word{transition:none}
         }
       `}</style>
-    </main>
+    </Shell>
   );
 };
 
