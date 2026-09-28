@@ -1,9 +1,9 @@
 {
   "_comment": "Recorded state of live Lambda environment variables. Not deployed by anything - this is the source of truth to diff against. Regenerate with scripts/env_manifest.py --export; verify with no arguments.",
-  "_fingerprinted": 15,
-  "_functions": 65,
   "_region": "us-east-1",
-  "_variables": 385,
+  "_functions": 66,
+  "_variables": 389,
+  "_fingerprinted": 14,
   "functions": {
     "stack-wecare-url-shortener": {
       "LINK_CLICKS_TABLE": "stack-wecare-digital-LinkClicksTable",
@@ -179,6 +179,12 @@
       "WABA1_DISPLAY": "919330994400",
       "WABA2_DISPLAY": "sha256:d3afe2ba8ee0"
     },
+    "wecare-mcp": {
+      "LOG_LEVEL": "INFO",
+      "MCP_BLOG_API": "https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com/prod/seo-tools/blog-public",
+      "MCP_BLOG_TIMEOUT_SECONDS": "12",
+      "MCP_BLOG_TTL_SECONDS": "900"
+    },
     "wecare-media-cleanup": {
       "CLEANUP_AGE_DAYS": "25",
       "LOG_LEVEL": "INFO",
@@ -275,7 +281,7 @@
     },
     "wecare-plivo-answer": {
       "DLT_TEMPLATE_KEY": "ivr-default",
-      "IVR_AUDIO_URL": "sha256:f1e26f55251f",
+      "IVR_AUDIO_URL": "https://wecare.digital/get/o/stream/media/ivr/incoming_welcome.wav",
       "PLIVO_CALLBACK_HOST": "wecare.digital",
       "PLIVO_CALLBACK_PATH_PREFIX": "/api",
       "POST_CALL_SMS_ENABLED": "true",
