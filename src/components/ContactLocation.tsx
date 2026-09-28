@@ -438,27 +438,30 @@ const ContactLocation: React.FC = () => {
               Google / Terms / Report a map error" strip, sits along the bottom edge and is
               a condition of using the embed at all - covering it would be a licence
               breach, not a design choice, so the card stays clear of it. */}
-          {/* OUTSIDE THE KEYED/KEYLESS BRANCH ON PURPOSE, so it renders on BOTH paths.
-              It used to sit inside the keyed branch only, which meant it was invisible in
-              production - NEXT_PUBLIC_GOOGLE_MAPS_KEY is not set, so the keyless iframe is
-              what ships and the label never appeared.
-              It is pinned to the TOP of the frame (owner request), not to the pin, so it
-              needs no projection maths on either path and does not move if the map is ever
-              made pannable. The top strip is free of Google's bottom-edge attribution, so it
-              never covers the licence-bearing strip.
-              WHAT THIS CANNOT DO: recolour Google's pin. On the keyless path that pin is
-              painted inside a cross-origin iframe, so its red is unreachable by our CSS -
-              only the keyed Maps JS path can replace it, and that path already draws a lime
-              #d1f470 pin with a #1a3a2a stroke. This label is the lime the owner asked for
-              that IS achievable today. */}
-          <p className="cl-pinlabel" aria-hidden="true">WECARE.DIGITAL</p>
+          {/* THE LIME WECARE.DIGITAL PILL THAT SAT HERE IS GONE, on owner instruction, and
+              the reason is that the card directly below already carries the name.
+              It was a second WECARE.DIGITAL inside the same map frame: a lime pill pinned to
+              the top strip, and .cl-card-name repeating the identical string ~56px beneath
+              it, next to the IST and weather chips. One map panel, one business, the name
+              twice - and the card is the copy worth keeping, because it is the one carrying
+              the address and the live row rather than standing alone.
+              THE NARROW-SCREEN RULES ALREADY AGREED. Below 768px the pill was set to
+              display:none on the stated grounds that "the card already carries the
+              WECARE.DIGITAL name, so the wordmark is not lost". That reasoning was never
+              specific to small screens; it is just as true at 1280. Removing the pill applies
+              it everywhere and lets the card return to top:16px at every width, which is the
+              value it had before the pill was introduced and the value mobile already used.
+              Nothing about Google's own red pin changes either way - on the keyless path it is
+              painted inside a cross-origin iframe and was always unreachable by our CSS. The
+              keyed Maps JS path still draws the lime #d1f470 pin with a #1a3a2a stroke. */}
           <div className="cl-card">
             {/* data-wc-no-translate: a company name, for the reason BrandLockup.tsx sets out
                 at length. This one is the map card's business name, so it is the same string
                 Google shows on the listing beside it - a translated copy next to an
-                untranslated one would read as two different businesses. The sibling
-                .cl-pinlabel above is already skipped, but only incidentally, because it
-                carries aria-hidden; this is the explicit flag. The address below is NOT
+                untranslated one would read as two different businesses. This is now the only
+                WECARE.DIGITAL in the map frame: the lime .cl-pinlabel pill that used to sit
+                above it has been removed, so the flag here is no longer one of two. The
+                address below is NOT
                 flagged: a street and city are worth translating, and the postcode has no
                 letters for the walker to collect. */}
             <p className="cl-card-name" data-wc-no-translate="true">WECARE.DIGITAL</p>
@@ -565,35 +568,25 @@ const ContactLocation: React.FC = () => {
            this and you are disabling a licence condition. */
         .cl-lock{position:absolute;inset:0 0 26px 0;z-index:1;background:transparent;cursor:default}
 
-        /* The WECARE.DIGITAL wordmark, pinned to the TOP of the map panel (owner request).
-           Same lime edge and 14px radius as the card and the map frame, so it reads as part
-           of this site rather than as something the map produced.
-           Positioned top-centre: left:50% + translateX(-50%) centres it horizontally, top:12px
-           holds it clear of the frame edge. This is the top strip of the frame, which is free
-           of Google's attribution (that sits along the BOTTOM edge) - so pinning it here never
-           touches the licence-bearing strip. It renders on BOTH the keyed and keyless paths
-           because it is our own element outside the iframe; it does not depend on the API key
-           the way the pin recolour does. pointer-events:none so it can never intercept a click
-           meant for the map or its attribution. white-space:nowrap because a wrapped wordmark
-           reads as two labels. */
-        .cl-pinlabel{
-          position:absolute;left:50%;top:12px;z-index:2;
-          transform:translateX(-50%);
-          margin:0;padding:5px 11px;
-          border:2px solid #1a3a2a;border-radius:14px;
-          background:#d1f470;color:#1a3a2a;
-          font-size:13px;font-weight:700;letter-spacing:-.1px;line-height:1.2;
-          white-space:nowrap;pointer-events:none;
-          box-shadow:0 4px 12px rgba(26,58,42,.12);
-        }
+        /* .cl-pinlabel IS GONE. It was a lime WECARE.DIGITAL pill pinned to the top strip of
+           the map frame, and .cl-card-name repeats that exact string ~40px below it beside the
+           IST and weather chips - the same name twice in one panel. Removed on owner
+           instruction; the card is the copy that stays, because it carries the address and the
+           live row rather than standing alone.
+           If it is ever wanted back, it was: position:absolute, left:50% with
+           translateX(-50%), top:12px, z-index:2, 5px 11px padding, 2px #1a3a2a border,
+           14px radius, #d1f470 on #1a3a2a, 13px/700, nowrap, pointer-events:none. And
+           .cl-card would need its top inset dropped again to clear it. */
 
         /* THE CARD THAT REPLACED GOOGLE'S. Same 14px radius and 2px lime edge as the map
            frame itself, so it reads as part of this site rather than as a tooltip the map
            produced. The shadow is the one already used for hover lift elsewhere, not a new
            value.
-           top:56px, not 16px: the WECARE.DIGITAL wordmark now sits pinned to the top strip
-           (owner request), so the card is dropped below it - the label is at top:12px and is
-           ~30px tall, so 56px clears it with a ~14px gap. Still well clear of Google's
+           top:16px, BACK from 56px. The 56 existed only to drop this card below the lime
+           WECARE.DIGITAL pill that used to be pinned at top:12px - with that pill removed
+           there is nothing to clear, so the card returns to the frame's own 16px inset. That
+           is also the value the narrow-screen override already used, so the override is gone
+           too and one number now applies at every width. Still well clear of Google's
            bottom-edge attribution strip. */
         /* inset-inline-start, not left: this card floats over the map, and an overlay has to
            sit on the edge the reader starts from or it covers the first thing they look at.
@@ -605,7 +598,7 @@ const ContactLocation: React.FC = () => {
            instead - see the note on .wc-langbar in SupportWidget.tsx.
            NO BACKTICKS IN THIS COMMENT: styled-jsx template literal. */
         .cl-card{
-          position:absolute;top:56px;inset-inline-start:16px;z-index:1;
+          position:absolute;top:16px;inset-inline-start:16px;z-index:1;
           max-width:calc(100% - 32px);
           padding:14px 18px;
           border:2px solid #d1f470;border-radius:14px;
@@ -692,15 +685,16 @@ const ContactLocation: React.FC = () => {
           .cl-grid{grid-template-columns:1fr;gap:24px}
           .cl-map{aspect-ratio:16/9}
           .cl{margin-top:48px}
-          /* The 16/9 map is much shorter here (about 200px at 390): a top-band wordmark plus
-             a 155px card stacked below it does not fit above Google's 26px bottom attribution
-             strip. So on narrow screens the card returns to the top strip (top:16px) and the
-             wordmark label is suppressed there - the card already carries the WECARE.DIGITAL
-             name, so the wordmark is not lost, and the full address is in the .cl-copy column
-             directly beneath the map on this one-column layout. The card stays visible at every
-             viewport, which contactcheck.js requires. */
-          .cl-card{top:16px}
-          .cl-pinlabel{display:none}
+          /* NO .cl-card OR .cl-pinlabel OVERRIDE HERE ANY MORE, and both removals are the
+             same removal. This block used to set .cl-card{top:16px} and
+             .cl-pinlabel{display:none} because the 16/9 map is only ~200px tall at 390px, so
+             a top-band pill plus a 155px card below it did not fit above Google's 26px
+             attribution strip. The pill is gone site-wide now and the card's base rule is
+             top:16px, so both overrides say what the default already says.
+             The reasoning given here for hiding the pill - "the card already carries the
+             WECARE.DIGITAL name, so the wordmark is not lost" - is what the owner applied at
+             every width. The card stays visible at every viewport, which contactcheck.js
+             requires. */
         }
 
         /* 112px below 768px, matching .lgd-section, because .hdr-in drops to 96px there.
