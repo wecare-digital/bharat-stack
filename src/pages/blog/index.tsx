@@ -67,11 +67,6 @@ export default function BlogIndex ( { posts }: Props ) {
       </Head>
       <main className="blog-shell">
         <section className="blog-hero">
-          {/* data-wc-no-translate: the whole element is the company name, so the flag costs
-              no translation coverage here - there is no descriptor sharing the label, which
-              is the trap BrandBadge.tsx documents. The <h1> below and the lede after it are
-              deliberately NOT flagged and still translate. */}
-          <p className="eyebrow" data-wc-no-translate="true">WECARE.DIGITAL</p>
           <h1>Blog</h1>
           <p>Ideas, guides and updates published by the WECARE.DIGITAL team.</p>
         </section>
@@ -103,23 +98,30 @@ export default function BlogIndex ( { posts }: Props ) {
         ) }
       </main>
       <style jsx>{`
-        .blog-shell{max-width:1180px;margin:0 auto;padding:156px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-        .blog-hero{max-width:720px;margin-bottom:56px}
-        .eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;color:#1a3a2a;text-transform:uppercase;margin:0 0 12px}
-        h1{font-size:clamp(44px,7vw,76px);line-height:1;letter-spacing:-.045em;margin:0 0 18px;color:#1a3a2a}
-        .blog-hero>p:last-child{font-size:18px;line-height:1.7;color:#6b7280;margin:0}
-        .post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
-        .post-card{border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;background:#fff}
-        .post-copy{padding:22px}
-        .category{display:inline-block;background:#d1f470;color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:12px}
-        h2{font-size:21px;line-height:1.25;margin:0 0 10px}
-        h2 :global(a){color:#1a1a1a;text-decoration:none}
+        .blog-shell{max-width:1300px;margin:0 auto;padding:156px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+        .blog-hero{max-width:720px;margin-bottom:64px}
+        h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;margin:0 0 24px;color:rgba(0,0,0,.95);text-wrap:balance}
+        .blog-hero>p{font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898);margin:0;max-width:560px}
+        .post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+        .post-card{border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff;transition:border-color .18s ease,transform .18s ease}
+        .post-card:hover{border-color:#d1f470;transform:translateY(-1px)}
+        .post-copy{padding:26px}
+        .category{display:inline-block;background:rgba(209,244,112,.28);color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:14px}
+        h2{font-size:23px;line-height:1.22;letter-spacing:-.3px;margin:0 0 12px}
+        h2 :global(a){color:rgba(0,0,0,.95);text-decoration:none;text-underline-offset:3px}
         h2 :global(a:hover){color:#1a3a2a}
-        .post-copy p{font-size:14px;line-height:1.65;color:#6b7280;margin:0 0 18px}
-        .meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#9ca3af}
-        .empty{border:1px dashed #d1d5db;border-radius:16px;padding:40px;text-align:center;color:#6b7280}
-        @media(max-width:900px){.post-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:640px){.blog-shell{padding:128px 16px 64px}.post-grid{grid-template-columns:1fr}.blog-hero{margin-bottom:36px}}
+        h2 :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}
+        .post-copy p{font-size:16px;line-height:1.5;color:rgba(0,0,0,.72);margin:0 0 20px}
+        .meta{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;line-height:1.4;color:#6b7280}
+        .empty{border:1px dashed #d1d5db;border-radius:14px;padding:40px;text-align:center;color:#6b7280}
+        @media(max-width:1050px){.post-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:680px){
+          .blog-shell{padding:128px 16px 64px}
+          .blog-hero{margin-bottom:44px}
+          .post-grid{grid-template-columns:1fr;gap:18px}
+          .post-copy{padding:22px}
+          h2{font-size:22px}
+        }
       `}</style>
     </>
   );
