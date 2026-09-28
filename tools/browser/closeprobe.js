@@ -130,12 +130,34 @@ const CONTRAST_FN = `
     const r = cta.getBoundingClientRect();
     return { count: links.length, top: Math.round( r.top + window.scrollY ),
       w: Math.round( r.width ), h: Math.round( r.height ),
+      // Label and destination, so the assertion can check the one action is still THE action
+      // rather than merely counting to one.
+      text: cta.textContent.trim(), href: cta.getAttribute( 'href' ),
       docH: Math.round( document.documentElement.scrollHeight ), vh: window.innerHeight };
   } );
-  ok( A.count > 1, 'the page offers more than one action', `${A.count} focusable element in <main>` );
-  ok( A.top < A.vh, 'the action is above the fold',
-    `at y=${A.top} with a ${A.vh}px viewport — ${Math.round( A.top / A.vh * 100 )}% of a screen down, ` +
-    `${Math.round( A.top / A.docH * 100 )}% into the document` );
+  // ACCEPTED BY DESIGN, SO REPORTED RATHER THAN FAILED.
+  //
+  // These were two assertions - more than one action, and above the fold - and a third below
+  // for the phone. All three describe ONE fact: the page offers a single <a> reading "Tell us
+  // what you need" at y=1689 pointing at /contact/. The owner confirmed that explicitly, and
+  // homereview.js records the brief it follows - the top band carries no CTA, no price and no
+  // conversion furniture, and the action lives in the closing band.
+  //
+  // A check that fails forever on a settled decision is not a guard, it is noise, and this
+  // repo has already paid for that: the Route auth gate was red on every push for 20+ commits,
+  // so nobody read it, so a real 7-test failure hid inside it. Three permanent FAILs here
+  // would bury the next genuine band 3 regression the same way.
+  //
+  // The measurements are still printed, so if the CTA moves the numbers move visibly. What is
+  // still ASSERTED is that the decision holds as described: exactly one action, and it is the
+  // contact CTA. A second focusable element in <main>, or a changed destination, fails again.
+  const CTA_HREF = '/contact/';
+  ok( A.count === 1 && A.href === CTA_HREF,
+    'the page offers exactly one action, and it is the contact CTA',
+    `${A.count} focusable element in <main>: "${A.text}" -> ${A.href}` );
+  console.log( `  note it sits at y=${A.top} on a ${A.vh}px viewport — `
+    + `${( A.top / A.vh ).toFixed( 1 )} screens down, ${Math.round( A.top / A.docH * 100 )}% into the document. `
+    + 'Accepted: band 1 carries no CTA by brief, so the action lives here.' );
   ok( A.w >= 44 && A.h >= 44, 'the CTA meets the 44x44 target size', `${A.w}x${A.h}` );
 
   console.log( '\nCONTRAST (composited over the lime tint)' );
@@ -235,8 +257,9 @@ const CONTRAST_FN = `
       panelW: Math.round( panel.width ), docH: Math.round( document.documentElement.scrollHeight ), vh: window.innerHeight };
   } );
   await mctx.close();
-  ok( Mm.ctaTop < Mm.vh, 'the action is above the fold on a phone',
-    `at y=${Mm.ctaTop} with an ${Mm.vh}px viewport — ${( Mm.ctaTop / Mm.vh ).toFixed( 1 )} screens down` );
+  // Printed, not failed - the same accepted decision as on desktop.
+  console.log( `  note on a phone the action sits at y=${Mm.ctaTop} on an ${Mm.vh}px viewport — `
+    + `${( Mm.ctaTop / Mm.vh ).toFixed( 1 )} screens down. Accepted by design.` );
   ok( Mm.ctaW >= Mm.panelW * 0.6, 'the CTA uses the panel width on a phone',
     `${Mm.ctaW}px button in a ${Mm.panelW}px panel — ${Math.round( Mm.ctaW / Mm.panelW * 100 )}%` );
 

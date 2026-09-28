@@ -629,7 +629,20 @@ const HomePage: React.FC = () => {
           font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
           color:rgba(0,0,0,.898);margin:0 0 24px;
         }
-        .home-flow-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:18px}
+        /* EQUAL-HEIGHT ROWS, AND THAT IS THE FIX RATHER THAN A PREFERENCE.
+           Each beat's lime rule is a border-inline-start on its own li, so every bar was
+           exactly as tall as its own copy - and the bodies wrap to different line counts.
+           Measured: 118 / 90 / 90 at 1280, and 118 / 90 / 118 at 390, so the bars were
+           unequal AND the pattern changed with the viewport, which is what made it read as
+           arbitrary rather than deliberate.
+           grid with grid-auto-rows:1fr makes every row the height of the tallest, so the three
+           bars match at every width while the rule still spans its whole beat - which is the
+           thing the border was for. The alternative was a short fixed marker like
+           .wt-lane-bar, but that turns a rule that brackets the text into a bullet beside it.
+           The cost is honest: the two shorter beats gain the difference as whitespace, so the
+           band grows by that much. Cheaper than copy edited to equal length, which would be
+           changing what the page says to fix how it looks. */
+        .home-flow-list{margin:0;padding:0;list-style:none;display:grid;grid-auto-rows:1fr;gap:18px}
         /* LIME, AND 3px RATHER THAN 1px - both parts are deliberate.
            This was a 1px #e5e7eb hairline. The owner asked for the separating line to be
            lime green, and lime simply does not survive at 1px: #d1f470 measures about
