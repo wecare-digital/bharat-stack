@@ -78,6 +78,18 @@ workspace missing these hooks unless forced.
 3. **Stage by explicit path, always.** `git add <paths>`, never `.` or `-A`. On
    2026-09-20 a tree-wide stage would have swept four files belonging to another
    session into an unrelated commit.
+3a. **Stage and commit in one step.** Explicit paths are necessary but **not
+   sufficient**, and this was proved on 2026-09-28: one session staged eight files
+   by name, and before it reached `git commit` a second session committed. The
+   index is shared, so the second session's commit absorbed all eight, landing
+   them under the message `"Assert the property, not one spelling of it, in the
+   route-auth role verifier"` — which described one unrelated file out of nine.
+   The push had already happened by the time it was noticed, and tidying it would
+   have meant a history rewrite, which is forbidden. **The hazard is the window
+   between `add` and `commit`, not the breadth of the `add`.** Chain them
+   (`git add <paths> && git commit -m ...`) so no other session can commit in
+   between, and re-check `git status --short` immediately before staging rather
+   than only before the commit.
 4. **Check before you stage.** `git status --short` plus
    `python scripts/session_map.py`. If a modified file is not yours, leave it.
 5. **A spec belongs to one session.** `~/.kiro/spec-sessions/<hash>.json` maps one
