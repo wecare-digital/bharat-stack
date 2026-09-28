@@ -18,7 +18,8 @@ than restating the requirement.
 |---|---|---|
 | API Gateway authorizers | **0** on 361 routes | every route reports `AuthorizationType=NONE`; authorisation is in-handler via `require_auth` |
 | WAF on the API | **impossible, not missing** | WAFv2 cannot attach to an API Gateway **HTTP** API. Measured: `GetWebACLForResource` on the `zllr9lrg7j` stage ARN returns `WAFInvalidParameterException`. See T10 |
-| WAF on Cognito | both pools | `wecare-cognito-waf` is associated with `us-east-1_46ULYuukt` **and** `us-east-1_cSx0RHCIR` |
+| WAF on Cognito | **none — deleted 2026-09-28** | `wecare-cognito-waf` was associated with `us-east-1_46ULYuukt` **and** `us-east-1_cSx0RHCIR`; both ACLs were deleted by owner cost decision. `get_web_acl_for_resource` now returns nothing for either pool. No per-IP limiting in front of public OTP sign-in |
+| WAF on the Amplify app | **none — deleted 2026-09-28** | `wecare-amplify-waf` (blocking managed rule groups) is gone; `wafConfiguration` is `null` |
 | Customer pool MFA | `OFF` | phone-keyed `CUSTOM_AUTH`; MFA is not the second factor here, possession of the WhatsApp number is |
 | Customer pool deletion protection | `INACTIVE` | one accidental delete removes every customer login |
 | Staff pool MFA | `OPTIONAL` | owner overrides make admin MFA a required target |
@@ -272,10 +273,15 @@ when the configuration reads as intended.
   **WAFv2 does not support API Gateway HTTP APIs.** Measured directly rather than inferred —
   `GetWebACLForResource` on `arn:aws:apigateway:us-east-1::/apis/zllr9lrg7j/stages/prod`
   returns `WAFInvalidParameterException: The ARN isn't valid`, and
-  `ListResourcesForWebACL` returns the two Cognito pools and nothing else. Only REST APIs,
+  `ListResourcesForWebACL` returned the two Cognito pools and nothing else. Only REST APIs,
   ALB, CloudFront, AppSync, Cognito, App Runner and Verified Access are supported targets.
   So this is a **service limit, not an omission**, and recording it as a `HIGH` gap to be
   closed by "attach a WebACL" would send the next person after something that cannot be built.
+- **Since 2026-09-28 there is no WebACL anywhere**, not just on the API. Both ACLs were
+  deleted by owner cost decision, so the per-IP rate-based rule that used to sit in front of
+  both Cognito pools is gone. Every "per-IP" control named below is now handler-side only.
+  That makes the handler limits load-bearing in a stronger sense than when this section was
+  written: there is no longer an edge control to fall back on.
 - The replacement control set, which does exist:
   - **API Gateway throttling** at the stage and per route. The `prod` stage is currently
     100 rps / 200 burst *for everything*; the verification routes need their own, much lower,
@@ -284,10 +290,11 @@ when the configuration reads as intended.
     per-email and per-IP budgets actually live. This is the load-bearing control now, not a
     supplement to WAF.
   - **Reserved concurrency** on the OTP function, so a burst cannot consume account capacity.
-  - **CloudFront in front of the API** is the only way to obtain real WAF coverage, since a
-    distribution *can* carry a WebACL. `api.wecare.digital` is not currently behind
-    CloudFront. This is a genuine architecture decision with latency, caching and cost
-    consequences, and it is recorded as a decision to take rather than a task to tick.
+  - **CloudFront in front of the API** would be the only way to obtain real WAF coverage for
+    the API, since a distribution *can* carry a WebACL. `api.wecare.digital` is not behind
+    CloudFront. Recorded as a decision to take rather than a task to tick — and note it is
+    now moot while the owner's standing decision is that WAF costs more than it is worth
+    here, since there would be no ACL to attach.
 - Bot protection where justified. CAPTCHA is not the only protection, and invasive
   fingerprinting is not introduced without a security review.
 - SES suppression consumed from bounce and complaint events, so a bouncing address is not
@@ -379,7 +386,8 @@ Honest list. Each is tracked in [`docs/tasks.md`](tasks.md).
 
 | Gap | Severity | Why it is still open |
 |---|---|---|
-| No WAF coverage on the API | `MEDIUM`, and **not closable as stated** | WAFv2 cannot attach to an HTTP API — measured, see T10. Closing it means per-route throttling plus handler limits, or a decision to front the API with CloudFront. Downgraded from `HIGH` because the mitigation is available, not because the exposure is smaller |
+| No WAF coverage anywhere | `MEDIUM`, and **deliberately not being closed** | Was "not closable as stated" because WAFv2 cannot attach to an HTTP API (measured, see T10). As of 2026-09-28 it is broader and intentional: both web ACLs were deleted by owner cost decision, so Cognito and the Amplify app lost coverage they had. Not a defect to fix — a documented trade. Restore with `python3 scripts/provision_waf.py --apply` if the decision reverses |
+| No per-IP throttling on public customer OTP sign-in | `HIGH` | The `wecare-cognito-waf` rate-based rule (1000/5min per IP) was the only per-IP control and was deleted 2026-09-28. The per-phone probe counter in the trigger remains, but a trigger receives no source IP, so a distributed enumeration across many numbers is now unthrottled at the edge. Was already noted as CGNAT-weakened; it is now absent rather than weak |
 | Admin MFA not enforced | `HIGH` | owner overrides make it a required target while removing its blocking semantics |
 | Staff password minimum 8 | `MEDIUM` | weak for production access |
 | Customer pool deletion protection `INACTIVE` | `MEDIUM` | one delete removes every customer login |

@@ -203,7 +203,6 @@ const AWS_RESOURCES: AWSResource[] = [
   { name: 'Amazon Bedrock', type: 'Bedrock', purpose: 'AI response generation (Claude 3 Sonnet)', module: 'AI', env: 'Production', status: 'Active', risk: '' },
   { name: 'Bedrock Knowledge Base', type: 'Bedrock KB', purpose: 'FAQ and knowledge base queries', module: 'AI', env: 'Production', status: 'Active', risk: '' },
   { name: 'Bedrock Agent', type: 'Bedrock Agent', purpose: 'Autonomous agent with action groups', module: 'AI', env: 'Production', status: 'Active', risk: '' },
-  { name: 'WAF Web ACL', type: 'WAF', purpose: 'Webhook endpoint protection (2000 req/5min)', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'IAM Roles (Lambda)', type: 'IAM', purpose: 'Lambda execution roles with least-privilege', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'Secrets Manager', type: 'Secrets Manager', purpose: 'API keys, webhook secrets, payment credentials', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'CloudFront (CDN)', type: 'CloudFront', purpose: 'Static asset delivery for app.wecare.digital', module: 'Frontend', env: 'Production', status: 'Active', risk: '' },
@@ -223,7 +222,7 @@ const RISKS: RiskItem[] = [
   { id: 'R3b', title: '✅ FIXED — PayU merchant key/salt removed', description: 'Removed PAYU_MERCHANT_KEY and PAYU_MERCHANT_SALT hardcoded defaults from payu-webhook/resource.ts. STILL NEEDED: Rotate credentials.', priority: 'Critical', category: 'Security' },
   { id: 'R4', title: '✅ FIXED — Razorpay/PayU IDs removed from source', description: 'Removed hardcoded Razorpay MID, UPI VPA, PayU MID, PayU UPI VPA from whatsapp-business-api/handler.py and outbound-whatsapp/handler.py. Also redacted from dashboard/index.tsx UI display.', priority: 'Critical', category: 'Security' },
   { id: 'R5', title: '✅ FIXED — AWS Account ID fallback removed', description: 'Removed hardcoded 775261844268 fallback from constants.ts. Now defaults to empty string if env var missing. Still exposed via NEXT_PUBLIC_ prefix — needs env var rename.', priority: 'Critical', category: 'Security' },
-  { id: 'R6', title: 'Internal Lambda Function URL exposed in client', description: 'NEXT_PUBLIC_INTERNAL_AGENT_URL contains a direct Lambda Function URL. This bypasses API Gateway WAF protection. Route through API Gateway instead.', priority: 'Critical', category: 'Security' },
+  { id: 'R6', title: 'Internal Lambda Function URL exposed in client', description: 'NEXT_PUBLIC_INTERNAL_AGENT_URL contains a direct Lambda Function URL. It bypasses API Gateway entirely, so stage and per-route throttling and the handler auth path do not apply. Route through API Gateway instead. (Earlier wording blamed "WAF protection" — the API never had a WAF, because WAFv2 cannot attach to an HTTP API, and as of 2026-09-28 there is no WAF in the account at all.)', priority: 'Critical', category: 'Security' },
   { id: 'R7', title: 'Primary WABA phone blocked by Meta rate limit', description: 'Primary phone +91 93309 94400 has pendingRegistration: true. All traffic falls to secondary phone. If secondary fails, messaging is completely down.', priority: 'Critical', category: 'WhatsApp' },
   { id: 'R8', title: 'No staging or dev environment', description: 'Only production environment detected. All development and testing happens against live production data.', priority: 'Critical', category: 'Infrastructure' },
   { id: 'R9', title: 'No CI/CD pipeline', description: 'No GitHub Actions or CodePipeline found. Amplify builds 85-88 all fail with "Artifacts base directory not found." Deployments are manual.', priority: 'Critical', category: 'DevOps' },
@@ -357,7 +356,7 @@ const ENV_VARS: EnvVar[] = [
   { key: 'NEXT_PUBLIC_SEND_MODE', value: 'LIVE', sensitive: false, category: 'App' },
   { key: 'NEXT_PUBLIC_ENV', value: 'production', sensitive: false, category: 'App' },
   // ⚠️ SECRETS EXPOSED IN CLIENT BUNDLE
-  { key: 'NEXT_PUBLIC_INTERNAL_AGENT_URL', value: '(Lambda Function URL — bypasses WAF)', sensitive: true, category: 'AI', risk: 'Direct Lambda URL exposed in browser, bypasses API Gateway WAF' },
+  { key: 'NEXT_PUBLIC_INTERNAL_AGENT_URL', value: '(Lambda Function URL — bypasses API Gateway)', sensitive: true, category: 'AI', risk: 'Direct Lambda URL exposed in browser, bypasses API Gateway throttling and the handler auth path' },
   { key: 'NEXT_PUBLIC_AWS_ACCOUNT_ID', value: '775261844268', sensitive: true, category: 'AWS', risk: 'AWS Account ID exposed in client bundle' },
   { key: 'NEXT_PUBLIC_AWS_REGION', value: 'us-east-1', sensitive: false, category: 'AWS' },
   { key: 'NEXT_PUBLIC_PAYMENT_UNLOCK_PASSWORD', value: '(plaintext password in JS bundle)', sensitive: true, category: 'Payment', risk: 'CRITICAL: Password shipped to every browser' },
@@ -898,7 +897,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
 │                                     │                                               │
 │                          ┌──────────▼──────────┐                                    │
 │                          │   CloudFront (CDN)   │                                    │
-│                          │   + WAF (2000/5min)  │                                    │
+│                          │   (no WAF — removed) │                                    │
 │                          └──────────┬──────────┘                                    │
 │                                     │                                               │
 │                          ┌──────────▼──────────┐                                    │
@@ -1145,7 +1144,6 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
               },
               { name: 'CloudFront (CDN)' },
               { name: 'ACM Certificates (SSL/TLS)' },
-              { name: 'WAF Web ACL (rate limiting)' },
             ]
           },
           {
@@ -1207,7 +1205,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           {
             name: '🔒 Security', children: [
               { name: 'Secrets Manager (API keys, webhook secrets)' },
-              { name: 'WAF (2000 req/5min rate limit)' },
+              { name: 'Rate limiting (handler-side; WAF removed 2026-09-28)' },
               { name: 'ACM (SSL certificates)' },
             ]
           },

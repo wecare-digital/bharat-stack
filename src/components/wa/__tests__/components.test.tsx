@@ -19,8 +19,8 @@ describe( 'badges', () => {
         expect( screen.getByText( /Health: BLOCKED/ ) ).toBeInTheDocument();
     } );
     it( 'feature flag on/off', () => {
-        render( <><FeatureFlagBadge name="WAF" enabled={ false } /></> );
-        expect( screen.getByText( 'WAF: OFF' ) ).toBeInTheDocument();
+        render( <><FeatureFlagBadge name="CLOUDFRONT" enabled={ false } /></> );
+        expect( screen.getByText( 'CLOUDFRONT: OFF' ) ).toBeInTheDocument();
     } );
 } );
 

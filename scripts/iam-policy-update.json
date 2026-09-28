@@ -124,16 +124,6 @@
       "Resource": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/*"
     },
     {
-      "Sid": "CostExplorer",
-      "Effect": "Allow",
-      "Action": [
-        "ce:GetCostAndUsage",
-        "ce:GetCostForecast",
-        "ce:GetDimensionValues"
-      ],
-      "Resource": "*"
-    },
-    {
       "Sid": "CloudWatchMetrics",
       "Effect": "Allow",
       "Action": [
