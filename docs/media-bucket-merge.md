@@ -227,3 +227,21 @@ function is invoked.
   `amplify/functions/operations/docs-scraper/**` but **not**
   `amplify/functions/shared/lambda_utils/**`, so a change confined to the shared module
   would not rebuild that image.
+
+### Where these commits actually live
+
+Recorded because `git log --oneline` is misleading here and bisecting would mislead with it.
+
+| Work | Commit |
+|---|---|
+| Rooting the fleet's keys, `media_paths`, manifest correction | `739f8ddc` (merged as `c413326c`) |
+| Follow-ups: CI gate, per-contact media, `--keys-only`, doc updates | **`5054d0e3`**, whose message describes only `scripts/provision_ci_route_auth_role.py` |
+
+`5054d0e3` carries nine files. Eight of them are the follow-up work described above and are
+unrelated to its subject line. The cause is the shared git index: these changes were staged
+by explicit path from one session, and a second session ran `git commit` in the window
+before the first session committed, so its commit swept up the staged paths.
+
+Not rewritten, because it is already pushed and the standing rules forbid a history
+rewrite to tidy a message. The content is correct and complete; only the attribution is
+wrong, and this table is the fix.
