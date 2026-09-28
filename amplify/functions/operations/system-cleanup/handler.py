@@ -20,7 +20,7 @@ from lambda_utils.logging import get_logger
 logger = get_logger(__name__)
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
-BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
 
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 dynamodb_client = boto3.client('dynamodb', region_name=REGION)

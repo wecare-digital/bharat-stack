@@ -42,8 +42,8 @@ VOICE_AWS_TABLE = os.environ.get('VOICE_AWS_TABLE', 'stack-wecare-digital-VoiceA
 EMAIL_MESSAGES_TABLE = os.environ.get('EMAIL_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 # Canonical unified message table (all channels). The single source the inbox reads.
 MESSAGES_TABLE = os.environ.get('MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
-MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'app.wecare.digital')  # CloudFront domain
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
+MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'wecare.digital/get')  # CloudFront domain
 
 # Pagination defaults
 DEFAULT_LIMIT = 1000

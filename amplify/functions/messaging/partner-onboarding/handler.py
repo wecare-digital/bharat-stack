@@ -41,6 +41,7 @@ from lambda_utils.rate_limit import check_rate_limit
 from lambda_utils.middleware import require_auth
 from lambda_utils import partner_billing as billing
 from lambda_utils import partner_tokens
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 try:
     from lambda_utils.audit import record_audit
 except Exception:  # noqa: BLE001
@@ -50,7 +51,7 @@ except Exception:  # noqa: BLE001
 logger = get_logger(__name__)
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
-API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
+API_VERSION = META_API_VERSION
 GRAPH_BASE = f'https://graph.facebook.com/{API_VERSION}'
 APP_ID = os.environ.get('META_APP_ID', '2238810740192680')
 TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')

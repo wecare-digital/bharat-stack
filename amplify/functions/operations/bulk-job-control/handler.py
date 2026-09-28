@@ -31,7 +31,7 @@ s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 BULK_JOBS_TABLE = os.environ.get('BULK_JOBS_TABLE', 'stack-wecare-digital-BulkJobsTable')
 BULK_RECIPIENTS_TABLE = os.environ.get('BULK_RECIPIENTS_TABLE', 'stack-wecare-digital-BulkRecipientsTable')
 BULK_QUEUE_URL = os.environ.get('BULK_QUEUE_URL', '')
-REPORT_BUCKET = os.environ.get('REPORT_BUCKET', 'app.wecare.digital')
+REPORT_BUCKET = os.environ.get('REPORT_BUCKET', 'wecare-digital-get')
 REPORT_PREFIX = os.environ.get('REPORT_PREFIX', 'stack/reports/')
 
 

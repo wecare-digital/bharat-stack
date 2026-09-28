@@ -14,7 +14,7 @@ Runs as a container Lambda (see Dockerfile). Invoked by:
   - Frontend "list sources"       -> {"action": "list_sources"}
   - Frontend "changelog"          -> {"action": "changelog", "limit": 50}
 
-S3 layout (bucket: app.wecare.digital):
+S3 layout (bucket: wecare-digital-get; was app.wecare.digital until 2026-09-28):
   stream/docs/_sources.json                 list of sources (frontend-editable)
   stream/docs/_index.json                   {url: {hash, key, source, lastSeen}}
   stream/docs/_changelog.jsonl              append-only change log (one JSON per line)
@@ -33,7 +33,7 @@ import boto3
 from lambda_utils.middleware import require_auth
 from lambda_utils.response import cors_headers, options_response, extract_origin
 
-BUCKET = os.environ.get('DOCS_BUCKET', 'app.wecare.digital')
+BUCKET = os.environ.get('DOCS_BUCKET', 'wecare-digital-get')
 PREFIX = os.environ.get('DOCS_PREFIX', 'stream/docs')
 SOURCES_KEY = f'{PREFIX}/_sources.json'
 INDEX_KEY = f'{PREFIX}/_index.json'

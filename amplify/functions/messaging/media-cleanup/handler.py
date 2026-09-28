@@ -35,7 +35,7 @@ MEDIA_FILES_TABLE = os.environ.get('MEDIA_FILES_TABLE', 'stack-wecare-digital-Me
 PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID_1', 'phone-number-id-waba1-direct-1016149501586345')
 CLEANUP_AGE_DAYS = int(os.environ.get('CLEANUP_AGE_DAYS', '25'))
 MAX_DELETIONS = int(os.environ.get('MAX_DELETIONS', '50'))
-META_API_VERSION = 'v25.0'
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 
 _token_cache = {}
 

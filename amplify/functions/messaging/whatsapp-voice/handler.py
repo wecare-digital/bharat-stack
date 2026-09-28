@@ -51,7 +51,7 @@ VOICE_LOG_TABLE = os.environ.get('VOICE_LOG_TABLE', 'stack-wecare-digital-WhatsA
 INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
 UNIFIED_MESSAGES_TABLE = os.environ.get('UNIFIED_MESSAGES_TABLE', 'stack-wecare-digital-MessagesTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
 MEDIA_PREFIX = os.environ.get('MEDIA_PREFIX', 'stack/whatsapp-media/voice/')
 
 # WhatsApp Phone Number IDs
@@ -80,7 +80,7 @@ def _load_voice_token() -> str:
     _voice_token_cache['app_secret'] = (data.get('app_secret') or '').strip()
     return _voice_token_cache['token']
 
-META_API_VERSION = 'v25.0'
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 TTL_SECONDS = 90 * 24 * 60 * 60  # 90 days
 
 

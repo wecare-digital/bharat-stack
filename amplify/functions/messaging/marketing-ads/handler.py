@@ -35,6 +35,7 @@ import urllib.error
 import boto3
 
 from lambda_utils.middleware import require_auth
+from lambda_utils.meta_version import GRAPH_BASE  # one source; validated at import
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -42,7 +43,7 @@ logger.setLevel(logging.INFO)
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 secrets_client = boto3.client("secretsmanager", region_name=REGION)
 META_TOKEN_SECRET = os.environ.get("META_TOKEN_SECRET", "wecare/meta-system-user-token")
-GRAPH = os.environ.get("META_GRAPH_BASE", "https://graph.facebook.com/v25.0")
+GRAPH = os.environ.get("META_GRAPH_BASE", GRAPH_BASE)
 
 # Business assets (discovered live 2026-07). Frontend may override per request.
 BUSINESS_PORTFOLIO_ID = os.environ.get("META_BUSINESS_ID", "382642103987922")
@@ -165,7 +166,7 @@ def _upload_image(body):
     s3_key = body.get("s3Key")
     if s3_key:
         s3 = boto3.client("s3", region_name=REGION)
-        bucket = body.get("bucket") or os.environ.get("MEDIA_BUCKET", "app.wecare.digital")
+        bucket = body.get("bucket") or os.environ.get("MEDIA_BUCKET", "wecare-digital-get")
         img = s3.get_object(Bucket=bucket, Key=s3_key)["Body"].read()
         ctype = body.get("contentType", "image/jpeg")
     elif b64:

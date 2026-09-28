@@ -34,7 +34,7 @@ REGION = os.environ.get('AWS_REGION', 'us-east-1')
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 secrets_client = boto3.client('secretsmanager', region_name=REGION)
 
-META_API_VERSION = os.environ.get('META_API_VERSION', 'v25.0')
+from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
 META_TOKEN_SECRET = os.environ.get('META_TOKEN_SECRET', 'wecare/meta-system-user-token')
 CATALOG_CACHE_TABLE = os.environ.get('CATALOG_CACHE_TABLE', 'stack-wecare-digital-CatalogCacheTable')
 GRAPH_BASE = f'https://graph.facebook.com/{META_API_VERSION}'
