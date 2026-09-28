@@ -205,6 +205,24 @@ async function main() {
 
   const md = `# Workflow terminal — step colours, five ways
 
+> ## DECIDED: **A**
+>
+> Owner picked **A** after seeing the five panels rendered. Shipped: hue lives on the dot and
+> the chip, every step name holds \`#fff\` at 21:1, and the tick keeps its step's \`--ink\`.
+>
+> The deciding argument was only visible once the options were pictures. **On a sentence, a hue
+> stops reading as an identifier and starts reading as a severity** — B put step 7, *"A provider
+> failed, nobody noticed"*, in amber, which reads as a warning badge when the whole point of the
+> line is that the failure was absorbed. This is the same reasoning already recorded in the
+> component for excluding red from the dot palette.
+>
+> I had recommended **B** from the contrast figures alone, and the figures could not show this.
+> The mock changed the answer — which is the argument for rendering options rather than
+> describing them.
+>
+> This document is kept rather than deleted: it is the record of what was compared and why the
+> recommendation was reversed.
+
 The per-service dot hues shipped, and the report back was **"the dot colour changed, but the text colour is still lime green"**. That report was accurate. The reason was not visible in the diff.
 
 \`.wt-name.is-complete\` is gated on \`step.complete\`, which is \`true\` for **exactly one of the eight steps**. So the rule recoloured a single line — lime \`#d1f470\` to green \`#3da35a\`, two greens, 16.89:1 down to 6.58:1 — while all eight \`.wt-svc\` pills stayed lime. The lime in the report was the pills.
@@ -270,7 +288,7 @@ I recommended **B** before rendering it, on the argument that it was the only op
 
 This is precisely the reasoning already recorded in this component for **excluding red** from the dot palette — red on "A provider failed" would read as an alarm about the thing being described. That argument applies with more force to a full sentence than to a 12px dot, and B puts the hue on the sentence.
 
-The pill does not have this problem, and the difference is worth being precise about: a chip containing the single word `queue` is self-evidently an identifier, so colouring it reinforces identity. A chip cannot be mistaken for a severity because it is not a claim about anything. The sentence beside it can.
+The pill does not have this problem, and the difference is worth being precise about: a chip containing the single word \`queue\` is self-evidently an identifier, so colouring it reinforces identity. A chip cannot be mistaken for a severity because it is not a claim about anything. The sentence beside it can.
 
 **So: A.** It resolves the original report completely — there is no lime text left anywhere in the panel, every row's hue is visible on its dot *and* its chip, and the change lands on all eight rows instead of one. It keeps the panel's primary text at 21:1, and it removes the current defect where step 8 is the only dim row. Colour ends up carrying exactly one meaning, *which service*, in the two places that are unambiguously labels.
 

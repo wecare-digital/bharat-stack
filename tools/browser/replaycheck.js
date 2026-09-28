@@ -121,23 +121,52 @@ async function main() {
     const recoloured = steps.filter( s => s.complete );
 
     console.log( '' );
+
+    /*
+     * ASSERTS OPTION A, rather than narrating whatever the panel happens to do.
+     *
+     * This block has now been wrong twice, in opposite directions, and both times because it
+     * described a previous design instead of enforcing the current one. It printed "the two
+     * disagree on the same line" unconditionally, which was a real finding while the pill was
+     * lime on all eight and a false alarm the moment the pill took its own hue. It then printed
+     * "N name(s) leave white", which went stale the moment option A kept every name white. A
+     * probe that keeps reporting a fixed defect teaches its reader to skip the output, which is
+     * worse than having no probe.
+     *
+     * So the invariants are stated as assertions. Option A is: hue on the dot and the chip,
+     * never on prose. If someone recolours a name later, this fails and says why.
+     */
     assert( distinctDots.length >= 4,
       `dots carry ${distinctDots.length} distinct hues: ${distinctDots.join( ' ' )}` );
-    console.log( `  note  pill text takes ${distinctPills.length} colour(s): ${distinctPills.join( ' ' )}` );
-    console.log( `  note  name text takes ${distinctNames.length} colour(s): ${distinctNames.join( ' ' )}` );
-    console.log( `  note  ${recoloured.length} of ${steps.length} rows carry .is-complete, so ${recoloured.length} name(s) leave white` );
-    if ( recoloured.length ) {
-      for ( const s of recoloured ) {
-        console.log( `        row ${s.i} "${s.label}": name ${hex( s.nameColor )} on #000 = ${ratio( hex( s.nameColor ), '#000000' )}:1` );
-        /* Only a finding when they actually differ. It used to print "the two disagree"
-         * unconditionally, which was true when the pill was lime on all eight and became a
-         * false alarm the moment the pill took its own hue. A probe that keeps reporting a
-         * defect after the defect is fixed trains the reader to ignore it. */
-        const same = hex( s.svcColor ) === hex( s.nameColor );
-        console.log( same
-          ? `        its pill is ${hex( s.svcColor )} too - the row agrees with itself`
-          : `        its pill is ${hex( s.svcColor )} - pill and name disagree on the same line` );
-      }
+
+    assert( distinctPills.length >= 4,
+      `pill text carries ${distinctPills.length} distinct hues: ${distinctPills.join( ' ' )}`,
+      distinctPills.length < 4
+        ? 'the pill is meant to carry its service hue - a single colour here means .wt-svc lost var(--ink)'
+        : '' );
+
+    const nonWhite = steps.filter( s => hex( s.nameColor ) !== '#ffffff' );
+    assert( nonWhite.length === 0,
+      `all ${steps.length} step names are #ffffff at 21:1 (option A)`,
+      nonWhite.length
+        ? `${nonWhite.map( s => `row ${s.i} is ${hex( s.nameColor )}` ).join( ', ' )}. `
+          + 'Option A keeps hue off prose: on a sentence a hue reads as a severity, which is why '
+          + 'amber on "A provider failed, nobody noticed" was rejected. See docs/step-review.md.'
+        : '' );
+
+    // Every pill must clear 4.5:1 on its own tinted ground - it is 11.5px text.
+    const pillFloor = steps.filter( s => {
+      const bg = hex( s.dotPaint );
+      const tinted = '#' + [ 1, 3, 5 ].map( i => Math.round( parseInt( bg.substr( i, 2 ), 16 ) * 0.14 ).toString( 16 ).padStart( 2, '0' ) ).join( '' );
+      return Number( ratio( hex( s.svcColor ), tinted ) ) < 4.5;
+    } );
+    assert( pillFloor.length === 0,
+      `every pill clears 4.5:1 on its own 14% ground (11.5px text)`,
+      pillFloor.map( s => `row ${s.i} ${s.service}` ).join( ', ' ) );
+
+    console.log( `  note  ${recoloured.length} of ${steps.length} rows carry .is-complete; it is a state hook with no paint of its own` );
+    for ( const s of recoloured ) {
+      console.log( `        row ${s.i} "${s.label}": name ${hex( s.nameColor )} = ${ratio( hex( s.nameColor ), '#000000' )}:1, pill ${hex( s.svcColor )}, tick takes the hue` );
     }
 
     /* ---------------- 2. footer tagline replay ---------------- */
