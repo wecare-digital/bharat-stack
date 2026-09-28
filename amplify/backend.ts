@@ -17,7 +17,10 @@ import * as iam from 'aws-cdk-lib/aws-iam';
  * This backend defines:
  * - Auth: Cognito (existing user pool via referenceAuth)
  * - Data: DynamoDB (~58 tables via AppSync)
- * - Storage: S3 (existing bucket: app.wecare.digital)
+ * - Storage: S3 (existing bucket: wecare-digital-get, public objects under `o/`,
+ *   gated objects under `secure/`; the app.wecare.digital bucket was deleted after
+ *   the 2026-09-26 merge, though the HOST survives as a read-only alias serving this
+ *   bucket through CloudFront origin path `/o`)
  *
  * Additional CDK resources:
  * - SQS Queues (4): inbound-dlq, bulk-queue, bulk-dlq, outbound-dlq

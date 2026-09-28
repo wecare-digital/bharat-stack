@@ -53,6 +53,7 @@ from lambda_utils.middleware import require_auth
 from lambda_utils.logging import get_logger
 from lambda_utils.privacy import mask_contact_id  # contactId is `wa` + the customer's digits
 from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -65,7 +66,7 @@ secrets_client = boto3.client('secretsmanager', region_name=AWS_REGION)
 # Environment variables
 OBD_CAMPAIGNS_TABLE = os.environ.get('OBD_CAMPAIGNS_TABLE', 'stack-wecare-digital-OBDCampaigns')
 VOICE_CDR_TABLE = os.environ.get('VOICE_CDR_TABLE', 'stack-wecare-digital-VoiceCDRTable')
-S3_BUCKET = os.environ.get('S3_BUCKET', 'wecare-digital-get')
+S3_BUCKET = os.environ.get('S3_BUCKET', media_paths.BUCKET)
 # The PUBLIC host, which is NOT the bucket name.
 #
 # Every audio URL below used to be built from the BUCKET name. That only
@@ -74,9 +75,9 @@ S3_BUCKET = os.environ.get('S3_BUCKET', 'wecare-digital-get')
 # domain, so interpolating it produced https://wecare-digital-get/... - a URL that
 # resolves to nothing. Keep the two concepts separate: S3_BUCKET for API calls,
 # CDN_DOMAIN for anything a caller will fetch.
-CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
-S3_RECORDING_PREFIX = 'stack/voice/'
-S3_OBD_AUDIO_PREFIX = 'stack/voice/obd-audio/'
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', media_paths.CDN_DOMAIN)
+S3_RECORDING_PREFIX = media_paths.public('stack/voice/')
+S3_OBD_AUDIO_PREFIX = media_paths.public('stack/voice/obd-audio/')
 TTL_DAYS = 90
 
 # Audio spec for generated IVR prompts: 8 kHz, mono, 16-bit PCM WAV. These are

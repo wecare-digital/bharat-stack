@@ -40,6 +40,7 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 from lambda_utils.middleware import require_auth
 
 from lambda_utils.logging import get_logger
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -49,11 +50,11 @@ logger = get_logger(__name__)
 # deleted, so both put_object calls below would raise NoSuchBucket and the
 # publicUrl built from it would 404. Written as an env lookup rather than a new
 # literal so the next bucket move is a configuration change, not a code deploy.
-S3_BUCKET = os.environ.get('S3_BUCKET', 'wecare-digital-get')
+S3_BUCKET = os.environ.get('S3_BUCKET', media_paths.BUCKET)
 # The PUBLIC host, deliberately separate from the bucket name. Both publicUrl sites
 # below built the URL from S3_BUCKET, which was only ever valid because the old
 # bucket was named app.wecare.digital and so doubled as a hostname.
-CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', media_paths.CDN_DOMAIN)
 
 # Wix credentials are intentionally unconfigured until the fresh Headless
 # project is provisioned. No legacy secret name is used as a default.
@@ -81,7 +82,7 @@ def _load_wix_api_key() -> str:
         raise RuntimeError('Wix Headless API credentials are not configured')
     _wix_key_cache['key'] = key
     return key
-S3_PREFIX = 'stack/store/products'
+S3_PREFIX = media_paths.public('stack/store/products')
 
 # Image dimensions (Wix ideal: 3000x3000 for zoom)
 IMG_SIZE = 3000
@@ -618,7 +619,7 @@ def _convert_flag_to_png(body: dict, request_id: str) -> Dict[str, Any]:
         png_bytes = buf.getvalue()
 
         # Upload to S3
-        s3_key = f'stream/media/flags/wecare-digital-{cc}.png'
+        s3_key = media_paths.public(f'stream/media/flags/wecare-digital-{cc}.png')
         s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
         s3_client.put_object(
             Bucket=S3_BUCKET,

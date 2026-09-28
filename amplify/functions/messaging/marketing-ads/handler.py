@@ -36,6 +36,7 @@ import boto3
 
 from lambda_utils.middleware import require_auth
 from lambda_utils.meta_version import GRAPH_BASE  # one source; validated at import
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -166,8 +167,9 @@ def _upload_image(body):
     s3_key = body.get("s3Key")
     if s3_key:
         s3 = boto3.client("s3", region_name=REGION)
-        bucket = body.get("bucket") or os.environ.get("MEDIA_BUCKET", "wecare-digital-get")
-        img = s3.get_object(Bucket=bucket, Key=s3_key)["Body"].read()
+        bucket = body.get("bucket") or os.environ.get("MEDIA_BUCKET", media_paths.BUCKET)
+        # The caller hands us a key it read off a message or media row, so root it.
+        img = s3.get_object(Bucket=bucket, Key=media_paths.canonical(s3_key))["Body"].read()
         ctype = body.get("contentType", "image/jpeg")
     elif b64:
         img = base64.b64decode(b64)

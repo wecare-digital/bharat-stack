@@ -52,6 +52,7 @@ from lambda_utils.agent import drafts as draft_module
 from lambda_utils.middleware import require_auth
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
 from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -82,7 +83,7 @@ lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 
 
 # Environment variables
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
 CONVERSATION_TABLE = os.environ.get('CONVERSATION_TABLE', 'stack-wecare-digital-ConversationHistoryTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
@@ -2652,6 +2653,9 @@ def _build_media_block(s3_key: str, message_type: str, mime_type: str, request_i
     Build a single media content block for the Converse API.
     Downloads from S3 and formats per Nova's schema.
     """
+    # The key arrives from a persisted message row, so root it before the head/get
+    # and before it is interpolated into an s3:// URI for Nova.
+    s3_key = media_paths.canonical(s3_key)
     try:
         # Determine format from mime type or file extension
         fmt = _get_converse_format(message_type, mime_type, s3_key)
@@ -5362,7 +5366,15 @@ def _tool_delete_media_files(params: Dict, request_id: str) -> Dict:
                     pass
         else:
             # Delete all files for contact
-            prefix = f'media/{contact_id}/'
+            #
+            # NOTE: rooted for consistency, but this prefix is a SEPARATE pre-existing
+            # mismatch and rooting it does not make it match. Nothing writes a
+            # `media/<contactId>/` layout - inbound-whatsapp stores media flat under
+            # `o/stack/whatsapp-media/incoming/` keyed by message id, not by contact. So
+            # this listing returned nothing before the bucket merge and still returns
+            # nothing. Per-contact media deletion needs to resolve keys via the message
+            # rows; tracked separately rather than papered over here.
+            prefix = media_paths.public(f'media/{contact_id}/')
             response = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix)
             
             for obj in response.get('Contents', []):
@@ -5475,7 +5487,9 @@ def _tool_list_media_files(params: Dict, request_id: str) -> Dict:
         return {'success': False, 'error': 'contactId is required'}
     
     try:
-        prefix = f'media/{contact_id}/'
+        # Same `media/<contactId>/` layout mismatch as the delete path above - rooted for
+        # consistency, but nothing writes this layout, so the listing stays empty.
+        prefix = media_paths.public(f'media/{contact_id}/')
         response = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix)
         
         files = []

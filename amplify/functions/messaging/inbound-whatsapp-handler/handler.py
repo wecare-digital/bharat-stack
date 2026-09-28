@@ -34,6 +34,7 @@ from lambda_utils import meta_signature  # raw-body X-Hub-Signature-256 on the p
 from lambda_utils import wa_status  # monotonic status ordering (no backward transitions)
 from lambda_utils import wa_internal_event  # typed ingress -> worker contract
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 from botocore.exceptions import ClientError
 try:
     from lambda_utils import partner_billing  # per-tenant prepaid metering (optional)
@@ -63,12 +64,16 @@ FLOW_SUBMISSIONS_TABLE = os.environ.get('FLOW_SUBMISSIONS_TABLE', 'stack-wecare-
 AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'stack-wecare-digital-AIInteractionsTable')
 INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable')
 INBOUND_DLQ_URL = os.environ.get('INBOUND_DLQ_URL', '')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
 # The PUBLIC host, deliberately separate from the bucket name. The media URL below
 # was built from MEDIA_BUCKET, which only produced a valid URL while the bucket was
 # named app.wecare.digital. See voice-in/obd for the same correction.
-MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'wecare.digital/get')
-MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX', 'stack/whatsapp-media/incoming/')
+MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', media_paths.CDN_DOMAIN)
+# Rooted in the public tree. The two inbound images already in the bucket sit at
+# `o/stack/whatsapp-media/incoming/`, so the un-rooted prefix wrote a second tree
+# beside them and DocumentTable.storageKey recorded a key nothing could resolve.
+MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX',
+                              media_paths.public('stack/whatsapp-media/incoming/'))
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
 SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'stack-wecare-digital-SubmitRequestsTable')
 
@@ -6077,7 +6082,9 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
         logo_pixels = None
         logo_w = logo_h = 0
         try:
-            logo_obj = s3.get_object(Bucket=MEDIA_BUCKET, Key='stream/media/m/wecare-digital.png')
+            logo_obj = s3.get_object(
+                Bucket=MEDIA_BUCKET,
+                Key=media_paths.public('stream/media/m/wecare-digital.png'))
             logo_bytes = logo_obj['Body'].read()
             logo_w, logo_h, logo_pixels = _decode_png_pixels(logo_bytes)
             if logo_w is None:
@@ -6100,7 +6107,7 @@ def _generate_and_send_invoice(contact_id: str, phone_number_id: str, amount: fl
 
         png_bytes = _render_text_to_png(lines, scale=3, logo_pixels=logo_pixels, logo_w=logo_w, logo_h=logo_h)
 
-        s3_key = f'stack/invoices/wecare-digital-{inv_ref}.png'
+        s3_key = media_paths.public(f'stack/invoices/wecare-digital-{inv_ref}.png')
         s3.put_object(
             Bucket=MEDIA_BUCKET,
             Key=s3_key,
@@ -6395,7 +6402,7 @@ def _link_media_to_service_request(contact_id: str, s3_key: str, media_type: str
         if not req or (int(time.time()) - opened_at) > 14 * 86400:
             return
         base = s3_key.split('/')[-1]
-        dest_key = f"stack/service-requests/{req}/{int(time.time())}-{base}"
+        dest_key = media_paths.public(f"stack/service-requests/{req}/{int(time.time())}-{base}")
         try:
             s3.copy_object(Bucket=MEDIA_BUCKET, CopySource={'Bucket': MEDIA_BUCKET, 'Key': s3_key}, Key=dest_key)
         except Exception:

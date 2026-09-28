@@ -37,6 +37,8 @@ from decimal import Decimal
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 
+from lambda_utils import media_paths
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -59,7 +61,10 @@ REVIEWS_TABLE = f'{TABLE_PREFIX}-ReviewTable'
 AMENDMENT_HISTORY_TABLE = f'{TABLE_PREFIX}-AmendmentHistoryTable'
 AUDIT_LOG_TABLE = f'{TABLE_PREFIX}-AuditLogsTable'
 
-DOCS_S3_BUCKET = os.environ.get('DOCS_S3_BUCKET', 'wecare-digital-documents')
+# See core/service-api/handler.py for the full note. Documents ARE WhatsApp media and
+# live in the one media bucket; `wecare-digital-documents` and the deployed
+# `wecare-digital-media` both name buckets that do not exist in this account.
+DOCS_S3_BUCKET = os.environ.get('DOCS_S3_BUCKET', media_paths.BUCKET)
 
 origin = '*'
 
@@ -499,6 +504,9 @@ def _get_document_download_url(doc_id: str) -> Dict:
 
     if storage_key.startswith('http'):
         return _resp(200, {'url': storage_key})
+
+    # Legacy rows store the key without the `o/` root the object actually sits under.
+    storage_key = media_paths.canonical(storage_key)
 
     try:
         url = s3_client.generate_presigned_url('get_object',

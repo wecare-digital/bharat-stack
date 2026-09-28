@@ -32,9 +32,10 @@ import boto3
 
 from lambda_utils.middleware import require_auth
 from lambda_utils.response import cors_headers, options_response, extract_origin
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
-BUCKET = os.environ.get('DOCS_BUCKET', 'wecare-digital-get')
-PREFIX = os.environ.get('DOCS_PREFIX', 'stream/docs')
+BUCKET = os.environ.get('DOCS_BUCKET', media_paths.BUCKET)
+PREFIX = os.environ.get('DOCS_PREFIX', media_paths.public('stream/docs'))
 SOURCES_KEY = f'{PREFIX}/_sources.json'
 INDEX_KEY = f'{PREFIX}/_index.json'
 CHANGELOG_KEY = f'{PREFIX}/_changelog.jsonl'

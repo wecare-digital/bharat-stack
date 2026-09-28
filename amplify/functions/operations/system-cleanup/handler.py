@@ -16,11 +16,12 @@ from botocore.exceptions import ClientError
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 
 from lambda_utils.logging import get_logger
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
-BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
+BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
 
 dynamodb = boto3.resource('dynamodb', region_name=REGION)
 dynamodb_client = boto3.client('dynamodb', region_name=REGION)
@@ -176,25 +177,25 @@ CLEANUP_RESOURCES = {
         'label': 'S3: Invoice Files',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/invoices/',
+        'prefix': media_paths.public('stack/invoices/'),
     },
     's3_whatsapp_media': {
         'label': 'S3: WhatsApp Media',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/',
+        'prefix': media_paths.public('stack/whatsapp-media/'),
     },
     's3_voice_recordings': {
         'label': 'S3: Voice Recordings',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/voice/',
+        'prefix': media_paths.public('stack/voice/'),
     },
     's3_whatsapp_voice': {
         'label': 'S3: WhatsApp Voice (TTS)',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/voice/',
+        'prefix': media_paths.public('stack/whatsapp-media/voice/'),
     },
     # --- Additional resources (full factory reset coverage) ---
     'dlq_messages': {
@@ -262,43 +263,43 @@ CLEANUP_RESOURCES = {
         'label': 'S3: WhatsApp Media (Incoming)',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/incoming/',
+        'prefix': media_paths.public('stack/whatsapp-media/incoming/'),
     },
     's3_whatsapp_media_outgoing': {
         'label': 'S3: WhatsApp Media (Outgoing)',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/outgoing/',
+        'prefix': media_paths.public('stack/whatsapp-media/outgoing/'),
     },
     's3_template_headers': {
         'label': 'S3: Template Headers',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/template-headers/',
+        'prefix': media_paths.public('stack/whatsapp-media/template-headers/'),
     },
     's3_product_images': {
         'label': 'S3: Product Images',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/store/products/',
+        'prefix': media_paths.public('stack/store/products/'),
     },
     's3_reports': {
         'label': 'S3: Reports & Exports',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/reports/',
+        'prefix': media_paths.public('stack/reports/'),
     },
     's3_whatsapp_calling_ai': {
         'label': 'S3: WhatsApp Calling AI Audio',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/calling-ai/',
+        'prefix': media_paths.public('stack/whatsapp-media/calling-ai/'),
     },
     's3_whatsapp_downloads': {
         'label': 'S3: WhatsApp Media Downloads',
         'category': 'S3 Storage',
         'type': 's3',
-        'prefix': 'stack/whatsapp-media/downloads/',
+        'prefix': media_paths.public('stack/whatsapp-media/downloads/'),
     },
     # SQS Queues
     'sqs_inbound_dlq': {
@@ -329,7 +330,10 @@ CLEANUP_RESOURCES = {
 
 # ── Dynamic discovery config ──
 TABLE_PREFIX = 'stack-wecare-digital-'
-S3_ROOT_PREFIX = 'stack/'
+# Rooted in the public tree. This was 'stack/' - a prefix with zero objects under it -
+# so discovery listed nothing and every S3 cleanup reported success having deleted
+# nothing. See lambda_utils/media_paths for why the data sits one level lower.
+S3_ROOT_PREFIX = media_paths.public('stack/')
 S3_MAX_DEPTH = 3  # how many folder levels under stack/ to expose
 
 # Tables that must NEVER be wiped by factory reset (config + durable assets).

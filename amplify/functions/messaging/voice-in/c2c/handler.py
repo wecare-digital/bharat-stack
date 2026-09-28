@@ -44,6 +44,7 @@ from lambda_utils.privacy import mask_contact_id  # contactId is `wa` + the cust
 from lambda_utils.middleware import require_auth
 from lambda_utils import retired_store
 from lambda_utils.meta_version import META_API_VERSION  # one source; validated at import
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -100,8 +101,8 @@ def _legacy_store_gone(operation: str) -> Dict[str, Any]:
 # so the literal named nothing and every delete_object below would have raised
 # NoSuchBucket. The sibling handler in voice-in/obd already read the env var,
 # which is why only this one broke.
-S3_BUCKET = os.environ.get('S3_BUCKET', 'wecare-digital-get')
-S3_RECORDING_PREFIX = 'stack/voice/'
+S3_BUCKET = os.environ.get('S3_BUCKET', media_paths.BUCKET)
+S3_RECORDING_PREFIX = media_paths.public('stack/voice/')
 CALL_TTL_SECONDS = 90 * 24 * 60 * 60
 
 # Cached secrets

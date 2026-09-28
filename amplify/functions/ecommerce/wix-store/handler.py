@@ -31,6 +31,7 @@ from lambda_utils.response import cors_response, cors_headers, options_response,
 # Pure Wix transforms, lifted out in 7.2. This module imports no AWS SDK and reads no
 # credential, so these 13 functions are unit-testable without standing up the
 # integration - which is what made ~270 lines of shape-mapping untestable before.
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 from lambda_utils.ecommerce.wix_domain import (  # noqa: F401
     _base36,
     _extract_id,
@@ -64,8 +65,12 @@ WIX_API_KEY_SECRET = os.environ.get('WIX_API_KEY_SECRET', '').strip()
 # separate on purpose: the bucket name is for S3 API calls, the domain is for URLs a
 # caller will fetch. Interpolating the bucket name into a URL only ever worked while
 # the bucket happened to be named app.wecare.digital.
-S3_BUCKET = os.environ.get('S3_BUCKET', 'wecare-digital-get')
-CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
+S3_BUCKET = os.environ.get('S3_BUCKET', media_paths.BUCKET)
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', media_paths.CDN_DOMAIN)
+# Referenced by _upload_product_image but never defined until 2026-09-28, so that
+# path raised NameError rather than uploading. Same folder product-image-gen uses.
+S3_PRODUCT_PREFIX = os.environ.get('S3_PRODUCT_PREFIX',
+                                   media_paths.public('stack/store/products'))
 
 
 _wix_api_key_cache = ''

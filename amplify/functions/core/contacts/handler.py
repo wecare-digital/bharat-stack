@@ -30,6 +30,7 @@ from lambda_utils.response import cors_response, options_response, extract_origi
 from lambda_utils.logging import get_logger, log_event
 from lambda_utils.validation import sanitize_html, sanitize_dict, normalize_phone
 from lambda_utils import contact_key  # `id` is the physical key; `contactId` is its alias
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -39,7 +40,7 @@ s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 INBOUND_TABLE = os.environ.get('INBOUND_TABLE', 'stack-wecare-digital-WhatsAppInboundTable')
 OUTBOUND_TABLE = os.environ.get('OUTBOUND_TABLE', 'stack-wecare-digital-WhatsAppOutboundTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
 
 ALLOWED_UPDATE_FIELDS = {
     'name', 'phone', 'email', 'shippingAddress', 'billingAddress',
@@ -588,6 +589,8 @@ def _matches(item: Dict[str, Any], query: str) -> bool:
 
 
 def _delete_s3(stored_key: str):
+    # Root the persisted key before deleting; see lambda_utils/media_paths.
+    stored_key = media_paths.canonical(stored_key)
     try:
         s3_client.head_object(Bucket=MEDIA_BUCKET, Key=stored_key)
         s3_client.delete_object(Bucket=MEDIA_BUCKET, Key=stored_key)

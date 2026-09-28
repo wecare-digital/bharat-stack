@@ -31,6 +31,7 @@ from decimal import Decimal
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.logging import get_logger
 from lambda_utils.privacy import mask_phone  # a full number must never reach CloudWatch
+from lambda_utils import media_paths
 
 logger = get_logger(__name__)
 
@@ -52,9 +53,12 @@ INVOICE_DELIVERY_TABLE = os.environ.get('INVOICE_DELIVERY_TABLE', 'stack-wecare-
 PAYMENTS_TABLE = os.environ.get('PAYMENTS_TABLE', 'stack-wecare-digital-PaymentsTable')
 CONTACTS_TABLE = os.environ.get('CONTACTS_TABLE', 'stack-wecare-digital-ContactsTable')
 SYSTEM_CONFIG_TABLE = os.environ.get('SYSTEM_CONFIG_TABLE', 'stack-wecare-digital-SystemConfigTable')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
-INVOICE_PREFIX = 'stack/invoices/'
-CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
+# Every key in this handler is rooted in the public tree. See lambda_utils/media_paths:
+# the merge moved `<X>` to `o/<X>`, so an un-rooted key here read one level above the
+# data and returned NoSuchKey — which is exactly what happened to the logo and the font.
+INVOICE_PREFIX = media_paths.public('stack/invoices/')
+CDN_DOMAIN = os.environ.get('CDN_DOMAIN', media_paths.CDN_DOMAIN)
 
 # Module-level origin for CORS (set per-invocation in handler)
 origin = ''
@@ -72,8 +76,11 @@ COMPANY = {
     'email': 'one@wecare.digital',
     'phone': '+91 93309 94400',
     'website': 'https://wecare.digital',
-    'logo_s3_key': 'stream/media/m/wecare-digital.png',
-    'paid_icon_s3_key': 'stream/media/m/paid.png',
+    'logo_s3_key': media_paths.public('stream/media/m/wecare-digital.png'),
+    # NOTE: verified absent from the bucket under BOTH roots on 2026-09-28. Rooting the
+    # key correctly does not conjure the file — the paid icon still needs uploading, and
+    # _load_s3_image already degrades to no icon rather than failing the invoice.
+    'paid_icon_s3_key': media_paths.public('stream/media/m/paid.png'),
 }
 
 
@@ -102,6 +109,9 @@ def _load_logo_bytes() -> Optional[bytes]:
 def _load_s3_image(key: str):
     """Load an image from S3 as PIL Image (RGBA) with /tmp cache."""
     import hashlib
+    # Defensive: this is the shared read path for every image in the invoice, so rooting
+    # here means a caller passing a legacy un-rooted key still finds the object.
+    key = media_paths.canonical(key)
     cache_path = f"/tmp/_s3img_{hashlib.md5(key.encode()).hexdigest()}.png"
     try:
         from PIL import Image as PILImage
@@ -1088,7 +1098,8 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     def _get_font_bytes(bold=False):
         key = 'bold' if bold else 'regular'
         if key not in _font_cache:
-            s3_key = f"stream/media/fonts/DejaVuSansMono{'-Bold' if bold else ''}.ttf"
+            s3_key = media_paths.public(
+                f"stream/media/fonts/DejaVuSansMono{'-Bold' if bold else ''}.ttf")
             try:
                 obj = s3.get_object(Bucket=MEDIA_BUCKET, Key=s3_key)
                 _font_cache[key] = obj['Body'].read()
@@ -1532,7 +1543,7 @@ def _generate_receipt_png(invoice: Dict, items: List[Dict]) -> bytes:
     # is present (459 bytes, image/png, verified 2026-09-24).
     qr_rendered = False
     try:
-        qr_s3_img = _load_s3_image('stream/media/m/qr-selfservice.png')
+        qr_s3_img = _load_s3_image(media_paths.public('stream/media/m/qr-selfservice.png'))
         if qr_s3_img:
             qr_s3_img = qr_s3_img.resize((80, 80), Image.LANCZOS).convert('RGB')
             qr_x = (W - 80) // 2
@@ -2290,7 +2301,7 @@ def delete_invoice(invoice_id: str, body: Dict, request_id: str) -> Dict:
 
     # Try to delete S3 files for this invoice
     try:
-        prefix = f'stack/invoices/wecare-digital-{ref_id or invoice_id}'
+        prefix = f'{INVOICE_PREFIX}wecare-digital-{ref_id or invoice_id}'
         s3_resp = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix, MaxKeys=20)
         for obj in s3_resp.get('Contents', []):
             s3.delete_object(Bucket=MEDIA_BUCKET, Key=obj['Key'])
@@ -2378,7 +2389,7 @@ def clear_all_invoice_data(request_id: str) -> Dict:
     s3_deleted = 0
     try:
         paginator = s3.get_paginator('list_objects_v2')
-        for page in paginator.paginate(Bucket=MEDIA_BUCKET, Prefix='stack/invoices/'):
+        for page in paginator.paginate(Bucket=MEDIA_BUCKET, Prefix=INVOICE_PREFIX):
             objects = page.get('Contents', [])
             if objects:
                 s3.delete_objects(Bucket=MEDIA_BUCKET, Delete={'Objects': [{'Key': o['Key']} for o in objects]})

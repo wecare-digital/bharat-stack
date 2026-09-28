@@ -8,6 +8,7 @@ import boto3
 import urllib.request
 import urllib.parse
 import urllib.error
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 from lambda_utils.response import cors_headers, options_response, extract_origin
 from lambda_utils.logging import get_logger
 from lambda_utils.middleware import require_auth
@@ -19,9 +20,15 @@ origin = ''
 s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 secrets_client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
-TEMPLATE_MEDIA_PREFIX = os.environ.get('TEMPLATE_MEDIA_PREFIX', 'stack/whatsapp-media/template-headers/')
-PUBLIC_MEDIA_PREFIX = os.environ.get('PUBLIC_MEDIA_PREFIX', 'public/wa-tpl/')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', media_paths.BUCKET)
+TEMPLATE_MEDIA_PREFIX = os.environ.get(
+    'TEMPLATE_MEDIA_PREFIX',
+    media_paths.public('stack/whatsapp-media/template-headers/'))
+# The `o/` root is load-bearing: the 61 objects already in o/public/wa-tpl/ are
+# referenced by Meta-APPROVED templates whose URLs are on the app.wecare.digital
+# host, and that host serves this bucket through origin path `/o`.
+PUBLIC_MEDIA_PREFIX = os.environ.get('PUBLIC_MEDIA_PREFIX',
+                                     media_paths.public('public/wa-tpl/'))
 CDN_DOMAIN = os.environ.get('CDN_DOMAIN', 'wecare.digital/get')
 DEFAULT_WABA_ID = 'waba-e47d916f3c7a47e1a34a19653893dd4b'
 

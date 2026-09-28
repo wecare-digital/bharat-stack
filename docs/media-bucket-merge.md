@@ -105,3 +105,84 @@ you *mint*, honour what you already *issued*.
 
 Retiring the old host is a provider-coordination project — resubmit every affected
 WhatsApp template, move BIMI, re-register RCS media — not an infrastructure change.
+
+---
+
+## Addendum, 2026-09-28 — the bucket went, the host stayed, the code never followed
+
+Two things happened after the merge above, and together they produced a class of silent
+failure worth recording.
+
+### The old bucket was deleted; the old host was not
+
+`aws s3api list-buckets` now returns six buckets and `app.wecare.digital` is not among
+them. But `https://app.wecare.digital/...` still answers **HTTP 200**, because CloudFront
+`E1DP37QIS4G0T4` was repointed at `wecare-digital-get` with **origin path `/o`**:
+
+| Host | Distribution | Origin path | `<X>` resolves to |
+|---|---|---|---|
+| `wecare.digital/get/<X>` | `E2GP22R4BIFGQ3` | `""` | `<X>` |
+| `app.wecare.digital/<X>` | `E1DP37QIS4G0T4` | `/o` | `o/<X>` |
+
+So the "keep both" recommendation above was implemented, and the 61 Meta-approved
+template media URLs still resolve. That is the good news, and it is also precisely what
+makes the `o/` prefix **load-bearing rather than cosmetic**: an object is reachable on
+both hosts only if its key starts with `o/`.
+
+### The handler prefixes were never repointed
+
+The section above says the Lambda side is "environment-driven, not hardcoded", and that
+was right about the **bucket** and wrong about the **key**. Every `*_PREFIX` default still
+carried the pre-merge shape — `stack/whatsapp-media/incoming/`, `public/wa-tpl/`,
+`stream/media/m/...` — with no `o/` segment, because on the old bucket the whole bucket
+*was* the public root.
+
+Measured consequences, all live until 2026-09-28:
+
+| Symptom | Cause |
+|---|---|
+| Invoice PDFs lost their logo and monospace font | `stream/media/m/wecare-digital.png` and `stream/media/fonts/DejaVuSansMono.ttf` are absent at the root, present under `o/` |
+| Document downloads returned a dead URL | `DOCS_S3_BUCKET` was `wecare-digital-media` live and `wecare-digital-documents` in code — **neither bucket exists** — and the stored `storageKey` lacked `o/` |
+| `system-cleanup` deleted nothing, reporting success | all 11 TTL prefixes plus `S3_ROOT_PREFIX` targeted `stack/` at the root, which holds zero objects |
+| Wix product-image upload raised `NameError` | `S3_PRODUCT_PREFIX` was referenced but never defined anywhere in the repo |
+
+None of these raised an alarm, and the reason is uncomfortable: a key written to the
+bucket root still serves **HTTP 200** on the apex host. Verified by probe — a key at the
+root and the same key under `o/` both returned 200, while a key under `secure/` returned
+302. So a write to the wrong folder looked perfectly healthy from the apex and was simply
+invisible to `app.wecare.digital`.
+
+### What was done
+
+`amplify/functions/shared/lambda_utils/media_paths.py` now owns the convention —
+`PUBLIC_ROOT = "o/"`, `SECURE_ROOT = "secure/"`, plus `public()`, `secure()`,
+`canonical()` and `public_url()`. 24 handlers compose their keys through it, and keys read
+back out of DynamoDB go through `canonical()`, which roots a legacy un-prefixed key
+without ever moving one between the public and gated roots.
+
+No objects were moved. The data was always in the right place; the code was addressing one
+level above it.
+
+`scripts/verify_media_prefixes.py --live` enforces all of this, including the ordering
+trap that caught three handlers on the first deploy: `media_paths` imported *below* its
+first use is a module-scope `NameError` that byte-compiles cleanly and only fails when the
+function is invoked.
+
+### Still outstanding
+
+- `o/stream/media/m/paid.png` and `o/stream/media/m/qr-selfservice.png` are referenced by
+  `invoice-engine` and **absent under both roots**. Rooting the key correctly does not
+  conjure the file; those two assets need uploading. `_load_s3_image` degrades to no icon
+  rather than failing the invoice, which is why this went unnoticed.
+- `ai-generate-response` addresses a `media/<contactId>/` layout that **nothing writes** —
+  inbound media is stored flat under `o/stack/whatsapp-media/incoming/` keyed by message
+  id. Rooting that prefix does not make it match; per-contact media deletion needs to
+  resolve keys via the message rows instead. Tracked separately, not papered over.
+- `config/lambda-env-manifest.json` had 35 bucket/CDN values naming the deleted bucket and
+  was corrected in place. A full `scripts/env_manifest.py --export` is still owed, since
+  the snapshot is also missing keys that exist live; that command reads Secrets Manager to
+  fingerprint credential-shaped values, so it needs to be run by someone permitted to.
+- The docs-scraper image deploys from a workflow whose path filter covers
+  `amplify/functions/operations/docs-scraper/**` but **not**
+  `amplify/functions/shared/lambda_utils/**`, so a change confined to the shared module
+  would not rebuild that image.

@@ -62,6 +62,7 @@ from decimal import Decimal
 from xml.sax.saxutils import escape
 
 from lambda_utils.logging import get_logger, log_event
+from lambda_utils import media_paths  # one bucket, two roots: o/ public, secure/ gated
 
 logger = get_logger(__name__)
 
@@ -77,8 +78,15 @@ REGION = os.environ.get('AWS_REGION', 'us-east-1')
 # `206 Partial Content` with an identical `content-range` for a Range request.
 # A media fetcher that ranges would otherwise have failed on a URL that looked
 # healthy in a browser.
-MEDIA_BASE = os.environ.get('IVR_MEDIA_BASE', 'https://wecare.digital/get/o')
-IVR_AUDIO_KEY = os.environ.get('IVR_AUDIO_KEY', 'stream/media/ivr/incoming_welcome.wav')
+# Expressed through lambda_utils.media_paths so there is ONE rooting convention in the
+# fleet rather than two. This handler had it right before the others did, but it carried
+# the `o/` in the BASE while every other handler carries it in the KEY. That split is a
+# trap for the next edit, so the root moves into the key and MEDIA_BASE becomes the plain
+# CDN host. The composed URL is byte-identical to what this function already served:
+#   https://wecare.digital/get/o/stream/media/ivr/incoming_welcome.wav
+MEDIA_BASE = os.environ.get('IVR_MEDIA_BASE', f'https://{media_paths.CDN_DOMAIN}')
+IVR_AUDIO_KEY = os.environ.get(
+    'IVR_AUDIO_KEY', media_paths.public('stream/media/ivr/incoming_welcome.wav'))
 IVR_AUDIO_URL = os.environ.get('IVR_AUDIO_URL', f'{MEDIA_BASE}/{IVR_AUDIO_KEY}')
 
 # --- post-call follow-up SMS -------------------------------------------------
