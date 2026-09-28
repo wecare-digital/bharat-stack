@@ -30,6 +30,7 @@ Exit status: 0 all checks pass, 1 otherwise.
 from __future__ import annotations
 
 import argparse
+import ast
 import pathlib
 import re
 import sys
@@ -47,10 +48,8 @@ SECURE_ROOT = "secure/"
 LEGACY_HOST_DISTRIBUTION = "E1DP37QIS4G0T4"
 LEGACY_HOST_ORIGIN_PATH = "/o"
 
-IMPORT_RE = re.compile(r"\s*from lambda_utils import .*\bmedia_paths\b")
-# A quoted S3 key prefix: starts with a known top-level folder name.
-KEYISH_RE = re.compile(
-    r"""['"]((?:stack|stream|public|whatsapp-media|obd-audio|media)/[^'"]*)['"]""")
+# An S3 key: a string constant beginning with a known top-level folder name.
+KEYISH_RE = re.compile(r"(?:stack|stream|public|whatsapp-media|obd-audio|media)/")
 
 
 class Result:
@@ -76,76 +75,123 @@ def handler_files() -> list[pathlib.Path]:
 def check_no_dead_buckets(r: Result) -> None:
     print("\n1. no dead bucket names in handler source")
     offenders: list[str] = []
-    for p in handler_files():
-        for i, line in enumerate(p.read_text().splitlines(), 1):
-            stripped = line.strip()
-            if stripped.startswith("#") or stripped.startswith("*"):
-                continue  # prose explaining the history is expected
-            for dead in DEAD_BUCKETS:
-                if f"'{dead}'" in line or f'"{dead}"' in line:
-                    offenders.append(f"{p.relative_to(FUNCTIONS)}:{i} {dead}")
+    files = handler_files()
+    for p in files:
+        parsed = parse(p)
+        if parsed is None:
+            continue
+        tree, _src, docstrings = parsed
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+                continue
+            if id(node) in docstrings:
+                continue  # prose explaining the history is expected, and necessary
+            if node.value in DEAD_BUCKETS:
+                offenders.append(f"{p.relative_to(FUNCTIONS)}:{node.lineno} {node.value}")
     r.add("no dead bucket literal is used as a value", not offenders,
-          "; ".join(offenders[:4]) if offenders else f"{len(handler_files())} files scanned")
+          "; ".join(offenders[:4]) if offenders else f"{len(files)} files scanned")
 
 
-def logical_lines(text: str):
-    """Yield (start_line, source) for each logical statement.
+def parse(p: pathlib.Path):
+    """(tree, source, docstring_node_ids) or None when the file will not parse.
 
-    Line-at-a-time scanning produced three false positives: a key split across a
-    continuation line has its `media_paths.public(` on the PREVIOUS physical line, so the
-    rooting is invisible to a per-line check. Statements are the correct unit. Comments are
-    stripped first, because a trailing `# e.g. "stack/..."` is documentation, not a key.
+    Text scanning was wrong twice here, in opposite directions, which is why this is an
+    AST now:
+
+    * Per-LINE scanning missed rooting that sits on a continuation line, because
+      `media_paths.public(` ends up on the previous physical line. Three false positives.
+    * Per-STATEMENT scanning then flagged PROSE, because a docstring explaining the `o/`
+      convention legitimately contains the text `media_paths.` and `stack/`. One false
+      positive, in the very file being documented.
+
+    An AST distinguishes code from the text that describes it, which is exactly the
+    distinction both mistakes turned on.
     """
-    depth = 0
-    buf: list[str] = []
-    start = 1
-    for i, raw in enumerate(text.splitlines(), 1):
-        code = re.sub(r"(?<!['\"])#.*$", "", raw)  # crude, but keys here are never after #
-        if not buf:
-            start = i
-        buf.append(code)
-        depth += code.count("(") + code.count("[") + code.count("{")
-        depth -= code.count(")") + code.count("]") + code.count("}")
-        if depth <= 0 and not code.rstrip().endswith("\\"):
-            yield start, " ".join(buf)
-            buf, depth = [], 0
-    if buf:
-        yield start, " ".join(buf)
+    src = p.read_text()
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return None
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            body = getattr(node, "body", None) or []
+            if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
+                    and isinstance(body[0].value.value, str):
+                docstrings.add(id(body[0].value))
+    return tree, src, docstrings
+
+
+def enclosing_statements(tree):
+    """Map id(node) -> nearest enclosing statement, so a whole statement can be re-read."""
+    owner = {}
+    for stmt in ast.walk(tree):
+        if isinstance(stmt, ast.stmt):
+            for child in ast.walk(stmt):
+                owner.setdefault(id(child), stmt)
+    return owner
 
 
 def check_keys_rooted(r: Result) -> None:
     print("\n2. every S3 key prefix is rooted in o/ or secure/")
     offenders: list[str] = []
     for p in handler_files():
-        for lineno, stmt in logical_lines(p.read_text()):
-            for m in KEYISH_RE.finditer(stmt):
-                key = m.group(1)
-                if key.startswith((PUBLIC_ROOT, SECURE_ROOT)):
-                    continue
-                # Rooted at runtime by a media_paths call in the same statement, or used
-                # only to CLASSIFY a legacy string rather than to address an object.
-                if "media_paths." in stmt or ".startswith(" in stmt:
-                    continue
-                offenders.append(f"{p.relative_to(FUNCTIONS)}:{lineno} {key}")
+        parsed = parse(p)
+        if parsed is None:
+            offenders.append(f"{p.relative_to(FUNCTIONS)} does not parse")
+            continue
+        tree, src, docstrings = parsed
+        owner = enclosing_statements(tree)
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+                continue
+            if id(node) in docstrings:
+                continue  # prose, not a key
+            key = node.value
+            if not KEYISH_RE.match(key) or key.startswith((PUBLIC_ROOT, SECURE_ROOT)):
+                continue
+            stmt = owner.get(id(node))
+            stmt_src = ast.get_source_segment(src, stmt) or "" if stmt else ""
+            # Rooted at runtime by a media_paths call in the same statement, or used only
+            # to CLASSIFY a legacy string rather than to address an object.
+            if "media_paths." in stmt_src or ".startswith(" in stmt_src:
+                continue
+            offenders.append(f"{p.relative_to(FUNCTIONS)}:{node.lineno} {key}")
     r.add("no un-rooted key addresses an object", not offenders,
           "; ".join(offenders[:4]) if offenders else "all rooted")
 
 
 def check_import_before_use(r: Result) -> None:
-    print("\n3. media_paths is imported above its first use")
+    print("\n3. media_paths is imported above its first MODULE-SCOPE use")
     offenders: list[str] = []
     for p in handler_files():
-        lines = p.read_text().splitlines()
-        imp = use = None
-        for i, line in enumerate(lines, 1):
-            if imp is None and IMPORT_RE.match(line):
-                imp = i
+        parsed = parse(p)
+        if parsed is None:
+            continue
+        tree, _src, _docstrings = parsed
+
+        imp = None
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "lambda_utils" \
+                    and any(a.name == "media_paths" for a in node.names):
+                imp = node.lineno if imp is None else min(imp, node.lineno)
+
+        # Only MODULE-SCOPE uses can raise at import time. A reference inside a function
+        # body is resolved when that function is called, by which point the import has run
+        # regardless of where it sits - so flagging those would be noise.
+        module_scope_uses = []
+        for stmt in tree.body:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 continue
-            if use is None and "media_paths." in line and not line.lstrip().startswith("#"):
-                use = i
-        if use is not None and (imp is None or imp > use):
+            for node in ast.walk(stmt):
+                if isinstance(node, ast.Name) and node.id == "media_paths":
+                    module_scope_uses.append(node.lineno)
+        if not module_scope_uses:
+            continue
+        first = min(module_scope_uses)
+        if imp is None or imp > first:
             where = f"import@{imp}" if imp else "NO IMPORT"
-            offenders.append(f"{p.relative_to(FUNCTIONS)} {where} use@{use}")
+            offenders.append(f"{p.relative_to(FUNCTIONS)} {where} use@{first}")
     r.add("no module-scope NameError from import ordering", not offenders,
           "; ".join(offenders[:4]) if offenders else "ordering correct")
 

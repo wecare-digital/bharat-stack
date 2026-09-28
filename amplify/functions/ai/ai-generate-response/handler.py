@@ -5357,29 +5357,25 @@ def _tool_delete_media_files(params: Dict, request_id: str) -> Dict:
         deleted_count = 0
         
         if file_keys:
-            # Delete specific files
-            for key in file_keys:
+            # Delete specific files. Caller-supplied keys are rooted, and a gated key is
+            # refused outright: secure/ objects belong to the secure-files flow and must
+            # not be reachable through a conversation-media tool.
+            for raw in file_keys:
+                key = media_paths.canonical(raw)
+                if not key or media_paths.is_gated(key):
+                    continue
                 try:
                     s3.delete_object(Bucket=MEDIA_BUCKET, Key=key)
                     deleted_count += 1
                 except Exception:
                     pass
         else:
-            # Delete all files for contact
-            #
-            # NOTE: rooted for consistency, but this prefix is a SEPARATE pre-existing
-            # mismatch and rooting it does not make it match. Nothing writes a
-            # `media/<contactId>/` layout - inbound-whatsapp stores media flat under
-            # `o/stack/whatsapp-media/incoming/` keyed by message id, not by contact. So
-            # this listing returned nothing before the bucket merge and still returns
-            # nothing. Per-contact media deletion needs to resolve keys via the message
-            # rows; tracked separately rather than papered over here.
-            prefix = media_paths.public(f'media/{contact_id}/')
-            response = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix)
-            
-            for obj in response.get('Contents', []):
+            # Delete all media for the contact, resolved from that contact's message rows
+            # rather than from a per-contact prefix that nothing writes. See
+            # _media_keys_for_contact.
+            for key in _media_keys_for_contact(contact_id):
                 try:
-                    s3.delete_object(Bucket=MEDIA_BUCKET, Key=obj['Key'])
+                    s3.delete_object(Bucket=MEDIA_BUCKET, Key=key)
                     deleted_count += 1
                 except Exception:
                     pass
@@ -5478,6 +5474,57 @@ def _tool_clear_all_contact_data(params: Dict, request_id: str) -> Dict:
         return {'success': False, 'error': str(e)}
 
 
+def _media_keys_for_contact(contact_id: str) -> List[str]:
+    """Every S3 key belonging to a contact, resolved from that contact's message rows.
+
+    There is no per-contact S3 prefix and there never was. Both callers below used to list
+    `media/<contactId>/`, a layout NOTHING writes: inbound-whatsapp stores media flat under
+    `o/stack/whatsapp-media/incoming/` named by message id, and records the key on the
+    message row as `s3Key`. So the listing was always empty and the two tools silently
+    reported zero files and deleted nothing.
+
+    The message row is therefore the only thing that associates media with a contact, which
+    makes it the right place to resolve from. Keys are rooted through
+    `media_paths.canonical`, because rows written before the bucket merge stored the key
+    without its `o/` root.
+
+    Uses the same scan-with-contactId-filter shape as `_tool_delete_messages`, for the same
+    reason: the messages table has no contactId index.
+    """
+    keys: List[str] = []
+    seen = set()
+    try:
+        messages_table = dynamodb.Table(MESSAGES_TABLE)
+        kwargs = {
+            'FilterExpression': 'contactId = :cid',
+            'ExpressionAttributeValues': {':cid': contact_id},
+        }
+        while True:
+            response = messages_table.scan(**kwargs)
+            for item in response.get('Items', []):
+                raw = item.get('s3Key')
+                if not raw:
+                    continue
+                key = media_paths.canonical(raw)
+                # A gated key is deliberately excluded: secure/ objects belong to the
+                # secure-files flow with its own lifecycle, not to conversation media.
+                if not key or key in seen or media_paths.is_gated(key):
+                    continue
+                seen.add(key)
+                keys.append(key)
+            token = response.get('LastEvaluatedKey')
+            if not token:
+                break
+            kwargs['ExclusiveStartKey'] = token
+    except Exception as exc:
+        logger.warning(json.dumps({
+            'event': 'media_key_resolution_failed',
+            'contactId': mask_contact_id(contact_id),
+            'error': type(exc).__name__,
+        }))
+    return keys
+
+
 def _tool_list_media_files(params: Dict, request_id: str) -> Dict:
     """List media files for a contact."""
     contact_id = params.get('contactId')
@@ -5487,16 +5534,16 @@ def _tool_list_media_files(params: Dict, request_id: str) -> Dict:
         return {'success': False, 'error': 'contactId is required'}
     
     try:
-        # Same `media/<contactId>/` layout mismatch as the delete path above - rooted for
-        # consistency, but nothing writes this layout, so the listing stays empty.
-        prefix = media_paths.public(f'media/{contact_id}/')
-        response = s3.list_objects_v2(Bucket=MEDIA_BUCKET, Prefix=prefix)
-        
         files = []
-        for obj in response.get('Contents', []):
-            key = obj['Key']
-            size = obj['Size']
-            last_modified = obj['LastModified'].isoformat()
+        for key in _media_keys_for_contact(contact_id):
+            try:
+                head = s3.head_object(Bucket=MEDIA_BUCKET, Key=key)
+            except Exception:
+                # The row references an object that is gone. Skip it rather than
+                # reporting a file the caller cannot fetch.
+                continue
+            size = head.get('ContentLength', 0)
+            last_modified = head['LastModified'].isoformat()
             
             # Determine file type from extension
             ext = key.split('.')[-1].lower() if '.' in key else ''

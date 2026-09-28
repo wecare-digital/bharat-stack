@@ -168,20 +168,61 @@ trap that caught three handlers on the first deploy: `media_paths` imported *bel
 first use is a module-scope `NameError` that byte-compiles cleanly and only fails when the
 function is invoked.
 
+### Closed out on 2026-09-28
+
+- **`paid_icon_s3_key` was deleted from `invoice-engine`.** It was read by nothing — a
+  repo-wide search found one definition and zero uses — and `stream/media/m/paid.png` has
+  no object *and no version history* in this bucket, so it was never migrated and probably
+  never existed. A config key naming an unfetchable file that nothing fetches is the exact
+  drift this audit was chasing.
+- **`ai-generate-response` now resolves per-contact media from the message rows.** The new
+  `_media_keys_for_contact` scans the messages table on `contactId` and roots each `s3Key`
+  through `canonical()`, because the message row is the only thing that associates media
+  with a contact. Verified against live data: 2 files (92266 and 68334 bytes), both needing
+  rooting, where the old `media/<contactId>/` listing returned **0 objects**. The delete
+  path refuses a `secure/` key outright, so a conversation-media tool cannot reach the
+  gated tree.
+- **`system-cleanup`'s docstring was corrected.** It claimed deletion happened "on
+  confirm"; there is **no server-side confirmation token**. The gate is `require_auth` plus
+  an explicit `selected` list, and the word "confirm" referred to a dialog in the admin UI.
+  No EventBridge rule targets it. Worth stating plainly now that its prefixes reach real
+  data.
+- **`config/lambda-env-manifest.json` is at key parity with live.** 26 keys added, 2 stale
+  removed, `--keys-only` now reports 0 differences. `scripts/env_manifest.py --keys-only`
+  is a new mode that measures key-level drift from Lambda configuration alone, printing
+  names and never values, so the scope of a drift can be established without the Secrets
+  Manager read that `--export` requires. Every key added was cleared by env_manifest's own
+  `SECRET_FIELD`/`CONFIG_FIELD`/`SHAPES` classifiers rather than by eye. A full `--export`
+  is still the only thing that can detect a changed **value** on a key present in both.
+- **`.github/workflows/media-prefixes.yml` makes the guard blocking.** A credential-free
+  `source-gate` runs on every push and PR; a `live-gate` skips until
+  `MEDIA_PREFIX_ROLE_ARN` is set. The checks are AST-based, after text scanning produced
+  false positives in both directions — per-line missed rooting on a continuation line, and
+  per-statement then flagged the prose *documenting* the convention.
+
 ### Still outstanding
 
-- `o/stream/media/m/paid.png` and `o/stream/media/m/qr-selfservice.png` are referenced by
-  `invoice-engine` and **absent under both roots**. Rooting the key correctly does not
-  conjure the file; those two assets need uploading. `_load_s3_image` degrades to no icon
-  rather than failing the invoice, which is why this went unnoticed.
-- `ai-generate-response` addresses a `media/<contactId>/` layout that **nothing writes** —
-  inbound media is stored flat under `o/stack/whatsapp-media/incoming/` keyed by message
-  id. Rooting that prefix does not make it match; per-contact media deletion needs to
-  resolve keys via the message rows instead. Tracked separately, not papered over.
-- `config/lambda-env-manifest.json` had 35 bucket/CDN values naming the deleted bucket and
-  was corrected in place. A full `scripts/env_manifest.py --export` is still owed, since
-  the snapshot is also missing keys that exist live; that command reads Secrets Manager to
-  fingerprint credential-shaped values, so it needs to be run by someone permitted to.
+- **24 objects under `o/stream/media/m/` are behind delete markers created 2026-09-28
+  06:48–06:49**, including `selfservice.mp4`, `WECARE+SC.png` and `qr-selfservice.png`.
+  `docs/execution/snapshots/get-delete-markers-removed-20260928.json` records markers being
+  removed at 06:43–06:46, and new ones appeared 3–6 minutes later, so something is
+  re-deleting them. **7 RCS template files registered with Sinch reference
+  `selfservice.mp4` and `WECARE+SC.png` as `mediaUrl`/`thumbnailUrl`.** The 459-byte
+  `qr-selfservice.png` version is intact behind its marker and recoverable. Not touched
+  here, because this is another session's active media-parity work and a blind restore
+  would thrash against whatever is re-deleting.
+- **`app.wecare.digital` maps both 403 and 404 to HTTP 200 serving `/error.html`.**
+  Confirmed by fetch: a missing object returns `200` with `content-type: text/html`, 596
+  bytes, `x-cache: Error from cloudfront`. This is why the deletions above are invisible —
+  and it means **Meta fetching an approved template's media gets a 200 and an HTML page
+  instead of a 404**, so a broken template looks healthy to every status-code check. The
+  apex distribution `E2GP22R4BIFGQ3` has no custom error responses and is unaffected.
+  Fixing it means an `update-distribution` on the host serving Meta-approved media, which
+  needs the entire `DistributionConfig` plus a matching `ETag` — a production CDN change
+  worth deciding deliberately rather than folding into this one.
+- A deleted object can still serve from the edge cache: `wecare-digital-rcs-h.png` has a
+  live delete marker yet returned `200 image/png 89548 bytes`. "It works now" is not
+  evidence the object exists.
 - The docs-scraper image deploys from a workflow whose path filter covers
   `amplify/functions/operations/docs-scraper/**` but **not**
   `amplify/functions/shared/lambda_utils/**`, so a change confined to the shared module

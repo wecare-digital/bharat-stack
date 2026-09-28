@@ -1,8 +1,30 @@
 """
 System Cleanup Lambda Handler
 Provides selective cleanup of DynamoDB tables and S3 prefixes.
-Returns item counts for preview, and deletes selected resources on confirm.
+GET previews item counts; POST deletes the resources named in `selected`.
 Preserves: SystemConfig table always.
+
+What actually gates the delete, stated precisely
+------------------------------------------------
+This docstring used to say "on confirm", which overstated it. There is **no server-side
+confirmation token**. Deletion is gated by exactly two things:
+
+1. `require_auth` - the caller must be an authenticated admin.
+2. An explicit `selected` list in the POST body. Nothing is deleted by default, there is
+   no "all" shorthand, and an empty list deletes nothing.
+
+The word "confirm" refers to the dialog in the admin UI, which is a client-side courtesy
+and not a guarantee. Any authenticated caller can POST a `selected` list directly.
+
+No EventBridge rule targets this function, so nothing here runs on a schedule. The
+similarly named `wecare-media-cleanup` IS scheduled daily, but it only expires
+DynamoDB rows and never touches S3.
+
+**The S3 prefixes below deleted nothing until 2026-09-28.** They all pointed at `stack/`
+at the bucket root, which holds zero objects, so every sweep reported success having
+removed nothing. Rooting them under `o/` made this path reach real data for the first
+time - see lambda_utils/media_paths. Treat changes here as destructive, because now they
+are.
 """
 
 import os

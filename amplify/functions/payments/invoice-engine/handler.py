@@ -77,10 +77,12 @@ COMPANY = {
     'phone': '+91 93309 94400',
     'website': 'https://wecare.digital',
     'logo_s3_key': media_paths.public('stream/media/m/wecare-digital.png'),
-    # NOTE: verified absent from the bucket under BOTH roots on 2026-09-28. Rooting the
-    # key correctly does not conjure the file — the paid icon still needs uploading, and
-    # _load_s3_image already degrades to no icon rather than failing the invoice.
-    'paid_icon_s3_key': media_paths.public('stream/media/m/paid.png'),
+    # `paid_icon_s3_key` was removed on 2026-09-28. It was read by nothing - a repo-wide
+    # search found the definition and zero uses - and it named `stream/media/m/paid.png`,
+    # which has no object AND no version history in this bucket, so it was never migrated
+    # and probably never existed. A config key pointing at a file that cannot be fetched,
+    # which nothing fetches, is the exact shape of the drift this audit was chasing; a
+    # future PAID stamp should be added back with a reader in the same change.
 }
 
 
