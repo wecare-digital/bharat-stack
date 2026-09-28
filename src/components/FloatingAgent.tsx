@@ -16,6 +16,7 @@ import { useConfirm } from '../contexts/ConfirmContext';
 import { useToastContext } from '../contexts/ToastContext';
 import { API_BASE } from '../config/constants';
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { randomToken } from '../lib/randomToken';
 
 interface ChatMessage {
   id: string;
@@ -46,7 +47,12 @@ const FloatingAgent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
-  const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  // crypto.getRandomValues, not Math.random. CodeQL flags the latter as
+  // `js/insecure-randomness` here and is right to: this id is sent to the agent
+  // backend as the conversation key, so a guessable value lets one visitor address
+  // another's session. getRandomValues rather than randomUUID because it needs no
+  // secure context and keeps the same short id shape.
+  const [sessionId] = useState(() => `session-${Date.now()}-${randomToken()}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);

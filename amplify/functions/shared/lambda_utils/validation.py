@@ -82,24 +82,66 @@ def sanitize_string(value: str, max_length: int = 1000) -> str:
     return value.strip()[:max_length]
 
 
-# HTML/script tag pattern for XSS prevention
-_SCRIPT_RE = re.compile(r'<\s*script[^>]*>.*?<\s*/\s*script\s*>', re.IGNORECASE | re.DOTALL)
-_TAG_RE = re.compile(r'<[^>]+>')
+# Executable-content elements: everything between the open and close tag goes, not just
+# the tags. The closing pattern is deliberately loose about whitespace and trailing
+# junk, because `</script >`, `</script\n>` and `</script bar>` are all accepted as a
+# close tag by browsers. CodeQL flagged the previous `<\s*/\s*script\s*>` for exactly
+# that (`py/bad-tag-filter`): it missed those forms, so the script BODY survived the
+# first pass.
+_EXEC_BLOCK_RE = re.compile(
+    r'<\s*(script|style|iframe|object|embed)\b[^>]*>.*?<\s*/\s*\1\b[^>]*>',
+    re.IGNORECASE | re.DOTALL,
+)
+# An opened-but-never-closed executable element: drop the remainder outright rather
+# than letting its body through as text.
+_EXEC_OPEN_RE = re.compile(r'<\s*(script|style|iframe|object|embed)\b.*$',
+                           re.IGNORECASE | re.DOTALL)
+_COMMENT_RE = re.compile(r'<!--.*?-->', re.DOTALL)
+# `[^<>]` rather than `[^>]`, so `<a href="<b>">` cannot leave a stray fragment behind.
+_TAG_RE = re.compile(r'<[^<>]*>')
+# A trailing `<foo` with no `>` at all.
+_DANGLING_RE = re.compile(r'<[^<>]*$')
 
 
 def sanitize_html(value: str, max_length: int = 1000) -> str:
-    """
-    Strip HTML tags and script content from a string to prevent XSS.
-    Also truncates to max_length.
+    """Reduce a string to plain text, so it cannot become markup downstream.
+
+    Applied by `sanitize_dict` to the contact `name`, `shippingAddress` and
+    `billingAddress` fields, which are customer-supplied and later rendered.
+
+    TWO DEFECTS WERE FIXED HERE ON 2026-09-28, and the second was the dangerous one.
+
+    The first is what CodeQL reported: the script close-tag pattern did not match
+    `</script >`, so `<script >alert(1)</script >` kept its body.
+
+    The second it did not report. The old implementation finished with
+
+        cleaned.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+
+    *after* stripping tags -- so `&lt;script&gt;alert(1)&lt;/script&gt;` came out as
+    `<script>alert(1)</script>`. The function whose job is to make input inert was
+    turning already-inert input back into live markup, and it ran last so nothing
+    re-examined the result. Entity decoding is simply gone: a sanitiser has no reason
+    to decode, and `&amp;` reaching a browser already renders as `&`.
+
+    Stripping now loops, because one pass is not a fixed point: `<<b>script>` becomes
+    `<script>` after a single substitution. It is bounded at 8 iterations, which is far
+    more than any legitimate input needs and stops a crafted string spinning.
     """
     if not isinstance(value, str):
         return ''
-    # Remove script tags and their content first
-    cleaned = _SCRIPT_RE.sub('', value)
-    # Remove remaining HTML tags
-    cleaned = _TAG_RE.sub('', cleaned)
-    # Replace common HTML entities
-    cleaned = cleaned.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+
+    cleaned = _COMMENT_RE.sub('', value)
+    cleaned = _EXEC_BLOCK_RE.sub('', cleaned)
+    cleaned = _EXEC_OPEN_RE.sub('', cleaned)
+
+    for _ in range(8):
+        stripped = _TAG_RE.sub('', cleaned)
+        if stripped == cleaned:
+            break
+        cleaned = stripped
+
+    cleaned = _DANGLING_RE.sub('', cleaned)
     return cleaned.strip()[:max_length]
 
 

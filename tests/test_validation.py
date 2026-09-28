@@ -131,8 +131,46 @@ class TestSanitizeHtml:
     def test_non_string(self):
         assert sanitize_html(None) == ''
 
-    def test_entities(self):
-        assert '&' in sanitize_html('&amp;')
+    def test_entities_are_left_encoded(self):
+        """Changed 2026-09-28. This used to assert that `&amp;` came back as `&`.
+
+        The decoding step that satisfied it ran LAST, after tag stripping, so it undid
+        the sanitising: `&lt;script&gt;` went in and `<script>` came out. A sanitiser
+        has no reason to decode, and `&amp;` already renders as `&` in a browser, so
+        the entity survives untouched.
+        """
+        assert sanitize_html('&amp;') == '&amp;'
+        assert sanitize_html('Smith &amp; Sons') == 'Smith &amp; Sons'
+
+    def test_an_encoded_script_does_not_come_back_decoded(self):
+        """The vector the old decoding step created."""
+        assert sanitize_html('&lt;script&gt;alert(1)&lt;/script&gt;') == \
+            '&lt;script&gt;alert(1)&lt;/script&gt;'
+        assert '<script>' not in sanitize_html('&lt;script&gt;alert(1)&lt;/script&gt;')
+
+    def test_close_tag_with_whitespace_or_junk_still_removes_the_body(self):
+        """`py/bad-tag-filter`: browsers accept all of these as a close tag."""
+        for closing in ('</script >', '</script\n>', '</script\tbar>', '</SCRIPT>'):
+            out = sanitize_html(f'<script>alert(1){closing}keep')
+            assert 'alert' not in out, closing
+            assert out == 'keep', closing
+
+    def test_an_unclosed_script_does_not_leak_its_body(self):
+        assert sanitize_html('safe<script>alert(1)') == 'safe'
+
+    def test_stripping_is_a_fixed_point(self):
+        """One pass is not enough: `<<b>script>` collapses to `<script>`."""
+        assert '<' not in sanitize_html('<<b>script>alert(1)')
+
+    def test_comments_and_other_executable_elements_go(self):
+        assert sanitize_html('a<!-- hidden -->b') == 'ab'
+        assert sanitize_html('a<style>body{}</style>b') == 'ab'
+        assert sanitize_html('a<iframe src="x"></iframe>b') == 'ab'
+
+    def test_ordinary_text_is_untouched(self):
+        assert sanitize_html('Flat 3, 12 MG Road, Kolkata 700001') == \
+            'Flat 3, 12 MG Road, Kolkata 700001'
+        assert sanitize_html('Anita D\u2019Souza') == 'Anita D\u2019Souza'
 
 
 class TestSanitizeDict:

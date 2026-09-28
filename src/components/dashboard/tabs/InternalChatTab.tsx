@@ -5,6 +5,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { API_BASE } from '../../../config/constants';
 import { fetchAuthSession } from 'aws-amplify/auth';
+import { randomToken } from '../../../lib/randomToken';
 
 const API_ENDPOINT = `${API_BASE}/ai/generate`;
 
@@ -141,7 +142,9 @@ const InternalChatTab: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [logs, setLogs] = useState<ChatLog[]>([]);
-  const [sessionId] = useState(() => `dash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  // See FloatingAgent.tsx: Math.random() is not acceptable for a key the backend
+  // treats as a conversation identifier.
+  const [sessionId] = useState(() => `dash-${Date.now()}-${randomToken()}`);
   // Only the tools the backend will actually run. Seeding this with all 30 was
   // what made the panel claim 30/30.
   const AVAILABLE = TOOLS_LIST.filter(t => !t.refused);
