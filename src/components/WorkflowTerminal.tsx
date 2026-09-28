@@ -478,7 +478,18 @@ const WorkflowTerminal: React.FC = () => {
         .wt-light-3{background:#3da35a}
         .wt-bar-title{margin-left:8px;color:rgba(255,255,255,.72);font-size:13px}
         .wt-bar-state{margin-left:auto;display:flex;align-items:center;gap:7px;color:rgba(255,255,255,.58);font-size:12px}
-        .wt-state-dot{width:6px;height:6px;border-radius:50%;background:#d1f470}
+        /* GREEN, NOT LIME, and only this dot changes - see the note below on the two that
+           deliberately do not.
+           This sits in the same 47px strip as the three window lights, beside the copy
+           "8 services · 1 foundation". Once those lights became amber/purple/green it was the
+           only lime left in a bar that no longer uses lime, which read as a leftover rather
+           than as a colour anyone chose.
+           #3da35a is the third light's own value, so no new colour enters the file, and green
+           for "8 services healthy" is the one hue here that already means what the sentence
+           says. Measured on this bar's #3b271a: 4.42:1, down from lime's 11.32:1. That drop is
+           the cost and it is well clear of 3:1 on a 6px decorative dot inside an aria-hidden
+           window. */
+        .wt-state-dot{width:6px;height:6px;border-radius:50%;background:#3da35a}
 
         /* min-height:0 is load-bearing on a flex child that scrolls: without it the
            flex item's automatic minimum size is its content, so it refuses to shrink,
@@ -593,6 +604,15 @@ const WorkflowTerminal: React.FC = () => {
            it. The gradient has to end in the panel's own #000 or it shows a seam. */
         .wt-foot{flex:0 0 auto;height:50px;padding:0 24px;display:flex;align-items:center;background:#000;border-top:1px solid rgba(209,244,112,.30);color:rgba(255,255,255,.54);font-size:12px}
         .wt-foot-left{display:flex;align-items:center;gap:7px}
+        /* STAYS LIME, DELIBERATELY, and this is the boundary of the recolour.
+           This dot sits beside "running" / "complete" on the BLACK footer, not the brown title
+           bar, and it reports live state - it is the same claim the lime .wt-dot step markers
+           make inside the panel, where lime means "this service ran". The title-bar lights are
+           decorative chrome and could take any hue; these two are the panel's only actual
+           signal, and recolouring them would spend the accent on decoration and leave the
+           meaning without a colour of its own. Lime on #000 is 11.90:1 here.
+           If the owner wants this one moved too it is one line - but it should be moved knowing
+           it takes the step dots with it, or the footer and the steps stop agreeing. */
         .wt-foot-dot{width:5px;height:5px;border-radius:50%;background:#d1f470}
         .wt-foot-right{margin-left:auto}
 
