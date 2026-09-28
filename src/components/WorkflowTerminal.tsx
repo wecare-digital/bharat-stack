@@ -542,9 +542,15 @@ const WorkflowTerminal: React.FC = () => {
            states now:
              running   pulsing
              done      static
-           plus .wt-name.is-complete turns the service name lime, the row carries a tick, and
-           the footer reads "running" / "complete" in words. Three non-colour signals, so WCAG
-           1.4.1 is not engaged: hue says WHICH service, motion and text say WHETHER it ran.
+           plus a completed row carries a tick, and the footer reads "running" / "complete" in
+           words. Three non-colour signals, so WCAG 1.4.1 is not engaged: hue says WHICH service,
+           motion and text say WHETHER it ran.
+
+           THIS LINE USED TO CLAIM ".wt-name.is-complete turns the service name lime", and both
+           halves went stale as the panel changed: the rule moved off lime onto the step's own
+           hue, and then off the name entirely when option A was chosen. Names are #fff on all
+           eight rows now - see the note beside .wt-tick. Corrected rather than deleted because
+           the count of non-colour signals is the load-bearing part of this paragraph.
 
            The hollow .wt-dot default above is a fallback that NO rendered step uses - the
            component assigns every visible step either is-done or is-running
@@ -636,12 +642,16 @@ const WorkflowTerminal: React.FC = () => {
            so the chip's weight on the panel is unchanged. */
         .wt-svc{padding:2px 7px;border-radius:4px;background:rgba(var(--rgb),.14);border:1px solid rgba(var(--rgb),.34);color:var(--ink);font-size:11.5px;letter-spacing:.02em}
         .wt-name{color:#fff;font-size:15px;font-weight:600}
-        /* THE COMPLETED NAME AND ITS TICK TAKE THE STEP'S OWN HUE, not lime.
-           Both were #d1f470 while the dots were lime too, so the row agreed with itself. Once the
-           dots became one hue per service, lime here was the last thing in the panel still
-           claiming the old meaning - and measured, only ONE row was affected: names are #fff on
-           steps 1-7 and lime only on step 8, the is-complete one. So "the text is still lime" was
-           three separate things - this name, this tick, and the .wt-svc pill.
+        /* THE TICK TAKES THE STEP'S OWN HUE. THE NAME STAYS WHITE ON ALL EIGHT ROWS.
+           Both the name and the tick were #d1f470 while the dots were lime too, so the row
+           agreed with itself. Once the dots became one hue per service, lime here was the last
+           thing in the panel still claiming the old meaning - and measured, only ONE row was
+           affected, because the rule is gated on step.complete and step 8 is the only step whose
+           data sets it. Names were #fff on steps 1-7 and lime on step 8 alone. That is why the
+           recolour was reported as "not showing": it moved a single line from lime to green, two
+           greens, while all eight .wt-svc pills stayed lime. "The text is still lime" was three
+           separate things - this name, this tick, and the pill - and the pill was the one the
+           report was actually looking at.
 
            THE PILL IS NOW IN THE SAME SCHEME - see the note on .wt-svc. It used to be excluded
            and held lime on all eight, which meant this rule recoloured exactly ONE line in the
@@ -650,18 +660,41 @@ const WorkflowTerminal: React.FC = () => {
            shipped correct: it was a single row moving from lime to green, two greens, against
            eight unchanged lime chips.
 
-           USES --ink, NOT --dot, and that is the fix for a latent AA failure rather than a
-           preference. This rule paints 15px/600 text, which needs 4.5:1. Raw blue is 4.06:1 on
-           #000 and raw purple 4.45:1, so marking step 1 or 6 complete would have shipped
-           failing text - see the note beside --ink. --ink is the same hue lifted just past the
-           floor, and it is identity for amber, lime and green, so step 8 is pixel-identical to
-           what it renders today.
+           THE NAME IS NO LONGER IN THIS RULE. Owner picked option A from docs/step-review.md
+           after seeing all five panels rendered, and the deciding argument only became visible
+           once they were pictures rather than contrast figures:
 
-           COST, STATED: a completed name goes from white at 21:1 to its own hue, lowest 4.51:1.
-           A real reduction on the panel's primary text, worth knowing rather than discovering.
-           State is not carried by this colour either way - the pulse, the tick glyph and the
-           footer's "running"/"complete" wording do that, so WCAG 1.4.1 stays unengaged. */
-        .wt-name.is-complete,.wt-tick{color:var(--ink)}
+           ON A SENTENCE, A HUE STOPS READING AS AN IDENTIFIER AND STARTS READING AS A SEVERITY.
+           Colouring all eight names put step 7, "A provider failed, nobody noticed", in amber -
+           which reads as a warning badge, when the entire point of that line is that the failure
+           was absorbed and needed no attention. Step 6, "Usage metered", came out blue, which
+           reads as an info notice. That is the same reasoning already recorded above for
+           EXCLUDING RED from the dot palette, and it applies with more force to a full sentence
+           than to a 12px dot.
+
+           The pill does not have the problem and the distinction is worth stating: a chip
+           containing the single word "queue" is self-evidently an identifier and cannot be
+           mistaken for a severity, because it is not a claim about anything. The sentence beside
+           it can be. So hue lives on the dot and the chip - two labels - and never on prose.
+
+           WHAT THIS BUYS. Every name holds #fff at 21:1, the most readable text on the panel,
+           and step 8 stops being the one visibly dim row: it used to be the ONLY name that left
+           white, which is why recolouring it read as a defect rather than as a signal. "Complete"
+           is still carried three ways without colour - the tick below, the dot going static
+           instead of pulsing, and the footer's "running"/"complete" wording - so WCAG 1.4.1
+           stays unengaged and nothing that colour was uniquely saying has been lost.
+
+           .is-complete IS DELIBERATELY STILL IN THE MARKUP with no paint of its own. It is the
+           DOM's record of which step finished, tools/browser/replaycheck.js reads it to report
+           the per-row colour table, and dropping it to tidy up an unused selector would blind
+           that probe to the state it exists to measure.
+
+           THE TICK KEEPS --ink, NOT --dot, and that is a latent AA fix rather than a preference.
+           Raw blue is 4.06:1 on #000 and raw purple 4.45:1, both under the 4.5:1 floor for text
+           this size, so a tick on a completed blue or billing step would have shipped failing.
+           --ink is the same hue lifted just past the floor and is identity for amber, lime and
+           green, so the tick on step 8 is pixel-identical to what it rendered before. */
+        .wt-tick{color:var(--ink)}
         /* .46 IS 4.58:1 ON THIS PANEL - eight hundredths above the 4.5:1 floor for text this
            size, and the tightest margin anywhere on the home page. Left alone deliberately,
            and the reason is the rung below it: .wt-infra was raised from .44 to .50 when it
