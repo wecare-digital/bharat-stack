@@ -657,7 +657,52 @@ const HomePage: React.FC = () => {
         /* LOGICAL: the accent bar belongs on the edge the reader starts from. As border-left
            it stayed on the physical left in Arabic, where it reads as a bar the text has
            already passed rather than one introducing it. */
-        .home-flow-list li{padding-inline-start:18px;border-inline-start:3px solid #d1f470}
+        /* THREE COLOURS, ONE PER BEAT - owner's choice of option B from docs/divider-review.
+           All three were lime #d1f470 until 2026-09-28.
+
+           WHY THE MOCK'S OWN COLOURS ARE NOT THE ONES HERE. The mock offered amber #f0a818,
+           purple #9849e8 and green #3da35a - the first three of the four subject hues - and
+           its cost table claimed "all three are >=3:1 on white". That was wrong, and measured
+           rather than assumed the moment it came to be built:
+
+             #f0a818 amber    2.04:1   <- fails
+             #9849e8 purple   4.72:1
+             #3da35a green    3.19:1
+             #2563eb blue     5.17:1
+             #dc2626 red      4.83:1
+             #d1f470 lime     1.24:1   <- what shipped before, and see below
+
+           Amber is out on the measurement. Red is out for a different reason: on a beat that
+           reads "Follow-ups happen automatically", a red rule reads as a warning about the
+           thing being described. Blue replaces amber, so the set is green / blue / purple -
+           3.19, 5.17 and 4.72 - every one above 3:1, and no new colour value anywhere: all
+           three are already in this repo's per-subject palette.
+
+           ON THE 3:1 FLOOR NOT STRICTLY APPLYING, because it is worth being honest about
+           which rule is doing the work. WCAG 1.4.11 covers graphics REQUIRED to understand
+           content, and these rules are decorative - each beat's text is complete without
+           them, which is why lime at 1.24:1 was acceptable for as long as it shipped. The
+           reason to hold 3:1 now is different: the moment three bars differ, the difference
+           is something a reader is meant to perceive, and amber at 2.04:1 beside purple at
+           4.72:1 would have read as one washed-out bar and two solid ones - inconsistent
+           weight rather than three colours.
+
+           NOT AN ENCODING, so 1.4.1 (Use of Colour) is not engaged: the three beats are told
+           apart by their own sentences, and the colours carry no meaning a reader has to
+           decode. If a bar colour ever comes to mean something, it needs a second signal.
+
+           WORTH KNOWING: band 1's hero pill rotates these same hues for its four audiences
+           (amber consumers, purple enterprises, green climate tech, red frontier tech), so
+           purple appears in two places on this page meaning two unrelated things. Judged
+           acceptable - the pill shows one hue at a time, rotating, roughly 1000px above three
+           static bars - but that is the cost of reusing the palette rather than inventing
+           colours, which is the trade the owner picked.
+
+           Hue-to-beat is deliberate, not arbitrary: green for continuity, blue for delivery
+           (it is the messaging hue elsewhere in this repo), purple for the automated system. */
+        .home-flow-list li{padding-inline-start:18px;border-inline-start:3px solid #3da35a}
+        .home-flow-list li:nth-child(2){border-inline-start-color:#2563eb}
+        .home-flow-list li:nth-child(3){border-inline-start-color:#9849e8}
         /* Card-heading rung at the small end: 17px/700, a step below .pp-strip-title's
            22px because these sit inside a sidebar rather than on the page. */
         /* BOTH RUNGS WERE OFF THE CONTRACT LADDER, measured against every other text
