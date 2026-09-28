@@ -63,7 +63,11 @@ FLOW_SUBMISSIONS_TABLE = os.environ.get('FLOW_SUBMISSIONS_TABLE', 'stack-wecare-
 AI_INTERACTIONS_TABLE = os.environ.get('AI_INTERACTIONS_TABLE', 'stack-wecare-digital-AIInteractionsTable')
 INVOICES_TABLE = os.environ.get('INVOICES_TABLE', 'stack-wecare-digital-InvoicesTable')
 INBOUND_DLQ_URL = os.environ.get('INBOUND_DLQ_URL', '')
-MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'app.wecare.digital')
+MEDIA_BUCKET = os.environ.get('MEDIA_BUCKET', 'wecare-digital-get')
+# The PUBLIC host, deliberately separate from the bucket name. The media URL below
+# was built from MEDIA_BUCKET, which only produced a valid URL while the bucket was
+# named app.wecare.digital. See voice-in/obd for the same correction.
+MEDIA_CDN_DOMAIN = os.environ.get('MEDIA_CDN_DOMAIN', 'wecare.digital/get')
 MEDIA_PREFIX = os.environ.get('MEDIA_INBOUND_PREFIX', 'stack/whatsapp-media/incoming/')
 SEND_MODE = os.environ.get('SEND_MODE', 'LIVE')
 SUBMIT_REQUESTS_TABLE = os.environ.get('SUBMIT_REQUESTS_TABLE', 'stack-wecare-digital-SubmitRequestsTable')
@@ -1821,7 +1825,8 @@ def _process_message(
         if content_lower in PAY_KEYWORDS or any(kw in content_lower for kw in PAY_FUZZY):
             logger.info(json.dumps({
                 'event': 'pay_keyword_triggered',
-                'content': content_lower,
+                'matchedKeyword': next((k for k in PAY_KEYWORDS if k == content_lower),
+                                      next((k for k in PAY_FUZZY if k in content_lower), '')),
                 'contactId': mask_contact_id(contact_id),
                 'senderPhone': mask_phone(sender_phone),
                 'phoneNumberId': aws_phone_number_id,
@@ -6397,7 +6402,7 @@ def _link_media_to_service_request(contact_id: str, s3_key: str, media_type: str
             dest_key = s3_key  # fall back to the original key if copy fails
         attachment = {
             'key': dest_key,
-            'url': f'https://{MEDIA_BUCKET}/{dest_key}',
+            'url': f'https://{MEDIA_CDN_DOMAIN}/{dest_key}',
             'type': media_type,
             'filename': filename or base,
             'mime': mime or '',

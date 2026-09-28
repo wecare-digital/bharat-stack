@@ -725,9 +725,15 @@ this one is signed off.</p>
     await pg.setContent( frameDoc( { html: SNAP.d.complete } ) );
     await pg.waitForTimeout( 400 );
     const f = await pg.evaluate( METRICS );
+    // The stylesheet goes in through Playwright's own API rather than by building a
+    // `document.createElement('style')` call inside an interpolated source string.
+    // `JSON.stringify` was already correct escaping, but `js/bad-code-sanitization`
+    // objects to constructing code from a value at all, and addStyleTag removes the
+    // construction instead of escaping it better. What is still interpolated below is
+    // CONTRAST_FN, a module constant with no data flowing into it, which is the shared
+    // pattern the other three harnesses use.
+    await pg.addStyleTag( { content: scopeWt( INFRA_FIX_CSS ) } );
     const fixed = await pg.evaluate( `(() => { ${CONTRAST_FN}
-      const s=document.createElement('style');
-      s.textContent=${JSON.stringify( scopeWt( INFRA_FIX_CSS ) )};document.head.appendChild(s);
       return ratio(document.querySelector('.wt-infra')); })()` );
     await ctx.close();
 

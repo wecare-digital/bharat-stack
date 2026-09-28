@@ -941,7 +941,7 @@ def _handle_reaction_send(message_id: str, contact_id: str, recipient_phone: str
             'to': mask_phone(formatted_phone),
             'reactionMessageId': reaction_message_id,
             'emoji': reaction_emoji,
-            'payload': reaction_payload,
+            'payloadKeys': sorted(reaction_payload.keys()),
             'requestId': request_id
         }))
         
@@ -1082,7 +1082,7 @@ def _handle_order_status_send(message_id: str, contact_id: str, recipient_phone:
             'to': mask_phone(whatsapp_phone),
             'referenceId': reference_id,
             'orderStatus': order_status,
-            'payload': order_status_payload,
+            'payloadKeys': sorted(order_status_payload.keys()),
             'requestId': request_id
         }))
         
@@ -1737,7 +1737,7 @@ def _handle_interactive_send(message_id: str, contact_id: str, recipient_phone: 
             'event': 'interactive_payload',
             'to': mask_phone(whatsapp_phone),
             'interactiveType': interactive_type,
-            'payload': payload,
+            'payloadKeys': sorted(payload.keys()),
             'requestId': request_id
         }))
         
@@ -1881,7 +1881,11 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             'payloadType': message_payload.get('type'),
             'hasMedia': bool(whatsapp_media_id),
             'mediaId': whatsapp_media_id,
-            'payload': message_payload,
+            # Not the payload itself. It carries an unmasked `to` and the message body,
+            # and this same dict masks `recipientPhone` and `normalizedPhone` two lines
+            # above -- so dumping the whole thing gave back exactly what the masking had
+            # just removed. The keys are what a "was it built right" log needs.
+            'payloadKeys': sorted(message_payload.keys()),
             'requestId': request_id
         }))
         
@@ -1893,7 +1897,7 @@ def _handle_live_send(message_id: str, contact_id: str, recipient_phone: str,
             'event': 'calling_send_whatsapp_message_api',
             'messageId': message_id,
             'phoneNumberId': phone_number_id,
-            'messageJson': message_json,
+            'messageJsonBytes': len(message_json),
             'requestId': request_id
         }))
         
@@ -3591,7 +3595,7 @@ def _enrich_contact_identity(contact_id: str, wa_id: str) -> None:
             UpdateExpression='SET waId = :w, updatedAt = :u',
             ExpressionAttributeValues={':w': norm, ':u': Decimal(str(int(time.time())))},
         )
-        logger.info(json.dumps({'event': 'contact_waid_enriched', 'contactId': mask_contact_id(contact_id), 'waId': norm}))
+        logger.info(json.dumps({'event': 'contact_waid_enriched', 'contactId': mask_contact_id(contact_id), 'waId': mask_phone(norm)}))
     except Exception as e:
         logger.warning(f'contact wa_id enrich failed (non-blocking): {e}')
 

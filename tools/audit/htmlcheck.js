@@ -65,10 +65,29 @@ const read = route => {
  * The first run of this reported 40 duplicate ids on the home page, every one of them a
  * string inside a script tag.
  */
-const strip = h => h
-  .replace( /<script[\s\S]*?<\/script>/gi, '' )
-  .replace( /<style[\s\S]*?<\/style>/gi, '' )
-  .replace( /<!--[\s\S]*?-->/g, '' );
+// The close-tag patterns tolerate whitespace and trailing junk, because a browser
+// accepts `</script >`, `</script\n>` and `</script bar>` as close tags and the earlier
+// `<\/script>` did not. That is not pedantry here: the whole point of stripping is
+// accuracy, and a missed close tag leaves a script body in the document, which is
+// exactly the double-counting this function exists to prevent. CodeQL reported it as
+// `js/bad-tag-filter` plus three `js/incomplete-multi-character-sanitization`.
+//
+// It also loops to a fixed point, because one pass is not one: a nested or malformed
+// construct can reveal a new `<script` only after the first substitution.
+const strip = h => {
+  let out = h;
+  for ( let i = 0; i < 8; i += 1 ) {
+    const next = out
+      .replace( /<\s*script\b[^>]*>[\s\S]*?<\s*\/\s*script\b[^>]*>/gi, '' )
+      .replace( /<\s*style\b[^>]*>[\s\S]*?<\s*\/\s*style\b[^>]*>/gi, '' )
+      .replace( /<!--[\s\S]*?-->/g, '' );
+    if ( next === out ) break;
+    out = next;
+  }
+  // An opened-but-never-closed script or style: drop the remainder rather than letting
+  // its body be counted as document text.
+  return out.replace( /<\s*(script|style)\b[\s\S]*$/i, '' );
+};
 
 const findings = [];
 const add = ( route, sev, code, msg ) => findings.push( { route, sev, code, msg } );

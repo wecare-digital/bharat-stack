@@ -4337,7 +4337,8 @@ def _handle_flow_data(body: Dict, request_id: str, origin: str = '') -> Dict:
                 log_data[k] = v[:200] + '...(truncated)'
         logger.info(json.dumps({
             'event': 'flow_response_full', 'action': action,
-            'response': log_payload,
+            'screen': log_payload.get('screen', ''),
+            'data_keys': sorted(log_data.keys()),
             'requestId': request_id,
         }))
     except Exception:

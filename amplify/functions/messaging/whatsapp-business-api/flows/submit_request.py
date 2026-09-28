@@ -133,7 +133,8 @@ def handle_review(data: Dict, flow_token: str, request_id: str,
     prefix = cfg.get('submissionPrefix', SUBMISSION_PREFIX)
 
     logger.info(json.dumps({
-        'event': 'sr_review_submit', 'order_id': order_id, 'subject': subject,
+        'event': 'sr_review_submit', 'order_id': order_id,
+        'subjectLength': len(subject or ''),
         'requiresPayment': requires_payment, 'paymentAmount': payment_amount,
         'phoneNumberId': phone_number_id, 'requestId': request_id,
     }))
