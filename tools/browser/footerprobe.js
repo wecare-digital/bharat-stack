@@ -77,7 +77,10 @@ const VIEWPORTS = [
 
       /* Arrive at the footer the way a reader does. */
       await page.evaluate( () => document.querySelector( '.ft-dash' ).scrollIntoView( { block: 'center' } ) );
-      await page.waitForTimeout( 1400 );
+      // 2600ms: the rise is 560ms and the colour sweep runs 420-1570ms, so this samples the
+      // SETTLED state rather than a frame mid-animation. 1400ms caught the sweep still moving,
+      // which made the end-position assertion pass on a value that was not the end.
+      await page.waitForTimeout( 2600 );
 
       const state = await page.evaluate( () => {
         const el = document.querySelector( '.ft-tagline' );
@@ -143,6 +146,88 @@ const VIEWPORTS = [
        */
       if ( travel >= 12 ) ok( `${vp.label}: the rise is big enough to see`, `${travel.toFixed( 1 )}px` );
       else bad( `${vp.label}: the rise is big enough to see`, `${travel.toFixed( 1 )}px - under the 12px floor; it plays but a reader does not notice it` );
+
+      /*
+       * THE COLOUR SWEEP, and the thing about it that can hide the entire line.
+       *
+       * background-clip:text works by making the text transparent and painting a gradient
+       * through it, so the gradient MUST still cover the element once the animation settles. A
+       * background percentage positions the image at p x (elementWidth - imageWidth); the image
+       * is 300% wide, so the origin is -2W x p, and only p between 0% and 100% covers the
+       * element at all. The first version of this animation ended at -40%, putting the origin
+       * at +0.8W - which left the first four fifths of the line with no gradient behind
+       * transparent text. An invisible tagline, permanently, after the sweep finished.
+       *
+       * It passed every obvious check: the darkest rendered pixel was identical either way,
+       * because the fragment that WAS painted carried the right colour. Counting ink pixels in
+       * a screenshot of the line is what exposed it - 165 against 822 for the same sentence.
+       */
+      /*
+       * WAIT AGAIN, because the travel measurement above perturbs the thing being measured: it
+       * removes .is-in to read the armed position and puts it back, which RESTARTS the colour
+       * sweep from its first keyframe. Without this the next two checks sampled a line 200ms
+       * into a fresh 420ms delay and reported background-position 100% as "the end" - a value
+       * that happens to satisfy the assertion for the wrong reason, which is worse than failing.
+       * 1900ms clears the 420ms delay plus the 1150ms run.
+       */
+      await page.waitForTimeout( 1900 );
+
+      const sweep = await page.evaluate( () => {
+        const el = document.querySelector( '.ft-tagline' );
+        const cs = getComputedStyle( el );
+        const width = el.getBoundingClientRect().width;
+        const raw = cs.backgroundPosition;
+        return {
+          hasGradient: /gradient/.test( cs.backgroundImage ),
+          clipsToText: /text/.test( cs.webkitBackgroundClip || cs.backgroundClip || '' ),
+          endPct: /%/.test( raw ) ? parseFloat( raw ) : ( width ? ( parseFloat( raw ) / ( -2 * width ) ) * 100 : NaN ),
+        };
+      } );
+
+      if ( sweep.hasGradient && sweep.clipsToText ) ok( `${vp.label}: the colour sweep is applied`, 'gradient clipped to the text' );
+      else bad( `${vp.label}: the colour sweep is applied`, `gradient=${sweep.hasGradient} clip-to-text=${sweep.clipsToText}` );
+
+      if ( sweep.endPct >= -0.5 && sweep.endPct <= 100.5 ) {
+        ok( `${vp.label}: the sweep settles covering the whole line`, `background-position ${sweep.endPct.toFixed( 1 )}%` );
+      } else {
+        bad( `${vp.label}: the sweep settles covering the whole line`, `background-position ${sweep.endPct.toFixed( 1 )}% - outside 0..100%, so part of the line has no gradient behind transparent text and is INVISIBLE` );
+      }
+
+      /*
+       * AND THE RENDERED RESULT, because the position being in range is the mechanism and this
+       * is the outcome. Counts glyph pixels in a screenshot of the settled line: if the
+       * gradient does not cover it, most of the ink is simply missing. 600 is a floor measured
+       * against 822 on the real sentence at both widths - loose enough to survive a font
+       * change, tight enough that the -40% bug (165) fails it.
+       */
+      /*
+       * AND THE RENDERED RESULT, because the position being in range is the MECHANISM and this
+       * is the OUTCOME. Screenshot the settled line and count its glyph pixels: if the gradient
+       * does not cover the box, most of the ink is simply absent while every computed style
+       * still looks correct. That is precisely how the -40% bug survived a first review.
+       */
+      const shot = await ( await page.$( '.ft-tagline' ) ).screenshot();
+      const inkPixels = await page.evaluate( async ( dataUrl ) => {
+        const img = new Image();
+        img.src = dataUrl;
+        await img.decode();
+        const canvas = document.createElement( 'canvas' );
+        canvas.width = img.width; canvas.height = img.height;
+        const ctx = canvas.getContext( '2d' );
+        ctx.drawImage( img, 0, 0 );
+        const data = ctx.getImageData( 0, 0, img.width, img.height ).data;
+        let n = 0;
+        // 200 of 255 separates glyph pixels and their antialiasing from the white ground.
+        for ( let i = 0; i < data.length; i += 4 ) {
+          if ( ( data[ i ] + data[ i + 1 ] + data[ i + 2 ] ) / 3 < 200 ) n++;
+        }
+        return n;
+      }, 'data:image/png;base64,' + shot.toString( 'base64' ) );
+
+      /* 600 is a floor measured against 822 on the real sentence at both widths: loose enough
+       * to survive a font or copy change, tight enough that the -40% bug's 165 fails it. */
+      if ( inkPixels >= 600 ) ok( `${vp.label}: the whole line is actually painted`, `${inkPixels} glyph pixels` );
+      else bad( `${vp.label}: the whole line is actually painted`, `${inkPixels} glyph pixels - the gradient is not covering the box, so part of the line is invisible behind transparent text` );
 
       await page.close();
     }

@@ -825,6 +825,35 @@ const HomePage: React.FC = () => {
            top follows the line box, it is not a free parameter. At 17px/1.45 the box was
            24.65px tall and top:6px centred the tick on the x-height; at 20px/1.4 the box is
            28px, so the same optical position is 7px. Measured, not scaled by eye. */
+        /* THE TICKS CARRY BAND 2'S THREE COLOURS - option 2B from docs/accent-review. All
+           three were #1a3a2a until 2026-09-28, and the point is to tie the closing band's
+           claims to the beats above them.
+
+           MEASURED ON THE PANEL, NOT ON WHITE. This list sits on .home-close-panel, which is
+           rgba(209,244,112,.22) over white and composites to #f5fde0 - a pale yellow-green, so
+           a warm mark loses more contrast here than it would on the page:
+
+             #3da35a green    3.04:1
+             #2563eb blue     4.92:1
+             #9849e8 purple   4.49:1
+             #1a3a2a previous 11.89:1
+             #f0a818 amber    1.94:1   <- which is why the requested amber is not here
+
+           Amber was in the request and in the mock, and on this panel it renders as a smudge
+           beside two solid ticks. Band 2's bars dropped it for the same reason on plain white
+           (2.04:1), so the two sections use the same three values and the set stays coherent.
+
+           THE ORDER MATCHES BAND 2 DELIBERATELY: green, blue, purple, top to bottom in both.
+           These are three different claims, not the same three claims, so the colours are not
+           an encoding - they are a family resemblance. If a colour ever comes to mean a
+           specific thing, it needs a second non-colour signal.
+
+           Contrast is lower than the 11.89:1 it replaces, and that is the cost of the change.
+           1.4.11 is not engaged - each line reads completely without its tick - but the ticks
+           should still be seen, which is why every value clears 3:1 and the weakest is called
+           out here rather than discovered later. */
+        .home-close-points li:nth-child(2)::before{border-left-color:#2563eb;border-bottom-color:#2563eb}
+        .home-close-points li:nth-child(3)::before{border-left-color:#9849e8;border-bottom-color:#9849e8}
         .home-close-points li::before{
           /* inset-inline-start keeps the tick on the reader's starting edge, matching the
              padding above. The two BORDERS stay physical deliberately: rotated -45deg they
@@ -833,7 +862,7 @@ const HomePage: React.FC = () => {
              cross at small sizes. */
           content:'';position:absolute;inset-inline-start:2px;top:7px;
           width:11px;height:6px;
-          border-left:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;
+          border-left:2.5px solid #3da35a;border-bottom:2.5px solid #3da35a;
           transform:rotate(-45deg);
         }
         .home-close.is-armed .home-close-points li{opacity:0;transform:translateY(8px)}

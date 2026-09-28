@@ -318,9 +318,12 @@ const WorkflowTerminal: React.FC = () => {
           and from mirroring for one reason. */}
       <div className="wt-window" aria-hidden="true" dir="ltr">
         <div className="wt-bar">
-          <span className="wt-light wt-red" />
-          <span className="wt-light wt-amber" />
-          <span className="wt-light wt-lime" />
+          {/* Class names carry the POSITION, not the colour. They were wt-red / wt-amber /
+              wt-lime and each one outlived the colour it named at least once - see the rule
+              block. A name that lies about its value is worse than a generic one. */}
+          <span className="wt-light wt-light-1" />
+          <span className="wt-light wt-light-2" />
+          <span className="wt-light wt-light-3" />
           <span className="wt-bar-title">platform / production</span>
           <span className="wt-bar-state"><i className="wt-state-dot" />8 services · 1 foundation</span>
         </div>
@@ -443,9 +446,36 @@ const WorkflowTerminal: React.FC = () => {
            black, which is what made white look right in the abstract; the title bar is
            not. Measured with a compositing check rather than judged by eye, and
            brandcheck.js now asserts each light is actually distinguishable from the bar. */
-        .wt-red{background:rgba(255,255,255,.26)}
-        .wt-amber{background:rgba(255,255,255,.44)}
-        .wt-lime{background:#d1f470}
+        /* THREE COLOURS AGAIN, AND THIS REVERSES THE EARLIER INSTRUCTION ON PURPOSE.
+           Owner picked option 3B from docs/accent-review after seeing the alternatives. The
+           note above records why they were neutralised - warm hues on chrome pulling the eye
+           away from content - and that reasoning is not wrong, it is now outweighed. Keeping
+           the old note rather than deleting it, because a reversal is only informative if what
+           it reversed is still readable.
+
+           MEASURED ON THIS BAR (#3b271a), not on white, because the composited background is
+           what decides legibility:
+
+             #f0a818 amber    6.92:1
+             #9849e8 purple   2.99:1
+             #3da35a green    4.42:1
+             previous neutrals .26 / .44 -> 2.30:1 and 3.97:1
+
+           PURPLE IS BELOW 3:1 AND THAT IS ACCEPTED HERE, deliberately and with the reason
+           written down. A WCAG ratio measures LUMINANCE ONLY; saturated purple against dark
+           brown differs strongly in hue and chroma, which the metric does not count, and the
+           rendered frame is plainly legible - I checked the picture after writing the number,
+           having first told the owner it "sits almost on top of" the bar, which was wrong.
+           1.4.11 does not apply regardless: this whole window is aria-hidden decorative chrome
+           and carries no state. The two neutrals it replaces were 2.30:1, so this is an
+           improvement on what shipped rather than a concession.
+
+           STILL NO ANIMATION. 3C offered a pulse and was not chosen; a permanently breathing
+           light in the corner is the WCAG 2.2.2 problem that already removed this panel's
+           terminal loop. */
+        .wt-light-1{background:#f0a818}
+        .wt-light-2{background:#9849e8}
+        .wt-light-3{background:#3da35a}
         .wt-bar-title{margin-left:8px;color:rgba(255,255,255,.72);font-size:13px}
         .wt-bar-state{margin-left:auto;display:flex;align-items:center;gap:7px;color:rgba(255,255,255,.58);font-size:12px}
         .wt-state-dot{width:6px;height:6px;border-radius:50%;background:#d1f470}
