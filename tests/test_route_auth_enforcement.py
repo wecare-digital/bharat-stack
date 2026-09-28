@@ -197,4 +197,5 @@ class TestAuditMarkerPolicy:
             "POST /auth/validate",
             "GET /webhook/sinch-rcs",
             "POST /webhook/sinch-rcs",
+            "ANY /mcp",
         }
