@@ -28,6 +28,13 @@ calls a tool happened to make is a policy that breaks when the tool changes.
 repository it already pushes to. It grants no new mutation, and AWS's own
 push-to-ECR policy examples include it.
 
+`ecr:DescribeImages` is granted alongside it, also a read, for the workflow's own
+post-push assertion. The same 26.04 runner change made BuildKit attach a provenance
+attestation by default, which turns the published artifact into an OCI image INDEX -
+and Lambda cannot run an index. The workflow now reads back the manifest media type
+and fails with that sentence instead of letting `update-function-code` reject the
+image with one that names media types and not the cause.
+
 REPLACE, NOT PATCH - THE SAME HAZARD AS `UpdateUserPool`
 --------------------------------------------------------
 `PutRolePolicy` overwrites the **entire** inline policy document. There is no
@@ -60,9 +67,14 @@ POLICY = "DocsScraperDeploy"
 
 REPO_ARN = f"arn:aws:ecr:{REGION}:{ACCOUNT}:repository/wecare-docs-scraper"
 
-# The statement to amend, and the action to add to it.
+# The statement to amend, and the actions to add to it. Both are reads on the one
+# repository the role already pushes to.
+#
+#   ecr:BatchGetImage  the manifest HEAD that the newer Docker client issues on push
+#   ecr:DescribeImages the workflow's own check that it did not publish an OCI index,
+#                      which Lambda cannot run - see docs-scraper-deploy.yml
 TARGET_SID = "ECRRepository"
-NEEDED_ACTION = "ecr:BatchGetImage"
+NEEDED_ACTIONS = ("ecr:BatchGetImage", "ecr:DescribeImages")
 
 # Guard rails for --apply. The live statement must already look like this, or the
 # document has drifted and a blind write would be the bug rather than the fix.
@@ -107,15 +119,12 @@ def _actions(st: dict) -> list[str]:
 
 
 def _amended(doc: dict) -> dict:
-    """Return a copy of doc with NEEDED_ACTION added to the target statement."""
+    """Return a copy of doc with NEEDED_ACTIONS added to the target statement."""
     out = copy.deepcopy(doc)
     st = _find_target(out)
     if st is None:
         raise SystemExit(f"statement Sid={TARGET_SID!r} not found; refusing to guess")
-    acts = _actions(st)
-    if NEEDED_ACTION not in acts:
-        acts.append(NEEDED_ACTION)
-    st["Action"] = sorted(acts)
+    st["Action"] = sorted(set(_actions(st)) | set(NEEDED_ACTIONS))
     return out
 
 
@@ -133,14 +142,18 @@ def plan() -> int:
     print(f"scope  : {st.get('Resource')}")
     print()
     print("BEFORE :", ", ".join(sorted(acts)))
-    print("AFTER  :", ", ".join(sorted(acts | {NEEDED_ACTION})))
+    print("AFTER  :", ", ".join(sorted(acts | set(NEEDED_ACTIONS))))
     print()
 
-    if NEEDED_ACTION in acts:
-        print(f"{NEEDED_ACTION} already granted. Nothing to do.")
+    outstanding = sorted(set(NEEDED_ACTIONS) - acts)
+    if not outstanding:
+        print("already granted:", ", ".join(NEEDED_ACTIONS), "- nothing to do.")
         return 0
 
-    unexpected = acts - EXPECTED_EXISTING
+    # NEEDED_ACTIONS are excluded from the drift check because a partial earlier run
+    # legitimately leaves one of them already present. Anything ELSE that appeared is
+    # drift, and re-running --apply would write it back rather than question it.
+    unexpected = acts - EXPECTED_EXISTING - set(NEEDED_ACTIONS)
     missing = EXPECTED_EXISTING - acts
     if unexpected or missing:
         print("DRIFT against the expected shape - review before applying:")
@@ -154,7 +167,8 @@ def plan() -> int:
         print(f"Resource is not the single repository ARN ({REPO_ARN}); refusing.")
         return 1
 
-    print(f"CHANGE : add {NEEDED_ACTION}, scoped to that one repository. Read-only.")
+    print(f"CHANGE : add {', '.join(outstanding)}")
+    print("         scoped to that one repository. Both are reads.")
     print("Run with --apply.")
     return 0
 
@@ -166,7 +180,7 @@ def apply() -> int:
 
     iam = _iam()
     before = _live_document(iam)
-    if NEEDED_ACTION in set(_actions(_find_target(before))):
+    if set(NEEDED_ACTIONS) <= set(_actions(_find_target(before))):
         return 0
 
     after = _amended(before)
@@ -187,11 +201,12 @@ def verify(before: dict | None = None) -> int:
     acts = set(_actions(st))
     ok = True
 
-    if NEEDED_ACTION not in acts:
-        print(f"FAIL: {NEEDED_ACTION} not granted")
-        ok = False
-    else:
-        print(f"ok  : {NEEDED_ACTION} granted")
+    for need in NEEDED_ACTIONS:
+        if need not in acts:
+            print(f"FAIL: {need} not granted")
+            ok = False
+        else:
+            print(f"ok  : {need} granted")
 
     if st.get("Resource") != REPO_ARN:
         print(f"FAIL: scope widened to {st.get('Resource')}")
