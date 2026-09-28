@@ -69,7 +69,9 @@ const SEOIssues: React.FC<PageProps> = ({ signOut, user }) => {
                     <td style={{ padding: '10px 12px' }}>{i.issue_type}</td>
                     <td style={{ padding: '10px 12px', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.description}</td>
                     <td style={{ padding: '10px 12px' }}>
-                      <span style={{ color: '#1a3a2a', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => router.push(`/workspace/seo/page/${i.page_id}`)}>#{i.page_id}</span>
+                      { /* ?id= rather than a path segment: the detail view is one static
+                           file, so this link survives a reload. See page/index.tsx. */ }
+                      <span style={{ color: '#1a3a2a', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => router.push(`/workspace/seo/page/?id=${i.page_id}`)}>#{i.page_id}</span>
                     </td>
                     <td style={{ padding: '10px 12px' }}>
                       <button onClick={() => handleResolve(i.id)} style={{ color: '#16a34a', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Resolve</button>
