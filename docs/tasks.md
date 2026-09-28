@@ -237,7 +237,7 @@ ours. Build them early; they are cheap and they gate the tracking page.
 | # | Task | Status | Note |
 |---|---|---|---|
 | 10.1 | Per-route throttling on the verification routes, plus handler limits on `RateLimitTable` | ⏳ PENDING | The stage is 100 rps / 200 burst **for all 361 routes**; OTP routes need their own far lower limits. This replaces the impossible WebACL task |
-| 10.1b | Decide whether to front the API with CloudFront to gain WAF | ⏳ PENDING | The only route to real WAF coverage for an HTTP API. A genuine architecture decision — latency, caching, cost — not a checkbox |
+| 10.1b | ~~Decide whether to front the API with CloudFront to gain WAF~~ | ➖ NOT REQUIRED | **Moot as of 2026-09-28.** The owner deleted both web ACLs as a cost decision and withdrew the WAF required target, so there would be no ACL to attach even after fronting the API. Revisit only if that decision reverses |
 | 10.2 | Admin MFA | ⏳ PENDING | owner overrides make it a required target while removing blocking semantics |
 | 10.3 | Raise the staff password minimum from 8 | ⏳ PENDING | |
 | 10.4 | Enable customer-pool deletion protection | ⏳ PENDING | currently `INACTIVE`; one delete removes every customer login |

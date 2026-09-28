@@ -57,8 +57,13 @@ Seeded 2026-09-21 at HEAD `4baf4236`. Weights below are the program weights from
 
 Per `.kiro/steering/00-current-owner-overrides.md`, which outranks `bw-crm.md`:
 
-- `SEC-WAF-001` and `SEC-MFA-001` are **required targets** but are **not blocking
-  gates**. They cannot hold project closure hostage; they must still be built.
+- `SEC-MFA-001` is a **required target** but **not a blocking gate**. It cannot hold
+  project closure hostage; it must still be built.
+- `SEC-WAF-001` is **WITHDRAWN as of 2026-09-28.** The owner deleted both web ACLs as a
+  cost decision and withdrew the required target in `00-current-owner-overrides.md`, so
+  this row is no longer work to do. It is kept rather than deleted because the
+  requirement was previously `LIVE_VERIFIED`, and a requirement that goes from verified
+  to absent should show that transition rather than vanish.
 - Security Hub is `NOT_APPLICABLE` by owner decision (`SEC-SHUB-001`).
 - GuardDuty is optional and non-blocking (`SEC-GD-001`).
 - All `NATIVE-*` rows are **POST-PROJECT**. The web app must only stay
@@ -80,7 +85,7 @@ Per `.kiro/steering/00-current-owner-overrides.md`, which outranks `bw-crm.md`:
 | `SEC-ROUTE-008` | Destructive routes authenticate any signed-in user rather than requiring `Admin` | 2026-09-21 | Still open 2026-09-25. Zero `Admin`/`require_admin` checks in `voice-in/obd`, `voice-in/c2c` or `url-shortener` handlers | `require_auth(event, 'Admin')` after confirming group membership | `DISCOVERED` | — | `EV-0041` (2026-09-25 re-measurement) | Sole pool user is in **no** group; tightening now would lock out the only operator | Blocked behind `admin-add-user-to-group`; tighten immediately after |
 | `SEC-ROUTE-006` | While no Sinch webhook secret exists, unverified `MESSAGE_DELIVERY` callbacks are still processed, so forged receipts could alter message status | interim posture | Justified by measurement: 313/313 callbacks in 7 days were `MESSAGE_DELIVERY`; zero inbound, zero opt events | Strict verification of all event types | `DEPLOYED` | `DEPLOYED` | `EV-0012`, `EV-0017` | Owner must set a webhook secret at Sinch and store it as `webhook_secret` in `wecare/sinch/rcs` | Self-heals with no code change once the secret exists |
 | `SEC-MFA-001` | Administrator MFA implemented and verified | overrides | Cognito `MfaConfiguration=OPTIONAL`, TOTP + email + SMS enabled; 4 groups exist | TOTP enforced for admin role | `DEPLOYED` | `DEPLOYED` | `EV-0041` (2026-09-25 re-measurement), `docs/execution/PHASE-10.3-CLOSURE.md` | `ADMIN_MFA_REQUIRED` stays at `warn` until an Admin with a factor exists | Flip to enforce once the sole user is in `Admin` |
-| `SEC-WAF-001` | WAF implemented and live-verified | overrides | 2 WebACLs live: Amplify CLOUDFRONT and Cognito REGIONAL | WebACL on the API and the Amplify distribution | `LIVE_VERIFIED` | `LIVE_VERIFIED` | `EV-0041` (2026-09-25 re-measurement), enforcement proven by a blocked request | — | None. Re-read scope before adding a rule |
+| `SEC-WAF-001` | ~~WAF implemented and live-verified~~ **WITHDRAWN 2026-09-28** | overrides | **0 WebACLs** — both deleted 2026-09-28 by owner cost decision | n/a, requirement withdrawn | `LIVE_VERIFIED` | `WITHDRAWN` | `EV-0041` (2026-09-25) proved it live; the 2026-09-28 deletion is evidenced by `docs/execution/snapshots/waf-*-before-delete-20260928.json` and a post-delete re-measurement showing 0 ACLs in both scopes, `wafConfiguration` null, and no ACL on either pool ARN | — | Restore with `python3 scripts/provision_waf.py --apply` if the decision reverses |
 | `SEC-SHUB-001` | Security Hub excluded | overrides | Not subscribed; not queried | Stays excluded | `NOT_APPLICABLE` | — | overrides | Owner decision | None |
 | `SEC-GD-001` | GuardDuty optional, non-blocking | overrides | 0 detectors | May evaluate | `NOT_APPLICABLE` | — | `EV-0005` | Owner decision | None |
 | `SEC-HOOK-001` | Deny guards cover every tool route including AWS MCP | commit `4baf4236` | 4 hooks present | Kept | `PUSHED` | `TESTED` | `EV-0001` | — | Do not disable to bypass a block |

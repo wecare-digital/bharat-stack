@@ -312,10 +312,12 @@ Inherited, outside this build's scope, and recorded so they are not rediscovered
   this order: add `?token=` to all three Plivo URLs **first** (harmless while the Lambda has
   no token, because the gate stays off), then set the token on the Lambda. Reverse that order
   and every inbound WhatsApp call 403s in between and the caller hears silence.
-- **No WAF coverage on the API, and it cannot be added directly.** WAFv2 does not support API
-  Gateway HTTP APIs; `GetWebACLForResource` on the `zllr9lrg7j` stage ARN returns
-  `WAFInvalidParameterException`. `wecare-cognito-waf` covers both Cognito pools and nothing
-  else. Rate limiting for the API therefore comes from per-route throttling plus the
+- **No WAF coverage anywhere, as of 2026-09-28.** Both web ACLs were deleted by owner cost
+  decision, so `wecare-cognito-waf` no longer covers the Cognito pools and
+  `wecare-amplify-waf` no longer fronts the Amplify app. Separately, and still true, a WebACL
+  could never have covered the API: WAFv2 does not support API Gateway HTTP APIs, and
+  `GetWebACLForResource` on the `zllr9lrg7j` stage ARN returns
+  `WAFInvalidParameterException`. Rate limiting therefore comes from per-route throttling plus the
   handler-level `RateLimitTable`, unless the API is moved behind CloudFront. Do not raise a
   ticket to "attach a WebACL to the HTTP API" — it will not succeed.
 - **Wix is live as of 2026-09-26.** The credential is stored, Catalog V3 is measured rather

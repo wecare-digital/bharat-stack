@@ -77,7 +77,7 @@ by a **missing credential**, not by a permissions limit.
 | Amplify Hosting | `us-east-1` | `d22dm4b0jn71jw` `wecare.digital`, repo `wecare-digital/wecare-digital`, **23 custom rules** | public site hosting | YES | redirects/headers live here, not in `next.config.js` |
 | Cognito | `us-east-1` | `us-east-1_cSx0RHCIR` `WECARE.DIGITAL` | staff/admin | YES | MFA `OPTIONAL`, password min **8**, deletion protection ON |
 | Cognito | `us-east-1` | `us-east-1_46ULYuukt` `WECARE.DIGITAL-CUSTOMERS` | customers, phone-keyed `CUSTOM_AUTH` | YES | MFA `OFF`, password min 16, **deletion protection INACTIVE**, 1 user |
-| WAFv2 | `us-east-1` | `wecare-cognito-waf` (REGIONAL) | rate limiting on Cognito managed login | PARTIALLY | scoped to Cognito only — **no WebACL on `zllr9lrg7j`** |
+| WAFv2 | `us-east-1` | **none** | n/a | NO | `wecare-cognito-waf` (REGIONAL, both pools) and `wecare-amplify-waf` (CLOUDFRONT) were **deleted 2026-09-28** by owner cost decision. 0 web ACLs in either scope |
 | Secrets Manager | `us-east-1` | 25 secrets | all provider credentials | YES | `wecare/wix/headless-api-key` holds **0 versions** |
 | CloudFormation | `us-east-1` | no stacks in a live state | n/a | n/a | infrastructure is Amplify Gen 2 + scripts, not CFN stacks |
 
@@ -328,7 +328,7 @@ turned out to be already satisfied, and they are recorded as such.
 | G5 | No OTP at rest: unhashed, in-session only; no resend counter, no send-side rate limit; the one limiter fails open | `HIGH` | Cognito-session OTP | `otpHash`, TTL, attempt/resend counters, per-phone and per-IP limits | YES |
 | G6 | No canonical customer identity; no uniqueness enforcement | `HIGH` | `ContactsTable.id` + Cognito username | `customerId` + `UNIQUE#` markers under `TransactWriteItems` | YES |
 | G7 | No email verification path | `HIGH` | none | email OTP from the already-verified `one@wecare.digital` | YES |
-| G8 | 361 routes, 0 authorizers, all `NONE`; no WebACL on `zllr9lrg7j` | `HIGH` | handler-level auth only | explicit strategy + WAF, per owner-overrides required targets | Partly |
+| G8 | 361 routes, 0 authorizers, all `NONE`; **no WebACL anywhere** since 2026-09-28 | `HIGH` | handler-level auth only | explicit auth strategy. **WAF is no longer part of the target** — the owner deleted both ACLs and withdrew the requirement | Partly |
 | G9 | Tracking authorised by guessable `orderId`; no `trackingToken` | `HIGH` | `/track/{orderId}` | high-entropy opaque token, hash at rest | YES |
 | G10 | No cart, checkout, or `commerceOrderNumber` | `HIGH` | greenfield | Wix cart/checkout + unique order number marker | YES (needs G1) |
 | G11 | Customer session is a 60-min token in `sessionStorage`; no CSRF, rotation or revocation | `MEDIUM` | bearer token in tab storage | documented decision or HttpOnly cookie + CSRF | YES — but `output:'export'` constrains it |

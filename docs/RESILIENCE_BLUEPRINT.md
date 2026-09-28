@@ -6,7 +6,8 @@ and is **restorable** when something breaks. Assessed against the live account.
 ## What already exists (good — keep)
 - **DLQs + redrive:** inbound/bulk/outbound DLQs; `bulk-queue → bulk-dlq` (maxReceiveCount 3); `dlq-replay` Lambda.
 - **Alarms:** account-wide Lambda errors (>25/5m) + throttles (>10); per-DLQ depth (>10); bulk-queue stuck (age>15m); per-Lambda error alarms for 17 critical functions → all publish to SNS `stack-wecare-digital`.
-- **Dashboard**, **90-day log retention** on all Lambda log groups, **WAF** (cost-gated).
+- **Dashboard**, **90-day log retention** on all Lambda log groups. **No WAF** — both
+  web ACLs were deleted 2026-09-28 by owner cost decision.
 - **DynamoDB PITR: ENABLED** on key tables (Contacts, Messages, Invoices, Payments, Order, Users, WA In/Out) → restore up to 35 days.
 
 ## Gaps (ranked)
