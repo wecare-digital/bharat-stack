@@ -460,14 +460,56 @@ const Header: React.FC = () => {
            hairline gives it a visible, tappable chip while staying quieter than the
            lime hover state below it. Hover/focus/expanded still brighten to the lime
            tint, so the interaction feedback is unchanged. */
-        .nav-trigger{min-width:46px;min-height:46px;background:#f4f7ee;border:1px solid #e3ecc9;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center}
-        .nav-trigger:hover,.nav-trigger:focus-visible{background:rgba(209,244,112,.22);outline:none}
+        .nav-trigger{min-width:46px;min-height:46px;background:#f4f7ee;border:1px solid #e3ecc9;border-radius:10px;cursor:pointer;padding:8px;display:flex;align-items:center;justify-content:center;
+          transition:background-color .18s ease,border-color .18s ease}
+        /* THE HOVER STATE INVERTS NOW, because the old one was not a state change at all.
+           rgba(209,244,112,.22) over the white header composites to rgb(245,253,224), which
+           measures 1.032:1 against this chip's own #f4f7ee - an RGB move of 15 out of a possible
+           441. That is not a hover effect, it is a rounding error, and it is why the owner
+           reported the menu icon as having none.
+
+           WHY IT CANNOT SIMPLY BE MORE LIME. Lime is a LIGHT colour, so no lime fill can carry a
+           state change on a near-white chip. Measured against #f4f7ee:
+             rgba(209,244,112,.22)   1.03:1   (move 15)    <- what shipped
+             solid #d1f470           1.15:1   (move 131)
+             #1a3a2a                11.52:1  (move 349)
+           Only an inversion produces a luminance step. Solid lime is a hue move: fine for most
+           people, close to nothing for anyone with reduced colour discrimination.
+
+           AND WHY NOT RECOLOUR THE CHEVRON ALONE, which was the narrower reading. On a chip this
+           pale the glyph can only go to a colour that clears 3:1 on it - lime 1.15:1, amber
+           1.88:1 and green 2.94:1 all fail, leaving blue 4.77:1, purple 4.35:1 or red 4.46:1.
+           None of those mean anything in this palette and red reads as an error on a menu button,
+           so a glyph-only colour change would have had to invent a hue. Inverting the chip lets
+           the pairing that already exists - lime on dark green - do the work.
+
+           The chip's resting border also firms up from #e3ecc9 (1.23:1 on white) to #cfe0a6, so
+           the control reads as a button before it is touched; the fill is unchanged at 1.08:1,
+           which is deliberate - this is chrome beside a wordmark, not a call to action.
+
+           NOTHING ABOUT THE PANEL CHANGES. Its radius, fill and shadow are untouched: the owner's
+           instruction was the icon only. */
+        .nav-trigger{border-color:#cfe0a6}
+        .nav-trigger:hover,.nav-trigger:focus-visible,.nav-trigger[aria-expanded='true']{
+          background:#1a3a2a;border-color:#1a3a2a;outline:none;
+        }
         .nav-trigger:focus-visible{box-shadow:0 0 0 3px rgba(26,58,42,.2)}
-        .nav-trigger[aria-expanded='true']{background:rgba(209,244,112,.22)}
+        /* The chevron flips to lime so it stays legible on the inverted chip: 10.04:1 there,
+           against 7.43:1 for the dark green on the pale chip. Full opacity rather than .85 -
+           the .85 existed to soften a dark glyph on a light ground and works against it here. */
+        .nav-trigger:hover .nav-arrow,
+        .nav-trigger:focus-visible .nav-arrow,
+        .nav-trigger[aria-expanded='true'] .nav-arrow{
+          border-right-color:#d1f470;border-bottom-color:#d1f470;opacity:1;
+        }
         /* Chunkier chevron: 8px box with 2.5px strokes (was 7px / 2px), at .85 opacity
            so it reads as a solid arrow rather than a thin hairline that vanished on
            some displays. */
-        .nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0;border-right:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;opacity:.85;transform:translateY(-2px) rotate(45deg);transition:transform .2s}
+        /* transition now covers the border colours too, not just transform - the chevron flips to
+           lime on hover and an untransitioned colour swap under a transitioned fill reads as two
+           separate events. NO LINES HERE, deliberately: a three-line burger was mocked as an
+           option and the owner kept the chevron. */
+        .nav-arrow{width:8px;height:8px;box-sizing:border-box;margin:0;border-right:2.5px solid #1a3a2a;border-bottom:2.5px solid #1a3a2a;opacity:.85;transform:translateY(-2px) rotate(45deg);transition:transform .2s,border-color .18s ease,opacity .18s ease}
         .nav-trigger[aria-expanded='true'] .nav-arrow{transform:translateY(2px) rotate(225deg)}
 
         /* MEGA PANEL.
