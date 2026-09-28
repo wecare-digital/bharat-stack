@@ -271,6 +271,36 @@ most.
    `receiptId`, `documentStatus`, `documentUrl`, `generatedAt`, `sentAt`, `viewedAt`.
 6. WHEN generation fails THEN it SHALL be retryable without producing a second document.
 
+### Resolved 2026-09-28 — `WIX-INVOICE-001` was a misreading, not a blocker
+
+The gap register carried this as `BLOCKED`, on the grounds that `wixInvoices` reports
+**NOT AVAILABLE** and `invoicesV2` returns **404** — both re-confirmed live today by
+`scripts/probe_wix_capabilities.py`, alongside `wixStores INSTALLED`,
+`wixEcommerce INSTALLED (admin scope required)`, 7 products and 864 blog posts.
+
+R9 does not depend on that API, and reading it again is what settles it:
+
+- Criterion 3 is **conditional** — "WHEN Wix has produced an order-linked document THEN
+  it SHALL be reused". The condition is false on this site, so the branch never runs.
+  Nothing in R9 requires Wix to produce a document.
+- Criterion 2 forbids creating a standalone Wix invoice. With the Invoices app absent
+  that is not merely satisfied, it is **unreachable** — the strongest possible form of
+  compliance, and the exact failure mode (a second payable eCommerce order) cannot occur.
+
+**The document is ours, and the capability already exists.**
+`amplify/functions/payments/invoice-engine` generates PNG and PDF, draws sequenced
+numbers from `stack-wecare-digital-InvoiceSequenceTable`, stores under
+`stack/invoices/`, and keeps `InvoiceDeliveryLogTable`. Every field criterion 5 lists is
+producible from it; `invoiceId` and `invoiceNumber` come from that sequence rather than
+from Wix.
+
+One field changes meaning as a result: `billingDocumentType` records **`SELF_ISSUED`** on
+this site. It stays in the schema rather than being dropped, so that if the Invoices app
+is ever installed the reuse branch in criterion 3 becomes reachable without a migration.
+
+Installing Wix Invoices remains an option and is **not** required. If it is ever
+installed, re-run the probe and criterion 3 starts applying on its own.
+
 ---
 
 ## R10 — Customer notification and document delivery

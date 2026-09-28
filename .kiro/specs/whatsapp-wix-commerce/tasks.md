@@ -185,8 +185,17 @@ Everything below requires R0 closed.
 
 ## Phase 12 — Billing documents
 
-- [ ] 12.1 `billingDocumentService`: reuse an order-linked Wix document if one exists
-  - _Requirements: R9.3_
+**`WIX-INVOICE-001` resolved 2026-09-28: not a blocker.** `wixInvoices` is NOT AVAILABLE
+and `invoicesV2` 404s — both re-confirmed live — but R9.3 is conditional and its condition
+is false, and R9.2 is *unreachable* rather than merely satisfied. The document is issued
+by `payments/invoice-engine`, which already sequences numbers, renders PDF/PNG and logs
+delivery. See the resolution note under R9 in `requirements.md`.
+
+- [ ] 12.1 `billingDocumentService`: issue through `invoice-engine`; keep the
+      order-linked-Wix-document reuse branch behind a capability probe so it becomes
+      reachable if the Invoices app is ever installed
+  - _Requirements: R9.3_ · _Verify: probe reports `wixInvoices NOT AVAILABLE` and the
+    reuse branch is not taken; `billingDocumentType == 'SELF_ISSUED'`_
 - [ ] 12.2 Never create a standalone Wix invoice
   - _Requirements: R9.2_ · _Verify: test asserting no standalone-invoice call is reachable_
 - [ ] 12.3 Exactly one document per order across retries
