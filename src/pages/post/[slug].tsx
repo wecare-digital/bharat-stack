@@ -4,6 +4,9 @@ import { Fragment } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { getPublicBlogPost, listPublicBlogPosts, PublicBlogPost } from '../../lib/public-blog';
+import RotatingHero, { CycleWord } from '../../components/RotatingHero';
+import Breadcrumbs from '../../components/Breadcrumbs';
+import BlogSearch from '../../components/BlogSearch';
 
 interface Props {
   post: PublicBlogPost;
@@ -95,6 +98,15 @@ function inlineFormat ( text: string ) {
   } );
 }
 
+/** Same four words and tints as /blog/ - this band is the blog's masthead, so it must not
+ * say something different from the section it belongs to. */
+const HERO_WORDS: CycleWord[] = [
+  { word: 'clarity', tint: '#dbeafe', dot: '#2563eb' },
+  { word: 'practice', tint: '#fef3c7', dot: '#f0a818' },
+  { word: 'meaning', tint: '#e0f7c8', dot: '#3da35a' },
+  { word: 'change', tint: '#ede9fe', dot: '#9849e8' },
+];
+
 export default function BlogPostPage ( { post }: Props ) {
   const canonical = `https://wecare.digital/post/${post.slug}/`;
   const title = post.seoTitle || post.title;
@@ -146,9 +158,39 @@ export default function BlogPostPage ( { post }: Props ) {
           <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( post.jsonLd?.faqSchema ) } } />
         ) }
       </Head>
+      {/* THE BLOG'S MASTHEAD, ABOVE THE ARTICLE - option B, chosen by the owner from
+          docs/post-layout-review.html.
+          `subordinate` is not optional here: without it RotatingHero renders its own <main>
+          and <h1>, and this page already has both. That would put two main landmarks and two
+          h1s on all 824 posts, which fails MANY-MAIN at HIGH and H1-MANY in
+          tools/audit/htmlcheck.js. Measured in the mock before the prop existed: 2 mains,
+          2 h1s. With it the wrapper is a <section> and the headline an <h2>, styled by class
+          so the 55px/600 rung is pixel-identical either way.
+          NO badgeLabel, matching /blog/ and the home page: the header already states the
+          brand, and repeating it directly beneath is what the home page removed.
+          The trade is recorded rather than hidden: this band is the same on every post, so it
+          is the blog's masthead and not the article's own content, and it moves the writing
+          from 338px down to 812px. Both numbers are in the mock. */}
+      <RotatingHero
+        subordinate
+        frame="Notes on"
+        words={ HERO_WORDS }
+        sub="Short pieces on the distinctions that change how a thing is seen."
+        ariaLabel="WECARE.DIGITAL blog"
+      />
       <main className="article-shell">
         <article>
-          <Link className="back" href="/blog/">Blog</Link>
+          {/* A REAL TRAIL, replacing a single "← Blog" back link at 13px/650 - the only
+              control on this page below the site's 12px/700 smallest UI rung. The page's own
+              JSON-LD has always declared a BreadcrumbList; now the page shows one. */}
+          <Breadcrumbs items={ [
+            { label: 'Home', href: '/' },
+            { label: 'Blog', href: '/blog/' },
+            { label: post.title },
+          ] } />
+          {/* GET mode: the post list is not in this page, so the box navigates to /blog/?q=
+              and the index filters. Same component, same markup, different mode. */}
+          <BlogSearch />
           { post.category && <div className="category">{ post.category }</div> }
           <h1>{ post.title }</h1>
           <div className="byline">
@@ -181,12 +223,10 @@ export default function BlogPostPage ( { post }: Props ) {
         </article>
       </main>
       <style jsx>{`
-        .article-shell{max-width:1300px;margin:0 auto;padding:156px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+        /* padding-top is 40px, not 156px: the hero above now owns the header offset. */
+        .article-shell{max-width:1300px;margin:0 auto;padding:40px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         article{max-width:700px;margin:0 auto}
-        .back{display:inline-block;color:#1a3a2a;text-decoration:none;font-size:13px;font-weight:650;margin-bottom:28px;text-underline-offset:3px}
-        .back:before{content:'← ';margin-inline-end:4px}
-        .back:hover{text-decoration:underline}
-        .back:focus-visible{outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}
+        /* .back rules removed with the link - Breadcrumbs replaced it. */
         .category{display:inline-block;background:rgba(209,244,112,.28);color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:18px}
         h1{font-size:clamp(36px,4.3vw,60px);line-height:1.04;letter-spacing:-0.04em;color:rgba(0,0,0,.95);margin:0 0 20px;font-weight:600;text-wrap:balance;max-width:20ch}
         .byline{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;line-height:1.4;color:#6b7280;margin-bottom:40px}

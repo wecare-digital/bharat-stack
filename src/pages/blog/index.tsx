@@ -3,6 +3,9 @@ import { useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { listPublicBlogPosts, PublicBlogPost } from '../../lib/public-blog';
+import RotatingHero, { CycleWord } from '../../components/RotatingHero';
+import Breadcrumbs from '../../components/Breadcrumbs';
+import BlogSearch from '../../components/BlogSearch';
 
 interface Props {
   posts: PublicBlogPost[];
@@ -23,6 +26,23 @@ interface Props {
  * pointing at them would emit references that resolve to nothing, which is worse than
  * omitting them. Publisher is therefore inlined.
  */
+/**
+ * The rotation. Four words, held close in length so the pill barely travels - the same
+ * constraint products.ts documents. Tints are the four pairs reused verbatim from the Grahak
+ * OS hero; no new colours.
+ *
+ * THEY DESCRIBE WHAT IS ACTUALLY PUBLISHED HERE. The corpus is short reflective pieces -
+ * "A page view is not a person", "Acceptance begins where control ends", "A promise is not a
+ * prediction" - so the words name the subject matter rather than promising guides or product
+ * updates, which is what the old sub-line implied and the posts do not deliver.
+ */
+const HERO_WORDS: CycleWord[] = [
+  { word: 'clarity', tint: '#dbeafe', dot: '#2563eb' },
+  { word: 'practice', tint: '#fef3c7', dot: '#f0a818' },
+  { word: 'meaning', tint: '#e0f7c8', dot: '#3da35a' },
+  { word: 'change', tint: '#ede9fe', dot: '#9849e8' },
+];
+
 export default function BlogIndex ( { posts }: Props ) {
   const canonical = 'https://wecare.digital/blog/';
   const DESCRIPTION = 'Ideas, guides and updates from WECARE.DIGITAL.';
@@ -31,9 +51,38 @@ export default function BlogIndex ( { posts }: Props ) {
     [ posts ]
   );
   const [ activeCategory, setActiveCategory ] = useState( 'All' );
-  const visiblePosts = activeCategory === 'All'
-    ? posts
-    : posts.filter( post => post.category === activeCategory );
+  const [ query, setQuery ] = useState( '' );
+
+  /**
+   * READ ?q= ON FIRST RENDER, because a post page's search box navigates here with it. Done
+   * in a lazy initialiser rather than an effect so the filtered list is correct on the first
+   * paint instead of flashing the full 824 and then narrowing. window is guarded because this
+   * same initialiser runs during the static export, where there is no location.
+   */
+  const [ queryReady ] = useState( () => {
+    if ( typeof window === 'undefined' ) return false;
+    const q = new URLSearchParams( window.location.search ).get( 'q' );
+    if ( q ) setQuery( q );
+    return true;
+  } );
+  void queryReady;
+
+  /**
+   * Category first, then text. Matching title, excerpt and category means a search for a
+   * category name finds those posts even when the pill is on All, which is what someone
+   * typing "Practice" expects. Case-insensitive, and trimmed so a stray space from a paste
+   * does not empty the list.
+   */
+  const visiblePosts = useMemo( () => {
+    const byCategory = activeCategory === 'All'
+      ? posts
+      : posts.filter( post => post.category === activeCategory );
+    const q = query.trim().toLowerCase();
+    if ( !q ) return byCategory;
+    return byCategory.filter( post => (
+      `${post.title} ${post.excerpt || ''} ${post.category || ''}`.toLowerCase().includes( q )
+    ) );
+  }, [ posts, activeCategory, query ] );
 
   const schema = {
     '@context': 'https://schema.org',
@@ -74,11 +123,28 @@ export default function BlogIndex ( { posts }: Props ) {
         <meta name="robots" content="index, follow, max-image-preview:large" />
         <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( schema ) } } />
       </Head>
-      <main className="blog-shell">
-        <section className="blog-hero">
-          <h1>Blog</h1>
-          <p>Ideas, guides and updates published by the WECARE.DIGITAL team.</p>
-        </section>
+      {/* THE HOME PAGE'S TOP SECTION, ON THE BLOG. This replaced a plain
+          <h1>Blog</h1> plus "Ideas, guides and updates published by the WECARE.DIGITAL
+          team." - two lines that named the section and then restated it, on a page that
+          otherwise shared nothing with the rest of the site.
+          RotatingHero renders the <main> and the <h1> here, which is correct: on this page
+          the hero IS the page. Post pages pass `subordinate` instead, because there the
+          article owns both. */}
+      <RotatingHero
+        frame="Notes on"
+        words={ HERO_WORDS }
+        sub="Short pieces on the distinctions that change how a thing is seen — written by the people doing the work."
+        ariaLabel="WECARE.DIGITAL blog"
+      >
+        <div className="blog-shell">
+          <Breadcrumbs items={ [ { label: 'Home', href: '/' }, { label: 'Blog' } ] } />
+          {/* Live mode: every post is already in this page, so filtering needs no navigation. */}
+          <BlogSearch
+            value={ query }
+            onChange={ setQuery }
+            resultCount={ visiblePosts.length }
+            totalCount={ posts.length }
+          />
 
         { posts.length > 0 ? (
           <>
@@ -128,12 +194,22 @@ export default function BlogIndex ( { posts }: Props ) {
         ) : (
           <div className="empty">No posts have been published yet.</div>
         ) }
-      </main>
+        </div>
+      </RotatingHero>
       <style jsx>{`
-        .blog-shell{max-width:1300px;margin:0 auto;padding:156px 24px 96px;color:#1a1a1a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-        .blog-hero{max-width:720px;margin-bottom:64px}
+        /* NO TOP PADDING AND NO MAX-WIDTH ANY MORE: RotatingHero owns both now.
+           This was the page's <main> at padding:156px 24px 96px with its own 1300px measure.
+           It is now a <div> inside .rh-layout, which already applies the header offset, the
+           page measure and the horizontal gutter - keeping them here would double every one
+           of them. Only the space between the hero and the list is left, which is this
+           element's own job.
+           The font stack goes too: .rh-shell declares it one level up. */
+        .blog-shell{margin:0}
+        /* .blog-hero IS GONE, with the markup it styled. It held <h1>Blog</h1> and "Ideas,
+           guides and updates published by the WECARE.DIGITAL team." - a heading that named the
+           section and a line that restated it, on a page sharing no design language with the
+           rest of the site. RotatingHero replaced both. */
         h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;margin:0 0 24px;color:rgba(0,0,0,.95);text-wrap:balance}
-        .blog-hero>p{font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898);margin:0;max-width:560px}
         .category-switch{display:flex;gap:8px;overflow-x:auto;margin:0 0 28px;padding:2px 0 6px;scrollbar-width:thin}
         .category-switch button{flex:0 0 auto;min-height:38px;padding:0 14px;border:1px solid #d1d5db;border-radius:999px;background:#fff;color:#1a3a2a;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,transform .18s ease}
         .category-switch button:hover{border-color:#d1f470;transform:translateY(-1px)}
@@ -153,8 +229,8 @@ export default function BlogIndex ( { posts }: Props ) {
         .empty{border:1px dashed #d1d5db;border-radius:14px;padding:40px;text-align:center;color:#6b7280}
         @media(max-width:1050px){.post-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:680px){
-          .blog-shell{padding:128px 16px 64px}
-          .blog-hero{margin-bottom:44px}
+          /* Nothing to override: the hero's own narrow-screen padding applies. */
+          
           .category-switch{margin-bottom:22px}
           .post-grid{grid-template-columns:1fr;gap:18px}
           .post-copy{padding:22px}

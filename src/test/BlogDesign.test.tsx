@@ -48,16 +48,66 @@ const secondPost: PublicBlogPost = {
 };
 
 describe( 'Blog design alignment', () => {
-  it( 'uses the homepage hero typography and does not repeat the brand eyebrow on /blog/', () => {
+  /**
+   * REWRITTEN WITH THE PAGE, AND THE INTENT IS UNCHANGED.
+   *
+   * This asserted that /blog/ matched the home page's hero typography by pinning blog-LOCAL
+   * copies of those rungs: .blog-hero h1 reading "Blog", .blog-shell{max-width:1300px, a
+   * clamp(36px,4.3vw,60px) h1 rule and a .blog-hero>p body rule. That was the right intent
+   * pursued by duplication - the numbers were re-typed into this page, so they could drift
+   * from the home page they were copied from and this test would have kept passing.
+   *
+   * The page now renders the actual RotatingHero the home page uses, so the typography cannot
+   * drift: there is one declaration, in one component. The assertions therefore move from
+   * "these numbers appear in this page's CSS" to "this page renders that component".
+   *
+   * THE ONE THING KEPT VERBATIM is the no-repeated-brand-eyebrow rule, because that is a
+   * design decision rather than an implementation detail. The home page removed its own copy
+   * of the lime badge for exactly this reason - it restated the header's lockup 109px below
+   * it - so badgeLabel is deliberately not passed here, and RotatingHero renders no
+   * .brand-badge without it.
+   */
+  it( 'renders the homepage rotating hero on /blog/, and still does not repeat the brand eyebrow', () => {
     const { container } = render( <BlogIndex posts={ [ samplePost ] } /> );
-    const css = cssOf( container );
 
+    // The shared hero, not a local copy of its numbers.
+    expect( container.querySelector( '.rh-hero' ) ).not.toBeNull();
+    expect( container.querySelector( '.rh-head' ) ).not.toBeNull();
+
+    // The old markup is gone, along with the line that restated the heading.
+    expect( container.querySelector( '.blog-hero' ) ).toBeNull();
+    expect( container.textContent ).not.toContain( 'Ideas, guides and updates published' );
+
+    // The brand lockup must not appear twice on the page: header owns it.
+    expect( container.querySelector( '.brand-badge' ) ).toBeNull();
     expect( container.querySelector( '.eyebrow' ) ).toBeNull();
-    expect( container.querySelector( '.blog-hero h1' )?.textContent ).toBe( 'Blog' );
 
-    expect( css ).toContain( '.blog-shell{max-width:1300px' );
-    expect( css ).toContain( 'h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;letter-spacing:-0.04em' );
-    expect( css ).toContain( '.blog-hero>p{font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.898)' );
+    // Exactly one h1, and it is the hero's - the page has no competing headline.
+    expect( container.querySelectorAll( 'h1' ) ).toHaveLength( 1 );
+
+    // The breadcrumb and the blog-scoped search box are both present.
+    expect( container.querySelector( 'nav[aria-label="Breadcrumb"]' ) ).not.toBeNull();
+    expect( container.querySelector( 'form[role="search"]' ) ).not.toBeNull();
+  } );
+
+  it( 'filters the listing by text as well as by category', () => {
+    render( <BlogIndex posts={ [ samplePost, secondPost ] } /> );
+    const box = screen.getByLabelText( 'Search the blog' );
+
+    // Matches the title of the second post only.
+    fireEvent.change( box, { target: { value: 'Better Decisions' } } );
+    expect( screen.queryByRole( 'heading', { name: samplePost.title } ) ).toBeNull();
+    expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
+
+    // A category name typed as text finds its posts even with the All pill active.
+    fireEvent.change( box, { target: { value: 'conversations' } } );
+    expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
+    expect( screen.queryByRole( 'heading', { name: secondPost.title } ) ).toBeNull();
+
+    // Clearing restores everything.
+    fireEvent.change( box, { target: { value: '   ' } } );
+    expect( screen.getByRole( 'heading', { name: samplePost.title } ) ).toBeInTheDocument();
+    expect( screen.getByRole( 'heading', { name: secondPost.title } ) ).toBeInTheDocument();
   } );
 
   it( 'switches between all posts and each available category without a page load', () => {
