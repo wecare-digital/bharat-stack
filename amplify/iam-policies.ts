@@ -224,20 +224,16 @@ export const IAM_POLICIES = {
     ],
   },
 
-  // Cost Explorer permissions (for billing)
+  // Health + Trusted Advisor permissions (for the billing dashboard).
+  //
+  // Cost Explorer (`ce:*`) was deliberately REMOVED on 2026-09-28. The CE API bills
+  // $0.01 per request and this function was responsible for effectively all of the
+  // $14.97/month Cost Explorer charge. Withholding the IAM grant is the durable half
+  // of that fix: a reintroduced `ce` call now fails with AccessDenied instead of
+  // quietly re-establishing a per-request bill. Do not add `ce:*` back here.
   billing: {
     Version: '2012-10-17',
     Statement: [
-      {
-        Effect: 'Allow',
-        Action: [
-          'ce:GetCostAndUsage',
-          'ce:GetCostForecast',
-          'ce:GetDimensionValues',
-          'ce:GetTags',
-        ],
-        Resource: '*',
-      },
       {
         Effect: 'Allow',
         Action: [
