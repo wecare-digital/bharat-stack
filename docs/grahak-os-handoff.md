@@ -116,7 +116,11 @@ misled every reader so far. Re-verify with the harness, not with this table.
    install` succeeds because it trusts bundled deps rather than resolving them; `npm ci`
    validates those edges and refuses.
 
-   **TWO FIXES HAVE NOW BEEN TRIED AND BOTH FAILED. Do not spend another round on it.**
+   **EVERY LOCAL FIX IS NOW A CLOSED DEAD END. Do not spend another round on it.** Two
+   were tried and measured (lockfile regen, an `overrides` entry); a third
+   (`patch-package`) is ruled out by mechanism below without needing to be tried. Nothing
+   is failing because of this — CI installs with `npm install` and probes for the fix — so
+   the correct posture is to leave it alone until it actually blocks something.
 
    *Regenerating the lockfile from scratch does not work.* `rm package-lock.json && npm
    install` on a networked machine produces a completely fresh tree — 12,404 lines
@@ -159,12 +163,39 @@ misled every reader so far. Re-verify with the harness, not with this table.
    abort with a V8 stack trace and exit **134**, and the follow-up `npm ci` then hung
    until it was killed. The override was removed; do not re-add it.
 
+   Note this is specific to overriding a **bundled** dependency, not to `overrides` as a
+   feature. `package.json` carries five overrides today (`lodash`, `fast-xml-parser`,
+   `immutable@3`, `mysql2`, `csv-parse`) and they are fine. The OTel entries are
+   `inBundle: true`, which is the difference.
+
+   *Reported 2026-09-29, and it closes the overrides route from a second direction: even
+   where an override does not crash, `npm install` undoes it.* npm re-reads the bundled
+   manifests out of the published tarball and rewrites those lockfile entries back to what
+   the tarball declares, so the override leaves no durable trace in `package-lock.json`.
+   That kills the "override it and commit the resulting lockfile" variant, which is
+   otherwise the obvious next thing to try after the crash. **Not re-measured here** — it
+   is recorded from the investigation that found it, and deliberately not re-run, because
+   reproducing it means letting `npm install` write to the shared lockfile.
+
    Consequences: to install, use `npm install`, never `npm ci`.
    `.github/workflows/build-test.yml` already does, and carries a non-blocking probe that
-   will announce the day `npm ci` starts working. The realistic resolutions are upstream:
-   Amplify fixing the bundled dependency edge in `data-construct` /
-   `graphql-api-construct`, or `patch-package` rewriting those two bundled manifests
-   locally, which is heavy for a lint-level annoyance that blocks no build.
+   will announce the day `npm ci` starts working.
+
+   **There is exactly one realistic resolution, and it is upstream:** Amplify fixing the
+   bundled dependency edge in `data-construct` / `graphql-api-construct`.
+
+   *Corrected 2026-09-29: `patch-package` was listed here as the second option, described
+   as "heavy for a lint-level annoyance". That undersold it — it cannot work at all, and
+   the reason is structural rather than a matter of effort.* `patch-package` applies its
+   diffs from a `postinstall` script, and `npm ci` fails while validating the lockfile
+   against `package.json`, before it fetches a tarball, before `node_modules` is
+   populated, and therefore before any lifecycle script runs. On the failing path the
+   hook never executes. Nor does it help on the succeeding path: `patch-package` edits
+   files inside `node_modules`, `npm ci` deletes `node_modules` outright and re-reads the
+   registry tarballs, so nothing it patched survives into the comparison that fails. A
+   postinstall hook cannot repair a failure that happens before postinstall. Do not
+   reach for it, and note the repo has neither the dependency nor a `postinstall` script,
+   so nothing has to be undone.
 
    **Resolved 2026-09-29 for `deps-upgrade.yml`, which this used to brick.** That
    workflow regenerates the lockfile and then gated on a bare `npm ci`, under a comment
