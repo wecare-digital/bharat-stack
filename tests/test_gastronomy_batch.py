@@ -30,7 +30,8 @@ def make_post(n: int, title=None):
         'body_markdown': (
             'This recipe has a clear culinary identity and enough context to explain what to look for before cooking.\n\n'
             '## Ingredients\n\n- 1 cup ingredient\n- 1 tsp spice\n\n'
-            '## Method\n\nCook carefully, watching texture and heat rather than relying only on the clock.'
+            '## Method\n\nCook carefully, watching texture and heat rather than relying only on the clock. '
+            'Let it rest off the heat before serving, so the texture settles rather than tightening.'
         ),
     }
 
