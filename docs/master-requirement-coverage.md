@@ -175,7 +175,7 @@ evidence. Listing them is how the contradiction gets recorded instead of hidden.
 | Item | Unblock |
 |---|---|
 | **Admin group membership — highest value** | `admin-add-user-to-group --user-pool-id us-east-1_cSx0RHCIR --username wecare.digital --group-name Admin`. Re-confirmed live: all four groups exist, the only user is in none. 16 handlers can be proven to refuse anonymous callers but **not** to serve a signed-in Admin |
-| `ADMIN_MFA_REQUIRED` at `warn` | Correct until an Admin exists; flipping first would refuse the first one |
+| ~~`ADMIN_MFA_REQUIRED` at `warn`~~ | **Withdrawn 2026-09-29 — this row was wrong.** Measured across all 66 functions: `ADMIN_MFA_REQUIRED=true` is set on all **13** that gate anything on an `Admin` role, including every one of the nine handlers passing `required_role='Admin'`. Enforcement is **live**, not pending, and `middleware._admin_mfa_required` already records that the warn-first rationale expired. Nothing is owner-held here |
 | Disclosed Cognito client | Delete `1jrnb80tcvceg7uln9vuoe8va5`. Not done here: it modifies authentication and the id cannot be recreated |
 | Credential rotation | Razorpay / Google Ads / Google OAuth / Google API key / Bing — `MANUAL_OWNER_ACTION` |
 | RCS receipt verification | Store a `webhook_secret` in `wecare/sinch/rcs`. No code change |
