@@ -6,7 +6,33 @@ from pathlib import Path
 
 AUTHOR = 'Anew by WECARE.DIGITAL'
 CATEGORY = 'Gastronomy'
-BATCH_SIZE = 25
+QUALITY_VERSION = 2
+MAX_MANIFEST_POSTS = 150
+WIX_WRITE_CHUNK_SIZE = 20
+
+RECIPE_TYPES = {'RECIPE'}
+GENERIC_SOURCE_PATTERNS = [
+    (re.compile(r'\bsource note\b', re.I), 'source note'),
+    (re.compile(r'\badapted from\b', re.I), 'adapted from'),
+    (re.compile(r'\bindependently written from\b', re.I), 'independently written from'),
+    (re.compile(r'\bthe source\b|\bsource recipe\b|\bsource[’\']s\b', re.I), 'source-facing language'),
+    (re.compile(r'\bthe cookbook\b|\bthis cookbook\b|\bin the cookbook\b|\baccording to the cookbook\b', re.I), 'cookbook-facing language'),
+    (re.compile(r'\bthe book says\b|\bin this book\b|\bthe book[’\']s\b', re.I), 'book-facing language'),
+    (re.compile(r'\bthe author\b|\bauthor[’\']s\b', re.I), 'source-author biography'),
+    (re.compile(r'\blearned from\b|\bcooked with\b|\bmarket connection\b', re.I), 'personal provenance'),
+    (re.compile(r'\bashram\b|\bvolunteer(?:s)?\b|\bprogramme(?:s)?\b', re.I), 'source-institution provenance'),
+]
+CLEANUP_ARTIFACT_PATTERNS = [
+    re.compile(r'\bThe\s+[’\']s\b'),
+    re.compile(r'\bThe is\b'),
+    re.compile(r'\bHere[’\']?s\b'),
+    re.compile(r'\bas directs\b', re.I),
+    re.compile(r'\bthe preparation the\b', re.I),
+]
+PERSONAL_TITLE_PATTERN = re.compile(
+    r'^(?:Grandma|Granny|Mama|Papa|Aunty|Aunt|Uncle|Mom|Mother|Father|Dad)[’\']s\b|^[A-Z][A-Za-z.-]{2,}[’\']s\b'
+)
+HEALTH_TITLE_PATTERN = re.compile(r'\b(?:cure|detox|cleanse|heal|treat|prevent|medicinal)\b', re.I)
 
 
 def _inline_nodes(text: str):
@@ -51,13 +77,27 @@ def markdown_to_rich_content(markdown: str):
             items = []
             while i < len(lines) and lines[i].strip().startswith('- '):
                 value = lines[i].strip()[2:].strip()
-                items.append({'type': 'LIST_ITEM', 'nodes': [{'type': 'PARAGRAPH', 'nodes': _inline_nodes(value), 'paragraphData': {}}], 'listItemData': {}})
+                items.append({
+                    'type': 'LIST_ITEM',
+                    'nodes': [{'type': 'PARAGRAPH', 'nodes': _inline_nodes(value), 'paragraphData': {}}],
+                    'listItemData': {},
+                })
                 i += 1
             nodes.append({'type': 'BULLETED_LIST', 'nodes': items, 'bulletedListData': {'indentation': 0, 'offset': 0}})
             continue
         nodes.append({'type': 'PARAGRAPH', 'nodes': _inline_nodes(line), 'paragraphData': {}})
         i += 1
     return {'nodes': nodes}
+
+
+def _walk_nodes(value):
+    if isinstance(value, dict):
+        yield value
+        for nested in value.values():
+            yield from _walk_nodes(nested)
+    elif isinstance(value, list):
+        for nested in value:
+            yield from _walk_nodes(nested)
 
 
 def _heading_texts(ricos):
@@ -85,24 +125,91 @@ def _substantive_top_level_paragraphs(ricos):
     ]
 
 
-def validate_batch_document(document: dict):
+def _quality_version(document):
+    try:
+        return int(document.get('quality_version') or 1)
+    except (TypeError, ValueError):
+        return 1
+
+
+def _source_profile(document):
+    profile = document.get('source_profile') or {}
+    return {
+        'label': str(profile.get('label') or '').strip(),
+        'blocked_public_terms': [str(x).strip() for x in profile.get('blocked_public_terms', []) if str(x).strip()],
+        'required_public_attribution_terms': [
+            str(x).strip() for x in profile.get('required_public_attribution_terms', []) if str(x).strip()
+        ],
+    }
+
+
+def _public_text(post):
+    return '\n'.join([
+        str(post.get('title') or ''),
+        str(post.get('slug') or ''),
+        str(post.get('seo_title') or ''),
+        str(post.get('meta_description') or ''),
+        str(post.get('body_markdown') or ''),
+    ])
+
+
+def _source_privacy_errors(post, source_profile, prefix):
+    errors = []
+    public = _public_text(post)
+    allowed = {x.casefold() for x in source_profile.get('required_public_attribution_terms', [])}
+    for regex, label in GENERIC_SOURCE_PATTERNS:
+        if regex.search(public):
+            errors.append(f'{prefix}: public copy contains {label}')
+    for regex in CLEANUP_ARTIFACT_PATTERNS:
+        if regex.search(public):
+            errors.append(f'{prefix}: malformed source-cleanup artifact')
+            break
+    for term in source_profile.get('blocked_public_terms', []):
+        if term.casefold() in allowed:
+            continue
+        if term.casefold() in public.casefold():
+            errors.append(f'{prefix}: public copy leaks blocked source/private term "{term}"')
+    title = str(post.get('title') or '')
+    if PERSONAL_TITLE_PATTERN.search(title) and not post.get('public_name_justification'):
+        errors.append(f'{prefix}: title exposes a personal/kinship name without justification')
+    title_and_seo = f"{title}\n{post.get('seo_title') or ''}"
+    if HEALTH_TITLE_PATTERN.search(title_and_seo) and not post.get('health_claim_reviewed'):
+        errors.append(f'{prefix}: title/SEO contains a health-claim term without review')
+    return errors
+
+
+def validate_batch_document(document: dict, require_v2=False):
     errors = []
     posts = document.get('posts')
     if not isinstance(posts, list):
         return ['posts must be a list']
-    if len(posts) != BATCH_SIZE:
-        errors.append(f'batch must contain exactly {BATCH_SIZE} posts')
+    if not 1 <= len(posts) <= MAX_MANIFEST_POSTS:
+        errors.append(f'manifest must contain 1-{MAX_MANIFEST_POSTS} posts')
+
+    quality_version = _quality_version(document)
+    if require_v2 and quality_version < QUALITY_VERSION:
+        errors.append(f'quality_version must be {QUALITY_VERSION} or higher for publish/audit')
+
     start = document.get('batch_start')
     end = document.get('batch_end')
-    if not isinstance(start, int) or not isinstance(end, int) or end != start + BATCH_SIZE - 1:
-        errors.append('batch_start/batch_end must describe one contiguous 25-post batch')
+    if start is not None or end is not None:
+        if not isinstance(start, int) or not isinstance(end, int) or end != start + len(posts) - 1:
+            errors.append('batch_start/batch_end must match the actual contiguous manifest size')
+
+    profile = _source_profile(document)
+    if quality_version >= QUALITY_VERSION and not isinstance(document.get('source_profile'), dict):
+        errors.append('quality v2 manifest requires source_profile object')
+
     ids, slugs, titles = [], [], []
     for idx, post in enumerate(posts):
         prefix = post.get('id') or f'index {idx}'
         ids.append(post.get('id'))
         slugs.append(post.get('slug'))
         titles.append(post.get('title'))
-        required = ['id','title','slug','author','category','tags','seo_title','meta_description','canonical','source_ref','body_markdown','image_status']
+        required = [
+            'id', 'title', 'slug', 'author', 'category', 'tags', 'seo_title',
+            'meta_description', 'canonical', 'source_ref', 'body_markdown', 'image_status',
+        ]
         for key in required:
             if not post.get(key):
                 errors.append(f'{prefix}: missing {key}')
@@ -116,31 +223,41 @@ def validate_batch_document(document: dict):
         slug = str(post.get('slug') or '')
         if post.get('canonical') != f'https://wecare.digital/post/{slug}/':
             errors.append(f'{prefix}: canonical must match slug')
+
         body = str(post.get('body_markdown') or '')
         if '\\n' in body:
             errors.append(f'{prefix}: body contains literal escaped newline')
         ricos = markdown_to_rich_content(body)
         headings = _heading_texts(ricos)
-        if len(body.strip()) < 450:
+        article_type = str(post.get('article_type') or 'RECIPE').upper()
+
+        if len(body.strip()) < 250:
             errors.append(f'{prefix}: body too thin for editorial publication')
-        if len(_substantive_top_level_paragraphs(ricos)) < 3:
-            errors.append(f'{prefix}: needs at least 3 substantive prose paragraphs with real paragraph spacing')
-        if 'Ingredients' not in headings:
-            errors.append(f'{prefix}: missing Ingredients heading')
-        if 'Method' not in headings:
-            errors.append(f'{prefix}: missing Method heading')
-        if not any(n.get('type') == 'BULLETED_LIST' for n in ricos.get('nodes', [])):
-            errors.append(f'{prefix}: missing ingredient list')
+        min_paragraphs = 1 if article_type in RECIPE_TYPES else 2
+        if len(_substantive_top_level_paragraphs(ricos)) < min_paragraphs:
+            errors.append(f'{prefix}: needs {min_paragraphs} substantive prose paragraph(s) with real spacing')
+        if article_type in RECIPE_TYPES:
+            if 'Ingredients' not in headings:
+                errors.append(f'{prefix}: missing Ingredients heading')
+            if 'Method' not in headings:
+                errors.append(f'{prefix}: missing Method heading')
+            if not any(n.get('type') == 'BULLETED_LIST' for n in ricos.get('nodes', [])):
+                errors.append(f'{prefix}: missing ingredient list')
         if post.get('image_status') != 'none':
             errors.append(f'{prefix}: image_status must be none')
+
+        if quality_version >= QUALITY_VERSION:
+            errors.extend(_source_privacy_errors(post, profile, prefix))
+
     if len([x for x in slugs if x]) != len(set(x for x in slugs if x)):
-        errors.append('duplicate slug inside batch')
+        errors.append('duplicate slug inside manifest')
     if len([x for x in titles if x]) != len(set(x for x in titles if x)):
-        errors.append('duplicate title inside batch')
+        errors.append('duplicate title inside manifest')
     if len([x for x in ids if x]) != len(set(x for x in ids if x)):
-        errors.append('duplicate id inside batch')
-    if isinstance(start, int) and len(posts) == BATCH_SIZE:
-        expected = [f'GAST-{n:03d}' for n in range(start, start + BATCH_SIZE)]
+        errors.append('duplicate id inside manifest')
+
+    if isinstance(start, int) and len(posts):
+        expected = [f'GAST-{n:03d}' for n in range(start, start + len(posts))]
         if ids != expected:
             errors.append('post ids must be contiguous and match batch_start through batch_end')
     return errors
@@ -151,38 +268,47 @@ def pending_posts(document: dict, existing_slugs):
     return [post for post in document.get('posts', []) if str(post.get('slug') or '') not in existing]
 
 
-def _walk_nodes(value):
-    if isinstance(value, dict):
-        yield value
-        for nested in value.values():
-            yield from _walk_nodes(nested)
-    elif isinstance(value, list):
-        for nested in value:
-            yield from _walk_nodes(nested)
+def _live_public_text(post):
+    nodes = ((post.get('richContent') or {}).get('nodes') or [])
+    flat = ''.join(
+        str((node.get('textData') or {}).get('text') or '')
+        for node in _walk_nodes(nodes)
+    )
+    return '\n'.join([
+        str(post.get('title') or ''),
+        str(post.get('slug') or ''),
+        str(post.get('seoTitle') or ''),
+        str(post.get('metaDescription') or ''),
+        flat,
+    ]), nodes
 
 
-def audit_public_post(post: dict, expected: dict):
+def audit_public_post(post: dict, expected: dict, source_profile=None, quality_version=1):
     errors = []
+    source_profile = source_profile or {'blocked_public_terms': [], 'required_public_attribution_terms': []}
     slug = str(expected.get('slug') or '')
     if post.get('slug') != slug:
         errors.append(f'{slug}: slug mismatch')
+    if post.get('title') and post.get('title') != expected.get('title'):
+        errors.append(f'{slug}: title mismatch')
     if post.get('authorName') != AUTHOR:
         errors.append(f'{slug}: author mismatch')
     if post.get('category') != CATEGORY:
         errors.append(f'{slug}: category mismatch')
     if post.get('coverImage'):
         errors.append(f'{slug}: cover image must be empty')
-    nodes = ((post.get('richContent') or {}).get('nodes') or [])
-    flat_parts = []
+    if post.get('seoTitle') is not None and post.get('seoTitle') != expected.get('seo_title'):
+        errors.append(f'{slug}: SEO title mismatch')
+    if post.get('metaDescription') is not None and post.get('metaDescription') != expected.get('meta_description'):
+        errors.append(f'{slug}: meta description mismatch')
+
+    public, nodes = _live_public_text(post)
     headings = []
     node_types = []
     for node in _walk_nodes(nodes):
         kind = str(node.get('type') or '').upper()
         if kind:
             node_types.append(kind)
-        text = (node.get('textData') or {}).get('text')
-        if text:
-            flat_parts.append(str(text))
         if kind == 'HEADING':
             value = ''.join(
                 str((child.get('textData') or {}).get('text') or '')
@@ -190,23 +316,38 @@ def audit_public_post(post: dict, expected: dict):
             )
             if value:
                 headings.append(value)
-    flat = ''.join(flat_parts)
-    if re.search(r'\b(?:undefined|null|nan)\b', flat, re.IGNORECASE):
+
+    if not public.strip():
+        errors.append(f'{slug}: published body is blank')
+    if re.search(r'\b(?:undefined|null|nan)\b', public, re.IGNORECASE):
         errors.append(f'{slug}: editor placeholder token in published body')
-    if re.search(r'\{\s*["\']?(?:type|nodes|richContent|textData)["\']?\s*:', flat):
+    if re.search(r'\{\s*["\']?(?:type|nodes|richContent|textData)["\']?\s*:', public):
         errors.append(f'{slug}: raw editor JSON in published body')
-    if len(_substantive_top_level_paragraphs({'nodes': nodes})) < 3:
-        errors.append(f'{slug}: needs at least 3 substantive prose paragraphs with real paragraph spacing')
-    if '\\n' in flat:
+    if '\\n' in public:
         errors.append(f'{slug}: literal escaped newline in published body')
-    if '## ' in flat:
+    if '## ' in public:
         errors.append(f'{slug}: literal markdown heading in published body')
-    if 'Ingredients' not in headings:
-        errors.append(f'{slug}: missing Ingredients heading')
-    if 'Method' not in headings:
-        errors.append(f'{slug}: missing Method heading')
-    if 'BULLETED_LIST' not in node_types:
-        errors.append(f'{slug}: missing ingredient list')
+
+    article_type = str(expected.get('article_type') or 'RECIPE').upper()
+    min_paragraphs = 1 if article_type in RECIPE_TYPES else 2
+    if len(_substantive_top_level_paragraphs({'nodes': nodes})) < min_paragraphs:
+        errors.append(f'{slug}: insufficient substantive prose paragraphs')
+    if article_type in RECIPE_TYPES:
+        if 'Ingredients' not in headings:
+            errors.append(f'{slug}: missing Ingredients heading')
+        if 'Method' not in headings:
+            errors.append(f'{slug}: missing Method heading')
+        if 'BULLETED_LIST' not in node_types:
+            errors.append(f'{slug}: missing ingredient list')
+
+    if quality_version >= QUALITY_VERSION:
+        live_expected = dict(expected)
+        live_expected['title'] = post.get('title') or expected.get('title')
+        live_expected['slug'] = post.get('slug') or expected.get('slug')
+        live_expected['seo_title'] = post.get('seoTitle') or expected.get('seo_title')
+        live_expected['meta_description'] = post.get('metaDescription') or expected.get('meta_description')
+        live_expected['body_markdown'] = public
+        errors.extend(_source_privacy_errors(live_expected, source_profile, slug))
     return errors
 
 
@@ -236,12 +377,7 @@ def _ensure_tags(wix, labels):
         paging = {'limit': 100}
         if cursor:
             paging['cursor'] = cursor
-        data = wix.request(
-            wix.TARGET_SITE_ID,
-            'POST',
-            '/v3/tags/query',
-            {'query': {'cursorPaging': paging}},
-        )
+        data = wix.request(wix.TARGET_SITE_ID, 'POST', '/v3/tags/query', {'query': {'cursorPaging': paging}})
         tags.extend(data.get('tags', []) or [])
         cursor = str((((data.get('pagingMetadata') or {}).get('cursors') or {}).get('next')) or '')
         if not cursor:
@@ -260,9 +396,9 @@ def _ensure_tags(wix, labels):
 
 
 def publish_document(document: dict):
-    errors = validate_batch_document(document)
+    errors = validate_batch_document(document, require_v2=True)
     if errors:
-        raise ValueError('batch validation failed: ' + '; '.join(errors))
+        raise ValueError('manifest validation failed: ' + '; '.join(errors))
     wix = _load_wix_module()
     existing_posts = wix.query_posts(wix.TARGET_SITE_ID)
     existing_slugs = {str(post.get('slug') or '') for post in existing_posts}
@@ -293,13 +429,13 @@ def publish_document(document: dict):
         })
     created_count = 0
     failures = []
-    for start in range(0, len(prepared), 20):
-        batch = prepared[start:start + 20]
+    for start in range(0, len(prepared), WIX_WRITE_CHUNK_SIZE):
+        chunk = prepared[start:start + WIX_WRITE_CHUNK_SIZE]
         data = wix.request(
             wix.TARGET_SITE_ID,
             'POST',
             '/blog/v3/bulk/draft-posts/create',
-            {'draftPosts': batch, 'publish': True, 'returnFullEntity': False},
+            {'draftPosts': chunk, 'publish': True, 'returnFullEntity': False},
         )
         for result in data.get('results', []) or []:
             meta = result.get('itemMetadata') or {}
@@ -335,35 +471,30 @@ def fetch_public_post(slug: str):
 
 
 def audit_document(document: dict):
-    errors = validate_batch_document(document)
+    errors = validate_batch_document(document, require_v2=True)
     if errors:
         return errors
+    profile = _source_profile(document)
+    quality_version = _quality_version(document)
     audit_errors = []
     for expected in document.get('posts', []):
-        audit_errors.extend(audit_public_post(fetch_public_post(expected['slug']), expected))
+        audit_errors.extend(
+            audit_public_post(fetch_public_post(expected['slug']), expected, profile, quality_version)
+        )
     return audit_errors
-
 
 
 def validate_progress(progress: dict):
     errors = []
     completed = progress.get('completed_through')
     next_id = progress.get('next_id')
-    batch_size = progress.get('batch_size')
-    total = progress.get('total')
-    if batch_size != BATCH_SIZE:
-        errors.append(f'batch_size must be {BATCH_SIZE}')
-    if total != 340:
-        errors.append('total must be 340')
-    if not isinstance(completed, int) or completed < 40 or completed > 340:
-        errors.append('completed_through must be an integer from 40 through 340')
-    elif completed != 40 and (completed - 40) % BATCH_SIZE != 0:
-        errors.append('completed_through must advance in 25-post batches after 40')
-    expected_next = 341 if completed == 340 else (completed + 1 if isinstance(completed, int) else None)
-    if next_id != expected_next:
-        errors.append(f'next_id must be {expected_next}')
-    if completed == 340 and progress.get('last_batch') != 'GAST-316-GAST-340':
-        errors.append('last_batch must identify the final batch at completion')
+    max_posts = progress.get('max_manifest_posts')
+    if max_posts != MAX_MANIFEST_POSTS:
+        errors.append(f'max_manifest_posts must be {MAX_MANIFEST_POSTS}')
+    if not isinstance(completed, int) or completed < 0:
+        errors.append('completed_through must be a non-negative integer')
+    if not isinstance(next_id, int) or not isinstance(completed, int) or next_id != completed + 1:
+        errors.append('next_id must equal completed_through + 1')
     return errors
 
 
@@ -371,19 +502,17 @@ def advance_progress(progress: dict, batch_start: int, batch_end: int):
     errors = validate_progress(progress)
     if errors:
         raise ValueError('invalid progress: ' + '; '.join(errors))
-    expected_start = progress['next_id']
-    expected_end = expected_start + BATCH_SIZE - 1
-    if batch_start != expected_start:
-        raise ValueError(f'batch_start {batch_start} does not match next_id {expected_start}')
-    if batch_end != expected_end:
-        raise ValueError(f'batch_end {batch_end} must be {expected_end}')
-    if batch_end > progress['total']:
-        raise ValueError('batch exceeds total')
+    count = batch_end - batch_start + 1
+    if not 1 <= count <= MAX_MANIFEST_POSTS:
+        raise ValueError(f'progress update must cover 1-{MAX_MANIFEST_POSTS} posts')
+    if batch_start != progress['next_id']:
+        raise ValueError(f'batch_start {batch_start} does not match next_id {progress["next_id"]}')
     updated = dict(progress)
     updated['completed_through'] = batch_end
-    updated['next_id'] = 341 if batch_end == progress['total'] else batch_end + 1
-    updated['last_batch'] = f'GAST-{batch_start:03d}-GAST-{batch_end:03d}'
+    updated['next_id'] = batch_end + 1
+    updated['last_manifest'] = f'GAST-{batch_start:03d}-GAST-{batch_end:03d}'
     return updated
+
 
 def load_document(path: Path):
     data = json.loads(path.read_text(encoding='utf-8'))
@@ -404,12 +533,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     doc = load_document(args.manifest)
     if args.command == 'validate':
-        errors = validate_batch_document(doc)
+        errors = validate_batch_document(doc, require_v2=True)
         if errors:
             for error in errors:
                 print(error)
             raise SystemExit(1)
-        print(f"Validated {len(doc['posts'])} Gastronomy posts: GAST-{doc['batch_start']:03d} through GAST-{doc['batch_end']:03d}")
+        print(f"Validated {len(doc['posts'])} Gastronomy posts")
     elif args.command == 'publish':
         print(json.dumps(publish_document(doc), indent=2))
     elif args.command == 'audit':
