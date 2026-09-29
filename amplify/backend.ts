@@ -18,9 +18,17 @@ import * as iam from 'aws-cdk-lib/aws-iam';
  * - Auth: Cognito (existing user pool via referenceAuth)
  * - Data: DynamoDB (~58 tables via AppSync)
  * - Storage: S3 (existing bucket: wecare-digital-get, public objects under `o/`,
- *   gated objects under `secure/`; the app.wecare.digital bucket was deleted after
- *   the 2026-09-26 merge, though the HOST survives as a read-only alias serving this
- *   bucket through CloudFront origin path `/o`)
+ *   gated objects under `secure/`)
+ *
+ *   Corrected 2026-09-29: this used to add "though the HOST survives as a read-only
+ *   alias serving this bucket through CloudFront origin path `/o`". It does not.
+ *   Re-measured the same day: `get-distribution ERCXSFDL0VM8X` returns
+ *   NoSuchDistribution, no distribution carries an `app.wecare.digital` alias, the
+ *   DNS name resolves to no address, and `head-bucket app.wecare.digital` is 404.
+ *   There is exactly one distribution on this bucket now, E2GP22R4BIFGQ3, serving
+ *   `wecare.digital/get/<key>` with origin path `""`. The `o/` prefix is therefore
+ *   part of the URL, and it stays mandatory for the reasons in
+ *   lambda_utils/media_paths.py — not because a second host still reads it.
  *
  * Additional CDK resources:
  * - SQS Queues (4): inbound-dlq, bulk-queue, bulk-dlq, outbound-dlq

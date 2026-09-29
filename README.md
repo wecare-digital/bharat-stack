@@ -17,22 +17,54 @@ npm run dev
 - **App Client**: 1j8kbi48m4v2rped3n224rlevb
 
 ### S3 Bucket
-Single bucket: `app.wecare.digital` (versioning enabled)
-- `stack/` - All user/transactional data (factory reset = wipe stack/ only)
+Single bucket: **`wecare-digital-get`** (versioning **Suspended**).
+
+> The bucket used to be named `app.wecare.digital`, so its name doubled as a
+> hostname. It was deleted on 2026-09-28. **The bucket name is not a hostname any
+> more** — `wecare-digital-get` is not a domain, so interpolating it into a URL
+> produces a link that resolves to nothing. Use the bucket name for S3 API calls
+> and `wecare.digital/get` for anything a browser fetches. Compose keys through
+> `lambda_utils/media_paths.py` (Python) or `src/lib/media-paths.ts` (browser)
+> rather than hand-building them.
+
+Two top-level roots, and nothing else:
+
+- **`o/`** - public root. Everything real lives here.
+- **`secure/`** - gated root. Denied at the edge by the `wecare-get-miss-redirect`
+  Lambda@Edge; reachable only via a presigned URL.
+  - `u/` - the upload as received
+  - `d/` - the deliverable rendition
+
+`o/` is a **location, not a permission** — everything outside `secure/` is public.
+Never move a key between the two roots to "make it work": that is a disclosure in
+one direction and a broken link in the other.
+
+Under `o/`:
+
+- `o/stack/` - All user/transactional data (factory reset = wipe `o/stack/` only)
   - `whatsapp-media/incoming/` - Inbound media
   - `whatsapp-media/outgoing/` - Outbound media
   - `whatsapp-media/voice/` - TTS audio
   - `whatsapp-media/calling-ai/` - Call transcripts & TTS
   - `whatsapp-media/template-headers/` - Template media
   - `whatsapp-media/downloads/` - Media downloads
-  - `invoices/` - Invoice PNGs and PDFs
-  - `voice/` - Voice recordings (Airtel OBD)
+  - `invoices/` - Invoice PNGs and PDFs (created on first write)
+  - `voice/` - Voice recordings (created on first write)
   - `reports/` - Bulk job reports
   - `store/products/` - Product images
-- `stream/` - Static internal assets (NEVER wiped by cleanup)
+- `o/stream/` - Static internal assets (NEVER wiped by cleanup)
   - `media/m/` - Logos, branding
   - `media/fonts/` - Invoice PDF fonts
   - `media/ivr/` - IVR audio files
+  - `media/reports/` - Report assets
+  - `blog/`, `code/`, `docs/` - Scraped and generated content
+- `o/public/wa-tpl/` - **Do not move or rename.** 61 objects whose URLs are
+  embedded in WhatsApp templates Meta has already approved, and Meta refetches
+  media from the approved URL at send time.
+- `o/whatsapp-media/whatsapp-calling/`, `o/app-review/`, `o/meta-app-review/`
+
+Served as `https://wecare.digital/get/<key>` via CloudFront `E2GP22R4BIFGQ3`
+(origin path `""`, so the `o/` segment is part of the URL).
 
 
 ### DynamoDB Tables

@@ -67,9 +67,18 @@ describe( 'Brand assets', () => {
     /*
      * s3://wecare-digital-get/o/stream/media/m/ is the canonical location since the
      * app.wecare.digital merge (docs/media-bucket-merge.md), reached over HTTPS as
-     * /get/o/stream/media/m/ through CloudFront E2GP22R4BIFGQ3. The old host is deliberately
-     * still alive - 61 objects under public/wa-tpl/ are named by WhatsApp templates Meta has
-     * already approved - so this asserts the ASSETS here moved, not that the host is gone.
+     * /get/o/stream/media/m/ through CloudFront E2GP22R4BIFGQ3.
+     *
+     * Corrected 2026-09-29: this comment used to say the old host was "deliberately still
+     * alive". It is not. Re-measured the same day - the bucket returns 404 from HeadBucket
+     * and is absent from the 6 buckets in the account, the DNS name yields no A record, and
+     * an HTTPS request to it fails to connect. What the 61 objects under o/public/wa-tpl/
+     * actually pin is the KEY, not the host: their URLs are embedded in WhatsApp templates
+     * Meta has already approved, Meta refetches from the approved URL at send time, and an
+     * approved template body cannot be edited in place - so the o/ prefix cannot be dropped.
+     *
+     * This test therefore asserts where the ASSETS are served from. It is not a statement
+     * about the retired host either way.
      */
     for ( const source of [ APP_CODE, SEO_CODE ] ) {
       const urls = [ ...source.matchAll( /https:\/\/[^'"`\s)]*stream\/media\/m\/[^'"`\s)]+/g ) ].map( m => m[ 0 ] );

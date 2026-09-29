@@ -11,7 +11,8 @@
  *   POST /store/generate-product-image
  *
  * Generates branded SVG product cards for the Wix Store.
- * Uploads to S3: app.wecare.digital/store/products/{category}/{country}-{visaType}.svg
+ * Uploads to S3: s3://wecare-digital-get/o/stack/store/products/{category}/{country}-{visaType}.svg
+ * (served as https://wecare.digital/get/o/stack/store/products/...)
  */
 export const productImageGenFunction = {
   name: 'wecare-product-image-gen',

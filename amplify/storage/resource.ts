@@ -2,45 +2,62 @@ import { defineStorage } from '@aws-amplify/backend';
 
 /**
  * Storage Configuration
- * 
- * Single bucket: app.wecare.digital
- * 
- * Structure:
- * - stack/              : All user/transactional data (factory reset = wipe stack/ only)
- *   - whatsapp-media/  : incoming/, outgoing/, voice/, calling-ai/, template-headers/, downloads/
- *   - invoices/        : Invoice PNGs and PDFs
- *   - voice/           : Voice recordings (Airtel OBD)
- *   - reports/         : Bulk job reports and exports
- *   - store/products/  : Product images
- * - public/            : Publicly accessible media (WhatsApp needs to fetch these URLs)
- *   - wa-tpl/          : Template message media (short name for template messaging)
- *     - docs/          : PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT (max 100MB)
- *     - img/           : JPEG, PNG (max 5MB)
- *     - vid/           : MP4, 3GP (max 16MB)
- *     - aud/           : AAC, AMR, MP3, M4A, OGG (max 16MB)
- *     - stk/           : WebP stickers (max 500KB)
- * - stream/            : Static internal assets (NEVER wiped)
- *   - media/m/         : Logos, branding images
- *   - media/fonts/     : Invoice PDF fonts
- *   - media/ivr/       : IVR audio files
+ *
+ * Single bucket: `wecare-digital-get`. It was named `app.wecare.digital` until
+ * 2026-09-28, when that bucket was deleted; the name is not a hostname any more, so
+ * never interpolate it into a URL. Browser-facing URLs are `wecare.digital/get/<key>`.
+ *
+ * TWO ROOTS, and every prefix below is rooted. These rules previously read `stack/*`,
+ * `public/*` and `stream/*` — one level ABOVE where the data actually lives, the same
+ * off-by-one-prefix defect that `.github/workflows/media-prefixes.yml` exists to catch.
+ *
+ * - o/                   : public root. `o/` is a LOCATION, not a permission —
+ *                          everything outside `secure/` is public.
+ *   - o/stack/           : user/transactional data (factory reset = wipe o/stack/ only)
+ *     - whatsapp-media/  : incoming/, outgoing/, voice/, calling-ai/, template-headers/, downloads/
+ *     - invoices/        : Invoice PNGs and PDFs
+ *     - voice/           : Voice recordings
+ *     - reports/         : Bulk job reports and exports
+ *     - store/products/  : Product images
+ *   - o/public/          : media Meta fetches by URL (no auth)
+ *     - wa-tpl/          : Template message media. DO NOT MOVE OR RENAME — 61 objects
+ *                          here are named by Meta-APPROVED templates, Meta refetches
+ *                          from the approved URL at send time, and an approved
+ *                          template body cannot be edited in place.
+ *       - docs/          : PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT (max 100MB)
+ *       - img/           : JPEG, PNG (max 5MB)
+ *       - vid/           : MP4, 3GP (max 16MB)
+ *       - aud/           : AAC, AMR, MP3, M4A, OGG (max 16MB)
+ *       - stk/           : WebP stickers (max 500KB)
+ *   - o/stream/          : Static internal assets (NEVER wiped)
+ *     - media/m/         : Logos, branding images
+ *     - media/fonts/     : Invoice PDF fonts
+ *     - media/ivr/       : IVR audio files
+ *     - docs/            : Scraped documentation (Markdown)
+ * - secure/              : gated root. Denied at the edge by the
+ *                          `wecare-get-miss-redirect` Lambda@Edge and reachable only
+ *                          via a presigned URL, so it is DELIBERATELY absent from the
+ *                          access map below. Granting it here would be a disclosure.
+ *   - secure/u/          : the upload as received
+ *   - secure/d/          : the deliverable rendition
  */
 export const storage = defineStorage( {
   name: 'wecare-media',
-  // Reference consolidated bucket: app.wecare.digital
   access: ( allow ) => ( {
-    // User/transactional data — all under stack/
-    'stack/*': [
+    // User/transactional data — all under o/stack/
+    'o/stack/*': [
       allow.authenticated.to( [ 'read', 'write' ] ),
     ],
-    // Public media — WhatsApp needs to fetch these via URL (no auth)
-    'public/*': [
+    // Public media — Meta needs to fetch these via URL (no auth)
+    'o/public/*': [
       allow.guest.to( [ 'read' ] ),
       allow.authenticated.to( [ 'read', 'write' ] ),
     ],
     // Static internal assets — read-only for authenticated users
-    'stream/*': [
+    'o/stream/*': [
       allow.authenticated.to( [ 'read' ] ),
     ],
+    // NOTE: no rule for `secure/*` on purpose. See the docstring above.
   } ),
 } );
 

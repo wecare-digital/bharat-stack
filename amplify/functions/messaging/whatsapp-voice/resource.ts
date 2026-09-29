@@ -23,7 +23,7 @@
  *   INBOUND_TABLE: stack-wecare-digital-WhatsAppInboundTable
  *   SYSTEM_CONFIG_TABLE: stack-wecare-digital-SystemConfigTable
  *   UNIFIED_MESSAGES_TABLE: stack-wecare-digital-MessagesTable
- *   MEDIA_BUCKET: app.wecare.digital
+ *   MEDIA_BUCKET: wecare-digital-get
  *   WHATSAPP_PHONE_NUMBER_ID_1: phone-number-id-waba1-direct-1016149501586345
  *   WHATSAPP_PHONE_NUMBER_ID_2: phone-number-id-waba-t-direct-1055232054343117
  * 
@@ -31,7 +31,7 @@
  *   - polly:SynthesizeSpeech
  *   - transcribe:StartTranscriptionJob, transcribe:GetTranscriptionJob
  *   - translate:TranslateText
- *   - s3:PutObject, s3:GetObject, s3:DeleteObject on app.wecare.digital/whatsapp-media/*
+ *   - s3:PutObject, s3:GetObject, s3:DeleteObject on wecare-digital-get/o/stack/whatsapp-media/*
  *   - dynamodb:PutItem, Scan, DeleteItem, GetItem, BatchWriteItem, UpdateItem
  */
 

@@ -188,7 +188,7 @@ const AWS_RESOURCES: AWSResource[] = [
   { name: 'us-east-1_cSx0RHCIR', type: 'Cognito User Pool', purpose: 'User authentication & RBAC', module: 'Auth', env: 'Production', status: 'Active', risk: '' },
   { name: 'us-east-1:471c2c38-...', type: 'Cognito Identity Pool', purpose: 'Federated identity for AWS access', module: 'Auth', env: 'Production', status: 'Active', risk: '' },
   { name: 'wecare.digital/api', type: 'API Gateway (REST)', purpose: 'Main API endpoint for all Lambda functions', module: 'All', env: 'Production', status: 'Active', risk: '' },
-  { name: 'app.wecare.digital', type: 'S3 Bucket', purpose: 'Media storage, invoices, voice, static assets', module: 'Storage', env: 'Production', status: 'Active', risk: '' },
+  { name: 'wecare-digital-get', type: 'S3 Bucket', purpose: 'Media storage, invoices, voice, static assets (o/ public, secure/ gated)', module: 'Storage', env: 'Production', status: 'Active', risk: '' },
   { name: DB_TABLES.length + ' DynamoDB Tables', type: 'DynamoDB', purpose: 'Primary database (PAY_PER_REQUEST)', module: 'Data', env: 'Production', status: 'Active', risk: '' },
   { name: '42 Lambda Functions', type: 'Lambda', purpose: 'Backend compute (Python 3.12)', module: 'Backend', env: 'Production', status: 'Active', risk: '' },
   { name: 'stack-wecare-digital-bulk-queue', type: 'SQS Queue', purpose: 'Bulk message job processing', module: 'Operations', env: 'Production', status: 'Active', risk: '' },
@@ -205,7 +205,7 @@ const AWS_RESOURCES: AWSResource[] = [
   { name: 'Bedrock Agent', type: 'Bedrock Agent', purpose: 'Autonomous agent with action groups', module: 'AI', env: 'Production', status: 'Active', risk: '' },
   { name: 'IAM Roles (Lambda)', type: 'IAM', purpose: 'Lambda execution roles with least-privilege', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'Secrets Manager', type: 'Secrets Manager', purpose: 'API keys, webhook secrets, payment credentials', module: 'Security', env: 'Production', status: 'Active', risk: '' },
-  { name: 'CloudFront (CDN)', type: 'CloudFront', purpose: 'Static asset delivery for app.wecare.digital', module: 'Frontend', env: 'Production', status: 'Active', risk: '' },
+  { name: 'CloudFront E2GP22R4BIFGQ3', type: 'CloudFront', purpose: 'Serves wecare.digital/get/<key> from wecare-digital-get', module: 'Frontend', env: 'Production', status: 'Active', risk: '' },
   { name: 'Route 53', type: 'Route 53', purpose: 'DNS for wecare.digital, wecare.digital/api, r.wecare.digital', module: 'Networking', env: 'Production', status: 'Active', risk: '' },
   { name: 'ACM Certificates', type: 'ACM', purpose: 'SSL/TLS certificates for all domains', module: 'Security', env: 'Production', status: 'Active', risk: '' },
   { name: 'SNS Topics', type: 'SNS', purpose: 'SMS delivery notifications, alerts', module: 'Messaging', env: 'Production', status: 'Active', risk: '' },
@@ -235,7 +235,7 @@ const RISKS: RiskItem[] = [
   { id: 'R14', title: 'No automated tests in entire codebase', description: 'Zero test files found (no *.test.ts, *.spec.ts, *.test.py). Only one test file exists (tests/test_response.py for CORS utils). Payment flows, webhook handlers, and auth middleware have no test coverage.', priority: 'Important', category: 'Quality' },
   { id: 'R15', title: 'Lambda functions deployed outside Amplify', description: '42 Python Lambda functions are deployed separately and not managed by Amplify Gen 2. backend.ts explicitly states "Lambda functions are deployed separately and already exist in AWS." Risk of infrastructure drift between code and deployed state.', priority: 'Important', category: 'Infrastructure' },
   { id: 'R16', title: 'DynamoDB TTL not enforced on all temporal tables', description: 'Tables like TemplateAnalytics, AdClickAttribution, MetaAnalyticsLog, FlowSubmission, FlowLog have no TTL configured despite storing temporal data. These will grow unbounded over time.', priority: 'Important', category: 'Database' },
-  { id: 'R17', title: 'No backup strategy documented', description: 'DynamoDB point-in-time recovery status unknown for 41 tables. S3 versioning status unknown for app.wecare.digital bucket. No documented disaster recovery plan.', priority: 'Important', category: 'Infrastructure' },
+  { id: 'R17', title: 'No backup strategy documented', description: 'DynamoDB point-in-time recovery status unknown for 41 tables. S3 versioning on wecare-digital-get is SUSPENDED (measured 2026-09-29), so an overwrite or delete in o/ is not recoverable from the bucket itself. No documented disaster recovery plan.', priority: 'Important', category: 'Infrastructure' },
   { id: 'R18', title: 'Missing API documentation', description: 'No OpenAPI/Swagger spec found. API endpoints are only documented in scattered code comments and the lambda-functions admin page. New developers have no API reference.', priority: 'Important', category: 'Documentation' },
   { id: 'R19', title: 'Amplify builds failing repeatedly', description: 'Build logs 85-88 all show the same error: "CustomerError: Artifacts base directory not found in build output." The Amplify Hosting build pipeline is broken and has been failing since at least March 29, 2026.', priority: 'Important', category: 'DevOps' },
   { id: 'R20', title: '✅ FIXED — dangerouslySetInnerHTML removed from PageShell', description: 'Replaced dangerouslySetInnerHTML with safe React text rendering in PageShell.tsx. XSS vector eliminated.', priority: 'Important', category: 'Security' },
@@ -326,20 +326,30 @@ const DEPENDENCIES: DepInfo[] = [
 
 // ─── Data: Storage Paths ───
 interface StoragePath { path: string; purpose: string; readBy: string; writtenBy: string; }
+// Every path below carries its root segment, and that is not cosmetic. These rows used
+// to read `stack/...` and `stream/...`, which is one level ABOVE where the data actually
+// lives — the same defect `.github/workflows/media-prefixes.yml` exists to catch. It went
+// unnoticed for two days in the handlers because a key at the bucket root still returned
+// HTTP 200 from the apex host, so addressing the wrong level errored nowhere.
 const STORAGE_PATHS: StoragePath[] = [
-  { path: 'stack/whatsapp-media/incoming/', purpose: 'Inbound WhatsApp media files', readBy: 'messages-read, contacts', writtenBy: 'inbound-whatsapp-handler' },
-  { path: 'stack/whatsapp-media/outgoing/', purpose: 'Outbound WhatsApp media files', readBy: 'messages-read', writtenBy: 'outbound-whatsapp' },
-  { path: 'stack/whatsapp-media/voice/', purpose: 'WhatsApp voice notes', readBy: 'whatsapp-voice', writtenBy: 'inbound-whatsapp-handler' },
-  { path: 'stack/whatsapp-media/calling-ai/', purpose: 'WhatsApp calling recordings', readBy: 'whatsapp-calling', writtenBy: 'whatsapp-calling' },
-  { path: 'stack/whatsapp-media/template-headers/', purpose: 'Template header media', readBy: 'whatsapp-templates', writtenBy: 'whatsapp-template-management' },
-  { path: 'stack/whatsapp-media/downloads/', purpose: 'User-initiated media downloads', readBy: 'Frontend', writtenBy: 'messages-read' },
-  { path: 'stack/invoices/', purpose: 'Invoice PNGs and PDFs', readBy: 'invoice-engine, Frontend', writtenBy: 'invoice-engine' },
-  { path: 'stack/voice/', purpose: 'Voice recordings (Airtel OBD)', readBy: 'voice-cdr-read', writtenBy: 'voice-in' },
-  { path: 'stack/reports/', purpose: 'Bulk job reports and exports', readBy: 'Frontend', writtenBy: 'bulk-worker' },
-  { path: 'stack/store/products/', purpose: 'Product images', readBy: 'catalog-management, Frontend', writtenBy: 'product-image-gen' },
-  { path: 'stream/media/m/', purpose: 'Logos, branding images (static)', readBy: 'Frontend (CDN)', writtenBy: 'Manual upload' },
-  { path: 'stream/media/fonts/', purpose: 'Invoice PDF fonts', readBy: 'invoice-engine', writtenBy: 'Manual upload' },
-  { path: 'stream/media/ivr/', purpose: 'IVR audio files', readBy: 'voice-in-obd', writtenBy: 'Manual upload' },
+  { path: 'o/stack/whatsapp-media/incoming/', purpose: 'Inbound WhatsApp media files', readBy: 'messages-read, contacts', writtenBy: 'inbound-whatsapp-handler' },
+  { path: 'o/stack/whatsapp-media/outgoing/', purpose: 'Outbound WhatsApp media files', readBy: 'messages-read', writtenBy: 'outbound-whatsapp' },
+  { path: 'o/stack/whatsapp-media/voice/', purpose: 'WhatsApp voice notes', readBy: 'whatsapp-voice', writtenBy: 'inbound-whatsapp-handler' },
+  { path: 'o/stack/whatsapp-media/calling-ai/', purpose: 'WhatsApp calling recordings', readBy: 'whatsapp-calling', writtenBy: 'whatsapp-calling' },
+  { path: 'o/stack/whatsapp-media/template-headers/', purpose: 'Template header media', readBy: 'whatsapp-templates', writtenBy: 'whatsapp-template-management' },
+  { path: 'o/stack/whatsapp-media/downloads/', purpose: 'User-initiated media downloads', readBy: 'Frontend', writtenBy: 'messages-read' },
+  { path: 'o/stack/invoices/', purpose: 'Invoice PNGs and PDFs', readBy: 'invoice-engine, Frontend', writtenBy: 'invoice-engine' },
+  { path: 'o/stack/voice/', purpose: 'Voice recordings', readBy: 'voice-cdr-read', writtenBy: 'voice-in' },
+  { path: 'o/stack/reports/', purpose: 'Bulk job reports and exports', readBy: 'Frontend', writtenBy: 'bulk-worker' },
+  { path: 'o/stack/store/products/', purpose: 'Product images', readBy: 'catalog-management, Frontend', writtenBy: 'product-image-gen' },
+  { path: 'o/stream/media/m/', purpose: 'Logos, branding images (static)', readBy: 'Frontend (CDN)', writtenBy: 'Manual upload' },
+  { path: 'o/stream/media/fonts/', purpose: 'Invoice PDF fonts', readBy: 'invoice-engine', writtenBy: 'Manual upload' },
+  { path: 'o/stream/media/ivr/', purpose: 'IVR audio files', readBy: 'voice-in-obd', writtenBy: 'Manual upload' },
+  { path: 'o/stream/docs/', purpose: 'Scraped documentation (Markdown)', readBy: 'Frontend, meta-business-agent', writtenBy: 'docs-scraper' },
+  { path: 'o/public/wa-tpl/', purpose: 'Template media named by Meta-APPROVED templates — do not move or rename', readBy: 'Meta (refetch at send time)', writtenBy: 'whatsapp-template-management' },
+  { path: 'o/whatsapp-media/whatsapp-calling/', purpose: 'IVR greeting audio (TTS)', readBy: 'whatsapp-calling', writtenBy: 'whatsapp-calling' },
+  { path: 'secure/u/', purpose: 'Gated: upload as received — presigned access only', readBy: 'Presigned URL', writtenBy: 'document upload' },
+  { path: 'secure/d/', purpose: 'Gated: deliverable rendition — presigned access only', readBy: 'Presigned URL', writtenBy: 'document pipeline' },
 ];
 
 // ─── Data: Environment Config ───
@@ -480,14 +490,14 @@ const CODE_MAP: CodeFolder[] = [
 // ─── Data: Lambda Detailed (with env vars, runtime, memory) ───
 interface LambdaDetailed { name: string; displayName: string; category: string; runtime: string; timeout: number; memory: number; description: string; apiRoute: string; envVars: Record<string, string>; triggers: string[]; status: 'active' | 'warning' | 'error'; }
 const LAMBDA_DETAILED: LambdaDetailed[] = [
-  { name: 'wecare-contacts', displayName: 'Contacts', category: 'Core', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'CRUD operations for contacts', apiRoute: '/workspace/contacts', envVars: { CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable', INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-contacts', displayName: 'Contacts', category: 'Core', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'CRUD operations for contacts', apiRoute: '/workspace/contacts', envVars: { CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable', INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'wecare-digital-get' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-auth-middleware', displayName: 'Auth Middleware', category: 'Core', runtime: 'Python 3.12', timeout: 10, memory: 128, description: 'Cognito token validation for API Gateway', apiRoute: '/auth', envVars: { USER_POOL_ID: 'us-east-1_*', CLIENT_ID: '*' }, triggers: [ 'API Gateway Authorizer' ], status: 'active' },
-  { name: 'wecare-messages-read', displayName: 'Messages Read', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'Read messages from all channels', apiRoute: '/messages', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-messages-read', displayName: 'Messages Read', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'Read messages from all channels', apiRoute: '/messages', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'wecare-digital-get' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-messages-delete', displayName: 'Messages Delete', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Delete messages by ID', apiRoute: '/messages/{id}', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-faq-handler', displayName: 'FAQ Handler', category: 'Core', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'FAQ auto-response engine', apiRoute: '/faq', envVars: { FAQ_TABLE: 'stack-wecare-digital-FAQTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-url-shortener', displayName: 'URL Shortener', category: 'Core', runtime: 'Python 3.12', timeout: 10, memory: 128, description: 'Short link creation and redirect', apiRoute: '/workspace/link', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
-  { name: 'wecare-inbound-whatsapp', displayName: 'Inbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 512, description: 'Process incoming WhatsApp messages, media, reactions', apiRoute: '/webhook/whatsapp', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
-  { name: 'wecare-outbound-whatsapp', displayName: 'Outbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Send WhatsApp messages via Cloud API', apiRoute: '/whatsapp/send', envVars: { OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway', 'SQS' ], status: 'active' },
+  { name: 'wecare-inbound-whatsapp', displayName: 'Inbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 512, description: 'Process incoming WhatsApp messages, media, reactions', apiRoute: '/webhook/whatsapp', envVars: { INBOUND_TABLE: 'stack-wecare-digital-WhatsAppInboundTable', CONTACTS_TABLE: 'stack-wecare-digital-ContactsTable', MEDIA_BUCKET: 'wecare-digital-get' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
+  { name: 'wecare-outbound-whatsapp', displayName: 'Outbound WhatsApp', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Send WhatsApp messages via Cloud API', apiRoute: '/whatsapp/send', envVars: { OUTBOUND_TABLE: 'stack-wecare-digital-WhatsAppOutboundTable', MEDIA_BUCKET: 'wecare-digital-get' }, triggers: [ 'API Gateway', 'SQS' ], status: 'active' },
   { name: 'wecare-outbound-sms', displayName: 'Outbound SMS', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send SMS via AWS End User Messaging', apiRoute: '/sms/send', envVars: { MESSAGES_TABLE: 'stack-wecare-digital-MessagesTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-outbound-email', displayName: 'Outbound Email', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Send email via Amazon SES', apiRoute: '/email/send', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-outbound-voice', displayName: 'Outbound Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Initiate voice calls', apiRoute: '/voice/call', envVars: { VOICE_TABLE: 'stack-wecare-digital-VoiceCallTable' }, triggers: [ 'API Gateway' ], status: 'active' },
@@ -496,11 +506,11 @@ const LAMBDA_DETAILED: LambdaDetailed[] = [
   { name: 'wecare-bulk-worker', displayName: 'Bulk Worker', category: 'Operations', runtime: 'Python 3.12', timeout: 300, memory: 512, description: 'Process bulk message queue items', apiRoute: '-', envVars: { QUEUE_URL: 'stack-wecare-digital-bulk-queue' }, triggers: [ 'SQS' ], status: 'active' },
   { name: 'wecare-ai-generate-response', displayName: 'AI Generate Response', category: 'AI', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Generate AI responses via Bedrock', apiRoute: '/ai/generate', envVars: { BEDROCK_MODEL_ID: 'anthropic.claude-3-sonnet' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-razorpay-webhook', displayName: 'Razorpay Webhook', category: 'Payments', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Razorpay payment webhook handler', apiRoute: '/webhook/razorpay', envVars: { WEBHOOK_SECRET: '(env var)', PAYMENTS_TABLE: 'stack-wecare-digital-RazorpayWebhookLogTable' }, triggers: [ 'API Gateway (Webhook)' ], status: 'active' },
-  { name: 'wecare-invoice-engine', displayName: 'Invoice Engine', category: 'Payments', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Invoice creation, PDF generation, payment links', apiRoute: '/invoices', envVars: { INVOICE_TABLE: 'stack-wecare-digital-InvoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-invoice-engine', displayName: 'Invoice Engine', category: 'Payments', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Invoice creation, PDF generation, payment links', apiRoute: '/invoices', envVars: { INVOICE_TABLE: 'stack-wecare-digital-InvoiceTable', MEDIA_BUCKET: 'wecare-digital-get' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-wix-store', displayName: 'Wix Store', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Wix ecommerce integration', apiRoute: '/store/wix', envVars: { WIX_API_KEY: '(env var)', WIX_SITE_ID: '(env var)' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-catalog-management', displayName: 'Catalog Management', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'WhatsApp Commerce catalog sync', apiRoute: '/catalog', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-product-image-gen', displayName: 'Product Image Gen', category: 'Ecommerce', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'AI product image generation via Bedrock', apiRoute: '/store/image-gen', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
-  { name: 'wecare-whatsapp-voice', displayName: 'WhatsApp Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'TTS voice notes via Polly, audio processing', apiRoute: '/whatsapp-voice', envVars: { VOICE_TABLE: 'stack-wecare-digital-WhatsAppVoiceTable', MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'API Gateway' ], status: 'active' },
+  { name: 'wecare-whatsapp-voice', displayName: 'WhatsApp Voice', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'TTS voice notes via Polly, audio processing', apiRoute: '/whatsapp-voice', envVars: { VOICE_TABLE: 'stack-wecare-digital-WhatsAppVoiceTable', MEDIA_BUCKET: 'wecare-digital-get' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-whatsapp-templates', displayName: 'WhatsApp Templates', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Template CRUD via Meta Graph API', apiRoute: '/whatsapp/templates', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-whatsapp-template-mgmt', displayName: 'Template Management', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Advanced template operations', apiRoute: '/whatsapp/template-mgmt', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-whatsapp-business-api', displayName: 'WhatsApp Business API', category: 'Messaging', runtime: 'Python 3.12', timeout: 60, memory: 256, description: 'Meta Graph API wrapper — flows, payments, checkout', apiRoute: '/whatsapp/api', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
@@ -517,7 +527,7 @@ const LAMBDA_DETAILED: LambdaDetailed[] = [
   { name: 'wecare-voice-cdr-read', displayName: 'Voice CDR Read', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Read voice CDR records', apiRoute: '/voice-cdr', envVars: { CDR_TABLE: 'stack-wecare-digital-VoiceCDRTable' }, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-template-analytics', displayName: 'Template Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Template performance metrics', apiRoute: '/whatsapp/template-analytics', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-meta-analytics', displayName: 'Meta Analytics', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Meta conversation analytics', apiRoute: '/meta-analytics', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
-  { name: 'wecare-media-cleanup', displayName: 'Media Cleanup', category: 'Messaging', runtime: 'Python 3.12', timeout: 300, memory: 256, description: 'Clean up expired media from S3', apiRoute: '-', envVars: { MEDIA_BUCKET: 'app.wecare.digital' }, triggers: [ 'EventBridge Daily' ], status: 'active' },
+  { name: 'wecare-media-cleanup', displayName: 'Media Cleanup', category: 'Messaging', runtime: 'Python 3.12', timeout: 300, memory: 256, description: 'Clean up expired media from S3', apiRoute: '-', envVars: { MEDIA_BUCKET: 'wecare-digital-get' }, triggers: [ 'EventBridge Daily' ], status: 'active' },
   { name: 'wecare-ad-attribution', displayName: 'Ad Attribution', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Click-to-WhatsApp ad tracking', apiRoute: '/ad-attribution', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-push-notifications', displayName: 'Push Notifications', category: 'Messaging', runtime: 'Python 3.12', timeout: 30, memory: 128, description: 'Web push notification delivery', apiRoute: '/push', envVars: {}, triggers: [ 'API Gateway' ], status: 'active' },
   { name: 'wecare-ai-query-kb', displayName: 'AI Query KB', category: 'AI', runtime: 'Python 3.12', timeout: 30, memory: 256, description: 'Query Bedrock Knowledge Base', apiRoute: '/ai/query', envVars: { KB_ID: '(env var)' }, triggers: [ 'API Gateway' ], status: 'active' },
@@ -773,7 +783,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           </div>
           <div>
             <div style={ label }>Storage</div>
-            <div style={ { marginTop: 4 } }>S3 (app.wecare.digital) — stack/ + stream/</div>
+            <div style={ { marginTop: 4 } }>S3 (wecare-digital-get) — o/stack/ + o/stream/</div>
           </div>
           <div>
             <div style={ label }>Channels</div>
@@ -925,7 +935,7 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
 │         ▼                           ▼                           ▼                   │
 │  ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐                       │
 │  │  DynamoDB     │    │  S3 Bucket        │    │  SQS Queues  │                       │
-│  │  (49 tables)  │    │  app.wecare.digital│    │  (4 queues)  │                       │
+│  │  (49 tables)  │    │  wecare-digital-get│    │  (4 queues)  │                       │
 │  └──────────────┘    └──────────────────┘    └──────────────┘                       │
 │                                                                                     │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐             │
@@ -1139,10 +1149,11 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
             name: '🌐 Networking', children: [
               {
                 name: 'Route 53 (DNS)', children: [
-                  { name: 'wecare.digital' }, { name: 'wecare.digital/api' }, { name: 'r.wecare.digital' }, { name: 'app.wecare.digital' },
+                  // app.wecare.digital dropped 2026-09-28: record removed, host NXDOMAIN.
+                  { name: 'wecare.digital' }, { name: 'wecare.digital/api' }, { name: 'r.wecare.digital' }, { name: 'mta-sts.wecare.digital' },
                 ]
               },
-              { name: 'CloudFront (CDN)' },
+              { name: 'CloudFront E2GP22R4BIFGQ3 (wecare.digital/get → wecare-digital-get)' },
               { name: 'ACM Certificates (SSL/TLS)' },
             ]
           },
@@ -1172,9 +1183,12 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
           {
             name: '📦 Storage — S3', children: [
               {
-                name: 'app.wecare.digital', children: [
-                  { name: 'stack/ (user data — factory reset wipes this)' },
-                  { name: 'stream/ (static assets — never wiped)' },
+                name: 'wecare-digital-get', children: [
+                  { name: 'o/ (public root)' },
+                  { name: 'o/stack/ (user data — factory reset wipes this)' },
+                  { name: 'o/stream/ (static assets — never wiped)' },
+                  { name: 'o/public/wa-tpl/ (Meta-approved template media — do not move)' },
+                  { name: 'secure/ (gated at the edge — presigned access only)' },
                 ]
               },
             ]
@@ -1237,8 +1251,8 @@ const SystemArchitecturePage: React.FC<PageProps> = ( { signOut, user } ) => {
   const renderStorage = () => (
     <div style={ { display: 'flex', flexDirection: 'column', gap: 12 } }>
       <div style={ card() }>
-        <h3 style={ sectionTitle }>S3 Bucket: app.wecare.digital</h3>
-        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Two top-level prefixes: <code style={ mono }>stack/</code> (user data, wipeable) and <code style={ mono }>stream/</code> (static assets, permanent).</p>
+        <h3 style={ sectionTitle }>S3 Bucket: wecare-digital-get</h3>
+        <p style={ { fontSize: 13, color: C.textMuted, margin: 0 } }>Two top-level roots: <code style={ mono }>o/</code> (public) and <code style={ mono }>secure/</code> (gated at the edge, presigned access only). <code style={ mono }>o/</code> is a location, not a permission — everything outside <code style={ mono }>secure/</code> is public. Within <code style={ mono }>o/</code>: <code style={ mono }>stack/</code> is user data (wipeable) and <code style={ mono }>stream/</code> is static assets (permanent). Served as <code style={ mono }>wecare.digital/get/&lt;key&gt;</code>; the bucket name is not a hostname.</p>
       </div>
       <div style={ { overflowX: 'auto' } }>
         <table style={ { width: '100%', borderCollapse: 'collapse', fontSize: 13 } }>

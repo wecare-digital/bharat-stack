@@ -12,7 +12,7 @@ import { FeatureFlagBadge, RiskBadge, CostWarningBanner, LastSyncIndicator, RawJ
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
 const REQUIRED_SERVICES = [
-    'Lambda (Python)', 'DynamoDB (PAY_PER_REQUEST)', 'Cognito', 'S3 (app.wecare.digital)',
+    'Lambda (Python)', 'DynamoDB (PAY_PER_REQUEST)', 'Cognito', 'S3 (wecare-digital-get)',
     'SQS / DLQ', 'CloudWatch Logs (3-month retention)', 'Critical CloudWatch alarms',
 ];
 
