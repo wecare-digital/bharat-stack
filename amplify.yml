@@ -72,100 +72,26 @@ frontend:
       # change, not a correctness one, so it belongs in its own commit.
       - node_modules/**/*
       - .next/cache/**/*
-customHeaders:
-  - pattern: "**/*"
-    headers:
-      - key: Cache-Control
-        value: "public, max-age=0, must-revalidate"
-      - key: X-Frame-Options
-        value: SAMEORIGIN
-      - key: X-Content-Type-Options
-        value: nosniff
-      - key: Referrer-Policy
-        value: strict-origin-when-cross-origin
-      # microphone=(self) is required by the Plivo Browser SDK softphone, which
-      # calls getUserMedia from this origin. Camera and geolocation stay denied.
-      #
-      # This value, not the one in next.config.js, is what actually ships. The
-      # app is a static export (artifacts baseDirectory: out), so Next.js never
-      # runs as a server and its `headers()` entries are inert - they are served
-      # only by `next start`. next.config.js already said microphone=(self)
-      # while the deployed header said microphone=(), which would have denied the
-      # microphone with no visible cause in the code that appeared to configure it.
-      #
-      # Verify the DEPLOYED header, not the config, with:
-      #   python scripts/verify_deployed_headers.py
-      - key: Permissions-Policy
-        value: "camera=(), microphone=(self), geolocation=()"
-      # ── Content-Security-Policy, in two headers, deliberately ──────────────────
-      #
-      # WHY TWO. A single CSP header is all-or-nothing, and the two halves of a useful
-      # policy here have very different risk. So the safe-to-enforce directives ship as
-      # `Content-Security-Policy` and take effect now, while the aspirational full policy
-      # ships as `Content-Security-Policy-Report-Only`, which a browser evaluates and
-      # reports on but never blocks. That is a recognised way to adopt CSP without an
-      # outage, and it is the only responsible order on a site that takes payments.
-      #
-      # WHAT CSP CAN AND CANNOT DO ON THIS SITE, stated so nobody over-credits it.
-      # next.config.js sets `output: 'export'`, so there is no server to mint a per-request
-      # nonce and Next's hydration bootstrap is an inline <script>. A `script-src` without
-      # `'unsafe-inline'` would therefore break every page, and `'unsafe-inline'` defeats
-      # most of what `script-src` is for. So CSP here is NOT meaningful XSS protection.
-      # What it genuinely buys is the three directives below plus, once the report-only
-      # policy has been reviewed, a real constraint on where images, fonts, frames and
-      # network connections may come from.
-      #
-      # ENFORCED NOW, because none of these can break this site:
-      #   object-src 'none'     there is no <object> or <embed> anywhere in the export
-      #   base-uri 'self'       nothing sets <base>; this stops an injected one
-      #                         re-pointing every relative URL on the page
-      #   frame-ancestors 'self'  clickjacking. Overlaps X-Frame-Options: SAMEORIGIN
-      #                         above, but frame-ancestors is the modern directive and is
-      #                         the one still honoured where X-Frame-Options is ignored
-      - key: Content-Security-Policy
-        value: "object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
-      # REPORT-ONLY, so this cannot break anything while it is being proved out.
-      #
-      # The origin list is derived from the built export rather than guessed: fonts from
-      # Google, Razorpay Checkout for payments, the Plivo Browser SDK for the softphone
-      # (which is also why Permissions-Policy grants microphone=(self)), Cognito for auth,
-      # the CloudFront distribution behind /get/ for file delivery, and static.wixstatic.com
-      # for blog cover images.
-      #
-      # IT IS ALMOST CERTAINLY STILL INCOMPLETE, and that is the point of shipping it this
-      # way. Static analysis of a bundle cannot find an origin that is only contacted on a
-      # code path nobody exercised - a payment retry, a call transfer, a map lookup. The
-      # next step is to read the violation reports and tighten, NOT to promote this to
-      # enforcing on the assumption the list is right.
-      #
-      # NOTE: with no `report-to` endpoint configured, violations appear in the browser
-      # console only - nothing is transmitted anywhere. That is enough for a deliberate
-      # review pass across the public pages, the checkout and the softphone, and it avoids
-      # standing up a collector for a policy that is not enforcing yet. Add `report-to` and
-      # a Reporting-Endpoints header when the tightening pass starts in earnest.
-      - key: Content-Security-Policy-Report-Only
-        value: >-
-          default-src 'self';
-          script-src 'self' 'unsafe-inline' 'unsafe-eval'
-            https://checkout.razorpay.com https://api.razorpay.com
-            https://*.plivo.com https://www.googletagmanager.com
-            https://connect.facebook.net;
-          style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-          font-src 'self' data: https://fonts.gstatic.com;
-          img-src 'self' data: blob: https://static.wixstatic.com
-            https://img.icons8.com https://*.cloudfront.net
-            https://www.googletagmanager.com https://www.facebook.com;
-          connect-src 'self' https://wecare.digital https://*.execute-api.us-east-1.amazonaws.com
-            https://cognito-idp.us-east-1.amazonaws.com
-            https://cognito-identity.us-east-1.amazonaws.com
-            https://api.razorpay.com https://lumberjack.razorpay.com
-            https://*.plivo.com wss://*.plivo.com
-            https://*.cloudfront.net https://www.googletagmanager.com;
-          media-src 'self' blob: https://*.cloudfront.net;
-          frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com;
-          worker-src 'self' blob:;
-          manifest-src 'self';
-          object-src 'none';
-          base-uri 'self';
-          frame-ancestors 'self';
-          form-action 'self'
+# ── RESPONSE HEADERS LIVE IN customHttp.yml, NOT HERE ───────────────────────────
+#
+# A `customHeaders:` block used to sit at this point in the file. It was INERT for
+# its whole life and nobody noticed, because five of the seven headers it declared
+# were ALSO set at the app level and were being served from there.
+#
+# Measured 2026-09-29 against the live apex: 7 declared here, 5 served, and the live
+# set was not a subset of the declared one. `Strict-Transport-Security` was live
+# without being declared here; both CSP headers were declared here and never shipped,
+# including the one added on 2026-09-28. `aws amplify get-app --query
+# app.customHeaders` held the five that were actually live.
+#
+# AWS documents this route as legacy and recommends migrating out of it, and
+# documents a root `customHttp.yml` as overriding the app-level set:
+#   https://docs.aws.amazon.com/amplify/latest/userguide/custom-headers.html
+#   https://docs.aws.amazon.com/amplify/latest/userguide/setting-custom-headers.html
+#
+# DO NOT re-add a `customHeaders:` block here. It would be silently ignored again,
+# and the failure mode is a security header that looks configured and is not.
+# Headers, and the reasoning behind each one, are in ./customHttp.yml.
+#
+# Gate the DEPLOYED headers, never the file:
+#   python scripts/verify_deployed_headers.py

@@ -1,0 +1,153 @@
+# Response headers for the Amplify-hosted app (d22dm4b0jn71jw, apex wecare.digital).
+#
+# ── WHY THIS FILE EXISTS, AND WHY NOT amplify.yml ────────────────────────────────
+#
+# `amplify.yml` used to carry a `customHeaders:` block. It was INERT and had been for
+# its whole life. Measured on 2026-09-29 against the live apex, seven headers were
+# declared there and five were served, and the live set was not a subset of the
+# declared one:
+#
+#   Strict-Transport-Security          NOT declared in amplify.yml, but LIVE
+#   Content-Security-Policy            declared, NOT live
+#   Content-Security-Policy-Report-Only  declared, NOT live
+#   Cache-Control                      declared must-revalidate, served s-maxage=31536000
+#
+# The reason is that `aws amplify get-app --query app.customHeaders` held its own
+# five-header set - exactly the five that were live, HSTS included - and that
+# app-level config is what Amplify was applying. The build log confirms it: it prints
+# "Found customHttp.yml, applying custom headers" even though no such file was in the
+# repository, because Amplify materialises one from the app-level setting.
+#
+# AWS documents the amplify.yml route as legacy and "highly recommend[s] migrating
+# custom headers out of the buildspec and the amplify.yml file":
+#   https://docs.aws.amazon.com/amplify/latest/userguide/custom-headers.html
+#
+# And it documents this file as winning:
+#   "Custom headers set in the customHttp.yml file and deployed in the app's root
+#    directory override custom headers defined in the Custom headers section in the
+#    Amplify console."
+#   https://docs.aws.amazon.com/amplify/latest/userguide/setting-custom-headers.html
+#
+# So this file is the single source of truth, it is in git, and it is reviewable.
+# The practical consequence of the old arrangement was that the CSP added on
+# 2026-09-28 never shipped on any build, while amplify.yml asserted in a comment
+# that its values were "what actually ships". Do not re-add a `customHeaders:` block
+# to amplify.yml; it would be silently ignored again.
+#
+# ── TREAT THE OVERRIDE AS WHOLESALE ─────────────────────────────────────────────
+#
+# AWS says this file overrides the console set; it does not promise a per-header
+# merge. So every header that must be live is listed here, including the five that
+# were already live. Deleting a line here is a live header removal, not a revert to
+# the console value.
+#
+# `Cache-Control` is deliberately ABSENT. Amplify manages it: the apex serves
+# `public, max-age=0, s-maxage=31536000`, which is not in the app-level customHeaders
+# and is therefore Amplify's own. amplify.yml used to declare
+# `public, max-age=0, must-revalidate`, which never applied. Setting it here would
+# drop a one-year edge TTL to must-revalidate and push HTML traffic to the origin -
+# a real performance and cost change with nothing to do with security headers. If
+# that is ever wanted it belongs in its own commit, measured.
+#
+# Verify the DEPLOYED headers, never this file:
+#   python scripts/verify_deployed_headers.py
+customHeaders:
+  # `**/*` matches the pattern the app-level config used, kept identical so the
+  # match surface does not change along with the header set.
+  - pattern: "**/*"
+    headers:
+      # ── Carried over verbatim from the app-level config, byte for byte ────────
+      # Snapshot: docs/execution/snapshots/amplify-d22dm4b0jn71jw-customheaders-before-20260929.json
+      - key: X-Frame-Options
+        value: SAMEORIGIN
+      - key: X-Content-Type-Options
+        value: nosniff
+      - key: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      # microphone=(self) is required by the Plivo Browser SDK softphone, which calls
+      # getUserMedia from this origin. Camera and geolocation stay denied.
+      #
+      # next.config.js also declares this, and that copy is INERT: the app is a static
+      # export (artifacts baseDirectory: out), so Next.js never runs as a server and its
+      # `headers()` entries are only served by `next start`. On 2026-09-19 the two
+      # disagreed - next.config.js said microphone=(self) while the deployed header said
+      # microphone=() - and the softphone would have been denied the microphone with no
+      # visible cause in the file that appeared to configure it.
+      - key: Permissions-Policy
+        value: "camera=(), microphone=(self), geolocation=()"
+      # Kept at the live value. NOT broadened to includeSubDomains: that would force
+      # HTTPS on every subdomain, which is a separate decision with its own blast
+      # radius, and this change is not the place to make it.
+      - key: Strict-Transport-Security
+        value: max-age=31536000
+
+      # ── Content-Security-Policy, in two headers, deliberately ─────────────────
+      #
+      # WHY TWO. A single CSP header is all-or-nothing, and the two halves of a useful
+      # policy here have very different risk. The safe-to-enforce directives ship as
+      # `Content-Security-Policy` and take effect now; the aspirational full policy
+      # ships as `Content-Security-Policy-Report-Only`, which a browser evaluates and
+      # reports on but never blocks. That is the only responsible order on a site that
+      # takes payments.
+      #
+      # WHAT CSP CAN AND CANNOT DO HERE, stated so nobody over-credits it.
+      # next.config.js sets `output: 'export'`, so there is no server to mint a
+      # per-request nonce and Next's hydration bootstrap is an inline <script>. A
+      # `script-src` without 'unsafe-inline' would break every page, and 'unsafe-inline'
+      # defeats most of what script-src is for. So CSP here is NOT meaningful XSS
+      # protection. What it genuinely buys is the three enforced directives below.
+      #
+      # ENFORCED NOW, because none of these can break this site:
+      #   object-src 'none'       there is no <object> or <embed> anywhere in the export
+      #   base-uri 'self'         nothing sets <base>; this stops an injected one
+      #                           re-pointing every relative URL on the page
+      #   frame-ancestors 'self'  clickjacking. Overlaps X-Frame-Options: SAMEORIGIN
+      #                           above, but frame-ancestors is the modern directive and
+      #                           is the one still honoured where XFO is ignored
+      - key: Content-Security-Policy
+        value: "object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+      # REPORT-ONLY, so this cannot break anything while it is being proved out.
+      #
+      # The origin list is derived from the built export rather than guessed: fonts from
+      # Google, Razorpay Checkout for payments, the Plivo Browser SDK for the softphone
+      # (which is also why Permissions-Policy grants microphone=(self)), Cognito for
+      # auth, the CloudFront distribution behind /get/ for file delivery, and
+      # static.wixstatic.com for blog cover images.
+      #
+      # IT IS ALMOST CERTAINLY STILL INCOMPLETE, and that is the point of shipping it
+      # this way. Static analysis of a bundle cannot find an origin that is only
+      # contacted on a code path nobody exercised - a payment retry, a call transfer, a
+      # map lookup. The next step is to read the violation reports and tighten, NOT to
+      # promote this to enforcing on the assumption the list is right.
+      #
+      # NOTE: with no `report-to` endpoint configured, violations appear in the browser
+      # console only - nothing is transmitted anywhere. That is enough for a deliberate
+      # review pass across the public pages, the checkout and the softphone, and it
+      # avoids standing up a collector for a policy that is not enforcing yet. Add
+      # `report-to` and a Reporting-Endpoints header when the tightening pass starts.
+      - key: Content-Security-Policy-Report-Only
+        value: >-
+          default-src 'self';
+          script-src 'self' 'unsafe-inline' 'unsafe-eval'
+            https://checkout.razorpay.com https://api.razorpay.com
+            https://*.plivo.com https://www.googletagmanager.com
+            https://connect.facebook.net;
+          style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+          font-src 'self' data: https://fonts.gstatic.com;
+          img-src 'self' data: blob: https://static.wixstatic.com
+            https://img.icons8.com https://*.cloudfront.net
+            https://www.googletagmanager.com https://www.facebook.com;
+          connect-src 'self' https://wecare.digital https://*.execute-api.us-east-1.amazonaws.com
+            https://cognito-idp.us-east-1.amazonaws.com
+            https://cognito-identity.us-east-1.amazonaws.com
+            https://api.razorpay.com https://lumberjack.razorpay.com
+            https://*.plivo.com wss://*.plivo.com
+            https://*.cloudfront.net https://www.googletagmanager.com;
+          media-src 'self' blob: https://*.cloudfront.net;
+          frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com;
+          worker-src 'self' blob:;
+          manifest-src 'self';
+          object-src 'none';
+          base-uri 'self';
+          frame-ancestors 'self';
+          form-action 'self'

@@ -24,11 +24,14 @@ vdh = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(vdh)
 
 
-GOOD_HEADERS = {
-    "permissions-policy": "camera=(), microphone=(self), geolocation=()",
-    "x-content-type-options": "nosniff",
-    "referrer-policy": "strict-origin-when-cross-origin",
-}
+# What a fully-correct live response looks like: every header customHttp.yml declares.
+#
+# DERIVED FROM THE REAL FILE, not hardcoded. The gate now requires declared == live, so
+# a hardcoded subset here would stop describing a passing response the moment a header
+# is added to customHttp.yml, and these tests would fail for a reason that has nothing
+# to do with what they are pinning. This was three entries when the gate only checked
+# three names.
+GOOD_HEADERS = dict(vdh.declared_headers())
 
 
 # ── the target ────────────────────────────────────────────────────────────────
@@ -150,7 +153,72 @@ def test_permissions_policy_parsing(value, expected):
     assert vdh.parse_permissions_policy(value) == expected
 
 
-def test_amplify_yml_is_the_configured_source_and_still_parses():
-    """A narrow regex rather than a YAML parse, so the script keeps working in a
-    bare CI shell with no third-party dependency."""
-    assert vdh.amplify_yml_header() == "camera=(), microphone=(self), geolocation=()"
+def test_customhttp_yml_is_the_configured_source_and_still_parses():
+    """Hand-parsed rather than handed to PyYAML, so the script keeps working in a
+    bare CI shell with no third-party dependency.
+
+    The source moved on 2026-09-29: this used to read `amplify.yml`, whose
+    `customHeaders:` block turned out to be inert - Amplify was serving the app-level
+    config instead, so a CSP declared in amplify.yml never shipped on any build.
+    """
+    declared = vdh.declared_headers()
+    assert declared["permissions-policy"] == "camera=(), microphone=(self), geolocation=()"
+    # The enforced CSP, which is the header that was declared-and-never-served.
+    assert declared["content-security-policy"] == (
+        "object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+    )
+    # HSTS was live WITHOUT being declared anywhere in the repo. It is declared now,
+    # and it must stay declared, because customHttp.yml overrides the app-level config
+    # wholesale - dropping the line would remove a live header.
+    assert declared["strict-transport-security"] == "max-age=31536000"
+
+
+def test_a_matched_quote_pair_is_stripped_but_an_inner_quote_survives():
+    """Regression on the parser, which had exactly this bug when first written.
+
+    The enforced CSP is double-quoted in YAML and ends in a single quote:
+
+        value: "object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+
+    A blanket `.strip("\\"'")` removes the double quotes and then keeps going, eating
+    the final `'` and silently producing a different policy than the file declares.
+    """
+    assert vdh.declared_headers()["content-security-policy"].endswith("'self'")
+
+
+def test_a_header_declared_but_absent_from_the_response_fails(monkeypatch):
+    """THE BUG THIS CHANGE FIXES, pinned.
+
+    A CSP sat declared-but-never-served for weeks and every check passed, because the
+    gate only compared an allowlist of three header names that happened to be live for
+    an unrelated reason. Declared-vs-live is the check that catches it.
+    """
+    without_csp = {k: v for k, v in GOOD_HEADERS.items()
+                   if k != "content-security-policy-report-only"}
+    monkeypatch.setattr(vdh, "fetch_headers", lambda url: (200, without_csp))
+    monkeypatch.setattr("sys.argv", ["verify_deployed_headers.py", "--no-assets"])
+
+    assert vdh.main() == 1, "a declared header missing from the response must fail"
+
+
+def test_a_declared_header_served_with_a_different_value_fails(monkeypatch):
+    """Present is not enough. An enforced CSP that lost a directive in transit is a
+    weaker policy than the file claims, and must not pass."""
+    weakened = dict(GOOD_HEADERS)
+    weakened["content-security-policy"] = "object-src 'none'"
+    monkeypatch.setattr(vdh, "fetch_headers", lambda url: (200, weakened))
+    monkeypatch.setattr("sys.argv", ["verify_deployed_headers.py", "--no-assets"])
+
+    assert vdh.main() == 1
+
+
+def test_whitespace_folding_differences_are_not_failures(monkeypatch):
+    """A folded YAML scalar and the header a CDN re-emits can differ in run-length
+    without differing in meaning. That must not be a red gate."""
+    respaced = dict(GOOD_HEADERS)
+    key = "content-security-policy-report-only"
+    respaced[key] = GOOD_HEADERS[key].replace("; ", ";   ")
+    monkeypatch.setattr(vdh, "fetch_headers", lambda url: (200, respaced))
+    monkeypatch.setattr("sys.argv", ["verify_deployed_headers.py", "--no-assets"])
+
+    assert vdh.main() == 0

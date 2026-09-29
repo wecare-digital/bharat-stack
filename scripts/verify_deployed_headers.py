@@ -6,7 +6,7 @@ Why this exists
 The app is a static export. `next.config.js` declares a `headers()` block, but
 Next.js only serves those when it runs as a server (`next start`); with
 `output: export` the artifacts are plain files and the response headers come from
-`amplify.yml` `customHeaders`.
+Amplify Hosting - specifically from `customHttp.yml` in the repository root.
 
 On 2026-09-19 the two disagreed: `next.config.js` allowed `microphone=(self)`
 while the deployed header sent `microphone=()`. Reading the Next config - the
@@ -68,6 +68,32 @@ Two things changed underneath this script and both had left it reporting noise.
 because a media 404 or an S3-side change should not fail a headers check - but it
 now reports a live surface rather than a dead name.
 
+THE GAP THIS SCRIPT HAD, AND THE GATE THAT CLOSES IT (2026-09-29)
+-----------------------------------------------------------------
+This script passed for weeks while `amplify.yml` declared a
+`Content-Security-Policy` that was never served on any build.
+
+It passed because it only ever gated three things - Permissions-Policy,
+X-Content-Type-Options and Referrer-Policy - and all three happened to be set at
+the Amplify **app level** as well, so they were live for a reason unrelated to the
+file this script was reading. The `customHeaders:` block in `amplify.yml` was inert
+in its entirety: 7 headers declared, 5 served, and the live set was not even a
+subset of the declared one. `Strict-Transport-Security` was live without appearing
+in `amplify.yml`, and both CSP headers were in `amplify.yml` and absent from every
+response. AWS documents the `amplify.yml` route as legacy; headers now live in
+`customHttp.yml`, which the docs state overrides the app-level set.
+
+So a second gate exists now, and it is the general one: **every header declared in
+`customHttp.yml` must be present on the live response with an equal value.** That
+is the check that would have caught this on the day the CSP was added, whereas an
+allowlist of three header names could not - it can only ever catch a regression in
+something somebody already thought to list.
+
+The named floors below are kept as well as, not instead of, that comparison.
+`customHttp.yml` overrides the app-level config wholesale, so deleting a line from
+it silently removes a live header; the floor makes that a failure rather than a
+quiet downgrade.
+
 Usage
 -----
     python scripts/verify_deployed_headers.py
@@ -109,10 +135,24 @@ REQUIRED_PERMISSIONS = {
     "geolocation": "()",
 }
 
+# The named floor: these must be live whatever customHttp.yml happens to say, because
+# that file overrides the app-level config wholesale and deleting a line from it is a
+# live header removal. Values are compared case-insensitively.
 OTHER_REQUIRED = {
     "x-content-type-options": "nosniff",
     "referrer-policy": "strict-origin-when-cross-origin",
+    "strict-transport-security": "max-age=31536000",
+    # The three enforced directives, in the order customHttp.yml writes them. None of
+    # them can break this site: there is no <object>/<embed> in the export, nothing
+    # sets <base>, and frame-ancestors mirrors X-Frame-Options: SAMEORIGIN.
+    "content-security-policy": "object-src 'none'; base-uri 'self'; frame-ancestors 'self'",
 }
+
+# Declared in customHttp.yml and gated only by the declared-vs-live comparison, not by
+# the floor above: this is the report-only policy, whose whole point is that it will be
+# rewritten repeatedly as violation reports come in. Pinning its exact value here would
+# make every tightening pass edit two files to say the same thing.
+REPORT_ONLY_HEADER = "content-security-policy-report-only"
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -195,17 +235,72 @@ def check_permissions(value: str) -> list:
     return failures
 
 
-def amplify_yml_header() -> str:
-    """The Permissions-Policy from amplify.yml, which is what actually deploys.
+def declared_headers() -> dict:
+    """Every header declared in customHttp.yml, as {lowercased key: value}.
 
-    Deliberately a narrow regex rather than a YAML parse: this script must run
-    with no third-party dependency, since it is also useful in a bare CI shell.
+    Hand-parsed rather than handed to PyYAML on purpose: this script must run with
+    no third-party dependency, since it is also useful in a bare CI shell. PyYAML is
+    pinned in requirements-dev.txt, but relying on it here would mean the header gate
+    cannot run anywhere the dev requirements are not installed - which is exactly
+    where a quick "did the headers ship?" check is most wanted.
+
+    Handles the two scalar forms the file actually uses:
+      - key: X-Frame-Options
+        value: SAMEORIGIN              plain, optionally quoted
+      - key: Content-Security-Policy-Report-Only
+        value: >-                      folded block; continuation lines are joined
+          default-src 'self';          with single spaces, which is what the YAML
+          script-src ...               `>-` folding means for a browser header
+
+    Verified to agree with PyYAML's parse of this file on 2026-09-29.
     """
-    text = (ROOT / "amplify.yml").read_text()
-    match = re.search(
-        r"key:\s*Permissions-Policy\s*\n\s*value:\s*[\"']?([^\"'\n]+)[\"']?",
-        text)
-    return match.group(1).strip() if match else ""
+    path = ROOT / "customHttp.yml"
+    if not path.exists():
+        return {}
+
+    headers: dict = {}
+    key = None
+    folded: list | None = None
+
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+
+        # A folded value keeps consuming indented, non-comment lines until the next
+        # `- key:`/`value:` at a shallower structural position.
+        if folded is not None:
+            if line and not line.startswith("#") and not re.match(r"-?\s*(key|value|pattern):", line):
+                folded.append(line)
+                continue
+            headers[key.lower()] = " ".join(folded)
+            key, folded = None, None
+
+        if line.startswith("#") or not line:
+            continue
+
+        match = re.match(r"-\s*key:\s*[\"']?(.+?)[\"']?\s*$", line)
+        if match:
+            key = match.group(1).strip()
+            continue
+
+        match = re.match(r"value:\s*(.*)$", line)
+        if match and key:
+            value = match.group(1).strip()
+            if value in (">-", ">", "|", "|-"):
+                folded = []
+            else:
+                # Strip only a MATCHED surrounding pair. A blanket strip("\"'") ate the
+                # final character of
+                #     "object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+                # because the value is double-quoted but ends in a single quote, which
+                # silently turned the enforced CSP into a different policy.
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                    value = value[1:-1]
+                headers[key.lower()] = value
+                key = None
+
+    if folded is not None and key:  # folded value ran to end of file
+        headers[key.lower()] = " ".join(folded)
+    return headers
 
 
 def main() -> int:
@@ -225,9 +320,18 @@ def main() -> int:
 
     # Always report the configured value, so a mismatch between config and live
     # is visible rather than inferred.
-    configured = amplify_yml_header()
-    print(f"  amplify.yml Permissions-Policy: {configured or '(not found)'}")
-    config_failures = check_permissions(configured) if configured else ["not found in amplify.yml"]
+    declared = declared_headers()
+    if not declared:
+        print("  customHttp.yml: NOT FOUND or declares no headers.")
+        print("  That file is the only thing setting response headers on this app.")
+        return 1
+    print(f"  customHttp.yml declares {len(declared)} headers: "
+          f"{', '.join(sorted(declared))}")
+
+    configured = declared.get("permissions-policy", "")
+    print(f"  customHttp.yml Permissions-Policy: {configured or '(not found)'}")
+    config_failures = (check_permissions(configured) if configured
+                       else ["Permissions-Policy not found in customHttp.yml"])
     for failure in config_failures:
         print(f"    FAIL  {failure}")
     if not config_failures:
@@ -241,7 +345,8 @@ def main() -> int:
         next_value = next_match.group(1)
         print(f"  next.config.js (INERT under static export): {next_value}")
         if next_value != configured:
-            print("    WARN  next.config.js and amplify.yml disagree. amplify.yml wins.")
+            print("    WARN  next.config.js and customHttp.yml disagree. "
+                  "customHttp.yml wins.")
 
     if args.local:
         return 1 if config_failures else 0
@@ -272,14 +377,37 @@ def main() -> int:
         else:
             print(f"    ok    {name}={actual}")
 
+    # THE GENERAL GATE. Everything customHttp.yml declares must actually be on the
+    # response. This is the check that catches a header which looks configured and is
+    # not - the failure that let an undeployed CSP sit in amplify.yml unnoticed,
+    # because an allowlist of header names can only catch a regression in a name
+    # somebody already thought to write down.
+    print("\n  DECLARED vs LIVE (every header in customHttp.yml)")
+    for name in sorted(declared):
+        want, got = declared[name], headers.get(name, "")
+        if not got:
+            print(f"    FAIL  {name} declared but ABSENT from the response")
+            failures.append(name)
+        elif " ".join(got.split()) != " ".join(want.split()):
+            # Whitespace-normalised: a folded YAML scalar and the header a CDN emits
+            # can differ in run-length without differing in meaning.
+            print(f"    FAIL  {name} differs")
+            print(f"            declared: {want[:110]}")
+            print(f"            live:     {got[:110]}")
+            failures.append(name)
+        else:
+            print(f"    ok    {name} matches ({len(got)} chars)")
+
     if not args.no_assets:
         report_assets_distribution(args.assets_url)
 
     if failures or config_failures:
         print("\nRESULT: FAIL")
         return 1
-    print("\nRESULT: PASS - deployed headers on the Amplify origin permit "
-          "same-origin microphone and deny camera/geolocation")
+    print(f"\nRESULT: PASS - the Amplify origin serves all {len(declared)} headers "
+          "declared in customHttp.yml,")
+    print("        permits same-origin microphone, denies camera/geolocation, and "
+          "enforces CSP")
     return 0
 
 
