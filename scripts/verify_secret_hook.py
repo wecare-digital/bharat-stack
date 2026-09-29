@@ -23,6 +23,7 @@ GK = "AIz" + "a" + "Sy" + "B" * 33
 AWSK = "AKI" + "A" + "IOSFODNN7EXAMPLE"
 GH = "ghp" + "_" + "c" * 36
 PEM = "-----BEGIN " + "RSA PRIVATE KEY-----"
+KIRO = "ks" + "k_" + "d" * 32
 
 CASES = [
     # (label, payload dict, expected exit)
@@ -33,6 +34,10 @@ CASES = [
     ("github token in url",    {"command": f"git clone https://{GH}@github.com/x/y"}, 2),
     ("private key pem",        {"command": f'echo "{PEM}" > k.pem'}, 2),
     ("generic SECRET= literal", {"command": f'SOME_API_SECRET="{A}" ./run.sh'}, 2),
+    # Both halves, because the assignment pattern and the issuer pattern fail
+    # independently: the bare form is what a paste into a gh command looks like.
+    ("kiro key inline",        {"command": f'KIRO_API_KEY="{KIRO}" ./run.sh'}, 2),
+    ("kiro key bare",          {"command": f"gh secret set KIRO_API_KEY -b {KIRO}"}, 2),
 
     ("plain build",            {"command": "npm run build"}, 0),
     ("pytest",                 {"command": ".venv/bin/python -m pytest -q"}, 0),

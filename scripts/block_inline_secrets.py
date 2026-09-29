@@ -57,6 +57,11 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
     ("Slack token",               re.compile(r"\bxox[abprs]-[A-Za-z0-9\-]{10,}")),
     ("AWS access key id",         re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b")),
     ("Stripe secret key",         re.compile(r"\bsk_live_[A-Za-z0-9]{20,}")),
+    # Added 2026-09-29. A Kiro service key arrived pasted into chat, and while
+    # `KIRO_API_KEY='ksk_...'` would have tripped the assignment pattern below,
+    # the bare token would not have. An issuer prefix is the cheap half of the
+    # catch, so take it.
+    ("Kiro service API key",      re.compile(r"\bksk_[A-Za-z0-9]{20,}")),
     ("Twilio auth token",         re.compile(r"\bSK[0-9a-fA-F]{32}\b")),
     ("private key PEM",           re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----")),
     # Inline assignment of a long literal to a secret-ish name. Requires quotes
