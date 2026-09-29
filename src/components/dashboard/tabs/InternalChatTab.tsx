@@ -6,6 +6,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { API_BASE } from '../../../config/constants';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { randomToken } from '../../../lib/randomToken';
+import { scrollToEnd } from '../../../lib/scroll-to-end';
 
 const API_ENDPOINT = `${API_BASE}/ai/generate`;
 
@@ -158,7 +159,7 @@ const InternalChatTab: React.FC = () => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToEnd(messagesEndRef.current);
   };
 
   useEffect(() => { scrollToBottom(); }, [messages]);
@@ -440,7 +441,7 @@ const InternalChatTab: React.FC = () => {
 
           {/* Messages */}
           <div style={{
-            flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px',
+            flex: 1, overflowY: 'auto', scrollBehavior: 'smooth', display: 'flex', flexDirection: 'column', gap: '8px',
             padding: '12px', background: '#fafafa', borderRadius: '8px', border: '1px solid #e5e7eb',
           }}>
             {messages.map(msg => (

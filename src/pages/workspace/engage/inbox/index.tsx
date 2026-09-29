@@ -24,6 +24,7 @@ import { WHATSAPP_PHONES, PAYMENT_PHONES, DEFAULT_GSTIN, PAYMENT_CONFIG, GST_RAT
 import { searchEmojiCategories } from '../../../../lib/emoji-data';
 import { inferMimeFromName, validateWaMediaSize, formatBytes } from '../../../../lib/wa-media';
 import { waErrorTooltip } from '../../../../lib/wa-errors';
+import { scrollToEnd } from '../../../../lib/scroll-to-end';
 
 const WABAS = [
     { id: WHATSAPP_PHONES.primary.id, name: WHATSAPP_PHONES.primary.name, display: WHATSAPP_PHONES.primary.display },
@@ -729,7 +730,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded, channel }
         if ( area && thread.length > prevThreadLen.current && prevThreadLen.current > 0 )
         {
             const nearBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 220;
-            if ( nearBottom ) threadEndRef.current?.scrollIntoView( { behavior: 'smooth' } );
+            if ( nearBottom ) scrollToEnd( threadEndRef.current );
         }
         prevThreadLen.current = thread.length;
     }, [ thread ] );
@@ -1347,7 +1348,7 @@ const UnifiedInbox: React.FC<PageProps> = ( { signOut, user, embedded, channel }
         .ui-note-input { flex: 1; padding: 7px 10px; border: 1px solid ${colors.border}; border-radius: 8px; font-size: 13px; }
         .ui-note-btn { padding: 7px 14px; background: ${colors.primary}; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
         .ui-note-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .ui-thread-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: ${colors.bgSecondary}; min-height: 200px; }
+        .ui-thread-body { flex: 1; overflow-y: auto; scroll-behavior: smooth; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: ${colors.bgSecondary}; min-height: 200px; }
         .ui-msg { display: flex; }
         .ui-msg.out { justify-content: flex-end; }
         .ui-msg-bubble { max-width: 70%; background: #fff; border: 1px solid ${colors.border}; border-radius: 12px; padding: 8px 12px; display: flex; flex-direction: column; gap: 4px; }

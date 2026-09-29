@@ -74,13 +74,27 @@ const read = route => {
 //
 // It also loops to a fixed point, because one pass is not one: a nested or malformed
 // construct can reveal a new `<script` only after the first substitution.
+//
+// EACH REMOVAL SUBSTITUTES A NEWLINE, NOT THE EMPTY STRING, AND THAT IS THE WHOLE FIX
+// for the three remaining `js/incomplete-multi-character-sanitization` alerts. Deleting a
+// match splices the two sides together, so the characters either side can form a new
+// construct that was never in the source: `<scr<script>x</script>ipt>` collapses to
+// `<script>`, and `<sty<!--c-->le>` to `<style>`. The fixed-point loop above catches that
+// on a later pass, but only if the loop is reached — and it is a correctness risk either
+// way, because this function exists so that script bodies are not counted as document
+// text. A `\n` cannot appear inside a tag name, so with it in place no removal can ever
+// assemble a tag, one pass or eight. It is whitespace to every check below, all of which
+// count tags or read `id="..."`, so nothing downstream can tell the difference.
+// (CodeQL's query only considers substitutions whose replacement is the empty string, so
+// this also happens to be what takes the alerts out of scope — but the reassembly is real
+// and would be worth fixing with no alert attached to it.)
 const strip = h => {
   let out = h;
   for ( let i = 0; i < 8; i += 1 ) {
     const next = out
-      .replace( /<\s*script\b[^>]*>[\s\S]*?<\s*\/\s*script\b[^>]*>/gi, '' )
-      .replace( /<\s*style\b[^>]*>[\s\S]*?<\s*\/\s*style\b[^>]*>/gi, '' )
-      .replace( /<!--[\s\S]*?-->/g, '' );
+      .replace( /<\s*script\b[^>]*>[\s\S]*?<\s*\/\s*script\b[^>]*>/gi, '\n' )
+      .replace( /<\s*style\b[^>]*>[\s\S]*?<\s*\/\s*style\b[^>]*>/gi, '\n' )
+      .replace( /<!--[\s\S]*?-->/g, '\n' );
     if ( next === out ) break;
     out = next;
   }
@@ -98,8 +112,12 @@ for ( const route of list ) {
   const h = strip( raw );
 
   // ---- 1. headings -----------------------------------------------------------
+  // Inner tags become a space rather than nothing, for the same reassembly reason as
+  // `strip` above: deleting `<b>` from `<scr<b>x</b>ipt>` yields `<script>`. A space also
+  // happens to be the better text extraction — `<span>A</span><span>B</span>` reads as
+  // "A B" instead of "AB" — and the collapse-and-trim that follows removes the rest.
   const heads = [ ...h.matchAll( /<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi ) ]
-    .map( m => ( { lvl: +m[ 1 ], text: m[ 2 ].replace( /<[^>]+>/g, '' ).replace( /\s+/g, ' ' ).trim() } ) );
+    .map( m => ( { lvl: +m[ 1 ], text: m[ 2 ].replace( /<[^>]+>/g, ' ' ).replace( /\s+/g, ' ' ).trim() } ) );
   const h1s = heads.filter( x => x.lvl === 1 );
   if ( h1s.length === 0 ) add( route, 'HIGH', 'H1-NONE', 'no h1 on the page' );
   if ( h1s.length > 1 ) add( route, 'MED', 'H1-MANY', `${h1s.length} h1 elements: ${h1s.map( x => `"${x.text.slice( 0, 30 )}"` ).join( ', ' )}` );

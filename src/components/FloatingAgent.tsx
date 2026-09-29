@@ -17,6 +17,7 @@ import { useToastContext } from '../contexts/ToastContext';
 import { API_BASE } from '../config/constants';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { randomToken } from '../lib/randomToken';
+import { scrollToEnd } from '../lib/scroll-to-end';
 
 interface ChatMessage {
   id: string;
@@ -58,7 +59,7 @@ const FloatingAgent: React.FC = () => {
   const recognitionRef = useRef<any>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToEnd(messagesEndRef.current);
   };
 
   useEffect(() => {

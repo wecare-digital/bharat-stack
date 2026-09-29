@@ -2219,6 +2219,8 @@
 
 /* Messages Area */
 .messages-area {
+  /* Declared in CSS so prefers-reduced-motion can override it - see src/lib/scroll-to-end.ts. */
+  scroll-behavior: smooth;
   flex: 1;
   overflow-y: auto;
   padding: 16px 24px;
