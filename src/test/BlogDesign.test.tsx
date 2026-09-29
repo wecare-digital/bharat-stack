@@ -505,6 +505,80 @@ describe( 'Blog pagination', () => {
   } );
 
   /**
+   * TAG SEARCH ON A TOPIC STREAM, WHICH IS THE OTHER HALF OF THE CORPUS.
+   *
+   * The cases above all run with activeCategory at the default, which is what /blog/ serves. The
+   * non-default categories are their own prerendered routes - /blog/topic/<slug>/ - and they pass a
+   * different activeCategory through the same component. Both halves matter and they are not the
+   * same size: measured on the built index, Conversations is 824 posts with 323 unique tags and
+   * Gastronomy is 240 with 278, and each had 50 tag terms that previously matched nothing. The
+   * Gastronomy ones are the more obviously broken - desserts, salads, beverages, condiments.
+   */
+  it( 'matches tags on a non-default topic stream too', async () => {
+    const gastronomy: BlogCard[] = [
+      {
+        slug: 'daikon-tea', title: 'Daikon Tea', excerpt: 'A quiet cup.',
+        category: 'Gastronomy', tags: [ 'Herbal Tea', 'Beverages' ],
+      },
+      {
+        slug: 'milky-masala-chai', title: 'Milky Masala Chai', excerpt: 'Boiled long.',
+        category: 'Gastronomy', tags: [ 'Chai', 'Beverages' ],
+      },
+    ];
+    mockSearchIndex( gastronomy );
+    render( <BlogIndex { ...propsFor( {
+      posts: gastronomy, totalPosts: 2,
+      categories: [ 'Conversations', 'Gastronomy' ],
+      categoryCounts: { Conversations: 0, Gastronomy: 2 },
+      // What /blog/topic/gastronomy/ passes: a non-default active category.
+      activeCategory: 'Gastronomy', defaultCategory: 'Conversations',
+    } ) } /> );
+
+    fireEvent.change( screen.getByLabelText( 'Search the blog' ), { target: { value: 'beverages' } } );
+
+    await waitFor( () => {
+      expect( screen.getByRole( 'heading', { name: 'Daikon Tea' } ) ).toBeInTheDocument();
+    } );
+    expect( screen.getByRole( 'heading', { name: 'Milky Masala Chai' } ) ).toBeInTheDocument();
+  } );
+
+  /**
+   * A TAG MATCH MUST NOT LEAK ACROSS CATEGORIES. Search is scoped to the active stream - the rule
+   * the code states as "a reader on Conversations searching paneer should get nothing, not a
+   * Gastronomy post from a stream they are not in" - and matching tags gives that rule a new way to
+   * be broken, because the index is the whole corpus and a tag is a much broader net than a title.
+   * Without the category filter, searching "beverages" from Conversations would surface Gastronomy
+   * posts, which is a reader being shown a stream they did not choose.
+   */
+  it( 'keeps a tag match inside the active category rather than leaking the whole corpus', async () => {
+    const corpus: BlogCard[] = [
+      {
+        slug: 'daikon-tea', title: 'Daikon Tea', excerpt: 'A quiet cup.',
+        category: 'Gastronomy', tags: [ 'Beverages' ],
+      },
+      {
+        slug: 'a-clear-question', title: 'A Clear Question', excerpt: 'On asking better.',
+        category: 'Conversations', tags: [ 'Practice' ],
+      },
+    ];
+    mockSearchIndex( corpus );
+    render( <BlogIndex { ...propsFor( {
+      posts: [ corpus[ 1 ] ], totalPosts: 1,
+      categories: [ 'Conversations', 'Gastronomy' ],
+      categoryCounts: { Conversations: 1, Gastronomy: 1 },
+      activeCategory: 'Conversations', defaultCategory: 'Conversations',
+    } ) } /> );
+
+    // "beverages" is a real tag in the corpus, but only on a Gastronomy post.
+    fireEvent.change( screen.getByLabelText( 'Search the blog' ), { target: { value: 'beverages' } } );
+
+    await waitFor( () => {
+      expect( screen.getByText( 'No posts match that search.' ) ).toBeInTheDocument();
+    } );
+    expect( screen.queryByRole( 'heading', { name: 'Daikon Tea' } ) ).toBeNull();
+  } );
+
+  /**
    * A QUERY MUST NOT MATCH ACROSS THE GAP BETWEEN TWO FIELDS, and this test earned its place by
    * failing.
    *
