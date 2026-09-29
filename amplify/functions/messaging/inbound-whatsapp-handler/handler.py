@@ -1411,7 +1411,7 @@ def _process_message(
         interactive = message.get('interactive', {})
         interactive_type = interactive.get('type', '')
         if interactive_type == 'call_permission_reply':
-            logger.info(f"Ignoring call_permission_reply from {sender_phone} — permission auto-granted post-call")
+            logger.info(f"Ignoring call_permission_reply from {mask_phone(sender_phone or '')} — permission auto-granted post-call")
             return  # Discard — no longer forwarded or stored
         # IVR button responses  -  route to appropriate department/action
         elif interactive_type == 'button_reply':
@@ -4567,11 +4567,11 @@ def _handle_ivr_response(sender_phone: str, aws_phone_number_id: str,
             if result.get('error'):
                 logger.error(f"IVR Direct API send failed for {button_id}: {result}")
             else:
-                logger.info(f"IVR response sent via Direct API to {sender_phone} for {button_id}")
+                logger.info(f"IVR response sent via Direct API to {mask_phone(sender_phone or '')} for {button_id}")
         else:
             meta_pid = _get_meta_phone_id_for_direct_api(aws_phone_number_id)
             _send_direct_api_message(sender_phone, msg_payload, meta_phone_id=meta_pid)
-            logger.info(f"IVR response sent to {sender_phone} for {button_id}")
+            logger.info(f"IVR response sent to {mask_phone(sender_phone or '')} for {button_id}")
 
         # Store IVR selection in SystemEvent table for tracking/analytics
         try:

@@ -28,9 +28,33 @@ command string* as a shell allow-pattern. The secret became a permission rule,
 on disk, in cleartext, permanently.
 
 Blast radius measured at the time: **141 copies across 6 files**, including an
-IDE log with 99 occurrences and a session transcript with 10. Git history and
-shell history were clean (verified across all 19,128 objects and every ref), so
-no history rewrite was needed - but that was luck, not design.
+IDE log with 99 occurrences and a session transcript with 10. Shell history was
+clean, and no history rewrite was needed - but that was luck, not design.
+
+**Correction, 2026-09-29: git history is not clean, and the original sentence here
+claimed it was.** `scripts/txt_source_healthcheck.py` scans every blob ever
+committed, and it reports one hit:
+
+| | |
+|---|---|
+| Value | the **Plivo AUTH ID** |
+| Added by | `3eaead21` (2026-09-19), in `tests/test_pstn_browser_token.py` |
+| Replaced by | `55ba7844` (2026-09-20), with a placeholder and the note "account identifier, not a secret, but a test has no need of the real one" |
+| Still reachable | yes, in the blob `3eaead21` added |
+
+Read that precisely, in both directions. It **is** a real value from the retained
+plaintext source appearing in the git object database, so the earlier "history is
+clean" claim was wrong and the healthcheck's scan is the thing to trust over this
+file. It is **not** a token exposure: an auth id is the account identifier that
+pairs with the auth token, the token has never been committed, and Plivo SMS is a
+prohibited provider with no live consumer. So it implies **no rotation** - and the
+standing refusal on reading or rotating provider credentials applies regardless.
+
+Do not "fix" this with a history rewrite. A rewrite plus force push is explicitly
+prohibited, the value does not warrant it, and the cost of the rewrite exceeds the
+exposure. The correct state is: recorded, understood, not escalated. What matters
+is that the scanner keeps reporting it rather than being taught to ignore it, so
+that a *token* landing in a blob is still distinguishable from this.
 
 ## The rule
 

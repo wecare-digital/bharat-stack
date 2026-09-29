@@ -40,8 +40,26 @@ because ids cannot be recycled by a namespace grab whereas names can, and AWS
 still sees a `sub` condition that is not solely a wildcard (IAM rejects the
 policy outright if it is).
 
+DO NOT "FIX" THE ANALYZER WARNING. `aws accessanalyzer validate-policy` reports
+WILDCARD_USAGE_TOO_PERMISSIVE against this document, advising at least six literal
+characters before the `*` in `sub`. There are five (`repo:`), and the only way to add more
+is to start spelling out the repository OWNER NAME -- which is the exact thing that went
+stale on 2026-09-27 and took two deploy roles down for 22 hours. The warning is a generic
+heuristic that cannot see the two `StringEquals` id conditions sitting beside the pattern;
+with `repository_id` and `repository_owner_id` both pinned, the wildcard can only ever
+match names that belong to those immutable ids. Leave it, and leave this paragraph here so
+the next person reading an analyzer report does not undo it. (The MISSING_RESOURCE error in
+the same report is the analyzer applying resource-policy rules to a trust policy; trust
+policies have no `Resource` element.)
+
     python scripts/fix_github_oidc_trust.py --status
     python scripts/fix_github_oidc_trust.py --apply
+
+`--status` also audits the account for `GitHubActions-*` roles this script does NOT
+manage and exits non-zero if it finds any. That check exists because ROLES is a literal:
+plivo-drift was created in AWS on 2026-09-28 and sat unregistered for a day while a test
+asserted the list was complete. A list that cannot notice a role someone else created is
+a list that certifies its own blind spot.
 
 `--apply` snapshots each existing trust policy to
 docs/execution/snapshots/ before writing, and is idempotent: a role already
@@ -96,13 +114,29 @@ BRANCH = "stack"
 # role is assumed only for the two steps that write, and the confirmation afterwards runs on a
 # credential that cannot. Both share this trust document - the distinction between them is
 # entirely in their permission policies, not in who may assume them.
+#
+# The sixth, plivo-drift, is the trap actually springing rather than a hypothetical.
+# `scripts/provision_ci_plivo_drift_role.py` created it in AWS on 2026-09-28 07:21 and
+# nobody added it here, so for a day this list -- and the test asserting the list was
+# complete -- certified a set that was missing a live role. Added 2026-09-29 after
+# `aws iam list-roles` was compared against it. That comparison is no longer manual:
+# `unregistered()` below does it on every --status run, because a hand-maintained
+# literal cannot notice a role someone else creates, and the two roles above show how
+# ordinary it is for this list to be edited by somebody who is thinking about something
+# else.
 ROLES = [
     "GitHubActions-bharat-stack-docs-scraper",
     "GitHubActions-bharat-stack-seo-tools",
     "GitHubActions-wecare-digital-route-auth",
     "GitHubActions-wecare-digital-public-surface",
     "GitHubActions-wecare-digital-public-surface-read",
+    "GitHubActions-wecare-digital-plivo-drift",
 ]
+
+# Any IAM role whose name starts with this is assumed to be a GitHub Actions OIDC role
+# and therefore in scope for this script. The prefix is the convention every role in
+# this account already follows.
+ROLE_PREFIX = "GitHubActions"
 
 
 def target_policy() -> dict:
@@ -154,6 +188,35 @@ def _subject(doc: dict) -> str:
     return "<no sub condition>"
 
 
+def unregistered(iam) -> list[str]:
+    """Live `GitHubActions-*` roles that ROLES does not mention.
+
+    The point of this function is that ROLES is a hand-written literal, and a literal
+    cannot notice a role created by someone else. That is not hypothetical: plivo-drift
+    was created in AWS on 2026-09-28 and went a day unregistered, while a test asserted
+    the list was exactly the set of OIDC roles. An unregistered role keeps whatever
+    document its creator pasted, which is how the rename outage happened in the first
+    place.
+
+    Needs iam:ListRoles. If the caller does not have it the check is skipped with a note
+    rather than failing the run -- a missing audit is not the same as drift.
+    """
+    known = set(ROLES)
+    found: list[str] = []
+    try:
+        paginator = iam.get_paginator("list_roles")
+        for page in paginator.paginate():
+            for role in page.get("Roles", []):
+                name = role.get("RoleName", "")
+                if name.startswith(ROLE_PREFIX) and name not in known:
+                    found.append(name)
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code", "ClientError")
+        print(f"  (cannot list roles to audit for unregistered ones: {code})")
+        return []
+    return sorted(found)
+
+
 def status(iam) -> int:
     want = target_policy()
     stale = 0
@@ -169,6 +232,16 @@ def status(iam) -> int:
         if not matches:
             stale += 1
     print(f"\n{len(ROLES) - stale}/{len(ROLES)} roles already correct")
+
+    extra = unregistered(iam)
+    if extra:
+        print("\nUNREGISTERED — live OIDC roles this script does not manage. Each one keeps")
+        print("whatever trust document its creator wrote, which is the rename outage waiting")
+        print("to happen again. Add them to ROLES (and to the test) or explain why not:")
+        for role in extra:
+            print(f"  {role}")
+        return 1
+
     return 0 if stale == 0 else 1
 
 
@@ -211,6 +284,14 @@ def apply(iam) -> int:
         else:
             print(f"FAILED    {role}: write did not verify")
             failures += 1
+
+    # Reported here too, not only in --status. Somebody repairing drift is exactly the person
+    # who should be told a role exists outside this list, and expecting them to run the other
+    # subcommand as well is how the audit gets missed. It does not affect the exit code:
+    # --apply's job is the roles it manages, and an unregistered role is a finding rather
+    # than a failed write.
+    for role in unregistered(iam):
+        print(f"UNREGISTERED {role} — live but not in ROLES, so --apply did not touch it")
 
     return 1 if failures else 0
 

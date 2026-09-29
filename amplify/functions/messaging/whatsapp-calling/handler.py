@@ -577,7 +577,7 @@ def _handle_webhook_event(body: Dict, request_id: str) -> Dict[str, Any]:
                 contacts = value.get('contacts', [])
                 logger.info(f"Processing {len(calls)} call event(s) for waba_id={waba_id}, "
                             f"phone_number_id={metadata.get('phone_number_id', 'N/A')}, "
-                            f"display_phone={metadata.get('display_phone_number', 'N/A')}")
+                            f"display_phone={mask_phone(metadata.get('display_phone_number') or '')}")
                 for call in calls:
                     _handle_call_event(waba_id, call, metadata, contacts, request_id)
             elif field == 'messages':
@@ -735,7 +735,10 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
             'createdAt': Decimal(str(now)),
             'ttl': Decimal(str(now + TTL_SECONDS)),
         })
-        logger.info(f"INBOUND CALL from {caller_name or from_number} (BSUID: {caller_bsuid or 'N/A'}) — call_id: {call_id}, has_sdp: {bool(sdp_offer)}, sdp_len: {len(sdp_offer) if sdp_offer else 0}, phone_number_id: {phone_number_id}")
+        # `caller_name` is the customer's own WhatsApp profile name, so its presence is
+        # logged rather than its value - the same rule `inbound-whatsapp-handler` follows.
+        # The masked number plus `call_id` is enough to correlate.
+        logger.info(f"INBOUND CALL from {mask_phone(from_number or '')} (has_caller_name: {bool(caller_name)}, BSUID: {caller_bsuid or 'N/A'}) — call_id: {call_id}, has_sdp: {bool(sdp_offer)}, sdp_len: {len(sdp_offer) if sdp_offer else 0}, phone_number_id: {phone_number_id}")
 
         # ── Pre-call auto-grant permission on connect ──
         # As soon as a call connects (any direction), auto-store permission as GRANTED.
@@ -755,7 +758,7 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
                 'createdAt': Decimal(str(now)),
                 'ttl': Decimal(str(now + TTL_SECONDS)),
             })
-            logger.info(f"Pre-call auto-granted permission for {from_number} on connect (call {call_id})")
+            logger.info(f"Pre-call auto-granted permission for {mask_phone(from_number or '')} on connect (call {call_id})")
 
         # ── SMS moved to disconnect only — no SMS on connect to avoid duplicates ──
         # SMS is sent in the terminate handler (_send_disconnect_sms) instead
@@ -765,7 +768,7 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
 
         # Auto-pickup: IVR mode only — pre_accept → send IVR menu → terminate
         if _is_auto_pickup_enabled() and phone_number_id:
-            logger.info(f"AUTO-PICKUP IVR — call {call_id} from {caller_name or from_number}")
+            logger.info(f"AUTO-PICKUP IVR — call {call_id} from {mask_phone(from_number or '')} (has_caller_name: {bool(caller_name)})")
             _auto_pickup_and_play(call_id, phone_number_id, from_number, sdp_offer)
 
     elif event_type == 'terminate':
@@ -843,7 +846,7 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
                 'createdAt': Decimal(str(now)),
                 'ttl': Decimal(str(now + TTL_SECONDS)),
             })
-            logger.info(f"Auto-granted call permission for {from_number} after completed call {call_id} (duration={duration}s)")
+            logger.info(f"Auto-granted call permission for {mask_phone(from_number or '')} after completed call {call_id} (duration={duration}s)")
 
         # ── Send the IVR follow-up SMS on every call disconnect (phone 1 & 2) ──
         # ivr-default DLT template, through AWS End User Messaging.
@@ -874,7 +877,7 @@ def _handle_call_event(waba_id: str, call: Dict, metadata: Dict, contacts: list,
         # Permission is auto-granted post-call. Just log for audit.
         permission = call.get('status', call.get('permission', ''))
         recipient = call.get('recipient', call.get('to', to_number))
-        logger.info(f"Call permission webhook (ignored): {permission} from {from_number or recipient} on {phone_number_id}")
+        logger.info(f"Call permission webhook (ignored): {permission} from {mask_phone(from_number or recipient or '')} on {phone_number_id}")
 
     else:
         _store_call_log({
@@ -1060,7 +1063,7 @@ def _handle_post_call_sip(event: Dict, request_id: str) -> Dict[str, Any]:
     else:
         send_from = [(WABA1_META_ID, 'WABA1')]
 
-    logger.info(f"POST-CALL SIP: sending wd_menu template to {caller_phone} via {', '.join(l for _, l in send_from)}")
+    logger.info(f"POST-CALL SIP: sending wd_menu template to {mask_phone(caller_phone or '')} via {', '.join(l for _, l in send_from)}")
 
     VIDEO_URL = WA_TEMPLATE_VIDEO_URL
     template_msg = {
@@ -1206,7 +1209,7 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
             return
 
         logger.info(f"Post-call reaction: phone_number_id={phone_number_id}, "
-                     f"aws_phone_id={aws_phone_id}, to={to_number}, "
+                     f"aws_phone_id={aws_phone_id}, to={mask_phone(to_number or '')}, "
                      f"direction={direction}, reason={reason}, duration={duration}")
 
         if duration and int(duration) > 0:
@@ -1236,12 +1239,12 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
             # Check if it's a 24-hour window issue
             if 'outside' in error_detail.lower() or 'window' in error_detail.lower() or '131047' in error_detail:
                 logger.warning(f"Post-call reaction skipped (no 24h window): "
-                               f"to={to_number}, via={aws_phone_id}, call={call_id}")
+                               f"to={mask_phone(to_number or '')}, via={aws_phone_id}, call={call_id}")
             else:
-                logger.error(f"Post-call reaction FAILED for {to_number} via {aws_phone_id}: "
+                logger.error(f"Post-call reaction FAILED for {mask_phone(to_number or '')} via {aws_phone_id}: "
                              f"{json.dumps(result)}")
         else:
-            logger.info(f"Post-call reaction sent to {to_number}: {text} — "
+            logger.info(f"Post-call reaction sent to {mask_phone(to_number or '')}: {text} — "
                         f"messageId={result.get('messageId')}")
     except Exception as e:
         logger.error(f"Failed to send post-call reaction: {e}", exc_info=True)
@@ -1787,7 +1790,7 @@ def _auto_pickup_and_play(call_id: str, phone_number_id: str, from_number: str, 
     audio_url = _get_auto_pickup_audio_url()
     if audio_url:
         _send_audio_to_caller(phone_number_id, from_number, audio_url, call_id)
-        logger.info(f"IVR audio sent to {from_number}: {audio_url}")
+        logger.info(f"IVR audio sent to {mask_phone(from_number or '')}: {audio_url}")
 
     # ── Step 4: Keep call connected briefly, then terminate ──
     # 3s is enough for caller to hear connection tone + see IVR menu in chat
@@ -2033,7 +2036,7 @@ def _send_ivr_menu(phone_number_id: str, to_number: str, call_id: str) -> None:
             msgs = result.get('messages', [])
             if msgs:
                 msg_id = msgs[0].get('id', '')
-        logger.info(f"IVR wd_menu template sent to {to_number}: messageId={msg_id}")
+        logger.info(f"IVR wd_menu template sent to {mask_phone(to_number or '')}: messageId={msg_id}")
         # Auto 👍 from WABA1 (the sender of this template).
         if msg_id:
             _react_thumbs_up(WABA1_META_ID, to_number, msg_id, call_id)
@@ -2121,7 +2124,7 @@ def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, 
         if result.get('error'):
             logger.warning(f"IVR audio URL failed ({audio_url}): {json.dumps(result)}")
         else:
-            logger.info(f"IVR audio sent to {to_number}: {json.dumps(result)}")
+            logger.info(f"IVR audio sent to {mask_phone(to_number or '')}: {json.dumps(result)}")
     except Exception as e:
         logger.error(f"Failed to send auto-pickup audio: {e}", exc_info=True)
 

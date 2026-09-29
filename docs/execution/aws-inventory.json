@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-26T06:08:00.092204+00:00",
+  "generated": "2026-09-28T23:44:38.035349+00:00",
   "account": "775261844268",
   "identity_arn": "arn:aws:iam::775261844268:user/wecare-admin",
   "region": "us-east-1",
@@ -7,8 +7,8 @@
     "ap-south-1"
   ],
   "lambda": {
-    "count": 65,
-    "with_live_alias": 58,
+    "count": 66,
+    "with_live_alias": 59,
     "without_live_alias": [
       "wecare-ad-attribution",
       "wecare-docs-scraper",
@@ -20,15 +20,15 @@
     ],
     "alias_read_errors": 0,
     "runtimes": {
-      "python3.12": 64,
+      "python3.12": 65,
       "null": 1
     },
     "package_types": {
-      "Zip": 64,
+      "Zip": 65,
       "Image": 1
     },
     "snapstart": {
-      "None": 65
+      "None": 66
     },
     "functions": [
       {
@@ -40,20 +40,20 @@
         ],
         "memory": 256,
         "timeout": 10,
-        "last_modified": "2026-09-26T05:55:17.000+0000",
-        "code_sha256": "NKrn1nJEMz3UYVkuEPHdSUplmSians8InKSVzZLUFys=",
-        "code_size": 268000,
+        "last_modified": "2026-09-28T11:41:55.000+0000",
+        "code_sha256": "cayI7kLR2jrnFKH+ihjNB5WgMI/KIX+bp0Paqu+sGg8=",
+        "code_size": 279606,
         "layers": [],
         "env_var_names": [
           "LINK_CLICKS_TABLE",
-          "SHORT_DOMAIN",
-          "SHORT_LINKS_TABLE"
+          "SHORT_LINKS_TABLE",
+          "SHORT_LINK_BASE"
         ],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "13"
+        "live_alias_version": "18"
       },
       {
         "name": "wecare-ad-attribution",
@@ -64,9 +64,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:57:11.000+0000",
-        "code_sha256": "C/ci7BEjRnD0cskUVGwgGpW9grTm+uUzu39xwA4NPHw=",
-        "code_size": 266264,
+        "last_modified": "2026-09-28T11:43:36.000+0000",
+        "code_sha256": "DnHGEIJ0SjpV5Gs7h9TEG8Qcicm/WbWtYghKUgjRuqA=",
+        "code_size": 276032,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
@@ -82,9 +82,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:57:33.000+0000",
-        "code_sha256": "YhvHavdnIhoQBCtozfhTEwoh4IjWo8smJ9ejqPG8rBM=",
-        "code_size": 271015,
+        "last_modified": "2026-09-28T11:43:53.000+0000",
+        "code_sha256": "jk8w/Ja0AZ514IU5EnbUsX8ber3+zow7RJW0zpVR/64=",
+        "code_size": 280783,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -99,7 +99,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "20"
+        "live_alias_version": "25"
       },
       {
         "name": "wecare-ai-config-management",
@@ -110,9 +110,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:57:30.000+0000",
-        "code_sha256": "IVP3tWdYDmqDGfz66pdOeToMIoADNj2eUISw53xqYkQ=",
-        "code_size": 270659,
+        "last_modified": "2026-09-28T11:43:50.000+0000",
+        "code_sha256": "3NmSGMa4Hiz/WVDtbOjuWjpJAKgvwFke3WQXyQFeJEc=",
+        "code_size": 280427,
         "layers": [],
         "env_var_names": [
           "AI_INTERACTIONS_TABLE",
@@ -126,7 +126,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "22"
       },
       {
         "name": "wecare-ai-generate-response",
@@ -137,11 +137,12 @@
         ],
         "memory": 1024,
         "timeout": 120,
-        "last_modified": "2026-09-26T05:57:27.000+0000",
-        "code_sha256": "ZTkzaqSrOz9n/WOLY5yuIeTBM6tfC7SSyjGSxFBzf2g=",
-        "code_size": 316974,
+        "last_modified": "2026-09-28T11:43:48.000+0000",
+        "code_sha256": "E8YYnuYWhyX+EU8TDsH9azjwPJ+42F4PACfjGF/QYj0=",
+        "code_size": 327855,
         "layers": [],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "CONTACTS_TABLE",
           "CONVERSATION_TABLE",
           "CONVERSATION_TTL_HOURS",
@@ -162,7 +163,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "20"
+        "live_alias_version": "32"
       },
       {
         "name": "wecare-ai-query-kb",
@@ -173,9 +174,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:57:24.000+0000",
-        "code_sha256": "Gmk+NGMTIWMdvyyc495gMvdmQlT+Dbq91oKihC+ryTw=",
-        "code_size": 264518,
+        "last_modified": "2026-09-28T11:43:45.000+0000",
+        "code_sha256": "3JWe0TSQ9JCfWibsrztxBHN5J1PuB2uZrliR+OBJPKk=",
+        "code_size": 274286,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -188,7 +189,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "22"
       },
       {
         "name": "wecare-auth-middleware",
@@ -199,9 +200,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:54:32.000+0000",
-        "code_sha256": "TOJG24iEnJGEg6A0psjNKaD8qmoq8fcoFsUKmYSOGng=",
-        "code_size": 264911,
+        "last_modified": "2026-09-28T11:41:14.000+0000",
+        "code_sha256": "+/C65ZeZXH8uY4eYcudLHG6rLXT8OISkb1881JHaxww=",
+        "code_size": 274679,
         "layers": [],
         "env_var_names": [
           "COGNITO_USER_POOL_ID",
@@ -211,7 +212,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "19"
       },
       {
         "name": "wecare-automation-rules",
@@ -222,9 +223,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:54:35.000+0000",
-        "code_sha256": "Gfdw00pItWLN1W8U8YzeDTxkt/jkqW8vmW1EDD1esMY=",
-        "code_size": 265013,
+        "last_modified": "2026-09-28T11:41:17.000+0000",
+        "code_sha256": "4LOVazK4tkkcTOkPPjGFEfTEmUn2TFBnteZpS7Xs7oI=",
+        "code_size": 274781,
         "layers": [],
         "env_var_names": [
           "AUTOMATION_RULES_TABLE",
@@ -234,7 +235,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "13"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-billing",
@@ -245,9 +246,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:57:36.000+0000",
-        "code_sha256": "Oi/yxyxoXZBgO4KuuMuEPLvicdQT2qqZeTPgTKVFims=",
-        "code_size": 271041,
+        "last_modified": "2026-09-28T11:43:56.000+0000",
+        "code_sha256": "boiwD0VHD+tsmlLo3CS+MynJ0ycHwSXG7fvnoL3sGxw=",
+        "code_size": 277278,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -258,7 +259,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "22"
       },
       {
         "name": "wecare-bulk-job-control",
@@ -269,9 +270,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:57:41.000+0000",
-        "code_sha256": "MO3YryHAyKwKb2zK8GvYvK0quD+mJqmTYJgtrh90uSI=",
-        "code_size": 266881,
+        "last_modified": "2026-09-28T11:44:02.000+0000",
+        "code_sha256": "BX0q9DLAbzjoXHGMBgeiXcrsvXLN/DFmTWR1PXUmL+k=",
+        "code_size": 276698,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -287,7 +288,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "23"
       },
       {
         "name": "wecare-bulk-job-create",
@@ -298,9 +299,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:57:38.000+0000",
-        "code_sha256": "DGYMhurBvdEZlEypqy/PSul7pEpxS4ty3ISBEK5dMc0=",
-        "code_size": 267108,
+        "last_modified": "2026-09-28T11:43:59.000+0000",
+        "code_sha256": "BoMq7vKtlMXG5/6I0mXollwS4pITNAudllCWuAuR/8o=",
+        "code_size": 276876,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -315,7 +316,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "21"
       },
       {
         "name": "wecare-bulk-worker",
@@ -326,9 +327,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T05:57:47.000+0000",
-        "code_sha256": "cYCkyLjUt1pjGjmbOwN+FhCZR0vc66RHUiyPKIrjlVs=",
-        "code_size": 267519,
+        "last_modified": "2026-09-28T11:44:08.000+0000",
+        "code_sha256": "b/JmKlUaC0iZheaDYL957gqToYyAhV/xe3KbV2DT9X4=",
+        "code_size": 277310,
         "layers": [],
         "env_var_names": [
           "BULK_JOBS_TABLE",
@@ -343,7 +344,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "21"
       },
       {
         "name": "wecare-catalog-management",
@@ -354,16 +355,16 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:58:43.000+0000",
-        "code_sha256": "rgJNqRbq4ugYIzbYbwtx3P3ZwEPgrSX0+4lpkaGfvm4=",
-        "code_size": 266428,
+        "last_modified": "2026-09-28T11:45:13.000+0000",
+        "code_sha256": "n+nFD6OB6GmI/55cD/RcxbNxJ48jKZgN+I3F+IBWeKg=",
+        "code_size": 276216,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "13"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-cognito-custom-message",
@@ -374,7 +375,7 @@
         ],
         "memory": 256,
         "timeout": 10,
-        "last_modified": "2026-09-26T05:55:12.000+0000",
+        "last_modified": "2026-09-28T11:41:49.000+0000",
         "code_sha256": "jP9uNBTpWwqBKn+Uc9tXPlzGFTLJznjv5MMlXZC/bfQ=",
         "code_size": 5085,
         "layers": [],
@@ -398,14 +399,15 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:54:38.000+0000",
-        "code_sha256": "vG+Hmft5SvjyFlKF63E21mpVlNTrGjf0NuarpIw4JPU=",
-        "code_size": 269962,
+        "last_modified": "2026-09-28T11:41:20.000+0000",
+        "code_sha256": "7X+v1TG6j+aZjSvGyPo8AEgAyRIDRfChEgKkYtJ9n5E=",
+        "code_size": 279824,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
           "CONTACTS_TABLE",
           "LOG_LEVEL",
+          "MEDIA_BUCKET",
           "REGION",
           "S3_BUCKET"
         ],
@@ -413,7 +415,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "25"
       },
       {
         "name": "wecare-conversation-meta",
@@ -424,9 +426,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:54:41.000+0000",
-        "code_sha256": "1oJ5YS2Mzoc0yPWRnGzCGOkOvHx5xG6wQ3dSvclPoYU=",
-        "code_size": 264944,
+        "last_modified": "2026-09-28T11:41:23.000+0000",
+        "code_sha256": "q297BjEG6/OUi0fIlsAZ6KYVlejEvEsMx2qhqOhwS0M=",
+        "code_size": 274712,
         "layers": [],
         "env_var_names": [
           "CONVERSATION_META_TABLE",
@@ -436,7 +438,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "13"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-crm",
@@ -447,9 +449,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:54:46.000+0000",
-        "code_sha256": "orQUWQMdVqye5WtjWlMzwtqb6yU9LLAmDVBig3xqGsQ=",
-        "code_size": 271095,
+        "last_modified": "2026-09-28T11:41:29.000+0000",
+        "code_sha256": "qKnkPCoCjIrz3ak8N14jZTYFgjHYmjJNt+na0U4edNI=",
+        "code_size": 280863,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
@@ -465,7 +467,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "9"
+        "live_alias_version": "13"
       },
       {
         "name": "wecare-customer-whatsapp-auth",
@@ -476,7 +478,7 @@
         ],
         "memory": 256,
         "timeout": 15,
-        "last_modified": "2026-09-26T05:55:09.000+0000",
+        "last_modified": "2026-09-28T11:41:46.000+0000",
         "code_sha256": "KB3Jr131Ndmq7+J1CR/M46DtTysWrZB5kHqF+Lutrng=",
         "code_size": 4645,
         "layers": [],
@@ -506,9 +508,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:57:50.000+0000",
-        "code_sha256": "fy2k2zWsvuq7KVQLkYuzHRmZb71Bto19HgP5rHhi9ms=",
-        "code_size": 266912,
+        "last_modified": "2026-09-28T11:44:11.000+0000",
+        "code_sha256": "5c5UMgCv02zi1/n1hP79w8DkyduwEVoVdwlEGO3nvrs=",
+        "code_size": 276680,
         "layers": [],
         "env_var_names": [
           "DLQ_URL",
@@ -520,7 +522,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "20"
       },
       {
         "name": "wecare-docs-scraper",
@@ -531,11 +533,14 @@
         ],
         "memory": 2048,
         "timeout": 300,
-        "last_modified": "2026-09-23T22:40:18.000+0000",
-        "code_sha256": "6d2880cd1e7b5717f5a252b2fc0cb5fdf14651fc1f0d9cd2c3279c5b94cc3de4",
+        "last_modified": "2026-09-28T16:09:14.000+0000",
+        "code_sha256": "e5cf686637c346b9b29a2a5bb2847d4577694b5dac8581368fec28f2b6d05b8a",
         "code_size": 0,
         "layers": [],
-        "env_var_names": [],
+        "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
+          "DOCS_BUCKET"
+        ],
         "snapstart": "None",
         "aliases": [],
         "live_alias_version": null
@@ -549,16 +554,16 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:54:49.000+0000",
-        "code_sha256": "Jlk+XckfgNj7XP7zc9PERPV52oz3pobOQpzlXJDDLuc=",
-        "code_size": 266990,
+        "last_modified": "2026-09-28T11:41:32.000+0000",
+        "code_sha256": "87RTcD3uOs0FBYjdsaE1HFcclTKc5kBDd0Ns0MVqvh4=",
+        "code_size": 276758,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "20"
       },
       {
         "name": "wecare-get-miss-redirect",
@@ -587,9 +592,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T05:55:20.000+0000",
-        "code_sha256": "kuQaMsbHdBnP/l1m143e1+JWILrvy4IQzLMFU3+h348=",
-        "code_size": 349440,
+        "last_modified": "2026-09-28T11:41:59.000+0000",
+        "code_sha256": "lOs5TkPWfG4nu0+Is1Vq0oVVfb7+3ZJsfz2eLem3xz8=",
+        "code_size": 363922,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
@@ -604,7 +609,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "53"
+        "live_alias_version": "62"
       },
       {
         "name": "wecare-invoice-engine",
@@ -615,13 +620,14 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:58:13.000+0000",
-        "code_sha256": "GGpgE/Bf+SMDnjkd9mqGzxPLTn/0XrsmeCJk+2BnYCI=",
-        "code_size": 292793,
+        "last_modified": "2026-09-28T11:44:46.000+0000",
+        "code_sha256": "P+AptIHMBwVVMuceqBd5IUvH1XbK4BoItQrsi5cp4+k=",
+        "code_size": 303143,
         "layers": [
           "pillow-python312:2"
         ],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "CDN_DOMAIN",
           "CONTACTS_TABLE",
           "INVOICES_TABLE",
@@ -637,7 +643,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "26"
+        "live_alias_version": "36"
       },
       {
         "name": "wecare-marketing-ads",
@@ -648,9 +654,9 @@
         ],
         "memory": 256,
         "timeout": 45,
-        "last_modified": "2026-09-26T05:57:16.000+0000",
-        "code_sha256": "hfy2ezG6HbEgI+peqpQNIYvrWwWPu5BKmYpxOPDbB64=",
-        "code_size": 269209,
+        "last_modified": "2026-09-28T11:43:39.000+0000",
+        "code_sha256": "XTkXRfmnP1+RxYEscedvR1Ttid+w6lI0rfUbI9tBNxQ=",
+        "code_size": 279089,
         "layers": [
           "cryptography-python312:1"
         ],
@@ -670,7 +676,32 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "22"
+      },
+      {
+        "name": "wecare-mcp",
+        "runtime": "python3.12",
+        "package_type": "Zip",
+        "architectures": [
+          "x86_64"
+        ],
+        "memory": 512,
+        "timeout": 20,
+        "last_modified": "2026-09-28T16:05:54.000+0000",
+        "code_sha256": "ZLQaBqKNht+ZpfSJ9Dum5eL0S+NGDjbrkAYVIWU6qpQ=",
+        "code_size": 15893,
+        "layers": [],
+        "env_var_names": [
+          "LOG_LEVEL",
+          "MCP_BLOG_API",
+          "MCP_BLOG_TIMEOUT_SECONDS",
+          "MCP_BLOG_TTL_SECONDS"
+        ],
+        "snapstart": "None",
+        "aliases": [
+          "live"
+        ],
+        "live_alias_version": "7"
       },
       {
         "name": "wecare-media-cleanup",
@@ -681,9 +712,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:56:06.000+0000",
-        "code_sha256": "aYAww0dGEv+SRLEhtMDgOG3xkBB3BjExR16DD4P/GYI=",
-        "code_size": 265806,
+        "last_modified": "2026-09-28T11:42:31.000+0000",
+        "code_sha256": "xxxwKrzozZYKSko2yB9U4eZUKZS63rAuP/R8Cj513CM=",
+        "code_size": 275598,
         "layers": [],
         "env_var_names": [
           "CLEANUP_AGE_DAYS",
@@ -696,7 +727,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "20"
       },
       {
         "name": "wecare-messages-delete",
@@ -707,13 +738,14 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:54:55.000+0000",
-        "code_sha256": "UGOe7W/C/gyUbTcL6Z+oI66fEbW+LUo4wrbuuqNRTj0=",
-        "code_size": 267705,
+        "last_modified": "2026-09-28T11:41:35.000+0000",
+        "code_sha256": "Yhz5EP8ERyw+Mk1EJsS20+V7cR39jWB7xPpJkaWXZ/c=",
+        "code_size": 277607,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
           "INBOUND_WHATSAPP_FUNCTION",
+          "MEDIA_BUCKET",
           "REGION",
           "S3_BUCKET"
         ],
@@ -721,7 +753,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "23"
       },
       {
         "name": "wecare-messages-read",
@@ -732,12 +764,15 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:54:58.000+0000",
-        "code_sha256": "xMV0vOFKnmi8zH2ZUu1kz4myWUyzRk2dpmK8Y4VCDGI=",
-        "code_size": 270085,
+        "last_modified": "2026-09-28T11:41:38.000+0000",
+        "code_sha256": "ETvomAywKOXi1a1IdXtTBBEa2uQothPlz0fZLHg+ans=",
+        "code_size": 279984,
         "layers": [],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "AWS_ACCOUNT_ID",
+          "MEDIA_BUCKET",
+          "MEDIA_CDN_DOMAIN",
           "REGION",
           "S3_BUCKET"
         ],
@@ -745,7 +780,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "25"
       },
       {
         "name": "wecare-meta-analytics",
@@ -756,16 +791,16 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:57:08.000+0000",
-        "code_sha256": "BOUV2wCvMurp/raGu82AF3sOVrd5ktasA7KRc37qRHk=",
-        "code_size": 265955,
+        "last_modified": "2026-09-28T11:43:33.000+0000",
+        "code_sha256": "G/8peXp4WTGaAeNP8TWL1vnaAQeNjMTtSipPxEJgLpM=",
+        "code_size": 275744,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "13"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-meta-business-agent",
@@ -776,16 +811,16 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:57:22.000+0000",
-        "code_sha256": "3ar9VUbNqu6deEM3j8J0pv9yuxvVOebuHHqNd+lzNPw=",
-        "code_size": 275806,
+        "last_modified": "2026-09-28T11:43:42.000+0000",
+        "code_sha256": "gf42JFfloFN8DqUuggIXDnT3GtWIbQPUz/5nu6B3/Fw=",
+        "code_size": 285593,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "28"
+        "live_alias_version": "33"
       },
       {
         "name": "wecare-notification-worker",
@@ -796,9 +831,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T05:56:45.000+0000",
-        "code_sha256": "bU+AYAeUhIopri9oNiY2h0CKtifjk5Xfy85OMaoMvOQ=",
-        "code_size": 265838,
+        "last_modified": "2026-09-28T11:43:10.000+0000",
+        "code_sha256": "fsgjY4XxA6ovwATQMPDT2sahlm+zEGXop1NE7WOby4s=",
+        "code_size": 275606,
         "layers": [],
         "env_var_names": [
           "NOTIF_SWEEP_LIMIT"
@@ -807,7 +842,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "10"
+        "live_alias_version": "14"
       },
       {
         "name": "wecare-outbound-email",
@@ -818,9 +853,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:25.000+0000",
-        "code_sha256": "jb92w6Tb+x/mTLXZyj/m1KSbJQHKnhRF7vN6Pt9oL+I=",
-        "code_size": 265894,
+        "last_modified": "2026-09-28T11:42:50.000+0000",
+        "code_sha256": "QYghAnjFQNkcX4IhP0GwatYPFz3meCvmcX+mSwku1NA=",
+        "code_size": 275706,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -836,7 +871,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "22"
       },
       {
         "name": "wecare-outbound-sms",
@@ -847,9 +882,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:23.000+0000",
-        "code_sha256": "78oKb5gICHQOLe4hbrss9LNAyHD75ReSCAKkUtv5XVE=",
-        "code_size": 267552,
+        "last_modified": "2026-09-28T11:42:46.000+0000",
+        "code_sha256": "l9U+PJVR0jrofUHaQgjiAaOB3eSWn0p2AJfOrwur2cc=",
+        "code_size": 277320,
         "layers": [],
         "env_var_names": [
           "AIRTEL_IQ_ENTITY_ID",
@@ -865,7 +900,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "22"
       },
       {
         "name": "wecare-outbound-whatsapp",
@@ -876,12 +911,14 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:55:23.000+0000",
-        "code_sha256": "eastfgW28F5Kj5FVc0NHrIweGTZoZKXGb99rEXEbL/8=",
-        "code_size": 309192,
+        "last_modified": "2026-09-28T11:42:02.000+0000",
+        "code_sha256": "HdW7GrO4eOhtIKuOaqhGfTOPR3lfk0Gha8xdQCXEw54=",
+        "code_size": 319582,
         "layers": [],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "AWS_ACCOUNT_ID",
+          "CDN_DOMAIN",
           "CONTACTS_TABLE",
           "LOG_LEVEL",
           "MEDIA_BUCKET",
@@ -898,7 +935,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "29"
+        "live_alias_version": "40"
       },
       {
         "name": "wecare-partner-onboarding",
@@ -909,13 +946,14 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:12.000+0000",
-        "code_sha256": "YbQFhM1zZst5K7iRdOlmqWCloZyJUHlaAa8bZbEbKew=",
-        "code_size": 272549,
+        "last_modified": "2026-09-28T11:42:40.000+0000",
+        "code_sha256": "+GeKngIQYiKPcM0zrzpJwtZPOSIy/cN7vntA2KmnTFM=",
+        "code_size": 282344,
         "layers": [
           "cryptography-python312:1"
         ],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "COGNITO_USER_POOL_ID",
           "LOG_LEVEL",
           "META_API_VERSION",
@@ -935,7 +973,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "22"
       },
       {
         "name": "wecare-partner-token-refresh",
@@ -946,9 +984,9 @@
         ],
         "memory": 256,
         "timeout": 120,
-        "last_modified": "2026-09-26T05:56:17.000+0000",
-        "code_sha256": "D85KEopM36Qg2Dd1Y2fTP/TRq8/Qod8LAYCe2BRyhFY=",
-        "code_size": 265882,
+        "last_modified": "2026-09-28T11:42:43.000+0000",
+        "code_sha256": "ldG9M9/uaGhQNnyEUBkiAy88qVfRYz0LAtSoWS5XsmY=",
+        "code_size": 275694,
         "layers": [
           "cryptography-python312:1"
         ],
@@ -974,9 +1012,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:58:04.000+0000",
-        "code_sha256": "ONenho9+H/sy3evthZQDGLJR7Czi9xG1qK0pyZ1RRRo=",
-        "code_size": 266220,
+        "last_modified": "2026-09-28T11:44:22.000+0000",
+        "code_sha256": "oa3vsyiPktRYCJ3gkSRwUL7eEGJB1xSPFsLDoN/hQBM=",
+        "code_size": 275988,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -987,7 +1025,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "18"
+        "live_alias_version": "23"
       },
       {
         "name": "wecare-plivo-answer",
@@ -998,13 +1036,15 @@
         ],
         "memory": 256,
         "timeout": 15,
-        "last_modified": "2026-09-26T05:56:51.000+0000",
-        "code_sha256": "FKizCU7mruH5s32uLBfZSjgONawRH9SXfUZTlN4+xBw=",
-        "code_size": 277409,
+        "last_modified": "2026-09-28T11:43:13.000+0000",
+        "code_sha256": "vrl3+POmEfAMUIiFBolmGO0hV14PZ2JkjNAMRQ3QupA=",
+        "code_size": 288093,
         "layers": [],
         "env_var_names": [
           "DLT_TEMPLATE_KEY",
           "IVR_AUDIO_URL",
+          "PLIVO_CALLBACK_HOST",
+          "PLIVO_CALLBACK_PATH_PREFIX",
           "POST_CALL_SMS_ENABLED",
           "SMS_FUNCTION"
         ],
@@ -1012,7 +1052,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "22"
+        "live_alias_version": "28"
       },
       {
         "name": "wecare-product-image-gen",
@@ -1023,9 +1063,9 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:58:38.000+0000",
-        "code_sha256": "3XGHNk6D1/eYZjDHmidEw3wVP1W9sEo3lJOF4Y1xZT4=",
-        "code_size": 271615,
+        "last_modified": "2026-09-28T11:45:08.000+0000",
+        "code_sha256": "DyL1ThYWrH4yh2fqKpcssZwqkFaE87HzApuet1bDHys=",
+        "code_size": 281769,
         "layers": [
           "Klayers-p312-Pillow:10"
         ],
@@ -1039,7 +1079,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "18"
+        "live_alias_version": "24"
       },
       {
         "name": "wecare-pstn-softphone",
@@ -1050,9 +1090,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:54.000+0000",
-        "code_sha256": "QACwET5juXtm3Mb16I+CluRcJBtYPUIf7TrHScXjc/8=",
-        "code_size": 269021,
+        "last_modified": "2026-09-28T11:43:16.000+0000",
+        "code_sha256": "P79gAcF7/W+WB3ZGjmT5CABR1Nnq7IUIFdR8vhCDFEU=",
+        "code_size": 278789,
         "layers": [],
         "env_var_names": [
           "PLIVO_API_SECRET_ID",
@@ -1064,7 +1104,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "3"
+        "live_alias_version": "7"
       },
       {
         "name": "wecare-push-notifications",
@@ -1075,16 +1115,18 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:57:02.000+0000",
-        "code_sha256": "xQ9HO2fJTSjCHP8wNFfD2J9DkjYctIGlyjrBuJdFzwE=",
-        "code_size": 266292,
+        "last_modified": "2026-09-28T11:43:25.000+0000",
+        "code_sha256": "m5hhHi19xgrZDFp0bo7l4k7mr3JT/8CLL8ec4cWPmCw=",
+        "code_size": 276060,
         "layers": [],
-        "env_var_names": [],
+        "env_var_names": [
+          "ADMIN_MFA_REQUIRED"
+        ],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "20"
       },
       {
         "name": "wecare-razorpay-webhook",
@@ -1095,9 +1137,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:58:01.000+0000",
-        "code_sha256": "I3M3QydpqZ13H6HZZQ+RZnYgsocj65vCjAlxVz22cv4=",
-        "code_size": 283768,
+        "last_modified": "2026-09-28T11:44:20.000+0000",
+        "code_sha256": "sXi4t4pvk+1LwzAOtASWZLPWHvmgqyvAfHTsnk9RmxU=",
+        "code_size": 293590,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1116,7 +1158,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "37"
+        "live_alias_version": "43"
       },
       {
         "name": "wecare-rcs-dlr",
@@ -1127,20 +1169,19 @@
         ],
         "memory": 256,
         "timeout": 15,
-        "last_modified": "2026-09-26T05:56:59.000+0000",
-        "code_sha256": "NZQwBfgwzqeChQocklJuCFU0dzG//kwV44DXfYil4uk=",
-        "code_size": 270258,
+        "last_modified": "2026-09-28T11:43:22.000+0000",
+        "code_sha256": "0s7jrwtrgulVoi9/m/UGMtR7iV2srPKNFz43GUVw8GU=",
+        "code_size": 280072,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
-          "LOG_LEVEL",
-          "RCS_TABLE"
+          "LOG_LEVEL"
         ],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "19"
+        "live_alias_version": "25"
       },
       {
         "name": "wecare-rcs-send",
@@ -1151,23 +1192,22 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:57.000+0000",
-        "code_sha256": "oZyIQzKBN5mVG/k4Ygks256yqyQDPPHIpjyoGLJ6w24=",
-        "code_size": 273641,
+        "last_modified": "2026-09-28T11:43:19.000+0000",
+        "code_sha256": "6uTPXFsfVMgHQACnaQ7RpFn7IXJUUBm0xKJX3L0MRww=",
+        "code_size": 283409,
         "layers": [],
         "env_var_names": [
           "CONTACTS_TABLE",
           "LOG_LEVEL",
           "RCS_APP_ID",
           "RCS_PROJECT_ID",
-          "RCS_SECRET_NAME",
-          "RCS_TABLE"
+          "RCS_SECRET_NAME"
         ],
         "snapstart": "None",
         "aliases": [
           "live"
         ],
-        "live_alias_version": "20"
+        "live_alias_version": "25"
       },
       {
         "name": "wecare-scheduled-messages",
@@ -1178,11 +1218,12 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:57:05.000+0000",
-        "code_sha256": "nHDNHLLVGKldZOqA2RHyfaLoK2s+YTfuMJv0k5eCjxE=",
-        "code_size": 267779,
+        "last_modified": "2026-09-28T11:43:28.000+0000",
+        "code_sha256": "BTTkTUOuxOifI7515GY1CHblDV1wH37526w1TRihJng=",
+        "code_size": 277547,
         "layers": [],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "AWS_ACCOUNT_ID",
           "CONTACTS_TABLE",
           "LOG_LEVEL",
@@ -1195,7 +1236,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "21"
       },
       {
         "name": "wecare-secure-files",
@@ -1206,9 +1247,9 @@
         ],
         "memory": 512,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:54:43.000+0000",
-        "code_sha256": "Y6DzcHq5T0KIcl5sVH5YRDTG4xO79JV3eXfr6o06UZA=",
-        "code_size": 285611,
+        "last_modified": "2026-09-28T11:41:26.000+0000",
+        "code_sha256": "QnXyN+OfRyBVkZOXXtQIr53io8gPBECcaVP3Ohwo//g=",
+        "code_size": 295381,
         "layers": [],
         "env_var_names": [
           "COGNITO_USER_POOL_ID",
@@ -1235,7 +1276,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "15"
+        "live_alias_version": "19"
       },
       {
         "name": "wecare-seo-tools",
@@ -1246,11 +1287,12 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T05:17:40.000+0000",
-        "code_sha256": "6UhFgPYu3MoXjCtHtNhmG5XWpbZ1C1jT7UxSL0uqjXs=",
-        "code_size": 117767,
+        "last_modified": "2026-09-28T16:04:29.000+0000",
+        "code_sha256": "IjjtHHMjjfDjTir7yGhUhgeoVl/6K0E5Afu7vJ/1qis=",
+        "code_size": 134709,
         "layers": [],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "BEDROCK_MODEL_ID",
           "COGNITO_USER_POOL_ID",
           "CREDENTIAL_PURGE_EPOCH",
@@ -1276,9 +1318,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:55:03.000+0000",
-        "code_sha256": "vNug985yjeGrZRgRHWKbeJzRN0Xo3xs/XVYFfqvKoCk=",
-        "code_size": 270954,
+        "last_modified": "2026-09-28T11:41:41.000+0000",
+        "code_sha256": "BIOGPa3Bbc4PqGuYjra/RGPtvRlZ5NnGsKp4ndxyO9s=",
+        "code_size": 281218,
         "layers": [],
         "env_var_names": [
           "DOCS_S3_BUCKET",
@@ -1288,7 +1330,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "12"
+        "live_alias_version": "17"
       },
       {
         "name": "wecare-site-language",
@@ -1299,7 +1341,7 @@
         ],
         "memory": 512,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:55:06.000+0000",
+        "last_modified": "2026-09-28T11:41:44.000+0000",
         "code_sha256": "qUMTsgMTzo8KqbMJOvydrgIbvEtf1rSkZ+bN6u6u27Q=",
         "code_size": 9762,
         "layers": [],
@@ -1329,9 +1371,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:57:53.000+0000",
-        "code_sha256": "1ZXRYsAZL7crPOR6JPAkuLWRgp5MM46m7tSa/eeDiog=",
-        "code_size": 265906,
+        "last_modified": "2026-09-28T11:44:14.000+0000",
+        "code_sha256": "LWN6jhGQX8CsWs2j7PzjjgJV/aluJL7cf7GrVitnGro=",
+        "code_size": 275674,
         "layers": [],
         "env_var_names": [
           "DEFAULT_ASSIGNEE",
@@ -1353,9 +1395,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:28.000+0000",
-        "code_sha256": "81z2EAlo8dzZ11kTBx07nZZCbm1Wt5JNddh0V20fRLc=",
-        "code_size": 272578,
+        "last_modified": "2026-09-28T11:42:53.000+0000",
+        "code_sha256": "oYtDrFayTrMHEb4MKR+GnOOZ2vDiP65hrQmbqd1GTXE=",
+        "code_size": 282346,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1366,7 +1408,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "20"
+        "live_alias_version": "25"
       },
       {
         "name": "wecare-system-cleanup",
@@ -1377,9 +1419,9 @@
         ],
         "memory": 512,
         "timeout": 300,
-        "last_modified": "2026-09-26T05:57:55.000+0000",
-        "code_sha256": "xOPbFgSTJsVAnXK1v9qqwGOCSDsgPSTH+QA54bL4Lq8=",
-        "code_size": 269102,
+        "last_modified": "2026-09-28T11:44:17.000+0000",
+        "code_sha256": "+zQGNOAw4vA0tj/h6kDUrAlB9xlcssruR/P6bFUBMdI=",
+        "code_size": 279765,
         "layers": [],
         "env_var_names": [
           "AWS_REGION_OVERRIDE",
@@ -1390,7 +1432,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "18"
+        "live_alias_version": "26"
       },
       {
         "name": "wecare-template-analytics",
@@ -1401,9 +1443,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:09.000+0000",
-        "code_sha256": "AO//0SP9aWCJtHibkWPRKFxUU3s3CkBluFJew/tZlSM=",
-        "code_size": 265945,
+        "last_modified": "2026-09-28T11:42:34.000+0000",
+        "code_sha256": "xqmW1uUUQWneYPlu61EYfgo5YnRLgGE+p4l4rBojN8E=",
+        "code_size": 275713,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1414,7 +1456,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "21"
       },
       {
         "name": "wecare-url-shortener",
@@ -1425,9 +1467,9 @@
         ],
         "memory": 256,
         "timeout": 10,
-        "last_modified": "2026-09-26T05:55:14.000+0000",
-        "code_sha256": "NKrn1nJEMz3UYVkuEPHdSUplmSians8InKSVzZLUFys=",
-        "code_size": 268000,
+        "last_modified": "2026-09-28T11:41:52.000+0000",
+        "code_sha256": "cayI7kLR2jrnFKH+ihjNB5WgMI/KIX+bp0Paqu+sGg8=",
+        "code_size": 279606,
         "layers": [],
         "env_var_names": [],
         "snapstart": "None",
@@ -1443,9 +1485,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:34.000+0000",
-        "code_sha256": "HU3AON8bKoeb2mTT+B8FPi2ZucXOKF4Wp6hBdnkCJQY=",
-        "code_size": 267550,
+        "last_modified": "2026-09-28T11:42:56.000+0000",
+        "code_sha256": "lOg5xzXGzdMBmi+oKU7l3pjH0X5hlvEccZE94XTdl5o=",
+        "code_size": 277318,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1461,7 +1503,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "21"
       },
       {
         "name": "wecare-voice-cdr-read",
@@ -1472,9 +1514,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:43.000+0000",
-        "code_sha256": "3FniuexMyxPe9FWiysFUTYGN1US/XfiwcAg7MWfXSVY=",
-        "code_size": 270198,
+        "last_modified": "2026-09-28T11:43:07.000+0000",
+        "code_sha256": "GxlTIpUjr+SPvUu2ildi8sEhca+6X0kBCBjk/8JBs3A=",
+        "code_size": 279966,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1485,7 +1527,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "16"
+        "live_alias_version": "21"
       },
       {
         "name": "wecare-voice-in-c2c",
@@ -1496,9 +1538,9 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:56:37.000+0000",
-        "code_sha256": "2rFixNGr0ypzkEXmWXNlprAYUkmNQHIFzwIsTEOb1vg=",
-        "code_size": 272111,
+        "last_modified": "2026-09-28T11:42:59.000+0000",
+        "code_sha256": "7KcXg9K/f/cqOadV66E1uY3GJTV97Mw7K9Vi5EQ0/iE=",
+        "code_size": 282206,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1512,7 +1554,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "18"
+        "live_alias_version": "25"
       },
       {
         "name": "wecare-voice-in-obd",
@@ -1523,9 +1565,9 @@
         ],
         "memory": 512,
         "timeout": 120,
-        "last_modified": "2026-09-26T05:56:40.000+0000",
-        "code_sha256": "D6OWfHYMp9TOK3NplipCv+M4WBt89wQoP20rbOODR40=",
-        "code_size": 275747,
+        "last_modified": "2026-09-28T11:43:04.000+0000",
+        "code_sha256": "ulxZFndJA+btDPmUloSFAxf9yF2Lq3fmrCsGnw2/Wh0=",
+        "code_size": 285902,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
@@ -1540,7 +1582,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "19"
+        "live_alias_version": "26"
       },
       {
         "name": "wecare-waba-management",
@@ -1551,13 +1593,15 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:56:03.000+0000",
-        "code_sha256": "/XGdt4qf1sc+lRi9tA1sUIO/Eh1LufdRBLWzhYRZzj8=",
-        "code_size": 273602,
+        "last_modified": "2026-09-28T11:42:26.000+0000",
+        "code_sha256": "LogHt+IK9BKBo81VMKF1mv1kEl9j1r4nowd7yRRNaDk=",
+        "code_size": 283428,
         "layers": [],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "AWS_ACCOUNT_ID",
           "LOG_LEVEL",
+          "MEDIA_BUCKET",
           "REGION",
           "S3_BUCKET",
           "SNS_TOPIC_ARN",
@@ -1567,7 +1611,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "19"
+        "live_alias_version": "28"
       },
       {
         "name": "wecare-whatsapp-business-api",
@@ -1578,9 +1622,9 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:55:59.000+0000",
-        "code_sha256": "AvlooTtlRfrcFWq6Pi7+EH/KxGTB+bhhPPnM0eSeVgU=",
-        "code_size": 735779,
+        "last_modified": "2026-09-28T11:42:21.000+0000",
+        "code_sha256": "8uaH+0ta/3xYZjyPRxaBdeOlp/vJeZNljZ9vsqfsEZA=",
+        "code_size": 745974,
         "layers": [
           "cryptography-python312:1"
         ],
@@ -1592,6 +1636,7 @@
           "FLOW_REGISTRY_TABLE",
           "FLOW_SUBMISSIONS_TABLE",
           "LOG_LEVEL",
+          "MEDIA_BUCKET",
           "META_API_VERSION",
           "META_TOKEN_SECRET",
           "PAYMENT_WABA_ID",
@@ -1606,7 +1651,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "43"
+        "live_alias_version": "52"
       },
       {
         "name": "wecare-whatsapp-calling",
@@ -1617,11 +1662,12 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:55:32.000+0000",
-        "code_sha256": "oC1kxmKeMK/yjTMzBo01P/BhH7wgI6idTvFkD1YaJMA=",
-        "code_size": 294450,
+        "last_modified": "2026-09-28T11:42:09.000+0000",
+        "code_sha256": "lJnKMsJklxK/tIVNByZjxowSPRRIkabcBzq5tfzs1xs=",
+        "code_size": 304600,
         "layers": [],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "AI_LANGUAGE",
           "AI_VOICE_ID",
           "AUTO_PICKUP_AUDIO_KEY",
@@ -1644,7 +1690,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "25"
+        "live_alias_version": "36"
       },
       {
         "name": "wecare-whatsapp-template-management",
@@ -1655,11 +1701,12 @@
         ],
         "memory": 512,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:55:40.000+0000",
-        "code_sha256": "okU4zLiGcZWR8IXK3gls80rsI5eN2AvbIFcnWPhYJdE=",
-        "code_size": 272719,
+        "last_modified": "2026-09-28T11:42:15.000+0000",
+        "code_sha256": "sOvEKhN64mRO2YMItk1pPX+28w4lPey/nQwPHWLsWDE=",
+        "code_size": 282921,
         "layers": [],
         "env_var_names": [
+          "CDN_DOMAIN",
           "LOG_LEVEL",
           "MEDIA_BUCKET"
         ],
@@ -1667,7 +1714,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "26"
       },
       {
         "name": "wecare-whatsapp-templates",
@@ -1678,12 +1725,13 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:55:37.000+0000",
-        "code_sha256": "nGWyOAGwhlkrhPLwuLM/Ef0msEm1KmC5iSWW8jog0tQ=",
-        "code_size": 269290,
+        "last_modified": "2026-09-28T11:42:12.000+0000",
+        "code_sha256": "U2WCR8Q61MQWiSFX+OsSrURy/S1RnCpe+aaFkWthnSQ=",
+        "code_size": 279134,
         "layers": [],
         "env_var_names": [
           "AWS_ACCOUNT_ID",
+          "MEDIA_BUCKET",
           "REGION",
           "S3_BUCKET"
         ],
@@ -1691,7 +1739,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "26"
       },
       {
         "name": "wecare-whatsapp-voice",
@@ -1702,12 +1750,14 @@
         ],
         "memory": 256,
         "timeout": 30,
-        "last_modified": "2026-09-26T05:55:29.000+0000",
-        "code_sha256": "d+s9qGQ6kW1fj58rg2OW1h+Tq61iKwycjiNKMYQtyG8=",
-        "code_size": 272819,
+        "last_modified": "2026-09-28T11:42:06.000+0000",
+        "code_sha256": "nFXQ87qfHWXULfIoFQY3+wRFdA0I7sXucyxqsQJvjP0=",
+        "code_size": 282808,
         "layers": [],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "AWS_ACCOUNT_ID",
+          "MEDIA_BUCKET",
           "REGION",
           "S3_BUCKET"
         ],
@@ -1715,7 +1765,7 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "17"
+        "live_alias_version": "28"
       },
       {
         "name": "wecare-wix-store",
@@ -1726,11 +1776,12 @@
         ],
         "memory": 256,
         "timeout": 60,
-        "last_modified": "2026-09-26T05:58:18.000+0000",
-        "code_sha256": "L3+ZmlyUSwIdFVL2z2+Mhwwa2MFOSj5XPFPAbfULrDY=",
-        "code_size": 277808,
+        "last_modified": "2026-09-28T11:44:50.000+0000",
+        "code_sha256": "ZIssEOHQ8TgkyGobx5JHhum97eCOhXF3LNbHQK1SkW4=",
+        "code_size": 288049,
         "layers": [],
         "env_var_names": [
+          "ADMIN_MFA_REQUIRED",
           "CONTACTS_TABLE",
           "LOG_LEVEL",
           "WIX_ACCOUNT_ID",
@@ -1745,16 +1796,16 @@
         "aliases": [
           "live"
         ],
-        "live_alias_version": "23"
+        "live_alias_version": "30"
       }
     ]
   },
   "api_gateway": {
     "http_api_count": 1,
     "rest_api_count": 0,
-    "total_routes": 361,
+    "total_routes": 359,
     "total_authorizers": 0,
-    "routes_authorization_none": 361,
+    "routes_authorization_none": 359,
     "http_apis": [
       {
         "api_id": "zllr9lrg7j",
@@ -1762,7 +1813,7 @@
         "protocol": "HTTP",
         "endpoint": "https://zllr9lrg7j.execute-api.us-east-1.amazonaws.com",
         "created": "2026-02-10T15:51:02+00:00",
-        "route_count": 361,
+        "route_count": 359,
         "authorizer_count": 0,
         "authorizers": [],
         "stages": [
@@ -1778,6 +1829,14 @@
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-marketing-ads",
+            "qualifier": "live",
+            "payload_version": "2.0"
+          },
+          {
+            "route_key": "ANY /mcp",
+            "authorization_type": "NONE",
+            "authorizer_id": null,
+            "target_function": "wecare-mcp",
             "qualifier": "live",
             "payload_version": "2.0"
           },
@@ -2567,14 +2626,6 @@
           },
           {
             "route_key": "GET /site-language/languages",
-            "authorization_type": "NONE",
-            "authorizer_id": null,
-            "target_function": "wecare-site-language",
-            "qualifier": "live",
-            "payload_version": "2.0"
-          },
-          {
-            "route_key": "GET /site-language/voices",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-site-language",
@@ -3702,14 +3753,6 @@
             "payload_version": "2.0"
           },
           {
-            "route_key": "POST /payments/webhook",
-            "authorization_type": "NONE",
-            "authorizer_id": null,
-            "target_function": "wecare-razorpay-webhook",
-            "qualifier": "live",
-            "payload_version": "2.0"
-          },
-          {
             "route_key": "POST /plivo/answer",
             "authorization_type": "NONE",
             "authorizer_id": null,
@@ -3847,14 +3890,6 @@
           },
           {
             "route_key": "POST /site-language/translate",
-            "authorization_type": "NONE",
-            "authorizer_id": null,
-            "target_function": "wecare-site-language",
-            "qualifier": "live",
-            "payload_version": "2.0"
-          },
-          {
-            "route_key": "POST /site-language/tts",
             "authorization_type": "NONE",
             "authorizer_id": null,
             "target_function": "wecare-site-language",
@@ -4690,7 +4725,6 @@
       "stack-wecare-digital-DLQMessagesTable",
       "stack-wecare-digital-DLTTemplates",
       "stack-wecare-digital-DocumentHistoryTable",
-      "stack-wecare-digital-DocumentTable",
       "stack-wecare-digital-DownloadGrantsTable",
       "stack-wecare-digital-EnterpriseAssistTable",
       "stack-wecare-digital-FaqTable",
@@ -4737,15 +4771,10 @@
     ],
     "no_pitr": [
       "stack-wecare-digital-CatalogCacheTable",
-      "stack-wecare-digital-DLQMessagesTable",
-      "stack-wecare-digital-DownloadGrantsTable",
-      "stack-wecare-digital-FlowDraftTable",
       "stack-wecare-digital-PstnSoftphoneSessions",
       "stack-wecare-digital-RateLimitTable",
-      "stack-wecare-digital-SecureFilesTable",
       "stack-wecare-digital-SiteLanguageCache",
       "stack-wecare-digital-WebhookDedup",
-      "stack-wecare-digital-WhatsAppPhonesTable",
       "stack-wecare-digital-WixOrdersCache",
       "stack-wecare-digital-WixProductsCache"
     ],
@@ -4846,8 +4875,8 @@
       {
         "name": "stack-wecare-digital-AuditLogsTable",
         "status": "ACTIVE",
-        "item_count": 234,
-        "size_bytes": 178902,
+        "item_count": 897,
+        "size_bytes": 685782,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -4936,8 +4965,8 @@
       {
         "name": "stack-wecare-digital-ContactsTable",
         "status": "ACTIVE",
-        "item_count": 5,
-        "size_bytes": 1457,
+        "item_count": 9,
+        "size_bytes": 2760,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5065,7 +5094,7 @@
         "gsi_count": 0,
         "stream": null,
         "ttl": "ENABLED",
-        "pitr": "DISABLED",
+        "pitr": "ENABLED",
         "deletion_protection": false
       },
       {
@@ -5101,8 +5130,8 @@
       {
         "name": "stack-wecare-digital-DocumentTable",
         "status": "ACTIVE",
-        "item_count": 0,
-        "size_bytes": 0,
+        "item_count": 2,
+        "size_bytes": 750,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "documentId(HASH)"
@@ -5125,7 +5154,7 @@
         "gsi_count": 1,
         "stream": null,
         "ttl": "ENABLED",
-        "pitr": "DISABLED",
+        "pitr": "ENABLED",
         "deletion_protection": false
       },
       {
@@ -5170,7 +5199,7 @@
         "gsi_count": 0,
         "stream": null,
         "ttl": "ENABLED",
-        "pitr": "DISABLED",
+        "pitr": "ENABLED",
         "deletion_protection": false
       },
       {
@@ -5299,8 +5328,8 @@
       {
         "name": "stack-wecare-digital-LinkClicksTable",
         "status": "ACTIVE",
-        "item_count": 717,
-        "size_bytes": 143697,
+        "item_count": 894,
+        "size_bytes": 164603,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "shortCode(HASH)",
@@ -5330,8 +5359,8 @@
       {
         "name": "stack-wecare-digital-MessagesTable",
         "status": "ACTIVE",
-        "item_count": 147,
-        "size_bytes": 42331,
+        "item_count": 536,
+        "size_bytes": 149957,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5511,8 +5540,8 @@
       {
         "name": "stack-wecare-digital-RateLimitTable",
         "status": "ACTIVE",
-        "item_count": 80,
-        "size_bytes": 8346,
+        "item_count": 210,
+        "size_bytes": 20231,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5526,8 +5555,8 @@
       {
         "name": "stack-wecare-digital-RazorpayWebhookLogTable",
         "status": "ACTIVE",
-        "item_count": 344,
-        "size_bytes": 205332,
+        "item_count": 154,
+        "size_bytes": 91682,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5610,7 +5639,7 @@
         "gsi_count": 1,
         "stream": null,
         "ttl": "DISABLED",
-        "pitr": "DISABLED",
+        "pitr": "ENABLED",
         "deletion_protection": false
       },
       {
@@ -5631,8 +5660,8 @@
       {
         "name": "stack-wecare-digital-ShortLinksTable",
         "status": "ACTIVE",
-        "item_count": 9,
-        "size_bytes": 2190,
+        "item_count": 10,
+        "size_bytes": 2436,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "shortCode(HASH)"
@@ -5646,8 +5675,8 @@
       {
         "name": "stack-wecare-digital-SiteLanguageCache",
         "status": "ACTIVE",
-        "item_count": 76,
-        "size_bytes": 27451,
+        "item_count": 175,
+        "size_bytes": 54169,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "cacheKey(HASH)"
@@ -5692,7 +5721,7 @@
         "name": "stack-wecare-digital-SystemConfigTable",
         "status": "ACTIVE",
         "item_count": 31,
-        "size_bytes": 17977,
+        "size_bytes": 17967,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5706,8 +5735,8 @@
       {
         "name": "stack-wecare-digital-SystemEventTable",
         "status": "ACTIVE",
-        "item_count": 18,
-        "size_bytes": 4482,
+        "item_count": 69,
+        "size_bytes": 17181,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5766,8 +5795,8 @@
       {
         "name": "stack-wecare-digital-VoiceCDRTable",
         "status": "ACTIVE",
-        "item_count": 1,
-        "size_bytes": 693,
+        "item_count": 11,
+        "size_bytes": 7556,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5796,8 +5825,8 @@
       {
         "name": "stack-wecare-digital-WebhookDedup",
         "status": "ACTIVE",
-        "item_count": 354,
-        "size_bytes": 36160,
+        "item_count": 181,
+        "size_bytes": 18939,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "eventId(HASH)"
@@ -5841,8 +5870,8 @@
       {
         "name": "stack-wecare-digital-WhatsAppInboundTable",
         "status": "ACTIVE",
-        "item_count": 9,
-        "size_bytes": 4569,
+        "item_count": 15,
+        "size_bytes": 8956,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5856,8 +5885,8 @@
       {
         "name": "stack-wecare-digital-WhatsAppOutboundTable",
         "status": "ACTIVE",
-        "item_count": 80,
-        "size_bytes": 32429,
+        "item_count": 284,
+        "size_bytes": 112460,
         "billing_mode": "PAY_PER_REQUEST",
         "keys": [
           "id(HASH)"
@@ -5880,7 +5909,7 @@
         "gsi_count": 0,
         "stream": null,
         "ttl": "DISABLED",
-        "pitr": "DISABLED",
+        "pitr": "ENABLED",
         "deletion_protection": false
       },
       {
@@ -6170,7 +6199,7 @@
         "name": "wecare/ads/account-registry",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/ads/account-registry-PFC39J",
         "last_changed": "2026-09-18T08:10:55.580000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": true,
@@ -6184,7 +6213,7 @@
         "name": "wecare/agent-connector-token",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/agent-connector-token-rW4wo3",
         "last_changed": "2026-07-20T14:16:07.071000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6234,7 +6263,7 @@
         "name": "wecare/aws/iam-access-keys",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/aws/iam-access-keys-R64OdR",
         "last_changed": "2026-09-18T10:29:22.532000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6244,7 +6273,7 @@
         "name": "wecare/backup/recovery-passphrase",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/backup/recovery-passphrase-6dtrTd",
         "last_changed": "2026-09-19T03:08:56.850000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6254,7 +6283,7 @@
         "name": "wecare/bing/api",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/bing/api-Opu8P3",
         "last_changed": "2026-09-18T08:10:45.600000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": true,
@@ -6268,7 +6297,7 @@
         "name": "wecare/config/webhook-registry",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/config/webhook-registry-LEbXAV",
         "last_changed": "2026-09-19T08:17:40.383000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6278,7 +6307,7 @@
         "name": "wecare/flow-private-key",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/flow-private-key-qTil1Q",
         "last_changed": "2026-02-23T03:47:08.954000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6288,7 +6317,7 @@
         "name": "wecare/github-connection",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/github-connection-VYaD4z",
         "last_changed": "2026-09-18T07:09:34.165000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6298,7 +6327,7 @@
         "name": "wecare/github-pat",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/github-pat-y4tXJa",
         "last_changed": "2026-08-26T00:47:58.696000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6308,7 +6337,7 @@
         "name": "wecare/google-api-key",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google-api-key-KcZ6nj",
         "last_changed": "2026-09-18T10:22:41.266000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6318,7 +6347,7 @@
         "name": "wecare/google-maps",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google-maps-WFucJA",
         "last_changed": "2026-09-18T10:22:49.341000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6328,7 +6357,7 @@
         "name": "wecare/google-maps-server",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google-maps-server-tpmvdh",
         "last_changed": "2026-09-26T02:19:14.014000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6338,7 +6367,7 @@
         "name": "wecare/google/ads",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/ads-HuIYKY",
         "last_changed": "2026-09-17T11:05:14.453000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": true,
@@ -6352,7 +6381,7 @@
         "name": "wecare/google/cloud",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/google/cloud-wKkDxP",
         "last_changed": "2026-09-19T07:28:27.629000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": true,
@@ -6366,7 +6395,7 @@
         "name": "wecare/meta-system-user-token",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/meta-system-user-token-5vu2o3",
         "last_changed": "2026-09-20T08:11:36.888000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6376,7 +6405,7 @@
         "name": "wecare/meta/payments",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/meta/payments-8L2LIa",
         "last_changed": "2026-09-18T09:40:43.015000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6386,7 +6415,7 @@
         "name": "wecare/openai/api",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/openai/api-ke9WOX",
         "last_changed": "2026-09-18T08:10:50.855000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": true,
@@ -6400,7 +6429,7 @@
         "name": "wecare/plivo",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/plivo-3ZLA2U",
         "last_changed": "2026-09-19T07:28:28.546000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6410,7 +6439,7 @@
         "name": "wecare/plivo-answer",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/plivo-answer-uxE0q7",
         "last_changed": "2026-09-19T07:38:56.179000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6420,7 +6449,7 @@
         "name": "wecare/plivo/api",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/plivo/api-aIEx8b",
         "last_changed": "2026-09-18T10:06:33.375000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": true,
@@ -6434,7 +6463,7 @@
         "name": "wecare/razorpay-webhook",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/razorpay-webhook-Jt2DYn",
         "last_changed": "2026-07-02T13:53:03.746000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6444,7 +6473,7 @@
         "name": "wecare/razorpay/api",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/razorpay/api-vaHEaM",
         "last_changed": "2026-09-19T03:19:33.634000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6454,7 +6483,7 @@
         "name": "wecare/seo/google-oauth",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/seo/google-oauth-XnSVlc",
         "last_changed": "2026-09-19T07:28:29.947000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6464,7 +6493,7 @@
         "name": "wecare/sinch/rcs",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/sinch/rcs-18kRci",
         "last_changed": "2026-05-05T14:01:52.351000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6484,7 +6513,7 @@
         "name": "wecare/truecaller",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/truecaller-b4PYwF",
         "last_changed": "2026-09-19T07:28:31.915000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6494,7 +6523,7 @@
         "name": "wecare/wix/headless-api-key",
         "arn": "arn:aws:secretsmanager:us-east-1:775261844268:secret:wecare/wix/headless-api-key-UTWQel",
         "last_changed": "2026-09-26T01:47:57.558000+00:00",
-        "last_accessed": "2026-09-26T00:00:00+00:00",
+        "last_accessed": "2026-09-28T00:00:00+00:00",
         "rotation_enabled": false,
         "deleted_date": null,
         "kms_key": false,
@@ -6521,7 +6550,7 @@
         "software_token_mfa": null,
         "sms_mfa": false,
         "advanced_security": null,
-        "deletion_protection": "INACTIVE",
+        "deletion_protection": "ACTIVE",
         "password_policy": {
           "MinimumLength": 16,
           "RequireUppercase": true,
@@ -6578,10 +6607,6 @@
           {
             "id": "1j8kbi48m4v2rped3n224rlevb",
             "name": "stack-wecare-digital-web"
-          },
-          {
-            "id": "1jrnb80tcvceg7uln9vuoe8va5",
-            "name": "WECARE.DIGITAL"
           }
         ]
       }
@@ -6642,23 +6667,25 @@
     "count": 6,
     "unencrypted": [],
     "public_policy": [],
-    "no_full_public_access_block": [],
+    "no_full_public_access_block": [
+      "wecare-cloudtrail-775261844268"
+    ],
     "buckets": [
-      {
-        "name": "app.wecare.digital",
-        "created": "2026-02-10T02:29:10+00:00",
-        "region": "us-east-1",
-        "encryption": "AES256",
-        "public_access_block_all": true,
-        "versioning": "Enabled",
-        "policy_is_public": false
-      },
       {
         "name": "cdk-hnb659fds-assets-775261844268-us-east-1",
         "created": "2026-02-11T01:05:56+00:00",
         "region": "us-east-1",
         "encryption": "aws:kms",
         "public_access_block_all": true,
+        "versioning": "Enabled",
+        "policy_is_public": false
+      },
+      {
+        "name": "wecare-cloudtrail-775261844268",
+        "created": "2026-09-28T02:41:51+00:00",
+        "region": "us-east-1",
+        "encryption": "AES256",
+        "public_access_block_all": false,
         "versioning": "Enabled",
         "policy_is_public": false
       },
@@ -6677,7 +6704,7 @@
         "region": "us-east-1",
         "encryption": "AES256",
         "public_access_block_all": true,
-        "versioning": "Enabled",
+        "versioning": "Suspended",
         "policy_is_public": false
       },
       {
@@ -6701,11 +6728,10 @@
     ]
   },
   "cloudfront": {
-    "count": 3,
+    "count": 2,
     "without_web_acl": [
       "E1SZBXLQ4XNLJ7",
-      "E2GP22R4BIFGQ3",
-      "ERCXSFDL0VM8X"
+      "E2GP22R4BIFGQ3"
     ],
     "distributions": [
       {
@@ -6742,50 +6768,17 @@
           ]
         ],
         "price_class": "PriceClass_All"
-      },
-      {
-        "id": "ERCXSFDL0VM8X",
-        "domain": "d1c2t5x9nvib1v.cloudfront.net",
-        "aliases": [
-          "app.wecare.digital"
-        ],
-        "status": "Deployed",
-        "enabled": true,
-        "origins": [
-          "app.wecare.digital.s3.us-east-1.amazonaws.com"
-        ],
-        "web_acl": null,
-        "viewer_protocol": "redirect-to-https",
-        "lambda_edge": [],
-        "price_class": "PriceClass_All"
       }
     ]
   },
   "waf": {
     "REGIONAL": {
-      "count": 1,
-      "web_acls": [
-        {
-          "name": "wecare-cognito-waf",
-          "id": "88886e29-8eb4-4036-ae7e-1a39f9dd68a0",
-          "arn": "arn:aws:wafv2:us-east-1:775261844268:regional/webacl/wecare-cognito-waf/88886e29-8eb4-4036-ae7e-1a39f9dd68a0",
-          "associated_resources": [
-            "arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_46ULYuukt",
-            "arn:aws:cognito-idp:us-east-1:775261844268:userpool/us-east-1_cSx0RHCIR"
-          ]
-        }
-      ]
+      "count": 0,
+      "web_acls": []
     },
     "CLOUDFRONT": {
-      "count": 1,
-      "web_acls": [
-        {
-          "name": "wecare-amplify-waf",
-          "id": "b4d41adc-d1ad-4639-9403-00e7df7b3741",
-          "arn": "arn:aws:wafv2:us-east-1:775261844268:global/webacl/wecare-amplify-waf/b4d41adc-d1ad-4639-9403-00e7df7b3741",
-          "associated_resources": []
-        }
-      ]
+      "count": 0,
+      "web_acls": []
     }
   },
   "route53": {
@@ -6795,12 +6788,12 @@
         "id": "Z03939753QJGZ6ZD6BXO8",
         "name": "wecare.digital.",
         "private": false,
-        "record_count": 41,
+        "record_count": 31,
         "record_types": {
-          "CNAME": 21,
-          "A": 7,
+          "CNAME": 16,
           "TXT": 7,
-          "AAAA": 3,
+          "A": 3,
+          "AAAA": 2,
           "MX": 1,
           "NS": 1,
           "SOA": 1
@@ -6819,7 +6812,7 @@
     ]
   },
   "cloudwatch": {
-    "alarm_count": 41,
+    "alarm_count": 61,
     "composite_alarm_count": 0,
     "alarms_in_alarm": [],
     "alarms_insufficient_data": [],
@@ -6828,9 +6821,11 @@
     "dashboards": [
       "wecare-platform-health"
     ],
-    "log_group_count": 81,
-    "log_groups_without_retention": [],
-    "log_bytes_total": 161121043,
+    "log_group_count": 82,
+    "log_groups_without_retention": [
+      "/aws/lambda/wecare-mcp"
+    ],
+    "log_bytes_total": 337427058,
     "alarms": [
       {
         "name": "wecare-apigw-5xx-wecare-api",
@@ -7041,6 +7036,30 @@
         "actions_enabled": true
       },
       {
+        "name": "wecare-lambda-duration-wecare-seo-tools",
+        "state": "OK",
+        "metric": "Duration",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-any",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-stack-wecare-url-shortener",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
         "name": "wecare-lambda-errors-wecare-billing",
         "state": "OK",
         "metric": "Errors",
@@ -7057,11 +7076,91 @@
         "actions_enabled": true
       },
       {
+        "name": "wecare-lambda-errors-wecare-cognito-custom-message",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-contacts",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-conversation-meta",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-customer-whatsapp-auth",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
         "name": "wecare-lambda-errors-wecare-invoice-engine",
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
         "actions": 2,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-mcp",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-messages-read",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-notification-worker",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-outbound-email",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-outbound-sms",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-plivo-answer",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
         "actions_enabled": true
       },
       {
@@ -7073,11 +7172,43 @@
         "actions_enabled": true
       },
       {
+        "name": "wecare-lambda-errors-wecare-rcs-dlr",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-rcs-send",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
         "name": "wecare-lambda-errors-wecare-scheduled-messages",
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
         "actions": 2,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-secure-files",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-seo-tools",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
         "actions_enabled": true
       },
       {
@@ -7089,11 +7220,35 @@
         "actions_enabled": true
       },
       {
+        "name": "wecare-lambda-errors-wecare-site-language",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-sms-aws",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
+        "actions_enabled": true
+      },
+      {
         "name": "wecare-lambda-errors-wecare-whatsapp-business-api",
         "state": "OK",
         "metric": "Errors",
         "namespace": "AWS/Lambda",
         "actions": 2,
+        "actions_enabled": true
+      },
+      {
+        "name": "wecare-lambda-errors-wecare-whatsapp-calling",
+        "state": "OK",
+        "metric": "Errors",
+        "namespace": "AWS/Lambda",
+        "actions": 1,
         "actions_enabled": true
       },
       {
@@ -7163,54 +7318,12 @@
     ]
   },
   "iac": {
-    "cfn_stack_count": 7,
+    "cfn_stack_count": 1,
     "cfn_stacks": [
       {
         "name": "CDKToolkit",
         "status": "CREATE_COMPLETE",
         "updated": "2026-02-11T01:05:49.747000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-call-hooks",
-        "status": "UPDATE_COMPLETE",
-        "updated": "2026-09-19T09:17:41.074000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-init",
-        "status": "CREATE_COMPLETE",
-        "updated": "2026-09-19T09:20:01.036000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-mcp",
-        "status": "UPDATE_COMPLETE",
-        "updated": "2026-09-19T07:57:38.414000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-mcp-enable",
-        "status": "UPDATE_COMPLETE",
-        "updated": "2026-09-19T09:40:43.405000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-elevenlabs-postcall-sms",
-        "status": "CREATE_COMPLETE",
-        "updated": "2026-09-19T09:20:01.805000+00:00",
-        "drift": "NOT_CHECKED",
-        "parent": null
-      },
-      {
-        "name": "wecare-temp-code-inspector",
-        "status": "CREATE_COMPLETE",
-        "updated": "2026-09-19T09:12:09.763000+00:00",
         "drift": "NOT_CHECKED",
         "parent": null
       }
@@ -7222,189 +7335,31 @@
         "name": "wecare.digital",
         "default_domain": "d22dm4b0jn71jw.amplifyapp.com",
         "platform": "WEB",
-        "repository": "https://github.com/wecare-digital/bharat-stack",
-        "custom_rule_count": 23,
+        "repository": "https://github.com/wecare-digital/wecare-digital",
+        "custom_rule_count": 110,
         "branches": [
-          {
-            "branch": "chatgpt/grahak-os-color-unify-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "3",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T11:31:52.387000+00:00"
-              },
-              {
-                "id": "2",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T11:23:06.522000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T11:18:14.711000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-final-polish-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T06:09:27.256000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T06:00:01.187000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-five-fixes-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T08:17:44.125000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T07:55:52.757000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-route-header-20260917",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T00:35:05.410000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T00:24:30.259000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-trust-strip-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "4",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T02:50:23.498000+00:00"
-              },
-              {
-                "id": "3",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T02:43:09.487000+00:00"
-              },
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T02:33:01.465000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/grahak-os-widgets-footer-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T04:37:39.834000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T04:07:09.011000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/meta-icon-s3-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "2",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T10:17:18.829000+00:00"
-              },
-              {
-                "id": "1",
-                "status": "FAILED",
-                "commit": "HEAD",
-                "end": "2026-09-18T10:08:45.805000+00:00"
-              }
-            ]
-          },
-          {
-            "branch": "chatgpt/meta-icon-s3-latest-20260918",
-            "stage": "DEVELOPMENT",
-            "enable_auto_build": false,
-            "recent_jobs": [
-              {
-                "id": "1",
-                "status": "SUCCEED",
-                "commit": "HEAD",
-                "end": "2026-09-18T10:25:29.098000+00:00"
-              }
-            ]
-          },
           {
             "branch": "stack",
             "stage": "PRODUCTION",
             "enable_auto_build": true,
             "recent_jobs": [
               {
-                "id": "910",
+                "id": "1031",
                 "status": "SUCCEED",
-                "commit": "9b5d9aefb8e3",
-                "end": "2026-09-26T06:06:50.303000+00:00"
+                "commit": "31b62d490b47",
+                "end": "2026-09-28T16:39:09.085000+00:00"
               },
               {
-                "id": "909",
+                "id": "1030",
                 "status": "SUCCEED",
-                "commit": "df5ea8348bc0",
-                "end": "2026-09-26T05:59:57.024000+00:00"
+                "commit": "115e845eb569",
+                "end": "2026-09-28T16:21:38.339000+00:00"
               },
               {
-                "id": "908",
+                "id": "1029",
                 "status": "SUCCEED",
-                "commit": "869760f7d167",
-                "end": "2026-09-26T05:52:06.697000+00:00"
+                "commit": "dd561bdc52ed",
+                "end": "2026-09-28T16:15:16.833000+00:00"
               }
             ]
           }
@@ -7420,16 +7375,15 @@
     "amplify_waf": {
       "d22dm4b0jn71jw": {
         "web_acl_arn_tail": [
-          "wecare-amplify-waf",
-          "b4d41adc-d1ad-4639-9403-00e7df7b3741"
+          ""
         ],
-        "status": "ASSOCIATION_SUCCESS"
+        "status": "NOT_ASSOCIATED"
       }
     }
   },
   "errors": [],
   "error_count": 0,
-  "duration_seconds": 152.0,
+  "duration_seconds": 152.8,
   "partial_run": false,
   "collectors_run": [
     "api_gateway",

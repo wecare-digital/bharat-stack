@@ -111,10 +111,15 @@ generate_integration_inventory --check  current
    handlers refuse the only user, including the new approve route. I can prove those
    routes exist and refuse anonymous callers; I **cannot** prove they return data for a
    signed-in Admin.
-2. **`ADMIN_MFA_REQUIRED` stays at warn** and that is correct, not an oversight. Flipping
-   it would refuse the first Admin ever created — the exact failure the function's own
-   comment predicts. Precondition: an Admin exists with a factor. `_has_enrolled_mfa`
-   accepts any factor and the sole user already has email + SMS, so the only gap is (1).
+2. ~~**`ADMIN_MFA_REQUIRED` stays at warn** and that is correct, not an oversight.~~
+   **Superseded 2026-09-29.** It no longer stays at warn. `ADMIN_MFA_REQUIRED=true` is set
+   on all **13** functions that gate anything on an `Admin` role — measured across all 66,
+   and matching `config/lambda-env-manifest.json` exactly — so enforcement is live. The
+   paragraph is kept struck through rather than deleted because its reasoning was sound at
+   the time and the flag's own docstring in `middleware.py` now carries the same correction:
+   the lock-out risk the warn default protected against has expired, so an argument for
+   staying at warn would today be an argument against a change that already shipped.
+   Item (1) is unaffected and still owner-held.
 3. **Cognito client `1jrnb80tcvceg7uln9vuoe8va5`** should be deleted; that invalidates the
    app-client secret disclosed earlier in this work.
 4. **Provider credential rotation** — the exposed families remain `MANUAL_OWNER_ACTION`.

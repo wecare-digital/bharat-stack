@@ -14,6 +14,11 @@ name: Plivo drift check
 #   2  CRITICAL drift     - a protected invariant, the application identity, the
 #                           number -> application binding, or the prohibited-SMS
 #                           flag moved. Live call routing may be broken.
+#   3  unreachable        - Plivo was never read, so NOTHING is known about live
+#                           state. Distinct from 2 on purpose: this job reported a
+#                           false CRITICAL on 2026-09-28 when the CI role lacked
+#                           kms:Decrypt, because a failed credential read and a
+#                           moved invariant shared one exit code.
 #
 # Scheduled daily rather than on push: drift is caused by out-of-band changes, so
 # it does not correlate with commits. The manual trigger exists for use during a
@@ -110,6 +115,19 @@ jobs:
             2) echo 'CRITICAL drift. Live call routing or a protected invariant moved.' \
                  >> "$GITHUB_STEP_SUMMARY"
                echo 'Do NOT `--apply` to fix it until the change is understood.' \
+                 >> "$GITHUB_STEP_SUMMARY"; exit 1 ;;
+            # 3 is NOT a drift result. The check could not reach Plivo, so it compared
+            # nothing and must not imply anything about live state. This branch exists
+            # because exit 2 used to cover both, and a missing kms:Decrypt on the CI role
+            # was consequently reported as live call routing having moved (2026-09-28).
+            3) echo 'NOT A PASS, AND NOT DRIFT - Plivo could not be reached.' \
+                 >> "$GITHUB_STEP_SUMMARY"
+               echo '' >> "$GITHUB_STEP_SUMMARY"
+               echo 'The live control plane was not inspected, so this run says nothing' \
+                 >> "$GITHUB_STEP_SUMMARY"
+               echo 'about whether it has drifted. Usual cause is the credential read:' \
+                 >> "$GITHUB_STEP_SUMMARY"
+               echo 'verify the role with `python scripts/provision_ci_plivo_drift_role.py --verify`.' \
                  >> "$GITHUB_STEP_SUMMARY"; exit 1 ;;
             *) echo "Drift check failed to run (exit $code)." \
                  >> "$GITHUB_STEP_SUMMARY"; exit 1 ;;

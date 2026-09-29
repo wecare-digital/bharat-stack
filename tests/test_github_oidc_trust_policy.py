@@ -34,6 +34,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import pathlib
+import re
 import sys
 
 import pytest
@@ -64,6 +65,11 @@ def _load(relpath: str, name: str):
 @pytest.fixture(scope="module")
 def provisioner():
     return _load("scripts/provision_ci_route_auth_role.py", "_oidc_provisioner")
+
+
+@pytest.fixture(scope="module")
+def plivo():
+    return _load("scripts/provision_ci_plivo_drift_role.py", "_oidc_plivo")
 
 
 @pytest.fixture(scope="module")
@@ -128,19 +134,98 @@ def test_trust_grants_only_web_identity_assumption(provisioner):
     assert statement["Principal"]["Federated"].endswith(f"oidc-provider/{PROVIDER}")
 
 
-def test_fixer_covers_every_oidc_role(fixer):
-    """A role left off the list is a role that silently keeps the old policy."""
-    assert set(fixer.ROLES) == {
-        "GitHubActions-bharat-stack-docs-scraper",
-        "GitHubActions-bharat-stack-seo-tools",
-        "GitHubActions-wecare-digital-route-auth",
-        # The two halves of public-surface-deploy.yml. Listed here before they exist in
-        # AWS on purpose - a role created later and never registered is one that keeps
-        # whatever trust document its creator pasted, and the write one is the only role
-        # of the five that can WRITE to production.
-        "GitHubActions-wecare-digital-public-surface",
-        "GitHubActions-wecare-digital-public-surface-read",
-    }
+def _roles_declared_in_the_repository() -> dict[str, list[str]]:
+    """Every GitHub Actions role name this repository declares, and where.
+
+    Three precise shapes rather than a loose grep, so a role NAMED IN PROSE does not
+    count and a role actually wired up does:
+
+      * `role/GitHubActions-...` in a workflow -- a literal `role-to-assume`
+      * `ROLE = "GitHubActions-..."` in a script -- a provisioner's module constant
+      * `--role-name GitHubActions-...` in a scripts/*.md -- a committed create-role command
+
+    fix_github_oidc_trust.py is excluded from the scan because it holds the list under
+    test; including it would make the assertion trivially true.
+    """
+    found: dict[str, list[str]] = {}
+
+    def record(name: str, where: pathlib.Path) -> None:
+        places = found.setdefault(name, [])
+        relpath = str(where.relative_to(ROOT))
+        if relpath not in places:
+            places.append(relpath)
+
+    workflows = sorted((ROOT / ".github" / "workflows").glob("*.yml")) + \
+        sorted((ROOT / ".github" / "workflows").glob("*.yaml"))
+    for path in workflows:
+        for name in re.findall(r"role/(GitHubActions-[A-Za-z0-9_+=,.@-]+)", path.read_text()):
+            record(name, path)
+
+    for path in sorted((ROOT / "scripts").glob("*.py")):
+        if path.name == "fix_github_oidc_trust.py":
+            continue
+        for name in re.findall(
+            r'^ROLE\s*=\s*"(GitHubActions-[A-Za-z0-9_+=,.@-]+)"', path.read_text(), re.M
+        ):
+            record(name, path)
+
+    for path in sorted((ROOT / "scripts").glob("*.md")):
+        for name in re.findall(
+            r"--role-name\s+(GitHubActions-[A-Za-z0-9_+=,.@-]+)", path.read_text()
+        ):
+            record(name, path)
+
+    return found
+
+
+def test_fixer_covers_every_oidc_role_the_repository_declares(fixer):
+    """A role left off the list is a role that silently keeps the old policy.
+
+    THIS USED TO BE A LITERAL SET, and the literal was wrong. It named four roles and
+    asserted they were exactly the OIDC roles; meanwhile
+    `scripts/provision_ci_plivo_drift_role.py` had created a fifth in AWS on 2026-09-28
+    and nobody added it. So the test certified a list that was missing a live role -- the
+    failure mode it was written to prevent, wearing the costume of a passing test. A
+    second copy of a set is a thing that drifts, in the same way a second copy of a
+    policy is.
+
+    So the expected set is now DERIVED from what the repository declares. A new
+    provisioner script or a new `role-to-assume` fails this test until the role is
+    registered with the fixer, which is the property the original test was reaching for.
+
+    It cannot see a role created straight from the CLI and never mentioned in the repo.
+    `fix_github_oidc_trust.py --status` covers that half against live IAM, because only
+    an AWS call can.
+    """
+    declared = _roles_declared_in_the_repository()
+    missing = sorted(set(declared) - set(fixer.ROLES))
+    assert not missing, (
+        "these roles are wired up in the repository but not registered in "
+        "fix_github_oidc_trust.ROLES, so they keep whatever trust document their creator "
+        "wrote: " + ", ".join(f"{name} (declared in {', '.join(declared[name])})" for name in missing)
+    )
+
+    # And nothing goes the other way without a reason. A name in ROLES that the repo does
+    # not declare anywhere is either a typo or a role nothing uses.
+    unexplained = sorted(set(fixer.ROLES) - set(declared))
+    assert not unexplained, (
+        "registered with the fixer but declared nowhere in the repository: "
+        + ", ".join(unexplained)
+    )
+
+
+def test_all_three_provisioners_and_the_fixer_write_one_document(provisioner, plivo, fixer):
+    """Three scripts and one committed file. Four copies, one document.
+
+    `test_both_scripts_write_the_same_document` covered two of the four. The plivo
+    provisioner was the third and it differed -- it carried a `Sid` the others did not --
+    which is enough to fail the fixer's byte comparison. The consequence was not cosmetic:
+    once plivo-drift was registered with the fixer, `--apply` would strip the Sid and the
+    next `provision_ci_plivo_drift_role.py --apply` would restore it, two scripts
+    reverting each other forever.
+    """
+    assert _canonical(plivo.TRUST) == _canonical(fixer.target_policy())
+    assert _canonical(provisioner.TRUST) == _canonical(fixer.target_policy())
 
 
 def test_read_role_grants_no_write_action():

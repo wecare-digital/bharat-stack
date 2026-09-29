@@ -86,6 +86,7 @@ import argparse
 import json
 import pathlib
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -403,10 +404,27 @@ def apply(client, existing: list[dict]) -> int:
               if r not in domain and r.get("source") != CATCH_ALL_SOURCE]
     new_rules = domain + desired_redirects() + middle + catch_all
 
+    # THE HISTORICAL SNAPSHOT IS NOT A ROLLBACK ARTEFACT, and treating it as one would be
+    # worse than having none. It is written once and then kept forever, so it holds the THREE
+    # rules this app had on 2026-09-24. Production is past a hundred. Restoring it to undo a
+    # run would delete every rule added since - the /mcp rewrite, the /get/<*> CDN
+    # passthrough, the whole /workspace tree - which is a far larger outage than whatever it
+    # was reverting. It stays because it records where this started, not because it is a
+    # recovery path, and `public-surface-deploy.yml` used to point operators at it by name.
     if not SNAPSHOT.exists():
         SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
         SNAPSHOT.write_text(json.dumps(existing, indent=4) + "\n")
-        print(f"  snapshot written to {SNAPSHOT}")
+        print(f"  first-run historical snapshot written to {SNAPSHOT}")
+
+    # The actual rollback artefact: what was live a moment ago, timestamped, one file per run.
+    # In CI this is inside the runner and vanishes with it, which is why the workflow uploads
+    # it as a run artefact - a production write whose previous state exists only in a
+    # discarded filesystem is a write with no way back.
+    rollback = (pathlib.Path(__file__).resolve().parents[1] / ".scratch" /
+                f"amplify-custom-rules-before-{time.strftime('%Y%m%d-%H%M%S')}.json")
+    rollback.parent.mkdir(parents=True, exist_ok=True)
+    rollback.write_text(json.dumps(existing, indent=4) + "\n")
+    print(f"  rollback snapshot ({len(existing)} rules as live now) -> {rollback}")
 
     client.update_app(appId=APP_ID, customRules=new_rules)
     print(f"  wrote {len(new_rules)} rules "

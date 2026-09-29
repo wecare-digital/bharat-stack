@@ -14,6 +14,7 @@ from typing import Dict, Any, Optional
 
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.middleware import require_auth
+from lambda_utils.privacy import mask_phone
 from lambda_utils.rate_limit import check_rate_limit
 
 from lambda_utils.logging import get_logger
@@ -270,7 +271,7 @@ def _send_whatsapp(phone: str, phone_number_id: str, template_name: str,
     with urllib.request.urlopen(req, timeout=15) as r:
         result = json.loads(r.read().decode())
     msg_id = result.get('messages', [{}])[0].get('id', '')
-    logger.info(f'[{request_id}] Sent to {formatted_phone}: {msg_id}')
+    logger.info(f'[{request_id}] Sent to {mask_phone(formatted_phone or "")}: {msg_id}')
 
 
 def _send_via_lambda(function_name: str, payload: Dict, request_id: str):
