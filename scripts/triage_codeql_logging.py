@@ -44,17 +44,43 @@ the secret case ("reducing a secret to a boolean does not launder it"), and it i
 behave that way. Fixing the fourteen real sites moved the open count 58 -> 56, not to zero.
 
 So the remaining count is not a backlog of defects and chasing it to zero by dismissal would
-destroy the signal. Two legitimate routes exist, in this order of preference:
+destroy the signal.
 
-  1. Teach CodeQL the sanitisers. A model pack under `.github/codeql/` declaring
-     `mask_phone` / `mask_contact_id` / `mask_flow_token` as sanitisers is the only fix that
-     makes the count mean something again. Verify current Python data-extension support for
-     sanitisers before committing to it; it is weaker than the Java equivalent.
-  2. Extend this script to f-strings, THEN dismiss with per-element evidence.
+THE MODEL-PACK ROUTE DOES NOT EXIST FOR THIS QUERY. Measured 2026-09-29, correcting what
+this docstring used to recommend first.
+------------------------------------------------------------------------------------------
+The previous text named "a model pack under `.github/codeql/` declaring `mask_phone` /
+`mask_contact_id` / `mask_flow_token` as sanitisers" as *the only fix that makes the count
+mean something again*, and asked the next reader to check whether Python data extensions
+supported sanitisers yet. They do — CodeQL 2.25.2 added `barrierModel` and
+`barrierGuardModel` to models-as-data for Python, and this repository analyses on 2.27.1.
+The version was never the blocker. **The query is.**
 
-Neither is a mass dismissal, and a mass dismissal is not an acceptable substitute for
-either: it reduces security visibility, and the 39 real findings in this pile were only
-found because nobody had done that.
+`CleartextLoggingQuery.qll` declares its barrier as:
+
+    predicate isBarrier(DataFlow::Node node) { node instanceof Sanitizer }
+
+and `CleartextLogging::Sanitizer` is an `abstract class` with **no subclasses anywhere in
+the CodeQL libraries** and no models-as-data hook. A `barrierModel` tuple only takes effect
+in a query whose customizations consume `ModelOutput::barrierNode`, and for Python that is
+exactly nine queries: CodeInjection, CommandInjection, **LogInjection**, PathInjection,
+ReflectedXSS, ServerSideRequestForgery, SqlInjection, UnsafeDeserialization, UrlRedirect.
+`py/clear-text-logging-sensitive-data` is not among them.
+
+Note the near miss, because it is how this mistake gets made twice: `py/log-injection` IS
+on that list, so a model pack declaring a sanitiser genuinely works for log *injection* and
+the public write-ups that recommend one are not wrong — they are about the other rule. The
+two rules look alike, sit in the same files, and behave completely differently here.
+
+A QL-level customization extending `CleartextLogging::Sanitizer` would work, but it means
+shipping and compiling a custom query pack pinned to a library version, which silently
+breaks on CodeQL upgrades. Not worth it for this.
+
+SO THERE IS ONE ROUTE, and it is the one this file is: extend the classifier until it can
+read the remaining sites, THEN dismiss with per-element evidence. That is not a mass
+dismissal, and a mass dismissal is not an acceptable substitute for it: it reduces security
+visibility, and the 39 real findings in this pile were only found because nobody had done
+that.
 
     python scripts/triage_codeql_logging.py --report
     python scripts/triage_codeql_logging.py --apply

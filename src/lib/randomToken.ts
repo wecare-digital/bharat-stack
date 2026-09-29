@@ -50,19 +50,42 @@ export function randomToken ( length = 9 ): string {
 }
 
 /**
- * True when `url` is safe to place in an `href`.
+ * Returns an `href`-safe absolute http(s) URL, or `null` when `url` is not one.
  *
  * `js/xss-through-dom` on `calling.tsx`: the IVR URL is typed by an operator and
- * rendered straight into `<a href={ivrUrl}>`. `javascript:alert(1)` in an href
- * executes on click, so a stored value becomes script. Only http and https pass;
- * anything else — `javascript:`, `data:`, `vbscript:`, a bare `//host` — does not.
+ * rendered into `<a href={...}>`. `javascript:alert(1)` in an href executes on click,
+ * so a stored value becomes script for whoever opens the page next. Only http and
+ * https pass; `javascript:`, `data:` and `vbscript:` do not.
+ *
+ * TWO THINGS THIS RETURNS A STRING FOR, RATHER THAN A BOOLEAN, AND BOTH WERE DEFECTS
+ * in the predicate it replaces.
+ *
+ * 1. It parsed with a base of `https://wecare.digital`, which makes the parser resolve
+ *    relative input instead of rejecting it. So `//evil.com` became
+ *    `https://evil.com` and passed — while the old docstring claimed in as many words
+ *    that "a bare `//host`" did not. Parsing with no base throws on anything without a
+ *    scheme, which is what makes the claim true. It also rejects `/audio.mp3`, correctly:
+ *    this URL is fetched by a telephony provider, so a site-relative path was never
+ *    usable.
+ * 2. The caller validated one string and rendered a different one — the raw input. This
+ *    returns the value to render, rebuilt from the parse, so what was checked is what
+ *    ships. The scheme is re-emitted as a literal chosen here rather than sliced out of
+ *    the input; everything after it is `href`'s own normalised serialisation, so the
+ *    result is byte-identical to `parsed.href` for the two schemes that get this far.
+ *
+ * Not a defence against a malicious operator — an authenticated staff user can already
+ * link anywhere. It stops a stored value from becoming *executable*, which is a
+ * different and lower bar, and the one `href` actually needs.
  */
-export function isSafeHttpUrl ( url: string ): boolean {
-  if ( !url || typeof url !== 'string' ) return false;
+export function safeHttpHref ( url: string ): string | null {
+  if ( !url || typeof url !== 'string' ) return null;
+  let parsed: URL;
   try {
-    const parsed = new URL( url, 'https://wecare.digital' );
-    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    parsed = new URL( url );
   } catch {
-    return false;
+    return null;
   }
+  if ( parsed.protocol !== 'https:' && parsed.protocol !== 'http:' ) return null;
+  const scheme = parsed.protocol === 'https:' ? 'https:' : 'http:';
+  return scheme + parsed.href.slice( parsed.protocol.length );
 }
