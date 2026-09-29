@@ -27,6 +27,20 @@ _spec.loader.exec_module(vpbs)
 
 # ── synthetic values, assembled so no literal shape is stored here ────────────
 
+def _join(*parts: str) -> str:
+    """Concatenate via a call, because `+` between literals is folded at compile time.
+
+    The comment above used to be true of the source and false of the artifact:
+    CPython folds `"rzp" + "_" + "live" + "_" + "Q" * 14` while compiling, so the
+    assembled shape landed in tests/__pycache__/*.pyc as a literal. Harmless in
+    itself - every value here is synthetic - but it makes this repo's own secret
+    scanners report hits on their own test bytecode, and a scanner people learn to
+    dismiss is a scanner that stops working. A function call is opaque to the
+    folder. Found 2026-09-29 alongside the same bug in verify_secret_hook.py.
+    """
+    return "".join(parts)
+
+
 def _google_key(tail: str) -> str:
     """An AIza-shaped string of realistic length, without writing the prefix.
 
@@ -37,15 +51,15 @@ def _google_key(tail: str) -> str:
     nothing.
     """
     pad = "a1B2c3D4e5F6g7H8j9K0" * 3
-    return "AI" + "za" + (tail + pad)[:35]
+    return _join("AI", "za", (tail + pad)[:35])
 
 
 def _razorpay_key() -> str:
-    return "rzp" + "_" + "live" + "_" + "Q" * 14
+    return _join("rzp", "_", "live", "_", "Q" * 14)
 
 
 def _openai_key() -> str:
-    return "sk" + "-" + "proj" + "-" + "b7Kq2Xn" * 6
+    return _join("sk", "-", "proj", "-", "b7Kq2Xn" * 6)
 
 
 BENIGN_GOOGLE = _google_key("browserkey0")
@@ -169,7 +183,7 @@ def test_never_public_shapes_fail_regardless_of_fingerprint(export, label, value
 def test_the_aws_documentation_example_key_is_not_a_finding(export):
     """AWS publishes this one in its own docs; flagging it trains people to ignore
     the check."""
-    example = "AKI" + "A" + "IOSFODNN7EXAMPLE"
+    example = _join("AKI", "A", "IOSFODNN7EXAMPLE")
     _write(export, "page-mno.js", f'var k="{example}";')
 
     failures, _ = _scan(export, "page-mno.js")
@@ -179,7 +193,7 @@ def test_the_aws_documentation_example_key_is_not_a_finding(export):
 
 def test_repeated_character_filler_is_not_a_finding(export):
     """The repo's own hook tests use runs of one character as stand-in values."""
-    filler = "AI" + "za" + ("A" * 35)
+    filler = _join("AI", "za", "A" * 35)
     _write(export, "page-pqr.js", f'var k="{filler}";')
 
     failures, allowed = _scan(export, "page-pqr.js")
