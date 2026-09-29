@@ -91,11 +91,17 @@ BRANCH = "stack"
 # person who created it happened to paste. That is the exact latent trap
 # test_fixer_covers_every_oidc_role holds down, and a role with WRITE permissions is
 # the worst one to leave out of it.
+#
+# The fifth is the READ-ONLY half of the same workflow, and the split is the point: the write
+# role is assumed only for the two steps that write, and the confirmation afterwards runs on a
+# credential that cannot. Both share this trust document - the distinction between them is
+# entirely in their permission policies, not in who may assume them.
 ROLES = [
     "GitHubActions-bharat-stack-docs-scraper",
     "GitHubActions-bharat-stack-seo-tools",
     "GitHubActions-wecare-digital-route-auth",
     "GitHubActions-wecare-digital-public-surface",
+    "GitHubActions-wecare-digital-public-surface-read",
 ]
 
 

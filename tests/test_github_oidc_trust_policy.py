@@ -134,12 +134,43 @@ def test_fixer_covers_every_oidc_role(fixer):
         "GitHubActions-bharat-stack-docs-scraper",
         "GitHubActions-bharat-stack-seo-tools",
         "GitHubActions-wecare-digital-route-auth",
-        # The write role for public-surface-deploy.yml. Listed here before it exists in
+        # The two halves of public-surface-deploy.yml. Listed here before they exist in
         # AWS on purpose - a role created later and never registered is one that keeps
-        # whatever trust document its creator pasted, and this is the only one of the
-        # four that can WRITE to production.
+        # whatever trust document its creator pasted, and the write one is the only role
+        # of the five that can WRITE to production.
         "GitHubActions-wecare-digital-public-surface",
+        "GitHubActions-wecare-digital-public-surface-read",
     }
+
+
+def test_read_role_grants_no_write_action():
+    """The safe half must be unable to change anything, asserted rather than intended.
+
+    The verify steps used to run on the write role because one job was simpler than two. The
+    cost of that convenience is that a read-only operation carried amplify:UpdateApp,
+    lambda:UpdateFunctionCode and iam:PassRole for its whole duration - so a mistake in a
+    verify path, or a compromised step between checkout and the verify command, had
+    production write access it never needed.
+
+    This asserts the separation actually holds: every action in the read document is a Get
+    or the single coarse apigateway:GET, no statement grants a wildcard action, and no
+    resource is "*". Without this, "read-only role" is a filename rather than a property.
+    """
+    doc = json.loads((ROOT / "scripts" / "iam-public-surface-read-permissions.json").read_text())
+    for statement in doc["Statement"]:
+        assert statement["Effect"] == "Allow"
+        actions = statement["Action"]
+        actions = actions if isinstance(actions, list) else [actions]
+        for action in actions:
+            assert "*" not in action, f"{action} is a wildcard action"
+            service, verb = action.split(":", 1)
+            assert verb.startswith("Get") or (service, verb) == ("apigateway", "GET"), (
+                f"{action} is not a read"
+            )
+        resources = statement["Resource"]
+        resources = resources if isinstance(resources, list) else [resources]
+        for resource in resources:
+            assert resource != "*", f"{statement['Sid']} grants a wildcard resource"
 
 
 def test_committed_trust_document_matches_the_fixer(fixer):

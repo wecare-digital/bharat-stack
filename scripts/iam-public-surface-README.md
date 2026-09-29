@@ -1,11 +1,31 @@
-# The `public-surface-deploy` role
+# The `public-surface-deploy` roles
 
-Two documents and four commands. They create the OIDC role
-`GitHubActions-wecare-digital-public-surface`, which is the only thing standing between
-`.github/workflows/public-surface-deploy.yml` and a working `Run workflow` button.
+Three documents and six commands. They create the two OIDC roles that
+`.github/workflows/public-surface-deploy.yml` needs, which are the only thing standing
+between it and a working `Run workflow` button.
 
-- `iam-public-surface-trust.json` — who may assume it
-- `iam-public-surface-permissions.json` — what it may then do
+| Role | Document | Used by |
+| --- | --- | --- |
+| `GitHubActions-wecare-digital-public-surface` | `iam-public-surface-permissions.json` | the `apply` job, and nothing else |
+| `GitHubActions-wecare-digital-public-surface-read` | `iam-public-surface-read-permissions.json` | the `verify` and `confirm` jobs |
+
+Both share one trust document, `iam-public-surface-trust.json` — the difference between them
+is entirely in what they may do once assumed, not in who may assume them.
+
+## Why two roles
+
+The first version ran everything on one role that could write, because one job was simpler
+than three. The cost is that a read-only check carried `amplify:UpdateApp`,
+`lambda:UpdateFunctionCode` and `iam:PassRole` for its whole duration — so a mistake in a
+verify path, or anything compromised between checkout and the verify command, held
+production write access it never needed.
+
+The split also buys something better than least privilege: `confirm` runs **after** the
+apply, on the read role. A deploy that verifies itself with its own write credential is
+checking its work with the same hand that did it; confirming on a principal that could not
+have produced the result makes the evidence worth something.
+`tests/test_github_oidc_trust_policy.py` asserts the read document contains nothing but
+`Get` actions, so "read-only" is a property rather than a filename.
 
 ## Why a file and not an inline `--policy-document`
 
@@ -44,21 +64,33 @@ aws iam get-open-id-connect-provider \
 #   --url https://token.actions.githubusercontent.com \
 #   --client-id-list sts.amazonaws.com
 
-# 1. Create the role with the committed trust document.
+# 1. The write role.
 aws iam create-role \
   --role-name GitHubActions-wecare-digital-public-surface \
   --assume-role-policy-document file://scripts/iam-public-surface-trust.json \
   --description "Write role for public-surface-deploy.yml: Amplify customRules and the wecare-mcp Lambda. Branch stack only."
 
-# 2. Attach the least-privilege inline policy.
 aws iam put-role-policy \
   --role-name GitHubActions-wecare-digital-public-surface \
   --policy-name PublicSurfaceDeploy \
   --policy-document file://scripts/iam-public-surface-permissions.json
 
-# 3. Tell the workflow where the role is.
+# 2. The read-only role. Same trust document, Get-only permissions.
+aws iam create-role \
+  --role-name GitHubActions-wecare-digital-public-surface-read \
+  --assume-role-policy-document file://scripts/iam-public-surface-trust.json \
+  --description "Read-only role for public-surface-deploy.yml's verify and confirm jobs. Branch stack only."
+
+aws iam put-role-policy \
+  --role-name GitHubActions-wecare-digital-public-surface-read \
+  --policy-name PublicSurfaceRead \
+  --policy-document file://scripts/iam-public-surface-read-permissions.json
+
+# 3. Tell the workflow where both roles are.
 gh variable set PUBLIC_SURFACE_ROLE_ARN \
   --body arn:aws:iam::775261844268:role/GitHubActions-wecare-digital-public-surface
+gh variable set PUBLIC_SURFACE_READ_ROLE_ARN \
+  --body arn:aws:iam::775261844268:role/GitHubActions-wecare-digital-public-surface-read
 
 # 4. Read-only first. This changes nothing and should report the stale MCP catalogue.
 gh workflow run public-surface-deploy.yml -f action=verify -f target=both
@@ -88,10 +120,12 @@ only one of the four that can write to production.
 ## Checking it worked
 
 ```sh
-aws iam get-role --role-name GitHubActions-wecare-digital-public-surface \
-  --query 'Role.AssumeRolePolicyDocument'
-aws iam get-role-policy --role-name GitHubActions-wecare-digital-public-surface \
-  --policy-name PublicSurfaceDeploy --query 'PolicyDocument'
+for role in GitHubActions-wecare-digital-public-surface \
+            GitHubActions-wecare-digital-public-surface-read; do
+  echo "== $role"
+  aws iam get-role --role-name "$role" --query 'Role.AssumeRolePolicyDocument'
+  aws iam list-role-policies --role-name "$role" --query 'PolicyNames'
+done
 gh variable list
 ```
 
@@ -101,11 +135,15 @@ gh variable list
 aws iam delete-role-policy \
   --role-name GitHubActions-wecare-digital-public-surface --policy-name PublicSurfaceDeploy
 aws iam delete-role --role-name GitHubActions-wecare-digital-public-surface
+aws iam delete-role-policy \
+  --role-name GitHubActions-wecare-digital-public-surface-read --policy-name PublicSurfaceRead
+aws iam delete-role --role-name GitHubActions-wecare-digital-public-surface-read
 gh variable delete PUBLIC_SURFACE_ROLE_ARN
+gh variable delete PUBLIC_SURFACE_READ_ROLE_ARN
 ```
 
-Deleting the variable alone is enough to disable the workflow: it fails at the
-"Check the role variable is set" step with a message naming what to create.
+Deleting the variables alone is enough to disable the workflow: each job fails at its
+"Check the … role variable is set" step with a message pointing back at this file.
 
 ## Where each permission comes from
 
@@ -124,7 +162,18 @@ speculative, and nothing is `"Resource": "*"`.
 | `apigateway:GET` | `deploy_mcp_server.py` | `get_integrations`, `get_routes`. |
 | `apigateway:POST`, `PATCH` | `deploy_mcp_server.py` | `create_integration`, `create_route`, `update_route`. |
 
-`verify` needs only `amplify:GetApp`, the `lambda:Get*` pair and `apigateway:GET`. If you
-would rather the safe mode carry no write grant at all, make a second read-only role and
-point a separate variable at it — the workflow's verify steps would need splitting into
-their own job to use it.
+### The read-only document
+
+`iam-public-surface-read-permissions.json` is what the `verify` and `confirm` jobs get, and
+it is three statements:
+
+| Action | Why |
+| --- | --- |
+| `amplify:GetApp` | Read the current `customRules` to report which retired URLs are wired and which are missing. |
+| `lambda:GetFunctionConfiguration` | State, memory and timeout of the `live` alias. |
+| `lambda:GetFunction` | **This is the one that is easy to leave out.** The stale-catalogue check downloads the deployed bundle and compares its page list against `config/public-pages.json`. `GetFunctionConfiguration` alone cannot see the code, so without `GetFunction` the check that exists to catch a stale `/orders` entry silently cannot run. |
+| `apigateway:GET` | `get_routes` and `get_stage`, for the `/mcp` route and its throttle. |
+
+No `PassRole`, no `POST`, no `PATCH`, no `Update*`. The retired-URL probes in
+`provision_legacy_redirects.py --verify` are plain HTTPS requests and need no AWS grant at
+all.
