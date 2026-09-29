@@ -236,7 +236,35 @@ const PROBE = () => {
  * a browser quirk was involved. Anything added to this set needs the same standard: a measured
  * cause, and a reason the cause cannot be removed.
  */
-const KNOWN_ASYMMETRIC = new Set();
+const KNOWN_ASYMMETRIC = new Set( [
+  /* THE TERMINAL'S PAUSE CONTROL, and it meets the standard above: the cause is measured and
+   * removing it would create the defect rather than fix one.
+   *
+   * MEASURED CAUSE. .wt-play is position:absolute;right:0 over the panel's title bar. `right` is
+   * a physical property, so its distance from the inline-start edge cannot survive mirroring and
+   * this assertion must fail by construction - it reported 726px at 1280, which is simply the
+   * width it sits inside.
+   *
+   * WHY IT CANNOT BE MIRRORED. .wt-window carries dir="ltr" deliberately: it draws literal
+   * machine output - a shell prompt, an API call, a single-table comment - and mirroring it
+   * produced code that no longer parsed. That lock is the reason this gate passes on the panel
+   * at all, and it means the title bar reserves its 108px of space on the PHYSICAL right in both
+   * directions. The control is a sibling of that window rather than a child because the window is
+   * aria-hidden, and a focusable element inside an aria-hidden subtree is keyboard-reachable
+   * while absent from the accessibility tree. So it must sit outside the window and align with
+   * space the window reserves physically. Mirroring it to the inline-start would move it off that
+   * reserved space and onto the three window lights: satisfying this assertion is what would
+   * break the layout.
+   *
+   * NOT TAKEN ON TRUST. tools/browser/rtlplayprobe.js measures the thing that actually matters -
+   * whether the control overlaps the lights or the state text, and whether it stays within the
+   * bar - in both directions. At 1280 it sits at 750..832 inside a bar of 25..831 under ltr and
+   * at 1174..1256 inside 449..1255 under rtl, overlapping nothing either way. Re-run that probe
+   * before changing this entry; if it ever reports an overlap, this exemption is wrong.
+   */
+  'button.wt-play',
+  'span.wt-play-mark',
+] );
 
 /** Elements whose inline-start offset did not survive mirroring, worst first. */
 function asymmetries ( ltr, rtl, tolerance ) {
