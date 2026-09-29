@@ -148,10 +148,18 @@ Amplify.configure( {
  * failure anywhere to notice. Change the DNS record first, verify, then this.
  */
 const MEDIA_BASE = 'https://wecare.digital/get/o/stream/media/m';
-/** 1440x810, RGB, no alpha. og:image and twitter:image. */
+/** 1200x675, 16:9, palette PNG with no alpha. og:image and twitter:image. */
+/* WAS 1440x810, AND THE CHANGE IS ABOUT WEIGHT, NOT SHAPE. That export was 801,077 bytes against
+   the 600 KB ceiling Meta documents for a WhatsApp link preview, so WhatsApp was dropping the
+   card on every page of a site whose whole business is WhatsApp. Same artwork, downscaled to 1200
+   wide with a 128-colour palette: 279,367 bytes, no crop, aspect ratio untouched.
+   These two values must equal the real pixels of the object at the URL above - the pair once read
+   512x512 against a 1080x1080 file. src/config/share.ts holds the same numbers for the content
+   pages and ShareMeta.test.tsx holds the two copies equal AND checks them against the committed
+   asset's PNG header. See docs/brand/README.md. */
 const SOCIAL_CARD_URL = `${MEDIA_BASE}/wd-brand-16x9.png`;
-const SOCIAL_CARD_W = '1440';
-const SOCIAL_CARD_H = '810';
+const SOCIAL_CARD_W = '1200';
+const SOCIAL_CARD_H = '675';
 /** 1080x1080, opaque white ground. Icons and structured data only. */
 const LOGO_URL = `${MEDIA_BASE}/wecare-digital.png`;
 const LOGO_SVG_URL = `${MEDIA_BASE}/wecare-digital.svg`;
