@@ -17,8 +17,8 @@ h1** (700 vs 600). That is intentional — do not "fix" it.
 |---|---|---|
 | Hero h1 | `.hero-left h1` | `clamp(36px,4.3vw,60px)` / **600** / lh `1.04` / ls `-2.2px` / `rgba(0,0,0,.95)` |
 | Section h2 | `.section-header h2`, `.api-info h2`, `.trust-heading` | `clamp(28px,3.2vw,40px)` / **700** / lh `1.08` / ls `-1.2px` / `rgba(0,0,0,.95)` |
-| Card heading | `.capability-card h3`, `.why-item strong`, `.trust-caption` | `22px` / **700** / lh `1.27` / ls `-0.25px` / `#000` |
-| Body — one level only | `.hero-left p`, `.section-header p`, `.api-desc`, `.capability-card p`, `.why-item span`, `.trust-subtext` | `20px` / **400** / lh `1.4` / ls `-0.125px` / `rgba(0,0,0,.898)` |
+| Card heading | `.pp-strip-title` (h3), `.trust-wordmark` | `22px` / **700** / lh `1.27` / ls `-0.25px` / `#000` |
+| Body — one level only | `.hero-left p`, `.section-header p`, `.api-desc`, `.pp-strip-sub`, `.trust-subtext`, `.trust-caption` | `20px` / **400** / lh `1.4` / ls `-0.125px` / `rgba(0,0,0,.898)` |
 
 ### Why the section h2 is 40px and not 54px
 
@@ -49,7 +49,7 @@ both rather than failing them.
 
 ```js
 // in devtools, expect a single entry
-var s={};['.hero-left p','.section-header p','.api-desc','.capability-card p','.why-item span','.trust-subtext']
+var s={};['.hero-left p','.section-header p','.api-desc','.pp-strip-sub','.trust-subtext','.trust-caption']
  .forEach(q=>document.querySelectorAll(q).forEach(e=>{var c=getComputedStyle(e);
  s[c.fontSize+'/'+c.lineHeight+'/'+c.letterSpacing+'/'+c.color]=1}));Object.keys(s)
 ```
@@ -91,6 +91,33 @@ The badge began on the `.22` tint and was lifted, because that value composites 
 green badge. It is a **state** tint, not an identity one; that distinction is the
 reason the two exist.
 
+### Amber `#f0a818` is a DARK-SURFACE accent, not a rejected colour
+
+This was recorded as "rejected at 2.04:1" and that number is real but incomplete: 2.04:1 is
+amber **on white**. On the dark surfaces it is actually used on, `WorkflowTerminal.tsx` measures
+it at **6.92:1**, **10.32:1** and **8.60:1** and documents each. So the rule is about the
+backdrop, not the hex.
+
+Where it is legitimately used, amber is a **shared token** — `AMBER = { tint: '#fef3c7', dot:
+'#f0a818' }` in both `src/content/products.ts` and `src/content/selfservice.ts`, plus
+`BlogIndexView.tsx`'s rotating words and the terminal's status lights.
+
+The one questionable use is the rotating hero pill on `/grahak-os/`, where the amber dot sits on
+its own pale `#fef3c7` tint and measures **1.83:1**. Three things keep that from being a defect
+to close unilaterally:
+
+1. The dot is `aria-hidden="true"` and purely decorative, with a real `.sr-only` list of the
+   four channel names beside it — so WCAG 1.4.11 does not bind.
+2. Its siblings are no better: green `#3da35a` on `#e0f7c8` measures **2.78:1**, also under 3:1.
+   The dot/tint pairs were never designed to a contrast target; they are a notion-style pale
+   tint with a saturated dot of the same hue.
+3. Only `#dc2626` remains on the approved accent list as a fourth hue (3.95:1 on `#fee2e2`), so
+   "fixing" it means changing the hero's colour and either diverging from the shared `AMBER`
+   token or changing it across four surfaces.
+
+**So it is an owner decision, not a bug.** If the answer is to move it, change the token in
+`src/content/` rather than the page, or the page and the products grid stop matching.
+
 Retired, do not reintroduce: `#2f6b52`, `#075e54`, `#f2fbf6`, `#fbfff0`,
 `#1e293b` (as the code panel body). All five are now absent from the page — the
 last holdouts were `#fbfff0` on three `:hover` rules and `#1e293b` on `.api-demo`,
@@ -107,8 +134,8 @@ neutral body text beside it.
 
 | Weight | Elements | Why |
 |---|---|---|
-| `2px solid #e5e7eb` | `.pill`, `.pp-pill`, `.capability-card`, `.mockup-wrapper` | All four have a `:hover` that swaps the border to lime `#d1f470`; it needs the weight to register |
-| `1px solid #e5e7eb` | `.cap-icon`, `.why-item`, `.trust-card` | Static, no hover |
+| `2px solid #e5e7eb` | `.pill`, `.pp-pill`, `.mockup-wrapper` | Each has a `:hover` that swaps the border to lime `#d1f470`; it needs the weight to register |
+| `1px solid #e5e7eb` | `.trust-card` | Static, no hover |
 
 **Do not "unify" the two weights** — the split is a signal, not drift. `.trust-card`
 was the one real inconsistency and used `rgba(0,0,0,.1)`; it is `#e5e7eb` now.
@@ -295,6 +322,30 @@ reverted; each says why.
   public pages and flattening `@media` blocks: **every centred container** (`margin:0
   auto`) on `/`, `/grahak-os` and `/vayulok` declares a `max-width`. The type-ladder rows
   above still name `.why-item strong` and `.why-item span`; treat those as historical.
+  **Updated 2026-09-29:** the ladder and hairline tables no longer name dead selectors at all.
+  `.capability-card` and `.cap-icon` went the same way as `.why-item` — the card grid became
+  `.pp-strip`, which is borderless because it is not interactive — so the card-heading row now
+  reads `.pp-strip-title` / `.trust-wordmark` and the body row names `.pp-strip-sub`. The
+  devtools snippet above was querying three classes that match nothing, which made a
+  one-body-level check pass by finding less than it thought.
+
+- **`.trust-caption` is body, not a card heading.** It was listed on the card-heading rung while
+  shipping `20px/400`. That is deliberate — the designation describes the logo above it rather
+  than titling anything — so the contract row moved to match the code, not the other way round.
+
+- **`.trust-wordmark` was three quarters of a rung.** Size, weight and tracking matched the
+  card-heading row; `line-height` was never declared, so it inherited and measured **34.1px**
+  against the rung's **27.94px**. Now declared. `.pp-strip-title` always had it, which is why
+  the two card headings were 6px apart in line box while documented as one rung.
+
+- **There is no CTA in `<main>`, and that is settled.** `/grahak-os/` has three focusable
+  elements (the code-sample language tabs) and **zero links** inside `<main>`. That reads like
+  an accessibility gap and is not one: `GrahakOsPage.test.tsx` pins it with
+  `it( 'removes both added CTA buttons' )`, asserting `>Start with WhatsApp<`, `>Talk to us<`
+  and `className="cta-actions"` are all absent. The hero leads on the rotating channel pill and
+  the page routes through the header and footer instead. **Do not "fix" the missing CTA** — that
+  test exists to stop exactly that. Reopening it is a product decision for the owner, not a
+  defect to close.
 - ~~`.page{overflow-x:hidden}` should be `clip`.~~ **Done, and done carefully.**
   `grahak-os` ships `overflow-x:hidden` as the base with an `@supports
   (overflow-x:clip)` block upgrading it — `clip` from Chrome 90 / Firefox 81 / Safari
@@ -305,7 +356,7 @@ reverted; each says why.
   rotating-word mask and the sr-only utility, so `.home-flow-copy`'s `position:sticky`
   has no scroll-container ancestor to break it.
 - ~~`.pill` uses `font-size:var(--text-base)`, and a mobile breakpoint pushes it to
-  20px.~~ **Both fixed.** `.pill` and `.pp-pill` are an explicit `15px`. The token
+  20px.~~ **Both fixed.** `.pill` and `.pp-pill` are an explicit `17px`. The token
   was the real hazard: `--text-base` is declared as `16px` in `tokens.css` and
   `15px` in `Pages.css`, and only `Pages.css` is imported by `_app.tsx` — so the
   size was decided by import order, and importing `tokens.css` would have resized

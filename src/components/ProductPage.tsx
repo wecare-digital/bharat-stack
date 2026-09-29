@@ -104,7 +104,7 @@ const ProductPage: React.FC<ProductPageProps> = ( { product } ) => (
             transition:background-color .2s,transform .2s,box-shadow .2s;
           }
           .pdp-cta:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-          .pdp-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+          .pdp-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
 
           /* Static 1px hairline, per the rule: 1px static, 2px hoverable. */
           .pdp-note{

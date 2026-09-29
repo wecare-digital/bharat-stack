@@ -76,7 +76,16 @@ describe( 'Grahak OS five approved visual fixes', () => {
     // -.25px tracking, identical to .pp-strip-title. What this line guards is unchanged and
     // is the point of the comment above: ONE colour for the lockup, black to match the
     // hosted mark. The negative case below still pins out the dark-green 36px/800 version.
-    expect( source ).toContain( '.trust-wordmark{font-size:22px;font-weight:700;letter-spacing:-.25px;color:#000}' );
+    //
+    // line-height:1.27 ADDED 2026-09-29, and "identical to .pp-strip-title" is now literally
+    // true rather than nearly true. The rung is 22px/700/lh 1.27/ls -.25px; this rule declared
+    // every part of it except the line-height, so the value inherited and measured 34.1px
+    // against the rung's 27.94px - one heading 6px taller than the other while both were
+    // documented as the same rung. Measured after the fix: only .trust-wordmark moves. Its own
+    // box goes 34.1 -> 27.9px and it re-centres 3.1px within the flex row; .trust-card,
+    // .trust-strip, main and the document height are byte-identical, because .trust-logo
+    // centres its contents and the card's padding is fixed.
+    expect( source ).toContain( '.trust-wordmark{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}' );
     expect( source ).not.toContain( '.trust-wordmark{font-size:36px;font-weight:800;letter-spacing:-1px;color:#1a3a2a}' );
     expect( source ).toContain( '.trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}' );
     // The card carries the mark and the designation and nothing else. A capability
