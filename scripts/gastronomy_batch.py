@@ -533,7 +533,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     doc = load_document(args.manifest)
     if args.command == 'validate':
-        errors = validate_batch_document(doc, require_v2=True)
+        errors = validate_batch_document(doc, require_v2=False)
         if errors:
             for error in errors:
                 print(error)
