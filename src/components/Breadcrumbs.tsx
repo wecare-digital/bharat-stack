@@ -61,8 +61,12 @@ const Breadcrumbs: React.FC<{ items: Crumb[] }> = ( { items } ) => (
       .bc ol{display:flex;flex-wrap:wrap;align-items:center;gap:0;margin:0;padding:0;list-style:none}
       /* The eyebrow rung: 12px/700, .08em, uppercase - the same declaration
          .home-close-eyebrow uses. A breadcrumb is furniture, not body copy. */
+      /* min-width:0 IS THE FIX FOR A MEASURED OVERFLOW, not tidying. A flex item defaults to
+         min-width:auto, which refuses to shrink below its content - so the ellipsis on the
+         current-page crumb below could never engage once the crumb was wider than the room left
+         for it, and the page scrolled sideways instead. See the note on that rule. */
       .bc li{
-        display:flex;align-items:center;
+        display:flex;align-items:center;min-width:0;
         font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
         line-height:1.4;color:#1a3a2a;
       }
@@ -85,14 +89,24 @@ const Breadcrumbs: React.FC<{ items: Crumb[] }> = ( { items } ) => (
       .bc a:hover{border-bottom-color:#d1f470}
       .bc a:focus-visible{outline:3px solid rgba(26,58,42,.28);outline-offset:3px;border-radius:2px}
       /* The current page, dimmed so the trail reads as a path with an end, and clipped
-         because this corpus has long titles. */
+         because this corpus has long titles.
+         THE CAP IS THE CONTAINER, NOT A CHARACTER COUNT, and that is a measured correction.
+         This was max-width:46ch with a max-width:34ch override under 767px, and the override's
+         own comment recorded the problem it could not solve: "46 would still overflow a 358px
+         measure at this size". 34 was the next guess and it overflows too, just later. Measured
+         on /post/<slug>/ at 280px - the folded Galaxy Fold posture - the trail ran to 318px in a
+         280px viewport: 38px of sideways scroll on every post page with a long title.
+         A ch cap cannot work here, because the room available to the last crumb is whatever the
+         crumbs before it did not use, and no character count knows that number. So the crumb is
+         allowed to shrink instead (min-width:0 here and on the li above) and the ellipsis does
+         the work it was always there to do, at every width, against the space actually left.
+         46ch stays as the upper bound so a long title does not run the full measure on a wide
+         screen - it is now a preference rather than the only constraint.
+         Caught by rtlcheck at the fold postures; devicecheck missed it because its route list
+         had no /post/ entry, which is fixed alongside this. */
       .bc [aria-current]{
         color:rgba(26,58,42,.58);
-        max-width:46ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-      }
-      @media(max-width:767px){
-        /* 34ch on a phone: 46 would still overflow a 358px measure at this size. */
-        .bc [aria-current]{max-width:34ch}
+        min-width:0;max-width:46ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
       }
       @media(prefers-reduced-motion:reduce){
         .bc a{transition:none}

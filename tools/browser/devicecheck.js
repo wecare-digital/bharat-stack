@@ -45,9 +45,18 @@ const launchEngine = async () => {
   return require( 'playwright-core' )[ ENGINE ].launch();
 };
 
+// A POST PAGE IS IN THIS LIST NOW, AND ITS ABSENCE COST A REAL DEFECT. The list held every
+// hand-written public route and no /post/<slug>/, on the reasonable-sounding grounds that one
+// template serves all of them. But a template with 939 instances is where the LONGEST content
+// lives, and length is exactly what breaks at 280px: the breadcrumb's current-page crumb was
+// capped by a character count rather than by the space left for it, and ran 38px past the
+// viewport on the folded Fold posture. rtlcheck caught it only incidentally, while checking
+// something else. One representative slug is enough - the template is shared - and it must be a
+// LONG-titled one, because a short title fits and would prove nothing.
 const ROUTES = [ '/', '/grahak-os/', '/vayulok/', '/bharat-rx/', '/contact/', '/orders/',
   '/terms/', '/privacy/', '/anew/', '/clear-closure/', '/dastavez/', '/elsewhere/',
-  '/expo-week/', '/niji-setu/', '/ritual-guru/', '/404/', '/blog/', '/get/' ];
+  '/expo-week/', '/niji-setu/', '/ritual-guru/', '/404/', '/blog/', '/get/',
+  '/post/a-bad-event-and-a-catastrophic-forecast-are-not-the-same/' ];
 
 // CSS pixels. DevTools presets where one exists, marked approx where modelled.
 const DEVICES = [
