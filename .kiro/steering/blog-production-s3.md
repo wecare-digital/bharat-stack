@@ -1,0 +1,121 @@
+---
+inclusion: always
+---
+
+# Blog Production storage: one bucket, one prefix root, no exceptions
+
+## THE MANDATORY RULE
+
+**Use the existing S3 bucket `wecare-digital-get`.**
+
+**DO NOT CREATE A NEW S3 BUCKET WITHOUT EXPLICIT USER APPROVAL.**
+
+That applies to every part of the Blog Production system: source PDFs, fetched URL
+payloads, extracted text, source analysis, working articles, QA records, publish
+records, verification records and failure records. If isolation is needed, use
+**prefixes, IAM scoping, object tags and metadata** — not another bucket.
+
+`.kiro/hooks/block-s3-bucket-creation.json` denies the command shapes that would create
+one. It refuses rather than asks, which is what makes it compatible with the workspace's
+blanket-allow permissions.
+
+## The name has a known typo, and it has already cost a round trip
+
+The project specification asks for `wecare-di**f**ital-get`. That bucket **does not
+exist** — `head-bucket` returns a clean 404, and no bucket with that spelling exists in
+account `775261844268`. The real bucket is:
+
+    wecare-digital-get          us-east-1        created 2026-09-25
+
+Confirmed by the owner on 2026-09-29. If a future instruction spells it `difital` again,
+that is the typo, not a second bucket. **Do not create it.** Ask.
+
+## Prefix root
+
+Everything lives under **`o/blog-production/`**.
+
+`o/` is the **public** root — CloudFront `E2GP22R4BIFGQ3` serves it at
+`https://wecare.digital/get/o/...` with no authentication. `secure/` is the gated root,
+denied wholesale at the edge.
+
+**`o/` is an explicit owner decision, taken twice**, most recently on 2026-09-29 covering
+derived artefacts as well as sources. Recorded here with its consequence so nobody has to
+re-derive it:
+
+- An uploaded source PDF, its extracted text, and a working article draft are all
+  **readable by anyone holding the URL**.
+- The exposure is bounded, not absent. Keys are content hashes, so they cannot be
+  guessed; bucket listing is not public (all four public-access-block settings are on,
+  and the bucket policy grants `s3:GetObject` only to the CloudFront service principal).
+- So the correct mental model is **unlisted-but-public**: safe from enumeration, not safe
+  once a URL leaks. Treat the URL as the secret.
+- These are third-party documents. The extracted markdown is more reproducible than the
+  PDF it came from, which is why this was raised before being implemented.
+
+Moving to `secure/` later is a prefix change plus an IAM change and nothing else, because
+every key is composed through `media_paths`. It is not a rewrite.
+
+## Compose keys through `media_paths`, never by hand
+
+`amplify/functions/shared/lambda_utils/media_paths.py` owns the key contract and says so:
+"Keep composing keys through `public` and `secure` rather than hand-building them."
+
+```python
+from lambda_utils import media_paths
+key = media_paths.public("blog-production/sources/pdf", f"{sha256}.pdf")
+url = media_paths.public_url(key)      # "" for a gated key, never a dead link
+```
+
+It also records why `o/` cannot be dropped: `o/public/wa-tpl/` holds **61 objects whose
+URLs are embedded in WhatsApp templates Meta has already approved**, and Meta refetches
+media from the approved URL at send time. An approved template body cannot be edited in
+place.
+
+**Never write to the bucket root.** A root-level key still returned HTTP 200 on the apex
+host, so addressing one level above the data "errored nowhere, logged nothing and alarmed
+nothing" for two days.
+
+## The prefix layout
+
+    o/blog-production/
+      sources/pdf/<sha256>.pdf              uploaded source, key IS the content hash
+      sources/url/<sourceId>.json           fetched payload plus response headers
+      extracted/<sourceId>.md               reflowed markdown
+      source-analysis/<sourceId>.json       internal, never public copy
+      article-working/<articleId>/<rev>.md
+      qa/<articleId>/<qaRunId>.json
+      publish-records/<articleId>.json
+      verification/<articleId>/<runId>.json
+      failures/<sourceId>.json
+
+### Why the key is the content hash
+
+Three properties, all load-bearing:
+
+1. **Resolve-before-generate.** Re-uploading the same PDF lands on the row that already
+   exists instead of minting a second article. Publishing the same source twice is the one
+   failure in this pipeline that cannot be undone after the fact.
+2. **A rename is not a new source.** Re-exporting a batch from a drive with different
+   filenames is the common case, and filename-keyed storage would convert all of it again.
+3. **An overwrite writes identical bytes**, which is what makes bucket versioning being
+   *Suspended* tolerable rather than dangerous.
+
+The original filename is preserved **in the record**, never relied on for uniqueness.
+
+## IAM
+
+The inline policy `seo-blog-source-intake` on `wecare-digital-lambda-role` is scoped to
+the prefix and to three actions:
+
+    s3:PutObject, s3:GetObject, s3:HeadObject   on   o/blog-production/*
+
+**No `DeleteObject`, deliberately.** Nothing in this pipeline deletes a source, because a
+source is the provenance record for a published article. That role is shared by the whole
+fleet, so a wildcard here would widen every other function too.
+
+## Related
+
+- `.kiro/steering/whatsapp-payments-india-reference.md` — the same content-hash,
+  resolve-before-generate discipline applied to `reference_id`
+- `amplify/functions/shared/lambda_utils/media_paths.py` — the key contract
+- `docs/execution/` — the PHASE 0 audit that established the bucket and prefix decisions

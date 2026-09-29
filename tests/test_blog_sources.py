@@ -85,11 +85,20 @@ class FakeTable:
             if item.get(attribute) != values.get(right.strip()):
                 raise _conditional_check_failed()
 
-        assignments = str(UpdateExpression).replace("SET ", "", 1).split(",")
-        for assignment in assignments:
+        # SET ... [REMOVE ...]. The REMOVE half matters here: `_store_extract` uses it to
+        # drop the inline `sourceExtract` left by an older record, and a fake that ignored
+        # REMOVE would let `test_the_extract_goes_to_s3_and_not_into_the_item` pass while
+        # the real table kept the field.
+        expression = str(UpdateExpression)
+        set_part, _, remove_part = expression.partition(" REMOVE ")
+        for assignment in set_part.replace("SET ", "", 1).split(","):
+            if "=" not in assignment:
+                continue
             target, _, token = assignment.partition("=")
             attribute = names.get(target.strip(), target.strip())
             item[attribute] = values[token.strip()]
+        for name in (part.strip() for part in remove_part.split(",") if part.strip()):
+            item.pop(names.get(name, name), None)
         return {"Attributes": dict(item)}
 
     def scan(self, **kwargs):
@@ -116,6 +125,10 @@ class FakeS3:
     def generate_presigned_url(self, operation, Params, ExpiresIn):  # noqa: N803
         self.presigned.append({"operation": operation, **Params, "expires": ExpiresIn})
         return f"https://s3.example/{Params['Key']}?sig=x"
+
+    def put_object(self, Bucket, Key, Body, ContentType=None, **kwargs):  # noqa: N803
+        self.objects[Key] = Body if isinstance(Body, bytes) else str(Body).encode("utf-8")
+        return {"ETag": '"fake"'}
 
     def head_object(self, Bucket, Key):  # noqa: N803
         if Key not in self.objects:
@@ -195,7 +208,26 @@ def _pdf_entry(payload: bytes, name: str = "given-word.pdf") -> Dict[str, Any]:
 def test_uploads_go_to_the_existing_bucket_under_the_public_root():
     import blog_sources as bs
     assert bs.BUCKET == "wecare-digital-get"
-    assert bs.PREFIX == "o/blog-src/"
+    assert bs.ROOT_PREFIX == "o/blog-production/"
+    assert bs.PREFIX == "o/blog-production/sources/pdf/"
+
+
+def test_every_prefix_sits_under_the_one_root():
+    """One root keeps the IAM statement a single scoped grant rather than several."""
+    import blog_sources as bs
+    for name in ("PREFIX", "URL_PREFIX", "EXTRACT_PREFIX", "ANALYSIS_PREFIX",
+                 "WORKING_PREFIX", "QA_PREFIX", "PUBLISH_PREFIX", "VERIFY_PREFIX",
+                 "FAILURE_PREFIX"):
+            value = getattr(bs, name)
+            assert value.startswith(bs.ROOT_PREFIX), f"{name} = {value}"
+            assert value.endswith("/"), f"{name} must be a prefix, not a key"
+
+
+def test_no_prefix_is_hand_built_from_a_literal():
+    """`media_paths` asks for keys to be composed through it, and the o/ prefix is
+    load-bearing: 61 Meta-approved template URLs name it and cannot be edited in place."""
+    source = (ROOT / "amplify/functions/operations/seo-tools/blog_sources.py").read_text()
+    assert "media_paths.public(" in source
 
 
 def test_no_code_path_creates_a_bucket():
@@ -209,7 +241,7 @@ def test_no_code_path_creates_a_bucket():
 
 def test_the_iam_policy_is_scoped_to_the_one_prefix():
     source = (ROOT / "scripts/deploy_seo_tools.py").read_text(encoding="utf-8")
-    assert 'SOURCE_PREFIX = "o/blog-src/"' in source
+    assert 'SOURCE_PREFIX = "o/blog-production/"' in source
     assert '{SOURCE_BUCKET}/{SOURCE_PREFIX}*' in source
     # A write grant on the whole bucket would reach the 249 existing public objects.
     assert f'arn:aws:s3:::{{SOURCE_BUCKET}}/*' not in source
@@ -217,8 +249,8 @@ def test_the_iam_policy_is_scoped_to_the_one_prefix():
 
 def test_an_uploaded_source_gets_an_apex_url():
     import blog_sources as bs
-    url = bs.source_url("o/blog-src/" + "a" * 64 + ".pdf")
-    assert url.startswith("https://wecare.digital/get/o/blog-src/")
+    url = bs.source_url(bs.PREFIX + "a" * 64 + ".pdf")
+    assert url.startswith("https://wecare.digital/get/o/blog-production/sources/pdf/")
 
 
 def test_a_gated_key_yields_no_url_rather_than_a_dead_one():
@@ -236,7 +268,7 @@ def test_register_presigns_a_put_per_pdf(env):
         "admin", q.CATEGORIES)
     assert len(result["sources"]) == 1
     entry = result["sources"][0]
-    assert entry["uploadUrl"].startswith("https://s3.example/o/blog-src/")
+    assert entry["uploadUrl"].startswith("https://s3.example/o/blog-production/sources/pdf/")
     assert entry["status"] == "PENDING_UPLOAD"
     assert env["s3"].presigned[0]["operation"] == "put_object"
     assert env["s3"].presigned[0]["ContentType"] == "application/pdf"
@@ -405,7 +437,9 @@ def test_the_worker_extracts_and_stores_a_draft(env):
     record = env["table"].items[source_id]
     assert record["status"] == "EXTRACTED"
     assert record["extractedWords"] > 50
-    assert record["sourceExtract"]
+    # The text is in S3, not on the item - see test_the_extract_goes_to_s3_and_not_into_the_item.
+    assert record["extractKey"] in env["s3"].objects
+    assert record["extractPreview"]
     assert len(record["contentSha256"]) == 64
     assert record["draftRecord"]["author"] == q.AUTHOR
 
@@ -504,6 +538,8 @@ def test_the_list_view_never_carries_the_extract(env):
     assert report["total"] == 1
     assert report["extracted"] == 1
     assert "sourceExtract" not in report["sources"][0]
+    # A bounded preview is fine and useful; the whole text is not.
+    assert len(report["sources"][0]["extractPreview"]) <= env["bs"].EXTRACT_PREVIEW_CHARS
 
 
 def test_the_detail_view_does_carry_the_extract(env):
@@ -512,6 +548,88 @@ def test_the_detail_view_does_carry_the_extract(env):
     detail = env["bs"].source_detail(source_id)
     assert detail["sourceExtract"]
     assert detail["draftRecord"]
+
+
+# ── The extract lives in S3, not in the item ────────────────────────────────────
+
+def test_the_extract_goes_to_s3_and_not_into_the_item(env):
+    """DynamoDB caps an item at 400 kB. A 300-page book is ~450 kB of text on its own, and
+    MAX_SOURCE_BYTES allows a 40 MB PDF - so storing it inline failed on exactly the
+    documents this pipeline exists for, while passing on every small fixture."""
+    source_id = _ready(env, sample_pdf())
+    env["bs"].run_worker({})
+    item = env["table"].items[source_id]
+
+    assert "sourceExtract" not in item, "the full text is back in the item"
+    assert item["extractKey"].startswith(env["bs"].EXTRACT_PREFIX)
+    assert item["extractKey"] in env["s3"].objects
+    assert len(item["extractPreview"]) <= env["bs"].EXTRACT_PREVIEW_CHARS
+    # And the draft, which the gate reads, must not carry a second copy either.
+    assert "sourceExtract" not in item["draftRecord"]
+
+
+def test_the_stored_item_stays_far_below_the_dynamodb_limit(env):
+    source_id = _ready(env, sample_pdf())
+    env["bs"].run_worker({})
+    size = len(json.dumps(env["table"].items[source_id], default=str))
+    assert size < 100 * 1024, f"item is {size / 1024:.0f} kB"
+
+
+def test_a_large_extract_does_not_grow_the_item(env, monkeypatch):
+    """The property that matters: item size is independent of document size."""
+    import blog_pipeline as bp
+
+    big = "\n\n".join("A sustained paragraph of source prose. " * 40 for _ in range(400))
+    assert len(big) > 400 * 1024, f"fixture is only {len(big)} bytes"
+
+    source_id = _ready(env, sample_pdf())
+    monkeypatch.setattr(bp, "extract_pdf", lambda payload, ref="": bp.Extract(
+        True, text=big, title="A Very Long Document", pages=300,
+        content_sha256=bp.content_hash(big)))
+    env["bs"].run_worker({})
+
+    item = env["table"].items[source_id]
+    assert item["status"] == "EXTRACTED"
+    assert item["extractedChars"] == len(big)
+    assert len(json.dumps(item, default=str)) < 100 * 1024
+    assert len(env["s3"].objects[item["extractKey"]]) == len(big.encode("utf-8"))
+
+
+def test_read_extract_returns_the_full_text_from_s3(env):
+    source_id = _ready(env, sample_pdf())
+    env["bs"].run_worker({})
+    record = env["bs"].get_source(source_id)
+    text = env["bs"].read_extract(record)
+    assert len(text) == record["extractedChars"]
+
+
+def test_read_extract_falls_back_for_a_record_written_before_this_change(env):
+    """Items created earlier hold the text inline and have no extractKey."""
+    legacy = {"id": "blogsrc_legacy", "sourceExtract": "the old inline text"}
+    assert env["bs"].read_extract(legacy) == "the old inline text"
+
+
+def test_a_missing_s3_extract_degrades_to_the_preview(env):
+    source_id = _ready(env, sample_pdf())
+    env["bs"].run_worker({})
+    record = env["bs"].get_source(source_id)
+    env["s3"].objects.pop(record["extractKey"])
+    text = env["bs"].read_extract(record)
+    # Not empty, and not a crash: the preview is what remains.
+    assert text == record["extractPreview"]
+
+
+def test_drafting_reads_the_extract_from_s3(env, monkeypatch):
+    import blog_draft as bd
+    monkeypatch.setattr(bd, "enabled", lambda: True)
+    source_id = _ready(env, sample_pdf())
+    env["bs"].run_worker({})
+    record = env["bs"].get_source(source_id)
+    # If it read the item instead, removing the S3 object would still let it through.
+    env["s3"].objects.pop(record["extractKey"])
+    env["table"].items[source_id]["extractPreview"] = ""
+    with pytest.raises(ValueError, match="no extract yet"):
+        bd.propose(source_id, "admin")
 
 
 def test_detail_of_an_unknown_source_raises_lookup(env):
