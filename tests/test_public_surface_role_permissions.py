@@ -32,9 +32,11 @@ import pathlib
 import re
 
 import pytest
+import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 POLICY_FILE = ROOT / "scripts" / "iam-public-surface-permissions.json"
+READ_POLICY_FILE = ROOT / "scripts" / "iam-public-surface-read-permissions.json"
 WORKFLOW = ROOT / ".github" / "workflows" / "public-surface-deploy.yml"
 
 #: Which boto3 client each local variable holds, per script. Declared rather than inferred:
@@ -78,7 +80,14 @@ CALL_TO_ACTION = {
 #: a boto3 method of its own, which is precisely why it is easy to forget.
 PASS_ROLE_CALLS = {("lambda", "create_function"), ("lambda", "update_function_configuration")}
 
-WRITE_VERBS = ("create", "update", "delete", "put", "post", "patch", "publish", "add", "tag")
+def _is_read(action: str) -> bool:
+    """`Get*`, plus API Gateway's single coarse read verb.
+
+    API Gateway authorises its control plane by HTTP verb, so its read action is literally
+    `apigateway:GET` rather than a `Get`-prefixed operation name.
+    """
+    service, verb = action.split(":", 1)
+    return verb.startswith("Get") or (service, verb) == ("apigateway", "GET")
 
 
 def _calls() -> set[tuple[str, str]]:
@@ -177,35 +186,65 @@ def test_destructive_api_gateway_verb_reaches_route_settings_only(policy):
             )
 
 
-def test_verify_mode_assumes_the_role_with_a_read_only_session_policy():
-    """The safe mode must be unable to write, not merely written not to.
+def test_read_document_is_exactly_the_read_half_of_the_write_document(policy):
+    """The safe half must be the same grants minus the writes. Derived, not transcribed.
 
-    One role, two assumptions: `verify` adds an inline session policy, which STS
-    INTERSECTS with the role's policy, so it can only subtract. This asserts the session
-    policy is real, contains no write action, and grants nothing the role itself does not
-    already have - a session policy naming an action outside the role is dead weight that
-    reads as a grant.
+    `tests/test_github_oidc_trust_policy.py` asserts the read document contains only reads.
+    That catches a write leaking in; it cannot catch a read being LEFT OUT, and leaving one
+    out fails quietly in the worst way. `lambda:GetFunction` is the example: the
+    stale-catalogue check downloads the deployed bundle to compare its page list against
+    `config/public-pages.json`, so without that grant the check which exists to catch a
+    retired URL still being advertised cannot run at all - and a check that cannot run looks
+    exactly like a check that passed.
+
+    So the read document is pinned to a derived set: every action the write role holds whose
+    verb is a read. Equality in both directions, so it can neither drift ahead of the write
+    role nor fall behind it.
     """
-    workflow = WORKFLOW.read_text(encoding="utf-8")
-    match = re.search(r"inline-session-policy:\s*'(\{.*?\})'\s*$", workflow, re.M | re.S)
-    assert match, "verify mode must assume the role with an inline session policy"
-    session = json.loads(match.group(1))
-
-    session_actions = _granted(session)
-    assert session_actions, "an empty session policy would deny everything, including reads"
-
-    for action in sorted(session_actions):
-        verb = action.split(":", 1)[1].lower()
-        assert not verb.startswith(WRITE_VERBS), f"verify session grants a write: {action}"
-
-    role_actions = _granted(json.loads(POLICY_FILE.read_text(encoding="utf-8")))
-    extra = sorted(session_actions - role_actions)
-    assert not extra, (
-        "the session policy names actions the role does not have, so they grant nothing and "
-        "only mislead a reader: " + ", ".join(extra)
+    read_doc = json.loads(READ_POLICY_FILE.read_text(encoding="utf-8"))
+    write_actions = _granted(policy)
+    expected = {action for action in write_actions if _is_read(action)}
+    assert _granted(read_doc) == expected, (
+        "the read document is not the read half of the write document. Expected "
+        f"{sorted(expected)}"
     )
 
-    # And the reads the verify path actually performs must survive the intersection.
-    for required in ("amplify:GetApp", "lambda:GetFunction",
-                     "lambda:GetFunctionConfiguration", "apigateway:GET"):
-        assert required in session_actions, f"verify cannot run without {required}"
+
+def test_the_workflow_assumes_the_write_role_only_where_it_writes():
+    """The split has to be wired, not just documented.
+
+    Two roles in two files prove nothing if the verify job still assumes the write one. This
+    reads the workflow: `verify` and `confirm` must assume the READ variable, `apply` the
+    write variable, `confirm` must depend on `apply` (evidence after the fact, on a
+    credential that could not have produced it), and no job holding the read credential may
+    run a script in a mode that writes.
+    """
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    jobs = workflow["jobs"]
+
+    def assumed_role(job: dict) -> str | None:
+        for step in job["steps"]:
+            role = (step.get("with") or {}).get("role-to-assume")
+            if role:
+                return role
+        return None
+
+    assert "READ_ROLE_ARN" in (assumed_role(jobs["verify"]) or ""), "verify must use the read role"
+    assert "READ_ROLE_ARN" in (assumed_role(jobs["confirm"]) or ""), "confirm must use the read role"
+    apply_role = assumed_role(jobs["apply"]) or ""
+    assert "PUBLIC_SURFACE_ROLE_ARN" in apply_role and "READ" not in apply_role, (
+        "apply must use the write role"
+    )
+    assert jobs["confirm"].get("needs") == "apply" or "apply" in (jobs["confirm"].get("needs") or []), (
+        "confirm must run after apply, or it is confirming the state before the deploy"
+    )
+
+    for name in ("verify", "confirm"):
+        for step in jobs[name]["steps"]:
+            run = step.get("run") or ""
+            assert "--apply" not in run, f"{name} runs a write: {run.strip()}"
+            if "deploy_mcp_server.py" in run:
+                assert "--verify" in run, (
+                    f"{name} runs deploy_mcp_server.py without --verify, which deploys: "
+                    f"{run.strip()}"
+                )

@@ -110,18 +110,26 @@ BRANCH = "stack"
 # test_fixer_covers_every_oidc_role holds down, and a role with WRITE permissions is
 # the worst one to leave out of it.
 #
-# The fifth, plivo-drift, is the trap actually springing rather than a hypothetical.
+# The fifth is the READ-ONLY half of the same workflow, and the split is the point: the write
+# role is assumed only for the two steps that write, and the confirmation afterwards runs on a
+# credential that cannot. Both share this trust document - the distinction between them is
+# entirely in their permission policies, not in who may assume them.
+#
+# The sixth, plivo-drift, is the trap actually springing rather than a hypothetical.
 # `scripts/provision_ci_plivo_drift_role.py` created it in AWS on 2026-09-28 07:21 and
 # nobody added it here, so for a day this list -- and the test asserting the list was
 # complete -- certified a set that was missing a live role. Added 2026-09-29 after
 # `aws iam list-roles` was compared against it. That comparison is no longer manual:
 # `unregistered()` below does it on every --status run, because a hand-maintained
-# literal cannot notice a role someone else creates.
+# literal cannot notice a role someone else creates, and the two roles above show how
+# ordinary it is for this list to be edited by somebody who is thinking about something
+# else.
 ROLES = [
     "GitHubActions-bharat-stack-docs-scraper",
     "GitHubActions-bharat-stack-seo-tools",
     "GitHubActions-wecare-digital-route-auth",
     "GitHubActions-wecare-digital-public-surface",
+    "GitHubActions-wecare-digital-public-surface-read",
     "GitHubActions-wecare-digital-plivo-drift",
 ]
 

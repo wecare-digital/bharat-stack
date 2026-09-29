@@ -226,6 +226,36 @@ def test_all_three_provisioners_and_the_fixer_write_one_document(provisioner, pl
     assert _canonical(provisioner.TRUST) == _canonical(fixer.target_policy())
 
 
+def test_read_role_grants_no_write_action():
+    """The safe half must be unable to change anything, asserted rather than intended.
+
+    The verify steps used to run on the write role because one job was simpler than two. The
+    cost of that convenience is that a read-only operation carried amplify:UpdateApp,
+    lambda:UpdateFunctionCode and iam:PassRole for its whole duration - so a mistake in a
+    verify path, or a compromised step between checkout and the verify command, had
+    production write access it never needed.
+
+    This asserts the separation actually holds: every action in the read document is a Get
+    or the single coarse apigateway:GET, no statement grants a wildcard action, and no
+    resource is "*". Without this, "read-only role" is a filename rather than a property.
+    """
+    doc = json.loads((ROOT / "scripts" / "iam-public-surface-read-permissions.json").read_text())
+    for statement in doc["Statement"]:
+        assert statement["Effect"] == "Allow"
+        actions = statement["Action"]
+        actions = actions if isinstance(actions, list) else [actions]
+        for action in actions:
+            assert "*" not in action, f"{action} is a wildcard action"
+            service, verb = action.split(":", 1)
+            assert verb.startswith("Get") or (service, verb) == ("apigateway", "GET"), (
+                f"{action} is not a read"
+            )
+        resources = statement["Resource"]
+        resources = resources if isinstance(resources, list) else [resources]
+        for resource in resources:
+            assert resource != "*", f"{statement['Sid']} grants a wildcard resource"
+
+
 def test_committed_trust_document_matches_the_fixer(fixer):
     """The JSON handed to `aws iam create-role` must be the document the fixer enforces.
 

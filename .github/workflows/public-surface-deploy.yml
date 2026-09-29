@@ -3,64 +3,60 @@ name: Public surface deploy
 # THE TWO SCRIPTS THAT HAD NO WAY TO RUN.
 #
 # scripts/provision_legacy_redirects.py and scripts/deploy_mcp_server.py both mutate live AWS,
-# and until now neither was wired into any workflow - `grep -rl` across .github/workflows found
-# nothing. That meant the only path was a person with console or CLI credentials on their own
-# machine, and the consequence showed up the moment /my-order became /orders: the source of
-# truth was correct in the repo (config/public-pages.json, the sitemap, out/llms.txt) while the
-# live 301 and the Lambda's bundled catalogue stayed stale, with no button anyone could press.
+# and neither was wired into any workflow - `grep -rl` across .github/workflows found nothing.
+# That meant the only path was a person with console or CLI credentials on their own machine, and
+# the consequence showed up the moment /my-order became /orders: the source of truth was correct
+# in the repo (config/public-pages.json, the sitemap, out/llms.txt) while the live 301 and the
+# Lambda's bundled catalogue stayed stale, with no button anyone could press.
 #
-# THIS IS DISPATCH-ONLY AND THERE IS NO SCHEDULE, deliberately. Every other AWS-touching
-# workflow here runs a READ-ONLY check on a cron (route-auth drift, plivo-drift, media-prefixes)
-# and that is the right shape for a checker. These two WRITE, so an automatic trigger would let
-# a merge to stack rewrite production routing with nobody watching. Adding a verify-only cron
-# later is a four-line change and would be a reasonable follow-up once the role exists - it is
-# left out now only because a scheduled job that is red until a human acts is noise, not signal.
+# TWO ROLES, NOT ONE, AND THE WRITE ONE IS HELD FOR AS SHORT A TIME AS POSSIBLE.
+# The first version of this workflow ran everything in a single job on a single role that could
+# write, because one job was simpler than three. The cost of that convenience is that a
+# read-only check carried amplify:UpdateApp, lambda:UpdateFunctionCode and iam:PassRole for its
+# whole duration - so a mistake in a verify path, or anything compromised between checkout and
+# the verify command, held production write access it never needed. Now:
 #
-# BOTH SCRIPTS WRITE THE SAME LIST, which is why they run sequentially in ONE job rather than in
-# parallel jobs. provision_legacy_redirects.py rebuilds the Amplify app's customRules and
-# deploy_mcp_server.py writes the /mcp rewrite into that same customRules array. Run
-# concurrently, whichever called update_app second would clobber the other's rules - the repo's
-# own "one writer per surface" rule, enforced here by sequence and by the concurrency group.
-# The redirects go FIRST because provision_legacy_redirects.py preserves rules it does not own
-# and refuses to run if it cannot find the catch-all; letting it settle the list before the MCP
-# rewrite is added keeps the ordering the catch-all depends on.
+#   verify   -> vars.PUBLIC_SURFACE_READ_ROLE_ARN   Get* only. Cannot change anything.
+#   apply    -> vars.PUBLIC_SURFACE_ROLE_ARN        writes, and does nothing else.
+#   confirm  -> vars.PUBLIC_SURFACE_READ_ROLE_ARN   proves the apply worked, on a credential
+#                                                    that could not have caused the result.
 #
-# WHAT IT NEEDS BEFORE IT CAN WORK - one variable and one role:
+# That last line is the part worth keeping: a deploy that verifies itself with its own write
+# credential is checking its work with the same hand that did it. Confirming on the read role
+# means the evidence comes from a principal with no ability to have produced it.
+# tests/test_github_oidc_trust_policy.py asserts the read document contains nothing but Get
+# actions, so "read-only" is a property rather than a filename.
 #
-#   vars.PUBLIC_SURFACE_ROLE_ARN   a GitHub OIDC role in account 775261844268, trusted for this
-#                                  repository, same shape as vars.MEDIA_PREFIX_ROLE_ARN and
-#                                  vars.ROUTE_AUTH_ROLE_ARN already used here. There is no
-#                                  AWS_ACCESS_KEY_ID / SECRET / SESSION_TOKEN secret to reuse:
-#                                  this project authenticates entirely by role assumption, so
-#                                  long-lived keys do not exist anywhere by design.
+# BOTH SCRIPTS WRITE THE SAME AMPLIFY customRules ARRAY, which is why the apply steps are
+# sequential inside one job rather than two parallel jobs. provision_legacy_redirects.py rebuilds
+# that array and deploy_mcp_server.py writes the /mcp rewrite into it; run concurrently,
+# whichever called update_app second would clobber the other. The redirects go FIRST because
+# provision_legacy_redirects.py preserves rules it does not own and refuses to run if it cannot
+# find the catch-all, so letting it settle the list before the MCP rewrite is added keeps the
+# ordering the catch-all depends on. The workflow-level concurrency group stops two runs
+# overlapping for the same reason.
 #
-#   The role's two documents are COMMITTED, and this comment deliberately no longer restates
-#   them - it used to, and the copy was wrong in a way that would have stopped anyone
-#   following it: it listed `apigatewayv2:GetRoutes`-style actions, and there is no
-#   `apigatewayv2` IAM prefix. API Gateway authorises its whole control plane, v1 and v2
-#   alike, as `apigateway:` plus an HTTP VERB (GET, POST, PATCH, DELETE), so those names
-#   produce a MalformedPolicyDocument rather than a working role. It also omitted the stage
-#   calls the route throttle needs. Read and use the files instead:
+# NO `needs: verify` ON THE APPLY JOB, deliberately. It reads like the obvious safety gate and it
+# would make the workflow unusable: verify FAILS when the deployed catalogue is stale, which is
+# exactly the state you run apply to fix. Gating apply on a green verify would mean apply could
+# only run once it was no longer needed. The dispatch input is the gate - a human chose `apply`.
 #
-#     scripts/iam-public-surface-trust.json         who may assume it
-#     scripts/iam-public-surface-permissions.json   what it may then do
-#     scripts/iam-public-surface-README.md          the four commands, and where each
-#                                                   permission comes from in the source
+# DISPATCH-ONLY, NO SCHEDULE. Every other AWS-touching workflow here crons a read-only drift
+# check, which is the right shape for a checker; these WRITE, so a push trigger would let a merge
+# rewrite production routing unwatched. A verify-only cron is now cheap to add - the read role
+# exists for it - and is a reasonable follow-up once the roles are provisioned. It is left out
+# today only because a scheduled job that stays red until a human acts is noise, not signal.
 #
-#   tests/test_public_surface_role_permissions.py derives the action list from the two
-#   scripts' boto3 calls and fails if the document grants more or less than they make.
-#
-# WHY `verify` STILL USES ONE ROLE. The safe mode carries no write grant, but not by way of a
-# second role: it assumes the SAME role with a read-only INLINE SESSION POLICY, which STS
-# intersects with the role's policy. A second role would have forced the verify steps into
-# their own job, and both scripts write the same Amplify customRules array - serialising them
-# in one job matters more than splitting the credential. This way verify gets neither.
+# WHAT IT NEEDS BEFORE IT CAN WORK: two OIDC roles and two repository variables. There is no
+# AWS_ACCESS_KEY_ID / SECRET / SESSION_TOKEN secret to reuse - this project authenticates
+# entirely by role assumption, so long-lived keys do not exist anywhere by design. The four
+# commands, the policy documents and the rollback are in scripts/iam-public-surface-README.md.
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'verify = read-only check. apply = write to production.'
+        description: 'verify = read-only check. apply = write to production, then confirm.'
         required: true
         default: verify
         type: choice
@@ -76,119 +72,148 @@ permissions:
   contents: read
   id-token: write   # for the OIDC role assumption
 
-# Never two of these at once: both halves write the same Amplify customRules array.
+# Never two runs at once: both halves write the same Amplify customRules array.
 concurrency:
   group: public-surface-deploy
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: ${{ inputs.action }} ${{ inputs.target }}
+  verify:
+    name: verify (read-only)
+    if: inputs.action == 'verify'
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-
-      # Pinned from requirements-dev.txt rather than `pip install boto3`, so a deploy cannot
-      # change behaviour because a new botocore shipped that morning. Same two lines
-      # media-prefixes.yml uses for its live gate.
       - name: Install pinned AWS SDK
         run: |
           grep -E '^(boto3|botocore)==' requirements-dev.txt > ci-aws-requirements.txt
           python -m pip install -r ci-aws-requirements.txt
-
-      # A clear failure beats a confusing one: with the variable unset,
-      # configure-aws-credentials fails with an opaque message about a missing role, and the
-      # person reading it has no way to know what to create.
-      - name: Check the role variable is set
+      - name: Check the read role variable is set
         run: |
-          if [ -z "${{ vars.PUBLIC_SURFACE_ROLE_ARN }}" ]; then
-            echo "::error::vars.PUBLIC_SURFACE_ROLE_ARN is not set. Create the OIDC role described at the top of this workflow file, then add the variable under Settings > Secrets and variables > Actions > Variables."
+          if [ -z "${{ vars.PUBLIC_SURFACE_READ_ROLE_ARN }}" ]; then
+            echo "::error::vars.PUBLIC_SURFACE_READ_ROLE_ARN is not set. See scripts/iam-public-surface-README.md for the two roles this workflow needs and the commands that create them."
             exit 1
           fi
-
-      # TWO ASSUMPTIONS OF ONE ROLE, chosen by mode. A session policy is INTERSECTED with the
-      # role's identity policy - it can only subtract - so the verify session physically
-      # cannot call UpdateApp, UpdateFunctionCode, UpdateStage or anything else that writes,
-      # even if a script grows a write call or someone adds a write step to the verify path.
-      # The resources are spelled out rather than "*" because "*" here would read as a wide
-      # grant to anyone auditing it, and a session policy that looks wide invites someone to
-      # copy it somewhere it is not intersected with anything.
-      - name: Assume the deploy role (verify — read-only session)
-        if: inputs.action == 'verify'
+      - name: Assume the read-only role
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.PUBLIC_SURFACE_ROLE_ARN }}
+          role-to-assume: ${{ vars.PUBLIC_SURFACE_READ_ROLE_ARN }}
           aws-region: us-east-1
-          role-session-name: public-surface-verify
-          inline-session-policy: '{"Version":"2012-10-17","Statement":[{"Sid":"ReadAmplify","Effect":"Allow","Action":"amplify:GetApp","Resource":"arn:aws:amplify:us-east-1:775261844268:apps/d22dm4b0jn71jw"},{"Sid":"ReadTheFunction","Effect":"Allow","Action":["lambda:GetFunction","lambda:GetFunctionConfiguration"],"Resource":["arn:aws:lambda:us-east-1:775261844268:function:wecare-mcp","arn:aws:lambda:us-east-1:775261844268:function:wecare-mcp:*"]},{"Sid":"ReadTheApi","Effect":"Allow","Action":"apigateway:GET","Resource":"arn:aws:apigateway:us-east-1::/apis/zllr9lrg7j*"}]}'
-
-      - name: Assume the deploy role (apply — full grant)
-        if: inputs.action != 'verify'
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ vars.PUBLIC_SURFACE_ROLE_ARN }}
-          aws-region: us-east-1
-          role-session-name: public-surface-apply
-
       - name: Who am I
         run: aws sts get-caller-identity
-
-      # ---------------------------------------------------------------- verify
-
-      - name: Report the redirect rules (no writes)
+      - name: Report the redirect rules
         if: inputs.target == 'both' || inputs.target == 'redirects'
         run: python scripts/provision_legacy_redirects.py
-
-      - name: Verify the redirects resolve
-        if: inputs.action == 'verify' && (inputs.target == 'both' || inputs.target == 'redirects')
+      - name: Verify the retired URLs resolve
+        if: inputs.target == 'both' || inputs.target == 'redirects'
         run: python scripts/provision_legacy_redirects.py --verify
-
-      # This is the check dd561bdc added: it fails when the live wecare-mcp is serving a stale
-      # page catalogue, which is exactly the state the /orders rename left it in.
+      # This is the check dd561bdc added: it fails when the live wecare-mcp is serving a page
+      # catalogue that disagrees with config/public-pages.json, which is the state the /orders
+      # rename left it in. It reads the deployed bundle, which is why the read role needs
+      # lambda:GetFunction and not only GetFunctionConfiguration.
       - name: Verify the MCP Lambda and its catalogue
-        if: inputs.action == 'verify' && (inputs.target == 'both' || inputs.target == 'mcp')
+        if: inputs.target == 'both' || inputs.target == 'mcp'
         run: python scripts/deploy_mcp_server.py --verify
 
-      # ---------------------------------------------------------------- apply
-
-      # Redirects first - see the note on ordering at the top of this file.
+  apply:
+    name: apply (writes)
+    if: inputs.action == 'apply'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned AWS SDK
+        run: |
+          grep -E '^(boto3|botocore)==' requirements-dev.txt > ci-aws-requirements.txt
+          python -m pip install -r ci-aws-requirements.txt
+      - name: Check the write role variable is set
+        run: |
+          if [ -z "${{ vars.PUBLIC_SURFACE_ROLE_ARN }}" ]; then
+            echo "::error::vars.PUBLIC_SURFACE_ROLE_ARN is not set. See scripts/iam-public-surface-README.md for the two roles this workflow needs and the commands that create them."
+            exit 1
+          fi
+      - name: Assume the write role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.PUBLIC_SURFACE_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Who am I
+        run: aws sts get-caller-identity
+      # Redirects before the MCP rewrite - see the ordering note at the top of this file.
+      # --apply snapshots the existing rules to docs/execution/snapshots/ before writing.
       - name: Apply the redirect rules
-        if: inputs.action == 'apply' && (inputs.target == 'both' || inputs.target == 'redirects')
+        if: inputs.target == 'both' || inputs.target == 'redirects'
         run: python scripts/provision_legacy_redirects.py --apply
-
-      - name: Verify the redirects after applying
-        if: inputs.action == 'apply' && (inputs.target == 'both' || inputs.target == 'redirects')
-        run: python scripts/provision_legacy_redirects.py --verify
-
       - name: Deploy the MCP Lambda
-        if: inputs.action == 'apply' && (inputs.target == 'both' || inputs.target == 'mcp')
+        if: inputs.target == 'both' || inputs.target == 'mcp'
         run: python scripts/deploy_mcp_server.py
 
-      - name: Verify the MCP Lambda after deploying
-        if: inputs.action == 'apply' && (inputs.target == 'both' || inputs.target == 'mcp')
+  confirm:
+    name: confirm (read-only)
+    needs: apply
+    if: inputs.action == 'apply'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install pinned AWS SDK
+        run: |
+          grep -E '^(boto3|botocore)==' requirements-dev.txt > ci-aws-requirements.txt
+          python -m pip install -r ci-aws-requirements.txt
+      # The read role, not the one that just wrote. A deploy that checks its own work with its
+      # own write credential is checking it with the same hand that did it.
+      - name: Assume the read-only role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.PUBLIC_SURFACE_READ_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Who am I
+        run: aws sts get-caller-identity
+      - name: Confirm the retired URLs now resolve
+        if: inputs.target == 'both' || inputs.target == 'redirects'
+        run: python scripts/provision_legacy_redirects.py --verify
+      - name: Confirm the MCP catalogue is current
+        if: inputs.target == 'both' || inputs.target == 'mcp'
         run: python scripts/deploy_mcp_server.py --verify
 
-      - name: Summarise
-        if: always()
+  summarise:
+    name: summarise
+    needs: [verify, apply, confirm]
+    if: always()
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Write the summary
         run: |
           {
             echo "### Public surface — ${{ inputs.action }} (${{ inputs.target }})"
             echo ''
-            echo "Result: **${{ job.status }}**"
+            echo '| job | role | result |'
+            echo '| --- | --- | --- |'
+            echo '| verify | read-only | ${{ needs.verify.result }} |'
+            echo '| apply | write | ${{ needs.apply.result }} |'
+            echo '| confirm | read-only | ${{ needs.confirm.result }} |'
             echo ''
-            echo 'What each mode does:'
+            echo '`skipped` is the expected result for the jobs the chosen action does not use.'
             echo ''
             echo '- `verify` reads live state and changes nothing. It fails if a retired URL does'
             echo '  not 301 to a live page, or if the deployed MCP Lambda is serving a page'
             echo '  catalogue that disagrees with `config/public-pages.json`.'
-            echo '- `apply` rewrites the Amplify custom rules and redeploys the Lambda, then'
-            echo '  verifies. Redirects are applied before the MCP rewrite because both write the'
-            echo '  same rule list and the catch-all ordering depends on it.'
+            echo '- `apply` rewrites the Amplify custom rules and redeploys the Lambda. Redirects'
+            echo '  go first because both write the same rule list and the catch-all ordering'
+            echo '  depends on it.'
+            echo '- `confirm` re-checks on a credential that cannot write, so the evidence does'
+            echo '  not come from the principal that produced the result.'
             echo ''
             echo 'The snapshot written before any rule change is at'
             echo '`docs/execution/snapshots/amplify-custom-rules-before-8.4.json`.'
