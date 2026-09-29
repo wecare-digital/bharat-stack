@@ -132,3 +132,46 @@ def mask_text(text: str) -> str:
     if not isinstance(text, str):
         return text
     return _BEARER_RE.sub(lambda m: m.group(1) + _FULL, text)
+
+# A Meta Graph API error, reduced to the parts Meta did not write as prose.
+#
+# WHY THIS EXISTS. `_send_via_aws` in whatsapp-calling returns the RAW Meta response on its
+# error branch, and three log sites dumped it whole -- two of them on the same line as
+# `mask_phone(to_number or '')`, so the number was masked on the left and could come back
+# unmasked on the right. Meta writes the recipient into the prose of several messaging
+# errors; 131030 is the well-known one ("Recipient phone number not in allowed list: Add
+# recipient phone number ..."), and `error_data.details` is free text in general.
+#
+# So the rule is the same one `.kiro/steering/secret-handling.md` states for exceptions:
+# text our own code did not construct does not go in a log. The codes are what a human
+# actually debugs from, they come from a closed set Meta documents, and `fbtrace_id` is the
+# handle Meta support asks for -- none of them can carry a subscriber's number.
+_META_ERROR_SAFE_FIELDS = ('code', 'error_subcode', 'type', 'fbtrace_id')
+
+
+def meta_error_summary(result: object) -> str:
+    """Meta's error identifiers, never its message text.
+
+    Returns a short, stable, log-safe string for any shape, including a non-dict, so a
+    caller never has to guard it. Absence of an error is reported rather than hidden,
+    because a silent empty string at an error log site reads as a missing field.
+    """
+    if not isinstance(result, dict):
+        return f'non-dict result ({type(result).__name__})'
+    error = result.get('error')
+    if isinstance(error, dict):
+        fields = [f'{k}={error[k]}' for k in _META_ERROR_SAFE_FIELDS if error.get(k) is not None]
+        # `message` and `error_data` are deliberately absent. `message_present` keeps the
+        # fact that Meta said something, which is the part worth knowing without the text.
+        if error.get('message') is not None:
+            fields.append('message_present=True')
+        return 'meta_error ' + (' '.join(fields) if fields else '(no identifiable fields)')
+    # The non-Meta shapes `_send_via_aws` also returns: `{'error': True, 'detail': ...}`
+    # where `detail` is either our own f-string or `str(exc)`. `str(exc)` is provider text
+    # by the same argument, so the detail is reduced to its presence and length.
+    if error is not None:
+        detail = result.get('detail')
+        if detail is None:
+            return 'error=True (no detail)'
+        return f'error=True detail_len={len(str(detail))}'
+    return 'no error field'
