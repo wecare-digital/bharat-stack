@@ -284,8 +284,38 @@ the real dependency instead of on a correlate is both more correct and more reli
 Switching all five suites over produced **byte-identical output** for every one of them,
 which is the check to repeat if you change it again.
 
+## `npm run build` can fail on a 429, and that is the build working
+
+Re-running these suites means re-running `npm run build`, and the build fetches the blog
+corpus. `src/lib/public-blog.ts` retries a 429 with jittered exponential backoff
+(`MAX_ATTEMPTS = 4`) and then **throws on purpose**:
+
+```
+blog listing: gave up after 4 attempts (last: HTTP 429). Failing the build on purpose -
+continuing would emit an index that links pages which were never generated.
+```
+
+That is `b4224003` ("A throttled blog fetch must fail the build, not ship a dead link"),
+and it exists because a per-slug fetch that failed became `notFound`, which under
+`output:'export'` emits no page while the index still renders the link — 219 dead links
+reached the live site that way.
+
+So a red build with that message is **not a code defect**. It is most likely you: several
+full builds in quick succession, which is exactly what a measure-fix-re-measure loop does.
+Wait, then build again. Do not raise `MAX_ATTEMPTS` to make your own loop quieter — it is a
+measured value, and the failure it produces is the one that stops dead links shipping.
+
 ## Writing new checks
 
+- Use **`window.__visible`** from `lib/visible.js` rather than writing a visibility test.
+  Install it with `installVisible( page )` after `newPage()` and before the first `goto`.
+  Seven suites here each grew their own version and no two agreed; the weakest was
+  `r.width > 0 && r.height > 0`, which is a *box* test. Measured on `/grahak-os/`: written
+  that way, a focusable sweep returns **28** elements where **7** are reachable — the other
+  21 are links inside the closed nav panel. Used to assert "every focusable control has a
+  focus ring" it fails on 21 controls nobody can reach, and the false result looks exactly
+  like a regression in the page. `lib/visible.js` documents what it does and does not catch;
+  read that before trusting it for occlusion or clipping.
 - Compare **rects** from `getBoundingClientRect`, not DOM elements. "Is the element
   present" answers nothing about what a visitor can see.
 - **Scope selectors.** `document.querySelector('input')` matched the header's nav search

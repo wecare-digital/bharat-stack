@@ -34,6 +34,7 @@ const fs = require( 'fs' );
 const path = require( 'path' );
 const { target, OUT_DIR } = require( './lib/serve' );
 const { launch } = require( './lib/browser' );
+const { installVisible } = require( './lib/visible' );
 
 const REPO = path.join( __dirname, '..', '..' );
 const OUT_JSON = path.join( REPO, 'docs', 'execution', 'page-audit.json' );
@@ -115,7 +116,10 @@ const PROBE = () => {
   const footer = document.querySelector( 'footer' ) || document.querySelector( '[class*="ft-footer"]' );
   const widget = document.querySelector( '.wc-langbar' ) || document.querySelector( '[class*="wc-lang"]' );
   const h1s = Array.from( document.querySelectorAll( 'h1' ) );
-  const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  // Shared predicate from lib/visible.js, installed via addInitScript. It used to read
+  // `r.width > 0 && r.height > 0`, which is a box test, not a visibility test - an h1
+  // inside a collapsed panel satisfies it and would be reported here as the page's h1.
+  const visible = el => window.__visible( el );
   const firstH1 = h1s.find( visible );
   const authShell = !!document.querySelector( '[data-amplify-authenticator], .amplify-authenticator' )
     || /sign in|signin/i.test( ( document.querySelector( 'button' )?.textContent || '' ) );
@@ -153,6 +157,7 @@ const PROBE = () => {
     for ( const vp of VPS ) {
       const ctx = await browser.newContext( { viewport: { width: vp.w, height: vp.h } } );
       const page = await ctx.newPage();
+      await installVisible( page );
       for ( const r of routes ) {
         let rec = results.find( x => x.route === r );
         if ( !rec ) { rec = { route: r, vp: {} }; results.push( rec ); }
