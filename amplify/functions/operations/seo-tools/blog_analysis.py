@@ -524,6 +524,20 @@ def record_review(body: Dict[str, Any], actor: str) -> Dict[str, Any]:
 
     distinction = str(body.get("centralDistinctionCandidate") or "").strip()
     wrapper = str(body.get("wrapperToRemove") or "").strip()
+    #: PROVENANCE THE EXTRACTOR COULD NOT FIND, supplied by the person holding the document.
+    #:
+    #: Section 23 requires ARCHIVE_DERIVED to preserve `originalSourceDate`, and a scanned
+    #: archive PDF frequently has no machine-readable date at all - it is on a copyright page the
+    #: extractor flattened, or on a cover image. Until this existed there was no writer for it:
+    #: not `blog_draft.WRITABLE_FIELDS`, correctly, because a model guessing a publication date
+    #: is inventing provenance. So every archive article with an undated PDF was permanently
+    #: held back with no route forward.
+    #:
+    #: It belongs here rather than anywhere else because this is the moment somebody has the
+    #: document open. Only ever FILLS A GAP - an extracted date is never overwritten, since the
+    #: document itself is better evidence than a reviewer's recollection of it.
+    source_date = str(body.get("originalSourceDate") or "").strip()[:60]
+    source_title = str(body.get("originalSourceTitle") or "").strip()[:300]
     if answer == "YES" and len(distinction) < 40:
         #: Section 4 wants a distinction of substance, and a reviewer who cannot name one has
         #: not finished reading. Refused rather than warned, because a YES with no
@@ -562,9 +576,13 @@ def record_review(body: Dict[str, Any], actor: str) -> Dict[str, Any]:
         draft["centralDistinction"] = distinction
     if wrapper:
         draft["wrapperToRemove"] = wrapper
+    if source_date and not str(draft.get("originalSourceDate") or "").strip():
+        draft["originalSourceDate"] = source_date
+    if source_title and not str(draft.get("originalSourceTitle") or "").strip():
+        draft["originalSourceTitle"] = source_title
 
-    import blog_templates
-    assessment = blog_templates.assess_draft(source, draft)
+    import blog_gate
+    assessment = blog_gate.assess_draft(source, draft)
     storage.table().update_item(
         Key={"id": source_id},
         UpdateExpression=("SET draftRecord = :dr, articleStatus = :as, gateBlocking = :gb, "

@@ -705,13 +705,14 @@ def _store_extract(record: Dict[str, Any], extract: Any, bp) -> None:
     Note what the item does NOT hold: the extracted text. See `EXTRACT_PREVIEW_CHARS`.
     """
     import blog_quality_v2 as q
-    import blog_templates
+    import blog_gate
 
     key = write_extract(record["id"], extract.text)
     draft = _draft_record(record, extract, q, bp)
-    #: Through `blog_templates.assess_draft`, not `q.assess`, so a template applies at every
-    #: site that writes an `articleStatus` rather than at whichever ones someone remembered.
-    assessment = blog_templates.assess_draft(record, draft)
+    #: Through `blog_gate.assess_draft`, never `q.assess`, so the template and the gate
+    #: sign-off apply at every site that writes an `articleStatus` rather than at whichever
+    #: ones somebody remembered to change.
+    assessment = blog_gate.assess_draft(record, draft)
     # The gate has read the extract; the stored draft must not carry a second copy of it.
     stored_draft = {name: value for name, value in draft.items() if name != "sourceExtract"}
     stored_draft["extractKey"] = key

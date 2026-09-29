@@ -854,12 +854,31 @@ def check_privacy_and_attribution(record: Dict[str, Any]) -> List[Finding]:
     return out
 
 
+def _trigger_present(trigger: str, lowered: str) -> bool:
+    """A section 20 trigger, anchored on a word boundary at the LEFT only.
+
+    Plain `trigger in lowered` fired on words that merely CONTAIN a trigger, and the first real
+    article to hit it was a piece about keeping agreements: it says "reliability", which contains
+    "liability", so the gate demanded a legal review of an article with no legal claim in it.
+    That is the failure section 20 is trying to prevent, arrived at backwards - a reviewer who is
+    asked for a legal review of something with no law in it learns to answer YES to clear the
+    form.
+
+    LEFT ONLY, deliberately. Two triggers are prefixes on purpose - `in 18` and `in 19` are meant
+    to catch "in 1943" - and a right-hand boundary would break exactly those. So this fixes
+    trigger-at-the-end-of-a-word ("reliability") and knowingly leaves
+    trigger-at-the-start-of-a-word ("invest" inside "investigation"), which is the narrower
+    remaining imprecision and errs toward asking rather than skipping.
+    """
+    return bool(re.search(r"\b" + re.escape(trigger), lowered))
+
+
 def check_factual_reviews(record: Dict[str, Any]) -> List[Finding]:
     """Section 20. A domain claim may not sit behind an N/A review."""
     out: List[Finding] = []
     lowered = strip_markdown(body_of(record)).lower()
     for flag, triggers in FACT_DOMAIN_TRIGGERS.items():
-        matched = sorted({t for t in triggers if t in lowered})
+        matched = sorted({t for t in triggers if _trigger_present(t, lowered)})
         if not matched:
             continue
         answer = _flag_answer(record.get(flag))

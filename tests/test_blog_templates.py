@@ -460,28 +460,30 @@ def test_the_template_is_not_a_model_writable_field(env):
 
 def test_every_assessment_site_folds_the_template_in(env):
     """A rule added to a template must apply everywhere or nowhere, not on whichever call
-    site somebody remembered to change."""
+    site somebody remembered to change. `blog_gate.assess_draft` is that one place."""
     source = ROOT / "amplify" / "functions" / "operations" / "seo-tools"
-    for name in ("blog_sources.py", "blog_draft.py", "blog_analysis.py"):
+    for name in ("blog_sources.py", "blog_draft.py", "blog_analysis.py", "blog_qa.py"):
         text = (source / name).read_text(encoding="utf-8")
         assert "q.assess(" not in text, (
-            f"{name} assesses a draft directly; route it through "
-            f"blog_templates.assess_draft so the template applies")
+            f"{name} assesses a draft directly; route it through blog_gate.assess_draft "
+            f"so the template and the gate sign-off both apply")
 
 
 def test_assess_draft_reports_the_template_it_used(env):
+    import blog_gate
     saved = _save(env, minWords=0, maxWords=4000)
     source_id = _source(env)
     env["bt"].assign(source_id, saved["templateId"], 1, "admin")
     record = env["bs"].get_source(source_id)
-    result = env["bt"].assess_draft(record, record["draftRecord"])
+    result = blog_gate.assess_draft(record, record["draftRecord"])
     assert result["template"]["templateVersion"] == 1
     assert result["template"]["checked"] is True
 
 
 def test_assess_draft_with_no_template_still_assesses(env):
+    import blog_gate
     source_id = _source(env)
     record = env["bs"].get_source(source_id)
-    result = env["bt"].assess_draft(record, record["draftRecord"])
+    result = blog_gate.assess_draft(record, record["draftRecord"])
     assert result["status"] == "SOURCE_REVIEW"
     assert result["template"]["checked"] is False

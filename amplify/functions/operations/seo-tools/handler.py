@@ -18,6 +18,8 @@ import ai
 import blog_analysis
 import blog_batches
 import blog_draft
+import blog_gate
+import blog_qa
 import blog_sources
 import blog_templates
 import storage
@@ -441,6 +443,31 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
             'articleClasses': list(_quality.ARTICLE_CLASSES) if _quality else [],
             'batchStatuses': list(blog_batches.BATCH_STATUSES),
         }, origin)
+    if '/blog-qa/' in path:
+        # One run with its full report, proxied from S3 for the same reason the analysis
+        # evidence is: the prefix is public and nothing should hand out a URL to it.
+        return _response(200, {
+            'ok': True,
+            'run': blog_qa.run_detail(path.split('/blog-qa/', 1)[1].strip('/')),
+        }, origin)
+    if path.endswith('/blog-qa'):
+        source_ref = _query(event, 'sourceId')
+        batch_ref = _query(event, 'batchId')
+        payload: Dict[str, Any] = {'ok': True, 'humanGates': list(blog_qa.human_gates()),
+                                   'gateAnswers': list(blog_qa.GATE_ANSWERS)}
+        if source_ref:
+            payload['state'] = blog_qa.source_state(source_ref)
+            payload['runs'] = [blog_qa.run_view(row)
+                               for row in blog_qa.run_history(source_ref)]
+            payload['signoffs'] = [blog_qa.signoff_view(row)
+                                   for row in blog_qa.signoff_history(source_ref)]
+        if batch_ref:
+            payload['batchState'] = blog_qa.batch_qa_state(batch_ref)
+        if not source_ref and not batch_ref:
+            # The corpus coverage on its own, which is the one thing worth reading without
+            # naming an article: a QA run is only worth what this reports.
+            payload['corpus'] = blog_gate.corpus_state()
+        return _response(200, payload, origin)
     if '/blog-templates/' in path:
         # `?history=1` returns every version of the family, which is the audit trail an
         # article's recorded `templateVersion` points into.
@@ -547,6 +574,25 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
             body, actor, tuple(BLOG_CATEGORIES),
             tuple(_quality.ARTICLE_CLASSES) if _quality else ('ARCHIVE_DERIVED',),
         )}, origin)
+
+    if path.endswith('/blog-qa/sign-off'):
+        # The ONLY route that can make READY_TO_PUBLISH reachable. It does not publish, and no
+        # model-writable field reaches it - `gate` is absent from blog_draft.WRITABLE_FIELDS.
+        return _response(200, {'ok': True, **blog_qa.sign_off(body, actor)}, origin)
+    if path.endswith('/blog-qa/revoke'):
+        signoff_ref = str(body.get('signoffId') or '').strip()
+        if not signoff_ref:
+            raise ValueError('signoffId is required')
+        return _response(200, {'ok': True, **blog_qa.revoke(
+            signoff_ref, str(body.get('reason') or ''), actor)}, origin)
+    if path.endswith('/blog-qa'):
+        source_id = str(body.get('sourceId') or '').strip()
+        if not source_id:
+            raise ValueError('sourceId is required')
+        # NOT idempotency-claimed. A QA run is a cheap, deliberately repeatable record - it
+        # reads the article and applies rules, with no model call - and an operator must be able
+        # to re-run it immediately after an edit, which is exactly when a 409 would bite.
+        return _response(200, {'ok': True, **blog_qa.run(source_id, actor)}, origin)
 
     if path.endswith('/blog-templates/assign'):
         return _response(200, {'ok': True, **blog_templates.assign(

@@ -424,28 +424,6 @@ def check_article(record: Dict[str, Any], template: Dict[str, Any], q) -> List[A
     return out
 
 
-def assess_draft(source_record: Dict[str, Any], draft: Dict[str, Any],
-                 corpus: Any = None) -> Dict[str, Any]:
-    """`blog_quality_v2.assess` with this article's template folded in.
-
-    ONE place, used by every writer of an `articleStatus`. The four call sites that assess a
-    draft - extraction, the AI proposal, accepting an edit, and recording the source reading -
-    previously called the gate directly, and a template rule added later would have applied on
-    whichever of them somebody remembered to change. Routing them all through here means a
-    template either applies everywhere or nowhere.
-
-    A source with no template is assessed against no template, deliberately. Falling back to
-    "the newest Conversations template" would certify an article against a document its writer
-    never saw.
-    """
-    import blog_quality_v2 as q
-    template = for_source(source_record) or {}
-    findings = check_article(draft, template, q) if template else []
-    result = q.assess(draft, corpus, extra_findings=findings)
-    result["template"] = compliance(draft, template)
-    return result
-
-
 def compliance(record: Dict[str, Any], template: Dict[str, Any]) -> Dict[str, Any]:
     """A reportable summary of `check_article`, for a QA run and for the UI."""
     import blog_quality_v2 as q

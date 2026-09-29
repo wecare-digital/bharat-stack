@@ -462,6 +462,48 @@ def test_re_analysing_does_not_carry_the_previous_review_forward(env):
     assert env["ba"].get(first)["sourceReviewedFully"] == "YES"
 
 
+def test_the_reviewer_can_supply_provenance_the_extractor_missed(env):
+    """Section 23 requires ARCHIVE_DERIVED to keep `originalSourceDate`, and a scanned archive
+    PDF often has none the extractor can read. Until this existed nothing could write it - not
+    the model whitelist, correctly, because a guessed publication date is invented provenance -
+    so every undated archive source was permanently held back with no route forward."""
+    source_id = _ready(env)
+    env["table"].items[source_id]["draftRecord"] = {
+        **env["table"].items[source_id]["draftRecord"],
+        "originalSourceDate": "", "originalSourceTitle": "",
+    }
+    analysis_id = env["ba"].analyse(source_id, "admin")["analysisId"]
+    env["ba"].record_review({
+        "analysisId": analysis_id, "sourceReviewedFully": "YES",
+        "centralDistinctionCandidate": DISTINCTION,
+        "originalSourceDate": "1987",
+        "originalSourceTitle": "The Given Word, first edition",
+    }, "editor")
+    draft = env["bs"].get_source(source_id)["draftRecord"]
+    assert draft["originalSourceDate"] == "1987"
+    assert draft["originalSourceTitle"] == "The Given Word, first edition"
+
+
+def test_an_extracted_date_is_never_overwritten_by_a_reviewer(env):
+    """The document is better evidence than a reviewer's recollection of it."""
+    source_id = _ready(env)
+    env["table"].items[source_id]["draftRecord"] = {
+        **env["table"].items[source_id]["draftRecord"], "originalSourceDate": "1974",
+    }
+    analysis_id = env["ba"].analyse(source_id, "admin")["analysisId"]
+    env["ba"].record_review({
+        "analysisId": analysis_id, "sourceReviewedFully": "YES",
+        "centralDistinctionCandidate": DISTINCTION, "originalSourceDate": "1987",
+    }, "editor")
+    assert env["bs"].get_source(source_id)["draftRecord"]["originalSourceDate"] == "1974"
+
+
+def test_provenance_is_not_a_model_writable_field(env):
+    import blog_draft as bd
+    for forbidden in ("originalSourceDate", "originalSourceTitle", "sourceHash", "sourceFile"):
+        assert forbidden not in bd.WRITABLE_FIELDS, forbidden
+
+
 def test_the_reviewer_distinction_does_not_overwrite_the_writers(env):
     """A candidate is a starting point for the writing, not a replacement for it."""
     source_id = _ready(env)

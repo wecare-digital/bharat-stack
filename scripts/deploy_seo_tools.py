@@ -388,7 +388,21 @@ def package() -> bytes:
     # way the browser path and the bulk path can agree on what passes. It is dependency-free
     # by design so it can be dropped into a Lambda package unchanged.
     gate = ROOT / "scripts" / "blog_quality_v2.py"
-    for required in (shim, seo_dir, lambda_utils, pipeline, gate):
+    #: THE PUBLISHED CORPUS SKETCH INDEX, AND IT IS NOT OPTIONAL BALLAST.
+    #:
+    #: `blog_quality_v2.CorpusIndex.load_published_index` reads this path, and when it is
+    #: absent it returns 0 SILENTLY - by design, so a unit test building a two-record corpus
+    #: does not depend on a 1.4 MB file. In a Lambda that silence is the dangerous case: a QA
+    #: run would report NON_DUPLICATION PASS having compared the article against nothing,
+    #: which is precisely the "worse than no gate, because it is believed" failure the index
+    #: was built to fix. It was missing from this package until the QA run needed it.
+    #:
+    #: The relative path is what `PUBLISHED_INDEX` expects, and Lambda's working directory is
+    #: /var/task, so packaging it at the same relative location makes it resolve unchanged.
+    #: `blog_gate` loads it lazily and caches it, and `blog_qa` refuses to accept a sign-off
+    #: against a run that did not load it.
+    corpus = ROOT / "content" / "conversations" / "corpus-index.json"
+    for required in (shim, seo_dir, lambda_utils, pipeline, gate, corpus):
         assert required.exists(), f"missing {required}"
 
     buf = io.BytesIO()
@@ -406,6 +420,7 @@ def package() -> bytes:
         # `import blog_quality_v2`) from handler-local code.
         z.write(pipeline, "blog_pipeline.py")
         z.write(gate, "blog_quality_v2.py")
+        z.write(corpus, "content/conversations/corpus-index.json")
         _vendor_pypdf(z)
     data = buf.getvalue()
     print(f"[package] built zip: {len(data)} bytes")
