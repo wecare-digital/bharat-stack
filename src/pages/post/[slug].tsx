@@ -1,8 +1,12 @@
 import type { GetStaticPaths, GetStaticProps } from 'next';
 import type { ReactNode } from 'react';
-import { Fragment } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import ShareLinks from '../../components/ShareLinks';
+import {
+  SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT,
+} from '../../config/share';
 import { getPublicBlogPost, listPublicBlogPosts, PublicBlogPost } from '../../lib/public-blog';
 import { postContext, type PostLink } from '../../lib/post-neighbours';
 import RotatingHero, { CycleWord } from '../../components/RotatingHero';
@@ -127,6 +131,51 @@ export default function BlogPostPage ( {
   const canonical = `https://wecare.digital/post/${post.slug}/`;
   const title = post.seoTitle || post.title;
   const description = post.metaDescription || post.excerpt || '';
+
+  /**
+   * THE ENTRANCE, RUN THE WAY THE HOME PAGE RUNS ITS OWN - see the reveal effect in
+   * pages/index.tsx, whose rules these follow exactly.
+   *
+   * CSS SHIPS THE FINISHED STATE. The pre-animation state lives behind .is-armed, and script adds
+   * that class only after confirming it can finish the job. So a reader with no JavaScript, a
+   * crawler, or a webview where the bundle failed gets the share row, the pager and the related
+   * cards fully visible rather than a permanently transparent block. Doing it the other way round
+   * - opacity:0 in CSS, opacity:1 from script - is how a page ships an invisible section.
+   *
+   * IT ARMS THE ARTICLE BUT WATCHES THE SHARE ROW. The article starts at the top of the page and
+   * is already intersecting on load, so observing it would fire the reveal immediately and the
+   * animation would play off-screen where nobody sees it. The share row is the first element of
+   * the tail, so it is the honest trigger for "the reader has reached the end".
+   *
+   * classList, NOT setState: this is a visual side effect that changes nothing React renders,
+   * which is the documented use for an effect and avoids a cascading render. It is also what
+   * keeps react-hooks/set-state-in-effect quiet.
+   *
+   * One-shot. It is an entrance, not a scroll effect, so the observer disconnects on the first
+   * hit and scrolling back up does not replay it.
+   */
+  const shareRef = useRef<HTMLDivElement | null>( null );
+  useEffect( () => {
+    const el = shareRef.current;
+    const article = el?.closest( 'article' );
+    if ( !el || !article ) return;
+    if ( typeof IntersectionObserver === 'undefined' ) return;
+    // Asked before arming, so a reader who prefers less motion never enters the pre-state at all.
+    if ( window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) return;
+
+    article.classList.add( 'is-armed' );
+    const io = new IntersectionObserver(
+      entries => {
+        if ( entries.some( e => e.isIntersecting ) ) {
+          article.classList.add( 'is-in' );
+          io.disconnect();
+        }
+      },
+      { threshold: 0.18 }
+    );
+    io.observe( el );
+    return () => io.disconnect();
+  }, [] );
   const richNodes = ( post.richContent?.nodes || [] ) as RicosNode[];
   const blocks = fallbackBlocks( post.content || '' );
   const storedSchema = post.jsonLd?.blogPosting;
@@ -165,9 +214,27 @@ export default function BlogPostPage ( {
         <meta property="og:url" content={ canonical } />
         <meta property="og:site_name" content="WECARE.DIGITAL" />
         <meta property="og:locale" content="en_IN" />
-        <meta name="twitter:card" content="summary" />
+        {/* THE CARD THIS PAGE NEVER HAD. og:image, twitter:image and a large twitter:card live in
+            the sitewide Head in _app.tsx, and that Head is suppressed for the five content routes
+            because they declare their own - so a post, the single most shared kind of page on this
+            site, unfurled with no image anywhere. Measured live before this change: og:image
+            MISSING, twitter:image MISSING, twitter:card "summary".
+            Values from config/share.ts so the card has one definition; see that file for why the
+            marketing branch in _app.tsx still carries its own literals and what holds the two
+            equal. */}
+        <meta property="og:image" content={ SOCIAL_CARD_URL } />
+        <meta property="og:image:secure_url" content={ SOCIAL_CARD_URL } />
+        <meta property="og:image:type" content={ SOCIAL_CARD_TYPE } />
+        <meta property="og:image:width" content={ SOCIAL_CARD_W } />
+        <meta property="og:image:height" content={ SOCIAL_CARD_H } />
+        <meta property="og:image:alt" content={ SOCIAL_CARD_ALT } />
+        {/* WAS "summary", WHICH WAS THE WRONG CARD EVEN ONCE AN IMAGE EXISTED. The small card
+            crops to a square thumbnail, and the asset is 16:9 - a wordmark loses both ends. */}
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={ title } />
         <meta name="twitter:description" content={ description } />
+        <meta name="twitter:image" content={ SOCIAL_CARD_URL } />
+        <meta name="twitter:image:alt" content={ SOCIAL_CARD_ALT } />
         <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( articleSchema ) } } />
         <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( breadcrumbSchema ) } } />
         { ( post.jsonLd?.faqSchema?.mainEntity?.length || 0 ) > 0 && (
@@ -241,6 +308,22 @@ export default function BlogPostPage ( {
           { post.tags && post.tags.length > 0 && (
             <div className="tags">{ post.tags.map( tag => <span key={ tag }>{ tag }</span> ) }</div>
           ) }
+
+          {/* SHARE, AT THE END OF THE READING RATHER THAN THE START.
+              A share control above the article asks a reader to recommend something they have not
+              read yet; the end of the piece is where the intent actually exists, and it is where
+              the page already puts its other outbound controls - the pager and the related cards
+              follow immediately below. One row, one place: a second copy under the title would be
+              two controls competing to do one job.
+              canonical, NOT router.asPath: what gets shared has to be the address the page
+              declares as its own, without a utm string or a #hash the reader happened to arrive
+              with. post.title rather than the seoTitle, because the seoTitle carries the
+              " | WECARE.DIGITAL" suffix that belongs in a browser tab, not in a WhatsApp message
+              where og:site_name already says whose link it is.
+              This div is also the sentinel the reveal effect observes - see the note above. */}
+          <div className="post-share" ref={ shareRef }>
+            <ShareLinks url={ canonical } title={ post.title } />
+          </div>
 
           {/* WALKING THE STREAM, ONE POST AT A TIME.
               Until now the only way out of a post was back up to the listing, so reading two in a
@@ -350,6 +433,43 @@ export default function BlogPostPage ( {
         .content :global(strong){font-weight:700}
         .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:52px;padding-top:24px;border-top:1px solid #e5e7eb}
         .tags span{font-size:11px;background:#f3f4f6;border-radius:999px;padding:6px 10px;color:rgba(0,0,0,.54)}
+        /* The share row sits in the same hairline rhythm as the tags above it and the pager below
+           - 24px of air under a 1px e5e7eb rule - so the tail of the page reads as three bands of
+           one object rather than three unrelated blocks. The controls style themselves; see
+           components/ShareLinks.tsx. */
+        .post-share{margin-top:44px;padding-top:24px;border-top:1px solid #e5e7eb}
+
+        /* THE ENTRANCE, AND THE FINISHED STATE IS THE DEFAULT.
+           Everything below is scoped to article.is-armed, a class the page adds only after
+           confirming an IntersectionObserver exists and the reader has not asked for less motion.
+           Without it these three blocks are simply visible - which is what a crawler, a
+           no-JavaScript reader and a failed bundle all get. The home page's reveal is built the
+           same way and records why: the inverse, hiding in CSS and showing from script, is how a
+           page ships a section nobody can see.
+           14px and .56s cubic-bezier(.22,.61,.36,1) are the home page's own reveal values, not new
+           ones - the footer tagline and the closing points use the same pair. */
+        article.is-armed .post-share,
+        article.is-armed .post-nav,
+        article.is-armed .post-related{
+          opacity:0;transform:translateY(14px);
+          transition:opacity .56s cubic-bezier(.22,.61,.36,1),transform .56s cubic-bezier(.22,.61,.36,1);
+        }
+        article.is-armed.is-in .post-share,
+        article.is-armed.is-in .post-related,
+        article.is-armed.is-in .post-nav{opacity:1;transform:none}
+        /* Staggered in reading order, with the home page's own .09s-ish spacing between steps, so
+           the three arrive as a sequence rather than a single block appearing. */
+        article.is-armed.is-in .post-nav{transition-delay:.1s}
+        article.is-armed.is-in .post-related{transition-delay:.2s}
+        /* THE ESCAPE HATCH, AND IT IS NOT OPTIONAL. These blocks are nothing but links. If the
+           observer never fires - a short viewport, a browser that resolves the threshold
+           differently, a reader who tabs straight from the header to the end of the article
+           without scrolling - a keyboard reader would be moving focus into invisible controls.
+           focus-within reveals the tail the moment anything inside it takes focus. The home page
+           carries the same hatch on its closing band for the same reason. */
+        article.is-armed:focus-within .post-share,
+        article.is-armed:focus-within .post-nav,
+        article.is-armed:focus-within .post-related{opacity:1;transform:none}
 
         /* THE NEWER/OLDER PAGER. Every value is lifted from .pager-step on the index rather than
            chosen again: 2px rgba(26,58,42,.22) border because a hoverable edge is 2px on this
@@ -498,6 +618,15 @@ export default function BlogPostPage ( {
         @media(prefers-reduced-motion:reduce){
           .post-related-card,.post-related :global(.post-related-all){transition:none}
           .post-related-card:hover,.post-related :global(.post-related-all:hover){transform:none;box-shadow:none}
+          /* THE REVEAL IS CANCELLED HERE AS WELL AS SKIPPED IN SCRIPT, and the belt and the
+             braces do different jobs. The effect reads the preference once, on mount, and never
+             arms if it is set - that covers the normal case. This covers the one the script
+             cannot: the preference being turned on AFTER the class is already on the node, at
+             which point the only thing that can put the three blocks back is CSS. Scoped to
+             .is-armed so it beats the armed rule rather than beating it by accident. */
+          article.is-armed .post-share,
+          article.is-armed .post-nav,
+          article.is-armed .post-related{opacity:1;transform:none;transition:none}
         }
       `}</style>
     </>

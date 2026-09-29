@@ -1,6 +1,9 @@
 import React from 'react';
 import Head from 'next/head';
 import { blogPageHref } from './BlogIndexView';
+import {
+  SOCIAL_CARD_URL, SOCIAL_CARD_W, SOCIAL_CARD_H, SOCIAL_CARD_TYPE, SOCIAL_CARD_ALT,
+} from '../config/share';
 
 /**
  * Head for one page of the blog index.
@@ -123,6 +126,32 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
         <meta property="og:title" content={ title } />
         <meta property="og:description" content={ description } />
         <meta property="og:url" content={ url } />
+        {/* THE LINK-PREVIEW CARD. A topic stream had none: og:image, twitter:card and
+            twitter:image are declared in the sitewide Head in _app.tsx, and that Head is
+            suppressed for every blog and post route because they declare their own - so these
+            pages unfurled as a bare title and description everywhere they were shared.
+            WRITTEN OUT RATHER THAN SHARED WITH THE BRANCH BELOW. next/head reads its direct
+            children to build the tag list, and wrapping them in a component or helper puts a
+            layer between it and the tags. Two explicit copies in one file is the cheaper
+            mistake; the values themselves come from config/share.ts, so there is still one
+            source for what the card IS.
+            og:image:secure_url alongside og:image is for the older Facebook scrapers that
+            look for it specifically; the URL is https either way. */}
+        <meta property="og:image" content={ SOCIAL_CARD_URL } />
+        <meta property="og:image:secure_url" content={ SOCIAL_CARD_URL } />
+        <meta property="og:image:type" content={ SOCIAL_CARD_TYPE } />
+        <meta property="og:image:width" content={ SOCIAL_CARD_W } />
+        <meta property="og:image:height" content={ SOCIAL_CARD_H } />
+        <meta property="og:image:alt" content={ SOCIAL_CARD_ALT } />
+        <meta property="og:site_name" content="WECARE.DIGITAL" />
+        <meta property="og:locale" content="en_IN" />
+        {/* summary_large_image, because the card is 16:9. The small "summary" card crops a wide
+            image to a square thumbnail, which is how a wordmark loses its ends. */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={ title } />
+        <meta name="twitter:description" content={ description } />
+        <meta name="twitter:image" content={ SOCIAL_CARD_URL } />
+        <meta name="twitter:image:alt" content={ SOCIAL_CARD_ALT } />
         <meta name="robots" content="index, follow, max-image-preview:large" />
         <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( schema ) } } />
       </Head>
@@ -197,6 +226,22 @@ const BlogIndexHead: React.FC<BlogIndexHeadProps> = ( { page, totalPages, topic,
       <meta property="og:title" content={ title } />
       <meta property="og:description" content={ description } />
       <meta property="og:url" content={ canonical } />
+      {/* The same card as the topic branch above, and written out for the same reason - see the
+          note there. Measured on the live site before this: /blog/ carried no og:image, no
+          twitter:card and no twitter:image at all. */}
+      <meta property="og:image" content={ SOCIAL_CARD_URL } />
+      <meta property="og:image:secure_url" content={ SOCIAL_CARD_URL } />
+      <meta property="og:image:type" content={ SOCIAL_CARD_TYPE } />
+      <meta property="og:image:width" content={ SOCIAL_CARD_W } />
+      <meta property="og:image:height" content={ SOCIAL_CARD_H } />
+      <meta property="og:image:alt" content={ SOCIAL_CARD_ALT } />
+      <meta property="og:site_name" content="WECARE.DIGITAL" />
+      <meta property="og:locale" content="en_IN" />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={ title } />
+      <meta name="twitter:description" content={ description } />
+      <meta name="twitter:image" content={ SOCIAL_CARD_URL } />
+      <meta name="twitter:image:alt" content={ SOCIAL_CARD_ALT } />
       <meta name="robots" content="index, follow, max-image-preview:large" />
       <script type="application/ld+json" dangerouslySetInnerHTML={ { __html: JSON.stringify( schema ) } } />
     </Head>
