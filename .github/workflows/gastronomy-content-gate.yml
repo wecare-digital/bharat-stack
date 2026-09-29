@@ -9,7 +9,7 @@ on:
       - 'tests/test_gastronomy_batch.py'
       - '.github/workflows/gastronomy-content-gate.yml'
   push:
-    branches: [ gastronomy-publishing ]
+    branches: [ gastronomy-quality ]
     paths:
       - 'content/gastronomy/**'
       - 'scripts/gastronomy_batch.py'
@@ -18,15 +18,19 @@ on:
   workflow_dispatch:
     inputs:
       manifest:
-        description: 'Batch manifest path'
+        description: 'Gastronomy manifest path (1-150 posts)'
         required: true
-        default: 'content/gastronomy/batches/GAST-041-GAST-065.json'
+        default: 'content/gastronomy/batches/GAST-455-GAST-604.json'
         type: string
       publish:
-        description: 'Publish validated batch to Wix and audit it'
+        description: 'Publish validated v2 manifest to Wix and audit it'
         required: true
         default: false
         type: boolean
+
+concurrency:
+  group: gastronomy-wix-publishing
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -43,13 +47,13 @@ jobs:
         run: python -m pip install --disable-pip-version-check pytest boto3
       - name: Run Gastronomy contract tests
         run: python -m pytest tests/test_gastronomy_batch.py -q
-      - name: Validate committed batch manifests
+      - name: Validate committed manifests
         shell: bash
         run: |
           shopt -s nullglob
           files=(content/gastronomy/batches/GAST-*.json)
           if (( ${#files[@]} == 0 )); then
-            echo "No Gastronomy batch manifests committed yet."
+            echo "No Gastronomy manifests committed yet."
             exit 0
           fi
           for file in "${files[@]}"; do
@@ -80,7 +84,7 @@ jobs:
           role-to-assume: arn:aws:iam::775261844268:role/GitHubActions-bharat-stack-seo-tools
           role-session-name: gastronomy-publisher
           aws-region: ${{ env.AWS_REGION }}
-      - name: Validate requested manifest
+      - name: Validate requested v2 manifest
         run: python scripts/gastronomy_batch.py validate --manifest "${{ inputs.manifest }}"
       - name: Publish only missing Wix posts
         run: python scripts/gastronomy_batch.py publish --manifest "${{ inputs.manifest }}"

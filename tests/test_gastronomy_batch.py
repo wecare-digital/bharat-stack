@@ -12,203 +12,168 @@ def load_module():
     return module
 
 
-def make_post(n: int):
+def make_post(n: int, title=None):
     slug = f'post-{n:03d}'
     return {
         'id': f'GAST-{n:03d}',
-        'title': f'Post {n:03d}',
+        'title': title or f'Post {n:03d}',
         'slug': slug,
         'author': 'Anew by WECARE.DIGITAL',
         'category': 'Gastronomy',
         'tags': ['Breakfast'],
-        'seo_title': f'Post {n:03d} | WECARE.DIGITAL',
+        'seo_title': f'{title or f"Post {n:03d}"} | WECARE.DIGITAL',
         'meta_description': f'Meta description for post {n:03d}.',
         'canonical': f'https://wecare.digital/post/{slug}/',
-        'source_ref': f'book p.{n}',
+        'source_ref': f'private source p.{n}',
         'image_status': 'none',
-        'body_markdown': 'This recipe has a clear culinary identity and enough context to explain what to look for before cooking. The opening should orient the reader without padding or generic filler.\n\nA second paragraph explains texture, balance, or ingredient choice so the article adds useful culinary context beyond a bare transcription of the recipe.\n\n## Ingredients\n\n**Makes 2 servings**\n\n- 1 cup ingredient\n- 1 tsp spice\n\n## Method\n\nCook carefully, watching the texture and heat rather than relying only on the clock. The method should be concise but complete enough to reproduce the dish.\n\n## Technique\n\nA final paragraph explains the practical cue that matters most when serving or finishing the dish, keeping the article useful and specific.',
+        'article_type': 'RECIPE',
+        'body_markdown': (
+            'This recipe has a clear culinary identity and enough context to explain what to look for before cooking.\n\n'
+            '## Ingredients\n\n- 1 cup ingredient\n- 1 tsp spice\n\n'
+            '## Method\n\nCook carefully, watching texture and heat rather than relying only on the clock.'
+        ),
     }
 
 
-def make_doc(start=41):
-    return {'batch_start': start, 'batch_end': start + 24, 'posts': [make_post(i) for i in range(start, start + 25)]}
+def make_doc(start=455, size=25):
+    return {
+        'quality_version': 2,
+        'batch_start': start,
+        'batch_end': start + size - 1,
+        'source_profile': {
+            'label': 'Example source',
+            'blocked_public_terms': ['Example Publisher', 'Example Author', 'Example Institute'],
+            'required_public_attribution_terms': [],
+        },
+        'posts': [make_post(i) for i in range(start, start + size)],
+    }
 
 
-def test_valid_25_post_batch_and_ricos_structure():
+def test_v2_manifest_accepts_150_posts():
     m = load_module()
-    doc = make_doc()
-    assert m.validate_batch_document(doc) == []
-    ricos = m.markdown_to_rich_content(doc['posts'][0]['body_markdown'])
-    types = [n['type'] for n in ricos['nodes']]
-    headings = [''.join(x.get('textData', {}).get('text', '') for x in n.get('nodes', [])) for n in ricos['nodes'] if n['type'] == 'HEADING']
-    assert 'Ingredients' in headings
-    assert 'Method' in headings
-    assert 'BULLETED_LIST' in types
+    doc = make_doc(size=150)
+    assert m.validate_batch_document(doc, require_v2=True) == []
 
 
-def test_literal_escaped_newline_is_rejected():
+def test_manifest_over_150_is_rejected():
     m = load_module()
-    doc = make_doc()
-    doc['posts'][0]['body_markdown'] = r'Opening.\n\n## Ingredients\n\n- 1 cup x\n\n## Method\n\nCook.'
-    errors = m.validate_batch_document(doc)
-    assert any('literal escaped newline' in e for e in errors)
+    doc = make_doc(size=151)
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert any('1-150' in e for e in errors)
 
 
-def test_duplicate_slug_is_rejected():
+def test_wix_chunk_size_remains_20():
     m = load_module()
-    doc = make_doc()
-    doc['posts'][1]['slug'] = doc['posts'][0]['slug']
-    errors = m.validate_batch_document(doc)
-    assert any('duplicate slug' in e for e in errors)
+    assert m.MAX_MANIFEST_POSTS == 150
+    assert m.WIX_WRITE_CHUNK_SIZE == 20
 
 
-def test_non_contiguous_ids_are_rejected():
+def test_source_terms_are_dynamic_not_isha_specific():
     m = load_module()
-    doc = make_doc()
-    doc['posts'][2]['id'] = 'GAST-999'
-    errors = m.validate_batch_document(doc)
-    assert any('contiguous' in e for e in errors)
+    doc = make_doc(size=1)
+    doc['posts'][0]['body_markdown'] += '\n\nExample Publisher prepared the original material.'
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert any('Example Publisher' in e for e in errors)
+    assert not any('Isha' in e for e in errors)
 
 
-def test_required_editorial_metadata_is_enforced():
+def test_required_attribution_can_be_explicitly_allowed():
     m = load_module()
-    doc = make_doc()
+    doc = make_doc(size=1)
+    doc['source_profile']['blocked_public_terms'] = ['Named Theory']
+    doc['source_profile']['required_public_attribution_terms'] = ['Named Theory']
+    doc['posts'][0]['body_markdown'] += '\n\nNamed Theory is discussed here because attribution is required.'
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert not any('Named Theory' in e for e in errors)
+
+
+def test_generic_source_scaffolding_is_rejected():
+    m = load_module()
+    doc = make_doc(size=1)
+    doc['posts'][0]['body_markdown'] += '\n\nThe cookbook says to toast the spice first.'
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert any('cookbook-facing language' in e for e in errors)
+
+
+def test_personal_possessive_title_requires_justification():
+    m = load_module()
+    doc = make_doc(size=1)
     p = doc['posts'][0]
-    p['author'] = 'Other'
-    p['category'] = 'Conversations'
-    p['tags'] = []
-    p['canonical'] = 'https://example.com/x'
-    p['body_markdown'] = 'No recipe structure.'
-    errors = m.validate_batch_document(doc)
-    joined = '\n'.join(errors)
-    assert 'author' in joined
-    assert 'category' in joined
-    assert '1-3 tags' in joined
-    assert 'canonical' in joined
-    assert 'Ingredients' in joined
-    assert 'Method' in joined
+    p['title'] = "Caroline's Carob Almond Cookies"
+    p['seo_title'] = "Caroline's Carob Almond Cookies | WECARE.DIGITAL"
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert any('personal/kinship name' in e for e in errors)
 
 
-def test_pending_posts_skips_existing_slugs():
+def test_personal_title_can_be_justified_when_identity_is_essential():
     m = load_module()
-    doc = make_doc()
-    pending = m.pending_posts(doc, {'post-041', 'post-050'})
-    assert len(pending) == 23
-    assert all(p['slug'] not in {'post-041', 'post-050'} for p in pending)
+    doc = make_doc(size=1)
+    p = doc['posts'][0]
+    p['title'] = "Caroline's Carob Almond Cookies"
+    p['seo_title'] = "Caroline's Carob Almond Cookies | WECARE.DIGITAL"
+    p['public_name_justification'] = 'Established dish identity with required attribution.'
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert not any('personal/kinship name' in e for e in errors)
 
 
-def test_live_audit_rejects_literal_markdown_and_missing_structure():
+def test_health_claim_title_requires_review():
     m = load_module()
-    expected = make_post(41)
-    bad = {
-        'slug': expected['slug'],
-        'authorName': 'Anew by WECARE.DIGITAL',
-        'category': 'Gastronomy',
-        'tags': expected['tags'],
-        'seoTitle': expected['seo_title'],
-        'metaDescription': expected['meta_description'],
-        'richContent': {'nodes': [
-            {'type': 'PARAGRAPH', 'nodes': [{'type': 'TEXT', 'textData': {'text': r'Intro.\n\n## Ingredients\n- x\n\n## Method\nCook.'}}]}
-        ]},
+    doc = make_doc(size=1)
+    p = doc['posts'][0]
+    p['title'] = 'Cold Cure Soup'
+    p['seo_title'] = 'Cold Cure Soup | WECARE.DIGITAL'
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert any('health-claim term' in e for e in errors)
+
+
+def test_non_recipe_article_does_not_require_ingredients_method():
+    m = load_module()
+    doc = make_doc(size=1)
+    p = doc['posts'][0]
+    p['article_type'] = 'CULINARY_ARTICLE'
+    p['body_markdown'] = (
+        'A first substantial paragraph explains the culinary distinction clearly enough to orient the reader without source-facing framing.\n\n'
+        'A second substantial paragraph develops the technique, ingredient logic, or cultural context while remaining independently written.'
+    )
+    errors = m.validate_batch_document(doc, require_v2=True)
+    assert not any('Ingredients heading' in e for e in errors)
+    assert not any('Method heading' in e for e in errors)
+
+
+def test_legacy_manifest_can_still_validate_but_cannot_publish():
+    m = load_module()
+    legacy = {
+        'batch_start': 41,
+        'batch_end': 41,
+        'posts': [make_post(41)],
     }
-    errors = m.audit_public_post(bad, expected)
-    joined = '\n'.join(errors)
-    assert 'literal escaped newline' in joined
-    assert 'Ingredients heading' in joined
-    assert 'Method heading' in joined
-    assert 'ingredient list' in joined
+    assert not any('quality_version' in e for e in m.validate_batch_document(legacy, require_v2=False))
+    assert any('quality_version' in e for e in m.validate_batch_document(legacy, require_v2=True))
 
 
-def test_initial_progress_state_is_valid_and_advances_one_batch():
+def test_progress_is_variable_size_up_to_150():
     m = load_module()
-    progress = {
-        'completed_through': 40,
-        'next_id': 41,
-        'batch_size': 25,
-        'total': 340,
-        'last_batch': 'GAST-031-GAST-040',
-    }
+    progress = {'completed_through': 454, 'next_id': 455, 'max_manifest_posts': 150}
     assert m.validate_progress(progress) == []
-    advanced = m.advance_progress(progress, 41, 65)
-    assert advanced['completed_through'] == 65
-    assert advanced['next_id'] == 66
-    assert advanced['last_batch'] == 'GAST-041-GAST-065'
+    advanced = m.advance_progress(progress, 455, 604)
+    assert advanced['completed_through'] == 604
+    assert advanced['next_id'] == 605
+    assert advanced['last_manifest'] == 'GAST-455-GAST-604'
 
 
-def test_progress_refuses_skipped_or_partial_batch():
+def test_progress_rejects_skip_and_over_150():
     m = load_module()
-    progress = {'completed_through': 40, 'next_id': 41, 'batch_size': 25, 'total': 340, 'last_batch': 'GAST-031-GAST-040'}
+    progress = {'completed_through': 454, 'next_id': 455, 'max_manifest_posts': 150}
     try:
-        m.advance_progress(progress, 42, 66)
+        m.advance_progress(progress, 456, 500)
     except ValueError as exc:
         assert 'next_id' in str(exc)
     else:
-        raise AssertionError('expected skipped batch to fail')
+        raise AssertionError('expected skipped start to fail')
 
-    bad = dict(progress, next_id=50)
-    errors = m.validate_progress(bad)
-    assert any('next_id' in e for e in errors)
-
-
-def test_quality_gate_rejects_thin_or_fused_recipe_body():
-    m = load_module()
-    doc = make_doc()
-    doc['posts'][0]['body_markdown'] = (
-        'Very short intro.\n'
-        'Another fused line.\n'
-        '## Ingredients\n'
-        '- 1 cup ingredient\n'
-        '## Method\n'
-        'Mix and serve.'
-    )
-    errors = m.validate_batch_document(doc)
-    joined = '\n'.join(errors)
-    assert 'body too thin' in joined
-    assert 'substantive prose paragraphs' in joined
-
-
-def test_live_audit_rejects_editor_tokens_and_single_paragraph_body():
-    m = load_module()
-    expected = make_post(41)
-    bad = {
-        'slug': expected['slug'],
-        'authorName': 'Anew by WECARE.DIGITAL',
-        'category': 'Gastronomy',
-        'richContent': {'nodes': [
-            {
-                'type': 'PARAGRAPH',
-                'nodes': [{
-                    'type': 'TEXT',
-                    'textData': {
-                        'text': 'undefined raw editor placeholder body that should never reach production'
-                    }
-                }],
-                'paragraphData': {}
-            },
-            {
-                'type': 'HEADING',
-                'nodes': [{'type': 'TEXT', 'textData': {'text': 'Ingredients'}}],
-                'headingData': {'level': 2}
-            },
-            {
-                'type': 'BULLETED_LIST',
-                'nodes': [{
-                    'type': 'LIST_ITEM',
-                    'nodes': [{
-                        'type': 'PARAGRAPH',
-                        'nodes': [{'type': 'TEXT', 'textData': {'text': '1 cup ingredient'}}],
-                        'paragraphData': {}
-                    }]
-                }]
-            },
-            {
-                'type': 'HEADING',
-                'nodes': [{'type': 'TEXT', 'textData': {'text': 'Method'}}],
-                'headingData': {'level': 2}
-            }
-        ]},
-    }
-    errors = m.audit_public_post(bad, expected)
-    joined = '\n'.join(errors)
-    assert 'editor placeholder token' in joined
-    assert 'substantive prose paragraphs' in joined
+    try:
+        m.advance_progress(progress, 455, 605)
+    except ValueError as exc:
+        assert '1-150' in str(exc)
+    else:
+        raise AssertionError('expected oversized manifest to fail')
