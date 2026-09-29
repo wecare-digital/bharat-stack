@@ -118,6 +118,12 @@ SANITISERS = {
     "isdigit", "isnumeric", "isdecimal", "isalpha", "isalnum", "isspace",
     "isupper", "islower", "istitle", "isidentifier", "isascii",
     "startswith", "endswith",
+    # `x.count(y)` returns an int by construction on `str`, `bytes` and `list`, exactly as
+    # `len` does, so the receiver cannot travel through it. This is what closes the two
+    # occurrence counters in `scan_repo_secrets.py` (`tree_hits += blob.count(value)`,
+    # `hist_hits += data.count(value)`): the script counts how many times a credential
+    # appears in the tree and in git history, and prints the COUNT.
+    "count",
 }
 
 #: Keys whose value is an identifier minted by us or by a provider, with no subscriber
@@ -147,6 +153,34 @@ OPAQUE_KEYS = re.compile(
     # not extended to a bare `_SECRET` suffix, which would match a variable holding a value.
     r"[a-z0-9_]*_(secret_id|secret_name|secret_arn|key_arn|role_arn|topic_arn|"
     r"queue_url|table_name|bucket_name|log_group|function_name))$",
+    re.I,
+)
+
+#: A second opaque-identifier group, added 2026-09-29 while closing the residue
+#: `docs/security-codeql-triage.md` §4d lists. Separate from `OPAQUE_KEYS` so each entry
+#: keeps its own reason rather than disappearing into a long alternation.
+INFRASTRUCTURE_KEYS = re.compile(
+    # Meta's own request trace id. Published in Meta's error documentation, carries no
+    # subscriber data, and this repo's `meta_error_summary` KEEPS it deliberately as one of
+    # "the identifiers a human debugs from". It was the last unproven element of the
+    # meta_client Graph-error log.
+    r"^(fb_?trace_?id|"
+    # A DynamoDB hash key we mint. `appointmentId` is a uuid4 surrogate; the appointment's
+    # detail lives in other attributes, none of which is logged. CodeQL classifies the
+    # STRING "appointmentId" as health-adjacent private data because its maybePrivate
+    # regexp lists `appointment`, which is why this needed saying rather than assuming.
+    r"appointment_?id|"
+    # AWS control-plane enums: each is one of a closed set the service defines.
+    # BillingMode PAY_PER_REQUEST|PROVISIONED, MfaConfiguration OFF|OPTIONAL|ON,
+    # TableStatus, TimeToLiveStatus, PointInTimeRecoveryStatus.
+    r"billing_?mode|mfa_?configuration|table_?status|time_?to_?live_?status|"
+    r"point_?in_?time_?recovery_?status|"
+    # AWS resource names and ARNs read back from a describe call to verify provisioning.
+    # `maintenance-reporting.md` permits exactly these in a report: "function
+    # names/ARNs/versions", "resource names", "secret names and ARNs". None is a credential
+    # and none identifies a person.
+    r"role|role_?name|policy_?name|policy_?names|attribute_?name|key_?schema|"
+    r"custom_?message|alias_?arn|key_?type)$",
     re.I,
 )
 
@@ -180,6 +214,11 @@ REVIEWED_KEYS = re.compile(
     # The keyword that matched a fixed set, added by this session's own fix -- a member
     # of PAY_KEYWORDS/PAY_FUZZY, never free text.
     r"matched_?keyword|"
+    # The agent tool names whose class is APPLY and which are enabled, read from
+    # `lambda_utils/agent/governance.py`'s CATALOG. That catalog is a fixed in-repo
+    # dict of tool names, so the list can only ever contain identifiers this repository
+    # declares. The assertion it feeds is that the list is EMPTY.
+    r"enabled_applies|"
     # Meta's ban/restriction metadata about OUR OWN number.
     r"ban_?info|"
     # A Graph API path, plus the AI classifier's own output about its own decision.
@@ -231,16 +270,37 @@ def _parents(tree: ast.AST) -> dict[ast.AST, ast.AST]:
 
 
 def _consuming_call(node: ast.AST, parents: dict) -> ast.Call | None:
+    """The call that consumes this expression: a logger if one encloses it, else the first.
+
+    `json.dumps` is transparent, because `json.dumps(d)` into `logger.info` is a log while
+    the same call into `lambda_client.invoke` is a payload -- the distinction §2 of
+    `docs/security-codeql-triage.md` records getting wrong twice.
+
+    Any OTHER wrapper is also walked through, but only far enough to find a logger. That
+    closes `meta_client.py`'s
+
+        logger.warning(mask_text(json.dumps({...})))
+
+    which was reported as `no logger dict at location` and stayed open for it. Walking
+    through `mask_text` is not the same as trusting it: the dict's elements are still
+    classified one by one, and `mask_text` is deliberately absent from `SANITISERS`
+    because it substitutes `Bearer <token>` and masks no phone number at all.
+
+    When no logger is found the FIRST enclosing call is returned, unchanged from before, so
+    `_store_call_log({...})` is still not a log and its numbers are still not masked.
+    """
+    first: ast.Call | None = None
     current = parents.get(node)
     while current is not None:
         if isinstance(current, ast.Call):
             func = current.func
-            if isinstance(func, ast.Attribute) and func.attr == "dumps":
-                current = parents.get(current)
-                continue
-            return current
+            transparent = isinstance(func, ast.Attribute) and func.attr == "dumps"
+            if _is_logger(current):
+                return current
+            if not transparent and first is None:
+                first = current
         current = parents.get(current)
-    return None
+    return first
 
 
 def _is_logger(call: ast.Call | None) -> bool:
@@ -259,6 +319,8 @@ def classify_by_key(key: str) -> str:
         return "BOOL_KEY"
     if OPAQUE_KEYS.match(key):
         return "OPAQUE_ID"
+    if INFRASTRUCTURE_KEYS.match(key):
+        return "INFRA_ID"
     if REVIEWED_KEYS.match(key):
         return "REVIEWED"
     if AUDIT_KEYS.match(key):
@@ -325,8 +387,14 @@ def classify(key: str, value: ast.expr) -> str:
         return "TRUNCATED_CONCAT" if "UNPROVEN" not in parts else "UNPROVEN"
     # A comprehension over a closed set of field NAMES, e.g. the missing-credential
     # field list in rcs-send. The elements are names, not values.
+    # The element is judged by ITS OWN identifier where it has one, falling back to the
+    # container's key. `[(k['AttributeName'], k['KeyType']) for k in ...]` is about
+    # `AttributeName` and `KeyType`; judging both against the outer name `keys` attributes
+    # nothing and reported a DynamoDB key-schema dump as unreviewed. Same reasoning as
+    # `classify_expr`'s own-identifier fallback, and it can only narrow, never widen.
     if isinstance(value, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
-        return "NAME_COMPREHENSION" if classify(key, value.elt) != "UNPROVEN" else "UNPROVEN"
+        inner = classify(_expr_key(value.elt) or key, value.elt)
+        return "NAME_COMPREHENSION" if inner != "UNPROVEN" else "UNPROVEN"
     # An f-string is safe exactly when every interpolation in it is. Its literal segments
     # are source text by construction. This is what closes the module constants that are
     # themselves f-strings, e.g.
@@ -343,7 +411,7 @@ def classify(key: str, value: ast.expr) -> str:
     if isinstance(value, (ast.Compare, ast.UnaryOp)):
         return "PREDICATE"
     if isinstance(value, (ast.List, ast.Tuple, ast.Set)):
-        parts = {classify(key, v) for v in value.elts}
+        parts = {classify(_expr_key(v) or key, v) for v in value.elts}
         return "SEQ" if all(p != "UNPROVEN" for p in parts) else "UNPROVEN"
     return classify_by_key(key)
 
@@ -536,6 +604,88 @@ class Resolver:
         return any(isinstance(n, ast.Name) and n.id == name
                    for n in ast.walk(target))
 
+    def loop_source(self, func, name: str) -> list[ast.expr] | None:
+        """For `for <name> in <list>`, the expressions that can be in that list.
+
+        `docs/security-codeql-triage.md` §4d names this as one of the shapes that kept
+        alerts open: `for p in problems` where `problems` is accumulated by `append`. The
+        loop variable is not resolvable on its own -- `local_bindings` correctly refuses a
+        `for` target -- but the LIST it iterates often is, and every value that can reach
+        the loop variable is then visible.
+
+        Fail-closed in five ways, because this is the rule most likely to over-reach:
+          * exactly one `for` statement may bind the name, or the values cannot be attributed;
+          * the iterable must be a bare local name (not a call, not a comprehension);
+          * that name must be assigned exactly once in the function, to a list/tuple/set
+            display -- in practice `[]`;
+          * every mutation of it must be `.append(one_value)` or `.extend(<display>)`;
+            anything else (`+=`, `.extend(other_name)`, a slice assignment) gives up;
+          * the name must not also be rebound by a loop, a `with`, a walrus or an unpack.
+        """
+        if func is None or self._is_parameter(func, name):
+            return None
+        loops = [n for n in ast.walk(func)
+                 if isinstance(n, (ast.For, ast.AsyncFor)) and self._binds(n.target, name)]
+        if len(loops) != 1:
+            return None
+        loop = loops[0]
+        # Only a plain `for x in xs`. A tuple target means x is one slot of an element, and
+        # attributing it needs the element's shape, which this does not read.
+        if not (isinstance(loop.target, ast.Name) and loop.target.id == name):
+            return None
+        if not isinstance(loop.iter, ast.Name):
+            return None
+        return self.list_contents(func, loop.iter.id)
+
+    def list_contents(self, func, name: str) -> list[ast.expr] | None:
+        """Every expression that can be an element of the local list `name`, or None."""
+        if func is None or self._is_parameter(func, name):
+            return None
+        seeds: list[ast.expr] = []
+        assigns = 0
+        for node in ast.walk(func):
+            if isinstance(node, (ast.For, ast.AsyncFor)) and self._binds(node.target, name):
+                return None
+            if isinstance(node, ast.withitem) and node.optional_vars is not None \
+                    and self._binds(node.optional_vars, name):
+                return None
+            if isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name) \
+                    and node.target.id == name:
+                return None
+            if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name) \
+                    and node.target.id == name:
+                return None                         # `xs += ys`: ys is not read here
+            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                targets = (list(node.targets) if isinstance(node, ast.Assign)
+                           else [node.target])
+                for target in targets:
+                    if isinstance(target, ast.Name) and target.id == name:
+                        assigns += 1
+                        if node.value is None:
+                            continue            # `xs: list[str]` -- a declaration, no value
+                        if not isinstance(node.value, (ast.List, ast.Tuple, ast.Set)):
+                            return None
+                        seeds.extend(node.value.elts)
+                    elif self._binds(target, name):
+                        return None
+        if assigns != 1:
+            return None
+        for node in ast.walk(func):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            owner = node.func.value
+            if not (isinstance(owner, ast.Name) and owner.id == name):
+                continue
+            method = node.func.attr
+            if method == "append" and len(node.args) == 1:
+                seeds.append(node.args[0])
+            elif method == "extend" and len(node.args) == 1 \
+                    and isinstance(node.args[0], (ast.List, ast.Tuple, ast.Set)):
+                seeds.extend(node.args[0].elts)
+            else:
+                return None                     # insert, __setitem__, extend(<name>), ...
+        return seeds or None
+
 
 def resolve(expr: ast.expr, resolver: "Resolver | None", site: ast.AST,
             depth: int = 0) -> str:
@@ -547,8 +697,13 @@ def resolve(expr: ast.expr, resolver: "Resolver | None", site: ast.AST,
     if _is_exception_name(expr):
         return "UNPROVEN"
 
-    bindings = resolver.local_bindings(resolver.enclosing_function(site), expr.id)
+    func = resolver.enclosing_function(site)
+    bindings = resolver.local_bindings(func, expr.id)
     origin = "LOCAL"
+    if bindings is None:
+        # A `for` target is not resolvable on its own, but the list it iterates may be.
+        bindings = resolver.loop_source(func, expr.id)
+        origin = "LOOP_OVER"
     if bindings is None:
         value = resolver.module_constants.get(expr.id)
         if value is None:
@@ -582,6 +737,19 @@ def classify_expr(value: ast.expr, key: str, resolver: "Resolver | None",
     verdict = classify(key, value)
     if verdict != "UNPROVEN":
         return verdict
+    # An f-string reached through resolution needs its interpolations resolved too, and
+    # `classify`'s own JoinedStr branch cannot do that -- it has no resolver, so it judges
+    # each interpolation by name alone. That is what left `for p in problems` unproven even
+    # once `problems` was readable: one appended message interpolates `{enabled_applies}`,
+    # a name no rule can attribute but every binding of which is readable.
+    if isinstance(value, ast.JoinedStr) and resolver is not None \
+            and depth < _RESOLVE_DEPTH:
+        parts = [v for v in ast.walk(value) if isinstance(v, ast.FormattedValue)]
+        if parts:
+            inner = {classify_expr(p.value, _expr_key(p.value) or key, resolver, site,
+                                   depth + 1) for p in parts}
+            if "UNPROVEN" not in inner:
+                return "FSTRING"
     # The expression's own identifier beats the key it happens to be filed under. A dict
     # entry `{'x': phone_number_id}` holds a phone_number_id whichever key names it, and
     # an f-string has no key at all -- only the expression. Applied as a fallback, so it
