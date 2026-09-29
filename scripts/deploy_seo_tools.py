@@ -17,6 +17,7 @@ Usage:  python scripts/deploy_seo_tools.py
 """
 import io
 import json
+import time
 import zipfile
 from pathlib import Path
 
@@ -127,28 +128,84 @@ BATCH_INDEX_DEFINITION = {
             "category", "articleClass", "sourceTitle", "extractedWords", "title",
             "articleStatus", "aiDraftStatus", "gateBlocking", "gateReview", "error",
             "updatedAt",
+            #: ONE NAME FOR EVERY DOWNSTREAM STAGE. `blog_sources.PIPELINE_FIELDS` holds
+            #: sixteen states - analysis, template, QA, sign-off, publish, verification - and
+            #: projecting them individually would need sixteen of the twenty slots. A Map
+            #: counts as one attribute, so the cap stops constraining the design.
+            #:
+            #: Also the reason this landed early: a GSI's projection CANNOT be modified in
+            #: place. Widening it means deleting and recreating the index, which is free while
+            #: the batch partition holds nothing and a migration once a wave is in flight.
+            "pipeline",
+            #: Analysis records share this index (same `batchId`), and a batch page reports how
+            #: much of the wave has actually been read. `slug` above carries the analysed
+            #: source id, so only the version number needs its own slot.
+            "version",
         ],
     },
 }
 
 
+def _wait_for_index(ddb, gone: bool = False, attempts: int = 60) -> None:
+    for _ in range(attempts):
+        indexes = {
+            index["IndexName"]: index
+            for index in ddb.describe_table(TableName=TABLE_NAME)["Table"].get(
+                "GlobalSecondaryIndexes") or []
+        }
+        found = indexes.get(BATCH_INDEX_NAME)
+        if gone and not found:
+            return
+        if not gone and found and found["IndexStatus"] == "ACTIVE" and not found.get(
+                "Backfilling"):
+            return
+        time.sleep(10)
+    raise SystemExit(f"[table] timed out waiting for {BATCH_INDEX_NAME}")
+
+
 def ensure_batch_index(ddb) -> None:
-    """Add the batch index to an existing table. Additive, and safe to re-run.
+    """Create the batch index, or replace it when its projection has drifted.
 
     A GSI is created online: the table stays readable and writable while it backfills, and a
     query against an index still building returns partial results rather than failing. So the
     only ordering requirement is that this runs before anything depends on batch-scoped
     queries returning complete answers, which is why it happens in the deploy rather than
     lazily on first use.
+
+    THE PROJECTION CANNOT BE MODIFIED IN PLACE. DynamoDB offers no "change the projected
+    attributes" operation - the only route is delete the index and create it again. That is
+    cheap while the partition holds nothing and a real migration once it does, so this refuses
+    to do it silently: if the projection has drifted AND the index holds records, it prints
+    what is missing and stops rather than dropping an index something is querying.
     """
-    existing = {
-        index["IndexName"]
+    indexes = {
+        index["IndexName"]: index
         for index in ddb.describe_table(TableName=TABLE_NAME)["Table"].get(
             "GlobalSecondaryIndexes") or []
     }
-    if BATCH_INDEX_NAME in existing:
-        print(f"[table] GSI {BATCH_INDEX_NAME} already present")
-        return
+    found = indexes.get(BATCH_INDEX_NAME)
+    if found:
+        live = set((found.get("Projection") or {}).get("NonKeyAttributes") or [])
+        wanted = set(BATCH_INDEX_DEFINITION["Projection"]["NonKeyAttributes"])
+        if live == wanted:
+            print(f"[table] GSI {BATCH_INDEX_NAME} already present ({len(live)} attributes)")
+            return
+        missing = sorted(wanted - live)
+        held = int(found.get("ItemCount") or 0)
+        print(f"[table] GSI {BATCH_INDEX_NAME} projection drifted; missing={missing} "
+              f"extra={sorted(live - wanted)} itemCount={held}")
+        if held:
+            raise SystemExit(
+                f"[table] {BATCH_INDEX_NAME} holds {held} items and its projection cannot be "
+                f"changed in place. Recreating it would leave batch-scoped queries returning "
+                f"partial results while it backfills. Do it deliberately: delete the index, "
+                f"wait, and re-run this script.")
+        print(f"[table] recreating {BATCH_INDEX_NAME} (it projects nothing anybody is reading)")
+        ddb.update_table(TableName=TABLE_NAME,
+                         GlobalSecondaryIndexUpdates=[
+                             {"Delete": {"IndexName": BATCH_INDEX_NAME}}])
+        _wait_for_index(ddb, gone=True)
+
     print(f"[table] adding GSI {BATCH_INDEX_NAME} (online, backfills in the background)")
     ddb.update_table(
         TableName=TABLE_NAME,

@@ -140,9 +140,33 @@ def _view(item: Dict[str, Any]) -> Dict[str, Any]:
 
 # ── Sources in a batch ──────────────────────────────────────────────────────────
 
+def batch_records(batch_id: str, record_type: str = "", limit: int = 0) -> List[Dict[str, Any]]:
+    """Everything on a batch's index partition, optionally of one record type.
+
+    THE FILTER IS NOT OPTIONAL POLISH. `batchId` is the partition key of a GSI, and every
+    record type that carries a `batchId` lands on it - sources, source analyses, QA runs,
+    publish jobs. The first version of this function returned the whole partition and called
+    it "the batch's sources", which was true for exactly as long as `blogSource` was the only
+    type with a batch. The moment `blogSourceAnalysis` arrived, a rollup counted analyses
+    among the sources and reported 2 for a batch holding 1.
+
+    Sharing one index across record types is deliberate - a batch page wants all of them, and
+    a second GSI costs a second copy of every write - but it means the caller must say what it
+    is asking for.
+    """
+    rows = storage.query_index(BATCH_INDEX, "batchId", str(batch_id),
+                               limit=0 if record_type else limit)
+    if record_type:
+        rows = [row for row in rows if row.get("recordType") == record_type]
+        if limit:
+            rows = rows[:limit]
+    return rows
+
+
 def batch_sources(batch_id: str, limit: int = 0) -> List[Dict[str, Any]]:
-    """Every source in a batch, paginated, no ceiling."""
-    return storage.query_index(BATCH_INDEX, "batchId", str(batch_id), limit=limit)
+    """Every SOURCE in a batch, paginated, no ceiling."""
+    import blog_sources
+    return batch_records(batch_id, record_type=blog_sources.RECORD_TYPE, limit=limit)
 
 
 def _empty_rollup() -> Dict[str, Any]:

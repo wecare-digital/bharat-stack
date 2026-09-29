@@ -15,9 +15,11 @@ from lambda_utils.response import (
 )
 
 import ai
+import blog_analysis
 import blog_batches
 import blog_draft
 import blog_sources
+import blog_templates
 import storage
 import wix
 
@@ -439,6 +441,58 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
             'articleClasses': list(_quality.ARTICLE_CLASSES) if _quality else [],
             'batchStatuses': list(blog_batches.BATCH_STATUSES),
         }, origin)
+    if '/blog-templates/' in path:
+        # `?history=1` returns every version of the family, which is the audit trail an
+        # article's recorded `templateVersion` points into.
+        reference = path.split('/blog-templates/', 1)[1].strip('/')
+        if _query(event, 'history'):
+            versions = blog_templates.history(reference)
+            return _response(200, {
+                'ok': True,
+                'templateId': blog_templates.family_id(reference),
+                'versions': [blog_templates.view(row) for row in versions],
+            }, origin)
+        template = blog_templates.get(reference) or blog_templates.resolve(reference)
+        if not template:
+            return _response(404, {'ok': False, 'error': 'Unknown template'}, origin)
+        return _response(200, {
+            'ok': True, 'template': blog_templates.view(template),
+            # Whether this exact version may still be edited in place, and by implication
+            # whether an edit will fork it. Derived from published articles, not a flag.
+            'locked': blog_templates.locked(template['templateId'],
+                                            int(template['version'])),
+        }, origin)
+    if path.endswith('/blog-templates'):
+        templates = blog_templates.list_templates(
+            include_deprecated=bool(_query(event, 'deprecated')))
+        return _response(200, {
+            'ok': True, 'templates': templates, 'total': len(templates),
+            'anyCategory': blog_templates.ANY_CATEGORY,
+            'categories': list(BLOG_CATEGORIES),
+        }, origin)
+    if '/blog-analysis/' in path:
+        # One analysis with its evidence. The evidence is PROXIED through this authenticated
+        # route rather than linked: the prefix is on the public root, so returning a URL would
+        # hand out the file to anyone it was forwarded to.
+        return _response(200, {
+            'ok': True,
+            'analysis': blog_analysis.detail(path.split('/blog-analysis/', 1)[1].strip('/')),
+        }, origin)
+    if path.endswith('/blog-analysis'):
+        # `?sourceId=` gives one source's version history; `?batchId=` gives how much of a
+        # wave has actually been read. Neither is derived from a counter.
+        source_ref = _query(event, 'sourceId')
+        batch_ref = _query(event, 'batchId')
+        payload: Dict[str, Any] = {'ok': True}
+        if source_ref:
+            payload['history'] = [blog_analysis.view(row)
+                                  for row in blog_analysis.history(source_ref)]
+        if batch_ref:
+            payload['reviewState'] = blog_analysis.batch_review_state(batch_ref)
+            payload['pendingAnalysis'] = blog_analysis.pending_analysis(batch_ref)
+        if not source_ref and not batch_ref:
+            raise ValueError('sourceId or batchId is required')
+        return _response(200, payload, origin)
     if '/blog-sources/' in path:
         # One source with its extract and draft. Split out from the list route because the
         # extract is hundreds of kB and returning it for 200 sources would make the list
@@ -493,6 +547,45 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
             body, actor, tuple(BLOG_CATEGORIES),
             tuple(_quality.ARTICLE_CLASSES) if _quality else ('ARCHIVE_DERIVED',),
         )}, origin)
+
+    if path.endswith('/blog-templates/assign'):
+        return _response(200, {'ok': True, **blog_templates.assign(
+            str(body.get('sourceId') or '').strip(),
+            str(body.get('templateId') or '').strip(),
+            body.get('version') or 0, actor)}, origin)
+    if path.endswith('/blog-templates/deprecate'):
+        record_id = str(body.get('recordId') or '').strip()
+        if not record_id:
+            raise ValueError('recordId is required, naming the exact version')
+        return _response(200, {'ok': True, **blog_templates.deprecate(record_id, actor)},
+                         origin)
+    if path.endswith('/blog-templates'):
+        # NOT idempotency-claimed. `save` is itself idempotent in the way that matters: a
+        # replayed edit of an unlocked version writes the same fields again, and a replayed
+        # edit of a LOCKED version forks - which is the correct outcome either way, whereas a
+        # 409 would leave the operator unsure which of the two happened.
+        return _response(200, {'ok': True, **blog_templates.save(
+            body, actor, tuple(BLOG_CATEGORIES),
+            tuple(_quality.ARTICLE_CLASSES) if _quality else ('ARCHIVE_DERIVED',),
+        )}, origin)
+
+    if path.endswith('/blog-analysis/review'):
+        # The ONLY route that can write `sourceReviewedFully`, and it insists the reviewer
+        # names the analysis version they read. No model-writable field reaches here.
+        return _response(200, {
+            'ok': True, **blog_analysis.record_review(body, actor),
+        }, origin)
+    if path.endswith('/blog-analysis'):
+        source_id = str(body.get('sourceId') or '').strip()
+        if not source_id:
+            raise ValueError('sourceId is required')
+        # NOT idempotency-claimed. Analysis is deliberately versioned and cheap - it reads the
+        # extract and runs regular expressions, with no model call - so a double submit
+        # producing v2 is harmless, whereas a 409 would leave an operator unable to re-analyse
+        # after a re-extraction, which is the one time they must be able to.
+        return _response(200, {
+            'ok': True, **blog_analysis.analyse(source_id, actor),
+        }, origin)
 
     if path.endswith('/blog-sources/confirm'):
         # NO idempotency claim, deliberately. Confirm is naturally idempotent - it

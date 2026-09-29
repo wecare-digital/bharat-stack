@@ -178,9 +178,38 @@ export interface BlogSourceView {
   aiDraftStatus: string;
   gateBlocking: string[];
   gateReview: string[];
+  /**
+   * Every downstream stage's state, as one attribute.
+   *
+   * It is a map rather than sixteen sibling fields because DynamoDB caps a GSI at 20
+   * projected non-key attributes and the batch index already spends 17 of them. A map counts
+   * as one name, so the cap stopped being a design constraint. Every key is always present,
+   * empty rather than absent, so a table cell never has to test for existence.
+   */
+  pipeline: BlogPipelineState;
   error: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** The per-stage state carried on a source row. Empty string means "not reached yet". */
+export interface BlogPipelineState {
+  analysisId: string;
+  analysisVersion: number;
+  sourceReviewedFully: string;
+  templateId: string;
+  templateVersion: number;
+  qaRunId: string;
+  qaStatus: string;
+  signoffId: string;
+  signedOffBy: string;
+  publishStatus: string;
+  publishedAt: string;
+  postId: string;
+  postUrl: string;
+  verifyStatus: string;
+  verifiedAt: string;
+  repetitionStatus: string;
 }
 
 /** The gate's verdict on a proposed article. `humanGatesOutstanding` is why it cannot publish. */

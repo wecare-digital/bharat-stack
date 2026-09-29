@@ -1348,9 +1348,18 @@ def _soften_for_legacy(findings: Sequence[Finding]) -> List[Finding]:
     return out
 
 
-def check_record(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None) -> List[Finding]:
-    """Every mechanically decidable clause of the standard, for one record."""
-    findings: List[Finding] = []
+def check_record(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None,
+                 extra_findings: Sequence[Finding] = ()) -> List[Finding]:
+    """Every mechanically decidable clause of the standard, for one record.
+
+    `extra_findings` exists so a caller can fold in rules this module cannot own. Content
+    templates are the case that needed it: a template is a per-project record living in
+    DynamoDB, and this module runs in CI with no AWS access at all, so it cannot resolve one.
+    The dependency has to point that way round - `blog_templates` imports the gate, never the
+    reverse - and passing findings in keeps the status machinery and the legacy softening in
+    one place rather than duplicated at the call site.
+    """
+    findings: List[Finding] = list(extra_findings)
     findings += check_class_and_source(record)
     findings += check_distinction_and_purpose(record)
     findings += check_type_and_length(record)
@@ -1372,9 +1381,10 @@ def check_record(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None) -
     return findings
 
 
-def assess(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None) -> Dict[str, Any]:
+def assess(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None,
+           extra_findings: Sequence[Finding] = ()) -> Dict[str, Any]:
     """`check_record` plus the derived verdicts, as one reportable dict."""
-    findings = check_record(record, corpus)
+    findings = check_record(record, corpus, extra_findings=extra_findings)
     gate = machine_gate_table(findings)
     return {
         "slug": str(record.get("slug") or ""),

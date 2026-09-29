@@ -81,12 +81,29 @@ nothing" for two days.
       sources/pdf/<sha256>.pdf              uploaded source, key IS the content hash
       sources/url/<sourceId>.json           fetched payload plus response headers
       extracted/<sourceId>.md               reflowed markdown
-      source-analysis/<sourceId>.json       internal, never public copy
+      source-analysis/<sourceId>/v<n>.json  versioned; never overwritten, never linked
       article-working/<articleId>/<rev>.md
       qa/<articleId>/<qaRunId>.json
       publish-records/<articleId>.json
       verification/<articleId>/<runId>.json
       failures/<sourceId>.json
+
+### Two corrections to the source-analysis line, both load-bearing
+
+**It is a directory per source, not a flat file.** This line originally read
+`source-analysis/<sourceId>.json`. An analysis is versioned, because a reviewer's sign-off
+names the version they read and a re-extraction must invalidate that reading rather than
+inherit it — so v2 cannot overwrite v1, or the artifact somebody signed against is gone. The
+code was not bent to fit the documentation; the documentation was wrong.
+
+**"Never public copy" means unlisted and unlinked, not gated.** The prefix is `o/`, which
+CloudFront serves without authentication, so an analysis IS fetchable by anyone holding its
+URL. The difference from a source PDF is intent: `blog_sources.source_url` deliberately
+surfaces a link to the document, because a reviewer has to read it. Nothing returns a URL for
+an analysis — `blog_analysis.detail` proxies the body through the authenticated route, and
+`test_the_analysis_is_never_handed_out_as_a_url` asserts no key in the response is
+URL-shaped. If the evidence must be genuinely private, the prefix moves under `secure/` and
+no code changes.
 
 ### Why the key is the content hash
 
