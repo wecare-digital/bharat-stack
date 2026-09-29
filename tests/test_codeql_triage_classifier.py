@@ -171,3 +171,93 @@ class TestStalenessGuard:
 
     def test_an_unknown_commit_is_treated_as_changed(self):
         assert triage.file_changed("0" * 40, "HEAD", "README.md") is True
+
+
+class TestAReducerIsVerifiedAgainstItsDefinition:
+    """The `mask_text` mistake, repeated with `fingerprint` — and now gated.
+
+    `SAFE_PRINT_CALLS` trusted the *word* "fingerprint", while
+    `scripts/audit_secrets_structure.py` defined it as
+    `f"len={len(v):<4} {v[:4]}…{v[-2:]}"` — four leading and two trailing characters of
+    every field of seven live secrets, printed to a terminal that lands in `~/.kiro/logs`
+    and the session transcript. The triage tool proved that line safe.
+
+    So allowlist membership now only nominates a name; `leaky_reducers` reads the
+    definition in the file under analysis and withdraws trust when a `return` yields a
+    slice or an index of a parameter.
+    """
+
+    @staticmethod
+    def _print_verdict(tmp_path, body: str, expr: str) -> str:
+        """The verdict `print_interpolations` gives `expr`, which is where reducers count.
+
+        `SAFE_PRINT_CALLS` is consulted on the `print()` path only, so this is the surface
+        the `fingerprint` regression actually sat on.
+        """
+        path = tmp_path / "m.py"
+        path.write_text(body, encoding="utf-8")
+        # `startswith`, not `in`: "fingerprint(" contains "print(".
+        line = next(i for i, text in enumerate(body.splitlines(), 1)
+                    if text.strip().startswith("print("))
+        out = triage.print_interpolations(path, line, line)
+        assert out is not None, "no print() found at the location"
+        return next(verdict for shown, verdict, _ in out if shown == expr)
+
+    def test_a_slicing_fingerprint_is_not_trusted(self, tmp_path):
+        src = ('def fingerprint(v):\n'
+               '    return f"len={len(v)} {v[:4]}...{v[-2:]}"\n'
+               'def h(secret):\n'
+               '    print(f"x {fingerprint(secret)}")\n')
+        assert triage.leaky_reducers(ast.parse(src)) == {"fingerprint"}
+        assert self._print_verdict(tmp_path, src, "fingerprint(secret)") == "UNPROVEN"
+
+    def test_a_hashing_fingerprint_is_trusted(self, tmp_path):
+        src = ('import hashlib\n'
+               'def fingerprint(v):\n'
+               '    return "sha256:" + hashlib.sha256(v.encode()).hexdigest()[:12]\n'
+               'def h(secret):\n'
+               '    print(f"x {fingerprint(secret)}")\n')
+        # The slice is of the DIGEST, not of `v`, so it discloses nothing.
+        assert triage.leaky_reducers(ast.parse(src)) == set()
+        assert self._print_verdict(
+            tmp_path, src, "fingerprint(secret)") == "REDUCED:fingerprint"
+
+    def test_a_one_step_alias_of_a_parameter_still_counts(self):
+        # `clean = v.strip()` then `clean[:4]` is still four characters of `v`.
+        src = ('def digest(v):\n'
+               '    clean = v.strip()\n'
+               '    return clean[:4]\n')
+        assert triage.leaky_reducers(ast.parse(src)) == {"digest"}
+
+    def test_a_bounded_tail_masker_is_exempt(self):
+        # `mask_phone` is `clean[:3] + '****' + clean[-4:]` BY DESIGN. Its contract is to
+        # keep a bounded tail; a credential fingerprint's contract is the opposite.
+        src = ('def mask_phone(phone):\n'
+               '    clean = phone.strip()\n'
+               '    return clean[:3] + "****" + clean[-4:]\n')
+        assert triage.leaky_reducers(ast.parse(src)) == set()
+
+    @pytest.mark.parametrize("helper", sorted(
+        triage.SAFE_PRINT_CALLS - triage.BOUNDED_TAIL_MASKERS))
+    def test_no_credential_reducer_in_the_tree_returns_part_of_its_input(self, helper):
+        """The durable gate: the three sites fixed on 2026-09-29 cannot come back.
+
+        `secrets_backup.py::fp` had already been corrected away from `v[:4]…v[-2:]` with
+        the reasoning written down, and two copies were still doing it
+        (`audit_secrets_structure.py::fingerprint`, `sync_webhook_registry.py::fp`) plus
+        one inline (`verify_razorpay_secret_path.py`'s `prefix={k[:4]}`). A gate stops
+        that; a triage pass does not.
+        """
+        offenders = []
+        for path in sorted((ROOT / "scripts").rglob("*.py")):
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+            if helper in triage.leaky_reducers(tree):
+                offenders.append(path.relative_to(ROOT).as_posix())
+        assert not offenders, (
+            f"{helper}() returns part of its input in: {', '.join(offenders)}. "
+            "A credential reducer must be one-way - emit a length and a sha256 prefix, "
+            "never a prefix or suffix of the value."
+        )

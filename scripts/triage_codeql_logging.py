@@ -447,6 +447,10 @@ class Resolver:
         self.module_constants = self._single_module_bindings(tree)
         self._functions = [n for n in ast.walk(tree)
                            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        # Reducers this file defines that return part of their input, so a call to one
+        # must not be trusted here even though the name is allowlisted. Computed per
+        # file, because the same name can be one-way in one script and not in another.
+        self.leaky = leaky_reducers(tree)
 
     @staticmethod
     def _single_module_bindings(tree: ast.Module) -> dict[str, ast.expr]:
@@ -569,6 +573,12 @@ def classify_expr(value: ast.expr, key: str, resolver: "Resolver | None",
     """
     if _exception_leak(value):
         return "UNPROVEN"
+    # A reducer that this file defines as returning part of its input is not a reducer,
+    # whatever it is called. Checked before `classify` so it beats the SANITISERS list.
+    if isinstance(value, ast.Call) and resolver is not None and resolver.leaky:
+        called = getattr(value.func, "id", getattr(value.func, "attr", ""))
+        if called in resolver.leaky:
+            return "UNPROVEN"
     verdict = classify(key, value)
     if verdict != "UNPROVEN":
         return verdict
@@ -588,10 +598,94 @@ def classify_expr(value: ast.expr, key: str, resolver: "Resolver | None",
 #: These are the by-reference pattern `.kiro/steering/secret-handling.md` prescribes:
 #: report "provider, credential present YES/NO, field count, fingerprint, length", never
 #: the value.
+#:
+#: MEMBERSHIP HERE IS NOT ENOUGH. Every name is re-verified against its definition in the
+#: file under analysis by `leaky_reducers` below, because trusting a reducer by its name
+#: is the same mistake as trusting `mask_text` by its name, and it had already been made:
+#: `audit_secrets_structure.py::fingerprint` returned `len={n} {v[:4]}…{v[-2:]}` -- four
+#: leading and two trailing characters of every field of seven live secrets -- and this
+#: allowlist proved it safe on the strength of the word "fingerprint". Found 2026-09-29.
 SAFE_PRINT_CALLS = {
     "len", "fingerprint", "digest", "fp", "sha256", "bool", "sorted", "list", "int",
     "_redact", "redact", "mask", "mask_phone", "type", "repr_shape", "count",
 }
+
+#: The subset of reducers whose contract is to keep a BOUNDED TAIL of a phone number or an
+#: email, where returning part of the input is the prescribed behaviour rather than a
+#: defect -- `mask_phone` is `clean[:3] + '****' + clean[-4:]` by design. A credential
+#: fingerprint has the opposite contract: `set_wix_credential.py::fingerprint` states it
+#: outright, "never print a prefix or a suffix of a credential - an issuer prefix plus a
+#: length is a meaningful head start". So the slice check below exempts these and only
+#: these.
+BOUNDED_TAIL_MASKERS = {
+    "mask", "_mask", "mask_phone", "_mask_phone", "mask_email", "mask_contact_id",
+    "mask_flow_token", "_mask_tail", "last4",
+}
+
+#: Calls after which a slice is a slice of a DIGEST rather than of the input. Truncating a
+#: sha256 is the prescribed rendering, so these have to break the chain or the check below
+#: condemns every correct fingerprint in the tree.
+_ONE_WAY_CALLS = frozenset({
+    "sha256", "sha1", "sha224", "sha384", "sha512", "md5", "blake2b", "blake2s",
+    "hexdigest", "digest", "new", "token_urlsafe", "token_hex", "uuid4",
+})
+
+
+def leaky_reducers(tree: ast.Module) -> set[str]:
+    """Names from `SAFE_PRINT_CALLS` that this file defines as returning part of an input.
+
+    A reducer earns its place in the allowlist by being one-way. This reads the definition
+    rather than the name: if any `return` in the function yields a slice or an index of one
+    of the function's own parameters, then printing its result prints part of the value, and
+    the call must NOT classify as REDUCED.
+
+    Fails closed in the useful direction -- it only ever removes trust, never grants it.
+    """
+    leaky: set[str] = set()
+
+    def one_way(expr: ast.expr) -> bool:
+        """True when a hash stands between the parameter and the subscript.
+
+        `hashlib.sha256(v.encode()).hexdigest()[:12]` slices the DIGEST, not `v`, so it
+        discloses nothing and is the prescribed form. Without this the check condemns
+        every correct fingerprint in the tree, because `v` is still somewhere inside the
+        subscripted expression.
+        """
+        return any(
+            getattr(c.func, "attr", getattr(c.func, "id", "")) in _ONE_WAY_CALLS
+            for c in ast.walk(expr) if isinstance(c, ast.Call)
+        )
+
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if node.name not in SAFE_PRINT_CALLS or node.name in BOUNDED_TAIL_MASKERS:
+            continue
+        args = node.args
+        params = {a.arg for a in (list(args.posonlyargs) + list(args.args)
+                                  + list(args.kwonlyargs))}
+        # A one-step local alias of a parameter counts as the parameter: `clean = v.strip()`
+        # then `clean[:4]` is still four characters of `v`.
+        aliases = set()
+        for inner in ast.walk(node):
+            if isinstance(inner, ast.Assign) and len(inner.targets) == 1 \
+                    and isinstance(inner.targets[0], ast.Name):
+                if any(isinstance(n, ast.Name) and n.id in params
+                       for n in ast.walk(inner.value)):
+                    aliases.add(inner.targets[0].id)
+        tainted = params | aliases
+        for inner in ast.walk(node):
+            if not isinstance(inner, ast.Return) or inner.value is None:
+                continue
+            for piece in ast.walk(inner.value):
+                if not isinstance(piece, ast.Subscript):
+                    continue
+                if one_way(piece.value):
+                    continue
+                if any(isinstance(n, ast.Name) and n.id in tainted
+                       for n in ast.walk(piece.value)):
+                    leaky.add(node.name)
+    return leaky
 
 
 def print_interpolations(path: pathlib.Path, start: int, end: int) -> list[tuple[str, str, str]] | None:
@@ -634,7 +728,11 @@ def print_interpolations(path: pathlib.Path, start: int, end: int) -> list[tuple
                     verdict = "TYPE_NAME"
                 elif isinstance(inner, ast.Call):
                     name = getattr(inner.func, "id", getattr(inner.func, "attr", ""))
-                    if name in SAFE_PRINT_CALLS:
+                    if name in resolver.leaky:
+                        # Allowlisted by name, but this file's definition returns part of
+                        # its input. Leave it UNPROVEN and let a human read it.
+                        verdict = "UNPROVEN"
+                    elif name in SAFE_PRINT_CALLS:
                         verdict = f"REDUCED:{name}"
                     elif name in ("get", "join", "format", "strip", "keys", "values",
                                   "most_common", "upper", "lower", "split", "dumps"):
