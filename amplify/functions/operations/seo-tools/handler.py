@@ -19,6 +19,7 @@ import blog_analysis
 import blog_batches
 import blog_draft
 import blog_gate
+import blog_publish
 import blog_qa
 import blog_queue
 import blog_repetition
@@ -414,6 +415,20 @@ def _review(body: Dict[str, Any], actor: str, origin: str):
     return _response(200, {'ok': True, 'audit': updated, 'applied': True}, origin)
 
 
+def _wix_writes_disabled() -> bool:
+    """Read through `wix_guard` rather than the env var directly.
+
+    There must be ONE definition of "are Wix credentials switched off" - the defect that module
+    exists to close was a flag read in some places and not others, which produced a switch that
+    disabled the store and left blog publishing running.
+    """
+    try:
+        from lambda_utils.wix_guard import credentials_disabled
+        return credentials_disabled()
+    except ImportError:  # pragma: no cover - wix_guard ships in every package
+        return False
+
+
 def _route_get(path: str, event: Dict[str, Any], origin: str):
     if path.endswith('/blog-posts'):
         posts = storage.list_blog_posts()
@@ -445,6 +460,29 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
             'articleClasses': list(_quality.ARTICLE_CLASSES) if _quality else [],
             'batchStatuses': list(blog_batches.BATCH_STATUSES),
         }, origin)
+    if '/blog-publish/' in path:
+        return _response(200, {
+            'ok': True,
+            'job': blog_publish.detail(path.split('/blog-publish/', 1)[1].strip('/')),
+        }, origin)
+    if path.endswith('/blog-publish'):
+        # `?batchId=` answers the release page's real question: which sources could be released
+        # right now, AND why each of the others cannot. Filtering to the eligible rows leaves an
+        # operator with no idea why the other forty are missing.
+        batch_ref = _query(event, 'batchId')
+        payload: Dict[str, Any] = {
+            'ok': True,
+            'jobStatuses': list(blog_publish.JOB_STATUSES),
+            'queue': blog_publish.queue(status=_query(event, 'status'),
+                                        limit=int(_query(event, 'limit', '0') or 0)),
+            # Whether a publish would be refused before it is attempted. An operator looking at
+            # a queue needs to know the writes are switched off without pressing anything.
+            'wixWritesDisabled': _wix_writes_disabled(),
+        }
+        if batch_ref:
+            payload['batchState'] = blog_publish.batch_publish_state(batch_ref)
+            payload['candidates'] = blog_publish.releasable_in_batch(batch_ref)
+        return _response(200, payload, origin)
     if '/blog-repetition/' in path:
         return _response(200, {
             'ok': True,
@@ -601,6 +639,43 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
             body, actor, tuple(BLOG_CATEGORIES),
             tuple(_quality.ARTICLE_CLASSES) if _quality else ('ARCHIVE_DERIVED',),
         )}, origin)
+
+    if path.endswith('/blog-publish/release'):
+        # Records a decision. Performs NO Wix write - publishing is a separate call, because
+        # section 38 requires that processing completion never automatically mean publishing.
+        source_id = str(body.get('sourceId') or '').strip()
+        if not source_id:
+            raise ValueError('sourceId is required')
+        # NOT idempotency-claimed, because `release` is idempotent in the way that matters: a
+        # second release resolves to the job that already exists. A 409 would leave the operator
+        # unsure whether the first one landed, which is worse on exactly this route.
+        return _response(200, {'ok': True, **blog_publish.release(source_id, actor)}, origin)
+    if path.endswith('/blog-publish/withdraw'):
+        job_id = str(body.get('jobId') or '').strip()
+        if not job_id:
+            raise ValueError('jobId is required')
+        return _response(200, {'ok': True, **blog_publish.unrelease(
+            job_id, str(body.get('reason') or ''), actor)}, origin)
+    if path.endswith('/blog-publish'):
+        job_id = str(body.get('jobId') or '').strip()
+        if not job_id:
+            raise ValueError('jobId is required')
+        # DELIBERATELY NOT IDEMPOTENCY-CLAIMED, and this is the one route where that looks
+        # wrong. It is the only Wix mutation in the system, so a claim is the obvious reflex.
+        #
+        # It was there, and the first live run caught it doing harm. The claim keys on the
+        # request body, and the body is just `{jobId}` - so the FIRST attempt records the claim
+        # whatever its outcome, and a later legitimate retry of the same job answers 409. The run
+        # hit exactly that: a publish correctly refused because the article had been edited, then
+        # the operator restored the body, re-signed, pressed Publish again, and got "This Admin
+        # action was already submitted" with no way forward.
+        #
+        # The conditional QUEUED -> PUBLISHING claim inside `publish` is the real guard and it is
+        # strictly better, because it is tied to the JOB'S STATE rather than to a request shape.
+        # Two simultaneous submits both read QUEUED, both call it, one wins the conditional
+        # write and the other returns "another publisher holds this job" having written nothing.
+        # A body-hash claim adds no safety on top of that and costs a retry that has to work.
+        return _response(200, {'ok': True, **blog_publish.publish(job_id, actor)}, origin)
 
     if path.endswith('/blog-repetition'):
         batch_id = str(body.get('batchId') or '').strip()

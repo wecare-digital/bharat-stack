@@ -524,7 +524,18 @@ def package() -> bytes:
     #: `blog_gate` loads it lazily and caches it, and `blog_qa` refuses to accept a sign-off
     #: against a run that did not load it.
     corpus = ROOT / "content" / "conversations" / "corpus-index.json"
-    for required in (shim, seo_dir, lambda_utils, pipeline, gate, corpus):
+    #: THE RICOS COMPILER, REUSED RATHER THAN REIMPLEMENTED.
+    #:
+    #: `wix_blog_migrate.markdown_to_rich_content` already compiles editorial Markdown into the
+    #: image-free Ricos subset this site renders, `draft_post` already builds the Wix draft-post
+    #: body, and `tests/test_wix_blog_migrate.py` already covers both. A second compiler in the
+    #: Lambda would drift from the one that produced the 1,165 live posts, and the first symptom
+    #: would be a published article that renders differently from every article beside it.
+    #:
+    #: Safe to package flat: stdlib plus boto3 (present in the runtime), every module-level
+    #: statement is a constant or an `os.environ.get`, and the CLI sits behind `if __name__`.
+    migrate = ROOT / "scripts" / "wix_blog_migrate.py"
+    for required in (shim, seo_dir, lambda_utils, pipeline, gate, corpus, migrate):
         assert required.exists(), f"missing {required}"
 
     buf = io.BytesIO()
@@ -542,6 +553,7 @@ def package() -> bytes:
         # `import blog_quality_v2`) from handler-local code.
         z.write(pipeline, "blog_pipeline.py")
         z.write(gate, "blog_quality_v2.py")
+        z.write(migrate, "wix_blog_migrate.py")
         z.write(corpus, "content/conversations/corpus-index.json")
         _vendor_pypdf(z)
     data = buf.getvalue()

@@ -57,6 +57,61 @@ def _conditional_check_failed():
                        "UpdateItem")
 
 
+def _top_level_commas(expression: str) -> List[str]:
+    """Split a SET clause on commas outside parentheses."""
+    parts, depth, current = [], 0, []
+    for char in expression:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        if char == "," and depth == 0:
+            parts.append("".join(current))
+            current = []
+            continue
+        current.append(char)
+    if current:
+        parts.append("".join(current))
+    return parts
+
+
+def _resolve(token: str, item: Dict[str, Any], names: Dict[str, str],
+             values: Dict[str, Any]) -> Any:
+    """Evaluate the right-hand side of one SET assignment.
+
+    Three forms, which are the three this codebase actually writes:
+
+        :token                                   a plain value
+        if_not_exists(attr, :token)              a default for a first write
+        <either of the above> + :token           an atomic increment
+
+    Worth supporting rather than avoiding in production code, because `if_not_exists(attempts,
+    :zero) + :one` IS the correct way to count publish attempts - reading the item and writing
+    back a number would lose one of two concurrent increments, which on a publish path is the
+    difference between "attempted twice" and "attempted once" in an audit trail.
+    """
+    text = token.strip()
+    left, plus, right = text.partition(" + ")
+    base = _resolve_term(left.strip(), item, names, values)
+    if not plus:
+        return base
+    return (base or 0) + (_resolve_term(right.strip(), item, names, values) or 0)
+
+
+def _resolve_term(term: str, item: Dict[str, Any], names: Dict[str, str],
+                  values: Dict[str, Any]) -> Any:
+    if term.startswith("if_not_exists("):
+        inner = term[len("if_not_exists("):].rstrip(")")
+        attribute, _, default = inner.partition(",")
+        attribute = names.get(attribute.strip(), attribute.strip())
+        if attribute in item:
+            return item[attribute]
+        return values[default.strip()]
+    if term.startswith(":"):
+        return values[term]
+    return item.get(names.get(term, term))
+
+
 def _condition_target(condition) -> tuple:
     """`Key('batchId').eq(value)` -> `('batchId', value)`.
 
@@ -111,12 +166,15 @@ class FakeTable:
         # the real table kept the field.
         expression = str(UpdateExpression)
         set_part, _, remove_part = expression.partition(" REMOVE ")
-        for assignment in set_part.replace("SET ", "", 1).split(","):
+        #: Split on commas that are NOT inside parentheses. `if_not_exists(attempts, :zero)`
+        #: contains one, and splitting naively tore the expression in half - which is how the
+        #: atomic attempt counter in `blog_publish._claim` came to be untestable.
+        for assignment in _top_level_commas(set_part.replace("SET ", "", 1)):
             if "=" not in assignment:
                 continue
             target, _, token = assignment.partition("=")
             attribute = names.get(target.strip(), target.strip())
-            item[attribute] = values[token.strip()]
+            item[attribute] = _resolve(token.strip(), item, names, values)
         for name in (part.strip() for part in remove_part.split(",") if part.strip()):
             item.pop(names.get(name, name), None)
         return {"Attributes": dict(item)}
