@@ -84,6 +84,29 @@ name: Kiro PR review
 # reads the same missing file, with a try/catch that also falls back to it - so adding
 # `model:` to this step would reintroduce the failure. Leave it unset.
 #
+# THE FIX CANNOT GO GREEN ON THE PULL REQUEST THAT INTRODUCES IT, AND THAT IS CORRECT.
+# Before anything else, the action runs restoreConfigFromBase() (src/security.ts), which
+# logs:
+#
+#   Restoring .kiro, .amazonq, .gitmodules, .husky, AGENTS.md from origin/stack
+#
+# It backs the PR's copies up to .kiro-pr/, DELETES them, then `git checkout
+# origin/<base> -- <path>` for each; a path that does not exist on the base branch
+# "stays deleted" in its own words. It cites CVE-2025-59536 / CVE-2026-21852 - RCE via
+# malicious config injection - and it is right to: without it, any pull request could
+# ship a .kiro/agents/code-reviewer.json that runs arbitrary tooling under this job's
+# credentials. A pull request must not be able to define the agent that reviews it.
+#
+# So on the PR that ADDS this file, .kiro is replaced by the base branch's copy, the file
+# is not there, existsSync(dest) is false, and the ENOENT still happens. The check goes
+# green from the NEXT pull request onward, once the file is on `stack`. Do not chase that
+# first red run - and in particular do not "fix" it by passing `agent:`, which skips the
+# copy but leaves the agent JSON deleted, so the CLI then fails to find the agent instead.
+#
+# The action also leaves the PR's own versions in .kiro-pr/ specifically so the reviewer
+# can inspect what a change proposed to these paths. Worth knowing if a review ever
+# comments on .kiro-pr/ contents.
+#
 # Our copy is upstream's schema with two deliberate differences: `resources` points at
 # steering docs that exist in this repo instead of a CONTRIBUTING.md that does not, and it
 # carries a repo-specific prompt. The read-only posture is upstream's and is kept - no
