@@ -6,6 +6,10 @@ triaged**, which is a failing release gate, and the size of the pile was itself 
 problem: it was large enough that nobody read it, and the things worth reading were inside
 it.
 
+**Current state: 14 open, all this rule.** 223 → 52 → 26 → 20 → 14. The most recent pass is
+§4e, and it is the one to read first if you are picking this up: it found a real disclosure
+that an earlier pass had signed off, in a helper the triage tool trusted by name.
+
 This document records what was found, what was fixed, and what each remaining dismissal
 rests on. It exists because a dismissal without a reason is indistinguishable from a
 dismissal without a thought.
@@ -187,6 +191,104 @@ accumulated from another unresolved name (`tree_hits`, `hist_hits`), a dict inde
 (`live_smoke.describe()`). Nearly all are developer-run tooling in `scripts/` printing
 diagnostics, and §3 records that all 69 of that group were read by hand. They are left open
 rather than pattern-matched into safety.
+
+### 4e. The next pass, 2026-09-29 — and §3 was wrong about a value-bearing line
+
+Picked up at **20 open, 0 provable**. Left at **14 open, 6 dismissed with evidence**. The
+part worth reading is not the count.
+
+**§3 says the value-bearing lines in `scripts/` "emit a length, a label or an irreversible
+`sha256[:12]`", and says all 69 were read. One of them did not, and the read missed it**
+because it checked the call site and trusted the helper's name:
+
+```python
+# scripts/audit_secrets_structure.py, until 2026-09-29
+def fingerprint(v: object) -> str:
+    return f"len={len(v):<4} {v[:4]}…{v[-2:]}"
+```
+
+Four leading and two trailing characters of **every field of all seven secrets** that
+script reports on, including `wecare/razorpay/api`'s `key_secret` and the AWS IAM secret
+access key, printed to a terminal — which is `~/.kiro/logs` and the session transcript, the
+exact path that put four credentials on disk on 2026-09-19. `SAFE_PRINT_CALLS` contained
+`fingerprint`, so the triage tool proved that line safe.
+
+**This is §4b's `mask_text` mistake, repeated with a different word.** It is also a defect
+the project had already found and fixed once: `secrets_backup.py::fp` carries the correction
+and the reasoning in its docstring. Two copies were still doing it and one did it inline:
+
+| Site | Was | Now |
+|---|---|---|
+| `audit_secrets_structure.py::fingerprint` | `{v[:4]}…{v[-2:]}` on every field of 7 secrets | `len=` + `sha256[:12]`, `<short>` under 9 chars |
+| `sync_webhook_registry.py::fp` | same rendering, on an AWS access key **id** | same fix; smaller exposure, identical shape |
+| `verify_razorpay_secret_path.py` | `prefix={k[:4]}` inline, while its docstring claimed it printed only populated-ness and length | `sha256[:12]` |
+
+The `<short>` branch is kept deliberately: a sha256 of a handful of characters is invertible
+by brute force, so hashing a 3-character field would disclose it.
+
+**The gate, which is the durable part.** `leaky_reducers()` now reads the definition of every
+name in `SAFE_PRINT_CALLS` **in the file under analysis** and withdraws trust when a `return`
+yields a slice or an index of a parameter, or of a one-step alias of one. A hashing call
+breaks the chain, because `hashlib.sha256(v.encode()).hexdigest()[:12]` slices the digest and
+not `v` — without that the check condemns every correct fingerprint in the tree.
+`BOUNDED_TAIL_MASKERS` exempts `mask_phone` and friends, whose contract is the opposite: for
+a phone number a bounded tail is the prescribed rendering, and for a credential it is the
+thing not to print. `tests/test_codeql_triage_classifier.py` parametrises the check over
+every `scripts/*.py`, so a fourth copy fails the build instead of being triaged.
+
+**Two raw-exception sites remediated, which is what made them provable.** `sla-engine`'s
+no-show handler and `whatsapp-calling`'s IVR-menu lookup both logged `{e}` — a DynamoDB
+UpdateItem error can quote the item's own attributes back, and a `json.loads` error can quote
+the stored document. Both now log `type(e).__name__`, and the correlation id stays. Verified
+with the CodeQL CLI locally (2.27.1, the CI version) that this **did not** clear either
+alert: the remaining element is the opaque id, which is exactly the thing triage is for. So
+these two are remediated *and then* triaged, in that order.
+
+**Four classifier extensions, each closing a shape §4d names:**
+
+- `Resolver.loop_source` / `list_contents` read `for p in problems` as every expression
+  appended to `problems`. Fails closed on a second binding of the loop variable, a
+  non-name iterable, a reassigned list, and any mutation that is not `append(one)` or
+  `extend(<display>)`.
+- `classify` judged a sequence or comprehension element by the **container's** key, so
+  `[(k['AttributeName'], k['KeyType']) for k in ...]` was judged as `keys` and attributed
+  nothing. It now prefers the element's own identifier — the rule `classify_expr` already
+  applied one level up.
+- `classify_expr` resolves the interpolations of an f-string reached *through* resolution.
+  `classify` has no resolver, so it judged them by name alone.
+- `_consuming_call` walks through a non-logging wrapper to reach a logger, which closes
+  `logger.warning(mask_text(json.dumps({...})))` in `meta_client.py` — reported as
+  `no logger dict at location` and open for that reason alone. Walking through `mask_text`
+  is **not** trusting it: the elements are still classified one at a time and it stays out
+  of `SANITISERS` per §4b. Where no logger encloses the dict the first call is still
+  returned, so `_store_call_log({...})` is still not a log.
+
+`INFRASTRUCTURE_KEYS` is a new group, kept separate so each entry keeps its reason rather
+than vanishing into a long alternation: `fbtrace_id` (Meta's own trace id, which
+`meta_error_summary` already keeps deliberately), `appointmentId` (a uuid4 DynamoDB hash key
+that CodeQL reads as health-adjacent because its `maybePrivate` regexp lists `appointment`),
+the AWS control-plane enums (`BillingMode`, `MfaConfiguration`, `TableStatus`, …), and the
+IAM/Cognito resource names `maintenance-reporting.md` already permits in a report. `count`
+joins `SANITISERS`: `x.count(y)` returns an int by construction, exactly as `len` does.
+
+**The 14 that remain**, unchanged in character — every one turns on a value reached through
+a provider secret, a cross-module method call, or a tuple unpack from a function's return:
+
+| Site | Turns on |
+|---|---|
+| `rcs_webhook_control_plane.py` ×4 | `project`, `verb`/`wpath`, `p`, `used` — all derived from `d["project_id"]`, read out of the Sinch secret. A project id is a provider identifier, but it arrives inside a credential payload and nothing here separates the two |
+| `scan_repo_secrets.py` ×2 | `nblobs` from a tuple unpack of `git_blob_data()`; `n` is bound both by `.count()` and by `for n in notes`, so it cannot be attributed |
+| `refresh_secret_consumers.py` ×2, `verify_backup_artifact.py`, `store_provider_secret.py`, `audit_secrets_structure.py`, `verify_razorpay_secret_path.py` | a secret **name** reached through a loop over a runtime list, a dict index, or a function return |
+| `verify_secret_consumption.py` | five names from a tuple unpack over an accumulated list of tuples |
+| `outbound-whatsapp/handler.py` | `live_smoke.describe()` — a cross-module call returning two bools and a 4-digit suffix of an env var, which this pass cannot follow |
+
+Two of those are worth stating plainly rather than leaving implied. `audit_secrets_structure.py`
+stays open **after** its disclosure was fixed, because the field *name* `k` still comes from
+`json.loads` of the secret and still reaches a `print`; the alert is correct that tainted data
+is printed, and wrong only about whether a JSON key name matters. And the `rcs_webhook_control_plane.py`
+four are the honest limit of this approach: proving them needs the project id separated from
+the credential at the point the secret is read, which is a code change to that script, not a
+classifier rule.
 
 The other rules are handled separately and none is dismissed on a pattern:
 

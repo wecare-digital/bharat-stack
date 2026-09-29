@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Verify Secrets Manager entries contain the expected FIELDS, without exposing values.
 
-Reports, per secret: the JSON key names, each value's length and a short
-fingerprint (first 4 / last 2 characters). That is enough to confirm a field is
-populated and looks like the right credential shape, while never putting the
+Reports, per secret: the JSON key names, each value's length and an irreversible
+`sha256[:12]` fingerprint. That is enough to confirm a field is populated and to
+tell across runs whether it is still the same value, while never putting the
 value into agent context, a log, a command line or a file.
+
+**Corrected 2026-09-29.** This docstring used to describe the fingerprint as
+"first 4 / last 2 characters", and `fingerprint()` did exactly that - so the
+report disclosed six characters of every field of all seven secrets. See that
+function for why a prefix and a length are not a safe rendering.
 
     python scripts/audit_secrets_structure.py
 
@@ -12,6 +17,7 @@ Exit 0 always; this is a report.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 
 import boto3
@@ -32,11 +38,31 @@ TARGETS = [
 
 
 def fingerprint(v: object) -> str:
+    """Identify a value without disclosing any part of it.
+
+    This used to return `len={n} {v[:4]}…{v[-2:]}`, i.e. four leading and two
+    trailing characters of the live value, for every field of all seven secrets
+    below - including `wecare/razorpay/api`'s `key_secret` and the AWS IAM secret
+    access key. Six characters of a live credential is still six characters of a
+    live credential, and this function's output goes to a terminal, which goes to
+    `~/.kiro/logs` and the session transcript: the exact path that put four
+    credentials on disk on 2026-09-19. An issuer prefix plus an exact length is a
+    meaningful head start for anyone reading those files.
+
+    `scripts/secrets_backup.py::fp` already carried this same fix and the same
+    reasoning; this copy was missed. A sha256 prefix identifies a value across
+    runs just as well and discloses nothing, because it is one-way and there is
+    no shorter guess than the value itself.
+    """
     if not isinstance(v, str):
         return f"<{type(v).__name__}>"
     if len(v) <= 8:
+        # Kept from the original, and it is not redundant: a sha256 of a value this
+        # short is invertible by brute force, so hashing it would disclose it. A field
+        # this short is not a credential anyway - it is a flag or a region code.
         return f"len={len(v)} <short>"
-    return f"len={len(v):<4} {v[:4]}…{v[-2:]}"
+    digest = hashlib.sha256(v.encode("utf-8")).hexdigest()[:12]
+    return f"len={len(v):<4} sha256:{digest}"
 
 
 def main() -> int:
@@ -73,8 +99,8 @@ def main() -> int:
         else:
             print(f"    format:   JSON {type(obj).__name__}")
         print()
-    print("No secret value was printed: only field names, lengths and 4/2-char "
-          "fingerprints.")
+    print("No secret value was printed, and no part of one: only field names, "
+          "lengths and irreversible sha256[:12] fingerprints.")
     return 0
 
 

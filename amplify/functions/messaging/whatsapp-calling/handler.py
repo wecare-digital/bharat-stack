@@ -2000,7 +2000,12 @@ def _get_ivr_menu(phone_number_id: str) -> Dict:
             if custom.get('greeting') and custom.get('buttons'):
                 return custom
     except Exception as e:
-        logger.debug(f'IVR menu config lookup failed for {phone_number_id}: {e}')
+        # `type(e).__name__`, not `{e}`. This `except` covers a SystemConfig
+        # get_item and a `json.loads` of whatever that row holds, so the text can
+        # be a JSONDecodeError quoting the stored document back at us. The phone
+        # number ID is a Meta resource id and stays as the correlation handle.
+        logger.debug(f'IVR menu config lookup failed for {phone_number_id}: '
+                     f'{type(e).__name__}')
     return IVR_MENUS.get(phone_number_id, IVR_DEFAULT_MENU)
 
 

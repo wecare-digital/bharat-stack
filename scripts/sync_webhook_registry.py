@@ -20,6 +20,7 @@ mode preserved, no .bak/.swp/.tmp remnant, nothing printed.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -59,7 +60,18 @@ WEBHOOKS = [
 
 
 def fp(v: str) -> str:
-    return f"len={len(v)} {v[:4]}…{v[-2:]}" if len(v) > 8 else f"len={len(v)}"
+    """Identify a value across the three stores without disclosing part of it.
+
+    This used to return `len={n} {v[:4]}…{v[-2:]}`. Only an AWS access key ID is
+    passed to it here, which is an identifier rather than a credential, so the
+    exposure was small - but the rendering is the same one `secrets_backup.py::fp`
+    and `audit_secrets_structure.py::fingerprint` were both corrected away from,
+    and a prefix plus an exact length is the part worth not printing. A sha256
+    prefix compares across stores just as well, which is all this is for.
+    """
+    if len(v) <= 8:
+        return f"len={len(v)}"
+    return f"len={len(v)} sha256:{hashlib.sha256(v.encode('utf-8')).hexdigest()[:12]}"
 
 
 def verify_aws_keys() -> list[str]:

@@ -1,7 +1,8 @@
 {
-  "completed_through": 340,
-  "next_id": 341,
-  "batch_size": 25,
-  "total": 340,
-  "last_batch": "GAST-316-GAST-340"
+  "completed_through": 454,
+  "next_id": 455,
+  "max_manifest_posts": 150,
+  "live_verified_posts": 454,
+  "last_manifest": "GAST-341-GAST-454",
+  "quality_version": 2
 }
