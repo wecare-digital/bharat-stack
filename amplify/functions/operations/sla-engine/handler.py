@@ -182,7 +182,14 @@ def _mark_no_show_appointments(now: int) -> int:
                     )
                     count += 1
             except Exception as e:
-                logger.warning(f'No-show check failed for {item.get("appointmentId")}: {e}')
+                # `type(e).__name__`, not `{e}`. This `except` wraps a DynamoDB
+                # UpdateItem on an appointment row, so the exception text can carry
+                # the item's own attribute values back out of the service's error
+                # message; steering permits an exception's text only when our own
+                # code built it from known-safe parts. The appointment id stays, as
+                # the correlation handle for a failed transition.
+                logger.warning(f'No-show check failed for '
+                               f'{item.get("appointmentId")}: {type(e).__name__}')
 
     return count
 
