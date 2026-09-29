@@ -2,7 +2,10 @@
  * Link Page - URL Shortener & Deep Links
  *
  * New links are minted under wecare.digital/r (canonical since 2026-09-26).
- * r.wecare.digital still resolves every code ever issued and is not being retired.
+ * r.wecare.digital is RETIRED: its Route 53 record went on 2026-09-28 under confirmation
+ * YES R53-DELETE-001 and its API Gateway custom domain was deleted in 396b87ad, so the
+ * host is NXDOMAIN and a link on it fails to RESOLVE rather than 404ing. Every code ever
+ * issued is still honoured, but only on the apex form wecare.digital/r/<code>.
  *
  * General-purpose short links, click tracking, deep links for iOS/Android
  */
@@ -13,11 +16,12 @@ import Button from '../../../components/ui/Button';
 import { useToastContext } from '../../../contexts/ToastContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
 
-// The link CRUD API. Both r.wecare.digital and wecare.digital/api map to the same
-// HTTP API (zllr9lrg7j) and return identical results — verified, both 401 on an
-// anonymous GET /links. Pointed at the canonical API host rather than the shortener
-// subdomain so the dashboard does not depend on a host whose only remaining job is
-// honouring already-issued links.
+// The link CRUD API. wecare.digital/api is now the ONLY way to reach HTTP API
+// zllr9lrg7j: r.wecare.digital used to be mapped to the same API and return identical
+// results, but that custom domain and its prod mapping were deleted in 396b87ad, so the
+// account has zero API Gateway custom domains and the API is reached solely through the
+// Amplify /api/<*> rewrite. This constant was already pointed at the apex before the
+// retirement, which is why the dashboard was unaffected by it.
 const API_BASE = process.env.NEXT_PUBLIC_LINK_API_BASE || 'https://wecare.digital/api';
 
 // The base shown to an operator and used to build a copyable link. Display only —
