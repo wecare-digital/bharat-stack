@@ -57,6 +57,13 @@ def _conditional_check_failed():
                        "UpdateItem")
 
 
+def _validation_error(message: str):
+    """A REAL botocore ClientError, for the same reason `_conditional_check_failed` is one."""
+    from botocore.exceptions import ClientError
+    return ClientError(
+        {"Error": {"Code": "ValidationException", "Message": message}}, "GetItem")
+
+
 def _top_level_commas(expression: str) -> List[str]:
     """Split a SET clause on commas outside parentheses."""
     parts, depth, current = [], 0, []
@@ -139,6 +146,17 @@ class FakeTable:
         self.items: Dict[str, Dict[str, Any]] = {}
 
     def get_item(self, Key):  # noqa: N803 - boto3 casing
+        #: AN EMPTY KEY IS A VALIDATION ERROR, not a miss, and the fake has to agree.
+        #:
+        #: DynamoDB rejects `Key={'id': ''}` outright. This fake returned `{}` for it, so every
+        #: `get` in the codebase looked safe against an absent reference while production answered
+        #: 500 - which is how a verification run on an article with no recorded sign-off id failed
+        #: live after passing the whole suite. `storage.get_typed` is the fix; this is what makes
+        #: the next one catchable here instead.
+        if not str(Key.get("id") or "").strip():
+            raise _validation_error(
+                "One or more parameter values are not valid. The AttributeValue for a key "
+                "attribute cannot contain an empty string value. Key: id")
         item = self.items.get(Key["id"])
         return {"Item": dict(item)} if item else {}
 

@@ -208,10 +208,7 @@ def run(source_id: str, actor: str) -> Dict[str, Any]:
 
 
 def get_run(qa_run_id: str) -> Optional[Dict[str, Any]]:
-    item = storage.table().get_item(Key={"id": str(qa_run_id)}).get("Item")
-    if not item or item.get("recordType") != RUN_RECORD_TYPE:
-        return None
-    return storage._json_safe(item)
+    return storage.get_typed(qa_run_id, RUN_RECORD_TYPE)
 
 
 def run_history(source_id: str) -> List[Dict[str, Any]]:
@@ -455,10 +452,7 @@ def sign_off(body: Dict[str, Any], actor: str) -> Dict[str, Any]:
 
 
 def get_signoff(record_id: str) -> Optional[Dict[str, Any]]:
-    item = storage.table().get_item(Key={"id": str(record_id)}).get("Item")
-    if not item or item.get("recordType") != SIGNOFF_RECORD_TYPE:
-        return None
-    return storage._json_safe(item)
+    return storage.get_typed(record_id, SIGNOFF_RECORD_TYPE)
 
 
 def signoff_history(source_id: str) -> List[Dict[str, Any]]:

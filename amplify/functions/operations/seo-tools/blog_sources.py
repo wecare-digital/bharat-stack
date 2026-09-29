@@ -157,6 +157,8 @@ def update_pipeline(record_id: str, **updates: Any) -> Dict[str, Any]:
     unknown = sorted(set(updates) - set(PIPELINE_FIELDS))
     if unknown:
         raise ValueError(f"unknown pipeline fields: {unknown}")
+    if not str(record_id or "").strip():
+        raise ValueError("a record id is required to update a pipeline")
     item = storage.table().get_item(Key={"id": str(record_id)}).get("Item") or {}
     merged = {**empty_pipeline(), **storage._json_safe(item.get("pipeline") or {}), **updates}
     storage.table().update_item(
@@ -271,10 +273,7 @@ def view(item: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_source(record_id: str) -> Optional[Dict[str, Any]]:
-    item = storage.table().get_item(Key={"id": record_id}).get("Item")
-    if not item or item.get("recordType") != RECORD_TYPE:
-        return None
-    return storage._json_safe(item)
+    return storage.get_typed(record_id, RECORD_TYPE)
 
 
 def list_sources(limit: int = 500) -> List[Dict[str, Any]]:

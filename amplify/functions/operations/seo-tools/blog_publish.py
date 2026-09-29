@@ -83,10 +83,7 @@ def record_key(source_id: str) -> str:
 # ── Release ─────────────────────────────────────────────────────────────────────
 
 def get(record_id: str) -> Optional[Dict[str, Any]]:
-    item = storage.table().get_item(Key={"id": str(record_id)}).get("Item")
-    if not item or item.get("recordType") != RECORD_TYPE:
-        return None
-    return storage._json_safe(item)
+    return storage.get_typed(record_id, RECORD_TYPE)
 
 
 def jobs_for(source_id: str) -> List[Dict[str, Any]]:

@@ -25,6 +25,7 @@ import blog_queue
 import blog_repetition
 import blog_sources
 import blog_templates
+import blog_verify
 import storage
 import wix
 
@@ -460,6 +461,37 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
             'articleClasses': list(_quality.ARTICLE_CLASSES) if _quality else [],
             'batchStatuses': list(blog_batches.BATCH_STATUSES),
         }, origin)
+    if '/blog-verify/' in path:
+        return _response(200, {
+            'ok': True,
+            'run': blog_verify.detail(path.split('/blog-verify/', 1)[1].strip('/')),
+        }, origin)
+    if path.endswith('/blog-verify'):
+        source_ref = _query(event, 'sourceId')
+        batch_ref = _query(event, 'batchId')
+        payload: Dict[str, Any] = {
+            'ok': True,
+            # The assertion list, so the UI renders the thirteen by name rather than hard-coding
+            # a list that can fall out of step with the ones that actually run.
+            'assertions': [{'assertion': name, 'description': description}
+                           for name, description in blog_verify.ASSERTIONS],
+        }
+        if source_ref:
+            payload['runs'] = [blog_verify.view(row)
+                               for row in blog_verify.history(source_ref)]
+            try:
+                payload['expected'] = blog_verify.expectation(source_ref)
+            except LookupError:
+                # The RUNS outlive the source. A verification record is the evidence that an
+                # article was checked, so a deleted source must not take the history with it -
+                # answering 404 for the whole payload would do exactly that.
+                payload['expected'] = {}
+                payload['expectationNote'] = 'the source record no longer exists'
+        if batch_ref:
+            payload['batchState'] = blog_verify.batch_verify_state(batch_ref)
+            # Published and unchecked: live articles nobody has looked at.
+            payload['pending'] = blog_verify.pending_verification(batch_ref)
+        return _response(200, payload, origin)
     if '/blog-publish/' in path:
         return _response(200, {
             'ok': True,
@@ -639,6 +671,14 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
             body, actor, tuple(BLOG_CATEGORIES),
             tuple(_quality.ARTICLE_CLASSES) if _quality else ('ARCHIVE_DERIVED',),
         )}, origin)
+
+    if path.endswith('/blog-verify'):
+        source_id = str(body.get('sourceId') or '').strip()
+        if not source_id:
+            raise ValueError('sourceId is required')
+        # Read-only, and NOT idempotency-claimed: re-verifying is exactly what an operator does
+        # after fixing something, and each run is its own record of a moment.
+        return _response(200, {'ok': True, **blog_verify.run(source_id, actor)}, origin)
 
     if path.endswith('/blog-publish/release'):
         # Records a decision. Performs NO Wix write - publishing is a separate call, because
