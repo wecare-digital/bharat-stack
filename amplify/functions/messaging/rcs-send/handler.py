@@ -760,14 +760,28 @@ def _delete_template(body: Dict, request_id: str, origin: str) -> Dict:
     # Try multiple endpoint formats (v2 with username, v1 with botId). The v1 forms are
     # skipped when bot_id is absent rather than sent with an empty path segment, which would
     # hit a different resource entirely.
-    urls = [f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates/{name}"]
+    #
+    # Each candidate carries a LITERAL label, and the log lines below print the label instead
+    # of the URL. That is a security fix, not cosmetics:
+    #
+    #     https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates/{name}
+    #
+    # embeds `username`, a field of the `wecare/sinch/rcs` secret, so logging the URL writes a
+    # credential component to CloudWatch. `bot_id` in the v1 forms comes from the same secret.
+    # `.kiro/steering/secret-handling.md` forbids a secret appearing in a logging expression at
+    # all, and is explicit that routing the value through a redaction helper does not fix it -
+    # CodeQL tracks taint across function boundaries, and a reviewer cannot verify the
+    # laundering at a glance either. So the label is a constant chosen right here and has never
+    # touched the secret. With `name` - a caller-supplied template name - it still says
+    # everything a reader needs: which API variant was tried, and for which template.
+    candidates = [('v2/username', f"https://api.aclwhatsapp.com/access-api/v2/rcs/{username}/templates/{name}")]
     if bot_id:
-        urls += [
-            f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates/{name}",
-            f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates?name={name}",
+        candidates += [
+            ('v1/botId/path', f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates/{name}"),
+            ('v1/botId/query', f"https://api.aclwhatsapp.com/access-api/v1/rcs/{bot_id}/templates?name={name}"),
         ]
 
-    for url in urls:
+    for variant, url in candidates:
         try:
             req = urllib.request.Request(url, headers={
                 'Authorization': f'Bearer {token}',
@@ -779,16 +793,16 @@ def _delete_template(body: Dict, request_id: str, origin: str) -> Dict:
                     data = json.loads(resp_body)
                 except:
                     data = {'raw': resp_body[:200]}
-                logger.info(f"Template deleted: {name} via {url}")
+                logger.info(f"Template deleted: {name} via {variant}")
                 return cors_response(200, {'success': True, 'deleted': name, 'response': data}, origin)
         except urllib.error.HTTPError as e:
             err = e.read().decode()[:200] if e.fp else ''
             if e.code == 404:
                 continue  # Try next URL format
-            logger.warning(f"Delete template error: HTTP {e.code} - {err} (url: {url})")
+            logger.warning(f"Delete template error: HTTP {e.code} - {err} (variant: {variant})")
             return cors_response(e.code, {'error': err, 'name': name}, origin)
         except Exception as e:
-            logger.warning(f"Delete template error: {e} (url: {url})")
+            logger.warning(f"Delete template error: {type(e).__name__} (variant: {variant})")
             continue
 
     # All URLs failed with 404

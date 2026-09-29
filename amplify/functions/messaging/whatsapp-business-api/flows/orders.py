@@ -13,6 +13,19 @@ from typing import Dict, List
 
 import boto3
 
+# `lambda_utils.privacy` has no intra-package dependencies (only `re` and `typing`), so unlike
+# the deferred `flow_completion` imports elsewhere in this package it cannot introduce a cycle
+# and is imported at module scope - above its first use, so a masked log site can never raise
+# NameError on the path that was leaking.
+#
+# The fallback masks rather than passing the value through. An ImportError here must not be
+# able to turn a redaction back into a disclosure, which is what `return phone` would do.
+try:
+    from lambda_utils.privacy import mask_phone
+except ImportError:  # pragma: no cover - lambda_utils is always present in the deployed package
+    def mask_phone(phone: str) -> str:
+        return '***'
+
 logger = logging.getLogger(__name__)
 
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -147,7 +160,7 @@ def sync_wix_order_to_orders_table(order: dict, phone: str) -> str:
                         'createdAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                         'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                     })
-                    logger.info(f'Contact created for {clean_phone} from Wix order sync')
+                    logger.info(f'Contact created for {mask_phone(clean_phone or "")} from Wix order sync')
             except Exception as ce:
                 logger.debug(f'Contact upsert skipped: {ce}')
 

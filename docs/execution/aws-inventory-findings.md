@@ -344,6 +344,43 @@ lack point-in-time recovery; most are caches (`CatalogCacheTable`,
 `WhatsAppPhonesTable`, `FlowDraftTable`, `WebhookDedup` and `RateLimitTable`
 also lack it.
 
+**Re-measured 2026-09-29: 7 of 79, and the remaining 7 are ➖ NOT REQUIRED.** Five of
+the twelve gained PITR with the 2026-09-26 audit. Every one of the seven left is
+either empty or entirely TTL-governed:
+
+| Table | Items | TTL |
+|---|---:|---|
+| `CatalogCacheTable` | 0 | ENABLED on `ttl` |
+| `PstnSoftphoneSessions` | 0 | ENABLED on `expiresAt` |
+| `RateLimitTable` | 210 | ENABLED on `lastUpdatedAt` |
+| `SiteLanguageCache` | 175 | ENABLED on `expiresAt` |
+| `WebhookDedup` | 181 | ENABLED on `ttl` |
+| `WixOrdersCache` | 0 | **DISABLED** |
+| `WixProductsCache` | 0 | **DISABLED** |
+
+PITR on a table whose every row deletes itself buys a continuous backup of data that
+is designed not to persist. And it would not defend the one case that sounds alarming:
+`WebhookDedup` is the replay guard, but **PITR restores to a NEW table**, so recovering
+it would not stop a replay inside the dedup window — every consumer would have to be
+repointed first. The actual protection there is downstream idempotency, not backup.
+Calling this a gap and "fixing" it would buy cost and a false sense of a control.
+
+**The real defect under this heading is the two DISABLED TTLs**, and it is not PITR.
+`WixOrdersCache` and `WixProductsCache` are caches by name and intent with nothing to
+expire their rows. They read as clean only because both are empty, and both are empty
+only because Wix writes are switched off — so this is latent, not absent. It is already
+registered as improvement **I8** in `src/pages/workspace/dashboard/system-architecture.tsx`
+("Add TTL to remaining temporal tables … WixProductsCache, WixOrdersCache. Prevents
+unbounded table growth").
+
+Deliberately **not** half-fixed here. Enabling TTL on a table alone does nothing:
+DynamoDB only expires an item that carries the TTL attribute, and neither the
+`amplify/data/resource.ts` model nor `ecommerce/wix-store/handler.py`'s `_sync_products`
+/ `_sync_orders` writes one. Switching TTL on without the model field and the writer
+would produce a control that cannot act — the same shape as the alarms that were
+permanently green on a stale dimension. All three changes belong in one change, with
+the writer first.
+
 ## Provider retirement — exact recovery-window evidence
 
 From CloudTrail `DeleteSecret` events (60-day lookback), which gives the precise
