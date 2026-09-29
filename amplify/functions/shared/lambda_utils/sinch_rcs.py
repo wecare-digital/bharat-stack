@@ -36,6 +36,7 @@ import boto3
 # Country logic has exactly one home. `rcs-send` already uses this module for the same
 # decision, and adding a second normaliser here is what produced the defect below.
 from lambda_utils.comms import numbers as _numbers
+from lambda_utils.privacy import mask_phone
 
 logger = logging.getLogger(__name__)
 
@@ -431,7 +432,12 @@ def send_rcs_ivr_notification(phone: str, request_id: str = '') -> dict:
     """
     normalized = _normalize_phone(phone)
     if not normalized or len(normalized) < 10:
-        logger.warning(f'RCS IVR skipped — invalid phone: {phone}')
+        # Masked in the LOG, whole in the returned error. The log goes to CloudWatch and is
+        # read by whoever has log access; the error goes back to the caller that already
+        # holds the number it just passed in, so redacting it there would only make the
+        # response useless without protecting anything.
+        logger.warning(f'RCS IVR skipped — invalid phone: {mask_phone(phone or "")} '
+                       f'(normalized_len={len(normalized or "")})')
         return {'success': False, 'error': f'Invalid phone number: {phone}'}
 
     template = _ivr_template()

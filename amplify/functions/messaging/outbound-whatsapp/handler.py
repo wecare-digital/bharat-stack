@@ -2775,7 +2775,9 @@ def _normalize_phone_number(phone: str) -> str:
     
     # Validate final format: should be 10-15 digits (E.164 format)
     if not digits_only.isdigit() or len(digits_only) < 10 or len(digits_only) > 15:
-        logger.warning(f"Phone number after normalization is invalid: {phone} -> {digits_only} (length: {len(digits_only)})")
+        logger.warning(f"Phone number after normalization is invalid: {mask_phone(phone or '')} "
+                       f"-> {mask_phone(digits_only or '')} (length: {len(digits_only)}, "
+                       f"digits: {digits_only.isdigit()})")
     
     return digits_only
 
@@ -2854,7 +2856,9 @@ def _build_message_payload(recipient_phone: str, content: str, media_type: Optio
     
     # Validate phone number format (skip if sending to BSUID only)
     if formatted_phone and (not formatted_phone.isdigit() or len(formatted_phone) < 10):
-        logger.warning(f"Invalid phone number after normalization: {recipient_phone} -> {formatted_phone}")
+        logger.warning(f"Invalid phone number after normalization: {mask_phone(recipient_phone or '')} "
+                       f"-> {mask_phone(formatted_phone or '')} (len={len(formatted_phone or '')}, "
+                       f"digits={(formatted_phone or '').isdigit()})")
     
     # WhatsApp requires + prefix with country code in the message payload
     whatsapp_phone = f"+{formatted_phone}" if formatted_phone else ''

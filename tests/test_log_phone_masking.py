@@ -44,9 +44,17 @@ LOG_LEVELS = {"info", "warning", "error", "debug", "critical", "exception", "log
 #: Keys naming a subscriber phone number. `*Id`-suffixed names are excluded: a Meta
 #: phone-number id such as `1055232054343117` is a business identifier this repo's own
 #: docs publish, not a number anyone can call.
+#:
+#: `formatted`, `norm`/`normalised` and `buyer` were added on 2026-09-29 while extending
+#: this module to f-strings. They are not hypothetical spellings: `formatted_phone` and
+#: `norm_phone` are what `outbound-whatsapp` and `bulk-worker` call the number *after*
+#: normalisation, which is the point at which it is most likely to be logged ("sent to
+#: X"), and `buyer_phone` is the Wix order field. The original alternation covered the
+#: inbound-facing names only, so the outbound-facing ones were invisible.
 PHONE_KEY = re.compile(
     r"^(?:(?:sender|recipient|caller|contact|customer|display|receiving|to|from|whatsapp"
-    r"|dest\w*|clean)_?)?phone(?:_?number|_?e164)?$|^phone_?number$|^msisdn$|^wa_id$"
+    r"|dest\w*|clean|formatted|norm|normalised|normalized|buyer)_?)?phone(?:_?number|_?e164)?$"
+    r"|^phone_?number$|^msisdn$|^wa_id$"
     r"|^from$|^to$|^to_?number$|^from_?number$",
     re.I,
 )
@@ -443,3 +451,195 @@ def test_the_deterministic_scheme_is_still_what_the_helper_assumes():
     assert "f'wa{digits}'" in handler, (
         "the deterministic contact-id format changed; re-check mask_contact_id"
     )
+
+
+# ── f-strings: the spelling this module could not see ────────────────────────────
+
+#: THE BLIND SPOT, found 2026-09-29.
+#:
+#: Everything above walks `ast.Dict` nodes, because the disclosures this module was written
+#: for were structured logs: `logger.info(json.dumps({'senderPhone': sender_phone}))`. That
+#: is the right shape to parse and the AST work above is what makes it safe to judge. But a
+#: dict is not the only way to put a number in a log line, and the other way had no coverage
+#: at all:
+#:
+#:     logger.info(f"IVR response sent to {sender_phone} for {button_id}")
+#:     logger.info(f"INBOUND CALL from {caller_name or from_number} ...")
+#:     logger.info(f'[{request_id}] Sent to {formatted_phone}: {msg_id}')
+#:
+#: There is no `ast.Dict` anywhere in those, so `offences()` returned clean while eleven
+#: sites across five handlers logged full E.164 numbers - and one logged the customer's
+#: WhatsApp profile name with a fallback to their number, so which of the two it disclosed
+#: depended on a value the log did not record.
+#:
+#: CodeQL found six of the eleven. It missed five because taint has to reach the site, and
+#: this module missed all eleven because it was looking for the wrong node type. Two
+#: independent checks, both green, one real defect - which is the argument for asserting the
+#: property rather than either tool's reachable subset.
+#:
+#: The classifier is reused wholesale: `_consuming_call` + `_is_logger` decide that an
+#: f-string really is inside a logger call rather than inside a payload built with an
+#: f-string, and `_is_sanitised` decides whether the interpolated expression reduces the
+#: value. So `{mask_phone(to)}`, `{bool(caller_name)}` and `{phone[-4:]}` all pass, exactly
+#: as they do in a dict.
+
+
+def _formatted_values(tree: ast.AST):
+    """Every `{...}` placeholder in the file, with the JoinedStr that holds it."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.JoinedStr):
+            for part in node.values:
+                if isinstance(part, ast.FormattedValue):
+                    yield node, part
+
+
+def _interpolated_name(expr: ast.expr) -> str:
+    """The identifying NAME a placeholder expression refers to, or ''.
+
+    Three shapes carry a phone number in these handlers and all three must be read:
+
+        {to_number}                      Name
+        {call.recipient_phone}           Attribute
+        {metadata['display_phone_number']}  Subscript with a constant index
+
+    A Subscript with a SLICE is excluded here on purpose - `_is_sanitised` already treats
+    `phone[-4:]` as safe, and re-reporting it would make the gate wrong in the direction
+    that gets gates switched off.
+    """
+    if isinstance(expr, ast.Name):
+        return expr.id
+    if isinstance(expr, ast.Attribute):
+        return expr.attr
+    if isinstance(expr, ast.Subscript) and isinstance(expr.slice, ast.Constant):
+        return str(expr.slice.value)
+    if isinstance(expr, ast.Call):
+        # `metadata.get('display_phone_number', 'N/A')` - the key names the value, and this
+        # is the exact form the whatsapp-calling webhook used.
+        func = expr.func
+        if isinstance(func, ast.Attribute) and func.attr == "get" and expr.args:
+            first = expr.args[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                return first.value
+    return ""
+
+
+def _sensitive_names(expr: ast.expr) -> list[str]:
+    """Names in EXPR that identify a subscriber, looking through `or` fallbacks.
+
+    `caller_name or from_number` must be judged on both operands. `_is_sanitised` already
+    refuses that BoolOp, but the reported name should say which field leaked rather than
+    just pointing at the line.
+    """
+    if isinstance(expr, ast.BoolOp):
+        return [n for value in expr.values for n in _sensitive_names(value)]
+    name = _interpolated_name(expr)
+    if not name or NOT_SENSITIVE_KEY.search(name):
+        return []
+    return [name] if (PHONE_KEY.match(name) or PERSON_KEY.match(name)) else []
+
+
+def fstring_offences() -> list[tuple[str, int, str]]:
+    found: list[tuple[str, int, str]] = []
+    for path in _handlers():
+        source = path.read_text()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError as exc:                                   # pragma: no cover
+            pytest.fail(f"{path} does not parse: {type(exc).__name__}")
+        parents = _parents(tree)
+        lines = source.splitlines()
+
+        for joined, part in _formatted_values(tree):
+            if not _is_logger(_consuming_call(joined, parents)):
+                continue
+            if _is_sanitised(part.value):
+                continue
+            names = _sensitive_names(part.value)
+            if not names:
+                continue
+            line = getattr(part.value, "lineno", joined.lineno)
+            found.append((str(path.relative_to(ROOT)), line,
+                          f"{{{'/'.join(names)}}}  {lines[line - 1].strip()[:110]}"))
+    return found
+
+
+def test_no_unmasked_phone_or_name_in_a_logged_fstring():
+    found = fstring_offences()
+    if found:
+        rendered = "\n".join(f"  {p}:{n}  {code}" for p, n, code in found)
+        pytest.fail(
+            f"{len(found)} logger f-string(s) interpolate a subscriber number or a "
+            f"person's name in clear text.\n"
+            f"Wrap the value in mask_phone() from lambda_utils.privacy, or log only its "
+            f"presence with bool() / its shape with len().\n{rendered}"
+        )
+
+
+def _fstring_labels(source: str) -> list[tuple[int, bool, list[str]]]:
+    tree = ast.parse(source)
+    parents = _parents(tree)
+    out = []
+    for joined, part in _formatted_values(tree):
+        out.append((
+            getattr(part.value, "lineno", joined.lineno),
+            _is_logger(_consuming_call(joined, parents)),
+            [] if _is_sanitised(part.value) else _sensitive_names(part.value),
+        ))
+    return sorted(out)
+
+
+def test_the_fstring_detector_can_actually_see_an_offence():
+    """Every real shape that was leaking, plus every shape that must stay quiet."""
+    # The bare name.
+    assert _fstring_labels(
+        'def h():\n    logger.info(f"sent to {to_number} ok")\n'
+    ) == [(2, True, ["to_number"])]
+
+    # The name-or-number fallback, which discloses one of two things.
+    assert _fstring_labels(
+        'def h():\n    logger.info(f"from {caller_name or from_number}")\n'
+    ) == [(2, True, ["caller_name", "from_number"])]
+
+    # `.get()` on a webhook metadata dict - the whatsapp-calling webhook's form.
+    assert _fstring_labels(
+        'def h():\n'
+        '    logger.info(f"dp={metadata.get(\'display_phone_number\', \'N/A\')}")\n'
+    ) == [(2, True, ["display_phone_number"])]
+
+    # Post-normalisation name, which the original PHONE_KEY alternation did not cover.
+    #
+    # Selected by predicate rather than by index. The first draft asserted `[0][2]` and
+    # failed, because both placeholders sit on line 2 and `sorted()` falls through to
+    # comparing the name lists, where `[]` (from `{msg_id}`) sorts before
+    # `['formatted_phone']`. An index into a sorted list is a positional assumption; the
+    # thing being asserted is "the phone placeholder is flagged", so say that.
+    flagged = [names for _, _, names in _fstring_labels(
+        'def h():\n    logger.info(f"Sent to {formatted_phone}: {msg_id}")\n'
+    ) if names]
+    assert flagged == [["formatted_phone"]]
+
+
+def test_the_fstring_detector_stays_quiet_where_it_should():
+    masked = 'def h():\n    logger.info(f"sent to {mask_phone(to_number)} ok")\n'
+    assert _fstring_labels(masked) == [(2, True, [])]
+
+    presence = 'def h():\n    logger.info(f"named: {bool(caller_name)}")\n'
+    assert _fstring_labels(presence) == [(2, True, [])]
+
+    shape = 'def h():\n    logger.info(f"len={len(formatted_phone)}")\n'
+    assert _fstring_labels(shape) == [(2, True, [])]
+
+    tail = 'def h():\n    logger.info(f"tail={to_number[-4:]}")\n'
+    assert _fstring_labels(tail) == [(2, True, [])]
+
+    # An opaque Meta business identifier is NOT a subscriber number. Masking it would
+    # destroy a correlation key this repo's own docs publish, and `NOT_SENSITIVE_KEY`
+    # is what keeps the gate off it.
+    opaque = 'def h():\n    logger.info(f"pid={phone_number_id} aws={aws_phone_id}")\n'
+    assert [names for _, _, names in _fstring_labels(opaque)] == [[], []]
+
+    # An f-string building a REQUEST, not a log. Masking this would break sending, which
+    # is the same distinction the dict classifier above exists to make.
+    payload = ('def h():\n'
+               '    urllib.request.Request(f"https://graph/{to_number}/messages")\n')
+    assert [is_log for _, is_log, _ in _fstring_labels(payload)] == [False]
