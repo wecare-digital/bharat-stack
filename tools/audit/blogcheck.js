@@ -149,8 +149,14 @@ else bad( 'every post is listed on an index page', `${unlisted.length} unreachab
 if ( listedTwice.length === 0 ) ok( 'no post is listed on two index pages', 'no slice overlap' );
 else bad( 'no post is listed on two index pages', listedTwice.slice( 0, 4 ).map( ( [ s, p ] ) => `${s} on ${p.join( ' + ' )}` ).join( '; ' ) );
 
+/* THE COUNT COMES FIRST, and that is not cosmetic. This line used to print only
+ * `slice( 0, 5 )` with no total, so a run that had shipped 219 dead links reported five
+ * slugs and read like a trivial edge case - it was mistaken for a publishing race and left
+ * alone. The number is the part that says how bad it is. */
 if ( listedButNotEmitted.length === 0 ) ok( 'no index page links a post that was not built', 'none' );
-else bad( 'no index page links a post that was not built', listedButNotEmitted.slice( 0, 5 ).join( ', ' ) );
+else bad( 'no index page links a post that was not built',
+  `${listedButNotEmitted.length} dead link(s) of ${linkedBy.size} linked: `
+  + `${listedButNotEmitted.slice( 0, 5 ).join( ', ' )}${listedButNotEmitted.length > 5 ? ' …' : ''}` );
 
 /* Sitemap: the posts AND the index pages. Before the split there was one index URL to
  * advertise; now 810 of 834 posts are listed only on pages 2-35, so those pages being in the

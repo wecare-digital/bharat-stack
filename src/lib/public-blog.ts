@@ -108,34 +108,169 @@ const PUBLIC_BLOG_API = `${API_BASE}/seo-tools/blog-public`;
  * instead of each starting their own before the first resolves. Next renders pages in
  * parallel, so that case is the normal one rather than the edge.
  *
- * A FAILED FETCH IS NOT CACHED. listPublicBlogPosts swallows errors and returns [], so a
- * cached rejection is impossible - but a cached EMPTY ARRAY from one bad request would
- * poison every later page in the build, turning a two-second network blip into a site with
- * no blog. generate-sitemap.js already refuses to write a sitemap with zero post pages for
- * exactly that reason; this clears the memo instead, so the next caller retries.
+ * A FAILED FETCH IS NOT CACHED, and it no longer degrades to an empty array either.
+ * `fetchAllPosts` used to swallow every error and return [], which meant one bad request
+ * could render a site with no blog; the memo was cleared on empty so the next caller would
+ * retry. It now retries internally and THROWS when it cannot succeed, so the rejected
+ * promise is cleared here and the failure reaches the build instead of being absorbed.
+ * generate-sitemap.js refuses to write a sitemap with zero post pages for the same reason.
  */
 let postsPromise: Promise<PublicBlogPost[]> | null = null;
 
 export async function listPublicBlogPosts (): Promise<PublicBlogPost[]> {
   if ( postsPromise ) return postsPromise;
   postsPromise = fetchAllPosts();
-  const posts = await postsPromise;
-  if ( posts.length === 0 ) postsPromise = null;
-  return posts;
+  try
+  {
+    const posts = await postsPromise;
+    if ( posts.length === 0 ) postsPromise = null;
+    return posts;
+  } catch ( error )
+  {
+    // Drop the rejected promise so a later caller retries from scratch rather than
+    // inheriting this rejection for the rest of the build.
+    postsPromise = null;
+    throw error;
+  }
+}
+
+/* ------------------------------------------------------------------------- *
+ * A FAILED REQUEST MUST NOT BECOME A MISSING PAGE.
+ *
+ * This is the mechanism that shipped 219 dead links to the live site, and it is worth
+ * spelling out because every individual piece of it looked reasonable.
+ *
+ * `fetchPost` returned `null` for BOTH "no such post" and "the request failed".
+ * `getStaticProps` in /post/[slug] turns `null` into `notFound: true`. Under
+ * `output: 'export'` a `notFound` page is simply NOT EMITTED - no error, no warning.
+ * Meanwhile the LIST call had succeeded, so the index pages still rendered a card and a
+ * link for every one of those posts.
+ *
+ * Measured on the 2026-09-29 build: the list returned 1089 posts, 870 post pages were
+ * emitted, and the index pages linked all 1089. 219 of those links went to pages that do
+ * not exist. The comment above this block already recorded that 117 of the per-slug
+ * requests came back 429 in a 24-hour window, so the throttling was known - what was
+ * missing was any consequence for it.
+ *
+ * Three changes, each addressing a different term:
+ *
+ *   1. 404 is distinguished from failure. Only a 404 means "no such post".
+ *   2. A retryable status or a network error is RETRIED with backoff and jitter, which is
+ *      what actually recovers a 429 rather than converting it into a hole.
+ *   3. When the retries are exhausted the fetch THROWS, failing the build. A build that
+ *      dies loudly is strictly better than one that publishes 219 dead links, and this is
+ *      the deliberate opposite of the "stale beats empty" choice in the Lambda's own cache
+ *      - there, the fallback is complete-but-slightly-old data; here, the fallback was an
+ *      incomplete site.
+ *
+ * The bounded concurrency below addresses the cause rather than the symptom: 1089 per-slug
+ * fetches issued as fast as nine Next workers can dispatch them is what produced the 429s
+ * in the first place.
+ * ------------------------------------------------------------------------- */
+
+/** Statuses worth another attempt. 404 is handled separately; 4xx otherwise is fatal. */
+const RETRYABLE_STATUS = new Set( [ 408, 425, 429, 500, 502, 503, 504 ] );
+const MAX_ATTEMPTS = 4;
+const BASE_BACKOFF_MS = 400;
+
+/**
+ * In-flight request ceiling PER BUILD PROCESS.
+ *
+ * Next renders with nine workers, so this is not a global limit and does not pretend to be.
+ * It removes the burst within each worker, which is where the self-inflicted throttling
+ * came from: without it one worker can have hundreds of fetches open at once.
+ */
+const MAX_IN_FLIGHT = 6;
+let inFlight = 0;
+const waiting: Array<() => void> = [];
+
+async function acquire (): Promise<void> {
+  if ( inFlight < MAX_IN_FLIGHT )
+  {
+    inFlight += 1;
+    return;
+  }
+  await new Promise<void>( ( resolve ) => waiting.push( resolve ) );
+  inFlight += 1;
+}
+
+function release (): void {
+  inFlight -= 1;
+  const next = waiting.shift();
+  if ( next ) next();
+}
+
+const sleep = ( ms: number ): Promise<void> =>
+  new Promise( ( resolve ) => setTimeout( resolve, ms ) );
+
+type Attempt =
+  | { kind: 'ok'; body: any }
+  /** A real 404. The post does not exist. */
+  | { kind: 'absent' }
+  | { kind: 'retry'; reason: string }
+  | { kind: 'fatal'; reason: string };
+
+async function attemptJson ( url: string ): Promise<Attempt> {
+  await acquire();
+  try
+  {
+    const response = await fetch( url, { headers: { Accept: 'application/json' } } );
+    if ( response.status === 404 ) return { kind: 'absent' };
+    if ( response.ok ) return { kind: 'ok', body: await response.json() };
+    if ( RETRYABLE_STATUS.has( response.status ) )
+    {
+      return { kind: 'retry', reason: `HTTP ${ response.status }` };
+    }
+    return { kind: 'fatal', reason: `HTTP ${ response.status }` };
+  } catch ( error: any )
+  {
+    // A network error, a DNS failure or an aborted socket. All transient in shape.
+    return { kind: 'retry', reason: error?.name || 'network error' };
+  } finally
+  {
+    release();
+  }
+}
+
+/**
+ * Fetch JSON, retrying transient failures, and THROW rather than return empty.
+ * Returns `null` only for a genuine 404.
+ */
+async function fetchJsonOrThrow ( url: string, label: string ): Promise<any | null> {
+  let reason = 'unknown';
+  for ( let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1 )
+  {
+    const result = await attemptJson( url );
+    if ( result.kind === 'ok' ) return result.body;
+    if ( result.kind === 'absent' ) return null;
+    if ( result.kind === 'fatal' )
+    {
+      throw new Error( `${ label }: ${ result.reason } (not retryable)` );
+    }
+    reason = result.reason;
+    if ( attempt < MAX_ATTEMPTS )
+    {
+      // Jittered exponential backoff. The jitter matters with nine workers backing off
+      // together: without it they retry in lockstep and reproduce the burst that caused
+      // the throttling.
+      const delay = BASE_BACKOFF_MS * 2 ** ( attempt - 1 );
+      await sleep( delay + Math.floor( Math.random() * BASE_BACKOFF_MS ) );
+    }
+  }
+  throw new Error(
+    `${ label }: gave up after ${ MAX_ATTEMPTS } attempts (last: ${ reason }). `
+    + 'Failing the build on purpose - continuing would emit an index that links pages '
+    + 'which were never generated.'
+  );
 }
 
 async function fetchAllPosts (): Promise<PublicBlogPost[]> {
-  try {
-    const response = await fetch( PUBLIC_BLOG_API, {
-      headers: { Accept: 'application/json' },
-    } );
-    if ( !response.ok ) return [];
-    const body = await response.json();
-    return body?.ok && Array.isArray( body.posts ) ? body.posts : [];
-  } catch
+  const body = await fetchJsonOrThrow( PUBLIC_BLOG_API, 'blog listing' );
+  if ( !body?.ok || !Array.isArray( body.posts ) )
   {
-    return [];
+    throw new Error( 'blog listing: response was not a post array' );
   }
+  return body.posts;
 }
 
 /**
@@ -203,12 +338,14 @@ export function blogPageCount ( total: number ): number {
  * the list response omits. Checked against the live API rather than assumed. So the fix is
  * to fetch each slug once, not to stop fetching.
  *
- * A NULL IS NOT CACHED, matching listPublicBlogPosts. getPublicBlogPost returns null both
- * for "no such post" and for "the request failed", and those must not be treated alike: a
- * cached failure would turn one network blip into a permanently missing page for the rest of
- * the build. Caching the promise rather than the value also means concurrent callers share
- * one in-flight request instead of each starting their own, which is the normal case here
- * because Next renders pages in parallel.
+ * NULL NOW MEANS ONE THING ONLY: a 404. It used to mean "no such post" OR "the request
+ * failed", and conflating those is what put 219 dead links on the live site - see the long
+ * note above `RETRYABLE_STATUS`. A failed request throws now, so a caller that receives
+ * null can safely treat the post as genuinely absent.
+ *
+ * Caching the promise rather than the value also means concurrent callers share one
+ * in-flight request instead of each starting their own, which is the normal case here
+ * because Next renders pages in parallel. A rejection is evicted so a later caller retries.
  */
 const postPromises = new Map<string, Promise<PublicBlogPost | null>>();
 
@@ -217,21 +354,23 @@ export async function getPublicBlogPost ( slug: string ): Promise<PublicBlogPost
   if ( cached ) return cached;
   const pending = fetchPost( slug );
   postPromises.set( slug, pending );
-  const post = await pending;
-  if ( post === null ) postPromises.delete( slug );
-  return post;
+  try
+  {
+    const post = await pending;
+    if ( post === null ) postPromises.delete( slug );
+    return post;
+  } catch ( error )
+  {
+    postPromises.delete( slug );
+    throw error;
+  }
 }
 
 async function fetchPost ( slug: string ): Promise<PublicBlogPost | null> {
-  try {
-    const response = await fetch( `${PUBLIC_BLOG_API}/${encodeURIComponent( slug )}`, {
-      headers: { Accept: 'application/json' },
-    } );
-    if ( !response.ok ) return null;
-    const body = await response.json();
-    return body?.ok && body.post ? body.post : null;
-  } catch
-  {
-    return null;
-  }
+  const body = await fetchJsonOrThrow(
+    `${ PUBLIC_BLOG_API }/${ encodeURIComponent( slug ) }`, `post ${ slug }` );
+  // `null` here is a 404 and nothing else, so /post/[slug] can safely turn it into
+  // notFound. Every other failure has already thrown.
+  if ( body === null ) return null;
+  return body?.ok && body.post ? body.post : null;
 }
