@@ -21,8 +21,35 @@ spam. There is no soft-fail state to catch mistakes.
 
 Route 53 hosted zone: `Z03939753QJGZ6ZD6BXO8` (account `775261844268`).
 MTA-STS policy lives in S3 bucket `wecare-digital-mta-sts` at
-`.well-known/mta-sts.txt`, served via CloudFront `E1SZBXLQ4XNLJ7` behind
-ACM cert for `mta-sts.wecare.digital`.
+`.well-known/mta-sts.txt`, served via CloudFront `E1SZBXLQ4XNLJ7`.
+
+**Certificates consolidated 2026-09-29.** That distribution used to carry a
+dedicated single-name cert for `mta-sts.wecare.digital`
+(`28d87ed5-42e0-478a-…`, since deleted). It now shares the one cert this account
+has left:
+
+| | |
+|---|---|
+| ARN | `arn:aws:acm:us-east-1:775261844268:certificate/f75d0db0-d476-443a-b787-96c4931862d2` |
+| Names | `wecare.digital` **and** `*.wecare.digital` |
+| Expires | 2027-03-12, `RenewalEligibility: ELIGIBLE`, Amazon-issued |
+| Used by | Amplify domain `wecare.digital` (app `d22dm4b0jn71jw`) **and** CloudFront `E1SZBXLQ4XNLJ7` |
+
+The wildcard SAN is what makes this safe: `mta-sts.wecare.digital` is a
+single-label subdomain, so `*.wecare.digital` matches it. No IaC declares a
+certificate — `amplify/link-resources.ts` dropped its `aws-certificatemanager`
+import when `r.wecare.digital` was retired — so the ARN lives only on the live
+resources and in this table.
+
+Two consequences worth knowing before touching TLS here:
+
+- **Renewal is now a single shared blast radius.** If that cert ever fails to
+  renew, it takes the public site *and* the MTA-STS policy endpoint with it, and
+  under `mode: enforce` the second failure means senders refuse inbound mail.
+  Watch the one expiry rather than two.
+- **A wildcard does not cover a second label.** `*.wecare.digital` matches
+  `mta-sts.wecare.digital` but **not** `a.b.wecare.digital`. Adding a
+  two-label host needs a new SAN, not a reuse of this cert.
 
 ## Rules
 
@@ -31,6 +58,19 @@ ACM cert for `mta-sts.wecare.digital`.
    powershell -File scripts/verify-email-auth.ps1
    ```
    Exit code 0 means safe. Non-zero means do not proceed.
+
+   **This does not run on the current Mac.** Neither `pwsh` nor `powershell` is
+   on `PATH`, so the one gate this file calls mandatory is unrunnable here, and
+   pretending otherwise is worse than knowing. Until it is ported, the checks
+   that actually matter have to be reproduced by hand — and a hand-rolled
+   substitute is not equivalent, because it will not catch what nobody thought
+   to re-type. The critical ones are: exactly one SPF, one DMARC, one
+   `_mta-sts`, one TLS-RPT record; every live `MX` covered by a policy `mx:`
+   line; and the policy fetching over HTTPS at **200** with `text/plain` and a
+   **verifying** chain (`curl -w '%{ssl_verify_result}'` must be `0`, and
+   `openssl s_client -verify_return_error` must report return code 0). A TLS
+   change is not verified by a 200 alone — `curl` will happily report 200 on a
+   chain it was never asked to validate strictly.
 
 2. **Changing MX requires 7 days of lead time.** Senders cache the MTA-STS
    policy for `max_age` (604800s). Update the policy's `mx:` lines and bump the
@@ -90,3 +130,14 @@ mail can fail closed.
   cached policy for up to `max_age`. Reducing `max_age` does not shorten an
   already-cached entry. This is the slow one; treat enforce changes as
   effectively one-way for a week.
+- **Viewer certificate on `E1SZBXLQ4XNLJ7`** - there is **no rollback to the old
+  cert**, because the owner deleted it from the console minutes after the swap
+  released it, and ACM deletion is not reversible. Recovery means requesting a
+  fresh cert for the name and re-validating, roughly 5 to 30 minutes on DNS
+  validation while the record is already in the zone. Not a concern in practice:
+  the wildcard covers the name and the shared cert is what both consumers
+  already use. `cloudfront update-distribution` is a **full replace** — it needs
+  the entire `DistributionConfig` plus a matching `ETag`, so any rollback must
+  start from a fresh `get-distribution-config`, not from a stale snapshot.
+  Pre-change config is in
+  `.scratch/cf-E1SZBXLQ4XNLJ7-before-certswap-20260929.json`.
