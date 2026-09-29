@@ -22,9 +22,7 @@
         "lambda:PublishVersion",
         "lambda:CreateAlias",
         "lambda:UpdateAlias",
-        "lambda:GetAlias",
-        "lambda:AddPermission",
-        "lambda:GetPolicy"
+        "lambda:AddPermission"
       ],
       "Resource": [
         "arn:aws:lambda:us-east-1:775261844268:function:wecare-mcp",
@@ -43,14 +41,34 @@
       }
     },
     {
-      "Sid": "HttpApiRouteForMcp",
+      "Sid": "ReadTheHttpApi",
+      "Effect": "Allow",
+      "Action": "apigateway:GET",
+      "Resource": "arn:aws:apigateway:us-east-1::/apis/zllr9lrg7j*"
+    },
+    {
+      "Sid": "CreateAndRepointTheMcpRoute",
       "Effect": "Allow",
       "Action": [
-        "apigateway:GET",
         "apigateway:POST",
         "apigateway:PATCH"
       ],
-      "Resource": "arn:aws:apigateway:us-east-1::/apis/zllr9lrg7j*"
+      "Resource": [
+        "arn:aws:apigateway:us-east-1::/apis/zllr9lrg7j/routes*",
+        "arn:aws:apigateway:us-east-1::/apis/zllr9lrg7j/integrations*"
+      ]
+    },
+    {
+      "Sid": "SetTheRouteThrottleOnTheStage",
+      "Effect": "Allow",
+      "Action": "apigateway:PATCH",
+      "Resource": "arn:aws:apigateway:us-east-1::/apis/zllr9lrg7j/stages*"
+    },
+    {
+      "Sid": "RemoveStaleRouteSettingsOnly",
+      "Effect": "Allow",
+      "Action": "apigateway:DELETE",
+      "Resource": "arn:aws:apigateway:us-east-1::/apis/zllr9lrg7j/stages/*/routesettings/*"
     }
   ]
 }

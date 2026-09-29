@@ -58,11 +58,19 @@ BRANCH = "stack"
 #: match, so `wecare/plivo/api-anything-else` cannot satisfy it.
 SECRET_ARN = f"arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:wecare/plivo/api-??????"
 
+# NO `Sid` HERE, and that is the whole point of the missing line. Three files write this
+# same trust document -- this one, scripts/provision_ci_route_auth_role.py and
+# scripts/fix_github_oidc_trust.py -- and fix_github_oidc_trust.py compares what is live
+# against its own document BYTE FOR BYTE to decide whether a role is stale. A `Sid` that
+# only this file emitted made that comparison fail: the fixer would report this role STALE,
+# rewrite it without the Sid, and the next `--apply` here would put it back. Two scripts
+# fighting over one role, each correct on its own terms, is exactly the drift
+# tests/test_github_oidc_trust_policy.py exists to prevent, so the Sid went rather than
+# being propagated into the other two. The statement is identified by being the only one.
 TRUST = {
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "GitHubActionsStackBranchByRepositoryId",
             "Effect": "Allow",
             "Principal": {"Federated": OIDC_PROVIDER},
             "Action": "sts:AssumeRoleWithWebIdentity",

@@ -34,19 +34,27 @@ name: Public surface deploy
 #                                  this project authenticates entirely by role assumption, so
 #                                  long-lived keys do not exist anywhere by design.
 #
-#   The role's policy, from the calls the two scripts actually make:
-#     amplify:GetApp, amplify:UpdateApp                        on app/d22dm4b0jn71jw
-#     lambda:GetFunction, lambda:GetFunctionConfiguration,
-#     lambda:CreateFunction, lambda:UpdateFunctionCode,
-#     lambda:UpdateFunctionConfiguration, lambda:PublishVersion,
-#     lambda:CreateAlias, lambda:UpdateAlias, lambda:AddPermission   on function:wecare-mcp
-#     iam:PassRole                                             on role/wecare-digital-lambda-role
-#     apigatewayv2:GetIntegrations, apigatewayv2:CreateIntegration,
-#     apigatewayv2:GetRoutes, apigatewayv2:CreateRoute,
-#     apigatewayv2:UpdateRoute                                 on apis/zllr9lrg7j
+#   The role's two documents are COMMITTED, and this comment deliberately no longer restates
+#   them - it used to, and the copy was wrong in a way that would have stopped anyone
+#   following it: it listed `apigatewayv2:GetRoutes`-style actions, and there is no
+#   `apigatewayv2` IAM prefix. API Gateway authorises its whole control plane, v1 and v2
+#   alike, as `apigateway:` plus an HTTP VERB (GET, POST, PATCH, DELETE), so those names
+#   produce a MalformedPolicyDocument rather than a working role. It also omitted the stage
+#   calls the route throttle needs. Read and use the files instead:
 #
-#   `verify` needs only the read half (GetApp, GetFunction*, GetRoutes, GetIntegrations), so a
-#   second read-only role is a sensible split if you want the safe mode to need no write grant.
+#     scripts/iam-public-surface-trust.json         who may assume it
+#     scripts/iam-public-surface-permissions.json   what it may then do
+#     scripts/iam-public-surface-README.md          the four commands, and where each
+#                                                   permission comes from in the source
+#
+#   tests/test_public_surface_role_permissions.py derives the action list from the two
+#   scripts' boto3 calls and fails if the document grants more or less than they make.
+#
+# WHY `verify` STILL USES ONE ROLE. The safe mode carries no write grant, but not by way of a
+# second role: it assumes the SAME role with a read-only INLINE SESSION POLICY, which STS
+# intersects with the role's policy. A second role would have forced the verify steps into
+# their own job, and both scripts write the same Amplify customRules array - serialising them
+# in one job matters more than splitting the credential. This way verify gets neither.
 
 on:
   workflow_dispatch:
@@ -103,11 +111,29 @@ jobs:
             exit 1
           fi
 
-      - name: Assume the deploy role
+      # TWO ASSUMPTIONS OF ONE ROLE, chosen by mode. A session policy is INTERSECTED with the
+      # role's identity policy - it can only subtract - so the verify session physically
+      # cannot call UpdateApp, UpdateFunctionCode, UpdateStage or anything else that writes,
+      # even if a script grows a write call or someone adds a write step to the verify path.
+      # The resources are spelled out rather than "*" because "*" here would read as a wide
+      # grant to anyone auditing it, and a session policy that looks wide invites someone to
+      # copy it somewhere it is not intersected with anything.
+      - name: Assume the deploy role (verify — read-only session)
+        if: inputs.action == 'verify'
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.PUBLIC_SURFACE_ROLE_ARN }}
           aws-region: us-east-1
+          role-session-name: public-surface-verify
+          inline-session-policy: '{"Version":"2012-10-17","Statement":[{"Sid":"ReadAmplify","Effect":"Allow","Action":"amplify:GetApp","Resource":"arn:aws:amplify:us-east-1:775261844268:apps/d22dm4b0jn71jw"},{"Sid":"ReadTheFunction","Effect":"Allow","Action":["lambda:GetFunction","lambda:GetFunctionConfiguration"],"Resource":["arn:aws:lambda:us-east-1:775261844268:function:wecare-mcp","arn:aws:lambda:us-east-1:775261844268:function:wecare-mcp:*"]},{"Sid":"ReadTheApi","Effect":"Allow","Action":"apigateway:GET","Resource":"arn:aws:apigateway:us-east-1::/apis/zllr9lrg7j*"}]}'
+
+      - name: Assume the deploy role (apply — full grant)
+        if: inputs.action != 'verify'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.PUBLIC_SURFACE_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: public-surface-apply
 
       - name: Who am I
         run: aws sts get-caller-identity
