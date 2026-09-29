@@ -84,14 +84,39 @@ def running_lines(pages: Sequence[str], threshold: float = 0.4) -> set:
     """
     if len(pages) < 2:
         return set()
+
+    per_page: List[List[str]] = [
+        [line.strip() for line in page.splitlines() if line.strip()] for page in pages
+    ]
+
+    # A WINDOW OF TWO, NOT THREE, and a live extraction is what corrected this. At three,
+    # the first run against a real two-page document returned prose beginning mid-sentence:
+    # the header plus the next TWO wrapped body lines were all inside the window, appeared
+    # on both pages, and were dropped as furniture. A running header is one line, sometimes
+    # two - sampling three reaches into the text.
+    window = 2
     counts: Counter = Counter()
-    for page in pages:
-        lines = [line.strip() for line in page.splitlines() if line.strip()]
-        for line in set(lines[:3] + lines[-3:]):
+    for lines in per_page:
+        for line in set(lines[:window] + lines[-window:]):
             if 3 <= len(line) <= 90:
                 counts[line] += 1
+
     limit = max(2, int(len(pages) * threshold))
-    return {line for line, count in counts.items() if count >= limit}
+    candidates = {line for line, count in counts.items() if count >= limit}
+
+    # A BACKSTOP ON HOW MUCH MAY BE DROPPED. Header removal is a heuristic, and the failure
+    # mode is silent - the prose simply starts in the wrong place, and it still reads as
+    # plausible writing. If the candidates account for a large share of the document, the
+    # heuristic has misfired and dropping nothing is the better error, because a surviving
+    # header is visible to a reviewer and a missing first paragraph is not.
+    total_lines = sum(len(lines) for lines in per_page)
+    dropped_lines = sum(1 for lines in per_page for line in lines if line in candidates)
+    # The ratio only means something once there is enough text to take a ratio OF. On a
+    # four-line document a single header IS 25% of it, and refusing to drop it there would
+    # disable the heuristic for exactly the short sources it works best on.
+    if total_lines >= 20 and dropped_lines / total_lines > 0.25:
+        return set()
+    return candidates
 
 
 def looks_like_heading(line: str, next_line: str = "") -> bool:

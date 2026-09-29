@@ -102,13 +102,32 @@ PARAGRAPHS = [
 ]
 
 
+#: Distinct prose per page, because a real PDF's page 2 CONTINUES the document rather than
+#: repeating page 1. Byte-identical pages make every windowed line look like a running
+#: header, which exercises the give-up backstop instead of the detection itself - that case
+#: has its own test.
+CONTINUATIONS = [
+    "Restoration is not apology. An apology addresses the feeling while restoration "
+    "addresses the structure: saying what was not done, acknowledging what it cost, and "
+    "saying what will happen now instead of that.",
+    "Notice how rarely that third part appears. What appears instead is explanation, aimed "
+    "at the listener's judgement rather than at the thing that came apart, and it asks to "
+    "be excused rather than asking what is needed.",
+]
+
+
 def build_pdf(header: str = "THE GIVEN WORD", pages: int = 2) -> bytes:
     page_list = []
     for index in range(pages):
         lines = [header, ""]
-        for paragraph in PARAGRAPHS:
-            lines += wrap(paragraph) + [""]
-        lines += ["Workability", ""] + wrap(PARAGRAPHS[2]) + ["", str(index + 11)]
+        if index == 0:
+            for paragraph in PARAGRAPHS:
+                lines += wrap(paragraph) + [""]
+            lines += ["Workability", ""] + wrap(PARAGRAPHS[2]) + [""]
+        else:
+            body = CONTINUATIONS[(index - 1) % len(CONTINUATIONS)]
+            lines += wrap(body) + [""] + wrap(f"Page {index + 1} continues: " + body) + [""]
+        lines += [str(index + 11)]
         page_list.append(lines)
     return make_pdf(page_list)
 
@@ -161,6 +180,61 @@ def test_running_headers_dropped_and_headings_recovered(sample_pdf):
     assert "## Workability" in text
     assert "moved. Workability" not in text
     assert not [word for word in text.split() if word.endswith("-")]
+
+
+def test_a_realistic_multipage_source_keeps_all_its_prose():
+    """Three distinct pages with a repeated header: drop the furniture, keep every word.
+
+    The window used to be three lines, and a live extraction against a real two-page
+    document returned prose that began MID-SENTENCE - the header plus the next two wrapped
+    body lines were all inside the window and all appeared on both pages.
+    """
+    tail = ("Restoration is not apology. An apology addresses the feeling while restoration "
+            "addresses the structure, and the difference is which of the two the speaker is "
+            "actually attending to at the time of speaking.")
+    closing = ("Notice how rarely that sequence appears in practice. What appears instead is "
+               "explanation, which is aimed at the listener's judgement rather than at the "
+               "thing that actually came apart.")
+    header = "THE INTEGRITY OF ONE'S WORD"
+    pages = [
+        [header, ""] + wrap(PARAGRAPHS[0]) + [""] + wrap(PARAGRAPHS[1]) + ["", "11"],
+        [header, ""] + wrap(PARAGRAPHS[2]) + [""] + wrap(tail) + ["", "12"],
+        [header, ""] + wrap(closing) + ["", "13"],
+    ]
+    extract = bp.extract_pdf(make_pdf(pages))
+    assert extract.ok, extract.error
+    assert "INTEGRITY OF ONE" not in extract.text
+    assert extract.text.lstrip().startswith("A person gives their word")
+    for fragment in ("load-bearing", "Restoration is not apology", "Notice how rarely"):
+        assert fragment in extract.text, fragment
+
+
+def test_header_detection_gives_up_rather_than_eat_the_prose():
+    """When the heuristic would drop a quarter of the document, it drops nothing.
+
+    Two byte-identical pages make every windowed line look like a running header. A
+    surviving header is visible to a reviewer; a missing first paragraph is not - so the
+    backstop prefers the visible error.
+    """
+    lines = ["A REPEATED TITLE LINE", ""]
+    for paragraph in PARAGRAPHS:
+        lines += wrap(paragraph) + [""]
+    extract = bp.extract_pdf(make_pdf([lines, lines]))
+    assert extract.ok, extract.error
+    assert "A person gives their word" in extract.text
+    # Nothing was dropped, so the header is still there - deliberately.
+    assert "A REPEATED TITLE LINE" in extract.text
+
+
+def test_running_lines_window_is_two_not_three():
+    """Directly pinned, because this is the line that regressed against real input."""
+    pages = [
+        "HEADER\nfirst body line here\nsecond body line here\nthird body line here",
+        "HEADER\ndifferent body\nmore different body\nyet more different body",
+    ]
+    detected = bp.running_lines(pages)
+    assert "HEADER" in detected
+    assert "third body line here" not in detected
 
 
 def test_a_scan_is_refused_rather_than_stubbed():
