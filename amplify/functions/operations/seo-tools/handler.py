@@ -15,8 +15,20 @@ from lambda_utils.response import (
 )
 
 import ai
+import blog_draft
+import blog_sources
 import storage
 import wix
+
+#: The two categories the live site actually has. Imported from the quality gate so the
+#: Lambda, the CLI and the admin page cannot disagree about what is acceptable -
+#: `src/test/BlogStudioContract.test.ts` asserts the page agrees with the same list.
+try:  # pragma: no cover - exercised implicitly by every blog-source route
+    import blog_quality_v2 as _quality
+    BLOG_CATEGORIES = _quality.CATEGORIES
+except ImportError:  # pragma: no cover - a package built without the gate
+    _quality = None
+    BLOG_CATEGORIES = ('Conversations', 'Gastronomy')
 
 logger = logging.getLogger(__name__)
 INPUT_COST_PER_M = 3.0
@@ -407,6 +419,24 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
         records = storage.list_records(record_type, scope)
         key = 'logs' if record_type == 'log' else 'audits'
         return _response(200, {'ok': True, key: records}, origin)
+    if '/blog-sources/' in path:
+        # One source with its extract and draft. Split out from the list route because the
+        # extract is hundreds of kB and returning it for 200 sources would make the list
+        # response megabytes.
+        return _response(200, {
+            'ok': True,
+            'source': blog_sources.source_detail(path.split('/blog-sources/', 1)[1].strip('/')),
+        }, origin)
+    if path.endswith('/blog-sources'):
+        return _response(200, {
+            'ok': True,
+            'categories': list(BLOG_CATEGORIES),
+            'articleClasses': list(_quality.ARTICLE_CLASSES) if _quality else [],
+            'humanGates': list(_quality.HUMAN_GATES) if _quality else [],
+            'aiDraftEnabled': blog_draft.enabled(),
+            'maxSourceBytes': blog_sources.MAX_SOURCE_BYTES,
+            **blog_sources.status_report(),
+        }, origin)
     if path.endswith('/site-pages'):
         pages = wix.list_site_pages()
         return _response(200, {'ok': True, 'pages': pages, 'total': len(pages)}, origin)
@@ -417,6 +447,49 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
 
 
 def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
+    # ── Blog source intake ──────────────────────────────────────────────────────
+    #
+    # All four of these sit inside _route_post, which runs AFTER the require_auth call in
+    # `handler`. That placement is load-bearing for the route-auth gate: the API already
+    # carries `ANY /seo-tools/{proxy+}`, so these add no new API Gateway route key and
+    # `audit_route_auth.py` continues to classify the whole surface as
+    # handler-authenticated on the strength of that one require_auth.
+    if path.endswith('/blog-sources/confirm'):
+        # NO idempotency claim, deliberately. Confirm is naturally idempotent - it
+        # head_objects each key and moves PENDING_UPLOAD to UPLOADED - and a claim would
+        # make a legitimate retry after a dropped response return 409 with the sources
+        # still unconfirmed.
+        return _response(200, {'ok': True, **blog_sources.confirm(body, actor)}, origin)
+    if path.endswith('/blog-sources/retry'):
+        source_id = str(body.get('sourceId') or '').strip()
+        if not source_id:
+            raise ValueError('sourceId is required')
+        return _response(200, {'ok': True, **blog_sources.retry(source_id)}, origin)
+    if path.endswith('/blog-sources'):
+        duplicate = _claim(body, actor, 'seo.blogsource.register', origin)
+        if duplicate:
+            return duplicate
+        return _response(200, {
+            'ok': True, **blog_sources.register(body, actor, tuple(BLOG_CATEGORIES)),
+        }, origin)
+    if path.endswith('/blog-draft'):
+        source_id = str(body.get('sourceId') or '').strip()
+        if not source_id:
+            raise ValueError('sourceId is required')
+        # Claimed, because this one costs money per call and a double-submitted button
+        # would pay twice for the same article.
+        duplicate = _claim({'sourceId': source_id}, actor, 'seo.blogdraft.propose', origin)
+        if duplicate:
+            return duplicate
+        return _response(200, {'ok': True, **blog_draft.propose(source_id, actor)}, origin)
+    if path.endswith('/blog-draft-accept'):
+        source_id = str(body.get('sourceId') or '').strip()
+        if not source_id:
+            raise ValueError('sourceId is required')
+        return _response(200, {
+            'ok': True, **blog_draft.apply_draft(source_id, body, actor),
+        }, origin)
+
     if path.endswith('/blog-create'):
         duplicate = _claim(body, actor, 'seo.blog.create', origin)
         if duplicate:
@@ -461,6 +534,33 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
 
 
 def handler(event: Dict[str, Any], context: Optional[Any]):
+    # ── The async extraction worker ──────────────────────────────────────────────
+    #
+    # Checked FIRST, before any HTTP handling, because this is not an HTTP request: it
+    # arrives from `blog_sources.start_worker` via InvocationType='Event' and carries no
+    # requestContext at all.
+    #
+    # THIS IS NOT AN UNAUTHENTICATED HOLE, and it is worth being explicit about why. There
+    # is no API Gateway route that can produce `blogWorker` in the body - the routes are
+    # `ANY /seo-tools` and `ANY /seo-tools/{proxy+}`, and an HTTP request arrives with its
+    # payload under `body` as a JSON STRING, never as a top-level key on the event. So the
+    # only way to reach this branch is `lambda:InvokeFunction` on this function, which is
+    # IAM-gated and held by this function's own role. Same reasoning
+    # `lambda_utils.middleware.require_auth` uses to skip internal invokes.
+    #
+    # The `not event.get('requestContext')` half is belt and braces: even if a future route
+    # shape let a caller put arbitrary keys at the top level, an API Gateway event always
+    # carries a requestContext, so this branch would still refuse it.
+    if event.get('blogWorker') is True and not event.get('requestContext'):
+        try:
+            return blog_sources.run_worker(event)
+        except Exception:
+            logger.exception('blog source worker failed')
+            # Returned rather than raised: an async invoke that raises is retried twice by
+            # Lambda, and a source that fails deterministically would be extracted three
+            # times. The per-source status already records the failure durably.
+            return {'processed': 0, 'failed': 0, 'error': 'worker failed'}
+
     origin = extract_origin(event)
     method, path = _method_path(event)
     if method == 'OPTIONS':
@@ -511,6 +611,11 @@ def handler(event: Dict[str, Any], context: Optional[Any]):
         return _response(400, {'ok': False, 'error': str(error)}, origin)
     except LookupError as error:
         return _response(404, {'ok': False, 'error': str(error)}, origin)
+    except PermissionError as error:
+        # A disabled cost flag. 409 rather than 403: the caller is authorised, the
+        # capability is switched off, and a 403 would send an Admin looking at their own
+        # permissions instead of at the flag.
+        return _response(409, {'ok': False, 'error': str(error)}, origin)
     except Exception:
         logger.exception('SEO tools request failed')
         return _response(500, {'ok': False, 'error': 'SEO operation failed'}, origin)

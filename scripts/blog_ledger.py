@@ -79,22 +79,24 @@ def normalize_url(url: str) -> str:
         value = "https://" + value
         match = re.match(r"^(?P<scheme>[a-zA-Z][a-zA-Z0-9+.-]*)://(?P<rest>.*)$", value)
     scheme = match.group("scheme").lower()
-    rest = match.group("rest")
-    rest = rest.split("#", 1)[0]
-    if "?" in rest:
-        path, query = rest.split("?", 1)
-        keep = [
-            part for part in query.split("&")
-            if part and not re.match(r"^(?:utm_[a-z_]+|gclid|fbclid|mc_cid|mc_eid|ref|"
-                                     r"source|igshid)=", part, re.IGNORECASE)
-        ]
-        rest = path + ("?" + "&".join(keep) if keep else "")
-    if "/" in rest:
-        host, _, tail = rest.partition("/")
-        rest = host.lower() + "/" + tail
-    else:
-        rest = rest.lower()
-    return (scheme + "://" + rest).rstrip("/")
+    rest = match.group("rest").split("#", 1)[0]
+
+    # THE TRAILING SLASH IS STRIPPED FROM THE PATH, NOT FROM THE WHOLE STRING. `/p/?id=7`
+    # and `/p?id=7` are the same page, and rstrip on the assembled URL cannot reach a slash
+    # sitting before the `?` - so they registered as two sources and would have converted
+    # the same article twice. Kept identical to `blog_sources.normalize_url` in the Lambda,
+    # because the two must agree on source identity or the same URL gets two rows.
+    path, _, query = rest.partition("?")
+    host, _, tail = path.partition("/")
+    path = host.lower() + ("/" + tail if tail else "")
+    path = path.rstrip("/") or host.lower()
+
+    keep = [
+        part for part in query.split("&")
+        if part and not re.match(r"^(?:utm_[a-z_]+|gclid|fbclid|mc_cid|mc_eid|ref|"
+                                 r"source|igshid)=", part, re.IGNORECASE)
+    ]
+    return scheme + "://" + path + ("?" + "&".join(keep) if keep else "")
 
 
 def source_identity(source_type: str, ref: str, payload: Optional[bytes] = None) -> str:

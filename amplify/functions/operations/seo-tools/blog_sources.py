@@ -1,0 +1,644 @@
+"""Blog source intake: presigned upload, a durable source record, and the async worker.
+
+THE SHAPE, AND WHY IT IS NOT ONE SYNCHRONOUS REQUEST.
+
+API Gateway cuts a Lambda integration off at 30 seconds. Extracting one PDF is fast;
+extracting fifty is not, and "thousands in one go" is the stated requirement. So the work is
+split into three phases that each fit comfortably inside their own limit:
+
+  1. `POST /seo-tools/blog-sources`         register N sources, return N presigned PUT URLs.
+                                            No bytes touch this function.
+  2. browser PUTs each file straight to S3   the only step whose duration scales with size,
+                                            and it happens outside our compute entirely.
+  3. `POST /seo-tools/blog-sources/confirm`  head_object each key, then hand off to the
+                                            worker with InvocationType='Event' and return.
+
+The worker then runs OUTSIDE the API Gateway request, so its ceiling is the function
+timeout rather than 30s, and it CHAINS: it processes a bounded batch, and if sources remain
+it re-invokes itself. A 2,000-source run is therefore a sequence of short invocations that
+can be interrupted and resumed, rather than one long one that cannot.
+
+Resolve-before-generate is enforced here exactly as `scripts/blog_ledger.py` enforces it
+locally: the record id is derived from the sha256 of the source bytes, so re-uploading the
+same PDF lands on the row that already exists instead of minting a second article. That is
+the one failure in this pipeline that cannot be undone after publication.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import os
+import re
+import time
+from typing import Any, Dict, List, Optional, Tuple
+
+import boto3
+from botocore.exceptions import ClientError
+
+import storage
+
+logger = logging.getLogger(__name__)
+
+REGION = os.environ.get("AWS_REGION", "us-east-1")
+FUNCTION_NAME = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "wecare-seo-tools")
+
+#: THE PUBLIC ROOT, BY OWNER INSTRUCTION, AND THE CONSEQUENCE IS REAL.
+#:
+#: `o/` is the public root of this bucket: CloudFront distribution E2GP22R4BIFGQ3 serves it
+#: at `https://wecare.digital/get/o/...` with no authentication. `secure/` is the gated root,
+#: denied wholesale at the edge. This prefix was originally `secure/blog-src/` and was moved
+#: to `o/` on owner instruction, so an uploaded source document IS fetchable by anyone who
+#: has its URL.
+#:
+#: What limits the exposure, stated so nobody over-credits it:
+#:   - The key is the sha256 of the file's own bytes, so it is not guessable and not
+#:     derivable from the filename.
+#:   - Bucket listing is not public - all four public-access-block settings are on and the
+#:     bucket policy grants s3:GetObject only to the CloudFront service principal.
+#: So a source is unlisted-but-public: safe from enumeration, not safe once a URL leaks.
+#:
+#: That matters because these are third-party documents - books, journal articles, pages -
+#: and a public URL is a public copy. If that becomes unacceptable, the fix is to move the
+#: prefix back under `secure/` and let the existing edge deny cover it; nothing else in this
+#: module has to change, because the key is composed through `media_paths` below.
+BUCKET = os.environ.get("BLOG_SOURCE_BUCKET", os.environ.get("SECURE_FILES_BUCKET", "wecare-digital-get"))
+
+#: Composed through `media_paths` rather than hand-built, which that module explicitly asks
+#: for: "Keep composing keys through `public` and `secure` rather than hand-building them."
+#: It also documents why `o/` is load-bearing and cannot simply be dropped.
+try:
+    from lambda_utils import media_paths
+    PREFIX = media_paths.public("blog-src") + "/"
+except ImportError:  # pragma: no cover - media_paths ships in every package
+    PREFIX = "o/blog-src/"
+UPLOAD_URL_TTL = int(os.environ.get("BLOG_SOURCE_URL_TTL_SECONDS", "900"))
+MAX_SOURCE_BYTES = int(os.environ.get("BLOG_SOURCE_MAX_BYTES", str(40 * 1024 * 1024)))
+#: How many sources one worker invocation handles before chaining. Sized so the batch
+#: finishes well inside the 120s function timeout even when every PDF is large.
+WORKER_BATCH = int(os.environ.get("BLOG_WORKER_BATCH", "5"))
+MAX_REGISTER_BATCH = 200
+
+RECORD_TYPE = "blogSource"
+
+#: The statuses a source moves through. Deliberately NOT the article statuses from the
+#: quality standard - those describe an article, these describe a source file.
+PENDING_UPLOAD = "PENDING_UPLOAD"
+UPLOADED = "UPLOADED"
+EXTRACTING = "EXTRACTING"
+EXTRACTED = "EXTRACTED"
+EXTRACTION_FAILED = "EXTRACTION_FAILED"
+
+SOURCE_TYPES = ("pdf", "url")
+
+_s3 = None
+_lambda = None
+
+
+def s3_client():
+    global _s3
+    if _s3 is None:
+        from botocore.client import Config
+        # SigV4 + regional endpoint, so a presigned URL is valid in this region. Same
+        # configuration secure-files uses for the same reason.
+        _s3 = boto3.client("s3", region_name=REGION,
+                           config=Config(signature_version="s3v4",
+                                         s3={"addressing_style": "virtual"}))
+    return _s3
+
+
+def lambda_client():
+    global _lambda
+    if _lambda is None:
+        _lambda = boto3.client("lambda", region_name=REGION)
+    return _lambda
+
+
+def _sha256_text(value: str) -> str:
+    return hashlib.sha256(str(value).encode("utf-8")).hexdigest()
+
+
+def normalize_url(url: str) -> str:
+    """Canonical form for URL identity. Mirrors `blog_ledger.normalize_url`.
+
+    Tracking parameters are stripped because otherwise the same article arriving with a
+    `utm_source` reads as a different source and converts twice.
+    """
+    value = str(url or "").strip()
+    if not value:
+        return ""
+    if not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", value):
+        value = "https://" + value
+    match = re.match(r"^(?P<scheme>[a-zA-Z][a-zA-Z0-9+.-]*)://(?P<rest>.*)$", value)
+    if not match:
+        return ""
+    scheme = match.group("scheme").lower()
+    rest = match.group("rest").split("#", 1)[0]
+
+    # THE TRAILING SLASH IS STRIPPED FROM THE PATH, NOT FROM THE WHOLE STRING, and the
+    # difference is a real defect this caught: `/p/?id=7` and `/p?id=7` are the same page,
+    # but rstrip on the assembled URL cannot reach a slash that sits before the `?`. They
+    # registered as two sources and would have converted the same article twice.
+    path, _, query = rest.partition("?")
+    host, _, tail = path.partition("/")
+    path = host.lower() + ("/" + tail if tail else "")
+    path = path.rstrip("/") or host.lower()
+
+    keep = [part for part in query.split("&")
+            if part and not re.match(
+                r"^(?:utm_[a-z_]+|gclid|fbclid|mc_cid|mc_eid|ref|source|igshid)=",
+                part, re.IGNORECASE)]
+    return scheme + "://" + path + ("?" + "&".join(keep) if keep else "")
+
+
+def source_id(source_type: str, ref: str, sha256: str = "") -> str:
+    """The record id, and the join key.
+
+    A PDF is identified by the sha256 of its BYTES, which the browser computes and sends.
+    That means a renamed re-export is the same source and will not convert twice - the
+    common case when a batch is re-exported from a drive with different filenames.
+    """
+    kind = str(source_type or "").lower()
+    if kind == "pdf":
+        if not sha256:
+            raise ValueError("a pdf source requires its sha256")
+        return f"blogsrc_{sha256}"
+    return f"blogsrc_{_sha256_text(normalize_url(ref))}"
+
+
+def _safe_extension(name: str) -> str:
+    _, _, tail = str(name or "").rpartition(".")
+    if tail and tail != name and 1 <= len(tail) <= 8 and tail.isalnum():
+        return "." + tail.lower()
+    return ""
+
+
+def get_source(record_id: str) -> Optional[Dict[str, Any]]:
+    item = storage.table().get_item(Key={"id": record_id}).get("Item")
+    if not item or item.get("recordType") != RECORD_TYPE:
+        return None
+    return storage._json_safe(item)
+
+
+def list_sources(limit: int = 500) -> List[Dict[str, Any]]:
+    return storage.list_records(RECORD_TYPE, limit=limit)
+
+
+def source_url(key: str) -> str:
+    """The apex URL for an uploaded source, or "" when there is no key.
+
+    Only meaningful because the prefix is on the public root: a reviewer working through the
+    quality standard has to read the source, and section 2 is explicit that an article may
+    not be built from a title or an excerpt. Handing them a one-click link to the actual
+    document is the difference between that rule being followed and being ticked.
+
+    Returns "" for a gated key rather than a URL that would 403, which is what
+    `media_paths.public_url` already does for exactly this reason - so if the prefix is ever
+    moved back under `secure/`, this degrades to no link instead of a dead one.
+    """
+    if not key:
+        return ""
+    try:
+        from lambda_utils import media_paths
+        return media_paths.public_url(key)
+    except ImportError:  # pragma: no cover
+        return ""
+
+
+def _view(item: Dict[str, Any]) -> Dict[str, Any]:
+    """The projection the admin page renders. Never includes the extracted text.
+
+    The extract can be hundreds of kB per source; returning it in a list of 200 would make
+    the response megabytes and the page unusable. One source's text is fetched on demand.
+    """
+    return {
+        "sourceId": item.get("id", ""),
+        "sourceType": item.get("sourceType", ""),
+        "sourceRef": item.get("sourceRef", ""),
+        "sourceSha256": item.get("sourceSha256", ""),
+        #: Present only for an uploaded PDF on the public root. A URL source already has its
+        #: own address in `sourceRef`.
+        "sourceUrl": source_url(str(item.get("s3Key") or "")),
+        "status": item.get("status", ""),
+        "category": item.get("category", ""),
+        "articleClass": item.get("articleClass", ""),
+        "sourceTitle": item.get("sourceTitle", ""),
+        "sourceDate": item.get("sourceDate", ""),
+        "sourcePages": item.get("sourcePages", 0),
+        "sourceBytes": item.get("sourceBytes", 0),
+        "extractedChars": item.get("extractedChars", 0),
+        "extractedWords": item.get("extractedWords", 0),
+        "contentSha256": item.get("contentSha256", ""),
+        "slug": item.get("slug", ""),
+        "title": item.get("title", ""),
+        "articleStatus": item.get("articleStatus", ""),
+        "aiDraftStatus": item.get("aiDraftStatus", ""),
+        "gateBlocking": item.get("gateBlocking", []),
+        "gateReview": item.get("gateReview", []),
+        "error": item.get("error", ""),
+        "createdAt": item.get("createdAt", ""),
+        "updatedAt": item.get("updatedAt", ""),
+    }
+
+
+# ── Phase 1: register and presign ───────────────────────────────────────────────
+
+def register(body: Dict[str, Any], actor: str, categories: Tuple[str, ...]) -> Dict[str, Any]:
+    """Create or resolve a source record per entry, and presign a PUT for each PDF."""
+    entries = body.get("sources")
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("sources must be a non-empty array")
+    if len(entries) > MAX_REGISTER_BATCH:
+        raise ValueError(f"at most {MAX_REGISTER_BATCH} sources per request")
+
+    default_category = str(body.get("category") or "").strip()
+    default_class = str(body.get("articleClass") or "ARCHIVE_DERIVED").strip().upper()
+
+    registered: List[Dict[str, Any]] = []
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            raise ValueError(f"sources[{index}] must be an object")
+        kind = str(entry.get("sourceType") or "").strip().lower()
+        if kind not in SOURCE_TYPES:
+            raise ValueError(f"sources[{index}].sourceType must be one of {list(SOURCE_TYPES)}")
+        category = str(entry.get("category") or default_category).strip()
+        if category not in categories:
+            raise ValueError(f"sources[{index}].category must be one of {list(categories)}")
+        article_class = str(entry.get("articleClass") or default_class).strip().upper()
+
+        if kind == "pdf":
+            sha256 = str(entry.get("sha256") or "").strip().lower()
+            if not re.fullmatch(r"[0-9a-f]{64}", sha256):
+                raise ValueError(f"sources[{index}].sha256 must be a 64-character hex digest")
+            size = int(entry.get("bytes") or 0)
+            if size <= 0 or size > MAX_SOURCE_BYTES:
+                raise ValueError(
+                    f"sources[{index}].bytes must be between 1 and {MAX_SOURCE_BYTES}")
+            ref = str(entry.get("fileName") or "").strip()
+            if not ref:
+                raise ValueError(f"sources[{index}].fileName is required")
+            record_id = source_id("pdf", ref, sha256)
+            # The key is derived from the CONTENT HASH, not from a uuid, so re-uploading the
+            # same bytes overwrites the same object instead of accumulating copies.
+            key = PREFIX + sha256 + _safe_extension(ref)
+        else:
+            ref = normalize_url(entry.get("url") or entry.get("ref") or "")
+            if not ref.startswith(("http://", "https://")):
+                raise ValueError(f"sources[{index}].url must be an http(s) URL")
+            sha256, size, key = "", 0, ""
+            record_id = source_id("url", ref)
+
+        existing = get_source(record_id)
+        if existing and existing.get("status") in (UPLOADED, EXTRACTING, EXTRACTED):
+            # Resolve-before-generate: already known and already usable. Report it rather
+            # than re-presigning, so the caller can see the skip.
+            registered.append({
+                "sourceId": record_id, "sourceRef": ref, "sourceType": kind,
+                "status": existing["status"], "alreadyKnown": True, "uploadUrl": "",
+            })
+            continue
+
+        now = storage.now_iso()
+        record = {
+            "id": record_id,
+            "recordType": RECORD_TYPE,
+            "createdAt": (existing or {}).get("createdAt") or now,
+            "updatedAt": now,
+            # `slug` is a required field on every record in this table because the GSI keys
+            # on it. A source has no article yet, so it carries its own id there.
+            "slug": (existing or {}).get("slug") or record_id,
+            "sourceType": kind,
+            "sourceRef": ref,
+            "sourceSha256": sha256,
+            "s3Key": key,
+            "sourceBytes": size,
+            "category": category,
+            "articleClass": article_class,
+            # A URL needs no upload, so it is immediately ready for the worker.
+            "status": PENDING_UPLOAD if kind == "pdf" else UPLOADED,
+            "createdBy": actor,
+            "error": "",
+        }
+        storage.put_record(record)
+
+        upload_url = ""
+        if kind == "pdf":
+            upload_url = s3_client().generate_presigned_url(
+                "put_object",
+                Params={"Bucket": BUCKET, "Key": key, "ContentType": "application/pdf"},
+                ExpiresIn=UPLOAD_URL_TTL,
+            )
+        registered.append({
+            "sourceId": record_id, "sourceRef": ref, "sourceType": kind,
+            "status": record["status"], "alreadyKnown": False,
+            "uploadUrl": upload_url, "expiresInSeconds": UPLOAD_URL_TTL if upload_url else 0,
+        })
+
+    logger.info(json.dumps({
+        "event": "blog_sources_registered", "actor": actor, "count": len(registered),
+        "new": sum(1 for r in registered if not r["alreadyKnown"]),
+    }))
+    return {"sources": registered, "bucket": BUCKET}
+
+
+# ── Phase 2: confirm the bytes arrived, then hand off ────────────────────────────
+
+def confirm(body: Dict[str, Any], actor: str) -> Dict[str, Any]:
+    """Verify each upload against S3, then start the worker.
+
+    head_object rather than trusting the browser, for the same reason `secure-files` does
+    it: a PUT that failed halfway leaves a record claiming a file that is not there, and
+    the worker would then report an extraction failure for what is really a lost upload.
+    """
+    ids = body.get("sourceIds")
+    if not isinstance(ids, list) or not ids:
+        raise ValueError("sourceIds must be a non-empty array")
+
+    confirmed, missing, unknown = [], [], []
+    for record_id in [str(value) for value in ids][:MAX_REGISTER_BATCH]:
+        record = get_source(record_id)
+        if not record:
+            unknown.append(record_id)
+            continue
+        if record.get("status") in (UPLOADED, EXTRACTING, EXTRACTED):
+            confirmed.append(record_id)
+            continue
+        key = record.get("s3Key") or ""
+        if not key:
+            confirmed.append(record_id)
+            continue
+        try:
+            head = s3_client().head_object(Bucket=BUCKET, Key=key)
+        except ClientError:
+            missing.append(record_id)
+            continue
+        storage.table().update_item(
+            Key={"id": record_id},
+            UpdateExpression="SET #s = :s, sourceBytes = :b, updatedAt = :u, #e = :e",
+            ExpressionAttributeNames={"#s": "status", "#e": "error"},
+            ExpressionAttributeValues={
+                ":s": UPLOADED, ":b": int(head["ContentLength"]),
+                ":u": storage.now_iso(), ":e": "",
+            },
+        )
+        confirmed.append(record_id)
+
+    started = start_worker(reason="confirm") if confirmed else False
+    logger.info(json.dumps({
+        "event": "blog_sources_confirmed", "actor": actor, "confirmed": len(confirmed),
+        "missing": len(missing), "unknown": len(unknown), "workerStarted": started,
+    }))
+    return {
+        "confirmed": confirmed, "missingUpload": missing, "unknownSourceId": unknown,
+        "workerStarted": started,
+    }
+
+
+# ── Phase 3: the worker ─────────────────────────────────────────────────────────
+
+def start_worker(reason: str = "") -> bool:
+    """Async self-invoke. Never raises: a failed hand-off must not fail the caller.
+
+    The sources are already durable in DynamoDB at this point, so the worst case of a
+    failed invoke is that extraction waits for the next confirm or a manual kick - not
+    lost work. Failing the HTTP request instead would tell the operator their upload
+    failed when it did not.
+    """
+    try:
+        lambda_client().invoke(
+            FunctionName=FUNCTION_NAME,
+            InvocationType="Event",
+            Payload=json.dumps({"blogWorker": True, "reason": reason}).encode("utf-8"),
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(json.dumps({
+            "event": "blog_worker_invoke_failed", "error": type(exc).__name__}))
+        return False
+
+
+def _claim_for_extraction(record_id: str) -> bool:
+    """UPLOADED -> EXTRACTING, atomically.
+
+    The conditional expression is what makes two concurrent workers safe. Without it a
+    chained invoke overlapping its predecessor would extract the same source twice, and
+    with the Bedrock step attached that is a duplicated model call per overlap.
+    """
+    try:
+        storage.table().update_item(
+            Key={"id": record_id},
+            UpdateExpression="SET #s = :working, updatedAt = :u",
+            ConditionExpression="#s = :uploaded",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={
+                ":working": EXTRACTING, ":uploaded": UPLOADED, ":u": storage.now_iso()},
+        )
+        return True
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
+            return False
+        raise
+
+
+def pending_sources(limit: int = 0) -> List[Dict[str, Any]]:
+    rows = [row for row in list_sources() if row.get("status") == UPLOADED]
+    rows.sort(key=lambda row: str(row.get("createdAt") or ""))
+    return rows[:limit] if limit else rows
+
+
+def run_worker(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract a bounded batch, then chain if more remain."""
+    import blog_pipeline as bp
+
+    batch = int(event.get("limit") or WORKER_BATCH)
+    processed, failed = 0, 0
+    for record in pending_sources(limit=batch):
+        record_id = record["id"]
+        if not _claim_for_extraction(record_id):
+            continue
+        try:
+            extract = _extract_one(record, bp)
+        except Exception as exc:  # noqa: BLE001 - one bad source must not stop the batch
+            logger.exception("blog source extraction raised")
+            _fail(record_id, f"{type(exc).__name__} during extraction")
+            failed += 1
+            continue
+        if not extract.ok:
+            _fail(record_id, extract.error)
+            failed += 1
+            continue
+        _store_extract(record, extract, bp)
+        processed += 1
+
+    remaining = len(pending_sources())
+    chained = start_worker(reason="chain") if remaining else False
+    logger.info(json.dumps({
+        "event": "blog_worker_batch", "processed": processed, "failed": failed,
+        "remaining": remaining, "chained": chained,
+    }))
+    return {"processed": processed, "failed": failed, "remaining": remaining,
+            "chained": chained}
+
+
+def _extract_one(record: Dict[str, Any], bp) -> Any:
+    if record.get("sourceType") == "url":
+        return bp.extract_url(record.get("sourceRef") or "")
+    key = record.get("s3Key") or ""
+    if not key:
+        return bp.Extract(False, error="no S3 key recorded for this source")
+    try:
+        payload = s3_client().get_object(Bucket=BUCKET, Key=key)["Body"].read()
+    except ClientError as error:
+        code = error.response.get("Error", {}).get("Code", "S3Error")
+        return bp.Extract(False, error=f"could not read the uploaded object ({code})")
+    return bp.extract_pdf(payload, ref=record.get("sourceRef") or key)
+
+
+def _fail(record_id: str, error: str) -> None:
+    storage.table().update_item(
+        Key={"id": record_id},
+        UpdateExpression="SET #s = :s, #e = :e, updatedAt = :u",
+        ExpressionAttributeNames={"#s": "status", "#e": "error"},
+        ExpressionAttributeValues={
+            ":s": EXTRACTION_FAILED, ":e": str(error)[:900], ":u": storage.now_iso()},
+    )
+
+
+def _store_extract(record: Dict[str, Any], extract: Any, bp) -> None:
+    """Persist the extract and the draft record, and run the quality gate over it.
+
+    The gate runs HERE rather than only at publish time so the admin page can show, per
+    source, exactly what is outstanding. Its verdict is advisory at this point by
+    construction: a draft has no article body yet, so it cannot be anything but
+    SOURCE_REVIEW.
+    """
+    import blog_quality_v2 as q
+
+    draft = _draft_record(record, extract, q, bp)
+    assessment = q.assess(draft)
+    storage.table().update_item(
+        Key={"id": record["id"]},
+        UpdateExpression=(
+            "SET #s = :s, sourceTitle = :t, sourceDate = :d, sourcePages = :p, "
+            "extractedChars = :c, extractedWords = :w, contentSha256 = :h, "
+            "sourceExtract = :x, draftRecord = :dr, articleStatus = :as, "
+            "gateBlocking = :gb, gateReview = :gr, updatedAt = :u, #e = :e"
+        ),
+        ExpressionAttributeNames={"#s": "status", "#e": "error"},
+        ExpressionAttributeValues={
+            ":s": EXTRACTED,
+            ":t": extract.title,
+            ":d": extract.date,
+            ":p": int(extract.pages or 0),
+            ":c": len(extract.text),
+            ":w": bp.word_count(extract.text),
+            ":h": extract.content_sha256,
+            ":x": extract.text,
+            ":dr": storage._clean(draft),
+            ":as": assessment["status"],
+            ":gb": assessment["blocking"],
+            ":gr": assessment["review"],
+            ":u": storage.now_iso(),
+            ":e": "",
+        },
+    )
+
+
+def _draft_record(record: Dict[str, Any], extract: Any, q, bp) -> Dict[str, Any]:
+    """A draft with every mechanical field filled and no editorial claim.
+
+    Read what is NOT set. `sourceReviewedFully` is absent, the section 5 uniqueness
+    booleans are absent, and `gate` is absent. Those are the fields a human fills after
+    doing the reading, and `blog_quality_v2.decide_status` holds the record on
+    SOURCE_REVIEW until they are. Pre-filling them would produce a record that validates
+    and means nothing - the same contract `scripts/blog_ingest.draft_record` keeps.
+    """
+    title = extract.title or record.get("sourceRef", "")
+    slug = q.slugify(title)
+    words = bp.word_count(extract.text)
+    if words <= 420:
+        article_type = "DISTINCTION"
+    elif words <= 820:
+        article_type = "REFLECTION"
+    elif words <= 1500:
+        article_type = "ARTICLE"
+    else:
+        article_type = "DEEP_ARTICLE"
+    return {
+        "sourceId": record["id"],
+        "articleClass": record.get("articleClass") or "ARCHIVE_DERIVED",
+        "status": "SOURCE_REVIEW",
+        "sourceFile": record.get("sourceRef", ""),
+        "originalSourceTitle": extract.title,
+        "originalSourceDate": extract.date,
+        "sourceType": record.get("sourceType", ""),
+        "sourceHash": record.get("sourceSha256") or extract.content_sha256,
+        "title": title,
+        "slug": slug,
+        "category": record.get("category") or q.DEFAULT_CATEGORY,
+        "author": q.AUTHOR,
+        "canonical": q.expected_canonical(slug) if slug else "",
+        "tags": [],
+        "seoTitle": f"{title} | {q.PUBLISHER}" if title else "",
+        "metaDescription": "",
+        "articleType": article_type,
+        "imageStatus": "none",
+        "sourceExtract": extract.text,
+        "contentMarkdown": "",
+        "centralDistinction": "",
+        "distinctPurpose": "",
+    }
+
+
+# ── Reporting ───────────────────────────────────────────────────────────────────
+
+def status_report(limit: int = 500) -> Dict[str, Any]:
+    rows = list_sources(limit=limit)
+    by_status: Dict[str, int] = {}
+    by_category: Dict[str, int] = {}
+    for row in rows:
+        by_status[str(row.get("status") or "")] = by_status.get(str(row.get("status") or ""), 0) + 1
+        category = str(row.get("category") or "")
+        if category:
+            by_category[category] = by_category.get(category, 0) + 1
+    return {
+        "total": len(rows),
+        "byStatus": dict(sorted(by_status.items())),
+        "byCategory": dict(sorted(by_category.items())),
+        "pending": sum(1 for row in rows if row.get("status") == UPLOADED),
+        "extracted": sum(1 for row in rows if row.get("status") == EXTRACTED),
+        "failed": sum(1 for row in rows if row.get("status") == EXTRACTION_FAILED),
+        "sources": [_view(row) for row in rows],
+    }
+
+
+def source_detail(record_id: str) -> Dict[str, Any]:
+    record = get_source(record_id)
+    if not record:
+        raise LookupError("Unknown sourceId")
+    view = _view(record)
+    view["sourceExtract"] = record.get("sourceExtract", "")
+    view["draftRecord"] = record.get("draftRecord", {})
+    view["aiDraft"] = record.get("aiDraft", {})
+    return view
+
+
+def retry(record_id: str) -> Dict[str, Any]:
+    """Put a failed source back in the queue.
+
+    A transient S3 read or a network blip must not blacklist a source permanently, which is
+    what a terminal EXTRACTION_FAILED with no way back would do.
+    """
+    record = get_source(record_id)
+    if not record:
+        raise LookupError("Unknown sourceId")
+    if record.get("status") not in (EXTRACTION_FAILED, EXTRACTING):
+        raise ValueError(f"only a failed source can be retried; this one is "
+                         f"{record.get('status')}")
+    storage.table().update_item(
+        Key={"id": record_id},
+        UpdateExpression="SET #s = :s, #e = :e, updatedAt = :u",
+        ExpressionAttributeNames={"#s": "status", "#e": "error"},
+        ExpressionAttributeValues={":s": UPLOADED, ":e": "", ":u": storage.now_iso()},
+    )
+    return {"sourceId": record_id, "status": UPLOADED, "workerStarted": start_worker("retry")}
