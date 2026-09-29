@@ -33,37 +33,53 @@
  *
  * KNOWN DEFECT, NOT INTRODUCED HERE, AND IT AFFECTS THE WHOLE SITE
  * ---------------------------------------------------------------
- * wd-brand-16x9.png is 801,077 bytes - 782 KB. Meta's own WhatsApp link-preview documentation
- * requires og:image to be under 600 KB, and field guidance puts the safe ceiling nearer 300 KB
- * because WhatsApp drops an oversized image silently rather than reporting it. So WhatsApp
- * previews are likely image-less on EVERY page including the home page, and pointing the content
- * pages at the same asset does not change that either way - it fixes the platforms that do
- * accept it (Facebook, LinkedIn, X, Slack, Discord, iMessage, Teams) and leaves WhatsApp where
- * it already was.
+ * The first version of this file recorded the card as a known defect: wd-brand-16x9.png was
+ * 801,077 bytes - 782 KB - against the 600 KB ceiling Meta's own WhatsApp link-preview
+ * documentation states, with field guidance putting the working limit nearer 300 KB because
+ * WhatsApp discards an oversized image silently rather than reporting it. WhatsApp previews were
+ * therefore image-less on EVERY page including the home page, which already pointed here.
  *
- * The fix is a re-export of the artwork at 1200x630 under 300 KB at the SAME canonical S3 key,
- * which repairs every surface at once and needs no code change. It is deliberately not done by
- * adding a second, lighter copy under public/: that would give the site two social cards and a
- * question about which is current, which is the class of problem BrandAssets.test.ts exists to
- * prevent. See the PR that introduced this file.
+ * THAT IS NOW FIXED, and the replacement is committed at docs/brand/wd-brand-16x9.png: the same
+ * artwork downscaled to 1200x675 with a 128-colour palette, 279,367 bytes, no crop, still fully
+ * opaque. It goes to the SAME canonical S3 key, so no URL changes anywhere and every existing
+ * share improves as the scraper caches expire.
  *
- * 1200x630 (1.91:1) is the size every platform documents. This asset is 1440x810 (16:9, 1.78:1),
- * which is inside WhatsApp's stated 4:1 ceiling and renders as a full-width card everywhere, so
- * the dimensions are not the problem - the bytes are.
+ * WHAT WAS REJECTED. 1200x630 is the 1.91:1 ratio the platforms document as ideal, and reaching it
+ * from 16:9 needs a 27px crop off each edge - which would also have made the 16x9 in the filename
+ * describe the wrong shape. 16:9 is well inside WhatsApp's 4:1 ceiling and is what this asset has
+ * always been, so the only thing worth changing was the weight. A second, lighter copy under
+ * public/ was rejected too: two social cards on one site is a question about which is current,
+ * which is the class of problem BrandAssets.test.ts exists to prevent.
+ *
+ * ORDERING: the upload should land before this code does, because SOCIAL_CARD_W/H below now
+ * declare 1200x675. See docs/brand/README.md, which also explains why getting it the wrong way
+ * round is cosmetic rather than an outage.
  */
 
 /** Canonical media folder. Must stay byte-identical to MEDIA_BASE in pages/_app.tsx. */
 export const MEDIA_BASE = 'https://wecare.digital/get/o/stream/media/m';
 
-/** 1440x810, RGB, no alpha channel. The link-preview card for every public surface. */
+/** 1200x675, 16:9, palette PNG with no alpha. The link-preview card for every public surface. */
 export const SOCIAL_CARD_URL = `${MEDIA_BASE}/wd-brand-16x9.png`;
 
 /**
  * Declared at the asset's REAL pixel size. These were once 512x512 against a 1080x1080 file;
  * crawlers use the hint to reserve layout before fetching, so a wrong value is worse than none.
+ *
+ * 1200x675, DOWN FROM 1440x810, and the reason is bytes rather than shape. The old export was
+ * 801,077 bytes against the 600 KB ceiling Meta documents for a WhatsApp preview, so the card was
+ * being dropped on the one platform this company is built around. A straight downscale to 1200
+ * wide plus a 128-colour palette brings the same artwork to 279,367 bytes with no crop and no
+ * visible loss; recompressing at 1440x810 could not get under 300 KB at acceptable quality, so the
+ * resolution reduction is what makes it fit. The aspect ratio is unchanged, which is why the 16x9
+ * in the filename is still true.
+ *
+ * ShareMeta.test.tsx reads the committed replacement in docs/brand/ and asserts its real IHDR
+ * dimensions equal these two strings, so the pair cannot drift from the asset again.
+ * See docs/brand/README.md for the upload, and for why it should land before this does.
  */
-export const SOCIAL_CARD_W = '1440';
-export const SOCIAL_CARD_H = '810';
+export const SOCIAL_CARD_W = '1200';
+export const SOCIAL_CARD_H = '675';
 export const SOCIAL_CARD_TYPE = 'image/png';
 
 /**
