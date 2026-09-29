@@ -52,18 +52,38 @@ jobs:
         - language: python
           build-mode: none
         #
-        # Mobile scaffold languages are deliberately NOT analysed:
+        # Mobile scaffold languages are deliberately NOT analysed. Read this before
+        # re-adding one, because dropping a language does NOT clean up after it.
         #
-        #   * Swift is only Capacitor/iOS scaffolding. CodeQL cannot use
-        #     build-mode 'none' for Swift, and the prior autobuild failed before
-        #     producing results because the generated Xcode project needs the
-        #     Capacitor/npm/CocoaPods preparation chain.
+        #   * Swift is only Capacitor/iOS scaffolding. CodeQL rejects build-mode
+        #     'none' for Swift, so it ran under autobuild, and autobuild cannot
+        #     build the generated Xcode project without the npm -> `npx cap sync
+        #     ios` -> CocoaPods `pod install` preparation chain.
         #   * Java is only generated Android/Capacitor scaffolding (MainActivity
-        #     plus example tests). There is no application business logic there.
+        #     plus two example tests). There is no application business logic there.
         #
-        # The maintained application logic is covered by javascript-typescript,
-        # python, and actions below. If real native iOS/Android logic is added,
-        # re-add the relevant language with an explicit reproducible build.
+        # Measured 2026-09-29: the whole native surface is 138 lines of generated
+        # Capacitor boilerplate (AppDelegate.swift, Package.swift, a 1-line SPM
+        # placeholder, MainActivity.java, ExampleUnitTest, ExampleInstrumentedTest).
+        # Every java-kotlin analysis ever produced returned results_count 0.
+        #
+        # WHY A DROPPED LANGUAGE LEAVES A SCAR. Both Swift analyses (2026-08-22 and
+        # 2026-08-23, environment {"build-mode":"autobuild","language":"swift"})
+        # recorded error 'unsuccessful execution, exit code: 0' with results_count 0.
+        # Removing swift from this matrix stopped new runs but did NOT retire the
+        # configuration: the Code scanning tool status page keeps showing a
+        # configuration's LAST analysis forever, so those two failures stayed on it
+        # as three permanent errors ("CodeQL exited with errors", "Detected build
+        # command failed", "No code scanning results") that no green run could ever
+        # supersede. They were only cleared by deleting the analyses through
+        # DELETE /code-scanning/analyses/{id}; snapshot of both records is at
+        # docs/execution/snapshots/codeql-swift-analyses-before-delete-20260929.json.
+        #
+        # So: if real native iOS/Android logic is added, re-add the language with an
+        # explicit build-mode 'manual' and a reproducible build in the step below —
+        # never with autobuild, and never "temporarily". A language that lands here
+        # and then fails leaves an error on the security tool status page that
+        # outlives the matrix entry. tests/test_codeql_matrix.py enforces this.
         #
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
