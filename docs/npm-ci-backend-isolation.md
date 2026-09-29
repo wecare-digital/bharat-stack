@@ -93,9 +93,18 @@ where `ampx` looks for `amplify/backend.ts`.
 Confirmed working: `npm run amplify -- --help` prints the sandbox help and exits 0, and
 `@aws-amplify/backend`, `aws-cdk-lib` and `constructs` all resolve from `amplify/backend.ts`.
 
-**Not confirmed:** an actual `ampx sandbox` or `ampx pipeline-deploy` run. Both need AWS
-credentials, which the environment this was done in does not have. Module resolution and CLI
-startup are verified; a real deploy is the one step left to exercise.
+**Not confirmed:** an actual `ampx sandbox` or `ampx pipeline-deploy` run. Module resolution and
+CLI startup are verified; a real deploy is the one step left to exercise.
+
+**And the reason it is still unexercised is no longer "no credentials".** On this machine
+`AWS_PROFILE=wecare-prod` is a long-term key and `aws amplify get-app` answers, so the CLI could
+run. It has not been run deliberately, and the reason is written at the top of `amplify.yml`: this
+account's Gen2 backend resources and the Python Lambdas were created by boto3 scripts and are not
+owned by `ampx`, so `pipeline-deploy` would attempt to create resources that already exist.
+`ampx sandbox` is safer in that it builds its own isolated stack, but it is still a new
+CloudFormation stack with real resources in the production account. Neither is a step to take as a
+side effect of a dependency change. Treat "needs credentials" as retired: what it needs is a
+decision about stack ownership.
 
 ## Two consequences to know about
 
@@ -108,13 +117,54 @@ that the web app's install, which runs on every push and every deploy, is now re
 manifest and they are not in it. Upgrading them is now a deliberate `npm install --prefix amplify`
 plus a review of `amplify/package-lock.json`.
 
-## Still open
+## Done: `amplify.yml` now deploys with `npm ci` (2026-09-29)
 
-`amplify.yml` deploys with `npm install --legacy-peer-deps`. Switching it to `npm ci` would make
-deploys reproducible and is no longer blocked. Left alone here because it is the production deploy
-path and deserves its own change with its own rollback.
+The production deploy path was the last consumer still on `npm install`, and it is the one that
+mattered most: `npm install` could resolve a newer satisfying version at deploy time, so the tree
+that shipped was free to differ from the tree CI had just proved, with nothing recording the
+difference. `amplify.yml` preBuild is now `npm ci --no-audit --no-fund` — byte-identical to the
+command `build-test.yml` gates on every push, which is the actual reproducibility claim.
 
-The flag is not an obstacle to that, though it looked like one at first. On **npm 11.6.2**, the
+Measured on this machine before the edit (Node 24.21.0, **npm 11.19.0** — note that is not the
+11.6.2 `packageManager` pins):
+
+| Check | Result |
+|---|---|
+| `npm ci --dry-run` with and without `--legacy-peer-deps` | exit 0 both |
+| `npm ci --no-audit --no-fund`, twice | exit 0; `package-lock.json` **unchanged** |
+| `npm run build` on the clean tree | exit 0; 935 sitemap URLs, 1089 blog posts, `out/` complete |
+| `scripts/verify_public_bundle_secrets.py` on that export | PASS, 2457 files scanned |
+| `amplify.yml` parsed back | all 7 `customHeaders` and both build-phase gates intact |
+
+`--legacy-peer-deps` was dropped rather than carried over, matching `build-test.yml`: the committed
+lockfile is generated with plain `npm install`, so the flag has nothing to resolve.
+
+Rollback is `git revert` of that commit. Nothing in AWS changed — but see the shadow spec below,
+because the rollback target is not the only build spec in play.
+
+### The console build spec is stale and shadowed, not gone
+
+`amplify.yml` in the repository root **overrides** the spec saved on the app
+([AWS build settings](https://docs.aws.amazon.com/amplify/latest/userguide/build-settings.html)),
+so the repo file is what runs. App `d22dm4b0jn71jw` nonetheless still carries an inline
+`buildSpec` (app-level `environmentVariables` is empty, so nothing was withheld), and it is a much
+older revision — committed verbatim at
+`docs/execution/snapshots/amplify-d22dm4b0jn71jw-console-buildspec-20260929.yml` — that:
+
+- runs `rm -f package-lock.json` and then `npm install --legacy-peer-deps` — the exact opposite of
+  a reproducible install,
+- has **no** `python3 scripts/verify_public_bundle_secrets.py` build gate, and
+- has only three `customHeaders`, so no `Permissions-Policy` (the softphone microphone grant) and
+  neither CSP header.
+
+It is inert while `amplify.yml` exists. It becomes live the moment that file is renamed, moved
+under a monorepo `appRoot`, or dropped — and the failure would be silent, publishing an export
+that was never checked for a server-side credential. Deleting it is a separate decision and was
+not taken here.
+
+### Version sensitivity, kept because it will bite again
+
+On **npm 11.6.2**, the
 version `packageManager` pins, both `npm ci` and `npm ci --legacy-peer-deps` exit 0 against the
 committed lockfile and leave it unchanged. On **npm 11.4.2** they did not:
 `npm ci --legacy-peer-deps` failed on an unrelated optional dependency (`@emnapi/runtime`) against

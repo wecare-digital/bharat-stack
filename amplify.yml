@@ -18,8 +18,29 @@ frontend:
         # Amplify image ever ships without python3, this fails here with an obvious
         # cause instead of turning the credential gate into a silent skip.
         - python3 --version
-        - rm -rf node_modules/.cache
-        - npm install --no-audit --no-fund --legacy-peer-deps
+        # REPRODUCIBLE INSTALL, and deliberately the SAME COMMAND build-test.yml gates on.
+        # `npm ci` installs exactly the committed lockfile and never writes to it, so the
+        # tree that deploys is the tree CI proved. `npm install` was free to resolve a newer
+        # satisfying version at deploy time, which meant the production build could differ
+        # from the one that passed CI minutes earlier, with nothing recording the difference.
+        #
+        # This was blocked until the four @opentelemetry backend packages moved to
+        # amplify/package.json: their bundled subtree is internally inconsistent and
+        # `npm ci` correctly refuses it. The root lockfile no longer contains them.
+        # See docs/npm-ci-backend-isolation.md.
+        #
+        # NO --legacy-peer-deps, matching build-test.yml: the committed lockfile is generated
+        # with plain `npm install`, so the flag has nothing to resolve. Both spellings were
+        # re-measured against this lockfile on npm 11.19.0 and both exit 0 leaving the lock
+        # unchanged. The flag was NOT harmless on npm 11.4.2 though (it failed on
+        # @emnapi/runtime), so peer-mode consistency between generating and consuming a lock
+        # is version-dependent - if `npm ci` ever fails here with no visible drift, compare
+        # the image's npm against `packageManager` in package.json before anything else.
+        # `nvm install 24` above takes whatever npm ships with Node 24, which is not pinned.
+        #
+        # `rm -rf node_modules/.cache` went with the switch: `npm ci` removes node_modules
+        # wholesale before installing, so the line could not have any effect.
+        - npm ci --no-audit --no-fund
     build:
       commands:
         - npm run build
@@ -43,6 +64,12 @@ frontend:
       - "**/*"
   cache:
     paths:
+      # node_modules is now NEAR-WORTHLESS here and is kept only to hold this change to
+      # one thing: `npm ci` removes node_modules before installing, so the restored copy
+      # is deleted unread while Amplify still pays to download and re-upload it. The
+      # canonical npm pattern is to cache the tarball cache instead
+      # (`npm ci --cache .npm --prefer-offline` + `.npm/**/*`). That is a build-time
+      # change, not a correctness one, so it belongs in its own commit.
       - node_modules/**/*
       - .next/cache/**/*
 customHeaders:

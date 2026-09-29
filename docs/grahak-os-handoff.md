@@ -239,10 +239,16 @@ misled every reader so far. Re-verify with the harness, not with this table.
    `tests/test_npm_ci_gate.py` (24 cases) pins the boundary, including real drift arriving
    alongside the known finding and a different `@opentelemetry/core` version counting as
    new drift.
-4. **`amplify.yml` still deploys with `npm install`.** Switching to `npm ci` would make
-   deploys reproducible, but it is blocked outright by the item above — and `npm install`
-   is currently the only command that works, so the status quo is load-bearing rather
-   than lazy.
+4. ~~**`amplify.yml` still deploys with `npm install`.**~~ **Closed 2026-09-29: it now
+   deploys with `npm ci --no-audit --no-fund`**, the same command `build-test.yml` gates on.
+   The reasoning recorded here — "blocked outright by the item above", "`npm install` is
+   currently the only command that works" — stopped being true when the four
+   `@opentelemetry` backend packages moved into `amplify/package.json`. That removed the
+   inconsistent bundled subtree from the ROOT lockfile, which is the only one this build
+   installs, so `npm ci` resolves it cleanly. The upstream defect is unfixed and `npm ci`
+   inside `amplify/` still fails on it; that root installs with `npm install` and is not on
+   the per-push path. Verification and the rollback are in
+   `docs/npm-ci-backend-isolation.md`.
 5. **Real-device pass.** Everything has been verified in headless Chromium only. iOS
    Safari and the Android WebView shells have not been checked.
 5b. **`KIRO_API_KEY` secret, to switch on automated PR review.**
