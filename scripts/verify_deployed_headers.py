@@ -154,6 +154,12 @@ OTHER_REQUIRED = {
 # make every tightening pass edit two files to say the same thing.
 REPORT_ONLY_HEADER = "content-security-policy-report-only"
 
+# Populated by declared_headers(): folded-scalar lines indented deeper than the first
+# line of their value. YAML keeps those as literal newlines instead of folding them, an
+# HTTP header value cannot contain a newline, and Amplify responds by dropping the whole
+# header with no build error. Entries are (key, line, indent, expected_indent).
+FOLD_DEFECTS: list = []
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -254,6 +260,7 @@ def declared_headers() -> dict:
 
     Verified to agree with PyYAML's parse of this file on 2026-09-29.
     """
+    FOLD_DEFECTS.clear()
     path = ROOT / "customHttp.yml"
     if not path.exists():
         return {}
@@ -261,6 +268,7 @@ def declared_headers() -> dict:
     headers: dict = {}
     key = None
     folded: list | None = None
+    fold_indent: int | None = None
 
     for raw in path.read_text().splitlines():
         line = raw.strip()
@@ -269,10 +277,18 @@ def declared_headers() -> dict:
         # `- key:`/`value:` at a shallower structural position.
         if folded is not None:
             if line and not line.startswith("#") and not re.match(r"-?\s*(key|value|pattern):", line):
+                indent = len(raw) - len(raw.lstrip())
+                if fold_indent is None:
+                    fold_indent = indent
+                elif indent > fold_indent:
+                    # YAML does NOT fold a more-indented line inside `>-`; it keeps a
+                    # literal newline. An HTTP header cannot carry one, so Amplify drops
+                    # the header silently. Recorded as a value the caller can detect.
+                    FOLD_DEFECTS.append((key, raw.strip()[:60], indent, fold_indent))
                 folded.append(line)
                 continue
             headers[key.lower()] = " ".join(folded)
-            key, folded = None, None
+            key, folded, fold_indent = None, None, None
 
         if line.startswith("#") or not line:
             continue
@@ -332,6 +348,17 @@ def main() -> int:
     print(f"  customHttp.yml Permissions-Policy: {configured or '(not found)'}")
     config_failures = (check_permissions(configured) if configured
                        else ["Permissions-Policy not found in customHttp.yml"])
+
+    # Caught before a deploy rather than after one. A more-indented line inside a `>-`
+    # folded scalar becomes a literal newline, and Amplify silently drops any header
+    # whose value contains one - which is exactly how the report-only CSP went missing
+    # while the other six headers shipped fine.
+    for defect_key, line, indent, expected in FOLD_DEFECTS:
+        print(f"    FAIL  {defect_key}: line indented {indent}, expected {expected}")
+        print(f"            {line}")
+        print("            A more-indented line in a `>-` scalar becomes a literal")
+        print("            newline. Amplify drops headers whose value contains one.")
+        config_failures.append(f"{defect_key} folded-scalar indentation")
     for failure in config_failures:
         print(f"    FAIL  {failure}")
     if not config_failures:
