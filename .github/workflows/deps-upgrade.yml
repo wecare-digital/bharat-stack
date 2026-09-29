@@ -120,14 +120,24 @@ jobs:
       # regen moved ~19,700 lines (docs/grahak-os-handoff.md, item 2). That changes this
       # job's stated purpose, so it is left as an owner decision rather than done here.
       #
-      # npm_ci_gate.py separates the two failure classes in that one output: the
-      # four known upstream edges are tolerated by exact string, and ANY other sync
-      # finding still fails the job. Drift detection is kept for the class we cause;
-      # the class we cannot fix stops blocking. When upstream is fixed the gate
-      # exits 0 and prints a ::notice:: telling us to drop the allowlist, so the
-      # workaround cannot outlive its cause. tests/test_npm_ci_gate.py pins that
-      # line, including the mixed case where real drift arrives alongside the known
-      # finding.
+      # npm_ci_gate.py's ALLOWLIST IS EMPTY NOW, so this is a strict gate: every
+      # Missing/Invalid/Extraneous/Conflicting finding fails the job. It used to tolerate
+      # four known-upstream @opentelemetry/core edges by exact string, because
+      # @aws-amplify/data-construct and @aws-amplify/graphql-api-construct bundle an
+      # inconsistent OpenTelemetry set that no change here could resolve. Those packages
+      # are backend-only and now live in amplify/package.json as a separate install root,
+      # so the web app's lockfile no longer contains them and `npm ci` resolves it
+      # cleanly. See docs/npm-ci-backend-isolation.md.
+      #
+      # The upstream defect is NOT fixed - it moved with the packages, and `npm ci` inside
+      # amplify/ still fails on it. That root installs with `npm install` and is not gated
+      # here. The script is kept rather than replaced by a bare `npm ci` because it also
+      # separates drift from a network or engine failure, and because re-adding an
+      # allowlist entry should be a reviewed change rather than an inline flag.
+      #
+      # NOTE ON SCOPE: this job upgrades the ROOT manifest, so it no longer touches the
+      # four backend packages. Upgrading those is a deliberate `npm install --prefix
+      # amplify` plus a review of amplify/package-lock.json.
       #
       # The gate compares the lockfile by hash rather than `git diff` because it has
       # deliberately just been regenerated and is expected to differ from HEAD. What

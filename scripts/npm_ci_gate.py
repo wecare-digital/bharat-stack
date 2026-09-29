@@ -79,9 +79,23 @@ from pathlib import Path
 
 #: Findings that are known-upstream and cannot be fixed from this repo. Whole normalised
 #: findings, not substrings. Remove an entry the moment `npm ci` stops producing it.
-KNOWN_UPSTREAM: tuple[str, ...] = (
-    "Missing: @opentelemetry/core@2.0.0 from lock file",
-)
+#:
+#: EMPTY, AND THAT IS THE GOAL STATE RATHER THAN AN OVERSIGHT. This held
+#: "Missing: @opentelemetry/core@2.0.0 from lock file", the four-fold finding caused by
+#: @aws-amplify/data-construct and @aws-amplify/graphql-api-construct bundling an inconsistent
+#: OpenTelemetry set. `npm ci` at the root no longer produces it, because those packages are no
+#: longer in the root lockfile - they are backend-only and now live in amplify/package.json as a
+#: separate install root. See docs/npm-ci-backend-isolation.md.
+#:
+#: The upstream defect is NOT fixed. It moved with the packages, so `npm ci` inside amplify/ still
+#: fails on it - which is why that root installs with `npm install` and is not gated here. This
+#: gate runs against the web app's lockfile, and for that lockfile the allowlist is dead weight.
+#:
+#: An empty allowlist makes this a strict gate: every Missing/Invalid/Extraneous/Conflicting
+#: finding now fails the job. That is the behaviour to keep. Adding an entry is how a gate stops
+#: being a gate, so an addition needs the same standard of evidence the original had - a captured
+#: `npm ci` output and a note saying why no change to this repo can resolve it.
+KNOWN_UPSTREAM: tuple[str, ...] = ()
 
 #: npm prefixes each error line with "npm error " when it is not a TTY. The kinds here are
 #: the ones npm emits for a package.json/lock mismatch under EUSAGE.
@@ -226,10 +240,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"::error::unexpected lockfile finding: {finding}")
 
     if verdict.allowlist_unused:
+        # Only reachable if someone re-adds an entry: KNOWN_UPSTREAM is empty now. The wording
+        # deliberately does not claim upstream is fixed, because that was the wrong conclusion
+        # last time - `npm ci` started passing because the offending packages left this lockfile,
+        # not because the bundles were corrected. Both causes produce exit 0 and they need
+        # different follow-up, so this says what is observed and leaves the diagnosis open.
         print(
-            "::notice::npm ci now exits 0 - the upstream bundled-dependency defect is fixed. "
-            "Empty KNOWN_UPSTREAM in scripts/npm_ci_gate.py, switch build-test.yml's install "
-            "step to `npm ci`, and drop the workaround note in docs/grahak-os-handoff.md."
+            "::notice::npm ci exits 0 while KNOWN_UPSTREAM still has entries, so the allowlist is "
+            "tolerating nothing. Empty it in scripts/npm_ci_gate.py. Check WHY it passes before "
+            "concluding upstream is fixed - see docs/npm-ci-backend-isolation.md."
         )
 
     if verdict.ok:
