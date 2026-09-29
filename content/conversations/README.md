@@ -22,8 +22,9 @@ sources (PDF / URL)
   ├─ scripts/blog_quality_v2.py       the standard, as executable checks
   │     └─ batches/CONV-*.json        only READY_TO_PUBLISH enters the queue
   │
-  └─ existing publish path            scripts/wix_blog_migrate.py (Conversations)
-                                      scripts/gastronomy_batch.py (Gastronomy)
+  └─ publish path                     scripts/conversations_batch.py (Conversations)
+        │                             scripts/gastronomy_batch.py   (Gastronomy)
+        └─ both delegate every Wix write to scripts/wix_blog_migrate.py
 ```
 
 ## What is committed, and what is not
@@ -92,12 +93,32 @@ only `READY_TO_PUBLISH` enters the Wix queue is therefore preserved rather than 
 
 ## Publication is still gated, and still two-phase
 
-Nothing here publishes. The existing paths do that, and both require an explicit,
-separately authorised step:
+Nothing in the ingestion pipeline publishes. The publish paths do that, and each requires an
+explicit, separately authorised step:
 
-- Conversations — `scripts/wix_blog_migrate.py apply --mode publish` (default mode is
-  `validate`, which mutates nothing).
+- Conversations — `scripts/conversations_batch.py publish`, or the `publish` input on
+  `.github/workflows/conversations-publish.yml`. `validate` and `audit` mutate nothing.
 - Gastronomy — the `publish` input on `.github/workflows/gastronomy-content-gate.yml`.
+
+Neither script writes to Wix itself. Both delegate to `scripts/wix_blog_migrate.py`, so
+there is one publisher, one credential path and one `WIX_CREDENTIALS_DISABLED` kill switch.
+
+`conversations_batch.py` adds what publishing continuously needs and a one-shot CLI does
+not: it is idempotent by slug, so a re-run after a partial failure publishes only what is
+missing; it reads every published post back off the live site and checks body, title, slug,
+author, category, tags, SEO, public URL, publication freshness, Ricos validity, duplicates
+and formatting corruption; and it checkpoints `PUBLISHED` then `VERIFIED` into
+`ledger.json` after each chunk, so an interrupted run is resumable.
+
+```bash
+python scripts/conversations_batch.py validate --manifest content/conversations/batches/CONV-001.json
+python scripts/conversations_batch.py publish  --manifest content/conversations/batches/CONV-001.json
+python scripts/conversations_batch.py audit    --manifest content/conversations/batches/CONV-001.json
+```
+
+Manifest size is arbitrary. There is no editorial batch count for Conversations — Gastronomy's
+contiguous 25 is its own rule — and Wix is fed in chunks of 20 because that is the API's bulk
+limit, which is an internal detail rather than an editorial unit.
 
 And because the public site is a static export (`output: 'export'` in `next.config.js`),
 a published post is not visible until an Amplify build re-reads Wix. See
