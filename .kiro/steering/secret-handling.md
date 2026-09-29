@@ -116,7 +116,7 @@ text only when your own code constructed that message from known-safe parts.
 `.kiro/hooks/block-inline-secrets.json` runs `scripts/block_inline_secrets.py`
 as a **PreToolUse** hook on `execute_bash` and `control_bash_process`. It exits 2
 and blocks the call when it sees an issuer-shaped token (`rzp_live_`, `sk-`,
-`AIza`, `ghp_`, `xoxb-`, `AKIA`/`ASIA`, `sk_live_`, PEM private-key headers) or a
+`AIza`, `ghp_`, `xoxb-`, `AKIA`/`ASIA`, `sk_live_`, `ksk_`, PEM private-key headers) or a
 `*SECRET*=`/`*TOKEN*=`/`*API_KEY*=` assignment of a quoted 20+ character literal.
 
 It deliberately allows by-reference forms: `SecretId='wecare/...'`,
@@ -128,7 +128,7 @@ switched-off guard protects nothing. It will not catch an arbitrary
 high-entropy string with no issuer prefix - it is a backstop, not a substitute
 for the rule above.
 
-Verify it with `python scripts/verify_secret_hook.py` (18 cases; test values are
+Verify it with `python scripts/verify_secret_hook.py` (25 cases; test values are
 assembled at runtime so the file contains no literal secret shape).
 
 ## If a credential does leak

@@ -44,6 +44,7 @@ from typing import Dict, Any, Optional
 from lambda_utils.logging import get_logger
 from lambda_utils.response import cors_response, cors_headers, options_response, extract_origin
 from lambda_utils.privacy import mask_phone, mask_contact_id, redact_pii  # contactId is `wa` + the customer's digits
+from lambda_utils.masking import meta_error_summary  # Meta writes recipients into error prose
 from lambda_utils.message_store import put_call_breadcrumb
 from lambda_utils.middleware import require_auth  # unified timeline breadcrumb
 from lambda_utils import wa_internal_event  # typed ingress -> worker contract
@@ -1241,8 +1242,12 @@ def _send_post_call_reaction(phone_number_id: str, from_number: str, call_id: st
                 logger.warning(f"Post-call reaction skipped (no 24h window): "
                                f"to={mask_phone(to_number or '')}, via={aws_phone_id}, call={call_id}")
             else:
+                # `result` on this branch is the RAW Meta response (`_send_via_aws` returns
+                # it unchanged when Meta reports an error), and Meta writes the recipient
+                # into the prose of several messaging errors. Dumping it whole masked the
+                # number on the left of this line and reprinted it on the right.
                 logger.error(f"Post-call reaction FAILED for {mask_phone(to_number or '')} via {aws_phone_id}: "
-                             f"{json.dumps(result)}")
+                             f"{meta_error_summary(result)}")
         else:
             logger.info(f"Post-call reaction sent to {mask_phone(to_number or '')}: {text} — "
                         f"messageId={result.get('messageId')}")
@@ -2094,7 +2099,11 @@ def _send_via_aws(aws_phone_id: str, to_number: str, message_payload: Dict) -> D
             message_payload, phone_number_id=meta_phone_id
         )
         if result.get('error'):
-            logger.error(f"Direct API send failed for {meta_phone_id}: {result}")
+            # This is where the raw Meta error enters the rest of the function: it is
+            # returned unchanged, so every caller that logs the return value logs Meta's
+            # prose. The return is deliberately left as-is -- callers branch on its
+            # fields -- but nothing here or downstream may print it whole.
+            logger.error(f"Direct API send failed for {meta_phone_id}: {meta_error_summary(result)}")
             return result
         msg_id = ''
         messages = result.get('messages', [])
@@ -2122,9 +2131,14 @@ def _send_audio_to_caller(phone_number_id: str, to_number: str, audio_url: str, 
         })
 
         if result.get('error'):
-            logger.warning(f"IVR audio URL failed ({audio_url}): {json.dumps(result)}")
+            # Raw Meta response on this branch, same as the post-call reaction site above.
+            logger.warning(f"IVR audio URL failed ({audio_url}): {meta_error_summary(result)}")
         else:
-            logger.info(f"IVR audio sent to {mask_phone(to_number or '')}: {json.dumps(result)}")
+            # Success shape is only `{'success': True, 'messageId': ...}`, so the whole
+            # dict was in fact safe here -- but naming the one field it contains says that,
+            # where `json.dumps(result)` relied on the reader knowing the success path.
+            logger.info(f"IVR audio sent to {mask_phone(to_number or '')}: "
+                        f"messageId={result.get('messageId')}")
     except Exception as e:
         logger.error(f"Failed to send auto-pickup audio: {e}", exc_info=True)
 

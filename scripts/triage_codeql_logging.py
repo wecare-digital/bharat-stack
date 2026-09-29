@@ -104,7 +104,20 @@ LOG_LEVELS = {"info", "warning", "error", "debug", "critical", "exception", "log
 SANITISERS = {
     "mask_phone", "mask_email", "mask_contact_id", "mask_flow_token",
     "redact_pii", "redact_string", "mask", "_mask", "_mask_tail", "_mask_phone",
+    # `meta_error_summary` keeps a provider error's codes and drops its free text, so
+    # nothing the provider wrote can travel through it. NOT `mask_text`, which was added
+    # here and removed again after reading it: it substitutes `Bearer <token>` only, and
+    # masks no phone number at all, so it would have proven a Meta error body safe.
+    "meta_error_summary",
     "last4", "bool", "len", "isinstance", "sorted", "list", "int", "float", "round",
+    # `str` predicates. Each returns a bool by definition, so the receiver cannot travel
+    # through no matter what it holds -- `(formatted_phone or '').isdigit()` discloses
+    # exactly one bit. Listed explicitly rather than by a name pattern, because the
+    # neighbouring `str` methods that look similar (`strip`, `format`, `join`) return the
+    # STRING and would launder a phone number straight into the log.
+    "isdigit", "isnumeric", "isdecimal", "isalpha", "isalnum", "isspace",
+    "isupper", "islower", "istitle", "isidentifier", "isascii",
+    "startswith", "endswith",
 }
 
 #: Keys whose value is an identifier minted by us or by a provider, with no subscriber
@@ -125,7 +138,15 @@ OPAQUE_KEYS = re.compile(
     r"phone_?hash|contact_?hash|"
     # a secret NAME or ARN. Steering: "Reports may contain secret names and ARNs."
     r"secret_?id|secret_?name|secret|table|table_?name|queue|queue_?url|function|"
-    r"function_?name|bucket|s3_?key|s3_?key_?prefix|log_?group)$",
+    r"function_?name|bucket|s3_?key|s3_?key_?prefix|log_?group|"
+    # The same three, reached through a PREFIXED constant name. `RAZORPAY_WEBHOOK_SECRET_ID`
+    # and `KMS_KEY_ARN` are the by-reference form the steering prescribes -- an identifier
+    # that names where a credential lives, never the credential. The anchored alternatives
+    # above cannot match them because of the prefix, which left the one pattern the rules
+    # explicitly permit reported as unreviewed. Deliberately a SUFFIX rule and deliberately
+    # not extended to a bare `_SECRET` suffix, which would match a variable holding a value.
+    r"[a-z0-9_]*_(secret_id|secret_name|secret_arn|key_arn|role_arn|topic_arn|"
+    r"queue_url|table_name|bucket_name|log_group|function_name))$",
     re.I,
 )
 
@@ -249,6 +270,29 @@ def classify_by_key(key: str) -> str:
     return "UNPROVEN"
 
 
+def _expr_key(value: ast.expr) -> str | None:
+    """The one identifier an expression is about, or None when it is not about exactly one.
+
+    `{caller_bsuid or 'N/A'}` is about `caller_bsuid`; `{a or b}` is about neither, because
+    proving one says nothing about the other. Requiring *exactly* one name is what keeps
+    this from being a grep that happens to find a safe-looking word in a larger expression.
+    """
+    # A dict lookup is named by the key it reads, not by the object it reads from.
+    # `exc.response['Error']['Code']` is about `Code`; taking the object's name instead
+    # gives `response`, which attributes nothing. This is the same reasoning the dict path
+    # already applies to `payload.get('phoneNumberId', '')`.
+    if isinstance(value, ast.Subscript) and isinstance(value.slice, ast.Constant) \
+            and isinstance(value.slice.value, str):
+        return value.slice.value
+    names = {n.id for n in ast.walk(value) if isinstance(n, ast.Name)}
+    attrs = {n.attr for n in ast.walk(value) if isinstance(n, ast.Attribute)}
+    if len(names) == 1 and not attrs:
+        return next(iter(names))
+    if not names and len(attrs) == 1:
+        return next(iter(attrs))
+    return None
+
+
 def classify(key: str, value: ast.expr) -> str:
     if isinstance(value, ast.Constant):
         return "CONST"
@@ -283,6 +327,17 @@ def classify(key: str, value: ast.expr) -> str:
     # field list in rcs-send. The elements are names, not values.
     if isinstance(value, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
         return "NAME_COMPREHENSION" if classify(key, value.elt) != "UNPROVEN" else "UNPROVEN"
+    # An f-string is safe exactly when every interpolation in it is. Its literal segments
+    # are source text by construction. This is what closes the module constants that are
+    # themselves f-strings, e.g.
+    #   SECRET_ARN = f"arn:aws:secretsmanager:{REGION}:{ACCOUNT}:secret:wecare/plivo/api-??????"
+    # which is an ARN template built from two other constants and holds no runtime value.
+    if isinstance(value, ast.JoinedStr):
+        parts = [v for v in value.values if isinstance(v, ast.FormattedValue)]
+        if not parts:
+            return "CONST"
+        verdicts = {classify(_expr_key(p.value) or key, p.value) for p in parts}
+        return "FSTRING" if "UNPROVEN" not in verdicts else "UNPROVEN"
     if isinstance(value, ast.Name):
         return classify_by_key(key)
     if isinstance(value, (ast.Compare, ast.UnaryOp)):
@@ -291,6 +346,242 @@ def classify(key: str, value: ast.expr) -> str:
         parts = {classify(key, v) for v in value.elts}
         return "SEQ" if all(p != "UNPROVEN" for p in parts) else "UNPROVEN"
     return classify_by_key(key)
+
+
+# ---------------------------------------------------------------------------------------
+# Name resolution.
+#
+# 28 of the open alerts classify as UNPROVEN on a single element that is a bare name --
+# `sid`, `p`, `verb`, `nblobs`, `RAZORPAY_SECRET_NAME`. `classify_by_key` judges by NAME
+# only, and none of those names carries a hint, so it correctly gives up. Resolving the
+# name to what it is actually bound to is what turns "I cannot attribute this" into
+# evidence, and it is the same discipline as the dict walk: read the code rather than
+# pattern-match the identifier.
+#
+# EVERY RULE HERE FAILS CLOSED. A binding form that is not read returns UNPROVEN, and a
+# name with several bindings must have all of them classify safe. The specific traps:
+#
+#   * A function PARAMETER is never resolvable -- its value comes from a caller this pass
+#     cannot see. Treating a parameter as its default would be the classic wrong answer.
+#   * `except ... as e` binds an exception OBJECT, whose str() is provider text that can
+#     contain anything, including a recipient number. `.kiro/steering/secret-handling.md`
+#     requires `type(exc).__name__` unless our own code built the message, so this must
+#     stay UNPROVEN and be remediated rather than dismissed.
+#   * A module constant counts only when the module binds it EXACTLY ONCE. A name assigned
+#     twice at module scope can hold either value and neither binding proves the other.
+#   * Recursion is bounded. `x = x + 1` and two names assigned from each other both
+#     terminate on the depth limit rather than on the stack, which is the failure the
+#     first version of `classify` had.
+# ---------------------------------------------------------------------------------------
+
+#: A name bound to an exception, or shaped like one. Checked BEFORE every other rule,
+#: including the reviewed-key allowlist, because `REVIEWED_KEYS` accepts `error` and
+#: `detail` on the strength of "a message we construct ourselves from known-safe parts" --
+#: true of a dict entry built in place, not of a bare `{e}` in an f-string.
+EXCEPTION_NAMES = frozenset({
+    "e", "ex", "exc", "err", "error", "exception", "the_error", "last_error", "_e",
+})
+
+#: Attributes and keys that carry an exception's TEXT. Reaching one of these is the leak;
+#: reaching any other member of the same object is not.
+EXCEPTION_TEXT_MEMBERS = frozenset({
+    "args", "message", "msg", "strerror", "reason", "detail", "details", "text",
+    "body", "response_body", "Message",
+})
+
+#: Calls that render an exception as its message.
+EXCEPTION_RENDERERS = frozenset({"str", "repr", "format", "unicode"})
+
+
+def _is_exception_name(node: ast.expr) -> bool:
+    return isinstance(node, ast.Name) and node.id in EXCEPTION_NAMES
+
+
+def _exception_leak(value: ast.expr) -> bool:
+    """True when the expression yields an exception's TEXT rather than something narrower.
+
+    The distinction is the whole point and a blanket "mentions `exc`" test gets it wrong in
+    both directions. These must stay UNPROVEN, because provider text can contain anything
+    including a recipient number, and `.kiro/steering/secret-handling.md` requires
+    `type(exc).__name__` unless our own code built the message:
+
+        {e}   {str(e)}   {exc.args}   {e.response['Error']['Message']}
+
+    These are narrowings and are judged on their own merits, not condemned by association:
+
+        {type(exc).__name__}          the class, which is the form the steering asks for
+        {exc.response['Error']['Code']}   an AWS error code from a closed set
+        {e.status_code}               an HTTP status
+    """
+    if _is_exception_name(value):
+        return True
+    if isinstance(value, ast.Call):
+        name = getattr(value.func, "id", None)
+        if name in EXCEPTION_RENDERERS and any(_is_exception_name(a) for a in value.args):
+            return True
+    if isinstance(value, ast.Attribute):
+        if _is_exception_name(value.value) and value.attr in EXCEPTION_TEXT_MEMBERS:
+            return True
+    if isinstance(value, ast.Subscript):
+        if isinstance(value.slice, ast.Constant) \
+                and str(value.slice.value) in EXCEPTION_TEXT_MEMBERS \
+                and any(_is_exception_name(n) for n in ast.walk(value)):
+            return True
+    # A container built around the exception itself, e.g. `x or e`, `f"{e}"`.
+    if isinstance(value, (ast.BoolOp, ast.IfExp, ast.BinOp, ast.JoinedStr,
+                          ast.FormattedValue)):
+        return any(_exception_leak(child) for child in ast.iter_child_nodes(value))
+    return False
+
+#: Depth limit for following one name to another. Three is enough for every shape in this
+#: tree (`a = b`, `b = literal`) and short enough that a cycle cannot cost anything.
+_RESOLVE_DEPTH = 3
+
+
+class Resolver:
+    """Per-file binding lookup. Constructed once per alert, thrown away after."""
+
+    def __init__(self, tree: ast.Module) -> None:
+        self.tree = tree
+        self.parents = _parents(tree)
+        self.module_constants = self._single_module_bindings(tree)
+        self._functions = [n for n in ast.walk(tree)
+                           if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+
+    @staticmethod
+    def _single_module_bindings(tree: ast.Module) -> dict[str, ast.expr]:
+        counts: dict[str, int] = {}
+        values: dict[str, ast.expr] = {}
+        for stmt in tree.body:                      # module scope only, not nested
+            targets: list[ast.expr] = []
+            if isinstance(stmt, ast.Assign):
+                targets = list(stmt.targets)
+            elif isinstance(stmt, ast.AnnAssign):
+                targets = [stmt.target]
+            else:
+                continue
+            for target in targets:
+                if not isinstance(target, ast.Name):
+                    continue                        # tuple unpack: not read
+                counts[target.id] = counts.get(target.id, 0) + 1
+                if stmt.value is not None:
+                    values[target.id] = stmt.value
+        return {n: v for n, v in values.items() if counts.get(n) == 1}
+
+    def enclosing_function(self, node: ast.AST):
+        current = self.parents.get(node)
+        while current is not None:
+            if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                return current
+            current = self.parents.get(current)
+        return None
+
+    @staticmethod
+    def _is_parameter(func, name: str) -> bool:
+        args = func.args
+        every = (list(args.posonlyargs) + list(args.args) + list(args.kwonlyargs)
+                 + ([args.vararg] if args.vararg else [])
+                 + ([args.kwarg] if args.kwarg else []))
+        return any(a.arg == name for a in every)
+
+    def local_bindings(self, func, name: str) -> list[ast.expr] | None:
+        """Expressions bound to `name` in `func`, or None when any binding is unreadable.
+
+        None means "cannot be attributed", never "nothing found" -- the caller must treat
+        it as UNPROVEN.
+        """
+        if func is None:
+            return None
+        if self._is_parameter(func, name):
+            return None
+        found: list[ast.expr] = []
+        for node in ast.walk(func):
+            # An exception name is disqualifying on its own, wherever it appears.
+            if isinstance(node, ast.ExceptHandler) and node.name == name:
+                return None
+            if isinstance(node, (ast.Global, ast.Nonlocal)) and name in node.names:
+                return None
+            if isinstance(node, ast.NamedExpr) and isinstance(node.target, ast.Name) \
+                    and node.target.id == name:
+                return None
+            if isinstance(node, (ast.For, ast.AsyncFor)) and self._binds(node.target, name):
+                return None
+            if isinstance(node, ast.withitem) and node.optional_vars is not None \
+                    and self._binds(node.optional_vars, name):
+                return None
+            if isinstance(node, ast.comprehension) and self._binds(node.target, name):
+                return None
+            if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name) \
+                    and node.target.id == name:
+                found.append(node.value)            # `n += 1` contributes its RHS
+                continue
+            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) \
+                    and node.target.id == name and node.value is not None:
+                found.append(node.value)
+                continue
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == name:
+                        found.append(node.value)
+                    elif self._binds(target, name):
+                        return None                 # tuple/star unpack: not read
+        return found or None
+
+    @staticmethod
+    def _binds(target: ast.expr, name: str) -> bool:
+        return any(isinstance(n, ast.Name) and n.id == name
+                   for n in ast.walk(target))
+
+
+def resolve(expr: ast.expr, resolver: "Resolver | None", site: ast.AST,
+            depth: int = 0) -> str:
+    """Classify a bare name by what it is bound to. Returns UNPROVEN when it cannot."""
+    if resolver is None or depth >= _RESOLVE_DEPTH:
+        return "UNPROVEN"
+    if not isinstance(expr, ast.Name):
+        return "UNPROVEN"
+    if _is_exception_name(expr):
+        return "UNPROVEN"
+
+    bindings = resolver.local_bindings(resolver.enclosing_function(site), expr.id)
+    origin = "LOCAL"
+    if bindings is None:
+        value = resolver.module_constants.get(expr.id)
+        if value is None:
+            return "UNPROVEN"
+        bindings, origin = [value], "MODULE_CONST"
+
+    verdicts = set()
+    for bound in bindings:
+        verdict = classify_expr(bound, expr.id, resolver, site, depth + 1)
+        if verdict == "UNPROVEN":
+            return "UNPROVEN"
+        verdicts.add(verdict)
+    return f"{origin}:{'/'.join(sorted(verdicts))[:40]}"
+
+
+def classify_expr(value: ast.expr, key: str, resolver: "Resolver | None",
+                  site: ast.AST, depth: int = 0) -> str:
+    """`classify`, plus one fallback: resolve a bare name to its bindings.
+
+    Kept as a wrapper rather than folded into `classify` so the dict path's behaviour is
+    unchanged whenever no resolver is supplied, which is what the existing tests pin.
+    """
+    if _exception_leak(value):
+        return "UNPROVEN"
+    verdict = classify(key, value)
+    if verdict != "UNPROVEN":
+        return verdict
+    # The expression's own identifier beats the key it happens to be filed under. A dict
+    # entry `{'x': phone_number_id}` holds a phone_number_id whichever key names it, and
+    # an f-string has no key at all -- only the expression. Applied as a fallback, so it
+    # can turn UNPROVEN into proven but never the reverse.
+    own = _expr_key(value)
+    if own and own != key:
+        verdict = classify(own, value)
+        if verdict != "UNPROVEN":
+            return verdict
+    return resolve(value, resolver, site, depth)
 
 
 #: Helpers that reduce a credential to something non-reversible before it is printed.
@@ -317,6 +608,7 @@ def print_interpolations(path: pathlib.Path, start: int, end: int) -> list[tuple
     Returns None when no `print` is found at the location.
     """
     tree = ast.parse(path.read_text())
+    resolver = Resolver(tree)
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
@@ -330,10 +622,16 @@ def print_interpolations(path: pathlib.Path, start: int, end: int) -> list[tuple
                 if not isinstance(piece, ast.FormattedValue):
                     continue
                 expr = ast.unparse(piece.value)
-                verdict = "UNPROVEN"
                 inner = piece.value
+                verdict = "UNPROVEN"
                 if isinstance(inner, ast.Constant):
                     verdict = "CONST"
+                elif isinstance(inner, ast.Attribute) and inner.attr == "__name__":
+                    # `type(exc).__name__` -- the exception's CLASS, which is the form
+                    # `.kiro/steering/secret-handling.md` asks for. The dict path already
+                    # classified this as TYPE_NAME; the print path did not, so the one site
+                    # that logs it correctly was reported as unreviewed.
+                    verdict = "TYPE_NAME"
                 elif isinstance(inner, ast.Call):
                     name = getattr(inner.func, "id", getattr(inner.func, "attr", ""))
                     if name in SAFE_PRINT_CALLS:
@@ -347,35 +645,110 @@ def print_interpolations(path: pathlib.Path, start: int, end: int) -> list[tuple
                     verdict = "PREDICATE"
                 elif isinstance(inner, (ast.Name, ast.Attribute, ast.Subscript)):
                     verdict = classify_by_key(expr.split(".")[-1].split("[")[0])
+                if verdict == "UNPROVEN":
+                    # Last resort: read what the name is bound to instead of judging it by
+                    # its spelling. This is what closes `RAZORPAY_SECRET_NAME`, `nblobs`
+                    # and `len(data) / 1048576`, none of which any name rule can attribute.
+                    key = expr.split("(")[0].split(".")[-1].split("[")[0].strip() or expr
+                    verdict = classify_expr(inner, key, resolver, node)
                 out.append((expr[:60], verdict, expr[:70]))
         return out
     return None
 
 
-def dict_at(path: pathlib.Path, start: int, end: int) -> ast.Dict | None:
+def fstring_interpolations(
+    path: pathlib.Path, start: int, end: int
+) -> list[tuple[str, str, str]] | None:
+    """Classify each interpolation of a logged f-string at this location.
+
+    THIS IS THE BLIND SPOT THE HEADER DESCRIBES, now closed. 23 of the 52 open alerts were
+    reported as `neither a logger dict nor a print() at location`, which reads like "not a
+    log line" and means nothing of the sort -- they are ordinary logger calls that happen
+    to use an f-string instead of a dict:
+
+        logger.info(f"INBOUND CALL from {mask_phone(from_number or '')} "
+                    f"(has_caller_name: {bool(caller_name)}, BSUID: {caller_bsuid or 'N/A'})")
+
+    `tests/test_log_phone_masking.py` had the identical gap for the identical reason and it
+    was hiding fourteen real disclosures, so the shape is proven to matter. Each
+    `FormattedValue` is classified on its own and the alert is only provable when every one
+    of them is, exactly as for a dict.
+
+    The key passed to the classifier is the interpolated EXPRESSION's trailing name --
+    `phone_number_id` out of `{phone_number_id}`, `result` out of `{json.dumps(result)}` --
+    because that is the only name available. Where the expression is a bare name carrying
+    no hint, `classify_expr` resolves it to its binding instead of guessing.
+
+    Returns None when no logged f-string is found at the location, so the caller can tell
+    "nothing here" from "here and unprovable".
+    """
     tree = ast.parse(path.read_text())
-    parents = _parents(tree)
+    resolver = Resolver(tree)
+    best: tuple[ast.JoinedStr, list[ast.FormattedValue]] | None = None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.JoinedStr):
+            continue
+        # An f-string spanning several source lines reports its own `lineno` at the first
+        # line, while CodeQL points at the line holding the interpolation. Accept the
+        # whole span in both directions rather than requiring containment.
+        node_end = node.end_lineno or node.lineno
+        if node_end < start or node.lineno > end + 1:
+            continue
+        if not _is_logger(_consuming_call(node, resolver.parents)):
+            continue
+        parts = [p for p in ast.walk(node) if isinstance(p, ast.FormattedValue)]
+        if best is None or node.lineno <= best[0].lineno:
+            best = (node, parts)
+    if best is None:
+        return None
+
+    joined, parts = best
+    out: list[tuple[str, str, str]] = []
+    for part in parts:
+        expr = ast.unparse(part.value)
+        # The one identifier the expression is about, falling back to its trailing name.
+        key = _expr_key(part.value) \
+            or expr.split("(")[0].split(".")[-1].split("[")[0].strip() or expr
+        verdict = classify_expr(part.value, key, resolver, joined)
+        out.append((expr[:60], verdict, expr[:70]))
+    if not out:
+        # An f-string with no interpolations is a plain string: nothing can flow through it.
+        out.append(("<no interpolations>", "CONST", ast.unparse(joined)[:70]))
+    return out
+
+
+def dict_at(path: pathlib.Path, start: int,
+            end: int) -> tuple[ast.Dict, Resolver] | tuple[None, None]:
+    """The logged dict at this location, with the resolver for its file.
+
+    Returns the resolver alongside the node because `elements` needs the whole module to
+    resolve a bare name, and re-parsing per element would be the obvious waste.
+    """
+    tree = ast.parse(path.read_text())
+    resolver = Resolver(tree)
     best = None
     for node in ast.walk(tree):
         if not isinstance(node, ast.Dict):
             continue
         if node.lineno < start or (node.end_lineno or node.lineno) > end + 1:
             continue
-        if not _is_logger(_consuming_call(node, parents)):
+        if not _is_logger(_consuming_call(node, resolver.parents)):
             continue
         if best is None or node.lineno <= best.lineno:
             best = node
-    return best
+    return (best, resolver) if best is not None else (None, None)
 
 
-def elements(node: ast.Dict) -> list[tuple[str, str, str]]:
+def elements(node: ast.Dict, resolver: Resolver | None = None,
+             site: ast.AST | None = None) -> list[tuple[str, str, str]]:
     out: list[tuple[str, str, str]] = []
     for key, value in zip(node.keys, node.values):
         name = key.value if isinstance(key, ast.Constant) else "<dynamic>"
         if isinstance(value, ast.Dict):
-            out.extend(elements(value))
+            out.extend(elements(value, resolver, site))
             continue
-        out.append((str(name), classify(str(name), value), ast.unparse(value)[:70]))
+        verdict = classify_expr(value, str(name), resolver, site or node)
+        out.append((str(name), verdict, ast.unparse(value)[:70]))
     return out
 
 
@@ -393,6 +766,21 @@ def head_sha() -> str:
                           cwd=ROOT, check=True).stdout.strip()
 
 
+def working_tree_dirty(path: str) -> bool:
+    """True when `path` has uncommitted edits, or when that cannot be determined.
+
+    Checked INDEPENDENTLY of any commit comparison, which is the bug this replaces. The
+    previous guard only looked at the working tree when the analysed commit differed from
+    HEAD, so editing a file and re-running at the same commit skipped the check entirely
+    and classified the alert against lines that had already moved. Found the hard way: a
+    remediation in `whatsapp-calling/handler.py` shifted its own alert by four lines and
+    the report described a different statement without saying anything was wrong.
+    """
+    result = subprocess.run(["git", "status", "--porcelain", "--", path],
+                            capture_output=True, text=True, cwd=ROOT)
+    return result.returncode != 0 or bool(result.stdout.strip())
+
+
 def file_changed(old: str, new: str, path: str) -> bool:
     """True when `path` differs between two commits, or when that cannot be determined.
 
@@ -403,10 +791,6 @@ def file_changed(old: str, new: str, path: str) -> bool:
     result = subprocess.run(["git", "diff", "--name-only", old, new, "--", path],
                             capture_output=True, text=True, cwd=ROOT)
     if result.returncode != 0:
-        return True
-    if subprocess.run(["git", "status", "--porcelain", "--", path],
-                      capture_output=True, text=True, cwd=ROOT).stdout.strip():
-        # Uncommitted local edits to the file put it out of step with every commit.
         return True
     return bool(result.stdout.strip())
 
@@ -432,36 +816,50 @@ def review() -> tuple[list[dict], list[dict]]:
         # What actually has to hold is narrower -- the file this alert points INTO must
         # not have changed between the analysed commit and HEAD, or `start_line` lands
         # somewhere else and the classification describes a different dict.
-        if analysed and analysed != current and file_changed(analysed, current, loc["path"]):
+        stale = None
+        if working_tree_dirty(loc["path"]):
+            stale = (f"STALE: {loc['path']} has uncommitted edits, so the line reference "
+                     f"has moved relative to every commit including HEAD")
+        elif analysed and analysed != current and file_changed(analysed, current, loc["path"]):
+            stale = (f"STALE: {loc['path']} changed between {analysed[:8]} and "
+                     f"{current[:8]}, so the line reference may have moved")
+        if stale:
             unproven.append({
                 "alert": alert, "path": loc["path"], "line": loc["start_line"],
-                "why": f"STALE: {loc['path']} changed between {analysed[:8]} and "
-                       f"{current[:8]}, so the line reference may have moved",
-                "elements": [], "bad": [],
+                "why": stale, "elements": [], "bad": [],
             })
             continue
         path = ROOT / loc["path"]
         if not path.exists():
             unproven.append({"alert": alert, "why": "file missing", "elements": []})
             continue
-        node = dict_at(path, loc["start_line"], loc["end_line"])
+        node, resolver = dict_at(path, loc["start_line"], loc["end_line"])
         if node is None:
+            # Order matters only for reporting, not for the verdict: a location is one of
+            # these three shapes, never two. The f-string reader runs last because it is
+            # the widest -- it will match a `logger.info(f"...")` that also contains a
+            # dict, and the dict reader is the more precise description of that site.
             printed = print_interpolations(path, loc["start_line"], loc["end_line"])
+            kind = "print"
+            if printed is None:
+                printed = fstring_interpolations(path, loc["start_line"], loc["end_line"])
+                kind = "fstring"
             if printed is None:
                 unproven.append({"alert": alert, "path": loc["path"],
                                  "line": loc["start_line"],
-                                 "why": "neither a logger dict nor a print() at location",
+                                 "why": "no logger dict, print() or logged f-string at "
+                                        "location -- read it by hand",
                                  "elements": [], "bad": []})
                 continue
             bad = [e for e in printed if e[1] == "UNPROVEN"]
             record = {"alert": alert, "path": loc["path"], "line": loc["start_line"],
-                      "elements": printed, "bad": bad, "kind": "print"}
+                      "elements": printed, "bad": bad, "kind": kind}
             (unproven if bad else proven).append(record)
             continue
-        els = elements(node)
+        els = elements(node, resolver, node)
         bad = [e for e in els if e[1] == "UNPROVEN"]
         record = {"alert": alert, "path": loc["path"], "line": loc["start_line"],
-                  "elements": els, "bad": bad}
+                  "elements": els, "bad": bad, "kind": "dict"}
         (unproven if bad else proven).append(record)
     return proven, unproven
 

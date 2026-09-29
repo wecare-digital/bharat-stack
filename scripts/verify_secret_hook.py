@@ -15,14 +15,28 @@ ROOT = Path(__file__).resolve().parents[1]
 HOOK = json.loads((ROOT / ".kiro/hooks/block-inline-secrets.json").read_text())
 HOOK_CMD = HOOK["hooks"][0]["action"]["command"]
 
+def _join(*parts: str) -> str:
+    """Concatenate through a function call so the compiler cannot fold it.
+
+    CPython constant-folds `"ks" + "k_" + "d" * 32` at COMPILE time, which put the
+    fully assembled test value into scripts/__pycache__/*.pyc as a literal - found
+    2026-09-29 by grepping the tree for a new issuer prefix and hitting this file's
+    own bytecode. Splitting a string across `+` therefore protects the source and
+    not the artifact, which is the opposite of what the docstring promised. A call
+    is opaque to the folder, so the pieces stay pieces on disk.
+    """
+    return "".join(parts)
+
+
 A = "A" * 24
-# assembled, never literal
-RZP = "rzp" + "_live_" + "ABCDEFGH1234"
-OAI = "sk" + "-svcacct-" + A
-GK = "AIz" + "a" + "Sy" + "B" * 33
-AWSK = "AKI" + "A" + "IOSFODNN7EXAMPLE"
-GH = "ghp" + "_" + "c" * 36
-PEM = "-----BEGIN " + "RSA PRIVATE KEY-----"
+# assembled, never literal - see _join on why this is not plain `+`
+RZP = _join("rzp", "_live_", "ABCDEFGH1234")
+OAI = _join("sk", "-svcacct-", A)
+GK = _join("AIz", "a", "Sy", "B" * 33)
+AWSK = _join("AKI", "A", "IOSFODNN7EXAMPLE")
+GH = _join("ghp", "_", "c" * 36)
+PEM = _join("-----BEGIN ", "RSA PRIVATE KEY-----")
+KIRO = _join("ks", "k_", "d" * 32)
 
 CASES = [
     # (label, payload dict, expected exit)
@@ -33,6 +47,10 @@ CASES = [
     ("github token in url",    {"command": f"git clone https://{GH}@github.com/x/y"}, 2),
     ("private key pem",        {"command": f'echo "{PEM}" > k.pem'}, 2),
     ("generic SECRET= literal", {"command": f'SOME_API_SECRET="{A}" ./run.sh'}, 2),
+    # Both halves, because the assignment pattern and the issuer pattern fail
+    # independently: the bare form is what a paste into a gh command looks like.
+    ("kiro key inline",        {"command": f'KIRO_API_KEY="{KIRO}" ./run.sh'}, 2),
+    ("kiro key bare",          {"command": f"gh secret set KIRO_API_KEY -b {KIRO}"}, 2),
 
     ("plain build",            {"command": "npm run build"}, 0),
     ("pytest",                 {"command": ".venv/bin/python -m pytest -q"}, 0),

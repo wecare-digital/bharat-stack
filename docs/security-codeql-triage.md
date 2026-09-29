@@ -113,19 +113,80 @@ closed**, treating an unknown commit or a locally-modified file as stale.
 
 ## 4. What is NOT dismissed
 
-53 alerts stay open, and they stay open because the classifier could not prove them, not
-because they are known bad. "I could not prove this" and "this is fine" must not produce
-the same outcome.
+Alerts stay open because the classifier could not prove them, not because they are known
+bad. "I could not prove this" and "this is fine" must not produce the same outcome.
 
-They fall into two groups:
+### 4a. The two blind spots, closed 2026-09-29 — and the disclosure that fell out
 
-- **~15 in `amplify/` handlers** whose log site is `logger.info(f"...")` — an f-string
-  rather than a `json.dumps` dict, which the classifier does not read. Each needs a human
-  to look at the interpolations.
-- **~38 in `scripts/`** whose interpolated expression is a bare name the classifier cannot
-  attribute (`sid`, `p`, `verb`, `name`, `RAZORPAY_SECRET_NAME`, `PASSPHRASE_SECRET`).
-  Several are plainly secret *names* and would pass on inspection; they are left open
-  rather than pattern-matched into safety.
+The count stood at 52 open with **1** provable, because the classifier could read a
+`json.dumps({...})` dict and a `print()` and nothing else. Two extensions took provable from
+1 to 26 of 52:
+
+- **Logged f-strings.** 23 alerts reported as `neither a logger dict nor a print() at
+  location`, which reads like "not a log line" and meant nothing of the sort — they are
+  ordinary `logger.info(f"...")` calls. Every `FormattedValue` is now classified on its own,
+  exactly as a dict's elements are. `tests/test_log_phone_masking.py` had the identical gap
+  for the identical reason and it was hiding fourteen real disclosures, so the shape was
+  already proven to matter.
+- **Name resolution.** 28 alerts turned on a bare name carrying no hint (`sid`, `p`,
+  `nblobs`, `RAZORPAY_SECRET_NAME`). A name is now resolved to what it is *bound* to, with
+  every rule failing closed: a function parameter, a `for` target, a `with`/walrus/`except`
+  binding, a tuple unpack, or a module constant bound more than once all stay UNPROVEN.
+
+**Refusing to prove two sites is what found the defect.** Both
+`whatsapp-calling/handler.py` sites interpolating `json.dumps(result)` sit on the
+`if result.get('error')` branch, and `_send_via_aws` **returns the raw Meta response
+unchanged** on that branch. Meta writes the recipient into the prose of several messaging
+errors — 131030 is the well-known one — and `error_data.details` is free text in general. So
+both lines masked the number on the left with `mask_phone(to_number or '')` and could
+reprint it on the right. That is the second instance of the exact pattern §1 records finding
+once before, and `json.dumps(result)[:500]` is not a fix: truncation removes a suffix, not a
+number sitting at character 40.
+
+Remediated with `meta_error_summary` in `lambda_utils/masking.py`, which keeps `code`,
+`error_subcode`, `type` and `fbtrace_id` — the identifiers a human debugs from, all from
+closed sets — and reduces any message to `message_present=True`. Applied at lines 1245,
+2097 (where the raw error enters the function) and 2125, plus 2127 switched to naming the
+one field its success shape contains. `tests/test_meta_error_summary.py` asserts on the
+**absence of the number**, not on the presence of the code.
+
+⚠️ **Five same-class sites in the same file are NOT remediated** and are recorded here
+rather than quietly fixed, because each needs its own read of where `result` comes from:
+`whatsapp-calling/handler.py` lines **1106, 1329, 1367, 1369, 1389**. Three of them
+(`1329`, `1389`) sit next to a `mask_phone(to_number)` on the same line, so they are the
+highest-priority of the five. None is currently reported by CodeQL, which is exactly why
+they need to be written down.
+
+### 4b. Two mistakes made inside this pass, kept because they are the reusable part
+
+- **`mask_text` was added to the sanitiser list on the strength of its name, then
+  removed.** Reading it shows it substitutes `Bearer <token>` and masks no phone number at
+  all — so it would have proven a Meta error body safe and dismissed the very alert that
+  led to the finding above. `tests/test_codeql_triage_classifier.py` asserts it is absent.
+- **The exception rule first rejected any expression *mentioning* `exc`.** That wrongly
+  condemned `type(exc).__name__` and `exc.response['Error']['Code']` — the two forms
+  `.kiro/steering/secret-handling.md` actually prescribes. The rule now distinguishes the
+  exception's *text* (`{e}`, `str(e)`, `exc.args`, `…['Message']`) from a narrowing of it.
+
+### 4c. The staleness guard was unsound at HEAD
+
+It compared the analysed commit to HEAD and only consulted the working tree when the two
+differed — so editing a file and re-running at the same commit skipped the check and
+classified the alert against lines that had already moved. Found the hard way: the
+remediation above shifted its own alert by four lines and the report described a different
+statement without saying anything was wrong. The dirty-tree check is now independent of any
+commit comparison.
+
+### 4d. What remains
+
+26 stay open and fall into one shape: an expression whose value cannot be attributed
+without following it further than this pass goes — a loop variable over a runtime list
+(`sid` over `targets`, `p` over `problems`, `verb`/`wpath` over `attempts`), a counter
+accumulated from another unresolved name (`tree_hits`, `hist_hits`), a dict index
+(`spec['secret_id']`, `d["project_id"].strip()`), or a method call on an object
+(`live_smoke.describe()`). Nearly all are developer-run tooling in `scripts/` printing
+diagnostics, and §3 records that all 69 of that group were read by hand. They are left open
+rather than pattern-matched into safety.
 
 The other rules are handled separately and none is dismissed on a pattern:
 
