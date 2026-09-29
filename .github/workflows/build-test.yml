@@ -63,32 +63,48 @@ jobs:
         with:
           python-version: '3.12'
 
-      # `npm install`, NOT `npm ci`, and that is a documented constraint rather than an
-      # oversight. `npm ci` cannot install this repo at all - it fails with four
-      # "Missing: @opentelemetry/core@2.0.0 from lock file" errors, on `stack` as much as
-      # on any branch. The cause is inside published tarballs, not this repo:
+      # `npm ci` AT LAST, AND THE PROBE THAT USED TO SIT HERE IS GONE WITH IT.
+      #
+      # This step was `npm install` for a long time, with a comment explaining that `npm ci`
+      # could not install this repo at all: it failed with four
+      # "Missing: @opentelemetry/core@2.0.0 from lock file" errors, because
       # @aws-amplify/data-construct and @aws-amplify/graphql-api-construct each bundle
-      # @opentelemetry/resources@2.0.0 and sdk-trace-base@2.0.0, which pin
-      # @opentelemetry/core@2.0.0 exactly, while the @opentelemetry/core bundled beside
-      # them is 2.8.0. `npm install` succeeds because it trusts bundled deps rather than
-      # resolving them. See "Needs the owner" in docs/grahak-os-handoff.md.
+      # @opentelemetry/resources@2.0.0 and sdk-trace-base@2.0.0 - which pin
+      # @opentelemetry/core@2.0.0 exactly - beside a bundled @opentelemetry/core@2.8.0.
+      # `npm install` trusts bundled deps; `npm ci` validates those edges and refuses.
+      #
+      # The defect is still real and still upstream. What changed is that those four packages
+      # are no longer in THIS lockfile: they are backend-only, nothing outside amplify/ imports
+      # them, and they now live in amplify/package.json as a separate install root. The web
+      # app's lockfile went from 1922 packages to 783 and `npm ci` resolves it cleanly.
+      # See docs/npm-ci-backend-isolation.md for the seven approaches that did not work.
+      #
+      # NO --legacy-peer-deps HERE, because the committed lockfile is generated with plain
+      # `npm install` and there is nothing for the flag to resolve. Both spellings were
+      # measured against this lockfile on npm 11.6.2 - the version `packageManager` pins -
+      # and both exit 0 with the lock unchanged, so deps-upgrade.yml passing the flag to its
+      # own gate is not a conflict.
+      #
+      # It is worth knowing that this was NOT true on npm 11.4.2, where
+      # `npm ci --legacy-peer-deps` failed on an unrelated optional dependency
+      # (@emnapi/runtime) against a lock generated without the flag. `setup-node` reads
+      # .nvmrc for the Node version and takes whatever npm ships with it, so if that pairing
+      # ever regresses, check the npm version first and match `packageManager`.
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
-      # INFORMATIONAL, never a gate. The day the upstream bundles are fixed, this step
-      # starts passing and the install above can become `npm ci`. Without a probe like
-      # this, that day passes unnoticed and the workaround becomes permanent. It cannot
-      # fail the build: continue-on-error plus an explicit exit 0.
-      - name: Probe whether npm ci works yet (informational)
-        continue-on-error: true
+      # THE LOCKFILE MUST NOT DRIFT, and `npm ci` alone does not prove that - it would happily
+      # keep working while the committed lock slowly stopped matching package.json, because
+      # `npm ci` is the command that never writes. This is the cheap version of the gate
+      # deps-upgrade.yml runs: if `npm ci` rewrote the lock, the lock was not self-consistent.
+      - name: Gate - the lockfile is self-consistent
         run: |
-          if npm ci --dry-run >/tmp/npmci.txt 2>&1; then
-            echo "::notice::npm ci now resolves - the lockfile drift is fixed upstream, switch the install step to 'npm ci'"
-          else
-            echo "npm ci still fails as documented. First error:"
-            grep -m1 'Missing:' /tmp/npmci.txt || true
+          if ! git diff --quiet package-lock.json; then
+            echo "::error::npm ci modified package-lock.json - the committed lockfile is not self-consistent"
+            git --no-pager diff --stat package-lock.json
+            exit 1
           fi
-          exit 0
+          echo "package-lock.json unchanged by npm ci."
 
       - name: Build
         run: npm run build

@@ -92,11 +92,18 @@ class TestClassify:
 
 
 class TestDecide:
-    def test_known_upstream_failure_is_tolerated(self):
+    def test_the_former_upstream_finding_is_no_longer_tolerated(self):
+        """This used to assert the four OTel findings PASSED. They now fail, by design.
+
+        The allowlist is empty because the packages that produced them left the root lockfile
+        (docs/npm-ci-backend-isolation.md). If `npm ci` at the root ever emits them again,
+        something has put @aws-amplify/backend back into the web app's dependency tree, and that
+        is drift worth failing on rather than tolerating.
+        """
         verdict = gate.decide(1, REAL_FAILURE)
-        assert verdict.ok
-        assert len(verdict.tolerated) == 4
-        assert verdict.unexpected == []
+        assert not verdict.ok
+        assert len(verdict.unexpected) == 4
+        assert verdict.tolerated == []
 
     def test_historical_rot_still_fails(self):
         verdict = gate.decide(1, HISTORICAL_ROT)
@@ -104,15 +111,19 @@ class TestDecide:
         assert len(verdict.unexpected) == 5
         assert "webpack@5.94.0" in " ".join(verdict.unexpected)
 
-    def test_real_drift_alongside_the_known_finding_still_fails(self):
-        """The mixed case is the one a coarse allowlist gets wrong."""
+    def test_real_drift_alongside_the_former_finding_still_fails(self):
+        """The mixed case is the one a coarse allowlist gets wrong. With an empty allowlist every
+        finding is unexpected, so all five are reported rather than one - still a failure, and now
+        a fuller account of why."""
         verdict = gate.decide(1, REAL_FAILURE + "npm error Missing: webpack@5.94.0 from lock file\n")
         assert not verdict.ok
-        assert verdict.unexpected == ["Missing: webpack@5.94.0 from lock file"]
-        assert len(verdict.tolerated) == 4
+        assert "Missing: webpack@5.94.0 from lock file" in verdict.unexpected
+        assert len(verdict.unexpected) == 5
+        assert verdict.tolerated == []
 
-    def test_allowlist_is_exact_not_a_substring_match(self):
-        """A different version of the same package is new drift, not the known defect."""
+    def test_a_different_version_is_still_drift(self):
+        """Kept from when the allowlist matched by whole string rather than substring: a different
+        version of the same package was never covered, and with an empty allowlist nothing is."""
         verdict = gate.decide(1, "npm error Missing: @opentelemetry/core@2.9.0 from lock file")
         assert not verdict.ok
         assert verdict.unexpected == ["Missing: @opentelemetry/core@2.9.0 from lock file"]
@@ -130,13 +141,18 @@ class TestDecide:
         verdict = gate.decide(127, "npm error npm executable not found on PATH")
         assert not verdict.ok
 
-    def test_success_passes_and_flags_the_allowlist_as_dead_weight(self):
+    def test_success_passes_with_nothing_to_flag(self):
+        """allowlist_unused exists to nag when the allowlist tolerates nothing. The allowlist is
+        empty now, so there is nothing to nag about and the flag must stay down - otherwise every
+        green run would print a notice telling someone to empty an already-empty list."""
         verdict = gate.decide(0, "added 1234 packages in 30s")
         assert verdict.ok
-        assert verdict.allowlist_unused is True
+        assert verdict.allowlist_unused is False
 
     def test_strict_mode_refuses_to_tolerate_anything(self):
-        """Probe mode answers "does npm ci work yet", so it must not pass on the allowlist."""
+        """Probe mode answers "does npm ci work yet", so it must not pass on the allowlist. With an
+        empty allowlist strict and default agree; the distinction is kept because it is what makes
+        re-adding an entry safe to review."""
         verdict = gate.decide(1, REAL_FAILURE, strict=True)
         assert not verdict.ok
         assert len(verdict.unexpected) == 4
@@ -147,11 +163,13 @@ class TestDecide:
 
 
 class TestAllowlist:
-    def test_holds_only_the_documented_upstream_defect(self):
-        """Growing this list is how the gate stops being a gate, so its size is pinned."""
-        assert gate.KNOWN_UPSTREAM == (
-            "Missing: @opentelemetry/core@2.0.0 from lock file",
-        )
+    def test_is_empty_so_the_gate_is_strict(self):
+        """Growing this list is how the gate stops being a gate, so its size is pinned - and the
+        correct size is now zero. It held the four-fold @opentelemetry/core@2.0.0 finding until the
+        packages causing it moved to amplify/package.json; see
+        docs/npm-ci-backend-isolation.md. Re-adding an entry needs captured `npm ci` output and a
+        reason no change to this repo can resolve it."""
+        assert gate.KNOWN_UPSTREAM == ()
 
     def test_every_entry_is_a_finding_the_parser_produces(self):
         """An entry the parser can never emit is dead and would tolerate nothing."""
@@ -212,12 +230,15 @@ class TestWorkflowWiring:
         raw = (self.WORKFLOWS / "deps-upgrade.yml").read_text()
         assert "complete with exit 0" not in raw
 
-    def test_build_test_still_installs_with_npm_install(self):
-        """Until upstream is fixed, the per-push install cannot be npm ci."""
+    def test_build_test_installs_with_npm_ci(self):
+        """The per-push install is reproducible now. It was `npm install` for as long as the
+        bundled-OpenTelemetry findings were in the root lockfile; the packages carrying them are
+        backend-only and now live in amplify/package.json, so `npm ci` resolves the web app's
+        lockfile cleanly. See docs/npm-ci-backend-isolation.md."""
         build_test = yaml.safe_load((self.WORKFLOWS / "build-test.yml").read_text())
         installs = [
             step["run"]
             for step in build_test["jobs"]["build-test"]["steps"]
             if step.get("name") == "Install dependencies"
         ]
-        assert installs == ["npm install --no-audit --no-fund"]
+        assert installs == ["npm ci --no-audit --no-fund"]

@@ -1552,6 +1552,10 @@ input, textarea, select {
 .agent-messages {
   flex: 1;
   overflow-y: auto;
+  /* The scroll motion is declared here, not passed as behavior:'smooth' from the script that
+     scrolls this box - see src/lib/scroll-to-end.ts. A JS argument cannot see
+     prefers-reduced-motion; the reset in inner-ux.css turns this off for readers who ask. */
+  scroll-behavior: smooth;
   padding: 16px;
   display: flex;
   flex-direction: column;

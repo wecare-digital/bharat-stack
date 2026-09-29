@@ -4,13 +4,13 @@
  * Signaling: Graph API + Webhooks (HTTPS) or SIP (TLS) | Media: WebRTC (OPUS)
  * Ref: https://developers.facebook.com/docs/whatsapp/cloud-api/calling
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Layout from '../../../../components/Layout';
 import SEO from '../../../../components/SEO';
 import { useToastContext } from '../../../../contexts/ToastContext';
 import * as api from '../../../../api/client';
 import { acquireAudioStream } from '../../../../lib/pstn/mediaCapability';
-import { isSafeHttpUrl } from '../../../../lib/randomToken';
+import { safeHttpHref } from '../../../../lib/randomToken';
 
 interface PageProps { signOut?: () => void; user?: any; embedded?: boolean; }
 
@@ -187,6 +187,10 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
   const [ autoPickupLoading, setAutoPickupLoading ] = useState( false );
   const [ autoPickupMode, setAutoPickupMode ] = useState<'manual' | 'ivr'>( 'ivr' );
   const [ ivrUrl, setIvrUrl ] = useState( 'https://wecare.digital/get/o/stream/media/ivr/incoming_welcome.sln16' );
+  // The only value ever placed in the Test Play `href`. `null` disables the control.
+  // Derived here rather than at the JSX site so the check and the rendered string cannot
+  // drift apart, which is the bug the previous version had.
+  const ivrHref = useMemo( () => safeHttpHref( ivrUrl ), [ ivrUrl ] );
 
   // IVR SMS state
   const [ smsOnCall, setSmsOnCall ] = useState( true );
@@ -1199,18 +1203,21 @@ const WhatsAppCallingPage: React.FC<PageProps> = ( { signOut, user, embedded = f
                 } } style={ { padding: '8px 14px', background: '#d1f470', color: '#1a3a2a', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 } }>
                   Save URL
                 </button>
-                {/* href is gated on the scheme. `ivrUrl` is typed by an operator and
-                    persisted, so `javascript:alert(1)` here would execute on click for
-                    whoever opened the page next — a stored XSS, which is what CodeQL's
-                    `js/xss-through-dom` was pointing at. When the value is not http(s)
-                    the control renders as a disabled span rather than vanishing, so a
-                    mistyped URL is visible instead of silently doing nothing. */}
-                { isSafeHttpUrl( ivrUrl )
-                  ? <a href={ ivrUrl } target="_blank" rel="noopener noreferrer"
+                {/* `ivrUrl` is typed by an operator and persisted, so `javascript:alert(1)`
+                    here would execute on click for whoever opened the page next — a stored
+                    XSS, which is what CodeQL's `js/xss-through-dom` was pointing at.
+                    The href is now the value `safeHttpHref` returned, not the raw input:
+                    the previous version checked one string and rendered another, which
+                    meant `//evil.com` passed the check (it resolved against a base) and
+                    then rendered as a protocol-relative link. A non-http(s) value renders
+                    as a disabled span rather than vanishing, so a mistyped URL is visible
+                    instead of silently doing nothing. */}
+                { ivrHref
+                  ? <a href={ ivrHref } target="_blank" rel="noopener noreferrer"
                     style={ { padding: '8px 14px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', textDecoration: 'none', color: '#374151' } }>
                     ▶ Test Play
                   </a>
-                  : <span title="Enter an http(s) URL to enable playback"
+                  : <span title="Enter an absolute http(s) URL to enable playback"
                     style={ { padding: '8px 14px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '12px', color: '#9ca3af', cursor: 'not-allowed' } }>
                     ▶ Test Play
                   </span> }

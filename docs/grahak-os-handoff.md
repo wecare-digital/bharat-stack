@@ -94,9 +94,30 @@ misled every reader so far. Re-verify with the harness, not with this table.
    Applied **incrementally**, not by regenerating the lockfile: a from-scratch regen
    touched ~19,700 lines, while `npm install` over the existing lock touched **35
    insertions / 56 deletions** for the same result. Prefer the small diff.
-3. **`npm ci` IS BROKEN AGAIN, and the usual fix provably does not work.** Earlier
-   revisions of this file said "`package-lock.json` resynced — `npm ci` works again".
-   That is no longer true. On `stack` at `e4cfbe0e`:
+3. ~~**`npm ci` IS BROKEN AGAIN, and the usual fix provably does not work.**~~
+   **FIXED — see `docs/npm-ci-backend-isolation.md`.** `npm ci` exits 0 and the lockfile is
+   stable under both `npm ci` and `npm install`.
+
+   The upstream defect described below is still real and unchanged. What changed is that the
+   four packages carrying it — `@aws-amplify/backend`, `@aws-amplify/backend-cli`,
+   `aws-cdk-lib`, `constructs` — are no longer in the web app's lockfile. They are
+   backend-only (`tsconfig.json` excludes `amplify/**/*`, nothing under `src/` imports them,
+   and `amplify.yml` has no `backend:` phase), so they moved to `amplify/package.json` as a
+   separate install root. The root lockfile went from 1922 packages to 783, and
+   `.github/workflows/build-test.yml` now installs with `npm ci` plus a lockfile-drift gate.
+
+   Two corrections to what this item used to say. **`patch-package` cannot work** — it was
+   listed as the remaining local option, but `npm ci` fails during install, before any
+   lifecycle script runs, so a `postinstall` patch never executes. And the list of failed
+   approaches below was incomplete: a package-scoped exact override *does* make `npm ci` pass
+   with a byte-identical tree, but `npm install` strips the lockfile entries it needs, so it is
+   an unstable equilibrium rather than a fix. Range overrides, `npm@11.6.2` and downgrading
+   `@aws-amplify/backend` were all tried and all fail. The full table is in the new doc.
+
+   Retained below for the history, because the diagnosis is accurate and worth keeping:
+
+   Earlier revisions of this file said "`package-lock.json` resynced — `npm ci` works again".
+   That was no longer true. On `stack` at `e4cfbe0e`:
    ```
    npm error `npm ci` can only install packages when your package.json and
    npm error package-lock.json ... are in sync.
