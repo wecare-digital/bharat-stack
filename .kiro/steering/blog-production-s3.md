@@ -83,7 +83,8 @@ nothing" for two days.
       extracted/<sourceId>.md               reflowed markdown
       source-analysis/<sourceId>/v<n>.json  versioned; never overwritten, never linked
       article-working/<articleId>/<rev>.md
-      qa/<articleId>/<qaRunId>.json
+      qa/<sourceId>/<qaRunId>.json          immutable QA verdict, never overwritten
+      repetition/<batchId>/<runId>.json     collection-level, so keyed on the BATCH
       publish-records/<articleId>.json
       verification/<articleId>/<runId>.json
       failures/<sourceId>.json

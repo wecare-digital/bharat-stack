@@ -20,6 +20,7 @@ import blog_batches
 import blog_draft
 import blog_gate
 import blog_qa
+import blog_repetition
 import blog_sources
 import blog_templates
 import storage
@@ -443,6 +444,28 @@ def _route_get(path: str, event: Dict[str, Any], origin: str):
             'articleClasses': list(_quality.ARTICLE_CLASSES) if _quality else [],
             'batchStatuses': list(blog_batches.BATCH_STATUSES),
         }, origin)
+    if '/blog-repetition/' in path:
+        return _response(200, {
+            'ok': True,
+            'run': blog_repetition.detail(path.split('/blog-repetition/', 1)[1].strip('/')),
+        }, origin)
+    if path.endswith('/blog-repetition'):
+        batch_ref = _query(event, 'batchId')
+        if not batch_ref:
+            raise ValueError('batchId is required; repetition is a property of a collection')
+        return _response(200, {
+            'ok': True,
+            'state': blog_repetition.batch_state(batch_ref),
+            'runs': [blog_repetition.view(row)
+                     for row in blog_repetition.history(batch_ref)],
+            'thresholds': {
+                'pairBody': blog_repetition.PAIR_BODY,
+                'pairBodyNearDuplicate': blog_repetition.PAIR_BODY_NEAR_DUPLICATE,
+                'shapeNoticeable': blog_repetition.SHAPE_NOTICEABLE,
+                'shapeDominant': blog_repetition.SHAPE_DOMINANT,
+                'minCollection': blog_repetition.MIN_COLLECTION,
+            },
+        }, origin)
     if '/blog-qa/' in path:
         # One run with its full report, proxied from S3 for the same reason the analysis
         # evidence is: the prefix is public and nothing should hand out a URL to it.
@@ -574,6 +597,14 @@ def _route_post(path: str, body: Dict[str, Any], actor: str, origin: str):
             body, actor, tuple(BLOG_CATEGORIES),
             tuple(_quality.ARTICLE_CLASSES) if _quality else ('ARCHIVE_DERIVED',),
         )}, origin)
+
+    if path.endswith('/blog-repetition'):
+        batch_id = str(body.get('batchId') or '').strip()
+        if not batch_id:
+            raise ValueError('batchId is required')
+        return _response(200, {
+            'ok': True, **blog_repetition.run(batch_id, actor),
+        }, origin)
 
     if path.endswith('/blog-qa/sign-off'):
         # The ONLY route that can make READY_TO_PUBLISH reachable. It does not publish, and no

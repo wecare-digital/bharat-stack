@@ -86,6 +86,9 @@ EXTRACT_PREFIX = ROOT_PREFIX + "extracted/"
 ANALYSIS_PREFIX = ROOT_PREFIX + "source-analysis/"
 WORKING_PREFIX = ROOT_PREFIX + "article-working/"
 QA_PREFIX = ROOT_PREFIX + "qa/"
+#: Collection-level repetition, which is a property of a BATCH rather than of one article, so it
+#: gets its own prefix keyed on the batch rather than living under `qa/`.
+REPETITION_PREFIX = ROOT_PREFIX + "repetition/"
 PUBLISH_PREFIX = ROOT_PREFIX + "publish-records/"
 VERIFY_PREFIX = ROOT_PREFIX + "verification/"
 FAILURE_PREFIX = ROOT_PREFIX + "failures/"
