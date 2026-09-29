@@ -139,5 +139,6 @@ mail can fail closed.
   already use. `cloudfront update-distribution` is a **full replace** — it needs
   the entire `DistributionConfig` plus a matching `ETag`, so any rollback must
   start from a fresh `get-distribution-config`, not from a stale snapshot.
-  Pre-change config is in
-  `.scratch/cf-E1SZBXLQ4XNLJ7-before-certswap-20260929.json`.
+  Pre-change config is committed at
+  `docs/execution/snapshots/cloudfront-E1SZBXLQ4XNLJ7-before-certswap-20260929.json`
+  (`ETag E23ZP02F085DFQ`).
