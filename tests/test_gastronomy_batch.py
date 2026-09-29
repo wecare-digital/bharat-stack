@@ -27,10 +27,29 @@ def make_post(n: int, title=None):
         'source_ref': f'private source p.{n}',
         'image_status': 'none',
         'article_type': 'RECIPE',
+        # THE BODY HAS TO CLEAR THE 250-CHARACTER EDITORIAL MINIMUM, WITH ROOM TO SPARE.
+        #
+        # This fixture is the VALID document that test_v2_manifest_accepts_150_posts asserts
+        # is accepted, so every rule in validate_batch_document has to pass on it. It measured
+        # 247 characters stripped against the >= 250 check in scripts/gastronomy_batch.py -
+        # short by three - so that test failed with 150 identical
+        # "body too thin for editorial publication" errors, one per post, which reads like a
+        # validator bug rather than a three-character fixture.
+        #
+        # Both sides landed in b796cae5, so this was never a threshold that moved out from
+        # under the fixture; they simply disagreed from the start. The threshold is the side
+        # with intent behind it - there is a whole quality-gate around it in blog_quality_v2.py
+        # - so the fixture is what changes.
+        #
+        # Deliberately ~300 rather than exactly 250. The tests below append a sentence to this
+        # body and rely on it staying valid, and a fixture sitting three characters from a
+        # boundary is one copy edit away from flipping back - the same argument the design
+        # contract makes about .usecase-pills sitting 27px from its breakpoint.
         'body_markdown': (
             'This recipe has a clear culinary identity and enough context to explain what to look for before cooking.\n\n'
             '## Ingredients\n\n- 1 cup ingredient\n- 1 tsp spice\n\n'
-            '## Method\n\nCook carefully, watching texture and heat rather than relying only on the clock.'
+            '## Method\n\nCook carefully, watching texture and heat rather than relying only on the clock. '
+            'Let it rest off the heat before serving, so the texture settles rather than tightening.'
         ),
     }
 
