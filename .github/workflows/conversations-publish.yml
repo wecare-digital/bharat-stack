@@ -38,8 +38,12 @@ on:
   workflow_dispatch:
     inputs:
       manifest:
-        description: 'Batch manifest path (validated on every run)'
-        required: true
+        # Optional so the workflow can be dispatched as a validate-only smoke run before
+        # any manifest exists. A path that is NAMED but missing still fails loudly; only a
+        # deliberately blank input skips. Publishing without one is refused below.
+        description: 'Batch manifest path. Blank validates the committed batches only.'
+        required: false
+        default: ''
         type: string
       publish:
         description: 'Publish the READY_TO_PUBLISH records in that manifest to Wix'
@@ -107,7 +111,7 @@ jobs:
           exit $status
 
       - name: Validate the dispatched manifest
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && inputs.manifest != ''
         run: |
           python scripts/conversations_batch.py validate \
             --manifest "${{ inputs.manifest }}"
@@ -140,6 +144,14 @@ jobs:
           role-to-assume: arn:aws:iam::775261844268:role/GitHubActions-bharat-stack-seo-tools
           role-session-name: conversations-publisher
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: A publish needs a manifest
+        # Refused rather than defaulted. Guessing which batch an operator meant to publish
+        # is the one place a helpful default would be actively dangerous.
+        if: inputs.manifest == ''
+        run: |
+          echo "::error::publish was requested with no manifest; name the batch to publish"
+          exit 1
 
       - name: Re-validate the manifest against the live corpus
         run: |
@@ -198,7 +210,7 @@ jobs:
   audit-only:
     # An audit with no publish, for re-verifying a batch or rebuilding a lost VERIFIED
     # checkpoint from live state.
-    if: github.event_name == 'workflow_dispatch' && inputs.publish == false && inputs.audit == true
+    if: github.event_name == 'workflow_dispatch' && inputs.publish == false && inputs.audit == true && inputs.manifest != ''
     needs: validate
     runs-on: ubuntu-26.04
     permissions:
