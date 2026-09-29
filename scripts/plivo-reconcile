@@ -18,6 +18,22 @@ production routing cutover and must not ride along with a webhook URL change.
 Nothing here prints the auth token or a SIP password. Answer URLs are shown
 without their ?token= value; the token is represented by a SHA-256 prefix so two
 systems can be compared without disclosing it.
+
+EXIT CODES. A scheduled runner decides what to SAY from these, so they must not
+be ambiguous about whether the provider was reached:
+
+    0  no drift, or a read-only command that completed
+    1  recoverable drift, or a command that failed on its own terms
+    2  CRITICAL drift -- a protected invariant moved in LIVE Plivo
+    3  could not reach Plivo at all; nothing was compared
+
+3 exists because it used to be 2. An IAM gap on the CI role (no `kms:Decrypt` for
+the CMK over `wecare/plivo/api`) made this script exit 2 before it had read a
+single field, and `plivo-drift.yml` correctly rendered 2 as "live call routing or
+a protected invariant moved". A check that cannot reach production must never be
+able to claim something about production, in either direction: reporting a false
+CRITICAL burns the one alert that is supposed to mean something, and reporting a
+false all-clear is worse.
 """
 from __future__ import annotations
 
@@ -49,6 +65,13 @@ from plivo_control_plane import (  # noqa: E402
 )
 
 OK, NO, WARN, INFO = "PASS", "FAIL", "WARN", "INFO"
+
+#: See EXIT CODES in the module docstring. Named rather than literal because the whole
+#: defect this fixes was two different conditions sharing the number 2 in two files.
+EXIT_CLEAN = 0
+EXIT_DRIFT = 1
+EXIT_CRITICAL_DRIFT = 2
+EXIT_UNREACHABLE = 3
 
 
 def line(status: str, label: str, detail: str = "") -> None:
@@ -142,15 +165,18 @@ def main() -> int:
     ap.add_argument("--number-plan", action="store_true", help="§10 routing plan only")
     ap.add_argument("--trunks", action="store_true", help="§15 Zentrunk discovery")
     ap.add_argument("--drift", action="store_true",
-                    help="read-only drift check; exit 1 on drift, 2 on CRITICAL")
+                    help="read-only drift check; exit 1 on drift, 2 on CRITICAL, "
+                         "3 if Plivo could not be reached")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
     try:
         svc = PlivoControlPlaneService()
     except Exception as exc:  # noqa: BLE001
+        # EXIT_UNREACHABLE, not 2. See the module docstring: this path has compared
+        # nothing, so it must not share a code with "a protected invariant moved".
         print(f"could not initialise Plivo control plane: {exc}", file=sys.stderr)
-        return 2
+        return EXIT_UNREACHABLE
 
     try:
         if args.drift:
@@ -181,10 +207,12 @@ def main() -> int:
                 elif report["warnings"]:
                     print("\n  Recoverable drift. Review with --dry-run, then "
                           "--apply.\n")
-            # 2 for CRITICAL so a scheduled runner can alert differently.
+            # 2 for CRITICAL so a scheduled runner can alert differently. Both of these
+            # mean Plivo WAS read -- an unreachable control plane returns EXIT_UNREACHABLE
+            # from the init guard above and never gets here.
             if report["critical"]:
-                return 2
-            return 1 if report["warnings"] else 0
+                return EXIT_CRITICAL_DRIFT
+            return EXIT_DRIFT if report["warnings"] else EXIT_CLEAN
 
         if args.trunks:
             trunks = svc.list_trunks()

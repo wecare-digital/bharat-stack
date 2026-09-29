@@ -236,3 +236,108 @@ def test_what_was_checked_is_reported(svc):
     assert checked["endpoint_username"] == ENDPOINT_USERNAME
     assert "default_endpoint_app" in checked["critical_invariants"]
     assert "sip_uri" in checked["protected_fields"]
+
+
+# --------------------------------------------------------------------------
+# Exit codes. These are a contract between two files -- scripts/plivo-reconcile
+# picks the number and .github/workflows/plivo-drift.yml decides what sentence to
+# print for it -- and on 2026-09-28 they disagreed in a way that mattered. A
+# missing kms:Decrypt on the CI role meant the script could not read the Plivo
+# credential, so it exited from its init guard with 2, and the workflow rendered 2
+# as "CRITICAL drift. Live call routing or a protected invariant moved." Nothing
+# had moved and nothing had been read. These tests pin the distinction rather than
+# the wording, because the wording is allowed to improve.
+# --------------------------------------------------------------------------
+
+RECONCILE = ROOT / "scripts" / "plivo-reconcile"
+DRIFT_WORKFLOW = ROOT / ".github" / "workflows" / "plivo-drift.yml"
+
+
+@pytest.fixture(scope="module")
+def reconcile():
+    """Load `scripts/plivo-reconcile`, which has no .py suffix, without re-exec.
+
+    Two hazards, both load-bearing:
+
+    1. The script re-execs itself into `.venv` when the running interpreter is not that
+       venv, which under pytest would replace the test process mid-run.
+       `_PLIVO_RECONCILE_REEXEC` is the script's own guard against an exec loop and is
+       the documented way to say "already in the right interpreter", so setting it is
+       not a test-only backdoor.
+    2. `SourceFileLoader` caches bytecode, and for an extensionless file it lands at
+       `scripts/__pycache__/plivo-reconcilecpython-312.pyc` -- note the missing dot,
+       because the cache name is built by splitting on the last `.` in the filename and
+       there isn't one. That path is outside the normal invalidation story and was
+       observed serving a stale module after the source changed, which made these tests
+       report the OLD exit codes. A test that reads a cache instead of the file it claims
+       to be asserting about is worse than no test, so bytecode writing is off here.
+    """
+    import importlib.machinery
+    import importlib.util
+    import os
+
+    previous = os.environ.get("_PLIVO_RECONCILE_REEXEC")
+    os.environ["_PLIVO_RECONCILE_REEXEC"] = "1"
+    no_bytecode = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        loader = importlib.machinery.SourceFileLoader("plivo_reconcile", str(RECONCILE))
+        spec = importlib.util.spec_from_loader("plivo_reconcile", loader)
+        module = importlib.util.module_from_spec(spec)
+        # exec_module rather than import_module: nothing may be served from sys.modules
+        # or from disk, so the assertions below are about the source as it is now.
+        loader.exec_module(module)
+        return module
+    finally:
+        sys.dont_write_bytecode = no_bytecode
+        if previous is None:
+            os.environ.pop("_PLIVO_RECONCILE_REEXEC", None)
+        else:
+            os.environ["_PLIVO_RECONCILE_REEXEC"] = previous
+
+
+def test_every_exit_code_means_exactly_one_thing(reconcile):
+    codes = {
+        "clean": reconcile.EXIT_CLEAN,
+        "drift": reconcile.EXIT_DRIFT,
+        "critical": reconcile.EXIT_CRITICAL_DRIFT,
+        "unreachable": reconcile.EXIT_UNREACHABLE,
+    }
+    assert len(set(codes.values())) == len(codes), f"exit codes collide: {codes}"
+
+
+def test_unreachable_is_not_critical_drift(reconcile):
+    """The specific regression: 'I could not look' must not read as 'it moved'."""
+    assert reconcile.EXIT_UNREACHABLE != reconcile.EXIT_CRITICAL_DRIFT
+
+
+def test_a_failed_init_exits_unreachable_rather_than_claiming_drift(reconcile,
+                                                                   monkeypatch):
+    """A credential that cannot be read must not produce a verdict about Plivo."""
+    def _explode(*_a, **_kw):
+        raise RuntimeError(
+            "An error occurred (AccessDeniedException) when calling the "
+            "GetSecretValue operation: Access to KMS is not allowed")
+
+    monkeypatch.setattr(reconcile, "PlivoControlPlaneService", _explode)
+    monkeypatch.setattr("sys.argv", ["plivo-reconcile", "--drift", "--json"])
+    assert reconcile.main() == reconcile.EXIT_UNREACHABLE
+
+
+def test_the_workflow_handles_the_unreachable_code(reconcile):
+    """The script's code and the workflow's case arms are one contract, in two files."""
+    workflow = DRIFT_WORKFLOW.read_text()
+    arm = f"{reconcile.EXIT_UNREACHABLE})"
+    assert arm in workflow, (
+        f"plivo-drift.yml has no '{arm}' arm, so an unreachable control plane would "
+        "fall through to the generic branch")
+
+
+def test_the_workflow_does_not_call_an_unreachable_check_drift(reconcile):
+    """Guard the sentence, not just the branch: exit 3 must not say routing moved."""
+    workflow = DRIFT_WORKFLOW.read_text()
+    start = workflow.index(f"\n            {reconcile.EXIT_UNREACHABLE})")
+    arm = workflow[start:workflow.index("exit 1 ;;", start)].lower()
+    assert "not drift" in arm or "not inspected" in arm
+    assert "routing" not in arm, (
+        "the unreachable arm must not describe live call routing, which it never read")
