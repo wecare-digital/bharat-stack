@@ -94,7 +94,10 @@ recorded here (12/12 and 28/28) were stale — both suites have grown since.
 | `typecheck.js` | **3/3** |
 | `uicheck.js` | **96/96** |
 | `contactcheck.js` | **12/13** — the one failure is blocked on a Google Maps API key |
-| `homeprobe.js` | **5/12** — seven open defects, see `docs/home-design-audit-20260926.md` |
+| `homeprobe.js` | **11/11** — was 5/12 with seven open defects; re-measured 2026-09-29 |
+| `rtlcheck.js` | **6883/6883** |
+| `pageaudit.js` | 180 routes, **0** horizontal overflow |
+| `sectioncheck.js`, `devicecheck.js`, `closeprobe.js` | run clean; `closeprobe` leaves its band findings red on purpose |
 
 Those failures are left red deliberately. They are not tuned to pass.
 
