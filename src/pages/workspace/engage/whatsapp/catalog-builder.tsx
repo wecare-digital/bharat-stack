@@ -10,6 +10,7 @@ import Button from '../../../../components/ui/Button';
 import { useToastContext } from '../../../../contexts/ToastContext';
 import { useConfirm } from '../../../../contexts/ConfirmContext';
 import * as api from '../../../../api/client';
+import { CDN_DOMAIN } from '../../../../lib/media-paths';
 
 interface PageProps { signOut?: () => void; user?: any; }
 
@@ -117,7 +118,11 @@ function ProductTab ( { acct, toast, confirm }: { acct: typeof ACCOUNTS[ number 
             {
                 if ( r.imageFetchStatus === 'FETCH_FAILED' )
                 {
-                    toast.error( 'Product created but the image failed to fetch — use a public https image URL (e.g. app.wecare.digital/...)' );
+                    // Meta fetches the image itself, so the URL has to be publicly
+                    // reachable. The example is built from CDN_DOMAIN rather than written
+                    // out: this line used to name `app.wecare.digital`, a bucket-shaped
+                    // host that was retired on 2026-09-28, so the advice could only fail.
+                    toast.error( `Product created but the image failed to fetch — use a public https image URL (e.g. https://${ CDN_DOMAIN }/o/stack/store/products/...)` );
                 } else
                 {
                     toast.success( `Product created (${r.productId || 'ok'})` );

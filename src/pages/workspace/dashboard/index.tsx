@@ -54,6 +54,7 @@ const InternalChatTab = lazyTab( () => import( '../../../components/dashboard/ta
 const AppBuilderTab = lazyTab( () => import( '../../../components/dashboard/tabs/AppBuilderTab' ) );
 const SystemTab = lazyTab( () => import( '../../../components/dashboard/tabs/SystemTab' ) );
 import { AppBuilderIcon } from '../../../lib/icons';
+import { PUBLIC_ROOT } from '../../../lib/media-paths';
 
 const PAYMENT_PHONE = PAYMENT_CONFIG.phoneDisplay;
 const PAYMENT_NAME = PAYMENT_CONFIG.phoneName;
@@ -178,9 +179,13 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
 
   // STORAGE
   'Amazon S3': {
-    arn: 'arn:aws:s3:::app.wecare.digital',
+    arn: 'arn:aws:s3:::wecare-digital-get',
     accountId: AWS_ACCOUNT_ID,
-    details: [ 'app.wecare.digital - Media storage for WhatsApp' ]
+    details: [
+      'wecare-digital-get - single media bucket',
+      'o/ - public root (media, invoices, voice, brand assets)',
+      'secure/ - gated root, presigned access only'
+    ]
   },
   'Amazon EBS': {
     arn: `arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:volume/*`,
@@ -202,7 +207,10 @@ const AWS_RESOURCES: Record<string, { arn: string; accountId: string; details?: 
   'Amazon Route 53': {
     arn: 'arn:aws:route53:::hostedzone/*',
     accountId: AWS_ACCOUNT_ID,
-    details: [ 'wecare.digital', 'www.wecare.digital', 'app.wecare.digital' ]
+    // app.wecare.digital removed 2026-09-28: the record is gone from zone
+    // Z03939753QJGZ6ZD6BXO8 and the host is NXDOMAIN. Media is served from
+    // wecare.digital/get instead.
+    details: [ 'wecare.digital', 'www.wecare.digital', 'mta-sts.wecare.digital', 'sip.wecare.digital' ]
   },
   'Amazon VPC': {
     arn: `arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:vpc/*`,
@@ -696,10 +704,15 @@ const Dashboard: React.FC<PageProps> = ( { signOut, user } ) => {
     { id: 'razorpay_webhook_log', label: 'Razorpay Webhook Log', category: 'Invoices & Payments', type: 'dynamodb', table: 'RazorpayWebhookLogTable', count: -1 },
     { id: 'bulk_jobs', label: 'Bulk Jobs', category: 'Bulk', type: 'dynamodb', table: 'BulkJobsTable', count: -1 },
     { id: 'bulk_recipients', label: 'Bulk Recipients', category: 'Bulk', type: 'dynamodb', table: 'BulkRecipientsTable', count: -1 },
-    { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: 'stack/invoices/', count: -1 },
-    { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/', count: -1 },
-    { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: 'stack/voice/', count: -1 },
-    { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: 'stack/whatsapp-media/voice/', count: -1 },
+    // Rooted via PUBLIC_ROOT to match what the backend actually deletes: system-cleanup
+    // builds these with media_paths.public(...), which yields `o/stack/...`. These rows
+    // read `stack/...` until 2026-09-29 — one level above the data, and this list is the
+    // fallback shown when the live preview is unreachable, so there was nothing to
+    // cross-check the wrong path against.
+    { id: 's3_invoices', label: 'S3: Invoice Files', category: 'S3 Storage', type: 's3', prefix: `${PUBLIC_ROOT}stack/invoices/`, count: -1 },
+    { id: 's3_whatsapp_media', label: 'S3: WhatsApp Media', category: 'S3 Storage', type: 's3', prefix: `${PUBLIC_ROOT}stack/whatsapp-media/`, count: -1 },
+    { id: 's3_voice_recordings', label: 'S3: Voice Recordings', category: 'S3 Storage', type: 's3', prefix: `${PUBLIC_ROOT}stack/voice/`, count: -1 },
+    { id: 's3_whatsapp_voice', label: 'S3: WhatsApp Voice (TTS)', category: 'S3 Storage', type: 's3', prefix: `${PUBLIC_ROOT}stack/whatsapp-media/voice/`, count: -1 },
   ];
 
   const loadCleanupPreview = async () => {

@@ -20,6 +20,42 @@ An alert is only dismissed when every element classifies as safe. Anything holdi
 UNPROVEN element stays open and is reported for a human to read, because "I could not
 prove this" and "this is fine" must not produce the same outcome.
 
+KNOWN BLIND SPOT, recorded 2026-09-29: THIS SCRIPT CANNOT SEE AN F-STRING.
+-------------------------------------------------------------------------
+Everything above reasons about `ast.Dict` elements, so an alert whose location is a plain
+f-string log gets the reason `neither a logger dict nor a print() at location` and stays
+open. Read that string as **"not classifiable by this tool"**, never as "safe" and never
+as "not a log line" - 23 of the 52 currently open alerts land in that bucket, and they are
+ordinary logger calls:
+
+    logger.info(f"Post-call reaction: ... to={mask_phone(to_number or '')} ...")
+
+`tests/test_log_phone_masking.py` had the identical gap for the identical reason and it was
+hiding real disclosures - fourteen log lines printing whole E.164 numbers, which CodeQL
+found only six of. That module now walks `ast.JoinedStr` as well, in `fstring_offences()`,
+and its classifier (`_consuming_call` / `_is_logger` / `_is_sanitised`) is the thing to port
+here rather than write again.
+
+AND A SECOND, DEEPER POINT: masking does NOT clear these alerts, and should not be expected
+to. `py/clear-text-logging-sensitive-data` is a taint query. `mask_phone(to_number)` still
+has `to_number` flowing into the sink, and CodeQL has no reason to believe `mask_phone`
+sanitises anything - the same behaviour `.kiro/steering/secret-handling.md` documents for
+the secret case ("reducing a secret to a boolean does not launder it"), and it is correct to
+behave that way. Fixing the fourteen real sites moved the open count 58 -> 56, not to zero.
+
+So the remaining count is not a backlog of defects and chasing it to zero by dismissal would
+destroy the signal. Two legitimate routes exist, in this order of preference:
+
+  1. Teach CodeQL the sanitisers. A model pack under `.github/codeql/` declaring
+     `mask_phone` / `mask_contact_id` / `mask_flow_token` as sanitisers is the only fix that
+     makes the count mean something again. Verify current Python data-extension support for
+     sanitisers before committing to it; it is weaker than the Java equivalent.
+  2. Extend this script to f-strings, THEN dismiss with per-element evidence.
+
+Neither is a mass dismissal, and a mass dismissal is not an acceptable substitute for
+either: it reduces security visibility, and the 39 real findings in this pile were only
+found because nobody had done that.
+
     python scripts/triage_codeql_logging.py --report
     python scripts/triage_codeql_logging.py --apply
 """

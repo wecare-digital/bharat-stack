@@ -109,17 +109,24 @@ export function initDeepLinks(navigate: (path: string) => void) {
     }
     // Short links — let the redirect Lambda resolve the code.
     //
-    // TWO forms, both live and both required:
+    // TWO forms. Only the first is live as a URL:
     //   wecare.digital/r/<code>   canonical since 2026-09-26, what we mint now
-    //   r.wecare.digital/<code>   every link issued before that
+    //   r.wecare.digital/<code>   every link issued before that — host now NXDOMAIN
     //
-    // The subdomain branch is not legacy cruft to be cleaned up later. Short links
-    // are printed on physical materials and embedded in messages already delivered
-    // (see PROTECTED_TABLES in operations/system-cleanup), so a handset opening the
-    // old form has to keep working for as long as those exist. Dropping this branch
-    // would make the app swallow its own short links while a browser still followed
-    // them, which is the worst failure shape: broken only for the people who
-    // installed the app.
+    // r.wecare.digital was RETIRED on 2026-09-28 (Route 53 record deleted under
+    // confirmation YES R53-DELETE-001; API Gateway custom domain deleted in 396b87ad),
+    // so that form no longer resolves in a browser at all. The branch below is kept
+    // anyway, and deliberately: a native OS matches an incoming link against the host
+    // list in the app manifest WITHOUT a DNS lookup, so an old link printed on physical
+    // material or sitting in an already-delivered message can still be handed to the app
+    // even though a browser would fail on it. When that happens this branch is the only
+    // thing that resolves the code — and it does so via the apex, never by fetching the
+    // dead host. Removing it would turn a link that still works into one that does not,
+    // for installed users only, which is the worst failure shape.
+    //
+    // Do NOT read this branch as evidence the subdomain is alive. It is tolerance for
+    // links already in the wild, not a live route. See PROTECTED_TABLES in
+    // operations/system-cleanup for why those codes must keep resolving.
     const isApexShortLink =
       (url.hostname === 'wecare.digital' || url.hostname === 'www.wecare.digital')
       && /^\/r\/.+/.test(url.pathname);

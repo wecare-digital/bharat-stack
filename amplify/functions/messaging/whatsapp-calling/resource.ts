@@ -13,7 +13,7 @@
  * Runtime resources:
  *   - stack-wecare-digital-WhatsAppCallingTable
  *   - stack-wecare-digital-SystemConfigTable
- *   - app.wecare.digital media bucket
+ *   - wecare-digital-get media bucket (IVR audio under o/whatsapp-media/whatsapp-calling/)
  */
 
 export const whatsappCallingLambdaName = 'wecare-whatsapp-calling';

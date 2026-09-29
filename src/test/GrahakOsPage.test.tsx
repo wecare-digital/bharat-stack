@@ -54,7 +54,10 @@ describe( 'Grahak OS five approved visual fixes', () => {
     expect( source ).not.toContain( 'className="cta-actions"' );
   } );
 
-  it( 'uses the hosted Meta icon from app.wecare.digital', () => {
+  // Renamed 2026-09-29: this was titled "...from app.wecare.digital", which contradicted
+  // the assertion directly below it. That host was retired on 2026-09-28; the icon is and
+  // was served from wecare.digital/get.
+  it( 'uses the hosted Meta icon from the canonical media CDN', () => {
     expect( source ).toContain( 'src="https://wecare.digital/get/o/stream/media/m/meta-icon.svg"' );
     expect( source ).toContain( 'className="trust-mark meta-mark"' );
     expect( source ).not.toContain( 'src="/meta-icon.png"' );

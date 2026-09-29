@@ -26,17 +26,16 @@ User-agent: *
 Allow: /
 
 Disallow: /api/
-# /mock-home/ arrived in ef1abc5b, a design mock of the home page. Added within minutes of
-# the audit below reaching zero gaps, which is the whole argument for re-running it rather
-# than trusting the number: a mock of the home page is the worst possible thing to leave
-# indexable, because it competes with the real home page for the same query.
-Disallow: /mock-home/
-# /store/ is NOT one of the families that moved under /workspace/. It is still a live
-# top-level route (1 page, 1 built route) and absent from the sitemap, so it keeps its
-# own rule. It was removed by mistake during the nesting change and restored in the
-# same commit — the audit rule at the top of this file is what caught it. /carbon/ by
-# contrast is an empty directory building zero routes, so it correctly has none.
-Disallow: /store/
+# /mock-home/ and /store/ had rules here until 2026-09-29 and no longer do, because both
+# routes are GONE and the rule at the top of this file cuts both ways: a Disallow for a
+# route that does not exist is noise that implies the route does. /mock-home/ (the home
+# page design mock from ef1abc5b) and /store/ (the catalog's old home, which left in
+# 3d229931) both return 404 live, verified before their rules came out. /store/ is worth
+# one extra sentence because its old comment here insisted it was "still a live top-level
+# route": the /store/* API paths are real and DO still exist, but they are reached only at
+# /api/store/* — measured, /api/store/preview-product-image returns 401 while
+# /store/preview-product-image 404s — so they are covered by the /api/ rule above and
+# never needed a rule of their own.
 # All fourteen authenticated families nested under /workspace/ on 2026-09-26, so their
 # individual Disallow lines came out rather than being kept alongside: a Disallow for a
 # route that no longer exists is noise that implies the route does. That covers
@@ -59,11 +58,11 @@ Disallow: /workspace/
 #     Allow: /
 #
 # does not mean "same as everyone else, and welcome". It means GPTBot gets a group with no
-# Disallow at all, which GRANTS it /workspace/, /api/ and /store/ - the authenticated
-# dashboard that the * group above is the only thing holding out of the index. Welcoming a
-# crawler by name and handing it the internal route map is the same edit.
+# Disallow at all, which GRANTS it /workspace/ and /api/ - the authenticated dashboard that
+# the * group above is the only thing holding out of the index. Welcoming a crawler by name
+# and handing it the internal route map is the same edit.
 #
-# Hence the four Disallow lines are repeated verbatim below. If a line is added to the *
+# Hence the two Disallow lines are repeated verbatim below. If a line is added to the *
 # group above, it must be added here too. scripts/generate-llms-txt.js and
 # scripts/generate-sitemap.js both fail the build when an advertised URL is Disallowed, so a
 # contradiction in ONE direction is caught automatically; this direction - a named agent
@@ -97,8 +96,6 @@ User-agent: DuckAssistBot
 User-agent: MistralAI-User
 Allow: /
 Disallow: /api/
-Disallow: /mock-home/
-Disallow: /store/
 Disallow: /workspace/
 
 Sitemap: https://wecare.digital/sitemap.xml

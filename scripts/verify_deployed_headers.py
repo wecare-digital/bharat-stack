@@ -18,10 +18,10 @@ of bug, because the config was already correct.
 
 WHICH HOST, AND WHY IT IS NOT `app.`
 ------------------------------------
-Corrected 2026-09-25. This defaulted to `https://app.wecare.digital/`, which is a
+Corrected 2026-09-25. This defaulted to `https://app.wecare.digital/`, which was a
 **different distribution**: CloudFront `ERCXSFDL0VM8X` in front of the S3 bucket
 `app.wecare.digital`, serving media. Amplify's `customHeaders` are applied by
-Amplify Hosting and never reach it, so the script reported
+Amplify Hosting and never reached it, so the script reported
 
     live Permissions-Policy: (absent)
     FAIL x-content-type-options=(absent)
@@ -36,9 +36,37 @@ learned as noise and then the real regression is invisible.
 The Amplify app is served from the **apex**. That is also the origin the Plivo
 softphone runs on, so it is the origin whose `microphone=(self)` actually matters.
 
-The assets distribution is still *reported* - it genuinely has no security headers
-and no CloudFront response-headers policy - but it cannot be a gate here, because
-fixing it means attaching a policy to that distribution, not editing `amplify.yml`.
+THE ASSETS GAP IS CLOSED, and the target moved (2026-09-29)
+-----------------------------------------------------------
+Two things changed underneath this script and both had left it reporting noise.
+
+1. `ASSETS_URL` still pointed at the retired `app.wecare.digital` host (written bare
+   here on purpose - `check_retired_origins.py` escalates a scheme-qualified retired
+   host near the word "origin" to a violation, and it is right to: prose cannot be
+   distinguished from an allow-list entry by inspection). That host and its
+   distribution are **gone**: `get-distribution ERCXSFDL0VM8X` returns
+   NoSuchDistribution, no distribution carries the alias, the name resolves to no
+   address, and `head-bucket app.wecare.digital` is 404. So the "report" printed
+   only `request failed` - the exact learned-noise failure the section above warns
+   about, reintroduced by a dead constant.
+
+2. The premise was obsolete. Media is now served from the **apex** as
+   `wecare.digital/get/<key>` through CloudFront `E2GP22R4BIFGQ3`, so it is behind
+   the same host whose headers this script gates. Measured 2026-09-29 against
+   `/get/o/stream/media/m/wecare-digital.png`:
+
+       HTTP/2 200, content-type image/png
+       referrer-policy: strict-origin-when-cross-origin
+       permissions-policy: camera=(), microphone=(self), geolocation=()
+       strict-transport-security: max-age=31536000
+       x-content-type-options: nosniff
+
+   All four are present. The "public distribution serving content with no security
+   headers at all" gap that justified reporting it closed when the media moved.
+
+`ASSETS_URL` now points at that media path. It stays **reported and never gated**,
+because a media 404 or an S3-side change should not fail a headers check - but it
+now reports a live surface rather than a dead name.
 
 Usage
 -----
@@ -67,9 +95,11 @@ from pathlib import Path
 # NOT app.wecare.digital - see "WHICH HOST" above before changing this.
 DEFAULT_URL = "https://wecare.digital/"
 
-# Reported, never gated. A separate CloudFront distribution (ERCXSFDL0VM8X) over the
-# S3 bucket `app.wecare.digital`; Amplify customHeaders cannot reach it.
-ASSETS_URL = "https://app.wecare.digital/"
+# Reported, never gated. The media edge: CloudFront E2GP22R4BIFGQ3 over the S3 bucket
+# `wecare-digital-get`, reached on the apex as /get/<key>. A concrete object rather than
+# `/get/`, because a prefix has no object to serve and would report a 403/404 that says
+# nothing about headers. See "THE ASSETS GAP IS CLOSED" above before changing this.
+ASSETS_URL = "https://wecare.digital/get/o/stream/media/m/wecare-digital.png"
 
 # Directive -> required allowlist. The microphone is same-origin because the
 # softphone needs it; camera and geolocation are denied outright.
@@ -103,17 +133,19 @@ def fetch_headers(url: str) -> tuple[int, dict]:
 
 
 def report_assets_distribution(url: str) -> None:
-    """Print the assets distribution's posture. Never affects the exit code.
+    """Print the media edge's posture. Never affects the exit code.
 
-    Included because silently ignoring it is how it stayed unnoticed: it is a
-    public distribution serving `text/html` and `image/svg+xml` with no security
-    headers at all and no CloudFront response-headers policy attached. That is a
-    real gap, but it is a CloudFront change rather than an `amplify.yml` one, so
-    gating this script on it would block a deploy on an unrelated fix.
+    Originally included because the media distribution served content with no
+    security headers at all and no response-headers policy - a real gap that would
+    have stayed unnoticed if unreported. That gap is closed: media moved onto the
+    apex host, and all four headers were measured present on 2026-09-29.
+
+    Kept as a report rather than promoted to a gate, because a media 404 or an
+    S3-side change is not a headers regression and should not fail this script.
     """
-    print(f"\n  ASSETS DISTRIBUTION (reported, never gated): {url}")
-    print("    Amplify customHeaders do not apply here - separate CloudFront "
-          "distribution ERCXSFDL0VM8X over S3.")
+    print(f"\n  MEDIA EDGE (reported, never gated): {url}")
+    print("    CloudFront E2GP22R4BIFGQ3 over s3://wecare-digital-get, served on the "
+          "apex as /get/<key>.")
     try:
         status, headers = fetch_headers(url)
     except Exception as exc:  # noqa: BLE001

@@ -4,7 +4,7 @@ Documentation Scraper — WECARE.DIGITAL
 Fetches external documentation (e.g. Meta Business/WhatsApp docs), renders it
 with headless Chromium (Playwright), cleans it to Markdown (BeautifulSoup),
 detects changes via content hashing, keeps an append-only changelog, and stores
-everything in the single app bucket under stream/docs/.
+everything in the single media bucket under o/stream/docs/.
 
 Runs as a container Lambda (see Dockerfile). Invoked by:
   - EventBridge daily cron        -> {}  or  {"action": "scrape"}   (scrape all sources)
@@ -14,11 +14,12 @@ Runs as a container Lambda (see Dockerfile). Invoked by:
   - Frontend "list sources"       -> {"action": "list_sources"}
   - Frontend "changelog"          -> {"action": "changelog", "limit": 50}
 
-S3 layout (bucket: wecare-digital-get; was app.wecare.digital until 2026-09-28):
-  stream/docs/_sources.json                 list of sources (frontend-editable)
-  stream/docs/_index.json                   {url: {hash, key, source, lastSeen}}
-  stream/docs/_changelog.jsonl              append-only change log (one JSON per line)
-  stream/docs/<source-slug>/<page-slug>.md  cleaned page content
+S3 layout (bucket: wecare-digital-get; was app.wecare.digital until 2026-09-28).
+The `o/` root below is part of the key, matching PREFIX = media_paths.public(...):
+  o/stream/docs/_sources.json                 list of sources (frontend-editable)
+  o/stream/docs/_index.json                   {url: {hash, key, source, lastSeen}}
+  o/stream/docs/_changelog.jsonl              append-only change log (one JSON per line)
+  o/stream/docs/<source-slug>/<page-slug>.md  cleaned page content
 """
 
 import os

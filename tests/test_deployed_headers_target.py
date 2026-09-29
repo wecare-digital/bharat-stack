@@ -41,16 +41,42 @@ def test_the_gate_targets_the_amplify_host_not_the_assets_distribution():
     assert "app.wecare.digital" not in vdh.DEFAULT_URL
 
 
-def test_the_assets_distribution_is_still_named_but_kept_separate():
-    """It is reported, because ignoring it is how its missing headers went unnoticed
-    - but it must not be the gate, since fixing it is a CloudFront change."""
-    assert vdh.ASSETS_URL == "https://app.wecare.digital/"
+def test_the_media_edge_is_still_reported_but_kept_out_of_the_gate():
+    """Retargeted 2026-09-29, and the point of the test is unchanged.
+
+    This used to assert `ASSETS_URL == "https://app.wecare.digital/"`. That host is
+    gone - distribution ERCXSFDL0VM8X returns NoSuchDistribution, the name resolves
+    to no address, and the bucket 404s - so the report it drove printed only
+    `request failed`. That is the same learned-as-noise failure the module docstring
+    is about, so pinning the dead name would have preserved the bug it warns of.
+
+    Media now lives on the apex at /get/<key> via E2GP22R4BIFGQ3. The invariants that
+    actually matter are asserted rather than just the literal: it targets a real
+    object under the `o/` root, it is not the gated root, it is not the gate's own
+    URL, and it does not name the retired host.
+    """
+    assert vdh.ASSETS_URL == (
+        "https://wecare.digital/get/o/stream/media/m/wecare-digital.png"
+    )
     assert vdh.ASSETS_URL != vdh.DEFAULT_URL
+    assert "app.wecare.digital" not in vdh.ASSETS_URL
+    # An object, not a bare prefix: a prefix has nothing to serve and would report a
+    # 403/404 that says nothing about headers.
+    assert "/get/o/" in vdh.ASSETS_URL and not vdh.ASSETS_URL.endswith("/")
+    # Never probe the gated root - those keys are presigned-only by design.
+    assert "/secure/" not in vdh.ASSETS_URL
 
 
 def test_the_assets_report_cannot_change_the_verdict(monkeypatch, capsys):
-    """Reported, never gated. If the assets host has no headers at all - which is
-    its real state - the Amplify origin still decides the exit code."""
+    """Reported, never gated. Even if the media edge returns no headers at all, the
+    Amplify origin still decides the exit code.
+
+    That bare state was the media distribution's real posture when this test was
+    written. It is not any more - all four headers measured present on 2026-09-29
+    once media moved behind the apex. The stub keeps the bare case deliberately,
+    because the invariant under test is "a headerless media response cannot fail the
+    gate", and that must hold regardless of what the live edge happens to serve.
+    """
     def fake(url):
         if url == vdh.ASSETS_URL:
             return 200, {"content-type": "text/html"}
