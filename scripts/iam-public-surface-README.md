@@ -63,7 +63,7 @@ element. The permissions document validates with zero findings.
 Run from the repository root, with credentials that can write IAM.
 
 ```sh
-# 0. The OIDC provider should already exist - the other three roles use it. Confirm:
+# 0. The OIDC provider should already exist - every other role in the account uses it. Confirm:
 aws iam get-open-id-connect-provider \
   --open-id-connect-provider-arn arn:aws:iam::775261844268:oidc-provider/token.actions.githubusercontent.com \
   --query 'ClientIDList' --output text
@@ -101,9 +101,16 @@ gh variable set PUBLIC_SURFACE_ROLE_ARN \
 gh variable set PUBLIC_SURFACE_READ_ROLE_ARN \
   --body arn:aws:iam::775261844268:role/GitHubActions-wecare-digital-public-surface-read
 
-# 4. Read-only first. This changes nothing and should report the stale MCP catalogue.
+# 4. Read-only first. This changes nothing.
 gh workflow run public-surface-deploy.yml -f action=verify -f target=both
 ```
+
+**Expect that first `verify` to come back RED, and read all three step logs.** Before any
+apply, the redirect rules are missing and the deployed MCP catalogue is stale, so two of the
+three checks fail — that is the divergence you are about to converge, not a broken workflow.
+Each check runs to completion and the job fails at the end, so the run tells you about all
+three rather than only the first; the job used to stop at the first failure, which meant the
+MCP catalogue check never ran on precisely the run you most wanted it on.
 
 Then, once `verify` has told you what it finds:
 
@@ -121,10 +128,19 @@ python scripts/fix_github_oidc_trust.py --status
 python scripts/fix_github_oidc_trust.py --apply
 ```
 
-`fix_github_oidc_trust.py` lists this role, so `--status` reports it as absent until step 1
-has run and `--apply` skips it. That is deliberate: a role created later and never
-registered there is one that keeps whatever document its creator pasted, and this is the
-only one of the six that can write to production.
+`fix_github_oidc_trust.py` lists both roles, so `--status` reports them as absent until the
+`create-role` steps have run and `--apply` skips them. That is deliberate: a role created
+later and never registered there is one that keeps whatever document its creator pasted.
+
+An earlier version of this line called the write role "the only one that can write to
+production". That is not true and it was worth checking rather than repeating:
+`GitHubActions-bharat-stack-docs-scraper` holds `lambda:UpdateFunctionCode`,
+`lambda:CreateFunction`, `ecr:PutImage` and `events:Put*`, and
+`GitHubActions-bharat-stack-seo-tools` holds `lambda:UpdateFunctionCode` plus
+`secretsmanager:GetSecretValue` on the Wix headless key. Three of the six roles write to
+production; this one is simply the newest. What is true, and is the reason for the split
+above, is that it is the only role in the account whose *read-only counterpart* exists, so
+its safe mode needs no write grant at all.
 
 Being listed is no longer taken on trust. `--status` also compares its list against every
 live `GitHubActions-*` role and exits non-zero on one it does not manage, because the list

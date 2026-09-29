@@ -155,7 +155,9 @@ def _roles_declared_in_the_repository() -> dict[str, list[str]]:
         if relpath not in places:
             places.append(relpath)
 
-    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+    workflows = sorted((ROOT / ".github" / "workflows").glob("*.yml")) + \
+        sorted((ROOT / ".github" / "workflows").glob("*.yaml"))
+    for path in workflows:
         for name in re.findall(r"role/(GitHubActions-[A-Za-z0-9_+=,.@-]+)", path.read_text()):
             record(name, path)
 

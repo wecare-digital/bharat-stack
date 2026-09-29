@@ -285,6 +285,14 @@ def apply(iam) -> int:
             print(f"FAILED    {role}: write did not verify")
             failures += 1
 
+    # Reported here too, not only in --status. Somebody repairing drift is exactly the person
+    # who should be told a role exists outside this list, and expecting them to run the other
+    # subcommand as well is how the audit gets missed. It does not affect the exit code:
+    # --apply's job is the roles it manages, and an unregistered role is a finding rather
+    # than a failed write.
+    for role in unregistered(iam):
+        print(f"UNREGISTERED {role} — live but not in ROLES, so --apply did not touch it")
+
     return 1 if failures else 0
 
 

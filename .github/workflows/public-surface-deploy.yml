@@ -49,8 +49,9 @@ name: Public surface deploy
 #
 # WHAT IT NEEDS BEFORE IT CAN WORK: two OIDC roles and two repository variables. There is no
 # AWS_ACCESS_KEY_ID / SECRET / SESSION_TOKEN secret to reuse - this project authenticates
-# entirely by role assumption, so long-lived keys do not exist anywhere by design. The four
-# commands, the policy documents and the rollback are in scripts/iam-public-surface-README.md.
+# entirely by role assumption, so long-lived keys do not exist anywhere by design. The six
+# commands, the three policy documents and the rollback are in
+# scripts/iam-public-surface-README.md.
 
 on:
   workflow_dispatch:
@@ -105,19 +106,45 @@ jobs:
           aws-region: us-east-1
       - name: Who am I
         run: aws sts get-caller-identity
+      # ALL THREE CHECKS RUN, THEN THE JOB FAILS - rather than stopping at the first one.
+      # `provision_legacy_redirects.py` with no flag exits 1 when a rule is missing or the
+      # catch-all has drifted, which is the NORMAL state before the first apply. Without
+      # continue-on-error the job stopped there, so the very first verify run - the one the
+      # README tells you to do first - never reached the MCP catalogue check it promises to
+      # report. A checker that reports one problem out of three is worse than it looks, because
+      # the two it did not reach are indistinguishable from passing.
       - name: Report the redirect rules
+        id: rules
         if: inputs.target == 'both' || inputs.target == 'redirects'
+        continue-on-error: true
         run: python scripts/provision_legacy_redirects.py
       - name: Verify the retired URLs resolve
+        id: probes
         if: inputs.target == 'both' || inputs.target == 'redirects'
+        continue-on-error: true
         run: python scripts/provision_legacy_redirects.py --verify
       # This is the check dd561bdc added: it fails when the live wecare-mcp is serving a page
       # catalogue that disagrees with config/public-pages.json, which is the state the /orders
       # rename left it in. It reads the deployed bundle, which is why the read role needs
       # lambda:GetFunction and not only GetFunctionConfiguration.
       - name: Verify the MCP Lambda and its catalogue
+        id: mcp
         if: inputs.target == 'both' || inputs.target == 'mcp'
+        continue-on-error: true
         run: python scripts/deploy_mcp_server.py --verify
+      # `skipped` is not `failure`: a target of `redirects` skips the MCP check and that is not
+      # a problem. Only an outcome of `failure` fails the job.
+      - name: Fail if any check failed
+        run: |
+          failed=''
+          [ "${{ steps.rules.outcome }}" = 'failure' ] && failed="$failed redirect-rules"
+          [ "${{ steps.probes.outcome }}" = 'failure' ] && failed="$failed retired-url-probes"
+          [ "${{ steps.mcp.outcome }}" = 'failure' ] && failed="$failed mcp-catalogue"
+          if [ -n "$failed" ]; then
+            echo "::error::failed checks:$failed. Each ran to completion, so read all three step logs rather than only the first. Converge with: gh workflow run public-surface-deploy.yml -f action=apply -f target=both"
+            exit 1
+          fi
+          echo 'every check that ran, passed'
 
   apply:
     name: apply (writes)
@@ -133,10 +160,17 @@ jobs:
         run: |
           grep -E '^(boto3|botocore)==' requirements-dev.txt > ci-aws-requirements.txt
           python -m pip install -r ci-aws-requirements.txt
-      - name: Check the write role variable is set
+      # BOTH variables, before anything is written. The write role is the only one this job
+      # uses, but `confirm` cannot run without the read role - and it runs AFTER production has
+      # been changed. Discovering the missing variable there means a completed write with no
+      # confirmation and a red run, which is the one outcome worth a cheap check up front.
+      - name: Check both role variables are set
         run: |
-          if [ -z "${{ vars.PUBLIC_SURFACE_ROLE_ARN }}" ]; then
-            echo "::error::vars.PUBLIC_SURFACE_ROLE_ARN is not set. See scripts/iam-public-surface-README.md for the two roles this workflow needs and the commands that create them."
+          missing=''
+          [ -z "${{ vars.PUBLIC_SURFACE_ROLE_ARN }}" ] && missing="$missing PUBLIC_SURFACE_ROLE_ARN"
+          [ -z "${{ vars.PUBLIC_SURFACE_READ_ROLE_ARN }}" ] && missing="$missing PUBLIC_SURFACE_READ_ROLE_ARN"
+          if [ -n "$missing" ]; then
+            echo "::error::not set:$missing. apply needs the write variable and confirm needs the read one, so both are checked here rather than after production has been changed. See scripts/iam-public-surface-README.md for the two roles and the commands that create them."
             exit 1
           fi
       - name: Assume the write role
@@ -170,6 +204,15 @@ jobs:
         run: |
           grep -E '^(boto3|botocore)==' requirements-dev.txt > ci-aws-requirements.txt
           python -m pip install -r ci-aws-requirements.txt
+      # Checked again here rather than relying on the apply job having checked it: this job also
+      # runs on its own if someone re-runs it, and an unset variable fails
+      # configure-aws-credentials with a message that names neither the variable nor this file.
+      - name: Check the read role variable is set
+        run: |
+          if [ -z "${{ vars.PUBLIC_SURFACE_READ_ROLE_ARN }}" ]; then
+            echo "::error::vars.PUBLIC_SURFACE_READ_ROLE_ARN is not set, so the apply that just ran cannot be confirmed. See scripts/iam-public-surface-README.md."
+            exit 1
+          fi
       # The read role, not the one that just wrote. A deploy that checks its own work with its
       # own write credential is checking it with the same hand that did it.
       - name: Assume the read-only role
@@ -179,12 +222,29 @@ jobs:
           aws-region: us-east-1
       - name: Who am I
         run: aws sts get-caller-identity
+      # Same shape as verify, and for a stronger reason: this runs after production has already
+      # been changed, so the complete picture of what the apply did and did not achieve is worth
+      # more than an early exit.
       - name: Confirm the retired URLs now resolve
+        id: probes
         if: inputs.target == 'both' || inputs.target == 'redirects'
+        continue-on-error: true
         run: python scripts/provision_legacy_redirects.py --verify
       - name: Confirm the MCP catalogue is current
+        id: mcp
         if: inputs.target == 'both' || inputs.target == 'mcp'
+        continue-on-error: true
         run: python scripts/deploy_mcp_server.py --verify
+      - name: Fail if the deploy did not hold
+        run: |
+          failed=''
+          [ "${{ steps.probes.outcome }}" = 'failure' ] && failed="$failed retired-url-probes"
+          [ "${{ steps.mcp.outcome }}" = 'failure' ] && failed="$failed mcp-catalogue"
+          if [ -n "$failed" ]; then
+            echo "::error::the apply ran but did not hold:$failed. Production HAS been changed. The pre-change Amplify rules are snapshotted under docs/execution/snapshots/."
+            exit 1
+          fi
+          echo 'apply confirmed on a credential that cannot write'
 
   summarise:
     name: summarise

@@ -90,6 +90,33 @@ def _is_read(action: str) -> bool:
     return verb.startswith("Get") or (service, verb) == ("apigateway", "GET")
 
 
+def test_every_boto3_client_in_the_two_scripts_is_declared_here():
+    """CLIENT_VARS is how this test finds calls, so an undeclared client is a blind spot.
+
+    The scan below looks for `<variable>.<method>(` using the variables named in CLIENT_VARS.
+    Rename `lam` to `lambda_client` and the scan finds nothing for it, the derived action set
+    shrinks, and `test_policy_grants_exactly_what_the_scripts_call` starts reporting the whole
+    lambda grant as unused - or worse, passes while a new call goes ungranted. So every
+    `boto3.client(...)` in the two scripts has to be accounted for here.
+    """
+    for relpath, variables in CLIENT_VARS.items():
+        source = (ROOT / relpath).read_text(encoding="utf-8")
+        for variable, service in re.findall(
+            r'(\w+)\s*=\s*boto3\.client\(\s*"([a-z0-9]+)"', source
+        ):
+            assert variables.get(variable) == service, (
+                f"{relpath} assigns a {service} client to `{variable}`, which CLIENT_VARS does "
+                f"not map to {service}. Add it, or this test silently stops seeing those calls."
+            )
+        # `def amplify(): return boto3.client("amplify")` - no assignment to match, so the
+        # service itself must be covered by at least one declared variable.
+        for service in re.findall(r'return\s+boto3\.client\(\s*"([a-z0-9]+)"', source):
+            assert service in variables.values(), (
+                f"{relpath} returns a {service} client from a helper and no variable in "
+                f"CLIENT_VARS holds one"
+            )
+
+
 def _calls() -> set[tuple[str, str]]:
     found: set[tuple[str, str]] = set()
     unknown: set[str] = set()
@@ -239,12 +266,16 @@ def test_the_workflow_assumes_the_write_role_only_where_it_writes():
         "confirm must run after apply, or it is confirming the state before the deploy"
     )
 
+    # Matched against the script invocation rather than the bare string "--apply", because the
+    # failure messages in these jobs legitimately mention `-f action=apply` as the next step.
     for name in ("verify", "confirm"):
         for step in jobs[name]["steps"]:
             run = step.get("run") or ""
-            assert "--apply" not in run, f"{name} runs a write: {run.strip()}"
-            if "deploy_mcp_server.py" in run:
-                assert "--verify" in run, (
-                    f"{name} runs deploy_mcp_server.py without --verify, which deploys: "
-                    f"{run.strip()}"
-                )
+            for line in run.splitlines():
+                if "provision_legacy_redirects.py" in line:
+                    assert "--apply" not in line, f"{name} writes redirects: {line.strip()}"
+                if "deploy_mcp_server.py" in line:
+                    assert "--verify" in line, (
+                        f"{name} runs deploy_mcp_server.py without --verify, which deploys: "
+                        f"{line.strip()}"
+                    )
