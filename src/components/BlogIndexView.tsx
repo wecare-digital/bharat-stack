@@ -305,16 +305,22 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
                       { post.category && <span className="category">{ post.category }</span> }
                       <h2><Link href={ `/post/${post.slug}/` }>{ post.title }</Link></h2>
                       { post.excerpt && <p>{ post.excerpt }</p> }
-                      <div className="meta">
-                        {/* data-wc-no-translate: an author name is a proper noun, matching the
-                            byline in post/[slug].tsx. On the span and not on .meta, because the
-                            <time> beside it renders a formatted date that SHOULD translate.
-                            This page carried 834 of these - one per post - which made it the
-                            single largest source of brand-name text in the export once the
-                            article bylines were fixed. Pagination cuts that to 24 a page. */}
-                        { post.authorName && <span data-wc-no-translate="true">{ post.authorName }</span> }
-                        { post.publishedDate && <time dateTime={ post.publishedDate }>{ new Date( post.publishedDate ).toLocaleDateString( 'en-IN' ) }</time> }
-                      </div>
+                      {/* NO DATE ON A CARD, on owner instruction, and the flag moved with it.
+                          This row held the author beside a formatted publishedDate. The date is
+                          gone from every listing surface - this one component renders /blog/,
+                          /blog/page/N/, both topic stream shapes AND the client-side search
+                          results, so removing it here removes it from all of them at once.
+                          publishedDate IS STILL CARRIED in the BlogCard projection and must
+                          stay: lib/public-blog.ts orders the whole corpus by it, and with 35
+                          pages an ordering change moves posts between page URLs. It is read,
+                          never printed.
+                          data-wc-no-translate NOW SITS ON THE ROW rather than the span. It was
+                          on the span specifically so the sibling time element could still
+                          translate; with only a proper noun left in here, the wrapper is the
+                          honest place for it and it is one attribute instead of one per card. */}
+                      { post.authorName && (
+                        <div className="meta" data-wc-no-translate="true">{ post.authorName }</div>
+                      ) }
                     </div>
                   </article>
                 ) ) }
@@ -397,37 +403,97 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
            guides and updates published by the WECARE.DIGITAL team." - a heading that named the
            section and a line that restated it, on a page sharing no design language with the
            rest of the site. RotatingHero replaced both. */
-        h1{font-size:clamp(36px,4.3vw,60px);font-weight:600;line-height:1.04;letter-spacing:-0.04em;margin:0 0 24px;color:rgba(0,0,0,.95);text-wrap:balance}
-        /* The pills. Same shape as before; they are <a> and <span> now rather than <button>,
-           because each category is a real route. min-height 38px is kept from the button
-           version, and display:inline-flex is what makes it apply to a link. */
-        .category-switch{display:flex;gap:8px;overflow-x:auto;margin:0 0 28px;padding:2px 0 6px;scrollbar-width:thin;align-items:center}
+        /* THE DEAD h1 RULE IS GONE. It styled an element this file has not rendered since
+           RotatingHero took the headline: the hero owns the only h1 on the page, and .rh-head
+           already carries this exact declaration. A rule matching nothing is worse than no
+           rule, because the next person reads it as the page's title treatment and edits it.
+           .blog-hero went the same way earlier, with the markup it styled. */
+        /* THE PILLS, NOW ON THE HOME PAGE'S OWN AFFORDANCE RULES.
+           Three things changed and each one was a defect rather than a preference.
+           min-height 44px, was 38px. This is the WCAG 2.5.8 floor and these are the primary
+           navigation on the page - the pager beside them already holds 44px, so the two
+           control sets disagreed about how big a touch target is.
+           2px border, was 1px. The design contract is one line: 1px means a static edge, 2px
+           means a hoverable one, and the colour is always e5e7eb. These have a lime hover, so
+           they were a hoverable edge drawn at the static weight, against d1d5db which is not
+           the hairline colour the rest of the site uses.
+           Opaque focus ring, was rgba(26,58,42,.25). The home page moved off the translucent
+           ring because it failed WCAG 1.4.11 at 1.51:1 against white - a focus indicator you
+           cannot see is not one. Same fix, same value.
+           The hover now matches the home CTA exactly - lime tint, a 2px lift and the one
+           shadow this design language uses - so a pill behaves like every other raised
+           control on the site instead of having its own quieter version. */
+        .category-switch{display:flex;gap:8px;overflow-x:auto;margin:0 0 32px;padding:2px 0 6px;scrollbar-width:thin;align-items:center}
         .category-switch :global(a),.category-switch .cat-here{
           flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
-          min-height:38px;padding:0 14px;border:1px solid #d1d5db;border-radius:999px;
+          min-height:44px;padding:0 18px;border:2px solid #e5e7eb;border-radius:999px;
           background:#fff;color:#1a3a2a;font:inherit;font-size:13px;font-weight:600;
-          text-decoration:none;
-          transition:background-color .18s ease,border-color .18s ease,transform .18s ease;
+          letter-spacing:.01em;text-decoration:none;
+          transition:background-color .2s,border-color .2s,transform .2s,box-shadow .2s;
         }
-        .category-switch :global(a:hover){border-color:#d1f470;transform:translateY(-1px)}
-        .category-switch :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px}
-        /* The current category: filled, and not a link, so there is nothing to click. */
-        .category-switch .cat-here{background:#d1f470;border-color:#d1f470}
+        .category-switch :global(a:hover){
+          border-color:#d1f470;background:rgba(209,244,112,.28);
+          transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12);
+        }
+        .category-switch :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px}
+        /* The current category: filled, and not a link, so there is nothing to click. The 2px
+           1a3a2a edge is the same pairing the pager gives the page you are on - lime fill plus
+           dark-green type and border, which the contract measures at about 10:1. */
+        .category-switch .cat-here{background:#d1f470;border-color:#1a3a2a}
         /* The count. Tabular so the pills do not jiggle, and quiet so the name leads. */
         /* The .category-switch i rules that styled the per-pill post count went with the count
            itself - see the note in the markup. Nothing else in this nav renders an <i>. */
+        /* THE CARDS, PUT ON THE HOME PAGE'S RUNGS.
+           This grid had invented its own type scale. The heading was 23px at an undeclared
+           weight - so browser-default bold - with -.3px tracking, and the body was
+           16px/1.5 at rgba(0,0,0,.72). None of those three values exists anywhere else on the
+           public site. The home page carries exactly one card-heading rung and exactly one
+           body rung, and the body one is the same declaration used by the hero sub, the flow
+           lead, the flow list and the closing points, which is what makes those bands read as
+           one document. This listing now uses both.
+           Heading: 22px/700/1.27/-.25px on solid black, the home card rung.
+           Body: 20px/400/1.4/-.125px at rgba(0,0,0,.898), the one body rung. It is larger than
+           what was here, which is the point - the home page fixed this exact defect on its own
+           cards and recorded that a fourth body size was the bug, not the remedy.
+           THE EXCERPT IS CLAMPED TO FOUR LINES because the rung is now bigger and excerpts
+           arrive from the API at whatever length they were written. Clamping keeps a long one
+           from setting the height of its whole row without inventing a smaller size for it.
+           THE SPINE IS THE HOME PAGE'S ACCENT DEVICE. .home-flow-list gives its three items a
+           3px inline-start bar in green, blue and purple, in that order, and that is the site's
+           only accent motif - amber was measured at 2.04:1 and rejected, and the set is not to
+           be extended. Cycling the three across the grid ties the listing to the band it was
+           borrowed from and gives an otherwise uniform wall of cards a rhythm. It replaces the
+           1px hairline on that one edge only, so the hoverable-edge rule is untouched.
+           HOVER AND FOCUS ARE THE HOME CTA'S. A 2px lift with the single
+           0 4px 12px rgba(26,58,42,.12) shadow this design language allows, and an opaque
+           1a3a2a focus ring - the translucent one failed 1.4.11 at 1.51:1.
+           The card is a flex column so .meta sits on the baseline of the tallest card in the
+           row instead of floating directly under a short excerpt. */
         .post-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
-        .post-card{border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#fff;transition:border-color .18s ease,transform .18s ease}
-        .post-card:hover{border-color:#d1f470;transform:translateY(-1px)}
-        .post-copy{padding:26px}
-        .category{display:inline-block;background:rgba(209,244,112,.28);color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:14px}
-        h2{font-size:23px;line-height:1.22;letter-spacing:-.3px;margin:0 0 12px}
-        h2 :global(a){color:rgba(0,0,0,.95);text-decoration:none;text-underline-offset:3px}
+        .post-card{
+          display:flex;background:#fff;border:1px solid #e5e7eb;
+          border-inline-start:3px solid #3da35a;border-radius:14px;overflow:hidden;
+          transition:border-color .2s,transform .2s,box-shadow .2s;
+        }
+        .post-card:nth-child(3n+2){border-inline-start-color:#2563eb}
+        .post-card:nth-child(3n+3){border-inline-start-color:#9849e8}
+        .post-card:hover{border-color:#d1f470;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+        .post-copy{display:flex;flex-direction:column;flex:1;padding:26px}
+        .category{display:inline-block;align-self:flex-start;background:rgba(209,244,112,.28);color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:14px}
+        h2{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;margin:0 0 12px}
+        h2 :global(a){color:#000;text-decoration:none;text-underline-offset:3px}
         h2 :global(a:hover){color:#1a3a2a}
-        h2 :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}
-        .post-copy p{font-size:16px;line-height:1.5;color:rgba(0,0,0,.72);margin:0 0 20px}
-        .meta{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;line-height:1.4;color:#6b7280}
-        .empty{border:1px dashed #d1d5db;border-radius:14px;padding:40px;text-align:center;color:#6b7280}
+        h2 :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px;border-radius:2px}
+        .post-copy p{
+          font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;
+          color:rgba(0,0,0,.898);margin:0 0 20px;
+          display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+        }
+        /* The author line. margin-top:auto pins it to the bottom of the card. The colour is the
+           site's own dim rung rather than 6b7280, which is a dashboard token from tokens.css
+           and had no business on a public page. */
+        .meta{margin-top:auto;font-size:12px;font-weight:600;line-height:1.4;color:rgba(0,0,0,.54)}
+        .empty{border:1px dashed #d1d5db;border-radius:14px;padding:40px;text-align:center;font-size:20px;line-height:1.4;letter-spacing:-.125px;color:rgba(0,0,0,.54)}
 
         /* The degraded-search notice. Same lime-tint-plus-edge treatment as the legal
            notice, because it does the same job: something a reader must see before they
@@ -494,13 +560,20 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
            context is ambiguous. Same clip technique as .bs-label. */
         .pager :global(.pager-sr){position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
-        @media(max-width:1050px){.post-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media(max-width:680px){
+        /* THE BREAKPOINTS ARE THE HOME PAGE'S NOW: 1024px and 767px, not 1050px and 680px.
+           Four steps across two files that mean the same thing is how a layout ends up
+           reflowing in two places 30px apart. RotatingHero, which wraps this view and owns the
+           band above it, already breaks at 767px, so the old 680px step meant the hero had
+           gone to its narrow treatment while the grid below was still in its wide one. */
+        @media(max-width:1024px){.post-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:767px){
           /* Nothing to override for the hero: its own narrow-screen padding applies. */
-          .category-switch{margin-bottom:22px}
+          .category-switch{margin-bottom:24px}
           .post-grid{grid-template-columns:1fr;gap:18px}
           .post-copy{padding:22px}
-          h2{font-size:22px}
+          /* The excerpt gets the full measure at one column, so it can run longer before the
+             clamp bites - six lines rather than four. No new font size: same rung. */
+          .post-copy p{-webkit-line-clamp:6}
           /* The numbers wrap to their own row under the prev/next pair rather than
              squeezing: 35 pages cannot share a 390px line with two labelled steps. */
           .pager{gap:8px}
@@ -508,9 +581,16 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
           /* :global for the same reason as the block above - these are next/link. */
           .pager :global(.pager-step){flex:1}
         }
+        /* THE REDUCED-MOTION BLOCK WAS AIMING AT NOTHING. It named
+           .category-switch button, and the pills stopped being buttons when each category
+           became its own route - so a reader who asks for less motion still got the pill
+           transition and lift. The pills are next/link now, which is why the selector has to
+           go through :global() exactly as the hover rules above do.
+           Transform AND box-shadow are both cancelled: a shadow appearing under a card is the
+           same "something moved" cue as the lift itself. */
         @media(prefers-reduced-motion:reduce){
-          .post-card,.category-switch button{transition:none}
-          .post-card:hover,.category-switch button:hover{transform:none}
+          .post-card,.category-switch :global(a){transition:none}
+          .post-card:hover,.category-switch :global(a:hover){transform:none;box-shadow:none}
         }
       `}</style>
     </RotatingHero>
