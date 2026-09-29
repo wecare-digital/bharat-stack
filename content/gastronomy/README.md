@@ -2,7 +2,7 @@
 
 This directory is the durable state for WECARE.DIGITAL Gastronomy publishing.
 
-Current live Wix baseline: **454 published Gastronomy posts**.
+Current live Wix baseline: **454 published Gastronomy posts**. The historical Git sequence is verified through GAST-340; the 114 newer live posts must be reconciled to source IDs before assigning the next GAST sequence.
 
 ## Production model
 
@@ -99,7 +99,7 @@ Non-recipe articles are not forced into artificial Ingredients/Method sections.
 Validate:
 
 ```bash
-python scripts/gastronomy_batch.py validate --manifest content/gastronomy/batches/GAST-455-GAST-604.json
+python scripts/gastronomy_batch.py validate --manifest <v2-manifest>
 ```
 
 Publishing and live audit remain separate gates:
