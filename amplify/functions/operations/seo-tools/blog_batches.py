@@ -115,10 +115,7 @@ def create(body: Dict[str, Any], actor: str, categories: Sequence[str],
 
 
 def get(batch_id: str) -> Optional[Dict[str, Any]]:
-    item = storage.table().get_item(Key={"id": str(batch_id)}).get("Item")
-    if not item or item.get("recordType") != RECORD_TYPE:
-        return None
-    return storage._json_safe(item)
+    return storage.get_typed(batch_id, RECORD_TYPE)
 
 
 def _view(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -131,7 +128,12 @@ def _view(item: Dict[str, Any]) -> Dict[str, Any]:
         "defaultTemplateId": item.get("defaultTemplateId", ""),
         "defaultTemplateVersion": item.get("defaultTemplateVersion", ""),
         "tags": item.get("tags", []) or [],
+        #: The STORED status, which callers that also compute a rollup overwrite with the
+        #: derived one. Kept under its own name as well so the lag is visible rather than
+        #: papered over - a `storedStatus` that disagrees with `status` says the last refresh
+        #: read a GSI that had not caught up, which is worth being able to see.
         "status": item.get("status", ""),
+        "storedStatus": item.get("status", ""),
         "createdBy": item.get("createdBy", ""),
         "createdAt": item.get("createdAt", ""),
         "updatedAt": item.get("updatedAt", ""),
@@ -140,9 +142,33 @@ def _view(item: Dict[str, Any]) -> Dict[str, Any]:
 
 # ── Sources in a batch ──────────────────────────────────────────────────────────
 
+def batch_records(batch_id: str, record_type: str = "", limit: int = 0) -> List[Dict[str, Any]]:
+    """Everything on a batch's index partition, optionally of one record type.
+
+    THE FILTER IS NOT OPTIONAL POLISH. `batchId` is the partition key of a GSI, and every
+    record type that carries a `batchId` lands on it - sources, source analyses, QA runs,
+    publish jobs. The first version of this function returned the whole partition and called
+    it "the batch's sources", which was true for exactly as long as `blogSource` was the only
+    type with a batch. The moment `blogSourceAnalysis` arrived, a rollup counted analyses
+    among the sources and reported 2 for a batch holding 1.
+
+    Sharing one index across record types is deliberate - a batch page wants all of them, and
+    a second GSI costs a second copy of every write - but it means the caller must say what it
+    is asking for.
+    """
+    rows = storage.query_index(BATCH_INDEX, "batchId", str(batch_id),
+                               limit=0 if record_type else limit)
+    if record_type:
+        rows = [row for row in rows if row.get("recordType") == record_type]
+        if limit:
+            rows = rows[:limit]
+    return rows
+
+
 def batch_sources(batch_id: str, limit: int = 0) -> List[Dict[str, Any]]:
-    """Every source in a batch, paginated, no ceiling."""
-    return storage.query_index(BATCH_INDEX, "batchId", str(batch_id), limit=limit)
+    """Every SOURCE in a batch, paginated, no ceiling."""
+    import blog_sources
+    return batch_records(batch_id, record_type=blog_sources.RECORD_TYPE, limit=limit)
 
 
 def _empty_rollup() -> Dict[str, Any]:
@@ -193,15 +219,39 @@ def rollup(batch_id: str) -> Dict[str, Any]:
     }
 
 
+def derive_status(record: Dict[str, Any], counts: Dict[str, Any]) -> str:
+    """The status a rollup implies. The authoritative answer, computed not read.
+
+    WHY THE STORED STATUS IS NOT THE AUTHORITY, discovered on a live 13-source fan-out run that
+    reported every source EXTRACTED while the batch still said INGESTING.
+
+    `refresh_status` runs at the end of a unit of work and reads the rollup through
+    `batchId-createdAt-index`. A global secondary index is eventually consistent, and DynamoDB
+    offers no `ConsistentRead` on one - so the refresh that fires immediately after the last
+    source's write can legitimately still see that source as unfinished, compute INGESTING, and
+    store it. Nothing then runs again, so the batch stays wrong permanently.
+
+    Adding a retry or a delay would be guessing at a lag with no upper bound. Deriving the
+    status wherever a rollup is already being computed costs nothing extra and cannot be stale,
+    because the rollup is the thing the caller just read. The stored value stays as a
+    best-effort cache for the cheap listing that skips rollups.
+
+    CLOSED is never derived away. It is an operator decision, and a late-arriving source must
+    not silently reopen a batch somebody deliberately closed.
+    """
+    if str(record.get("status") or OPEN) == CLOSED:
+        return CLOSED
+    if int(counts.get("sources") or 0) == 0:
+        return OPEN
+    return READY if counts.get("complete") else INGESTING
+
+
 def refresh_status(batch_id: str) -> str:
-    """Move the batch's own status to match its children, and return it.
+    """Write the derived status onto the batch, and return it.
 
-    Derived from the rollup for the same reason the counts are: a status maintained by
-    increments drifts, and a batch stuck on INGESTING with every source finished is
-    indistinguishable from one that is genuinely still working.
-
-    CLOSED is never overwritten. It is an operator decision, and a late-arriving source
-    should not silently reopen a batch somebody deliberately closed.
+    Best effort by nature - see `derive_status` for why a GSI read taken immediately after the
+    write it is meant to observe can be behind. This keeps the cheap listing approximately right;
+    anything that shows a rollup derives the status instead.
     """
     record = get(batch_id)
     if not record:
@@ -210,14 +260,7 @@ def refresh_status(batch_id: str) -> str:
     if current == CLOSED:
         return CLOSED
 
-    counts = rollup(batch_id)
-    if counts["sources"] == 0:
-        wanted = OPEN
-    elif counts["complete"]:
-        wanted = READY
-    else:
-        wanted = INGESTING
-
+    wanted = derive_status(record, rollup(batch_id))
     if wanted != current:
         storage.table().update_item(
             Key={"id": batch_id},
@@ -269,7 +312,11 @@ def list_batches(with_rollup: bool = True, limit: int = 200) -> List[Dict[str, A
     for record in records:
         view = _view(record)
         if with_rollup:
-            view["rollup"] = rollup(record["id"])
+            counts = rollup(record["id"])
+            view["rollup"] = counts
+            #: DERIVED, because the stored value can lag - see `derive_status`. The rollup has
+            #: already been read here, so this costs nothing.
+            view["status"] = derive_status(record, counts)
         out.append(view)
     return out
 
@@ -280,9 +327,11 @@ def detail(batch_id: str, source_limit: int = 0) -> Dict[str, Any]:
         raise LookupError("Unknown batchId")
     import blog_sources
     rows = batch_sources(batch_id, limit=source_limit)
+    counts = rollup(batch_id)
     return {
         **_view(record),
-        "rollup": rollup(batch_id),
+        "status": derive_status(record, counts),
+        "rollup": counts,
         "sources": [blog_sources.view(row) for row in rows],
     }
 

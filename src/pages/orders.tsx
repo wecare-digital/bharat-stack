@@ -127,7 +127,7 @@ const OrdersPage: React.FC = () => (
             background:#fff;border-color:#d1f470;
             transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12);
           }
-          .mo-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+          .mo-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
           .mo-link{color:#1a3a2a;font-weight:600;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
           .mo-link:hover{background:rgba(209,244,112,.22)}
           @media(max-width:767px){

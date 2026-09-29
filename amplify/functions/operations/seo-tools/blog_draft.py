@@ -200,7 +200,12 @@ def propose(record_id: str, actor: str) -> Dict[str, Any]:
     candidate = {**draft, **proposal}
     if candidate.get("slug"):
         candidate["canonical"] = q.expected_canonical(candidate["slug"])
-    assessment = q.assess(candidate)
+    #: The GATE IS NEVER STORED on the draft. `blog_gate.assess_draft` injects it into a copy
+    #: when a live sign-off covers the current body, and drops it the moment the body moves - so
+    #: a copy persisted here would be a second source of truth that outlives its signature.
+    candidate.pop("gate", None)
+    import blog_gate
+    assessment = blog_gate.assess_draft(record, candidate)
 
     input_tokens = int(generated.get("inputTokens", 0))
     output_tokens = int(generated.get("outputTokens", 0))
@@ -300,7 +305,12 @@ def apply_draft(record_id: str, body: Dict[str, Any], actor: str) -> Dict[str, A
     candidate = {**draft, **accepted}
     if candidate.get("slug"):
         candidate["canonical"] = q.expected_canonical(candidate["slug"])
-    assessment = q.assess(candidate)
+    #: The GATE IS NEVER STORED on the draft. `blog_gate.assess_draft` injects it into a copy
+    #: when a live sign-off covers the current body, and drops it the moment the body moves - so
+    #: a copy persisted here would be a second source of truth that outlives its signature.
+    candidate.pop("gate", None)
+    import blog_gate
+    assessment = blog_gate.assess_draft(record, candidate)
 
     storage.table().update_item(
         Key={"id": record_id},

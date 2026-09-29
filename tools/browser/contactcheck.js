@@ -211,6 +211,14 @@ async function inspectMapFrame( page ) {
           label: ( n.getAttribute( 'aria-label' ) || n.getAttribute( 'title' ) || n.textContent || '' ).trim().slice( 0, 60 ),
           x: Math.round( r.x ), y: Math.round( r.y ),
           w: Math.round( r.width ), h: Math.round( r.height ),
+          // INLINE ON PURPOSE - window.__visible cannot reach here. This evaluate runs
+          // inside Google's CROSS-ORIGIN iframe, and lib/visible.js installs its predicate
+          // with addInitScript, which does not define it in that frame's context. Converted
+          // to the shared helper this threw "window.__visible is not a function" inside
+          // frame.evaluate, and the surrounding try/catch swallowed it into
+          // "could not inspect" - so the suite reported 8/8 instead of 12/13 and the five
+          // in-frame control assertions silently stopped running. A conversion that makes a
+          // suite pass by measuring less is worse than the inconsistency it tidied.
           visible: r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0',
         };
       } ).filter( n => n.visible );

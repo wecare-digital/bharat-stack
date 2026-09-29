@@ -384,7 +384,7 @@ export default function FilesPage () {
                   transition:border-color .2s;
                 }
                 .sf-input:focus{outline:none;border-color:#1a3a2a}
-                .sf-input:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+                .sf-input:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
                 .sf-input:disabled{opacity:.6}
                 .sf-input-code{
                   letter-spacing:.34em;font-size:22px;font-weight:600;text-align:center;
@@ -402,7 +402,7 @@ export default function FilesPage () {
                   background:#fff;transform:translateY(-2px);
                   box-shadow:0 4px 12px rgba(26,58,42,.12);
                 }
-                .sf-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+                .sf-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
                 .sf-cta:disabled{opacity:.55;cursor:default}
 
                 .sf-quiet{
@@ -411,7 +411,7 @@ export default function FilesPage () {
                   font-size:15px;cursor:pointer;
                 }
                 .sf-quiet:hover{color:#1a3a2a;text-decoration:underline}
-                .sf-quiet:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+                .sf-quiet:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
 
                 /* White card on the tinted panel, so each file reads as its own object. */
                 .sf-file{

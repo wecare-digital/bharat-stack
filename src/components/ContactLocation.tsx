@@ -672,7 +672,7 @@ const ContactLocation: React.FC = () => {
           transition:background-color .2s,transform .2s,box-shadow .2s;
         }
         .cl-cta:hover{background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
-        .cl-cta:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+        .cl-cta:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
 
         @media(prefers-reduced-motion:reduce){
           .cl-cta{transition:none}

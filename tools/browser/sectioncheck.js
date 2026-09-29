@@ -30,6 +30,7 @@
 
 const { target } = require( './lib/serve' );
 const { launch, gotoStable } = require( './lib/browser' );
+const { installVisible } = require( './lib/visible' );
 
 /**
  * The public routes, matching seocheck.js's list so the two cannot disagree about what
@@ -54,6 +55,7 @@ const inventory = async () => {
   const t = await target();
   const browser = await launch();
   const page = await browser.newPage( { viewport: { width: 1280, height: 900 } } );
+  await installVisible( page );
 
   const rows = [];
 
@@ -61,11 +63,10 @@ const inventory = async () => {
     await gotoStable( page, t.base + route );
 
     const data = await page.evaluate( () => {
-      const vis = el => {
-        const r = el.getBoundingClientRect();
-        const cs = getComputedStyle( el );
-        return r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden';
-      };
+      // Shared predicate - lib/visible.js. This checked height, display and visibility,
+      // but not width, not opacity, and not an ancestor at opacity:0 - which is the state
+      // an unrevealed scroll-reveal section sits in.
+      const vis = el => window.__visible( el );
 
       const main = document.querySelector( 'main' ) || document.body;
 

@@ -86,6 +86,9 @@ EXTRACT_PREFIX = ROOT_PREFIX + "extracted/"
 ANALYSIS_PREFIX = ROOT_PREFIX + "source-analysis/"
 WORKING_PREFIX = ROOT_PREFIX + "article-working/"
 QA_PREFIX = ROOT_PREFIX + "qa/"
+#: Collection-level repetition, which is a property of a BATCH rather than of one article, so it
+#: gets its own prefix keyed on the batch rather than living under `qa/`.
+REPETITION_PREFIX = ROOT_PREFIX + "repetition/"
 PUBLISH_PREFIX = ROOT_PREFIX + "publish-records/"
 VERIFY_PREFIX = ROOT_PREFIX + "verification/"
 FAILURE_PREFIX = ROOT_PREFIX + "failures/"
@@ -109,6 +112,61 @@ WORKER_BATCH = int(os.environ.get("BLOG_WORKER_BATCH", "5"))
 MAX_REGISTER_BATCH = 200
 
 RECORD_TYPE = "blogSource"
+
+#: ONE PROJECTED ATTRIBUTE FOR THE WHOLE PIPELINE, AND THE REASON IS A HARD AWS LIMIT.
+#:
+#: DynamoDB caps a GSI's `NonKeyAttributes` at 20 names. `batchId-createdAt-index` already
+#: spends 17 of them, and the remaining stages each want their own state on a batch listing -
+#: which analysis was read, which template version the article was written to, which QA run
+#: and sign-off it rests on, whether it published, whether verification passed. That is seven
+#: more names against three free slots, so adding them one at a time hits the wall partway
+#: through and the fix at that point is recreating a populated index.
+#:
+#: A MAP COUNTS AS ONE NAME. So every downstream stage writes into `pipeline`, the index
+#: projects that single attribute, and the cap stops being a design constraint. It was worth
+#: doing the moment the second stage arrived rather than the last: a GSI's projection cannot
+#: be modified in place, so widening it means deleting and recreating the index, which is free
+#: today at zero records and a migration once a wave is in flight.
+#:
+#: Written whole rather than by nested path: `SET pipeline.qaRunId = :v` fails outright on an
+#: item that has no `pipeline` yet, and there is no single expression that can both create the
+#: map and set a key inside it. `update_pipeline` therefore reads, merges and writes - the same
+#: read-modify-write `draftRecord` has always used, with the same bounded race (two operators
+#: acting on ONE source at human speed), not a new one.
+PIPELINE_FIELDS: Tuple[str, ...] = (
+    "analysisId", "analysisVersion", "sourceReviewedFully",
+    "templateId", "templateVersion",
+    "qaRunId", "qaStatus", "signoffId", "signedOffBy",
+    "publishStatus", "publishedAt", "postId", "postUrl",
+    "verifyStatus", "verifiedAt", "repetitionStatus",
+)
+
+
+def empty_pipeline() -> Dict[str, Any]:
+    """Every stage present and empty, so a listing never has to test for a missing key."""
+    return {name: 0 if name.endswith("Version") else "" for name in PIPELINE_FIELDS}
+
+
+def update_pipeline(record_id: str, **updates: Any) -> Dict[str, Any]:
+    """Merge into a source's `pipeline` map and return the result.
+
+    Unknown keys are refused rather than stored. The map is the index's whole view of the
+    downstream pipeline, so a typo'd key would be a state that writes successfully, projects
+    successfully, and is never read by anything.
+    """
+    unknown = sorted(set(updates) - set(PIPELINE_FIELDS))
+    if unknown:
+        raise ValueError(f"unknown pipeline fields: {unknown}")
+    if not str(record_id or "").strip():
+        raise ValueError("a record id is required to update a pipeline")
+    item = storage.table().get_item(Key={"id": str(record_id)}).get("Item") or {}
+    merged = {**empty_pipeline(), **storage._json_safe(item.get("pipeline") or {}), **updates}
+    storage.table().update_item(
+        Key={"id": str(record_id)},
+        UpdateExpression="SET pipeline = :p, updatedAt = :u",
+        ExpressionAttributeValues={":p": storage._clean(merged), ":u": storage.now_iso()},
+    )
+    return merged
 
 #: The batch a source belongs to when it was submitted without one - the interactive
 #: single-document path. NOT an empty string: DynamoDB omits an item from a GSI entirely when
@@ -215,10 +273,7 @@ def view(item: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_source(record_id: str) -> Optional[Dict[str, Any]]:
-    item = storage.table().get_item(Key={"id": record_id}).get("Item")
-    if not item or item.get("recordType") != RECORD_TYPE:
-        return None
-    return storage._json_safe(item)
+    return storage.get_typed(record_id, RECORD_TYPE)
 
 
 def list_sources(limit: int = 500) -> List[Dict[str, Any]]:
@@ -290,6 +345,9 @@ def _view(item: Dict[str, Any]) -> Dict[str, Any]:
         "aiDraftStatus": item.get("aiDraftStatus", ""),
         "gateBlocking": item.get("gateBlocking", []),
         "gateReview": item.get("gateReview", []),
+        #: Every downstream stage's state, as ONE attribute. See `PIPELINE_FIELDS` for why it
+        #: is a map: the index can project 20 names and this would otherwise have been seven.
+        "pipeline": {**empty_pipeline(), **(item.get("pipeline") or {})},
         "error": item.get("error", ""),
         "createdAt": item.get("createdAt", ""),
         "updatedAt": item.get("updatedAt", ""),
@@ -386,6 +444,9 @@ def register(body: Dict[str, Any], actor: str, categories: Tuple[str, ...]) -> D
             "articleClass": article_class,
             # A URL needs no upload, so it is immediately ready for the worker.
             "status": PENDING_UPLOAD if kind == "pdf" else UPLOADED,
+            #: Initialised here so a re-registration does not reset a pipeline already in
+            #: flight, and so every source row has the attribute the batch index projects.
+            "pipeline": (existing or {}).get("pipeline") or empty_pipeline(),
             "createdBy": actor,
             "error": "",
         }
@@ -453,14 +514,32 @@ def confirm(body: Dict[str, Any], actor: str) -> Dict[str, Any]:
         )
         confirmed.append(record_id)
 
-    started = start_worker(reason="confirm") if confirmed else False
+    #: FAN OUT TO THE QUEUE, one message per source, and fall back to the sweep when no queue
+    #: is configured.
+    #:
+    #: The fallback is not defensive padding. It is what keeps the unit tests and a
+    #: not-yet-provisioned environment working, and it is the same code path the reconciliation
+    #: route uses - so it stays exercised rather than rotting into a branch nobody has run.
+    #:
+    #: Neither is allowed to fail the request. The source records are already durable at this
+    #: point, so the worst case of a failed hand-off is that extraction waits for the next
+    #: confirm or a manual drain. Failing the HTTP call instead would tell an operator their
+    #: upload failed when it did not.
+    import blog_queue
+    queued = blog_queue.enqueue(confirmed, reason="confirm") if confirmed else {
+        "queued": 0, "failed": 0, "configured": False}
+    started = False
+    if confirmed and not queued["configured"]:
+        started = start_worker(reason="confirm")
     logger.info(json.dumps({
         "event": "blog_sources_confirmed", "actor": actor, "confirmed": len(confirmed),
         "missing": len(missing), "unknown": len(unknown), "workerStarted": started,
+        "queued": queued["queued"], "queueConfigured": queued["configured"],
     }))
     return {
         "confirmed": confirmed, "missingUpload": missing, "unknownSourceId": unknown,
-        "workerStarted": started,
+        "workerStarted": started, "queued": queued["queued"],
+        "queueFailed": queued["failed"], "queueConfigured": queued["configured"],
     }
 
 
@@ -529,45 +608,84 @@ def pending_sources(limit: int = 0) -> List[Dict[str, Any]]:
     return rows[:limit] if limit else rows
 
 
-def run_worker(event: Dict[str, Any]) -> Dict[str, Any]:
-    """Extract a bounded batch, then chain if more remain."""
+#: What `process_source` reports. Distinguished rather than collapsed to a boolean because the
+#: SQS consumer has to act differently on each: EXTRACTED and FAILED are both done, SKIPPED means
+#: another worker holds the claim, and only RAISED should make a message retry.
+DONE = "DONE"
+SKIPPED = "SKIPPED"
+FAILED = "FAILED"
+RAISED = "RAISED"
+
+
+def process_source(record_id: str) -> str:
+    """Claim one source, extract it, store the result. The unit of work, for both paths.
+
+    Pulled out of `run_worker` when the SQS fan-out arrived, so the sweep and the queue consumer
+    cannot drift. They differ only in how they choose the next source.
+
+    The conditional claim is what makes at-least-once delivery safe: a standard SQS queue can
+    deliver the same message twice, and the second delivery loses the UPLOADED -> EXTRACTING
+    race and returns SKIPPED rather than extracting the document again. With the Bedrock step
+    attached, a duplicate extraction is a duplicate model call.
+    """
     import blog_pipeline as bp
 
+    record = get_source(record_id)
+    if not record:
+        return SKIPPED
+    if not _claim_for_extraction(record_id):
+        return SKIPPED
+    try:
+        extract = _extract_one(record, bp)
+    except Exception as exc:  # noqa: BLE001 - one bad source must not stop a batch
+        logger.exception("blog source extraction raised")
+        _fail(record_id, f"{type(exc).__name__} during extraction")
+        return RAISED
+    if not extract.ok:
+        _fail(record_id, extract.error)
+        return FAILED
+    _store_extract(record, extract, bp)
+    return DONE
+
+
+def refresh_batches(batch_ids: Iterable[str]) -> None:
+    """Recompute the status of the batches a unit of work touched.
+
+    Batch status is DERIVED, so it is recomputed after the fact rather than incremented during
+    it - and only for the batches actually touched, because refreshing every batch would page
+    every source in the system on each worker run.
+    """
+    import blog_batches
+    for batch_id in sorted({str(value) for value in batch_ids if value}):
+        if batch_id == NO_BATCH:
+            continue
+        try:
+            blog_batches.refresh_status(batch_id)
+        except Exception:  # noqa: BLE001 - a rollup failure must not lose extraction work
+            logger.exception("batch status refresh failed")
+
+
+def run_worker(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract a bounded batch, then chain if more remain.
+
+    STILL HERE AFTER THE SQS FAN-OUT, and deliberately. A queue is the steady-state path, and
+    a queue cannot find a source whose message was never sent or was lost - a record written
+    before the queue existed, a `SendMessageBatch` that partially failed, a message that aged
+    out. This sweep asks the table what is outstanding, which is the only reconciliation that
+    does not depend on the queue being correct. `POST /blog-sources/drain` is its route.
+    """
     batch = int(event.get("limit") or WORKER_BATCH)
     processed, failed = 0, 0
     touched_batches: set = set()
     for record in pending_sources(limit=batch):
-        record_id = record["id"]
-        if not _claim_for_extraction(record_id):
-            continue
         touched_batches.add(str(record.get("batchId") or NO_BATCH))
-        try:
-            extract = _extract_one(record, bp)
-        except Exception as exc:  # noqa: BLE001 - one bad source must not stop the batch
-            logger.exception("blog source extraction raised")
-            _fail(record_id, f"{type(exc).__name__} during extraction")
+        outcome = process_source(record["id"])
+        if outcome == DONE:
+            processed += 1
+        elif outcome in (FAILED, RAISED):
             failed += 1
-            continue
-        if not extract.ok:
-            _fail(record_id, extract.error)
-            failed += 1
-            continue
-        _store_extract(record, extract, bp)
-        processed += 1
 
-    # Batch status is DERIVED, so it is recomputed after the batch changed rather than
-    # incremented during it. Only the batches this invocation actually touched, because
-    # refreshing every batch would page every source in the system on each worker run.
-    if touched_batches:
-        import blog_batches
-        for batch_id in sorted(touched_batches):
-            if batch_id == NO_BATCH:
-                continue
-            try:
-                blog_batches.refresh_status(batch_id)
-            except Exception:  # noqa: BLE001 - a rollup failure must not lose extraction work
-                logger.exception("batch status refresh failed")
-
+    refresh_batches(touched_batches)
     remaining = len(pending_sources())
     chained = start_worker(reason="chain") if remaining else False
     logger.info(json.dumps({
@@ -594,6 +712,16 @@ def _extract_one(record: Dict[str, Any], bp) -> Any:
 
 
 def _fail(record_id: str, error: str) -> None:
+    #: LOGGED AS ITS OWN EVENT, so a metric filter can count it.
+    #:
+    #: An extraction failure is caught and recorded on the record rather than raised, which is
+    #: correct - one bad PDF must not stop a batch of 2,500. The consequence is that it produces no
+    #: Lambda error, so `wecare-lambda-errors-wecare-seo-tools` never sees it and a run where every
+    #: document failed looks identical to a run where every document succeeded. This line is what
+    #: `wecare-blog-extraction-failures` counts.
+    logger.warning(json.dumps({
+        "event": "blog_source_extraction_failed", "sourceId": record_id,
+        "error": str(error)[:300]}))
     storage.table().update_item(
         Key={"id": record_id},
         UpdateExpression="SET #s = :s, #e = :e, updatedAt = :u",
@@ -646,10 +774,14 @@ def _store_extract(record: Dict[str, Any], extract: Any, bp) -> None:
     Note what the item does NOT hold: the extracted text. See `EXTRACT_PREVIEW_CHARS`.
     """
     import blog_quality_v2 as q
+    import blog_gate
 
     key = write_extract(record["id"], extract.text)
     draft = _draft_record(record, extract, q, bp)
-    assessment = q.assess(draft)
+    #: Through `blog_gate.assess_draft`, never `q.assess`, so the template and the gate
+    #: sign-off apply at every site that writes an `articleStatus` rather than at whichever
+    #: ones somebody remembered to change.
+    assessment = blog_gate.assess_draft(record, draft)
     # The gate has read the extract; the stored draft must not carry a second copy of it.
     stored_draft = {name: value for name, value in draft.items() if name != "sourceExtract"}
     stored_draft["extractKey"] = key

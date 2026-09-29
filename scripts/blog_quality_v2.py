@@ -854,12 +854,31 @@ def check_privacy_and_attribution(record: Dict[str, Any]) -> List[Finding]:
     return out
 
 
+def _trigger_present(trigger: str, lowered: str) -> bool:
+    """A section 20 trigger, anchored on a word boundary at the LEFT only.
+
+    Plain `trigger in lowered` fired on words that merely CONTAIN a trigger, and the first real
+    article to hit it was a piece about keeping agreements: it says "reliability", which contains
+    "liability", so the gate demanded a legal review of an article with no legal claim in it.
+    That is the failure section 20 is trying to prevent, arrived at backwards - a reviewer who is
+    asked for a legal review of something with no law in it learns to answer YES to clear the
+    form.
+
+    LEFT ONLY, deliberately. Two triggers are prefixes on purpose - `in 18` and `in 19` are meant
+    to catch "in 1943" - and a right-hand boundary would break exactly those. So this fixes
+    trigger-at-the-end-of-a-word ("reliability") and knowingly leaves
+    trigger-at-the-start-of-a-word ("invest" inside "investigation"), which is the narrower
+    remaining imprecision and errs toward asking rather than skipping.
+    """
+    return bool(re.search(r"\b" + re.escape(trigger), lowered))
+
+
 def check_factual_reviews(record: Dict[str, Any]) -> List[Finding]:
     """Section 20. A domain claim may not sit behind an N/A review."""
     out: List[Finding] = []
     lowered = strip_markdown(body_of(record)).lower()
     for flag, triggers in FACT_DOMAIN_TRIGGERS.items():
-        matched = sorted({t for t in triggers if t in lowered})
+        matched = sorted({t for t in triggers if _trigger_present(t, lowered)})
         if not matched:
             continue
         answer = _flag_answer(record.get(flag))
@@ -1348,9 +1367,18 @@ def _soften_for_legacy(findings: Sequence[Finding]) -> List[Finding]:
     return out
 
 
-def check_record(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None) -> List[Finding]:
-    """Every mechanically decidable clause of the standard, for one record."""
-    findings: List[Finding] = []
+def check_record(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None,
+                 extra_findings: Sequence[Finding] = ()) -> List[Finding]:
+    """Every mechanically decidable clause of the standard, for one record.
+
+    `extra_findings` exists so a caller can fold in rules this module cannot own. Content
+    templates are the case that needed it: a template is a per-project record living in
+    DynamoDB, and this module runs in CI with no AWS access at all, so it cannot resolve one.
+    The dependency has to point that way round - `blog_templates` imports the gate, never the
+    reverse - and passing findings in keeps the status machinery and the legacy softening in
+    one place rather than duplicated at the call site.
+    """
+    findings: List[Finding] = list(extra_findings)
     findings += check_class_and_source(record)
     findings += check_distinction_and_purpose(record)
     findings += check_type_and_length(record)
@@ -1372,9 +1400,10 @@ def check_record(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None) -
     return findings
 
 
-def assess(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None) -> Dict[str, Any]:
+def assess(record: Dict[str, Any], corpus: Optional[CorpusIndex] = None,
+           extra_findings: Sequence[Finding] = ()) -> Dict[str, Any]:
     """`check_record` plus the derived verdicts, as one reportable dict."""
-    findings = check_record(record, corpus)
+    findings = check_record(record, corpus, extra_findings=extra_findings)
     gate = machine_gate_table(findings)
     return {
         "slug": str(record.get("slug") or ""),

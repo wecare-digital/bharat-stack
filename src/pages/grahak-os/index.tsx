@@ -854,7 +854,14 @@ response = requests.post(
              is the card-heading rung - the same size and weight as .pp-strip-title - so
              the Meta lockup now sits at the same level as every other named thing on the
              page, and the mark drops 46 -> 44px to match the strip's icon size. */
-          .trust-wordmark{font-size:22px;font-weight:700;letter-spacing:-.25px;color:#000}
+          /* line-height:1.27 completes the card-heading rung, which this rule declared three
+             quarters of. The comment above says "22px/700 is the card-heading rung - the same
+             size and weight as .pp-strip-title", and the size, weight and tracking all matched;
+             the line-height was simply never declared, so it inherited and measured 34.1px
+             against the rung's 27.94px. .pp-strip-title, the other member of the rung, has
+             always had it. One undeclared property is how a heading ends up 6px taller than the
+             rung it is documented as belonging to. */
+          .trust-wordmark{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
           .trust-divider{width:100%;height:1px;background:rgba(0,0,0,.09)}
           /* Body level, 20px/400, not a second 22px/700 line. The designation describes the
              lockup above it rather than competing with it, and two bold 22px lines stacked
@@ -1370,12 +1377,26 @@ response = requests.post(
              h1 and p are intentionally absent: their base rule is the contract. */
           .section-header h2{font-size:clamp(28px,3.2vw,40px);line-height:1.08;letter-spacing:-1.2px}
           .section-header p{font-size:20px;line-height:1.4;letter-spacing:-.125px}
-          /* 15px explicit, not var(--text-base). That token is declared twice —
+          /* 17px explicit, not var(--text-base). That token is declared twice —
              tokens.css:83 says 16px, Pages.css:59 says 15px — and only Pages.css is
              imported by _app.tsx, so the pills were 15px by accident of import
              order. Importing tokens.css would silently have resized every pill.
              .pp-pill is listed here too; it was missing from this contract block
-             despite being the class the touchpoint section actually renders. */
+             despite being the class the touchpoint section actually renders.
+
+             THIS COMMENT SAID 15px UNTIL 2026-09-29 AND THE DECLARATION NEVER DID.
+             Measured in a browser, .pill and .pp-pill resolve to 17px, and a git log -S
+             search for the 15px form of this very declaration returns nothing - that string
+             has never existed in this file. The comment, the 17px declaration and the design
+             contract's "an explicit 15px" row all arrived together in 457cc883, so the
+             15px was wrong the moment it was written rather than having drifted later.
+             Corrected to 17px in all three places, because 17px is what has shipped and
+             been reviewed since the rebuild; changing the code to match a number nobody
+             ever saw would be a real visual change made to satisfy a stale note.
+             NOTE: no backticks anywhere in this comment. This block is a template literal
+             and one backtick ends it - quoting that git command with backticks is what broke
+             the build while this note was being written, which is the trap documented at the
+             top of the design contract. */
           .pill,.pp-pill{font-size:17px}
           .api-info h2{font-size:clamp(28px,3.2vw,40px);line-height:1.08;letter-spacing:-1.2px}
           .api-desc{font-size:20px;line-height:1.4;letter-spacing:-.125px}

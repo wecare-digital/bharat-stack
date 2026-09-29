@@ -76,6 +76,15 @@ const WIDTH = wi > -1 ? Number( process.argv[ wi + 1 ] ) : 1280;
         const cs = getComputedStyle( c );
         // Keep absolutely-positioned zero-opacity nodes: the rotating words are exactly
         // that, and they are structure even when only one is visible.
+        //
+        // THIS IS THE ONE SUITE THAT DELIBERATELY DOES NOT USE window.__visible, and the
+        // clause above is why. The other five were converted to lib/visible.js because each
+        // was answering "can a visitor see this", badly and differently. This one is not
+        // asking that. It prints the document's SHAPE, so a node that exists in the tree
+        // belongs in the output whether or not it is currently painted - the four rotating
+        // words are one slot in the structure, and __visible would report three of them
+        // gone and the tree would change every 2400ms.
+        // Converting this would not be a consolidation; it would be a different measurement.
         const real = ( r.height > 0 && r.width > 0 ) || cs.position === 'absolute';
         if ( !real || cs.display === 'none' ) continue;
         node.kids.push( walk( c ) );

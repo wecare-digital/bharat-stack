@@ -13,6 +13,14 @@ const PUBLIC_SITE = 'https://wecare.digital';
 const BLOG_PUBLIC_API = `${process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api'}/seo-tools/blog-public`;
 
 const seoPages = [
+  //: Listed FIRST because it is the surface that governs publication. Blog Studio uploads the
+  //: sources; these five pages are where a source becomes a read source, a QA'd article, a signed
+  //: article, a released one, and finally a verified live post. Nothing publishes without passing
+  //: through the publish queue by hand.
+  { path: '/workspace/seo/blog-production', label: 'Blog Production', desc: 'Production waves: intake, source reading, QA, repetition, publish, verification', icon: '🏭' },
+  { path: '/workspace/seo/blog-production/review', label: 'Source review', desc: 'Read a source against its evidence and record that it was read (section 2)', icon: '🔍' },
+  { path: '/workspace/seo/blog-production/qa', label: 'QA review', desc: 'Run QA and record the gate sign-off — the only route to READY_TO_PUBLISH', icon: '✅' },
+  { path: '/workspace/seo/blog-production/publish', label: 'Publish queue', desc: 'Release, publish and verify. Nothing here happens automatically', icon: '🚀' },
   { path: '/workspace/seo/blog-manager', label: 'Blog SEO Manager', desc: 'Create AWS-native posts; AI audit, approve and apply SEO', icon: '📝' },
   { path: '/workspace/seo/pages-manager', label: 'Site Pages SEO', desc: 'AI SEO for site, system & product pages — Site / System / Products tabs', icon: '📄' },
   { path: '/workspace/seo/tools', label: 'SEO Tools', desc: 'Blog SEO, button audit, live checks, PageSpeed', icon: '🔧' },

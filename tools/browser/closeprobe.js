@@ -33,6 +33,7 @@
 
 const { target } = require( './lib/serve' );
 const { launch, gotoStable } = require( './lib/browser' );
+const { installVisible } = require( './lib/visible' );
 
 let pass = 0, fail = 0;
 const ok = ( cond, name, detail ) => {
@@ -64,6 +65,7 @@ const CONTRAST_FN = `
   const browser = await launch();
   const ctx = await browser.newContext( { viewport: { width: 1280, height: 900 } } );
   const page = await ctx.newPage();
+  await installVisible( page );
   await gotoStable( page, `${t.base}/` );
   // Scroll it in so .is-in has fired and the revealed state is what gets measured.
   await page.evaluate( () => document.querySelector( '.home-close' ).scrollIntoView( { block: 'center' } ) );
@@ -229,11 +231,14 @@ const CONTRAST_FN = `
   console.log( '\nTHE NO-JAVASCRIPT STATE — the thing this band gets right' );
   const noJsCtx = await browser.newContext( { viewport: { width: 1280, height: 900 }, javaScriptEnabled: false } );
   const njs = await noJsCtx.newPage();
+  await installVisible( njs );
   await njs.goto( `${t.base}/`, { waitUntil: 'load' } );
   const N = await njs.evaluate( () => {
-    const vis = s => { const e = document.querySelector( s ); if ( !e ) return false;
-      const c = getComputedStyle( e ); const r = e.getBoundingClientRect();
-      return c.display !== 'none' && c.visibility !== 'hidden' && +c.opacity > 0 && r.height > 0; };
+    // Shared predicate - lib/visible.js. Stricter than the inline version it replaced: it
+    // adds the offsetParent test and the ancestor opacity walk, which matters most here
+    // because this is the NO-JS resting state, and a section left unrevealed is hidden by
+    // its own ancestor rather than by anything on the element itself.
+    const vis = s => { const e = document.querySelector( s ); return !!e && window.__visible( e ); };
     return { armed: document.querySelector( '.home-close' ).className.includes( 'is-armed' ),
       title: vis( '.home-close-title' ), points: vis( '.home-close-points li' ),
       cta: vis( '.home-close-cta' ), rule: vis( '.home-close-rule' ) };
