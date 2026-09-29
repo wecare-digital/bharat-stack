@@ -94,10 +94,31 @@ jobs:
       # `Missing: @opentelemetry/core@2.0.0 from lock file` errors, because
       # @aws-amplify/data-construct and @aws-amplify/graphql-api-construct bundle
       # OpenTelemetry copies whose pinned @opentelemetry/core@2.0.0 does not match
-      # the 2.8.0 bundled beside them. It is inside published tarballs, not here: a
-      # clean regen reproduces it and an `overrides` entry crashes npm (exit 134).
-      # So a bare `npm ci` gate can never pass, which made this job unable to
-      # commit the lockfile it had just regenerated - a brick, not a tripwire.
+      # the 2.8.0 bundled beside them. It is inside published tarballs, not here, and
+      # an `overrides` entry crashes npm (exit 134). So a bare `npm ci` gate can never
+      # pass, which made this job unable to commit the lockfile it had just
+      # regenerated - a brick, not a tripwire.
+      #
+      # EXPECT THIS GATE TO FAIL TODAY, AND FOR A DIFFERENT REASON THAN THE ABOVE.
+      # The step before this one deletes the lockfile and regenerates it, on the
+      # premise that a clean regen is at least as good as what is committed. Measured
+      # 2026-09-29 (Node 24.21.0 / npm 11.19.0), it is not:
+      #
+      #   committed lockfile   npm ci -> exit 1,  4 findings,  1 distinct
+      #   fresh regen          npm ci -> exit 1, 87 findings, 62 distinct
+      #
+      # The extra 61 are a second bundled subtree (@aws-cdk/toolkit-lib, archiver,
+      # bare-*, chalk, fs-extra - what aws-cdk bundles) that the fresh resolve hoists
+      # differently. `npm install` tolerates it, so no other workflow notices, but it is
+      # 15x further from installable. The gate therefore reports ~61 unexpected findings
+      # and refuses to commit, which is CORRECT - it is blocking a regression, not
+      # reporting drift we caused. Read a failure here as "the regen made the lockfile
+      # worse" and do not reach for --strict or continue-on-error.
+      #
+      # The unblock is to stop regenerating from scratch: `npm install` OVER the existing
+      # lockfile moved 35 insertions / 56 deletions for the same dependency result where a
+      # regen moved ~19,700 lines (docs/grahak-os-handoff.md, item 2). That changes this
+      # job's stated purpose, so it is left as an owner decision rather than done here.
       #
       # npm_ci_gate.py separates the two failure classes in that one output: the
       # four known upstream edges are tolerated by exact string, and ANY other sync

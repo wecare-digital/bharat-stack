@@ -15,8 +15,31 @@ direction twice.
    `@opentelemetry/core@2.0.0` while the `@opentelemetry/core` bundled beside them is
    2.8.0. Two packages x two dependents = four errors. `npm install` succeeds because it
    trusts bundled deps rather than resolving them; `npm ci` validates those edges and
-   refuses. Regenerating the lockfile from scratch reproduces the identical four errors,
-   and an `overrides` entry crashes npm with exit 134. Neither is fixable from here.
+   refuses. An `overrides` entry crashes npm with exit 134, so that is not a way out
+   either, and neither is fixable from here.
+
+   REGENERATING THE LOCKFILE IS WORSE, NOT NEUTRAL, and an earlier revision of this
+   docstring had it wrong. It said a from-scratch regen "reproduces the identical four
+   errors". Re-measured 2026-09-29 on Node 24.21.0 / npm 11.19.0, from HEAD's
+   package.json with the exact command `deps-upgrade.yml` runs
+   (`npm install --legacy-peer-deps --no-audit --no-fund` against no lockfile):
+
+       committed lockfile   npm ci -> exit 1,  4 findings, 1 distinct  (the OTel edge)
+       fresh regen          npm ci -> exit 1, 87 findings, 62 distinct
+
+   The extra 61 are a second bundled subtree - `@aws-cdk/toolkit-lib`, `archiver`,
+   `bare-*`, `chalk`, `fs-extra` and the rest of what `aws-cdk` bundles - which the
+   fresh resolve hoists differently. `npm install` tolerates that lockfile fine, so it
+   is invisible to every other workflow, but it is 15x further from installable than the
+   one already committed.
+
+   So this gate FAILS after `deps-upgrade.yml` regenerates, and that is the correct
+   outcome: it is refusing to commit a regression. The consequence is that splitting the
+   failure classes unbricked the GATE without unbricking the JOB - the regen step's
+   premise, that a clean regen produces a better lockfile than the committed one, is
+   currently false. Anyone dispatching that workflow should expect the gate to report
+   dozens of unexpected findings, and should read that as "the regen made it worse",
+   not as drift we introduced.
 
 2. A non-blocking `npm ci` step is how the lockfile rotted last time. When nothing
    failed, the committed lock drifted until it was missing five entries the tree

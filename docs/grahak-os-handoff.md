@@ -120,10 +120,39 @@ misled every reader so far. Re-verify with the harness, not with this table.
 
    *Regenerating the lockfile from scratch does not work.* `rm package-lock.json && npm
    install` on a networked machine produces a completely fresh tree — 12,404 lines
-   removed, 7,302 added — and `npm ci` then fails with the **identical four errors**.
-   That matters because it is exactly what `deps-upgrade.yml` at `mode=lock-only` does,
-   so **that workflow cannot fix this either**; an earlier revision of this file
-   recommended it as "the most likely thing to fix this", and that advice was wrong.
+   removed, 7,302 added — and `npm ci` still fails. That matters because it is exactly
+   what `deps-upgrade.yml` at `mode=lock-only` does, so **that workflow cannot fix this
+   either**; an earlier revision of this file recommended it as "the most likely thing to
+   fix this", and that advice was wrong.
+
+   **Corrected 2026-09-29: the regen does not reproduce the "identical four errors",
+   it produces far more.** This paragraph said "identical four" and that was measured on
+   an older npm. Re-measured on Node 24.21.0 / npm 11.19.0, from HEAD's `package.json`
+   with the exact command `deps-upgrade.yml` runs, in an isolated directory so the
+   working tree was untouched:
+
+   | lockfile | `npm ci --legacy-peer-deps` |
+   |---|---|
+   | committed at HEAD | exit 1, **4** findings, **1** distinct (the OTel edge) |
+   | fresh regen | exit 1, **87** findings, **62** distinct |
+
+   The extra 61 are a second bundled subtree — `@aws-cdk/toolkit-lib`,
+   `@aws-cdk/cloud-assembly-api`, `archiver`, `cdk-from-cfn`, the `bare-*` family,
+   `chalk`, `fs-extra` — which the fresh resolve hoists differently from what `aws-cdk`
+   bundles. `npm install` exits 0 against that lockfile and every workflow here uses
+   `npm install`, so the regression is invisible everywhere except `npm ci`. But the
+   committed lockfile is **the better of the two states**, which inverts the premise this
+   workflow was built on.
+
+   Consequence for the item below: splitting the failure classes fixed the **gate**, not
+   the **job**. `npm_ci_gate.py` correctly refuses the regenerated lockfile — 61
+   unexpected findings — so `deps-upgrade.yml` still cannot commit, now because the regen
+   produces a regression rather than because the gate was unconditionally red. Verified
+   by running the gate in both directions: exit 0 against HEAD's lockfile reporting the 4
+   tolerated findings, exit 1 against a fresh regen naming the 61. Do not "fix" that by
+   widening the allowlist or passing `--strict`; the honest unblock is to stop
+   regenerating from scratch and use the incremental `npm install` in item 2 above, which
+   is a change to that workflow's purpose and so an owner decision.
 
    *An `overrides` entry does not work either — it crashes npm.* Adding
    `"@opentelemetry/core": "2.8.0"` to rewrite the bundled requirement made `npm install`
