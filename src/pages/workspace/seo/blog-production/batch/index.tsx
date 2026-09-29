@@ -46,7 +46,7 @@ function Stat ( { label, value, tone }: { label: string; value: React.ReactNode;
   return (
     <div style={ { minWidth: 110 } }>
       <div style={ { fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.4 } }>{ label }</div>
-      <div style={ { fontSize: 20, fontWeight: 700, color: tone || '#111827' } }>{ value }</div>
+      <div style={ { fontSize: 20, fontWeight: 700, color: tone || '#1a1a1a' } }>{ value }</div>
     </div>
   );
 }
@@ -157,7 +157,7 @@ const BlogProductionBatch: React.FC<PageProps> = ( { signOut, user } ) => {
         </p>
         <h1 className="inner-page-title">{ batch ? batch.name : 'Loading…' }</h1>
         { batch && (
-          <p style={ { color: '#4b5563', fontSize: 14 } }>
+          <p style={ { color: 'rgba(0,0,0,.54)', fontSize: 14 } }>
             { batch.defaultCategory } · { batch.articleClass } · <strong>{ batch.status }</strong>
             { batch.storedStatus !== batch.status && (
               <span style={ { color: '#9ca3af' } }> (cached: { batch.storedStatus })</span>

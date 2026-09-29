@@ -340,6 +340,15 @@ def publish(job_ref: str, actor: str) -> Dict[str, Any]:
         if writes_disabled():
             return _refuse(job_ref, source_id, actor, job)
         logger.exception("blog publish failed")
+        #: A DISTINCT EVENT FROM THE REFUSAL, and the alarms depend on that.
+        #:
+        #: `wecare-blog-publish-failures` counts this line and must NOT count
+        #: `blog_publish_refused`: a refusal is an operator deliberately switching writes off, and
+        #: paging somebody because the switch they threw is working would train them to ignore the
+        #: channel. A FAILED publish is Wix rejecting a post, which is a defect to look at.
+        logger.warning(json.dumps({
+            "event": "blog_publish_failed", "jobId": job_ref, "sourceId": source_id,
+            "error": type(exc).__name__}))
         _settle(job_ref, FAILED, error=f"{type(exc).__name__}: {str(exc)[:800]}")
         blog_sources.update_pipeline(source_id, publishStatus=FAILED)
         return {**_view(get(job_ref) or job), "published": False,

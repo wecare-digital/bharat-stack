@@ -229,7 +229,7 @@ const BlogSourceReview: React.FC<PageProps> = ( { signOut, user } ) => {
           <>
             <div className="card" style={ { padding: 16, marginBottom: 16 } }>
               <h2 style={ { fontSize: 15, margin: '0 0 8px' } }>{ source.sourceRef }</h2>
-              <p style={ { fontSize: 13, color: '#4b5563', margin: 0 } }>
+              <p style={ { fontSize: 13, color: 'rgba(0,0,0,.54)', margin: 0 } }>
                 { source.status } · { source.category } · { source.articleClass }
                 { source.extractedWords ? ` · ${ source.extractedWords } words extracted` : '' }
               </p>
@@ -274,7 +274,7 @@ const BlogSourceReview: React.FC<PageProps> = ( { signOut, user } ) => {
                   Derived mechanically from the extracted text, so it is reproducible. None of it is
                   a judgement of quality — that is what you are here to make.
                 </p>
-                <div style={ { display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 16, fontSize: 12, color: '#4b5563' } }>
+                <div style={ { display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 16, fontSize: 12, color: 'rgba(0,0,0,.54)' } }>
                   <span>{ evidence.words.toLocaleString() } words</span>
                   <span>{ evidence.paragraphs } paragraphs</span>
                   <span>{ evidence.sentences } sentences</span>
@@ -310,7 +310,7 @@ const BlogSourceReview: React.FC<PageProps> = ( { signOut, user } ) => {
 
                 <Evidence title="Named individuals" count={ evidence.namedIndividuals.length }
                   note="Section 19 privacy. Over-reported on purpose: a missed obligation is a disclosure, an over-report is a glance at a list.">
-                  <p style={ { fontSize: 12, color: '#4b5563', margin: 0 } }>
+                  <p style={ { fontSize: 12, color: 'rgba(0,0,0,.54)', margin: 0 } }>
                     { evidence.namedIndividuals.slice( 0, 20 ).join( ' · ' ) || 'none' }
                   </p>
                 </Evidence>

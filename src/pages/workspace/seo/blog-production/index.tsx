@@ -106,7 +106,7 @@ const BlogProductionBatches: React.FC<PageProps> = ( { signOut, user } ) => {
       <SEO title="Blog Production" description="Production waves for the blog pipeline" />
       <div className="inner-page">
         <h1 className="inner-page-title">Blog Production</h1>
-        <p style={ { color: '#4b5563', fontSize: 14, maxWidth: 760 } }>
+        <p style={ { color: 'rgba(0,0,0,.54)', fontSize: 14, maxWidth: 760 } }>
           A batch holds the sources for one production wave. Every total below is computed from the
           source records on each load, so it cannot disagree with them.
         </p>

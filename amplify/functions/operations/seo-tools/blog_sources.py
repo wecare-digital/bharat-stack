@@ -712,6 +712,16 @@ def _extract_one(record: Dict[str, Any], bp) -> Any:
 
 
 def _fail(record_id: str, error: str) -> None:
+    #: LOGGED AS ITS OWN EVENT, so a metric filter can count it.
+    #:
+    #: An extraction failure is caught and recorded on the record rather than raised, which is
+    #: correct - one bad PDF must not stop a batch of 2,500. The consequence is that it produces no
+    #: Lambda error, so `wecare-lambda-errors-wecare-seo-tools` never sees it and a run where every
+    #: document failed looks identical to a run where every document succeeded. This line is what
+    #: `wecare-blog-extraction-failures` counts.
+    logger.warning(json.dumps({
+        "event": "blog_source_extraction_failed", "sourceId": record_id,
+        "error": str(error)[:300]}))
     storage.table().update_item(
         Key={"id": record_id},
         UpdateExpression="SET #s = :s, #e = :e, updatedAt = :u",

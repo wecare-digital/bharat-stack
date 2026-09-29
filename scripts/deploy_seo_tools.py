@@ -500,6 +500,170 @@ def ensure_event_source(queue_arn: str) -> None:
           f"(batch={CONSUME_BATCH}, maxConcurrency={MAX_CONCURRENCY})")
 
 
+# ── Monitoring ──────────────────────────────────────────────────────────────────
+#
+# WHAT THE EXISTING ALARMS CANNOT SEE.
+#
+# `wecare-lambda-errors-wecare-seo-tools` already alarms on unhandled Lambda errors, and that is
+# the wrong instrument for this pipeline. Every failure mode here is CAUGHT and recorded on a
+# record rather than raised - one bad PDF must not stop a batch of 2,500, a failed verification is
+# evidence rather than a crash, a rejected post is a defect to investigate rather than an outage.
+# So a run where every document failed produces zero Lambda errors and looks, from the existing
+# alarms, exactly like a run where every document succeeded.
+#
+# Hence a metric filter per recorded outcome, following `scripts/_create_dedup_alarm.py`: the same
+# `WECARE.DIGITAL` namespace, the same `filterPattern='"event_name"'` shape, the same SNS topic all
+# 61 existing alarms already route to.
+#
+# THE ONE DISTINCTION THAT MATTERS. `blog_publish_refused` is deliberately NOT counted. A refusal
+# is an operator having switched Wix writes off, and paging somebody because the switch they threw
+# is working would teach them to ignore the channel - which is the only thing that makes an alarm
+# worthless. `blog_publish_failed` is Wix rejecting a post, and that is worth a look.
+ALARM_NAMESPACE = "WECARE.DIGITAL"
+#: The topic every one of the 61 existing alarms already uses. An alarm with no action is a row in
+#: a console nobody opens, so `provision_alarms` refuses to create one without it.
+ALARM_TOPIC = f"arn:aws:sns:{REGION}:{ACCOUNT}:wecare-alarm-notifications"
+
+#: (alarm name, log event, metric, threshold, period, description)
+#:
+#: Thresholds are deliberately not all zero. A single extraction failure in a 2,500-document wave
+#: is ordinary - a scanned PDF with no text layer - and alarming on it would fire on every real
+#: batch. Five in five minutes is a pattern. A verification failure is different: it means a LIVE
+#: article does not match what was approved, and one of those is worth knowing about immediately.
+LOG_ALARMS = (
+    (
+        "wecare-blog-extraction-failures",
+        "blog_source_extraction_failed",
+        "BlogExtractionFailures",
+        5.0,
+        300,
+        ("blog_source_extraction_failed logged repeatedly - extraction is failing for a class of "
+         "document, not one bad PDF. Caught and recorded, so it produces no Lambda error."),
+    ),
+    (
+        "wecare-blog-verification-failures",
+        "blog_verification_failed",
+        "BlogVerificationFailures",
+        0.0,
+        300,
+        ("blog_verification_failed logged - a LIVE article does not match what was signed off. "
+         "Read the verification report; nothing retries automatically."),
+    ),
+    (
+        "wecare-blog-publish-failures",
+        "blog_publish_failed",
+        "BlogPublishFailures",
+        0.0,
+        300,
+        ("blog_publish_failed logged - Wix rejected a post. Deliberately does NOT count "
+         "blog_publish_refused, which is the kill switch working as intended."),
+    ),
+)
+
+
+def provision_alarms(queue_url: str) -> None:
+    """Metric filters and alarms for the recorded failure modes. Idempotent.
+
+    `put_metric_filter` and `put_metric_alarm` are both upserts, so re-running is safe and a
+    threshold change here takes effect on the next deploy rather than needing a console edit.
+    """
+    logs = boto3.client("logs", region_name=REGION)
+    cw = boto3.client("cloudwatch", region_name=REGION)
+    log_group = f"/aws/lambda/{FUNCTION_NAME}"
+
+    for name, event, metric, threshold, period, description in LOG_ALARMS:
+        logs.put_metric_filter(
+            logGroupName=log_group,
+            filterName=event.replace("_", "-"),
+            filterPattern=f'"{event}"',
+            metricTransformations=[{
+                "metricName": metric,
+                "metricNamespace": ALARM_NAMESPACE,
+                "metricValue": "1",
+                #: Without a default the metric has NO datapoints while nothing is failing, and
+                #: `TreatMissingData` then decides the state instead of the data. With 0 the alarm
+                #: sits in OK on evidence rather than on a default.
+                "defaultValue": 0.0,
+            }],
+        )
+        cw.put_metric_alarm(
+            AlarmName=name,
+            AlarmDescription=description,
+            Namespace=ALARM_NAMESPACE,
+            MetricName=metric,
+            Statistic="Sum",
+            Period=period,
+            EvaluationPeriods=1,
+            Threshold=threshold,
+            ComparisonOperator="GreaterThanThreshold",
+            TreatMissingData="notBreaching",
+            AlarmActions=[ALARM_TOPIC],
+        )
+        print(f"[alarm] {name} (>{threshold} in {period}s on {event})")
+
+    #: THE DEAD-LETTER QUEUE IS THE ONE THAT MATTERS MOST. A message reaches it after three
+    #: deliveries, and at that point nothing else in this system will ever mention that document
+    #: again - it is not in the queue, its source row still says UPLOADED, and the reconciliation
+    #: sweep will re-queue it only to have it fail three more times. Threshold 0, matching the
+    #: eight existing `wecare-*-dlq-depth` alarms.
+    cw.put_metric_alarm(
+        AlarmName=f"wecare-{QUEUE_NAME.removeprefix('wecare-')}-dlq-depth",
+        AlarmDescription=(
+            f"{DLQ_NAME} has messages - a source failed {MAX_RECEIVES} deliveries and nothing "
+            "else in the pipeline will mention it again. Read the source's error, fix the cause, "
+            "then POST /blog-sources/redrive."),
+        Namespace="AWS/SQS",
+        MetricName="ApproximateNumberOfMessagesVisible",
+        Dimensions=[{"Name": "QueueName", "Value": DLQ_NAME}],
+        Statistic="Maximum",
+        Period=300,
+        EvaluationPeriods=1,
+        Threshold=0.0,
+        ComparisonOperator="GreaterThanThreshold",
+        TreatMissingData="notBreaching",
+        AlarmActions=[ALARM_TOPIC],
+    )
+    print(f"[alarm] wecare-{QUEUE_NAME.removeprefix('wecare-')}-dlq-depth (>0 on {DLQ_NAME})")
+
+    #: Age rather than depth on the main queue. Depth is meaningless mid-wave - 2,000 messages is
+    #: a healthy fan-out - whereas an oldest message older than the visibility timeout means the
+    #: consumer is not keeping up or the mapping is disabled. 900s matches `wecare-queue-age-bulk`.
+    cw.put_metric_alarm(
+        AlarmName=f"wecare-queue-age-{QUEUE_NAME.removeprefix('wecare-')}",
+        AlarmDescription=(
+            f"{QUEUE_NAME}'s oldest message is over 15 minutes old - the consumer is not keeping "
+            "up, or the event source mapping is disabled. Depth alone says nothing here, because "
+            "a large wave is a legitimately deep queue."),
+        Namespace="AWS/SQS",
+        MetricName="ApproximateAgeOfOldestMessage",
+        Dimensions=[{"Name": "QueueName", "Value": QUEUE_NAME}],
+        Statistic="Maximum",
+        Period=300,
+        EvaluationPeriods=1,
+        Threshold=900.0,
+        ComparisonOperator="GreaterThanThreshold",
+        TreatMissingData="notBreaching",
+        AlarmActions=[ALARM_TOPIC],
+    )
+    print(f"[alarm] wecare-queue-age-{QUEUE_NAME.removeprefix('wecare-')} (>900s on {QUEUE_NAME})")
+
+    #: Verified, not assumed. `put_metric_alarm` accepts an empty `AlarmActions` without complaint,
+    #: so an alarm that pages nobody is created just as successfully as one that works - and reads
+    #: identically in a deploy log.
+    names = [name for name, *_ in LOG_ALARMS] + [
+        f"wecare-{QUEUE_NAME.removeprefix('wecare-')}-dlq-depth",
+        f"wecare-queue-age-{QUEUE_NAME.removeprefix('wecare-')}",
+    ]
+    live = {alarm["AlarmName"]: alarm
+            for alarm in cw.describe_alarms(AlarmNames=names)["MetricAlarms"]}
+    actionless = [name for name in names
+                  if not (live.get(name, {}).get("AlarmActions") or [])]
+    if actionless:
+        raise SystemExit(f"[alarm] these alarms have no action and would page nobody: {actionless}")
+    print(f"[alarm] {len(live)}/{len(names)} present, all routed to "
+          f"{ALARM_TOPIC.rsplit(':', 1)[-1]}")
+
+
 def package() -> bytes:
     """Zip: shim + operations/seo-tools + shared/lambda_utils + blog pipeline + pypdf."""
     shim = FUNCTIONS_DIR / "seo_tools_handler.py"
@@ -672,6 +836,10 @@ def main() -> None:
     zip_bytes = package()
     deploy_lambda(zip_bytes)
     ensure_event_source(queues["arn"])
+    #: AFTER the function, because a metric filter needs its log group to exist - Lambda creates
+    #: `/aws/lambda/<name>` on the first invocation, and `put_metric_filter` against a missing
+    #: group is a ResourceNotFoundException rather than a no-op.
+    provision_alarms(queues["url"])
     ensure_api_route()
     print("=== done ===")
     print(f"Endpoint: https://wecare.digital/api/seo-tools/  (stage prod, auto-deploy)")

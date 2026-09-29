@@ -137,7 +137,7 @@ const BlogPublishQueue: React.FC<PageProps> = ( { signOut, user } ) => {
           ) }
         </p>
         <h1 className="inner-page-title">Publish queue</h1>
-        <p style={ { color: '#4b5563', fontSize: 14, maxWidth: 780 } }>
+        <p style={ { color: 'rgba(0,0,0,.54)', fontSize: 14, maxWidth: 780 } }>
           Releasing records a decision and writes nothing. Publishing performs the one Wix mutation
           in this system. Nothing upstream can reach either.
         </p>
@@ -174,7 +174,7 @@ const BlogPublishQueue: React.FC<PageProps> = ( { signOut, user } ) => {
             ] as [ string, number, string | undefined ][] ).map( ( [ label, value, tone ] ) => (
               <div key={ label } style={ { minWidth: 110 } }>
                 <div style={ { fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.4 } }>{ label }</div>
-                <div style={ { fontSize: 20, fontWeight: 700, color: value ? ( tone || '#111827' ) : '#111827' } }>{ value }</div>
+                <div style={ { fontSize: 20, fontWeight: 700, color: value ? ( tone || '#1a1a1a' ) : '#1a1a1a' } }>{ value }</div>
               </div>
             ) ) }
           </div>
@@ -205,7 +205,7 @@ const BlogPublishQueue: React.FC<PageProps> = ( { signOut, user } ) => {
                     <td style={ { ...td, color: candidate.releasable ? '#16a34a' : '#6b7280', fontWeight: 600 } }>
                       { candidate.releasable ? 'yes' : 'no' }
                     </td>
-                    <td style={ { ...td, maxWidth: 380, color: '#4b5563' } }>{ candidate.reason }</td>
+                    <td style={ { ...td, maxWidth: 380, color: 'rgba(0,0,0,.54)' } }>{ candidate.reason }</td>
                     <td style={ { ...td, color: JOB_COLOUR[ candidate.jobStatus ] || '#6b7280' } }>
                       { candidate.jobStatus || '—' }
                     </td>

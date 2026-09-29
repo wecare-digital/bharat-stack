@@ -265,7 +265,7 @@ const BlogQaReview: React.FC<PageProps> = ( { signOut, user } ) => {
                 <div>
                   <h2 style={ { fontSize: 15, margin: '0 0 6px' } }>Latest QA run</h2>
                   { run ? (
-                    <p style={ { fontSize: 13, color: '#4b5563', margin: 0 } }>
+                    <p style={ { fontSize: 13, color: 'rgba(0,0,0,.54)', margin: 0 } }>
                       <strong style={ { color: VERDICT_COLOUR[ run.verdict ] || '#374151' } }>{ run.verdict }</strong>
                       { ' · ' }{ run.blockingCount } blocking · { run.reviewCount } review ·
                       { ' ' }compared against { run.corpusChecked.toLocaleString() } published posts ·
