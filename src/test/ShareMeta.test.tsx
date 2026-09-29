@@ -123,6 +123,52 @@ describe( 'Share previews', () => {
     // And the shared module resolves to the same absolute URL the marketing branch emits.
     expect( SOCIAL_CARD_URL ).toBe( 'https://wecare.digital/get/o/stream/media/m/wd-brand-16x9.png' );
   } );
+
+  /**
+   * THE DECLARED SIZE IS CHECKED AGAINST THE ACTUAL FILE, not just against the other declaration.
+   *
+   * og:image:width and og:image:height once read 512x512 against a 1080x1080 object, and nothing
+   * caught it because every check compared one written-down number to another written-down number.
+   * This reads the PNG header of the committed replacement in docs/brand/ and fails if the pixels
+   * and the declaration disagree, which is the only version of this assertion that could have
+   * caught the original bug.
+   *
+   * It also holds the WEIGHT, which is why the asset was re-exported at all. The live card was
+   * 801,077 bytes against the 600 KB ceiling Meta documents for a WhatsApp link preview, so the
+   * preview was being dropped on the platform this company is built around. 300 KB is the working
+   * limit rather than 600 KB because WhatsApp discards an oversized image silently and the
+   * reported ceiling has no margin in it.
+   *
+   * The file is parsed by hand rather than with an image library: a PNG's IHDR is the first chunk
+   * after the 8-byte signature, width and height are big-endian uint32s at offsets 16 and 20, and
+   * that is the whole of what this needs. No dependency for four bytes.
+   */
+  it( 'keeps the committed card within WhatsApp limits and true to its declared size', () => {
+    const file = path.join( __dirname, '..', '..', 'docs', 'brand', 'wd-brand-16x9.png' );
+    const bytes = fs.readFileSync( file );
+
+    expect( bytes.subarray( 0, 8 ).toString( 'hex' ) ).toBe( '89504e470d0a1a0a' ); // PNG signature
+    expect( bytes.subarray( 12, 16 ).toString( 'ascii' ) ).toBe( 'IHDR' );
+    const width = bytes.readUInt32BE( 16 );
+    const height = bytes.readUInt32BE( 20 );
+
+    // The pixels ARE what the meta tags claim.
+    expect( String( width ) ).toBe( SOCIAL_CARD_W );
+    expect( String( height ) ).toBe( SOCIAL_CARD_H );
+
+    // Meta's documented ceiling, and the working one that accounts for a silent drop.
+    expect( bytes.length ).toBeLessThan( 600 * 1024 );
+    expect( bytes.length ).toBeLessThan( 300 * 1024 );
+    // Their stated minimum width, and the 4:1 aspect ceiling.
+    expect( width ).toBeGreaterThanOrEqual( 300 );
+    expect( width / height ).toBeLessThanOrEqual( 4 );
+
+    // STILL OPAQUE. The binding rule for anything handed to a renderer we do not control is that
+    // it must not rely on alpha - Apple and the preview services flatten it to black and this
+    // mark is light. A palette PNG carries transparency in a tRNS chunk, so its absence is the
+    // check. BrandAssets.test.ts argues the rule; this enforces it on the bytes.
+    expect( bytes.includes( Buffer.from( 'tRNS', 'ascii' ) ) ).toBe( false );
+  } );
 } );
 
 describe( 'Share controls', () => {
@@ -161,6 +207,56 @@ describe( 'Share controls', () => {
     expect( row ).not.toBeNull();
     expect( row?.classList.contains( 'is-native' ) ).toBe( false );
     expect( row?.classList.contains( 'is-clip' ) ).toBe( false );
+  } );
+
+  /**
+   * THE ICON-ONLY CONTRACT. These controls carry no visible text, which is the one change that can
+   * silently make a control group unusable: an icon button with no aria-label announces as an empty
+   * string, or at best as its filename, so a screen reader reader gets three anonymous buttons.
+   *
+   * Asserted through getByLabelText rather than by reading the attribute, because that resolves the
+   * accessible NAME the way an assistive technology would - it would fail just as loudly if the
+   * label were on the wrong element or cancelled by an aria-hidden ancestor.
+   *
+   * The tooltip is also checked for aria-hidden. Without it the visible word and the label are both
+   * in the accessible name and the control announces its own name twice.
+   */
+  it( 'labels every icon-only control, and keeps the visual tip out of the accessible name', () => {
+    vi.stubGlobal( 'navigator', Object.create( navigator, {
+      share: { value: () => Promise.resolve(), configurable: true },
+      canShare: { value: () => true, configurable: true },
+      clipboard: { value: { writeText: () => Promise.resolve() }, configurable: true },
+    } ) );
+
+    const { container } = render(
+      <ShareLinks url="https://wecare.digital/post/x/" title="A Post" />
+    );
+
+    // All three announce something meaningful.
+    expect( screen.getByLabelText( 'Share this page on WhatsApp' ) ).toBeInTheDocument();
+    expect( screen.getByLabelText( 'Share this page using your device' ) ).toBeInTheDocument();
+    expect( screen.getByLabelText( 'Copy link to this page' ) ).toBeInTheDocument();
+
+    // No control is left without a name, and none of them leans on visible text for it.
+    const controls = Array.from( container.querySelectorAll( '.share-btn' ) );
+    expect( controls ).toHaveLength( 3 );
+    for ( const c of controls ) {
+      expect( c.getAttribute( 'aria-label' ) ).toBeTruthy();
+      // The only text inside is the tip, and the tip is hidden from the accessibility tree.
+      const tip = c.querySelector( '.share-tip' );
+      expect( tip ).not.toBeNull();
+      expect( tip?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
+    }
+
+    // 44px square, drawn at the WCAG 2.5.8 floor rather than above it - a circle has to be square
+    // to be round, so this is the one place the floor is also the size.
+    const css = Array.from( container.querySelectorAll( 'style' ) ).map( n => n.textContent || '' ).join( '' );
+    expect( css ).toContain( 'width:44px;height:44px' );
+    expect( css ).toContain( 'border-radius:50%' );
+    // The home CTA's hover, which is what makes the group draw the eye.
+    expect( css ).toContain( 'transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)' );
+
+    vi.unstubAllGlobals();
   } );
 
   it( 'reveals the OS share sheet only when the browser really has the API', () => {

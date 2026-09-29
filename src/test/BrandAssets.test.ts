@@ -147,13 +147,23 @@ describe( 'Brand assets', () => {
      * These were 512x512 against a 1080x1080 file. Crawlers use the hint to reserve layout
      * before fetching, so a wrong value is worse than an absent one - and being wrong by a
      * factor of two went unnoticed for as long as nobody compared it to the object.
+     *
+     * NOW 1200x675, DOWN FROM 1440x810. The asset was re-exported because it weighed 801,077
+     * bytes against the 600 KB ceiling Meta documents for a WhatsApp link preview, which meant
+     * WhatsApp was silently dropping the card sitewide. The artwork is NOT cropped - it is a
+     * straight downscale, so the aspect ratio is identical and the 16x9 in the filename is still
+     * accurate. See docs/brand/README.md.
+     *
+     * ShareMeta.test.tsx is what ties these strings to the actual file: it reads the IHDR of the
+     * committed replacement and fails if the declaration and the pixels disagree. This test
+     * checks the declaration exists and is used; that one checks it is TRUE.
      */
-    expect( APP ).toContain( "const SOCIAL_CARD_W = '1440'" );
-    expect( APP ).toContain( "const SOCIAL_CARD_H = '810'" );
+    expect( APP ).toContain( "const SOCIAL_CARD_W = '1200'" );
+    expect( APP ).toContain( "const SOCIAL_CARD_H = '675'" );
     expect( APP ).toContain( 'content={ SOCIAL_CARD_W }' );
     expect( APP ).toContain( 'content={ SOCIAL_CARD_H }' );
     // And the ratio stays inside the 2:1..1:1 band the platforms accept.
-    const ratio = 1440 / 810;
+    const ratio = 1200 / 675;
     expect( ratio ).toBeGreaterThan( 1 );
     expect( ratio ).toBeLessThan( 2 );
   } );
