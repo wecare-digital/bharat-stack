@@ -46,7 +46,25 @@ _api_key: str | None = None
 
 
 def load_api_key() -> str:
+    """The Wix API key. THE KILL SWITCH IS CHECKED FIRST, before any secret read.
+
+    This is the path that PUBLISHES - `apply_manifest` and, transitively, everything
+    `gastronomy_batch.py` does, since it calls `request()` here. Until 2026-09-29 it ignored
+    `WIX_CREDENTIALS_DISABLED` completely: the switch was honoured only in
+    `ecommerce/wix-store`, so it disabled the store and left blog publication running. An
+    operator who set it, read the commit saying it was fixed, and then ran a publish would
+    have published.
+
+    Imported from `lambda_utils.wix_guard` rather than reimplemented, so the accepted
+    spellings cannot drift between the three credential paths - a test asserts they agree.
+    """
     global _api_key
+    _shared = Path(__file__).resolve().parents[1] / "amplify" / "functions" / "shared"
+    if str(_shared) not in sys.path:
+        sys.path.insert(0, str(_shared))
+    from lambda_utils.wix_guard import refuse_if_disabled
+    refuse_if_disabled("wix_blog_migrate publish path")
+
     if _api_key:
         return _api_key
     raw = boto3.client(

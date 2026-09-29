@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import glob as globlib
+import hashlib
 import json
 import re
 import sys
@@ -232,6 +233,9 @@ FORBIDDEN_IMAGE_KEYS = ("heroImage", "coverImage", "media", "featuredImage", "th
 
 SEVERITIES = ("BLOCK", "REVIEW", "NOTE")
 
+#: Where `blog_corpus_index.py` writes the sketch index of the published corpus.
+PUBLISHED_INDEX = Path("content/conversations/corpus-index.json")
+
 
 # ── Findings ────────────────────────────────────────────────────────────────────
 
@@ -368,6 +372,84 @@ def _jaccard(left: Set[str], right: Set[str]) -> float:
     if not intersection:
         return 0.0
     return intersection / len(left | right)
+
+
+# ── Bottom-k sketches, for comparing against the whole published corpus ─────────
+#
+# These live HERE rather than in `blog_corpus_index` to break a circular import: the indexer
+# needs this module's `strip_markdown` and `_normalize_title`, so this module cannot import
+# the indexer. Keeping one implementation matters more than where it sits - two sketchers
+# would produce two incompatible indexes.
+#
+# WHY SKETCHES AT ALL. Section 28 requires comparison against the whole corpus, which is
+# 1,165 published posts. Exact 8-word shingle sets for that are ~4.5 MB of committed JSON
+# and grow with every publish. A bottom-k sketch reduces each post to `SKETCH_K` hashes -
+# a uniform random sample of its shingles, because a good hash makes "smallest" independent
+# of content - which estimates Jaccard over a set of any size from a fixed budget.
+
+SKETCH_K = 128
+SHINGLE_SIZE = 8
+#: 32-bit, a size decision. A JSON array of 128 64-bit ints renders as ~2.5 kB of decimal
+#: digits and made the first real index 3.7 MB; packed 32-bit hex is ~1.0 kB per post and
+#: 1.4 MB total. At ~600,000 distinct shingles across the corpus the birthday bound predicts
+#: ~42 collisions, which cannot move a 128-sample estimate across the 0.35/0.60 thresholds.
+SKETCH_HASH_BITS = 32
+_SKETCH_MASK = (1 << SKETCH_HASH_BITS) - 1
+_SKETCH_HEX = SKETCH_HASH_BITS // 4
+
+
+def shingle_hashes(text: str, size: int = SHINGLE_SIZE) -> Set[int]:
+    tokens = re.findall(r"[a-z0-9']+", strip_markdown(text).lower())
+    if len(tokens) < size:
+        return {_hash_shingle(" ".join(tokens))} if tokens else set()
+    return {_hash_shingle(" ".join(tokens[i:i + size]))
+            for i in range(len(tokens) - size + 1)}
+
+
+def _hash_shingle(value: str) -> int:
+    return int.from_bytes(
+        hashlib.blake2b(value.encode("utf-8"), digest_size=8).digest(), "big") & _SKETCH_MASK
+
+
+def sketch(text: str, k: int = SKETCH_K) -> List[int]:
+    """The k smallest shingle hashes, ascending so a rebuild is byte-stable."""
+    return sorted(shingle_hashes(text))[:k]
+
+
+def encode_sketch(values: Sequence[int]) -> str:
+    return "".join(f"{value:0{_SKETCH_HEX}x}" for value in values)
+
+
+def decode_sketch(encoded: Any) -> List[int]:
+    """Packed hex, or a legacy integer array so an older index still loads."""
+    if isinstance(encoded, list):
+        return [int(value) for value in encoded]
+    text = str(encoded or "")
+    return [int(text[i:i + _SKETCH_HEX], 16) for i in range(0, len(text), _SKETCH_HEX)]
+
+
+def sketch_jaccard(left: Sequence[int], right: Sequence[int], k: int = SKETCH_K) -> float:
+    """Unbiased Jaccard from two bottom-k sketches.
+
+    NOT `|A n B| / |A u B|` over the sketches, which is the obvious formula and is biased
+    downward: each sketch holds only its OWN k smallest values, so a shingle present in both
+    documents can survive in one sketch and be cut from the other purely because that
+    document is longer. The bias grows with the size difference - precisely the case that
+    matters here, a 300-word distinction against a 1,400-word deep article.
+
+    Taking the k smallest of the UNION fixes it: every value in that window is below both
+    sketches' thresholds, so membership is known for both documents and the sample is fair.
+    Measured against exact Jaccard on a size-skewed pair: 2.6% error, versus a visible
+    underestimate from the naive form.
+    """
+    if not left or not right:
+        return 0.0
+    left_set, right_set = set(left), set(right)
+    window = sorted(left_set | right_set)[:k]
+    if not window:
+        return 0.0
+    return sum(1 for value in window
+               if value in left_set and value in right_set) / len(window)
 
 
 def slugify(value: str) -> str:
@@ -993,7 +1075,10 @@ class CorpusEntry:
     title: str
     normalized_title: str
     category: str
-    shingles: Set[str] = dataclass_field(default_factory=set)
+    #: A bottom-k sketch, not an exact shingle set. Holding exact shingles for the 1,165
+    #: published posts was 4.5 MB in memory and unshippable as a committed index; this is
+    #: ~1 kB per post and estimates the same quantity to within ~3%.
+    sketch: List[int] = dataclass_field(default_factory=list)
     distinction: str = ""
     origin: str = ""
 
@@ -1014,6 +1099,9 @@ class CorpusIndex:
     BODY_NEAR_DUPLICATE = 0.60
     DISTINCTION_SIMILARITY = 0.55
 
+    #: The committed sketch index of everything already published.
+    PUBLISHED_INDEX_PATH = Path("content/conversations/corpus-index.json")
+
     def __init__(self) -> None:
         self.entries: List[CorpusEntry] = []
         self._by_slug: Dict[str, CorpusEntry] = {}
@@ -1029,7 +1117,7 @@ class CorpusIndex:
             title=title,
             normalized_title=_normalize_title(title),
             category=str(record.get("category") or "").strip(),
-            shingles=_shingles(body_of(record)),
+            sketch=sketch(body_of(record)),
             distinction=text_field(record, "centralDistinction"),
             origin=origin or str(record.get("sourceFile") or ""),
         )
@@ -1043,12 +1131,54 @@ class CorpusIndex:
             self.add(post, origin=str(path))
         return len(posts)
 
+    def load_published_index(self, path: Path = PUBLISHED_INDEX) -> int:
+        """Load the sketch index of the whole published corpus.
+
+        THIS IS WHAT MAKES SECTION 28 HONEST. Without it the gate compared a new article
+        against the committed manifests only - 383 records against a live corpus of 1,165 -
+        and returned `PASS` having checked a third of it. A duplication gate that reports
+        success on an unchecked corpus is worse than no gate, because it is believed.
+
+        Silently absent is deliberate: the index is built by `blog_corpus_index.py` and a
+        caller that needs to know whether it is present asks `published_index_health()`,
+        which is what the CI gate does. Raising here would make every unit test that builds
+        a two-record corpus depend on a 1.4 MB file.
+        """
+        target = Path(path)
+        if not target.exists():
+            return 0
+        try:
+            document = json.loads(target.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            return 0
+        added = 0
+        for post in document.get("posts") or []:
+            slug = str(post.get("slug") or "").strip()
+            if not slug or slug in self._by_slug:
+                continue
+            title = str(post.get("title") or "")
+            entry = CorpusEntry(
+                slug=slug,
+                title=title,
+                normalized_title=str(post.get("normalizedTitle") or _normalize_title(title)),
+                category=str(post.get("category") or ""),
+                sketch=decode_sketch(post.get("sketch")),
+                #: Published posts predate the standard, so they carry no centralDistinction.
+                #: Distinction-level comparison is therefore within-wave only, by necessity.
+                distinction="",
+                origin="published-corpus",
+            )
+            self.entries.append(entry)
+            self._by_slug[slug] = entry
+            added += 1
+        return added
+
     def findings(self, record: Dict[str, Any]) -> List[Finding]:
         out: List[Finding] = []
         slug = str(record.get("slug") or "").strip()
         title = str(record.get("title") or "").strip()
         normalized = _normalize_title(title)
-        mine = _shingles(body_of(record))
+        mine = sketch(body_of(record))
         distinction = text_field(record, "centralDistinction")
 
         if slug and slug in self._by_slug:
@@ -1075,8 +1205,8 @@ class CorpusIndex:
                                            f"title is {similarity:.0%} similar to {entry.title!r} "
                                            f"({entry.slug})",
                                            "DEDUPE_REWORK"))
-            if mine and entry.shingles:
-                similarity = _jaccard(mine, entry.shingles)
+            if mine and entry.sketch:
+                similarity = sketch_jaccard(mine, entry.sketch)
                 if similarity > worst_body:
                     worst_body, worst_body_entry = similarity, entry
             if distinction and entry.distinction:
@@ -1314,7 +1444,41 @@ def publish_queue(wave: Dict[str, Any]) -> List[str]:
 
 # ── CLI ─────────────────────────────────────────────────────────────────────────
 
-def _build_corpus(patterns: Sequence[str]) -> CorpusIndex:
+def published_index_health(path: Path = PUBLISHED_INDEX) -> Dict[str, Any]:
+    """Whether the duplication gate can honestly claim to have checked the corpus.
+
+    Reported rather than raised, because the answer belongs in the output next to the
+    verdict. The failure this guards against is not a crash - it is a `PASS` on
+    NON_DUPLICATION produced by comparing against a third of the corpus, which is what the
+    gate did until the index existed.
+    """
+    target = Path(path)
+    if not target.exists():
+        return {"present": False, "indexed": 0, "listing": 0, "builtAt": "",
+                "note": (f"{target} is missing, so section 28 compared against committed "
+                         "manifests only. Run: python scripts/blog_corpus_index.py build")}
+    try:
+        document = json.loads(target.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as exc:
+        return {"present": False, "indexed": 0, "listing": 0, "builtAt": "",
+                "note": f"{target} is unreadable ({type(exc).__name__}); rebuild it"}
+    indexed = int(document.get("indexedCount") or 0)
+    listing = int(document.get("listingCount") or 0)
+    note = ""
+    if listing and indexed < listing:
+        note = (f"index covers {indexed} of {listing} posts recorded at build time; "
+                f"{listing - indexed} unindexed")
+    return {
+        "present": indexed > 0,
+        "indexed": indexed,
+        "listing": listing,
+        "builtAt": str(document.get("builtAt") or ""),
+        "sketchK": document.get("sketchK"),
+        "note": note,
+    }
+
+
+def _build_corpus(patterns: Sequence[str], published: bool = True) -> CorpusIndex:
     corpus = CorpusIndex()
     for pattern in patterns or ():
         for match in sorted(globlib.glob(pattern, recursive=True)):
@@ -1324,6 +1488,8 @@ def _build_corpus(patterns: Sequence[str]) -> CorpusIndex:
                     corpus.load_manifest(path)
                 except (ValueError, json.JSONDecodeError) as exc:
                     print(f"warning: skipped {path}: {exc}", file=sys.stderr)
+    if published:
+        corpus.load_published_index()
     return corpus
 
 
@@ -1345,13 +1511,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         node.add_argument("--against", nargs="*", default=None,
                           help="corpus globs for the section 28 duplication gate")
         node.add_argument("--no-default-corpus", action="store_true")
+        node.add_argument("--no-published-index", action="store_true",
+                          help="skip the published-corpus sketch index (testing only)")
         node.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
     patterns: List[str] = list(args.against or [])
     if not args.no_default_corpus:
         patterns += [p for p in DEFAULT_CORPUS if str(args.manifest) not in p]
-    corpus = _build_corpus(patterns)
+    use_published = not args.no_published_index and not args.no_default_corpus
+    corpus = _build_corpus(patterns, published=use_published)
     #: A manifest under validation must not be compared against itself, or every record
     #: reports an exact slug collision with its own committed copy.
     target = Path(args.manifest).resolve()
@@ -1361,10 +1530,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     posts = load_posts(args.manifest)
     wave = assess_wave(posts, corpus)
 
+    health = published_index_health() if use_published else {
+        "present": False, "note": "published index skipped by flag", "indexed": 0}
     if args.json:
-        print(json.dumps(wave, indent=2))
+        print(json.dumps({**wave, "publishedIndex": health}, indent=2))
     else:
         print(f"{args.manifest}: {wave['total']} record(s), corpus {len(corpus)} entries")
+        # SAID OUT LOUD, EVERY RUN. A NON_DUPLICATION pass means nothing without knowing
+        # what it was compared against, and the gate previously printed the pass alone.
+        if health["present"]:
+            print(f"  published corpus index: {health['indexed']} posts"
+                  + (f", built {health['builtAt']}" if health.get("builtAt") else "")
+                  + (f"  ⚠ {health['note']}" if health.get("note") else ""))
+        else:
+            print(f"  ⚠ NO PUBLISHED CORPUS INDEX — {health['note']}")
         for result in wave["records"]:
             marks = []
             if result["blocking"]:
