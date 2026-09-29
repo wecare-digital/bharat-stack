@@ -209,19 +209,24 @@ export default function BlogPostPage ( {
           <BlogSearch />
           { post.category && <div className="category">{ post.category }</div> }
           <h1>{ post.title }</h1>
-          <div className="byline">
-            {/* data-wc-no-translate: AN AUTHOR NAME IS A PROPER NOUN. This is on the span
-                rather than the .byline wrapper on purpose - the <time> sibling below renders
-                a formatted date, and a date IS worth translating, so flagging the wrapper
-                would cost that.
-                It applies to the dynamic value as much as the fallback: post.authorName is a
-                person's or a brand's name either way, and the fallback is two brand names
-                joined by "by" - translating a single preposition is not worth rendering
-                "Anew" and "WECARE.DIGITAL" as invented words around it. Measured at 1276
-                occurrences across the exported blog, the largest single source of
-                brand-name text on the site. */}
-            <span data-wc-no-translate="true">{ post.authorName || 'Anew by WECARE.DIGITAL' }</span>
-            { post.publishedDate && <time dateTime={ post.publishedDate }>{ new Date( post.publishedDate ).toLocaleDateString( 'en-IN', { day: 'numeric', month: 'long', year: 'numeric' } ) }</time> }
+          {/* NO PUBLISHED DATE IN THE BYLINE, on owner instruction. It rendered beside the
+              author as a formatted en-IN date and is gone from every blog and post surface.
+              WHAT DELIBERATELY STAYS: datePublished and dateModified in the BlogPosting
+              JSON-LD below. Those are machine-readable fields Google treats as recommended on
+              an article, they are not shown to a reader, and stripping them would cost the
+              date treatment in search and Discover while changing nothing on the page. The
+              stored-schema branch could not be stripped from here anyway - when the API
+              supplies post.jsonLd.blogPosting that object is emitted verbatim.
+              publishedDate also still orders the corpus in lib/public-blog.ts, so the field is
+              read in three places and printed in none.
+              data-wc-no-translate MOVED TO THE WRAPPER now the time element has gone. It was
+              pinned to the span so the date beside it could still translate; with only a
+              proper noun left there is nothing in this row that should be translated. The
+              reasoning for the name itself is unchanged: post.authorName is a person's or a
+              brand's name, and the fallback is two brand names joined by "by" - translating
+              one preposition is not worth rendering the two names as invented words. */}
+          <div className="byline" data-wc-no-translate="true">
+            { post.authorName || 'Anew by WECARE.DIGITAL' }
           </div>
           <div className="content">
             { richNodes.length > 0
@@ -318,7 +323,14 @@ export default function BlogPostPage ( {
         /* .back rules removed with the link - Breadcrumbs replaced it. */
         .category{display:inline-block;background:rgba(209,244,112,.28);color:#1a3a2a;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;margin-bottom:18px}
         h1{font-size:clamp(36px,4.3vw,60px);line-height:1.04;letter-spacing:-0.04em;color:rgba(0,0,0,.95);margin:0 0 20px;font-weight:600;text-wrap:balance;max-width:20ch}
-        .byline{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;line-height:1.4;color:#6b7280;margin-bottom:40px}
+        /* AUTHOR ONLY NOW, so the row is no longer a row. The flex, the gap and the wrap all
+           existed to lay out two children - the author and the date - and with the date gone
+           they described a layout that cannot happen.
+           12px/600 is the site's smallest UI rung; the old 13px sat below every other piece of
+           furniture on this page, which is the same complaint that retired the 13px/650 back
+           link. rgba(0,0,0,.54) is the public palette's dim value, replacing 6b7280 - a
+           dashboard token from tokens.css that had no business on a public page. */
+        .byline{font-size:12px;font-weight:600;letter-spacing:.01em;line-height:1.4;color:rgba(0,0,0,.54);margin-bottom:40px}
         .content{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
         .content :global(p),
         .content :global(li){font-size:20px;line-height:1.55;letter-spacing:-.125px;font-weight:400;color:rgba(0,0,0,.898)}
@@ -391,43 +403,67 @@ export default function BlogPostPage ( {
           display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
         }
 
-        /* RELATED POSTS. .post-related-card is .post-card from the index - 1px #e5e7eb, radius
-           14px - and the h3 is its 23px/700/-.3px card-heading rung with the same
-           rgba(0,0,0,.95) resting colour going to 1a3a2a on hover. A related card should read as
-           the same object a listing shows, not as a new kind of thing. */
+        /* RELATED POSTS, REBUILT. This was one column of title-only boxes at every width -
+           three stacked bars inside a 700px measure - which reads as a bordered link list
+           rather than as cards, and it was the least considered block on the page.
+           TWO COLUMNS, WITH THE THIRD CARD SPANNING. RELATED_COUNT is 3, so a plain
+           two-column grid leaves a half-width orphan on the second row; letting an odd last
+           card take the whole measure makes that shape deliberate instead of accidental, and
+           needs no change to post-neighbours.ts or to the payload it ships per page.
+           THE HEADING IS THE HOME CARD RUNG - 22px/700/1.27/-.25px on solid black - the same
+           one the listing cards now use, so a related card and a listing card are recognisably
+           the same object. It was 23px/1.22/-.3px, a size that exists nowhere else on the site.
+           THE 3px SPINE IN GREEN, BLUE, PURPLE is the home page's accent device, in the
+           contract's order, matching the listing grid. Three cards, three hues, and the set is
+           closed - amber measured 2.04:1 and was rejected.
+           HOVER AND FOCUS ARE THE HOME CTA'S: a 2px lift with the single permitted shadow, and
+           an opaque 1a3a2a ring replacing the rgba(26,58,42,.25) one that failed WCAG 1.4.11 at
+           1.51:1 against white.
+           THE PADDING STAYS ON THE ANCHOR. It used to sit on the li, which left the link as
+           tall as one line of text - measured 28px at 1280 and 25px at 390 - so the card looked
+           like a button and only the middle third of it responded. The 1px border stays on the
+           li because that is the static frame; the spine replaces it on one edge only, so the
+           1px-static / 2px-hoverable rule is untouched. */
         .post-related{margin-top:44px;padding-top:24px;border-top:1px solid #e5e7eb}
-        .post-related-title{margin:0 0 16px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1a3a2a}
-        .post-related-list{margin:0;padding:0;list-style:none;display:grid;gap:12px}
-        /* THE WHOLE CARD IS THE TARGET, NOT JUST THE WORDS. The padding used to sit on the li,
-           which left the <a> as tall as one line of text - measured 28px at 1280 and 25px at 390,
-           so the card looked like a 62px button and only the middle third of it responded. Moving
-           the padding onto the anchor makes the target the box a reader is aiming at, and takes it
-           past the 44px floor the rest of this page holds to. The 1px border stays on the li: it
-           is the static frame, and the site's rule is 1px for a static edge and 2px for a
-           hoverable one. */
-        .post-related-card{border:1px solid #e5e7eb;border-radius:14px;transition:border-color .2s}
-        .post-related-card:hover{border-color:#d1f470}
-        .post-related-card h3{margin:0;font-size:23px;line-height:1.22;letter-spacing:-.3px;font-weight:700}
-        .post-related-card h3 :global(a){display:block;padding:16px 18px;color:rgba(0,0,0,.95);text-decoration:none}
-        .post-related-card h3 :global(a:hover){color:#1a3a2a;text-decoration:underline;text-underline-offset:3px}
+        .post-related-title{margin:0 0 18px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1a3a2a}
+        .post-related-list{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+        .post-related-list li:last-child:nth-child(odd){grid-column:1 / -1}
+        .post-related-card{
+          display:flex;background:#fff;border:1px solid #e5e7eb;
+          border-inline-start:3px solid #3da35a;border-radius:14px;
+          transition:border-color .2s,transform .2s,box-shadow .2s;
+        }
+        .post-related-card:nth-child(2){border-inline-start-color:#2563eb}
+        .post-related-card:nth-child(3){border-inline-start-color:#9849e8}
+        .post-related-card:hover{border-color:#d1f470;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
+        .post-related-card h3{margin:0;flex:1;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px}
+        .post-related-card h3 :global(a){display:block;padding:18px 20px;color:#000;text-decoration:none}
+        .post-related-card h3 :global(a:hover){color:#1a3a2a}
         /* border-radius matches the card so the ring traces the shape it belongs to, and the
-           offset is 2px rather than the usual 3px because the anchor now sits on the card's own
-           edge - 3px would have the ring straddling the border. 12px of grid gap keeps it clear of
-           the neighbouring card either way. */
-        .post-related-card h3 :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:2px;border-radius:14px}
-        /* 44px floor again - this is a link on its own line and a thumb has to be able to hit it.
+           offset is 2px rather than the usual 3px because the anchor sits on the card's own
+           edge - 3px would have the ring straddling the border. */
+        .post-related-card h3 :global(a:focus-visible){outline:3px solid #1a3a2a;outline-offset:2px;border-radius:14px}
+        /* THE CLOSING LINK IS THE HOME PAGE'S CTA NOW, not a bare 16px text link. It is the one
+           way out of this section to the listing the post sits on, which is the same job
+           .home-close-cta does at the foot of the home page - so it gets the same object: 52px
+           tall, 50px radius, lime fill inside a 2px 1a3a2a edge, a 17px/600 label, and a hover
+           that goes to white and lifts. That also clears the 44px touch floor by 8px rather
+           than sitting exactly on it.
            :global() because it is next/link, like the steps above. */
         .post-related :global(.post-related-all){
-          display:inline-flex;align-items:center;gap:8px;min-height:44px;margin-top:14px;
-          font-size:16px;font-weight:600;color:#1a3a2a;text-underline-offset:3px;
+          display:inline-flex;align-items:center;gap:8px;min-height:52px;margin-top:24px;
+          padding:0 28px;border:2px solid #1a3a2a;border-radius:50px;background:#d1f470;
+          color:#1a3a2a;font-size:17px;font-weight:600;text-decoration:none;
+          transition:background-color .2s,transform .2s,box-shadow .2s;
         }
+        .post-related :global(.post-related-all:hover){background:#fff;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}
         /* Its trailing mark, drawn for the same reason as the pager's - see the note there. */
         .post-related :global(.post-nav-mark){
           width:6px;height:6px;flex:0 0 auto;
           border-top:2px solid currentColor;border-right:2px solid currentColor;
           transform:rotate(45deg);
         }
-        .post-related :global(.post-related-all:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}
+        .post-related :global(.post-related-all:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px}
         @media(max-width:680px){
           .article-shell{padding:128px 16px 64px}
           h1{max-width:none}
@@ -445,7 +481,23 @@ export default function BlogPostPage ( {
              (.pager-list goes full width and .pager-step flexes). */
           .post-nav{grid-template-columns:1fr;gap:10px}
           .post-nav :global(.post-nav-step.is-next){align-items:flex-start;text-align:start}
-          .post-related-card h3{font-size:21px}
+          /* Related collapses to one column for exactly the reason the pager above it does:
+             two cards sharing a 360px line leaves about 160px each, which clamps a title to a
+             few words and the link stops saying which post it goes to. The heading keeps its
+             rung - it used to drop to 21px here, which was a fourth heading size for no reason
+             now that the card is on the home rung and the card is full width. */
+          .post-related-list{grid-template-columns:1fr;gap:12px}
+          .post-related :global(.post-related-all){width:100%;justify-content:center}
+        }
+        /* NOTHING LIFTS FOR A READER WHO ASKED FOR LESS MOTION. The related cards and the
+           closing CTA are the only things on this page that move, and both were given the
+           transform and the shadow the home page uses - so this page now needs the block the
+           home page already has and this file did not carry.
+           The shadow is cancelled as well as the transform: a shadow appearing under a card is
+           the same "something moved" cue as the lift itself. */
+        @media(prefers-reduced-motion:reduce){
+          .post-related-card,.post-related :global(.post-related-all){transition:none}
+          .post-related-card:hover,.post-related :global(.post-related-all:hover){transform:none;box-shadow:none}
         }
       `}</style>
     </>

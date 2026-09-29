@@ -12,6 +12,33 @@ vi.mock( 'next/head', () => ( { default: ( { children }: { children: React.React
 const cssOf = ( container: HTMLElement ) =>
   Array.from( container.querySelectorAll( 'style' ) ).map( node => node.textContent || '' ).join( '\n' );
 
+/**
+ * ONE COMPONENT'S STYLE BLOCK, PICKED BY A SELECTOR ONLY IT DECLARES.
+ *
+ * cssOf joins every style element in the tree, and a blog page mounts four components that each
+ * ship their own - RotatingHero, Breadcrumbs, BlogSearch and the view itself. That is fine for
+ * asserting a rule is PRESENT, but it makes a negative assertion meaningless: checking that the
+ * page carries no rgba(26,58,42,.25) focus ring failed on RotatingHero's stylesheet, not on the
+ * one under test. Anything of the form "this component no longer contains X" has to be scoped.
+ */
+const styleBlockWith = ( container: HTMLElement, marker: string ) =>
+  Array.from( container.querySelectorAll( 'style' ) )
+    .map( node => node.textContent || '' )
+    .find( text => text.includes( marker ) ) || '';
+
+/**
+ * CSS COMMENTS STRIPPED BEFORE A NEGATIVE ASSERTION - the same argument BrandAssets.test.ts
+ * already makes about source comments, and it bit here for the same reason.
+ *
+ * styled-jsx keeps comments in its compiled output, and the comments in these style blocks NAME
+ * the values they replaced: "Opaque focus ring, was rgba(26,58,42,.25)" and "It named
+ * .category-switch button". A substring search cannot tell an explanation from a declaration, so
+ * the first version of this failed on its own documentation. A rule against using a value must
+ * not also be a rule against recording why it went, or the next person deletes the note to make
+ * the suite green.
+ */
+const declarationsOnly = ( css: string ) => css.replace( /\/\*[\s\S]*?\*\//g, '' );
+
 const samplePost: PublicBlogPost = {
   id: 'post-1',
   title: 'A Clear Question Can Change the Work',
@@ -233,16 +260,70 @@ describe( 'Blog design alignment', () => {
     } );
   } );
 
-  it( 'keeps listing cards typographic, readable and responsive rather than dashboard-like', () => {
+  /**
+   * THE LISTING CARDS ARE ON THE HOME PAGE'S RUNGS, and this asserts the rungs rather than the
+   * literal block strings it used to pin.
+   *
+   * It previously required 'h2{font-size:23px;line-height:1.22' and
+   * '.post-copy p{font-size:16px;line-height:1.5' - two type sizes that existed nowhere else on
+   * the public site - so the test was holding the drift in place: any attempt to move this grid
+   * onto the shared scale failed the test that was meant to protect the design. What is worth
+   * pinning is the relationship to the home page, so that is what it checks now.
+   */
+  it( 'puts listing cards on the home page type rungs, accent order and hover treatment', () => {
     const { container } = render( <BlogIndex { ...propsFor() } /> );
-    const css = cssOf( container );
+    // Scoped to BlogIndexView's own block: the negative assertions at the end of this test are
+    // about what THIS component stopped declaring, and the page mounts three other components
+    // that ship stylesheets of their own.
+    const css = styleBlockWith( container, '.post-card{' );
 
-    expect( css ).toContain( '.post-card{border:1px solid #e5e7eb;border-radius:14px' );
-    expect( css ).toContain( 'h2{font-size:23px;line-height:1.22' );
-    expect( css ).toContain( '.post-copy p{font-size:16px;line-height:1.5' );
-    expect( css ).toContain( '@media(max-width:1050px)' );
-    expect( css ).toContain( '@media(max-width:680px)' );
-    expect( css ).toContain( ':global(a:focus-visible)' );
+    // The home card-heading rung, and the single body rung the whole public site shares.
+    expect( css ).toContain( 'h2{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px' );
+    expect( css ).toContain( 'font-size:20px;font-weight:400;line-height:1.4;letter-spacing:-.125px;' );
+    // The home accent device, in the contract's order. The set is closed at these three.
+    expect( css ).toContain( 'border-inline-start:3px solid #3da35a' );
+    expect( css ).toContain( '.post-card:nth-child(3n+2){border-inline-start-color:#2563eb}' );
+    expect( css ).toContain( '.post-card:nth-child(3n+3){border-inline-start-color:#9849e8}' );
+    // The home CTA's hover: a 2px lift plus the one shadow this design language allows.
+    expect( css ).toContain( '.post-card:hover{border-color:#d1f470;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}' );
+    // The home breakpoints, replacing the 1050/680 pair that disagreed with the hero above.
+    expect( css ).toContain( '@media(max-width:1024px)' );
+    expect( css ).toContain( '@media(max-width:767px)' );
+
+    // The reduced-motion block has to reach the pills, which are next/link and therefore need
+    // :global(). It used to name .category-switch button, which nothing has rendered since the
+    // categories became routes, so a reader asking for less motion still got the lift.
+    expect( css ).toContain( '.post-card,.category-switch :global(a){transition:none}' );
+    expect( css ).toContain( 'outline:3px solid #1a3a2a' );
+
+    // THREE REGRESSIONS THIS NOW GUARDS, asserted against declarations with the comments
+    // stripped - see declarationsOnly. The translucent focus ring measures 1.51:1 against white
+    // and fails WCAG 1.4.11, so the home page moved off it. 6b7280 is a dashboard token out of
+    // tokens.css. And .category-switch button is the selector that matched nothing.
+    const declared = declarationsOnly( css );
+    expect( declared ).not.toContain( 'rgba(26,58,42,.25)' );
+    expect( declared ).not.toContain( '#6b7280' );
+    expect( declared ).not.toContain( '.category-switch button' );
+  } );
+
+  /**
+   * NO PUBLISHED DATE ON ANY LISTING SURFACE. BlogIndexView renders /blog/, /blog/page/N/, both
+   * topic-stream shapes AND the client-side search results, so this one assertion covers every
+   * listing surface at once.
+   *
+   * Structural rather than textual on purpose: asserting the absence of a formatted string
+   * would depend on the ICU build's en-IN output, whereas the element either exists or it does
+   * not. The field itself must survive in the projection - the corpus is ordered by it, and with
+   * 35 pages an ordering change moves posts between page URLs - which is why the toBlogCard
+   * key-set test further down still expects publishedDate to be present.
+   */
+  it( 'renders no published date on listing cards, while keeping the field for ordering', () => {
+    const { container } = render( <BlogIndex { ...propsFor() } /> );
+
+    expect( container.querySelector( 'time' ) ).toBeNull();
+    expect( container.querySelector( '[datetime]' ) ).toBeNull();
+    // Still projected, because orderPostsNewestFirst reads it.
+    expect( firstCard.publishedDate ).toBe( '2026-09-27T00:00:00Z' );
   } );
 } );
 
@@ -436,5 +517,71 @@ describe( 'Blog post page', () => {
     expect( css ).toContain( '.content :global(li + li){margin-top:10px}' );
     expect( css ).toContain( '.content :global(blockquote){margin:36px 0;padding:2px 0 2px 22px;border-inline-start:3px solid #d1f470;font-size:21px;line-height:1.5;' );
     expect( css ).toContain( '.content :global(a:focus-visible){outline:3px solid rgba(26,58,42,.25);outline-offset:3px;border-radius:2px}' );
+  } );
+
+  /**
+   * THE BYLINE IS AUTHOR-ONLY, AND THE STRUCTURED DATA IS NOT.
+   *
+   * The visible date is gone from the byline on owner instruction. datePublished and
+   * dateModified stay in the BlogPosting JSON-LD deliberately: they are machine-readable, a
+   * reader never sees them, Google treats datePublished as recommended on an article, and the
+   * stored-schema branch could not be stripped from the page anyway - when the API supplies
+   * post.jsonLd.blogPosting that object is emitted verbatim. Asserting both halves here stops a
+   * later "finish the job" sweep taking the schema fields with the visible ones.
+   */
+  it( 'shows no date in the byline but keeps the dates in the article structured data', () => {
+    const { container } = render( <BlogPostPage post={ samplePost } /> );
+
+    expect( container.querySelector( 'time' ) ).toBeNull();
+    expect( container.querySelector( '[datetime]' ) ).toBeNull();
+    expect( container.querySelector( '.byline' )?.textContent ).toBe( 'Anew by WECARE.DIGITAL' );
+
+    const ld = container.querySelector( 'script[type="application/ld+json"]' );
+    expect( ld?.textContent ).toContain( 'datePublished' );
+    expect( ld?.textContent ).toContain( 'dateModified' );
+  } );
+
+  /**
+   * RELATED POSTS READ AS THE LISTING'S CARDS. Same heading rung, same accent order, same hover.
+   * The block was a single column of title-only boxes at every width; the grid, the spanning
+   * third card and the lime CTA are the improvement, and this pins the parts that would
+   * otherwise drift back.
+   */
+  it( 'lays related posts out as home-style cards with a spanning third and a lime CTA', () => {
+    const { container } = render(
+      <BlogPostPage
+        post={ samplePost }
+        related={ [
+          { slug: 'first-related', title: 'The First Related Post' },
+          { slug: 'second-related', title: 'The Second Related Post' },
+          { slug: 'third-related', title: 'The Third Related Post' },
+        ] }
+        streamHref="/blog/"
+        streamLabel="Conversations"
+      />
+    );
+    const css = cssOf( container );
+
+    // All three render, and the section is still labelled by its own eyebrow heading.
+    expect( container.querySelectorAll( '.post-related-card' ) ).toHaveLength( 3 );
+    expect( screen.getByRole( 'heading', { name: 'More in Conversations' } ) ).toBeInTheDocument();
+
+    // Two columns, with an odd last card taking the full measure rather than sitting
+    // half-width beside empty space.
+    expect( css ).toContain( '.post-related-list{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}' );
+    expect( css ).toContain( '.post-related-list li:last-child:nth-child(odd){grid-column:1 / -1}' );
+
+    // The home card-heading rung and the home accent order, matching the listing grid.
+    expect( css ).toContain( '.post-related-card h3{margin:0;flex:1;font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px}' );
+    expect( css ).toContain( '.post-related-card:nth-child(2){border-inline-start-color:#2563eb}' );
+    expect( css ).toContain( '.post-related-card:nth-child(3){border-inline-start-color:#9849e8}' );
+    expect( css ).toContain( '.post-related-card:hover{border-color:#d1f470;transform:translateY(-2px);box-shadow:0 4px 12px rgba(26,58,42,.12)}' );
+
+    // The closing link is the home CTA object, and its focus ring is the opaque one.
+    expect( css ).toContain( 'border:2px solid #1a3a2a;border-radius:50px;background:#d1f470;' );
+    expect( css ).toContain( '.post-related :global(.post-related-all:focus-visible){outline:3px solid #1a3a2a;outline-offset:3px}' );
+
+    // Nothing lifts for a reader who asked for less motion - this page had no such block.
+    expect( css ).toContain( '@media(prefers-reduced-motion:reduce)' );
   } );
 } );
