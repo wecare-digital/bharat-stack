@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Block S3 bucket creation",
+      "trigger": "PreToolUse",
+      "description": "Refuses any command that would create an S3 bucket, and any command naming the known 'wecare-difital-get' typo. Blog Production must use the existing wecare-digital-get bucket under o/blog-production/. Denies rather than asks, matching the three existing deny hooks.",
+      "matcher": "execute_bash|control_bash_process",
+      "action": {
+        "type": "command",
+        "command": "python3 scripts/block_s3_bucket_creation.py",
+        "timeout": 15
+      }
+    }
+  ]
+}

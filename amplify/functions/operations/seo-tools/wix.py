@@ -128,7 +128,22 @@ SITE_PAGES = [
 
 
 def _load_api_key() -> str:
+    """The authenticated Wix API key, for writes and commerce reads.
+
+    THE KILL SWITCH IS CHECKED FIRST, before any Secrets Manager read. Until 2026-09-29
+    this function ignored `WIX_CREDENTIALS_DISABLED` entirely: the switch was honoured in
+    `ecommerce/wix-store` and not here, so it disabled the store and left the BLOG paths -
+    the ones that publish - running. A switch that covers one of three credential paths is
+    the same defect as a switch nothing reads.
+
+    Note what stays unaffected: `_load_visitor_access_token()` below, which serves the
+    public blog anonymously with a public client id. See `lambda_utils.wix_guard` for why
+    disabling that would make the control unusable during the incident it exists for.
+    """
     global _api_key
+    from lambda_utils.wix_guard import refuse_if_disabled
+    refuse_if_disabled('seo-tools authenticated Wix client')
+
     if _api_key is not None:
         return _api_key
     if not SECRET_NAME or not SITE_ID:

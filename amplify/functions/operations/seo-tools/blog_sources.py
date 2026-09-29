@@ -47,13 +47,14 @@ FUNCTION_NAME = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "wecare-seo-tools")
 #:
 #: `o/` is the public root of this bucket: CloudFront distribution E2GP22R4BIFGQ3 serves it
 #: at `https://wecare.digital/get/o/...` with no authentication. `secure/` is the gated root,
-#: denied wholesale at the edge. This prefix was originally `secure/blog-src/` and was moved
-#: to `o/` on owner instruction, so an uploaded source document IS fetchable by anyone who
-#: has its URL.
+#: denied wholesale at the edge. This prefix began as `secure/blog-src/` and was moved to
+#: `o/` on owner instruction, confirmed a second time on 2026-09-29 to cover derived
+#: artefacts too - so a source document AND its extracted text are fetchable by anyone who
+#: has the URL.
 #:
 #: What limits the exposure, stated so nobody over-credits it:
-#:   - The key is the sha256 of the file's own bytes, so it is not guessable and not
-#:     derivable from the filename.
+#:   - Keys are content hashes or record ids, so they are not guessable and not derivable
+#:     from the filename.
 #:   - Bucket listing is not public - all four public-access-block settings are on and the
 #:     bucket policy grants s3:GetObject only to the CloudFront service principal.
 #: So a source is unlisted-but-public: safe from enumeration, not safe once a URL leaks.
@@ -67,11 +68,39 @@ BUCKET = os.environ.get("BLOG_SOURCE_BUCKET", os.environ.get("SECURE_FILES_BUCKE
 #: Composed through `media_paths` rather than hand-built, which that module explicitly asks
 #: for: "Keep composing keys through `public` and `secure` rather than hand-building them."
 #: It also documents why `o/` is load-bearing and cannot simply be dropped.
+#:
+#: Renamed from `o/blog-src/` to `o/blog-production/` on 2026-09-29, while the prefix held
+#: ZERO objects. That made it a constant change rather than a data migration, and it is the
+#: last moment at which that was true.
 try:
     from lambda_utils import media_paths
-    PREFIX = media_paths.public("blog-src") + "/"
+    ROOT_PREFIX = media_paths.public("blog-production") + "/"
 except ImportError:  # pragma: no cover - media_paths ships in every package
-    PREFIX = "o/blog-src/"
+    ROOT_PREFIX = "o/blog-production/"
+
+#: The layout recorded in `.kiro/steering/blog-production-s3.md`. One place, so a key is
+#: never assembled from a literal at a call site.
+PREFIX = ROOT_PREFIX + "sources/pdf/"
+URL_PREFIX = ROOT_PREFIX + "sources/url/"
+EXTRACT_PREFIX = ROOT_PREFIX + "extracted/"
+ANALYSIS_PREFIX = ROOT_PREFIX + "source-analysis/"
+WORKING_PREFIX = ROOT_PREFIX + "article-working/"
+QA_PREFIX = ROOT_PREFIX + "qa/"
+PUBLISH_PREFIX = ROOT_PREFIX + "publish-records/"
+VERIFY_PREFIX = ROOT_PREFIX + "verification/"
+FAILURE_PREFIX = ROOT_PREFIX + "failures/"
+
+#: THE EXTRACT LIVES IN S3, NOT IN THE ITEM, AND THE REASON IS A HARD LIMIT.
+#:
+#: DynamoDB caps an item at 400 kB. The first version of this module wrote the full extracted
+#: text into `sourceExtract` AND again inside `draftRecord`, so the item carried it twice. A
+#: 300-page book is roughly 450 kB of text on its own, and `MAX_SOURCE_BYTES` allows a 40 MB
+#: PDF - so the write failed on precisely the documents this pipeline exists to process,
+#: while working fine on every small test fixture.
+#:
+#: So the text goes to `extracted/<sourceId>.md` and the item keeps a bounded preview plus
+#: the key. The preview is what the admin list renders; the full text is fetched on demand.
+EXTRACT_PREVIEW_CHARS = 1500
 UPLOAD_URL_TTL = int(os.environ.get("BLOG_SOURCE_URL_TTL_SECONDS", "900"))
 MAX_SOURCE_BYTES = int(os.environ.get("BLOG_SOURCE_MAX_BYTES", str(40 * 1024 * 1024)))
 #: How many sources one worker invocation handles before chaining. Sized so the batch
@@ -228,6 +257,9 @@ def _view(item: Dict[str, Any]) -> Dict[str, Any]:
         "sourceBytes": item.get("sourceBytes", 0),
         "extractedChars": item.get("extractedChars", 0),
         "extractedWords": item.get("extractedWords", 0),
+        #: A bounded preview so the list view can show what was extracted without the list
+        #: response becoming megabytes. `source_detail` returns the full text.
+        "extractPreview": item.get("extractPreview", ""),
         "contentSha256": item.get("contentSha256", ""),
         "slug": item.get("slug", ""),
         "title": item.get("title", ""),
@@ -504,25 +536,65 @@ def _fail(record_id: str, error: str) -> None:
     )
 
 
+def extract_key(source_id: str) -> str:
+    return EXTRACT_PREFIX + str(source_id) + ".md"
+
+
+def write_extract(source_id: str, text: str) -> str:
+    """Put the extracted text in S3 and return its key."""
+    key = extract_key(source_id)
+    s3_client().put_object(
+        Bucket=BUCKET, Key=key, Body=text.encode("utf-8"),
+        ContentType="text/markdown; charset=utf-8")
+    return key
+
+
+def read_extract(record: Dict[str, Any]) -> str:
+    """The full extracted text, from S3, with the item's preview as a fallback.
+
+    The fallback is not belt-and-braces padding - it is what keeps a record created before
+    this change readable. Those items carry the whole text inline under `sourceExtract` and
+    no `extractKey`.
+    """
+    key = str(record.get("extractKey") or "")
+    if key:
+        try:
+            return s3_client().get_object(Bucket=BUCKET, Key=key)["Body"].read().decode(
+                "utf-8", errors="replace")
+        except ClientError as error:
+            logger.warning(json.dumps({
+                "event": "blog_extract_read_failed", "sourceId": record.get("id", ""),
+                "error": error.response.get("Error", {}).get("Code", "S3Error")}))
+    return str(record.get("sourceExtract") or record.get("extractPreview") or "")
+
+
 def _store_extract(record: Dict[str, Any], extract: Any, bp) -> None:
-    """Persist the extract and the draft record, and run the quality gate over it.
+    """Persist the extract to S3, the metadata to DynamoDB, and run the quality gate.
 
     The gate runs HERE rather than only at publish time so the admin page can show, per
     source, exactly what is outstanding. Its verdict is advisory at this point by
     construction: a draft has no article body yet, so it cannot be anything but
     SOURCE_REVIEW.
+
+    Note what the item does NOT hold: the extracted text. See `EXTRACT_PREVIEW_CHARS`.
     """
     import blog_quality_v2 as q
 
+    key = write_extract(record["id"], extract.text)
     draft = _draft_record(record, extract, q, bp)
     assessment = q.assess(draft)
+    # The gate has read the extract; the stored draft must not carry a second copy of it.
+    stored_draft = {name: value for name, value in draft.items() if name != "sourceExtract"}
+    stored_draft["extractKey"] = key
+
     storage.table().update_item(
         Key={"id": record["id"]},
         UpdateExpression=(
             "SET #s = :s, sourceTitle = :t, sourceDate = :d, sourcePages = :p, "
             "extractedChars = :c, extractedWords = :w, contentSha256 = :h, "
-            "sourceExtract = :x, draftRecord = :dr, articleStatus = :as, "
-            "gateBlocking = :gb, gateReview = :gr, updatedAt = :u, #e = :e"
+            "extractKey = :k, extractPreview = :pv, draftRecord = :dr, "
+            "articleStatus = :as, gateBlocking = :gb, gateReview = :gr, "
+            "updatedAt = :u, #e = :e REMOVE sourceExtract"
         ),
         ExpressionAttributeNames={"#s": "status", "#e": "error"},
         ExpressionAttributeValues={
@@ -533,8 +605,9 @@ def _store_extract(record: Dict[str, Any], extract: Any, bp) -> None:
             ":c": len(extract.text),
             ":w": bp.word_count(extract.text),
             ":h": extract.content_sha256,
-            ":x": extract.text,
-            ":dr": storage._clean(draft),
+            ":k": key,
+            ":pv": extract.text[:EXTRACT_PREVIEW_CHARS],
+            ":dr": storage._clean(stored_draft),
             ":as": assessment["status"],
             ":gb": assessment["blocking"],
             ":gr": assessment["review"],
@@ -583,6 +656,8 @@ def _draft_record(record: Dict[str, Any], extract: Any, q, bp) -> Dict[str, Any]
         "metaDescription": "",
         "articleType": article_type,
         "imageStatus": "none",
+        #: Present on the in-memory draft so the gate can assess it, and STRIPPED before
+        #: storage by `_store_extract` - the item must not carry a second copy of the text.
         "sourceExtract": extract.text,
         "contentMarkdown": "",
         "centralDistinction": "",
@@ -617,7 +692,9 @@ def source_detail(record_id: str) -> Dict[str, Any]:
     if not record:
         raise LookupError("Unknown sourceId")
     view = _view(record)
-    view["sourceExtract"] = record.get("sourceExtract", "")
+    # Fetched from S3 rather than read off the item, because the item does not hold it.
+    view["sourceExtract"] = read_extract(record)
+    view["extractKey"] = str(record.get("extractKey") or "")
     view["draftRecord"] = record.get("draftRecord", {})
     view["aiDraft"] = record.get("aiDraft", {})
     return view
