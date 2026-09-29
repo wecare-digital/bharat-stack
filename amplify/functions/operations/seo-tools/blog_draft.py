@@ -176,7 +176,9 @@ def propose(record_id: str, actor: str) -> Dict[str, Any]:
     record = blog_sources.get_source(record_id)
     if not record:
         raise LookupError("Unknown sourceId")
-    extract = str(record.get("sourceExtract") or "")
+    # From S3. The item holds a bounded preview only - DynamoDB caps an item at 400 kB and a
+    # 300-page book is ~450 kB of text, so the full extract never lived there.
+    extract = blog_sources.read_extract(record)
     if not extract.strip():
         raise ValueError("this source has no extract yet; let the worker finish first")
 
