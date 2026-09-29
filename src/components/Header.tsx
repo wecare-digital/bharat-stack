@@ -504,7 +504,22 @@ const Header: React.FC = () => {
         .nav-trigger:hover,.nav-trigger:focus-visible,.nav-trigger[aria-expanded='true']{
           background:#1a3a2a;border-color:#1a3a2a;outline:none;
         }
-        .nav-trigger:focus-visible{box-shadow:0 0 0 3px rgba(26,58,42,.2)}
+        /* A TWO-TONE RING, because this control inverts on focus and a single-colour ring
+           cannot work against both of its states.
+           The ring was rgba(26,58,42,.2), which composites to rgb(200,209,199) over the
+           header and measures 1.44:1 against it - under the 3:1 WCAG 1.4.11 asks of a focus
+           indicator. Note the rule above also sets outline:none, so that faint shadow was
+           the only ring present.
+           Going opaque #1a3a2a alone does not fix it either: the :focus-visible rule above
+           fills this chip with #1a3a2a, so a dark green ring drawn tight against a dark
+           green chip has no edge at all - it just reads as a slightly bigger chip.
+           So: a 2px white spacer first, then 3px of opaque #1a3a2a outside it. The white
+           separates the ring from the inverted chip, and the dark green measures 12.48:1
+           against the white header behind it. The same pair works if the chip is ever
+           returned to its pale resting fill, which is what makes it the durable answer.
+           The chip's own inversion still carries the state; this makes the ring carry it
+           too, rather than relying on a colour change a low-vision visitor may not catch. */
+        .nav-trigger:focus-visible{box-shadow:0 0 0 2px #fff,0 0 0 5px #1a3a2a}
         /* The chevron flips to lime so it stays legible on the inverted chip: 10.04:1 there,
            against 7.43:1 for the dark green on the pale chip. Full opacity rather than .85 -
            the .85 existed to soften a dark glyph on a light ground and works against it here. */

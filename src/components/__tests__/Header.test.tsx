@@ -136,6 +136,28 @@ describe( 'Header', () => {
      */
     expect( css ).toContain( ".nav-trigger:hover,.nav-trigger:focus-visible,.nav-trigger[aria-expanded='true']" );
     expect( css ).toContain( 'background:#1a3a2a;border-color:#1a3a2a' );
+
+    /*
+     * THE FOCUS RING IS TWO-TONE, AND BOTH STOPS ARE LOAD-BEARING.
+     *
+     * It was a single box-shadow at rgba(26,58,42,.2), which composites to rgb(200,209,199)
+     * over the header and measures 1.44:1 against it - under the 3:1 WCAG 1.4.11 asks of a
+     * focus indicator. The rule above also sets outline:none, so that faint shadow was the
+     * entire ring.
+     *
+     * Opaque #1a3a2a on its own does not fix it, which is the part worth pinning: the rule
+     * above fills this chip with #1a3a2a on focus, so a dark green ring drawn tight against
+     * a dark green chip has no edge - it reads as a slightly larger chip, not as a ring.
+     * The 2px white spacer is what gives it one, and the 3px of dark green outside measures
+     * 12.48:1 against the white header.
+     *
+     * Do not collapse this to one stop in either direction.
+     */
+    expect( css ).toContain( '.nav-trigger:focus-visible{box-shadow:0 0 0 2px #fff,0 0 0 5px #1a3a2a}' );
+    // Comments stripped before the negative check: the rule above documents the value it
+    // replaced, and a substring search cannot tell a citation from a declaration. Banning
+    // the string outright would mean deleting the measurement that justifies the fix.
+    expect( css.replace( /\/\*[\s\S]*?\*\//g, '' ) ).not.toContain( 'rgba(26,58,42,.2)' );
     // And the chevron inverts with it, or it would be dark-on-dark.
     expect( css ).toContain( 'border-right-color:#d1f470;border-bottom-color:#d1f470;opacity:1' );
 

@@ -326,7 +326,13 @@ const Footer: React.FC = () => {
       /* inline-flex, not block: a block anchor would stretch to the full measure and give
          the lockup a click target running the width of the page. */
       .ft-home{display:inline-flex;text-decoration:none;border-radius:10px}
-      .ft-home:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:3px}
+      /* OPAQUE #1a3a2a, not the .22 alpha this used to carry. rgba(26,58,42,.22) composites
+         to rgb(205,212,208) over the white footer and measures 1.51:1 against it, well under
+         the 3:1 WCAG 1.4.11 requires of a focus indicator - the ring was visible to someone
+         already looking for it and to nobody else. Opaque on white is 12.48:1.
+         The alpha was presumably there to soften the ring; outline-offset already does that
+         job by holding it off the lockup, and it does it without spending contrast. */
+      .ft-home:focus-visible{outline:3px solid #1a3a2a;outline-offset:3px}
 
       /* THE TAGLINE'S COLOUR WAS OFF-PALETTE. It was #9ca3af, a legacy Tailwind grey, which
          rendered the one brand statement on the page as the lightest text in the footer -

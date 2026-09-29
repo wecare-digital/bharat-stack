@@ -651,7 +651,12 @@ const SupportWidget: React.FC = () => {
            "Expected '</', got 'ident'" pointing at the comment rather than the cause. */
         .wc-wa{width:40px;height:40px;min-width:40px;min-height:40px;border-radius:50%;background:#d1f470;color:#1a3a2a;display:grid;place-items:center;text-decoration:none;transition:background-color .2s}
         .wc-wa:hover{background:#c5e866}
-        .wc-wa:focus-visible{outline:3px solid rgba(26,58,42,.22);outline-offset:2px}
+        /* OPAQUE #1a3a2a. This was rgba(26,58,42,.22), which over the lime pill behind it
+           composites to rgb(169,203,97) and measures 1.48:1 - under the 3:1 WCAG 1.4.11
+           asks of a focus indicator. Opaque dark green on lime #d1f470 is 10.04:1, and it
+           is the pair this design language already uses for type on lime, so the focused
+           state looks like the rest of the system rather than like a new treatment. */
+        .wc-wa:focus-visible{outline:3px solid #1a3a2a;outline-offset:2px}
         .wc-wa svg{width:21px;height:21px;display:block}
         .wc-sep{width:1px;height:22px;background:#eef0e6;flex:0 0 auto}
 

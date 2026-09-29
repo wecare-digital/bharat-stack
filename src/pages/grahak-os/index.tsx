@@ -10,6 +10,9 @@ import BrandBadge from '../../components/BrandBadge';
 
 const GrahakOsPage: React.FC = () => {
   const [visible, setVisible] = useState<Set<string>>(new Set());
+  // False until the reveal effect below has confirmed it can run. While false, .anim
+  // sections carry no .is-armed and the CSS shows them in their finished state.
+  const [armed, setArmed] = useState(false);
   const [activeCode, setActiveCode] = useState(0);
 
   // Hero headline cycles the channel in the lime pill, the way notion.com
@@ -49,14 +52,46 @@ const GrahakOsPage: React.FC = () => {
   // in the return tree - extracting this into a variable silently drops every
   // style, which renders the words stacked inline with no pill.
   
+  // ARM ONLY AFTER CONFIRMING WE CAN ANIMATE, AND SEED WHATEVER IS ALREADY ON SCREEN.
+  //
+  // Two things have to happen in ONE render here, or the no-JS fix trades a blank page
+  // for a flash. Arming hides every .anim section; the observer then reveals them. If
+  // those land in separate commits, anything already in the viewport paints
+  // visible -> hidden -> animated-in, which is a more obvious artefact than the bug was.
+  //
+  // So the sections currently intersecting the viewport are measured synchronously and
+  // seeded into `visible` in the same batch that sets `armed`. React batches both
+  // setState calls inside this effect, so the first armed paint already carries .show on
+  // the hero and nothing above the fold ever blinks.
+  //
+  // The viewport test is deliberately more generous than the observer's 0.1 threshold:
+  // any intersection at all counts. A section 5% visible at load therefore appears
+  // without animating, which is the right trade against a flash.
+  //
+  // If IntersectionObserver is missing - or this effect never runs at all, which is the
+  // no-JS and failed-hydration case - `armed` stays false and the CSS resting state is
+  // the finished one. That is the capability check; there is no user-agent sniffing here.
   useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    const sections = Array.from(document.querySelectorAll<HTMLElement>('.anim'));
+    const onScreenNow = sections
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top < window.innerHeight && r.bottom > 0;
+      })
+      .map((el) => el.id);
+
+    setVisible((p) => new Set([...p, ...onScreenNow]));
+    setArmed(true);
+
     const obs = new IntersectionObserver(
       (entries) => entries.forEach((e) => {
         if (e.isIntersecting) setVisible((p) => new Set([...p, e.target.id]));
       }),
       { threshold: 0.1 }
     );
-    document.querySelectorAll('.anim').forEach((el) => obs.observe(el));
+    sections.forEach((el) => obs.observe(el));
     return () => obs.disconnect();
   }, []);
 
@@ -167,10 +202,15 @@ response = requests.post(
         <meta name="format-detection" content="telephone=no" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         
-        {/* Preload critical images for faster loading */}
+        {/* Preload the header lockup, which is the first paint on the page. */}
         <link rel="preload" href="https://wecare.digital/get/o/stream/media/m/wecaredigital.png" as="image" />
-        <link rel="preconnect" href="https://img.icons8.com" />
-        <link rel="dns-prefetch" href="https://img.icons8.com" />
+        {/* THE img.icons8.com preconnect AND dns-prefetch ARE GONE, because this page makes
+            no icons8 request. Every glyph here is drawn: the six capability icons are inline
+            data:image/svg+xml URIs and the Meta mark is meta-icon.svg from our own media
+            host. Counted in the built export: two icons8 hints, zero icons8 requests.
+            A preconnect to an unused origin is not free - it opens a TCP and TLS handshake
+            that competes with the requests the page actually makes. Re-add these only
+            alongside a real icons8 <img> on this route. */}
         
         {/* Structured Data - PAGE-SPECIFIC ONLY.
             This page used to emit a second Organization, a second FAQPage and a second
@@ -215,7 +255,7 @@ response = requests.post(
           every other public page resolved `main`. The class is unchanged, so no CSS moves. */}
       <main className="page">
 
-        <section className={`hero anim ${show('hero') ? 'show' : ''}`} id="hero">
+        <section className={`hero anim ${armed ? 'is-armed' : ''} ${show('hero') ? 'show' : ''}`} id="hero">
           <div className="hero-content">
             <div className="hero-left">
               {/* Shared with the home page, so it lives in BrandBadge rather than
@@ -378,7 +418,7 @@ response = requests.post(
           what it can statically see there.
         */}
 
-        <section className={`touchpoint anim ${show('touchpoint') ? 'show' : ''}`} id="touchpoint">
+        <section className={`touchpoint anim ${armed ? 'is-armed' : ''} ${show('touchpoint') ? 'show' : ''}`} id="touchpoint">
           <div className="pp-inner">
             <div className="section-header">
               <h2>Every touchpoint<br/>One seamless experience</h2>
@@ -392,7 +432,7 @@ response = requests.post(
           </div>
         </section>
 
-        <section className={`api anim ${show('api') ? 'show' : ''}`} id="api">
+        <section className={`api anim ${armed ? 'is-armed' : ''} ${show('api') ? 'show' : ''}`} id="api">
           <div className="api-grid">
             <div className="api-info">
               <h2>Built for your stack</h2>
@@ -442,7 +482,7 @@ response = requests.post(
             h3 of the same string, so every title was announced twice by a screen reader
             and appeared twice in extracted text. The glyphs are decorative; the title
             next to them is the content. */}
-        <section className={`pp-strip anim ${show('capabilities') ? 'show' : ''}`} id="capabilities">
+        <section className={`pp-strip anim ${armed ? 'is-armed' : ''} ${show('capabilities') ? 'show' : ''}`} id="capabilities">
           <div className="pp-inner">
             <div className="pp-strip-grid">
               { capabilities.map( ( cap, i ) => (
@@ -451,7 +491,19 @@ response = requests.post(
                     <img src={ cap.icon.replace( /%23333333/g, '%231a3a2a' ) } alt="" aria-hidden="true" loading="lazy" />
                   </div>
                   <div className="pp-strip-text">
-                    <span className="pp-strip-title">{ cap.title }</span>
+                    {/* h3, NOT a span. These six card titles were spans, so the page's
+                        whole heading outline was h1 + four h2s and the six capabilities
+                        had no heading semantics at all - a screen-reader user could not
+                        navigate to them and they were absent from the document outline.
+                        Measured in the built export before this change: zero h3 elements
+                        on the page, and six "<span class=... pp-strip-title".
+                        h3 is the correct rung, not h2: these sit inside #capabilities,
+                        whose preceding heading is the .api h2, so h2 -> h3 is a step with
+                        no skipped level. The .pp-strip-title rule below owns the visual
+                        size (22px/700/1.27/-.25px, the card-heading rung) and now also
+                        resets the UA margin, so promoting the tag changes semantics only
+                        and moves nothing on screen. */}
+                    <h3 className="pp-strip-title">{ cap.title }</h3>
                     <span className="pp-strip-sub">{ cap.desc }</span>
                   </div>
                 </div>
@@ -460,7 +512,7 @@ response = requests.post(
           </div>
         </section>
 
-        <section className={`trust-strip anim ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Trusted by Meta">
+        <section className={`trust-strip anim ${armed ? 'is-armed' : ''} ${show('trust-strip') ? 'show' : ''}`} id="trust-strip" aria-label="Trusted by Meta">
           <div className="trust-grid">
             {/* Neutral card, not lime. Framing another company's logo in our own
                 brand colour made a credential look like a sticker we printed
@@ -531,7 +583,7 @@ response = requests.post(
           </div>
         </section>
 
-        <section className={`gos-closer anim ${show('gos-closer') ? 'show' : ''}`} id="gos-closer">
+        <section className={`gos-closer anim ${armed ? 'is-armed' : ''} ${show('gos-closer') ? 'show' : ''}`} id="gos-closer">
           {/* Explicit break so the product name lands alone on the last line. Needs a
               br rather than the pre-line trick .section-header h2 uses, because
               .gos-closer-head does not set white-space. */}
@@ -574,9 +626,26 @@ response = requests.post(
             .page{overflow-x:clip}
           }
           
-          /* Animations */
-          .anim{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
-          .anim.show{opacity:1;transform:translateY(0)}
+          /* Animations
+             THE FINISHED STATE IS WHAT CSS SHIPS, and .is-armed is what opts out of it.
+             This block used to declare .anim{opacity:0} as the BASE state, with .show
+             added by an IntersectionObserver inside a useEffect - so the only thing
+             standing between a visitor and this page was JavaScript running. Measured
+             against the export with javaScriptEnabled:false, all six sections (hero,
+             touchpoint, api, pp-strip, trust-strip, gos-closer) rendered at opacity:0.
+             The whole page was blank.
+             It went unnoticed for a reason worth recording: opacity does not remove text
+             from the DOM, so the no-JS body-text count the design contract cites stayed
+             correct at 2,448 chars and every harness suite stayed green while nothing was
+             visible. A text measurement cannot see a paint bug.
+             So the resting state is now VISIBLE, and the page arms itself only after the
+             script has confirmed it can drive the reveal - the same shape Footer.tsx
+             already uses for .ft-tagline. No JS, no IntersectionObserver, or a hydration
+             failure all land on the same safe outcome: the finished state.
+             DO NOT move opacity:0 back onto .anim. */
+          .anim{opacity:1;transform:none}
+          .anim.is-armed{opacity:0;transform:translateY(30px);transition:all .7s cubic-bezier(.16,1,.3,1)}
+          .anim.is-armed.show{opacity:1;transform:translateY(0)}
           
           /* Hero Section */
           .hero{padding:140px 24px 80px;max-width:1300px;margin:0 auto}
@@ -1048,7 +1117,15 @@ response = requests.post(
              outright and every property below is the one that renders. Note the lime
              was always correct: the #d1f470 here is what shipped. What changed is the
              shadow and the height around it. */
-          .pp-tab{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;font-family:inherit;padding:10px 20px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:rgba(255,255,255,.54);background:transparent;box-shadow:none;cursor:pointer;transition:all .2s}
+          /* min-height:44px IS THE WCAG 2.5.8 TARGET FLOOR, and it was missed by 0.7px.
+             10px of padding either side of a 15px/normal line box measured 43.3px tall in
+             a browser - so all three of these tabs, which are the ONLY interactive
+             controls inside this page's <main>, sat just under the 44px minimum.
+             min-height rather than more padding: the element is already an inline-flex
+             with centred content, so the box grows without moving the label, and the
+             mobile breakpoints below (which raise padding to 14px and 12px) were already
+             past 44px and are left untouched. */
+          .pp-tab{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;font-family:inherit;padding:10px 20px;min-height:44px;border:none;border-radius:8px;font-size:15px;font-weight:600;color:rgba(255,255,255,.54);background:transparent;box-shadow:none;cursor:pointer;transition:all .2s}
           /* Text-only hover: idle .54 white lifting to full white. The active tab
              already owns the filled-lime state, so a second fill competes with it. */
           .pp-tab:hover{color:#fff;background:transparent}
@@ -1306,7 +1383,10 @@ response = requests.post(
           
           /* ========== REDUCED MOTION ========== */
           @media(prefers-reduced-motion:reduce){
-            .anim{transition:none}
+            /* Both selectors, because the reveal transition moved onto .anim.is-armed when
+               the base state became the finished one. Matching .anim alone would leave the
+               armed sections still transitioning under reduced motion. */
+            .anim,.anim.is-armed{transition:none}
             .typing-indicator span{animation:none}
             .pill{transition:none}
           }
@@ -1354,7 +1434,11 @@ response = requests.post(
           .pp-strip-icon{width:44px;height:44px;flex:0 0 auto;box-sizing:border-box;padding:10px;border-radius:50%;background:rgba(209,244,112,.22);display:flex;align-items:center;justify-content:center}
           .pp-strip-icon img{width:100%;height:100%;object-fit:contain;display:block}
           .pp-strip-text{display:flex;flex-direction:column;gap:5px;min-width:0}
-          .pp-strip-title{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000}
+          /* margin:0 is load-bearing now that this is an h3 rather than a span. Without it
+             the UA stylesheet's h3 margin (1em top and bottom) would open ~22px above and
+             below every card title and push the strip's height out. The rung values are
+             unchanged - promoting the tag was a semantics fix, not a design change. */
+          .pp-strip-title{font-size:22px;font-weight:700;line-height:1.27;letter-spacing:-.25px;color:#000;margin:0}
           .pp-strip-sub{font-size:14px;font-weight:400;line-height:1.4;color:rgba(0,0,0,.54)}
           @media(max-width:1024px){
             .pp-strip-grid{grid-template-columns:repeat(2,1fr);gap:26px 20px}
