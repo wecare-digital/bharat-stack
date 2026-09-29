@@ -297,6 +297,7 @@ export const settingsConfig: SettingsGroup[] = [
       { path: '/workspace/seo/sitemaps', label: 'Sitemaps' },
       { path: '/workspace/seo/tools', label: 'Tools' },
       { path: '/workspace/seo/blog-manager', label: 'Blog SEO' },
+      { path: '/workspace/seo/blog-studio', label: 'Blog Studio' },
       { path: '/workspace/seo/pages-manager', label: 'Site Pages SEO' },
     ],
   },

@@ -132,3 +132,10 @@ next-env.d.ts
 # docs/execution/aws-inventory.{json,md} is committed; a single-collector run is
 # a local debugging artifact where every other family reads null.
 docs/execution/aws-inventory.partial.*
+# Blog ingestion working files. NOT a size decision — these hold verbatim extracted
+# text from third-party PDFs and pages, so committing them puts someone else's book
+# into our git history permanently. `content/conversations/ledger.json` keeps the
+# source SHA-256, so provenance survives without retaining the text. The finished Anew
+# articles in content/conversations/batches/ ARE committed; they are ours.
+content/conversations/extracts/
+content/conversations/drafts/
