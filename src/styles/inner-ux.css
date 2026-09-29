@@ -123,12 +123,37 @@
     animation: none;
   }
 
-  .toast {
-    animation: none;
+  /* THE TOAST KEEPS AN ANIMATION HERE, AND THAT IS NOT A CONTRADICTION.
+     These two rules were `animation: none`, which looks like the right way to honour a reduced
+     motion preference and would have broken the toast outright: removal is driven by the
+     `animationend` event now (see src/components/Toast.tsx), and an element with no animation
+     never fires one. A reduced-motion reader's toasts would have stacked up in the corner
+     forever.
+     0.01ms is the standard reduced-motion reset for exactly this reason - the animation still
+     starts and ends, so anything listening still hears it, but nothing visibly moves. The
+     duration is the only thing suppressed; the toast's own hold time is a JS timer and is
+     untouched, because "reduce motion" means do not animate, not do not wait. */
+  .toast,
+  .toast-exit {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
   }
 
-  .toast-exit {
-    animation: none;
+  /* SMOOTH SCROLLING OFF, EVERYWHERE, IN ONE PLACE.
+     The message views declare `scroll-behavior: smooth` on their own scroll boxes and call
+     scrollIntoView WITHOUT a behavior argument, so the stylesheet is what decides whether a
+     scroll animates - see src/lib/scroll-to-end.ts. That is the whole reason the motion moved
+     out of the scripts: a hardcoded behavior:'smooth' cannot see this media query, and there
+     were five such calls across four files.
+     The universal selector and !important are both deliberate. One of those containers is
+     styled inline (InternalChatTab), and an inline declaration beats a stylesheet unless the
+     stylesheet says !important - so without it that one box would keep animating for a reader
+     who asked it not to. Applying it to everything also means a scroll container added later is
+     covered without anyone remembering this block exists. */
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
   }
 
   .shortcuts-overlay {
