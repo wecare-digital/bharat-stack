@@ -1,8 +1,9 @@
 {
-  "completed_through": 454,
-  "next_id": 455,
+  "completed_through": 340,
+  "next_id": null,
   "max_manifest_posts": 150,
   "live_verified_posts": 454,
-  "last_manifest": "GAST-341-GAST-454",
+  "sequence_reconciled": false,
+  "unmapped_live_posts": 114,
   "quality_version": 2
 }
