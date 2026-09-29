@@ -133,13 +133,38 @@ describe( 'Brand assets', () => {
     }
   } );
 
-  it( 'uses the 16:9 card for link previews, because the card type is summary_large_image', () => {
-    expect( APP ).toContain( 'name="twitter:card" content="summary_large_image"' );
-    expect( APP ).toContain( `const SOCIAL_CARD_URL = \`\${MEDIA_BASE}/${SOCIAL_CARD}\`` );
+  /**
+   * THE SHARE IMAGE AND THE CARD TYPE MUST AGREE ABOUT SHAPE. This test used to require the 16:9
+   * card and summary_large_image together; it now requires the square icon and "summary" together.
+   * What it is really guarding is unchanged, and it is the pairing rather than either value: a 1:1
+   * image in a large-card slot is centre-cropped, which is what once cut the top and bottom off
+   * this mark.
+   *
+   * WHY THE ASSET CHANGED, recorded here because the reversal looks like a regression otherwise.
+   * wd-brand-16x9.png is the better-looking preview and it is 801,077 bytes - against the 600 KB
+   * Meta's WhatsApp link-preview documentation allows, with the practical limit nearer 300 KB
+   * because WhatsApp drops an oversized image silently. It was therefore not rendering at all on
+   * the platform that matters most to this business, and fixing that needs an S3 upload rather
+   * than a code change. wecare-digital.png is already live at 86,123 bytes, 1080px wide against a
+   * 300px minimum and 1:1 against a 4:1 ceiling. The cost is a compact thumbnail instead of a
+   * wide branded banner, and the loss of the tagline the designed card carried.
+   *
+   * A 273 KB re-export of the wide card is committed at docs/brand/wd-brand-16x9.png. If it is
+   * ever uploaded and wanted back, all three of these move together: SOCIAL_CARD_URL,
+   * SHARE_CARD_TYPE and the width/height pair below.
+   */
+  it( 'pairs the square icon with the summary card, so nothing is centre-cropped', () => {
+    expect( APP ).toContain( 'name="twitter:card" content="summary"' );
+    expect( APP ).not.toContain( 'content="summary_large_image"' );
+    // The share image IS the opaque square, aliased rather than restated so the two cannot drift.
+    expect( APP ).toContain( 'const SOCIAL_CARD_URL = LOGO_URL;' );
     // Both og and twitter point at it, and nothing else does.
     expect( APP ).toContain( 'property="og:image" key="og:image" content={ SOCIAL_CARD_URL }' );
     expect( APP ).toContain( 'name="twitter:image" content={ SOCIAL_CARD_URL }' );
-    expect( SEO ).toContain( `${MEDIA_BASE}/${SOCIAL_CARD}` );
+    expect( SEO ).toContain( `${MEDIA_BASE}/${OPAQUE_SQUARE}` );
+    // The wide card is no longer referenced by any shipping surface.
+    expect( stripComments( SEO ) ).not.toContain( SOCIAL_CARD );
+    expect( APP_CODE ).not.toContain( SOCIAL_CARD );
   } );
 
   it( 'declares the social card at its real pixel size, not a remembered one', () => {
@@ -148,24 +173,23 @@ describe( 'Brand assets', () => {
      * before fetching, so a wrong value is worse than an absent one - and being wrong by a
      * factor of two went unnoticed for as long as nobody compared it to the object.
      *
-     * NOW 1200x675, DOWN FROM 1440x810. The asset was re-exported because it weighed 801,077
-     * bytes against the 600 KB ceiling Meta documents for a WhatsApp link preview, which meant
-     * WhatsApp was silently dropping the card sitewide. The artwork is NOT cropped - it is a
-     * straight downscale, so the aspect ratio is identical and the 16x9 in the filename is still
-     * accurate. See docs/brand/README.md.
-     *
-     * ShareMeta.test.tsx is what ties these strings to the actual file: it reads the IHDR of the
-     * committed replacement and fails if the declaration and the pixels disagree. This test
-     * checks the declaration exists and is used; that one checks it is TRUE.
+     * NOW 1080x1080, because the share image is the square icon rather than the wide card - see
+     * the test above for why that changed. The numbers are the real pixels of
+     * wecare-digital.png, measured from the live object.
      */
-    expect( APP ).toContain( "const SOCIAL_CARD_W = '1200'" );
-    expect( APP ).toContain( "const SOCIAL_CARD_H = '675'" );
+    expect( APP ).toContain( "const SOCIAL_CARD_W = '1080'" );
+    expect( APP ).toContain( "const SOCIAL_CARD_H = '1080'" );
     expect( APP ).toContain( 'content={ SOCIAL_CARD_W }' );
     expect( APP ).toContain( 'content={ SOCIAL_CARD_H }' );
-    // And the ratio stays inside the 2:1..1:1 band the platforms accept.
-    const ratio = 1200 / 675;
-    expect( ratio ).toBeGreaterThan( 1 );
-    expect( ratio ).toBeLessThan( 2 );
+    /*
+     * 1:1 IS THE POINT NOW, not a compromise. The old assertion required the ratio to sit strictly
+     * inside the 2:1..1:1 band because the image was feeding a large card, which crops. A square
+     * feeding a "summary" card is framed rather than cropped, so exactly 1 is correct here - and
+     * the ceiling that still matters is WhatsApp's 4:1, which this is nowhere near.
+     */
+    const ratio = 1080 / 1080;
+    expect( ratio ).toBe( 1 );
+    expect( ratio ).toBeLessThanOrEqual( 4 );
   } );
 
   it( 'keeps the square opaque logo for icons and structured data', () => {
