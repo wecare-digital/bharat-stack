@@ -217,8 +217,35 @@ const BlogIndexView: React.FC<BlogIndexViewProps> = ( {
       ? searchable.filter( post => post.category === activeCategory )
       : searchable;
     const q = query.trim().toLowerCase();
+    /*
+     * TAGS ARE MATCHED AS WELL AS TITLE AND EXCERPT, and they are the reason a lot of reasonable
+     * searches used to come back empty. Every post in the corpus is tagged, and the tags hold the
+     * words a reader is most likely to type: "Beverages", "Herbal Tea", "Chai" and "Lemongrass" are
+     * tags on posts whose title and excerpt contain none of those strings. Searching any of them
+     * returned nothing, which reads as a broken box rather than an honest miss.
+     *
+     * THE FIELDS ARE JOINED WITH A NEWLINE, NOT A SPACE, AND THAT IS A MEASURED CORRECTION.
+     * The first version of this used a space, on the assumption that a query still had to appear
+     * inside one field. It does not: joining "Herbal Tea" and "Spices" with a space produces
+     * "Herbal Tea Spices", which contains "tea spices" - a phrase no post has, made only of the end
+     * of one tag and the start of the next. The test in BlogDesign.test.tsx caught it.
+     *
+     * A newline cannot appear in a typed query, so it is a boundary a search term cannot cross.
+     * Spaces inside a single field still match normally, so "herbal tea" is found. That also
+     * removes the same false positive between title and excerpt, which was there before tags were
+     * involved: "yogi warmth" used to match a post titled "...Yogi" whose excerpt began "Warmth...".
+     * Every hit is now a hit inside one field, which is the only kind a reader means.
+     *
+     * One join and one includes() rather than a check per field: same answer, one pass, and the
+     * boundary rule is expressed in the data instead of in control flow.
+     *
+     * NOT CATEGORY, deliberately. Search is already scoped to the active category a few lines
+     * above, so matching the category name inside its own stream would make every post in it a hit
+     * for its own name.
+     */
     return inCategory.filter( post => (
-      `${post.title} ${post.excerpt || ''}`.toLowerCase().includes( q )
+      [ post.title, post.excerpt || '', ...( post.tags || [] ) ]
+        .join( '\n' ).toLowerCase().includes( q )
     ) );
   }, [ posts, searchable, activeCategory, query, filtering ] );
 

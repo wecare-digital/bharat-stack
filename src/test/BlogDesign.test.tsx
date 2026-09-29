@@ -470,19 +470,101 @@ describe( 'Blog pagination', () => {
     expect( screen.getByRole( 'heading', { name: 'Post number 1' } ) ).toBeInTheDocument();
   } );
 
-  it( 'projects a post down to the fields a card renders, and drops the 357 kB it does not', () => {
+  /**
+   * SEARCH MATCHES TAGS, AND THIS IS THE CASE IT EXISTS FOR.
+   *
+   * The fixture is built so the query appears in NEITHER the title NOR the excerpt - only in the
+   * tags. Before tags were matched, every one of these searches returned "No posts match that
+   * search" against a corpus full of them, which reads as a broken box rather than an honest miss.
+   * Tagging is universal on this corpus, and the tags hold exactly the words a reader types.
+   */
+  it( 'finds a post by a tag that appears nowhere in its title or excerpt', async () => {
+    const tagged: BlogCard[] = [
+      {
+        slug: 'daikon-tea', title: 'Daikon Tea', excerpt: 'A quiet cup at the end of a long day.',
+        category: 'Conversations', tags: [ 'Herbal Tea', 'Beverages' ],
+      },
+      {
+        slug: 'a-clear-question', title: 'A Clear Question', excerpt: 'On asking better.',
+        category: 'Conversations', tags: [ 'Practice' ],
+      },
+    ];
+    mockSearchIndex( tagged );
+    render( <BlogIndex { ...propsFor( {
+      posts: tagged, totalPosts: 2, categories: [ 'Conversations' ], categoryCounts: { Conversations: 2 },
+    } ) } /> );
+
+    // "beverages" is a tag on the first post and appears in no visible text on either.
+    fireEvent.change( screen.getByLabelText( 'Search the blog' ), { target: { value: 'beverages' } } );
+
+    await waitFor( () => {
+      expect( screen.getByRole( 'heading', { name: 'Daikon Tea' } ) ).toBeInTheDocument();
+    } );
+    // And it is a filter, not a pass-through: the untagged-for-this-term post is gone.
+    expect( screen.queryByRole( 'heading', { name: 'A Clear Question' } ) ).toBeNull();
+  } );
+
+  /**
+   * A QUERY MUST NOT MATCH ACROSS THE GAP BETWEEN TWO FIELDS, and this test earned its place by
+   * failing.
+   *
+   * The fields were first joined with a space, on the assumption that a match would still have to
+   * fall inside one of them. That is not what a space does: "Herbal Tea" and "Spices" joined by one
+   * become "Herbal Tea Spices", which contains "tea spices" - a phrase no post has, composed of the
+   * end of one tag and the start of the next. This case caught it, and the join is a newline now,
+   * which a typed query cannot contain.
+   *
+   * The same false positive existed between title and excerpt long before tags did, so fixing the
+   * separator fixed both.
+   */
+  it( 'does not let a query match across the gap between two tags', async () => {
+    const tagged: BlogCard[] = [ {
+      slug: 'yogi-tea', title: 'Tea Fit for a Yogi', excerpt: 'Warmth without weight.',
+      category: 'Conversations', tags: [ 'Herbal Tea', 'Spices' ],
+    } ];
+    mockSearchIndex( tagged );
+    render( <BlogIndex { ...propsFor( {
+      posts: tagged, totalPosts: 1, categories: [ 'Conversations' ], categoryCounts: { Conversations: 1 },
+    } ) } /> );
+
+    const box = screen.getByLabelText( 'Search the blog' );
+
+    // Each tag on its own is found.
+    fireEvent.change( box, { target: { value: 'spices' } } );
+    await waitFor( () => {
+      expect( screen.getByRole( 'heading', { name: 'Tea Fit for a Yogi' } ) ).toBeInTheDocument();
+    } );
+
+    // The seam between them is not.
+    fireEvent.change( box, { target: { value: 'tea spices' } } );
+    await waitFor( () => {
+      expect( screen.queryByRole( 'heading', { name: 'Tea Fit for a Yogi' } ) ).toBeNull();
+    } );
+  } );
+
+  it( 'projects a post down to what a card renders or search matches, and drops the rest', () => {
     const card = toBlogCard( samplePost ) as unknown as Record<string, unknown>;
 
-    // Kept: everything the card prints, plus coverImage when present.
+    /*
+     * `tags` IS IN THIS LIST NOW, and it is the only field here that is carried for SEARCH rather
+     * than for rendering - nothing prints it. It was dropped originally on the grounds that no card
+     * renders it, which was true and still is; what that missed is that search matches more than
+     * what is visible. Every post carries tags and they hold the words readers type, so leaving
+     * them out made "Beverages" or "Chai" return nothing on a corpus full of both.
+     */
     expect( Object.keys( card ).sort() ).toEqual(
-      [ 'authorName', 'category', 'excerpt', 'publishedDate', 'slug', 'title' ]
+      [ 'authorName', 'category', 'excerpt', 'publishedDate', 'slug', 'tags', 'title' ]
     );
 
     // Dropped: the post page's head fields and the crawler hints. These were 357 kB of the
     // 842 kB payload across 834 posts, and no listing card ever rendered one of them.
-    for ( const field of [ 'metaDescription', 'seoTitle', 'robots', 'tags', 'modifiedDate', 'url', 'id', 'richContent' ] ) {
+    for ( const field of [ 'metaDescription', 'seoTitle', 'robots', 'modifiedDate', 'url', 'id', 'richContent' ] ) {
       expect( card ).not.toHaveProperty( field );
     }
+
+    // An empty tag array is not carried: it would be bytes on every record for nothing.
+    const untagged = toBlogCard( { ...samplePost, tags: [] } ) as unknown as Record<string, unknown>;
+    expect( untagged ).not.toHaveProperty( 'tags' );
   } );
 
   it( 'never reports zero pages, so an empty blog still has a /blog/', () => {

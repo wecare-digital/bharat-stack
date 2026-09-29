@@ -72,7 +72,15 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://wecare.digital/api
  * Kept as a named constant beside the endpoint so the two cannot drift: if a field is
  * added to the card shape below, it has to be added here or it arrives undefined.
  */
-const FIELDS = [ 'slug', 'title', 'excerpt', 'category', 'publishedDate' ];
+/*
+ * `tags` IS REQUESTED FOR SEARCH, NOT FOR DISPLAY, and it is the reason this list grew.
+ * Every post in the corpus carries tags, and they hold words a reader types that appear nowhere in
+ * the title or the excerpt - "Beverages", "Herbal Tea", "Chai", "Lemongrass" are all tags on posts
+ * whose visible text contains none of them, so those searches returned nothing at all.
+ * Measured over 1064 posts: the written index goes from 350.0 kB to 391.4 kB. It is fetched lazily,
+ * only after a reader types, so nobody who does not search pays for it.
+ */
+const FIELDS = [ 'slug', 'title', 'excerpt', 'category', 'publishedDate', 'tags' ];
 const ENDPOINT = `${API_BASE}/seo-tools/blog-public?fields=${FIELDS.join( ',' )}`;
 
 /** Same sort as lib/public-blog.ts listBlogCards: newest first, undated last, then by slug. */
@@ -108,6 +116,10 @@ async function main () {
       const card = { slug: post.slug, title: post.title };
       if ( post.excerpt ) card.excerpt = post.excerpt;
       if ( post.category ) card.category = post.category;
+      // Length-guarded, matching toBlogCard in lib/public-blog.ts: an empty array is bytes on
+      // every record for nothing. The two projections have to agree, or a tag search behaves one
+      // way on the page's own cards and another way once the index arrives.
+      if ( Array.isArray( post.tags ) && post.tags.length ) card.tags = post.tags;
       return card;
     } );
 
